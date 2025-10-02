@@ -8,6 +8,7 @@ use super::{
 };
 use crate::{
   dev::Options as DevOptions,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -18,11 +19,10 @@ use crate::{
     use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
     TargetDevice,
   },
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use cargo_mobile2::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
@@ -146,7 +146,10 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).context("failed to read certificate file")?,
+      std::fs::read_to_string(root_certificate_path).fs_context(
+        "failed to read certificate file",
+        root_certificate_path.clone(),
+      )?,
     );
   }
 
@@ -159,7 +162,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .collect::<Vec<_>>(),
   )?;
 
-  let env = env()?;
+  let env = env(false)?;
   let device = if options.open {
     None
   } else {
@@ -196,7 +199,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
@@ -278,23 +281,26 @@ fn run_dev(
     .unwrap_or_else(|| Target::all().values().next().unwrap());
   if !installed_targets.contains(&target.triple().into()) {
     log::info!("Installing target {}", target.triple());
-    target
-      .install()
-      .context("failed to install target with rustup")?;
+    target.install().map_err(|error| Error::CommandFailed {
+      command: "rustup target add".to_string(),
+      error,
+    })?;
   }
 
-  target.build(
-    config,
-    metadata,
-    &env,
-    noise_level,
-    true,
-    if options.release_mode {
-      Profile::Release
-    } else {
-      Profile::Debug
-    },
-  )?;
+  target
+    .build(
+      config,
+      metadata,
+      &env,
+      noise_level,
+      true,
+      if options.release_mode {
+        Profile::Release
+      } else {
+        Profile::Debug
+      },
+    )
+    .context("failed to build Android app")?;
 
   let open = options.open;
   interface.mobile_dev(
@@ -373,5 +379,5 @@ fn run(
       ".MainActivity".into(),
     )
     .map(DevChild::new)
-    .map_err(Into::into)
+    .context("failed to run Android app")
 }

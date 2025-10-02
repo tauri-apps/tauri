@@ -2,20 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Result;
+use crate::{error::ErrorExt, Error};
 use std::path::Path;
 
-pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
+pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<()> {
   let from = from.as_ref();
   let to = to.as_ref();
   if !from.exists() {
-    return Err(anyhow::anyhow!("{:?} does not exist", from));
+    Err(Error::Fs {
+      context: "failed to copy file",
+      path: from.to_path_buf(),
+      error: std::io::Error::new(std::io::ErrorKind::NotFound, "source does not exist"),
+    })?;
   }
   if !from.is_file() {
-    return Err(anyhow::anyhow!("{:?} is not a file", from));
+    Err(Error::Fs {
+      context: "failed to copy file",
+      path: from.to_path_buf(),
+      error: std::io::Error::other("not a file"),
+    })?;
   }
   let dest_dir = to.parent().expect("No data in parent");
-  std::fs::create_dir_all(dest_dir)?;
-  std::fs::copy(from, to)?;
+  std::fs::create_dir_all(dest_dir)
+    .fs_context("failed to create directory", dest_dir.to_path_buf())?;
+  std::fs::copy(from, to).fs_context("failed to copy file", from.to_path_buf())?;
   Ok(())
 }

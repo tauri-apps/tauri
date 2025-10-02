@@ -420,17 +420,24 @@ mod windows {
     let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
     let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
-    let hrgn1 = CreateRectRgn(0, 0, width, height);
+    // hrgn1 must be mutable to call .free() later
+    let mut hrgn1 = CreateRectRgn(0, 0, width, height);
 
     let x1 = if only_top { 0 } else { border_x };
     let y1 = border_y;
     let x2 = if only_top { width } else { width - border_x };
     let y2 = if only_top { height } else { height - border_y };
-    let hrgn2 = CreateRectRgn(x1, y1, x2, y2);
 
-    CombineRgn(Some(hrgn1), Some(hrgn1), Some(hrgn2), RGN_DIFF);
+    // Wrap hrgn2 in Owned so it is automatically freed when going out of scope
+    let hrgn2 = Owned::new(CreateRectRgn(x1, y1, x2, y2));
 
-    SetWindowRgn(hwnd, Some(hrgn1), true);
+    CombineRgn(Some(hrgn1), Some(hrgn1), Some(*hrgn2), RGN_DIFF);
+
+    // Try to set the window region
+    if SetWindowRgn(hwnd, Some(hrgn1), true) == 0 {
+      // If it fails, we must free hrgn1 manually
+      hrgn1.free();
+    }
   }
 
   pub fn update_drag_hwnd_rgn_for_undecorated(hwnd: isize, has_undecorated_shadows: bool) {

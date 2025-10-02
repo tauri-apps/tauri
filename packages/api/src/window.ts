@@ -2094,6 +2094,29 @@ enum BackgroundThrottlingPolicy {
 }
 
 /**
+ * The scrollbar style to use in the webview.
+ *
+ * ## Platform-specific
+ *
+ * **Windows**: This option must be given the same value for all webviews.
+ *
+ * @since 2.8.0
+ */
+enum ScrollBarStyle {
+  /**
+   * The default scrollbar style for the webview.
+   */
+  Default = 'default',
+  /**
+   * Fluent UI style overlay scrollbars. **Windows Only**
+   *
+   * Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
+   * see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+   */
+  FluentOverlay = 'fluentOverlay'
+}
+
+/**
  * Platform-specific window effects
  *
  * @since 2.0.0
@@ -2473,6 +2496,21 @@ interface WindowOptions {
    * It usually displays a view with "Done", "Next" buttons.
    */
   disableInputAccessoryView?: boolean
+  /**
+   * Specifies the native scrollbar style to use with the webview.
+   * CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+   *
+   * Defaults to `default`, which is the browser default.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows**:
+   *   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher, and does nothing
+   *     on older versions.
+   *   - This option must be given the same value for all webviews.
+   * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+   */
+  scrollBarStyle?: ScrollBarStyle
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
@@ -2600,5 +2638,6 @@ export type {
   WindowOptions,
   Color,
   BackgroundThrottlingPolicy,
-  DragDropEvent
+  DragDropEvent,
+  ScrollBarStyle
 }

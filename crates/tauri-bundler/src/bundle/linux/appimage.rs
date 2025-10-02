@@ -6,10 +6,10 @@
 use super::debian;
 use crate::{
   bundle::settings::Arch,
+  error::{Context, ErrorExt},
   utils::{fs_utils, http_utils::download, CommandExt},
   Settings,
 };
-use anyhow::Context;
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -124,13 +124,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // xdg-open will be handled by the `files` config instead
   if settings.deep_link_protocols().is_some() && !app_dir_usr_bin.join("xdg-open").exists() {
     fs::copy("/usr/bin/xdg-mime", app_dir_usr_bin.join("xdg-mime"))
-      .context("xdg-mime binary not found")?;
+      .fs_context("xdg-mime binary not found", "/usr/bin/xdg-mime".to_string())?;
   }
 
   // we also check if the user may have provided their own copy already
   if settings.appimage().bundle_xdg_open && !app_dir_usr_bin.join("xdg-open").exists() {
     fs::copy("/usr/bin/xdg-open", app_dir_usr_bin.join("xdg-open"))
-      .context("xdg-open binary not found")?;
+      .fs_context("xdg-open binary not found", "/usr/bin/xdg-open".to_string())?;
   }
 
   let search_dirs = [

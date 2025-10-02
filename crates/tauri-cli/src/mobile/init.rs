@@ -9,7 +9,6 @@ use crate::{
   ConfigValue, Result,
 };
 use cargo_mobile2::{
-  android::env::Env as AndroidEnv,
   config::app::App,
   reserved_names::KOTLIN_ONLY_KEYWORDS,
   util::{
@@ -39,8 +38,7 @@ pub fn command(
     reinstall_deps,
     skip_targets_install,
     config,
-  )
-  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  )?;
   Ok(())
 }
 
@@ -125,33 +123,20 @@ pub fn exec(
 
   let app = match target {
     // Generate Android Studio project
-    Target::Android => match AndroidEnv::new() {
-      Ok(_env) => {
-        let (config, metadata) =
-          super::android::get_config(&app, tauri_config_, None, &Default::default());
-        map.insert("android", &config);
-        super::android::project::gen(
-          &config,
-          &metadata,
-          (handlebars, map),
-          wrapper,
-          skip_targets_install,
-        )?;
-        app
-      }
-      Err(err) => {
-        if err.sdk_or_ndk_issue() {
-          Report::action_request(
-            " to initialize Android environment; Android support won't be usable until you fix the issue below and re-run `tauri android init`!",
-            err,
-          )
-          .print(wrapper);
-          app
-        } else {
-          return Err(err.into());
-        }
-      }
-    },
+    Target::Android => {
+      let _env = super::android::env(non_interactive)?;
+      let (config, metadata) =
+        super::android::get_config(&app, tauri_config_, None, &Default::default());
+      map.insert("android", &config);
+      super::android::project::gen(
+        &config,
+        &metadata,
+        (handlebars, map),
+        wrapper,
+        skip_targets_install,
+      )?;
+      app
+    }
     #[cfg(target_os = "macos")]
     // Generate Xcode project
     Target::Ios => {
@@ -327,7 +312,7 @@ fn escape_kotlin_keyword(
   out.write(&escaped_result).map_err(Into::into)
 }
 
-fn app_root(ctx: &Context) -> Result<&str, RenderError> {
+fn app_root(ctx: &Context) -> std::result::Result<&str, RenderError> {
   let app_root = ctx
     .data()
     .get("app")

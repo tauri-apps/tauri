@@ -9,6 +9,7 @@ pub mod config;
 pub mod flock;
 pub mod framework;
 pub mod fs;
+pub mod http;
 pub mod npm;
 #[cfg(target_os = "macos")]
 pub mod pbxproj;
@@ -23,9 +24,10 @@ use std::{
   process::Command,
 };
 
-use anyhow::Context;
 use tauri_utils::config::HookCommand;
 
+#[cfg(not(target_os = "windows"))]
+use crate::Error;
 use crate::{
   interface::{AppInterface, Interface},
   CommandExt,
@@ -97,7 +99,10 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
-      .with_context(|| format!("failed to run `{script}` with `cmd /C`"))?;
+      .map_err(|error| crate::error::Error::CommandFailed {
+        command: script.clone(),
+        error,
+      })?;
     #[cfg(not(target_os = "windows"))]
     let status = Command::new("sh")
       .arg("-c")
@@ -105,10 +110,13 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
-      .with_context(|| format!("failed to run `{script}` with `sh -c`"))?;
+      .map_err(|error| Error::CommandFailed {
+        command: script.clone(),
+        error,
+      })?;
 
     if !status.success() {
-      anyhow::bail!(
+      crate::error::bail!(
         "{} `{}` failed with exit code {}",
         name,
         script,
@@ -122,6 +130,7 @@ pub fn run_hook(
 
 #[cfg(target_os = "macos")]
 pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Result<()> {
+  use crate::error::Context;
   if !version.pre.is_empty() {
     if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
       version.pre = semver::Prerelease::EMPTY;
@@ -133,7 +142,11 @@ pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Resu
           format!(".{}", version.build.as_str())
         }
       ))
-      .with_context(|| format!("bundle version {number:?} prerelease is invalid"))?;
+      .with_context(|| {
+        format!(
+          "failed to parse {version} as semver: bundle version {number:?} prerelease is invalid"
+        )
+      })?;
     }
   }
 

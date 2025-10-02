@@ -12,6 +12,7 @@ use std::path::PathBuf;
 
 use super::{configure_cargo, device_prompt, env};
 use crate::{
+  error::Context,
   interface::{DevProcess, Interface, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
@@ -62,7 +63,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  let mut env = env()?;
+  let mut env = env(false)?;
 
   let device = if options.open {
     None
@@ -131,7 +132,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
           ".MainActivity".into(),
         )
         .map(|c| Box::new(DevChild::new(c)) as Box<dyn DevProcess + Send>)
-        .map_err(Into::into)
+        .context("failed to run Android app")
     };
 
     if options.no_watch {

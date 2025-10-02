@@ -9,6 +9,7 @@ use clap::{ArgAction, Parser};
 
 use super::{device_prompt, env};
 use crate::{
+  error::Context,
   interface::{DevProcess, Interface, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
@@ -59,7 +60,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  let env = env()?;
+  let env = env().context("failed to load iOS environment")?;
   let device = if options.open {
     None
   } else {
@@ -109,7 +110,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
           },
         )
         .map(|c| Box::new(DevChild::new(c)) as Box<dyn DevProcess + Send>)
-        .map_err(Into::into)
+        .context("failed to run iOS app")
     };
 
     if options.no_watch {

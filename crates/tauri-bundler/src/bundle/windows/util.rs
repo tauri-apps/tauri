@@ -27,17 +27,14 @@ pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
   let response = agent.head(url).call().map_err(Box::new)?;
   let final_url = response.get_uri().to_string();
   let remaining_url = final_url.strip_prefix(WEBVIEW2_URL_PREFIX).ok_or_else(|| {
-    anyhow::anyhow!(
-      "WebView2 URL prefix mismatch. Expected `{}`, found `{}`.",
-      WEBVIEW2_URL_PREFIX,
-      final_url
-    )
+    crate::Error::GenericError(format!(
+      "WebView2 URL prefix mismatch. Expected `{WEBVIEW2_URL_PREFIX}`, found `{final_url}`."
+    ))
   })?;
   let (guid, filename) = remaining_url.split_once('/').ok_or_else(|| {
-    anyhow::anyhow!(
-      "WebView2 URL format mismatch. Expected `<GUID>/<FILENAME>`, found `{}`.",
-      remaining_url
-    )
+    crate::Error::GenericError(format!(
+      "WebView2 URL format mismatch. Expected `<GUID>/<FILENAME>`, found `{remaining_url}`."
+    ))
   })?;
   Ok((guid.into(), filename.into()))
 }

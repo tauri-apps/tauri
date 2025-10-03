@@ -9,6 +9,7 @@ use super::{
 };
 use crate::{
   build::Options as BuildOptions,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -16,11 +17,10 @@ use crate::{
   },
   interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions},
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser, ValueEnum};
 
-use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::Config as AppleConfig,
@@ -126,7 +126,7 @@ impl std::fmt::Display for ExportMethod {
 impl std::str::FromStr for ExportMethod {
   type Err = &'static str;
 
-  fn from_str(s: &str) -> Result<Self, Self::Err> {
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
     match s {
       "app-store-connect" => Ok(Self::AppStoreConnect),
       "release-testing" => Ok(Self::ReleaseTesting),
@@ -195,7 +195,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).context("failed to set current directory")?;
 
   ensure_init(
     &tauri_config,
@@ -221,9 +221,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_path.join("Info.ios.plist").into(),
     plist::Value::Dictionary(plist).into(),
   ])?;
-  merged_info_plist.to_file_xml(&info_plist_path)?;
+  merged_info_plist
+    .to_file_xml(&info_plist_path)
+    .map_err(std::io::Error::other)
+    .fs_context("failed to save merged Info.plist file", info_plist_path)?;
 
-  let mut env = env()?;
+  let mut env = env().context("failed to load iOS environment")?;
 
   if !options.open {
     ensure_ios_runtime_installed()?;
@@ -240,10 +243,10 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let minor = iter.next().context(format!(
       "failed to parse Xcode version `{xcode_version}` as semver"
     ))?;
-    let major = major.parse::<u64>().context(format!(
+    let major = major.parse::<u64>().ok().context(format!(
       "failed to parse Xcode version `{xcode_version}` as semver: major is not a number"
     ))?;
-    let minor = minor.parse::<u64>().context(format!(
+    let minor = minor.parse::<u64>().ok().context(format!(
       "failed to parse Xcode version `{xcode_version}` as semver: minor is not a number"
     ))?;
 
@@ -268,20 +271,29 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     options.debug,
   )?;
   if pbxproj.has_changes() {
-    pbxproj.save()?;
+    pbxproj
+      .save()
+      .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
   // merge export options and write to temp file
   let _export_options_tmp = if !export_options_plist.is_empty() {
     let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
-    let export_options = tempfile::NamedTempFile::new()?;
+    let export_options =
+      tempfile::NamedTempFile::new().context("failed to create temporary file")?;
 
     let merged_plist = merge_plist(vec![
       export_options.path().to_owned().into(),
       export_options_plist_path.clone().into(),
       plist::Value::from(export_options_plist).into(),
     ])?;
-    merged_plist.to_file_xml(export_options.path())?;
+    merged_plist
+      .to_file_xml(export_options.path())
+      .map_err(std::io::Error::other)
+      .fs_context(
+        "failed to save export options plist file",
+        export_options.path().to_path_buf(),
+      )?;
 
     config.set_export_options_plist_path(export_options.path());
 
@@ -373,26 +385,31 @@ fn run_build(
           .skip_codesign();
       }
 
-      target.build(None, config, env, noise_level, profile, build_config)?;
+      target
+        .build(None, config, env, noise_level, profile, build_config)
+        .context("failed to build iOS app")?;
 
       let mut archive_config = ArchiveConfig::new();
       if skip_signing {
         archive_config = archive_config.skip_codesign();
       }
 
-      target.archive(
-        config,
-        env,
-        noise_level,
-        profile,
-        Some(app_version),
-        archive_config,
-      )?;
+      target
+        .archive(
+          config,
+          env,
+          noise_level,
+          profile,
+          Some(app_version),
+          archive_config,
+        )
+        .context("failed to archive iOS app")?;
 
       let out_dir = config.export_dir().join(target.arch);
 
       if target.sdk == "iphonesimulator" {
-        fs::create_dir_all(&out_dir)?;
+        fs::create_dir_all(&out_dir)
+          .fs_context("failed to create Xcode output directory", out_dir.clone())?;
 
         let app_path = config
           .archive_dir()
@@ -403,7 +420,7 @@ fn run_build(
           .with_extension("app");
 
         let path = out_dir.join(app_path.file_name().unwrap());
-        fs::rename(&app_path, &path)?;
+        fs::rename(&app_path, &path).fs_context("failed to rename app", app_path)?;
         out_files.push(path);
       } else {
         // if we skipped code signing, we do not have the entitlements applied to our exported IPA
@@ -421,12 +438,15 @@ fn run_build(
               validity_days: 365,
               password: password.clone(),
             },
-          )?;
-          let tmp_dir = tempfile::tempdir()?;
+          )
+          .map_err(Box::new)?;
+          let tmp_dir = tempfile::tempdir().context("failed to create temporary directory")?;
           let cert_path = tmp_dir.path().join("cert.p12");
-          std::fs::write(&cert_path, certificate)?;
+          std::fs::write(&cert_path, certificate)
+            .fs_context("failed to write certificate", cert_path.clone())?;
           let self_signed_cert_keychain =
-            tauri_macos_sign::Keychain::with_certificate_file(&cert_path, &password.into())?;
+            tauri_macos_sign::Keychain::with_certificate_file(&cert_path, &password.into())
+              .map_err(Box::new)?;
 
           let app_dir = config
             .export_dir()
@@ -434,16 +454,18 @@ fn run_build(
             .join("Products/Applications")
             .join(format!("{}.app", config.app().stylized_name()));
 
-          self_signed_cert_keychain.sign(
-            &app_dir.join(config.app().stylized_name()),
-            Some(
-              &config
-                .project_dir()
-                .join(config.scheme())
-                .join(format!("{}.entitlements", config.scheme())),
-            ),
-            false,
-          )?;
+          self_signed_cert_keychain
+            .sign(
+              &app_dir.join(config.app().stylized_name()),
+              Some(
+                &config
+                  .project_dir()
+                  .join(config.scheme())
+                  .join(format!("{}.entitlements", config.scheme())),
+              ),
+              false,
+            )
+            .map_err(Box::new)?;
         }
 
         let mut export_config = ExportConfig::new().allow_provisioning_updates();
@@ -451,12 +473,15 @@ fn run_build(
           export_config = export_config.authentication_credentials(credentials.clone());
         }
 
-        target.export(config, env, noise_level, export_config)?;
+        target
+          .export(config, env, noise_level, export_config)
+          .context("failed to export iOS app")?;
 
         if let Ok(ipa_path) = config.ipa_path() {
-          fs::create_dir_all(&out_dir)?;
+          fs::create_dir_all(&out_dir)
+            .fs_context("failed to create Xcode output directory", out_dir.clone())?;
           let path = out_dir.join(ipa_path.file_name().unwrap());
-          fs::rename(&ipa_path, &path)?;
+          fs::rename(&ipa_path, &path).fs_context("failed to rename IPA", ipa_path)?;
           out_files.push(path);
         }
       }
@@ -464,7 +489,7 @@ fn run_build(
       Ok(())
     },
   )
-  .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))??;
+  .map_err(|e: TargetInvalid| Error::GenericError(e.to_string()))??;
 
   log_finished(out_files, "iOS Bundle");
 
@@ -485,7 +510,7 @@ fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCreden
       }))
     }
     (Err(_), Err(_), None) => Ok(None),
-    _ => anyhow::bail!(
+    _ => crate::error::bail!(
       "APPLE_API_KEY, APPLE_API_ISSUER and APPLE_API_KEY_PATH must be provided for code signing"
     ),
   }

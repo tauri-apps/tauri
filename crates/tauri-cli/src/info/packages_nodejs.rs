@@ -8,7 +8,11 @@ use colored::Colorize;
 use serde::Deserialize;
 use std::path::PathBuf;
 
-use crate::helpers::{cross_command, npm::PackageManager};
+use crate::error::Context;
+use crate::{
+  error::Error,
+  helpers::{cross_command, npm::PackageManager},
+};
 
 #[derive(Deserialize)]
 struct YarnVersionInfo {
@@ -24,10 +28,15 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         .arg("info")
         .arg(name)
         .args(["version", "--json"])
-        .output()?;
+        .output()
+        .map_err(|error| Error::CommandFailed {
+          command: "yarn info --json".to_string(),
+          error,
+        })?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let info: YarnVersionInfo = serde_json::from_str(&stdout)?;
+        let info: YarnVersionInfo =
+          serde_json::from_str(&stdout).context("failed to parse yarn info")?;
         Ok(Some(info.data.last().unwrap().to_string()))
       } else {
         Ok(None)
@@ -41,10 +50,14 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         .arg("info")
         .arg(name)
         .args(["--fields", "version", "--json"])
-        .output()?;
+        .output()
+        .map_err(|error| Error::CommandFailed {
+          command: "yarn npm info --fields version --json".to_string(),
+          error,
+        })?;
       if output.status.success() {
-        let info: crate::PackageJson =
-          serde_json::from_reader(std::io::Cursor::new(output.stdout)).unwrap();
+        let info: crate::PackageJson = serde_json::from_reader(std::io::Cursor::new(output.stdout))
+          .context("failed to parse yarn npm info")?;
         Ok(info.version)
       } else {
         Ok(None)
@@ -54,7 +67,15 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
     PackageManager::Npm | PackageManager::Deno | PackageManager::Bun => {
       let mut cmd = cross_command("npm");
 
-      let output = cmd.arg("show").arg(name).arg("version").output()?;
+      let output = cmd
+        .arg("show")
+        .arg(name)
+        .arg("version")
+        .output()
+        .map_err(|error| Error::CommandFailed {
+          command: "npm show --version".to_string(),
+          error,
+        })?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(Some(stdout.replace('\n', "")))
@@ -65,7 +86,15 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
     PackageManager::Pnpm => {
       let mut cmd = cross_command("pnpm");
 
-      let output = cmd.arg("info").arg(name).arg("version").output()?;
+      let output = cmd
+        .arg("info")
+        .arg(name)
+        .arg("version")
+        .output()
+        .map_err(|error| Error::CommandFailed {
+          command: "pnpm info --version".to_string(),
+          error,
+        })?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(Some(stdout.replace('\n', "")))

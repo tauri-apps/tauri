@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::category::AppCategory;
-use crate::{bundle::platform::target_triple, utils::fs_utils};
-use anyhow::Context;
+use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{
@@ -969,7 +968,6 @@ impl Settings {
       .iter()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
   }
 
   /// Returns the file name of the binary being bundled.
@@ -979,7 +977,6 @@ impl Settings {
       .iter_mut()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
   }
 
   /// Returns the file name of the binary being bundled.
@@ -990,7 +987,6 @@ impl Settings {
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
       .map(|b| b.name())
-      .map_err(Into::into)
   }
 
   /// Returns the path to the specified binary.

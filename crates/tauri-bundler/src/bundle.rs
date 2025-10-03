@@ -49,8 +49,6 @@ pub use self::{
     Settings, SettingsBuilder, Size, UpdaterSettings,
   },
 };
-#[cfg(target_os = "macos")]
-use anyhow::Context;
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
 use std::{
@@ -223,24 +221,24 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         .map(|b| b.bundle_paths)
       {
         for app_bundle_path in &app_bundle_paths {
+          use crate::error::ErrorExt;
+
           log::info!(action = "Cleaning"; "{}", app_bundle_path.display());
           match app_bundle_path.is_dir() {
             true => std::fs::remove_dir_all(app_bundle_path),
             false => std::fs::remove_file(app_bundle_path),
           }
-          .with_context(|| {
-            format!(
-              "Failed to clean the app bundle at {}",
-              app_bundle_path.display()
-            )
-          })?
+          .fs_context(
+            "failed to clean the app bundle",
+            app_bundle_path.to_path_buf(),
+          )?;
         }
       }
     }
   }
 
   if bundles.is_empty() {
-    return Err(anyhow::anyhow!("No bundles were built").into());
+    return Ok(bundles);
   }
 
   let bundles_wo_updater = bundles

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Result;
+use crate::Result;
 use clap::{Parser, Subcommand};
 
 use crate::interface::{AppInterface, AppSettings, Interface};

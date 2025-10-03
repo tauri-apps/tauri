@@ -13,15 +13,16 @@ use crate::{
       },
     },
   },
+  error::ErrorExt,
   utils::{
     http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
     CommandExt,
   },
-  Settings,
+  Error, Settings,
 };
 use tauri_utils::display_path;
 
-use anyhow::Context;
+use crate::error::Context;
 use handlebars::{to_json, Handlebars};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
@@ -105,8 +106,9 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
         let data = download_and_verify(url, hash, *hash_algorithm)?;
         let out_path = nsis_toolset_path.join(path);
         std::fs::create_dir_all(out_path.parent().context("output path has no parent")?)
-          .context("failed to create file output directory")?;
-        fs::write(out_path, data).with_context(|| format!("failed to save {path}"))?;
+          .fs_context("failed to create file output directory", out_path.clone())?;
+        fs::write(&out_path, data)
+          .fs_context("failed to save NSIS downloaded file", out_path.clone())?;
       }
     }
   }
@@ -142,8 +144,9 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   Ok(())
 }
 
-fn try_add_numeric_build_number(version_str: &str) -> anyhow::Result<String> {
-  let version = semver::Version::parse(version_str).context("invalid app version")?;
+fn try_add_numeric_build_number(version_str: &str) -> crate::Result<String> {
+  let version = semver::Version::parse(version_str)
+    .map_err(|error| Error::GenericError(format!("invalid app version: {error}")))?;
   if !version.build.is_empty() {
     let build = version.build.parse::<u64>();
     if build.is_ok() {
@@ -199,31 +202,39 @@ fn build_nsis_app_installer(
       .map(PathBuf::from)
       .unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
     #[cfg(target_os = "macos")]
-      let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
-        .map(PathBuf::from)
-        .ok_or_else(|| anyhow::anyhow!("failed to resolve NSIS path"))
-        .or_else(|_| {
-          let mut makensis_path =
-          which::which("makensis").context("failed to resolve `makensis`; did you install nsis? See https://tauri.app/distribute/windows-installer/#install-nsis for more information")?;
-          // homebrew installs it as a symlink
-          if makensis_path.is_symlink() {
-            // read_link might return a path relative to makensis_path so we must use join() and canonicalize
-            makensis_path = makensis_path
-              .parent()
-              .context("missing makensis parent")?
-              .join(std::fs::read_link(&makensis_path).context("failed to resolve makensis symlink")?)
-              .canonicalize()
-              .context("failed to resolve makensis path")?;
-          }
-          // file structure:
-          // ├── bin
-          // │   ├── makensis
-          // ├── share
-          // │   ├── nsis
-          let bin_folder = makensis_path.parent().context("missing makensis parent")?;
-          let root_folder = bin_folder.parent().context("missing makensis root")?;
-          crate::Result::Ok(root_folder.join("share").join("nsis"))
+    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
+      .map(PathBuf::from)
+      .context("failed to resolve NSIS path")
+      .or_else(|_| {
+        let mut makensis_path = which::which("makensis").map_err(|error| Error::CommandFailed {
+          command: "makensis".to_string(),
+          error: std::io::Error::other(format!("failed to find makensis: {error}")),
         })?;
+        // homebrew installs it as a symlink
+        if makensis_path.is_symlink() {
+          // read_link might return a path relative to makensis_path so we must use join() and canonicalize
+          makensis_path = makensis_path
+            .parent()
+            .context("missing makensis parent")?
+            .join(
+              std::fs::read_link(&makensis_path)
+                .fs_context("failed to resolve makensis symlink", makensis_path.clone())?,
+            )
+            .canonicalize()
+            .fs_context(
+              "failed to canonicalize makensis path",
+              makensis_path.clone(),
+            )?;
+        }
+        // file structure:
+        // ├── bin
+        // │   ├── makensis
+        // ├── share
+        // │   ├── nsis
+        let bin_folder = makensis_path.parent().context("missing makensis parent")?;
+        let root_folder = bin_folder.parent().context("missing makensis root")?;
+        crate::Result::Ok(root_folder.join("share").join("nsis"))
+      })?;
     #[cfg(windows)]
     let system_nsis_toolset_path = nsis_toolset_path.to_path_buf();
 
@@ -636,7 +647,10 @@ fn build_nsis_app_installer(
     .env_remove("NSISCONFDIR")
     .current_dir(output_path)
     .piped()
-    .context("error running makensis.exe")?;
+    .map_err(|error| Error::CommandFailed {
+      command: "makensis.exe".to_string(),
+      error,
+    })?;
 
   fs::rename(nsis_output_path, &nsis_installer_path)?;
 
@@ -808,7 +822,11 @@ fn generate_estimated_size(
     .chain(resources.keys())
   {
     size += std::fs::metadata(k)
-      .with_context(|| format!("when getting size of {}", k.display()))?
+      .map_err(|error| Error::Fs {
+        context: "when getting size of",
+        path: k.to_path_buf(),
+        error,
+      })?
       .len();
   }
   Ok(size / 1024)

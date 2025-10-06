@@ -186,9 +186,10 @@ async function addPluginListener<T>(
 ): Promise<PluginListener> {
   const handler = new Channel<T>(cb)
   try {
-    return invoke(`plugin:${plugin}|register_listener`, { event, handler }).then(
-      () => new PluginListener(plugin, event, handler.id)
-    )
+    return invoke(`plugin:${plugin}|register_listener`, {
+      event,
+      handler
+    }).then(() => new PluginListener(plugin, event, handler.id))
   } catch {
     // TODO(v3): remove this fallback
     // note: we must try with camelCase here for backwards compatibility

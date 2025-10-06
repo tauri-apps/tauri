@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::{
-  app_paths::tauri_dir,
-  config::{Config, PatternKind},
+use crate::{
+  error::{Context, ErrorExt},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{Config, PatternKind},
+  },
 };
 
-use anyhow::Context;
 use itertools::Itertools;
 use toml_edit::{Array, DocumentMut, InlineTable, Item, TableLike, Value};
 
 use std::{
   collections::{HashMap, HashSet},
-  fs::File,
-  io::Write,
   path::Path,
 };
 
@@ -84,11 +84,11 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
 
 pub fn read_manifest(manifest_path: &Path) -> crate::Result<(DocumentMut, String)> {
   let manifest_str = std::fs::read_to_string(manifest_path)
-    .with_context(|| format!("Failed to read `{manifest_path:?}` file"))?;
+    .fs_context("failed to read Cargo.toml", manifest_path.to_path_buf())?;
 
   let manifest: DocumentMut = manifest_str
     .parse::<DocumentMut>()
-    .with_context(|| "Failed to parse Cargo.toml")?;
+    .context("failed to parse Cargo.toml")?;
 
   Ok((manifest, manifest_str))
 }
@@ -172,10 +172,10 @@ fn write_features<F: Fn(&str) -> bool>(
         *dep = Value::InlineTable(def);
       }
       _ => {
-        return Err(anyhow::anyhow!(
+        crate::error::bail!(
           "Unsupported {} dependency format on Cargo.toml",
           dependency_name
-        ))
+        );
       }
     }
     Ok(true)
@@ -313,10 +313,8 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
   let new_manifest_str = serialize_manifest(&manifest);
 
   if persist && original_manifest_str != new_manifest_str {
-    let mut manifest_file =
-      File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
-    manifest_file.write_all(new_manifest_str.as_bytes())?;
-    manifest_file.flush()?;
+    std::fs::write(&manifest_path, new_manifest_str)
+      .fs_context("failed to rewrite Cargo manifest", manifest_path.clone())?;
     Ok((
       Manifest {
         inner: manifest,

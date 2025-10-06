@@ -17,8 +17,10 @@ use std::{
   path::PathBuf,
 };
 
-use crate::Result;
-use anyhow::Context;
+use crate::{
+  error::{Context, ErrorExt},
+  Result,
+};
 use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
@@ -76,8 +78,10 @@ impl Options {
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
-      let package_json_text = read_to_string(package_json_path)?;
-      let package_json: crate::PackageJson = serde_json::from_str(&package_json_text)?;
+      let package_json_text = read_to_string(&package_json_path)
+        .fs_context("failed to read", package_json_path.clone())?;
+      let package_json: crate::PackageJson =
+        serde_json::from_str(&package_json_text).context("failed to parse JSON")?;
       let (framework, _) = infer_framework(&package_json_text);
       InitDefaults {
         app_name: package_json.product_name.or(package_json.name),
@@ -187,7 +191,8 @@ pub fn command(mut options: Options) -> Result<()> {
   options = options.load()?;
 
   let template_target_path = PathBuf::from(&options.directory).join("src-tauri");
-  let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata-v2.json"))?;
+  let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata-v2.json"))
+    .context("failed to parse version metadata")?;
 
   if template_target_path.exists() && !options.force {
     log::warn!(

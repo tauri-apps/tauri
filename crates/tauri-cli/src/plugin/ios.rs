@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::PluginIosFramework;
-use crate::{helpers::template, Result};
+use crate::{error::Context, helpers::template, Result};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 
@@ -53,13 +53,15 @@ pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => {
       let plugin_name = match options.plugin_name {
-        None => super::infer_plugin_name(std::env::current_dir()?)?,
+        None => super::infer_plugin_name(
+          std::env::current_dir().context("failed to get current directory")?,
+        )?,
         Some(name) => name,
       };
 
       let out_dir = PathBuf::from(options.out_dir);
       if out_dir.join("ios").exists() {
-        return Err(anyhow::anyhow!("ios folder already exists"));
+        crate::error::bail!("iOS folder already exists");
       }
 
       let handlebars = Handlebars::new();

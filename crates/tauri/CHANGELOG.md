@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.8.5]
+
+### Enhancements
+
+- [`07e134f70`](https://www.github.com/tauri-apps/tauri/commit/07e134f70e3a65424641f1b384a26bf059fd9c56) ([#14107](https://www.github.com/tauri-apps/tauri/pull/14107) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Improve error message for request errors on iOS when local network permission has been denied and the app tries to reach the development server.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.4.1`
+
 ## \[2.8.4]
 
 ### Bug Fixes

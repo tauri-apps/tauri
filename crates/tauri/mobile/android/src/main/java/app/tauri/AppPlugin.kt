@@ -39,7 +39,7 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
         }
       }
     }
-    (activity as AppCompatActivity).onBackPressedDispatcher.addCallback(activity, callback);
+    (activity as AppCompatActivity).onBackPressedDispatcher.addCallback(activity, callback)
   }
 
   @Command

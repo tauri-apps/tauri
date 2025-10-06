@@ -12,6 +12,7 @@ import app.tauri.plugin.PluginManager
 
 abstract class TauriActivity : WryActivity() {
   var pluginManager: PluginManager = PluginManager(this)
+  override val handleBackNavigation: Boolean = false
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)

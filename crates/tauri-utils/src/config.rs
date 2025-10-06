@@ -666,7 +666,7 @@ pub struct MacConfig {
   pub entitlements: Option<String>,
   /// Path to a Info.plist file to merge with the default Info.plist.
   ///
-  /// Note that Tauri also looks for a `Info.plist` and `Info.macos.plist` file in the same directory as the Tauri configuration file.
+  /// Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.
   #[serde(alias = "info-plist")]
   pub info_plist: Option<PathBuf>,
   /// DMG-specific settings.

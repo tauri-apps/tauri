@@ -1773,34 +1773,14 @@ tauri::Builder::default()
         url: request.url.clone(),
       }
     };
-    let window_label = message.webview.window_label();
     let (resolved_acl, has_app_acl_manifest) = {
       let runtime_authority = manager.runtime_authority.lock().unwrap();
-      let acl = runtime_authority
-        .resolve_access(
-          &request.cmd,
-          &window_label,
-          message.webview.label(),
-          &acl_origin,
-        )
-        .or_else(|| {
-          if request.cmd.chars().any(|c| c.is_uppercase()) {
-            // fallback to the snake case of the command
-            // we do not do this by default for backwards compatibility
-            runtime_authority.resolve_access(
-              &if let Some((prefix, cmd_name)) = request.cmd.split_once('|') {
-                format!("{prefix}|{}", heck::AsSnakeCase(cmd_name))
-              } else {
-                request.cmd.clone()
-              },
-              &window_label,
-              message.webview.label(),
-              &acl_origin,
-            )
-          } else {
-            None
-          }
-        });
+      let acl = runtime_authority.resolve_access(
+        &request.cmd,
+        message.webview.window_ref().label(),
+        message.webview.label(),
+        &acl_origin,
+      );
       (acl, runtime_authority.has_app_manifest())
     };
 
@@ -1837,7 +1817,7 @@ tauri::Builder::default()
             .resolve_access_message(
               key,
               &command_name,
-              &window_label,
+              invoke.message.webview.window().label(),
               invoke.message.webview.label(),
               &acl_origin,
             ),

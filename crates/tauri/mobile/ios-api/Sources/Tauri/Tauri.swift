@@ -59,8 +59,23 @@ public class PluginManager {
   func invoke(name: String, invoke: Invoke) {
     if let plugin = plugins[name] {
       ipcDispatchQueue.async {
+        let selectorWithCompletionHandler = Selector(("\(invoke.command):completionHandler:"))
         let selectorWithThrows = Selector(("\(invoke.command):error:"))
-        if plugin.instance.responds(to: selectorWithThrows) {
+
+        if plugin.instance.responds(to: selectorWithCompletionHandler) {
+          let completion: @convention(block) (NSError?) -> Void = { error in
+            if let error = error {
+              invoke.reject("\(error)")
+            }
+          }
+
+          let blockObj: AnyObject = unsafeBitCast(completion, to: AnyObject.self)
+          let imp = plugin.instance.method(for: selectorWithCompletionHandler)
+
+          typealias Fn = @convention(c) (AnyObject, Selector, Invoke, AnyObject) -> Void
+          let fn = unsafeBitCast(imp, to: Fn.self)
+          fn(plugin.instance, selectorWithCompletionHandler, invoke, blockObj)
+        } else if plugin.instance.responds(to: selectorWithThrows) {
           var error: NSError? = nil
           withUnsafeMutablePointer(to: &error) {
             let methodIMP: IMP! = plugin.instance.method(for: selectorWithThrows)

@@ -664,6 +664,11 @@ pub struct MacConfig {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements file.
   pub entitlements: Option<String>,
+  /// Path to a Info.plist file to merge with the default Info.plist.
+  ///
+  /// Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.
+  #[serde(alias = "info-plist")]
+  pub info_plist: Option<PathBuf>,
   /// DMG-specific settings.
   #[serde(default)]
   pub dmg: DmgConfig,
@@ -682,6 +687,7 @@ impl Default for MacConfig {
       hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
+      info_plist: None,
       dmg: Default::default(),
     }
   }
@@ -2850,6 +2856,11 @@ pub struct IosConfig {
     default = "ios_minimum_system_version"
   )]
   pub minimum_system_version: String,
+  /// Path to a Info.plist file to merge with the default Info.plist.
+  ///
+  /// Note that Tauri also looks for a `Info.plist` and `Info.ios.plist` file in the same directory as the Tauri configuration file.
+  #[serde(alias = "info-plist")]
+  pub info_plist: Option<PathBuf>,
 }
 
 impl Default for IosConfig {
@@ -2860,6 +2871,7 @@ impl Default for IosConfig {
       development_team: None,
       bundle_version: None,
       minimum_system_version: ios_minimum_system_version(),
+      info_plist: None,
     }
   }
 }

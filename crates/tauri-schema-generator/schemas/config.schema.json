@@ -3572,6 +3572,13 @@
             "null"
           ]
         },
+        "infoPlist": {
+          "description": "Path to a Info.plist file to merge with the default Info.plist.\n\n Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "dmg": {
           "description": "DMG-specific settings.",
           "default": {
@@ -3743,6 +3750,13 @@
           "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.\n\n Maps to the IPHONEOS_DEPLOYMENT_TARGET value.",
           "default": "14.0",
           "type": "string"
+        },
+        "infoPlist": {
+          "description": "Path to a Info.plist file to merge with the default Info.plist.\n\n Note that Tauri also looks for a `Info.plist` and `Info.ios.plist` file in the same directory as the Tauri configuration file.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

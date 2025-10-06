@@ -362,8 +362,17 @@ pub struct MacOsSettings {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.
   pub entitlements: Option<String>,
-  /// Path to the Info.plist file for the bundle.
-  pub info_plist_path: Option<PathBuf>,
+  /// Path to the Info.plist file or raw plist value to merge with the bundle Info.plist.
+  pub info_plist: Option<PlistKind>,
+}
+
+/// Plist format.
+#[derive(Debug, Clone)]
+pub enum PlistKind {
+  /// Path to a .plist file.
+  Path(PathBuf),
+  /// Raw plist value.
+  Plist(plist::Value),
 }
 
 /// Configuration for a target language for the WiX build.

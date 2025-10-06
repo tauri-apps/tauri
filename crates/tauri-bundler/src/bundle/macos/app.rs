@@ -27,6 +27,7 @@ use super::{
   sign::{notarize, notarize_auth, notarize_without_stapling, sign, SignTarget},
 };
 use crate::{
+  bundle::settings::PlistKind,
   error::{Context, ErrorExt, NotarizeAuthError},
   utils::{fs_utils, CommandExt},
   Error::GenericError,
@@ -361,8 +362,11 @@ fn create_info_plist(
     plist.insert("NSAppTransportSecurity".into(), security.into());
   }
 
-  if let Some(user_plist_path) = &settings.macos().info_plist_path {
-    let user_plist = plist::Value::from_file(user_plist_path)?;
+  if let Some(user_plist) = &settings.macos().info_plist {
+    let user_plist = match user_plist {
+      PlistKind::Path(path) => plist::Value::from_file(path)?,
+      PlistKind::Plist(value) => value.clone(),
+    };
     if let Some(dict) = user_plist.into_dictionary() {
       for (key, value) in dict {
         plist.insert(key, value);

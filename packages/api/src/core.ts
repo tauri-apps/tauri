@@ -190,6 +190,7 @@ async function addPluginListener<T>(
       () => new PluginListener(plugin, event, handler.id)
     )
   } catch (e) {
+    // TODO(v3): remove this fallback
     // note: we must try with camelCase here for backwards compatibility
     return invoke(`plugin:${plugin}|registerListener`, { event, handler }).then(
       () => new PluginListener(plugin, event, handler.id)

@@ -190,6 +190,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut cmd = Command::new(linuxdeploy_path);
   cmd.env("OUTPUT", &appimage_path);
   cmd.env("ARCH", tools_arch);
+  // Looks like the cli arg isn't enough for the updated AppImage output-plugin.
+  cmd.env("APPIMAGE_EXTRACT_AND_RUN", "1");
   cmd.args([
     "--appimage-extract-and-run",
     "--verbosity",

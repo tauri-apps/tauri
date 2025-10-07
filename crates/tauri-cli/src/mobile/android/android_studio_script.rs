@@ -91,6 +91,7 @@ pub fn command(options: Options) -> Result<()> {
     config.app(),
     config.project_dir(),
     MobileTarget::Android,
+    std::env::var("CI").is_ok(),
   )?;
 
   if !cli_options.config.is_empty() {

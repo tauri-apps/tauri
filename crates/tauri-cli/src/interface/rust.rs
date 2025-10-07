@@ -1417,9 +1417,9 @@ fn tauri_config_to_bundle_settings(
           .into(),
       );
       let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
-        crate::helpers::plist::merge(vec![
+        crate::helpers::plist::merge_plist(vec![
           PathBuf::from(user_provided_entitlements).into(),
-          app_links_entitlements.into(),
+          plist::Value::Dictionary(app_links_entitlements).into(),
         ])?
       } else {
         app_links_entitlements.into()
@@ -1539,13 +1539,23 @@ fn tauri_config_to_bundle_settings(
       hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements,
-      info_plist_path: {
+      #[cfg(not(target_os = "macos"))]
+      info_plist: None,
+      #[cfg(target_os = "macos")]
+      info_plist: {
+        let mut src_plists = vec![];
+
         let path = tauri_dir().join("Info.plist");
         if path.exists() {
-          Some(path)
-        } else {
-          None
+          src_plists.push(path.into());
         }
+        if let Some(info_plist) = &config.macos.info_plist {
+          src_plists.push(info_plist.clone().into());
+        }
+
+        Some(tauri_bundler::bundle::PlistKind::Plist(
+          crate::helpers::plist::merge_plist(src_plists)?,
+        ))
       },
     },
     windows: WindowsSettings {

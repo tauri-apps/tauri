@@ -4,6 +4,8 @@
 
 use std::path::PathBuf;
 
+use crate::error::Context;
+
 pub enum PlistKind {
   Path(PathBuf),
   Plist(plist::Value),
@@ -20,25 +22,18 @@ impl From<plist::Value> for PlistKind {
   }
 }
 
-impl From<plist::Dictionary> for PlistKind {
-  fn from(p: plist::Dictionary) -> Self {
-    Self::Plist(p.into())
-  }
-}
-
-pub fn merge(src: Vec<PlistKind>) -> crate::Result<plist::Value> {
+pub fn merge_plist(src: Vec<PlistKind>) -> crate::Result<plist::Value> {
   let mut merged_plist = plist::Dictionary::new();
 
   for plist_kind in src {
-    let plist = match plist_kind {
-      PlistKind::Path(p) => plist::Value::from_file(p),
-      PlistKind::Plist(v) => Ok(v),
+    let src_plist = match plist_kind {
+      PlistKind::Path(p) => plist::Value::from_file(&p)
+        .with_context(|| format!("failed to parse plist from {}", p.display()))?,
+      PlistKind::Plist(v) => v,
     };
-    if let Ok(src_plist) = plist {
-      if let Some(dict) = src_plist.into_dictionary() {
-        for (key, value) in dict {
-          merged_plist.insert(key, value);
-        }
+    if let Some(dict) = src_plist.into_dictionary() {
+      for (key, value) in dict {
+        merged_plist.insert(key, value);
       }
     }
   }

@@ -185,9 +185,18 @@ async function addPluginListener<T>(
   cb: (payload: T) => void
 ): Promise<PluginListener> {
   const handler = new Channel<T>(cb)
-  return invoke(`plugin:${plugin}|registerListener`, { event, handler }).then(
-    () => new PluginListener(plugin, event, handler.id)
-  )
+  try {
+    return invoke(`plugin:${plugin}|register_listener`, {
+      event,
+      handler
+    }).then(() => new PluginListener(plugin, event, handler.id))
+  } catch {
+    // TODO(v3): remove this fallback
+    // note: we must try with camelCase here for backwards compatibility
+    return invoke(`plugin:${plugin}|registerListener`, { event, handler }).then(
+      () => new PluginListener(plugin, event, handler.id)
+    )
+  }
 }
 
 type PermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'

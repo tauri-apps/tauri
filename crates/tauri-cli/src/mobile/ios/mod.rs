@@ -488,42 +488,6 @@ fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<
   Ok(())
 }
 
-enum PlistKind {
-  Path(PathBuf),
-  Plist(plist::Value),
-}
-
-impl From<PathBuf> for PlistKind {
-  fn from(p: PathBuf) -> Self {
-    Self::Path(p)
-  }
-}
-impl From<plist::Value> for PlistKind {
-  fn from(p: plist::Value) -> Self {
-    Self::Plist(p)
-  }
-}
-
-fn merge_plist(src: Vec<PlistKind>) -> Result<plist::Value> {
-  let mut merged_plist = plist::Dictionary::new();
-
-  for plist_kind in src {
-    let plist = match plist_kind {
-      PlistKind::Path(p) => plist::Value::from_file(p).context("failed to read plist file"),
-      PlistKind::Plist(v) => Ok(v),
-    };
-    if let Ok(src_plist) = plist {
-      if let Some(dict) = src_plist.into_dictionary() {
-        for (key, value) in dict {
-          merged_plist.insert(key, value);
-        }
-      }
-    }
-  }
-
-  Ok(plist::Value::Dictionary(merged_plist))
-}
-
 pub fn signing_from_env() -> Result<(
   Option<tauri_macos_sign::Keychain>,
   Option<tauri_macos_sign::ProvisioningProfile>,

@@ -44,6 +44,7 @@ url = "2"
 uuid = { version = "1", features = ["v4", "v5"] }
 regex = "1"
 goblin = "0.9"
+plist = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 bitness = "0.4"
@@ -57,7 +58,6 @@ features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = ["formatting"] }
-plist = "1"
 tauri-macos-sign = { version = "2.2.0", path = "../tauri-macos-sign" }
 
 [target."cfg(target_os = \"linux\")".dependencies]

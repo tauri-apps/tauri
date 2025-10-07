@@ -79,6 +79,8 @@ pub fn exec(
         if r.is_match(&bin_stem.to_string_lossy()) {
           if var_os("PNPM_PACKAGE_NAME").is_some() {
             return ("pnpm".into(), build_args);
+          } else if is_pnpm_dlx() {
+            return ("pnpm".into(), vec!["dlx", "@tauri-apps/cli"]);
           } else if let Some(npm_execpath) = var_os("npm_execpath") {
             let manager_stem = PathBuf::from(&npm_execpath)
               .file_stem()
@@ -367,4 +369,18 @@ fn unprefix_path(
         })?,
     )
     .map_err(Into::into)
+}
+
+fn is_pnpm_dlx() -> bool {
+  var_os("NODE_PATH")
+    .map(PathBuf::from)
+    .is_some_and(|node_path| {
+      let mut iter = node_path.components().peekable();
+      while let Some(c) = iter.next() {
+        if c.as_os_str() == "pnpm" && iter.peek().is_some_and(|c| c.as_os_str() == "dlx") {
+          return true;
+        }
+      }
+      false
+    })
 }

@@ -1181,6 +1181,7 @@ pub struct FileAssociation {
   ///
   /// This allows supporting any file format declared by another application that conforms to this type.
   /// Declaration of new types can be done with [`Self::exported_type`] and linking to certain content types are done via [`ExportedFileAssociation::conforms_to`].
+  #[serde(alias = "content-types")]
   pub content_types: Option<Vec<String>>,
   /// The name. Maps to `CFBundleTypeName` on macOS. Default to `ext[0]`
   pub name: Option<String>,
@@ -1210,7 +1211,7 @@ pub struct ExportedFileAssociation {
   pub identifier: String,
   /// The types that this type conforms to. Maps to `UTTypeConformsTo`.
   ///
-  /// Examples are `public.data`, `public.image`, `public.image`, `public.database`.
+  /// Examples are `public.data`, `public.image`, `public.json` and `public.database`.
   #[serde(alias = "conforms-to")]
   pub conforms_to: Option<Vec<String>>,
 }
@@ -1379,7 +1380,7 @@ pub struct BundleConfig {
   /// Should be one of the following:
   /// Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.
   pub category: Option<String>,
-  /// File associations to application.
+  /// File types to associate with the application.
   pub file_associations: Option<Vec<FileAssociation>>,
   /// A short description of your application.
   #[serde(alias = "short-description")]

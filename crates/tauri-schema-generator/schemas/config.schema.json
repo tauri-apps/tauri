@@ -2159,7 +2159,7 @@
           ]
         },
         "fileAssociations": {
-          "description": "File associations to application.",
+          "description": "File types to associate with the application.",
           "type": [
             "array",
             "null"
@@ -2585,7 +2585,7 @@
           "type": "string"
         },
         "conformsTo": {
-          "description": "The types that this type conforms to. Maps to `UTTypeConformsTo`.\n\n Examples are `public.data`, `public.image`, `public.image`, `public.database`.",
+          "description": "The types that this type conforms to. Maps to `UTTypeConformsTo`.\n\n Examples are `public.data`, `public.image`, `public.json` and `public.database`.",
           "type": [
             "array",
             "null"

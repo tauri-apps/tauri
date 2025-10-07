@@ -17,6 +17,8 @@ import app.tauri.annotation.InvokeArg
 import app.tauri.FsUtils
 import app.tauri.JniMethod
 import app.tauri.Logger
+import com.fasterxml.jackson.annotation.JsonAutoDetect
+import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -69,6 +71,7 @@ class PluginManager(val activity: AppCompatActivity) {
     jsonMapper = ObjectMapper()
       .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
       .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+      .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
 
     val channelDeserializer = ChannelDeserializer({ channelId, payload ->
       sendChannelData(channelId, payload)

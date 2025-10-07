@@ -172,6 +172,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     config.app(),
     config.project_dir(),
     MobileTarget::Android,
+    options.ci,
   )?;
 
   let mut env = env(options.ci)?;

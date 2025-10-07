@@ -33,8 +33,9 @@ use cargo_mobile2::{
   opts::{FilterLevel, NoiseLevel, Profile},
   target::TargetTrait,
 };
+use url::Host;
 
-use std::{env::set_current_dir, path::PathBuf};
+use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -205,6 +206,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     config.app(),
     config.project_dir(),
     MobileTarget::Android,
+    false,
   )?;
   run_dev(
     interface,
@@ -231,12 +233,26 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  // when running on an actual device we must use the network IP
+  // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
     || device
       .as_ref()
       .map(|device| !device.serial_no().starts_with("emulator"))
       .unwrap_or(false)
+    || tauri_config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .dev_url
+      .as_ref()
+      .is_some_and(|url| {
+        matches!(
+          url.host(),
+          Some(Host::Ipv4(i)) if i == Ipv4Addr::UNSPECIFIED
+        )
+      })
   {
     use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
   }

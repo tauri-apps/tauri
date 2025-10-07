@@ -268,9 +268,7 @@ fn use_network_address_for_dev_url(
   let ip = if let Some(url) = &mut dev_url {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
-      Some(url::Host::Ipv4(i)) => {
-        i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
-      }
+      Some(url::Host::Ipv4(i)) => i == Ipv4Addr::LOCALHOST || i == Ipv4Addr::UNSPECIFIED,
       _ => false,
     };
 
@@ -464,6 +462,12 @@ pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -
     .lib_name()
     .unwrap_or_else(|| app_name.to_snek_case());
 
+  if config.product_name.is_none() {
+    log::warn!(
+      "`productName` is not set in the Tauri configuration. Using `{app_name}` as the app name."
+    );
+  }
+
   let raw = RawAppConfig {
     name: app_name,
     lib_name: Some(lib_name),
@@ -493,6 +497,7 @@ fn ensure_init(
   app: &App,
   project_dir: PathBuf,
   target: Target,
+  noninteractive: bool,
 ) -> Result<()> {
   if !project_dir.exists() {
     crate::error::bail!(
@@ -523,32 +528,83 @@ fn ensure_init(
     }
     #[cfg(target_os = "macos")]
     Target::Ios => {
-      let pbxproj_contents = read_to_string(
-        project_dir
-          .join(format!("{}.xcodeproj", app.name()))
-          .join("project.pbxproj"),
-      )
-      .fs_context(
-        "missing project.pbxproj file in the Xcode project directory",
-        project_dir
-          .join(format!("{}.xcodeproj", app.name()))
-          .join("project.pbxproj"),
-      )?;
+      let xcodeproj_path = crate::helpers::fs::find_in_directory(&project_dir, "*.xcodeproj")
+        .with_context(|| format!("failed to locate xcodeproj in {}", project_dir.display()))?;
 
-      if !(pbxproj_contents.contains(ios::LIB_OUTPUT_FILE_NAME)
-        || pbxproj_contents.contains(&format!("lib{}.a", app.lib_name())))
-      {
-        project_outdated_reasons
-          .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
+      let xcodeproj_name = xcodeproj_path.file_stem().unwrap().to_str().unwrap();
+      if xcodeproj_name != app.name() {
+        let rename_targets = vec![
+          // first rename the entitlements
+          (
+            format!("{xcodeproj_name}_iOS/{xcodeproj_name}_iOS.entitlements"),
+            format!("{xcodeproj_name}_iOS/{}_iOS.entitlements", app.name()),
+          ),
+          // then the scheme folder
+          (
+            format!("{xcodeproj_name}_iOS"),
+            format!("{}_iOS", app.name()),
+          ),
+          (
+            format!("{xcodeproj_name}.xcodeproj"),
+            format!("{}.xcodeproj", app.name()),
+          ),
+        ];
+        let rename_info = rename_targets
+          .iter()
+          .map(|(from, to)| format!("- {from} to {to}"))
+          .collect::<Vec<_>>()
+          .join("\n");
+        log::error!(
+          "you have modified your package name from {current_project_name} to {new_project_name}\nWe need to apply the name change to the Xcode project, renaming:\n{rename_info}",
+          new_project_name = app.name(),
+          current_project_name = xcodeproj_name,
+        );
+        if noninteractive {
+          project_outdated_reasons
+            .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
+        } else {
+          let confirm = crate::helpers::prompts::confirm(
+            "Do you want to apply the name change to the Xcode project?",
+            Some(true),
+          )
+          .unwrap_or_default();
+          if confirm {
+            for (from, to) in rename_targets {
+              std::fs::rename(project_dir.join(&from), project_dir.join(&to))
+                .with_context(|| format!("failed to rename {from} to {to}"))?;
+            }
+
+            // update scheme name in pbxproj
+            // identifier / product name are synchronized by the dev/build commands
+            let pbxproj_path =
+              project_dir.join(format!("{}.xcodeproj/project.pbxproj", app.name()));
+            let pbxproj_contents = std::fs::read_to_string(&pbxproj_path)
+              .with_context(|| format!("failed to read {}", pbxproj_path.display()))?;
+            std::fs::write(
+              &pbxproj_path,
+              pbxproj_contents.replace(
+                &format!("{xcodeproj_name}_iOS"),
+                &format!("{}_iOS", app.name()),
+              ),
+            )
+            .with_context(|| format!("failed to write {}", pbxproj_path.display()))?;
+          } else {
+            project_outdated_reasons
+              .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
+          }
+        }
       }
+
+      // note: pbxproj is synchronied by the dev/build commands
     }
   }
 
   if !project_outdated_reasons.is_empty() {
     let reason = project_outdated_reasons.join(" and ");
     crate::error::bail!(
-        "{} project directory is outdated because {reason}. Please run `tauri {} init` and try again.",
+        "{} project directory is outdated because {reason}. Please delete {}, run `tauri {} init` and try again.",
         target.ide_name(),
+        project_dir.display(),
         target.command_name(),
       )
   }

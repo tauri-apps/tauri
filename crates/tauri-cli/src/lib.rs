@@ -196,20 +196,7 @@ where
   A: Into<OsString> + Clone,
 {
   if let Err(e) = try_run(args, bin_name) {
-    let mut message = e.to_string();
-    if e.chain().count() > 1 {
-      message.push(':');
-    }
-    e.chain().skip(1).for_each(|cause| {
-      let m = cause.to_string();
-      if !message.contains(&m) {
-        message.push('\n');
-        message.push_str("    - ");
-        message.push_str(&m);
-      }
-    });
-    log::error!("{message}");
-    log::error!("Please re-run the command with the --verbose flag to see what went wrong.");
+    log::error!("{e}");
     exit(1);
   }
 }

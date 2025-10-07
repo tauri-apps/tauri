@@ -14,7 +14,7 @@ mod sharun;
 
 // TODO: Consider auto fallback to linuxdeploy on unsupported systems.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  if std::env::var("TAURI_BUNDLER_NEW_APPIMAGE_FORMAT").is_ok_and(|v| v == "true")
+  if std::env::var("TAURI_BUNDLER_NEW_APPIMAGE_FORMAT").is_ok_and(|v| v == "true" || v == "1")
     || settings.appimage().use_new_format
   {
     sharun::bundle_project(settings)

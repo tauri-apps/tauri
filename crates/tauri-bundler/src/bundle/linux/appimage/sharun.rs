@@ -137,6 +137,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
 
   // TODO: Maybe missing alsa, pipewire, whatever?
+  // TODO: Test on fedora & arch, currently errors out on Ubuntu
   let gst = if settings.appimage().bundle_media_framework {
     format!(
       r#"
@@ -155,14 +156,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .map(|b| format!(" \"{}\"", b.to_string_lossy()))
     .collect::<String>();
 
-  // TODO: Optional xvfb-run (check if it exists or whatever and then use it)
+  let xvfb = if which::which("xvfb-run").is_ok() {
+    "xvfb-run -a -- "
+  } else {
+    log::warn!("xvfb-run not found but heavily recommended! In headless mode the bundler will likely miss some required libraries.");
+    ""
+  };
+
   // TODO: Check if we can make parts of the opengl (incl. libvulkan) deps optional
   Command::new("/bin/sh")
     .current_dir(&app_dir_path)
     .args([
       "-c",
       &format!(
-        r#""{}" l -p {verbosity} -e -s -k "{}" {} \
+        r#"{}"{}" l -p {verbosity} -e -s -k "{}" {} \
 /usr/lib/{tools_arch}-linux-gnu/libwebkit2gtk-4.1* \{gst}
 /usr/lib/{tools_arch}-linux-gnu/gdk-pixbuf-*/*/*/* \
 /usr/lib/{tools_arch}-linux-gnu/gio/modules/* \
@@ -173,6 +180,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 /usr/lib/{tools_arch}-linux-gnu/dri/* \
 /usr/lib/{tools_arch}-linux-gnu/gbm/*
 "#,
+        xvfb,
         sharun_aio.to_string_lossy(),
         &app_dir_path
           .join(format!("usr/bin/{}", main_binary.name()))
@@ -208,6 +216,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // TODO: verbosity - uruntime doesn't expose any settings and doesn't log much
   Command::new(&uruntime)
     .env("ARCH", tools_arch)
+    // TODO: check if needed like in our old bundler. May not work on the addupinfo call above.
+    // .env("APPIMAGE_EXTRACT_AND_RUN", "1")
     .args([
       "--appimage-mkdwarfs",
       "-f",

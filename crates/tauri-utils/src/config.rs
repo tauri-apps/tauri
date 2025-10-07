@@ -693,6 +693,11 @@ pub struct MacConfig {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements file.
   pub entitlements: Option<String>,
+  /// Path to a Info.plist file to merge with the default Info.plist.
+  ///
+  /// Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.
+  #[serde(alias = "info-plist")]
+  pub info_plist: Option<PathBuf>,
   /// DMG-specific settings.
   #[serde(default)]
   pub dmg: DmgConfig,
@@ -711,6 +716,7 @@ impl Default for MacConfig {
       hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
+      info_plist: None,
       dmg: Default::default(),
     }
   }
@@ -1615,6 +1621,27 @@ pub enum PreventOverflowConfig {
   Margin(PreventOverflowMargin),
 }
 
+/// The scrollbar style to use in the webview.
+///
+/// ## Platform-specific
+///
+/// - **Windows**: This option must be given the same value for all webviews that target the same data directory.
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[non_exhaustive]
+pub enum ScrollBarStyle {
+  #[default]
+  /// The scrollbar style to use in the webview.
+  Default,
+
+  /// Fluent UI style overlay scrollbars. **Windows Only**
+  ///
+  /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
+  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  FluentOverlay,
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -1948,6 +1975,21 @@ pub struct WindowConfig {
   /// - **Windows / Linux / Android**: Unsupported.
   #[serde(default, alias = "data-store-identifier")]
   pub data_store_identifier: Option<[u8; 16]>,
+
+  /// Specifies the native scrollbar style to use with the webview.
+  /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+  ///
+  /// Defaults to `default`, which is the browser default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///     and does nothing on older versions.
+  ///   - This option must be given the same value for all webviews that target the same data directory.
+  /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  #[serde(default, alias = "scroll-bar-style")]
+  pub scroll_bar_style: ScrollBarStyle,
 }
 
 impl Default for WindowConfig {
@@ -2009,6 +2051,7 @@ impl Default for WindowConfig {
       disable_input_accessory_view: false,
       data_directory: None,
       data_store_identifier: None,
+      scroll_bar_style: ScrollBarStyle::Default,
     }
   }
 }
@@ -2842,6 +2885,11 @@ pub struct IosConfig {
     default = "ios_minimum_system_version"
   )]
   pub minimum_system_version: String,
+  /// Path to a Info.plist file to merge with the default Info.plist.
+  ///
+  /// Note that Tauri also looks for a `Info.plist` and `Info.ios.plist` file in the same directory as the Tauri configuration file.
+  #[serde(alias = "info-plist")]
+  pub info_plist: Option<PathBuf>,
 }
 
 impl Default for IosConfig {
@@ -2852,6 +2900,7 @@ impl Default for IosConfig {
       development_team: None,
       bundle_version: None,
       minimum_system_version: ios_minimum_system_version(),
+      info_plist: None,
     }
   }
 }
@@ -3459,6 +3508,17 @@ mod build {
     }
   }
 
+  impl ToTokens for ScrollBarStyle {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::ScrollBarStyle };
+
+      tokens.append_all(match self {
+        Self::Default => quote! { #prefix::Default },
+        Self::FluentOverlay => quote! { #prefix::FluentOverlay },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -3517,6 +3577,7 @@ mod build {
       let disable_input_accessory_view = self.disable_input_accessory_view;
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
+      let scroll_bar_style = &self.scroll_bar_style;
 
       literal_struct!(
         tokens,
@@ -3576,7 +3637,8 @@ mod build {
         allow_link_preview,
         disable_input_accessory_view,
         data_directory,
-        data_store_identifier
+        data_store_identifier,
+        scroll_bar_style
       );
     }
   }

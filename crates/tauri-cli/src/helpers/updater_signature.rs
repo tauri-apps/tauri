@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use base64::Engine;
 use minisign::{
   sign, KeyPair as KP, PublicKey, PublicKeyBox, SecretKey, SecretKeyBox, SignatureBox,
@@ -15,6 +14,8 @@ use std::{
   time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::error::{Context, ErrorExt};
+
 /// A key pair (`PublicKey` and `SecretKey`).
 #[derive(Clone, Debug)]
 pub struct KeyPair {
@@ -24,9 +25,9 @@ pub struct KeyPair {
 
 fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(parent)?;
+    fs::create_dir_all(parent).fs_context("failed to create directory", parent.to_path_buf())?;
   }
-  let file = File::create(path)?;
+  let file = File::create(path).fs_context("failed to create file", path.to_path_buf())?;
   Ok(BufWriter::new(file))
 }
 
@@ -48,8 +49,12 @@ pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
 
 /// Transform a base64 String to readable string for the main signer
 pub fn decode_key<S: AsRef<[u8]>>(base64_key: S) -> crate::Result<String> {
-  let decoded_str = &base64::engine::general_purpose::STANDARD.decode(base64_key)?[..];
-  Ok(String::from(str::from_utf8(decoded_str)?))
+  let decoded_str = &base64::engine::general_purpose::STANDARD
+    .decode(base64_key)
+    .context("failed to decode base64 key")?[..];
+  Ok(String::from(
+    str::from_utf8(decoded_str).context("failed to convert base64 to utf8")?,
+  ))
 }
 
 /// Save KeyPair to disk
@@ -69,28 +74,43 @@ where
 
   if sk_path.exists() {
     if !force {
-      return Err(anyhow::anyhow!(
+      crate::error::bail!(
         "Key generation aborted:\n{} already exists\nIf you really want to overwrite the existing key pair, add the --force switch to force this operation.",
         sk_path.display()
-      ));
+      );
     } else {
-      std::fs::remove_file(sk_path)?;
+      std::fs::remove_file(sk_path)
+        .fs_context("failed to remove secret key file", sk_path.to_path_buf())?;
     }
   }
 
   if pk_path.exists() {
-    std::fs::remove_file(pk_path)?;
+    std::fs::remove_file(pk_path)
+      .fs_context("failed to remove public key file", pk_path.to_path_buf())?;
   }
 
-  let mut sk_writer = create_file(sk_path)?;
-  write!(sk_writer, "{key:}")?;
-  sk_writer.flush()?;
+  let write_file = |mut writer: BufWriter<File>, contents: &str| -> std::io::Result<()> {
+    write!(writer, "{contents:}")?;
+    writer.flush()?;
+    Ok(())
+  };
 
-  let mut pk_writer = create_file(pk_path)?;
-  write!(pk_writer, "{pubkey:}")?;
-  pk_writer.flush()?;
+  write_file(create_file(sk_path)?, key)
+    .fs_context("failed to write secret key", sk_path.to_path_buf())?;
 
-  Ok((fs::canonicalize(sk_path)?, fs::canonicalize(pk_path)?))
+  write_file(create_file(pk_path)?, pubkey)
+    .fs_context("failed to write public key", pk_path.to_path_buf())?;
+
+  Ok((
+    fs::canonicalize(sk_path).fs_context(
+      "failed to canonicalize secret key path",
+      sk_path.to_path_buf(),
+    )?,
+    fs::canonicalize(pk_path).fs_context(
+      "failed to canonicalize public key path",
+      pk_path.to_path_buf(),
+    )?,
+  ))
 }
 
 /// Sign files
@@ -103,8 +123,6 @@ where
   let mut extension = bin_path.extension().unwrap().to_os_string();
   extension.push(".sig");
   let signature_path = bin_path.with_extension(extension);
-
-  let mut signature_box_writer = create_file(&signature_path)?;
 
   let trusted_comment = format!(
     "timestamp:{}\tfile:{}",
@@ -120,13 +138,20 @@ where
     data_reader,
     Some(trusted_comment.as_str()),
     Some("signature from tauri secret key"),
-  )?;
+  )
+  .context("failed to sign file")?;
 
   let encoded_signature =
     base64::engine::general_purpose::STANDARD.encode(signature_box.to_string());
-  signature_box_writer.write_all(encoded_signature.as_bytes())?;
-  signature_box_writer.flush()?;
-  Ok((fs::canonicalize(&signature_path)?, signature_box))
+  std::fs::write(&signature_path, encoded_signature.as_bytes())
+    .fs_context("failed to write signature file", signature_path.clone())?;
+  Ok((
+    fs::canonicalize(&signature_path).fs_context(
+      "failed to canonicalize signature file",
+      signature_path.clone(),
+    )?,
+    signature_box,
+  ))
 }
 
 /// Gets the updater secret key from the given private key and password.
@@ -148,7 +173,9 @@ pub fn pub_key<S: AsRef<[u8]>>(public_key: S) -> crate::Result<PublicKey> {
   let decoded_publick = decode_key(public_key).context("failed to decode base64 pubkey")?;
   let pk_box =
     PublicKeyBox::from_string(&decoded_publick).context("failed to load updater pubkey")?;
-  let pk = pk_box.into_public_key()?;
+  let pk = pk_box
+    .into_public_key()
+    .context("failed to convert updater pubkey")?;
   Ok(pk)
 }
 
@@ -168,7 +195,7 @@ where
   let file = OpenOptions::new()
     .read(true)
     .open(data_path)
-    .map_err(|e| minisign::PError::new(minisign::ErrorKind::Io, e))?;
+    .fs_context("failed to open data file", data_path.to_path_buf())?;
   Ok(BufReader::new(file))
 }
 

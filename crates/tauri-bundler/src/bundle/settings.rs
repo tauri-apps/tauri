@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::category::AppCategory;
-use crate::{bundle::platform::target_triple, utils::fs_utils};
-use anyhow::Context;
+use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{
@@ -389,8 +388,17 @@ pub struct MacOsSettings {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.
   pub entitlements: Option<String>,
-  /// Path to the Info.plist file for the bundle.
-  pub info_plist_path: Option<PathBuf>,
+  /// Path to the Info.plist file or raw plist value to merge with the bundle Info.plist.
+  pub info_plist: Option<PlistKind>,
+}
+
+/// Plist format.
+#[derive(Debug, Clone)]
+pub enum PlistKind {
+  /// Path to a .plist file.
+  Path(PathBuf),
+  /// Raw plist value.
+  Plist(plist::Value),
 }
 
 /// Configuration for a target language for the WiX build.
@@ -995,7 +1003,6 @@ impl Settings {
       .iter()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
   }
 
   /// Returns the file name of the binary being bundled.
@@ -1005,7 +1012,6 @@ impl Settings {
       .iter_mut()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
   }
 
   /// Returns the file name of the binary being bundled.
@@ -1016,7 +1022,6 @@ impl Settings {
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
       .map(|b| b.name())
-      .map_err(Into::into)
   }
 
   /// Returns the path to the specified binary.

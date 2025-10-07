@@ -372,6 +372,7 @@ fn create_info_plist(
       plist::Value::Array(
         protocols
           .iter()
+          .filter(|p| !p.schemes.is_empty())
           .map(|protocol| {
             let mut dict = plist::Dictionary::new();
             dict.insert(

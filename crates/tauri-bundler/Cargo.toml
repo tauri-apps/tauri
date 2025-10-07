@@ -46,6 +46,7 @@ regex = "1"
 goblin = "0.9"
 plist = "1"
 
+
 [target."cfg(target_os = \"windows\")".dependencies]
 bitness = "0.4"
 windows-registry = "0.5"

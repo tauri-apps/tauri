@@ -1221,7 +1221,17 @@ pub struct ExportedFileAssociation {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DeepLinkProtocol {
   /// URL schemes to associate with this app without `://`. For example `my-app`
+  #[serde(default)]
   pub schemes: Vec<String>,
+  /// Domains to associate with this app. For example `example.com`.
+  /// Currently only supported on macOS, translating to an [universal app link].
+  ///
+  /// Note that universal app links require signed apps with a provisioning profile to work.
+  /// You can accomplish that by including the `embedded.provisionprofile` file in the `macOS > files` option.
+  ///
+  /// [universal app link]: https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app
+  #[serde(default)]
+  pub domains: Vec<String>,
   /// The protocol name. **macOS-only** and maps to `CFBundleTypeName`. Defaults to `<bundle-id>.<schemes[0]>`
   pub name: Option<String>,
   /// The app's role for these schemes. **macOS-only** and maps to `CFBundleTypeRole`.

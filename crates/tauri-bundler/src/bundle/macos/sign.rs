@@ -6,10 +6,10 @@
 use std::{
   env::{var, var_os},
   ffi::OsString,
-  path::{Path, PathBuf},
+  path::PathBuf,
 };
 
-use crate::{error::NotarizeAuthError, Settings};
+use crate::{error::NotarizeAuthError, Entitlements, Settings};
 
 pub struct SignTarget {
   pub path: PathBuf,
@@ -51,15 +51,20 @@ pub fn sign(
   log::info!(action = "Signing"; "with identity \"{}\"", keychain.signing_identity());
 
   for target in targets {
-    let entitlements_path = if target.is_an_executable {
-      settings.macos().entitlements.as_ref().map(Path::new)
-    } else {
-      None
+    let (entitlements_path, _temp_file) = match settings.macos().entitlements.as_ref() {
+      Some(Entitlements::Path(path)) => (Some(path.to_owned()), None),
+      Some(Entitlements::Plist(plist)) => {
+        let mut temp_file = tempfile::NamedTempFile::new()?;
+        plist::to_writer_xml(temp_file.as_file_mut(), &plist)?;
+        (Some(temp_file.path().to_path_buf()), Some(temp_file))
+      }
+      None => (None, None),
     };
+
     keychain
       .sign(
         &target.path,
-        entitlements_path,
+        entitlements_path.as_deref(),
         target.is_an_executable && settings.macos().hardened_runtime,
       )
       .map_err(Box::new)?;

@@ -163,5 +163,5 @@ pub fn check_mismatched_packages(frontend_dir: &Path, tauri_path: &Path) -> crat
     )
     .collect::<Vec<_>>()
     .join("\n");
-  Err(Error::GenericError(format!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{mismatched_text}")))
+  Err(Error::GenericError(format!("Found version mismatched Tauri packages. Make sure the NPM package and Rust crate versions are on the same major/minor releases:\n{mismatched_text}")))
 }

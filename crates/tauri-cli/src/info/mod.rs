@@ -318,8 +318,17 @@ pub fn command(options: Options) -> Result<()> {
     .extend(app::items(frontend_dir.as_ref(), tauri_dir.as_deref()));
 
   environment.display();
+
   packages.display();
+
   plugins.display();
+
+  if let (Some(frontend_dir), Some(tauri_dir)) = (&frontend_dir, &tauri_dir) {
+    if let Err(error) = plugins::check_mismatched_packages(frontend_dir, tauri_dir) {
+      println!("\n{}: {error}", "Error".bright_red().bold());
+    }
+  }
+
   app.display();
 
   // iOS

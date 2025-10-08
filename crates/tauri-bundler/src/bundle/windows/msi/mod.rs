@@ -697,7 +697,9 @@ pub fn build_wix_app_installer(
       .iter()
       .flat_map(|p| &p.schemes)
       .collect::<Vec<_>>();
-    data.insert("deep_link_protocols", to_json(schemes));
+    if !schemes.is_empty() {
+      data.insert("deep_link_protocols", to_json(schemes));
+    }
   }
 
   if let Some(path) = custom_template_path {

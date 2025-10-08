@@ -17,7 +17,7 @@ use crate::{
     plist::merge_plist,
   },
   interface::{AppInterface, Interface, Options as InterfaceOptions},
-  mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions},
+  mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser, ValueEnum};
@@ -57,7 +57,7 @@ pub struct Options {
     default_value = Target::DEFAULT_KEY,
     value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
   )]
-  pub targets: Vec<String>,
+  pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
@@ -94,6 +94,9 @@ pub struct Options {
   /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
   pub ignore_version_mismatches: bool,
+  /// Target device of this build
+  #[clap(skip)]
+  pub target_device: Option<TargetDevice>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -156,7 +159,15 @@ impl From<Options> for BuildOptions {
   }
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub struct BuiltApplication {
+  pub config: AppleConfig,
+  pub interface: AppInterface,
+  // prevent drop
+  #[allow(dead_code)]
+  options_handle: OptionsHandle,
+}
+
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
   crate::helpers::app_paths::resolve();
 
   let mut build_options: BuildOptions = options.clone().into();
@@ -165,7 +176,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .get(
         options
           .targets
-          .first()
+          .as_ref()
+          .and_then(|t| t.first())
           .map(|t| t.as_str())
           .unwrap_or(Target::DEFAULT_KEY),
       )
@@ -318,8 +330,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let open = options.open;
-  let _handle = run_build(
-    interface,
+  let options_handle = run_build(
+    &interface,
     options,
     build_options,
     tauri_config,
@@ -332,12 +344,16 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     open_and_wait(&config, &env);
   }
 
-  Ok(())
+  Ok(BuiltApplication {
+    config,
+    interface,
+    options_handle,
+  })
 }
 
 #[allow(clippy::too_many_arguments)]
 fn run_build(
-  interface: AppInterface,
+  interface: &AppInterface,
   options: Options,
   mut build_options: BuildOptions,
   tauri_config: ConfigHandle,
@@ -351,7 +367,7 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+  crate::build::setup(interface, &mut build_options, tauri_config.clone(), true)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(&InterfaceOptions {
@@ -369,7 +385,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
     config: build_options.config.clone(),
-    target_device: None,
+    target_device: options.target_device.clone(),
   };
   let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
 
@@ -379,9 +395,15 @@ fn run_build(
 
   let mut out_files = Vec::new();
 
+  let force_skip_target_fallback = options.targets.as_ref().is_some_and(|t| t.is_empty());
+
   call_for_targets_with_fallback(
-    options.targets.iter(),
-    &detect_target_ok,
+    options.targets.unwrap_or_default().iter(),
+    if force_skip_target_fallback {
+      &|_| None
+    } else {
+      &detect_target_ok
+    },
     env,
     |target: &Target| -> Result<()> {
       let mut app_version = config.bundle_version().to_string();
@@ -506,7 +528,9 @@ fn run_build(
   )
   .map_err(|e: TargetInvalid| Error::GenericError(e.to_string()))??;
 
-  log_finished(out_files, "iOS Bundle");
+  if !out_files.is_empty() {
+    log_finished(out_files, "iOS Bundle");
+  }
 
   Ok(handle)
 }

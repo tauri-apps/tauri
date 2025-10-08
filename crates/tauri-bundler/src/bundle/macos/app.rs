@@ -268,6 +268,55 @@ fn create_info_plist(
   }
 
   if let Some(associations) = settings.file_associations() {
+    let exported_associations = associations
+      .iter()
+      .filter_map(|association| {
+        association.exported_type.as_ref().map(|exported_type| {
+          let mut dict = plist::Dictionary::new();
+
+          dict.insert(
+            "UTTypeIdentifier".into(),
+            exported_type.identifier.clone().into(),
+          );
+          if let Some(description) = &association.description {
+            dict.insert("UTTypeDescription".into(), description.clone().into());
+          }
+          if let Some(conforms_to) = &exported_type.conforms_to {
+            dict.insert(
+              "UTTypeConformsTo".into(),
+              plist::Value::Array(conforms_to.iter().map(|s| s.clone().into()).collect()),
+            );
+          }
+
+          let mut specification = plist::Dictionary::new();
+          specification.insert(
+            "public.filename-extension".into(),
+            plist::Value::Array(
+              association
+                .ext
+                .iter()
+                .map(|s| s.to_string().into())
+                .collect(),
+            ),
+          );
+          if let Some(mime_type) = &association.mime_type {
+            specification.insert("public.mime-type".into(), mime_type.clone().into());
+          }
+
+          dict.insert("UTTypeTagSpecification".into(), specification.into());
+
+          plist::Value::Dictionary(dict)
+        })
+      })
+      .collect::<Vec<_>>();
+
+    if !exported_associations.is_empty() {
+      plist.insert(
+        "UTExportedTypeDeclarations".into(),
+        plist::Value::Array(exported_associations),
+      );
+    }
+
     plist.insert(
       "CFBundleDocumentTypes".into(),
       plist::Value::Array(
@@ -275,16 +324,27 @@ fn create_info_plist(
           .iter()
           .map(|association| {
             let mut dict = plist::Dictionary::new();
-            dict.insert(
-              "CFBundleTypeExtensions".into(),
-              plist::Value::Array(
-                association
-                  .ext
-                  .iter()
-                  .map(|ext| ext.to_string().into())
-                  .collect(),
-              ),
-            );
+
+            if !association.ext.is_empty() {
+              dict.insert(
+                "CFBundleTypeExtensions".into(),
+                plist::Value::Array(
+                  association
+                    .ext
+                    .iter()
+                    .map(|ext| ext.to_string().into())
+                    .collect(),
+                ),
+              );
+            }
+
+            if let Some(content_types) = &association.content_types {
+              dict.insert(
+                "LSItemContentTypes".into(),
+                plist::Value::Array(content_types.iter().map(|s| s.to_string().into()).collect()),
+              );
+            }
+
             dict.insert(
               "CFBundleTypeName".into(),
               association
@@ -312,6 +372,7 @@ fn create_info_plist(
       plist::Value::Array(
         protocols
           .iter()
+          .filter(|p| !p.schemes.is_empty())
           .map(|protocol| {
             let mut dict = plist::Dictionary::new();
             dict.insert(

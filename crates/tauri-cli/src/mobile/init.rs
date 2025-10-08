@@ -117,7 +117,16 @@ pub fn exec(
   build_args.push(target.command_name());
   build_args.push(target.ide_build_script_name());
 
-  map.insert("tauri-binary", binary.to_string_lossy());
+  let mut binary = binary.to_string_lossy().to_string();
+  if binary.ends_with(".exe") || binary.ends_with(".cmd") || binary.ends_with(".bat") {
+    // remove Windows-only extension
+    binary.pop();
+    binary.pop();
+    binary.pop();
+    binary.pop();
+  }
+
+  map.insert("tauri-binary", binary);
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));
 

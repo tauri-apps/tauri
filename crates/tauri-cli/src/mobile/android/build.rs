@@ -15,7 +15,7 @@ use crate::{
     flock,
   },
   interface::{AppInterface, Interface, Options as InterfaceOptions},
-  mobile::{write_options, CliOptions},
+  mobile::{write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
@@ -63,10 +63,10 @@ pub struct Options {
   pub split_per_abi: bool,
   /// Build APKs.
   #[clap(long)]
-  pub apk: bool,
+  pub apk: Option<bool>,
   /// Build AABs.
   #[clap(long)]
-  pub aab: bool,
+  pub aab: Option<bool>,
   /// Open Android Studio
   #[clap(short, long)]
   pub open: bool,
@@ -83,6 +83,9 @@ pub struct Options {
   /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
   pub ignore_version_mismatches: bool,
+  /// Target device of this build
+  #[clap(skip)]
+  pub target_device: Option<TargetDevice>,
 }
 
 impl From<Options> for BuildOptions {
@@ -104,7 +107,15 @@ impl From<Options> for BuildOptions {
   }
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub struct BuiltApplication {
+  pub config: AndroidConfig,
+  pub interface: AppInterface,
+  // prevent drop
+  #[allow(dead_code)]
+  options_handle: OptionsHandle,
+}
+
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
   crate::helpers::app_paths::resolve();
 
   delete_codegen_vars();
@@ -188,8 +199,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .context("failed to build Android app")?;
 
   let open = options.open;
-  let _handle = run_build(
-    interface,
+  let options_handle = run_build(
+    &interface,
     options,
     build_options,
     tauri_config,
@@ -203,12 +214,16 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     open_and_wait(&config, &env);
   }
 
-  Ok(())
+  Ok(BuiltApplication {
+    config,
+    interface,
+    options_handle,
+  })
 }
 
 #[allow(clippy::too_many_arguments)]
 fn run_build(
-  interface: AppInterface,
+  interface: &AppInterface,
   mut options: Options,
   build_options: BuildOptions,
   tauri_config: ConfigHandle,
@@ -217,10 +232,10 @@ fn run_build(
   env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<OptionsHandle> {
-  if !(options.apk || options.aab) {
+  if !(options.apk.is_some() || options.aab.is_some()) {
     // if the user didn't specify the format to build, we'll do both
-    options.apk = true;
-    options.aab = true;
+    options.apk = Some(true);
+    options.aab = Some(true);
   }
 
   let interface_options = InterfaceOptions {
@@ -241,13 +256,13 @@ fn run_build(
     noise_level,
     vars: Default::default(),
     config: build_options.config,
-    target_device: None,
+    target_device: options.target_device.clone(),
   };
   let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
 
   inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
-  let apk_outputs = if options.apk {
+  let apk_outputs = if options.apk.unwrap_or_default() {
     apk::build(
       config,
       env,
@@ -261,7 +276,7 @@ fn run_build(
     Vec::new()
   };
 
-  let aab_outputs = if options.aab {
+  let aab_outputs = if options.aab.unwrap_or_default() {
     aab::build(
       config,
       env,
@@ -275,8 +290,12 @@ fn run_build(
     Vec::new()
   };
 
-  log_finished(apk_outputs, "APK");
-  log_finished(aab_outputs, "AAB");
+  if !apk_outputs.is_empty() {
+    log_finished(apk_outputs, "APK");
+  }
+  if !aab_outputs.is_empty() {
+    log_finished(aab_outputs, "AAB");
+  }
 
   Ok(handle)
 }

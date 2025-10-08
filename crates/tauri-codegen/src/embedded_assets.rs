@@ -180,7 +180,7 @@ impl CspHashes {
       if dangerous_disable_asset_csp_modification.can_modify("script-src") {
         let mut hasher = Sha256::new();
         hasher.update(
-          &std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
+          &std::fs::read(path).map(|b| tauri_utils::html::normalize_script_for_csp(&b)).map_err(|error| EmbeddedAssetsError::AssetRead {
             path: path.to_path_buf(),
             error,
           })?,

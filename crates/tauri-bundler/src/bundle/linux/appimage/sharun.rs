@@ -270,20 +270,20 @@ fn prepare_tools(
   let fstype = if squashfs { "squashfs" } else { "dwarfs" };
   let uruntime = tools_path.join(format!("uruntime-appimage-{fstype}-{arch}"));
   if !uruntime.exists() {
-    let data = download(&format!("https://github.com/VHSgunzo/uruntime/releases/download/0.4.5/uruntime-appimage-{fstype}-{arch}"))?;
+    let data = download(&format!("https://github.com/VHSgunzo/uruntime/releases/download/v0.4.5/uruntime-appimage-{fstype}-{arch}"))?;
     write_and_make_executable(&uruntime, data)?;
   }
 
   let uruntime_lite = tools_path.join(format!("uruntime-appimage-{fstype}-lite-{arch}"));
   if !uruntime_lite.exists() {
-    let data = download(&format!("https://github.com/VHSgunzo/uruntime/releases/download/0.4.5/uruntime-appimage-{fstype}-lite-{arch}"))?;
+    let data = download(&format!("https://github.com/VHSgunzo/uruntime/releases/download/v0.4.5/uruntime-appimage-{fstype}-lite-{arch}"))?;
     write_and_make_executable(&uruntime_lite, data)?;
   }
 
   let sharun_aio = tools_path.join(format!("sharun-{arch}-aio"));
   if !sharun_aio.exists() {
     let data = download(&format!(
-      "https://github.com/VHSgunzo/sharun/releases/download/0.7.4/sharun-{arch}-aio"
+      "https://github.com/VHSgunzo/sharun/releases/download/v0.7.4/sharun-{arch}-aio"
     ))?;
     write_and_make_executable(&sharun_aio, data)?;
   }

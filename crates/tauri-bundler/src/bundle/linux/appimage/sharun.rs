@@ -144,6 +144,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 /usr/lib/{tools_arch}-linux-gnu/libpulsecommon* \
 /usr/lib/{tools_arch}-linux-gnu/gstreamer-1.0/* \
 /usr/lib/{tools_arch}-linux-gnu/gstreamer1.0/gstreamer-1.0/* \
+/usr/lib64/libpulsecommon* \
+/usr/lib64/gstreamer-1.0/* \
+/usr/libexec/gstreamer-1.0/* \
 "#
     )
   } else {
@@ -179,6 +182,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 /usr/lib/{tools_arch}-linux-gnu/libvulkan* \
 /usr/lib/{tools_arch}-linux-gnu/dri/* \
 /usr/lib/{tools_arch}-linux-gnu/gbm/*
+/usr/lib64/libwebkit2gtk-4.1* \
+/usr/lib64/gdk-pixbuf-*/*/*/* \
+/usr/lib64/gio/modules/* \
+/usr/lib64/libnss*.so* \
+/usr/lib64/libGL* \
+/usr/lib64/libEGL* \
+/usr/lib64/libvulkan* \
+/usr/lib64/dri/* \
+/usr/lib64/gbm/*
 "#,
         xvfb,
         sharun_aio.to_string_lossy(),

@@ -1055,9 +1055,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.20.6"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35613119e2e16b293e56557a27da0d5bc42031f5edc0bf4f73a2b4d310d39c65"
+checksum = "7705eddd52bb9e1d1fa94b79c5e869055fdf505a27217574c6ebd4f35389abbe"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -1319,7 +1319,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4311,7 +4311,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -10315,7 +10315,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

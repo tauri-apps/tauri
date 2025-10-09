@@ -30,7 +30,9 @@ import {
   // imported for documentation purposes
   type EventTarget,
   emit,
+  emit2,
   emitTo,
+  emitTo2,
   listen,
   once
 } from './event'
@@ -437,6 +439,9 @@ class Window {
 
   /**
    * Emits an event to all {@link EventTarget|targets}.
+   *
+   * Prefer {@link Window.emit2} to send binary data.
+   *
    * @example
    * ```typescript
    * import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -462,7 +467,38 @@ class Window {
   }
 
   /**
+   * Emits an event to all {@link EventTarget|targets}.
+   *
+   * This function is similar to {@link Window.emit} but it is optimized for binary payloads.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   *
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emit2<T>(event: string, payload?: T): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return
+    }
+    return emit2<T>(event, payload)
+  }
+
+  /**
    * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * Prefer {@link Window.emitTo2} to send binary data.
    *
    * @example
    * ```typescript
@@ -490,6 +526,39 @@ class Window {
       return
     }
     return emitTo<T>(target, event, payload)
+  }
+
+  /**
+   * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * This function is similar to {@link Window.emitTo} but it is optimized for binary payloads.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().emit('main', 'window-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emitTo2<T>(
+    target: string | EventTarget,
+    event: string,
+    payload?: T
+  ): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line security/detect-object-injection
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return
+    }
+    return emitTo2<T>(target, event, payload)
   }
 
   /** @ignore */

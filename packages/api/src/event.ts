@@ -172,6 +172,8 @@ async function once<T>(
 /**
  * Emits an event to all {@link EventTarget|targets}.
  *
+ * Prefer {@link emit2} to send binary data.
+ *
  * @example
  * ```typescript
  * import { emit } from '@tauri-apps/api/event';
@@ -184,6 +186,26 @@ async function once<T>(
  * @since 1.0.0
  */
 async function emit<T>(event: string, payload?: T): Promise<void> {
+  await invoke('plugin:event|emit', { event, payload })
+}
+
+/**
+ * Emits an event to all {@link EventTarget|targets}.
+ *
+ * This function is similar to {@link emit} but it is optimized for binary payloads.
+ *
+ * @example
+ * ```typescript
+ * import { emit2 } from '@tauri-apps/api/event';
+ * await emit2('frontend-loaded', { loggedIn: true, token: 'authToken' });
+ * ```
+ *
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param payload Event payload.
+ *
+ * @since 2.10.0
+ */
+async function emit2<T>(event: string, payload?: T): Promise<void> {
   await invoke('plugin:event|emit', payload as any, {
     headers: { 'Tauri-Event-Name': event }
   })
@@ -191,6 +213,8 @@ async function emit<T>(event: string, payload?: T): Promise<void> {
 
 /**
  * Emits an event to all {@link EventTarget|targets} matching the given target.
+ *
+ * Prefer {@link emitTo2} to send binary data.
  *
  * @example
  * ```typescript
@@ -211,11 +235,38 @@ async function emitTo<T>(
 ): Promise<void> {
   const eventTarget: EventTarget =
     typeof target === 'string' ? { kind: 'AnyLabel', label: target } : target
+  await invoke('plugin:event|emit_to', { event, payload, target: eventTarget })
+}
+
+/**
+ * Emits an event to all {@link EventTarget|targets} matching the given target.
+ *
+ * This function is similar to {@link emitTo} but it is optimized for binary payloads.
+ *
+ * @example
+ * ```typescript
+ * import { emitTo2 } from '@tauri-apps/api/event';
+ * await emitTo2('main', 'frontend-loaded', { loggedIn: true, token: 'authToken' });
+ * ```
+ *
+ * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param payload Event payload.
+ *
+ * @since 2.10.0
+ */
+async function emitTo2<T>(
+  target: EventTarget | string,
+  event: string,
+  payload?: T
+): Promise<void> {
+  const eventTarget: EventTarget =
+    typeof target === 'string' ? { kind: 'AnyLabel', label: target } : target
   await invoke('plugin:event|emit_to', payload as any, {
     headers: {
       'Tauri-Event-Name': event,
       'Tauri-Event-Target': JSON.stringify(eventTarget)
-    },
+    }
   })
 }
 
@@ -228,4 +279,4 @@ export type {
   Options
 }
 
-export { listen, once, emit, emitTo, TauriEvent }
+export { listen, once, emit, emitTo, emit2, emitTo2, TauriEvent }

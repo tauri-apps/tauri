@@ -25,7 +25,9 @@ import {
   // imported for documentation purposes
   type EventTarget,
   emit,
+  emit2,
   emitTo,
+  emitTo2,
   listen,
   once
 } from './event'
@@ -313,6 +315,8 @@ class Webview {
   /**
    * Emits an event to all {@link EventTarget|targets}.
    *
+   * Prefer {@link Webview.emit2} to send binary data.
+   *
    * @example
    * ```typescript
    * import { getCurrentWebview } from '@tauri-apps/api/webview';
@@ -338,7 +342,38 @@ class Webview {
   }
 
   /**
+   * Emits an event to all {@link EventTarget|targets}.
+   *
+   * This function is similar to {@link Webview.emit} but it is optimized for binary payloads.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   *
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emit2<T>(event: string, payload?: T): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return
+    }
+    return emit2<T>(event, payload)
+  }
+
+  /**
    * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * Prefer {@link Webview.emitTo2} to send binary data.
    *
    * @example
    * ```typescript
@@ -367,6 +402,40 @@ class Webview {
       return
     }
     return emitTo<T>(target, event, payload)
+  }
+
+  /**
+   * Emits an event to all {@link EventTarget|targets} matching the given target.
+   *
+   * This function is similar to {@link Webview.emitTo} but it is optimized for binary payloads.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().emitTo('main', 'webview-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
+   *
+   * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+   * @param payload Event payload.
+   */
+  async emitTo2<T>(
+    target: string | EventTarget,
+    event: string,
+    payload?: T
+  ): Promise<void> {
+    if (localTauriEvents.includes(event)) {
+      // eslint-disable-next-line
+      for (const handler of this.listeners[event] || []) {
+        handler({
+          event,
+          id: -1,
+          payload
+        })
+      }
+      return
+    }
+    return emitTo2<T>(target, event, payload)
   }
 
   /** @ignore */

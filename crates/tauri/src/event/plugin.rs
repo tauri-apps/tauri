@@ -1,3 +1,4 @@
+use serde::Deserialize;
 // Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
@@ -38,47 +39,65 @@ async fn unlisten<R: Runtime>(
 
 #[command(root = "crate")]
 async fn emit<R: Runtime>(app: AppHandle<R>, request: Request<'_>) -> Result<()> {
-  let event = if let Some(event_header) = request
+  if let Some(event_header) = request
     .headers()
     .get(EVENT_NAME_HEADER_NAME)
     .and_then(|v| v.to_str().ok())
   {
-    EventName::new(event_header)?
+    let event = EventName::new(event_header)?;
+    match request.body() {
+      InvokeBody::Json(payload) => app.emit(event.as_str(), payload),
+      InvokeBody::Raw(payload) => app.emit_raw(event.as_str(), payload.clone()),
+    }
+  } else if let InvokeBody::Json(payload) = request.body() {
+    let args: EmitArgs = serde_json::from_value(payload.clone())?;
+    app.emit(args.event.as_str(), args.payload)
   } else {
-    return Err(anyhow::anyhow!("missing event name header").into());
-  };
-  match request.body() {
-    InvokeBody::Json(payload) => app.emit(event.as_str(), payload),
-    InvokeBody::Raw(payload) => app.emit_raw(event.as_str(), payload.clone()),
+    Err(anyhow::anyhow!("unexpected emit request format").into())
   }
+}
+
+#[derive(Deserialize)]
+struct EmitArgs {
+  event: EventName,
+  payload: Option<serde_json::Value>,
 }
 
 #[command(root = "crate")]
 async fn emit_to<R: Runtime>(app: AppHandle<R>, request: Request<'_>) -> Result<()> {
-  let event = if let Some(event_header) = request
+  if let Some(event_header) = request
     .headers()
     .get(EVENT_NAME_HEADER_NAME)
     .and_then(|v| v.to_str().ok())
   {
-    EventName::new(event_header)?
-  } else {
-    return Err(anyhow::anyhow!("missing event name header").into());
-  };
+    let event = EventName::new(event_header)?;
+    let target = if let Some(target_header) = request
+      .headers()
+      .get(EVENT_TARGET_HEADER_NAME)
+      .and_then(|v| v.to_str().ok())
+    {
+      serde_json::from_str::<EventTarget>(target_header)?
+    } else {
+      return Err(anyhow::anyhow!("missing event target header").into());
+    };
 
-  let target = if let Some(target_header) = request
-    .headers()
-    .get(EVENT_TARGET_HEADER_NAME)
-    .and_then(|v| v.to_str().ok())
-  {
-    serde_json::from_str::<EventTarget>(target_header)?
+    match request.body() {
+      InvokeBody::Json(payload) => app.emit_to(target, event.as_str(), payload),
+      InvokeBody::Raw(payload) => app.emit_raw_to(target, event.as_str(), payload.clone()),
+    }
+  } else if let InvokeBody::Json(payload) = request.body() {
+    let args: EmitToArgs = serde_json::from_value(payload.clone())?;
+    app.emit_to(args.target, args.event.as_str(), args.payload)
   } else {
-    return Err(anyhow::anyhow!("missing event target header").into());
-  };
-
-  match request.body() {
-    InvokeBody::Json(payload) => app.emit_to(target, event.as_str(), payload),
-    InvokeBody::Raw(payload) => app.emit_raw_to(target, event.as_str(), payload.clone()),
+    Err(anyhow::anyhow!("unexpected emit request format").into())
   }
+}
+
+#[derive(Deserialize)]
+struct EmitToArgs {
+  event: EventName,
+  payload: Option<serde_json::Value>,
+  target: EventTarget,
 }
 
 #[command(root = "crate")]

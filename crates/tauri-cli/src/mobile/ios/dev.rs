@@ -4,14 +4,16 @@
 
 use super::{
   device_prompt, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  merge_plist, open_and_wait, synchronize_project_config, MobileTarget, ProjectConfig,
+  open_and_wait, synchronize_project_config, MobileTarget, ProjectConfig,
 };
 use crate::{
   dev::Options as DevOptions,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
     flock,
+    plist::merge_plist,
   },
   interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{
@@ -22,7 +24,6 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::Config as AppleConfig,
@@ -32,8 +33,9 @@ use cargo_mobile2::{
   env::Env,
   opts::{NoiseLevel, Profile},
 };
+use url::Host;
 
-use std::{env::set_current_dir, path::PathBuf};
+use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
 
@@ -150,11 +152,14 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).context("failed to read certificate file")?,
+      std::fs::read_to_string(root_certificate_path).fs_context(
+        "failed to read root certificate file",
+        root_certificate_path.clone(),
+      )?,
     );
   }
 
-  let env = env()?;
+  let env = env().context("failed to load iOS environment")?;
   let device = if options.open {
     None
   } else {
@@ -200,13 +205,14 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
     config.app(),
     config.project_dir(),
     MobileTarget::Ios,
+    false,
   )?;
   inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
@@ -214,12 +220,29 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .project_dir()
     .join(config.scheme())
     .join("Info.plist");
-  let merged_info_plist = merge_plist(vec![
-    info_plist_path.clone().into(),
-    tauri_path.join("Info.plist").into(),
-    tauri_path.join("Info.ios.plist").into(),
-  ])?;
-  merged_info_plist.to_file_xml(&info_plist_path)?;
+  let mut src_plists = vec![info_plist_path.clone().into()];
+  if tauri_path.join("Info.plist").exists() {
+    src_plists.push(tauri_path.join("Info.plist").into());
+  }
+  if tauri_path.join("Info.ios.plist").exists() {
+    src_plists.push(tauri_path.join("Info.ios.plist").into());
+  }
+  if let Some(info_plist) = &tauri_config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .bundle
+    .ios
+    .info_plist
+  {
+    src_plists.push(info_plist.clone().into());
+  }
+  let merged_info_plist = merge_plist(src_plists)?;
+  merged_info_plist
+    .to_file_xml(&info_plist_path)
+    .map_err(std::io::Error::other)
+    .fs_context("failed to save merged Info.plist file", info_plist_path)?;
 
   let mut pbxproj = load_pbxproj(&config)?;
 
@@ -237,7 +260,9 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     !options.release_mode,
   )?;
   if pbxproj.has_changes() {
-    pbxproj.save()?;
+    pbxproj
+      .save()
+      .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
   run_dev(
@@ -263,12 +288,26 @@ fn run_dev(
   config: &AppleConfig,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  // when running on an actual device we must use the network IP
+  // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
     || device
       .as_ref()
       .map(|device| !matches!(device.kind(), DeviceKind::Simulator))
       .unwrap_or(false)
+    || tauri_config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .dev_url
+      .as_ref()
+      .is_some_and(|url| {
+        matches!(
+          url.host(),
+          Some(Host::Ipv4(i)) if i == Ipv4Addr::UNSPECIFIED
+        )
+      })
   {
     use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
   }
@@ -325,7 +364,7 @@ fn run_dev(
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();
-            Err(e.into())
+            crate::error::bail!("failed to run iOS app: {}", e)
           }
         }
       } else {

@@ -18,6 +18,8 @@ use std::{
 use tauri_utils::mime_type::MimeType;
 use tokio::sync::broadcast::{channel, Sender};
 
+use crate::error::ErrorExt;
+
 const RELOAD_SCRIPT: &str = include_str!("./auto-reload.js");
 
 #[derive(Clone)]
@@ -29,7 +31,8 @@ struct ServerState {
 
 pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Result<SocketAddr> {
   let dir = dir.as_ref();
-  let dir = dunce::canonicalize(dir)?;
+  let dir =
+    dunce::canonicalize(dir).fs_context("failed to canonicalize path", dir.to_path_buf())?;
 
   // bind port and tcp listener
   let auto_port = port.is_none();
@@ -37,12 +40,12 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
   let (tcp_listener, address) = loop {
     let address = SocketAddr::new(ip, port);
     if let Ok(tcp) = std::net::TcpListener::bind(address) {
-      tcp.set_nonblocking(true)?;
+      tcp.set_nonblocking(true).unwrap();
       break (tcp, address);
     }
 
     if !auto_port {
-      anyhow::bail!("Couldn't bind to {port} on {ip}");
+      crate::error::bail!("Couldn't bind to {port} on {ip}");
     }
 
     port += 1;
@@ -152,11 +155,11 @@ fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
 }
 
 fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
-  let path = dunce::canonicalize(path)?;
+  let path = dunce::canonicalize(&path).fs_context("failed to canonicalize path", path.clone())?;
   if path.starts_with(scope) {
-    std::fs::read(path).map_err(Into::into)
+    std::fs::read(&path).fs_context("failed to read file", path.clone())
   } else {
-    anyhow::bail!("forbidden path")
+    crate::error::bail!("forbidden path")
   }
 }
 

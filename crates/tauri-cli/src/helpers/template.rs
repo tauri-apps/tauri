@@ -13,6 +13,8 @@ use include_dir::Dir;
 use serde::Serialize;
 use serde_json::value::{Map, Value as JsonValue};
 
+use crate::error::ErrorExt;
+
 /// Map of template variable names and values.
 #[derive(Clone, Debug)]
 #[repr(transparent)]
@@ -74,13 +76,17 @@ pub fn render_with_generator<
         file_path.set_extension("toml");
       }
     }
-    if let Some(mut output_file) = out_file_generator(file_path)? {
+    if let Some(mut output_file) = out_file_generator(file_path.clone())
+      .fs_context("failed to generate output file", file_path.clone())?
+    {
       if let Some(utf8) = file.contents_utf8() {
         handlebars
           .render_template_to_write(utf8, &data, &mut output_file)
           .expect("Failed to render template");
       } else {
-        output_file.write_all(file.contents())?;
+        output_file
+          .write_all(file.contents())
+          .fs_context("failed to write template", file_path.clone())?;
       }
     }
   }

@@ -2160,7 +2160,7 @@
           ]
         },
         "fileAssociations": {
-          "description": "File associations to application.",
+          "description": "File types to associate with the application.",
           "type": [
             "array",
             "null"
@@ -2435,6 +2435,16 @@
             "$ref": "#/definitions/AssociationExt"
           }
         },
+        "contentTypes": {
+          "description": "Declare support to a file with the given content type. Maps to `LSItemContentTypes` on macOS.\n\n This allows supporting any file format declared by another application that conforms to this type.\n Declaration of new types can be done with [`Self::exported_type`] and linking to certain content types are done via [`ExportedFileAssociation::conforms_to`].",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "name": {
           "description": "The name. Maps to `CFBundleTypeName` on macOS. Default to `ext[0]`",
           "type": [
@@ -2471,6 +2481,17 @@
           "allOf": [
             {
               "$ref": "#/definitions/HandlerRank"
+            }
+          ]
+        },
+        "exportedType": {
+          "description": "The exported type definition. Maps to a `UTExportedTypeDeclarations` entry on macOS.\n\n You should define this if the associated file is a custom file type defined by your application.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ExportedFileAssociation"
+            },
+            {
+              "type": "null"
             }
           ]
         }
@@ -2553,6 +2574,30 @@
           ]
         }
       ]
+    },
+    "ExportedFileAssociation": {
+      "description": "The exported type definition. Maps to a `UTExportedTypeDeclarations` entry on macOS.",
+      "type": "object",
+      "required": [
+        "identifier"
+      ],
+      "properties": {
+        "identifier": {
+          "description": "The unique identifier for the exported type. Maps to `UTTypeIdentifier`.",
+          "type": "string"
+        },
+        "conformsTo": {
+          "description": "The types that this type conforms to. Maps to `UTTypeConformsTo`.\n\n Examples are `public.data`, `public.image`, `public.json` and `public.database`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "WindowsConfig": {
       "description": "Windows bundler configuration.\n\n See more: <https://v2.tauri.app/reference/config/#windowsconfig>",
@@ -3574,6 +3619,13 @@
             "null"
           ]
         },
+        "infoPlist": {
+          "description": "Path to a Info.plist file to merge with the default Info.plist.\n\n Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "dmg": {
           "description": "DMG-specific settings.",
           "default": {
@@ -3745,6 +3797,13 @@
           "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.\n\n Maps to the IPHONEOS_DEPLOYMENT_TARGET value.",
           "default": "14.0",
           "type": "string"
+        },
+        "infoPlist": {
+          "description": "Path to a Info.plist file to merge with the default Info.plist.\n\n Note that Tauri also looks for a `Info.plist` and `Info.ios.plist` file in the same directory as the Tauri configuration file.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

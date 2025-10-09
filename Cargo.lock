@@ -8411,11 +8411,12 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.34.1"
+version = "0.34.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b65dc99ae111a3255027d1eca24a3833bb3267d4556a6defddb455f3ca4f5b6c"
+checksum = "4daa814018fecdfb977b59a094df4bd43b42e8e21f88fddfc05807e6f46efaaf"
 dependencies = [
  "bitflags 2.7.0",
+ "block2 0.6.0",
  "core-foundation 0.10.0",
  "core-graphics",
  "crossbeam-channel",
@@ -8615,7 +8616,6 @@ dependencies = [
 name = "tauri-cli"
 version = "2.8.4"
 dependencies = [
- "anyhow",
  "ar",
  "axum",
  "base64 0.22.1",
@@ -8627,6 +8627,7 @@ dependencies = [
  "css-color",
  "ctrlc",
  "dialoguer",
+ "dirs 6.0.0",
  "duct",
  "dunce",
  "elf",
@@ -8680,6 +8681,7 @@ dependencies = [
  "tauri-macos-sign",
  "tauri-utils",
  "tempfile",
+ "thiserror 2.0.12",
  "tokio",
  "toml 0.9.4",
  "toml_edit 0.23.2",
@@ -8687,7 +8689,9 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
+ "which",
  "windows-sys 0.60.2",
+ "zip 4.0.0",
 ]
 
 [[package]]
@@ -8771,7 +8775,6 @@ dependencies = [
 name = "tauri-macos-sign"
 version = "2.2.0"
 dependencies = [
- "anyhow",
  "apple-codesign",
  "chrono",
  "dirs 6.0.0",
@@ -8784,6 +8787,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.12",
  "x509-certificate 0.23.1",
 ]
 

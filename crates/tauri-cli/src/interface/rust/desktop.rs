@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
-use crate::CommandExt;
+use crate::{
+  error::{Context, ErrorExt},
+  CommandExt, Error,
+};
 
-use anyhow::Context;
 use shared_child::SharedChild;
 use std::{
   fs,
@@ -72,8 +74,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   dev_cmd.arg("--color");
   dev_cmd.arg("always");
 
-  // TODO: double check this
-  dev_cmd.stdout(os_pipe::dup_stdout()?);
+  dev_cmd.stdout(os_pipe::dup_stdout().unwrap());
   dev_cmd.stderr(Stdio::piped());
 
   dev_cmd.arg("--");
@@ -86,16 +87,18 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
 
   let dev_child = match SharedChild::spawn(&mut dev_cmd) {
     Ok(c) => Ok(c),
-    Err(e) if e.kind() == ErrorKind::NotFound => Err(anyhow::anyhow!(
-      "`{}` command not found.{}",
-      runner,
+    Err(e) if e.kind() == ErrorKind::NotFound => crate::error::bail!(
+      "`{runner}` command not found.{}",
       if runner == "cargo" {
         " Please follow the Tauri setup guide: https://v2.tauri.app/start/prerequisites/"
       } else {
         ""
       }
-    )),
-    Err(e) => Err(e.into()),
+    ),
+    Err(e) => Err(Error::CommandFailed {
+      command: runner,
+      error: e,
+    }),
   }?;
   let dev_child = Arc::new(dev_child);
   let dev_child_stderr = dev_child.take_stderr().unwrap();
@@ -164,7 +167,8 @@ pub fn build(
   }
 
   if options.target == Some("universal-apple-darwin".into()) {
-    std::fs::create_dir_all(&out_dir).with_context(|| "failed to create project out directory")?;
+    std::fs::create_dir_all(&out_dir)
+      .fs_context("failed to create project out directory", out_dir.clone())?;
 
     let bin_name = bin_path.file_stem().unwrap();
 
@@ -189,9 +193,9 @@ pub fn build(
 
     let lipo_status = lipo_cmd.output_ok()?.status;
     if !lipo_status.success() {
-      return Err(anyhow::anyhow!(
+      crate::error::bail!(
         "Result of `lipo` command was unsuccessful: {lipo_status}. (Is `lipo` installed?)"
-      ));
+      );
     }
   } else {
     build_production_app(options, available_targets, config_features)
@@ -210,8 +214,8 @@ fn build_production_app(
   let runner = build_cmd.get_program().to_string_lossy().into_owned();
   match build_cmd.piped() {
     Ok(status) if status.success() => Ok(()),
-    Ok(_) => Err(anyhow::anyhow!("failed to build app")),
-    Err(e) if e.kind() == ErrorKind::NotFound => Err(anyhow::anyhow!(
+    Ok(_) => crate::error::bail!("failed to build app"),
+    Err(e) if e.kind() == ErrorKind::NotFound => crate::error::bail!(
       "`{}` command not found.{}",
       runner,
       if runner == "cargo" {
@@ -219,8 +223,11 @@ fn build_production_app(
       } else {
         ""
       }
-    )),
-    Err(e) => Err(e.into()),
+    ),
+    Err(e) => Err(Error::CommandFailed {
+      command: runner,
+      error: e,
+    }),
   }
 }
 
@@ -302,7 +309,7 @@ fn validate_target(
   if let Some(available_targets) = available_targets {
     if let Some(target) = available_targets.iter().find(|t| t.name == target) {
       if !target.installed {
-        anyhow::bail!(
+        crate::error::bail!(
             "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
             target = target.name,
             installed = available_targets.iter().filter(|t| t.installed).map(|t| t.name.as_str()).collect::<Vec<&str>>().join(", ")
@@ -310,7 +317,7 @@ fn validate_target(
       }
     }
     if !available_targets.iter().any(|t| t.name == target) {
-      anyhow::bail!("Target {target} does not exist. Please run `rustup target list` to see the available targets.", target = target);
+      crate::error::bail!("Target {target} does not exist. Please run `rustup target list` to see the available targets.", target = target);
     }
   }
   Ok(())
@@ -328,13 +335,7 @@ fn rename_app(
       ""
     };
     let new_path = bin_path.with_file_name(format!("{main_binary_name}{extension}"));
-    fs::rename(&bin_path, &new_path).with_context(|| {
-      format!(
-        "failed to rename `{}` to `{}`",
-        tauri_utils::display_path(bin_path),
-        tauri_utils::display_path(&new_path),
-      )
-    })?;
+    fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path.clone())?;
     Ok(new_path)
   } else {
     Ok(bin_path)

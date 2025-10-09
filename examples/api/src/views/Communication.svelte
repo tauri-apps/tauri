@@ -66,7 +66,7 @@
   }
 
   function emitRawEvent() {
-    webviewWindow.emit('raw-js-event', new Uint8Array([1, 2, 3]))
+    webviewWindow.emit2('raw-js-event', new Uint8Array([1, 2, 3]))
   }
 </script>
 

@@ -13,7 +13,11 @@ mod event_name;
 
 pub(crate) use event_name::EventName;
 
-use crate::ipc::CallbackFn;
+use crate::{
+  event::plugin::{FETCH_EVENT_PAYLOAD_COMMAND, PAYLOAD_ID_HEADER_NAME},
+  ipc::CallbackFn,
+  manager::BINARY_EVENT_PAYLOAD_PREFIX,
+};
 
 /// Unique id of an event.
 pub type EventId = u32;
@@ -119,6 +123,8 @@ pub struct EmitArgs {
   event: EventName,
   /// Serialized payload.
   payload: String,
+  /// Raw payload bytes.
+  raw: Option<Vec<u8>>,
 }
 
 impl EmitArgs {
@@ -128,16 +134,32 @@ impl EmitArgs {
     Ok(EmitArgs {
       event: event.into_owned(),
       payload: serde_json::to_string(payload)?,
+      raw: None,
     })
   }
 
-  pub fn new_str(event: EventName<&str>, payload: String) -> crate::Result<Self> {
+  pub fn new_raw<S: Serialize>(
+    event: EventName<&str>,
+    payload: &S,
+    raw_data: Vec<u8>,
+  ) -> crate::Result<Self> {
     #[cfg(feature = "tracing")]
-    let _span = tracing::debug_span!("window::emit::json").entered();
+    let _span = tracing::debug_span!("window::emit::serialize").entered();
     Ok(EmitArgs {
       event: event.into_owned(),
-      payload,
+      payload: serde_json::to_string(payload)?,
+      raw: Some(raw_data),
     })
+  }
+
+  pub fn new_str(event: EventName<&str>, payload: String) -> Self {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("window::emit::json").entered();
+    EmitArgs {
+      event: event.into_owned(),
+      payload,
+      raw: None,
+    }
   }
 }
 
@@ -146,11 +168,12 @@ impl EmitArgs {
 pub struct Event {
   id: EventId,
   data: String,
+  raw: Option<Vec<u8>>,
 }
 
 impl Event {
-  fn new(id: EventId, data: String) -> Self {
-    Self { id, data }
+  fn new(id: EventId, data: String, raw: Option<Vec<u8>>) -> Self {
+    Self { id, data, raw }
   }
 
   /// The [`EventId`] of the handler that was triggered.
@@ -159,8 +182,27 @@ impl Event {
   }
 
   /// The event payload.
+  ///
+  /// Note that you must use [`Self::payload_raw`] for events emitted with a binary payload.
   pub fn payload(&self) -> &str {
     &self.data
+  }
+
+  /// Consumes the event and return its payload.
+  ///
+  /// Note that you must use [`Self::into_payload_raw`] for events emitted with a binary payload.
+  pub fn into_payload(self) -> String {
+    self.data
+  }
+
+  /// The event payload bytes.
+  pub fn payload_raw(&self) -> &[u8] {
+    self.raw.as_deref().unwrap_or(self.data.as_bytes())
+  }
+
+  /// Consumes the event and return its payload bytes.
+  pub fn into_payload_raw(self) -> Vec<u8> {
+    self.raw.unwrap_or_else(|| self.data.into_bytes())
   }
 }
 
@@ -224,8 +266,15 @@ pub(crate) fn unlisten_js_script(
 pub(crate) fn event_initialization_script(function_name: &str, listeners: &str) -> String {
   format!(
     "Object.defineProperty(window, '{function_name}', {{
-      value: function (eventData, ids) {{
+      value: async function (eventData, ids) {{
         const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
+
+        if (typeof eventData.payload === 'string' && eventData.payload.startsWith('{BINARY_EVENT_PAYLOAD_PREFIX}')) {{
+          const payloadId = eventData.payload.slice('{BINARY_EVENT_PAYLOAD_PREFIX}'.length)
+          const data = await window.__TAURI_INTERNALS__.invoke('{FETCH_EVENT_PAYLOAD_COMMAND}', null, {{ headers: {{ '{PAYLOAD_ID_HEADER_NAME}': payloadId }} }})
+          eventData.payload = data
+        }}
+
         for (const id of ids) {{
           const listener = listeners[id]
           if (listener) {{
@@ -235,7 +284,7 @@ pub(crate) fn event_initialization_script(function_name: &str, listeners: &str) 
         }}
       }}
     }});
-  "
+  ",
   )
 }
 

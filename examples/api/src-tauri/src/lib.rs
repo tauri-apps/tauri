@@ -164,6 +164,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
             .emit("rust-event", Some(reply))
             .expect("failed to emit");
         });
+
+        let webview_ = webview.clone();
+        webview.listen("raw-js-event", move |event| {
+          println!("got raw-js-event with message '{:?}'", event.payload_raw());
+
+          webview_
+            .emit_raw("raw-rust-event", event.into_payload_raw())
+            .expect("failed to emit");
+        });
       }
     });
 

@@ -990,6 +990,16 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().emit(event, payload)
   }
 
+  /// Similar to [`Emitter::emit`] but the payload is raw binary data.
+  ///
+  /// This function is optimized to emit event with large binary payloads,
+  /// avoiding serialization costs.
+  fn emit_raw(&self, event: &str, payload: Vec<u8>) -> Result<()> {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::<()>::Binary(payload);
+    self.manager().emit(event, payload)
+  }
+
   /// Emits an event to all [targets](EventTarget) matching the given target.
   ///
   /// # Examples
@@ -1029,6 +1039,16 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   {
     let event = EventName::new(event)?;
     let payload = EmitPayload::<()>::Str(payload);
+    self.manager().emit_to(target.into(), event, payload)
+  }
+
+  /// Similar to [`Emitter::emit_to`] but the payload is json serialized.
+  fn emit_raw_to<I>(&self, target: I, event: &str, payload: Vec<u8>) -> Result<()>
+  where
+    I: Into<EventTarget>,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::<()>::Binary(payload);
     self.manager().emit_to(target.into(), event, payload)
   }
 

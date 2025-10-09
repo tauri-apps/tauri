@@ -184,9 +184,8 @@ async function once<T>(
  * @since 1.0.0
  */
 async function emit<T>(event: string, payload?: T): Promise<void> {
-  await invoke('plugin:event|emit', {
-    event,
-    payload
+  await invoke('plugin:event|emit', payload as any, {
+    headers: { 'Tauri-Event-Name': event }
   })
 }
 
@@ -212,10 +211,11 @@ async function emitTo<T>(
 ): Promise<void> {
   const eventTarget: EventTarget =
     typeof target === 'string' ? { kind: 'AnyLabel', label: target } : target
-  await invoke('plugin:event|emit_to', {
-    target: eventTarget,
-    event,
-    payload
+  await invoke('plugin:event|emit_to', payload as any, {
+    headers: {
+      'Tauri-Event-Name': event,
+      'Tauri-Event-Target': JSON.stringify(eventTarget)
+    },
   })
 }
 

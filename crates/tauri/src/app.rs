@@ -8,7 +8,7 @@ use crate::{
     channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
     InvokeHandler, InvokeResponseBody,
   },
-  manager::{webview::UriSchemeProtocol, AppManager, Asset},
+  manager::{webview::UriSchemeProtocol, AppManager, Asset, EventPayloadStore},
   plugin::{Plugin, PluginStore},
   resources::ResourceTable,
   runtime::{
@@ -2260,6 +2260,7 @@ tauri::Builder::default()
     });
 
     app.manage(ChannelDataIpcQueue::default());
+    app.manage(EventPayloadStore::default());
     app.handle.plugin(crate::ipc::channel::plugin())?;
 
     let handle = app.handle();

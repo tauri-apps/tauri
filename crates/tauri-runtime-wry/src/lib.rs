@@ -4535,7 +4535,11 @@ You may have it installed on another user account, but it is not available for t
 "#,
     );
 
-    return Err(Error::WebviewRuntimeNotInstalled);
+    if cfg!(target_os = "macos") {
+      log::warn!("WebKit webview runtime not found, attempting to create webview anyway.");
+    } else {
+      return Err(Error::WebviewRuntimeNotInstalled);
+    }
   }
 
   #[allow(unused_mut)]

@@ -753,6 +753,11 @@ tauri::Builder::default()
                   tauri_runtime::webview::NewWindowResponse::Deny
                 }
               }
+              #[cfg(mobile)]
+              OnNewWindow::AllowTauriWindow { urls: _ } => {
+                tauri_runtime::webview::NewWindowResponse::Deny
+              }
+              #[cfg(desktop)]
               OnNewWindow::AllowTauriWindow { urls: Some(urls) } => {
                 if urls.iter().any(|pattern| pattern.test(&url)) {
                   let number =
@@ -780,6 +785,7 @@ tauri::Builder::default()
               OnNewWindow::AllowDefault { urls: None } => {
                 tauri_runtime::webview::NewWindowResponse::Allow
               }
+              #[cfg(desktop)]
               OnNewWindow::AllowTauriWindow { urls: None } => {
                 tauri_runtime::webview::NewWindowResponse::Allow
               }

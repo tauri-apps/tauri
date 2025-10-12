@@ -11,6 +11,8 @@ use quote::{quote, ToTokens};
 use serde_json::Value as JsonValue;
 use url::Url;
 
+use crate::url::UrlPattern;
+
 /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
 ///
 /// All fields must represent a binding of the same name that implements `ToTokens`.
@@ -88,6 +90,12 @@ pub fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
 
 /// Creates a `Url` constructor `TokenStream`.
 pub fn url_lit(url: &Url) -> TokenStream {
+  let url = url.as_str();
+  quote! { #url.parse().unwrap() }
+}
+
+/// Creates a [`UrlPattern`] constructor `TokenStream`.
+pub fn url_pattern_lit(url: &UrlPattern) -> TokenStream {
   let url = url.as_str();
   quote! { #url.parse().unwrap() }
 }

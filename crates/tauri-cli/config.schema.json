@@ -602,6 +602,17 @@
               "$ref": "#/definitions/ScrollBarStyle"
             }
           ]
+        },
+        "onNewWindow": {
+          "description": "Action to perform when a new window is requested to be created.",
+          "default": {
+            "action": "deny"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/OnNewWindow"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1139,6 +1150,82 @@
           ]
         }
       ]
+    },
+    "OnNewWindow": {
+      "description": "Action to perform when a new window is requested to be created.",
+      "oneOf": [
+        {
+          "description": "Allow the window to be created using the default webview implementation.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "allowDefault"
+              ]
+            },
+            "urls": {
+              "description": "Only allow URLs matching the given pattern list when set.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/UrlPattern"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Allow the window to be created using a Tauri window.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "allowTauriWindow"
+              ]
+            },
+            "urls": {
+              "description": "Only allow URLs matching the given pattern list when set.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/UrlPattern"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Deny the window from being created.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "deny"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "UrlPattern": {
+      "type": "string"
     },
     "SecurityConfig": {
       "description": "Security configuration.\n\n See more: <https://v2.tauri.app/reference/config/#securityconfig>",

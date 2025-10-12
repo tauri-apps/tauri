@@ -199,6 +199,10 @@ class Webview {
 
     // @ts-expect-error `skip` is not a public API so it is not defined in WebviewOptions
     if (!options?.skip) {
+      if (typeof options?.onNewWindow === 'string') {
+        options.onNewWindow = { action: options.onNewWindow }
+      }
+
       invoke('plugin:webview|create_webview', {
         windowLabel: window.label,
         options: {
@@ -897,8 +901,31 @@ interface WebviewOptions {
    * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
    */
   scrollBarStyle?: ScrollBarStyle
+  /**
+   * Action to perform when a new window is requested to be created.
+   *
+   * 'allowDefault' lets the webview open the URL using the native implementation.
+   * 'allowTauriWindow' creates a Tauri window to load the URL.
+   * Additionally you can provide a list of filters to only allow URLs matching certain {@link https://developer.mozilla.org/en-US/docs/Web/API/URLPattern|URL patterns}.
+   *
+   * A new window is requested to be opened by the {@link https://developer.mozilla.org/en-US/docs/Web/API/Window/open|window.open API}.
+   *
+   * ## Platform-specific
+   *
+   * - **Android / iOS**: Not supported.
+   *
+   * */
+  onNewWindow?: onNewWindow
 }
+
+type onNewWindow =
+  | 'allowDefault'
+  | 'allowTauriWindow'
+  | 'deny'
+  | { action: 'allowDefault'; urls?: string[] }
+  | { action: 'allowTauriWindow'; urls?: string[] }
+  | { action: 'deny' }
 
 export { Webview, getCurrentWebview, getAllWebviews }
 
-export type { DragDropEvent, WebviewOptions, Color }
+export type { DragDropEvent, WebviewOptions, Color, onNewWindow }

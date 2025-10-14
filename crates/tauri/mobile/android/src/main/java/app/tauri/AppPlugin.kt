@@ -30,6 +30,10 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
         if (!hasListener(BACK_BUTTON_EVENT)) {
           if (this@AppPlugin.webView?.canGoBack() == true) {
             this@AppPlugin.webView!!.goBack()
+          } else {
+            this.isEnabled = false
+            this@AppPlugin.activity.onBackPressed()
+            this.isEnabled = true
           }
         } else {
           val data = JSObject().apply {

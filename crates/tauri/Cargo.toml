@@ -221,6 +221,7 @@ image-png = ["image/png"]
 macos-proxy = ["tauri-runtime-wry?/macos-proxy"]
 dynamic-acl = []
 specta = ["dep:specta"]
+url-pattern = ["tauri-utils/url-pattern"]
 
 [[example]]
 name = "commands"

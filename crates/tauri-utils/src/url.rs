@@ -9,6 +9,77 @@ use std::{str::FromStr, sync::Arc};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use url::Url;
 
+/// A scope to match URLs.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum UrlScope {
+  /// A [`UrlPattern`] to match URLs.
+  ///
+  /// This is only available if the `url-pattern` feature is enabled.
+  #[cfg(feature = "url-pattern")]
+  UrlPattern(UrlPattern),
+  /// A [`GlobPattern`] to match URLs.
+  #[cfg(not(feature = "url-pattern"))]
+  Glob(GlobPattern),
+}
+
+impl UrlScope {
+  /// Test if a given URL is matched by the scope.
+  pub fn test(&self, url: &Url) -> bool {
+    match self {
+      #[cfg(feature = "url-pattern")]
+      Self::UrlPattern(pattern) => pattern.test(url),
+      #[cfg(not(feature = "url-pattern"))]
+      Self::Glob(pattern) => pattern.0.matches(url.as_str()),
+    }
+  }
+}
+
+/// A [`glob::Pattern`] to match URLs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlobPattern(pub(crate) glob::Pattern);
+
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for GlobPattern {
+  fn schema_name() -> String {
+    "GlobPattern".to_string()
+  }
+
+  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(_gen)
+  }
+}
+
+impl FromStr for GlobPattern {
+  type Err = glob::PatternError;
+
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    glob::Pattern::new(s).map(Self)
+  }
+}
+
+impl Serialize for GlobPattern {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(&self.0.as_str())
+  }
+}
+
+impl<'de> Deserialize<'de> for GlobPattern {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    glob::Pattern::new(&s)
+      .map(Self)
+      .map_err(serde::de::Error::custom)
+  }
+}
+
 /// UrlPattern to match URLs.
 #[derive(Debug, Clone)]
 pub struct UrlPattern(Arc<urlpattern::UrlPattern>, String);
@@ -73,7 +144,7 @@ impl UrlPattern {
     &self.1
   }
 
-  /// Test if a given URL matches the pattern.
+  /// Test if a given URL is matched by the pattern.
   pub fn test(&self, url: &Url) -> bool {
     self
       .0

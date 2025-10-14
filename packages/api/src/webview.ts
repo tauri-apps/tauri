@@ -906,14 +906,14 @@ interface WebviewOptions {
    *
    * 'allowDefault' lets the webview open the URL using the native implementation.
    * 'allowTauriWindow' creates a Tauri window to load the URL.
-   * Additionally you can provide a list of filters to only allow URLs matching certain {@link https://developer.mozilla.org/en-US/docs/Web/API/URLPattern|URL patterns}.
+   * Additionally you can provide a list of filters to only allow URLs matching certain glob patterns.
+   * It can leverage the {@link https://developer.mozilla.org/en-US/docs/Web/API/URLPattern|URL pattern spec} if the `url-pattern` Cargo feature is enabled.
    *
    * A new window is requested to be opened by the {@link https://developer.mozilla.org/en-US/docs/Web/API/Window/open|window.open API}.
    *
    * ## Platform-specific
    *
    * - **Android / iOS**: Not supported.
-   *
    * */
   onNewWindow?: OnNewWindow
 }

@@ -62,7 +62,7 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 pub mod parse;
 
 use crate::{
-  acl::capability::Capability, url::UrlPattern, TitleBarStyle, WindowEffect, WindowEffectState,
+  acl::capability::Capability, url::UrlScope, TitleBarStyle, WindowEffect, WindowEffectState,
 };
 
 pub use self::parse::parse;
@@ -1658,12 +1658,20 @@ pub enum OnNewWindow {
   /// Allow the window to be created using the default webview implementation.
   AllowDefault {
     /// Only allow URLs matching the given pattern list when set.
-    urls: Option<Vec<UrlPattern>>,
+    ///
+    /// By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
   },
   /// Allow the window to be created using a Tauri window.
   AllowTauriWindow {
     /// Only allow URLs matching the given pattern list when set.
-    urls: Option<Vec<UrlPattern>>,
+    ///
+    /// By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
   },
   /// Deny the window from being created.
   #[default]
@@ -3557,11 +3565,11 @@ mod build {
 
       tokens.append_all(match self {
         Self::AllowDefault { urls } => {
-          let urls = opt_vec_lit(urls.as_ref(), url_pattern_lit);
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
           quote! { #prefix::AllowDefault { urls: #urls } }
         }
         Self::AllowTauriWindow { urls } => {
-          let urls = opt_vec_lit(urls.as_ref(), url_pattern_lit);
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
           quote! { #prefix::AllowTauriWindow { urls: #urls } }
         }
         Self::Deny => quote! { #prefix::Deny },

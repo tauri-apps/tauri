@@ -2,6 +2,7 @@ use cef::{rc::*, *};
 use std::{
   cell::RefCell,
   collections::HashMap,
+  io::Cursor,
   sync::{
     atomic::{AtomicU32, Ordering},
     Arc,
@@ -184,6 +185,9 @@ fn create_window<T: UserEvent>(
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
           request_handler::UriSchemeContext {
             handler: Arc::new(handler) as Arc<UriSchemeProtocol>,
+            resource: Arc::new(RefCell::new(Cursor::new(
+              "Hello from Tauri!".as_bytes().to_vec(),
+            ))),
           },
         )),
       );

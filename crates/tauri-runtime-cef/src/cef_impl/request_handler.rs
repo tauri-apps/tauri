@@ -1,4 +1,8 @@
-use std::sync::Arc;
+use std::{
+  cell::RefCell,
+  io::{Cursor, Read},
+  sync::Arc,
+};
 
 use cef::{rc::*, *};
 use tauri_runtime::webview::UriSchemeProtocol;
@@ -75,17 +79,16 @@ wrap_resource_handler! {
       let url = CefString::from(&request.url()).to_string();
       let url = Url::parse(&url).ok();
 
-      println!("{:?}", url.as_ref().map(ToString::to_string));
+      println!("process_request: {:?}", url.as_ref().map(ToString::to_string));
 
       if let Some(url) = url {
         // keep the callback around
-        let callback = callback.clone();
-
-        let callback = ThreadSafe(callback);
+        let callback = ThreadSafe(callback.clone());
         std::thread::spawn(move || {
           std::thread::sleep(std::time::Duration::from_millis(5));
-          let cb = callback.into_owned();
-          cb.cont();
+          let callback = callback.into_owned();
+          println!("process_request: invoking callback");
+          callback.cont();
         });
         1
       } else {
@@ -93,28 +96,35 @@ wrap_resource_handler! {
       }
     }
 
-    fn read_response(
+    fn read(
       &self,
       data_out: *mut u8,
       bytes_to_read: ::std::os::raw::c_int,
       bytes_read: Option<&mut ::std::os::raw::c_int>,
-      callback: Option<&mut Callback>,
+      callback: Option<&mut ResourceReadCallback>,
     ) -> ::std::os::raw::c_int {
       let Ok(bytes_to_read) = usize::try_from(bytes_to_read) else {
+        println!("read_response: invalid bytes_to_read: {bytes_to_read}");
         return 0;
       };
       let data_out = unsafe { std::slice::from_raw_parts_mut(data_out, bytes_to_read) };
-      let data = "Hello from Tauri!".as_bytes();
-      let count = data_out.len().min(data.len());
+      let count = self.context.resource.borrow_mut().read(data_out).unwrap_or(0);
       if let Some(bytes_read) = bytes_read {
         let Ok(count) = count.try_into() else {
+          println!("read_response: invalid count of bytes: {count}");
           return 0;
         };
+        println!("read_response: returning {count} bytes");
         *bytes_read = count;
+        if count > 0 {
+          return 1;
+        }
       }
-      data_out[..count].copy_from_slice(&data[..count]);
-      callback.inspect(|cb| cb.cont());
-      1
+      // callback.inspect(|cb| {
+      //   println!("read_response: invoking the callback");
+      //   cb.cont();
+      // });
+      0
     }
 
     fn response_headers(
@@ -124,6 +134,7 @@ wrap_resource_handler! {
       redirect_url: Option<&mut CefString>,
     ) {
       let Some(response) = response else { return };
+      println!("response_headers: setting response headers");
       response.set_status(200);
       response.set_header_by_name(Some(&"content-type".into()), Some(&"text/plain".into()), 1);
       response_length.map(|length| {
@@ -158,6 +169,7 @@ wrap_scheme_handler_factory! {
 #[derive(Clone)]
 pub struct UriSchemeContext {
   pub handler: Arc<UriSchemeProtocol>,
+  pub resource: Arc<RefCell<Cursor<Vec<u8>>>>,
 }
 
 struct ThreadSafe<T>(T);

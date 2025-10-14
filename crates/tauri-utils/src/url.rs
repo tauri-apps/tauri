@@ -64,7 +64,7 @@ impl Serialize for GlobPattern {
   where
     S: Serializer,
   {
-    serializer.serialize_str(&self.0.as_str())
+    serializer.serialize_str(self.0.as_str())
   }
 }
 

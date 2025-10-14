@@ -774,9 +774,14 @@ tauri::Builder::default()
                   })
                   .title(url.as_str());
 
-                  let window = builder.build().unwrap();
-                  tauri_runtime::webview::NewWindowResponse::Create {
-                    window_id: window.window.window.id,
+                  match builder.build() {
+                    Ok(window) => tauri_runtime::webview::NewWindowResponse::Create {
+                      window_id: window.window.window.id,
+                    },
+                    Err(e) => {
+                      log::error!("failed to create window: {:?}", e);
+                      tauri_runtime::webview::NewWindowResponse::Deny
+                    }
                   }
                 } else {
                   tauri_runtime::webview::NewWindowResponse::Deny

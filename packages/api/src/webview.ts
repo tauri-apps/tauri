@@ -915,10 +915,10 @@ interface WebviewOptions {
    * - **Android / iOS**: Not supported.
    *
    * */
-  onNewWindow?: onNewWindow
+  onNewWindow?: OnNewWindow
 }
 
-type onNewWindow =
+type OnNewWindow =
   | 'allowDefault'
   | 'allowTauriWindow'
   | 'deny'
@@ -928,4 +928,4 @@ type onNewWindow =
 
 export { Webview, getCurrentWebview, getAllWebviews }
 
-export type { DragDropEvent, WebviewOptions, Color, onNewWindow }
+export type { DragDropEvent, WebviewOptions, Color, OnNewWindow }

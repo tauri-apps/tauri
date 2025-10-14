@@ -6,7 +6,10 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
+  sync::{
+    atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
+    Arc, Mutex, MutexGuard,
+  },
 };
 
 use serde::Serialize;
@@ -37,6 +40,9 @@ mod menu;
 mod tray;
 pub mod webview;
 pub mod window;
+
+static EVENT_ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+pub const BINARY_EVENT_PAYLOAD_PREFIX: &str = "__tauri_event_payload_id__:";
 
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
@@ -249,6 +255,7 @@ impl<R: Runtime> fmt::Debug for AppManager<R> {
 pub(crate) enum EmitPayload<'a, S: Serialize> {
   Serialize(&'a S),
   Str(String),
+  Binary(Vec<u8>),
 }
 
 impl<R: Runtime> AppManager<R> {
@@ -546,16 +553,48 @@ impl<R: Runtime> AppManager<R> {
     event: EventName<&str>,
     payload: EmitPayload<'_, S>,
   ) -> crate::Result<()> {
+    let webviews = self
+      .webview
+      .webviews_lock()
+      .values()
+      .cloned()
+      .collect::<Vec<_>>();
+
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
     let emit_args = match payload {
       EmitPayload::Serialize(payload) => EmitArgs::new(event, payload)?,
-      EmitPayload::Str(payload) => EmitArgs::new_str(event, payload)?,
+      EmitPayload::Str(payload) => EmitArgs::new_str(event, payload),
+      EmitPayload::Binary(payload) => {
+        let id = EVENT_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+
+        if !webviews.is_empty() {
+          self
+            .state()
+            .get::<EventPayloadStore>()
+            .0
+            .lock()
+            .unwrap()
+            .insert(
+              id,
+              PendingEventPayload {
+                target_count: webviews.len(),
+                read_count: AtomicUsize::new(0),
+                payload: payload.clone(),
+              },
+            );
+        }
+        EmitArgs::new_raw(
+          event,
+          &format!("{BINARY_EVENT_PAYLOAD_PREFIX}{id}"),
+          payload,
+        )?
+      }
     };
 
     let listeners = self.listeners();
 
-    listeners.emit_js(self.webview.webviews_lock().values(), &emit_args)?;
+    listeners.emit_js(webviews.iter(), &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())
@@ -577,18 +616,50 @@ impl<R: Runtime> AppManager<R> {
   {
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = match payload {
-      EmitPayload::Serialize(payload) => EmitArgs::new(event, payload)?,
-      EmitPayload::Str(payload) => EmitArgs::new_str(event, payload)?,
-    };
 
     let listeners = self.listeners();
+    let webviews = self
+      .webview
+      .webviews_lock()
+      .values()
+      .cloned()
+      .collect::<Vec<_>>();
 
-    listeners.emit_js_filter(
-      self.webview.webviews_lock().values(),
-      &emit_args,
-      Some(&filter),
-    )?;
+    let emit_args = match payload {
+      EmitPayload::Serialize(payload) => EmitArgs::new(event, payload)?,
+      EmitPayload::Str(payload) => EmitArgs::new_str(event, payload),
+      EmitPayload::Binary(payload) => {
+        let id = EVENT_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let emit_args = EmitArgs::new_raw(
+          event,
+          &format!("{BINARY_EVENT_PAYLOAD_PREFIX}{id}"),
+          payload.clone(),
+        )?;
+
+        if !webviews.is_empty() {
+          self
+            .state()
+            .get::<EventPayloadStore>()
+            .0
+            .lock()
+            .unwrap()
+            .insert(
+              id,
+              PendingEventPayload {
+                target_count: listeners
+                  .webiews_matching_event_filter(webviews.iter(), &emit_args, Some(&filter))
+                  .len(),
+                read_count: AtomicUsize::new(0),
+                payload,
+              },
+            );
+        }
+
+        emit_args
+      }
+    };
+
+    listeners.emit_js_filter(webviews.iter(), &emit_args, Some(&filter))?;
 
     listeners.emit_filter(emit_args, Some(filter))?;
 
@@ -712,6 +783,16 @@ impl<R: Runtime> AppManager<R> {
       }
     }
   }
+}
+
+/// Maps a binary event payload id to a pending payload that must be send to the JavaScript side via the IPC.
+#[derive(Default, Clone)]
+pub struct EventPayloadStore(pub Arc<Mutex<HashMap<u32, PendingEventPayload>>>);
+
+pub struct PendingEventPayload {
+  pub target_count: usize,
+  pub read_count: AtomicUsize,
+  pub payload: Vec<u8>,
 }
 
 #[cfg(test)]

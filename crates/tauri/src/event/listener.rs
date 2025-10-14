@@ -201,7 +201,11 @@ impl Listeners {
           let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, &filter));
           for (&id, Handler { callback, .. }) in handlers {
             maybe_pending = true;
-            (callback)(Event::new(id, emit_args.payload.clone()))
+            (callback)(Event::new(
+              id,
+              emit_args.payload.clone(),
+              emit_args.raw.clone(),
+            ))
           }
         }
       }
@@ -264,6 +268,37 @@ impl Listeners {
         .map(|handlers| handlers.iter().any(|handler| filter(&handler.target)))
         .unwrap_or(false)
     })
+  }
+
+  /// Filters the webviews that are matched by the filter has a JS listener for the given event
+  pub(crate) fn webiews_matching_event_filter<'a, R, I, F>(
+    &self,
+    webviews: I,
+    emit_args: &EmitArgs,
+    filter: Option<F>,
+  ) -> Vec<&'a Webview<R>>
+  where
+    R: Runtime,
+    I: Iterator<Item = &'a Webview<R>>,
+    F: Fn(&EventTarget) -> bool,
+  {
+    let event = &emit_args.event;
+    let js_listeners = self.inner.js_event_listeners.lock().unwrap();
+    webviews
+      .filter(|webview| {
+        if let Some(handlers) = js_listeners.get(webview.label()).and_then(|s| s.get(event)) {
+          let ids = handlers
+            .iter()
+            .filter(|handler| match_any_or_filter(&handler.target, &filter))
+            .map(|handler| handler.id)
+            .collect::<Vec<_>>();
+          if !ids.is_empty() {
+            return true;
+          }
+        }
+        false
+      })
+      .collect()
   }
 
   pub(crate) fn emit_js_filter<'a, R, I, F>(

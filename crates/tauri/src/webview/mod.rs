@@ -1802,6 +1802,7 @@ tauri::Builder::default()
     if (plugin_command.is_some() || has_app_acl_manifest)
       // TODO: Remove this special check in v3
       && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+      && request.cmd != crate::event::plugin::FETCH_EVENT_PAYLOAD_COMMAND
       && invoke.acl.is_none()
     {
       #[cfg(debug_assertions)]

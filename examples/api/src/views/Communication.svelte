@@ -4,16 +4,25 @@
   import { onMount, onDestroy } from 'svelte'
 
   let { onMessage } = $props()
-  let unlisten
+  const unlisten = []
 
   const webviewWindow = getCurrentWebviewWindow()
 
   onMount(async () => {
-    unlisten = await webviewWindow.listen('rust-event', onMessage)
+    const unlistenFn1 = await webviewWindow.listen('rust-event', onMessage)
+    unlisten.push(unlistenFn1)
+    const unlistenFn2 = await webviewWindow.listen('raw-rust-event', (event) => {
+      onMessage({
+        event: event.event,
+        id: event.id,
+        payload: Array.from(new Uint8Array(event.payload)),
+      })
+    })
+    unlisten.push(unlistenFn2)
   })
   onDestroy(() => {
-    if (unlisten) {
-      unlisten()
+    for (const unlistenFn of unlisten) {
+      unlistenFn()
     }
   })
 
@@ -55,6 +64,10 @@
   function emitEvent() {
     webviewWindow.emit('js-event', 'this is the payload string')
   }
+
+  function emitRawEvent() {
+    webviewWindow.emit2('raw-js-event', new Uint8Array([1, 2, 3]))
+  }
 </script>
 
 <div>
@@ -64,6 +77,9 @@
   </button>
   <button class="btn" id="event" onclick={emitEvent}>
     Send event to Rust
+  </button>
+  <button class="btn" id="event" onclick={emitRawEvent}>
+    Send raw event to Rust
   </button>
   <button class="btn" id="request" onclick={echo}> Echo </button>
   <button class="btn" id="request" onclick={spam}> Spam </button>

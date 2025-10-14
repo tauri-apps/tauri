@@ -662,7 +662,8 @@ macro_rules! shared_menu_builder {
       /// - **Windows / Linux:** Unsupported.
       pub fn bring_all_to_front_with_text<S: AsRef<str>>(mut self, text: S) -> Self {
         self.items.push(
-          PredefinedMenuItem::bring_all_to_front(self.manager, Some(text.as_ref())).map(|i| i.kind()),
+          PredefinedMenuItem::bring_all_to_front(self.manager, Some(text.as_ref()))
+            .map(|i| i.kind()),
         );
         self
       }

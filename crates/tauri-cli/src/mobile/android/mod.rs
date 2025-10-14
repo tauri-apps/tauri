@@ -632,7 +632,7 @@ fn generate_tauri_properties(
   let mut app_tauri_properties = Vec::new();
   if let Some(version) = tauri_config.version.as_ref() {
     app_tauri_properties.push(format!("tauri.android.versionName={version}"));
-    if tauri_config.bundle.android.auto_increment_version_code {
+    if tauri_config.bundle.android.auto_increment_version_code && !dev {
       let last_version_code = std::fs::read_to_string(&app_tauri_properties_path)
         .ok()
         .and_then(|content| {

@@ -29,15 +29,13 @@ use std::{
   fs,
   num::NonZeroU64,
   path::PathBuf,
-  str::FromStr,
-  sync::Arc,
 };
 use thiserror::Error;
-use url::Url;
 
 use crate::{
   config::{CapabilityEntry, Config},
   platform::Target,
+  url::UrlPattern,
 };
 
 pub use self::{identifier::*, value::*};
@@ -273,64 +271,6 @@ pub struct PermissionSet {
   pub permissions: Vec<String>,
 }
 
-/// UrlPattern for [`ExecutionContext::Remote`].
-#[derive(Debug, Clone)]
-pub struct RemoteUrlPattern(Arc<urlpattern::UrlPattern>, String);
-
-impl FromStr for RemoteUrlPattern {
-  type Err = urlpattern::quirks::Error;
-
-  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-    let mut init = urlpattern::UrlPatternInit::parse_constructor_string::<regex::Regex>(s, None)?;
-    if init.search.as_ref().map(|p| p.is_empty()).unwrap_or(true) {
-      init.search.replace("*".to_string());
-    }
-    if init.hash.as_ref().map(|p| p.is_empty()).unwrap_or(true) {
-      init.hash.replace("*".to_string());
-    }
-    if init
-      .pathname
-      .as_ref()
-      .map(|p| p.is_empty() || p == "/")
-      .unwrap_or(true)
-    {
-      init.pathname.replace("*".to_string());
-    }
-    let pattern = urlpattern::UrlPattern::parse(init, Default::default())?;
-    Ok(Self(Arc::new(pattern), s.to_string()))
-  }
-}
-
-impl RemoteUrlPattern {
-  #[doc(hidden)]
-  pub fn as_str(&self) -> &str {
-    &self.1
-  }
-
-  /// Test if a given URL matches the pattern.
-  pub fn test(&self, url: &Url) -> bool {
-    self
-      .0
-      .test(urlpattern::UrlPatternMatchInput::Url(url.clone()))
-      .unwrap_or_default()
-  }
-}
-
-impl PartialEq for RemoteUrlPattern {
-  fn eq(&self, other: &Self) -> bool {
-    self.0.protocol() == other.0.protocol()
-      && self.0.username() == other.0.username()
-      && self.0.password() == other.0.password()
-      && self.0.hostname() == other.0.hostname()
-      && self.0.port() == other.0.port()
-      && self.0.pathname() == other.0.pathname()
-      && self.0.search() == other.0.search()
-      && self.0.hash() == other.0.hash()
-  }
-}
-
-impl Eq for RemoteUrlPattern {}
-
 /// Execution context of an IPC call.
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub enum ExecutionContext {
@@ -340,7 +280,7 @@ pub enum ExecutionContext {
   /// Remote URL is trying to use the IPC.
   Remote {
     /// The URL trying to access the IPC (URL pattern).
-    url: RemoteUrlPattern,
+    url: UrlPattern,
   },
 }
 
@@ -418,46 +358,6 @@ pub fn read_allowed_commands() -> Option<AllowedCommands> {
   let file = fs::read_to_string(&out_file).ok()?;
   let json = serde_json::from_str(&file).ok()?;
   Some(json)
-}
-
-#[cfg(test)]
-mod tests {
-  use crate::acl::RemoteUrlPattern;
-
-  #[test]
-  fn url_pattern_domain_wildcard() {
-    let pattern: RemoteUrlPattern = "http://*".parse().unwrap();
-
-    assert!(pattern.test(&"http://tauri.app/path".parse().unwrap()));
-    assert!(pattern.test(&"http://tauri.app/path?q=1".parse().unwrap()));
-
-    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
-    assert!(pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
-
-    let pattern: RemoteUrlPattern = "http://*.tauri.app".parse().unwrap();
-
-    assert!(!pattern.test(&"http://tauri.app/path".parse().unwrap()));
-    assert!(!pattern.test(&"http://tauri.app/path?q=1".parse().unwrap()));
-    assert!(pattern.test(&"http://api.tauri.app/path".parse().unwrap()));
-    assert!(pattern.test(&"http://api.tauri.app/path?q=1".parse().unwrap()));
-    assert!(!pattern.test(&"http://localhost/path".parse().unwrap()));
-    assert!(!pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
-  }
-
-  #[test]
-  fn url_pattern_path_wildcard() {
-    let pattern: RemoteUrlPattern = "http://localhost/*".parse().unwrap();
-    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
-    assert!(pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
-  }
-
-  #[test]
-  fn url_pattern_scheme_wildcard() {
-    let pattern: RemoteUrlPattern = "*://localhost".parse().unwrap();
-    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
-    assert!(pattern.test(&"https://localhost/path?q=1".parse().unwrap()));
-    assert!(pattern.test(&"custom://localhost/path".parse().unwrap()));
-  }
 }
 
 #[cfg(feature = "build")]

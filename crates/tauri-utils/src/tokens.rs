@@ -11,6 +11,8 @@ use quote::{quote, ToTokens};
 use serde_json::Value as JsonValue;
 use url::Url;
 
+use crate::url::{GlobPattern, UrlPattern, UrlScope};
+
 /// Write a `TokenStream` of the `$struct`'s fields to the `$tokens`.
 ///
 /// All fields must represent a binding of the same name that implements `ToTokens`.
@@ -90,6 +92,35 @@ pub fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
 pub fn url_lit(url: &Url) -> TokenStream {
   let url = url.as_str();
   quote! { #url.parse().unwrap() }
+}
+
+/// Creates a [`UrlPattern`] constructor `TokenStream`.
+pub fn url_pattern_lit(url: &UrlPattern) -> TokenStream {
+  let url = url.as_str();
+  quote! { #url.parse().unwrap() }
+}
+
+/// Creates a [`GlobPattern`] constructor `TokenStream`.
+pub fn glob_pattern_lit(pattern: &GlobPattern) -> TokenStream {
+  let pattern = pattern.0.as_str();
+  quote! { #pattern.parse().unwrap() }
+}
+
+/// Creates a [`UrlScope`] constructor `TokenStream`.
+pub fn url_scope_lit(url: &UrlScope) -> TokenStream {
+  let prefix = quote! { ::tauri::utils::url::UrlScope };
+  match url {
+    #[cfg(feature = "url-pattern")]
+    UrlScope::UrlPattern(url) => {
+      let url = url.as_str();
+      quote! { #prefix::UrlPattern(#url.parse().unwrap()) }
+    }
+    #[cfg(not(feature = "url-pattern"))]
+    UrlScope::Glob(glob) => {
+      let pattern = glob.0.as_str();
+      quote! { #prefix::Glob(#pattern.parse().unwrap()) }
+    }
+  }
 }
 
 /// Create a map constructor, mapping keys and values with other `TokenStream`s.

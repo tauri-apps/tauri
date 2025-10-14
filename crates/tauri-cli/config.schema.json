@@ -603,6 +603,17 @@
               "$ref": "#/definitions/ScrollBarStyle"
             }
           ]
+        },
+        "onNewWindow": {
+          "description": "Action to perform when a new window is requested to be created.",
+          "default": {
+            "action": "deny"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/OnNewWindow"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1140,6 +1151,95 @@
           ]
         }
       ]
+    },
+    "OnNewWindow": {
+      "description": "Action to perform when a new window is requested to be created.",
+      "oneOf": [
+        {
+          "description": "Allow the window to be created using the default webview implementation.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "allowDefault"
+              ]
+            },
+            "urls": {
+              "description": "Only allow URLs matching the given pattern list when set.\n\n By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/UrlScope"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Allow the window to be created using a Tauri window.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "allowTauriWindow"
+              ]
+            },
+            "urls": {
+              "description": "Only allow URLs matching the given pattern list when set.\n\n By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.\n\n [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/UrlScope"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Deny the window from being created.",
+          "type": "object",
+          "required": [
+            "action"
+          ],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "deny"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "UrlScope": {
+      "description": "A scope to match URLs.",
+      "anyOf": [
+        {
+          "description": "A [`GlobPattern`] to match URLs.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/GlobPattern"
+            }
+          ]
+        }
+      ]
+    },
+    "GlobPattern": {
+      "type": "string"
     },
     "SecurityConfig": {
       "description": "Security configuration.\n\n See more: <https://v2.tauri.app/reference/config/#securityconfig>",

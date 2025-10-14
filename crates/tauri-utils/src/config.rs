@@ -61,7 +61,9 @@ fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
+use crate::{
+  acl::capability::Capability, url::UrlScope, TitleBarStyle, WindowEffect, WindowEffectState,
+};
 
 pub use self::parse::parse;
 
@@ -1647,6 +1649,35 @@ pub enum ScrollBarStyle {
   FluentOverlay,
 }
 
+/// Action to perform when a new window is requested to be created.
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "action")]
+#[non_exhaustive]
+pub enum OnNewWindow {
+  /// Allow the window to be created using the default webview implementation.
+  AllowDefault {
+    /// Only allow URLs matching the given pattern list when set.
+    ///
+    /// By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
+  },
+  /// Allow the window to be created using a Tauri window.
+  AllowTauriWindow {
+    /// Only allow URLs matching the given pattern list when set.
+    ///
+    /// By default it is a glob pattern, but can use the full [URLPattern] spec if the `url-pattern` feature is enabled.
+    ///
+    /// [URLPattern]: https://developer.mozilla.org/en-US/docs/Web/API/URLPattern
+    urls: Option<Vec<UrlScope>>,
+  },
+  /// Deny the window from being created.
+  #[default]
+  Deny,
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -1995,6 +2026,9 @@ pub struct WindowConfig {
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
+  /// Action to perform when a new window is requested to be created.
+  #[serde(default, alias = "on-window-requested")]
+  pub on_new_window: OnNewWindow,
 }
 
 impl Default for WindowConfig {
@@ -2057,6 +2091,7 @@ impl Default for WindowConfig {
       data_directory: None,
       data_store_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
+      on_new_window: OnNewWindow::default(),
     }
   }
 }
@@ -3535,6 +3570,24 @@ mod build {
     }
   }
 
+  impl ToTokens for OnNewWindow {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::OnNewWindow };
+
+      tokens.append_all(match self {
+        Self::AllowDefault { urls } => {
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          quote! { #prefix::AllowDefault { urls: #urls } }
+        }
+        Self::AllowTauriWindow { urls } => {
+          let urls = opt_vec_lit(urls.as_ref(), url_scope_lit);
+          quote! { #prefix::AllowTauriWindow { urls: #urls } }
+        }
+        Self::Deny => quote! { #prefix::Deny },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -3594,6 +3647,7 @@ mod build {
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
+      let on_new_window = &self.on_new_window;
 
       literal_struct!(
         tokens,
@@ -3654,7 +3708,8 @@ mod build {
         disable_input_accessory_view,
         data_directory,
         data_store_identifier,
-        scroll_bar_style
+        scroll_bar_style,
+        on_new_window
       );
     }
   }

@@ -2936,7 +2936,7 @@ pub struct AndroidConfig {
   ///   `tauri.properties` and increment it by 1 for every build.
   /// - If `false` or not set, it falls back to `version_code` or semver-derived logic.
   ///
-  /// Default: `false`
+  /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]
   pub auto_increment_version_code: bool,
 }

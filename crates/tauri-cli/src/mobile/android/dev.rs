@@ -16,8 +16,8 @@ use crate::{
   },
   interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
-    TargetDevice,
+    android::generate_tauri_properties, use_network_address_for_dev_url, write_options, CliOptions,
+    DevChild, DevHost, DevProcess, TargetDevice,
   },
   ConfigValue, Error, Result,
 };
@@ -270,6 +270,8 @@ fn run_dev(
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   configure_cargo(&mut env, config)?;
+
+  generate_tauri_properties(config, tauri_config.lock().unwrap().as_ref().unwrap(), true)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();

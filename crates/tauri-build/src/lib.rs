@@ -499,7 +499,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={android_package_prefix}");
 
   if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-    mobile::generate_gradle_files(project_dir, &config)?;
+    mobile::generate_gradle_files(project_dir)?;
   }
 
   cfg_alias("dev", is_dev());

@@ -15,7 +15,7 @@ use crate::{
     flock,
   },
   interface::{AppInterface, Interface, Options as InterfaceOptions},
-  mobile::{write_options, CliOptions, TargetDevice},
+  mobile::{android::generate_tauri_properties, write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
@@ -177,6 +177,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
 
   let mut env = env(options.ci)?;
   configure_cargo(&mut env, &config)?;
+
+  generate_tauri_properties(
+    &config,
+    tauri_config.lock().unwrap().as_ref().unwrap(),
+    false,
+  )?;
 
   crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 

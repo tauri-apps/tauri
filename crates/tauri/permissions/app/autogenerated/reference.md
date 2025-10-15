@@ -10,6 +10,7 @@ Default permissions for the plugin.
 - `allow-identifier`
 - `allow-bundle-type`
 - `allow-register-listener`
+- `allow-remove-listener`
 
 ## Permission Table
 
@@ -250,6 +251,32 @@ Enables the remove_data_store command without any pre-configured scope.
 <td>
 
 Denies the remove_data_store command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-remove-listener`
+
+</td>
+<td>
+
+Enables the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-remove-listener`
+
+</td>
+<td>
+
+Denies the remove_listener command without any pre-configured scope.
 
 </td>
 </tr>

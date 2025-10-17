@@ -14,13 +14,13 @@ thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
-x509-certificate = "0.23"
+x509-certificate = "0.24"
 once-cell-regex = "0.2"
 os_pipe = "1"
 plist = "1"
 rand = "0.9"
 dirs = "6"
 log = { version = "0.4.21", features = ["kv"] }
-apple-codesign = { version = "0.27", default-features = false }
+apple-codesign = { version = "0.29", default-features = false }
 chrono = "0.4"
 p12 = "0.6"

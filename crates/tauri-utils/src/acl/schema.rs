@@ -182,7 +182,7 @@ impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permiss
 /// Collect and include all possible identifiers in `Identifier` defintion in the schema
 fn extend_identifier_schema(schema: &mut Schema, acl: &BTreeMap<String, Manifest>) {
   if let Some(identifier_schema) = schema
-    .get_mut("$defs")
+    .get_mut("definitions")
     .unwrap()
     .as_object_mut()
     .unwrap()
@@ -234,7 +234,7 @@ fn extend_permission_entry_schema(root_schema: &mut Schema, acl: &BTreeMap<Strin
   let mut collected_defs = vec![];
 
   if let Some(serde_json::Value::Object(obj)) = root_schema
-    .get_mut("$defs")
+    .get_mut("definitions")
     .unwrap()
     .get_mut("PermissionEntry")
   {
@@ -298,7 +298,7 @@ fn extend_permission_entry_schema(root_schema: &mut Schema, acl: &BTreeMap<Strin
 
   // extend root schema with definitions collected from plugins
   root_schema
-    .get_mut("$defs")
+    .get_mut("definitions")
     .unwrap()
     .as_object_mut()
     .unwrap()
@@ -348,7 +348,11 @@ fn extend_permission_file_schema(schema: &mut Schema, permissions: &[PermissionF
     .flat_map(|p| p.gen_possible_permission_schemas(None))
     .collect();
 
-  let definitions = schema.get_mut("$defs").unwrap().as_object_mut().unwrap();
+  let definitions = schema
+    .get_mut("definitions")
+    .unwrap()
+    .as_object_mut()
+    .unwrap();
   if let Some(serde_json::Value::Object(obj)) = definitions.get_mut("PermissionSet") {
     let permissions_obj = obj
       .get_mut("properties")

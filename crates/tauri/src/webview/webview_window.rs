@@ -451,9 +451,7 @@ tauri::Builder::default()
     mut self,
     f: F,
   ) -> Self {
-    self.webview_builder = self
-      .webview_builder
-      .on_web_content_process_terminate(move |webview| f(webview));
+    self.webview_builder = self.webview_builder.on_web_content_process_terminate(f);
     self
   }
 

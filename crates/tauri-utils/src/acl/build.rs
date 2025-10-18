@@ -146,7 +146,7 @@ pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error>
 
 /// Define the global scope schema JSON file path if it exists and pass it to the immediate consuming crate.
 pub fn define_global_scope_schema(
-  schema: schemars::schema::RootSchema,
+  schema: schemars::Schema,
   pkg_name: &str,
   out_dir: &Path,
 ) -> Result<(), Error> {

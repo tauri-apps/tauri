@@ -7363,12 +7363,12 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "0.8.21"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09c024468a378b7e36765cd36702b7a90cc3cba11654f6685c8f233408e89e92"
+checksum = "febc07c7e70b5db4f023485653c754d76e1bbe8d9dbfa20193ce13da9f9633f4"
 dependencies = [
  "dyn-clone",
- "indexmap 1.9.3",
+ "ref-cast",
  "schemars_derive",
  "serde",
  "serde_json",
@@ -7378,8 +7378,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "0.8.21"
-source = "git+https://github.com/tauri-apps/schemars.git?branch=feat/preserve-description-newlines#c30f98480e6e4742aa72202d55d5264c6b2e6476"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1eeedaab7b1e1d09b5b4661121f4d27f9e7487089b0117833ccd7a882ee1ecc"
 dependencies = [
  "proc-macro2",
  "quote",

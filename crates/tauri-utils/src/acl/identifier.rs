@@ -26,8 +26,8 @@ pub struct Identifier {
 
 #[cfg(feature = "schema")]
 impl schemars::JsonSchema for Identifier {
-  fn schema_name() -> String {
-    "Identifier".to_string()
+  fn schema_name() -> std::borrow::Cow<'static, str> {
+    "Identifier".into()
   }
 
   fn schema_id() -> std::borrow::Cow<'static, str> {
@@ -35,7 +35,7 @@ impl schemars::JsonSchema for Identifier {
     std::borrow::Cow::Borrowed(concat!(module_path!(), "::Identifier"))
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
     String::json_schema(gen)
   }
 }

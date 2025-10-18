@@ -216,18 +216,12 @@ impl Capability {
 }
 
 #[cfg(feature = "schema")]
-fn unique_permission(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-  use schemars::schema;
-  schema::SchemaObject {
-    instance_type: Some(schema::InstanceType::Array.into()),
-    array: Some(Box::new(schema::ArrayValidation {
-      unique_items: Some(true),
-      items: Some(gen.subschema_for::<PermissionEntry>().into()),
-      ..Default::default()
-    })),
-    ..Default::default()
-  }
-  .into()
+fn unique_permission(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+  schemars::json_schema!({
+    "type": "array",
+    "uniqueItems": true,
+    "items": gen.subschema_for::<PermissionEntry>()
+  })
 }
 
 fn default_capability_local() -> bool {

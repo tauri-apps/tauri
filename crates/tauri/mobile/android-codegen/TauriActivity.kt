@@ -6,8 +6,8 @@
 
 package {{package}}
 
-import android.os.Bundle
 import android.content.Intent
+import android.content.res.Configuration
 import app.tauri.plugin.PluginManager
 
 abstract class TauriActivity : WryActivity() {
@@ -27,5 +27,25 @@ abstract class TauriActivity : WryActivity() {
   override fun onPause() {
     super.onPause()
     pluginManager.onPause()
+  }
+
+  override fun onRestart() {
+    super.onRestart()
+    pluginManager.onRestart()
+  }
+
+  override fun onStop() {
+    super.onStop()
+    pluginManager.onStop()
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    pluginManager.onDestroy()
+  }
+
+  override fun onConfigurationChanged(newConfig: Configuration) {
+    super.onConfigurationChanged(newConfig)
+    pluginManager.onConfigurationChanged(newConfig)
   }
 }

@@ -706,6 +706,11 @@ tauri::Builder::default()
     self
   }
 
+  /// Defines a closure to be executed when the web content process terminates.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub fn on_web_content_process_terminate<F: Fn(Webview<R>) + Send + 'static>(
     mut self,

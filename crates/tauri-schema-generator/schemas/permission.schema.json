@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Permission",
   "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
   "type": "object",
@@ -26,15 +26,23 @@
     },
     "commands": {
       "description": "Allowed or denied commands when using this permission.",
-      "$ref": "#/$defs/Commands",
       "default": {
         "allow": [],
         "deny": []
-      }
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/Commands"
+        }
+      ]
     },
     "scope": {
       "description": "Allowed or denied scoped when using this permission.",
-      "$ref": "#/$defs/Scopes"
+      "allOf": [
+        {
+          "$ref": "#/definitions/Scopes"
+        }
+      ]
     },
     "platforms": {
       "description": "Target platforms this permission applies. By default all platforms are affected by this permission.",
@@ -43,14 +51,14 @@
         "null"
       ],
       "items": {
-        "$ref": "#/$defs/Target"
+        "$ref": "#/definitions/Target"
       }
     }
   },
   "required": [
     "identifier"
   ],
-  "$defs": {
+  "definitions": {
     "Commands": {
       "description": "Allowed and denied commands inside a permission.\n\nIf two commands clash inside of `allow` and `deny`, it should be denied by default.",
       "type": "object",
@@ -84,7 +92,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         },
         "deny": {
@@ -94,7 +102,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         }
       }
@@ -112,7 +120,11 @@
         },
         {
           "description": "Represents a valid ACL [`Number`].",
-          "$ref": "#/$defs/Number"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
         },
         {
           "description": "Represents a [`String`].",
@@ -122,14 +134,14 @@
           "description": "Represents a list of other [`Value`]s.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         },
         {
           "description": "Represents a map of [`String`] keys to [`Value`]s.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         }
       ]

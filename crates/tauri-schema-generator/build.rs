@@ -13,7 +13,11 @@ use tauri_utils::{
 
 macro_rules! schema {
   ($name:literal, $path:ty) => {
-    (concat!($name, ".schema.json"), schemars::schema_for!($path))
+    (
+      concat!($name, ".schema.json"),
+      schemars::SchemaGenerator::new(schemars::generate::SchemaSettings::draft07())
+        .into_root_schema_for::<$path>(),
+    )
   };
 }
 

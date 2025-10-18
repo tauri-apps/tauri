@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Capability",
   "description": "A grouping and boundary mechanism developers can use to isolate access to the IPC layer.\n\nIt controls application windows' and webviews' fine grained access\nto the Tauri core, application, or plugin commands.\nIf a webview or its window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create groups of windows, based on their required system access, which can reduce\nimpact of frontend vulnerabilities in less privileged windows.\nWindows can be added to a capability by exact name (e.g. `main-window`) or glob patterns like `*` or `admin-*`.\nA Window can have none, one, or multiple associated capabilities.\n\n## Example\n\n```json\n{\n  \"identifier\": \"main-user-files-write\",\n  \"description\": \"This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programmatic access to files selected by the user.\",\n  \"windows\": [\n    \"main\"\n  ],\n  \"permissions\": [\n    \"core:default\",\n    \"dialog:open\",\n    {\n      \"identifier\": \"fs:allow-write-text-file\",\n      \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n    },\n  ],\n  \"platforms\": [\"macOS\",\"windows\"]\n}\n```",
   "type": "object",
@@ -17,7 +17,7 @@
       "description": "Configure remote URLs that can use the capability permissions.\n\nThis setting is optional and defaults to not being set, as our\ndefault use case is that the content is served from our local application.\n\n:::caution\nMake sure you understand the security implications of providing remote\nsources with local system access.\n:::\n\n## Example\n\n```json\n{\n  \"urls\": [\"https://*.mydomain.dev\"]\n}\n```",
       "anyOf": [
         {
-          "$ref": "#/$defs/CapabilityRemote"
+          "$ref": "#/definitions/CapabilityRemote"
         },
         {
           "type": "null"
@@ -48,7 +48,7 @@
       "type": "array",
       "uniqueItems": true,
       "items": {
-        "$ref": "#/$defs/PermissionEntry"
+        "$ref": "#/definitions/PermissionEntry"
       }
     },
     "platforms": {
@@ -58,7 +58,7 @@
         "null"
       ],
       "items": {
-        "$ref": "#/$defs/Target"
+        "$ref": "#/definitions/Target"
       }
     }
   },
@@ -66,7 +66,7 @@
     "identifier",
     "permissions"
   ],
-  "$defs": {
+  "definitions": {
     "CapabilityRemote": {
       "description": "Configuration for remote URLs that are associated with the capability.",
       "type": "object",
@@ -88,7 +88,11 @@
       "anyOf": [
         {
           "description": "Reference a permission or permission set by identifier.",
-          "$ref": "#/$defs/Identifier"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Identifier"
+            }
+          ]
         },
         {
           "description": "Reference a permission or permission set by identifier and extends its scope.",
@@ -96,7 +100,11 @@
           "properties": {
             "identifier": {
               "description": "Identifier of the permission or permission set.",
-              "$ref": "#/$defs/Identifier"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Identifier"
+                }
+              ]
             },
             "allow": {
               "description": "Data that defines what is allowed by the scope.",
@@ -105,7 +113,7 @@
                 "null"
               ],
               "items": {
-                "$ref": "#/$defs/Value"
+                "$ref": "#/definitions/Value"
               }
             },
             "deny": {
@@ -115,7 +123,7 @@
                 "null"
               ],
               "items": {
-                "$ref": "#/$defs/Value"
+                "$ref": "#/definitions/Value"
               }
             }
           },
@@ -141,7 +149,11 @@
         },
         {
           "description": "Represents a valid ACL [`Number`].",
-          "$ref": "#/$defs/Number"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
         },
         {
           "description": "Represents a [`String`].",
@@ -151,14 +163,14 @@
           "description": "Represents a list of other [`Value`]s.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         },
         {
           "description": "Represents a map of [`String`] keys to [`Value`]s.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         }
       ]

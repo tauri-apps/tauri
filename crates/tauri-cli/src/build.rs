@@ -4,17 +4,19 @@
 
 use crate::{
   bundle::BundleFormat,
+  error::{Context, ErrorExt},
   helpers::{
     self,
-    app_paths::tauri_dir,
+    app_paths::{frontend_dir, tauri_dir},
     config::{get as get_config, ConfigHandle, FrontendDist},
   },
+  info::plugins::check_mismatched_packages,
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
   ConfigValue, Result,
 };
-use anyhow::Context;
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
+use tauri_utils::config::RunnerConfig;
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
@@ -25,7 +27,7 @@ use tauri_utils::platform::Target;
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   /// Builds with the debug flag
   #[clap(short, long)]
   pub debug: bool,
@@ -59,10 +61,32 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  ///
+  /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
+  /// reaching out to Apple's servers which is helpful in offline environments.
+  ///
+  /// Enabling this option will also result in `tauri build` not waiting for notarization to finish
+  /// which is helpful for the very first time your app is notarized as this can take multiple hours.
+  /// On subsequent runs, it's recommended to disable this setting again.
+  #[clap(long)]
+  pub skip_stapling: bool,
+  /// Do not error out if a version mismatch is detected on a Tauri package.
+  ///
+  /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
+  #[clap(long)]
+  pub ignore_version_mismatches: bool,
+  /// Skip code signing when bundling the app
+  #[clap(long)]
+  pub no_sign: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   crate::helpers::app_paths::resolve();
+
+  if options.no_sign {
+    log::warn!("--no-sign flag detected: Signing will be skipped.");
+  }
 
   let ci = options.ci;
 
@@ -86,6 +110,10 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
+
+  if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
+    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+  }
 
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
@@ -120,7 +148,19 @@ pub fn setup(
   mobile: bool,
 ) -> Result<()> {
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+
+  // TODO: Maybe optimize this to run in parallel in the future
+  // see https://github.com/tauri-apps/tauri/pull/13993#discussion_r2280697117
+  log::info!("Looking up installed tauri packages to check mismatched versions...");
+  if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
+    if options.ignore_version_mismatches {
+      log::error!("{error}");
+    } else {
+      return Err(error);
+    }
+  }
+
+  set_current_dir(tauri_path).context("failed to set current directory")?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
@@ -130,11 +170,9 @@ pub fn setup(
     .unwrap_or_else(|| "tauri.conf.json".into());
 
   if config_.identifier == "com.tauri.dev" {
-    log::error!(
-      "You must change the bundle identifier in `{} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
-      bundle_identifier_source
+    crate::error::bail!(
+      "You must change the bundle identifier in `{bundle_identifier_source} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
     );
-    std::process::exit(1);
   }
 
   if config_
@@ -142,12 +180,11 @@ pub fn setup(
     .chars()
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
-    log::error!(
+    crate::error::bail!(
       "The bundle identifier \"{}\" set in `{} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
       config_.identifier,
       bundle_identifier_source
     );
-    std::process::exit(1);
   }
 
   if config_.identifier.ends_with(".app") {
@@ -169,15 +206,20 @@ pub fn setup(
         .and_then(|p| p.canonicalize().ok())
         .map(|p| p.join(web_asset_path.file_name().unwrap()))
         .unwrap_or_else(|| std::env::current_dir().unwrap().join(web_asset_path));
-      return Err(anyhow::anyhow!(
-          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
-          web_asset_path.display(), absolute_path.display(),
-        ));
+      crate::error::bail!(
+        "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
+        web_asset_path.display(), absolute_path.display(),
+      );
     }
-    if web_asset_path.canonicalize()?.file_name() == Some(std::ffi::OsStr::new("src-tauri")) {
-      return Err(anyhow::anyhow!(
+    if web_asset_path
+      .canonicalize()
+      .fs_context("failed to canonicalize path", web_asset_path.to_path_buf())?
+      .file_name()
+      == Some(std::ffi::OsStr::new("src-tauri"))
+    {
+      crate::error::bail!(
           "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
-        ));
+        );
     }
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
@@ -201,16 +243,16 @@ pub fn setup(
     }
 
     if !out_folders.is_empty() {
-      return Err(anyhow::anyhow!(
+      crate::error::bail!(
         "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
         out_folders,
         if out_folders.len() == 1 { "folder" } else { "folders" }
-      ));
+      );
     }
   }
 
   if options.runner.is_none() {
-    options.runner.clone_from(&config_.build.runner);
+    options.runner = config_.build.runner.clone();
   }
 
   options

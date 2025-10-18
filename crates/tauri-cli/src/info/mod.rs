@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::app_paths::{resolve_frontend_dir, resolve_tauri_dir},
   Result,
 };
@@ -15,12 +16,12 @@ use std::fmt::{self, Display, Formatter};
 mod app;
 mod env_nodejs;
 mod env_rust;
-mod env_system;
+pub mod env_system;
 #[cfg(target_os = "macos")]
 mod ios;
 mod packages_nodejs;
 mod packages_rust;
-mod plugins;
+pub mod plugins;
 
 #[derive(Deserialize)]
 struct JsCliVersionMetadata {
@@ -37,7 +38,7 @@ pub struct VersionMetadata {
 
 fn version_metadata() -> Result<VersionMetadata> {
   serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
-    .map_err(Into::into)
+    .context("failed to parse version metadata")
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -317,8 +318,17 @@ pub fn command(options: Options) -> Result<()> {
     .extend(app::items(frontend_dir.as_ref(), tauri_dir.as_deref()));
 
   environment.display();
+
   packages.display();
+
   plugins.display();
+
+  if let (Some(frontend_dir), Some(tauri_dir)) = (&frontend_dir, &tauri_dir) {
+    if let Err(error) = plugins::check_mismatched_packages(frontend_dir, tauri_dir) {
+      println!("\n{}: {error}", "Error".bright_red().bold());
+    }
+  }
+
   app.display();
 
   // iOS

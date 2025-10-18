@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{bundle::settings::Arch, Settings};
+use crate::{bundle::settings::Arch, error::ErrorExt, Settings};
 
-use anyhow::Context;
 use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
 use std::{
   env,
@@ -21,7 +20,10 @@ use super::freedesktop;
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let product_name = settings.product_name();
   let version = settings.version_string();
-  let release = settings.rpm().release.as_str();
+  let release = match settings.rpm().release.as_str() {
+    "" => "1", // Considered the default. If left empty, you get file with "-.".
+    v => v,
+  };
   let epoch = settings.rpm().epoch;
   let arch = match settings.binary_arch() {
     Arch::X86_64 => "x86_64",
@@ -32,8 +34,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     Arch::Riscv64 => "riscv64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "Unsupported architecture: {:?}",
-        target
+        "Unsupported architecture: {target:?}"
       )));
     }
   };
@@ -46,10 +47,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let base_dir = settings.project_out_directory().join("bundle/rpm");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old {package_base_name}"))?;
+    fs::remove_dir_all(&package_dir).fs_context(
+      "Failed to remove old package directory",
+      package_dir.clone(),
+    )?;
   }
-  fs::create_dir_all(&package_dir)?;
+  fs::create_dir_all(&package_dir)
+    .fs_context("Failed to create package directory", package_dir.clone())?;
   let package_path = base_dir.join(&package_name);
 
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
@@ -235,6 +239,5 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let mut f = fs::File::create(&package_path)?;
   pkg.write(&mut f)?;
-
   Ok(vec![package_path])
 }

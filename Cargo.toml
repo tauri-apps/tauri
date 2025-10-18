@@ -69,3 +69,4 @@ opt-level = "s"
 # These are for the plugins used in the examples to use the newer APIs that are in this repo
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
+tauri-utils = { path = "./crates/tauri-utils" }

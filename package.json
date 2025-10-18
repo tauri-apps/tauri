@@ -15,8 +15,8 @@
     "format:check": "prettier --check .",
     "eslint:check": "pnpm run -r eslint:check",
     "ts:check": "pnpm run -r ts:check",
-    "build": "pnpm run -r build",
-    "build:debug": "pnpm run -r build:debug",
+    "build": "pnpm run -F !api build && pnpm run -F api build",
+    "build:debug": "pnpm run -F !api build:debug && pnpm run -F api build:debug",
     "build:api": "pnpm run --filter \"@tauri-apps/api\" build",
     "build:api:debug": "pnpm run --filter \"@tauri-apps/api\" build:debug",
     "build:cli": "pnpm run --filter \"@tauri-apps/cli\" build",
@@ -27,13 +27,14 @@
   "devDependencies": {
     "prettier": "^3.5.3"
   },
-  "packageManager": "pnpm@10.12.1",
+  "minimumReleaseAge": 4320,
+  "packageManager": "pnpm@10.16.0",
   "pnpm": {
     "overrides": {
       "brace-expansion@<4.0.1": ">=4.0.1",
       "cross-spawn@>=7.0.0 <7.0.5": ">=7.0.5",
       "cookie@<0.7.0": ">=0.7.0",
-      "esbuild@<0.25.0": ">=0.25.0"
+      "tmp@<=0.2.3": ">=0.2.4"
     },
     "onlyBuiltDependencies": [
       "esbuild",

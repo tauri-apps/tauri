@@ -9,3 +9,7 @@ send_metrics = false
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"
+
+[observability]
+enabled = true
+head_sampling_rate = 1

@@ -20,6 +20,8 @@
     [webview.label]: webview
   })
 
+  let focusable = $state(true)
+
   const cursorIconOptions = [
     'default',
     'crosshair',
@@ -99,6 +101,7 @@
   let alwaysOnBottom = $state(false)
   let contentProtected = $state(false)
   let fullscreen = $state(false)
+  let simpleFullscreen = $state(false)
   let width = $state(null)
   let height = $state(null)
   let minWidth = $state(null)
@@ -337,6 +340,9 @@
   $effect(() => {
     webviewMap[selectedWebview]?.setFullscreen(fullscreen)
   })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setSimpleFullscreen(simpleFullscreen)
+  })
 
   $effect(() => {
     minWidth && minHeight
@@ -486,6 +492,15 @@
         >Request attention</button
       >
       <button class="btn" onclick={switchTheme}>Switch Theme ({theme})</button>
+      <button
+        class="btn"
+        onclick={() => {
+          focusable = !focusable
+          webviewMap[selectedWebview].setFocusable(!focusable)
+        }}
+      >
+        Set focusable to {!focusable}
+      </button>
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))]">
       <label>
@@ -531,6 +546,14 @@
       <label>
         <input type="checkbox" class="checkbox" bind:checked={fullscreen} />
         Fullscreen
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={simpleFullscreen}
+        />
+        Simple fullscreen
       </label>
     </div>
     <div class="flex flex-wrap children:flex-basis-30 gap-2">

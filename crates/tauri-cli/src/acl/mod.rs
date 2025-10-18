@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::error::Context;
 use serde::Serialize;
 use std::fmt::Display;
 
@@ -33,8 +34,8 @@ impl FileFormat {
 
   pub fn serialize<S: Serialize>(&self, s: &S) -> crate::Result<String> {
     let contents = match self {
-      Self::Json => serde_json::to_string_pretty(s)?,
-      Self::Toml => toml_edit::ser::to_string_pretty(s)?,
+      Self::Json => serde_json::to_string_pretty(s).context("failed to serialize JSON")?,
+      Self::Toml => toml_edit::ser::to_string_pretty(s).context("failed to serialize TOML")?,
     };
     Ok(contents)
   }

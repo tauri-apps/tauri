@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::app_paths::{frontend_dir, tauri_dir},
   Result,
 };
-
-use anyhow::Context;
 
 mod config;
 mod frontend;

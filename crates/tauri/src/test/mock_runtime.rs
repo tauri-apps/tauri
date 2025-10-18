@@ -270,6 +270,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     Ok(())
   }
 
+  fn set_device_event_filter(&self, _: DeviceEventFilter) {
+    // no-op
+  }
+
   #[cfg(target_os = "android")]
   fn find_class<'a>(
     &self,
@@ -404,6 +408,10 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   fn focused(self, focused: bool) -> Self {
+    self
+  }
+
+  fn focusable(self, focusable: bool) -> Self {
     self
   }
 
@@ -632,6 +640,14 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
 
   fn cookies_for_url(&self, url: Url) -> Result<Vec<tauri_runtime::Cookie<'static>>> {
     Ok(Vec::new())
+  }
+
+  fn set_cookie(&self, cookie: tauri_runtime::Cookie<'_>) -> Result<()> {
+    Ok(())
+  }
+
+  fn delete_cookie(&self, cookie: tauri_runtime::Cookie<'_>) -> Result<()> {
+    Ok(())
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
@@ -981,7 +997,16 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     Ok(())
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_simple_fullscreen(&self, enable: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn set_focus(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_focusable(&self, focusable: bool) -> Result<()> {
     Ok(())
   }
 

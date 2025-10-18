@@ -588,6 +588,13 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Whether the window will be focusable or not.
+  #[must_use]
+  pub fn focusable(mut self, focusable: bool) -> Self {
+    self.window_builder = self.window_builder.focusable(focusable);
+    self
+  }
+
   /// Whether the window should be maximized upon creation.
   #[must_use]
   pub fn maximized(mut self, maximized: bool) -> Self {
@@ -1961,9 +1968,44 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
+  /// Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won’t work if the window was already in the native fullscreen).
+  ///
+  /// This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
+  #[cfg(target_os = "macos")]
+  pub fn set_simple_fullscreen(&self, enable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_simple_fullscreen(enable)
+      .map_err(Into::into)
+  }
+
+  /// On macOS, Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won’t work if the window was already in the native fullscreen).
+  /// This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
+  ///
+  /// On other platforms, this is the same as [`Window#method.set_fullscreen`].
+  #[cfg(not(target_os = "macos"))]
+  pub fn set_simple_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
+    self.set_fullscreen(fullscreen)
+  }
+
   /// Bring the window to front and focus.
   pub fn set_focus(&self) -> crate::Result<()> {
     self.window.dispatcher.set_focus().map_err(Into::into)
+  }
+
+  /// Sets whether the window can be focused.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
+  ///   In this case, you might consider calling [`Window::set_focus`] but it will move the window to the back i.e. at the bottom in terms of z-order.
+  pub fn set_focusable(&self, focusable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_focusable(focusable)
+      .map_err(Into::into)
   }
 
   /// Sets this window' icon.

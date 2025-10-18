@@ -89,7 +89,7 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
     .collect::<Vec<PathBuf>>();
 
   let pkg_name_valid_path = pkg_name.replace(':', "-");
-  let permission_files_path = out_dir.join(format!("{}-permission-files", pkg_name_valid_path));
+  let permission_files_path = out_dir.join(format!("{pkg_name_valid_path}-permission-files"));
   let permission_files_json = serde_json::to_string(&permission_files)?;
   fs::write(&permission_files_path, permission_files_json)
     .map_err(|e| Error::WriteFile(e, permission_files_path.clone()))?;

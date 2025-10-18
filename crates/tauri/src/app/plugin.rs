@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri_utils::Theme;
+use tauri_utils::{config::BundleType, Theme};
 
 use crate::{
   command,
@@ -110,6 +110,11 @@ pub async fn set_dock_visibility<R: Runtime>(
   Ok(())
 }
 
+#[command(root = "crate")]
+pub fn bundle_type() -> Option<BundleType> {
+  tauri_utils::platform::bundle_type()
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("app")
     .invoke_handler(crate::generate_handler![
@@ -125,6 +130,18 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       default_window_icon,
       set_app_theme,
       set_dock_visibility,
+      bundle_type,
     ])
+    .setup(|_app, _api| {
+      #[cfg(target_os = "android")]
+      {
+        let handle = _api.register_android_plugin("app.tauri", "AppPlugin")?;
+        _app.manage(AppPlugin(handle));
+      }
+      Ok(())
+    })
     .build()
 }
+
+#[cfg(target_os = "android")]
+pub(crate) struct AppPlugin<R: Runtime>(pub crate::plugin::PluginHandle<R>);

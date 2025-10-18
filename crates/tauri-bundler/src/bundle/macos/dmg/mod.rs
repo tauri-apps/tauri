@@ -6,11 +6,10 @@
 use super::{app, icon::create_icns_file};
 use crate::{
   bundle::{settings::Arch, Bundle},
+  error::{Context, ErrorExt},
   utils::CommandExt,
   PackageType, Settings,
 };
-
-use anyhow::Context;
 
 use std::{
   env,
@@ -49,8 +48,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
       Arch::Universal => "universal",
       target => {
         return Err(crate::Error::ArchError(format!(
-          "Unsupported architecture: {:?}",
-          target
+          "Unsupported architecture: {target:?}"
         )));
       }
     }
@@ -59,7 +57,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let dmg_path = output_path.join(&dmg_name);
 
   let product_name = settings.product_name();
-  let bundle_file_name = format!("{}.app", product_name);
+  let bundle_file_name = format!("{product_name}.app");
   let bundle_dir = settings.project_out_directory().join("bundle/macos");
 
   let support_directory_path = output_path
@@ -69,10 +67,9 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   for path in &[&support_directory_path, &output_path] {
     if path.exists() {
-      fs::remove_dir_all(path).with_context(|| format!("Failed to remove old {}", dmg_name))?;
+      fs::remove_dir_all(path).fs_context("failed to remove old dmg", path.to_path_buf())?;
     }
-    fs::create_dir_all(path)
-      .with_context(|| format!("Failed to create output directory at {:?}", path))?;
+    fs::create_dir_all(path).fs_context("failed to create output directory", path.to_path_buf())?;
   }
 
   // create paths for script
@@ -196,7 +193,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // Sign DMG if needed
   // skipping self-signing DMGs https://github.com/tauri-apps/tauri/issues/12288
   let identity = settings.macos().signing_identity.as_deref();
-  if identity != Some("-") {
+  if !settings.no_sign() && identity != Some("-") {
     if let Some(keychain) = super::sign::keychain(identity)? {
       super::sign::sign(
         &keychain,

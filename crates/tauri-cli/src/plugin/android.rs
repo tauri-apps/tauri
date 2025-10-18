@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::{prompts, template},
   Result,
 };
@@ -50,18 +51,20 @@ pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => {
       let plugin_name = match options.plugin_name {
-        None => super::infer_plugin_name(std::env::current_dir()?)?,
+        None => super::infer_plugin_name(
+          std::env::current_dir().context("failed to get current directory")?,
+        )?,
         Some(name) => name,
       };
 
       let out_dir = PathBuf::from(options.out_dir);
       if out_dir.join("android").exists() {
-        return Err(anyhow::anyhow!("android folder already exists"));
+        crate::error::bail!("Android folder already exists");
       }
 
       let plugin_id = prompts::input(
         "What should be the Android Package ID for your plugin?",
-        Some(format!("com.plugin.{}", plugin_name)),
+        Some(format!("com.plugin.{plugin_name}")),
         false,
         false,
       )?
@@ -114,17 +117,15 @@ tauri-build = "{}"
       let init_fn = format!(
         r#"
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
-  Builder::new("{name}")
+  Builder::new("{plugin_name}")
     .setup(|app, api| {{
       #[cfg(target_os = "android")]
-      let handle = api.register_android_plugin("{identifier}", "ExamplePlugin")?;
+      let handle = api.register_android_plugin("{plugin_id}", "ExamplePlugin")?;
       Ok(())
     }})
     .build()
 }}
-"#,
-        name = plugin_name,
-        identifier = plugin_id
+"#
       );
 
       log::info!("Android project added");

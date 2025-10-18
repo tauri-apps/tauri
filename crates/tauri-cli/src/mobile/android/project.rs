@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{helpers::template, Result};
-use anyhow::Context;
+use crate::{
+  error::{Context, ErrorExt},
+  helpers::template,
+  Error, Result,
+};
 use cargo_mobile2::{
   android::{
     config::{Config, Metadata},
@@ -45,11 +48,13 @@ pub fn gen(
       .collect::<Vec<&Target>>();
 
     if !missing_targets.is_empty() {
-      println!("Installing Android Rust toolchains...");
+      log::info!("Installing Android Rust targets...");
       for target in missing_targets {
-        target
-          .install()
-          .context("failed to install target with rustup")?;
+        log::info!("Installing target {}", target.triple());
+        target.install().map_err(|error| Error::CommandFailed {
+          command: "rustup target add".to_string(),
+          error,
+        })?;
       }
     }
   }
@@ -110,7 +115,7 @@ pub fn gen(
   map.insert("windows", cfg!(windows));
 
   let identifier = config.app().identifier().replace('.', "/");
-  let package_path = format!("java/{}", identifier);
+  let package_path = format!("java/{identifier}");
 
   map.insert("package-path", &package_path);
 
@@ -136,34 +141,17 @@ pub fn gen(
     let source_src = config.app().root_dir().join(source);
     let source_file = source_src
       .file_name()
-      .ok_or_else(|| anyhow::anyhow!("asset source {} is invalid", source_src.display()))?;
-    fs::copy(&source_src, source_dest.join(source_file)).map_err(|cause| {
-      anyhow::anyhow!(
-        "failed to copy {} to {}: {}",
-        source_src.display(),
-        source_dest.display(),
-        cause
-      )
-    })?;
+      .with_context(|| format!("asset source {} is invalid", source_src.display()))?;
+    fs::copy(&source_src, source_dest.join(source_file))
+      .fs_context("failed to copy asset", source_src)?;
   }
 
   let dest = prefix_path(dest, "app/src/main/");
-  fs::create_dir_all(&dest).map_err(|cause| {
-    anyhow::anyhow!(
-      "failed to create directory at {}: {}",
-      dest.display(),
-      cause
-    )
-  })?;
+  fs::create_dir_all(&dest).fs_context("failed to create directory", dest.clone())?;
 
   let asset_dir = dest.join(DEFAULT_ASSET_DIR);
   if !asset_dir.is_dir() {
-    fs::create_dir_all(&asset_dir).map_err(|cause| {
-      anyhow::anyhow!(
-        "failed to create asset dir {path}: {cause}",
-        path = asset_dir.display()
-      )
-    })?;
+    fs::create_dir_all(&asset_dir).fs_context("failed to create asset dir", asset_dir)?;
   }
 
   Ok(())

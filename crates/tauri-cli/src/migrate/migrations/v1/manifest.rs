@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::ErrorExt,
   interface::rust::manifest::{read_manifest, serialize_manifest},
   Result,
 };
 
-use anyhow::Context;
 use tauri_utils::config_v1::Allowlist;
 use toml_edit::{DocumentMut, Entry, Item, TableLike, Value};
 
@@ -21,7 +21,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
   migrate_manifest(&mut manifest)?;
 
   std::fs::write(&manifest_path, serialize_manifest(&manifest))
-    .context("failed to rewrite Cargo manifest")?;
+    .fs_context("failed to rewrite Cargo manifest", manifest_path.clone())?;
 
   Ok(())
 }
@@ -349,7 +349,7 @@ mod tests {
     [dependencies]
     tauri = {{ version = "1.0.0", features = [{}] }}
 "#,
-        features.iter().map(|f| format!("{:?}", f)).join(", ")
+        features.iter().map(|f| format!("{f:?}")).join(", ")
       )
     });
   }
@@ -363,7 +363,7 @@ mod tests {
     version = "1.0.0"
     features = [{}]
 "#,
-        features.iter().map(|f| format!("{:?}", f)).join(", ")
+        features.iter().map(|f| format!("{f:?}")).join(", ")
       )
     });
   }

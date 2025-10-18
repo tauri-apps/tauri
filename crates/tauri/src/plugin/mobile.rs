@@ -13,6 +13,8 @@ use crate::{
 
 #[cfg(mobile)]
 use std::sync::atomic::{AtomicI32, Ordering};
+#[cfg(mobile)]
+use tokio::sync::oneshot;
 
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -279,6 +281,38 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
 }
 
 impl<R: Runtime> PluginHandle<R> {
+  /// Executes the given mobile command.
+  /// This is an async optimized variant of run_mobile_plugin
+  pub async fn run_mobile_plugin_async<T: DeserializeOwned>(
+    &self,
+    command: impl AsRef<str>,
+    payload: impl Serialize,
+  ) -> Result<T, PluginInvokeError> {
+    let (tx, rx) = oneshot::channel();
+    // the closure is an FnOnce but on Android we need to clone it (error handling)
+    let tx = std::sync::Arc::new(std::sync::Mutex::new(Some(tx)));
+    run_command(
+      self.name,
+      &self.handle,
+      command,
+      serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
+      move |response| {
+        tx.lock().unwrap().take().unwrap().send(response).unwrap();
+      },
+    )?;
+
+    let response = rx.await.unwrap();
+
+    match response {
+      Ok(r) => serde_json::from_value(r).map_err(PluginInvokeError::CannotDeserializeResponse),
+      Err(r) => Err(
+        serde_json::from_value::<ErrorResponse>(r)
+          .map(Into::into)
+          .map_err(PluginInvokeError::CannotDeserializeResponse)?,
+      ),
+    }
+  }
+
   /// Executes the given mobile command.
   pub fn run_mobile_plugin<T: DeserializeOwned>(
     &self,

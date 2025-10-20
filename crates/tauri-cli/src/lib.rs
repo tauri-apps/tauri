@@ -418,7 +418,7 @@ mod tests {
 
   #[test]
   fn help_output_includes_build() {
-    let help = Cli::command().render_help();
+    let help = Cli::command().render_help().to_string();
     assert!(help.contains("Build"));
   }
 }

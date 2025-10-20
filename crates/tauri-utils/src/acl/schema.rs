@@ -194,7 +194,7 @@ impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permiss
   }
 }
 
-/// Collect and include all possible identifiers in `Identifier` defintion in the schema
+/// Collect and include all possible identifiers in `Identifier` definition in the schema
 fn extend_identifier_schema(schema: &mut RootSchema, acl: &BTreeMap<String, Manifest>) {
   if let Some(Schema::Object(identifier_schema)) = schema.definitions.get_mut("Identifier") {
     let permission_schemas = acl
@@ -214,9 +214,9 @@ fn extend_identifier_schema(schema: &mut RootSchema, acl: &BTreeMap<String, Mani
   }
 }
 
-/// Collect permission schemas and its associated scope schema and schema definitons from plugins
+/// Collect permission schemas and its associated scope schema and schema definitions from plugins
 /// and replace `PermissionEntry` extend object syntax with a new schema that does conditional
-/// checks to serve the relavent scope schema for the right permissions schema, in a nutshell, it
+/// checks to serve the relevant scope schema for the right permissions schema, in a nutshell, it
 /// will look something like this:
 /// ```text
 /// PermissionEntry {
@@ -250,16 +250,16 @@ fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<S
 
   if let Some(Schema::Object(obj)) = root_schema.definitions.get_mut("PermissionEntry") {
     let any_of = obj.subschemas().any_of.as_mut().unwrap();
-    let Schema::Object(extened_permission_entry) = any_of.last_mut().unwrap() else {
+    let Schema::Object(extend_permission_entry) = any_of.last_mut().unwrap() else {
       unreachable!("PermissionsEntry should be an object not a boolean");
     };
 
     // remove default properties and save it to be added later as a fallback
-    let obj = extened_permission_entry.object.as_mut().unwrap();
+    let obj = extend_permission_entry.object.as_mut().unwrap();
     let default_properties = std::mem::take(&mut obj.properties);
 
-    let defaut_identifier = default_properties.get(IDENTIFIER).cloned().unwrap();
-    let default_identifier = (IDENTIFIER.to_string(), defaut_identifier);
+    let default_identifier = default_properties.get(IDENTIFIER).cloned().unwrap();
+    let default_identifier = (IDENTIFIER.to_string(), default_identifier);
 
     let mut all_of = vec![];
 
@@ -299,7 +299,7 @@ fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<S
     all_of.push(Schema::Object(default_obj));
 
     // replace extended PermissionEntry with the new schema
-    extened_permission_entry.subschemas().all_of = Some(all_of);
+    extend_permission_entry.subschemas().all_of = Some(all_of);
   }
 
   // extend root schema with definitions collected from plugins
@@ -352,7 +352,7 @@ fn extend_permission_file_schema(schema: &mut RootSchema, permissions: &[Permiss
     let permissions_obj = obj.object().properties.get_mut("permissions");
     if let Some(Schema::Object(permissions_obj)) = permissions_obj {
       // replace the permissions property schema object
-      // from a mere string to a referecnce to `PermissionKind`
+      // from a mere string to a reference to `PermissionKind`
       permissions_obj.array().items.replace(
         Schema::Object(SchemaObject {
           reference: Some("#/definitions/PermissionKind".into()),

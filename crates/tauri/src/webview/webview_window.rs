@@ -2042,9 +2042,9 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Sets this window's minimum inner width.
   pub fn set_size_constraints(
     &self,
-    constriants: tauri_runtime::window::WindowSizeConstraints,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
   ) -> crate::Result<()> {
-    self.window.set_size_constraints(constriants)
+    self.window.set_size_constraints(constraints)
   }
 
   /// Sets this window's position.

@@ -112,13 +112,13 @@ mod window_effects {
     UnderWindowBackground,
     /// **macOS 10.14+**
     UnderPageBackground,
-    /// Mica effect that matches the system dark perefence **Windows 11 Only**
+    /// Mica effect that matches the system dark preference **Windows 11 Only**
     Mica,
     /// Mica effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
     MicaDark,
     /// Mica effect with light mode **Windows 11 Only**
     MicaLight,
-    /// Tabbed effect that matches the system dark perefence **Windows 11 Only**
+    /// Tabbed effect that matches the system dark preference **Windows 11 Only**
     Tabbed,
     /// Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
     TabbedDark,
@@ -372,7 +372,7 @@ pub enum Error {
   #[cfg(feature = "resources")]
   #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
   NotAllowedToWalkDir(std::path::PathBuf),
-  /// Resourece path doesn't exist
+  /// Resource path doesn't exist
   #[cfg(feature = "resources")]
   #[error("resource path `{0}` doesn't exist")]
   ResourcePathNotFound(std::path::PathBuf),

@@ -90,7 +90,7 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn webview_created(&mut self, webview: Webview<R>) {}
 
-  /// Callback invoked when webview tries to navigate to the given Url. Returning falses cancels navigation.
+  /// Callback invoked when webview tries to navigate to the given Url. Returning false cancels navigation.
   #[allow(unused_variables)]
   fn on_navigation(&mut self, webview: &Webview<R>, url: &Url) -> bool {
     true

@@ -65,28 +65,19 @@ impl FromStr for ConfigValue {
       let path = PathBuf::from(config);
       let raw =
         read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
-      match path.extension() {
-        Some(ext) if ext == "toml" => {
-          Ok(Self(::toml::from_str(&raw).with_context(|| {
-            format!("failed to parse config at {} as TOML", path.display())
-          })?))
-        }
-        Some(ext) if ext == "json5" => {
-          Ok(Self(::json5::from_str(&raw).with_context(|| {
-            format!("failed to parse config at {} as JSON5", path.display())
-          })?))
-        }
-        // treat all other extensions as json
-        _ => Ok(Self(
-          // from tauri-utils/src/config/parse.rs:
-          // we also want to support **valid** json5 in the .json extension
-          // if the json5 is not valid the serde_json error for regular json will be returned.
-          match ::json5::from_str(&raw) {
-            Ok(json5) => json5,
-            Err(_) => serde_json::from_str(&raw)
-              .with_context(|| format!("failed to parse config at {} as JSON", path.display()))?,
-          },
-        )),
+
+      match path.extension().and_then(|ext| ext.to_str()) {
+        Some("toml") => Ok(Self(::toml::from_str(&raw).with_context(|| {
+          format!("failed to parse config at {} as TOML", path.display())
+        })?)),
+        Some("json5") => Ok(Self(::json5::from_str(&raw).with_context(|| {
+          format!("failed to parse config at {} as JSON5", path.display())
+        })?)),
+        _ => Ok(Self(match ::json5::from_str(&raw) {
+          Ok(json5) => json5,
+          Err(_) => serde_json::from_str(&raw)
+            .with_context(|| format!("failed to parse config at {} as JSON", path.display()))?,
+        })),
       }
     }
   }
@@ -115,7 +106,7 @@ impl Display for RunMode {
   }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct VersionMetadata {
   tauri: String,
   #[serde(rename = "tauri-build")]
@@ -124,7 +115,7 @@ pub struct VersionMetadata {
   tauri_plugin: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct PackageJson {
   name: Option<String>,
   version: Option<String>,
@@ -178,6 +169,13 @@ fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
   err.format(&mut app)
 }
 
+fn get_verbosity(cli_verbose: u8) -> u8 {
+  std::env::var("TAURI_CLI_VERBOSITY")
+    .ok()
+    .and_then(|v| v.parse().ok())
+    .unwrap_or(cli_verbose)
+}
+
 /// Run the Tauri CLI with the passed arguments, exiting if an error occurs.
 ///
 /// The passed arguments should have the binary argument(s) stripped out before being passed.
@@ -186,10 +184,6 @@ fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
 /// 1. `tauri-cli 1 2 3` -> `1 2 3`
 /// 2. `cargo tauri 1 2 3` -> `1 2 3`
 /// 3. `node tauri.js 1 2 3` -> `1 2 3`
-///
-/// The passed `bin_name` parameter should be how you want the help messages to display the command.
-/// This defaults to `cargo-tauri`, but should be set to how the program was called, such as
-/// `cargo tauri`.
 pub fn run<I, A>(args: I, bin_name: Option<String>)
 where
   I: IntoIterator<Item = A>,
@@ -222,23 +216,17 @@ where
     Err(e) => e.exit(),
   };
 
-  let verbosity_number = std::env::var("TAURI_CLI_VERBOSITY")
-    .ok()
-    .and_then(|v| v.parse().ok())
-    .unwrap_or(cli.verbose);
-  // set the verbosity level so subsequent CLI calls (xcode-script, android-studio-script) refer to it
+  let verbosity_number = get_verbosity(cli.verbose);
   std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string());
 
   let mut builder = Builder::from_default_env();
-  let init_res = builder
+  if let Err(err) = builder
     .format_indent(Some(12))
     .filter(None, verbosity_level(verbosity_number).to_level_filter())
-    // golbin spams an insane amount of really technical logs on the debug level so we're reducing one level
     .filter(
       Some("goblin"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
     )
-    // handlebars is not that spammy but its debug logs are typically far from being helpful
     .filter(
       Some("handlebars"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
@@ -250,7 +238,6 @@ where
         is_command_output = action == "stdout" || action == "stderr";
         if !is_command_output {
           let style = Style::new().fg_color(Some(AnsiColor::Green.into())).bold();
-
           write!(f, "{style}{action:>12}{style:#} ")?;
         }
       } else {
@@ -264,15 +251,13 @@ where
 
       if !is_command_output && log::log_enabled!(Level::Debug) {
         let style = Style::new().fg_color(Some(AnsiColor::Black.into()));
-
         write!(f, "[{style}{}{style:#}] ", record.target())?;
       }
 
       writeln!(f, "{}", record.args())
     })
-    .try_init();
-
-  if let Err(err) = init_res {
+    .try_init()
+  {
     eprintln!("Failed to attach logger: {err}");
   }
 
@@ -305,7 +290,7 @@ fn verbosity_level(num: u8) -> Level {
   match num {
     0 => Level::Info,
     1 => Level::Debug,
-    2.. => Level::Trace,
+    _ => Level::Trace,
   }
 }
 
@@ -321,8 +306,6 @@ fn prettyprint_level(lvl: Level) -> &'static str {
 }
 
 pub trait CommandExt {
-  // The `pipe` function sets the stdout and stderr to properly
-  // show the command output in the Node.js wrapper.
   fn piped(&mut self) -> std::io::Result<ExitStatus>;
   fn output_ok(&mut self) -> crate::Result<Output>;
 }
@@ -332,9 +315,15 @@ impl CommandExt for Command {
     self.stdin(os_pipe::dup_stdin()?);
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
-    let program = self.get_program().to_string_lossy().into_owned();
-    log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
+    let program = self.get_program().to_string_lossy().into_owned();
+    let args = self
+      .get_args()
+      .map(|a| a.to_string_lossy())
+      .collect::<Vec<_>>()
+      .join(" ");
+
+    log::debug!(action = "Running"; "Command `{program} {args}`");
     self.status()
   }
 
@@ -342,8 +331,9 @@ impl CommandExt for Command {
     let program = self.get_program().to_string_lossy().into_owned();
     let args = self
       .get_args()
-      .map(|arg| arg.to_string_lossy())
-      .fold(String::new(), |acc, arg| format!("{acc} {arg}"));
+      .map(|a| a.to_string_lossy())
+      .collect::<Vec<_>>()
+      .join(" ");
     let cmdline = format!("{program} {args}");
     log::debug!(action = "Running"; "Command `{cmdline}`");
 
@@ -359,16 +349,17 @@ impl CommandExt for Command {
     let stdout_lines_ = stdout_lines.clone();
     std::thread::spawn(move || {
       let mut line = String::new();
-      let mut lines = stdout_lines_.lock().unwrap();
       loop {
         line.clear();
         match stdout.read_line(&mut line) {
           Ok(0) => break,
           Ok(_) => {
             log::debug!(action = "stdout"; "{}", line.trim_end());
-            lines.extend(line.as_bytes().to_vec());
+            if let Ok(mut lines) = stdout_lines_.lock() {
+              lines.extend(line.as_bytes());
+            }
           }
-          Err(_) => (),
+          Err(_) => break,
         }
       }
     });
@@ -378,16 +369,17 @@ impl CommandExt for Command {
     let stderr_lines_ = stderr_lines.clone();
     std::thread::spawn(move || {
       let mut line = String::new();
-      let mut lines = stderr_lines_.lock().unwrap();
       loop {
         line.clear();
         match stderr.read_line(&mut line) {
           Ok(0) => break,
           Ok(_) => {
             log::debug!(action = "stderr"; "{}", line.trim_end());
-            lines.extend(line.as_bytes().to_vec());
+            if let Ok(mut lines) = stderr_lines_.lock() {
+              lines.extend(line.as_bytes());
+            }
           }
-          Err(_) => (),
+          Err(_) => break,
         }
       }
     });
@@ -422,5 +414,11 @@ mod tests {
   #[test]
   fn verify_cli() {
     Cli::command().debug_assert();
+  }
+
+  #[test]
+  fn help_output_includes_build() {
+    let help = Cli::command().render_help();
+    assert!(help.contains("Build"));
   }
 }

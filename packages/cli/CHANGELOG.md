@@ -1,5 +1,40 @@
 # Changelog
 
+## \[2.9.0]
+
+### New Features
+
+- [`3b4fac201`](https://www.github.com/tauri-apps/tauri/commit/3b4fac2017832d426dd07c5e24e26684eda57f7b) ([#14194](https://www.github.com/tauri-apps/tauri/pull/14194)) Add `tauri.conf.json > bundle > android > autoIncrementVersionCode` config option to automatically increment the Android version code.
+- [`673867aa0`](https://www.github.com/tauri-apps/tauri/commit/673867aa0e1ccd766ee879ffe96aba58c758613c) ([#14094](https://www.github.com/tauri-apps/tauri/pull/14094)) Try to detect ANDROID_HOME and NDK_HOME environment variables from default system locations and install them if needed using the Android Studio command line tools.
+- [`3d6868d09`](https://www.github.com/tauri-apps/tauri/commit/3d6868d09c323d68a152f3c3f8c7256311bd020a) ([#14128](https://www.github.com/tauri-apps/tauri/pull/14128)) Added support to defining the content type of the declared file association on macOS (maps to LSItemContentTypes property).
+- [`3d6868d09`](https://www.github.com/tauri-apps/tauri/commit/3d6868d09c323d68a152f3c3f8c7256311bd020a) ([#14128](https://www.github.com/tauri-apps/tauri/pull/14128)) Added support to defining the metadata for custom types declared in `tauri.conf.json > bundle > fileAssociations > exportedType` via the `UTExportedTypeDeclarations` Info.plist property.
+- [`ed7c9a410`](https://www.github.com/tauri-apps/tauri/commit/ed7c9a4100e08c002212265549d12130d021ad1e) ([#14108](https://www.github.com/tauri-apps/tauri/pull/14108)) Added `bundle > macOS > infoPlist` and `bundle > iOS > infoPlist` configurations to allow defining custom Info.plist extensions.
+- [`75082cc5b`](https://www.github.com/tauri-apps/tauri/commit/75082cc5b340e30e2c4b4cd4bd6a1fe5382164aa) ([#14120](https://www.github.com/tauri-apps/tauri/pull/14120)) Added `ios run` and `android run` commands to run the app in production mode.
+- [`cc8c0b531`](https://www.github.com/tauri-apps/tauri/commit/cc8c0b53171173dbd1d01781a50de1a3ea159031) ([#14031](https://www.github.com/tauri-apps/tauri/pull/14031)) Added support to universal app links on macOS with the `plugins > deep-link > desktop > domains` configuration.
+
+### Enhancements
+
+- [`b5aa01870`](https://www.github.com/tauri-apps/tauri/commit/b5aa018702bf45dc98297698f9b7d238705865a6) ([#14268](https://www.github.com/tauri-apps/tauri/pull/14268)) Update cargo-mobile2 to 0.21, enhancing error messages and opening Xcode when multiple apps are installed.
+- [`55453e845`](https://www.github.com/tauri-apps/tauri/commit/55453e8453d927b8197f1ba9f26fd944482938f7) ([#14262](https://www.github.com/tauri-apps/tauri/pull/14262)) Check mismatched versions in `tauri info`
+- [`1a6627ee7`](https://www.github.com/tauri-apps/tauri/commit/1a6627ee7d085a4e66784e2705254714d68c7244) ([#14122](https://www.github.com/tauri-apps/tauri/pull/14122)) Set a default log level filter when running `tauri add log`.
+- [`b06b3bd09`](https://www.github.com/tauri-apps/tauri/commit/b06b3bd091b0fed26cdcfb23cacb0462a7a9cc2d) ([#14126](https://www.github.com/tauri-apps/tauri/pull/14126)) Improve error messages with more context.
+- [`f6622a3e3`](https://www.github.com/tauri-apps/tauri/commit/f6622a3e342f5dd5fb3cf6e0f79fb309a10e9b3d) ([#14129](https://www.github.com/tauri-apps/tauri/pull/14129)) Prompt to install the iOS platform if it isn't installed yet.
+- [`6bbb530fd`](https://www.github.com/tauri-apps/tauri/commit/6bbb530fd5edfc07b180a4f3782b8566872ca3b1) ([#14105](https://www.github.com/tauri-apps/tauri/pull/14105)) Warn if productName is empty when initializing mobile project.
+
+### Bug Fixes
+
+- [`19fb6f7cb`](https://www.github.com/tauri-apps/tauri/commit/19fb6f7cb0d702cb2f25f6f2d1e11014d9dada5d) ([#14146](https://www.github.com/tauri-apps/tauri/pull/14146)) Strip Windows-only extensions from the binary path so an Android project initialized on Windows can be used on UNIX systems.
+- [`19fb6f7cb`](https://www.github.com/tauri-apps/tauri/commit/19fb6f7cb0d702cb2f25f6f2d1e11014d9dada5d) ([#14146](https://www.github.com/tauri-apps/tauri/pull/14146)) Enhance Android build script usage on Windows by attempting to run cmd, bat and exe formats.
+- [`28a2f9bc5`](https://www.github.com/tauri-apps/tauri/commit/28a2f9bc55f658eb71ef1a970ff9f791346f7682) ([#14101](https://www.github.com/tauri-apps/tauri/pull/14101)) Fix iOS CLI usage after modifying the package name.
+- [`d2938486e`](https://www.github.com/tauri-apps/tauri/commit/d2938486e9d974debd90c15d7160b8a17bf4d763) ([#14261](https://www.github.com/tauri-apps/tauri/pull/14261)) Replaced the non-standard nerd font character with `  ⱼₛ ` in `tarui info`
+- [`25e920e16`](https://www.github.com/tauri-apps/tauri/commit/25e920e169db900ca4f07c2bb9eb290e9f9f2c7d) ([#14298](https://www.github.com/tauri-apps/tauri/pull/14298)) Wait for dev server to exit before exiting the CLI when the app is closed on `tauri dev --no-watch`.
+- [`b0012424c`](https://www.github.com/tauri-apps/tauri/commit/b0012424c5f432debfa42ba145e2672966d5f6d5) ([#14115](https://www.github.com/tauri-apps/tauri/pull/14115)) Resolve local IP address when `tauri.conf.json > build > devUrl` host is `0.0.0.0`.
+- [`abf7e8850`](https://www.github.com/tauri-apps/tauri/commit/abf7e8850ba41e7173e9e9a3fdd6dfb8f357d72d) ([#14118](https://www.github.com/tauri-apps/tauri/pull/14118)) Fixes mobile project initialization when using `pnpx` or `pnpm dlx`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.9.0`
+
 ## \[2.8.4]
 
 ### Enhancements

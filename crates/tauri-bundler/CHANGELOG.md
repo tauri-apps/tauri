@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.7.0]
+
+### New Features
+
+- [`2a06d1006`](https://www.github.com/tauri-apps/tauri/commit/2a06d10066a806e392efe8bfb16d943ee0b0b61d) ([#14052](https://www.github.com/tauri-apps/tauri/pull/14052)) Add a `--no-sign` flag to the `tauri build` and `tauri bundle` commands to skip the code signing step, improving the developer experience for local testing and development without requiring code signing keys.
+- [`cc8c0b531`](https://www.github.com/tauri-apps/tauri/commit/cc8c0b53171173dbd1d01781a50de1a3ea159031) ([#14031](https://www.github.com/tauri-apps/tauri/pull/14031)) Support providing `plist::Value` as macOS entitlements.
+
+### Enhancements
+
+- [`b06b3bd09`](https://www.github.com/tauri-apps/tauri/commit/b06b3bd091b0fed26cdcfb23cacb0462a7a9cc2d) ([#14126](https://www.github.com/tauri-apps/tauri/pull/14126)) Improve error messages with more context.
+
+### Bug Fixes
+
+- [`06d4a4ed6`](https://www.github.com/tauri-apps/tauri/commit/06d4a4ed6c146d6c7782016cf90037b56b944445) ([#14241](https://www.github.com/tauri-apps/tauri/pull/14241)) Set `APPIMAGE_EXTRACT_AND_RUN` on top of using the `--appimage-extra-and-run` cli arg for linuxdeploy.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+
+### Breaking Changes
+
+- [`ed7c9a410`](https://www.github.com/tauri-apps/tauri/commit/ed7c9a4100e08c002212265549d12130d021ad1e) ([#14108](https://www.github.com/tauri-apps/tauri/pull/14108)) Changed `MacOsSettings::info_plist_path` to `MacOsSettings::info_plist`.
+
 ## \[2.6.1]
 
 ### Bug Fixes

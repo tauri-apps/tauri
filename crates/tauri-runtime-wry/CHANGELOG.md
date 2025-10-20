@@ -1,5 +1,22 @@
 # Changelog
 
+## \[2.9.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scroll_bar_style` option to the Webview and WebviewWindow builders.
+  The possible values for this option are gated behind conditional compilation
+  flags, and will need to be applied using conditional compilation if customised.
+
+### Bug Fixes
+
+- [`684791efa`](https://www.github.com/tauri-apps/tauri/commit/684791efa6f3c671a0435d456ac208bca871d8c1) ([#14276](https://www.github.com/tauri-apps/tauri/pull/14276)) Always try to create macOS WebKit webview, even if webkit runtime doesn't get detected correctly
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- Upgraded to `tauri-runtime@2.9.0`
+
 ## \[2.8.1]
 
 ### Bug Fixes

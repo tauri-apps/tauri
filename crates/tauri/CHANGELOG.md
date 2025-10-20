@@ -1,5 +1,29 @@
 # Changelog
 
+## \[2.9.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scroll_bar_style` option to the Webview and WebviewWindow builders.
+  The possible values for this option are gated behind conditional compilation
+  flags, and will need to be applied using conditional compilation if customised.
+- [`3397fd9bf`](https://www.github.com/tauri-apps/tauri/commit/3397fd9bfe5f6b1337110149f6c34731b8a44bb3) ([#14133](https://www.github.com/tauri-apps/tauri/pull/14133)) Added mobile app plugin to support exit and back button press event.
+- [`68cb31897`](https://www.github.com/tauri-apps/tauri/commit/68cb318979317c09f401825150e007d60377e75e) ([#14328](https://www.github.com/tauri-apps/tauri/pull/14328)) Added `onStop`, `onDestroy`, `onRestart`, `onConfigurationChanged` Android plugin hooks.
+- [`2e089f6ac`](https://www.github.com/tauri-apps/tauri/commit/2e089f6acb854e4d7f8eafb9b2f8242b1c9fa491) ([#14148](https://www.github.com/tauri-apps/tauri/pull/14148)) Support async Swift plugin methods (`completionHandler:`) in PluginManager
+
+### Bug Fixes
+
+- [`006d59283`](https://www.github.com/tauri-apps/tauri/commit/006d592837259cac87f15cf3ffc99e7fce97685e) ([#14260](https://www.github.com/tauri-apps/tauri/pull/14260)) Properly deserialize Android plugin args with key starting with `is` (previously treated as a getter instead of a field name).
+- [`69476d8e2`](https://www.github.com/tauri-apps/tauri/commit/69476d8e2314b85bf46046140bc5495fe29b7d29) ([#14170](https://www.github.com/tauri-apps/tauri/pull/14170)) Fix the stack overflow when having too many commands in a single invoke handler in release build
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- Upgraded to `tauri-runtime-wry@2.9.0`
+- Upgraded to `tauri-runtime@2.9.0`
+- Upgraded to `tauri-build@2.5.0`
+- Upgraded to `tauri-macros@2.5.0`
+
 ## \[2.8.5]
 
 ### Enhancements

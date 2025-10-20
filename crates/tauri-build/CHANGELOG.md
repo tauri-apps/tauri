@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.5.0]
+
+### New Features
+
+- [`3b4fac201`](https://www.github.com/tauri-apps/tauri/commit/3b4fac2017832d426dd07c5e24e26684eda57f7b) ([#14194](https://www.github.com/tauri-apps/tauri/pull/14194)) Add `tauri.conf.json > bundle > android > autoIncrementVersionCode` config option to automatically increment the Android version code.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- Upgraded to `tauri-codegen@2.5.0`
+
 ## \[2.4.1]
 
 ### Enhancements

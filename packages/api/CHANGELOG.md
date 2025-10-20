@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.9.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scrollBarStyle` option to the Webview and WebviewBuilder constructors.
+- [`3397fd9bf`](https://www.github.com/tauri-apps/tauri/commit/3397fd9bfe5f6b1337110149f6c34731b8a44bb3) ([#14133](https://www.github.com/tauri-apps/tauri/pull/14133)) Added `app > onBackButtonPress` for Android back button handling.
+
+### Enhancements
+
+- [`59089723f`](https://www.github.com/tauri-apps/tauri/commit/59089723fc20d66f3f305f2008adeb279bf87462) ([#14091](https://www.github.com/tauri-apps/tauri/pull/14091)) Added a config to set a data_directory relative to the app-specific data dir in JavaScript and `tauri.conf.json`.
+
+### Bug Fixes
+
+- [`08bda64c2`](https://www.github.com/tauri-apps/tauri/commit/08bda64c25008bd45c5b58d06ff14649081a2f5d) ([#14132](https://www.github.com/tauri-apps/tauri/pull/14132)) Fix `core > addPluginListener` failing on command permission check.
+
 ## \[2.8.0]
 
 ### New Features

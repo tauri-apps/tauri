@@ -11,7 +11,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.webkit.WebView
 import androidx.activity.result.IntentSenderRequest
-import androidx.annotation.CallSuper
 import androidx.core.app.ActivityCompat
 import app.tauri.FsUtils
 import app.tauri.Logger
@@ -87,11 +86,7 @@ abstract class Plugin(private val activity: Activity) {
   /**
    * This event is called before the activity is destroyed.
    */
-  @CallSuper
-  open fun onDestroy() {
-    // the webview has been destroyed - let's clear the listeners
-    listeners.clear()
-  }
+  open fun onDestroy() {}
 
   /**
    * This event is called when a configuration change occurs but the app does not recreate the activity.

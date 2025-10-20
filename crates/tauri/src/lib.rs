@@ -296,7 +296,7 @@ pub enum EventLoopMessage {
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
-/// The webview runtime handle. A wrapper arond [`runtime::RuntimeHandle`] with the proper user event type associated.
+/// The webview runtime handle. A wrapper around [`runtime::RuntimeHandle`] with the proper user event type associated.
 pub trait RuntimeHandle: runtime::RuntimeHandle<EventLoopMessage> {}
 
 impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}

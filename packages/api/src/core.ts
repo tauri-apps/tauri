@@ -294,7 +294,7 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  * A rust-backed resource stored through `tauri::Manager::resources_table` API.
  *
  * The resource lives in the main process and does not exist
- * in the Javascript world, and thus will not be cleaned up automatiacally
+ * in the Javascript world, and thus will not be cleaned up automatically
  * except on application exit. If you want to clean it up early, call {@linkcode Resource.close}
  *
  * @example

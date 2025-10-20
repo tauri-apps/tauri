@@ -30,7 +30,7 @@
     ) {
       // macOS maximization happens on `mouseup`,
       // so we save needed state and early return
-      if (osName === 'macos' && e.detail == 2) {
+      if (osName === 'macos' && e.detail === 2) {
         initialX = e.clientX
         initialY = e.clientY
         return
@@ -48,7 +48,7 @@
       window.__TAURI_INTERNALS__.invoke('plugin:window|' + cmd)
     }
   })
-  // on macOS we maximze on mouseup instead, to match the system behavior where maximization can be canceled
+  // on macOS we maximize on mouseup instead, to match the system behavior where maximization can be canceled
   // if the mouse moves outside the data-tauri-drag-region
   if (osName === 'macos') {
     document.addEventListener('mouseup', (e) => {

@@ -351,7 +351,7 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
 #[no_mangle]
 #[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
 #[cfg_attr(target_vendor = "apple", link_section = "__DATA,taubndl")]
-// Marked as `mut` becuase it could get optimized away without it,
+// Marked as `mut` because it could get optimized away without it,
 // see https://github.com/tauri-apps/tauri/pull/13812
 static mut __TAURI_BUNDLE_TYPE: &str = "UNK";
 

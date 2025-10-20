@@ -8536,7 +8536,6 @@ dependencies = [
  "tracing",
  "tray-icon",
  "url",
- "urlpattern",
  "uuid",
  "webkit2gtk",
  "webview2-com",

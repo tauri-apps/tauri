@@ -263,7 +263,7 @@ impl WindowsAttributes {
     }
   }
 
-  /// Creates the default attriute set wihtou the default app manifest.
+  /// Creates the default attribute set without the default app manifest.
   #[must_use]
   pub fn new_without_app_manifest() -> Self {
     Self {

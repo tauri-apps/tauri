@@ -921,7 +921,7 @@
           ]
         },
         {
-          "description": "Mica effect that matches the system dark perefence **Windows 11 Only**",
+          "description": "Mica effect that matches the system dark preference **Windows 11 Only**",
           "type": "string",
           "enum": [
             "mica"
@@ -942,7 +942,7 @@
           ]
         },
         {
-          "description": "Tabbed effect that matches the system dark perefence **Windows 11 Only**",
+          "description": "Tabbed effect that matches the system dark preference **Windows 11 Only**",
           "type": "string",
           "enum": [
             "tabbed"

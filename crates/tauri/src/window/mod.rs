@@ -1941,12 +1941,12 @@ tauri::Builder::default()
   /// Sets this window's minimum inner width.
   pub fn set_size_constraints(
     &self,
-    constriants: tauri_runtime::window::WindowSizeConstraints,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
   ) -> crate::Result<()> {
     self
       .window
       .dispatcher
-      .set_size_constraints(constriants)
+      .set_size_constraints(constraints)
       .map_err(Into::into)
   }
 

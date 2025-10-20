@@ -134,7 +134,7 @@ class WebviewWindow {
   }
 
   /**
-   * Listen to an emitted event on this webivew window.
+   * Listen to an emitted event on this webview window.
    *
    * @example
    * ```typescript

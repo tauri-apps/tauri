@@ -148,7 +148,12 @@ fn replace_csp_nonce(
     if !sources.contains(self_source) {
       sources.push(self_source);
     }
+    #[cfg(target_pointer_width = "64")]
     let mut buf = String::with_capacity(28);
+    #[cfg(target_pointer_width = "32")]
+    let mut buf = String::with_capacity(20);
+    #[cfg(target_pointer_width = "16")]
+    let mut buf = String::with_capacity(14);
     for nonce in nonces {
       buf.clear();
       write!(&mut buf, "'nonce-{}'", nonce).unwrap();

@@ -6,6 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
+  fmt::Write,
   sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
 };
 
@@ -127,7 +128,7 @@ fn replace_csp_nonce(
   directive: &str,
   hashes: Vec<String>,
 ) {
-  let mut nonces = Vec::new();
+  let mut nonces = Vec::with_capacity(asset.matches(token).count());
   *asset = replace_with_callback(asset, token, || {
     #[cfg(target_pointer_width = "64")]
     let mut raw = [0u8; 8];
@@ -141,17 +142,18 @@ fn replace_csp_nonce(
     nonce.to_string()
   });
 
-  if !(nonces.is_empty() && hashes.is_empty()) {
-    let nonce_sources = nonces
-      .into_iter()
-      .map(|n| format!("'nonce-{n}'"))
-      .collect::<Vec<String>>();
+  if !nonces.is_empty() || !hashes.is_empty() {
     let sources = csp.entry(directive.into()).or_default();
-    let self_source = "'self'".to_string();
-    if !sources.contains(&self_source) {
+    let self_source = "'self'";
+    if !sources.contains(self_source) {
       sources.push(self_source);
     }
-    sources.extend(nonce_sources);
+    let mut buf = String::with_capacity(28);
+    for nonce in nonces {
+      buf.clear();
+      write!(&mut buf, "'nonce-{}'", nonce).unwrap();
+      sources.push(buf.clone());
+    }
     sources.extend(hashes);
   }
 }

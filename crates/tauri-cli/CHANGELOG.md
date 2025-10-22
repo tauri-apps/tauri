@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.9.1]
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.3.0`
+- Upgraded to `tauri-bundler@2.7.1`
+
 ## \[2.9.0]
 
 ### New Features

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.3.0]
+
+### Enhancements
+
+- [`f59bf9d53`](https://www.github.com/tauri-apps/tauri/commit/f59bf9d5392ffd209e26ce5259c26d1acc31c4ba) ([#14337](https://www.github.com/tauri-apps/tauri/pull/14337) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) **Potentially breaking change:** Export custom Error enum instead of using anyhow. The changes happened in https://github.com/tauri-apps/tauri/pull/14126.
+
 ## \[2.2.0]
 
 ### New Features

@@ -12,8 +12,6 @@ rust-version.workspace = true
 
 [package.metadata.docs.rs]
 features = ["build", "runtime"]
-rustc-args = ["--cfg", "docsrs"]
-rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 build = [

@@ -26,6 +26,18 @@ pub struct Bundled {
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DMG was created.
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Bundled> {
+  let product_name = settings.product_name();
+  let version = settings.version_string();
+  let arch = match settings.binary_arch() {
+    Arch::X86_64 => "x64",
+    Arch::AArch64 => "aarch64",
+    Arch::Universal => "universal",
+    target => {
+      return Err(crate::Error::ArchError(format!(
+        "Unsupported architecture: {target:?}"
+      )));
+    }
+  };
   // generate the .app bundle if needed
   let app_bundle_paths = if !bundles
     .iter()
@@ -39,21 +51,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // get the target path
   let output_path = settings.project_out_directory().join("bundle/dmg");
   let package_base_name = format!(
-    "{}_{}_{}",
-    settings.product_name(),
-    settings.version_string(),
-    match settings.binary_arch() {
-      Arch::X86_64 => "x64",
-      Arch::AArch64 => "aarch64",
-      Arch::Universal => "universal",
-      target => {
-        return Err(crate::Error::ArchError(format!(
-          "Unsupported architecture: {target:?}"
-        )));
-      }
+    "{product_name}_{version}_{}",
+    if settings.consistent_name() {
+      settings.binary_arch().to_string()
+    } else {
+      arch.to_string()
     }
   );
-  let dmg_name = format!("{}.dmg", &package_base_name);
+  let dmg_name = format!("{package_base_name}.dmg");
   let dmg_path = output_path.join(&dmg_name);
 
   let product_name = settings.product_name();

@@ -174,6 +174,8 @@ fn build_nsis_app_installer(
   tauri_tools_path: &Path,
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
+  let product_name = settings.product_name();
+  let version = settings.version_string();
   let arch = match settings.binary_arch() {
     Arch::X86_64 => "x64",
     Arch::X86 => "x86",
@@ -299,7 +301,6 @@ fn build_nsis_app_installer(
     data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
   }
 
-  let version = settings.version_string();
   data.insert("version", to_json(version));
   data.insert(
     "version_with_build",
@@ -594,22 +595,20 @@ fn build_nsis_app_installer(
     handlebars.render("installer.nsi", &data)?,
   )?;
 
-  let package_base_name = format!(
-    "{}_{}_{}-setup",
-    settings.product_name(),
-    settings.version_string(),
-    arch,
-  );
+  let package_base_name = if settings.consistent_name() {
+    format!("{product_name}_{version}_{}", settings.binary_arch())
+  } else {
+    format!("{product_name}_{version}_{arch}-setup")
+  };
 
   let nsis_output_path = output_path.join(out_file);
   let nsis_installer_path = settings.project_out_directory().to_path_buf().join(format!(
-    "bundle/{}/{}.exe",
+    "bundle/{}/{package_base_name}.exe",
     if updater {
       NSIS_UPDATER_OUTPUT_FOLDER_NAME
     } else {
       NSIS_OUTPUT_FOLDER_NAME
     },
-    package_base_name
   ));
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 

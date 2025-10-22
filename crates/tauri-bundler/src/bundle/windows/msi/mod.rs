@@ -215,6 +215,8 @@ fn app_installer_output_path(
   version: &str,
   updater: bool,
 ) -> crate::Result<PathBuf> {
+  let product_name = settings.product_name();
+  let version = settings.version_string();
   let arch = match settings.binary_arch() {
     Arch::X86_64 => "x64",
     Arch::X86 => "x86",
@@ -227,21 +229,22 @@ fn app_installer_output_path(
   };
 
   let package_base_name = format!(
-    "{}_{}_{}_{}",
-    settings.product_name(),
-    version,
-    arch,
-    language,
+    "{product_name}_{version}_{}_{}",
+    if settings.consistent_name() {
+      settings.binary_arch().to_string()
+    } else {
+      arch.to_string()
+    }
+    language, // Special case for "consistent" name?
   );
 
   Ok(settings.project_out_directory().to_path_buf().join(format!(
-    "bundle/{}/{}.msi",
+    "bundle/{}/{package_base_name}.msi",
     if updater {
       WIX_UPDATER_OUTPUT_FOLDER_NAME
     } else {
       WIX_OUTPUT_FOLDER_NAME
-    },
-    package_base_name
+    }
   )))
 }
 

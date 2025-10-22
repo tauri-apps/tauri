@@ -661,6 +661,9 @@ pub struct BundleSettings {
   pub short_description: Option<String>,
   /// the app's long description.
   pub long_description: Option<String>,
+  /// Whether to name all package types' files with a consistent naming scheme.
+  /// Default is false, which means each package type will use its own conventional naming scheme.
+  pub consistent_name: bool,
   // Bundles for other binaries:
   /// Configuration map for the apps to bundle.
   pub bin: Option<HashMap<String, BundleSettings>>,
@@ -775,6 +778,21 @@ pub enum Arch {
   Riscv64,
   /// For universal macOS applications.
   Universal,
+}
+
+impl std::fmt::Display for Arch {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let arch = match self {
+      Arch::X86_64 => "x86_64",
+      Arch::X86 => "x68",
+      Arch::AArch64 => "aarch64",
+      Arch::Armhf => "armhf",
+      Arch::Armel => "armel",
+      Arch::Riscv64 => "riscv64",
+      Arch::Universal => "universal", // Is this a collection of supported by Rust platforms?
+    };
+    write!(f, "{arch}")
+  }
 }
 
 /// The Settings exposed by the module.
@@ -977,6 +995,12 @@ impl Settings {
     } else {
       panic!("Unexpected target triple {}", self.target)
     }
+  }
+
+  /// Returns whether to name all package types' files with a consistent naming scheme.
+  // Maybe is_consistent_name()?
+  pub fn consistent_name(&self) -> bool {
+    self.bundle_settings.consistent_name
   }
 
   /// Returns the file name of the binary being bundled.

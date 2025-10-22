@@ -22,8 +22,6 @@ targets = [
   "x86_64-linux-android",
   "x86_64-apple-ios",
 ]
-rustc-args = ["--cfg", "docsrs"]
-rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 anyhow = "1"

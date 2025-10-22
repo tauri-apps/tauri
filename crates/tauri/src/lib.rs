@@ -137,14 +137,7 @@ macro_rules! android_binding {
 
     ::tauri::wry::android_binding!($domain, $app_name, $wry);
 
-    ::tauri::tao::android_binding!(
-      $domain,
-      $app_name,
-      WryActivity,
-      android_setup,
-      $main,
-      ::tauri::tao
-    );
+    ::tauri::tao::android_binding!($domain, $app_name, Rust, android_setup, $main, ::tauri::tao);
 
     // be careful when renaming this, the `Java_app_tauri_plugin_PluginManager_handlePluginResponse` symbol is checked by the CLI
     ::tauri::tao::platform::android::prelude::android_fn!(

@@ -204,6 +204,24 @@ fn set_icon_as_template<R: Runtime>(
 }
 
 #[command(root = "crate")]
+fn set_icon_with_as_template<R: Runtime>(
+  app: AppHandle<R>,
+  webview: Webview<R>,
+  rid: ResourceId,
+  icon: Option<JsImage>,
+  as_template: bool,
+) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  let webview_resources_table = webview.resources_table();
+  let icon = match icon {
+    Some(i) => Some(i.into_img(&webview_resources_table)?.as_ref().clone()),
+    None => None,
+  };
+  tray.set_icon_with_as_template(icon, as_template)
+}
+
+#[command(root = "crate")]
 fn set_show_menu_on_left_click<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
@@ -228,6 +246,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_visible,
       set_temp_dir_path,
       set_icon_as_template,
+      set_icon_with_as_template,
       set_show_menu_on_left_click,
     ])
     .build()

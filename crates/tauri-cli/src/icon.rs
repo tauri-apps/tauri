@@ -136,7 +136,35 @@ impl Source {
         let img_buffer = ImageBuffer::from_raw(size, size, pixmap.take()).unwrap();
         Ok(DynamicImage::ImageRgba8(img_buffer))
       }
-      Self::DynamicImage(i) => Ok(i.resize_exact(size, size, FilterType::Lanczos3)),
+      Self::DynamicImage(i) => {
+        // Step 1: Premultiply alpha
+        let mut buf = i.to_rgba8();
+        for pixel in buf.pixels_mut() {
+          let a = pixel[3] as u32;
+          pixel[0] = ((pixel[0] as u32 * a + 127) / 255) as u8;
+          pixel[1] = ((pixel[1] as u32 * a + 127) / 255) as u8;
+          pixel[2] = ((pixel[2] as u32 * a + 127) / 255) as u8;
+        }
+        let premultiplied = DynamicImage::ImageRgba8(buf);
+
+        // Step 2: Resize
+        let mut resized = premultiplied.resize_exact(size, size, FilterType::Lanczos3).to_rgba8();
+
+        // Step 3: Unpremultiply alpha and zero RGB for fully transparent
+        for pixel in resized.pixels_mut() {
+          let a = pixel[3] as u32;
+          if a == 0 {
+            pixel[0] = 0;
+            pixel[1] = 0;
+            pixel[2] = 0;
+          } else {
+            pixel[0] = ((pixel[0] as u32 * 255 + a / 2) / a).min(255) as u8;
+            pixel[1] = ((pixel[1] as u32 * 255 + a / 2) / a).min(255) as u8;
+            pixel[2] = ((pixel[2] as u32 * 255 + a / 2) / a).min(255) as u8;
+          }
+        }
+        Ok(DynamicImage::ImageRgba8(resized))
+      }
     }
   }
 }

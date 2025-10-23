@@ -35,6 +35,8 @@ use tauri_runtime::{
 
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
+#[cfg(target_os = "android")]
+use tao::platform::android::WindowBuilderExtAndroid;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(target_os = "linux")]
@@ -1236,6 +1238,18 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
   #[cfg(not(windows))]
   fn window_classname<S: Into<String>>(self, _window_classname: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.inner = self.inner.activity_name(class_name.into());
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.inner = self.inner.created_by_activity_name(class_name.into());
     self
   }
 }
@@ -4401,6 +4415,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let window = window_builder
     .inner
     .build(event_loop)
+    .inspect_err(|e| log::error!("Error creating window: {e:?}"))
     .map_err(|_| Error::CreateWindow)?;
 
   #[cfg(feature = "tracing")]

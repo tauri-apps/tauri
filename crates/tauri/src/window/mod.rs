@@ -904,6 +904,24 @@ impl<R: Runtime, M: Manager<R>> WindowBuilder<'_, R, M> {
     self
   }
 }
+
+#[cfg(target_os = "android")]
+impl<R: Runtime, M: Manager<R>> WindowBuilder<'_, R, M> {
+  /// The name of the activity to create for this webview window.
+  pub fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.window_builder = self.window_builder.activity_name(class_name);
+    self
+  }
+
+  /// Sets the name of the activity that is creating this webview window.
+  ///
+  /// This is important to determine which stack the activity will belong to.
+  pub fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.window_builder = self.window_builder.created_by_activity_name(class_name);
+    self
+  }
+}
+
 /// A wrapper struct to hold the window menu state
 /// and whether it is global per-app or specific to this window.
 #[cfg(desktop)]

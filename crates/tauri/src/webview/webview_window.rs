@@ -1376,6 +1376,24 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   }
 }
 
+// Android specific APIs
+#[cfg(target_os = "android")]
+impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
+  /// The name of the activity to create for this webview window.
+  pub fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.window_builder = self.window_builder.activity_name(class_name);
+    self
+  }
+
+  /// Sets the name of the activity that is creating this webview window.
+  ///
+  /// This is important to determine which stack the activity will belong to.
+  pub fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.window_builder = self.window_builder.created_by_activity_name(class_name);
+    self
+  }
+}
+
 /// A type that wraps a [`Window`] together with a [`Webview`].
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]

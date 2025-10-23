@@ -592,13 +592,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use tauri_winres::{VersionInfo, WindowsResource};
 
     fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
-      let icon_path = config
-        .bundle
-        .icon
-        .iter()
-        .find(|i| predicate(i))
-        .cloned()
-        .unwrap_or_else(|| default.to_string());
+      let icon_path = match &config.bundle.icon {
+        None => default.to_string(),
+        Some(icons) => icons
+          .iter()
+          .find(|i| predicate(i))
+          .cloned()
+          .unwrap_or_else(|| default.to_string()),
+      };
       icon_path.into()
     }
 

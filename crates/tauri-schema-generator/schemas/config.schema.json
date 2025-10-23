@@ -91,7 +91,6 @@
         "iOS": {
           "minimumSystemVersion": "14.0"
         },
-        "icon": [],
         "linux": {
           "appimage": {
             "bundleMediaFramework": false,
@@ -2114,8 +2113,10 @@
         },
         "icon": {
           "description": "The app's icons",
-          "default": [],
-          "type": "array",
+          "type": [
+            "array",
+            "null"
+          ],
           "items": {
             "type": "string"
           }

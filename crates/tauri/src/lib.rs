@@ -1088,6 +1088,8 @@ pub(crate) mod sealed {
     fn manager_owned(&self) -> Arc<AppManager<R>>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
     fn managed_app_handle(&self) -> &AppHandle<R>;
+    #[cfg(target_os = "android")]
+    fn activity_name(&self) -> Option<crate::Result<String>>;
   }
 }
 

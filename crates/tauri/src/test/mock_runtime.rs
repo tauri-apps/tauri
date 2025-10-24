@@ -806,6 +806,11 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     unimplemented!()
   }
 
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    unimplemented!()
+  }
+
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {

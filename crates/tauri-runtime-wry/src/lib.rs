@@ -36,7 +36,7 @@ use tauri_runtime::{
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
 #[cfg(target_os = "android")]
-use tao::platform::android::WindowBuilderExtAndroid;
+use tao::platform::android::{WindowBuilderExtAndroid, WindowExtAndroid};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(target_os = "linux")]
@@ -1343,6 +1343,8 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkBox(Sender<GtkBox>),
+  #[cfg(target_os = "android")]
+  ActivityName(Sender<String>),
   RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   IsEnabled(Sender<bool>),
@@ -2002,6 +2004,12 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
     window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
+  }
+
+  /// Returns the name of the Android activity associated with this window.
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::ActivityName)
   }
 
   fn window_handle(
@@ -3300,6 +3308,10 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::GtkBox(tx) => tx
             .send(GtkBox(window.default_vbox().unwrap().clone()))
             .unwrap(),
+          #[cfg(target_os = "android")]
+          WindowMessage::ActivityName(tx) => {
+            tx.send(window.activity_name()).unwrap();
+          }
           WindowMessage::RawWindowHandle(tx) => tx
             .send(
               window

@@ -129,6 +129,8 @@ unstable_struct!(
     #[cfg(desktop)]
     on_menu_event: Option<crate::app::GlobalMenuEventListener<Window<R>>>,
     window_effects: Option<WindowEffectsConfig>,
+    #[cfg(target_os = "android")]
+    created_by_activity_name_set: bool,
   }
 );
 
@@ -215,6 +217,8 @@ async fn create_window(app: tauri::AppHandle) {
       #[cfg(desktop)]
       on_menu_event: None,
       window_effects: None,
+      #[cfg(target_os = "android")]
+      created_by_activity_name_set: false,
     }
   }
 
@@ -250,6 +254,8 @@ async fn reopen_window(app: tauri::AppHandle) {
   pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
     #[cfg_attr(not(windows), allow(unused_mut))]
     let mut builder = Self {
+      #[cfg(target_os = "android")]
+      created_by_activity_name_set: config.created_by_activity_name.is_some(),
       manager,
       label: config.label.clone(),
       window_effects: config.window_effects.clone(),
@@ -345,11 +351,21 @@ tauri::Builder::default()
 
   /// Creates a new window with an optional webview.
   fn build_internal(
-    self,
+    // mutable on Android
+    #[allow(unused_mut)] mut self,
     webview: Option<PendingWebview<EventLoopMessage, R>>,
   ) -> crate::Result<Window<R>> {
     #[cfg(desktop)]
     let theme = self.window_builder.get_theme();
+
+    #[cfg(target_os = "android")]
+    if !self.created_by_activity_name_set {
+      if let Some(manager_window_activity_name) = self.manager.activity_name() {
+        self.window_builder = self
+          .window_builder
+          .created_by_activity_name(manager_window_activity_name?);
+      }
+    }
 
     let mut pending = PendingWindow::new(self.window_builder, self.label)?;
     if let Some(webview) = webview {
@@ -917,6 +933,7 @@ impl<R: Runtime, M: Manager<R>> WindowBuilder<'_, R, M> {
   ///
   /// This is important to determine which stack the activity will belong to.
   pub fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.created_by_activity_name_set = true;
     self.window_builder = self.window_builder.created_by_activity_name(class_name);
     self
   }
@@ -1026,6 +1043,11 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     &self.app_handle
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    Some(self.activity_name())
   }
 }
 
@@ -1635,6 +1657,12 @@ impl<R: Runtime> Window<R> {
   ))]
   pub fn default_vbox(&self) -> crate::Result<gtk::Box> {
     self.window.dispatcher.default_vbox().map_err(Into::into)
+  }
+
+  /// Returns the name of the Android activity associated with this window.
+  #[cfg(target_os = "android")]
+  pub fn activity_name(&self) -> crate::Result<String> {
+    self.window.dispatcher.activity_name().map_err(Into::into)
   }
 
   /// Returns the current window theme.

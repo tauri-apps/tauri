@@ -1823,6 +1823,12 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.default_vbox()
   }
 
+  /// Returns the name of the Android activity associated with this window.
+  #[cfg(target_os = "android")]
+  pub fn activity_name(&self) -> crate::Result<String> {
+    self.window.activity_name()
+  }
+
   /// Returns the current window theme.
   ///
   /// ## Platform-specific
@@ -2599,5 +2605,10 @@ impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self.webview.managed_app_handle()
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    Some(self.window.activity_name())
   }
 }

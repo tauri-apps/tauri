@@ -603,6 +603,20 @@
               "$ref": "#/definitions/ScrollBarStyle"
             }
           ]
+        },
+        "activityName": {
+          "description": "The name of the Android activity to create for this window.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdByActivityName": {
+          "description": "The name of the Android activity that is creating this webview window.\n\n This is important to determine which stack the activity will belong to.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

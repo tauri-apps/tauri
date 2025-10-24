@@ -2511,6 +2511,16 @@ interface WindowOptions {
    * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
    */
   scrollBarStyle?: ScrollBarStyle
+  /**
+   * The name of the Android activity to create for this window.
+   */
+  activityName?: string
+  /**
+   * The name of the Android activity that is creating this webview window.
+   *
+   * This is important to determine which stack the activity will belong to.
+   */
+  createdByActivityName?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

@@ -735,6 +735,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   ))]
   fn default_vbox(&self) -> Result<gtk::Box>;
 
+  /// Returns the name of the Android activity associated with this window.
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String>;
+
   /// Raw window handle.
   fn window_handle(
     &self,

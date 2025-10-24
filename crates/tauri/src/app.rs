@@ -658,6 +658,11 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    None
+  }
 }
 
 /// The instance of the currently running application.
@@ -707,6 +712,11 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self.handle()
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    None
   }
 }
 

@@ -104,18 +104,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       let webview = window_builder.build()?;
 
-      let app_ = app.handle().clone();
-      std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_secs(3));
-        let mut w = WebviewWindowBuilder::new(&app_, "main-2", WebviewUrl::default());
-        #[cfg(target_os = "android")]
-        {
-          w = w.activity_name("Activity3");
-        }
-        let w = w.build().unwrap();
-        w.open_devtools();
-      });
-
       #[cfg(debug_assertions)]
       webview.open_devtools();
 

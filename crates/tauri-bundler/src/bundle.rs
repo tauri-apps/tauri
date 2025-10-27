@@ -116,7 +116,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
 
     if let Err(e) = patch_binary(&main_binary_path, package_type) {
-      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. Make sure symbol stripping is disabled (https://doc.rust-lang.org/cargo/reference/profiles.html#strip). This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
     }
 
     // sign main binary for every package type after patch

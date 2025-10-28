@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "2.9.0"
+version = "2.9.1"
 description = "Runtime for Tauri applications"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -14,8 +14,6 @@ rust-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = ["--cfg", "docsrs"]
-rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",

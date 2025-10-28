@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "2.5.0"
+version = "2.5.1"
 description = "build time code to pair with https://crates.io/crates/tauri"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -22,8 +22,6 @@ targets = [
   "x86_64-linux-android",
   "x86_64-apple-ios",
 ]
-rustc-args = ["--cfg", "docsrs"]
-rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 anyhow = "1"

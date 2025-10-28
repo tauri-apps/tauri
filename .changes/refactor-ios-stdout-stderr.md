@@ -1,5 +1,5 @@
 ---
-"tauri": path:bug
+"tauri": patch:bug
 "tauri-macros": patch:bug
 ---
 

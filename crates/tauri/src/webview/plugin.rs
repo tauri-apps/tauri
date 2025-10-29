@@ -43,7 +43,12 @@ async fn create_webview_window<R: Runtime>(
 #[cfg(desktop)]
 mod desktop_commands {
   use super::*;
-  use crate::{command, AppHandle};
+  use crate::{
+    command,
+    runtime::dpi::{Position, Size},
+    utils::config::Color,
+    AppHandle, Webview,
+  };
 
   fn get_webview<R: Runtime>(
     webview: Webview<R>,

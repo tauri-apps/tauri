@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.9.2]
+
+### Bug Fixes
+
+- [`28b9e7c7b`](https://www.github.com/tauri-apps/tauri/commit/28b9e7c7b83845c35fe46c37e8ed8e9022b4634e) ([#14377](https://www.github.com/tauri-apps/tauri/pull/14377) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `undefined is not an object (evaluating '[callbackId, data]')` error on custom protocol IPC fails
+
 ## \[2.9.1]
 
 ### Bug Fixes

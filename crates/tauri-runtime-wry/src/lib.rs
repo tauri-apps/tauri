@@ -111,7 +111,7 @@ use wry::{
 use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
 #[cfg(target_os = "ios")]
-pub use tao::platform::ios::WindowExtIOS;
+pub use tao::platform::ios::{WindowBuilderExtIOS, WindowExtIOS};
 #[cfg(target_os = "macos")]
 pub use tao::platform::macos::{
   ActivationPolicy as TaoActivationPolicy, EventLoopExtMacOS, WindowExtMacOS,
@@ -1243,13 +1243,21 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "android")]
   fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
-    self.inner = self.inner.activity_name(class_name.into());
+    self.inner = self.inner.with_activity_name(class_name.into());
     self
   }
 
   #[cfg(target_os = "android")]
   fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
-    self.inner = self.inner.created_by_activity_name(class_name.into());
+    self.inner = self.inner.with_created_by_activity_name(class_name.into());
+    self
+  }
+
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(mut self, identifier: S) -> Self {
+    self.inner = self
+      .inner
+      .with_requesting_scene_identifier(identifier.into());
     self
   }
 }
@@ -1345,6 +1353,8 @@ pub enum WindowMessage {
   GtkBox(Sender<GtkBox>),
   #[cfg(target_os = "android")]
   ActivityName(Sender<String>),
+  #[cfg(target_os = "ios")]
+  SceneIdentifier(Sender<String>),
   RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   IsEnabled(Sender<bool>),
@@ -2010,6 +2020,12 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String> {
     window_getter!(self, WindowMessage::ActivityName)
+  }
+
+  /// Returns the identifier of the UIScene tied to this UIWindow.
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::SceneIdentifier)
   }
 
   fn window_handle(
@@ -3311,6 +3327,10 @@ fn handle_user_message<T: UserEvent>(
           #[cfg(target_os = "android")]
           WindowMessage::ActivityName(tx) => {
             tx.send(window.activity_name()).unwrap();
+          }
+          #[cfg(target_os = "ios")]
+          WindowMessage::SceneIdentifier(tx) => {
+            tx.send(window.scene_identifier()).unwrap();
           }
           WindowMessage::RawWindowHandle(tx) => tx
             .send(

@@ -2003,6 +2003,13 @@ pub struct WindowConfig {
   /// This is important to determine which stack the activity will belong to.
   #[serde(default, alias = "created-by-activity-name")]
   pub created_by_activity_name: Option<String>,
+
+  /// Sets the identifier of the scene that is requesting the new scene,
+  /// establishing a relationship between the two scenes.
+  ///
+  /// By default the system uses the foreground scene.
+  #[serde(default, alias = "requested-by-scene-identifier")]
+  pub requested_by_scene_identifier: Option<String>,
 }
 
 impl Default for WindowConfig {
@@ -2067,6 +2074,7 @@ impl Default for WindowConfig {
       scroll_bar_style: ScrollBarStyle::Default,
       activity_name: None,
       created_by_activity_name: None,
+      requested_by_scene_identifier: None,
     }
   }
 }
@@ -3606,6 +3614,7 @@ mod build {
       let scroll_bar_style = &self.scroll_bar_style;
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
+      let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
 
       literal_struct!(
         tokens,
@@ -3668,7 +3677,8 @@ mod build {
         data_store_identifier,
         scroll_bar_style,
         activity_name,
-        created_by_activity_name
+        created_by_activity_name,
+        requested_by_scene_identifier
       );
     }
   }

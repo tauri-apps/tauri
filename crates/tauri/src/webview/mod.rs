@@ -2283,6 +2283,11 @@ impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn activity_name(&self) -> Option<crate::Result<String>> {
     Some(self.window().activity_name())
   }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    Some(self.window().scene_identifier())
+  }
 }
 
 impl<'de, R: Runtime> CommandArg<'de, R> for Webview<R> {

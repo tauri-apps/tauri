@@ -1394,6 +1394,22 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   }
 }
 
+/// iOS specific APIs
+#[cfg(target_os = "ios")]
+impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
+  /// Sets the identifier of the scene that is requesting the new scene,
+  /// establishing a relationship between the two scenes.
+  ///
+  /// By default the system uses the foreground scene.
+  #[cfg(target_os = "ios")]
+  pub fn requested_by_scene_identifier(mut self, identifier: String) -> Self {
+    self.window_builder = self
+      .window_builder
+      .requested_by_scene_identifier(identifier);
+    self
+  }
+}
+
 /// A type that wraps a [`Window`] together with a [`Webview`].
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
@@ -2610,5 +2626,10 @@ impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Option<crate::Result<String>> {
     Some(self.window.activity_name())
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    Some(self.window.scene_identifier())
   }
 }

@@ -101,6 +101,10 @@ mod desktop_commands {
   getter!(cursor_position, PhysicalPosition<f64>);
   getter!(theme, Theme);
   getter!(is_always_on_top, bool);
+  #[cfg(target_os = "android")]
+  getter!(activity_name, String);
+  #[cfg(target_os = "ios")]
+  getter!(scene_identifier, String);
 
   setter!(center);
   setter!(request_user_attention, Option<UserAttentionType>);

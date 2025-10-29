@@ -739,6 +739,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String>;
 
+  /// Returns the identifier of the UIScene tied to this UIWindow.
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String>;
+
   /// Raw window handle.
   fn window_handle(
     &self,

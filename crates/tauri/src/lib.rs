@@ -1062,6 +1062,8 @@ pub(crate) mod sealed {
     fn managed_app_handle(&self) -> &AppHandle<R>;
     #[cfg(target_os = "android")]
     fn activity_name(&self) -> Option<crate::Result<String>>;
+    #[cfg(target_os = "ios")]
+    fn scene_identifier(&self) -> Option<crate::Result<String>>;
   }
 }
 

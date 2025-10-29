@@ -820,6 +820,18 @@ class Window {
     })
   }
 
+  async activityName(): Promise<string> {
+    return invoke('plugin:window|activity_name', {
+      label: this.label
+    })
+  }
+
+  async sceneIdentifier(): Promise<string> {
+    return invoke('plugin:window|scene_identifier', {
+      label: this.label
+    })
+  }
+
   // Setters
 
   /**
@@ -2521,6 +2533,13 @@ interface WindowOptions {
    * This is important to determine which stack the activity will belong to.
    */
   createdByActivityName?: string
+  /**
+   * Sets the identifier of the UIScene that is requesting the creation of this new scene,
+   * establishing a relationship between the two scenes.
+   *
+   * By default the system uses the foreground scene.
+   */
+  requestedBySceneIdentifier?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

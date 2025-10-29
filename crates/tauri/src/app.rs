@@ -663,6 +663,11 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   fn activity_name(&self) -> Option<crate::Result<String>> {
     None
   }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    None
+  }
 }
 
 /// The instance of the currently running application.
@@ -716,6 +721,11 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Option<crate::Result<String>> {
+    None
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
     None
   }
 }

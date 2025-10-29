@@ -487,6 +487,13 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// This is important to determine which stack the activity will belong to.
   #[cfg(target_os = "android")]
   fn created_by_activity_name<S: Into<String>>(self, class_name: S) -> Self;
+
+  /// Sets the identifier of the UIScene that is requesting the creation of this new scene,
+  /// establishing a relationship between the two scenes.
+  ///
+  /// By default the system uses the foreground scene.
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(self, identifier: S) -> Self;
 }
 
 /// A window that has yet to be built.

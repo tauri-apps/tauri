@@ -544,6 +544,11 @@ impl WindowBuilder for MockWindowBuilder {
   fn created_by_activity_name(self, _class_name: String) -> Self {
     self
   }
+
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier(self, _identifier: String) -> Self {
+    self
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
@@ -808,6 +813,11 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
 
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String> {
     unimplemented!()
   }
 

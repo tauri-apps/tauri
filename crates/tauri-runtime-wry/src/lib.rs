@@ -74,7 +74,6 @@ use tao::{
     UserAttentionType as TaoUserAttentionType,
   },
 };
-#[cfg(desktop)]
 use tauri_utils::config::PreventOverflowConfig;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -870,68 +869,86 @@ impl WindowBuilder for WindowBuilderWrapper {
       window.inner = window.inner.with_cursor_moved_event(false);
     }
 
-    #[cfg(desktop)]
+    #[cfg(target_os = "android")]
     {
-      window = window
-        .title(config.title.to_string())
-        .inner_size(config.width, config.height)
-        .focused(config.focus)
-        .focusable(config.focusable)
-        .visible(config.visible)
-        .resizable(config.resizable)
-        .fullscreen(config.fullscreen)
-        .decorations(config.decorations)
-        .maximized(config.maximized)
-        .always_on_bottom(config.always_on_bottom)
-        .always_on_top(config.always_on_top)
-        .visible_on_all_workspaces(config.visible_on_all_workspaces)
-        .content_protected(config.content_protected)
-        .skip_taskbar(config.skip_taskbar)
-        .theme(config.theme)
-        .closable(config.closable)
-        .maximizable(config.maximizable)
-        .minimizable(config.minimizable)
-        .shadow(config.shadow);
+      if let Some(activity_name) = &config.activity_name {
+        window.inner = window.inner.with_activity_name(activity_name.clone());
+      }
+      if let Some(activity_name) = &config.created_by_activity_name {
+        window.inner = window
+          .inner
+          .with_created_by_activity_name(activity_name.clone());
+      }
+    }
 
-      let mut constraints = WindowSizeConstraints::default();
+    #[cfg(target_os = "ios")]
+    {
+      if let Some(scene_identifier) = &config.requested_by_scene_identifier {
+        window.inner = window
+          .inner
+          .with_requesting_scene_identifier(scene_identifier.clone());
+      }
+    }
 
-      if let Some(min_width) = config.min_width {
-        constraints.min_width = Some(tao::dpi::LogicalUnit::new(min_width).into());
-      }
-      if let Some(min_height) = config.min_height {
-        constraints.min_height = Some(tao::dpi::LogicalUnit::new(min_height).into());
-      }
-      if let Some(max_width) = config.max_width {
-        constraints.max_width = Some(tao::dpi::LogicalUnit::new(max_width).into());
-      }
-      if let Some(max_height) = config.max_height {
-        constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
-      }
-      if let Some(color) = config.background_color {
-        window = window.background_color(color);
-      }
-      window = window.inner_size_constraints(constraints);
+    window = window
+      .title(config.title.to_string())
+      .inner_size(config.width, config.height)
+      .focused(config.focus)
+      .focusable(config.focusable)
+      .visible(config.visible)
+      .resizable(config.resizable)
+      .fullscreen(config.fullscreen)
+      .decorations(config.decorations)
+      .maximized(config.maximized)
+      .always_on_bottom(config.always_on_bottom)
+      .always_on_top(config.always_on_top)
+      .visible_on_all_workspaces(config.visible_on_all_workspaces)
+      .content_protected(config.content_protected)
+      .skip_taskbar(config.skip_taskbar)
+      .theme(config.theme)
+      .closable(config.closable)
+      .maximizable(config.maximizable)
+      .minimizable(config.minimizable)
+      .shadow(config.shadow);
 
-      if let (Some(x), Some(y)) = (config.x, config.y) {
-        window = window.position(x, y);
-      }
+    let mut constraints = WindowSizeConstraints::default();
 
-      if config.center {
-        window = window.center();
-      }
+    if let Some(min_width) = config.min_width {
+      constraints.min_width = Some(tao::dpi::LogicalUnit::new(min_width).into());
+    }
+    if let Some(min_height) = config.min_height {
+      constraints.min_height = Some(tao::dpi::LogicalUnit::new(min_height).into());
+    }
+    if let Some(max_width) = config.max_width {
+      constraints.max_width = Some(tao::dpi::LogicalUnit::new(max_width).into());
+    }
+    if let Some(max_height) = config.max_height {
+      constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
+    }
+    if let Some(color) = config.background_color {
+      window = window.background_color(color);
+    }
+    window = window.inner_size_constraints(constraints);
 
-      if let Some(window_classname) = &config.window_classname {
-        window = window.window_classname(window_classname);
-      }
+    if let (Some(x), Some(y)) = (config.x, config.y) {
+      window = window.position(x, y);
+    }
 
-      if let Some(prevent_overflow) = &config.prevent_overflow {
-        window = match prevent_overflow {
-          PreventOverflowConfig::Enable(true) => window.prevent_overflow(),
-          PreventOverflowConfig::Margin(margin) => window
-            .prevent_overflow_with_margin(TaoPhysicalSize::new(margin.width, margin.height).into()),
-          _ => window,
-        };
-      }
+    if config.center {
+      window = window.center();
+    }
+
+    if let Some(window_classname) = &config.window_classname {
+      window = window.window_classname(window_classname);
+    }
+
+    if let Some(prevent_overflow) = &config.prevent_overflow {
+      window = match prevent_overflow {
+        PreventOverflowConfig::Enable(true) => window.prevent_overflow(),
+        PreventOverflowConfig::Margin(margin) => window
+          .prevent_overflow_with_margin(TaoPhysicalSize::new(margin.width, margin.height).into()),
+        _ => window,
+      };
     }
 
     window

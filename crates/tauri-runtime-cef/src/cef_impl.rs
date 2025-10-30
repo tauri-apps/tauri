@@ -2,7 +2,6 @@ use cef::{rc::*, *};
 use std::{
   cell::RefCell,
   collections::HashMap,
-  io::Cursor,
   sync::{
     atomic::{AtomicU32, Ordering},
     Arc,
@@ -179,15 +178,15 @@ fn create_window<T: UserEvent>(
   );
   if let Some(request_context) = &request_context {
     for (scheme, handler) in webview.uri_scheme_protocols {
+      let label = label.clone();
       request_context.register_scheme_handler_factory(
         Some(&scheme.as_str().into()),
         None,
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
           request_handler::UriSchemeContext {
+            label,
             handler: Arc::new(handler) as Arc<UriSchemeProtocol>,
-            resource: Arc::new(RefCell::new(Cursor::new(
-              "Hello from Tauri!".as_bytes().to_vec(),
-            ))),
+            resource: Arc::new(RefCell::new(None)),
           },
         )),
       );

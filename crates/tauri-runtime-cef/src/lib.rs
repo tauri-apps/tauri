@@ -921,6 +921,7 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     Ok(())
   }
 
+  #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, fullscreen: bool) -> Result<()> {
     Ok(())
   }

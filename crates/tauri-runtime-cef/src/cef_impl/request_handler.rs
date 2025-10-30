@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   cell::RefCell,
   io::{Cursor, Read},
   sync::Arc,
@@ -79,17 +80,22 @@ wrap_resource_handler! {
       let url = CefString::from(&request.url()).to_string();
       let url = Url::parse(&url).ok();
 
-      println!("process_request: {:?}", url.as_ref().map(ToString::to_string));
+      let data = read_request_body(request);
 
       if let Some(url) = url {
-        // keep the callback around
         let callback = ThreadSafe(callback.clone());
-        std::thread::spawn(move || {
-          std::thread::sleep(std::time::Duration::from_millis(5));
+        // TODO: thread safety
+        let resource = ThreadSafe(self.context.resource.clone());
+        let responder = Box::new(move |response: http::Response<Cow<'static, [u8]>>| {
+          // TODO: handle multiple concurrent requests
+          resource.into_owned().borrow_mut().replace(Cursor::new(response.into_body().into_owned()));
           let callback = callback.into_owned();
-          println!("process_request: invoking callback");
           callback.cont();
         });
+
+        // TODO: headers
+        let http_request = http::Request::builder().uri(url.as_str()).body(data).unwrap();
+        (self.context.handler)(&self.context.label, http_request, responder);
         1
       } else {
         0
@@ -104,26 +110,19 @@ wrap_resource_handler! {
       callback: Option<&mut ResourceReadCallback>,
     ) -> ::std::os::raw::c_int {
       let Ok(bytes_to_read) = usize::try_from(bytes_to_read) else {
-        println!("read_response: invalid bytes_to_read: {bytes_to_read}");
         return 0;
       };
       let data_out = unsafe { std::slice::from_raw_parts_mut(data_out, bytes_to_read) };
-      let count = self.context.resource.borrow_mut().read(data_out).unwrap_or(0);
+      let count = self.context.resource.borrow_mut().as_mut().and_then(|response| response.read(data_out).ok()).unwrap_or(0);
       if let Some(bytes_read) = bytes_read {
         let Ok(count) = count.try_into() else {
-          println!("read_response: invalid count of bytes: {count}");
           return 0;
         };
-        println!("read_response: returning {count} bytes");
         *bytes_read = count;
         if count > 0 {
           return 1;
         }
       }
-      // callback.inspect(|cb| {
-      //   println!("read_response: invoking the callback");
-      //   cb.cont();
-      // });
       0
     }
 
@@ -134,7 +133,6 @@ wrap_resource_handler! {
       redirect_url: Option<&mut CefString>,
     ) {
       let Some(response) = response else { return };
-      println!("response_headers: setting response headers");
       response.set_status(200);
       response.set_mime_type(Some(&"text/html".into()));
       response.set_header_by_name(Some(&"content-type".into()), Some(&"text/html".into()), 1);
@@ -169,8 +167,9 @@ wrap_scheme_handler_factory! {
 
 #[derive(Clone)]
 pub struct UriSchemeContext {
+  pub label: String,
   pub handler: Arc<UriSchemeProtocol>,
-  pub resource: Arc<RefCell<Cursor<Vec<u8>>>>,
+  pub resource: Arc<RefCell<Option<Cursor<Vec<u8>>>>>,
 }
 
 struct ThreadSafe<T>(T);
@@ -183,3 +182,43 @@ impl<T> ThreadSafe<T> {
 
 unsafe impl<T> Send for ThreadSafe<T> {}
 unsafe impl<T> Sync for ThreadSafe<T> {}
+
+fn read_request_body(request: &mut Request) -> Vec<u8> {
+  let mut body = Vec::new();
+
+  if let Some(post_data) = request.post_data() {
+    let mut elements = Vec::new();
+    post_data.elements(Some(&mut elements));
+    for element in elements.into_iter().filter_map(|v| v) {
+      match element.get_type().as_ref() {
+        cef_dll_sys::cef_postdataelement_type_t::PDE_TYPE_BYTES => {
+          let size = element.bytes_count();
+          if size > 0 {
+            let mut buf = vec![0u8; size];
+            // Copy bytes into our buffer
+            let copied = element.bytes(size, buf.as_mut_ptr());
+            // Safety: CEF promises it wrote `copied` bytes into buf
+            unsafe {
+              buf.set_len(copied);
+            }
+            body.extend(buf);
+          }
+        }
+        cef_dll_sys::cef_postdataelement_type_t::PDE_TYPE_FILE => {
+          // Read file from disk
+          let file_path = CefString::from(&element.file()).to_string();
+          if let Ok(mut file) = std::fs::File::open(&file_path) {
+            use std::io::Read;
+            let mut buf = Vec::new();
+            if let Ok(_) = file.read_to_end(&mut buf) {
+              body.extend(buf);
+            }
+          }
+        }
+        _ => {}
+      }
+    }
+  }
+
+  body
+}

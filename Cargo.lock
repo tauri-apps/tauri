@@ -9011,7 +9011,9 @@ name = "tauri-runtime-cef"
 version = "0.1.0"
 dependencies = [
  "cef",
+ "cef-dll-sys",
  "gtk",
+ "http 1.3.1",
  "raw-window-handle",
  "tauri-runtime",
  "tauri-utils",

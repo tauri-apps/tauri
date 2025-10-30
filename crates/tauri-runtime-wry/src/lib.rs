@@ -890,9 +890,12 @@ impl WindowBuilder for WindowBuilderWrapper {
       }
     }
 
+    if let (Some(width), Some(height)) = (config.width, config.height) {
+      window = window.inner_size(width, height);
+    }
+
     window = window
       .title(config.title.to_string())
-      .inner_size(config.width, config.height)
       .focused(config.focus)
       .focusable(config.focusable)
       .visible(config.visible)

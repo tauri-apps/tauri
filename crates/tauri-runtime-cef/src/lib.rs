@@ -171,11 +171,15 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   }
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(
     &self,
     activation_policy: tauri_runtime::ActivationPolicy,
   ) -> Result<()> {
+    Ok(())
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_dock_visibility(&self, visible: bool) -> Result<()> {
     Ok(())
   }
 
@@ -275,6 +279,23 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   where
     F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
   {
+    todo!()
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
     todo!()
   }
 
@@ -463,6 +484,11 @@ impl WindowBuilder for CefWindowBuilder {
 
   #[cfg(target_os = "macos")]
   fn title_bar_style(self, style: TitleBarStyle) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn traffic_light_position<P: Into<Position>>(self, position: P) -> Self {
     self
   }
 
@@ -895,6 +921,10 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     Ok(())
   }
 
+  fn set_simple_fullscreen(&self, fullscreen: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn set_focus(&self) -> Result<()> {
     Ok(())
   }
@@ -1150,15 +1180,15 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_dock_visibility(&mut self, visible: bool) {}
+
+  #[cfg(target_os = "macos")]
   fn show(&self) {}
 
   #[cfg(target_os = "macos")]
-  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) {}
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}

@@ -2711,11 +2711,11 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     dispatch(f)
   }
 
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
-    &self,
-    cb: F,
-  ) -> Result<()> {
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+      &self,
+      cb: F,
+    ) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Application(ApplicationMessage::FetchDataStoreIdentifiers(Box::new(cb))),

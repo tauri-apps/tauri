@@ -136,7 +136,8 @@ wrap_resource_handler! {
       let Some(response) = response else { return };
       println!("response_headers: setting response headers");
       response.set_status(200);
-      response.set_header_by_name(Some(&"content-type".into()), Some(&"text/plain".into()), 1);
+      response.set_mime_type(Some(&"text/html".into()));
+      response.set_header_by_name(Some(&"content-type".into()), Some(&"text/html".into()), 1);
       response_length.map(|length| {
         *length = -1;
       });

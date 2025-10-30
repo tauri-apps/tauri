@@ -664,6 +664,11 @@ pub struct MacConfig {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements file.
   pub entitlements: Option<String>,
+  /// Path to a Info.plist file to merge with the default Info.plist.
+  ///
+  /// Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.
+  #[serde(alias = "info-plist")]
+  pub info_plist: Option<PathBuf>,
   /// DMG-specific settings.
   #[serde(default)]
   pub dmg: DmgConfig,
@@ -682,6 +687,7 @@ impl Default for MacConfig {
       hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
+      info_plist: None,
       dmg: Default::default(),
     }
   }
@@ -1171,6 +1177,12 @@ impl<'d> serde::Deserialize<'d> for AssociationExt {
 pub struct FileAssociation {
   /// File extensions to associate with this app. e.g. 'png'
   pub ext: Vec<AssociationExt>,
+  /// Declare support to a file with the given content type. Maps to `LSItemContentTypes` on macOS.
+  ///
+  /// This allows supporting any file format declared by another application that conforms to this type.
+  /// Declaration of new types can be done with [`Self::exported_type`] and linking to certain content types are done via [`ExportedFileAssociation::conforms_to`].
+  #[serde(alias = "content-types")]
+  pub content_types: Option<Vec<String>>,
   /// The name. Maps to `CFBundleTypeName` on macOS. Default to `ext[0]`
   pub name: Option<String>,
   /// The association description. Windows-only. It is displayed on the `Type` column on Windows Explorer.
@@ -1184,6 +1196,24 @@ pub struct FileAssociation {
   /// The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.
   #[serde(default)]
   pub rank: HandlerRank,
+  /// The exported type definition. Maps to a `UTExportedTypeDeclarations` entry on macOS.
+  ///
+  /// You should define this if the associated file is a custom file type defined by your application.
+  pub exported_type: Option<ExportedFileAssociation>,
+}
+
+/// The exported type definition. Maps to a `UTExportedTypeDeclarations` entry on macOS.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExportedFileAssociation {
+  /// The unique identifier for the exported type. Maps to `UTTypeIdentifier`.
+  pub identifier: String,
+  /// The types that this type conforms to. Maps to `UTTypeConformsTo`.
+  ///
+  /// Examples are `public.data`, `public.image`, `public.json` and `public.database`.
+  #[serde(alias = "conforms-to")]
+  pub conforms_to: Option<Vec<String>>,
 }
 
 /// Deep link protocol configuration.
@@ -1192,7 +1222,17 @@ pub struct FileAssociation {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DeepLinkProtocol {
   /// URL schemes to associate with this app without `://`. For example `my-app`
+  #[serde(default)]
   pub schemes: Vec<String>,
+  /// Domains to associate with this app. For example `example.com`.
+  /// Currently only supported on macOS, translating to an [universal app link].
+  ///
+  /// Note that universal app links require signed apps with a provisioning profile to work.
+  /// You can accomplish that by including the `embedded.provisionprofile` file in the `macOS > files` option.
+  ///
+  /// [universal app link]: https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app
+  #[serde(default)]
+  pub domains: Vec<String>,
   /// The protocol name. **macOS-only** and maps to `CFBundleTypeName`. Defaults to `<bundle-id>.<schemes[0]>`
   pub name: Option<String>,
   /// The app's role for these schemes. **macOS-only** and maps to `CFBundleTypeRole`.
@@ -1340,7 +1380,7 @@ pub struct BundleConfig {
   /// Should be one of the following:
   /// Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.
   pub category: Option<String>,
-  /// File associations to application.
+  /// File types to associate with the application.
   pub file_associations: Option<Vec<FileAssociation>>,
   /// A short description of your application.
   #[serde(alias = "short-description")]
@@ -2850,6 +2890,11 @@ pub struct IosConfig {
     default = "ios_minimum_system_version"
   )]
   pub minimum_system_version: String,
+  /// Path to a Info.plist file to merge with the default Info.plist.
+  ///
+  /// Note that Tauri also looks for a `Info.plist` and `Info.ios.plist` file in the same directory as the Tauri configuration file.
+  #[serde(alias = "info-plist")]
+  pub info_plist: Option<PathBuf>,
 }
 
 impl Default for IosConfig {
@@ -2860,6 +2905,7 @@ impl Default for IosConfig {
       development_team: None,
       bundle_version: None,
       minimum_system_version: ios_minimum_system_version(),
+      info_plist: None,
     }
   }
 }
@@ -2883,6 +2929,16 @@ pub struct AndroidConfig {
   #[serde(alias = "version-code")]
   #[cfg_attr(feature = "schema", validate(range(min = 1, max = 2_100_000_000)))]
   pub version_code: Option<u32>,
+
+  /// Whether to automatically increment the `versionCode` on each build.
+  ///
+  /// - If `true`, the generator will try to read the last `versionCode` from
+  ///   `tauri.properties` and increment it by 1 for every build.
+  /// - If `false` or not set, it falls back to `version_code` or semver-derived logic.
+  ///
+  /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
+  #[serde(alias = "auto-increment-version-code", default)]
+  pub auto_increment_version_code: bool,
 }
 
 impl Default for AndroidConfig {
@@ -2890,6 +2946,7 @@ impl Default for AndroidConfig {
     Self {
       min_sdk_version: default_min_sdk_version(),
       version_code: None,
+      auto_increment_version_code: false,
     }
   }
 }

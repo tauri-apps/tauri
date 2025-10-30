@@ -45,12 +45,14 @@ pub struct ContextData {
 }
 
 fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  if let Ok(inline_script_elements) = document.select("script:not(empty)") {
+  if let Ok(inline_script_elements) = document.select("script:not(:empty)") {
     let mut scripts = Vec::new();
     for inline_script_el in inline_script_elements {
       let script = inline_script_el.as_node().text_contents();
       let mut hasher = Sha256::new();
-      hasher.update(&script);
+      hasher.update(tauri_utils::html::normalize_script_for_csp(
+        script.as_bytes(),
+      ));
       let hash = hasher.finalize();
       scripts.push(format!(
         "'sha256-{}'",

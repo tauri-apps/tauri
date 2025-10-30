@@ -164,6 +164,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_app_theme", false),
       ("set_dock_visibility", false),
       ("bundle_type", true),
+      ("register_listener", true),
+      ("remove_listener", true),
     ],
   ),
   (

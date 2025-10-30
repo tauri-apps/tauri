@@ -812,7 +812,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     {
       // TODO: find a proper way to prevent webview being pushed out of the window.
       // Workround for issue: https://github.com/tauri-apps/tauri/issues/10225
-      // The window requies `NSFullSizeContentViewWindowMask` flag to prevent devtools
+      // The window requires `NSFullSizeContentViewWindowMask` flag to prevent devtools
       // pushing the content view out of the window.
       // By setting the default style to `TitleBarStyle::Visible` should fix the issue for most of the users.
       builder = builder.title_bar_style(TitleBarStyle::Visible);
@@ -4535,7 +4535,11 @@ You may have it installed on another user account, but it is not available for t
 "#,
     );
 
-    return Err(Error::WebviewRuntimeNotInstalled);
+    if cfg!(target_os = "macos") {
+      log::warn!("WebKit webview runtime not found, attempting to create webview anyway.");
+    } else {
+      return Err(Error::WebviewRuntimeNotInstalled);
+    }
   }
 
   #[allow(unused_mut)]

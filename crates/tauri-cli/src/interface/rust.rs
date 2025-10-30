@@ -115,6 +115,12 @@ pub struct MobileOptions {
   pub additional_watch_folders: Vec<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct WatcherOptions {
+  pub config: Vec<ConfigValue>,
+  pub additional_watch_folders: Vec<PathBuf>,
+}
+
 #[derive(Debug)]
 pub struct RustupTarget {
   name: String,
@@ -209,8 +215,8 @@ impl Interface for Rust {
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
       self.run_dev(options, run_args, move |status, reason| {
+        on_exit(status, reason);
         tx.send(()).unwrap();
-        on_exit(status, reason)
       })?;
 
       rx.recv().unwrap();
@@ -245,10 +251,24 @@ impl Interface for Rust {
       runner(options)?;
       Ok(())
     } else {
-      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
-      let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
+      self.watch(
+        WatcherOptions {
+          config: options.config.clone(),
+          additional_watch_folders: options.additional_watch_folders.clone(),
+        },
+        move || runner(options.clone()),
+      )
     }
+  }
+
+  fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
+    &mut self,
+    options: WatcherOptions,
+    runner: R,
+  ) -> crate::Result<()> {
+    let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
+    let run = Arc::new(|_rust: &mut Rust| runner());
+    self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
   }
 
   fn env(&self) -> HashMap<&str, String> {
@@ -858,7 +878,7 @@ impl AppSettings for RustAppSettings {
     let mut settings = tauri_config_to_bundle_settings(
       self,
       features,
-      config.identifier.clone(),
+      config,
       config.bundle.clone(),
       updater_settings,
       arch64bits,
@@ -1263,7 +1283,7 @@ pub fn get_profile_dir(options: &Options) -> &str {
 fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
   features: &[String],
-  identifier: String,
+  tauri_config: &Config,
   config: crate::helpers::config::BundleConfig,
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
@@ -1386,8 +1406,59 @@ fn tauri_config_to_bundle_settings(
     BundleResources::Map(map) => (None, Some(map)),
   };
 
+  #[cfg(target_os = "macos")]
+  let entitlements = if let Some(plugin_config) = tauri_config
+    .plugins
+    .0
+    .get("deep-link")
+    .and_then(|c| c.get("desktop").cloned())
+  {
+    let protocols: DesktopDeepLinks =
+      serde_json::from_value(plugin_config).context("failed to parse deep link plugin config")?;
+    let domains = match protocols {
+      DesktopDeepLinks::One(protocol) => protocol.domains,
+      DesktopDeepLinks::List(protocols) => protocols.into_iter().flat_map(|p| p.domains).collect(),
+    };
+
+    if domains.is_empty() {
+      config
+        .macos
+        .entitlements
+        .map(PathBuf::from)
+        .map(tauri_bundler::bundle::Entitlements::Path)
+    } else {
+      let mut app_links_entitlements = plist::Dictionary::new();
+      app_links_entitlements.insert(
+        "com.apple.developer.associated-domains".to_string(),
+        domains
+          .into_iter()
+          .map(|domain| format!("applinks:{domain}").into())
+          .collect::<Vec<_>>()
+          .into(),
+      );
+      let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
+        crate::helpers::plist::merge_plist(vec![
+          PathBuf::from(user_provided_entitlements).into(),
+          plist::Value::Dictionary(app_links_entitlements).into(),
+        ])?
+      } else {
+        app_links_entitlements.into()
+      };
+
+      Some(tauri_bundler::bundle::Entitlements::Plist(entitlements))
+    }
+  } else {
+    config
+      .macos
+      .entitlements
+      .map(PathBuf::from)
+      .map(tauri_bundler::bundle::Entitlements::Path)
+  };
+  #[cfg(not(target_os = "macos"))]
+  let entitlements = None;
+
   Ok(BundleSettings {
-    identifier: Some(identifier),
+    identifier: Some(tauri_config.identifier.clone()),
     publisher: config.publisher,
     homepage: config.homepage,
     icon: Some(config.icon),
@@ -1487,14 +1558,24 @@ fn tauri_config_to_bundle_settings(
       skip_stapling: false,
       hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
-      entitlements: config.macos.entitlements,
-      info_plist_path: {
+      entitlements,
+      #[cfg(not(target_os = "macos"))]
+      info_plist: None,
+      #[cfg(target_os = "macos")]
+      info_plist: {
+        let mut src_plists = vec![];
+
         let path = tauri_dir().join("Info.plist");
         if path.exists() {
-          Some(path)
-        } else {
-          None
+          src_plists.push(path.into());
         }
+        if let Some(info_plist) = &config.macos.info_plist {
+          src_plists.push(info_plist.clone().into());
+        }
+
+        Some(tauri_bundler::bundle::PlistKind::Plist(
+          crate::helpers::plist::merge_plist(src_plists)?,
+        ))
       },
     },
     windows: WindowsSettings {

@@ -14,7 +14,7 @@ use std::{
 use crate::{error::Context, helpers::config::Config};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
-pub use rust::{MobileOptions, Options, Rust as AppInterface};
+pub use rust::{MobileOptions, Options, Rust as AppInterface, WatcherOptions};
 
 pub trait DevProcess {
   fn kill(&self) -> std::io::Result<()>;
@@ -111,6 +111,11 @@ pub trait Interface: Sized {
   fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     options: MobileOptions,
+    runner: R,
+  ) -> crate::Result<()>;
+  fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
+    &mut self,
+    options: WatcherOptions,
     runner: R,
   ) -> crate::Result<()>;
 }

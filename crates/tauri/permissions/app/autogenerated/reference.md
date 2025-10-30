@@ -9,6 +9,8 @@ Default permissions for the plugin.
 - `allow-tauri-version`
 - `allow-identifier`
 - `allow-bundle-type`
+- `allow-register-listener`
+- `allow-remove-listener`
 
 ## Permission Table
 
@@ -204,6 +206,32 @@ Denies the name command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-register-listener`
+
+</td>
+<td>
+
+Enables the register_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-register-listener`
+
+</td>
+<td>
+
+Denies the register_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-remove-data-store`
 
 </td>
@@ -223,6 +251,32 @@ Enables the remove_data_store command without any pre-configured scope.
 <td>
 
 Denies the remove_data_store command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-remove-listener`
+
+</td>
+<td>
+
+Enables the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-remove-listener`
+
+</td>
+<td>
+
+Denies the remove_listener command without any pre-configured scope.
 
 </td>
 </tr>

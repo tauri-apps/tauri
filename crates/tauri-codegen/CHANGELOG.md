@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.5.0]
+
+### Bug Fixes
+
+- [`c5008b829`](https://www.github.com/tauri-apps/tauri/commit/c5008b829dc779f0768089bff9b891fc76b11355) ([#14274](https://www.github.com/tauri-apps/tauri/pull/14274)) Do not hash empty scripts when generating the Content-Security-Policy SHA-256 hashes.
+- [`7b0d4e732`](https://www.github.com/tauri-apps/tauri/commit/7b0d4e73227e42d88732b6d9fe643499dd78ec4e) ([#14265](https://www.github.com/tauri-apps/tauri/pull/14265)) Fix JavaScript SHA256 hash generation on Windows not ignoring carriage return characters.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- [`6aa7f2d85`](https://www.github.com/tauri-apps/tauri/commit/6aa7f2d852870aeba1d4dd0e07f8be2bc9b66286) Upgraded to `tauri-utils@2.8.0`
+
 ## \[2.4.0]
 
 ### Dependencies

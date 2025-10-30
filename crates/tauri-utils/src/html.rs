@@ -286,6 +286,38 @@ pub fn inline_isolation(document: &NodeRef, dir: &Path) {
   }
 }
 
+/// Normalize line endings in script content to match what the browser uses for CSP hashing.
+///
+/// According to the HTML spec, browsers normalize:
+/// - `\r\n` → `\n`
+/// - `\r`   → `\n`
+pub fn normalize_script_for_csp(input: &[u8]) -> Vec<u8> {
+  let mut output = Vec::with_capacity(input.len());
+
+  let mut i = 0;
+  while i < input.len() {
+    match input[i] {
+      b'\r' => {
+        if i + 1 < input.len() && input[i + 1] == b'\n' {
+          // CRLF → LF
+          output.push(b'\n');
+          i += 2;
+        } else {
+          // Lone CR → LF
+          output.push(b'\n');
+          i += 1;
+        }
+      }
+      _ => {
+        output.push(input[i]);
+        i += 1;
+      }
+    }
+  }
+
+  output
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -306,5 +338,15 @@ mod tests {
         )
       );
     }
+  }
+
+  #[test]
+  fn normalize_script_for_csp() {
+    let js = "// Copyright 2019-2024 Tauri Programme within The Commons Conservancy\r// SPDX-License-Identifier: Apache-2.0\n// SPDX-License-Identifier: MIT\r\n\r\nwindow.__TAURI_ISOLATION_HOOK__ = (payload, options) => {\r\n  return payload\r\n}\r\n";
+    let expected = "// Copyright 2019-2024 Tauri Programme within The Commons Conservancy\n// SPDX-License-Identifier: Apache-2.0\n// SPDX-License-Identifier: MIT\n\nwindow.__TAURI_ISOLATION_HOOK__ = (payload, options) => {\n  return payload\n}\n";
+    assert_eq!(
+      super::normalize_script_for_csp(js.as_bytes()),
+      expected.as_bytes()
+    )
   }
 }

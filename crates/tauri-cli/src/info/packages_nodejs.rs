@@ -169,12 +169,12 @@ pub fn nodejs_section_item(
       .unwrap_or_default();
 
     if version.is_empty() {
-      format!("{} {}: not installed!", package, "".green())
+      format!("{} {}: not installed!", package, " ⱼₛ".black().on_yellow())
     } else {
       format!(
         "{} {}: {}{}",
         package,
-        "".dimmed(),
+        " ⱼₛ".black().on_yellow(),
         version,
         if !(version.is_empty() || latest_ver.is_empty()) {
           let version = semver::Version::parse(version.as_str()).unwrap();

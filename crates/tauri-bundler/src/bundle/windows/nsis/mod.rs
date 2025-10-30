@@ -495,7 +495,9 @@ fn build_nsis_app_installer(
       .iter()
       .flat_map(|p| &p.schemes)
       .collect::<Vec<_>>();
-    data.insert("deep_link_protocols", to_json(schemes));
+    if !schemes.is_empty() {
+      data.insert("deep_link_protocols", to_json(schemes));
+    }
   }
 
   let silent_webview2_install = if let WebviewInstallMode::DownloadBootstrapper { silent }

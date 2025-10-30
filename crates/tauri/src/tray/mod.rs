@@ -73,7 +73,7 @@ impl From<tray_icon::MouseButton> for MouseButton {
 ///
 /// ## Platform-specific:
 ///
-/// - **Linux**: Unsupported. The event is not emmited even though the icon is shown
+/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown
 ///   and will still show a context menu on right click.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
@@ -314,7 +314,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// - **Linux:** Unsupported.
   #[deprecated(
     since = "2.2.0",
-    note = "Use `TrayIconBuiler::show_menu_on_left_click` instead."
+    note = "Use `TrayIconBuilder::show_menu_on_left_click` instead."
   )]
   pub fn menu_on_left_click(mut self, enable: bool) -> Self {
     self.inner = self.inner.with_menu_on_left_click(enable);

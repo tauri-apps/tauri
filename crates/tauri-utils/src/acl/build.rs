@@ -91,7 +91,8 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
   let pkg_name_valid_path = pkg_name.replace(':', "-");
   let permission_files_path = out_dir.join(format!("{pkg_name_valid_path}-permission-files"));
   let permission_files_json = serde_json::to_string(&permission_files)?;
-  fs::write(&permission_files_path, permission_files_json)
+
+  write_if_changed(&permission_files_path, permission_files_json)
     .map_err(|e| Error::WriteFile(e, permission_files_path.clone()))?;
 
   if let Some(plugin_name) = pkg_name.strip_prefix("tauri:") {
@@ -151,7 +152,8 @@ pub fn define_global_scope_schema(
   out_dir: &Path,
 ) -> Result<(), Error> {
   let path = out_dir.join("global-scope.json");
-  fs::write(&path, serde_json::to_vec(&schema)?).map_err(|e| Error::WriteFile(e, path.clone()))?;
+  write_if_changed(&path, serde_json::to_vec(&schema)?)
+    .map_err(|e| Error::WriteFile(e, path.clone()))?;
 
   if let Some(plugin_name) = pkg_name.strip_prefix("tauri:") {
     println!(

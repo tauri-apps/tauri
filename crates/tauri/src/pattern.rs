@@ -75,7 +75,6 @@ pub(crate) enum IsolationSide {
   Secure,
 }
 
-#[cfg(feature = "isolation")]
 #[derive(Template)]
 #[default_template("../scripts/pattern.js")]
 pub(crate) struct PatternJavascript {

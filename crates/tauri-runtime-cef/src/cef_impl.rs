@@ -186,7 +186,7 @@ fn create_window<T: UserEvent>(
           request_handler::UriSchemeContext {
             label,
             handler: Arc::new(handler) as Arc<UriSchemeProtocol>,
-            resource: Arc::new(RefCell::new(None)),
+            response: Arc::new(RefCell::new(None)),
           },
         )),
       );

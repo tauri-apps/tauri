@@ -6,6 +6,7 @@ use std::{
 };
 
 use cef::{rc::*, *};
+use http::{header::CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use tauri_runtime::webview::UriSchemeProtocol;
 use url::Url;
 
@@ -80,22 +81,28 @@ wrap_resource_handler! {
       let url = CefString::from(&request.url()).to_string();
       let url = Url::parse(&url).ok();
 
-      let data = read_request_body(request);
-
       if let Some(url) = url {
         let callback = ThreadSafe(callback.clone());
         // TODO: thread safety
-        let resource = ThreadSafe(self.context.resource.clone());
+        let response_store = ThreadSafe(self.context.response.clone());
         let responder = Box::new(move |response: http::Response<Cow<'static, [u8]>>| {
-          // TODO: handle multiple concurrent requests
-          resource.into_owned().borrow_mut().replace(Cursor::new(response.into_body().into_owned()));
+          let (parts, body) = response.into_parts();
+          let response = http::Response::from_parts(parts, Cursor::new(body.into_owned()));
+          response_store.into_owned().borrow_mut().replace(response);
           let callback = callback.into_owned();
           callback.cont();
         });
 
-        // TODO: headers
-        let http_request = http::Request::builder().uri(url.as_str()).body(data).unwrap();
-        (self.context.handler)(&self.context.label, http_request, responder);
+        let label = self.context.label.clone();
+        let handler = self.context.handler.clone();
+        let data = read_request_body(request);
+        let headers = get_request_headers(request);
+
+        std::thread::spawn(move || {
+          let mut http_request = http::Request::builder().uri(url.as_str()).body(data).unwrap();
+          *http_request.headers_mut() = headers;
+          (handler)(&label, http_request, responder);
+        });
         1
       } else {
         0
@@ -113,7 +120,7 @@ wrap_resource_handler! {
         return 0;
       };
       let data_out = unsafe { std::slice::from_raw_parts_mut(data_out, bytes_to_read) };
-      let count = self.context.resource.borrow_mut().as_mut().and_then(|response| response.read(data_out).ok()).unwrap_or(0);
+      let count = self.context.response.borrow_mut().as_mut().and_then(|response| response.body_mut().read(data_out).ok()).unwrap_or(0);
       if let Some(bytes_read) = bytes_read {
         let Ok(count) = count.try_into() else {
           return 0;
@@ -132,10 +139,22 @@ wrap_resource_handler! {
       response_length: Option<&mut i64>,
       redirect_url: Option<&mut CefString>,
     ) {
-      let Some(response) = response else { return };
-      response.set_status(200);
-      response.set_mime_type(Some(&"text/html".into()));
-      response.set_header_by_name(Some(&"content-type".into()), Some(&"text/html".into()), 1);
+      let (Some(response), Some(response_data)) = (response, &*self.context.response.borrow()) else { return };
+
+      response.set_status(response_data.status().as_u16() as i32);
+      let mut content_type = None;
+
+      for (name, value) in response_data.headers() {
+        let Ok(value) = value.to_str() else { continue; };
+        response.set_header_by_name(Some(&name.as_str().into()), Some(&value.into()), 0);
+
+        if name == CONTENT_TYPE {
+          content_type.replace(value.into());
+        }
+      }
+
+      response.set_mime_type(Some(&content_type.unwrap_or_else(|| "text/plain".into())));
+
       response_length.map(|length| {
         *length = -1;
       });
@@ -169,7 +188,7 @@ wrap_scheme_handler_factory! {
 pub struct UriSchemeContext {
   pub label: String,
   pub handler: Arc<UriSchemeProtocol>,
-  pub resource: Arc<RefCell<Option<Cursor<Vec<u8>>>>>,
+  pub response: Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>,
 }
 
 struct ThreadSafe<T>(T);
@@ -221,4 +240,24 @@ fn read_request_body(request: &mut Request) -> Vec<u8> {
   }
 
   body
+}
+
+fn get_request_headers(request: &mut Request) -> HeaderMap {
+  let mut headers = HeaderMap::new();
+
+  let mut map = CefStringMultimap::new();
+
+  request.header_map(Some(&mut map));
+
+  // Iterate through all entries
+  for (name, value) in map {
+    for v in value {
+      headers.append(
+        HeaderName::from_bytes(name.as_bytes()).unwrap(),
+        HeaderValue::from_str(&v).unwrap(),
+      );
+    }
+  }
+
+  headers
 }

@@ -352,6 +352,20 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
 }
 
 fn ensure_ndk(non_interactive: bool) -> Result<()> {
+
+  // Return Ok if NDK_HOME is set by user and its path exists
+  if let Some(ndk_home) = std::env::var_os("NDK_HOME").map(PathBuf::from) {
+    if ndk_home.exists() {
+      log::info!("Using NDK from NDK_HOME: {}", ndk_home.display());
+      return Ok(());
+    } else {
+      crate::error::bail!(
+        "NDK_HOME is set to {}, but the path does not exist.",
+        ndk_home.display()
+      );
+    }
+  }
+
   // re-evaluate ANDROID_HOME
   let android_home = std::env::var_os("ANDROID_HOME")
     .map(PathBuf::from)

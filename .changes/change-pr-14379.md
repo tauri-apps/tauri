@@ -1,0 +1,3 @@
+---
+"tauri-cli": patch:enhance
+---

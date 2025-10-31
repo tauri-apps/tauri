@@ -15,8 +15,8 @@ tauri-utils = { version = "2.2.0", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 url = "2"
 http = "1"
-cef = "140.3.6"
-cef-dll-sys = "140.3.6"
+cef = "141.6.0"
+cef-dll-sys = "141.6.0"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }

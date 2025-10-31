@@ -65,7 +65,6 @@ wrap_browser_process_handler! {
   impl BrowserProcessHandler {
     // The real lifespan of cef starts from `on_context_initialized`, so all the cef objects should be manipulated after that.
     fn on_context_initialized(&self) {
-      println!("cef context initialized");
       (self.context.callback.borrow_mut())(RunEvent::Ready);
     }
   }
@@ -109,7 +108,7 @@ wrap_window_delegate! {
     }
 
     fn on_window_destroyed(&self, _window: Option<&mut Window>) {
-      quit_message_loop();
+      // TODO: send destroyed event
     }
 
     fn with_standard_window_buttons(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
@@ -172,8 +171,15 @@ fn create_window<T: UserEvent>(
   let mut client = BrowserClient::new();
   let url = CefString::from(webview.url.as_str());
 
+  let global_context =
+    request_context_get_global_context().expect("Failed to get global request context");
+  let global_cache_path: CefStringUtf16 = (&global_context.cache_path()).into();
+
   let mut request_context = request_context_create_context(
-    Some(&RequestContextSettings::default()),
+    Some(&RequestContextSettings {
+      cache_path: global_cache_path,
+      ..Default::default()
+    }),
     Option::<&mut RequestContextHandler>::None,
   );
   if let Some(request_context) = &request_context {

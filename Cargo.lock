@@ -819,7 +819,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d59b4c170e16f0405a2e95aff44432a0d41aa97675f3d52623effe95792a037"
 dependencies = [
- "objc2 0.6.0",
+ "objc2 0.6.3",
 ]
 
 [[package]]
@@ -1172,20 +1172,21 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "140.3.6+140.1.14"
+version = "141.6.0+141.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c40c067add496f9b9b39a03df10d016640f8535dedcc8f04b8b0e9230dafa15b"
+checksum = "fc711443f6b485c86d2aa7fa504e3847d690ab790bc98905758567d2247e1aa6"
 dependencies = [
  "cef-dll-sys",
  "libloading 0.8.6",
+ "objc2 0.6.3",
  "windows-sys 0.61.1",
 ]
 
 [[package]]
 name = "cef-dll-sys"
-version = "140.3.6+140.1.14"
+version = "141.6.0+141.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e593b55c861429d4264fad567a41ffef96ebb43b631e681f595c29b9a226258a"
+checksum = "4c95e419bbb8b2190df8b6eb3934ecc4137533803fcc5ae2b076e591ee789071"
 dependencies = [
  "anyhow",
  "cmake",
@@ -4760,7 +4761,7 @@ dependencies = [
  "gtk",
  "keyboard-types",
  "libxdo",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",
@@ -5166,9 +5167,9 @@ dependencies = [
 
 [[package]]
 name = "objc2"
-version = "0.6.0"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3531f65190d9cff863b77a99857e74c314dd16bf56c538c4b57c7cbc3f3a6e59"
+checksum = "b7c2599ce0ec54857b29ce62166b0ed9b4f6f1a70ccc9a71165b6154caca8c05"
 dependencies = [
  "objc2-encode",
  "objc2-exception-helper",
@@ -5183,7 +5184,7 @@ dependencies = [
  "bitflags 2.7.0",
  "block2 0.6.0",
  "libc",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-cloud-kit",
  "objc2-core-data",
  "objc2-core-foundation",
@@ -5200,7 +5201,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c1948a9be5f469deadbd6bcb86ad7ff9e47b4f632380139722f7d9840c0d42c"
 dependencies = [
  "bitflags 2.7.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-foundation 0.3.0",
 ]
 
@@ -5211,7 +5212,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f860f8e841f6d32f754836f51e6bc7777cd7e7053cf18528233f6811d3eceb4"
 dependencies = [
  "bitflags 2.7.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-foundation 0.3.0",
 ]
 
@@ -5222,7 +5223,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "daeaf60f25471d26948a1c2f840e3f7d86f4109e3af4e8e4b5cd70c39690d925"
 dependencies = [
  "bitflags 2.7.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
 ]
 
 [[package]]
@@ -5232,7 +5233,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dca602628b65356b6513290a21a6405b4d4027b8b250f0b98dddbb28b7de02"
 dependencies = [
  "bitflags 2.7.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-core-foundation",
  "objc2-io-surface",
 ]
@@ -5243,7 +5244,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ffa6bea72bf42c78b0b34e89c0bafac877d5f80bf91e159a5d96ea7f693ca56"
 dependencies = [
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-foundation 0.3.0",
 ]
 
@@ -5283,7 +5284,7 @@ dependencies = [
  "bitflags 2.7.0",
  "block2 0.6.0",
  "libc",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-core-foundation",
 ]
 
@@ -5294,7 +5295,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "161a8b87e32610086e1a7a9e9ec39f84459db7b3a0881c1f16ca5a2605581c19"
 dependencies = [
  "bitflags 2.7.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-core-foundation",
 ]
 
@@ -5330,7 +5331,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fb3794501bb1bee12f08dcad8c61f2a5875791ad1c6f47faa71a0f033f20071"
 dependencies = [
  "bitflags 2.7.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-foundation 0.3.0",
 ]
 
@@ -5341,7 +5342,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3126341c65c5d5728423ae95d788e1b660756486ad0592307ab87ba02d9a7268"
 dependencies = [
  "bitflags 2.7.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-core-foundation",
 ]
 
@@ -5352,7 +5353,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "777a571be14a42a3990d4ebedaeb8b54cd17377ec21b92e8200ac03797b3bee1"
 dependencies = [
  "bitflags 2.7.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",
 ]
@@ -5365,7 +5366,7 @@ checksum = "b717127e4014b0f9f3e8bba3d3f2acec81f1bde01f656823036e823ed2c94dce"
 dependencies = [
  "bitflags 2.7.0",
  "block2 0.6.0",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",
@@ -8565,7 +8566,7 @@ dependencies = [
  "ndk",
  "ndk-context",
  "ndk-sys",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",
  "once_cell",
@@ -8639,7 +8640,7 @@ dependencies = [
  "log",
  "mime",
  "muda",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",
  "objc2-ui-kit",
@@ -8960,7 +8961,7 @@ dependencies = [
  "byte-unit",
  "fern",
  "log",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-foundation 0.3.0",
  "serde",
  "serde_json",
@@ -8992,7 +8993,7 @@ dependencies = [
  "gtk",
  "http 1.3.1",
  "jni 0.21.1",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-ui-kit",
  "objc2-web-kit",
  "raw-window-handle",
@@ -9028,7 +9029,7 @@ dependencies = [
  "http 1.3.1",
  "jni 0.21.1",
  "log",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",
  "once_cell",
@@ -9630,7 +9631,7 @@ dependencies = [
  "dirs 6.0.0",
  "libappindicator",
  "muda",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-core-graphics",
@@ -10485,7 +10486,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9bec5a31f3f9362f2258fd0e9c9dd61a9ca432e7306cc78c444258f0dce9a9c"
 dependencies = [
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",
@@ -11137,7 +11138,7 @@ dependencies = [
  "kuchikiki",
  "libc",
  "ndk",
- "objc2 0.6.0",
+ "objc2 0.6.3",
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",

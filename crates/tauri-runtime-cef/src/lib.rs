@@ -4,7 +4,7 @@
 
 #![allow(dead_code, unused_variables)]
 
-use cef::{rc::Rc, ImplTaskRunner};
+use cef::{rc::Rc, CefString, ImplCommandLine, ImplTaskRunner};
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,
@@ -1085,13 +1085,27 @@ impl<T: UserEvent> CefRuntime<T> {
     };
     let mut app = cef_impl::TauriApp::new(cef_context.clone());
 
+    let cmd = args.as_cmd_line().unwrap();
+
+    let switch = CefString::from("type");
+    let is_browser_process = cmd.has_switch(Some(&switch)) != 1;
+
     let ret = cef::execute_process(
       Some(args.as_main_args()),
       Some(&mut app),
       std::ptr::null_mut(),
     );
 
-    assert!(ret == -1, "cannot execute browser process");
+    if is_browser_process {
+      println!("launch browser process");
+      assert!(ret == -1, "cannot execute browser process");
+    } else {
+      let process_type = CefString::from(&cmd.switch_value(Some(&switch)));
+      println!("launch process {process_type}");
+      assert!(ret >= 0, "cannot execute non-browser process");
+      // non-browser process does not initialize cef
+      std::process::exit(0);
+    }
 
     let settings = cef::Settings {
       no_sandbox: 1,

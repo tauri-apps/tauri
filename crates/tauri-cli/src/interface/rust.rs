@@ -785,7 +785,7 @@ pub struct UpdaterConfig {
 }
 
 /// Install modes for the Windows update.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
@@ -793,15 +793,10 @@ pub enum WindowsUpdateInstallMode {
   /// Requires admin privileges if the installer does.
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
+  #[default]
   Passive,
   // to add more modes, we need to check if the updater relaunch makes sense
   // i.e. for a full UI mode, the user can also mark the installer to start the app
-}
-
-impl Default for WindowsUpdateInstallMode {
-  fn default() -> Self {
-    Self::Passive
-  }
 }
 
 impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {

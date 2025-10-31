@@ -17,6 +17,8 @@ url = "2"
 http = "1"
 cef = "141.6.0"
 cef-dll-sys = "141.6.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }

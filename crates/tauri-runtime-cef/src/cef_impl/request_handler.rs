@@ -95,11 +95,15 @@ wrap_resource_handler! {
 
         let label = self.context.label.clone();
         let handler = self.context.handler.clone();
+
         let data = read_request_body(request);
         let headers = get_request_headers(request);
+        let method_str = CefString::from(&request.method()).to_string();
+        let method = http::Method::from_bytes(method_str.as_bytes())
+          .unwrap_or(http::Method::GET);
 
         std::thread::spawn(move || {
-          let mut http_request = http::Request::builder().uri(url.as_str()).body(data).unwrap();
+          let mut http_request = http::Request::builder().method(method).uri(url.as_str()).body(data).unwrap();
           *http_request.headers_mut() = headers;
           (handler)(&label, http_request, responder);
         });

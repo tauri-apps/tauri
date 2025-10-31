@@ -9016,6 +9016,8 @@ dependencies = [
  "gtk",
  "http 1.3.1",
  "raw-window-handle",
+ "serde",
+ "serde_json",
  "tauri-runtime",
  "tauri-utils",
  "url",

@@ -1082,6 +1082,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_webview_id: Default::default(),
       next_window_id: Default::default(),
       next_window_event_id: Default::default(),
+      initialization_scripts: Arc::new(Mutex::new(HashMap::new())),
     };
     let mut app = cef_impl::TauriApp::new(cef_context.clone());
 
@@ -1097,11 +1098,8 @@ impl<T: UserEvent> CefRuntime<T> {
     );
 
     if is_browser_process {
-      println!("launch browser process");
       assert!(ret == -1, "cannot execute browser process");
     } else {
-      let process_type = CefString::from(&cmd.switch_value(Some(&switch)));
-      println!("launch process {process_type}");
       assert!(ret >= 0, "cannot execute non-browser process");
       // non-browser process does not initialize cef
       std::process::exit(0);

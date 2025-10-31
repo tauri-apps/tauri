@@ -210,7 +210,7 @@ fn read_request_body(request: &mut Request) -> Vec<u8> {
   let mut body = Vec::new();
 
   if let Some(post_data) = request.post_data() {
-    let mut elements = Vec::new();
+    let mut elements = vec![None; post_data.element_count()];
     post_data.elements(Some(&mut elements));
     for element in elements.into_iter().filter_map(|v| v) {
       match element.get_type().as_ref() {

@@ -9011,13 +9011,17 @@ dependencies = [
 name = "tauri-runtime-cef"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "cef",
  "cef-dll-sys",
  "gtk",
+ "html5ever",
  "http 1.3.1",
+ "kuchikiki",
  "raw-window-handle",
  "serde",
  "serde_json",
+ "sha2",
  "tauri-runtime",
  "tauri-utils",
  "url",

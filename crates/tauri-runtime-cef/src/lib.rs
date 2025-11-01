@@ -1082,7 +1082,6 @@ impl<T: UserEvent> CefRuntime<T> {
       next_webview_id: Default::default(),
       next_window_id: Default::default(),
       next_window_event_id: Default::default(),
-      initialization_scripts: Arc::new(Mutex::new(HashMap::new())),
     };
     let mut app = cef_impl::TauriApp::new(cef_context.clone());
 

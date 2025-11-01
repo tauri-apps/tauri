@@ -6,39 +6,290 @@ use std::{
 };
 
 use cef::{rc::*, *};
+use html5ever::{interface::QualName, namespace_url, ns, LocalName};
 use http::{header::CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
-use tauri_runtime::webview::UriSchemeProtocol;
+use kuchiki::NodeRef;
+use tauri_runtime::webview::{InitializationScript, UriSchemeProtocol};
+use tauri_utils::{
+  config::{Csp, CspDirectiveSources},
+  html::{parse as parse_html, serialize_node},
+};
 use url::Url;
 
-wrap_resource_request_handler! {
-  pub struct WebResourceRequestHandler;
+use super::CefInitScript;
 
-  impl ResourceRequestHandler {
-    fn resource_handler(
-      &self,
-      browser: Option<&mut Browser>,
-      frame: Option<&mut Frame>,
-      request: Option<&mut Request>,
-    ) -> Option<ResourceHandler> {
-      None
+// Note: We handle head element manipulation inline in the filter
+
+// ResponseFilter that injects initialization scripts into HTML responses
+// For HTTP/HTTPS with CSP headers, we inject a modified CSP meta tag
+wrap_response_filter! {
+  pub struct HtmlScriptInjectionFilter {
+    initialization_scripts: Vec<InitializationScript>,
+    script_hashes: Vec<String>, // Pre-computed script hashes
+    csp_header: Option<String>, // Original CSP header from HTTP response (if any)
+    processed_html: RefCell<Option<Vec<u8>>>,
+    output_offset: RefCell<usize>,
+  }
+
+  impl ResponseFilter {
+    fn init_filter(&self) -> ::std::os::raw::c_int {
+      // Return 1 to enable buffered mode (RESPONSE_FILTER_NEED_MORE_DATA)
+      1
     }
 
+    fn filter(
+      &self,
+      data_in: Option<&mut Vec<u8>>,
+      data_in_read: Option<&mut usize>,
+      data_out: Option<&mut Vec<u8>>,
+      data_out_written: Option<&mut usize>,
+    ) -> ResponseFilterStatus {
+      use cef_dll_sys::cef_response_filter_status_t::*;
+
+      if let Some(data_in) = data_in {
+        let input_size = data_in.len();
+
+        // Process the HTML once (on first chunk)
+        if self.processed_html.borrow().is_none() {
+          if let Ok(html_str) = String::from_utf8(data_in.clone()) {
+            let document = parse_html(html_str);
+
+            let head = if let Ok(ref head_node) = document.select_first("head") {
+              head_node.as_node().clone()
+            } else {
+              let head_node = NodeRef::new_element(
+                QualName::new(None, ns!(html), LocalName::from("head")),
+                None,
+              );
+              document.prepend(head_node.clone());
+              head_node
+            };
+
+            // If CSP header exists, inject/modify CSP meta tag with script hashes
+            // This ensures injected scripts work even when HTTP response has CSP header
+            if let Some(ref original_csp) = self.csp_header {
+              // Parse CSP using tauri-utils
+              let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
+                Csp::Policy(original_csp.clone()).into();
+
+              // Update or create script-src directive with script hashes
+              let script_src = csp_map
+                .entry("script-src".to_string())
+                .or_insert_with(|| CspDirectiveSources::List(vec!["'self'".to_string()]));
+
+              // Extend with script hashes
+              script_src.extend(self.script_hashes.clone());
+
+              // Convert back to CSP string
+              let updated_csp = Csp::DirectiveMap(csp_map).to_string();
+              // Check if CSP meta tag already exists
+              let should_update_meta = if let Ok(ref meta_node) = document.select_first("meta[http-equiv='Content-Security-Policy']") {
+                let element = meta_node.as_node().as_element().unwrap();
+                let mut attrs = element.attributes.borrow_mut();
+                attrs.insert("content", updated_csp.clone());
+                false // Updated existing meta tag, don't create new one
+              } else {
+                true // Need to create new meta tag
+              };
+
+              if should_update_meta {
+                use kuchiki::{Attribute, ExpandedName};
+                let csp_meta = NodeRef::new_element(
+                  QualName::new(None, ns!(html), LocalName::from("meta")),
+                  vec![
+                    (
+                      ExpandedName::new(ns!(), LocalName::from("http-equiv")),
+                      Attribute {
+                        prefix: None,
+                        value: "Content-Security-Policy".into(),
+                      },
+                    ),
+                    (
+                      ExpandedName::new(ns!(), LocalName::from("content")),
+                      Attribute {
+                        prefix: None,
+                        value: updated_csp.into(),
+                      },
+                    ),
+                  ],
+                );
+                head.prepend(csp_meta);
+              }
+            }
+
+            // iterate in reverse order since we are prepending each script to the head tag
+            for init_script in self.initialization_scripts.iter().rev() {
+              let script_el = NodeRef::new_element(
+                QualName::new(None, ns!(html), "script".into()),
+                None,
+              );
+              script_el.append(NodeRef::new_text(init_script.script.as_str()));
+              head.prepend(script_el);
+            }
+
+            // Serialize the modified HTML
+            let modified_html = serialize_node(&document);
+            *self.processed_html.borrow_mut() = Some(modified_html);
+          } else {
+            // Not valid UTF-8, pass through unchanged
+            *self.processed_html.borrow_mut() = Some(data_in.clone());
+          }
+        }
+
+        // Mark all input as read (CEF requirement: must read all input)
+        if let Some(data_in_read) = data_in_read {
+          *data_in_read = input_size;
+        }
+      }
+
+      if let Some(data_out) = data_out {
+        if let Some(processed) = self.processed_html.borrow().as_ref() {
+          let offset = *self.output_offset.borrow();
+          let remaining = processed.len().saturating_sub(offset);
+
+          if remaining > 0 {
+            let buffer_size = data_out.capacity();
+            let to_write = remaining.min(buffer_size);
+
+            data_out.clear();
+            data_out.extend_from_slice(&processed[offset..offset + to_write]);
+
+            if let Some(written) = data_out_written {
+              *written = to_write;
+            }
+
+            *self.output_offset.borrow_mut() += to_write;
+
+            if *self.output_offset.borrow() >= processed.len() {
+              RESPONSE_FILTER_DONE.into()
+            } else {
+              RESPONSE_FILTER_NEED_MORE_DATA.into()
+            }
+          } else {
+            // No remaining data to write
+            RESPONSE_FILTER_DONE.into()
+          }
+        } else {
+          // No processed HTML yet - need more input data
+          RESPONSE_FILTER_NEED_MORE_DATA.into()
+        }
+      } else {
+        // No output buffer provided
+        // If we have input, we've already processed it, so we're done
+        // If we don't have input, this is a final call and we're done
+        RESPONSE_FILTER_DONE.into()
+      }
+    }
+  }
+}
+
+wrap_resource_request_handler! {
+  pub struct WebResourceRequestHandler {
+    initialization_scripts: Vec<CefInitScript>,
+  }
+
+  impl ResourceRequestHandler {
+    // Store CSP header from on_resource_response for use in filter
     fn on_resource_response(
       &self,
-      browser: Option<&mut Browser>,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _request: Option<&mut Request>,
+      _response: Option<&mut Response>,
+    ) -> ::std::os::raw::c_int {
+      // Response is read-only here, but we can read the CSP header
+      // and it will be available in resource_response_filter
+      0
+    }
+
+    fn resource_response_filter(
+      &self,
+      _browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
       request: Option<&mut Request>,
       response: Option<&mut Response>,
-    ) -> ::std::os::raw::c_int {
-      Default::default()
+    ) -> Option<ResponseFilter> {
+      let Some(response) = response else {
+        return None;
+      };
+
+      // Skip DevTools URLs - they use internal resources that shouldn't be modified
+      if let Some(request) = request {
+        let url = CefString::from(&request.url()).to_string();
+        if url.starts_with("devtools://") {
+          return None;
+        }
+      }
+
+      let content_type = response.mime_type();
+      let content_type_str = CefString::from(&content_type).to_string().to_lowercase();
+
+      // Only process HTML responses
+      if !content_type_str.starts_with("text/html") {
+        return None;
+      }
+
+      let Some(frame) = frame else {
+        return None;
+      };
+
+      // Extract CSP header if present
+      let csp_header = {
+        let csp_header_name = CefString::from("Content-Security-Policy");
+        let existing_csp = response.header_by_name(Some(&csp_header_name));
+        // check if csp_header is not null manually - I believe header_by_name should return Option instead
+        let csp_header: Option<&cef_dll_sys::_cef_string_utf16_t> = (&existing_csp).into();
+        if csp_header.is_some() {
+          Some(CefString::from(&existing_csp).to_string())
+        } else {
+          None
+        }
+      };
+
+      let is_main_frame = frame.is_main() == 1;
+
+      // Filter scripts based on frame type
+      let scripts_to_inject: Vec<_> = if is_main_frame {
+        self.initialization_scripts.iter().map(|s| s.script.clone()).collect()
+      } else {
+        self.initialization_scripts
+          .iter()
+          .filter(|s| !s.script.for_main_frame_only)
+          .map(|s| s.script.clone())
+          .collect()
+      };
+
+      if scripts_to_inject.is_empty() {
+        return None;
+      }
+
+      // Get pre-computed hashes for the scripts
+      let script_hashes: Vec<String> = if is_main_frame {
+        self.initialization_scripts.iter().map(|s| s.hash.clone()).collect()
+      } else {
+        self.initialization_scripts
+          .iter()
+          .filter(|s| !s.script.for_main_frame_only)
+          .map(|s| s.hash.clone())
+          .collect()
+      };
+
+      // Return a filter that will inject scripts and update CSP in HTML if header exists
+      Some(HtmlScriptInjectionFilter::new(
+        scripts_to_inject,
+        script_hashes,
+        csp_header,
+        RefCell::new(None),
+        RefCell::new(0),
+      ))
     }
 
     fn on_before_resource_load(
       &self,
-      browser: Option<&mut Browser>,
-      frame: Option<&mut Frame>,
-      request: Option<&mut Request>,
-      callback: Option<&mut Callback>,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _request: Option<&mut Request>,
+      _callback: Option<&mut Callback>,
     ) -> ReturnValue {
       sys::cef_return_value_t::RV_CONTINUE.into()
     }
@@ -46,20 +297,24 @@ wrap_resource_request_handler! {
 }
 
 wrap_request_handler! {
-  pub struct WebRequestHandler;
+  pub struct WebRequestHandler {
+    initialization_scripts: Vec<CefInitScript>,
+  }
 
   impl RequestHandler {
     fn resource_request_handler(
       &self,
-      browser: Option<&mut Browser>,
-      frame: Option<&mut Frame>,
-      request: Option<&mut Request>,
-      is_navigation: ::std::os::raw::c_int,
-      is_download: ::std::os::raw::c_int,
-      request_initiator: Option<&CefString>,
-      disable_default_handling: Option<&mut ::std::os::raw::c_int>,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _request: Option<&mut Request>,
+      _is_navigation: ::std::os::raw::c_int,
+      _is_download: ::std::os::raw::c_int,
+      _request_initiator: Option<&CefString>,
+      _disable_default_handling: Option<&mut ::std::os::raw::c_int>,
     ) -> Option<ResourceRequestHandler> {
-      Some(WebResourceRequestHandler::new())
+      Some(WebResourceRequestHandler::new(
+        self.initialization_scripts.clone(),
+      ))
     }
   }
 }
@@ -118,7 +373,7 @@ wrap_resource_handler! {
       data_out: *mut u8,
       bytes_to_read: ::std::os::raw::c_int,
       bytes_read: Option<&mut ::std::os::raw::c_int>,
-      callback: Option<&mut ResourceReadCallback>,
+      _callback: Option<&mut ResourceReadCallback>,
     ) -> ::std::os::raw::c_int {
       let Ok(bytes_to_read) = usize::try_from(bytes_to_read) else {
         return 0;
@@ -147,14 +402,77 @@ wrap_resource_handler! {
 
       response.set_status(response_data.status().as_u16() as i32);
       let mut content_type = None;
+      let mut csp_header: Option<String> = None;
 
+      // First pass: collect CSP header and set other headers
       for (name, value) in response_data.headers() {
         let Ok(value) = value.to_str() else { continue; };
-        response.set_header_by_name(Some(&name.as_str().into()), Some(&value.into()), 0);
+
+        if name.as_str().eq_ignore_ascii_case("content-security-policy") {
+          csp_header = Some(value.to_string());
+        } else {
+          response.set_header_by_name(Some(&name.as_str().into()), Some(&value.into()), 0);
+        }
 
         if name == CONTENT_TYPE {
           content_type.replace(value.into());
         }
+      }
+
+      // Update CSP header with script hashes for custom schemes
+      if let Some(ref initialization_scripts) = self.context.initialization_scripts {
+        if !initialization_scripts.is_empty() {
+          let scripts_to_include: Vec<_> = initialization_scripts
+            .iter()
+            .filter(|s| !s.script.for_main_frame_only)
+            .cloned()
+            .collect();
+
+          if !scripts_to_include.is_empty() {
+            let script_hashes: Vec<String> = scripts_to_include
+              .iter()
+              .map(|s| s.hash.clone())
+              .collect();
+
+          let csp_header_name = CefString::from("Content-Security-Policy");
+          let new_csp = if let Some(existing_csp) = csp_header {
+            // Parse CSP using tauri-utils
+            let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
+              Csp::Policy(existing_csp).into();
+
+            // Update or create script-src directive with script hashes
+            let script_src = csp_map
+              .entry("script-src".to_string())
+              .or_insert_with(|| CspDirectiveSources::List(vec!["'self'".to_string()]));
+
+            // Extend with script hashes
+            script_src.extend(script_hashes);
+
+            // Convert back to CSP string
+            Csp::DirectiveMap(csp_map).to_string()
+          } else {
+            // No existing CSP, create new one with just script-src
+            let mut csp_map = std::collections::HashMap::new();
+            let mut script_src = CspDirectiveSources::List(vec!["'self'".to_string()]);
+            script_src.extend(script_hashes);
+            csp_map.insert("script-src".to_string(), script_src);
+            Csp::DirectiveMap(csp_map).to_string()
+          };
+
+            response.set_header_by_name(
+              Some(&csp_header_name),
+              Some(&CefString::from(new_csp.as_str())),
+              1, // overwrite
+            );
+          }
+        }
+      } else if let Some(csp) = csp_header {
+        // No scripts to inject, just copy the original CSP header
+        response.set_header_by_name(
+          Some(&CefString::from("Content-Security-Policy")),
+          Some(&CefString::from(csp.as_str())),
+          0,
+        );
       }
 
       response.set_mime_type(Some(&content_type.unwrap_or_else(|| "text/plain".into())));
@@ -178,10 +496,10 @@ wrap_scheme_handler_factory! {
   impl SchemeHandlerFactory {
     fn create(
       &self,
-      browser: Option<&mut Browser>,
-      frame: Option<&mut Frame>,
-      scheme_name: Option<&CefString>,
-      request: Option<&mut Request>,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _scheme_name: Option<&CefString>,
+      _request: Option<&mut Request>,
     ) -> Option<ResourceHandler> {
       Some(WebResourceHandler::new(self.context.clone()))
     }
@@ -193,6 +511,7 @@ pub struct UriSchemeContext {
   pub label: String,
   pub handler: Arc<UriSchemeProtocol>,
   pub response: Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>,
+  pub initialization_scripts: Option<Vec<CefInitScript>>,
 }
 
 struct ThreadSafe<T>(T);

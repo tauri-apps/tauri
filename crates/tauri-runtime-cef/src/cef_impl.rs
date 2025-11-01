@@ -6,17 +6,18 @@ use std::{
   collections::HashMap,
   sync::{
     atomic::{AtomicU32, Ordering},
-    Arc,
+    mpsc::channel,
+    Arc, Mutex,
   },
 };
 use tauri_runtime::{
   webview::{InitializationScript, PendingWebview, UriSchemeProtocol},
-  window::{PendingWindow, WindowId},
-  RunEvent, UserEvent,
+  window::{PendingWindow, WindowEvent, WindowId},
+  ExitRequestedEventAction, RunEvent, UserEvent,
 };
 use tauri_utils::html::normalize_script_for_csp;
 
-use crate::{AppWindow, BrowserViewWrapper, CefRuntime, Message};
+use crate::{AppWindow, BrowserViewWrapper, CefRuntime, Message, WindowMessage};
 
 mod request_handler;
 
@@ -43,8 +44,6 @@ fn hash_script(script: &str) -> String {
     base64::engine::general_purpose::STANDARD.encode(hash)
   )
 }
-
-// Initialization scripts are now injected into HTML responses via ResourceHandler
 
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
@@ -84,15 +83,8 @@ wrap_app! {
       Some(AppBrowserProcessHandler::new(self.context.clone()))
     }
 
-    /// Called before the process starts to register custom schemes.
-    /// This is where we mark schemes as fetch-enabled, secure, and CORS-enabled.
     fn on_register_custom_schemes(&self, registrar: Option<&mut SchemeRegistrar>) {
       if let Some(registrar) = registrar {
-        // Standard CEF scheme options for custom protocols:
-        // - FETCH_ENABLED: Allows Fetch API requests
-        // - SECURE: Treats as secure like https (no mixed content warnings)
-        // - CORS_ENABLED: Allows CORS requests
-        // - STANDARD: Standard URL scheme behavior
         let scheme_options = (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_FETCH_ENABLED as i32)
           | (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_SECURE as i32)
           | (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED as i32)
@@ -113,7 +105,6 @@ wrap_browser_process_handler! {
   }
 
   impl BrowserProcessHandler {
-    // The real lifespan of cef starts from `on_context_initialized`, so all the cef objects should be manipulated after that.
     fn on_context_initialized(&self) {
       (self.context.callback.borrow_mut())(RunEvent::Ready);
     }
@@ -132,20 +123,16 @@ wrap_load_handler! {
       frame: Option<&mut Frame>,
       http_status_code: ::std::os::raw::c_int,
     ) {
-      // Only execute scripts for successful loads (200-299)
       if http_status_code < 200 || http_status_code >= 300 {
         return;
       }
 
       let Some(frame) = frame else { return };
 
-      // Get the URL to check if it's a remote URL
       let url = frame.url();
       let url_str = cef::CefString::from(&url).to_string();
       let url_obj = url::Url::parse(&url_str).ok();
 
-      // Only execute scripts for remote URLs (http/https)
-      // Custom schemes use HTML injection
       let is_remote_url = url_obj
         .as_ref()
         .map(|u| matches!(u.scheme(), "http" | "https"))
@@ -157,7 +144,6 @@ wrap_load_handler! {
 
       let is_main_frame = frame.is_main() == 1;
 
-      // Filter scripts based on frame type
       let scripts_to_execute: Vec<_> = if is_main_frame {
         self.initialization_scripts.clone()
       } else {
@@ -168,12 +154,10 @@ wrap_load_handler! {
           .collect()
       };
 
-      // Execute each script via frame.execute_java_script
       for script in scripts_to_execute {
         let script_text = script.script.script.clone();
         let script_url = format!("{}://__tauri_init_script__", url_obj.as_ref().map(|u| u.scheme()).unwrap_or("http"));
 
-        // Execute JavaScript in the frame
         frame.execute_java_script(
           Some(&cef::CefString::from(script_text.as_str())),
           Some(&cef::CefString::from(script_url.as_str())),
@@ -191,7 +175,6 @@ wrap_client! {
 
   impl Client {
     fn request_handler(&self) -> Option<RequestHandler> {
-      // Use pre-computed script hashes (computed once at webview creation)
       Some(request_handler::WebRequestHandler::new(
         self.initialization_scripts.clone(),
       ))
@@ -217,10 +200,9 @@ wrap_browser_view_delegate! {
       use cef::sys::cef_runtime_style_t;
 
       if self.use_alloy_style {
-        // Use Alloy style for additional webviews (multiwebview support)
+        // Use Alloy style for multiwebview support
         RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_ALLOY)
       } else {
-        // Use Chrome style (default) for the first webview
         RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME)
       }
     }
@@ -228,37 +210,19 @@ wrap_browser_view_delegate! {
 }
 
 wrap_window_delegate! {
-  struct AppWindowDelegate {
-    initial_browser_view: Option<BrowserView>,
+  struct AppWindowDelegate<T: UserEvent> {
+    window_id: WindowId,
+    callback: Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+    windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
   }
 
-  impl ViewDelegate {
-    fn on_child_view_changed(
-      &self,
-      _view: Option<&mut View>,
-      _added: ::std::os::raw::c_int,
-      _child: Option<&mut View>,
-    ) {
-      // view.as_panel().map(|x| x.as_window().map(|w| w.close()));
-    }
-  }
+  impl ViewDelegate {}
 
   impl PanelDelegate {}
 
   impl WindowDelegate {
-    fn on_window_created(&self, window: Option<&mut Window>) {
-      if let Some(window) = window {
-        // If we have an initial browser view, add it
-        if let Some(ref browser_view) = self.initial_browser_view {
-          let mut view = View::from(browser_view);
-          window.add_child_view(Some(&mut view));
-        }
-        window.show();
-      }
-    }
-
     fn on_window_destroyed(&self, _window: Option<&mut Window>) {
-      // TODO: send destroyed event
+      on_window_destroyed(self.window_id, &self.windows, &self.callback);
     }
 
     fn with_standard_window_buttons(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
@@ -278,7 +242,18 @@ wrap_window_delegate! {
     }
 
     fn can_close(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
-      1
+      let (tx, rx) = channel();
+      let event = WindowEvent::CloseRequested { signal_tx: tx };
+
+      send_window_event(self.window_id, &self.windows, &self.callback, event.clone());
+
+      let should_prevent = matches!(rx.try_recv(), Ok(true));
+
+      if should_prevent {
+        0
+      } else {
+        1
+      }
     }
   }
 }
@@ -315,8 +290,6 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
         {
           if let Some(browser) = browser_view_wrapper.browser_view.browser() {
             if let Some(host) = browser.host() {
-              // ShowDevTools(window_info, client, settings, inspect_element_at)
-              // Using None for client and default settings, inspect at (0,0)
               let window_info = cef::WindowInfo::default();
               let settings = cef::BrowserSettings::default();
               let inspect_at = cef::Point { x: 0, y: 0 };
@@ -350,6 +323,37 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
         }
       }
     }
+    Message::Window { window_id, message } => match message {
+      WindowMessage::Close => {
+        on_close_requested(window_id, &context.windows, &context.callback);
+      }
+      WindowMessage::Destroy => {
+        on_window_close(window_id, &context.windows);
+      }
+      WindowMessage::AddEventListener(event_id, handler) => {
+        if let Some(app_window) = context.windows.borrow().get(&window_id) {
+          app_window
+            .window_event_listeners
+            .lock()
+            .unwrap()
+            .insert(event_id, handler);
+        }
+      }
+    },
+    Message::RequestExit(code) => {
+      let (tx, rx) = channel();
+      (context.callback.borrow_mut())(RunEvent::ExitRequested {
+        code: Some(code),
+        tx,
+      });
+
+      let recv = rx.try_recv();
+      let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+      if !should_prevent {
+        cef::quit_message_loop();
+      }
+    }
     Message::Task(t) => t(),
     Message::UserEvent(evt) => {
       (context.callback.borrow_mut())(RunEvent::UserEvent(evt));
@@ -379,14 +383,12 @@ fn create_window<T: UserEvent>(
 ) {
   let label = pending.label.clone();
 
-  // Create window delegate - we'll handle webviews separately
-  // For windows without webviews, we use a delegate without initial browser view
-  let mut delegate = AppWindowDelegate::new(None);
+  let mut delegate =
+    AppWindowDelegate::<T>::new(window_id, context.callback.clone(), context.windows.clone());
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
   window.show();
 
-  // Insert window with empty webviews list
   context.windows.borrow_mut().insert(
     window_id,
     AppWindow {
@@ -394,10 +396,10 @@ fn create_window<T: UserEvent>(
       window,
       webviews: Vec::new(),
       content_panel: None,
+      window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
     },
   );
 
-  // If a webview was provided, create it now
   if let Some(webview) = pending.webview {
     let webview_id = context.next_webview_id();
     create_webview(
@@ -418,6 +420,80 @@ enum WebviewKind {
   WindowChild,
 }
 
+fn send_window_event<T: UserEvent>(
+  window_id: WindowId,
+  windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
+  callback: &Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+  event: WindowEvent,
+) {
+  let windows_ref = windows.borrow();
+  if let Some(w) = windows_ref.get(&window_id) {
+    let label = w.label.clone();
+    let window_event_listeners = w.window_event_listeners.clone();
+
+    drop(windows_ref);
+
+    {
+      let listeners = window_event_listeners.lock().unwrap();
+      let handlers: Vec<_> = listeners.values().collect();
+      for handler in handlers.iter() {
+        handler(&event);
+      }
+    }
+
+    (callback.borrow_mut())(RunEvent::WindowEvent { label, event });
+  }
+}
+
+fn on_close_requested<T: UserEvent>(
+  window_id: WindowId,
+  windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
+  callback: &Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+) {
+  let (tx, rx) = channel();
+  let event = WindowEvent::CloseRequested { signal_tx: tx };
+
+  send_window_event(window_id, windows, callback, event.clone());
+
+  let prevent = rx.try_recv().unwrap_or_default();
+
+  if !prevent {
+    on_window_close(window_id, windows);
+  }
+}
+
+fn on_window_close(window_id: WindowId, windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>) {
+  if let Some(window) = windows.borrow().get(&window_id) {
+    window.window.close();
+  }
+}
+
+fn on_window_destroyed<T: UserEvent>(
+  window_id: WindowId,
+  windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
+  callback: &Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+) {
+  let event = WindowEvent::Destroyed;
+  send_window_event(window_id, windows, callback, event);
+
+  let removed = windows.borrow_mut().remove(&window_id).is_some();
+
+  if removed {
+    let is_empty = windows.borrow().is_empty();
+    if is_empty {
+      let (tx, rx) = channel();
+      (callback.borrow_mut())(RunEvent::ExitRequested { code: None, tx });
+
+      let recv = rx.try_recv();
+      let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+      if !should_prevent {
+        cef::quit_message_loop();
+      }
+    }
+  }
+}
+
 fn create_webview<T: UserEvent>(
   kind: WebviewKind,
   context: &Context<T>,
@@ -425,7 +501,6 @@ fn create_webview<T: UserEvent>(
   webview_id: u32,
   pending: PendingWebview<T, CefRuntime<T>>,
 ) {
-  // Get the window - return early if not found
   let mut windows = context.windows.borrow_mut();
   let app_window = match windows.get_mut(&window_id) {
     Some(w) => w,
@@ -459,7 +534,6 @@ fn create_webview<T: UserEvent>(
     Option::<&mut RequestContextHandler>::None,
   );
   if let Some(request_context) = &request_context {
-    // Ensure schemes are registered with proper flags (fetch-enabled, secure, etc.)
     for (scheme, handler) in pending.uri_scheme_protocols {
       let label = app_window.label.clone();
       request_context.register_scheme_handler_factory(

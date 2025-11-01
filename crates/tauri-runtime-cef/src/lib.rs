@@ -65,8 +65,19 @@ enum Message<T: UserEvent + 'static> {
     window_id: WindowId,
     webview_id: u32,
   },
+  Window {
+    window_id: WindowId,
+    message: WindowMessage,
+  },
+  RequestExit(i32),
   UserEvent(T),
   Noop,
+}
+
+enum WindowMessage {
+  Close,
+  Destroy,
+  AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
 }
 
 impl<T: UserEvent> fmt::Debug for Message<T> {
@@ -79,6 +90,8 @@ impl<T: UserEvent> fmt::Debug for Message<T> {
       Self::OpenDevTools { .. } => write!(f, "OpenDevTools"),
       #[cfg(any(debug_assertions, feature = "devtools"))]
       Self::CloseDevTools { .. } => write!(f, "CloseDevTools"),
+      Self::Window { .. } => write!(f, "Window"),
+      Self::RequestExit(_) => write!(f, "RequestExit"),
       Self::UserEvent(_) => write!(f, "UserEvent"),
       Self::Noop => write!(f, "Noop"),
     }
@@ -100,11 +113,15 @@ pub(crate) struct BrowserViewWrapper {
   pub overlay: Option<cef::OverlayController>,
 }
 
+pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
+pub type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventHandler>>>;
+
 pub(crate) struct AppWindow {
   pub label: String,
   pub window: cef::Window,
   pub webviews: Vec<BrowserViewWrapper>,
   pub content_panel: Option<cef::Panel>, // Panel container for multiwebview (similar to Electron's contentView)
+  pub window_event_listeners: WindowEventListeners,
 }
 
 #[derive(Clone)]
@@ -256,7 +273,8 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   }
 
   fn request_exit(&self, code: i32) -> Result<()> {
-    unimplemented!()
+    // Request exit by posting a task to quit the message loop
+    self.context.post_message(Message::RequestExit(code))
   }
 
   /// Create a new webview window.
@@ -744,7 +762,18 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
   }
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
-    0
+    let context = self.context.clone();
+    let window_id = self.window_id;
+    let event_id = context.cef_context.next_window_event_id();
+    let handler = Box::new(f);
+
+    // Register the listener on the main thread
+    let _ = context.post_message(Message::Window {
+      window_id,
+      message: WindowMessage::AddEventListener(event_id, handler),
+    });
+
+    event_id
   }
 
   fn scale_factor(&self) -> Result<f64> {
@@ -956,11 +985,17 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
   }
 
   fn close(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Close,
+    })
   }
 
   fn destroy(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Destroy,
+    })
   }
 
   fn set_decorations(&self, decorations: bool) -> Result<()> {

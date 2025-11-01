@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Welcome to Tauri!</title>
+    <style>
+      :root {
+        --text-color: #000000;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --text-color: #ffffff;
+        }
+      }
+
+      body {
+        color: var(--text-color);
+        margin: 0;
+        padding: 2rem;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+    </style>
   </head>
   <body>
     <h1>Welcome to Tauri!</h1>

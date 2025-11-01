@@ -96,6 +96,7 @@ impl<T: UserEvent> Clone for Message<T> {
 pub(crate) struct BrowserViewWrapper {
   pub webview_id: u32,
   pub browser_view: cef::BrowserView,
+  pub overlay: Option<cef::OverlayController>,
 }
 
 pub(crate) struct AppWindow {

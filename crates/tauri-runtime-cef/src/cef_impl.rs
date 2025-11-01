@@ -508,41 +508,36 @@ fn create_webview<T: UserEvent>(
     }
   });
 
-  if let Some(bounds) = &bounds {
-    view.set_bounds(Some(bounds));
-  }
-
   if kind == WebviewKind::WindowChild {
-    let panel = if let Some(panel) = &app_window.content_panel {
-      panel.clone()
-    } else {
-      let panel = cef::panel_create(None).expect("Failed to create content panel");
+    let overlay = app_window
+      .window
+      .add_overlay_view(
+        Some(&mut view),
+        cef::DockingMode::from(cef::sys::cef_docking_mode_t::CEF_DOCKING_MODE_CUSTOM),
+        1,
+      )
+      .expect("Failed to add overlay view");
 
-      panel.set_bounds(Some(&app_window.window.bounds()));
+    if let Some(bounds) = &bounds {
+      overlay.set_bounds(Some(bounds));
+    }
+    overlay.set_visible(1);
 
-      use cef::BoxLayoutSettings;
-      let mut layout_settings = BoxLayoutSettings::default();
-      layout_settings.horizontal = 1;
-      layout_settings.default_flex = 0;
-      layout_settings.between_child_spacing = 0;
-      panel.set_to_box_layout(Some(&layout_settings));
-
-      app_window
-        .window
-        .add_child_view(Some(&mut View::from(&panel)));
-
-      app_window.content_panel.replace(panel.clone());
-
-      panel
-    };
-
-    panel.add_child_view(Some(&mut view));
+    app_window.webviews.push(BrowserViewWrapper {
+      webview_id,
+      browser_view,
+      overlay: Some(overlay),
+    });
   } else {
     app_window.window.add_child_view(Some(&mut view));
-  }
+    if let Some(bounds) = &bounds {
+      view.set_bounds(Some(bounds));
+    }
 
-  app_window.webviews.push(BrowserViewWrapper {
-    webview_id,
-    browser_view,
-  });
+    app_window.webviews.push(BrowserViewWrapper {
+      webview_id,
+      browser_view,
+      overlay: None,
+    });
+  }
 }

@@ -71,6 +71,20 @@ macro_rules! webview_getter {
   }};
 }
 
+macro_rules! window_getter {
+  ($self: ident, $message_variant: path) => {{
+    let (tx, rx) = channel();
+    getter!(
+      $self,
+      rx,
+      Message::Window {
+        window_id: $self.window_id,
+        message: $message_variant(tx)
+      }
+    )
+  }};
+}
+
 enum Message<T: UserEvent + 'static> {
   Task(Box<dyn FnOnce() + Send>),
   CreateWindow {
@@ -102,6 +116,83 @@ enum WindowMessage {
   Close,
   Destroy,
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
+  // Getters
+  ScaleFactor(Sender<Result<f64>>),
+  InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
+  OuterPosition(Sender<Result<PhysicalPosition<i32>>>),
+  InnerSize(Sender<Result<PhysicalSize<u32>>>),
+  OuterSize(Sender<Result<PhysicalSize<u32>>>),
+  IsFullscreen(Sender<Result<bool>>),
+  IsMinimized(Sender<Result<bool>>),
+  IsMaximized(Sender<Result<bool>>),
+  IsFocused(Sender<Result<bool>>),
+  IsDecorated(Sender<Result<bool>>),
+  IsResizable(Sender<Result<bool>>),
+  IsMaximizable(Sender<Result<bool>>),
+  IsMinimizable(Sender<Result<bool>>),
+  IsClosable(Sender<Result<bool>>),
+  IsVisible(Sender<Result<bool>>),
+  Title(Sender<Result<String>>),
+  CurrentMonitor(Sender<Result<Option<Monitor>>>),
+  PrimaryMonitor(Sender<Result<Option<Monitor>>>),
+  MonitorFromPoint(Sender<Result<Option<Monitor>>>, f64, f64),
+  AvailableMonitors(Sender<Result<Vec<Monitor>>>),
+  Theme(Sender<Result<Theme>>),
+  IsEnabled(Sender<Result<bool>>),
+  IsAlwaysOnTop(Sender<Result<bool>>),
+  RawWindowHandle(
+    Sender<
+      std::result::Result<raw_window_handle::WindowHandle<'static>, raw_window_handle::HandleError>,
+    >,
+  ),
+  // Setters
+  Center,
+  RequestUserAttention(Option<UserAttentionType>),
+  SetEnabled(bool),
+  SetResizable(bool),
+  SetMaximizable(bool),
+  SetMinimizable(bool),
+  SetClosable(bool),
+  SetTitle(String),
+  Maximize,
+  Unmaximize,
+  Minimize,
+  Unminimize,
+  Show,
+  Hide,
+  SetDecorations(bool),
+  SetShadow(bool),
+  SetAlwaysOnBottom(bool),
+  SetAlwaysOnTop(bool),
+  SetVisibleOnAllWorkspaces(bool),
+  SetContentProtected(bool),
+  SetSize(Size),
+  SetMinSize(Option<Size>),
+  SetMaxSize(Option<Size>),
+  SetSizeConstraints(tauri_runtime::window::WindowSizeConstraints),
+  SetPosition(Position),
+  SetFullscreen(bool),
+  #[cfg(target_os = "macos")]
+  SetSimpleFullscreen(bool),
+  SetFocus,
+  SetFocusable(bool),
+  SetIcon(Icon<'static>),
+  SetSkipTaskbar(bool),
+  SetCursorGrab(bool),
+  SetCursorVisible(bool),
+  SetCursorIcon(CursorIcon),
+  SetCursorPosition(Position),
+  SetIgnoreCursorEvents(bool),
+  SetProgressBar(ProgressBarState),
+  SetBadgeCount(Option<i64>, Option<String>),
+  SetBadgeLabel(Option<String>),
+  SetOverlayIcon(Option<Icon<'static>>),
+  SetTitleBarStyle(tauri_utils::TitleBarStyle),
+  SetTrafficLightPosition(Position),
+  SetTheme(Option<Theme>),
+  SetBackgroundColor(Option<Color>),
+  StartDragging,
+  StartResizeDragging(tauri_runtime::ResizeDirection),
 }
 
 pub enum WebviewMessage {
@@ -181,9 +272,10 @@ pub(crate) struct AppWindow {
   pub label: String,
   pub window: cef::Window,
   pub webviews: Vec<BrowserViewWrapper>,
-  pub content_panel: Option<cef::Panel>, // Panel container for multiwebview (similar to Electron's contentView)
+  pub content_panel: Option<cef::Panel>,
   pub window_event_listeners: WindowEventListeners,
   pub webview_event_listeners: WebviewEventListeners,
+  pub attributes: CefWindowBuilder,
 }
 
 #[derive(Clone)]
@@ -469,92 +561,300 @@ pub struct CefWindowDispatcher<T: UserEvent> {
   context: RuntimeContext<T>,
 }
 
-#[derive(Debug, Clone)]
-pub struct CefWindowBuilder {}
+#[derive(Clone)]
+pub struct CefWindowBuilder {
+  title: Option<String>,
+  position: Option<Position>,
+  inner_size: Option<Size>,
+  min_inner_size: Option<Size>,
+  max_inner_size: Option<Size>,
+  inner_size_constraints: Option<tauri_runtime::window::WindowSizeConstraints>,
+  center: bool,
+  prevent_overflow: Option<Size>,
+  resizable: Option<bool>,
+  maximizable: Option<bool>,
+  minimizable: Option<bool>,
+  closable: Option<bool>,
+  fullscreen: Option<bool>,
+  focused: Option<bool>,
+  focusable: Option<bool>,
+  maximized: Option<bool>,
+  visible: Option<bool>,
+  transparent: Option<bool>,
+  decorations: Option<bool>,
+  always_on_bottom: Option<bool>,
+  always_on_top: Option<bool>,
+  visible_on_all_workspaces: Option<bool>,
+  content_protected: Option<bool>,
+  skip_taskbar: Option<bool>,
+  shadow: Option<bool>,
+  theme: Option<Theme>,
+  background_color: Option<tauri_utils::config::Color>,
+  #[cfg(target_os = "macos")]
+  title_bar_style: Option<TitleBarStyle>,
+  #[cfg(target_os = "macos")]
+  traffic_light_position: Option<Position>,
+  #[cfg(target_os = "macos")]
+  hidden_title: Option<bool>,
+  #[cfg(target_os = "macos")]
+  tabbing_identifier: Option<String>,
+  #[cfg(windows)]
+  window_classname: Option<String>,
+  #[cfg(windows)]
+  owner: Option<HWND>,
+  #[cfg(windows)]
+  parent: Option<HWND>,
+  #[cfg(windows)]
+  drag_and_drop: Option<bool>,
+  has_icon: bool,
+}
+
+impl std::fmt::Debug for CefWindowBuilder {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("CefWindowBuilder")
+      .field("title", &self.title)
+      .field("center", &self.center)
+      .finish_non_exhaustive()
+  }
+}
+
+impl Default for CefWindowBuilder {
+  fn default() -> Self {
+    Self {
+      title: None,
+      position: None,
+      inner_size: None,
+      min_inner_size: None,
+      max_inner_size: None,
+      inner_size_constraints: None,
+      center: false,
+      prevent_overflow: None,
+      resizable: None,
+      maximizable: None,
+      minimizable: None,
+      closable: None,
+      fullscreen: None,
+      focused: Some(true),
+      focusable: None,
+      maximized: None,
+      visible: Some(true),
+      transparent: None,
+      decorations: Some(true),
+      always_on_bottom: None,
+      always_on_top: None,
+      visible_on_all_workspaces: None,
+      content_protected: None,
+      skip_taskbar: None,
+      shadow: None,
+      theme: None,
+      background_color: None,
+      #[cfg(target_os = "macos")]
+      title_bar_style: None,
+      #[cfg(target_os = "macos")]
+      traffic_light_position: None,
+      #[cfg(target_os = "macos")]
+      hidden_title: None,
+      #[cfg(target_os = "macos")]
+      tabbing_identifier: None,
+      #[cfg(windows)]
+      window_classname: None,
+      #[cfg(windows)]
+      owner: None,
+      #[cfg(windows)]
+      parent: None,
+      #[cfg(windows)]
+      drag_and_drop: None,
+      has_icon: false,
+    }
+  }
+}
 
 impl WindowBuilderBase for CefWindowBuilder {}
 
 impl WindowBuilder for CefWindowBuilder {
   fn new() -> Self {
-    Self {}
+    Self::default().title("Tauri App")
   }
 
   fn with_config(config: &WindowConfig) -> Self {
-    Self {}
+    let mut builder = Self::default();
+
+    builder = builder
+      .title(config.title.to_string())
+      .inner_size(config.width, config.height)
+      .focused(config.focus)
+      .focusable(config.focusable)
+      .visible(config.visible)
+      .resizable(config.resizable)
+      .fullscreen(config.fullscreen)
+      .decorations(config.decorations)
+      .maximized(config.maximized)
+      .always_on_bottom(config.always_on_bottom)
+      .always_on_top(config.always_on_top)
+      .visible_on_all_workspaces(config.visible_on_all_workspaces)
+      .content_protected(config.content_protected)
+      .skip_taskbar(config.skip_taskbar)
+      .theme(config.theme)
+      .closable(config.closable)
+      .maximizable(config.maximizable)
+      .minimizable(config.minimizable)
+      .shadow(config.shadow);
+
+    let mut constraints = tauri_runtime::window::WindowSizeConstraints::default();
+    if let Some(min_width) = config.min_width {
+      constraints.min_width = Some(tauri_runtime::dpi::LogicalUnit::new(min_width).into());
+    }
+    if let Some(min_height) = config.min_height {
+      constraints.min_height = Some(tauri_runtime::dpi::LogicalUnit::new(min_height).into());
+    }
+    if let Some(max_width) = config.max_width {
+      constraints.max_width = Some(tauri_runtime::dpi::LogicalUnit::new(max_width).into());
+    }
+    if let Some(max_height) = config.max_height {
+      constraints.max_height = Some(tauri_runtime::dpi::LogicalUnit::new(max_height).into());
+    }
+    builder = builder.inner_size_constraints(constraints);
+
+    if let Some(color) = config.background_color {
+      builder = builder.background_color(color);
+    }
+
+    if let (Some(x), Some(y)) = (config.x, config.y) {
+      builder = builder.position(x, y);
+    }
+
+    if config.center {
+      builder = builder.center();
+    }
+
+    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+    {
+      builder = builder.transparent(config.transparent);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+      builder = builder
+        .hidden_title(config.hidden_title)
+        .title_bar_style(config.title_bar_style);
+      if let Some(identifier) = &config.tabbing_identifier {
+        builder = builder.tabbing_identifier(identifier);
+      }
+      if let Some(position) = &config.traffic_light_position {
+        builder = builder.traffic_light_position(
+          tauri_runtime::dpi::LogicalPosition::new(position.x, position.y).into(),
+        );
+      }
+    }
+
+    #[cfg(windows)]
+    {
+      if let Some(window_classname) = &config.window_classname {
+        builder = builder.window_classname(window_classname);
+      }
+    }
+
+    builder
   }
 
-  fn center(self) -> Self {
+  fn center(mut self) -> Self {
+    self.center = true;
     self
   }
 
-  fn position(self, x: f64, y: f64) -> Self {
+  fn position(mut self, x: f64, y: f64) -> Self {
+    self.position = Some(Position::Logical(tauri_runtime::dpi::LogicalPosition::new(
+      x, y,
+    )));
     self
   }
 
-  fn inner_size(self, min_width: f64, min_height: f64) -> Self {
+  fn inner_size(mut self, width: f64, height: f64) -> Self {
+    self.inner_size = Some(Size::Logical(tauri_runtime::dpi::LogicalSize::new(
+      width, height,
+    )));
     self
   }
 
-  fn min_inner_size(self, min_width: f64, min_height: f64) -> Self {
+  fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
+    self.min_inner_size = Some(Size::Logical(tauri_runtime::dpi::LogicalSize::new(
+      min_width, min_height,
+    )));
     self
   }
 
-  fn max_inner_size(self, max_width: f64, max_height: f64) -> Self {
+  fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
+    self.max_inner_size = Some(Size::Logical(tauri_runtime::dpi::LogicalSize::new(
+      max_width, max_height,
+    )));
     self
   }
 
   fn inner_size_constraints(
-    self,
+    mut self,
     constraints: tauri_runtime::window::WindowSizeConstraints,
   ) -> Self {
+    self.inner_size_constraints = Some(constraints);
     self
   }
 
-  fn prevent_overflow(self) -> Self {
+  fn prevent_overflow(mut self) -> Self {
+    self.prevent_overflow = Some(Size::Physical(PhysicalSize::new(0, 0)));
     self
   }
 
-  fn prevent_overflow_with_margin(self, _margin: Size) -> Self {
+  fn prevent_overflow_with_margin(mut self, margin: Size) -> Self {
+    self.prevent_overflow = Some(margin);
     self
   }
 
-  fn resizable(self, resizable: bool) -> Self {
+  fn resizable(mut self, resizable: bool) -> Self {
+    self.resizable = Some(resizable);
     self
   }
 
-  fn maximizable(self, resizable: bool) -> Self {
+  fn maximizable(mut self, maximizable: bool) -> Self {
+    self.maximizable = Some(maximizable);
     self
   }
 
-  fn minimizable(self, resizable: bool) -> Self {
+  fn minimizable(mut self, minimizable: bool) -> Self {
+    self.minimizable = Some(minimizable);
     self
   }
 
-  fn closable(self, resizable: bool) -> Self {
+  fn closable(mut self, closable: bool) -> Self {
+    self.closable = Some(closable);
     self
   }
 
-  fn title<S: Into<String>>(self, title: S) -> Self {
+  fn title<S: Into<String>>(mut self, title: S) -> Self {
+    self.title = Some(title.into());
     self
   }
 
-  fn fullscreen(self, fullscreen: bool) -> Self {
+  fn fullscreen(mut self, fullscreen: bool) -> Self {
+    self.fullscreen = Some(fullscreen);
     self
   }
 
-  fn focused(self, focused: bool) -> Self {
+  fn focused(mut self, focused: bool) -> Self {
+    self.focused = Some(focused);
     self
   }
 
-  fn focusable(self, focusable: bool) -> Self {
+  fn focusable(mut self, focusable: bool) -> Self {
+    self.focusable = Some(focusable);
     self
   }
 
-  fn maximized(self, maximized: bool) -> Self {
+  fn maximized(mut self, maximized: bool) -> Self {
+    self.maximized = Some(maximized);
     self
   }
 
-  fn visible(self, visible: bool) -> Self {
+  fn visible(mut self, visible: bool) -> Self {
+    self.visible = Some(visible);
     self
   }
 
@@ -564,57 +864,78 @@ impl WindowBuilder for CefWindowBuilder {
     doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
   )]
   fn transparent(self, transparent: bool) -> Self {
+    let mut s = self;
+    s.transparent = Some(transparent);
+    s
+  }
+
+  fn decorations(mut self, decorations: bool) -> Self {
+    self.decorations = Some(decorations);
     self
   }
 
-  fn decorations(self, decorations: bool) -> Self {
+  fn always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.always_on_bottom = Some(always_on_bottom);
     self
   }
 
-  fn always_on_bottom(self, always_on_bottom: bool) -> Self {
+  fn always_on_top(mut self, always_on_top: bool) -> Self {
+    self.always_on_top = Some(always_on_top);
     self
   }
 
-  fn always_on_top(self, always_on_top: bool) -> Self {
+  fn visible_on_all_workspaces(mut self, visible_on_all_workspaces: bool) -> Self {
+    self.visible_on_all_workspaces = Some(visible_on_all_workspaces);
     self
   }
 
-  fn visible_on_all_workspaces(self, visible_on_all_workspaces: bool) -> Self {
+  fn content_protected(mut self, protected: bool) -> Self {
+    self.content_protected = Some(protected);
     self
   }
 
-  fn content_protected(self, protected: bool) -> Self {
-    self
-  }
-
-  fn icon(self, icon: Icon<'_>) -> Result<Self> {
+  fn icon(mut self, _icon: Icon<'_>) -> Result<Self> {
+    self.has_icon = true;
     Ok(self)
   }
 
-  fn skip_taskbar(self, skip: bool) -> Self {
+  fn skip_taskbar(mut self, skip: bool) -> Self {
+    self.skip_taskbar = Some(skip);
     self
   }
 
   fn window_classname<S: Into<String>>(self, classname: S) -> Self {
-    self
+    #[cfg(windows)]
+    {
+      let mut s = self;
+      s.window_classname = Some(classname.into());
+      s
+    }
+    #[cfg(not(windows))]
+    {
+      self
+    }
   }
 
-  fn shadow(self, enable: bool) -> Self {
+  fn shadow(mut self, enable: bool) -> Self {
+    self.shadow = Some(enable);
     self
   }
 
   #[cfg(windows)]
-  fn owner(self, owner: HWND) -> Self {
+  fn owner(mut self, owner: HWND) -> Self {
+    self.owner = Some(owner);
     self
   }
 
   #[cfg(windows)]
-  fn parent(self, parent: HWND) -> Self {
+  fn parent(mut self, parent: HWND) -> Self {
+    self.parent = Some(parent);
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn parent(self, parent: *mut std::ffi::c_void) -> Self {
+  fn parent(self, _parent: *mut std::ffi::c_void) -> Self {
     self
   }
 
@@ -625,49 +946,57 @@ impl WindowBuilder for CefWindowBuilder {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  fn transient_for(self, _parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
     self
   }
 
   #[cfg(windows)]
-  fn drag_and_drop(self, enabled: bool) -> Self {
+  fn drag_and_drop(mut self, enabled: bool) -> Self {
+    self.drag_and_drop = Some(enabled);
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn title_bar_style(self, style: TitleBarStyle) -> Self {
+  fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    self.title_bar_style = Some(style);
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn traffic_light_position<P: Into<Position>>(self, position: P) -> Self {
+  fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.traffic_light_position = Some(position.into());
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn hidden_title(self, transparent: bool) -> Self {
+  fn hidden_title(mut self, hidden: bool) -> Self {
+    self.hidden_title = Some(hidden);
     self
   }
 
   #[cfg(target_os = "macos")]
-  fn tabbing_identifier(self, identifier: &str) -> Self {
+  fn tabbing_identifier(mut self, identifier: &str) -> Self {
+    self.tabbing_identifier = Some(identifier.into());
     self
   }
 
-  fn theme(self, theme: Option<Theme>) -> Self {
+  fn theme(mut self, theme: Option<Theme>) -> Self {
+    self.theme = theme;
     self
   }
 
   fn has_icon(&self) -> bool {
-    false
+    self.has_icon
   }
 
   fn get_theme(&self) -> Option<Theme> {
-    None
+    self.theme
   }
 
-  fn background_color(self, _color: tauri_utils::config::Color) -> Self {
-    self
+  fn background_color(self, color: tauri_utils::config::Color) -> Self {
+    let mut s = self;
+    s.background_color = Some(color);
+    s
   }
 }
 
@@ -931,93 +1260,95 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
   }
 
   fn scale_factor(&self) -> Result<f64> {
-    Ok(1.0)
+    window_getter!(self, WindowMessage::ScaleFactor)?
   }
 
   fn inner_position(&self) -> Result<PhysicalPosition<i32>> {
-    Ok(PhysicalPosition { x: 0, y: 0 })
+    window_getter!(self, WindowMessage::InnerPosition)?
   }
 
   fn outer_position(&self) -> Result<PhysicalPosition<i32>> {
-    Ok(PhysicalPosition { x: 0, y: 0 })
+    window_getter!(self, WindowMessage::OuterPosition)?
   }
 
   fn inner_size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(PhysicalSize {
-      width: 0,
-      height: 0,
-    })
+    window_getter!(self, WindowMessage::InnerSize)?
   }
 
   fn outer_size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(PhysicalSize {
-      width: 0,
-      height: 0,
-    })
+    window_getter!(self, WindowMessage::OuterSize)?
   }
 
   fn is_fullscreen(&self) -> Result<bool> {
-    Ok(false)
+    window_getter!(self, WindowMessage::IsFullscreen)?
   }
 
   fn is_minimized(&self) -> Result<bool> {
-    Ok(false)
+    window_getter!(self, WindowMessage::IsMinimized)?
   }
 
   fn is_maximized(&self) -> Result<bool> {
-    Ok(false)
+    window_getter!(self, WindowMessage::IsMaximized)?
   }
 
   fn is_focused(&self) -> Result<bool> {
-    Ok(false)
+    window_getter!(self, WindowMessage::IsFocused)?
   }
 
   fn is_decorated(&self) -> Result<bool> {
-    Ok(false)
+    window_getter!(self, WindowMessage::IsDecorated)?
   }
 
   fn is_resizable(&self) -> Result<bool> {
-    Ok(false)
+    window_getter!(self, WindowMessage::IsResizable)?
   }
 
   fn is_maximizable(&self) -> Result<bool> {
-    Ok(true)
+    window_getter!(self, WindowMessage::IsMaximizable)?
   }
 
   fn is_minimizable(&self) -> Result<bool> {
-    Ok(true)
+    window_getter!(self, WindowMessage::IsMinimizable)?
   }
 
   fn is_closable(&self) -> Result<bool> {
-    Ok(true)
+    window_getter!(self, WindowMessage::IsClosable)?
   }
 
   fn is_visible(&self) -> Result<bool> {
-    Ok(true)
+    window_getter!(self, WindowMessage::IsVisible)?
   }
 
   fn title(&self) -> Result<String> {
-    Ok(String::new())
+    window_getter!(self, WindowMessage::Title)?
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(None)
+    window_getter!(self, WindowMessage::CurrentMonitor)?
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(None)
+    window_getter!(self, WindowMessage::PrimaryMonitor)?
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
-    Ok(None)
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::Window {
+        window_id: self.window_id,
+        message: WindowMessage::MonitorFromPoint(tx, x, y)
+      }
+    )?
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-    Ok(Vec::new())
+    window_getter!(self, WindowMessage::AvailableMonitors)?
   }
 
   fn theme(&self) -> Result<Theme> {
-    Ok(Theme::Light)
+    window_getter!(self, WindowMessage::Theme)?
   }
 
   #[cfg(any(
@@ -1045,38 +1376,30 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    #[cfg(target_os = "linux")]
-    return unsafe {
-      Ok(raw_window_handle::WindowHandle::borrow_raw(
-        raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(0)),
-      ))
-    };
-    #[cfg(target_os = "macos")]
-    return unsafe {
-      Ok(raw_window_handle::WindowHandle::borrow_raw(
-        raw_window_handle::RawWindowHandle::AppKit(raw_window_handle::AppKitWindowHandle::new(
-          std::ptr::NonNull::from(&()).cast(),
-        )),
-      ))
-    };
-    #[cfg(windows)]
-    return unsafe {
-      Ok(raw_window_handle::WindowHandle::borrow_raw(
-        raw_window_handle::RawWindowHandle::Win32(raw_window_handle::Win32WindowHandle::new(
-          std::num::NonZeroIsize::MIN,
-        )),
-      ))
-    };
-    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-    unimplemented!();
+    let (tx, rx) = channel();
+    self
+      .context
+      .post_message(Message::Window {
+        window_id: self.window_id,
+        message: WindowMessage::RawWindowHandle(tx),
+      })
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?;
+    rx.recv()
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
   }
 
   fn center(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Center,
+    })
   }
 
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::RequestUserAttention(request_type),
+    })
   }
 
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
@@ -1095,47 +1418,80 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetResizable(resizable),
+    })
   }
 
   fn set_maximizable(&self, maximizable: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetMaximizable(maximizable),
+    })
   }
 
   fn set_minimizable(&self, minimizable: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetMinimizable(minimizable),
+    })
   }
 
   fn set_closable(&self, closable: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetClosable(closable),
+    })
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetTitle(title.into()),
+    })
   }
 
   fn maximize(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Maximize,
+    })
   }
 
   fn unmaximize(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Unmaximize,
+    })
   }
 
   fn minimize(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Minimize,
+    })
   }
 
   fn unminimize(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Unminimize,
+    })
   }
 
   fn show(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Show,
+    })
   }
 
   fn hide(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::Hide,
+    })
   }
 
   fn close(&self) -> Result<()> {
@@ -1153,147 +1509,242 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
   }
 
   fn set_decorations(&self, decorations: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetDecorations(decorations),
+    })
   }
 
   fn set_shadow(&self, shadow: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetShadow(shadow),
+    })
   }
 
   fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetAlwaysOnBottom(always_on_bottom),
+    })
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetAlwaysOnTop(always_on_top),
+    })
   }
 
   fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces),
+    })
   }
 
   fn set_content_protected(&self, protected: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetContentProtected(protected),
+    })
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetSize(size),
+    })
   }
 
   fn set_min_size(&self, size: Option<Size>) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetMinSize(size),
+    })
   }
 
   fn set_max_size(&self, size: Option<Size>) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetMaxSize(size),
+    })
   }
 
   fn set_position(&self, position: Position) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetPosition(position),
+    })
   }
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetFullscreen(fullscreen),
+    })
   }
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, fullscreen: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetSimpleFullscreen(fullscreen),
+    })
   }
 
   fn set_focus(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetFocus,
+    })
   }
 
-  fn set_focusable(&self, _focusable: bool) -> Result<()> {
-    Ok(())
+  fn set_focusable(&self, focusable: bool) -> Result<()> {
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetFocusable(focusable),
+    })
   }
 
-  fn set_icon(&self, icon: Icon<'_>) -> Result<()> {
+  fn set_icon(&self, _icon: Icon<'_>) -> Result<()> {
+    // TODO: Implement icon setting for CEF
     Ok(())
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetSkipTaskbar(skip),
+    })
   }
 
   fn set_cursor_grab(&self, grab: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetCursorGrab(grab),
+    })
   }
 
   fn set_cursor_visible(&self, visible: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetCursorVisible(visible),
+    })
   }
 
   fn set_cursor_icon(&self, icon: CursorIcon) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetCursorIcon(icon),
+    })
   }
 
   fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetCursorPosition(position.into()),
+    })
   }
 
   fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetIgnoreCursorEvents(ignore),
+    })
   }
 
   fn start_dragging(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::StartDragging,
+    })
   }
 
   fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::StartResizeDragging(direction),
+    })
   }
 
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetProgressBar(progress_state),
+    })
   }
 
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetBadgeCount(count, desktop_filename),
+    })
   }
 
   fn set_badge_label(&self, label: Option<String>) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetBadgeLabel(label),
+    })
   }
 
-  fn set_overlay_icon(&self, icon: Option<Icon<'_>>) -> Result<()> {
+  fn set_overlay_icon(&self, _icon: Option<Icon<'_>>) -> Result<()> {
+    // TODO: Implement overlay icon setting for CEF
     Ok(())
   }
 
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetTitleBarStyle(style),
+    })
   }
 
-  fn set_traffic_light_position(&self, _position: Position) -> Result<()> {
-    Ok(())
+  fn set_traffic_light_position(&self, position: Position) -> Result<()> {
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetTrafficLightPosition(position),
+    })
   }
 
   fn set_size_constraints(
     &self,
     constraints: tauri_runtime::window::WindowSizeConstraints,
   ) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetSizeConstraints(constraints),
+    })
   }
 
   fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetTheme(theme),
+    })
   }
 
   fn set_enabled(&self, enabled: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetEnabled(enabled),
+    })
   }
 
   fn is_enabled(&self) -> Result<bool> {
-    Ok(true)
+    window_getter!(self, WindowMessage::IsEnabled)?
   }
 
   fn is_always_on_top(&self) -> Result<bool> {
-    Ok(false)
+    window_getter!(self, WindowMessage::IsAlwaysOnTop)?
   }
 
   fn set_background_color(&self, color: Option<tauri_utils::config::Color>) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetBackgroundColor(color),
+    })
   }
 }
 

@@ -1,0 +1,20 @@
+[package]
+name = "tauri-asset-gst-plugin"
+version = "0.1.0"
+authors = ["Alexander Yanovskyy <contact@yanovskyy.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
+repository = "https://github.com/tauri-apps/tauri"
+description = "Gstreamer plugin for asset protocol"
+
+[dependencies]
+gstreamer = "0.24"
+gstreamer-base = "0.24"
+
+[lib]
+name = "gsttauriasset"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[build-dependencies]
+gst-plugin-version-helper = "0.8.3"

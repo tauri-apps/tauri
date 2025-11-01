@@ -2144,6 +2144,7 @@ tauri::Builder::default()
     };
 
     let runtime_args = RuntimeInitArgs {
+      identifier: manager.config.identifier.clone(),
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

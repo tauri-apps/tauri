@@ -30,6 +30,7 @@ use std::{
   cell::RefCell,
   collections::HashMap,
   fmt,
+  fs::create_dir_all,
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -1139,7 +1140,7 @@ pub struct CefRuntime<T: UserEvent> {
 }
 
 impl<T: UserEvent> CefRuntime<T> {
-  fn init() -> Self {
+  fn init(runtime_args: RuntimeInitArgs) -> Self {
     let is_running = Arc::new(AtomicBool::new(false));
 
     #[cfg(target_os = "macos")]
@@ -1157,6 +1158,12 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let event_queue = Arc::new(RefCell::new(Vec::new()));
     let event_queue_ = event_queue.clone();
+
+    let cache_base = dirs::cache_dir().unwrap_or_else(|| std::env::temp_dir());
+    let cache_path = cache_base.join(&runtime_args.identifier).join("cef-cache");
+
+    // Ensure the cache directory exists
+    let _ = create_dir_all(&cache_path);
 
     let cef_context = cef_impl::Context {
       windows: Default::default(),
@@ -1191,6 +1198,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let settings = cef::Settings {
       no_sandbox: 1,
+      root_cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       ..Default::default()
     };
     assert_eq!(
@@ -1225,13 +1233,13 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type Handle = CefRuntimeHandle<T>;
   type EventLoopProxy = EventProxy<T>;
 
-  fn new(_args: RuntimeInitArgs) -> Result<Self> {
-    Ok(Self::init())
+  fn new(args: RuntimeInitArgs) -> Result<Self> {
+    Ok(Self::init(args))
   }
 
   #[cfg(any(windows, target_os = "linux"))]
-  fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
-    Ok(Self::init())
+  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
+    Ok(Self::init(args))
   }
 
   fn create_proxy(&self) -> Self::EventLoopProxy {

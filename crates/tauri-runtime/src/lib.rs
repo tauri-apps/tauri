@@ -387,6 +387,7 @@ pub struct RuntimeInitArgs {
   pub app_id: Option<String>,
   #[cfg(windows)]
   pub msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
+  pub identifier: String,
 }
 
 /// The webview runtime interface.

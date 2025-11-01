@@ -1,7 +1,7 @@
 {
   "productName": "MultiWebview",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.tauri.multiwebview",
   "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
   "build": {
     "frontendDist": ["index.html"]

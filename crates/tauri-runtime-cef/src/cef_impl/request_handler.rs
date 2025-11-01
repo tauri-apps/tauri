@@ -7,9 +7,12 @@ use std::{
 
 use cef::{rc::*, *};
 use html5ever::{interface::QualName, namespace_url, ns, LocalName};
-use http::{header::CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
+use http::{
+  header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE},
+  HeaderMap, HeaderName, HeaderValue,
+};
 use kuchiki::NodeRef;
-use tauri_runtime::webview::{InitializationScript, UriSchemeProtocol};
+use tauri_runtime::webview::UriSchemeProtocol;
 use tauri_utils::{
   config::{Csp, CspDirectiveSources},
   html::{parse as parse_html, serialize_node},
@@ -18,15 +21,10 @@ use url::Url;
 
 use super::CefInitScript;
 
-// Note: We handle head element manipulation inline in the filter
-
 // ResponseFilter that injects initialization scripts into HTML responses
-// For HTTP/HTTPS with CSP headers, we inject a modified CSP meta tag
 wrap_response_filter! {
   pub struct HtmlScriptInjectionFilter {
-    initialization_scripts: Vec<InitializationScript>,
-    script_hashes: Vec<String>, // Pre-computed script hashes
-    csp_header: Option<String>, // Original CSP header from HTTP response (if any)
+    initialization_scripts: Vec<CefInitScript>,
     processed_html: RefCell<Option<Vec<u8>>>,
     output_offset: RefCell<usize>,
   }
@@ -65,65 +63,13 @@ wrap_response_filter! {
               head_node
             };
 
-            // If CSP header exists, inject/modify CSP meta tag with script hashes
-            // This ensures injected scripts work even when HTTP response has CSP header
-            if let Some(ref original_csp) = self.csp_header {
-              // Parse CSP using tauri-utils
-              let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
-                Csp::Policy(original_csp.clone()).into();
-
-              // Update or create script-src directive with script hashes
-              let script_src = csp_map
-                .entry("script-src".to_string())
-                .or_insert_with(|| CspDirectiveSources::List(vec!["'self'".to_string()]));
-
-              // Extend with script hashes
-              script_src.extend(self.script_hashes.clone());
-
-              // Convert back to CSP string
-              let updated_csp = Csp::DirectiveMap(csp_map).to_string();
-              // Check if CSP meta tag already exists
-              let should_update_meta = if let Ok(ref meta_node) = document.select_first("meta[http-equiv='Content-Security-Policy']") {
-                let element = meta_node.as_node().as_element().unwrap();
-                let mut attrs = element.attributes.borrow_mut();
-                attrs.insert("content", updated_csp.clone());
-                false // Updated existing meta tag, don't create new one
-              } else {
-                true // Need to create new meta tag
-              };
-
-              if should_update_meta {
-                use kuchiki::{Attribute, ExpandedName};
-                let csp_meta = NodeRef::new_element(
-                  QualName::new(None, ns!(html), LocalName::from("meta")),
-                  vec![
-                    (
-                      ExpandedName::new(ns!(), LocalName::from("http-equiv")),
-                      Attribute {
-                        prefix: None,
-                        value: "Content-Security-Policy".into(),
-                      },
-                    ),
-                    (
-                      ExpandedName::new(ns!(), LocalName::from("content")),
-                      Attribute {
-                        prefix: None,
-                        value: updated_csp.into(),
-                      },
-                    ),
-                  ],
-                );
-                head.prepend(csp_meta);
-              }
-            }
-
             // iterate in reverse order since we are prepending each script to the head tag
             for init_script in self.initialization_scripts.iter().rev() {
               let script_el = NodeRef::new_element(
                 QualName::new(None, ns!(html), "script".into()),
                 None,
               );
-              script_el.append(NodeRef::new_text(init_script.script.as_str()));
+              script_el.append(NodeRef::new_text(init_script.script.script.as_str()));
               head.prepend(script_el);
             }
 
@@ -233,29 +179,16 @@ wrap_resource_request_handler! {
         return None;
       };
 
-      // Extract CSP header if present
-      let csp_header = {
-        let csp_header_name = CefString::from("Content-Security-Policy");
-        let existing_csp = response.header_by_name(Some(&csp_header_name));
-        // check if csp_header is not null manually - I believe header_by_name should return Option instead
-        let csp_header: Option<&cef_dll_sys::_cef_string_utf16_t> = (&existing_csp).into();
-        if csp_header.is_some() {
-          Some(CefString::from(&existing_csp).to_string())
-        } else {
-          None
-        }
-      };
-
       let is_main_frame = frame.is_main() == 1;
 
       // Filter scripts based on frame type
       let scripts_to_inject: Vec<_> = if is_main_frame {
-        self.initialization_scripts.iter().map(|s| s.script.clone()).collect()
+        self.initialization_scripts.clone()
       } else {
         self.initialization_scripts
           .iter()
           .filter(|s| !s.script.for_main_frame_only)
-          .map(|s| s.script.clone())
+          .cloned()
           .collect()
       };
 
@@ -277,8 +210,6 @@ wrap_resource_request_handler! {
       // Return a filter that will inject scripts and update CSP in HTML if header exists
       Some(HtmlScriptInjectionFilter::new(
         scripts_to_inject,
-        script_hashes,
-        csp_header,
         RefCell::new(None),
         RefCell::new(0),
       ))
@@ -408,7 +339,7 @@ wrap_resource_handler! {
       for (name, value) in response_data.headers() {
         let Ok(value) = value.to_str() else { continue; };
 
-        if name.as_str().eq_ignore_ascii_case("content-security-policy") {
+        if name == CONTENT_SECURITY_POLICY {
           csp_header = Some(value.to_string());
         } else {
           response.set_header_by_name(Some(&name.as_str().into()), Some(&value.into()), 0);
@@ -434,7 +365,7 @@ wrap_resource_handler! {
               .map(|s| s.hash.clone())
               .collect();
 
-          let csp_header_name = CefString::from("Content-Security-Policy");
+          let csp_header_name = CefString::from(CONTENT_SECURITY_POLICY.as_str());
           let new_csp = if let Some(existing_csp) = csp_header {
             // Parse CSP using tauri-utils
             let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
@@ -469,7 +400,7 @@ wrap_resource_handler! {
       } else if let Some(csp) = csp_header {
         // No scripts to inject, just copy the original CSP header
         response.set_header_by_name(
-          Some(&CefString::from("Content-Security-Policy")),
+          Some(&CefString::from(CONTENT_SECURITY_POLICY.as_str())),
           Some(&CefString::from(csp.as_str())),
           0,
         );

@@ -34,6 +34,7 @@ use std::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
   },
+  thread::{self, ThreadId},
 };
 
 mod cef_impl;
@@ -48,8 +49,39 @@ enum Message<T: UserEvent + 'static> {
     pending: PendingWindow<T, CefRuntime<T>>,
     after_window_creation: Option<Box<dyn Fn(RawWindow) + Send + 'static>>,
   },
+  CreateWebview {
+    window_id: WindowId,
+    webview_id: u32,
+    pending: PendingWebview<T, CefRuntime<T>>,
+  },
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  OpenDevTools {
+    window_id: WindowId,
+    webview_id: u32,
+  },
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  CloseDevTools {
+    window_id: WindowId,
+    webview_id: u32,
+  },
   UserEvent(T),
   Noop,
+}
+
+impl<T: UserEvent> fmt::Debug for Message<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Task(_) => write!(f, "Task"),
+      Self::CreateWindow { .. } => write!(f, "CreateWindow"),
+      Self::CreateWebview { .. } => write!(f, "CreateWebview"),
+      #[cfg(any(debug_assertions, feature = "devtools"))]
+      Self::OpenDevTools { .. } => write!(f, "OpenDevTools"),
+      #[cfg(any(debug_assertions, feature = "devtools"))]
+      Self::CloseDevTools { .. } => write!(f, "CloseDevTools"),
+      Self::UserEvent(_) => write!(f, "UserEvent"),
+      Self::Noop => write!(f, "Noop"),
+    }
+  }
 }
 
 impl<T: UserEvent> Clone for Message<T> {
@@ -61,9 +93,16 @@ impl<T: UserEvent> Clone for Message<T> {
   }
 }
 
-struct AppWindow {
-  label: String,
-  window: cef::Window,
+pub(crate) struct BrowserViewWrapper {
+  pub webview_id: u32,
+  pub browser_view: cef::BrowserView,
+}
+
+pub(crate) struct AppWindow {
+  pub label: String,
+  pub window: cef::Window,
+  pub webviews: Vec<BrowserViewWrapper>,
+  pub content_panel: Option<cef::Panel>, // Panel container for multiwebview (similar to Electron's contentView)
 }
 
 #[derive(Clone)]
@@ -71,6 +110,7 @@ pub struct RuntimeContext<T: UserEvent> {
   is_running: Arc<AtomicBool>,
   windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
   main_thread_task_runner: cef::TaskRunner,
+  main_thread_id: ThreadId,
   cef_context: cef_impl::Context<T>,
   event_queue: Arc<RefCell<Vec<RunEvent<T>>>>,
 }
@@ -85,13 +125,20 @@ unsafe impl<T: UserEvent> Sync for RuntimeContext<T> {}
 
 impl<T: UserEvent> RuntimeContext<T> {
   fn post_message(&self, message: Message<T>) -> Result<()> {
-    self
-      .main_thread_task_runner
-      .post_task(Some(&mut cef_impl::SendMessageTask::new(
-        self.cef_context.clone(),
-        Arc::new(RefCell::new(message)),
-      )));
-    Ok(())
+    if thread::current().id() == self.main_thread_id {
+      // Already on main thread, execute directly
+      cef_impl::handle_message(&self.cef_context, message);
+      Ok(())
+    } else {
+      // Post to main thread via TaskRunner
+      self
+        .main_thread_task_runner
+        .post_task(Some(&mut cef_impl::SendMessageTask::new(
+          self.cef_context.clone(),
+          Arc::new(RefCell::new(message)),
+        )));
+      Ok(())
+    }
   }
 
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
@@ -148,6 +195,29 @@ impl<T: UserEvent> RuntimeContext<T> {
       webview: detached_webview,
     })
   }
+
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, CefRuntime<T>>,
+  ) -> Result<DetachedWebview<T, CefRuntime<T>>> {
+    let label = pending.label.clone();
+    let webview_id = self.cef_context.next_webview_id();
+
+    self.post_message(Message::CreateWebview {
+      window_id,
+      webview_id,
+      pending,
+    })?;
+
+    let dispatcher = CefWebviewDispatcher {
+      window_id: Arc::new(Mutex::new(window_id)),
+      webview_id,
+      context: self.clone(),
+    };
+
+    Ok(DetachedWebview { label, dispatcher })
+  }
 }
 
 impl<T: UserEvent> fmt::Debug for RuntimeContext<T> {
@@ -201,7 +271,7 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     window_id: WindowId,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
-    todo!()
+    self.context.create_webview(window_id, pending)
   }
 
   /// Run a task on the main thread.
@@ -538,10 +608,24 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  fn open_devtools(&self) {}
+  fn open_devtools(&self) {
+    let window_id = *self.window_id.lock().unwrap();
+    let webview_id = self.webview_id;
+    let _ = self.context.post_message(Message::OpenDevTools {
+      window_id,
+      webview_id,
+    });
+  }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
-  fn close_devtools(&self) {}
+  fn close_devtools(&self) {
+    let window_id = *self.window_id.lock().unwrap();
+    let webview_id = self.webview_id;
+    let _ = self.context.post_message(Message::CloseDevTools {
+      window_id,
+      webview_id,
+    });
+  }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
@@ -822,7 +906,7 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     &mut self,
     pending: PendingWebview<T, Self::Runtime>,
   ) -> Result<DetachedWebview<T, Self::Runtime>> {
-    todo!()
+    self.context.create_webview(self.window_id, pending)
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1118,10 +1202,12 @@ impl<T: UserEvent> CefRuntime<T> {
       1
     );
 
+    let main_thread_id = thread::current().id();
     let context = RuntimeContext {
       is_running: is_running.clone(),
       windows: Default::default(),
       main_thread_task_runner: cef::task_runner_get_for_current_thread().expect("null task runner"),
+      main_thread_id,
       cef_context,
       event_queue,
     };

@@ -10,13 +10,13 @@ use std::{
   },
 };
 use tauri_runtime::{
-  webview::{InitializationScript, UriSchemeProtocol},
+  webview::{InitializationScript, PendingWebview, UriSchemeProtocol},
   window::{PendingWindow, WindowId},
   RunEvent, UserEvent,
 };
 use tauri_utils::html::normalize_script_for_csp;
 
-use crate::{AppWindow, CefRuntime, Message};
+use crate::{AppWindow, BrowserViewWrapper, CefRuntime, Message};
 
 mod request_handler;
 
@@ -135,9 +135,31 @@ wrap_client! {
   }
 }
 
+wrap_browser_view_delegate! {
+  struct BrowserViewDelegateImpl {
+    use_alloy_style: bool,
+  }
+
+  impl ViewDelegate {}
+
+  impl BrowserViewDelegate {
+    fn browser_runtime_style(&self) -> RuntimeStyle {
+      use cef::sys::cef_runtime_style_t;
+
+      if self.use_alloy_style {
+        // Use Alloy style for additional webviews (multiwebview support)
+        RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_ALLOY)
+      } else {
+        // Use Chrome style (default) for the first webview
+        RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME)
+      }
+    }
+  }
+}
+
 wrap_window_delegate! {
   struct AppWindowDelegate {
-    browser_view: BrowserView,
+    initial_browser_view: Option<BrowserView>,
   }
 
   impl ViewDelegate {
@@ -156,8 +178,11 @@ wrap_window_delegate! {
   impl WindowDelegate {
     fn on_window_created(&self, window: Option<&mut Window>) {
       if let Some(window) = window {
-        let mut view = View::from(&self.browser_view);
-        window.add_child_view(Some(&mut view));
+        // If we have an initial browser view, add it
+        if let Some(ref browser_view) = self.initial_browser_view {
+          let mut view = View::from(browser_view);
+          window.add_child_view(Some(&mut view));
+        }
         window.show();
       }
     }
@@ -188,6 +213,81 @@ wrap_window_delegate! {
   }
 }
 
+pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
+  match message {
+    Message::CreateWindow {
+      window_id,
+      webview_id,
+      pending,
+      after_window_creation: _todo,
+    } => create_window(context, window_id, webview_id, pending),
+    Message::CreateWebview {
+      window_id,
+      webview_id,
+      pending,
+    } => create_webview(
+      WebviewKind::WindowChild,
+      context,
+      window_id,
+      webview_id,
+      pending,
+    ),
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    Message::OpenDevTools {
+      window_id,
+      webview_id,
+    } => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        if let Some(browser_view_wrapper) = app_window
+          .webviews
+          .iter()
+          .find(|w| w.webview_id == webview_id)
+        {
+          if let Some(browser) = browser_view_wrapper.browser_view.browser() {
+            if let Some(host) = browser.host() {
+              // ShowDevTools(window_info, client, settings, inspect_element_at)
+              // Using None for client and default settings, inspect at (0,0)
+              let window_info = cef::WindowInfo::default();
+              let settings = cef::BrowserSettings::default();
+              let inspect_at = cef::Point { x: 0, y: 0 };
+              host.show_dev_tools(
+                Some(&window_info),
+                Option::<&mut cef::Client>::None,
+                Some(&settings),
+                Some(&inspect_at),
+              );
+            }
+          }
+        }
+      }
+    }
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    Message::CloseDevTools {
+      window_id,
+      webview_id,
+    } => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        if let Some(browser_view_wrapper) = app_window
+          .webviews
+          .iter()
+          .find(|w| w.webview_id == webview_id)
+        {
+          if let Some(browser) = browser_view_wrapper.browser_view.browser() {
+            if let Some(host) = browser.host() {
+              host.close_dev_tools();
+            }
+          }
+        }
+      }
+    }
+    Message::Task(t) => t(),
+    Message::UserEvent(evt) => {
+      (context.callback.borrow_mut())(RunEvent::UserEvent(evt));
+    }
+    Message::Noop => {}
+  }
+}
+
 wrap_task! {
   pub struct SendMessageTask<T: UserEvent>  {
     context: Context<T>,
@@ -196,19 +296,7 @@ wrap_task! {
 
   impl Task {
     fn execute(&self) {
-      match self.message.replace(Message::Noop) {
-        Message::CreateWindow {
-          window_id,
-          webview_id,
-          pending,
-          after_window_creation: _todo,
-        } => create_window(&self.context, window_id, webview_id, pending),
-        Message::Task(t) => t(),
-        Message::UserEvent(evt) => {
-          (self.context.callback.borrow_mut())(RunEvent::UserEvent(evt));
-        }
-        Message::Noop => {}
-      }
+      handle_message(&self.context, self.message.replace(Message::Noop));
     }
   }
 }
@@ -216,16 +304,70 @@ wrap_task! {
 fn create_window<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
-  webview_id: u32,
+  _webview_id: u32,
   pending: PendingWindow<T, CefRuntime<T>>,
 ) {
   let label = pending.label.clone();
 
-  let webview = pending.webview.unwrap();
+  // Create window delegate - we'll handle webviews separately
+  // For windows without webviews, we use a delegate without initial browser view
+  let mut delegate = AppWindowDelegate::new(None);
+
+  let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
+  window.show();
+
+  // Insert window with empty webviews list
+  context.windows.borrow_mut().insert(
+    window_id,
+    AppWindow {
+      label,
+      window,
+      webviews: Vec::new(),
+      content_panel: None,
+    },
+  );
+
+  // If a webview was provided, create it now
+  if let Some(webview) = pending.webview {
+    let webview_id = context.next_webview_id();
+    create_webview(
+      WebviewKind::WindowContent,
+      context,
+      window_id,
+      webview_id,
+      webview,
+    );
+  }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+enum WebviewKind {
+  // webview is the entire window content
+  WindowContent,
+  // webview is a child of the window, which can contain other webviews too
+  WindowChild,
+}
+
+fn create_webview<T: UserEvent>(
+  kind: WebviewKind,
+  context: &Context<T>,
+  window_id: WindowId,
+  webview_id: u32,
+  pending: PendingWebview<T, CefRuntime<T>>,
+) {
+  // Get the window - return early if not found
+  let mut windows = context.windows.borrow_mut();
+  let app_window = match windows.get_mut(&window_id) {
+    Some(w) => w,
+    None => {
+      eprintln!("Window {:?} not found when creating webview", window_id);
+      return;
+    }
+  };
 
   // Get initialization scripts from webview attributes
   // Pre-compute script hashes once at webview creation time
-  let initialization_scripts: Vec<_> = webview
+  let initialization_scripts: Vec<_> = pending
     .webview_attributes
     .initialization_scripts
     .into_iter()
@@ -233,7 +375,7 @@ fn create_window<T: UserEvent>(
     .collect();
 
   let mut client = BrowserClient::new(initialization_scripts.clone());
-  let url = CefString::from(webview.url.as_str());
+  let url = CefString::from(pending.url.as_str());
 
   let global_context =
     request_context_get_global_context().expect("Failed to get global request context");
@@ -248,11 +390,8 @@ fn create_window<T: UserEvent>(
   );
   if let Some(request_context) = &request_context {
     // Ensure schemes are registered with proper flags (fetch-enabled, secure, etc.)
-    // This is done in App::on_register_custom_schemes, but we also track
-    // which schemes we've seen
-
-    for (scheme, handler) in webview.uri_scheme_protocols {
-      let label = label.clone();
+    for (scheme, handler) in pending.uri_scheme_protocols {
+      let label = app_window.label.clone();
       request_context.register_scheme_handler_factory(
         Some(&scheme.as_str().into()),
         None,
@@ -268,22 +407,72 @@ fn create_window<T: UserEvent>(
     }
   }
 
+  let mut browser_view_delegate =
+    BrowserViewDelegateImpl::new(matches!(kind, WebviewKind::WindowChild));
+
   let browser_view = browser_view_create(
     Some(&mut client),
     Some(&url),
     Some(&Default::default()),
     Option::<&mut DictionaryValue>::None,
     request_context.as_mut(),
-    Option::<&mut BrowserViewDelegate>::None,
+    Some(&mut browser_view_delegate),
   )
   .expect("Failed to create browser view");
 
-  let mut delegate = AppWindowDelegate::new(browser_view);
+  let mut view = View::from(&browser_view);
 
-  let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
+  let bounds = pending.webview_attributes.bounds.map(|bounds| {
+    let device_scale_factor = app_window
+      .window
+      .display()
+      .map(|d| d.device_scale_factor() as f64)
+      .unwrap_or(1.0);
+    let physical_position = bounds.position.to_physical::<i32>(device_scale_factor);
+    let physical_size = bounds.size.to_physical::<u32>(device_scale_factor);
+    Rect {
+      x: physical_position.x,
+      y: physical_position.y,
+      width: physical_size.width as i32,
+      height: physical_size.height as i32,
+    }
+  });
 
-  context
-    .windows
-    .borrow_mut()
-    .insert(window_id, AppWindow { label, window });
+  if let Some(bounds) = &bounds {
+    view.set_bounds(Some(bounds));
+  }
+
+  if kind == WebviewKind::WindowChild {
+    let panel = if let Some(panel) = &app_window.content_panel {
+      panel.clone()
+    } else {
+      let panel = cef::panel_create(None).expect("Failed to create content panel");
+
+      panel.set_bounds(Some(&app_window.window.bounds()));
+
+      use cef::BoxLayoutSettings;
+      let mut layout_settings = BoxLayoutSettings::default();
+      layout_settings.horizontal = 1;
+      layout_settings.default_flex = 0;
+      layout_settings.between_child_spacing = 0;
+      panel.set_to_box_layout(Some(&layout_settings));
+
+      app_window
+        .window
+        .add_child_view(Some(&mut View::from(&panel)));
+
+      app_window.content_panel.replace(panel.clone());
+
+      panel
+    };
+
+    panel.add_child_view(Some(&mut view));
+  } else {
+    app_window.window.add_child_view(Some(&mut view));
+  }
+
+  app_window.webviews.push(BrowserViewWrapper {
+    webview_id,
+    browser_view,
+  });
 }

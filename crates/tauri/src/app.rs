@@ -1449,6 +1449,15 @@ impl Default for Builder<crate::Wry> {
   }
 }
 
+/// Make `Cef` the default `Runtime` for `Builder`
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+impl Default for Builder<crate::Cef> {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 #[cfg(not(any(feature = "wry", feature = "cef")))]
 #[cfg_attr(docsrs, doc(cfg(not(any(feature = "wry", feature = "cef")))))]
 impl<R: Runtime> Default for Builder<R> {

@@ -21,112 +21,88 @@ use url::Url;
 
 use super::CefInitScript;
 
-// ResponseFilter that injects initialization scripts into HTML responses
-wrap_response_filter! {
-  pub struct HtmlScriptInjectionFilter {
-    initialization_scripts: Vec<CefInitScript>,
-    processed_html: RefCell<Option<Vec<u8>>>,
-    output_offset: RefCell<usize>,
+fn csp_inject_initialization_scripts_hashes(
+  existing_csp: Option<&str>,
+  initialization_scripts: Option<&[CefInitScript]>,
+) -> Option<String> {
+  let Some(scripts) = initialization_scripts else {
+    return existing_csp.map(|s| s.to_string());
+  };
+
+  if scripts.is_empty() {
+    return existing_csp.map(|s| s.to_string());
   }
 
-  impl ResponseFilter {
-    fn init_filter(&self) -> ::std::os::raw::c_int {
-      // Return 1 to enable buffered mode (RESPONSE_FILTER_NEED_MORE_DATA)
-      1
-    }
+  // For custom schemes, include ALL script hashes (we inject all scripts into HTML)
+  // This matches the HTML injection behavior in inject_scripts_into_html_body
+  let script_hashes: Vec<String> = scripts.iter().map(|s| s.hash.clone()).collect();
 
-    fn filter(
-      &self,
-      data_in: Option<&mut Vec<u8>>,
-      data_in_read: Option<&mut usize>,
-      data_out: Option<&mut Vec<u8>>,
-      data_out_written: Option<&mut usize>,
-    ) -> ResponseFilterStatus {
-      use cef_dll_sys::cef_response_filter_status_t::*;
+  if script_hashes.is_empty() {
+    return existing_csp.map(|s| s.to_string());
+  }
 
-      if let Some(data_in) = data_in {
-        let input_size = data_in.len();
+  let new_csp = if let Some(existing_csp) = existing_csp {
+    // Parse CSP using tauri-utils
+    let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
+      Csp::Policy(existing_csp.to_string()).into();
 
-        // Process the HTML once (on first chunk)
-        if self.processed_html.borrow().is_none() {
-          if let Ok(html_str) = String::from_utf8(data_in.clone()) {
-            let document = parse_html(html_str);
+    // Update or create script-src directive with script hashes
+    let script_src = csp_map
+      .entry("script-src".to_string())
+      .or_insert_with(|| CspDirectiveSources::List(vec!["'self'".to_string()]));
 
-            let head = if let Ok(ref head_node) = document.select_first("head") {
-              head_node.as_node().clone()
-            } else {
-              let head_node = NodeRef::new_element(
-                QualName::new(None, ns!(html), LocalName::from("head")),
-                None,
-              );
-              document.prepend(head_node.clone());
-              head_node
-            };
+    // Extend with script hashes
+    script_src.extend(script_hashes);
 
-            // iterate in reverse order since we are prepending each script to the head tag
-            for init_script in self.initialization_scripts.iter().rev() {
-              let script_el = NodeRef::new_element(
-                QualName::new(None, ns!(html), "script".into()),
-                None,
-              );
-              script_el.append(NodeRef::new_text(init_script.script.script.as_str()));
-              head.prepend(script_el);
-            }
+    // Convert back to CSP string
+    Csp::DirectiveMap(csp_map).to_string()
+  } else {
+    // No existing CSP, create new one with just script-src
+    let mut csp_map = std::collections::HashMap::new();
+    let mut script_src = CspDirectiveSources::List(vec!["'self'".to_string()]);
+    script_src.extend(script_hashes);
+    csp_map.insert("script-src".to_string(), script_src);
+    Csp::DirectiveMap(csp_map).to_string()
+  };
 
-            // Serialize the modified HTML
-            let modified_html = serialize_node(&document);
-            *self.processed_html.borrow_mut() = Some(modified_html);
-          } else {
-            // Not valid UTF-8, pass through unchanged
-            *self.processed_html.borrow_mut() = Some(data_in.clone());
-          }
-        }
+  Some(new_csp)
+}
 
-        // Mark all input as read (CEF requirement: must read all input)
-        if let Some(data_in_read) = data_in_read {
-          *data_in_read = input_size;
-        }
-      }
+/// Helper function to inject initialization scripts into HTML body
+fn inject_scripts_into_html_body(
+  body: &[u8],
+  initialization_scripts: Option<&[CefInitScript]>,
+) -> Option<Vec<u8>> {
+  // Check if body is valid UTF-8 HTML
+  let Ok(body_str) = std::str::from_utf8(body) else {
+    return None;
+  };
 
-      if let Some(data_out) = data_out {
-        if let Some(processed) = self.processed_html.borrow().as_ref() {
-          let offset = *self.output_offset.borrow();
-          let remaining = processed.len().saturating_sub(offset);
+  // Parse HTML and inject scripts
+  let document = parse_html(body_str.to_string());
 
-          if remaining > 0 {
-            let buffer_size = data_out.capacity();
-            let to_write = remaining.min(buffer_size);
+  let head = if let Ok(ref head_node) = document.select_first("head") {
+    head_node.as_node().clone()
+  } else {
+    let head_node = NodeRef::new_element(
+      QualName::new(None, ns!(html), LocalName::from("head")),
+      None,
+    );
+    document.prepend(head_node.clone());
+    head_node
+  };
 
-            data_out.clear();
-            data_out.extend_from_slice(&processed[offset..offset + to_write]);
-
-            if let Some(written) = data_out_written {
-              *written = to_write;
-            }
-
-            *self.output_offset.borrow_mut() += to_write;
-
-            if *self.output_offset.borrow() >= processed.len() {
-              RESPONSE_FILTER_DONE.into()
-            } else {
-              RESPONSE_FILTER_NEED_MORE_DATA.into()
-            }
-          } else {
-            // No remaining data to write
-            RESPONSE_FILTER_DONE.into()
-          }
-        } else {
-          // No processed HTML yet - need more input data
-          RESPONSE_FILTER_NEED_MORE_DATA.into()
-        }
-      } else {
-        // No output buffer provided
-        // If we have input, we've already processed it, so we're done
-        // If we don't have input, this is a final call and we're done
-        RESPONSE_FILTER_DONE.into()
-      }
+  // Inject initialization scripts (for custom schemes, inject all scripts)
+  if let Some(scripts) = initialization_scripts {
+    for init_script in scripts.iter().rev() {
+      let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
+      script_el.append(NodeRef::new_text(init_script.script.script.as_str()));
+      head.prepend(script_el);
     }
   }
+
+  // Serialize the modified HTML
+  Some(serialize_node(&document))
 }
 
 wrap_resource_request_handler! {
@@ -135,85 +111,7 @@ wrap_resource_request_handler! {
   }
 
   impl ResourceRequestHandler {
-    // Store CSP header from on_resource_response for use in filter
-    fn on_resource_response(
-      &self,
-      _browser: Option<&mut Browser>,
-      _frame: Option<&mut Frame>,
-      _request: Option<&mut Request>,
-      _response: Option<&mut Response>,
-    ) -> ::std::os::raw::c_int {
-      // Response is read-only here, but we can read the CSP header
-      // and it will be available in resource_response_filter
-      0
-    }
 
-    fn resource_response_filter(
-      &self,
-      _browser: Option<&mut Browser>,
-      frame: Option<&mut Frame>,
-      request: Option<&mut Request>,
-      response: Option<&mut Response>,
-    ) -> Option<ResponseFilter> {
-      let Some(response) = response else {
-        return None;
-      };
-
-      // Skip DevTools URLs - they use internal resources that shouldn't be modified
-      if let Some(request) = request {
-        let url = CefString::from(&request.url()).to_string();
-        if url.starts_with("devtools://") {
-          return None;
-        }
-      }
-
-      let content_type = response.mime_type();
-      let content_type_str = CefString::from(&content_type).to_string().to_lowercase();
-
-      // Only process HTML responses
-      if !content_type_str.starts_with("text/html") {
-        return None;
-      }
-
-      let Some(frame) = frame else {
-        return None;
-      };
-
-      let is_main_frame = frame.is_main() == 1;
-
-      // Filter scripts based on frame type
-      let scripts_to_inject: Vec<_> = if is_main_frame {
-        self.initialization_scripts.clone()
-      } else {
-        self.initialization_scripts
-          .iter()
-          .filter(|s| !s.script.for_main_frame_only)
-          .cloned()
-          .collect()
-      };
-
-      if scripts_to_inject.is_empty() {
-        return None;
-      }
-
-      // Get pre-computed hashes for the scripts
-      let script_hashes: Vec<String> = if is_main_frame {
-        self.initialization_scripts.iter().map(|s| s.hash.clone()).collect()
-      } else {
-        self.initialization_scripts
-          .iter()
-          .filter(|s| !s.script.for_main_frame_only)
-          .map(|s| s.hash.clone())
-          .collect()
-      };
-
-      // Return a filter that will inject scripts and update CSP in HTML if header exists
-      Some(HtmlScriptInjectionFilter::new(
-        scripts_to_inject,
-        RefCell::new(None),
-        RefCell::new(0),
-      ))
-    }
 
     fn on_before_resource_load(
       &self,
@@ -271,10 +169,29 @@ wrap_resource_handler! {
         let callback = ThreadSafe(callback.clone());
         // TODO: thread safety
         let response_store = ThreadSafe(self.context.response.clone());
+        let initialization_scripts = self.context.initialization_scripts.clone();
         let responder = Box::new(move |response: http::Response<Cow<'static, [u8]>>| {
+          // Check if this is an HTML response that needs script injection
+          let content_type = response.headers().get(CONTENT_TYPE);
+          let is_html = content_type
+            .and_then(|ct| ct.to_str().ok())
+            .map(|ct| ct.to_lowercase().starts_with("text/html"))
+            .unwrap_or(false);
+
           let (parts, body) = response.into_parts();
-          let response = http::Response::from_parts(parts, Cursor::new(body.into_owned()));
+          let body_bytes = body.into_owned();
+
+          // Inject scripts into HTML body if applicable
+          let modified_body = if is_html {
+            inject_scripts_into_html_body(&body_bytes, initialization_scripts.as_deref())
+              .unwrap_or(body_bytes)
+          } else {
+            body_bytes
+          };
+
+          let response = http::Response::from_parts(parts, Cursor::new(modified_body));
           response_store.into_owned().borrow_mut().replace(response);
+
           let callback = callback.into_owned();
           callback.cont();
         });
@@ -350,59 +267,17 @@ wrap_resource_handler! {
         }
       }
 
-      // Update CSP header with script hashes for custom schemes
-      if let Some(ref initialization_scripts) = self.context.initialization_scripts {
-        if !initialization_scripts.is_empty() {
-          let scripts_to_include: Vec<_> = initialization_scripts
-            .iter()
-            .filter(|s| !s.script.for_main_frame_only)
-            .cloned()
-            .collect();
+      let new_csp = csp_inject_initialization_scripts_hashes(
+        csp_header.as_deref(),
+        self.context.initialization_scripts.as_deref(),
+      );
 
-          if !scripts_to_include.is_empty() {
-            let script_hashes: Vec<String> = scripts_to_include
-              .iter()
-              .map(|s| s.hash.clone())
-              .collect();
-
-          let csp_header_name = CefString::from(CONTENT_SECURITY_POLICY.as_str());
-          let new_csp = if let Some(existing_csp) = csp_header {
-            // Parse CSP using tauri-utils
-            let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
-              Csp::Policy(existing_csp).into();
-
-            // Update or create script-src directive with script hashes
-            let script_src = csp_map
-              .entry("script-src".to_string())
-              .or_insert_with(|| CspDirectiveSources::List(vec!["'self'".to_string()]));
-
-            // Extend with script hashes
-            script_src.extend(script_hashes);
-
-            // Convert back to CSP string
-            Csp::DirectiveMap(csp_map).to_string()
-          } else {
-            // No existing CSP, create new one with just script-src
-            let mut csp_map = std::collections::HashMap::new();
-            let mut script_src = CspDirectiveSources::List(vec!["'self'".to_string()]);
-            script_src.extend(script_hashes);
-            csp_map.insert("script-src".to_string(), script_src);
-            Csp::DirectiveMap(csp_map).to_string()
-          };
-
-            response.set_header_by_name(
-              Some(&csp_header_name),
-              Some(&CefString::from(new_csp.as_str())),
-              1, // overwrite
-            );
-          }
-        }
-      } else if let Some(csp) = csp_header {
-        // No scripts to inject, just copy the original CSP header
+      if let Some(new_csp) = new_csp {
+        let csp_header_name = CefString::from(CONTENT_SECURITY_POLICY.as_str());
         response.set_header_by_name(
-          Some(&CefString::from(CONTENT_SECURITY_POLICY.as_str())),
-          Some(&CefString::from(csp.as_str())),
-          0,
+          Some(&csp_header_name),
+          Some(&CefString::from(new_csp.as_str())),
+          0, // overwrite
         );
       }
 

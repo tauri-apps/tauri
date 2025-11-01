@@ -120,6 +120,70 @@ wrap_browser_process_handler! {
   }
 }
 
+wrap_load_handler! {
+  struct BrowserLoadHandler {
+    initialization_scripts: Vec<CefInitScript>,
+  }
+
+  impl LoadHandler {
+    fn on_load_end(
+      &self,
+      browser: Option<&mut Browser>,
+      frame: Option<&mut Frame>,
+      http_status_code: ::std::os::raw::c_int,
+    ) {
+      // Only execute scripts for successful loads (200-299)
+      if http_status_code < 200 || http_status_code >= 300 {
+        return;
+      }
+
+      let Some(frame) = frame else { return };
+
+      // Get the URL to check if it's a remote URL
+      let url = frame.url();
+      let url_str = cef::CefString::from(&url).to_string();
+      let url_obj = url::Url::parse(&url_str).ok();
+
+      // Only execute scripts for remote URLs (http/https)
+      // Custom schemes use HTML injection
+      let is_remote_url = url_obj
+        .as_ref()
+        .map(|u| matches!(u.scheme(), "http" | "https"))
+        .unwrap_or(false);
+
+      if !is_remote_url {
+        return;
+      }
+
+      let is_main_frame = frame.is_main() == 1;
+
+      // Filter scripts based on frame type
+      let scripts_to_execute: Vec<_> = if is_main_frame {
+        self.initialization_scripts.clone()
+      } else {
+        self.initialization_scripts
+          .iter()
+          .filter(|s| !s.script.for_main_frame_only)
+          .cloned()
+          .collect()
+      };
+
+      // Execute each script via frame.execute_java_script
+      for script in scripts_to_execute {
+        let script_text = script.script.script.clone();
+        let script_url = format!("{}://__tauri_init_script__", url_obj.as_ref().map(|u| u.scheme()).unwrap_or("http"));
+
+        // Execute JavaScript in the frame
+        frame.execute_java_script(
+          Some(&cef::CefString::from(script_text.as_str())),
+          Some(&cef::CefString::from(script_url.as_str())),
+          0,
+        );
+      }
+    }
+  }
+}
+
 wrap_client! {
   struct BrowserClient {
     initialization_scripts: Vec<CefInitScript>,
@@ -129,6 +193,12 @@ wrap_client! {
     fn request_handler(&self) -> Option<RequestHandler> {
       // Use pre-computed script hashes (computed once at webview creation)
       Some(request_handler::WebRequestHandler::new(
+        self.initialization_scripts.clone(),
+      ))
+    }
+
+    fn load_handler(&self) -> Option<LoadHandler> {
+      Some(BrowserLoadHandler::new(
         self.initialization_scripts.clone(),
       ))
     }

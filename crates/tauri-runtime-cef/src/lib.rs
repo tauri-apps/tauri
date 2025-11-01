@@ -10,17 +10,20 @@ use tauri_runtime::{
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
   window::{
-    CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WindowBuilder,
-    WindowBuilderBase, WindowEvent, WindowId,
+    CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WebviewEvent,
+    WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
   },
   Cookie, DeviceEventFilter, EventLoopProxy, Icon, ProgressBarState, Result, RunEvent, Runtime,
-  RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch, WindowDispatch,
-  WindowEventId,
+  RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId,
+  WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{
+  config::{Color, WindowConfig},
+  Theme,
+};
 use url::Url;
 
 #[cfg(windows)]
@@ -33,6 +36,7 @@ use std::{
   fs::create_dir_all,
   sync::{
     atomic::{AtomicBool, Ordering},
+    mpsc::{channel, Sender},
     Arc, Mutex,
   },
   thread::{self, ThreadId},
@@ -41,6 +45,31 @@ use std::{
 mod cef_impl;
 
 type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
+
+#[macro_export]
+macro_rules! getter {
+  ($self: ident, $rx: expr, $message: expr) => {{
+    $self.context.post_message($message)?;
+    $rx
+      .recv()
+      .map_err(|_| tauri_runtime::Error::FailedToReceiveMessage)
+  }};
+}
+
+macro_rules! webview_getter {
+  ($self: ident, $message_variant: path) => {{
+    let (tx, rx) = channel();
+    getter!(
+      $self,
+      rx,
+      Message::Webview {
+        window_id: *$self.window_id.lock().unwrap(),
+        webview_id: $self.webview_id,
+        message: $message_variant(tx)
+      }
+    )
+  }};
+}
 
 enum Message<T: UserEvent + 'static> {
   Task(Box<dyn FnOnce() + Send>),
@@ -55,19 +84,14 @@ enum Message<T: UserEvent + 'static> {
     webview_id: u32,
     pending: PendingWebview<T, CefRuntime<T>>,
   },
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  OpenDevTools {
-    window_id: WindowId,
-    webview_id: u32,
-  },
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  CloseDevTools {
-    window_id: WindowId,
-    webview_id: u32,
-  },
   Window {
     window_id: WindowId,
     message: WindowMessage,
+  },
+  Webview {
+    window_id: WindowId,
+    webview_id: u32,
+    message: WebviewMessage,
   },
   RequestExit(i32),
   UserEvent(T),
@@ -80,17 +104,51 @@ enum WindowMessage {
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
 }
 
+pub enum WebviewMessage {
+  AddEventListener(WebviewEventId, Box<dyn Fn(&WebviewEvent) + Send>),
+  EvaluateScript(String),
+  CookiesForUrl(Url, Sender<Result<Vec<Cookie<'static>>>>),
+  Cookies(Sender<Result<Vec<Cookie<'static>>>>),
+  SetCookie(Cookie<'static>),
+  DeleteCookie(Cookie<'static>),
+  Navigate(Url),
+  Reload,
+  Print,
+  Close,
+  Show,
+  Hide,
+  SetPosition(Position),
+  SetSize(Size),
+  SetBounds(Rect),
+  SetFocus,
+  Reparent(WindowId, Sender<Result<()>>),
+  SetAutoResize(bool),
+  SetZoom(f64),
+  SetBackgroundColor(Option<Color>),
+  ClearAllBrowsingData,
+  // Getters
+  Url(Sender<Result<String>>),
+  Bounds(Sender<Result<Rect>>),
+  Position(Sender<Result<PhysicalPosition<i32>>>),
+  Size(Sender<Result<PhysicalSize<u32>>>),
+  WithWebview(Box<dyn FnOnce(Box<dyn std::any::Any>) + Send>),
+  // Devtools
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  OpenDevTools,
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  CloseDevTools,
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  IsDevToolsOpen(Sender<bool>),
+}
+
 impl<T: UserEvent> fmt::Debug for Message<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::Task(_) => write!(f, "Task"),
       Self::CreateWindow { .. } => write!(f, "CreateWindow"),
       Self::CreateWebview { .. } => write!(f, "CreateWebview"),
-      #[cfg(any(debug_assertions, feature = "devtools"))]
-      Self::OpenDevTools { .. } => write!(f, "OpenDevTools"),
-      #[cfg(any(debug_assertions, feature = "devtools"))]
-      Self::CloseDevTools { .. } => write!(f, "CloseDevTools"),
       Self::Window { .. } => write!(f, "Window"),
+      Self::Webview { .. } => write!(f, "Webview"),
       Self::RequestExit(_) => write!(f, "RequestExit"),
       Self::UserEvent(_) => write!(f, "UserEvent"),
       Self::Noop => write!(f, "Noop"),
@@ -115,6 +173,9 @@ pub(crate) struct BrowserViewWrapper {
 
 pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 pub type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventHandler>>>;
+pub type WebviewEventHandler = Box<dyn Fn(&tauri_runtime::window::WebviewEvent) + Send>;
+pub type WebviewEventListeners =
+  Arc<Mutex<HashMap<u32, Arc<Mutex<HashMap<tauri_runtime::WebviewEventId, WebviewEventHandler>>>>>>;
 
 pub(crate) struct AppWindow {
   pub label: String,
@@ -122,6 +183,7 @@ pub(crate) struct AppWindow {
   pub webviews: Vec<BrowserViewWrapper>,
   pub content_panel: Option<cef::Panel>, // Panel container for multiwebview (similar to Electron's contentView)
   pub window_event_listeners: WindowEventListeners,
+  pub webview_event_listeners: WebviewEventListeners,
 }
 
 #[derive(Clone)]
@@ -620,135 +682,227 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     &self,
     f: F,
   ) -> tauri_runtime::WebviewEventId {
-    0
+    let id = self.context.cef_context.next_webview_event_id();
+    let _ = self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::AddEventListener(id, Box::new(f)),
+    });
+    id
   }
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::WithWebview(Box::new(move |webview| f(webview))),
+    })
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
-    let window_id = *self.window_id.lock().unwrap();
-    let webview_id = self.webview_id;
-    let _ = self.context.post_message(Message::OpenDevTools {
-      window_id,
-      webview_id,
+    let _ = self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::OpenDevTools,
     });
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn close_devtools(&self) {
-    let window_id = *self.window_id.lock().unwrap();
-    let webview_id = self.webview_id;
-    let _ = self.context.post_message(Message::CloseDevTools {
-      window_id,
-      webview_id,
+    let _ = self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::CloseDevTools,
     });
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
-    Ok(false)
+    webview_getter!(self, WebviewMessage::IsDevToolsOpen)
   }
 
   fn set_zoom(&self, scale_factor: f64) -> Result<()> {
-    Ok(())
-  }
-
-  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
-    Ok(())
-  }
-
-  fn url(&self) -> Result<String> {
-    todo!()
-  }
-
-  fn bounds(&self) -> Result<Rect> {
-    Ok(Rect::default())
-  }
-
-  fn position(&self) -> Result<PhysicalPosition<i32>> {
-    Ok(PhysicalPosition { x: 0, y: 0 })
-  }
-
-  fn size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(PhysicalSize {
-      width: 0,
-      height: 0,
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SetZoom(scale_factor),
     })
   }
 
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::EvaluateScript(script.into()),
+    })
+  }
+
+  fn url(&self) -> Result<String> {
+    webview_getter!(self, WebviewMessage::Url)?
+  }
+
+  fn bounds(&self) -> Result<Rect> {
+    webview_getter!(self, WebviewMessage::Bounds)?
+  }
+
+  fn position(&self) -> Result<PhysicalPosition<i32>> {
+    webview_getter!(self, WebviewMessage::Position)?
+  }
+
+  fn size(&self) -> Result<PhysicalSize<u32>> {
+    webview_getter!(self, WebviewMessage::Size)?
+  }
+
   fn navigate(&self, url: Url) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::Navigate(url),
+    })
   }
 
   fn reload(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::Reload,
+    })
   }
 
   fn print(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::Print,
+    })
   }
 
   fn close(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::Close,
+    })
   }
 
   fn set_bounds(&self, bounds: Rect) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SetBounds(bounds),
+    })
   }
 
-  fn set_size(&self, _size: Size) -> Result<()> {
-    Ok(())
+  fn set_size(&self, size: Size) -> Result<()> {
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SetSize(size),
+    })
   }
 
-  fn set_position(&self, _position: Position) -> Result<()> {
-    Ok(())
+  fn set_position(&self, position: Position) -> Result<()> {
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SetPosition(position),
+    })
   }
 
   fn set_focus(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SetFocus,
+    })
   }
 
   fn reparent(&self, window_id: WindowId) -> Result<()> {
+    let mut current_window_id = self.window_id.lock().unwrap();
+    let (tx, rx) = channel();
+    self.context.post_message(Message::Webview {
+      window_id: *current_window_id,
+      webview_id: self.webview_id,
+      message: WebviewMessage::Reparent(window_id, tx),
+    })?;
+
+    rx.recv().unwrap()?;
+
+    *current_window_id = window_id;
     Ok(())
   }
 
-  fn cookies_for_url(&self, _url: Url) -> Result<Vec<Cookie<'static>>> {
-    Ok(vec![])
+  fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>> {
+    let current_window_id = self.window_id.lock().unwrap();
+    let (tx, rx) = channel();
+    self.context.post_message(Message::Webview {
+      window_id: *current_window_id,
+      webview_id: self.webview_id,
+      message: WebviewMessage::CookiesForUrl(url, tx),
+    })?;
+
+    rx.recv().unwrap()
   }
 
   fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
-    Ok(vec![])
+    webview_getter!(self, WebviewMessage::Cookies)?
   }
 
-  fn set_cookie(&self, _cookie: Cookie<'_>) -> Result<()> {
-    Ok(())
+  fn set_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SetCookie(cookie.into_owned()),
+    })
   }
 
-  fn delete_cookie(&self, _cookie: Cookie<'_>) -> Result<()> {
-    Ok(())
+  fn delete_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::DeleteCookie(cookie.into_owned()),
+    })
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SetAutoResize(auto_resize),
+    })
   }
 
   fn clear_all_browsing_data(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::ClearAllBrowsingData,
+    })
   }
 
   fn hide(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::Hide,
+    })
   }
 
   fn show(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::Show,
+    })
   }
 
   fn set_background_color(&self, color: Option<tauri_utils::config::Color>) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SetBackgroundColor(color),
+    })
   }
 }
 

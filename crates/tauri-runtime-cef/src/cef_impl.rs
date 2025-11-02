@@ -329,42 +329,33 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::EvaluateScript(script) => {
-      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
-        if let Some(browser) = browser_view.browser() {
-          if let Some(frame) = browser.main_frame() {
-            frame.execute_java_script(
-              Some(&cef::CefString::from(script.as_str())),
-              Some(&cef::CefString::from("")),
-              0,
-            );
-          }
-        }
-      }
+      get_browser_view(context, window_id, webview_id)
+        .and_then(|bv| bv.browser())
+        .and_then(|b| b.main_frame())
+        .map(|frame| {
+          frame.execute_java_script(
+            Some(&cef::CefString::from(script.as_str())),
+            Some(&cef::CefString::from("")),
+            0,
+          );
+        });
     }
     WebviewMessage::Navigate(url) => {
-      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
-        if let Some(browser) = browser_view.browser() {
-          if let Some(frame) = browser.main_frame() {
-            frame.load_url(Some(&cef::CefString::from(url.as_str())));
-          }
-        }
-      }
+      get_browser_view(context, window_id, webview_id)
+        .and_then(|bv| bv.browser())
+        .and_then(|b| b.main_frame())
+        .map(|frame| frame.load_url(Some(&cef::CefString::from(url.as_str()))));
     }
     WebviewMessage::Reload => {
-      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
-        if let Some(browser) = browser_view.browser() {
-          browser.reload();
-        }
-      }
+      get_browser_view(context, window_id, webview_id)
+        .and_then(|bv| bv.browser())
+        .map(|browser| browser.reload());
     }
     WebviewMessage::Print => {
-      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
-        if let Some(browser) = browser_view.browser() {
-          if let Some(host) = browser.host() {
-            host.print();
-          }
-        }
-      }
+      get_browser_view(context, window_id, webview_id)
+        .and_then(|bv| bv.browser())
+        .and_then(|b| b.host())
+        .map(|host| host.print());
     }
     WebviewMessage::Close => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
@@ -389,45 +380,47 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::Show => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(browser_view_wrapper) = app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-        {
-          if let Some(overlay) = &browser_view_wrapper.overlay {
-            overlay.set_visible(1);
-          }
-        }
-      }
+      context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .and_then(|app_window| {
+          app_window
+            .webviews
+            .iter()
+            .find(|w| w.webview_id == webview_id)
+        })
+        .and_then(|wrapper| wrapper.overlay.as_ref())
+        .map(|overlay| overlay.set_visible(1));
     }
     WebviewMessage::Hide => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(browser_view_wrapper) = app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-        {
-          if let Some(overlay) = &browser_view_wrapper.overlay {
-            overlay.set_visible(0);
-          }
-        }
-      }
+      context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .and_then(|app_window| {
+          app_window
+            .webviews
+            .iter()
+            .find(|w| w.webview_id == webview_id)
+        })
+        .and_then(|wrapper| wrapper.overlay.as_ref())
+        .map(|overlay| overlay.set_visible(0));
     }
     WebviewMessage::SetPosition(position) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(browser_view_wrapper) = app_window
+      context.windows.borrow().get(&window_id).map(|app_window| {
+        let device_scale_factor = app_window
+          .window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+        let physical_position = position.to_physical::<i32>(device_scale_factor);
+        app_window
           .webviews
           .iter()
           .find(|w| w.webview_id == webview_id)
-        {
-          let device_scale_factor = app_window
-            .window
-            .display()
-            .map(|d| d.device_scale_factor() as f64)
-            .unwrap_or(1.0);
-          let physical_position = position.to_physical::<i32>(device_scale_factor);
-          if let Some(overlay) = &browser_view_wrapper.overlay {
+          .and_then(|wrapper| wrapper.overlay.as_ref())
+          .map(|overlay| {
             let current_bounds = overlay.bounds();
             let new_bounds = cef::Rect {
               x: physical_position.x,
@@ -436,24 +429,23 @@ fn handle_webview_message<T: UserEvent>(
               height: current_bounds.height,
             };
             overlay.set_bounds(Some(&new_bounds));
-          }
-        }
-      }
+          });
+      });
     }
     WebviewMessage::SetSize(size) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(browser_view_wrapper) = app_window
+      context.windows.borrow().get(&window_id).map(|app_window| {
+        let device_scale_factor = app_window
+          .window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+        let physical_size = size.to_physical::<u32>(device_scale_factor);
+        app_window
           .webviews
           .iter()
           .find(|w| w.webview_id == webview_id)
-        {
-          let device_scale_factor = app_window
-            .window
-            .display()
-            .map(|d| d.device_scale_factor() as f64)
-            .unwrap_or(1.0);
-          let physical_size = size.to_physical::<u32>(device_scale_factor);
-          if let Some(overlay) = &browser_view_wrapper.overlay {
+          .and_then(|wrapper| wrapper.overlay.as_ref())
+          .map(|overlay| {
             let current_bounds = overlay.bounds();
             let new_bounds = cef::Rect {
               x: current_bounds.x,
@@ -462,43 +454,38 @@ fn handle_webview_message<T: UserEvent>(
               height: physical_size.height as i32,
             };
             overlay.set_bounds(Some(&new_bounds));
-          }
-        }
-      }
+          });
+      });
     }
     WebviewMessage::SetBounds(bounds) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(browser_view_wrapper) = app_window
+      context.windows.borrow().get(&window_id).map(|app_window| {
+        let device_scale_factor = app_window
+          .window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+        let physical_position = bounds.position.to_physical::<i32>(device_scale_factor);
+        let physical_size = bounds.size.to_physical::<u32>(device_scale_factor);
+        app_window
           .webviews
           .iter()
           .find(|w| w.webview_id == webview_id)
-        {
-          let device_scale_factor = app_window
-            .window
-            .display()
-            .map(|d| d.device_scale_factor() as f64)
-            .unwrap_or(1.0);
-          let physical_position = bounds.position.to_physical::<i32>(device_scale_factor);
-          let physical_size = bounds.size.to_physical::<u32>(device_scale_factor);
-          if let Some(overlay) = &browser_view_wrapper.overlay {
+          .and_then(|wrapper| wrapper.overlay.as_ref())
+          .map(|overlay| {
             overlay.set_bounds(Some(&cef::Rect {
               x: physical_position.x,
               y: physical_position.y,
               width: physical_size.width as i32,
               height: physical_size.height as i32,
             }));
-          }
-        }
-      }
+          });
+      });
     }
     WebviewMessage::SetFocus => {
-      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
-        if let Some(browser) = browser_view.browser() {
-          if let Some(host) = browser.host() {
-            host.set_focus(1);
-          }
-        }
-      }
+      get_browser_view(context, window_id, webview_id)
+        .and_then(|bv| bv.browser())
+        .and_then(|b| b.host())
+        .map(|host| host.set_focus(1));
     }
     WebviewMessage::Reparent(target_window_id, tx) => {
       let mut windows = context.windows.borrow_mut();
@@ -571,26 +558,26 @@ fn handle_webview_message<T: UserEvent>(
         .map(|host| host.set_zoom_level(scale_factor));
     }
     WebviewMessage::SetBackgroundColor(color) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(browser_view_wrapper) = app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-        {
-          // Convert Color to ARGB format (u32)
-          let color_value = color
-            .map(|c| {
-              let (r, g, b, a) = c.into();
-              // Convert to ARGB: (A << 24) | (R << 16) | (G << 8) | B
-              ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
-            })
-            .unwrap_or(0xFFFFFFFF);
+      // Convert Color to ARGB format (u32)
+      let color_value = color
+        .map(|c| {
+          let (r, g, b, a) = c.into();
+          // Convert to ARGB: (A << 24) | (R << 16) | (G << 8) | B
+          ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
+        })
+        .unwrap_or(0xFFFFFFFF);
 
-          browser_view_wrapper
-            .browser_view
-            .set_background_color(color_value);
-        }
-      }
+      context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .and_then(|app_window| {
+          app_window
+            .webviews
+            .iter()
+            .find(|w| w.webview_id == webview_id)
+        })
+        .map(|wrapper| wrapper.browser_view.set_background_color(color_value));
     }
     WebviewMessage::ClearAllBrowsingData => {
       // TODO: Implement clear browsing data
@@ -670,38 +657,34 @@ fn handle_webview_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WebviewMessage::WithWebview(f) => {
-      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
+      get_browser_view(context, window_id, webview_id).map(|browser_view| {
         f(Box::new(browser_view));
-      }
+      });
     }
     // Devtools
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::OpenDevTools => {
-      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
-        if let Some(browser) = browser_view.browser() {
-          if let Some(host) = browser.host() {
-            let window_info = cef::WindowInfo::default();
-            let settings = cef::BrowserSettings::default();
-            let inspect_at = cef::Point { x: 0, y: 0 };
-            host.show_dev_tools(
-              Some(&window_info),
-              Option::<&mut cef::Client>::None,
-              Some(&settings),
-              Some(&inspect_at),
-            );
-          }
-        }
-      }
+      get_browser_view(context, window_id, webview_id)
+        .and_then(|bv| bv.browser())
+        .and_then(|b| b.host())
+        .map(|host| {
+          let window_info = cef::WindowInfo::default();
+          let settings = cef::BrowserSettings::default();
+          let inspect_at = cef::Point { x: 0, y: 0 };
+          host.show_dev_tools(
+            Some(&window_info),
+            Option::<&mut cef::Client>::None,
+            Some(&settings),
+            Some(&inspect_at),
+          );
+        });
     }
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::CloseDevTools => {
-      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
-        if let Some(browser) = browser_view.browser() {
-          if let Some(host) = browser.host() {
-            host.close_dev_tools();
-          }
-        }
-      }
+      get_browser_view(context, window_id, webview_id)
+        .and_then(|bv| bv.browser())
+        .and_then(|b| b.host())
+        .map(|host| host.close_dev_tools());
     }
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::IsDevToolsOpen(tx) => {

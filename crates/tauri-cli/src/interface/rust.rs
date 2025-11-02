@@ -39,6 +39,8 @@ use crate::{
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 mod cargo_config;
+#[cfg(target_os = "macos")]
+mod cef;
 mod desktop;
 pub mod installation;
 pub mod manifest;
@@ -521,6 +523,7 @@ impl Rust {
     on_exit: F,
   ) -> crate::Result<Box<dyn DevProcess + Send>> {
     desktop::run_dev(
+      &self.app_settings,
       options,
       run_args,
       &mut self.available_targets,

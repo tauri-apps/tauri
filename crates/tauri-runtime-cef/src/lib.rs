@@ -396,13 +396,13 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   #[cfg(target_os = "macos")]
   fn set_activation_policy(
     &self,
-    activation_policy: tauri_runtime::ActivationPolicy,
+    _activation_policy: tauri_runtime::ActivationPolicy,
   ) -> Result<()> {
     Ok(())
   }
 
   #[cfg(target_os = "macos")]
-  fn set_dock_visibility(&self, visible: bool) -> Result<()> {
+  fn set_dock_visibility(&self, _visible: bool) -> Result<()> {
     Ok(())
   }
 
@@ -507,7 +507,7 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
     &self,
-    cb: F,
+    _cb: F,
   ) -> Result<()> {
     todo!()
   }
@@ -515,8 +515,8 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
     &self,
-    uuid: [u8; 16],
-    cb: F,
+    _uuid: [u8; 16],
+    _cb: F,
   ) -> Result<()> {
     todo!()
   }
@@ -558,6 +558,7 @@ pub struct CefWindowBuilder {
   focusable: Option<bool>,
   maximized: Option<bool>,
   visible: Option<bool>,
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   transparent: Option<bool>,
   decorations: Option<bool>,
   always_on_bottom: Option<bool>,
@@ -608,6 +609,7 @@ impl Default for CefWindowBuilder {
       focusable: None,
       maximized: None,
       visible: Some(true),
+      #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
       transparent: None,
       decorations: Some(true),
       always_on_bottom: None,
@@ -712,9 +714,9 @@ impl WindowBuilder for CefWindowBuilder {
         builder = builder.tabbing_identifier(identifier);
       }
       if let Some(position) = &config.traffic_light_position {
-        builder = builder.traffic_light_position(
-          tauri_runtime::dpi::LogicalPosition::new(position.x, position.y).into(),
-        );
+        builder = builder.traffic_light_position(tauri_runtime::dpi::LogicalPosition::new(
+          position.x, position.y,
+        ));
       }
     }
 
@@ -830,10 +832,6 @@ impl WindowBuilder for CefWindowBuilder {
   }
 
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
   fn transparent(self, transparent: bool) -> Self {
     let mut s = self;
     s.transparent = Some(transparent);
@@ -1755,19 +1753,55 @@ pub struct CefRuntime<T: UserEvent> {
   pub context: RuntimeContext<T>,
 }
 
+fn is_cef_helper_process() -> bool {
+  const HELPER_SUFFIXES: &[&str] = &[
+    " Helper (GPU)",
+    " Helper (Renderer)",
+    " Helper (Plugin)",
+    " Helper (Alerts)",
+    " Helper",
+  ];
+  std::env::current_exe()
+    .ok()
+    .and_then(|p| {
+      p.file_name()
+        .and_then(|s| s.to_str())
+        .map(|name| HELPER_SUFFIXES.iter().any(|s| name.ends_with(s)))
+    })
+    .unwrap_or_default()
+}
+
 impl<T: UserEvent> CefRuntime<T> {
   fn init(runtime_args: RuntimeInitArgs) -> Self {
+    let args = cef::args::Args::new();
+
     #[cfg(target_os = "macos")]
-    let _loader = {
+    let (_sandbox, _loader) = {
+      let is_helper = is_cef_helper_process();
+
+      #[cfg(feature = "sandbox")]
+      let sandbox = if is_helper {
+        let mut sandbox = cef::sandbox::Sandbox::new();
+        sandbox.initialize(args.as_main_args());
+        Some(sandbox)
+      } else {
+        None
+      };
+      #[cfg(not(feature = "sandbox"))]
+      let sandbox = ();
+
       let loader =
-        cef::library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), false);
+        cef::library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), is_helper);
       assert!(loader.load());
-      loader
+
+      if !is_helper {
+        init_ns_app();
+      }
+
+      (sandbox, loader)
     };
 
     let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
-
-    let args = cef::args::Args::new();
 
     let event_queue = Arc::new(RefCell::new(Vec::new()));
     let event_queue_ = event_queue.clone();
@@ -1791,7 +1825,6 @@ impl<T: UserEvent> CefRuntime<T> {
     let mut app = cef_impl::TauriApp::new(cef_context.clone(), runtime_args.custom_schemes);
 
     let cmd = args.as_cmd_line().unwrap();
-
     let switch = CefString::from("type");
     let is_browser_process = cmd.has_switch(Some(&switch)) != 1;
 
@@ -1810,7 +1843,7 @@ impl<T: UserEvent> CefRuntime<T> {
     }
 
     let settings = cef::Settings {
-      no_sandbox: 1,
+      no_sandbox: !cfg!(feature = "sandbox") as i32,
       root_cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       ..Default::default()
     };
@@ -2016,4 +2049,70 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     Ok(PhysicalPosition::new(0.0, 0.0))
   }
+}
+
+#[cfg(target_os = "macos")]
+fn init_ns_app() {
+  use objc2::{
+    msg_send,
+    rc::Retained,
+    runtime::{AnyObject, NSObjectProtocol},
+    ClassType, MainThreadMarker,
+  };
+  use objc2_app_kit::NSApp;
+
+  use application::SimpleApplication;
+
+  let mtm = MainThreadMarker::new().unwrap();
+
+  unsafe {
+    // Initialize the SimpleApplication instance.
+    // SAFETY: mtm ensures that here is the main thread.
+    let _: Retained<AnyObject> = msg_send![SimpleApplication::class(), sharedApplication];
+  }
+
+  // If there was an invocation to NSApp prior to here,
+  // then the NSApp will not be a SimpleApplication.
+  // The following assertion ensures that this doesn't happen.
+  assert!(NSApp(mtm).isKindOfClass(SimpleApplication::class()));
+}
+
+#[cfg(target_os = "macos")]
+mod application {
+  use std::cell::Cell;
+
+  use cef::application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol};
+  use objc2::{define_class, runtime::Bool, DefinedClass};
+  use objc2_app_kit::NSApplication;
+
+  /// Instance variables of `SimpleApplication`.
+  pub struct SimpleApplicationIvars {
+    handling_send_event: Cell<Bool>,
+  }
+
+  define_class!(
+    /// A `NSApplication` subclass that implements the required CEF protocols.
+    ///
+    /// This class provides the necessary `CefAppProtocol` conformance to
+    /// ensure that events are handled correctly by the Chromium framework on macOS.
+    #[unsafe(super(NSApplication))]
+    #[ivars = SimpleApplicationIvars]
+    pub struct SimpleApplication;
+
+    unsafe impl CrAppControlProtocol for SimpleApplication {
+      #[unsafe(method(setHandlingSendEvent:))]
+      unsafe fn set_handling_send_event(&self, handling_send_event: Bool) {
+        self.ivars().handling_send_event.set(handling_send_event);
+      }
+    }
+
+    unsafe impl CrAppProtocol for SimpleApplication {
+      #[unsafe(method(isHandlingSendEvent))]
+      unsafe fn is_handling_send_event(&self) -> Bool {
+        self.ivars().handling_send_event.get()
+      }
+    }
+
+    unsafe impl CefAppProtocol for SimpleApplication {}
+  );
 }

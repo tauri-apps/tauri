@@ -161,19 +161,16 @@ fn apply_content_protection(window: &cef::Window, protected: bool) {
     // Set NSWindow sharing type to NSWindowSharingNone/NSWindowSharingReadOnly
     // Safety: must be called on main thread; CEF window APIs run on main thread.
     unsafe {
-      use objc2::rc::Retained;
-      use objc2_app_kit::{NSView, NSWindow, NSWindowSharingType};
+      use objc2_app_kit::{NSView, NSWindowSharingType};
       let ns_view_ptr = window.window_handle() as *mut NSView;
-      if let Some(ns_view_ref) = ns_view_ptr.as_ref() {
-        if let Ok(ns_view) = Retained::retain(ns_view_ref) {
-          if let Some(ns_window) = ns_view.window() {
-            let sharing = if protected {
-              NSWindowSharingType::None
-            } else {
-              NSWindowSharingType::ReadOnly
-            };
-            ns_window.setSharingType(sharing);
-          }
+      if let Some(ns_view) = ns_view_ptr.as_ref() {
+        if let Some(ns_window) = ns_view.window() {
+          let sharing = if protected {
+            NSWindowSharingType::None
+          } else {
+            NSWindowSharingType::ReadOnly
+          };
+          ns_window.setSharingType(sharing);
         }
       }
     }

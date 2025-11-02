@@ -22,8 +22,8 @@ use std::{
 use tauri_utils::platform::Target as TargetPlatform;
 
 pub struct DevChild {
-  manually_killed_app: Arc<AtomicBool>,
-  dev_child: Arc<SharedChild>,
+  pub manually_killed_app: Arc<AtomicBool>,
+  pub dev_child: Arc<SharedChild>,
 }
 
 impl DevProcess for DevChild {
@@ -47,12 +47,38 @@ impl DevProcess for DevChild {
 }
 
 pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
+  app_settings: &RustAppSettings,
   options: Options,
   run_args: Vec<String>,
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
-) -> crate::Result<impl DevProcess> {
+) -> crate::Result<DevChild> {
+  #[cfg(all(target_os = "macos"))]
+  {
+    // compute enabled features by merging config_features and options.features, then asking the manifest
+    let mut merged_features = config_features.clone();
+    if let Some(f) = options.features.clone() {
+      merged_features.extend(f);
+    }
+    let enabled_features = app_settings
+      .manifest
+      .lock()
+      .unwrap()
+      .all_enabled_features(&merged_features);
+    let cef_enabled = enabled_features.contains(&"cef".to_string())
+      || enabled_features.contains(&"tauri/cef".to_string());
+    if cef_enabled {
+      return super::cef::run_dev_cef_macos(
+        app_settings,
+        options,
+        run_args,
+        available_targets,
+        config_features.clone(),
+        on_exit,
+      );
+    }
+  }
   let mut dev_cmd = cargo_command(true, options, available_targets, config_features)?;
   let runner = dev_cmd.get_program().to_string_lossy().into_owned();
 
@@ -231,7 +257,7 @@ fn build_production_app(
   }
 }
 
-fn cargo_command(
+pub(super) fn cargo_command(
   dev: bool,
   options: Options,
   available_targets: &mut Option<Vec<RustupTarget>>,

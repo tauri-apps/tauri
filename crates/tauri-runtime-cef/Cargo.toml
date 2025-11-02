@@ -10,8 +10,8 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-tauri-runtime = { version = "2.4.0", path = "../tauri-runtime" }
-tauri-utils = { version = "2.2.0", path = "../tauri-utils", features = [
+tauri-runtime = { version = "2.9.1", path = "../tauri-runtime" }
+tauri-utils = { version = "2.8.0", path = "../tauri-utils", features = [
   "html-manipulation",
 ] }
 html5ever = "0.29"
@@ -29,10 +29,13 @@ dirs = "6"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = [] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
 
 [features]
+default = ["sandbox"]
 devtools = []
 macos-private-api = ["tauri-runtime/macos-private-api"]
+sandbox = ["cef/sandbox"]

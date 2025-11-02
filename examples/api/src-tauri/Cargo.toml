@@ -31,7 +31,6 @@ features = [
   "image-ico",
   "image-png",
   "isolation",
-  "macos-private-api",
   "tray-icon",
 ]
 

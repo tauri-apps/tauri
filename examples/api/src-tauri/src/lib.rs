@@ -187,6 +187,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   app.run(move |_app_handle, _event| {
     #[cfg(all(desktop, not(test)))]
     match &_event {
+      #[cfg(not(feature = "cef"))]
       RunEvent::ExitRequested { api, code, .. } => {
         // Keep the event loop running even if all windows are closed
         // This allow us to catch tray icon events when there is no window

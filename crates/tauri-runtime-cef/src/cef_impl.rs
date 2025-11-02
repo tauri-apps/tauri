@@ -5,7 +5,7 @@ use std::{
   cell::RefCell,
   collections::HashMap,
   sync::{
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::channel,
     Arc, Mutex,
   },
@@ -107,7 +107,7 @@ wrap_browser_process_handler! {
 
   impl BrowserProcessHandler {
     fn on_context_initialized(&self) {
-      (self.context.callback.borrow_mut())(RunEvent::Ready);
+      (self.context.callback.borrow())(RunEvent::Ready);
     }
   }
 }
@@ -306,8 +306,13 @@ wrap_window_delegate! {
 
     fn can_close(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
       let windows = self.windows.borrow();
-      let closable = windows
-        .get(&self.window_id)
+
+      let window = windows.get(&self.window_id);
+      if window.as_ref().map(|w| w.force_close.load(Ordering::SeqCst)).unwrap_or_default() {
+        return 1;
+      }
+
+      let closable = window
         .map(|w| w.attributes.closable.unwrap_or(true))
         .unwrap_or(true);
 
@@ -1226,7 +1231,7 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
     } => handle_webview_message(context, window_id, webview_id, message),
     Message::RequestExit(code) => {
       let (tx, rx) = channel();
-      (context.callback.borrow_mut())(RunEvent::ExitRequested {
+      (context.callback.borrow())(RunEvent::ExitRequested {
         code: Some(code),
         tx,
       });
@@ -1240,7 +1245,7 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
     }
     Message::Task(t) => t(),
     Message::UserEvent(evt) => {
-      (context.callback.borrow_mut())(RunEvent::UserEvent(evt));
+      (context.callback.borrow())(RunEvent::UserEvent(evt));
     }
     Message::Noop => {}
   }
@@ -1258,6 +1263,8 @@ wrap_task! {
     }
   }
 }
+
+// Removed RunEventCallbackTask; callbacks are handled directly with re-entrancy guard
 
 fn create_window<T: UserEvent>(
   context: &Context<T>,
@@ -1447,6 +1454,7 @@ fn create_window<T: UserEvent>(
     AppWindow {
       label,
       window,
+      force_close: AtomicBool::new(false),
       webviews: Vec::new(),
       content_panel: None,
       window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
@@ -1495,7 +1503,7 @@ fn send_window_event<T: UserEvent>(
       }
     }
 
-    (callback.borrow_mut())(RunEvent::WindowEvent { label, event });
+    (callback.borrow())(RunEvent::WindowEvent { label, event });
   }
 }
 
@@ -1517,8 +1525,12 @@ fn on_close_requested<T: UserEvent>(
 }
 
 fn on_window_close(window_id: WindowId, windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>) {
-  if let Some(window) = windows.borrow().get(&window_id) {
-    window.window.close();
+  let window = windows.borrow().get(&window_id).map(|w| {
+    w.force_close.store(true, Ordering::SeqCst);
+    w.window.clone()
+  });
+  if let Some(window) = window {
+    window.close();
   }
 }
 
@@ -1536,7 +1548,7 @@ fn on_window_destroyed<T: UserEvent>(
     let is_empty = windows.borrow().is_empty();
     if is_empty {
       let (tx, rx) = channel();
-      (callback.borrow_mut())(RunEvent::ExitRequested { code: None, tx });
+      (callback.borrow())(RunEvent::ExitRequested { code: None, tx });
 
       let recv = rx.try_recv();
       let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));

@@ -271,6 +271,7 @@ pub type WebviewEventListeners =
 pub(crate) struct AppWindow {
   pub label: String,
   pub window: cef::Window,
+  pub force_close: AtomicBool,
   pub webviews: Vec<BrowserViewWrapper>,
   pub content_panel: Option<cef::Panel>,
   pub window_event_listeners: WindowEventListeners,
@@ -1959,6 +1960,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     self.is_running.store(true, Ordering::Relaxed);
 
     let callback = Arc::new(RefCell::new(callback));
+
     let callback_ = callback.clone();
     let _ = self
       .context

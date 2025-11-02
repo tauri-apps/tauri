@@ -407,7 +407,7 @@ wrap_window_delegate! {
   struct AppWindowDelegate<T: UserEvent> {
     window_id: WindowId,
     callback: Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
-    attributes: RefCell<crate::CefWindowBuilder>,
+    attributes: Arc<RefCell<crate::CefWindowBuilder>>,
     force_close: Arc<AtomicBool>,
     windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
   }
@@ -1635,7 +1635,7 @@ pub(crate) fn create_window<T: UserEvent>(
 ) {
   let label = pending.label.clone();
   let window_builder = pending.window_builder;
-  let attributes = RefCell::new(window_builder.clone());
+  let attributes = Arc::new(RefCell::new(window_builder.clone()));
   let force_close = Arc::new(AtomicBool::new(false));
 
   let mut delegate = AppWindowDelegate::<T>::new(

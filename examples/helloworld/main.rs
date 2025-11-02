@@ -10,7 +10,11 @@ fn greet(name: &str) -> String {
 }
 
 fn main() {
-  tauri::Builder::<tauri::Cef>::new()
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::new();
+  builder
     .invoke_handler(tauri::generate_handler![greet])
     .run(tauri::generate_context!(
       "../../examples/helloworld/tauri.conf.json"

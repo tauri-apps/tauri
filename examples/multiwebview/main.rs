@@ -7,7 +7,11 @@
 use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
 
 fn main() {
-  tauri::Builder::default()
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::new();
+  builder
     .setup(|app| {
       let width = 800.;
       let height = 600.;

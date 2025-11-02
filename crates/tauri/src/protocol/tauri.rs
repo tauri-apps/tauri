@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{borrow::Cow, sync::Arc};
+use std::{
+  borrow::Cow,
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
 
 use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
 use tauri_utils::config::HeaderAddition;
@@ -13,10 +17,6 @@ use crate::{
   Runtime,
 };
 
-#[cfg(all(dev, mobile))]
-use std::{collections::HashMap, sync::Mutex};
-
-#[cfg(all(dev, mobile))]
 #[derive(Clone)]
 struct CachedResponse {
   status: http::StatusCode,
@@ -29,7 +29,6 @@ pub fn get<R: Runtime>(
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
-  #[cfg(all(dev, mobile))]
   let url = {
     let mut url = manager
       .get_url(window_origin.starts_with("https"))
@@ -43,7 +42,6 @@ pub fn get<R: Runtime>(
 
   let window_origin = window_origin.to_string();
 
-  #[cfg(all(dev, mobile))]
   let response_cache = Arc::new(Mutex::new(HashMap::new()));
 
   Box::new(move |_, request, responder| {
@@ -52,7 +50,6 @@ pub fn get<R: Runtime>(
       &manager,
       &window_origin,
       web_resource_request_handler.as_deref(),
-      #[cfg(all(dev, mobile))]
       (&url, &response_cache),
     ) {
       Ok(response) => responder.respond(response),
@@ -73,10 +70,7 @@ fn get_response<R: Runtime>(
   #[allow(unused_variables)] manager: &AppManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
-  #[cfg(all(dev, mobile))] (url, response_cache): (
-    &str,
-    &Arc<Mutex<HashMap<String, CachedResponse>>>,
-  ),
+  (url, response_cache): (&str, &Arc<Mutex<HashMap<String, CachedResponse>>>),
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   // use the entire URI as we are going to proxy the request
   let path = if PROXY_DEV_SERVER {
@@ -103,8 +97,7 @@ fn get_response<R: Runtime>(
     .add_configured_headers(manager.config.app.security.headers.as_ref())
     .header("Access-Control-Allow-Origin", window_origin);
 
-  #[cfg(all(dev, mobile))]
-  let mut response = {
+  let mut response = if PROXY_DEV_SERVER && manager.assets.iter().count() == 0 {
     let decoded_path = percent_encoding::percent_decode(path.as_bytes())
       .decode_utf8_lossy()
       .to_string();
@@ -203,10 +196,7 @@ fn get_response<R: Runtime>(
         return Err(error_message.into());
       }
     }
-  };
-
-  #[cfg(not(all(dev, mobile)))]
-  let mut response = {
+  } else {
     let use_https_scheme = request.uri().scheme() == Some(&http::uri::Scheme::HTTPS);
     let asset = manager.get_asset(path, use_https_scheme)?;
     builder = builder.header(CONTENT_TYPE, &asset.mime_type);
@@ -215,6 +205,7 @@ fn get_response<R: Runtime>(
     }
     builder.body(asset.bytes.into())?
   };
+
   if let Some(handler) = &web_resource_request_handler {
     handler(request, &mut response);
   }

@@ -31,7 +31,10 @@ pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  run_app(tauri::Builder::default(), |_app| {})
+  #[cfg(feature = "cef")]
+  run_app(tauri::Builder::<tauri::Cef>::default(), |_app| {});
+  #[cfg(not(feature = "cef"))]
+  run_app(tauri::Builder::default(), |_app| {});
 }
 
 pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
@@ -47,7 +50,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     )
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
-      #[cfg(all(desktop, not(test)))]
+      #[cfg(all(desktop, not(test), not(feature = "cef")))]
       {
         let handle = app.handle();
         tray::create_tray(handle)?;

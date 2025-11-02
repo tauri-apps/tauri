@@ -94,6 +94,14 @@ tray-icon = { version = "0.21", default-features = false, features = [
   "serde",
 ], optional = true }
 
+# dev server proxy
+bytes = { version = "1", features = ["serde"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "stream",
+
+] }
+
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
@@ -136,15 +144,6 @@ windows = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_UI",
   "Win32_UI_WindowsAndMessaging",
-] }
-
-# mobile
-[target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
-bytes = { version = "1", features = ["serde"] }
-reqwest = { version = "0.12", default-features = false, features = [
-  "json",
-  "stream",
-
 ] }
 
 # android

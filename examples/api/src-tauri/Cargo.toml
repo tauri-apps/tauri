@@ -41,3 +41,4 @@ features = ["test"]
 
 [features]
 prod = ["tauri/custom-protocol"]
+cef = ["tauri/cef"]

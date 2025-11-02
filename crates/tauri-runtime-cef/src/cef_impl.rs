@@ -1241,7 +1241,7 @@ wrap_task! {
 fn create_window<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
-  _webview_id: u32,
+  webview_id: u32,
   pending: PendingWindow<T, CefRuntime<T>>,
 ) {
   let label = pending.label.clone();
@@ -1435,7 +1435,6 @@ fn create_window<T: UserEvent>(
   );
 
   if let Some(webview) = pending.webview {
-    let webview_id = context.next_webview_id();
     create_webview(
       WebviewKind::WindowContent,
       context,

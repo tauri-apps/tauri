@@ -115,20 +115,56 @@ wrap_browser_process_handler! {
 wrap_load_handler! {
   struct BrowserLoadHandler {
     initialization_scripts: Vec<CefInitScript>,
+    on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
   }
 
   impl LoadHandler {
+    fn on_load_start(
+      &self,
+      _browser: Option<&mut Browser>,
+      frame: Option<&mut Frame>,
+      _transition_type: TransitionType,
+    ) {
+      let Some(handler) = &self.on_page_load_handler else { return };
+      let Some(frame) = frame else { return };
+
+      let is_main_frame = frame.is_main() == 1;
+      if !is_main_frame {
+        return;
+      }
+
+      let url = frame.url();
+      let url_str = cef::CefString::from(&url).to_string();
+      if let Ok(url) = url::Url::parse(&url_str) {
+        handler(url, tauri_runtime::webview::PageLoadEvent::Started);
+      }
+    }
+
     fn on_load_end(
       &self,
       browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
       http_status_code: ::std::os::raw::c_int,
     ) {
+      let Some(frame) = frame else { return };
+
+      if let Some(handler) = &self.on_page_load_handler {
+        if frame.is_main() == 1 {
+          let url = frame.url();
+          let url_str = cef::CefString::from(&url).to_string();
+          if let Ok(url) = url::Url::parse(&url_str) {
+            handler(url, tauri_runtime::webview::PageLoadEvent::Finished);
+          }
+        }
+      }
+
+      // run init scripts for http/https pages
+      // custom schemes are handled by the request handler
+      // where we inject scripts directly in the html
+
       if http_status_code < 200 || http_status_code >= 300 {
         return;
       }
-
-      let Some(frame) = frame else { return };
 
       let url = frame.url();
       let url_str = cef::CefString::from(&url).to_string();
@@ -172,6 +208,7 @@ wrap_load_handler! {
 wrap_client! {
   struct BrowserClient {
     initialization_scripts: Vec<CefInitScript>,
+    on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
   }
 
   impl Client {
@@ -184,6 +221,7 @@ wrap_client! {
     fn load_handler(&self) -> Option<LoadHandler> {
       Some(BrowserLoadHandler::new(
         self.initialization_scripts.clone(),
+        self.on_page_load_handler.clone(),
       ))
     }
   }
@@ -1515,7 +1553,7 @@ fn create_webview<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
   webview_id: u32,
-  pending: PendingWebview<T, CefRuntime<T>>,
+  mut pending: PendingWebview<T, CefRuntime<T>>,
 ) {
   let window = match context
     .windows
@@ -1539,7 +1577,11 @@ fn create_webview<T: UserEvent>(
     .map(CefInitScript::new)
     .collect();
 
-  let mut client = BrowserClient::new(initialization_scripts.clone());
+  let on_page_load_handler = pending
+    .on_page_load_handler
+    .take()
+    .map(|h| Arc::from(h) as Arc<tauri_runtime::webview::OnPageLoadHandler>);
+  let mut client = BrowserClient::new(initialization_scripts.clone(), on_page_load_handler);
   let url = CefString::from(pending.url.as_str());
 
   let global_context =

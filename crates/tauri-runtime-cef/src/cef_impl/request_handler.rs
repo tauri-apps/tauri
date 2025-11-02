@@ -23,19 +23,18 @@ use super::CefInitScript;
 
 fn csp_inject_initialization_scripts_hashes(
   existing_csp: Option<&str>,
-  initialization_scripts: Option<&[CefInitScript]>,
+  initialization_scripts: &[CefInitScript],
 ) -> Option<String> {
-  let Some(scripts) = initialization_scripts else {
-    return existing_csp.map(|s| s.to_string());
-  };
-
-  if scripts.is_empty() {
+  if initialization_scripts.is_empty() {
     return existing_csp.map(|s| s.to_string());
   }
 
   // For custom schemes, include ALL script hashes (we inject all scripts into HTML)
   // This matches the HTML injection behavior in inject_scripts_into_html_body
-  let script_hashes: Vec<String> = scripts.iter().map(|s| s.hash.clone()).collect();
+  let script_hashes: Vec<String> = initialization_scripts
+    .iter()
+    .map(|s| s.hash.clone())
+    .collect();
 
   if script_hashes.is_empty() {
     return existing_csp.map(|s| s.to_string());
@@ -71,7 +70,7 @@ fn csp_inject_initialization_scripts_hashes(
 /// Helper function to inject initialization scripts into HTML body
 fn inject_scripts_into_html_body(
   body: &[u8],
-  initialization_scripts: Option<&[CefInitScript]>,
+  initialization_scripts: &[CefInitScript],
 ) -> Option<Vec<u8>> {
   // Check if body is valid UTF-8 HTML
   let Ok(body_str) = std::str::from_utf8(body) else {
@@ -93,12 +92,10 @@ fn inject_scripts_into_html_body(
   };
 
   // Inject initialization scripts (for custom schemes, inject all scripts)
-  if let Some(scripts) = initialization_scripts {
-    for init_script in scripts.iter().rev() {
-      let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-      script_el.append(NodeRef::new_text(init_script.script.script.as_str()));
-      head.prepend(script_el);
-    }
+  for init_script in initialization_scripts.iter().rev() {
+    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
+    script_el.append(NodeRef::new_text(init_script.script.script.as_str()));
+    head.prepend(script_el);
   }
 
   // Serialize the modified HTML
@@ -150,7 +147,11 @@ wrap_request_handler! {
 
 wrap_resource_handler! {
   pub struct WebResourceHandler {
-    context: UriSchemeContext,
+    webview_label: String,
+    handler: Arc<UriSchemeProtocol>,
+    initialization_scripts: Vec<CefInitScript>,
+    // we clone response to send it to the handler thread
+    response: Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>,
   }
 
   impl ResourceHandler {
@@ -168,8 +169,8 @@ wrap_resource_handler! {
       if let Some(url) = url {
         let callback = ThreadSafe(callback.clone());
         // TODO: thread safety
-        let response_store = ThreadSafe(self.context.response.clone());
-        let initialization_scripts = self.context.initialization_scripts.clone();
+        let response_store = ThreadSafe(self.response.clone());
+        let initialization_scripts = self.initialization_scripts.clone();
         let responder = Box::new(move |response: http::Response<Cow<'static, [u8]>>| {
           // Check if this is an HTML response that needs script injection
           let content_type = response.headers().get(CONTENT_TYPE);
@@ -181,9 +182,8 @@ wrap_resource_handler! {
           let (parts, body) = response.into_parts();
           let body_bytes = body.into_owned();
 
-          // Inject scripts into HTML body if applicable
           let modified_body = if is_html {
-            inject_scripts_into_html_body(&body_bytes, initialization_scripts.as_deref())
+            inject_scripts_into_html_body(&body_bytes, &initialization_scripts)
               .unwrap_or(body_bytes)
           } else {
             body_bytes
@@ -196,8 +196,8 @@ wrap_resource_handler! {
           callback.cont();
         });
 
-        let label = self.context.label.clone();
-        let handler = self.context.handler.clone();
+        let label = self.webview_label.clone();
+        let handler = self.handler.clone();
 
         let data = read_request_body(request);
         let headers = get_request_headers(request);
@@ -227,7 +227,7 @@ wrap_resource_handler! {
         return 0;
       };
       let data_out = unsafe { std::slice::from_raw_parts_mut(data_out, bytes_to_read) };
-      let count = self.context.response.borrow_mut().as_mut().and_then(|response| response.body_mut().read(data_out).ok()).unwrap_or(0);
+      let count = self.response.borrow_mut().as_mut().and_then(|response| response.body_mut().read(data_out).ok()).unwrap_or(0);
       if let Some(bytes_read) = bytes_read {
         let Ok(count) = count.try_into() else {
           return 0;
@@ -246,7 +246,7 @@ wrap_resource_handler! {
       response_length: Option<&mut i64>,
       redirect_url: Option<&mut CefString>,
     ) {
-      let (Some(response), Some(response_data)) = (response, &*self.context.response.borrow()) else { return };
+      let (Some(response), Some(response_data)) = (response, &*self.response.borrow()) else { return };
 
       response.set_status(response_data.status().as_u16() as i32);
       let mut content_type = None;
@@ -269,7 +269,7 @@ wrap_resource_handler! {
 
       let new_csp = csp_inject_initialization_scripts_hashes(
         csp_header.as_deref(),
-        self.context.initialization_scripts.as_deref(),
+        &self.initialization_scripts,
       );
 
       if let Some(new_csp) = new_csp {
@@ -296,7 +296,9 @@ wrap_resource_handler! {
 
 wrap_scheme_handler_factory! {
   pub struct UriSchemeHandlerFactory {
-    context: UriSchemeContext,
+    webview_label: String,
+    handler: Arc<UriSchemeProtocol>,
+    initialization_scripts: Vec<CefInitScript>,
   }
 
   impl SchemeHandlerFactory {
@@ -307,17 +309,9 @@ wrap_scheme_handler_factory! {
       _scheme_name: Option<&CefString>,
       _request: Option<&mut Request>,
     ) -> Option<ResourceHandler> {
-      Some(WebResourceHandler::new(self.context.clone()))
+      Some(WebResourceHandler::new(self.webview_label.clone(), self.handler.clone(), self.initialization_scripts.clone(), Arc::new(RefCell::new(None))))
     }
   }
-}
-
-#[derive(Clone)]
-pub struct UriSchemeContext {
-  pub label: String,
-  pub handler: Arc<UriSchemeProtocol>,
-  pub response: Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>,
-  pub initialization_scripts: Option<Vec<CefInitScript>>,
 }
 
 struct ThreadSafe<T>(T);

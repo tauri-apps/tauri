@@ -107,6 +107,7 @@ fn get_response<R: Runtime>(
       decoded_path.trim_start_matches('/')
     );
 
+    #[allow(unused_mut)]
     let mut client = reqwest::ClientBuilder::new();
 
     if url.starts_with("https://") {
@@ -131,6 +132,7 @@ fn get_response<R: Runtime>(
           feature = "rustls-tls"
         )))]
         {
+          let _cert_pem = cert_pem;
           log::warn!(
             "the dev root-certificate-path option was provided, but you must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
           );

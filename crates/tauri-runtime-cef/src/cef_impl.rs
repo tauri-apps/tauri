@@ -1535,11 +1535,11 @@ fn create_webview<T: UserEvent>(
   webview_id: u32,
   pending: PendingWebview<T, CefRuntime<T>>,
 ) {
-  let (app_window, label) = match context
+  let window = match context
     .windows
     .borrow()
     .get(&window_id)
-    .map(|app_window| (app_window.window.clone(), app_window.label.clone()))
+    .map(|app_window| app_window.window.clone())
   {
     Some(w) => w,
     None => {
@@ -1573,17 +1573,14 @@ fn create_webview<T: UserEvent>(
   );
   if let Some(request_context) = &request_context {
     for (scheme, handler) in pending.uri_scheme_protocols {
-      let label = label.clone();
+      let webview_label = pending.label.clone();
       request_context.register_scheme_handler_factory(
         Some(&scheme.as_str().into()),
         None,
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
-          request_handler::UriSchemeContext {
-            label,
-            handler: Arc::new(handler) as Arc<UriSchemeProtocol>,
-            response: Arc::new(RefCell::new(None)),
-            initialization_scripts: Some(initialization_scripts.clone()),
-          },
+          webview_label,
+          Arc::new(handler) as Arc<UriSchemeProtocol>,
+          initialization_scripts.clone(),
         )),
       );
     }
@@ -1603,7 +1600,7 @@ fn create_webview<T: UserEvent>(
   .expect("Failed to create browser view");
 
   let bounds = pending.webview_attributes.bounds.map(|bounds| {
-    let device_scale_factor = app_window
+    let device_scale_factor = window
       .display()
       .map(|d| d.device_scale_factor() as f64)
       .unwrap_or(1.0);
@@ -1618,7 +1615,7 @@ fn create_webview<T: UserEvent>(
   });
 
   if kind == WebviewKind::WindowChild {
-    let overlay = app_window
+    let overlay = window
       .add_overlay_view(
         Some(&mut View::from(&browser_view)),
         cef::DockingMode::from(cef::sys::cef_docking_mode_t::CEF_DOCKING_MODE_CUSTOM),
@@ -1643,7 +1640,7 @@ fn create_webview<T: UserEvent>(
         overlay: Some(overlay),
       });
   } else {
-    app_window.add_child_view(Some(&mut View::from(&browser_view)));
+    window.add_child_view(Some(&mut View::from(&browser_view)));
     if let Some(bounds) = &bounds {
       browser_view.set_bounds(Some(bounds));
     }

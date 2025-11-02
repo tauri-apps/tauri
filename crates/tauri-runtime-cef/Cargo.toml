@@ -27,6 +27,9 @@ sha2 = "0.10"
 base64 = "0.22"
 dirs = "6"
 
+[target."cfg(target_os = \"macos\")".dependencies]
+objc2 = "0.6"
+
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
 

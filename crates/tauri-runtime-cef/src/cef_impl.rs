@@ -1,3 +1,7 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use base64::Engine;
 use cef::{rc::*, *};
 use sha2::{Digest, Sha256};
@@ -10,6 +14,7 @@ use std::{
     Arc, Mutex,
   },
 };
+use tauri_runtime::window::WindowBuilder;
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   webview::{InitializationScript, PendingWebview, UriSchemeProtocol},
@@ -20,7 +25,161 @@ use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{AppWindow, BrowserViewWrapper, CefRuntime, Message, WebviewMessage, WindowMessage};
 
+mod cookie;
 mod request_handler;
+use cookie::{CollectAllCookiesVisitor, CollectUrlCookiesVisitor};
+
+#[inline]
+fn color_to_cef_argb(color: tauri_utils::config::Color) -> u32 {
+  let (r, g, b, a) = color.into();
+  ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
+}
+
+#[inline]
+fn color_opt_to_cef_argb(color: Option<tauri_utils::config::Color>) -> u32 {
+  color.map(color_to_cef_argb).unwrap_or(0xFFFFFFFF)
+}
+
+/// Convert a CEF Display to a tauri Monitor
+pub(crate) fn display_to_monitor(display: &cef::Display) -> tauri_runtime::monitor::Monitor {
+  let bounds = display.bounds();
+  let work = display.work_area();
+  tauri_runtime::monitor::Monitor {
+    name: None,
+    size: PhysicalSize::new(bounds.width as u32, bounds.height as u32),
+    position: PhysicalPosition::new(bounds.x, bounds.y),
+    work_area: tauri_runtime::dpi::PhysicalRect {
+      position: PhysicalPosition::new(work.x, work.y),
+      size: PhysicalSize::new(work.width as u32, work.height as u32),
+    },
+    scale_factor: display.device_scale_factor() as f64,
+  }
+}
+
+/// Get the primary monitor
+pub(crate) fn get_primary_monitor() -> Option<tauri_runtime::monitor::Monitor> {
+  cef::display_get_primary().map(|d| display_to_monitor(&d))
+}
+
+/// Get the monitor from a point
+pub(crate) fn get_monitor_from_point(x: f64, y: f64) -> Option<tauri_runtime::monitor::Monitor> {
+  let rect = cef::Rect {
+    x: x as i32,
+    y: y as i32,
+    width: 1,
+    height: 1,
+  };
+  cef::display_get_matching_bounds(Some(&rect), 1).map(|d| display_to_monitor(&d))
+}
+
+/// Get all available monitors
+pub(crate) fn get_available_monitors() -> Vec<tauri_runtime::monitor::Monitor> {
+  let mut displays: Vec<Option<cef::Display>> = vec![None; cef::display_get_count()];
+  cef::display_get_alls(Some(&mut displays));
+  displays
+    .into_iter()
+    .flatten()
+    .map(|d| display_to_monitor(&d))
+    .collect()
+}
+
+/// Convert tauri Icon to CEF Image
+fn icon_to_cef_image(icon: tauri_runtime::Icon<'static>) -> Option<cef::Image> {
+  let rgba = icon.rgba.to_vec();
+  let width = icon.width;
+  let height = icon.height;
+
+  // Create a CEF Image
+  let image = cef::image_create()?;
+
+  // Add bitmap data to the image
+  // RGBA_8888 color type, OPAQUE alpha type (for icons without transparency, or use PREMULTIPLIED for transparency)
+  use cef_dll_sys::cef_alpha_type_t;
+  let result = image.add_bitmap(
+    1.0, // scale_factor
+    width as i32,
+    height as i32,
+    cef::ColorType::default(), // RGBA_8888
+    cef::AlphaType::from(cef_alpha_type_t::CEF_ALPHA_TYPE_PREMULTIPLIED), // Use premultiplied for RGBA with alpha
+    Some(&rgba),
+  );
+
+  if result == 1 {
+    Some(image)
+  } else {
+    None
+  }
+}
+
+/// Set window icon using CEF native API
+fn set_window_icon(window: &cef::Window, icon: tauri_runtime::Icon<'static>) {
+  if let Some(mut cef_image) = icon_to_cef_image(icon) {
+    window.set_window_icon(Some(&mut cef_image));
+  }
+}
+
+/// Set overlay icon using CEF native API (set_window_app_icon)
+fn set_overlay_icon(window: &cef::Window, icon: Option<tauri_runtime::Icon<'static>>) {
+  match icon {
+    Some(icon_data) => {
+      if let Some(mut cef_image) = icon_to_cef_image(icon_data) {
+        window.set_window_app_icon(Some(&mut cef_image));
+      }
+    }
+    None => {
+      window.set_window_app_icon(None);
+    }
+  }
+}
+
+#[inline]
+fn apply_content_protection(window: &cef::Window, protected: bool) {
+  #[cfg(target_os = "linux")]
+  {
+    let _ = (window, protected);
+  }
+  #[cfg(windows)]
+  {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+      SetWindowDisplayAffinity, WDA_EXCLUDEFROMCAPTURE, WDA_NONE,
+    };
+    let hwnd = window.window_handle() as isize;
+    unsafe {
+      let _ = SetWindowDisplayAffinity(
+        HWND(hwnd),
+        if protected {
+          WDA_EXCLUDEFROMCAPTURE
+        } else {
+          WDA_NONE
+        },
+      );
+    }
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    // Set NSWindow sharing type to NSWindowSharingNone/NSWindowSharingReadOnly
+    // Safety: must be called on main thread; CEF window APIs run on main thread.
+    unsafe {
+      use objc2::rc::Retained;
+      use objc2_app_kit::{NSView, NSWindow, NSWindowSharingType};
+      let ns_view_ptr = window.window_handle() as *mut NSView;
+      if let Some(ns_view_ref) = ns_view_ptr.as_ref() {
+        if let Ok(ns_view) = Retained::retain(ns_view_ref) {
+          if let Some(ns_window) = ns_view.window() {
+            let sharing = if protected {
+              NSWindowSharingType::None
+            } else {
+              NSWindowSharingType::ReadOnly
+            };
+            ns_window.setSharingType(sharing);
+          }
+        }
+      }
+    }
+  }
+}
 
 #[derive(Clone)]
 pub struct CefInitScript {
@@ -142,7 +301,7 @@ wrap_load_handler! {
 
     fn on_load_end(
       &self,
-      browser: Option<&mut Browser>,
+      _browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
       http_status_code: ::std::os::raw::c_int,
     ) {
@@ -255,23 +414,98 @@ wrap_window_delegate! {
     windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
   }
 
-  impl ViewDelegate {}
+  impl ViewDelegate {
+    fn minimum_size(&self, _view: Option<&mut View>) -> cef::Size {
+      let windows = self.windows.borrow();
+      if let Some(app_window) = windows.get(&self.window_id) {
+        let scale = app_window
+          .window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+
+        let mut min_w: i32 = 0;
+        let mut min_h: i32 = 0;
+
+        if let Some(min_size) = app_window.attributes.min_inner_size {
+          let physical = min_size.to_physical::<u32>(scale);
+          min_w = min_w.max(physical.width as i32);
+          min_h = min_h.max(physical.height as i32);
+        }
+
+        if let Some(constraints) = app_window.attributes.inner_size_constraints {
+          if let Some(w) = constraints.min_width {
+            let w_ph = i32::from(w.to_physical::<u32>(scale));
+            min_w = min_w.max(w_ph);
+          }
+          if let Some(h) = constraints.min_height {
+            let h_ph = i32::from(h.to_physical::<u32>(scale));
+            min_h = min_h.max(h_ph);
+          }
+        }
+
+        if min_w != 0 || min_h != 0 {
+          return cef::Size { width: min_w, height: min_h };
+        }
+      }
+      cef::Size { width: 0, height: 0 }
+    }
+
+    fn maximum_size(&self, _view: Option<&mut View>) -> cef::Size {
+      let windows = self.windows.borrow();
+      if let Some(app_window) = windows.get(&self.window_id) {
+        let scale = app_window
+          .window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+
+        let mut max_w: Option<i32> = None;
+        let mut max_h: Option<i32> = None;
+
+        if let Some(max_size) = app_window.attributes.max_inner_size {
+          let physical = max_size.to_physical::<u32>(scale);
+          max_w = Some(physical.width as i32);
+          max_h = Some(physical.height as i32);
+        }
+
+        if let Some(constraints) = app_window.attributes.inner_size_constraints {
+          if let Some(w) = constraints.max_width {
+            let w_ph = i32::from(w.to_physical::<u32>(scale));
+            max_w = Some(match max_w { Some(v) => v.min(w_ph), None => w_ph });
+          }
+          if let Some(h) = constraints.max_height {
+            let h_ph = i32::from(h.to_physical::<u32>(scale));
+            max_h = Some(match max_h { Some(v) => v.min(h_ph), None => h_ph });
+          }
+        }
+
+        if max_w.is_some() || max_h.is_some() {
+          return cef::Size {
+            width: max_w.unwrap_or(0),
+            height: max_h.unwrap_or(0),
+          };
+        }
+      }
+      cef::Size { width: 0, height: 0 }
+    }
+  }
 
   impl PanelDelegate {}
 
   impl WindowDelegate {
-    fn on_window_destroyed(&self, _window: Option<&mut Window>) {
-      on_window_destroyed(self.window_id, &self.windows, &self.callback);
-    }
-
-    fn with_standard_window_buttons(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
-      // Check if decorations are enabled (standard buttons only shown when decorated)
+    fn is_frameless(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
+      // Map `decorations: false` to frameless window
       let windows = self.windows.borrow();
       if let Some(app_window) = windows.get(&self.window_id) {
-        app_window.attributes.decorations.unwrap_or(true) as i32
+        (!app_window.attributes.decorations.unwrap_or(true)) as i32
       } else {
-        1
+        0
       }
+    }
+
+    fn on_window_destroyed(&self, _window: Option<&mut Window>) {
+      on_window_destroyed(self.window_id, &self.windows, &self.callback);
     }
 
     fn can_resize(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
@@ -601,15 +835,7 @@ fn handle_webview_message<T: UserEvent>(
         .map(|host| host.set_zoom_level(scale_factor));
     }
     WebviewMessage::SetBackgroundColor(color) => {
-      // Convert Color to ARGB format (u32)
-      let color_value = color
-        .map(|c| {
-          let (r, g, b, a) = c.into();
-          // Convert to ARGB: (A << 24) | (R << 16) | (G << 8) | B
-          ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
-        })
-        .unwrap_or(0xFFFFFFFF);
-
+      let color_value = color_opt_to_cef_argb(color);
       context
         .windows
         .borrow()
@@ -733,19 +959,98 @@ fn handle_webview_message<T: UserEvent>(
     WebviewMessage::IsDevToolsOpen(tx) => {
       let _ = tx.send(false);
     }
-    WebviewMessage::CookiesForUrl(_url, tx) => {
-      // TODO: Implement cookie retrieval for URL
-      let _ = tx.send(Ok(Vec::new()));
+    WebviewMessage::CookiesForUrl(url, tx) => {
+      // Collect cookies for a specific URL
+      let url_str = url.as_str().to_string();
+
+      cef::cookie_manager_get_global_manager(None)
+        .map(|manager| {
+          let collected: Arc<Mutex<Vec<tauri_runtime::Cookie<'static>>>> =
+            Arc::new(Mutex::new(Vec::new()));
+          let tx_ = tx.clone();
+
+          let mut visitor = CollectUrlCookiesVisitor::new(tx_, collected.clone());
+          let url_cef = cef::CefString::from(url_str.as_str());
+          manager.visit_url_cookies(Some(&url_cef), 1, Some(&mut visitor));
+        })
+        .or_else(|| {
+          let _ = tx.send(Ok(Vec::new()));
+          None
+        });
     }
     WebviewMessage::Cookies(tx) => {
-      // TODO: Implement cookie retrieval
-      let _ = tx.send(Ok(Vec::new()));
+      // Collect all cookies
+      cef::cookie_manager_get_global_manager(None)
+        .map(|manager| {
+          let collected: Arc<Mutex<Vec<tauri_runtime::Cookie<'static>>>> =
+            Arc::new(Mutex::new(Vec::new()));
+          let tx_ = tx.clone();
+
+          let mut visitor = CollectAllCookiesVisitor::new(tx_, collected.clone());
+          manager.visit_all_cookies(Some(&mut visitor));
+        })
+        .or_else(|| {
+          let _ = tx.send(Ok(Vec::new()));
+          None
+        });
     }
-    WebviewMessage::SetCookie(_cookie) => {
-      // TODO: Implement cookie setting
+    WebviewMessage::SetCookie(cookie) => {
+      if let Some(manager) = cef::cookie_manager_get_global_manager(None) {
+        // Try to infer a URL for the cookie scope using the currently loaded URL
+        let url = get_browser_view(context, window_id, webview_id)
+          .and_then(|bv| bv.browser())
+          .and_then(|b| b.main_frame())
+          .map(|frame| cef::CefString::from(&frame.url()).to_string())
+          .unwrap_or_default();
+
+        let mut cef_cookie = cef::Cookie::default();
+        cef_cookie.name = cef::CefString::from(cookie.name());
+        cef_cookie.value = cef::CefString::from(cookie.value());
+        if let Some(d) = cookie.domain() {
+          cef_cookie.domain = cef::CefString::from(d);
+        }
+        if let Some(p) = cookie.path() {
+          cef_cookie.path = cef::CefString::from(p);
+        }
+        if cookie.secure().unwrap_or(false) {
+          cef_cookie.secure = 1;
+        }
+        if cookie.http_only().unwrap_or(false) {
+          cef_cookie.httponly = 1;
+        }
+
+        let url_cef = if url.is_empty() {
+          None
+        } else {
+          Some(cef::CefString::from(url.as_str()))
+        };
+        manager.set_cookie(
+          url_cef.as_ref(),
+          Some(&cef_cookie),
+          Option::<&mut cef::SetCookieCallback>::None,
+        );
+      }
     }
-    WebviewMessage::DeleteCookie(_cookie) => {
-      // TODO: Implement cookie deletion
+    WebviewMessage::DeleteCookie(cookie) => {
+      if let Some(manager) = cef::cookie_manager_get_global_manager(None) {
+        // Resolve current URL for targeted deletion
+        let url = get_browser_view(context, window_id, webview_id)
+          .and_then(|bv| bv.browser())
+          .and_then(|b| b.main_frame())
+          .map(|frame| cef::CefString::from(&frame.url()).to_string())
+          .unwrap_or_default();
+        let url_cef = if url.is_empty() {
+          None
+        } else {
+          Some(cef::CefString::from(url.as_str()))
+        };
+        let name_cef = Some(cef::CefString::from(cookie.name()));
+        manager.delete_cookies(
+          url_cef.as_ref(),
+          name_cef.as_ref(),
+          Option::<&mut cef::DeleteCookiesCallback>::None,
+        );
+      }
     }
   }
 }
@@ -867,21 +1172,49 @@ fn handle_window_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WindowMessage::IsDecorated(_tx) => {
-      // TODO: Implement decorations getter
-      let _ = _tx.send(Ok(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.decorations.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = _tx.send(result);
     }
     WindowMessage::IsResizable(_tx) => {
-      // TODO: Implement resizable getter
-      let _ = _tx.send(Ok(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.resizable.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = _tx.send(result);
     }
     WindowMessage::IsMaximizable(_tx) => {
-      let _ = _tx.send(Ok(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.maximizable.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = _tx.send(result);
     }
     WindowMessage::IsMinimizable(_tx) => {
-      let _ = _tx.send(Ok(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.minimizable.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = _tx.send(result);
     }
     WindowMessage::IsClosable(_tx) => {
-      let _ = _tx.send(Ok(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.closable.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = _tx.send(result);
     }
     WindowMessage::IsVisible(tx) => {
       let result = context
@@ -905,58 +1238,116 @@ fn handle_window_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WindowMessage::CurrentMonitor(_tx) => {
-      // TODO: Implement monitor getter
-      let _ = _tx.send(Ok(None));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| {
+          let b = w.window.bounds();
+          cef::display_get_matching_bounds(Some(&b), 1).map(|d| {
+            let bounds = d.bounds();
+            let work = d.work_area();
+            tauri_runtime::monitor::Monitor {
+              name: None,
+              size: PhysicalSize::new(bounds.width as u32, bounds.height as u32),
+              position: PhysicalPosition::new(bounds.x, bounds.y),
+              work_area: tauri_runtime::dpi::PhysicalRect {
+                position: PhysicalPosition::new(work.x, work.y),
+                size: PhysicalSize::new(work.width as u32, work.height as u32),
+              },
+              scale_factor: d.device_scale_factor() as f64,
+            }
+          })
+        })
+        .map(|opt| Ok(opt))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = _tx.send(result);
     }
     WindowMessage::PrimaryMonitor(_tx) => {
-      // TODO: Implement monitor getter
-      let _ = _tx.send(Ok(None));
+      let result = Ok(get_primary_monitor());
+      let _ = _tx.send(result);
     }
-    WindowMessage::MonitorFromPoint(_tx, _x, _y) => {
-      // TODO: Implement monitor getter
-      let _ = _tx.send(Ok(None));
+    WindowMessage::MonitorFromPoint(_tx, x, y) => {
+      let result = Ok(get_monitor_from_point(x, y));
+      let _ = _tx.send(result);
     }
     WindowMessage::AvailableMonitors(_tx) => {
-      // TODO: Implement monitor getter
-      let _ = _tx.send(Ok(Vec::new()));
+      let monitors = get_available_monitors();
+      let _ = _tx.send(Ok(monitors));
     }
     WindowMessage::Theme(_tx) => {
-      // TODO: Implement theme getter
-      let _ = _tx.send(Ok(tauri_utils::Theme::Light));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| {
+          Ok(
+            w.attributes
+              .get_theme()
+              .unwrap_or(tauri_utils::Theme::Light),
+          )
+        })
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = _tx.send(result);
     }
     WindowMessage::IsEnabled(_tx) => {
       let _ = _tx.send(Ok(true));
     }
     WindowMessage::IsAlwaysOnTop(_tx) => {
-      // TODO: Implement always on top getter
-      let _ = _tx.send(Ok(false));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.window.is_always_on_top() == 1))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = _tx.send(result);
     }
     WindowMessage::RawWindowHandle(_tx) => {
-      // TODO: Implement raw window handle
-      #[cfg(target_os = "linux")]
-      {
-        let _ = _tx.send(Ok(unsafe {
-          raw_window_handle::WindowHandle::borrow_raw(raw_window_handle::RawWindowHandle::Xlib(
-            raw_window_handle::XlibWindowHandle::new(0),
-          ))
-        }));
-      }
-      #[cfg(target_os = "macos")]
-      {
-        let _ = _tx.send(Ok(unsafe {
-          raw_window_handle::WindowHandle::borrow_raw(raw_window_handle::RawWindowHandle::AppKit(
-            raw_window_handle::AppKitWindowHandle::new(std::ptr::NonNull::from(&()).cast()),
-          ))
-        }));
-      }
-      #[cfg(windows)]
-      {
-        let _ = _tx.send(Ok(unsafe {
-          raw_window_handle::WindowHandle::borrow_raw(raw_window_handle::RawWindowHandle::Win32(
-            raw_window_handle::Win32WindowHandle::new(std::num::NonZeroIsize::MIN),
-          ))
-        }));
-      }
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| {
+          #[cfg(target_os = "linux")]
+          unsafe {
+            let xid = w.window.window_handle() as u64;
+            Ok(raw_window_handle::WindowHandle::borrow_raw(
+              raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(
+                xid,
+              )),
+            ))
+          }
+
+          #[cfg(target_os = "macos")]
+          unsafe {
+            let ns_view = w.window.window_handle() as *mut std::ffi::c_void;
+            if let Some(nn) = std::ptr::NonNull::new(ns_view) {
+              Ok(raw_window_handle::WindowHandle::borrow_raw(
+                raw_window_handle::RawWindowHandle::AppKit(
+                  raw_window_handle::AppKitWindowHandle::new(nn),
+                ),
+              ))
+            } else {
+              Err(raw_window_handle::HandleError::Unavailable)
+            }
+          }
+
+          #[cfg(windows)]
+          unsafe {
+            let hwnd = w.window.window_handle() as isize;
+            if let Some(nz) = std::num::NonZeroIsize::new(hwnd) {
+              Ok(raw_window_handle::WindowHandle::borrow_raw(
+                raw_window_handle::RawWindowHandle::Win32(
+                  raw_window_handle::Win32WindowHandle::new(nz),
+                ),
+              ))
+            } else {
+              Err(raw_window_handle::HandleError::Unavailable)
+            }
+          }
+        })
+        .unwrap_or_else(|| Err(raw_window_handle::HandleError::Unavailable));
+      let _ = _tx.send(result);
     }
     // Setters
     WindowMessage::Center => {
@@ -985,29 +1376,21 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.resizable = Some(resizable);
       }
-      // CEF delegate's can_resize will use this value
-      // Note: CEF will automatically re-evaluate can_resize when needed
     }
     WindowMessage::SetMaximizable(maximizable) => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.maximizable = Some(maximizable);
       }
-      // CEF delegate's can_maximize will use this value
-      // Note: CEF will automatically re-evaluate can_maximize when needed
     }
     WindowMessage::SetMinimizable(minimizable) => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.minimizable = Some(minimizable);
       }
-      // CEF delegate's can_minimize will use this value
-      // Note: CEF will automatically re-evaluate can_minimize when needed
     }
     WindowMessage::SetClosable(closable) => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.closable = Some(closable);
       }
-      // CEF delegate's can_close will use this value
-      // Note: CEF will automatically re-evaluate can_close when needed
     }
     WindowMessage::SetTitle(title) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -1050,8 +1433,6 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.decorations = Some(decorations);
       }
-      // CEF delegate's with_standard_window_buttons will use this value
-      // Note: CEF may not support changing decorations at runtime, this updates the stored state
     }
     WindowMessage::SetShadow(_shadow) => {
       // TODO: Implement shadow
@@ -1065,8 +1446,10 @@ fn handle_window_message<T: UserEvent>(
     WindowMessage::SetAlwaysOnTop(always_on_top) => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.always_on_top = Some(always_on_top);
+        app_window
+          .window
+          .set_always_on_top(if always_on_top { 1 } else { 0 });
       }
-      // TODO: Apply always on top via platform-specific CEF APIs if available
     }
     WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
@@ -1078,7 +1461,9 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.content_protected = Some(protected);
       }
-      // TODO: Apply content protection via platform-specific CEF APIs if available
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        apply_content_protection(&app_window.window, protected);
+      }
     }
     WindowMessage::SetSize(size) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -1099,19 +1484,16 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.min_inner_size = size;
       }
-      // CEF doesn't have direct min size API, but we store it for potential enforcement
     }
     WindowMessage::SetMaxSize(size) => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.max_inner_size = size;
       }
-      // CEF doesn't have direct max size API, but we store it for potential enforcement
     }
     WindowMessage::SetSizeConstraints(constraints) => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
         app_window.attributes.inner_size_constraints = Some(constraints);
       }
-      // CEF doesn't have direct size constraints API, but we store it for potential enforcement
     }
     WindowMessage::SetPosition(position) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -1141,15 +1523,20 @@ fn handle_window_message<T: UserEvent>(
     }
     WindowMessage::SetFocus => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        app_window.window.show();
-        // Focus is typically set when window is shown
+        app_window.window.request_focus();
       }
     }
-    WindowMessage::SetFocusable(_focusable) => {
-      // TODO: Implement focusable
+    WindowMessage::SetFocusable(focusable) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window
+          .window
+          .set_focusable(if focusable { 1 } else { 0 });
+      }
     }
-    WindowMessage::SetIcon(_icon) => {
-      // TODO: Implement icon
+    WindowMessage::SetIcon(icon) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        set_window_icon(&app_window.window, icon);
+      }
     }
     WindowMessage::SetSkipTaskbar(_skip) => {
       // TODO: Implement skip taskbar
@@ -1178,8 +1565,10 @@ fn handle_window_message<T: UserEvent>(
     WindowMessage::SetBadgeLabel(_label) => {
       // TODO: Implement badge label
     }
-    WindowMessage::SetOverlayIcon(_icon) => {
-      // TODO: Implement overlay icon
+    WindowMessage::SetOverlayIcon(icon) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        set_overlay_icon(&app_window.window, icon);
+      }
     }
     WindowMessage::SetTitleBarStyle(_style) => {
       // TODO: Implement title bar style
@@ -1190,8 +1579,12 @@ fn handle_window_message<T: UserEvent>(
     WindowMessage::SetTheme(_theme) => {
       // TODO: Implement theme
     }
-    WindowMessage::SetBackgroundColor(_color) => {
-      // TODO: Implement background color
+    WindowMessage::SetBackgroundColor(color) => {
+      if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
+        app_window.attributes.background_color = color;
+        let color_value = color_opt_to_cef_argb(color);
+        app_window.window.set_background_color(color_value);
+      }
     }
     WindowMessage::StartDragging => {
       // TODO: Implement start dragging
@@ -1264,8 +1657,6 @@ wrap_task! {
   }
 }
 
-// Removed RunEventCallbackTask; callbacks are handled directly with re-entrancy guard
-
 fn create_window<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
@@ -1279,6 +1670,10 @@ fn create_window<T: UserEvent>(
     AppWindowDelegate::<T>::new(window_id, context.callback.clone(), context.windows.clone());
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
+
+  if let Some(icon) = attributes.icon.clone() {
+    set_window_icon(&window, icon);
+  }
 
   if let Some(title) = &attributes.title {
     window.set_title(Some(&CefString::from(title.as_str())));
@@ -1333,7 +1728,7 @@ fn create_window<T: UserEvent>(
 
   if let Some(focused) = attributes.focused {
     if focused {
-      // Focus is set when window is shown
+      window.request_focus();
     }
   }
 
@@ -1349,104 +1744,59 @@ fn create_window<T: UserEvent>(
     }
   }
 
-  // Apply size constraints
-  // CEF doesn't have direct min/max size APIs, but we store them in attributes
-  // They can be enforced via delegate methods if needed in the future
-  if attributes.inner_size_constraints.is_some()
-    || attributes.min_inner_size.is_some()
-    || attributes.max_inner_size.is_some()
-  {
-    // Size constraints are stored in attributes and can be checked/enforced via delegate
-    // when resizing if needed
-  }
-
-  // Apply min/max size if set directly
-  if let Some(min_size) = &attributes.min_inner_size {
-    if let Some(display) = window.display() {
-      let device_scale_factor = display.device_scale_factor() as f64;
-      let _physical_min_size = min_size.to_physical::<u32>(device_scale_factor);
-      // TODO: Apply min size constraint
-    }
-  }
-
-  if let Some(max_size) = &attributes.max_inner_size {
-    if let Some(display) = window.display() {
-      let device_scale_factor = display.device_scale_factor() as f64;
-      let _physical_max_size = max_size.to_physical::<u32>(device_scale_factor);
-      // TODO: Apply max size constraint
-    }
-  }
-
-  // Apply always_on_top and always_on_bottom
-  // Note: CEF Window might not have direct APIs for these, but we store them in attributes
-  // for potential platform-specific implementations or future use
   if let Some(always_on_top) = attributes.always_on_top {
     if always_on_top {
-      // TODO: Implement always on top for CEF
-      // This may require platform-specific implementation
+      window.set_always_on_top(1);
     }
   }
 
   if let Some(always_on_bottom) = attributes.always_on_bottom {
     if always_on_bottom {
       // TODO: Implement always on bottom for CEF
-      // This may require platform-specific implementation
     }
   }
 
-  // Apply visible_on_all_workspaces
   if let Some(visible_on_all_workspaces) = attributes.visible_on_all_workspaces {
     if visible_on_all_workspaces {
       // TODO: Implement visible on all workspaces for CEF
-      // This may require platform-specific implementation
     }
   }
 
-  // Apply content_protected
   if let Some(content_protected) = attributes.content_protected {
-    if content_protected {
-      // TODO: Implement content protection for CEF
-      // This may require platform-specific implementation
-    }
+    apply_content_protection(&window, content_protected);
   }
 
-  // Apply skip_taskbar
   if let Some(skip_taskbar) = attributes.skip_taskbar {
     if skip_taskbar {
       // TODO: Implement skip taskbar for CEF
-      // This may require platform-specific implementation
     }
   }
 
-  // Apply shadow
   if let Some(shadow) = attributes.shadow {
     if !shadow {
       // TODO: Implement shadow control for CEF
-      // This may require platform-specific implementation
     }
   }
 
-  // Apply transparent
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   if let Some(transparent) = attributes.transparent {
     if transparent {
       // TODO: Implement transparency for CEF
-      // This may require platform-specific implementation or window initialization flags
     }
   }
 
-  // Apply theme
   if let Some(_theme) = attributes.theme {
     // TODO: Implement theme for CEF
-    // Theme handling may need to be done at window creation time
+  }
+
+  // Apply background color
+  if let Some(color) = attributes.background_color {
+    window.set_background_color(color_to_cef_argb(color));
   }
 
   // Apply focusable
   if let Some(focusable) = attributes.focusable {
-    if !focusable {
-      // TODO: Implement focusable control for CEF
-      // This may require platform-specific implementation
-    }
+    window.set_focusable(if focusable { 1 } else { 0 });
   }
 
   context.windows.borrow_mut().insert(
@@ -1456,7 +1806,6 @@ fn create_window<T: UserEvent>(
       window,
       force_close: AtomicBool::new(false),
       webviews: Vec::new(),
-      content_panel: None,
       window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
       webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
       attributes,
@@ -1472,6 +1821,7 @@ fn create_window<T: UserEvent>(
       webview,
     );
   }
+  println!("create webview done");
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]

@@ -188,6 +188,16 @@ pub struct Icon<'a> {
   pub height: u32,
 }
 
+impl<'a> Icon<'a> {
+  pub fn into_owned(self) -> Icon<'static> {
+    Icon {
+      rgba: std::borrow::Cow::Owned(self.rgba.into_owned()),
+      width: self.width,
+      height: self.height,
+    }
+  }
+}
+
 /// A type that can be used as an user event.
 pub trait UserEvent: Debug + Clone + Send + 'static {}
 

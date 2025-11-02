@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![allow(dead_code, unused_variables)]
-
 use cef::{rc::Rc, CefString, ImplCommandLine, ImplTaskRunner};
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
@@ -35,7 +33,7 @@ use std::{
   fmt,
   fs::create_dir_all,
   sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::AtomicBool,
     mpsc::{channel, Sender},
     Arc, Mutex,
   },
@@ -43,8 +41,6 @@ use std::{
 };
 
 mod cef_impl;
-
-type ShortcutMap = HashMap<String, Box<dyn Fn() + Send + 'static>>;
 
 #[macro_export]
 macro_rules! getter {
@@ -273,7 +269,6 @@ pub(crate) struct AppWindow {
   pub window: cef::Window,
   pub force_close: AtomicBool,
   pub webviews: Vec<BrowserViewWrapper>,
-  pub content_panel: Option<cef::Panel>,
   pub window_event_listeners: WindowEventListeners,
   pub webview_event_listeners: WebviewEventListeners,
   pub attributes: CefWindowBuilder,
@@ -281,7 +276,6 @@ pub(crate) struct AppWindow {
 
 #[derive(Clone)]
 pub struct RuntimeContext<T: UserEvent> {
-  is_running: Arc<AtomicBool>,
   windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
   main_thread_task_runner: cef::TaskRunner,
   main_thread_id: ThreadId,
@@ -480,18 +474,18 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
-    unimplemented!()
+    crate::cef_impl::get_primary_monitor()
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
-    unimplemented!()
+    crate::cef_impl::get_monitor_from_point(x, y)
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
-    unimplemented!()
+    crate::cef_impl::get_available_monitors()
   }
 
-  fn set_theme(&self, theme: Option<Theme>) {
+  fn set_theme(&self, _theme: Option<Theme>) {
     unimplemented!()
   }
 
@@ -608,6 +602,7 @@ pub struct CefWindowBuilder {
   #[cfg(windows)]
   drag_and_drop: Option<bool>,
   has_icon: bool,
+  icon: Option<Icon<'static>>,
 }
 
 impl std::fmt::Debug for CefWindowBuilder {
@@ -666,6 +661,7 @@ impl Default for CefWindowBuilder {
       #[cfg(windows)]
       drag_and_drop: None,
       has_icon: false,
+      icon: None,
     }
   }
 }
@@ -895,8 +891,9 @@ impl WindowBuilder for CefWindowBuilder {
     self
   }
 
-  fn icon(mut self, _icon: Icon<'_>) -> Result<Self> {
+  fn icon(mut self, icon: Icon<'_>) -> Result<Self> {
     self.has_icon = true;
+    self.icon.replace(icon.into_owned());
     Ok(self)
   }
 
@@ -914,6 +911,7 @@ impl WindowBuilder for CefWindowBuilder {
     }
     #[cfg(not(windows))]
     {
+      let _classname = classname;
       self
     }
   }
@@ -1608,9 +1606,11 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     })
   }
 
-  fn set_icon(&self, _icon: Icon<'_>) -> Result<()> {
-    // TODO: Implement icon setting for CEF
-    Ok(())
+  fn set_icon(&self, icon: Icon<'_>) -> Result<()> {
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetIcon(icon.into_owned()),
+    })
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
@@ -1690,9 +1690,11 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     })
   }
 
-  fn set_overlay_icon(&self, _icon: Option<Icon<'_>>) -> Result<()> {
-    // TODO: Implement overlay icon setting for CEF
-    Ok(())
+  fn set_overlay_icon(&self, icon: Option<Icon<'_>>) -> Result<()> {
+    self.context.post_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetOverlayIcon(icon.map(|i| i.into_owned())),
+    })
   }
 
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
@@ -1776,14 +1778,11 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 
 #[derive(Debug)]
 pub struct CefRuntime<T: UserEvent> {
-  is_running: Arc<AtomicBool>,
   pub context: RuntimeContext<T>,
 }
 
 impl<T: UserEvent> CefRuntime<T> {
   fn init(runtime_args: RuntimeInitArgs) -> Self {
-    let is_running = Arc::new(AtomicBool::new(false));
-
     #[cfg(target_os = "macos")]
     let _loader = {
       let loader =
@@ -1795,7 +1794,6 @@ impl<T: UserEvent> CefRuntime<T> {
     let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
 
     let args = cef::args::Args::new();
-    let cmd = args.as_cmd_line().unwrap();
 
     let event_queue = Arc::new(RefCell::new(Vec::new()));
     let event_queue_ = event_queue.clone();
@@ -1854,17 +1852,13 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let main_thread_id = thread::current().id();
     let context = RuntimeContext {
-      is_running: is_running.clone(),
       windows: Default::default(),
       main_thread_task_runner: cef::task_runner_get_for_current_thread().expect("null task runner"),
       main_thread_id,
       cef_context,
       event_queue,
     };
-    Self {
-      is_running,
-      context,
-    }
+    Self { context }
   }
 }
 
@@ -1897,7 +1891,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
-    pending: PendingWindow<T, Self>,
+    _pending: PendingWindow<T, Self>,
     _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     todo!()
@@ -1905,8 +1899,8 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
   fn create_webview(
     &self,
-    window_id: WindowId,
-    pending: PendingWebview<T, Self>,
+    _window_id: WindowId,
+    _pending: PendingWebview<T, Self>,
   ) -> Result<DetachedWebview<T, Self>> {
     todo!()
   }
@@ -1915,7 +1909,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     unimplemented!()
   }
 
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+  fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<Monitor> {
     unimplemented!()
   }
 
@@ -1923,15 +1917,15 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     unimplemented!()
   }
 
-  fn set_theme(&self, theme: Option<Theme>) {
+  fn set_theme(&self, _theme: Option<Theme>) {
     unimplemented!()
   }
 
   #[cfg(target_os = "macos")]
-  fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
+  fn set_activation_policy(&mut self, _activation_policy: tauri_runtime::ActivationPolicy) {}
 
   #[cfg(target_os = "macos")]
-  fn set_dock_visibility(&mut self, visible: bool) {}
+  fn set_dock_visibility(&mut self, _visible: bool) {}
 
   #[cfg(target_os = "macos")]
   fn show(&self) {}
@@ -1939,7 +1933,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   #[cfg(target_os = "macos")]
   fn hide(&self) {}
 
-  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}
+  fn set_device_event_filter(&mut self, _filter: DeviceEventFilter) {}
 
   #[cfg(any(
     target_os = "macos",
@@ -1950,15 +1944,13 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, _callback: F) {}
 
-  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, _callback: F) -> i32 {
     0
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
-    self.is_running.store(true, Ordering::Relaxed);
-
     let callback = Arc::new(RefCell::new(callback));
 
     let callback_ = callback.clone();

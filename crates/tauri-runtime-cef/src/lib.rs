@@ -1815,7 +1815,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_id: Default::default(),
       next_window_event_id: Default::default(),
     };
-    let mut app = cef_impl::TauriApp::new(cef_context.clone());
+    let mut app = cef_impl::TauriApp::new(cef_context.clone(), runtime_args.custom_schemes);
 
     let cmd = args.as_cmd_line().unwrap();
 

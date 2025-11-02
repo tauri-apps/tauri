@@ -77,6 +77,7 @@ impl<T: UserEvent> Context<T> {
 wrap_app! {
   pub struct TauriApp<T: UserEvent> {
     context: Context<T>,
+    custom_schemes: Vec<String>,
   }
 
   impl App {
@@ -91,9 +92,8 @@ wrap_app! {
           | (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED as i32)
           | (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_STANDARD as i32);
 
-        for scheme in ["ipc", "tauri"] {
-          let scheme_name = CefString::from(scheme);
-          registrar.add_custom_scheme(Some(&scheme_name), scheme_options);
+        for scheme in &self.custom_schemes {
+          registrar.add_custom_scheme(Some(&(scheme.as_str()).into()), scheme_options);
         }
       }
     }

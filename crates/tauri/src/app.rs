@@ -2143,8 +2143,14 @@ tauri::Builder::default()
       None
     };
 
+    let mut custom_schemes = vec!["ipc".to_string(), "tauri".to_string()];
+    if let crate::pattern::Pattern::Isolation { schema, .. } = &*manager.pattern {
+      custom_schemes.push(schema.clone());
+    }
+
     let runtime_args = RuntimeInitArgs {
       identifier: manager.config.identifier.clone(),
+      custom_schemes,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

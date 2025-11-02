@@ -1753,6 +1753,7 @@ pub struct CefRuntime<T: UserEvent> {
   pub context: RuntimeContext<T>,
 }
 
+#[cfg(target_os = "macos")]
 fn is_cef_helper_process() -> bool {
   const HELPER_SUFFIXES: &[&str] = &[
     " Helper (GPU)",

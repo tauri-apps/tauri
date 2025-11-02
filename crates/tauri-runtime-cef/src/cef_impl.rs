@@ -1636,7 +1636,7 @@ wrap_task! {
   }
 }
 
-fn create_window<T: UserEvent>(
+pub(crate) fn create_window<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
   webview_id: u32,
@@ -1810,7 +1810,7 @@ fn create_window<T: UserEvent>(
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-enum WebviewKind {
+pub(crate) enum WebviewKind {
   // webview is the entire window content
   WindowContent,
   // webview is a child of the window, which can contain other webviews too
@@ -1895,7 +1895,7 @@ fn on_window_destroyed<T: UserEvent>(
   }
 }
 
-fn create_webview<T: UserEvent>(
+pub(crate) fn create_webview<T: UserEvent>(
   kind: WebviewKind,
   context: &Context<T>,
   window_id: WindowId,

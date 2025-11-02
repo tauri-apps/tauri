@@ -1865,35 +1865,95 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
-    _pending: PendingWindow<T, Self>,
+    pending: PendingWindow<T, Self>,
     _after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
-    todo!()
+    let label = pending.label.clone();
+    let window_id = self.context.cef_context.next_window_id();
+    let (webview_id, use_https_scheme) = pending
+      .webview
+      .as_ref()
+      .map(|w| {
+        (
+          Some(self.context.cef_context.next_webview_id()),
+          w.webview_attributes.use_https_scheme,
+        )
+      })
+      .unwrap_or((None, false));
+
+    cef_impl::create_window(
+      &self.context.cef_context,
+      window_id,
+      webview_id.unwrap_or_default(),
+      pending,
+    );
+
+    let dispatcher = CefWindowDispatcher {
+      window_id,
+      context: self.context.clone(),
+    };
+
+    let detached_webview = webview_id.map(|id| {
+      let webview = DetachedWebview {
+        label: label.clone(),
+        dispatcher: CefWebviewDispatcher {
+          window_id: Arc::new(Mutex::new(window_id)),
+          webview_id: id,
+          context: self.context.clone(),
+        },
+      };
+      DetachedWindowWebview {
+        webview,
+        use_https_scheme,
+      }
+    });
+
+    Ok(DetachedWindow {
+      id: window_id,
+      label,
+      dispatcher,
+      webview: detached_webview,
+    })
   }
 
   fn create_webview(
     &self,
-    _window_id: WindowId,
-    _pending: PendingWebview<T, Self>,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self>,
   ) -> Result<DetachedWebview<T, Self>> {
-    todo!()
+    let label = pending.label.clone();
+    let webview_id = self.context.cef_context.next_webview_id();
+
+    cef_impl::create_webview(
+      cef_impl::WebviewKind::WindowChild,
+      &self.context.cef_context,
+      window_id,
+      webview_id,
+      pending,
+    );
+
+    let dispatcher = CefWebviewDispatcher {
+      window_id: Arc::new(Mutex::new(window_id)),
+      webview_id,
+      context: self.context.clone(),
+    };
+
+    Ok(DetachedWebview { label, dispatcher })
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
-    unimplemented!()
+    crate::cef_impl::get_primary_monitor()
   }
 
-  fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<Monitor> {
-    unimplemented!()
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    crate::cef_impl::get_monitor_from_point(x, y)
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
-    unimplemented!()
+    crate::cef_impl::get_available_monitors()
   }
 
-  fn set_theme(&self, _theme: Option<Theme>) {
-    unimplemented!()
-  }
+  fn set_theme(&self, _theme: Option<Theme>) {}
 
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, _activation_policy: tauri_runtime::ActivationPolicy) {}

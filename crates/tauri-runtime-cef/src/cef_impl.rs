@@ -67,13 +67,24 @@ fn color_opt_to_cef_argb(color: Option<tauri_utils::config::Color>) -> u32 {
 pub(crate) fn display_to_monitor(display: &cef::Display) -> tauri_runtime::monitor::Monitor {
   let bounds = display.bounds();
   let work = display.work_area();
+  let scale = display.device_scale_factor() as f64;
+  let physical_size =
+    tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32)
+      .to_physical::<u32>(scale);
+  let physical_position =
+    tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale);
+  let work_physical_size =
+    tauri_runtime::dpi::LogicalSize::new(work.width as u32, work.height as u32)
+      .to_physical::<u32>(scale);
+  let work_physical_position =
+    tauri_runtime::dpi::LogicalPosition::new(work.x, work.y).to_physical::<i32>(scale);
   tauri_runtime::monitor::Monitor {
     name: None,
-    size: PhysicalSize::new(bounds.width as u32, bounds.height as u32),
-    position: PhysicalPosition::new(bounds.x, bounds.y),
+    size: PhysicalSize::new(physical_size.width, physical_size.height),
+    position: PhysicalPosition::new(physical_position.x, physical_position.y),
     work_area: tauri_runtime::dpi::PhysicalRect {
-      position: PhysicalPosition::new(work.x, work.y),
-      size: PhysicalSize::new(work.width as u32, work.height as u32),
+      position: PhysicalPosition::new(work_physical_position.x, work_physical_position.y),
+      size: PhysicalSize::new(work_physical_size.width, work_physical_size.height),
     },
     scale_factor: display.device_scale_factor() as f64,
   }
@@ -447,19 +458,19 @@ wrap_window_delegate! {
 
       with_attrs(self.window_id, |attributes| {
         if let Some(min_size) = attributes.min_inner_size {
-          let physical = min_size.to_physical::<u32>(scale);
-          min_w = min_w.max(physical.width as i32);
-          min_h = min_h.max(physical.height as i32);
+          let logical = min_size.to_logical::<u32>(scale);
+          min_w = min_w.max(logical.width as i32);
+          min_h = min_h.max(logical.height as i32);
         }
 
         if let Some(constraints) = attributes.inner_size_constraints.as_ref() {
           if let Some(w) = constraints.min_width {
-            let w_ph = i32::from(w.to_physical::<u32>(scale));
-            min_w = min_w.max(w_ph);
+            let w_lg = i32::from(w.to_logical::<u32>(scale));
+            min_w = min_w.max(w_lg);
           }
           if let Some(h) = constraints.min_height {
-            let h_ph = i32::from(h.to_physical::<u32>(scale));
-            min_h = min_h.max(h_ph);
+            let h_lg = i32::from(h.to_logical::<u32>(scale));
+            min_h = min_h.max(h_lg);
           }
         }
       });
@@ -482,19 +493,19 @@ wrap_window_delegate! {
 
       with_attrs(self.window_id, |attributes| {
         if let Some(max_size) = attributes.max_inner_size {
-          let physical = max_size.to_physical::<u32>(scale);
-          max_w = Some(physical.width as i32);
-          max_h = Some(physical.height as i32);
+          let logical = max_size.to_logical::<u32>(scale);
+          max_w = Some(logical.width as i32);
+          max_h = Some(logical.height as i32);
         }
 
         if let Some(constraints) = attributes.inner_size_constraints.as_ref() {
           if let Some(w) = constraints.max_width {
-            let w_ph = i32::from(w.to_physical::<u32>(scale));
-            max_w = Some(match max_w { Some(v) => v.min(w_ph), None => w_ph });
+            let w_lg = i32::from(w.to_logical::<u32>(scale));
+            max_w = Some(match max_w { Some(v) => v.min(w_lg), None => w_lg });
           }
           if let Some(h) = constraints.max_height {
-            let h_ph = i32::from(h.to_physical::<u32>(scale));
-            max_h = Some(match max_h { Some(v) => v.min(h_ph), None => h_ph });
+            let h_lg = i32::from(h.to_logical::<u32>(scale));
+            max_h = Some(match max_h { Some(v) => v.min(h_lg), None => h_lg });
           }
         }
       });
@@ -691,7 +702,7 @@ fn handle_webview_message<T: UserEvent>(
           .display()
           .map(|d| d.device_scale_factor() as f64)
           .unwrap_or(1.0);
-        let physical_position = position.to_physical::<i32>(device_scale_factor);
+        let logical_position = position.to_logical::<i32>(device_scale_factor);
         app_window
           .webviews
           .iter()
@@ -700,8 +711,8 @@ fn handle_webview_message<T: UserEvent>(
           .map(|overlay| {
             let current_bounds = overlay.bounds();
             let new_bounds = cef::Rect {
-              x: physical_position.x,
-              y: physical_position.y,
+              x: logical_position.x,
+              y: logical_position.y,
               width: current_bounds.width,
               height: current_bounds.height,
             };
@@ -716,7 +727,7 @@ fn handle_webview_message<T: UserEvent>(
           .display()
           .map(|d| d.device_scale_factor() as f64)
           .unwrap_or(1.0);
-        let physical_size = size.to_physical::<u32>(device_scale_factor);
+        let logical_size = size.to_logical::<u32>(device_scale_factor);
         app_window
           .webviews
           .iter()
@@ -727,8 +738,8 @@ fn handle_webview_message<T: UserEvent>(
             let new_bounds = cef::Rect {
               x: current_bounds.x,
               y: current_bounds.y,
-              width: physical_size.width as i32,
-              height: physical_size.height as i32,
+              width: logical_size.width as i32,
+              height: logical_size.height as i32,
             };
             overlay.set_bounds(Some(&new_bounds));
           });
@@ -741,8 +752,8 @@ fn handle_webview_message<T: UserEvent>(
           .display()
           .map(|d| d.device_scale_factor() as f64)
           .unwrap_or(1.0);
-        let physical_position = bounds.position.to_physical::<i32>(device_scale_factor);
-        let physical_size = bounds.size.to_physical::<u32>(device_scale_factor);
+        let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
+        let logical_size = bounds.size.to_logical::<u32>(device_scale_factor);
         app_window
           .webviews
           .iter()
@@ -750,10 +761,10 @@ fn handle_webview_message<T: UserEvent>(
           .and_then(|wrapper| wrapper.overlay.as_ref())
           .map(|overlay| {
             overlay.set_bounds(Some(&cef::Rect {
-              x: physical_position.x,
-              y: physical_position.y,
-              width: physical_size.width as i32,
-              height: physical_size.height as i32,
+              x: logical_position.x,
+              y: logical_position.y,
+              width: logical_size.width as i32,
+              height: logical_size.height as i32,
             }));
           });
       });
@@ -877,8 +888,16 @@ fn handle_webview_message<T: UserEvent>(
         .and_then(|wrapper| wrapper.overlay.as_ref())
         .map(|overlay| {
           let bounds = overlay.bounds();
-          let physical_position = PhysicalPosition::new(bounds.x, bounds.y);
-          let physical_size = PhysicalSize::new(bounds.width as u32, bounds.height as u32);
+          let scale = overlay
+            .window()
+            .and_then(|w| w.display())
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          let logical_position = tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y);
+          let logical_size =
+            tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32);
+          let physical_position = logical_position.to_physical::<i32>(scale);
+          let physical_size = logical_size.to_physical::<u32>(scale);
           Rect {
             position: Position::Physical(physical_position),
             size: Size::Physical(physical_size),
@@ -901,7 +920,12 @@ fn handle_webview_message<T: UserEvent>(
         .and_then(|wrapper| wrapper.overlay.as_ref())
         .map(|overlay| {
           let bounds = overlay.bounds();
-          PhysicalPosition::new(bounds.x, bounds.y)
+          let scale = overlay
+            .window()
+            .and_then(|w| w.display())
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale)
         })
         .ok_or(tauri_runtime::Error::FailedToSendMessage);
       let _ = tx.send(result);
@@ -920,7 +944,13 @@ fn handle_webview_message<T: UserEvent>(
         .and_then(|wrapper| wrapper.overlay.as_ref())
         .map(|overlay| {
           let bounds = overlay.bounds();
-          PhysicalSize::new(bounds.width as u32, bounds.height as u32)
+          let scale = overlay
+            .window()
+            .and_then(|w| w.display())
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32)
+            .to_physical::<u32>(scale)
         })
         .ok_or(tauri_runtime::Error::FailedToSendMessage);
       let _ = tx.send(result);
@@ -1094,7 +1124,12 @@ fn handle_window_message<T: UserEvent>(
         .get(&window_id)
         .map(|w| {
           let bounds = w.window.bounds();
-          Ok(PhysicalPosition::new(bounds.x, bounds.y))
+          let scale = w
+            .window
+            .display()
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          Ok(tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale))
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1106,7 +1141,12 @@ fn handle_window_message<T: UserEvent>(
         .get(&window_id)
         .map(|w| {
           let bounds = w.window.bounds();
-          Ok(PhysicalPosition::new(bounds.x, bounds.y))
+          let scale = w
+            .window
+            .display()
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          Ok(tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale))
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1118,7 +1158,15 @@ fn handle_window_message<T: UserEvent>(
         .get(&window_id)
         .map(|w| {
           let bounds = w.window.bounds();
-          Ok(PhysicalSize::new(bounds.width as u32, bounds.height as u32))
+          let scale = w
+            .window
+            .display()
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          Ok(
+            tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32)
+              .to_physical::<u32>(scale),
+          )
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1130,7 +1178,15 @@ fn handle_window_message<T: UserEvent>(
         .get(&window_id)
         .map(|w| {
           let bounds = w.window.bounds();
-          Ok(PhysicalSize::new(bounds.width as u32, bounds.height as u32))
+          let scale = w
+            .window
+            .display()
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          Ok(
+            tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32)
+              .to_physical::<u32>(scale),
+          )
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1222,13 +1278,24 @@ fn handle_window_message<T: UserEvent>(
           cef::display_get_matching_bounds(Some(&b), 1).map(|d| {
             let bounds = d.bounds();
             let work = d.work_area();
+            let scale = d.device_scale_factor() as f64;
+            let physical_size =
+              tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32)
+                .to_physical::<u32>(scale);
+            let physical_position = tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y)
+              .to_physical::<i32>(scale);
+            let work_physical_size =
+              tauri_runtime::dpi::LogicalSize::new(work.width as u32, work.height as u32)
+                .to_physical::<u32>(scale);
+            let work_physical_position =
+              tauri_runtime::dpi::LogicalPosition::new(work.x, work.y).to_physical::<i32>(scale);
             tauri_runtime::monitor::Monitor {
               name: None,
-              size: PhysicalSize::new(bounds.width as u32, bounds.height as u32),
-              position: PhysicalPosition::new(bounds.x, bounds.y),
+              size: PhysicalSize::new(physical_size.width, physical_size.height),
+              position: PhysicalPosition::new(physical_position.x, physical_position.y),
               work_area: tauri_runtime::dpi::PhysicalRect {
-                position: PhysicalPosition::new(work.x, work.y),
-                size: PhysicalSize::new(work.width as u32, work.height as u32),
+                position: PhysicalPosition::new(work_physical_position.x, work_physical_position.y),
+                size: PhysicalSize::new(work_physical_size.width, work_physical_size.height),
               },
               scale_factor: d.device_scale_factor() as f64,
             }
@@ -1420,10 +1487,10 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         if let Some(display) = app_window.window.display() {
           let device_scale_factor = display.device_scale_factor() as f64;
-          let physical_size = size.to_physical::<u32>(device_scale_factor);
+          let logical_size = size.to_logical::<u32>(device_scale_factor);
           app_window.window.set_size(Some(&cef::Size {
-            width: physical_size.width as i32,
-            height: physical_size.height as i32,
+            width: logical_size.width as i32,
+            height: logical_size.height as i32,
           }));
         }
       }
@@ -1441,10 +1508,10 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         if let Some(display) = app_window.window.display() {
           let device_scale_factor = display.device_scale_factor() as f64;
-          let physical_position = position.to_physical::<i32>(device_scale_factor);
+          let logical_position = position.to_logical::<i32>(device_scale_factor);
           app_window.window.set_position(Some(&cef::Point {
-            x: physical_position.x,
-            y: physical_position.y,
+            x: logical_position.x,
+            y: logical_position.y,
           }));
         }
       }
@@ -1634,10 +1701,10 @@ pub(crate) fn create_window<T: UserEvent>(
   if let Some(inner_size) = &window_builder.inner_size {
     if let Some(display) = window.display() {
       let device_scale_factor = display.device_scale_factor() as f64;
-      let physical_size = inner_size.to_physical::<u32>(device_scale_factor);
+      let logical_size = inner_size.to_logical::<u32>(device_scale_factor);
       window.set_size(Some(&cef::Size {
-        width: physical_size.width as i32,
-        height: physical_size.height as i32,
+        width: logical_size.width as i32,
+        height: logical_size.height as i32,
       }));
     }
   }
@@ -1645,10 +1712,10 @@ pub(crate) fn create_window<T: UserEvent>(
   if let Some(position) = &window_builder.position {
     if let Some(display) = window.display() {
       let device_scale_factor = display.device_scale_factor() as f64;
-      let physical_position = position.to_physical::<i32>(device_scale_factor);
+      let logical_position = position.to_logical::<i32>(device_scale_factor);
       window.set_position(Some(&cef::Point {
-        x: physical_position.x,
-        y: physical_position.y,
+        x: logical_position.x,
+        y: logical_position.y,
       }));
     }
   }
@@ -1937,13 +2004,13 @@ pub(crate) fn create_webview<T: UserEvent>(
       .display()
       .map(|d| d.device_scale_factor() as f64)
       .unwrap_or(1.0);
-    let physical_position = bounds.position.to_physical::<i32>(device_scale_factor);
-    let physical_size = bounds.size.to_physical::<u32>(device_scale_factor);
+    let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
+    let logical_size = bounds.size.to_logical::<u32>(device_scale_factor);
     cef::Rect {
-      x: physical_position.x,
-      y: physical_position.y,
-      width: physical_size.width as i32,
-      height: physical_size.height as i32,
+      x: logical_position.x,
+      y: logical_position.y,
+      width: logical_size.width as i32,
+      height: logical_size.height as i32,
     }
   });
 

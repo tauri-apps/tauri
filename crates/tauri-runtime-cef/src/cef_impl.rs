@@ -413,6 +413,7 @@ wrap_window_delegate! {
   }
 
   impl ViewDelegate {
+    #[cfg(not(target_os = "macos"))]
     fn minimum_size(&self, view: Option<&mut View>) -> cef::Size {
       let window = view.and_then(|v| v.window());
       let scale = window
@@ -448,6 +449,7 @@ wrap_window_delegate! {
       }
     }
 
+    #[cfg(not(target_os = "macos"))]
     fn maximum_size(&self, view: Option<&mut View>) -> cef::Size {
       let window = view.and_then(|v| v.window());
       let scale = window

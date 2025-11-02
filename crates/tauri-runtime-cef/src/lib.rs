@@ -228,21 +228,6 @@ pub enum WebviewMessage {
   IsDevToolsOpen(Sender<bool>),
 }
 
-impl<T: UserEvent> fmt::Debug for Message<T> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Task(_) => write!(f, "Task"),
-      Self::CreateWindow { .. } => write!(f, "CreateWindow"),
-      Self::CreateWebview { .. } => write!(f, "CreateWebview"),
-      Self::Window { .. } => write!(f, "Window"),
-      Self::Webview { .. } => write!(f, "Webview"),
-      Self::RequestExit(_) => write!(f, "RequestExit"),
-      Self::UserEvent(_) => write!(f, "UserEvent"),
-      Self::Noop => write!(f, "Noop"),
-    }
-  }
-}
-
 impl<T: UserEvent> Clone for Message<T> {
   fn clone(&self) -> Self {
     match self {
@@ -267,11 +252,11 @@ pub type WebviewEventListeners =
 pub(crate) struct AppWindow {
   pub label: String,
   pub window: cef::Window,
-  pub force_close: AtomicBool,
+  pub force_close: Arc<AtomicBool>,
   pub webviews: Vec<BrowserViewWrapper>,
   pub window_event_listeners: WindowEventListeners,
   pub webview_event_listeners: WebviewEventListeners,
-  pub attributes: CefWindowBuilder,
+  pub attributes: RefCell<CefWindowBuilder>,
 }
 
 #[derive(Clone)]
@@ -485,9 +470,7 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     crate::cef_impl::get_available_monitors()
   }
 
-  fn set_theme(&self, _theme: Option<Theme>) {
-    unimplemented!()
-  }
+  fn set_theme(&self, _theme: Option<Theme>) {}
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
@@ -556,7 +539,7 @@ pub struct CefWindowDispatcher<T: UserEvent> {
   context: RuntimeContext<T>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CefWindowBuilder {
   title: Option<String>,
   position: Option<Position>,
@@ -603,15 +586,6 @@ pub struct CefWindowBuilder {
   drag_and_drop: Option<bool>,
   has_icon: bool,
   icon: Option<Icon<'static>>,
-}
-
-impl std::fmt::Debug for CefWindowBuilder {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("CefWindowBuilder")
-      .field("title", &self.title)
-      .field("center", &self.center)
-      .finish_non_exhaustive()
-  }
 }
 
 impl Default for CefWindowBuilder {

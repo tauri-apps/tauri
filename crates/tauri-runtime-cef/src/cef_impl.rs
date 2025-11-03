@@ -523,6 +523,26 @@ wrap_window_delegate! {
         cef::Size { width: 0, height: 0 }
       }
     }
+
+    fn on_layout_changed(&self, _view: Option<&mut View>, bounds: Option<&cef::Rect>) {
+      let Some(bounds) = bounds else {
+        return;
+      };
+
+      if let Some(app_window) = self.windows.borrow().get(&self.window_id) {
+        for wrapper in &app_window.webviews {
+          if let (Some(overlay), Some(b)) = (&wrapper.overlay, &*wrapper.bounds.lock().unwrap()) {
+            let new_rect = cef::Rect {
+              x: (bounds.width as f32 * b.x_rate) as i32,
+              y: (bounds.height as f32 * b.y_rate) as i32,
+              width: (bounds.width as f32 * b.width_rate) as i32,
+              height: (bounds.height as f32 * b.height_rate) as i32,
+            };
+            overlay.set_bounds(Some(&new_rect));
+          }
+        }
+      }
+    }
   }
 
   impl PanelDelegate {}
@@ -622,9 +642,11 @@ wrap_window_delegate! {
           }
 
           #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-          if let Some(transparent) = a.transparent {
-            if transparent {
-              // TODO: Implement transparency for CEF
+          {
+            if let Some(transparent) = a.transparent {
+              if transparent {
+                // TODO: Implement transparency for CEF
+              }
             }
           }
 
@@ -845,6 +867,28 @@ fn handle_webview_message<T: UserEvent>(
             };
             overlay.set_bounds(Some(&new_bounds));
           });
+
+        // update autoresize ratios if enabled
+        if let Some(wrapper) = app_window
+          .webviews
+          .iter()
+          .find(|w| w.webview_id == webview_id)
+        {
+          if wrapper.overlay.is_some() {
+            if let Some(b) = &mut *wrapper.bounds.lock().unwrap() {
+              let window_bounds = app_window.window.bounds();
+              let window_size = tauri_runtime::dpi::LogicalSize::new(
+                window_bounds.width as u32,
+                window_bounds.height as u32,
+              );
+
+              let pos =
+                tauri_runtime::dpi::LogicalPosition::new(logical_position.x, logical_position.y);
+              b.x_rate = pos.x as f32 / window_size.width as f32;
+              b.y_rate = pos.y as f32 / window_size.height as f32;
+            }
+          }
+        }
       });
     }
     WebviewMessage::SetSize(size) => {
@@ -870,6 +914,27 @@ fn handle_webview_message<T: UserEvent>(
             };
             overlay.set_bounds(Some(&new_bounds));
           });
+
+        // update autoresize ratios if enabled
+        if let Some(wrapper) = app_window
+          .webviews
+          .iter()
+          .find(|w| w.webview_id == webview_id)
+        {
+          if wrapper.overlay.is_some() {
+            if let Some(b) = &mut *wrapper.bounds.lock().unwrap() {
+              let window_bounds = app_window.window.bounds();
+              let window_size = tauri_runtime::dpi::LogicalSize::new(
+                window_bounds.width as u32,
+                window_bounds.height as u32,
+              );
+
+              let s = tauri_runtime::dpi::LogicalSize::new(logical_size.width, logical_size.height);
+              b.width_rate = s.width as f32 / window_size.width as f32;
+              b.height_rate = s.height as f32 / window_size.height as f32;
+            }
+          }
+        }
       });
     }
     WebviewMessage::SetBounds(bounds) => {
@@ -894,6 +959,31 @@ fn handle_webview_message<T: UserEvent>(
               height: logical_size.height as i32,
             }));
           });
+
+        // update autoresize ratios if enabled
+        if let Some(wrapper) = app_window
+          .webviews
+          .iter()
+          .find(|w| w.webview_id == webview_id)
+        {
+          if wrapper.overlay.is_some() {
+            if let Some(b) = &mut *wrapper.bounds.lock().unwrap() {
+              let window_bounds = app_window.window.bounds();
+              let window_size = tauri_runtime::dpi::LogicalSize::new(
+                window_bounds.width as u32,
+                window_bounds.height as u32,
+              );
+
+              let pos =
+                tauri_runtime::dpi::LogicalPosition::new(logical_position.x, logical_position.y);
+              let s = tauri_runtime::dpi::LogicalSize::new(logical_size.width, logical_size.height);
+              b.x_rate = pos.x as f32 / window_size.width as f32;
+              b.y_rate = pos.y as f32 / window_size.height as f32;
+              b.width_rate = s.width as f32 / window_size.width as f32;
+              b.height_rate = s.height as f32 / window_size.height as f32;
+            }
+          }
+        }
       });
     }
     WebviewMessage::SetFocus => {
@@ -963,8 +1053,37 @@ fn handle_webview_message<T: UserEvent>(
         let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
       }
     }
-    WebviewMessage::SetAutoResize(_auto_resize) => {
-      // TODO: Implement auto-resize functionality
+    WebviewMessage::SetAutoResize(auto_resize) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        if let Some(wrapper) = app_window
+          .webviews
+          .iter()
+          .find(|w| w.webview_id == webview_id)
+        {
+          if let Some(overlay) = &wrapper.overlay {
+            if auto_resize {
+              let window_bounds = app_window.window.bounds();
+              let window_size = tauri_runtime::dpi::LogicalSize::new(
+                window_bounds.width as u32,
+                window_bounds.height as u32,
+              );
+
+              let ob = overlay.bounds();
+              let pos = tauri_runtime::dpi::LogicalPosition::new(ob.x, ob.y);
+              let size = tauri_runtime::dpi::LogicalSize::new(ob.width as u32, ob.height as u32);
+
+              *wrapper.bounds.lock().unwrap() = Some(crate::WebviewBounds {
+                x_rate: pos.x as f32 / window_size.width as f32,
+                y_rate: pos.y as f32 / window_size.height as f32,
+                width_rate: size.width as f32 / window_size.width as f32,
+                height_rate: size.height as f32 / window_size.height as f32,
+              });
+            } else {
+              *wrapper.bounds.lock().unwrap() = None;
+            }
+          }
+        }
+      }
     }
     WebviewMessage::SetZoom(scale_factor) => {
       get_browser_view(context, window_id, webview_id)
@@ -2046,6 +2165,30 @@ pub(crate) fn create_webview<T: UserEvent>(
     }
     overlay.set_visible(1);
 
+    let initial_bounds_ratio = if pending.webview_attributes.auto_resize {
+      let window_bounds = window.bounds();
+      let window_size = tauri_runtime::dpi::LogicalSize::new(
+        window_bounds.width as u32,
+        window_bounds.height as u32,
+      );
+
+      let ob = match &bounds {
+        Some(b) => b.clone(),
+        None => overlay.bounds(),
+      };
+      let pos = tauri_runtime::dpi::LogicalPosition::new(ob.x, ob.y);
+      let size = tauri_runtime::dpi::LogicalSize::new(ob.width as u32, ob.height as u32);
+
+      Some(crate::WebviewBounds {
+        x_rate: pos.x as f32 / window_size.width as f32,
+        y_rate: pos.y as f32 / window_size.height as f32,
+        width_rate: size.width as f32 / window_size.width as f32,
+        height_rate: size.height as f32 / window_size.height as f32,
+      })
+    } else {
+      None
+    };
+
     context
       .windows
       .borrow_mut()
@@ -2056,6 +2199,7 @@ pub(crate) fn create_webview<T: UserEvent>(
         webview_id,
         browser_view,
         overlay: Some(overlay),
+        bounds: Arc::new(Mutex::new(initial_bounds_ratio)),
       });
   } else {
     window.add_child_view(Some(&mut View::from(&browser_view)));
@@ -2073,6 +2217,7 @@ pub(crate) fn create_webview<T: UserEvent>(
         webview_id,
         browser_view,
         overlay: None,
+        bounds: Arc::new(Mutex::new(None)),
       });
   }
 }

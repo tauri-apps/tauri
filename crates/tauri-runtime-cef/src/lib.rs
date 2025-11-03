@@ -241,6 +241,15 @@ pub(crate) struct BrowserViewWrapper {
   pub webview_id: u32,
   pub browser_view: cef::BrowserView,
   pub overlay: Option<cef::OverlayController>,
+  pub bounds: Arc<Mutex<Option<WebviewBounds>>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WebviewBounds {
+  pub x_rate: f32,
+  pub y_rate: f32,
+  pub width_rate: f32,
+  pub height_rate: f32,
 }
 
 pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;

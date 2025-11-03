@@ -1173,8 +1173,7 @@ dependencies = [
 [[package]]
 name = "cef"
 version = "141.6.0+141.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc711443f6b485c86d2aa7fa504e3847d690ab790bc98905758567d2247e1aa6"
+source = "git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast#6c32f2d0114918463000deb735ab4d931366fbc0"
 dependencies = [
  "cef-dll-sys",
  "libloading 0.8.6",
@@ -1185,8 +1184,7 @@ dependencies = [
 [[package]]
 name = "cef-dll-sys"
 version = "141.6.0+141.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c95e419bbb8b2190df8b6eb3934ecc4137533803fcc5ae2b076e591ee789071"
+source = "git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast#6c32f2d0114918463000deb735ab4d931366fbc0"
 dependencies = [
  "anyhow",
  "cmake",
@@ -2107,8 +2105,7 @@ dependencies = [
 [[package]]
 name = "download-cef"
 version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d98178d9254efef0f69c1f584713d69c790ec00668cd98f783a5085fbefdbddc"
+source = "git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast#6c32f2d0114918463000deb735ab4d931366fbc0"
 dependencies = [
  "bzip2 0.6.0",
  "clap",
@@ -9013,7 +9010,6 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "cef",
- "cef-dll-sys",
  "dirs 6.0.0",
  "gtk",
  "html5ever",

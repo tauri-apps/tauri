@@ -341,7 +341,7 @@ fn read_request_body(request: &mut Request) -> Vec<u8> {
     post_data.elements(Some(&mut elements));
     for element in elements.into_iter().filter_map(|v| v) {
       match element.get_type().as_ref() {
-        cef_dll_sys::cef_postdataelement_type_t::PDE_TYPE_BYTES => {
+        sys::cef_postdataelement_type_t::PDE_TYPE_BYTES => {
           let size = element.bytes_count();
           if size > 0 {
             let mut buf = vec![0u8; size];
@@ -354,7 +354,7 @@ fn read_request_body(request: &mut Request) -> Vec<u8> {
             body.extend(buf);
           }
         }
-        cef_dll_sys::cef_postdataelement_type_t::PDE_TYPE_FILE => {
+        sys::cef_postdataelement_type_t::PDE_TYPE_FILE => {
           // Read file from disk
           let file_path = CefString::from(&element.file()).to_string();
           if let Ok(mut file) = std::fs::File::open(&file_path) {

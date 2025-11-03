@@ -132,7 +132,7 @@ fn icon_to_cef_image(icon: tauri_runtime::Icon<'static>) -> Option<cef::Image> {
 
   // Add bitmap data to the image
   // RGBA_8888 color type, OPAQUE alpha type (for icons without transparency, or use PREMULTIPLIED for transparency)
-  use cef_dll_sys::cef_alpha_type_t;
+  use sys::cef_alpha_type_t;
   let result = image.add_bitmap(
     1.0, // scale_factor
     width as i32,
@@ -281,10 +281,10 @@ wrap_app! {
 
     fn on_register_custom_schemes(&self, registrar: Option<&mut SchemeRegistrar>) {
       if let Some(registrar) = registrar {
-        let scheme_options = (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_FETCH_ENABLED as i32)
-          | (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_SECURE as i32)
-          | (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED as i32)
-          | (cef_dll_sys::cef_scheme_options_t::CEF_SCHEME_OPTION_STANDARD as i32);
+        let scheme_options = (sys::cef_scheme_options_t::CEF_SCHEME_OPTION_FETCH_ENABLED as i32)
+          | (sys::cef_scheme_options_t::CEF_SCHEME_OPTION_SECURE as i32)
+          | (sys::cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED as i32)
+          | (sys::cef_scheme_options_t::CEF_SCHEME_OPTION_STANDARD as i32);
 
         for scheme in &self.custom_schemes {
           registrar.add_custom_scheme(Some(&(scheme.as_str()).into()), scheme_options);

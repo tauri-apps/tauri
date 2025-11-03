@@ -1011,13 +1011,17 @@ fn handle_webview_message<T: UserEvent>(
             .webviews
             .iter()
             .find(|w| w.webview_id == webview_id)
+            .map(|webview| (webview.overlay.clone(), app_window.window.clone()))
         })
-        .and_then(|wrapper| wrapper.overlay.as_ref())
-        .map(|overlay| {
-          let bounds = overlay.bounds();
-          let scale = overlay
-            .window()
-            .and_then(|w| w.display())
+        .map(|(overlay, window)| {
+          let bounds = overlay
+            .map(|v| v.bounds())
+            .unwrap_or_else(|| window.bounds());
+          (bounds, window)
+        })
+        .map(|(bounds, window)| {
+          let scale = window
+            .display()
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
           let logical_position = tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y);
@@ -1043,13 +1047,17 @@ fn handle_webview_message<T: UserEvent>(
             .webviews
             .iter()
             .find(|w| w.webview_id == webview_id)
+            .map(|webview| (webview.overlay.clone(), app_window.window.clone()))
         })
-        .and_then(|wrapper| wrapper.overlay.as_ref())
-        .map(|overlay| {
-          let bounds = overlay.bounds();
-          let scale = overlay
-            .window()
-            .and_then(|w| w.display())
+        .map(|(overlay, window)| {
+          let bounds = overlay
+            .map(|v| v.bounds())
+            .unwrap_or_else(|| window.bounds());
+          (bounds, window)
+        })
+        .map(|(bounds, window)| {
+          let scale = window
+            .display()
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
           tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale)
@@ -1067,13 +1075,17 @@ fn handle_webview_message<T: UserEvent>(
             .webviews
             .iter()
             .find(|w| w.webview_id == webview_id)
+            .map(|webview| (webview.overlay.clone(), app_window.window.clone()))
         })
-        .and_then(|wrapper| wrapper.overlay.as_ref())
-        .map(|overlay| {
-          let bounds = overlay.bounds();
-          let scale = overlay
-            .window()
-            .and_then(|w| w.display())
+        .map(|(overlay, window)| {
+          let bounds = overlay
+            .map(|v| v.bounds())
+            .unwrap_or_else(|| window.bounds());
+          (bounds, window)
+        })
+        .map(|(bounds, window)| {
+          let scale = window
+            .display()
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
           tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32)

@@ -11,7 +11,7 @@ use std::{
   sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::channel,
-    Arc, Mutex, OnceLock,
+    Arc, Mutex, OnceLock, RwLock,
   },
 };
 use tauri_runtime::{
@@ -24,19 +24,22 @@ use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{AppWindow, BrowserViewWrapper, CefRuntime, Message, WebviewMessage, WindowMessage};
 
-// Global window attributes storage, keyed by WindowId
-static WINDOW_ATTRIBUTES: OnceLock<Mutex<HashMap<WindowId, crate::CefWindowBuilder>>> =
+// Global window attributes storage, keyed by WindowId.
+// Use a RwLock on the map so readers don't block each other and
+// avoid holding the lock during user closures to prevent deadlocks.
+static WINDOW_ATTRIBUTES: OnceLock<RwLock<HashMap<WindowId, crate::CefWindowBuilder>>> =
   OnceLock::new();
 
 #[inline]
-fn window_attributes() -> &'static Mutex<HashMap<WindowId, crate::CefWindowBuilder>> {
-  WINDOW_ATTRIBUTES.get_or_init(|| Mutex::new(HashMap::new()))
+fn window_attributes() -> &'static RwLock<HashMap<WindowId, crate::CefWindowBuilder>> {
+  WINDOW_ATTRIBUTES.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
 #[inline]
 fn with_attrs<R>(window_id: WindowId, f: impl FnOnce(&crate::CefWindowBuilder) -> R) -> Option<R> {
-  let map = window_attributes().lock().ok()?;
-  map.get(&window_id).map(f)
+  let map = window_attributes().read().ok()?;
+  let builder = map.get(&window_id)?;
+  Some(f(builder))
 }
 
 #[inline]
@@ -44,8 +47,9 @@ fn with_attrs_mut<R>(
   window_id: WindowId,
   f: impl FnOnce(&mut crate::CefWindowBuilder) -> R,
 ) -> Option<R> {
-  let mut map = window_attributes().lock().ok()?;
-  map.get_mut(&window_id).map(f)
+  let mut map = window_attributes().write().ok()?;
+  let builder = map.get_mut(&window_id)?;
+  Some(f(builder))
 }
 
 mod cookie;
@@ -524,6 +528,125 @@ wrap_window_delegate! {
   impl PanelDelegate {}
 
   impl WindowDelegate {
+    fn on_window_created(&self, window: Option<&mut Window>) {
+      if let Some(window) = window {
+        with_attrs(self.window_id, |a| {
+          if let Some(icon) = a.icon.clone() {
+            set_window_icon(&window, icon);
+          }
+
+          if let Some(title) = &a.title {
+            window.set_title(Some(&CefString::from(title.as_str())));
+          }
+
+          if let Some(inner_size) = &a.inner_size {
+            if let Some(display) = window.display() {
+              let device_scale_factor = display.device_scale_factor() as f64;
+              let logical_size = inner_size.to_logical::<u32>(device_scale_factor);
+              window.set_size(Some(&cef::Size {
+                width: logical_size.width as i32,
+                height: logical_size.height as i32,
+              }));
+            }
+          }
+
+          if let Some(position) = &a.position {
+            if let Some(display) = window.display() {
+              let device_scale_factor = display.device_scale_factor() as f64;
+              let logical_position = position.to_logical::<i32>(device_scale_factor);
+              window.set_position(Some(&cef::Point {
+                x: logical_position.x,
+                y: logical_position.y,
+              }));
+            }
+          }
+
+          if a.center {
+            if let Some(display) = window.display() {
+              let work_area = display.work_area();
+              let current_bounds = window.bounds();
+              let center_x = work_area.x + (work_area.width - current_bounds.width) / 2;
+              let center_y = work_area.y + (work_area.height - current_bounds.height) / 2;
+              window.set_position(Some(&cef::Point { x: center_x, y: center_y }));
+            }
+          }
+
+          if let Some(focused) = a.focused {
+            if focused {
+              window.request_focus();
+            }
+          }
+
+          if let Some(maximized) = a.maximized {
+            if maximized {
+              window.maximize();
+            }
+          }
+
+          if let Some(fullscreen) = a.fullscreen {
+            if fullscreen {
+              window.set_fullscreen(1);
+            }
+          }
+
+          if let Some(always_on_top) = a.always_on_top {
+            if always_on_top {
+              window.set_always_on_top(1);
+            }
+          }
+
+          if let Some(_always_on_bottom) = a.always_on_bottom {
+            // TODO: Implement always on bottom for CEF
+          }
+
+          if let Some(visible_on_all_workspaces) = a.visible_on_all_workspaces {
+            if visible_on_all_workspaces {
+              // TODO: Implement visible on all workspaces for CEF
+            }
+          }
+
+          if let Some(content_protected) = a.content_protected {
+            apply_content_protection(&window, content_protected);
+          }
+
+          if let Some(skip_taskbar) = a.skip_taskbar {
+            if skip_taskbar {
+              // TODO: Implement skip taskbar for CEF
+            }
+          }
+
+          if let Some(shadow) = a.shadow {
+            if !shadow {
+              // TODO: Implement shadow control for CEF
+            }
+          }
+
+          #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+          if let Some(transparent) = a.transparent {
+            if transparent {
+              // TODO: Implement transparency for CEF
+            }
+          }
+
+          if let Some(_theme) = a.theme {
+            // TODO: Implement theme for CEF
+          }
+
+          if let Some(color) = a.background_color {
+            window.set_background_color(color_to_cef_argb(color));
+          }
+
+          if let Some(focusable) = a.focusable {
+            window.set_focusable(if focusable { 1 } else { 0 });
+          }
+
+          if a.visible.unwrap_or(true) {
+            window.show();
+          }
+        });
+      }
+    }
+
     fn is_frameless(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
       // Map `decorations: false` to frameless window
       let decorated = with_attrs(self.window_id, |a| a.decorations.unwrap_or(true))
@@ -1671,13 +1794,12 @@ pub(crate) fn create_window<T: UserEvent>(
 ) {
   let label = pending.label.clone();
   let window_builder = pending.window_builder;
-  let attributes = RefCell::new(window_builder.clone());
   let force_close = Arc::new(AtomicBool::new(false));
 
   // Store attributes in global map for this window
   {
     let _ = window_attributes()
-      .lock()
+      .write()
       .map(|mut m| m.insert(window_id, window_builder.clone()));
   }
 
@@ -1690,127 +1812,6 @@ pub(crate) fn create_window<T: UserEvent>(
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
 
-  if let Some(icon) = window_builder.icon.clone() {
-    set_window_icon(&window, icon);
-  }
-
-  if let Some(title) = &window_builder.title {
-    window.set_title(Some(&CefString::from(title.as_str())));
-  }
-
-  if let Some(inner_size) = &window_builder.inner_size {
-    if let Some(display) = window.display() {
-      let device_scale_factor = display.device_scale_factor() as f64;
-      let logical_size = inner_size.to_logical::<u32>(device_scale_factor);
-      window.set_size(Some(&cef::Size {
-        width: logical_size.width as i32,
-        height: logical_size.height as i32,
-      }));
-    }
-  }
-
-  if let Some(position) = &window_builder.position {
-    if let Some(display) = window.display() {
-      let device_scale_factor = display.device_scale_factor() as f64;
-      let logical_position = position.to_logical::<i32>(device_scale_factor);
-      window.set_position(Some(&cef::Point {
-        x: logical_position.x,
-        y: logical_position.y,
-      }));
-    }
-  }
-
-  if window_builder.center {
-    // Center window - calculate center position from display size
-    if let Some(display) = window.display() {
-      let work_area = display.work_area();
-      let current_bounds = window.bounds();
-      let center_x = work_area.x + (work_area.width - current_bounds.width) / 2;
-      let center_y = work_area.y + (work_area.height - current_bounds.height) / 2;
-      window.set_position(Some(&cef::Point {
-        x: center_x,
-        y: center_y,
-      }));
-    }
-  }
-
-  if let Some(focused) = window_builder.focused {
-    if focused {
-      window.request_focus();
-    }
-  }
-
-  if let Some(maximized) = window_builder.maximized {
-    if maximized {
-      window.maximize();
-    }
-  }
-
-  if let Some(fullscreen) = window_builder.fullscreen {
-    if fullscreen {
-      window.set_fullscreen(1);
-    }
-  }
-
-  if let Some(always_on_top) = window_builder.always_on_top {
-    if always_on_top {
-      window.set_always_on_top(1);
-    }
-  }
-
-  if let Some(always_on_bottom) = window_builder.always_on_bottom {
-    if always_on_bottom {
-      // TODO: Implement always on bottom for CEF
-    }
-  }
-
-  if let Some(visible_on_all_workspaces) = window_builder.visible_on_all_workspaces {
-    if visible_on_all_workspaces {
-      // TODO: Implement visible on all workspaces for CEF
-    }
-  }
-
-  if let Some(content_protected) = window_builder.content_protected {
-    apply_content_protection(&window, content_protected);
-  }
-
-  if let Some(skip_taskbar) = window_builder.skip_taskbar {
-    if skip_taskbar {
-      // TODO: Implement skip taskbar for CEF
-    }
-  }
-
-  if let Some(shadow) = window_builder.shadow {
-    if !shadow {
-      // TODO: Implement shadow control for CEF
-    }
-  }
-
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  if let Some(transparent) = window_builder.transparent {
-    if transparent {
-      // TODO: Implement transparency for CEF
-    }
-  }
-
-  if let Some(_theme) = window_builder.theme {
-    // TODO: Implement theme for CEF
-  }
-
-  // Apply background color
-  if let Some(color) = window_builder.background_color {
-    window.set_background_color(color_to_cef_argb(color));
-  }
-
-  // Apply focusable
-  if let Some(focusable) = window_builder.focusable {
-    window.set_focusable(if focusable { 1 } else { 0 });
-  }
-
-  if window_builder.visible.unwrap_or(true) {
-    window.show();
-  }
-
   context.windows.borrow_mut().insert(
     window_id,
     AppWindow {
@@ -1820,7 +1821,6 @@ pub(crate) fn create_window<T: UserEvent>(
       webviews: Vec::new(),
       window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
       webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
-      attributes,
     },
   );
 
@@ -1904,7 +1904,9 @@ fn on_window_destroyed<T: UserEvent>(
   send_window_event(window_id, windows, callback, event);
 
   // Remove attributes from global map for this window
-  let _ = window_attributes().lock().map(|mut m| m.remove(&window_id));
+  let _ = window_attributes()
+    .write()
+    .map(|mut m| m.remove(&window_id));
 
   let removed = windows.borrow_mut().remove(&window_id).is_some();
 

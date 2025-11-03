@@ -256,7 +256,6 @@ pub(crate) struct AppWindow {
   pub webviews: Vec<BrowserViewWrapper>,
   pub window_event_listeners: WindowEventListeners,
   pub webview_event_listeners: WebviewEventListeners,
-  pub attributes: RefCell<CefWindowBuilder>,
 }
 
 #[derive(Clone)]

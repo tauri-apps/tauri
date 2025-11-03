@@ -421,8 +421,8 @@ wrap_window_delegate! {
     force_close: Arc<AtomicBool>,
     windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
     attributes: Arc<RefCell<crate::CefWindowBuilder>>,
-    last_emitted_position: RefCell<Option<tauri_runtime::dpi::PhysicalPosition<i32>>>,
-    last_emitted_size: RefCell<Option<tauri_runtime::dpi::PhysicalSize<u32>>>,
+    last_emitted_position: RefCell<tauri_runtime::dpi::PhysicalPosition<i32>>,
+    last_emitted_size: RefCell<tauri_runtime::dpi::PhysicalSize<u32>>,
   }
 
   impl ViewDelegate {
@@ -736,13 +736,14 @@ wrap_window_delegate! {
 
       let physical_position = tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y)
         .to_physical::<i32>(scale);
-      let position_changed = self.last_emitted_position.borrow_mut().as_mut().map(|emitted_pos| {
+      let position_changed = {
+        let mut emitted_pos = self.last_emitted_position.borrow_mut();
         let changed = *emitted_pos != physical_position;
         if changed {
           *emitted_pos = physical_position;
         }
         changed
-      }).unwrap_or_default();
+      };
       if position_changed {
         send_window_event(
           self.window_id,
@@ -755,15 +756,15 @@ wrap_window_delegate! {
       let physical_size = tauri_runtime::dpi::LogicalSize::new(
         bounds.width as u32,
         bounds.height as u32,
-      )
-        .to_physical::<u32>(scale);
-      let size_changed = self.last_emitted_size.borrow_mut().as_mut().map(|emitted_size| {
+      ).to_physical::<u32>(scale);
+      let size_changed = {
+        let mut emitted_size = self.last_emitted_size.borrow_mut();
         let changed = *emitted_size != physical_size;
         if changed {
           *emitted_size = physical_size;
         }
         changed
-      }).unwrap_or_default();
+      };
       if size_changed {
         send_window_event(
           self.window_id,
@@ -2050,8 +2051,8 @@ pub(crate) fn create_window<T: UserEvent>(
     force_close.clone(),
     context.windows.clone(),
     attributes.clone(),
-    RefCell::new(None),
-    RefCell::new(None),
+    RefCell::new(Default::default()),
+    RefCell::new(Default::default()),
   );
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");

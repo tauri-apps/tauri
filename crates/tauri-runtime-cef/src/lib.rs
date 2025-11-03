@@ -45,7 +45,7 @@ mod cef_impl;
 #[macro_export]
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
-    $self.context.post_message($message)?;
+    $crate::send_user_message(&$self.context, $message)?;
     $rx
       .recv()
       .map_err(|_| tauri_runtime::Error::FailedToReceiveMessage)
@@ -370,6 +370,25 @@ impl<T: UserEvent> RuntimeContext<T> {
 
     Ok(DetachedWebview { label, dispatcher })
   }
+}
+
+// Mirrors tauri-runtime-wry's send_user_message behavior: if we're already on the main
+// thread, handle the message immediately; otherwise, post it to the main thread.
+pub(crate) fn send_user_message<T: UserEvent>(
+  context: &RuntimeContext<T>,
+  message: Message<T>,
+) -> Result<()> {
+  if thread::current().id() == context.main_thread_id {
+    cef_impl::handle_message(&context.cef_context, message);
+  } else {
+    context
+      .main_thread_task_runner
+      .post_task(Some(&mut cef_impl::SendMessageTask::new(
+        context.cef_context.clone(),
+        Arc::new(RefCell::new(message)),
+      )));
+  }
+  Ok(())
 }
 
 impl<T: UserEvent> fmt::Debug for RuntimeContext<T> {

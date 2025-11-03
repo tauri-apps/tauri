@@ -654,6 +654,10 @@ wrap_window_delegate! {
       (!decorated) as i32
     }
 
+    fn with_standard_window_buttons(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
+      1
+    }
+
     fn on_window_destroyed(&self, _window: Option<&mut Window>) {
       on_window_destroyed(self.window_id, &self.windows, &self.callback);
     }

@@ -154,7 +154,7 @@ fn apply_content_protection(window: &cef::Window, protected: bool) {
     use windows::Win32::UI::WindowsAndMessaging::{
       SetWindowDisplayAffinity, WDA_EXCLUDEFROMCAPTURE, WDA_NONE,
     };
-    let hwnd = window.window_handle() *mut std::ffi::c_void;
+    let hwnd = window.window_handle() as *mut std::ffi::c_void;
     unsafe {
       let _ = SetWindowDisplayAffinity(
         HWND(hwnd),

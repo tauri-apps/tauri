@@ -2144,6 +2144,7 @@ tauri::Builder::default()
     };
 
     let mut custom_schemes = vec!["ipc".to_string(), "tauri".to_string()];
+    #[cfg(feature = "isolation")]
     if let crate::pattern::Pattern::Isolation { schema, .. } = &*manager.pattern {
       custom_schemes.push(schema.clone());
     }

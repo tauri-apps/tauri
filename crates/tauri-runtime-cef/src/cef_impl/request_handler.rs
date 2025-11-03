@@ -172,7 +172,6 @@ wrap_resource_handler! {
 
       if let Some(url) = url {
         let callback = ThreadSafe(callback.clone());
-        // TODO: thread safety
         let response_store = ThreadSafe(self.response.clone());
         let initialization_scripts = self.initialization_scripts.clone();
         let responder = Box::new(move |response: http::Response<Cow<'static, [u8]>>| {
@@ -267,7 +266,7 @@ wrap_resource_handler! {
         }
 
         if name == CONTENT_TYPE {
-          content_type.replace(value.into());
+          content_type.replace(value.to_string());
         }
       }
 
@@ -281,11 +280,16 @@ wrap_resource_handler! {
         response.set_header_by_name(
           Some(&csp_header_name),
           Some(&CefString::from(new_csp.as_str())),
-          0, // overwrite
+          0,
         );
       }
 
-      response.set_mime_type(Some(&content_type.unwrap_or_else(|| "text/plain".into())));
+      let mime_type = content_type
+        .as_ref()
+        .and_then(|t| t.split(';').next())
+        .map(str::trim)
+        .unwrap_or("text/plain");
+      response.set_mime_type(Some(&mime_type.into()));
 
       response_length.map(|length| {
         *length = -1;

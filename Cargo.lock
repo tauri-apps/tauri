@@ -9024,6 +9024,7 @@ dependencies = [
  "tauri-runtime",
  "tauri-utils",
  "url",
+ "windows 0.61.1",
 ]
 
 [[package]]

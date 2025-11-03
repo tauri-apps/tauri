@@ -44,7 +44,7 @@ use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 )]
 pub struct Options {
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), use_value_delimiter = true)]
   pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]

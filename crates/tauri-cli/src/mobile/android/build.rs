@@ -47,7 +47,7 @@ pub struct Options {
   )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), use_value_delimiter = true)]
   pub features: Option<Vec<String>>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///

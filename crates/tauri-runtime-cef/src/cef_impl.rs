@@ -421,6 +421,8 @@ wrap_window_delegate! {
     force_close: Arc<AtomicBool>,
     windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
     attributes: Arc<RefCell<crate::CefWindowBuilder>>,
+    last_emitted_position: RefCell<Option<tauri_runtime::dpi::PhysicalPosition<i32>>>,
+    last_emitted_size: RefCell<Option<tauri_runtime::dpi::PhysicalSize<u32>>>,
   }
 
   impl ViewDelegate {
@@ -703,6 +705,86 @@ wrap_window_delegate! {
       } else {
         1
       }
+    }
+
+    fn on_window_bounds_changed(
+      &self,
+      window: Option<&mut Window>,
+      bounds: Option<&cef::Rect>,
+    ) {
+      let (Some(window), Some(bounds)) = (window, bounds) else { return; };
+
+      // Update autoresize overlay bounds (moved from on_layout_changed)
+      if let Some(app_window) = self.windows.borrow().get(&self.window_id) {
+        for wrapper in &app_window.webviews {
+          if let (Some(overlay), Some(b)) = (&wrapper.overlay, &*wrapper.bounds.lock().unwrap()) {
+            let new_rect = cef::Rect {
+              x: (bounds.width as f32 * b.x_rate) as i32,
+              y: (bounds.height as f32 * b.y_rate) as i32,
+              width: (bounds.width as f32 * b.width_rate) as i32,
+              height: (bounds.height as f32 * b.height_rate) as i32,
+            };
+            overlay.set_bounds(Some(&new_rect));
+          }
+        }
+      }
+
+      let scale = window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+
+      let physical_position = tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y)
+        .to_physical::<i32>(scale);
+      let position_changed = self.last_emitted_position.borrow_mut().as_mut().map(|emitted_pos| {
+        let changed = *emitted_pos != physical_position;
+        if changed {
+          *emitted_pos = physical_position;
+        }
+        changed
+      }).unwrap_or_default();
+      if position_changed {
+        send_window_event(
+          self.window_id,
+          &self.windows,
+          &self.callback,
+          WindowEvent::Moved(physical_position),
+        );
+      }
+
+      let physical_size = tauri_runtime::dpi::LogicalSize::new(
+        bounds.width as u32,
+        bounds.height as u32,
+      )
+        .to_physical::<u32>(scale);
+      let size_changed = self.last_emitted_size.borrow_mut().as_mut().map(|emitted_size| {
+        let changed = *emitted_size != physical_size;
+        if changed {
+          *emitted_size = physical_size;
+        }
+        changed
+      }).unwrap_or_default();
+      if size_changed {
+        send_window_event(
+          self.window_id,
+          &self.windows,
+          &self.callback,
+          WindowEvent::Resized(physical_size),
+        );
+      }
+    }
+
+    fn on_window_activation_changed(
+      &self,
+      _window: Option<&mut Window>,
+      active: ::std::os::raw::c_int,
+    ) {
+      send_window_event(
+        self.window_id,
+        &self.windows,
+        &self.callback,
+        WindowEvent::Focused(active == 1),
+      );
     }
   }
 }
@@ -1968,6 +2050,8 @@ pub(crate) fn create_window<T: UserEvent>(
     force_close.clone(),
     context.windows.clone(),
     attributes.clone(),
+    RefCell::new(None),
+    RefCell::new(None),
   );
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");

@@ -551,13 +551,8 @@ wrap_window_delegate! {
         }
 
         if a.center {
-          if let Some(display) = window.display() {
-            let work_area = display.work_area();
-            let current_bounds = window.bounds();
-            let center_x = work_area.x + (work_area.width - current_bounds.width) / 2;
-            let center_y = work_area.y + (work_area.height - current_bounds.height) / 2;
-            window.set_position(Some(&cef::Point { x: center_x, y: center_y }));
-          }
+          // Use CEF's native centering API
+          window.center_window(None);
         }
 
         if let Some(focused) = a.focused {
@@ -1738,16 +1733,8 @@ fn handle_window_message<T: UserEvent>(
     // Setters
     WindowMessage::Center => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(display) = app_window.window.display() {
-          let work_area = display.work_area();
-          let current_bounds = app_window.window.bounds();
-          let center_x = work_area.x + (work_area.width - current_bounds.width) / 2;
-          let center_y = work_area.y + (work_area.height - current_bounds.height) / 2;
-          app_window.window.set_position(Some(&cef::Point {
-            x: center_x,
-            y: center_y,
-          }));
-        }
+        // Use CEF's native centering API
+        app_window.window.center_window(None);
       }
     }
     WindowMessage::RequestUserAttention(_attention_type) => {

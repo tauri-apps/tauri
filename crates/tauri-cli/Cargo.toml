@@ -113,6 +113,7 @@ uuid = { version = "1", features = ["v5"] }
 rand = "0.9"
 zip = { version = "4", default-features = false, features = ["deflate"] }
 which = "8"
+rayon = "1.10"
 
 [dev-dependencies]
 insta = "1"

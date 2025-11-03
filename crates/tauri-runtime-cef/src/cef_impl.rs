@@ -11,7 +11,7 @@ use std::{
   sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::channel,
-    Arc, Mutex, OnceLock, RwLock,
+    Arc, Mutex,
   },
 };
 use tauri_runtime::{
@@ -23,34 +23,6 @@ use tauri_runtime::{
 use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{AppWindow, BrowserViewWrapper, CefRuntime, Message, WebviewMessage, WindowMessage};
-
-// Global window attributes storage, keyed by WindowId.
-// Use a RwLock on the map so readers don't block each other and
-// avoid holding the lock during user closures to prevent deadlocks.
-static WINDOW_ATTRIBUTES: OnceLock<RwLock<HashMap<WindowId, crate::CefWindowBuilder>>> =
-  OnceLock::new();
-
-#[inline]
-fn window_attributes() -> &'static RwLock<HashMap<WindowId, crate::CefWindowBuilder>> {
-  WINDOW_ATTRIBUTES.get_or_init(|| RwLock::new(HashMap::new()))
-}
-
-#[inline]
-fn with_attrs<R>(window_id: WindowId, f: impl FnOnce(&crate::CefWindowBuilder) -> R) -> Option<R> {
-  let map = window_attributes().read().ok()?;
-  let builder = map.get(&window_id)?;
-  Some(f(builder))
-}
-
-#[inline]
-fn with_attrs_mut<R>(
-  window_id: WindowId,
-  f: impl FnOnce(&mut crate::CefWindowBuilder) -> R,
-) -> Option<R> {
-  let mut map = window_attributes().write().ok()?;
-  let builder = map.get_mut(&window_id)?;
-  Some(f(builder))
-}
 
 mod cookie;
 mod request_handler;
@@ -448,6 +420,7 @@ wrap_window_delegate! {
     callback: Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
     force_close: Arc<AtomicBool>,
     windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
+    attributes: Arc<RefCell<crate::CefWindowBuilder>>,
   }
 
   impl ViewDelegate {
@@ -459,25 +432,22 @@ wrap_window_delegate! {
         .unwrap_or(1.0);
       let mut min_w: i32 = 0;
       let mut min_h: i32 = 0;
-
-      with_attrs(self.window_id, |attributes| {
-        if let Some(min_size) = attributes.min_inner_size {
-          let logical = min_size.to_logical::<u32>(scale);
-          min_w = min_w.max(logical.width as i32);
-          min_h = min_h.max(logical.height as i32);
+      let attributes = self.attributes.borrow();
+      if let Some(min_size) = attributes.min_inner_size {
+        let logical = min_size.to_logical::<u32>(scale);
+        min_w = min_w.max(logical.width as i32);
+        min_h = min_h.max(logical.height as i32);
+      }
+      if let Some(constraints) = attributes.inner_size_constraints.as_ref() {
+        if let Some(w) = constraints.min_width {
+          let w_lg = i32::from(w.to_logical::<u32>(scale));
+          min_w = min_w.max(w_lg);
         }
-
-        if let Some(constraints) = attributes.inner_size_constraints.as_ref() {
-          if let Some(w) = constraints.min_width {
-            let w_lg = i32::from(w.to_logical::<u32>(scale));
-            min_w = min_w.max(w_lg);
-          }
-          if let Some(h) = constraints.min_height {
-            let h_lg = i32::from(h.to_logical::<u32>(scale));
-            min_h = min_h.max(h_lg);
-          }
+        if let Some(h) = constraints.min_height {
+          let h_lg = i32::from(h.to_logical::<u32>(scale));
+          min_h = min_h.max(h_lg);
         }
-      });
+      }
 
       if min_w != 0 || min_h != 0 {
         cef::Size { width: min_w, height: min_h }
@@ -494,25 +464,22 @@ wrap_window_delegate! {
         .unwrap_or(1.0);
       let mut max_w: Option<i32> = None;
       let mut max_h: Option<i32> = None;
-
-      with_attrs(self.window_id, |attributes| {
-        if let Some(max_size) = attributes.max_inner_size {
-          let logical = max_size.to_logical::<u32>(scale);
-          max_w = Some(logical.width as i32);
-          max_h = Some(logical.height as i32);
+      let attributes = self.attributes.borrow();
+      if let Some(max_size) = attributes.max_inner_size {
+        let logical = max_size.to_logical::<u32>(scale);
+        max_w = Some(logical.width as i32);
+        max_h = Some(logical.height as i32);
+      }
+      if let Some(constraints) = attributes.inner_size_constraints.as_ref() {
+        if let Some(w) = constraints.max_width {
+          let w_lg = i32::from(w.to_logical::<u32>(scale));
+          max_w = Some(match max_w { Some(v) => v.min(w_lg), None => w_lg });
         }
-
-        if let Some(constraints) = attributes.inner_size_constraints.as_ref() {
-          if let Some(w) = constraints.max_width {
-            let w_lg = i32::from(w.to_logical::<u32>(scale));
-            max_w = Some(match max_w { Some(v) => v.min(w_lg), None => w_lg });
-          }
-          if let Some(h) = constraints.max_height {
-            let h_lg = i32::from(h.to_logical::<u32>(scale));
-            max_h = Some(match max_h { Some(v) => v.min(h_lg), None => h_lg });
-          }
+        if let Some(h) = constraints.max_height {
+          let h_lg = i32::from(h.to_logical::<u32>(scale));
+          max_h = Some(match max_h { Some(v) => v.min(h_lg), None => h_lg });
         }
-      });
+      }
 
       if max_w.is_some() || max_h.is_some() {
         cef::Size {
@@ -550,128 +517,130 @@ wrap_window_delegate! {
   impl WindowDelegate {
     fn on_window_created(&self, window: Option<&mut Window>) {
       if let Some(window) = window {
-        with_attrs(self.window_id, |a| {
-          if let Some(icon) = a.icon.clone() {
-            set_window_icon(&window, icon);
-          }
+        let a = self.attributes.borrow();
+        if let Some(icon) = a.icon.clone() {
+          set_window_icon(&window, icon);
+        }
 
-          if let Some(title) = &a.title {
-            window.set_title(Some(&CefString::from(title.as_str())));
-          }
+        if let Some(title) = &a.title {
+          window.set_title(Some(&CefString::from(title.as_str())));
+        }
 
-          if let Some(inner_size) = &a.inner_size {
-            if let Some(display) = window.display() {
-              let device_scale_factor = display.device_scale_factor() as f64;
-              let logical_size = inner_size.to_logical::<u32>(device_scale_factor);
-              window.set_size(Some(&cef::Size {
-                width: logical_size.width as i32,
-                height: logical_size.height as i32,
-              }));
+        if let Some(inner_size) = &a.inner_size {
+          if let Some(display) = window.display() {
+            let device_scale_factor = display.device_scale_factor() as f64;
+            let logical_size = inner_size.to_logical::<u32>(device_scale_factor);
+            window.set_size(Some(&cef::Size {
+              width: logical_size.width as i32,
+              height: logical_size.height as i32,
+            }));
+          }
+        }
+
+        if let Some(position) = &a.position {
+          if let Some(display) = window.display() {
+            let device_scale_factor = display.device_scale_factor() as f64;
+            let logical_position = position.to_logical::<i32>(device_scale_factor);
+            window.set_position(Some(&cef::Point {
+              x: logical_position.x,
+              y: logical_position.y,
+            }));
+          }
+        }
+
+        if a.center {
+          if let Some(display) = window.display() {
+            let work_area = display.work_area();
+            let current_bounds = window.bounds();
+            let center_x = work_area.x + (work_area.width - current_bounds.width) / 2;
+            let center_y = work_area.y + (work_area.height - current_bounds.height) / 2;
+            window.set_position(Some(&cef::Point { x: center_x, y: center_y }));
+          }
+        }
+
+        if let Some(focused) = a.focused {
+          if focused {
+            window.request_focus();
+          }
+        }
+
+        if let Some(maximized) = a.maximized {
+          if maximized {
+            window.maximize();
+          }
+        }
+
+        if let Some(fullscreen) = a.fullscreen {
+          if fullscreen {
+            window.set_fullscreen(1);
+          }
+        }
+
+        if let Some(always_on_top) = a.always_on_top {
+          if always_on_top {
+            window.set_always_on_top(1);
+          }
+        }
+
+        if let Some(_always_on_bottom) = a.always_on_bottom {
+          // TODO: Implement always on bottom for CEF
+        }
+
+        if let Some(visible_on_all_workspaces) = a.visible_on_all_workspaces {
+          if visible_on_all_workspaces {
+            // TODO: Implement visible on all workspaces for CEF
+          }
+        }
+
+        if let Some(content_protected) = a.content_protected {
+          apply_content_protection(&window, content_protected);
+        }
+
+        if let Some(skip_taskbar) = a.skip_taskbar {
+          if skip_taskbar {
+            // TODO: Implement skip taskbar for CEF
+          }
+        }
+
+        if let Some(shadow) = a.shadow {
+          if !shadow {
+            // TODO: Implement shadow control for CEF
+          }
+        }
+
+        #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+        {
+          if let Some(transparent) = a.transparent {
+            if transparent {
+              // TODO: Implement transparency for CEF
             }
           }
+        }
 
-          if let Some(position) = &a.position {
-            if let Some(display) = window.display() {
-              let device_scale_factor = display.device_scale_factor() as f64;
-              let logical_position = position.to_logical::<i32>(device_scale_factor);
-              window.set_position(Some(&cef::Point {
-                x: logical_position.x,
-                y: logical_position.y,
-              }));
-            }
-          }
+        if let Some(_theme) = a.theme {
+          // TODO: Implement theme for CEF
+        }
 
-          if a.center {
-            if let Some(display) = window.display() {
-              let work_area = display.work_area();
-              let current_bounds = window.bounds();
-              let center_x = work_area.x + (work_area.width - current_bounds.width) / 2;
-              let center_y = work_area.y + (work_area.height - current_bounds.height) / 2;
-              window.set_position(Some(&cef::Point { x: center_x, y: center_y }));
-            }
-          }
+        if let Some(color) = a.background_color {
+          window.set_background_color(color_to_cef_argb(color));
+        }
 
-          if let Some(focused) = a.focused {
-            if focused {
-              window.request_focus();
-            }
-          }
+        if let Some(focusable) = a.focusable {
+          window.set_focusable(if focusable { 1 } else { 0 });
+        }
 
-          if let Some(maximized) = a.maximized {
-            if maximized {
-              window.maximize();
-            }
-          }
-
-          if let Some(fullscreen) = a.fullscreen {
-            if fullscreen {
-              window.set_fullscreen(1);
-            }
-          }
-
-          if let Some(always_on_top) = a.always_on_top {
-            if always_on_top {
-              window.set_always_on_top(1);
-            }
-          }
-
-          if let Some(_always_on_bottom) = a.always_on_bottom {
-            // TODO: Implement always on bottom for CEF
-          }
-
-          if let Some(visible_on_all_workspaces) = a.visible_on_all_workspaces {
-            if visible_on_all_workspaces {
-              // TODO: Implement visible on all workspaces for CEF
-            }
-          }
-
-          if let Some(content_protected) = a.content_protected {
-            apply_content_protection(&window, content_protected);
-          }
-
-          if let Some(skip_taskbar) = a.skip_taskbar {
-            if skip_taskbar {
-              // TODO: Implement skip taskbar for CEF
-            }
-          }
-
-          if let Some(shadow) = a.shadow {
-            if !shadow {
-              // TODO: Implement shadow control for CEF
-            }
-          }
-
-          #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-          {
-            if let Some(transparent) = a.transparent {
-              if transparent {
-                // TODO: Implement transparency for CEF
-              }
-            }
-          }
-
-          if let Some(_theme) = a.theme {
-            // TODO: Implement theme for CEF
-          }
-
-          if let Some(color) = a.background_color {
-            window.set_background_color(color_to_cef_argb(color));
-          }
-
-          if let Some(focusable) = a.focusable {
-            window.set_focusable(if focusable { 1 } else { 0 });
-          }
-
-          if a.visible.unwrap_or(true) {
-            window.show();
-          }
-        });
+        if a.visible.unwrap_or(true) {
+          window.show();
+        }
       }
     }
 
     fn is_frameless(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
       // Map `decorations: false` to frameless window
-      let decorated = with_attrs(self.window_id, |a| a.decorations.unwrap_or(true))
+      let decorated = self
+        .attributes
+        .borrow()
+        .decorations
         .unwrap_or(true);
       (!decorated) as i32
     }
@@ -685,21 +654,26 @@ wrap_window_delegate! {
     }
 
     fn can_resize(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
-      with_attrs(self.window_id, |a| a.resizable.unwrap_or(true))
+      self
+        .attributes
+        .borrow()
+        .resizable
         .unwrap_or(true) as i32
     }
 
     fn can_maximize(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
       // Can maximize if maximizable is true and resizable is true (or not set, defaulting to true)
-      let (resizable, maximizable) = with_attrs(self.window_id, |a| {
-        (a.resizable.unwrap_or(true), a.maximizable.unwrap_or(true))
-      })
-      .unwrap_or((true, true));
+      let a = self.attributes.borrow();
+      let resizable = a.resizable.unwrap_or(true);
+      let maximizable = a.maximizable.unwrap_or(true);
       (resizable && maximizable) as i32
     }
 
     fn can_minimize(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
-      with_attrs(self.window_id, |a| a.minimizable.unwrap_or(true))
+      self
+        .attributes
+        .borrow()
+        .minimizable
         .unwrap_or(true) as i32
     }
 
@@ -707,7 +681,10 @@ wrap_window_delegate! {
       if self.force_close.load(Ordering::SeqCst) {
         return 1;
       }
-      let closable = with_attrs(self.window_id, |a| a.closable.unwrap_or(true))
+      let closable = self
+        .attributes
+        .borrow()
+        .closable
         .unwrap_or(true);
 
       if !closable {
@@ -1486,23 +1463,48 @@ fn handle_window_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WindowMessage::IsDecorated(tx) => {
-      let result = Ok(with_attrs(window_id, |a| a.decorations.unwrap_or(true)).unwrap_or(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.borrow().decorations.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
     WindowMessage::IsResizable(tx) => {
-      let result = Ok(with_attrs(window_id, |a| a.resizable.unwrap_or(true)).unwrap_or(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.borrow().resizable.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
     WindowMessage::IsMaximizable(tx) => {
-      let result = Ok(with_attrs(window_id, |a| a.maximizable.unwrap_or(true)).unwrap_or(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.borrow().maximizable.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
     WindowMessage::IsMinimizable(tx) => {
-      let result = Ok(with_attrs(window_id, |a| a.minimizable.unwrap_or(true)).unwrap_or(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.borrow().minimizable.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
     WindowMessage::IsClosable(tx) => {
-      let result = Ok(with_attrs(window_id, |a| a.closable.unwrap_or(true)).unwrap_or(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| Ok(w.attributes.borrow().closable.unwrap_or(true)))
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
     WindowMessage::IsVisible(tx) => {
@@ -1576,10 +1578,19 @@ fn handle_window_message<T: UserEvent>(
       let _ = tx.send(Ok(monitors));
     }
     WindowMessage::Theme(tx) => {
-      let result = Ok(
-        with_attrs(window_id, |a| a.theme.unwrap_or(tauri_utils::Theme::Light))
-          .unwrap_or(tauri_utils::Theme::Light),
-      );
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| {
+          Ok(
+            w.attributes
+              .borrow()
+              .theme
+              .unwrap_or(tauri_utils::Theme::Light),
+          )
+        })
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
     WindowMessage::IsEnabled(tx) => {
@@ -1663,16 +1674,24 @@ fn handle_window_message<T: UserEvent>(
       // TODO: Implement enabled
     }
     WindowMessage::SetResizable(resizable) => {
-      let _ = with_attrs_mut(window_id, |a| a.resizable = Some(resizable));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().resizable = Some(resizable);
+      }
     }
     WindowMessage::SetMaximizable(maximizable) => {
-      let _ = with_attrs_mut(window_id, |a| a.maximizable = Some(maximizable));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().maximizable = Some(maximizable);
+      }
     }
     WindowMessage::SetMinimizable(minimizable) => {
-      let _ = with_attrs_mut(window_id, |a| a.minimizable = Some(minimizable));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().minimizable = Some(minimizable);
+      }
     }
     WindowMessage::SetClosable(closable) => {
-      let _ = with_attrs_mut(window_id, |a| a.closable = Some(closable));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().closable = Some(closable);
+      }
     }
     WindowMessage::SetTitle(title) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -1712,32 +1731,37 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::SetDecorations(decorations) => {
-      let _ = with_attrs_mut(window_id, |a| a.decorations = Some(decorations));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().decorations = Some(decorations);
+      }
     }
     WindowMessage::SetShadow(_shadow) => {
       // TODO: Implement shadow
     }
     WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
-      let _ = with_attrs_mut(window_id, |a| a.always_on_bottom = Some(always_on_bottom));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().always_on_bottom = Some(always_on_bottom);
+      }
       // TODO: Apply always on bottom via platform-specific CEF APIs if available
     }
     WindowMessage::SetAlwaysOnTop(always_on_top) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        let _ = with_attrs_mut(window_id, |a| a.always_on_top = Some(always_on_top));
+        app_window.attributes.borrow_mut().always_on_top = Some(always_on_top);
         app_window
           .window
           .set_always_on_top(if always_on_top { 1 } else { 0 });
       }
     }
     WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {
-      let _ = with_attrs_mut(window_id, |a| {
-        a.visible_on_all_workspaces = Some(visible_on_all_workspaces)
-      });
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().visible_on_all_workspaces =
+          Some(visible_on_all_workspaces);
+      }
       // TODO: Apply visible on all workspaces via platform-specific CEF APIs if available
     }
     WindowMessage::SetContentProtected(protected) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        let _ = with_attrs_mut(window_id, |a| a.content_protected = Some(protected));
+        app_window.attributes.borrow_mut().content_protected = Some(protected);
         apply_content_protection(&app_window.window, protected);
       }
     }
@@ -1754,13 +1778,19 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::SetMinSize(size) => {
-      let _ = with_attrs_mut(window_id, |a| a.min_inner_size = size);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().min_inner_size = size;
+      }
     }
     WindowMessage::SetMaxSize(size) => {
-      let _ = with_attrs_mut(window_id, |a| a.max_inner_size = size);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().max_inner_size = size;
+      }
     }
     WindowMessage::SetSizeConstraints(constraints) => {
-      let _ = with_attrs_mut(window_id, |a| a.inner_size_constraints = Some(constraints));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().inner_size_constraints = Some(constraints);
+      }
     }
     WindowMessage::SetPosition(position) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -1845,7 +1875,7 @@ fn handle_window_message<T: UserEvent>(
     }
     WindowMessage::SetBackgroundColor(color) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        let _ = with_attrs_mut(window_id, |a| a.background_color = color);
+        app_window.attributes.borrow_mut().background_color = color;
         let color_value = color_opt_to_cef_argb(color);
         app_window.window.set_background_color(color_value);
       }
@@ -1930,19 +1960,14 @@ pub(crate) fn create_window<T: UserEvent>(
   let label = pending.label.clone();
   let window_builder = pending.window_builder;
   let force_close = Arc::new(AtomicBool::new(false));
-
-  // Store attributes in global map for this window
-  {
-    let _ = window_attributes()
-      .write()
-      .map(|mut m| m.insert(window_id, window_builder.clone()));
-  }
+  let attributes = Arc::new(RefCell::new(window_builder));
 
   let mut delegate = AppWindowDelegate::<T>::new(
     window_id,
     context.callback.clone(),
     force_close.clone(),
     context.windows.clone(),
+    attributes.clone(),
   );
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
@@ -1953,6 +1978,7 @@ pub(crate) fn create_window<T: UserEvent>(
       label,
       window,
       force_close,
+      attributes,
       webviews: Vec::new(),
       window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
       webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
@@ -2037,11 +2063,6 @@ fn on_window_destroyed<T: UserEvent>(
 ) {
   let event = WindowEvent::Destroyed;
   send_window_event(window_id, windows, callback, event);
-
-  // Remove attributes from global map for this window
-  let _ = window_attributes()
-    .write()
-    .map(|mut m| m.remove(&window_id));
 
   let removed = windows.borrow_mut().remove(&window_id).is_some();
 

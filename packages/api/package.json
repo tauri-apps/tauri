@@ -49,7 +49,7 @@
     "@rollup/plugin-terser": "0.4.4",
     "@rollup/plugin-typescript": "12.3.0",
     "@types/eslint": "^9.6.1",
-    "@types/node": "^22.15.32",
+    "@types/node": "^24.0.0",
     "eslint": "^9.29.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-security": "3.0.1",

@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.7.2]
+
+### Enhancements
+
+- [`7f710b8f3`](https://www.github.com/tauri-apps/tauri/commit/7f710b8f3b509ed327d76761926511cf56e66b2d) ([#14390](https://www.github.com/tauri-apps/tauri/pull/14390) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Inline linuxdeploy plugins which were previously downloaded from `https://raw.githubusercontent.com` which lately blocks many users with a 429 error.
+- [`fc017ee25`](https://www.github.com/tauri-apps/tauri/commit/fc017ee2577f48615367ea519386d3f37837e2c1) ([#14368](https://www.github.com/tauri-apps/tauri/pull/14368) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Mention symbol stripping on Linux in binary patch failed warning message
+
 ## \[2.7.1]
 
 ### Dependencies

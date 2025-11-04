@@ -211,19 +211,14 @@ impl From<&PatternKind> for PatternObject {
 }
 
 /// Where the JavaScript is injected to
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum IsolationSide {
   /// Original frame, the Brownfield application
+  #[default]
   Original,
   /// Secure frame, the isolation security application
   Secure,
-}
-
-impl Default for IsolationSide {
-  fn default() -> Self {
-    Self::Original
-  }
 }
 
 /// Injects the Isolation JavaScript to a codegen time document.

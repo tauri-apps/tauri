@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "2.9.1",
+  "version": "2.9.2",
   "description": "Command line interface for building Tauri apps",
   "type": "commonjs",
   "funding": {
@@ -44,7 +44,7 @@
     "@napi-rs/cli": "^3.0.0",
     "@types/node": "^22.15.32",
     "cross-env": "10.1.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.0"
   },
   "engines": {
     "node": ">= 10"

@@ -29,11 +29,11 @@ mod request_handler;
 use cookie::{CollectAllCookiesVisitor, CollectUrlCookiesVisitor};
 
 #[cfg(target_os = "linux")]
-type CefOsEvent = Option<&mut sys::XEvent>;
+type CefOsEvent<'a> = Option<&'a mut sys::XEvent>;
 #[cfg(target_os = "macos")]
-type CefOsEvent = *mut u8;
+type CefOsEvent<'a> = *mut u8;
 #[cfg(windows)]
-type CefOsEvent = Option<&mut sys::MSG>;
+type CefOsEvent<'a> = Option<&'a mut sys::MSG>;
 
 #[inline]
 fn color_to_cef_argb(color: tauri_utils::config::Color) -> u32 {

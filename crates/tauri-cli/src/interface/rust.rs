@@ -46,6 +46,7 @@ use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
+#[cfg(target_os = "macos")]
 pub use desktop::{cargo_command, DevChild};
 
 #[derive(Debug, Default, Clone)]

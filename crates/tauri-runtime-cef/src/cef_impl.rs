@@ -390,12 +390,96 @@ wrap_display_handler! {
   }
 }
 
+wrap_download_handler! {
+  struct BrowserDownloadHandler {
+    download_handler: Arc<tauri_runtime::webview::DownloadHandler>,
+  }
+
+  impl DownloadHandler {
+    fn on_before_download(
+      &self,
+      _browser: Option<&mut Browser>,
+      download_item: Option<&mut DownloadItem>,
+      suggested_name: Option<&CefStringUtf16>,
+      callback: Option<&mut BeforeDownloadCallback>,
+    ) -> ::std::os::raw::c_int {
+      let Some(download_item) = download_item else { return 0; };
+      let Some(callback) = callback else { return 0; };
+
+      let url_str = CefString::from(&download_item.url()).to_string();
+      let Ok(url) = url::Url::parse(&url_str) else { return 0; };
+
+      let suggested_path = suggested_name
+        .map(|s| s.to_string())
+        .map(|s| std::path::PathBuf::from(s))
+        .unwrap_or_default();
+
+      let mut destination = suggested_path;
+
+      // Call handler with Requested event
+      let should_allow = (self.download_handler)(tauri_runtime::webview::DownloadEvent::Requested {
+        url: url.clone(),
+        destination: &mut destination,
+      });
+
+      if should_allow {
+        // Set the download path
+        let destination_cef = CefStringUtf16::from(destination.to_string_lossy().as_ref());
+        callback.cont(Some(&destination_cef), 0);
+      }
+      1
+    }
+
+    fn on_download_updated(
+      &self,
+      _browser: Option<&mut Browser>,
+      download_item: Option<&mut DownloadItem>,
+      _callback: Option<&mut DownloadItemCallback>,
+    ) {
+      let Some(download_item) = download_item else { return; };
+
+      // Get download URL
+      let url_str = CefString::from(&download_item.url()).to_string();
+      let Ok(url) = url::Url::parse(&url_str) else { return; };
+
+      // Check download state - CEF returns i32 where 0 is false, non-zero is true
+      let is_complete = download_item.is_complete() != 0;
+      let is_canceled = download_item.is_canceled() != 0;
+      let success = is_complete && !is_canceled;
+
+      // Get full path if available - full_path() returns CefStringUserfreeUtf16
+      let full_path = if is_complete || is_canceled {
+        let path_cef = download_item.full_path();
+        let path_str = CefString::from(&path_cef).to_string();
+        if !path_str.is_empty() {
+          Some(std::path::PathBuf::from(path_str))
+        } else {
+          None
+        }
+      } else {
+        None
+      };
+
+      // Only call handler when download is finished (complete or canceled)
+      if is_complete || is_canceled {
+        // Call handler with Finished event
+        (self.download_handler)(tauri_runtime::webview::DownloadEvent::Finished {
+          url,
+          path: full_path,
+          success,
+        });
+      }
+    }
+  }
+}
+
 wrap_client! {
   struct BrowserClient {
     initialization_scripts: Vec<CefInitScript>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
+    download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
   }
 
   impl Client {
@@ -418,6 +502,14 @@ wrap_client! {
         Some(BrowserDisplayHandler::new(
           self.document_title_changed_handler.clone(),
         ))
+      } else {
+        None
+      }
+    }
+
+    fn download_handler(&self) -> Option<DownloadHandler> {
+      if let Some(handler) = self.download_handler.clone() {
+        Some(BrowserDownloadHandler::new(handler))
       } else {
         None
       }
@@ -2202,10 +2294,10 @@ pub(crate) fn create_webview<T: UserEvent>(
     uri_scheme_protocols,
     ipc_handler: _,
     navigation_handler,
-    new_window_handler,
+    new_window_handler: _,
     document_title_changed_handler,
     url,
-    web_resource_request_handler,
+    web_resource_request_handler: _,
     mut on_page_load_handler,
     download_handler,
   } = pending;
@@ -2231,18 +2323,16 @@ pub(crate) fn create_webview<T: UserEvent>(
     .map(CefInitScript::new)
     .collect();
 
-  let on_page_load_handler = on_page_load_handler
-    .take()
-    .map(|h| Arc::from(h) as Arc<tauri_runtime::webview::OnPageLoadHandler>);
-  let document_title_changed_handler = document_title_changed_handler
-    .map(|h| Arc::from(h) as Arc<tauri_runtime::webview::DocumentTitleChangedHandler>);
-  let navigation_handler =
-    navigation_handler.map(|h| Arc::from(h) as Arc<tauri_runtime::webview::NavigationHandler>);
+  let on_page_load_handler = on_page_load_handler.take().map(Arc::from);
+  let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
+  let navigation_handler = navigation_handler.map(Arc::from);
+
   let mut client = BrowserClient::new(
     initialization_scripts.clone(),
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
+    download_handler,
   );
   let url = CefString::from(url.as_str());
 

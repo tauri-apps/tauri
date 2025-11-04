@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.9.3]
+
+### Enhancements
+
+- [`22edc65aa`](https://www.github.com/tauri-apps/tauri/commit/22edc65aad0b3e45515008e8e0866112da70c8a1) ([#14408](https://www.github.com/tauri-apps/tauri/pull/14408) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Set user-agent in bundler and cli http requests when fetching build tools.
+- [`779612ac8`](https://www.github.com/tauri-apps/tauri/commit/779612ac8425a787626da4cefdb9eaf7d63bea18) ([#14379](https://www.github.com/tauri-apps/tauri/pull/14379) by [@moubctez](https://www.github.com/tauri-apps/tauri/../../moubctez)) Properly read the `required-features` field of binaries in Cargo.toml to prevent bundling issues when the features weren't enabled.
+
+### Bug Fixes
+
+- [`fd8c30b4f`](https://www.github.com/tauri-apps/tauri/commit/fd8c30b4f1bca8dd7165c5c0ebe7fbfd17662153) ([#14353](https://www.github.com/tauri-apps/tauri/pull/14353) by [@ChaseKnowlden](https://www.github.com/tauri-apps/tauri/../../ChaseKnowlden)) Premultiply Alpha before Resizing which gets rid of the gray fringe around the icons.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.7.3`
+
 ## \[2.9.2]
 
 ### Dependencies

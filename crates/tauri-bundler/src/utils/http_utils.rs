@@ -65,6 +65,7 @@ fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
 }
 
 pub(crate) fn base_ureq_agent() -> ureq::Agent {
+  #[allow(unused_mut)]
   let mut config_builder = ureq::Agent::config_builder()
     .user_agent(BUNDLER_USER_AGENT)
     .proxy(ureq::Proxy::try_from_env());

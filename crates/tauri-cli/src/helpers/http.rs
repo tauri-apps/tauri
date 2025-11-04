@@ -7,6 +7,7 @@ use ureq::{http::Response, Agent, Body};
 const CLI_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
 pub fn get(url: &str) -> Result<Response<Body>, ureq::Error> {
+  #[allow(unused_mut)]
   let mut config_builder = ureq::Agent::config_builder()
     .user_agent(CLI_USER_AGENT)
     .proxy(ureq::Proxy::try_from_env());

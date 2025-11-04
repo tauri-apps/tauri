@@ -54,7 +54,9 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   config_features: Vec<String>,
   on_exit: F,
 ) -> crate::Result<DevChild> {
-  #[cfg(all(target_os = "macos"))]
+  #[cfg(not(target_os = "windows"))]
+  let _app_settings = app_settings;
+  #[cfg(target_os = "macos")]
   {
     // compute enabled features by merging config_features and options.features, then asking the manifest
     let mut merged_features = config_features.clone();

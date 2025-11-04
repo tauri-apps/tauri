@@ -1836,7 +1836,7 @@ impl<T: UserEvent> CefRuntime<T> {
     let event_queue_ = event_queue.clone();
 
     let cache_base = dirs::cache_dir().unwrap_or_else(|| std::env::temp_dir());
-    let cache_path = cache_base.join(&runtime_args.identifier).join("cef-cache");
+    let cache_path = cache_base.join(&runtime_args.identifier).join("cef");
 
     // Ensure the cache directory exists
     let _ = create_dir_all(&cache_path);
@@ -1873,7 +1873,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
-      root_cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
+      cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       ..Default::default()
     };
     assert_eq!(

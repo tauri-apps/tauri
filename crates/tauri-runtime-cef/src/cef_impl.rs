@@ -390,6 +390,96 @@ wrap_display_handler! {
   }
 }
 
+wrap_context_menu_handler! {
+  struct BrowserContextMenuHandler {
+    devtools_enabled: bool,
+  }
+
+  impl ContextMenuHandler {
+    fn on_before_context_menu(
+      &self,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _params: Option<&mut ContextMenuParams>,
+      model: Option<&mut MenuModel>,
+    ) {
+      if !self.devtools_enabled {
+        if let Some(model) = model {
+          model.remove_at(model.count() - 1);
+        }
+      }
+    }
+  }
+}
+
+wrap_keyboard_handler! {
+  struct BrowserKeyboardHandler {
+    devtools_enabled: bool,
+  }
+
+  impl KeyboardHandler {
+    fn on_pre_key_event(
+      &self,
+      _browser: Option<&mut Browser>,
+      event: Option<&KeyEvent>,
+      _os_event: Option<&mut sys::XEvent>,
+      _is_keyboard_shortcut: Option<&mut ::std::os::raw::c_int>,
+    ) -> ::std::os::raw::c_int {
+      // If devtools is disabled, block devtools keyboard shortcuts
+      if !self.devtools_enabled {
+        let Some(event) = event else { return 0; };
+
+        // Check if this is a keydown event
+        use cef::sys::cef_key_event_type_t;
+        let keydown_type: cef::KeyEventType = cef_key_event_type_t::KEYEVENT_RAWKEYDOWN.into();
+        if event.type_ != keydown_type {
+          return 0;
+        }
+
+        // Get modifier keys
+        use cef::sys::cef_event_flags_t;
+        let modifiers = event.modifiers;
+        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN as u32)) != 0;
+        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN as u32)) != 0;
+
+        let key_code = event.windows_key_code;
+
+        // Block F12 (key code 123)
+        if key_code == 123 {
+          if let Some(is_keyboard_shortcut) = _is_keyboard_shortcut {
+            *is_keyboard_shortcut = 1;
+          }
+          return 1;
+        }
+
+        // Block Ctrl+Shift+I (key code 73 = 'I') on Linux/Windows
+        #[cfg(not(target_os = "macos"))]
+        if key_code == 73 && ctrl && shift {
+          if let Some(is_keyboard_shortcut) = _is_keyboard_shortcut {
+            *is_keyboard_shortcut = 1;
+          }
+          return 1;
+        }
+
+        // Block Cmd+Opt+I on macOS
+        #[cfg(target_os = "macos")]
+        {
+          let meta = (modifiers & (cef_event_flags_t::EVENTFLAG_COMMAND_DOWN as u32)) != 0;
+          let alt = (modifiers & (cef_event_flags_t::EVENTFLAG_ALT_DOWN as u32)) != 0;
+          if key_code == 73 && meta && alt {
+            if let Some(is_keyboard_shortcut) = _is_keyboard_shortcut {
+              *is_keyboard_shortcut = 1;
+            }
+            return 1;
+          }
+        }
+      }
+
+      0
+    }
+  }
+}
+
 wrap_download_handler! {
   struct BrowserDownloadHandler {
     download_handler: Arc<tauri_runtime::webview::DownloadHandler>,
@@ -480,6 +570,7 @@ wrap_client! {
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
+    devtools_enabled: bool,
   }
 
   impl Client {
@@ -513,6 +604,14 @@ wrap_client! {
       } else {
         None
       }
+    }
+
+    fn context_menu_handler(&self) -> Option<ContextMenuHandler> {
+      Some(BrowserContextMenuHandler::new(self.devtools_enabled))
+    }
+
+    fn keyboard_handler(&self) -> Option<KeyboardHandler> {
+      Some(BrowserKeyboardHandler::new(self.devtools_enabled))
     }
   }
 }
@@ -2315,8 +2414,6 @@ pub(crate) fn create_webview<T: UserEvent>(
     }
   };
 
-  // Get initialization scripts from webview attributes
-  // Pre-compute script hashes once at webview creation time
   let initialization_scripts: Vec<_> = webview_attributes
     .initialization_scripts
     .into_iter()
@@ -2327,24 +2424,40 @@ pub(crate) fn create_webview<T: UserEvent>(
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
 
+  let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
+    && webview_attributes.devtools.unwrap_or(true);
+
   let mut client = BrowserClient::new(
     initialization_scripts.clone(),
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
     download_handler,
+    devtools_enabled,
   );
   let url = CefString::from(url.as_str());
 
   let global_context =
     request_context_get_global_context().expect("Failed to get global request context");
-  let global_cache_path: CefStringUtf16 = (&global_context.cache_path()).into();
+
+  let cache_path: CefStringUtf16 = if webview_attributes.incognito {
+    CefStringUtf16::from("")
+  } else if let Some(_data_directory) = &webview_attributes.data_directory {
+    // TODO: setting a custom data directory must be a child of the root data directory, but it returns None on browser_view_create
+    eprintln!("data directory is not yet implemented");
+    (&global_context.cache_path()).into()
+    // CefStringUtf16::from(data_directory.to_string_lossy().as_ref())
+  } else {
+    (&global_context.cache_path()).into()
+  };
+
+  let request_context_settings = RequestContextSettings {
+    cache_path,
+    ..Default::default()
+  };
 
   let mut request_context = request_context_create_context(
-    Some(&RequestContextSettings {
-      cache_path: global_cache_path,
-      ..Default::default()
-    }),
+    Some(&request_context_settings),
     Option::<&mut RequestContextHandler>::None,
   );
   if let Some(request_context) = &request_context {
@@ -2365,10 +2478,27 @@ pub(crate) fn create_webview<T: UserEvent>(
   let mut browser_view_delegate =
     BrowserViewDelegateImpl::new(matches!(kind, WebviewKind::WindowChild));
 
+  // Build BrowserSettings based on webview attributes
+  let mut browser_settings = BrowserSettings::default();
+
+  // Configure JavaScript
+  browser_settings.javascript = State::from(if webview_attributes.javascript_disabled {
+    sys::cef_state_t::STATE_DISABLED
+  } else {
+    sys::cef_state_t::STATE_ENABLED
+  });
+
+  // Configure clipboard access
+  browser_settings.javascript_access_clipboard = State::from(if webview_attributes.clipboard {
+    sys::cef_state_t::STATE_ENABLED
+  } else {
+    sys::cef_state_t::STATE_DISABLED
+  });
+
   let browser_view = browser_view_create(
     Some(&mut client),
     Some(&url),
-    Some(&Default::default()),
+    Some(&browser_settings),
     Option::<&mut DictionaryValue>::None,
     request_context.as_mut(),
     Some(&mut browser_view_delegate),

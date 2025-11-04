@@ -259,7 +259,7 @@ fn build_production_app(
   }
 }
 
-pub(super) fn cargo_command(
+pub fn cargo_command(
   dev: bool,
   options: Options,
   available_targets: &mut Option<Vec<RustupTarget>>,

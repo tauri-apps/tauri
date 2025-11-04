@@ -6,7 +6,7 @@ use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
   error::{Context, ErrorExt},
   helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
   Error, Result,
 };

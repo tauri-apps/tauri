@@ -14,7 +14,7 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   mobile::{android::generate_tauri_properties, write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };

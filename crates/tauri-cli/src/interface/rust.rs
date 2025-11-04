@@ -46,6 +46,8 @@ use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
+pub use desktop::{cargo_command, DevChild};
+
 #[derive(Debug, Default, Clone)]
 pub struct Options {
   pub runner: Option<RunnerConfig>,
@@ -1074,6 +1076,10 @@ impl AppSettings for RustAppSettings {
     Ok(binaries)
   }
 
+  fn out_dir(&self, options: &Options) -> crate::Result<PathBuf> {
+    get_target_dir(self.target(options), options)
+  }
+
   fn app_name(&self) -> Option<String> {
     self
       .manifest
@@ -1219,10 +1225,6 @@ impl RustAppSettings {
       .target
       .as_deref()
       .or_else(|| self.cargo_config.build().target())
-  }
-
-  pub fn out_dir(&self, options: &Options) -> crate::Result<PathBuf> {
-    get_target_dir(self.target(options), options)
   }
 }
 

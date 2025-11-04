@@ -1,7 +1,9 @@
 #![cfg(target_os = "macos")]
 
-use crate::interface::rust::desktop::DevChild;
-use crate::interface::{AppSettings, ExitReason, Options, RustAppSettings, RustupTarget};
+use crate::interface::{
+  rust::{DevChild, RustupTarget},
+  AppSettings, ExitReason, Options,
+};
 use crate::{error::ErrorExt, CommandExt};
 
 use serde::Serialize;
@@ -118,7 +120,7 @@ pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send +
   on_exit: F,
 ) -> crate::Result<DevChild> {
   // Build the app
-  let mut build_cmd = crate::interface::rust::desktop::cargo_command(
+  let mut build_cmd = crate::interface::rust::cargo_command(
     false,
     options.clone(),
     available_targets,

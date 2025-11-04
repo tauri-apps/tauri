@@ -28,6 +28,13 @@ mod cookie;
 mod request_handler;
 use cookie::{CollectAllCookiesVisitor, CollectUrlCookiesVisitor};
 
+#[cfg(target_os = "linux")]
+type CefOsEvent = Option<&mut sys::XEvent>;
+#[cfg(target_os = "macos")]
+type CefOsEvent = *mut u8;
+#[cfg(windows)]
+type CefOsEvent = Option<&mut sys::MSG>;
+
 #[inline]
 fn color_to_cef_argb(color: tauri_utils::config::Color) -> u32 {
   let (r, g, b, a) = color.into();
@@ -422,7 +429,7 @@ wrap_keyboard_handler! {
       &self,
       _browser: Option<&mut Browser>,
       event: Option<&KeyEvent>,
-      _os_event: Option<&mut sys::XEvent>,
+      _os_event: CefOsEvent,
       _is_keyboard_shortcut: Option<&mut ::std::os::raw::c_int>,
     ) -> ::std::os::raw::c_int {
       // If devtools is disabled, block devtools keyboard shortcuts

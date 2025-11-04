@@ -129,9 +129,37 @@ wrap_resource_request_handler! {
 wrap_request_handler! {
   pub struct WebRequestHandler {
     initialization_scripts: Vec<CefInitScript>,
+    navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
   }
 
   impl RequestHandler {
+    fn on_before_browse(
+      &self,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      request: Option<&mut Request>,
+      _user_gesture: ::std::os::raw::c_int,
+      _is_redirect: ::std::os::raw::c_int,
+    ) -> ::std::os::raw::c_int {
+      let Some(handler) = &self.navigation_handler else {
+        return 0;
+      };
+      let Some(request) = request else {
+        return 0;
+      };
+
+      let url_str = CefString::from(&request.url()).to_string();
+      let Ok(url) = url::Url::parse(&url_str) else {
+        return 0;
+      };
+      let should_navigate = handler(&url);
+      if should_navigate {
+        0
+      } else {
+        1
+      }
+    }
+
     fn resource_request_handler(
       &self,
       _browser: Option<&mut Browser>,

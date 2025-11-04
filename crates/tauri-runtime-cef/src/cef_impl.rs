@@ -395,12 +395,14 @@ wrap_client! {
     initialization_scripts: Vec<CefInitScript>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
+    navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
   }
 
   impl Client {
     fn request_handler(&self) -> Option<RequestHandler> {
       Some(request_handler::WebRequestHandler::new(
         self.initialization_scripts.clone(),
+        self.navigation_handler.clone(),
       ))
     }
 
@@ -2234,10 +2236,13 @@ pub(crate) fn create_webview<T: UserEvent>(
     .map(|h| Arc::from(h) as Arc<tauri_runtime::webview::OnPageLoadHandler>);
   let document_title_changed_handler = document_title_changed_handler
     .map(|h| Arc::from(h) as Arc<tauri_runtime::webview::DocumentTitleChangedHandler>);
+  let navigation_handler =
+    navigation_handler.map(|h| Arc::from(h) as Arc<tauri_runtime::webview::NavigationHandler>);
   let mut client = BrowserClient::new(
     initialization_scripts.clone(),
     on_page_load_handler,
     document_title_changed_handler,
+    navigation_handler,
   );
   let url = CefString::from(url.as_str());
 

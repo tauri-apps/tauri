@@ -829,20 +829,16 @@ wrap_window_delegate! {
         }
 
         #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-        {
-          if let Some(transparent) = a.transparent {
-            if transparent {
-              // TODO: Implement transparency for CEF
-            }
-          }
-        }
-
-        if let Some(_theme) = a.theme {
-          // TODO: Implement theme for CEF
+        if a.transparent.unwrap_or_default() {
+          window.set_background_color(0x00000000);
         }
 
         if let Some(color) = a.background_color {
           window.set_background_color(color_to_cef_argb(color));
+        }
+
+        if let Some(_theme) = a.theme {
+          // TODO: Implement theme for CEF
         }
 
         if let Some(focusable) = a.focusable {
@@ -2504,6 +2500,15 @@ pub(crate) fn create_webview<T: UserEvent>(
     Some(&mut browser_view_delegate),
   )
   .expect("Failed to create browser view");
+
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  if webview_attributes.transparent {
+    browser_view.set_background_color(0x00000000);
+  }
+
+  if let Some(background_color) = webview_attributes.background_color {
+    browser_view.set_background_color(color_to_cef_argb(background_color));
+  }
 
   let bounds = webview_attributes.bounds.map(|bounds| {
     let device_scale_factor = window

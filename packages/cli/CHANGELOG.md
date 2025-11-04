@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.9.3]
+
+### Bug Fixes
+
+- [`fd8c30b4f`](https://www.github.com/tauri-apps/tauri/commit/fd8c30b4f1bca8dd7165c5c0ebe7fbfd17662153) ([#14353](https://www.github.com/tauri-apps/tauri/pull/14353) by [@ChaseKnowlden](https://www.github.com/tauri-apps/tauri/../../ChaseKnowlden)) Premultiply Alpha before Resizing which gets rid of the gray fringe around the icons.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.9.3`
+
 ## \[2.9.2]
 
 ### Dependencies

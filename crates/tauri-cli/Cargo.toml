@@ -70,7 +70,7 @@ jsonschema = "0.33"
 handlebars = "6"
 include_dir = "0.7"
 dirs = "6"
-minisign = "=0.7.3"
+minisign = "0.8"
 base64 = "0.22"
 ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"

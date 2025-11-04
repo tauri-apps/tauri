@@ -371,10 +371,30 @@ wrap_load_handler! {
   }
 }
 
+wrap_display_handler! {
+  struct BrowserDisplayHandler {
+    document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
+  }
+
+  impl DisplayHandler {
+    fn on_title_change(
+      &self,
+      _browser: Option<&mut Browser>,
+      title: Option<&CefString>,
+    ) {
+      let Some(handler) = &self.document_title_changed_handler else { return };
+      let Some(title) = title else { return };
+      let title_str = title.to_string();
+      handler(title_str);
+    }
+  }
+}
+
 wrap_client! {
   struct BrowserClient {
     initialization_scripts: Vec<CefInitScript>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
+    document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
   }
 
   impl Client {
@@ -389,6 +409,16 @@ wrap_client! {
         self.initialization_scripts.clone(),
         self.on_page_load_handler.clone(),
       ))
+    }
+
+    fn display_handler(&self) -> Option<DisplayHandler> {
+      if self.document_title_changed_handler.is_some() {
+        Some(BrowserDisplayHandler::new(
+          self.document_title_changed_handler.clone(),
+        ))
+      } else {
+        None
+      }
     }
   }
 }
@@ -2027,8 +2057,11 @@ pub(crate) fn create_window<T: UserEvent>(
   webview_id: u32,
   pending: PendingWindow<T, CefRuntime<T>>,
 ) {
-  let label = pending.label.clone();
-  let window_builder = pending.window_builder;
+  let PendingWindow {
+    label,
+    window_builder,
+    webview,
+  } = pending;
   let force_close = Arc::new(AtomicBool::new(false));
   let attributes = Arc::new(RefCell::new(window_builder));
 
@@ -2057,7 +2090,7 @@ pub(crate) fn create_window<T: UserEvent>(
     },
   );
 
-  if let Some(webview) = pending.webview {
+  if let Some(webview) = webview {
     create_webview(
       WebviewKind::WindowContent,
       context,
@@ -2159,8 +2192,22 @@ pub(crate) fn create_webview<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
   webview_id: u32,
-  mut pending: PendingWebview<T, CefRuntime<T>>,
+  pending: PendingWebview<T, CefRuntime<T>>,
 ) {
+  let PendingWebview {
+    label,
+    webview_attributes,
+    uri_scheme_protocols,
+    ipc_handler: _,
+    navigation_handler,
+    new_window_handler,
+    document_title_changed_handler,
+    url,
+    web_resource_request_handler,
+    mut on_page_load_handler,
+    download_handler,
+  } = pending;
+
   let window = match context
     .windows
     .borrow()
@@ -2176,19 +2223,23 @@ pub(crate) fn create_webview<T: UserEvent>(
 
   // Get initialization scripts from webview attributes
   // Pre-compute script hashes once at webview creation time
-  let initialization_scripts: Vec<_> = pending
-    .webview_attributes
+  let initialization_scripts: Vec<_> = webview_attributes
     .initialization_scripts
     .into_iter()
     .map(CefInitScript::new)
     .collect();
 
-  let on_page_load_handler = pending
-    .on_page_load_handler
+  let on_page_load_handler = on_page_load_handler
     .take()
     .map(|h| Arc::from(h) as Arc<tauri_runtime::webview::OnPageLoadHandler>);
-  let mut client = BrowserClient::new(initialization_scripts.clone(), on_page_load_handler);
-  let url = CefString::from(pending.url.as_str());
+  let document_title_changed_handler = document_title_changed_handler
+    .map(|h| Arc::from(h) as Arc<tauri_runtime::webview::DocumentTitleChangedHandler>);
+  let mut client = BrowserClient::new(
+    initialization_scripts.clone(),
+    on_page_load_handler,
+    document_title_changed_handler,
+  );
+  let url = CefString::from(url.as_str());
 
   let global_context =
     request_context_get_global_context().expect("Failed to get global request context");
@@ -2202,8 +2253,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     Option::<&mut RequestContextHandler>::None,
   );
   if let Some(request_context) = &request_context {
-    for (scheme, handler) in pending.uri_scheme_protocols {
-      let webview_label = pending.label.clone();
+    for (scheme, handler) in uri_scheme_protocols {
+      let webview_label = label.clone();
       request_context.register_scheme_handler_factory(
         Some(&scheme.as_str().into()),
         None,
@@ -2229,7 +2280,7 @@ pub(crate) fn create_webview<T: UserEvent>(
   )
   .expect("Failed to create browser view");
 
-  let bounds = pending.webview_attributes.bounds.map(|bounds| {
+  let bounds = webview_attributes.bounds.map(|bounds| {
     let device_scale_factor = window
       .display()
       .map(|d| d.device_scale_factor() as f64)
@@ -2258,7 +2309,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     }
     overlay.set_visible(1);
 
-    let initial_bounds_ratio = if pending.webview_attributes.auto_resize {
+    let initial_bounds_ratio = if webview_attributes.auto_resize {
       let window_bounds = window.bounds();
       let window_size = tauri_runtime::dpi::LogicalSize::new(
         window_bounds.width as u32,

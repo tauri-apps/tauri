@@ -208,9 +208,10 @@ impl<'de> Deserialize<'de> for BundleType {
 }
 
 /// Targets to bundle. Each value is case insensitive.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub enum BundleTarget {
   /// Bundle all targets.
+  #[default]
   All,
   /// A list of bundle targets.
   List(Vec<BundleType>),
@@ -254,12 +255,6 @@ impl schemars::JsonSchema for BundleTarget {
       ..Default::default()
     }
     .into()
-  }
-}
-
-impl Default for BundleTarget {
-  fn default() -> Self {
-    Self::All
   }
 }
 
@@ -805,7 +800,7 @@ pub struct WixConfig {
 /// Compression algorithms used in the NSIS installer.
 ///
 /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum NsisCompression {
@@ -814,19 +809,14 @@ pub enum NsisCompression {
   /// BZIP2 usually gives better compression ratios than ZLIB, but it is a bit slower and uses more memory. With the default compression level it uses about 4 MB of memory.
   Bzip2,
   /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
+  #[default]
   Lzma,
   /// Disable compression
   None,
 }
 
-impl Default for NsisCompression {
-  fn default() -> Self {
-    Self::Lzma
-  }
-}
-
 /// Install Modes for the NSIS installer.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum NSISInstallerMode {
@@ -835,6 +825,7 @@ pub enum NSISInstallerMode {
   /// Install the app by default in a directory that doesn't require Administrator access.
   ///
   /// Installer metadata will be saved under the `HKCU` registry path.
+  #[default]
   CurrentUser,
   /// Install the app by default in the `Program Files` folder directory requires Administrator
   /// access for the installation.
@@ -847,12 +838,6 @@ pub enum NSISInstallerMode {
   ///
   /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
   Both,
-}
-
-impl Default for NSISInstallerMode {
-  fn default() -> Self {
-    Self::CurrentUser
-  }
 }
 
 /// Configuration for the Installer bundle using NSIS.
@@ -2685,23 +2670,18 @@ impl<'de> Deserialize<'de> for CapabilityEntry {
 
 /// The application pattern.
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase", tag = "use", content = "options")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum PatternKind {
   /// Brownfield pattern.
+  #[default]
   Brownfield,
   /// Isolation pattern. Recommended for security purposes.
   Isolation {
     /// The dir containing the index.html file that contains the secure isolation application.
     dir: PathBuf,
   },
-}
-
-impl Default for PatternKind {
-  fn default() -> Self {
-    Self::Brownfield
-  }
 }
 
 /// The App configuration object.

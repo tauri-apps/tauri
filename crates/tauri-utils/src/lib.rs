@@ -157,11 +157,12 @@ mod window_effects {
 pub use window_effects::{WindowEffect, WindowEffectState};
 
 /// How the window title bar should be displayed on macOS.
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum TitleBarStyle {
   /// A normal title bar.
+  #[default]
   Visible,
   /// Makes the title bar transparent, so the window background color is shown instead.
   ///
@@ -174,12 +175,6 @@ pub enum TitleBarStyle {
   /// - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus <https://github.com/tauri-apps/tauri/issues/4316>.
   /// - The color of the window title depends on the system theme.
   Overlay,
-}
-
-impl Default for TitleBarStyle {
-  fn default() -> Self {
-    Self::Visible
-  }
 }
 
 impl Serialize for TitleBarStyle {

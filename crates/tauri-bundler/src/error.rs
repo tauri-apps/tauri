@@ -99,11 +99,14 @@ pub enum Error {
   #[error("Wrong package type {0} for platform {1}")]
   InvalidPackageType(String, String),
   /// Bundle type symbol missing in binary
-  #[cfg(target_os = "linux")]
-  #[error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date and that symbol stripping is disabled (https://doc.rust-lang.org/cargo/reference/profiles.html#strip)")]
-  MissingBundleTypeVar,
-  #[cfg(not(target_os = "linux"))]
-  #[error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date")]
+  #[cfg_attr(
+    target_os = "linux",
+    error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date and that symbol stripping is disabled (https://doc.rust-lang.org/cargo/reference/profiles.html#strip)")
+  )]
+  #[cfg_attr(
+    not(target_os = "linux"),
+    error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date")
+  )]
   MissingBundleTypeVar,
   /// Failed to write binary file changed
   #[error("Failed to write binary file changes: `{0}`")]

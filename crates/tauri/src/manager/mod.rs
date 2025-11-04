@@ -19,16 +19,10 @@ use tauri_utils::{
 };
 
 use crate::{
-  app::{
+  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window, app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
-  },
-  event::{EmitArgs, Event, EventId, EventTarget, Listeners},
-  ipc::{Invoke, InvokeHandler, RuntimeAuthority},
-  plugin::PluginStore,
-  resources::ResourceTable,
-  utils::{config::Config, PackageInfo},
-  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
+  }, event::{EmitArgs, Event, EventId, EventTarget, Listeners}, ipc::{Invoke, InvokeHandler, RuntimeAuthority}, plugin::PluginStore, resources::ResourceTable, utils::{PackageInfo, config::Config}, webview::custom_scheme_url
 };
 
 #[cfg(desktop)]
@@ -351,22 +345,13 @@ impl<R: Runtime> AppManager<R> {
     self.config.build.dev_url.as_ref()
   }
 
-  pub(crate) fn protocol_url(&self, https: bool) -> Cow<'_, Url> {
-    if cfg!(windows) || cfg!(target_os = "android") {
-      let scheme = if https { "https" } else { "http" };
-      Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
-    } else {
-      Cow::Owned(Url::parse("tauri://localhost").unwrap())
-    }
-  }
-
   /// Get the base URL to use for webview requests.
   ///
   /// In dev mode, this will be based on the `devUrl` configuration value.
   pub(crate) fn get_url(&self, https: bool) -> Cow<'_, Url> {
     match self.base_path() {
       Some(url) => Cow::Borrowed(url),
-      _ => self.protocol_url(https),
+      _ => Cow::Owned(Url::parse(&custom_scheme_url("tauri", https)).unwrap()),
     }
   }
 
@@ -447,7 +432,7 @@ impl<R: Runtime> AppManager<R> {
               let default_src = csp_map
                 .entry("default-src".into())
                 .or_insert_with(Default::default);
-              default_src.push(crate::pattern::format_real_schema(
+              default_src.push(crate::webview::custom_scheme_url(
                 schema,
                 _use_https_schema,
               ));

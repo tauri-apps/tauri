@@ -141,7 +141,7 @@ impl<R: Runtime> WebviewManager<R> {
       isolation_origin: &match &*app_manager.pattern {
         #[cfg(feature = "isolation")]
         crate::Pattern::Isolation { schema, .. } => {
-          crate::pattern::format_real_schema(schema, use_https_scheme)
+          crate::webview::custom_scheme_url(schema, use_https_scheme)
         }
         _ => "".to_owned(),
       },
@@ -199,7 +199,7 @@ impl<R: Runtime> WebviewManager<R> {
     if let crate::Pattern::Isolation { schema, .. } = &*app_manager.pattern {
       all_initialization_scripts.push(main_frame_script(
         IsolationJavascript {
-          isolation_src: &crate::pattern::format_real_schema(schema, use_https_scheme),
+          isolation_src: crate::webview::custom_scheme_url(schema, use_https_scheme).as_str(),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
         .render_default(&Default::default())?
@@ -238,7 +238,7 @@ impl<R: Runtime> WebviewManager<R> {
     let window_url = Url::parse(&pending.url).unwrap();
     let window_origin = if window_url.scheme() == "data" {
       "null".into()
-    } else if (cfg!(windows) || cfg!(target_os = "android"))
+    } else if (!cfg!(feature = "cef") && cfg!(windows) || cfg!(target_os = "android"))
       && window_url.scheme() != "http"
       && window_url.scheme() != "https"
     {
@@ -368,7 +368,7 @@ impl<R: Runtime> WebviewManager<R> {
     struct CoreJavascript<'a> {
       os_name: &'a str,
       protocol_scheme: &'a str,
-      invoke_key: &'a str,
+      cef: bool,
     }
 
     let freeze_prototype = if app_manager.config.app.security.freeze_prototype {
@@ -383,7 +383,7 @@ impl<R: Runtime> WebviewManager<R> {
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
         protocol_scheme: if use_https_scheme { "https" } else { "http" },
-        invoke_key: self.invoke_key(),
+        cef: cfg!(feature = "cef"),
       }
       .render_default(&Default::default())?
       .into_string(),
@@ -548,12 +548,20 @@ impl<R: Runtime> WebviewManager<R> {
     let navigation_handler = pending.navigation_handler.take();
     let app_manager = manager.manager_owned();
     let label = pending.label.clone();
+
+    #[cfg(feature = "isolation")]
+    let isolation_frame_url = if let crate::Pattern::Isolation { schema, .. } = &*pattern {
+      Some(Url::parse(&crate::webview::custom_scheme_url(schema, pending.webview_attributes.use_https_scheme)).unwrap())
+    } else {
+      None
+    };
+
     pending.navigation_handler = Some(Box::new(move |url| {
       // always allow navigation events for the isolation iframe and do not emit them for consumers
       #[cfg(feature = "isolation")]
-      if let crate::Pattern::Isolation { schema, .. } = &*pattern {
-        if url.scheme() == schema
-          && url.domain() == Some(crate::pattern::ISOLATION_IFRAME_SRC_DOMAIN)
+      if let Some(isolation_frame_url) = &isolation_frame_url {
+        if url.scheme() == isolation_frame_url.scheme()
+          && url.domain() == isolation_frame_url.domain()
         {
           return true;
         }

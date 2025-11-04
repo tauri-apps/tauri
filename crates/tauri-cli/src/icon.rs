@@ -27,9 +27,9 @@ use image::{
   imageops::FilterType,
   open, DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgba,
 };
+use rayon::iter::ParallelIterator;
 use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
-use rayon::iter::ParallelIterator;
 
 #[derive(Debug, Deserialize)]
 struct IcnsEntry {

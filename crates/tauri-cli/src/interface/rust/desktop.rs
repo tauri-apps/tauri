@@ -71,7 +71,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     let cef_enabled = enabled_features.contains(&"cef".to_string())
       || enabled_features.contains(&"tauri/cef".to_string());
     if cef_enabled {
-      return super::cef::run_dev_cef_macos(
+      return crate::cef::macos_dev::run_dev_cef_macos(
         app_settings,
         options,
         run_args,

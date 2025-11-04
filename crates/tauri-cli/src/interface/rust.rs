@@ -39,8 +39,6 @@ use crate::{
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 mod cargo_config;
-#[cfg(target_os = "macos")]
-mod cef;
 mod desktop;
 pub mod installation;
 pub mod manifest;
@@ -189,6 +187,12 @@ impl Interface for Rust {
   }
 
   fn build(&mut self, options: Options) -> crate::Result<PathBuf> {
+    ensure_cef_directory_if_needed(
+      &self.app_settings,
+      self.config_features.clone(),
+      options.target.as_deref(),
+      &options.features,
+    )?;
     desktop::build(
       options,
       &self.app_settings,
@@ -203,6 +207,12 @@ impl Interface for Rust {
     mut options: Options,
     on_exit: F,
   ) -> crate::Result<()> {
+    ensure_cef_directory_if_needed(
+      &self.app_settings,
+      self.config_features.clone(),
+      options.target.as_deref(),
+      &options.features,
+    )?;
     let on_exit = Arc::new(on_exit);
 
     let mut run_args = Vec::new();
@@ -497,6 +507,34 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
   }
 
   Ok(watch_folders)
+}
+
+fn ensure_cef_directory_if_needed(
+  app_settings: &RustAppSettings,
+  config_features: Vec<String>,
+  target: Option<&str>,
+  features: &Option<Vec<String>>,
+) -> crate::Result<()> {
+  let mut merged_features = config_features;
+  if let Some(f) = features {
+    merged_features.extend(f.clone());
+  }
+  let enabled_features = app_settings
+    .manifest
+    .lock()
+    .unwrap()
+    .all_enabled_features(&merged_features);
+  let target_triple = target.or_else(|| {
+    app_settings
+      .cargo_config
+      .build()
+      .target()
+      .map(|t| t.as_ref())
+  });
+  if let Err(e) = crate::cef::exporter::ensure_cef_directory(target_triple, &enabled_features) {
+    log::warn!(action = "CEF"; "Failed to ensure CEF directory: {}. Continuing anyway.", e);
+  }
+  Ok(())
 }
 
 impl Rust {

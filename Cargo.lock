@@ -1188,7 +1188,7 @@ source = "git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast#6c3
 dependencies = [
  "anyhow",
  "cmake",
- "download-cef",
+ "download-cef 2.2.0 (git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast)",
  "serde_json",
 ]
 
@@ -2100,6 +2100,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95249b50c6c185bee49034bcb378a49dc2b5dff0be90ff6616d31d64febab05d"
 dependencies = [
  "litrs",
+]
+
+[[package]]
+name = "download-cef"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d98178d9254efef0f69c1f584713d69c790ec00668cd98f783a5085fbefdbddc"
+dependencies = [
+ "bzip2 0.6.0",
+ "clap",
+ "indicatif",
+ "regex",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha1_smol",
+ "tar",
+ "thiserror 2.0.12",
+ "ureq",
 ]
 
 [[package]]
@@ -8758,6 +8777,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "dirs 6.0.0",
+ "download-cef 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "duct",
  "dunce",
  "elf",

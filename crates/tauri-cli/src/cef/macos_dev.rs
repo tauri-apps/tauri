@@ -1,11 +1,8 @@
-// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: MIT
-
 #![cfg(target_os = "macos")]
 
-use super::{desktop::DevChild, ExitReason, Options, RustAppSettings, RustupTarget};
-use crate::{error::ErrorExt, interface::AppSettings, CommandExt};
+use crate::interface::rust::desktop::DevChild;
+use crate::interface::{AppSettings, ExitReason, Options, RustAppSettings, RustupTarget};
+use crate::{error::ErrorExt, CommandExt};
 
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -112,8 +109,8 @@ fn copy_dir_all(src: &Path, dst: &Path) -> crate::Result<()> {
   Ok(())
 }
 
-pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
-  app_settings: &RustAppSettings,
+pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
+  app_settings: &A,
   options: Options,
   run_args: Vec<String>,
   available_targets: &mut Option<Vec<RustupTarget>>,
@@ -121,8 +118,12 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
   on_exit: F,
 ) -> crate::Result<DevChild> {
   // Build the app
-  let mut build_cmd =
-    super::desktop::cargo_command(false, options.clone(), available_targets, config_features)?;
+  let mut build_cmd = crate::interface::rust::desktop::cargo_command(
+    false,
+    options.clone(),
+    available_targets,
+    config_features,
+  )?;
   build_cmd.env("CARGO_TERM_PROGRESS_WIDTH", "80");
   build_cmd.env("CARGO_TERM_PROGRESS_WHEN", "always");
   match build_cmd.piped() {

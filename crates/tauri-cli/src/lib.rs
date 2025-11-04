@@ -14,6 +14,7 @@ mod acl;
 mod add;
 mod build;
 mod bundle;
+mod cef;
 mod completions;
 mod dev;
 mod error;
@@ -122,6 +123,8 @@ pub struct VersionMetadata {
   tauri_build: String,
   #[serde(rename = "tauri-plugin")]
   tauri_plugin: String,
+  #[serde(rename = "cef")]
+  cef: String,
 }
 
 #[derive(Deserialize)]

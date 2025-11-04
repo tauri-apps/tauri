@@ -1295,7 +1295,7 @@ impl<R: Runtime> App<R> {
     let app_handle = self.handle().clone();
     let manager = self.manager.clone();
 
-    move |event| match dbg!(&event) {
+    move |event| match &event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");

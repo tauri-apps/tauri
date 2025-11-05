@@ -9,6 +9,7 @@ use crate::{
 };
 
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fs::{create_dir_all, File},
   io::{BufWriter, Write},
@@ -899,9 +900,10 @@ fn content_bounds(img: &DynamicImage) -> Option<(u32, u32, u32, u32)> {
 
 fn resize_asset(img: &DynamicImage, target_size: u32, scale_percent: f32) -> DynamicImage {
   let cropped = if let Some((x, y, cw, ch)) = content_bounds(img) {
-    &img.crop_imm(x, y, cw, ch)
+    // TODO: Use `&` here instead when we raise MSRV to above 1.79
+    Cow::Owned(img.crop_imm(x, y, cw, ch))
   } else {
-    img
+    Cow::Borrowed(img)
   };
 
   let (cw, ch) = cropped.dimensions();
@@ -911,7 +913,7 @@ fn resize_asset(img: &DynamicImage, target_size: u32, scale_percent: f32) -> Dyn
   let new_w = (cw as f32 * scale).round() as u32;
   let new_h = (ch as f32 * scale).round() as u32;
 
-  let resized = resize_image(cropped, new_w, new_h);
+  let resized = resize_image(&cropped, new_w, new_h);
 
   // Place on transparent square canvas
   let mut canvas = ImageBuffer::from_pixel(target_size, target_size, Rgba([0, 0, 0, 0]));

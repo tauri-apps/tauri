@@ -34,7 +34,7 @@ pub trait AppSettings {
     features: &[String],
   ) -> crate::Result<tauri_bundler::BundleSettings>;
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf>;
-  fn get_binaries(&self) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
+  fn get_binaries(&self, options: &Options) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
   fn app_name(&self) -> Option<String>;
   fn lib_name(&self) -> Option<String>;
 
@@ -57,7 +57,7 @@ pub trait AppSettings {
       tauri_utils::platform::target_triple().context("failed to get target triple")?
     };
 
-    let mut bins = self.get_binaries()?;
+    let mut bins = self.get_binaries(&options)?;
     if let Some(main_binary_name) = &config.main_binary_name {
       let main = bins.iter_mut().find(|b| b.main()).context("no main bin?")?;
       main.set_name(main_binary_name.to_owned());

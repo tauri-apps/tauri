@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.7.3]
+
+### Enhancements
+
+- [`22edc65aa`](https://www.github.com/tauri-apps/tauri/commit/22edc65aad0b3e45515008e8e0866112da70c8a1) ([#14408](https://www.github.com/tauri-apps/tauri/pull/14408) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Set user-agent in bundler and cli http requests when fetching build tools.
+
+### Bug Fixes
+
+- [`9a1922636`](https://www.github.com/tauri-apps/tauri/commit/9a192263693d71123a9953e2a6ee60fad07500b4) ([#14410](https://www.github.com/tauri-apps/tauri/pull/14410) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix uninstall fails if you close the app manually during the 'Click Ok to kill it' dialog
+
+## \[2.7.2]
+
+### Enhancements
+
+- [`7f710b8f3`](https://www.github.com/tauri-apps/tauri/commit/7f710b8f3b509ed327d76761926511cf56e66b2d) ([#14390](https://www.github.com/tauri-apps/tauri/pull/14390) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Inline linuxdeploy plugins which were previously downloaded from `https://raw.githubusercontent.com` which lately blocks many users with a 429 error.
+- [`fc017ee25`](https://www.github.com/tauri-apps/tauri/commit/fc017ee2577f48615367ea519386d3f37837e2c1) ([#14368](https://www.github.com/tauri-apps/tauri/pull/14368) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Mention symbol stripping on Linux in binary patch failed warning message
+
+## \[2.7.1]
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.3.0`
+
 ## \[2.7.0]
 
 ### New Features

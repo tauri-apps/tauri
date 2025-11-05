@@ -98,7 +98,7 @@ You can use `cargo install --path . --debug` to speed up test builds.
 You can build the Rust documentation locally running the following script:
 
 ```bash
-$ RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features --open
+$ cargo +nightly doc --all-features --open
 ```
 
 ### Developing the JS API

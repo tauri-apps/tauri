@@ -102,8 +102,8 @@ class WebviewWindow {
    * Gets the Webview for the webview associated with the given label.
    * @example
    * ```typescript
-   * import { Webview } from '@tauri-apps/api/webviewWindow';
-   * const mainWebview = Webview.getByLabel('main');
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+   * const mainWebview = WebviewWindow.getByLabel('main');
    * ```
    *
    * @param label The webview label.

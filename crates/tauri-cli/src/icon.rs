@@ -134,7 +134,12 @@ impl Source {
           tiny_skia::Transform::from_scale(scale, scale),
           &mut pixmap.as_mut(),
         );
-        let img_buffer = ImageBuffer::from_raw(size, size, pixmap.take()).unwrap();
+        // Switch to use `Pixmap::take_demultiplied` in the future when it's published
+        // https://github.com/linebender/tiny-skia/blob/624257c0feb394bf6c4d0d688f8ea8030aae320f/src/pixmap.rs#L266
+        let img_buffer = ImageBuffer::from_par_fn(size, size, |x, y| {
+          let pixel = pixmap.pixel(x, y).unwrap().demultiply();
+          Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])
+        });
         Ok(DynamicImage::ImageRgba8(img_buffer))
       }
       Self::DynamicImage(image) => {
@@ -155,7 +160,7 @@ impl Source {
         let mut resized =
           image::imageops::resize(&premultiplied_image, size, size, FilterType::Lanczos3);
 
-        // Unmultiply alpha
+        // Demultiply alpha
         resized.par_pixels_mut().for_each(|pixel| {
           let alpha = pixel.0[3] as f32 / u8::MAX as f32;
           pixel.apply_without_alpha(|channel_value| (channel_value as f32 / alpha) as u8);
@@ -183,7 +188,7 @@ fn read_source(path: PathBuf) -> Result<Source> {
           ..Default::default()
         };
 
-        let svg_data = std::fs::read(&path).unwrap();
+        let svg_data = std::fs::read(&path).fs_context("Failed to read source icon", &path)?;
         usvg::Tree::from_data(&svg_data, &opt).unwrap()
       };
 

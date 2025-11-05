@@ -124,7 +124,7 @@ impl Source {
     }
   }
 
-  fn resize_exact(&self, size: u32) -> Result<DynamicImage> {
+  fn resize_exact(&self, size: u32) -> DynamicImage {
     match self {
       Self::Svg(svg) => {
         let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
@@ -140,36 +140,42 @@ impl Source {
           let pixel = pixmap.pixel(x, y).unwrap().demultiply();
           Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])
         });
-        Ok(DynamicImage::ImageRgba8(img_buffer))
+        DynamicImage::ImageRgba8(img_buffer)
       }
       Self::DynamicImage(image) => {
         // `image` does not use premultiplied alpha in resize, so we do it manually here,
         // see https://github.com/image-rs/image/issues/1655
         //
         // image.resize_exact(size, size, FilterType::Lanczos3)
-
-        // Premultiply alpha
-        let premultiplied_image =
-          ImageBuffer::from_par_fn(image.width(), image.height(), |x, y| {
-            let mut pixel = image.get_pixel(x, y);
-            let alpha = pixel.0[3] as f32 / u8::MAX as f32;
-            pixel.apply_without_alpha(|channel_value| (channel_value as f32 * alpha) as u8);
-            pixel
-          });
-
-        let mut resized =
-          image::imageops::resize(&premultiplied_image, size, size, FilterType::Lanczos3);
-
-        // Demultiply alpha
-        resized.par_pixels_mut().for_each(|pixel| {
-          let alpha = pixel.0[3] as f32 / u8::MAX as f32;
-          pixel.apply_without_alpha(|channel_value| (channel_value as f32 / alpha) as u8);
-        });
-
-        Ok(DynamicImage::ImageRgba8(resized))
+        resize_image(image, size, size)
       }
     }
   }
+}
+
+fn resize_image(image: &DynamicImage, new_width: u32, new_height: u32) -> DynamicImage {
+  // Premultiply alpha
+  let premultiplied_image = ImageBuffer::from_par_fn(image.width(), image.height(), |x, y| {
+    let mut pixel = image.get_pixel(x, y);
+    let alpha = pixel.0[3] as f32 / u8::MAX as f32;
+    pixel.apply_without_alpha(|channel_value| (channel_value as f32 * alpha) as u8);
+    pixel
+  });
+
+  let mut resized = image::imageops::resize(
+    &premultiplied_image,
+    new_width,
+    new_height,
+    FilterType::Lanczos3,
+  );
+
+  // Demultiply alpha
+  resized.par_pixels_mut().for_each(|pixel| {
+    let alpha = pixel.0[3] as f32 / u8::MAX as f32;
+    pixel.apply_without_alpha(|channel_value| (channel_value as f32 / alpha) as u8);
+  });
+
+  DynamicImage::ImageRgba8(resized)
 }
 
 fn read_source(path: PathBuf) -> Result<Source> {
@@ -334,7 +340,7 @@ fn icns(source: &Source, out_dir: &Path) -> Result<()> {
     let size = entry.size;
     let mut buf = Vec::new();
 
-    let image = source.resize_exact(size)?;
+    let image = source.resize_exact(size);
 
     write_png(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
 
@@ -369,7 +375,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   let mut frames = Vec::new();
 
   for size in [32, 16, 24, 48, 64, 256] {
-    let image = source.resize_exact(size)?;
+    let image = source.resize_exact(size);
 
     // Only the 256px layer can be compressed according to the ico specs.
     if size == 256 {
@@ -800,7 +806,7 @@ fn resize_png(
   bg: Option<Background>,
   scale_percent: Option<f32>,
 ) -> Result<DynamicImage> {
-  let mut image = source.resize_exact(size)?;
+  let mut image = source.resize_exact(size);
 
   match bg {
     Some(Background::Color(bg_color)) => {
@@ -814,7 +820,7 @@ fn resize_png(
       image = bg_img.into();
     }
     Some(Background::Image(bg_source)) => {
-      let mut bg = bg_source.resize_exact(size)?;
+      let mut bg = bg_source.resize_exact(size);
 
       let fg = scale_percent
         .map(|scale| resize_asset(&image, size, scale))
@@ -894,9 +900,9 @@ fn content_bounds(img: &DynamicImage) -> Option<(u32, u32, u32, u32)> {
 
 fn resize_asset(img: &DynamicImage, target_size: u32, scale_percent: f32) -> DynamicImage {
   let cropped = if let Some((x, y, cw, ch)) = content_bounds(img) {
-    img.crop_imm(x, y, cw, ch)
+    &img.crop_imm(x, y, cw, ch)
   } else {
-    img.clone()
+    img
   };
 
   let (cw, ch) = cropped.dimensions();
@@ -906,7 +912,7 @@ fn resize_asset(img: &DynamicImage, target_size: u32, scale_percent: f32) -> Dyn
   let new_w = (cw as f32 * scale).round() as u32;
   let new_h = (ch as f32 * scale).round() as u32;
 
-  let resized = image::imageops::resize(&cropped, new_w, new_h, image::imageops::Lanczos3);
+  let resized = resize_image(cropped, new_w, new_h);
 
   // Place on transparent square canvas
   let mut canvas = ImageBuffer::from_pixel(target_size, target_size, Rgba([0, 0, 0, 0]));

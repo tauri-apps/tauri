@@ -106,7 +106,7 @@ impl Display for RunMode {
   }
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize)]
 pub struct VersionMetadata {
   tauri: String,
   #[serde(rename = "tauri-build")]
@@ -115,7 +115,7 @@ pub struct VersionMetadata {
   tauri_plugin: String,
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize)]
 pub struct PackageJson {
   name: Option<String>,
   version: Option<String>,
@@ -184,6 +184,10 @@ fn get_verbosity(cli_verbose: u8) -> u8 {
 /// 1. `tauri-cli 1 2 3` -> `1 2 3`
 /// 2. `cargo tauri 1 2 3` -> `1 2 3`
 /// 3. `node tauri.js 1 2 3` -> `1 2 3`
+///
+/// The passed `bin_name` parameter should be how you want the help messages to display the command.
+/// This defaults to `cargo-tauri`, but should be set to how the program was called, such as
+/// `cargo tauri`.
 pub fn run<I, A>(args: I, bin_name: Option<String>)
 where
   I: IntoIterator<Item = A>,
@@ -349,17 +353,17 @@ impl CommandExt for Command {
     let stdout_lines_ = stdout_lines.clone();
     std::thread::spawn(move || {
       let mut line = String::new();
-      loop {
-        line.clear();
-        match stdout.read_line(&mut line) {
-          Ok(0) => break,
-          Ok(_) => {
-            log::debug!(action = "stdout"; "{}", line.trim_end());
-            if let Ok(mut lines) = stdout_lines_.lock() {
+      if let Ok(mut lines) = stdout_lines_.lock() {
+        loop {
+          line.clear();
+          match stdout.read_line(&mut line) {
+            Ok(0) => break,
+            Ok(_) => {
+              log::debug!(action = "stdout"; "{}", line.trim_end());
               lines.extend(line.as_bytes());
             }
+            Err(_) => (),
           }
-          Err(_) => break,
         }
       }
     });
@@ -369,17 +373,17 @@ impl CommandExt for Command {
     let stderr_lines_ = stderr_lines.clone();
     std::thread::spawn(move || {
       let mut line = String::new();
-      loop {
-        line.clear();
-        match stderr.read_line(&mut line) {
-          Ok(0) => break,
-          Ok(_) => {
-            log::debug!(action = "stderr"; "{}", line.trim_end());
-            if let Ok(mut lines) = stderr_lines_.lock() {
+      if let Ok(mut lines) = stderr_lines_.lock() {
+        loop {
+          line.clear();
+          match stderr.read_line(&mut line) {
+            Ok(0) => break,
+            Ok(_) => {
+              log::debug!(action = "stderr"; "{}", line.trim_end());
               lines.extend(line.as_bytes());
             }
+            Err(_) => (),
           }
-          Err(_) => break,
         }
       }
     });

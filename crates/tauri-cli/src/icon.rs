@@ -25,8 +25,9 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Rgba,
+  open, DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgba,
 };
+use rayon::iter::ParallelIterator;
 use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
 
@@ -136,7 +137,32 @@ impl Source {
         let img_buffer = ImageBuffer::from_raw(size, size, pixmap.take()).unwrap();
         Ok(DynamicImage::ImageRgba8(img_buffer))
       }
-      Self::DynamicImage(i) => Ok(i.resize_exact(size, size, FilterType::Lanczos3)),
+      Self::DynamicImage(image) => {
+        // `image` does not use premultiplied alpha in resize, so we do it manually here,
+        // see https://github.com/image-rs/image/issues/1655
+        //
+        // image.resize_exact(size, size, FilterType::Lanczos3)
+
+        // Premultiply alpha
+        let premultiplied_image =
+          ImageBuffer::from_par_fn(image.width(), image.height(), |x, y| {
+            let mut pixel = image.get_pixel(x, y);
+            let alpha = pixel.0[3] as f32 / u8::MAX as f32;
+            pixel.apply_without_alpha(|channel_value| (channel_value as f32 * alpha) as u8);
+            pixel
+          });
+
+        let mut resized =
+          image::imageops::resize(&premultiplied_image, size, size, FilterType::Lanczos3);
+
+        // Unmultiply alpha
+        resized.par_pixels_mut().for_each(|pixel| {
+          let alpha = pixel.0[3] as f32 / u8::MAX as f32;
+          pixel.apply_without_alpha(|channel_value| (channel_value as f32 / alpha) as u8);
+        });
+
+        Ok(DynamicImage::ImageRgba8(resized))
+      }
     }
   }
 }

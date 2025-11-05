@@ -1767,6 +1767,17 @@
             }
           ]
         },
+        "Referer": {
+          "description": "TODO: docs",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "Tauri-Custom-Header": {
           "description": "A custom header field Tauri-Custom-Header, don't use it.\n Remember to set Access-Control-Expose-Headers accordingly\n\n **NOT INTENDED FOR PRODUCTION USE**",
           "anyOf": [

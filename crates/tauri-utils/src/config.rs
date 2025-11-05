@@ -2390,6 +2390,11 @@ impl HeaderAddition for Builder {
         self = self.header("X-Content-Type-Options", value.to_string());
       };
 
+      // Add the header X-Content-Type-Options, if we find a value for it
+      if let Some(value) = &headers.referer {
+        self = self.header("Referer", value.to_string());
+      };
+
       // Add the header Tauri-Custom-Header, if we find a value for it
       if let Some(value) = &headers.tauri_custom_header {
         // Keep in mind to correctly set the Access-Control-Expose-Headers
@@ -2543,6 +2548,9 @@ pub struct HeaderConfig {
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options>
   #[serde(rename = "X-Content-Type-Options")]
   pub x_content_type_options: Option<HeaderSource>,
+  /// TODO: docs
+  #[serde(rename = "Referer")]
+  pub referer: Option<HeaderSource>,
   /// A custom header field Tauri-Custom-Header, don't use it.
   /// Remember to set Access-Control-Expose-Headers accordingly
   ///
@@ -2567,6 +2575,7 @@ impl HeaderConfig {
       service_worker_allowed: None,
       timing_allow_origin: None,
       x_content_type_options: None,
+      referer: None,
       tauri_custom_header: None,
     }
   }
@@ -3920,6 +3929,7 @@ mod build {
       let service_worker_allowed = opt_lit(self.service_worker_allowed.as_ref());
       let timing_allow_origin = opt_lit(self.timing_allow_origin.as_ref());
       let x_content_type_options = opt_lit(self.x_content_type_options.as_ref());
+      let referer = opt_lit(self.referer.as_ref());
       let tauri_custom_header = opt_lit(self.tauri_custom_header.as_ref());
 
       literal_struct!(
@@ -3937,6 +3947,7 @@ mod build {
         service_worker_allowed,
         timing_allow_origin,
         x_content_type_options,
+        referer,
         tauri_custom_header
       );
     }

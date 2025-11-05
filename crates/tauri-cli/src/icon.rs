@@ -143,9 +143,6 @@ impl Source {
         DynamicImage::ImageRgba8(img_buffer)
       }
       Self::DynamicImage(image) => {
-        // `image` does not use premultiplied alpha in resize, so we do it manually here,
-        // see https://github.com/image-rs/image/issues/1655
-        //
         // image.resize_exact(size, size, FilterType::Lanczos3)
         resize_image(image, size, size)
       }
@@ -153,6 +150,8 @@ impl Source {
   }
 }
 
+// `image` does not use premultiplied alpha in resize, so we do it manually here,
+// see https://github.com/image-rs/image/issues/1655
 fn resize_image(image: &DynamicImage, new_width: u32, new_height: u32) -> DynamicImage {
   // Premultiply alpha
   let premultiplied_image = ImageBuffer::from_par_fn(image.width(), image.height(), |x, y| {

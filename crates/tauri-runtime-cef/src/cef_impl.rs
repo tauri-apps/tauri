@@ -251,6 +251,7 @@ wrap_app! {
   pub struct TauriApp<T: UserEvent> {
     context: Context<T>,
     custom_schemes: Vec<String>,
+    command_line_args: Vec<(String, Option<String>)>,
   }
 
   impl App {
@@ -267,6 +268,25 @@ wrap_app! {
 
         for scheme in &self.custom_schemes {
           registrar.add_custom_scheme(Some(&(scheme.as_str()).into()), scheme_options);
+        }
+      }
+    }
+
+    fn on_before_command_line_processing(
+      &self,
+      _process_type: Option<&CefString>,
+      command_line: Option<&mut CommandLine>,
+    ) {
+      if let Some(command_line) = command_line {
+        for (arg, value) in &self.command_line_args {
+          if let Some(value) = value {
+            command_line.append_switch_with_value(
+              Some(&CefString::from(arg.as_str())),
+              Some(&CefString::from(value.as_str())),
+            );
+          } else {
+            command_line.append_switch(Some(&CefString::from(arg.as_str())));
+          }
         }
       }
     }
@@ -667,7 +687,9 @@ wrap_window_delegate! {
         .unwrap_or(1.0);
       let mut min_w: i32 = 0;
       let mut min_h: i32 = 0;
-      let attributes = self.attributes.borrow();
+      let Ok(attributes) = self.attributes.try_borrow() else {
+        return cef::Size { width: 0, height: 0 };
+      };
       if let Some(min_size) = attributes.min_inner_size {
         let logical = min_size.to_logical::<u32>(scale);
         min_w = min_w.max(logical.width as i32);
@@ -699,7 +721,10 @@ wrap_window_delegate! {
         .unwrap_or(1.0);
       let mut max_w: Option<i32> = None;
       let mut max_h: Option<i32> = None;
-      let attributes = self.attributes.borrow();
+      let Ok(attributes) = self.attributes.try_borrow() else {
+        return cef::Size { width: 0, height: 0 };
+      };
+
       if let Some(max_size) = attributes.max_inner_size {
         let logical = max_size.to_logical::<u32>(scale);
         max_w = Some(logical.width as i32);
@@ -731,7 +756,9 @@ wrap_window_delegate! {
         return;
       };
 
-      if let Some(app_window) = self.windows.borrow().get(&self.window_id) {
+      let Ok(windows) = self.windows.try_borrow() else {  return;  };
+
+      if let Some(app_window) = windows.get(&self.window_id) {
         for wrapper in &app_window.webviews {
           if let (Some(overlay), Some(b)) = (&wrapper.overlay, &*wrapper.bounds.lock().unwrap()) {
             let new_rect = cef::Rect {

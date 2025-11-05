@@ -64,3 +64,4 @@ objc2-web-kit = { version = "0.3", features = ["objc2-app-kit", "WKWebView"] }
 [features]
 devtools = []
 macos-private-api = []
+cef = []

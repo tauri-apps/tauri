@@ -191,7 +191,7 @@ tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
-cef = ["tauri-runtime-cef"]
+cef = ["tauri-runtime-cef", "tauri-runtime/cef"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]

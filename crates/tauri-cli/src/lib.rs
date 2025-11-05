@@ -66,6 +66,10 @@ impl FromStr for ConfigValue {
       let raw =
         read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
 
+      // treat all other extensions as json
+      // from tauri-utils/src/config/parse.rs:
+      // we also want to support **valid** json5 in the .json extension
+      // if the json5 is not valid the serde_json error for regular json will be returned.
       match path.extension().and_then(|ext| ext.to_str()) {
         Some("toml") => Ok(Self(::toml::from_str(&raw).with_context(|| {
           format!("failed to parse config at {} as TOML", path.display())

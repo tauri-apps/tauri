@@ -1037,6 +1037,7 @@ macro_rules! shared_app_impl {
         for (_, webview) in self.manager.webviews() {
           webview.resources_table().clear();
         }
+        unsafe { self.manager.state.clear() };
       }
 
       /// Gets the invoke key that must be referenced when using [`crate::webview::InvokeRequest`].

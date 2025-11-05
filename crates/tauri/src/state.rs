@@ -149,6 +149,13 @@ impl StateManager {
     Some(*value)
   }
 
+  /// SAFETY: This will cause all references obtained through [Self::try_get] to dangle.
+  /// This must only be called on app exit (in cleanup_before_exit).
+  pub(crate) unsafe fn clear(&self) {
+    let mut map = self.map.lock().unwrap();
+    map.clear();
+  }
+
   /// Gets the state associated with the specified type.
   pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
     self

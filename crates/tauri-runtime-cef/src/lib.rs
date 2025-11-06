@@ -1855,7 +1855,11 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
     };
 
-    let mut app = cef_impl::TauriApp::new(cef_context.clone(), runtime_args.custom_schemes);
+    let mut app = cef_impl::TauriApp::new(
+      cef_context.clone(),
+      runtime_args.custom_schemes,
+      runtime_args.command_line_args,
+    );
 
     let cmd = args.as_cmd_line().unwrap();
     let switch = CefString::from("type");
@@ -2056,19 +2060,23 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     let callback = Arc::new(RefCell::new(callback));
     let event_tx_ = self.event_tx.clone();
-    let _ = self.context.cef_context.callback.replace(Box::new(move |event| {
-      if let RunEvent::Exit = event {
-        // notify the event loop to exit
-        let _ = event_tx_.send(RunEvent::Exit);
-      } else {
-        // Try to call callback directly, if busy queue to channel
-        if let Ok(mut cb) = callback.try_borrow_mut() {
-          cb(event);
+    let _ = self
+      .context
+      .cef_context
+      .callback
+      .replace(Box::new(move |event| {
+        if let RunEvent::Exit = event {
+          // notify the event loop to exit
+          let _ = event_tx_.send(RunEvent::Exit);
         } else {
-          let _ = event_tx_.send(event);
+          // Try to call callback directly, if busy queue to channel
+          if let Ok(mut cb) = callback.try_borrow_mut() {
+            cb(event);
+          } else {
+            let _ = event_tx_.send(event);
+          }
         }
-      }
-    }));
+      }));
 
     'main_loop: loop {
       while let Ok(event) = self.event_rx.try_recv() {

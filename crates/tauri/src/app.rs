@@ -1427,6 +1427,9 @@ pub struct Builder<R: Runtime> {
   device_event_filter: DeviceEventFilter,
 
   pub(crate) invoke_key: String,
+
+  #[cfg(feature = "cef")]
+  cef_command_line_args: Vec<(String, Option<String>)>,
 }
 
 #[derive(Template)]
@@ -1501,6 +1504,8 @@ impl<R: Runtime> Builder<R> {
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
       invoke_key,
+      #[cfg(feature = "cef")]
+      cef_command_line_args: Vec::new(),
     }
   }
 }
@@ -2074,6 +2079,21 @@ tauri::Builder::default()
     self
   }
 
+  /// Appends command line arguments to the CEF command line.
+  #[cfg(feature = "cef")]
+  pub fn cef_command_line_args<K: Into<String>, V: Into<String>>(
+    mut self,
+    args: impl IntoIterator<Item = (K, Option<V>)>,
+  ) -> Self {
+    self.cef_command_line_args.extend(
+      args
+        .into_iter()
+        .map(|(k, v)| (k.into(), v.map(Into::into)))
+        .collect::<Vec<_>>(),
+    );
+    self
+  }
+
   /// Change the device event filter mode.
   ///
   /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
@@ -2152,6 +2172,10 @@ tauri::Builder::default()
     let runtime_args = RuntimeInitArgs {
       identifier: manager.config.identifier.clone(),
       custom_schemes,
+      #[cfg(feature = "cef")]
+      command_line_args: self.cef_command_line_args,
+      #[cfg(not(feature = "cef"))]
+      command_line_args: vec![],
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

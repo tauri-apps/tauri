@@ -4283,6 +4283,10 @@ fn handle_event_loop<T: UserEvent>(
     } => callback(RunEvent::Reopen {
       has_visible_windows,
     }),
+    #[cfg(target_os = "ios")]
+    Event::SceneRequested { scene, options } => {
+      callback(RunEvent::SceneRequested { scene, options });
+    }
     _ => (),
   }
 }

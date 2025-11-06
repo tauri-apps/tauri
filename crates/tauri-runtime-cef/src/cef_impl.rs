@@ -2542,8 +2542,6 @@ pub(crate) fn create_webview<T: UserEvent>(
       .iter()
       .find_map(|attr| match attr {
         WebviewAtribute::BrowserRuntimeStyle { style } => Some(*style),
-        #[allow(unreachable_patterns)]
-        _ => None,
       })
       .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
         BrowserRuntimeStyle::Alloy

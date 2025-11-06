@@ -1428,8 +1428,7 @@ pub struct Builder<R: Runtime> {
 
   pub(crate) invoke_key: String,
 
-  #[cfg(feature = "cef")]
-  cef_command_line_args: Vec<(String, Option<String>)>,
+  platform_specific_attributes: Vec<R::PlatformSpecificInitAttribute>,
 }
 
 #[derive(Template)]
@@ -1504,13 +1503,64 @@ impl<R: Runtime> Builder<R> {
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
       invoke_key,
-      #[cfg(feature = "cef")]
-      cef_command_line_args: Vec::new(),
+      platform_specific_attributes: Vec::new(),
     }
   }
 }
 
+#[cfg(feature = "cef")]
+impl Builder<crate::Cef> {
+  /// Appends command line arguments to the CEF command line.
+  #[cfg(feature = "cef")]
+  pub fn command_line_args<K: Into<String>, V: Into<String>>(
+    mut self,
+    args: impl IntoIterator<Item = (K, Option<V>)>,
+  ) -> Self {
+    self.platform_specific_attributes.push(
+      tauri_runtime_cef::RuntimeInitAttribute::CommandLineArgs {
+        args: args
+          .into_iter()
+          .map(|(k, v)| (k.into(), v.map(Into::into)))
+          .collect::<Vec<_>>(),
+      },
+    );
+    self
+  }
+}
+
 impl<R: Runtime> Builder<R> {
+  #[allow(clippy::too_many_arguments)]
+  fn build_runtime_init_args(
+    identifier: &str,
+    custom_schemes: Vec<String>,
+    platform_specific_attributes: Vec<R::PlatformSpecificInitAttribute>,
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    app_id: Option<String>,
+    #[cfg(windows)] msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
+  ) -> RuntimeInitArgs<R::PlatformSpecificInitAttribute> {
+    RuntimeInitArgs {
+      identifier: identifier.to_string(),
+      custom_schemes,
+      platform_specific_attributes,
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      app_id,
+      #[cfg(windows)]
+      msg_hook,
+    }
+  }
+
   /// Builds a new Tauri application running on any thread, bypassing the main thread requirement.
   ///
   /// ## Platform-specific
@@ -2079,21 +2129,6 @@ tauri::Builder::default()
     self
   }
 
-  /// Appends command line arguments to the CEF command line.
-  #[cfg(feature = "cef")]
-  pub fn cef_command_line_args<K: Into<String>, V: Into<String>>(
-    mut self,
-    args: impl IntoIterator<Item = (K, Option<V>)>,
-  ) -> Self {
-    self.cef_command_line_args.extend(
-      args
-        .into_iter()
-        .map(|(k, v)| (k.into(), v.map(Into::into)))
-        .collect::<Vec<_>>(),
-    );
-    self
-  }
-
   /// Change the device event filter mode.
   ///
   /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
@@ -2169,13 +2204,10 @@ tauri::Builder::default()
       custom_schemes.push(schema.clone());
     }
 
-    let runtime_args = RuntimeInitArgs {
-      identifier: manager.config.identifier.clone(),
+    let runtime_args = Self::build_runtime_init_args(
+      &manager.config.identifier,
       custom_schemes,
-      #[cfg(feature = "cef")]
-      command_line_args: self.cef_command_line_args,
-      #[cfg(not(feature = "cef"))]
-      command_line_args: vec![],
+      self.platform_specific_attributes,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -2184,9 +2216,8 @@ tauri::Builder::default()
         target_os = "openbsd"
       ))]
       app_id,
-
       #[cfg(windows)]
-      msg_hook: {
+      {
         let menus = manager.menu.menus.clone();
         Some(Box::new(move |msg| {
           use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
@@ -2202,9 +2233,10 @@ tauri::Builder::default()
 
             false
           }
-        }))
+        })
+          as Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>)
       },
-    };
+    );
 
     // The env var must be set before the Runtime is created so that GetAvailableBrowserVersionString picks it up.
     #[cfg(windows)]

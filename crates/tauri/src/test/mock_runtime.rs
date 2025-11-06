@@ -1142,13 +1142,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Handle = MockRuntimeHandle;
   type EventLoopProxy = EventProxy;
   type PlatformSpecificWebviewAttribute = ();
+  type PlatformSpecificInitAttribute = ();
 
-  fn new(_args: RuntimeInitArgs) -> Result<Self> {
+  fn new(_args: RuntimeInitArgs<()>) -> Result<Self> {
     Ok(Self::init())
   }
 
   #[cfg(any(windows, target_os = "linux"))]
-  fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
+  fn new_any_thread(_args: RuntimeInitArgs<()>) -> Result<Self> {
     Ok(Self::init())
   }
 

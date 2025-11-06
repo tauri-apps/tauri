@@ -381,7 +381,7 @@ pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
 }
 
 #[derive(Default)]
-pub struct RuntimeInitArgs {
+pub struct RuntimeInitArgs<A> {
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -394,7 +394,7 @@ pub struct RuntimeInitArgs {
   pub msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
   pub identifier: String,
   pub custom_schemes: Vec<String>,
-  pub command_line_args: Vec<(String, Option<String>)>,
+  pub platform_specific_attributes: Vec<A>,
 }
 
 /// The webview runtime interface.
@@ -409,14 +409,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type EventLoopProxy: EventLoopProxy<T>;
   /// The platform specific webview attributes.
   type PlatformSpecificWebviewAttribute: Send + Sync + 'static;
+  /// The platform specific runtime init arguments.
+  type PlatformSpecificInitAttribute: Send + Sync + 'static;
 
   /// Creates a new webview runtime. Must be used on the main thread.
-  fn new(args: RuntimeInitArgs) -> Result<Self>;
+  fn new(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self>;
 
   /// Creates a new webview runtime on any thread.
   #[cfg(any(windows, target_os = "linux"))]
   #[cfg_attr(docsrs, doc(cfg(any(windows, target_os = "linux"))))]
-  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self>;
+  fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> Self::EventLoopProxy;

@@ -1804,7 +1804,7 @@ fn is_cef_helper_process() -> bool {
 }
 
 impl<T: UserEvent> CefRuntime<T> {
-  fn init(runtime_args: RuntimeInitArgs) -> Self {
+  fn init(runtime_args: RuntimeInitArgs<RuntimeInitAttribute>) -> Self {
     let args = cef::args::Args::new();
 
     #[cfg(target_os = "macos")]
@@ -1855,10 +1855,19 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
     };
 
+    let command_line_args: Vec<(String, Option<String>)> = runtime_args
+      .platform_specific_attributes
+      .into_iter()
+      .filter_map(|arg| match arg {
+        RuntimeInitAttribute::CommandLineArgs { args } => Some(args),
+      })
+      .flatten()
+      .collect();
+
     let mut app = cef_impl::TauriApp::new(
       cef_context.clone(),
       runtime_args.custom_schemes,
-      runtime_args.command_line_args,
+      command_line_args,
     );
 
     let cmd = args.as_cmd_line().unwrap();
@@ -1909,6 +1918,12 @@ impl<T: UserEvent> CefRuntime<T> {
   }
 }
 
+/// Platform-specific runtime init attributes.
+pub enum RuntimeInitAttribute {
+  /// Command line arguments passed to CEF.
+  CommandLineArgs { args: Vec<(String, Option<String>)> },
+}
+
 /// Webview attributes.
 pub enum WebviewAtribute {
   /// Sets the browser runtime style.
@@ -1936,13 +1951,14 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type Handle = CefRuntimeHandle<T>;
   type EventLoopProxy = EventProxy<T>;
   type PlatformSpecificWebviewAttribute = WebviewAtribute;
+  type PlatformSpecificInitAttribute = RuntimeInitAttribute;
 
-  fn new(args: RuntimeInitArgs) -> Result<Self> {
+  fn new(args: RuntimeInitArgs<RuntimeInitAttribute>) -> Result<Self> {
     Ok(Self::init(args))
   }
 
   #[cfg(any(windows, target_os = "linux"))]
-  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
+  fn new_any_thread(args: RuntimeInitArgs<RuntimeInitAttribute>) -> Result<Self> {
     Ok(Self::init(args))
   }
 

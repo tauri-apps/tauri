@@ -2738,7 +2738,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 impl<T: UserEvent> Wry<T> {
   fn init_with_builder(
     mut event_loop_builder: EventLoopBuilder<Message<T>>,
-    #[allow(unused_variables)] args: RuntimeInitArgs,
+    #[allow(unused_variables)] args: RuntimeInitArgs<()>,
   ) -> Result<Self> {
     #[cfg(windows)]
     if let Some(hook) = args.msg_hook {
@@ -2800,8 +2800,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   type EventLoopProxy = EventProxy<T>;
   type PlatformSpecificWebviewAttribute = ();
+  type PlatformSpecificInitAttribute = ();
 
-  fn new(args: RuntimeInitArgs) -> Result<Self> {
+  fn new(args: RuntimeInitArgs<()>) -> Result<Self> {
     Self::init_with_builder(EventLoopBuilder::<Message<T>>::with_user_event(), args)
   }
   #[cfg(any(
@@ -2811,7 +2812,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
+  fn new_any_thread(args: RuntimeInitArgs<()>) -> Result<Self> {
     use tao::platform::unix::EventLoopBuilderExtUnix;
     let mut event_loop_builder = EventLoopBuilder::<Message<T>>::with_user_event();
     event_loop_builder.with_any_thread(true);
@@ -2819,7 +2820,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(windows)]
-  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
+  fn new_any_thread(args: RuntimeInitArgs<()>) -> Result<Self> {
     use tao::platform::windows::EventLoopBuilderExtWindows;
     let mut event_loop_builder = EventLoopBuilder::<Message<T>>::with_user_event();
     event_loop_builder.with_any_thread(true);

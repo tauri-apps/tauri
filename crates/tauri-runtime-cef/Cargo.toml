@@ -10,9 +10,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-tauri-runtime = { version = "2.9.1", path = "../tauri-runtime", features = [
-  "cef",
-] }
+tauri-runtime = { version = "2.9.1", path = "../tauri-runtime" }
 tauri-utils = { version = "2.8.0", path = "../tauri-utils", features = [
   "html-manipulation",
 ] }

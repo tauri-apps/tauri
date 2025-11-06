@@ -1858,7 +1858,7 @@ impl<T: UserEvent> CefRuntime<T> {
     let mut app = cef_impl::TauriApp::new(
       cef_context.clone(),
       runtime_args.custom_schemes,
-      runtime_args.cef_command_line_args,
+      runtime_args.command_line_args,
     );
 
     let cmd = args.as_cmd_line().unwrap();

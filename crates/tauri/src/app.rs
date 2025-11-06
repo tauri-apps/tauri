@@ -2171,7 +2171,9 @@ tauri::Builder::default()
       identifier: manager.config.identifier.clone(),
       custom_schemes,
       #[cfg(feature = "cef")]
-      cef_command_line_args: self.cef_command_line_args,
+      command_line_args: self.cef_command_line_args,
+      #[cfg(not(feature = "cef"))]
+      command_line_args: vec![],
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

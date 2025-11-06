@@ -237,11 +237,13 @@ impl<T: UserEvent> Clone for Message<T> {
   }
 }
 
-pub(crate) struct BrowserViewWrapper {
+#[derive(Clone)]
+pub(crate) struct AppWebview {
   pub webview_id: u32,
   pub browser_view: cef::BrowserView,
   pub overlay: Option<cef::OverlayController>,
   pub bounds: Arc<Mutex<Option<WebviewBounds>>>,
+  pub devtools_enabled: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -262,8 +264,8 @@ pub(crate) struct AppWindow {
   pub label: String,
   pub window: cef::Window,
   pub force_close: Arc<AtomicBool>,
-  pub attributes: Arc<RefCell<crate::CefWindowBuilder>>,
-  pub webviews: Vec<BrowserViewWrapper>,
+  pub attributes: Arc<RefCell<CefWindowBuilder>>,
+  pub webviews: Vec<AppWebview>,
   pub window_event_listeners: WindowEventListeners,
   pub webview_event_listeners: WebviewEventListeners,
 }

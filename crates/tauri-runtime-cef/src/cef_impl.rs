@@ -22,7 +22,7 @@ use tauri_runtime::{
 };
 use tauri_utils::html::normalize_script_for_csp;
 
-use crate::{AppWindow, BrowserViewWrapper, CefRuntime, Message, WebviewMessage, WindowMessage};
+use crate::{AppWebview, AppWindow, CefRuntime, Message, WebviewMessage, WindowMessage};
 
 mod cookie;
 mod request_handler;
@@ -1059,6 +1059,24 @@ fn get_browser_view<T: UserEvent>(
     })
 }
 
+fn get_webview<T: UserEvent>(
+  context: &Context<T>,
+  window_id: WindowId,
+  webview_id: u32,
+) -> Option<AppWebview> {
+  context
+    .windows
+    .borrow()
+    .get(&window_id)
+    .and_then(|app_window| {
+      app_window
+        .webviews
+        .iter()
+        .find(|w| w.webview_id == webview_id)
+        .cloned()
+    })
+}
+
 fn handle_webview_message<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
@@ -1532,8 +1550,15 @@ fn handle_webview_message<T: UserEvent>(
     // Devtools
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::OpenDevTools => {
-      get_browser_view(context, window_id, webview_id)
-        .and_then(|bv| bv.browser())
+      get_webview(context, window_id, webview_id)
+        .and_then(|bv| {
+          if bv.devtools_enabled {
+            bv.browser_view.browser()
+          } else {
+            // break out of the chain if devtools are not enabled
+            None
+          }
+        })
         .and_then(|b| b.host())
         .map(|host| {
           let window_info = cef::WindowInfo::default();
@@ -2606,11 +2631,12 @@ pub(crate) fn create_webview<T: UserEvent>(
       .get_mut(&window_id)
       .unwrap()
       .webviews
-      .push(BrowserViewWrapper {
+      .push(AppWebview {
         webview_id,
         browser_view,
         overlay: Some(overlay),
         bounds: Arc::new(Mutex::new(initial_bounds_ratio)),
+        devtools_enabled,
       });
   } else {
     window.add_child_view(Some(&mut View::from(&browser_view)));
@@ -2624,11 +2650,12 @@ pub(crate) fn create_webview<T: UserEvent>(
       .get_mut(&window_id)
       .unwrap()
       .webviews
-      .push(BrowserViewWrapper {
+      .push(AppWebview {
         webview_id,
         browser_view,
         overlay: None,
         bounds: Arc::new(Mutex::new(None)),
+        devtools_enabled,
       });
   }
 }

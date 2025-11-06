@@ -223,7 +223,7 @@ where
     Ok(s) => s,
     Err(e) => e.exit(),
   };
-
+  // set the verbosity level so subsequent CLI calls (xcode-script, android-studio-script) refer to it
   let verbosity_number = get_verbosity(cli.verbose);
   std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string());
 
@@ -231,10 +231,12 @@ where
   if let Err(err) = builder
     .format_indent(Some(12))
     .filter(None, verbosity_level(verbosity_number).to_level_filter())
+    // golbin spams an insane amount of really technical logs on the debug level so we're reducing one level
     .filter(
       Some("goblin"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
     )
+    // handlebars is not that spammy but its debug logs are typically far from being helpful
     .filter(
       Some("handlebars"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
@@ -314,6 +316,8 @@ fn prettyprint_level(lvl: Level) -> &'static str {
 }
 
 pub trait CommandExt {
+  // The `pipe` function sets the stdout and stderr to properly
+  // show the command output in the Node.js wrapper.
   fn piped(&mut self) -> std::io::Result<ExitStatus>;
   fn output_ok(&mut self) -> crate::Result<Output>;
 }

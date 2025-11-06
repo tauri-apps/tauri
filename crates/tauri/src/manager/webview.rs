@@ -77,9 +77,6 @@ pub struct WebviewManager<R: Runtime> {
 
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,
-
-  /// A runtime generated invoke key.
-  pub(crate) invoke_key: String,
 }
 
 impl<R: Runtime> fmt::Debug for WebviewManager<R> {
@@ -89,7 +86,6 @@ impl<R: Runtime> fmt::Debug for WebviewManager<R> {
         "invoke_initialization_script",
         &self.invoke_initialization_script,
       )
-      .field("invoke_key", &self.invoke_key)
       .finish()
   }
 }
@@ -551,7 +547,13 @@ impl<R: Runtime> WebviewManager<R> {
 
     #[cfg(feature = "isolation")]
     let isolation_frame_url = if let crate::Pattern::Isolation { schema, .. } = &*pattern {
-      Some(Url::parse(&crate::webview::custom_scheme_url(schema, pending.webview_attributes.use_https_scheme)).unwrap())
+      Some(
+        Url::parse(&crate::webview::custom_scheme_url(
+          schema,
+          pending.webview_attributes.use_https_scheme,
+        ))
+        .unwrap(),
+      )
     } else {
       None
     };
@@ -653,10 +655,6 @@ impl<R: Runtime> WebviewManager<R> {
 
   pub fn labels(&self) -> HashSet<String> {
     self.webviews_lock().keys().cloned().collect()
-  }
-
-  pub(crate) fn invoke_key(&self) -> &str {
-    &self.invoke_key
   }
 }
 

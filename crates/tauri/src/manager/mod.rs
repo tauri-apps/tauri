@@ -19,10 +19,17 @@ use tauri_utils::{
 };
 
 use crate::{
-  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window, app::{
+  app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
-  }, event::{EmitArgs, Event, EventId, EventTarget, Listeners}, ipc::{Invoke, InvokeHandler, RuntimeAuthority}, plugin::PluginStore, resources::ResourceTable, utils::{PackageInfo, config::Config}, webview::custom_scheme_url
+  },
+  event::{EmitArgs, Event, EventId, EventTarget, Listeners},
+  ipc::{Invoke, InvokeHandler, RuntimeAuthority},
+  plugin::PluginStore,
+  resources::ResourceTable,
+  utils::{config::Config, PackageInfo},
+  webview::custom_scheme_url,
+  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
 };
 
 #[cfg(desktop)]
@@ -288,7 +295,6 @@ impl<R: Runtime> AppManager<R> {
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webview_event_listeners),
         invoke_initialization_script,
-        invoke_key: invoke_key.clone(),
       },
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray: tray::TrayManager {
@@ -432,10 +438,7 @@ impl<R: Runtime> AppManager<R> {
               let default_src = csp_map
                 .entry("default-src".into())
                 .or_insert_with(Default::default);
-              default_src.push(crate::webview::custom_scheme_url(
-                schema,
-                _use_https_schema,
-              ));
+              default_src.push(crate::webview::custom_scheme_url(schema, _use_https_schema));
             }
 
             csp_header.replace(Csp::DirectiveMap(csp_map).to_string());

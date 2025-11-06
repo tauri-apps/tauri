@@ -260,9 +260,14 @@ pub type WebviewEventHandler = Box<dyn Fn(&tauri_runtime::window::WebviewEvent) 
 pub type WebviewEventListeners =
   Arc<Mutex<HashMap<u32, Arc<Mutex<HashMap<tauri_runtime::WebviewEventId, WebviewEventHandler>>>>>>;
 
+pub(crate) enum AppWindowKind {
+  Window(cef::Window),
+  BrowserWindow,
+}
+
 pub(crate) struct AppWindow {
   pub label: String,
-  pub window: cef::Window,
+  pub window: AppWindowKind,
   pub force_close: Arc<AtomicBool>,
   pub attributes: Arc<RefCell<CefWindowBuilder>>,
   pub webviews: Vec<AppWebview>,
@@ -616,6 +621,7 @@ pub struct CefWindowBuilder {
   drag_and_drop: Option<bool>,
   has_icon: bool,
   icon: Option<Icon<'static>>,
+  browser_window: bool,
 }
 
 impl Default for CefWindowBuilder {
@@ -667,7 +673,15 @@ impl Default for CefWindowBuilder {
       drag_and_drop: None,
       has_icon: false,
       icon: None,
+      browser_window: false,
     }
+  }
+}
+
+impl CefWindowBuilder {
+  pub fn browser_window(mut self) -> Self {
+    self.browser_window = true;
+    self
   }
 }
 
@@ -2145,7 +2159,9 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
     let windows = self.context.windows.borrow();
     for window in windows.values() {
-      assert!(window.window.has_one_ref());
+      if let AppWindowKind::Window(window) = &window.window {
+        assert!(window.has_one_ref());
+      }
     }
 
     cef::shutdown();

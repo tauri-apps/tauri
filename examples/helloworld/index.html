@@ -7,16 +7,19 @@
     <style>
       :root {
         --text-color: #000000;
+        --background-color: #ffffff;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
           --text-color: #ffffff;
+          --background-color: #000000;
         }
       }
 
       body {
         color: var(--text-color);
+        background-color: var(--background-color);
         margin: 0;
         padding: 2rem;
         font-family: system-ui, -apple-system, sans-serif;

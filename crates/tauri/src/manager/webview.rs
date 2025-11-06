@@ -410,7 +410,11 @@ impl<R: Runtime> WebviewManager<R> {
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
         let app_url = app_manager.get_url(pending.webview_attributes.use_https_scheme);
-        let url = if PROXY_DEV_SERVER && is_local_network_url(&app_url) {
+        let url = if PROXY_DEV_SERVER
+          && is_local_network_url(&app_url)
+          // only proxy the dev server when we're not using embedded assets
+          && app_manager.assets.iter().next().is_none()
+        {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
           app_url
@@ -430,7 +434,12 @@ impl<R: Runtime> WebviewManager<R> {
         let config_url = app_manager.get_url(pending.webview_attributes.use_https_scheme);
         let is_app_url = config_url.make_relative(url).is_some();
         let mut url = url.clone();
-        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
+        if is_app_url
+          && PROXY_DEV_SERVER
+          && is_local_network_url(&url)
+          // only proxy the dev server when we're not using embedded assets
+          && app_manager.assets.iter().next().is_none()
+        {
           Url::parse("tauri://localhost").unwrap()
         } else {
           url
@@ -440,7 +449,6 @@ impl<R: Runtime> WebviewManager<R> {
       WebviewUrl::CustomProtocol(url) => url.clone(),
       _ => unimplemented!(),
     };
-
     #[cfg(not(feature = "webview-data-url"))]
     if url.scheme() == "data" {
       return Err(crate::Error::InvalidWebviewUrl(

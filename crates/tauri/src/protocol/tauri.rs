@@ -72,8 +72,9 @@ fn get_response<R: Runtime>(
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   (url, response_cache): (&str, &Arc<Mutex<HashMap<String, CachedResponse>>>),
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
+  let proxy_dev_server = PROXY_DEV_SERVER && manager.assets.iter().next().is_none();
   // use the entire URI as we are going to proxy the request
-  let path = if PROXY_DEV_SERVER {
+  let path = if proxy_dev_server {
     request.uri().to_string()
   } else {
     // ignore query string and fragment
@@ -97,7 +98,7 @@ fn get_response<R: Runtime>(
     .add_configured_headers(manager.config.app.security.headers.as_ref())
     .header("Access-Control-Allow-Origin", window_origin);
 
-  let mut response = if PROXY_DEV_SERVER && manager.assets.iter().count() == 0 {
+  let mut response = if proxy_dev_server {
     let decoded_path = percent_encoding::percent_decode(path.as_bytes())
       .decode_utf8_lossy()
       .to_string();

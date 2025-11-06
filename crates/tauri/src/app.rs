@@ -2079,16 +2079,18 @@ tauri::Builder::default()
     self
   }
 
-  /// Sets CEF command line arguments.
+  /// Appends command line arguments to the CEF command line.
   #[cfg(feature = "cef")]
   pub fn cef_command_line_args<K: Into<String>, V: Into<String>>(
     mut self,
-    args: Vec<(K, Option<V>)>,
+    args: impl IntoIterator<Item = (K, Option<V>)>,
   ) -> Self {
-    self.cef_command_line_args = args
-      .into_iter()
-      .map(|(k, v)| (k.into(), v.map(|v| v.into())))
-      .collect();
+    self.cef_command_line_args.extend(
+      args
+        .into_iter()
+        .map(|(k, v)| (k.into(), v.map(Into::into)))
+        .collect::<Vec<_>>(),
+    );
     self
   }
 

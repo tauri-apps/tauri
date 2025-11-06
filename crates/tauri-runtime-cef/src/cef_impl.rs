@@ -284,8 +284,10 @@ wrap_app! {
               Some(&CefString::from(arg.as_str())),
               Some(&CefString::from(value.as_str())),
             );
-          } else {
+          } else if arg.starts_with("-") {
             command_line.append_switch(Some(&CefString::from(arg.as_str())));
+          } else {
+            command_line.append_argument(Some(&CefString::from(arg.as_str())));
           }
         }
       }

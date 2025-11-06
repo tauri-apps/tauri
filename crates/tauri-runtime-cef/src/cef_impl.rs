@@ -2279,7 +2279,7 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
       if !should_prevent {
-        cef::quit_message_loop();
+        (context.callback.borrow())(RunEvent::Exit);
       }
     }
     Message::Task(t) => t(),
@@ -2433,7 +2433,7 @@ fn on_window_destroyed<T: UserEvent>(
       let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
       if !should_prevent {
-        cef::quit_message_loop();
+        (callback.borrow())(RunEvent::Exit);
       }
     }
   }

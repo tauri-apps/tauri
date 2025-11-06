@@ -2105,6 +2105,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     let callback = Arc::new(RefCell::new(callback));
+    let callback_ = callback.clone();
     let event_tx_ = self.event_tx.clone();
     let _ = self
       .context
@@ -2150,7 +2151,8 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     cef::shutdown();
 
     // Final Exit event
-    (self.context.cef_context.callback.borrow())(RunEvent::Exit);
+    // use callback_ directly because cef_context.callback posts Exit events to the event loop rx
+    (callback_.borrow_mut())(RunEvent::Exit);
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {

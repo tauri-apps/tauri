@@ -60,11 +60,8 @@ impl<'a, M: Manager<crate::Cef>> WebviewWindowBuilder<'a, crate::Cef, M> {
   /// Sets the browser runtime style.
   ///
   /// See [`tauri_runtime_cef::BrowserRuntimeStyle`] for more information.
-  pub fn with_browser_runtime_style(
-    mut self,
-    style: tauri_runtime_cef::BrowserRuntimeStyle,
-  ) -> Self {
-    self.webview_builder = self.webview_builder.with_browser_runtime_style(style);
+  pub fn browser_runtime_style(mut self, style: tauri_runtime_cef::BrowserRuntimeStyle) -> Self {
+    self.webview_builder = self.webview_builder.browser_runtime_style(style);
     self
   }
 }

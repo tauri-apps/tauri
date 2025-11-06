@@ -1909,11 +1909,33 @@ impl<T: UserEvent> CefRuntime<T> {
   }
 }
 
+/// Webview attributes.
+pub enum WebviewAtribute {
+  /// Sets the browser runtime style.
+  BrowserRuntimeStyle { style: BrowserRuntimeStyle },
+}
+
+/// The browser runtime style.
+#[derive(Clone, Copy)]
+pub enum BrowserRuntimeStyle {
+  /// Alloy runtime.
+  ///
+  /// Used by default on multiwebview mode.
+  Alloy,
+  /// Chrome runtime.
+  ///
+  /// Used by default on webview window mode.
+  ///
+  /// Only a single browser view can use the Chrome runtime in a given window.
+  Chrome,
+}
+
 impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type WindowDispatcher = CefWindowDispatcher<T>;
   type WebviewDispatcher = CefWebviewDispatcher<T>;
   type Handle = CefRuntimeHandle<T>;
   type EventLoopProxy = EventProxy<T>;
+  type PlatformSpecificWebviewAttribute = WebviewAtribute;
 
   fn new(args: RuntimeInitArgs) -> Result<Self> {
     Ok(Self::init(args))

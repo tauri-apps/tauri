@@ -2799,6 +2799,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   type Handle = WryHandle<T>;
 
   type EventLoopProxy = EventProxy<T>;
+  type PlatformSpecificWebviewAttribute = ();
 
   fn new(args: RuntimeInitArgs) -> Result<Self> {
     Self::init_with_builder(EventLoopBuilder::<Message<T>>::with_user_event(), args)

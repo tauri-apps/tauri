@@ -22,7 +22,10 @@ use tauri_runtime::{
 };
 use tauri_utils::html::normalize_script_for_csp;
 
-use crate::{AppWebview, AppWindow, CefRuntime, Message, WebviewMessage, WindowMessage};
+use crate::{
+  AppWebview, AppWindow, BrowserRuntimeStyle, CefRuntime, Message, WebviewAtribute, WebviewMessage,
+  WindowMessage,
+};
 
 mod cookie;
 mod request_handler;
@@ -650,7 +653,7 @@ wrap_client! {
 
 wrap_browser_view_delegate! {
   struct BrowserViewDelegateImpl {
-    use_alloy_style: bool,
+    browser_runtime_style: BrowserRuntimeStyle,
   }
 
   impl ViewDelegate {}
@@ -659,11 +662,9 @@ wrap_browser_view_delegate! {
     fn browser_runtime_style(&self) -> RuntimeStyle {
       use cef::sys::cef_runtime_style_t;
 
-      if self.use_alloy_style {
-        // Use Alloy style for multiwebview support
-        RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_ALLOY)
-      } else {
-        RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME)
+      match self.browser_runtime_style {
+        BrowserRuntimeStyle::Alloy => RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_ALLOY),
+        BrowserRuntimeStyle::Chrome => RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME),
       }
     }
   }
@@ -2450,6 +2451,7 @@ pub(crate) fn create_webview<T: UserEvent>(
   let PendingWebview {
     label,
     webview_attributes,
+    platform_specific_attributes,
     uri_scheme_protocols,
     ipc_handler: _,
     navigation_handler,
@@ -2535,8 +2537,20 @@ pub(crate) fn create_webview<T: UserEvent>(
     }
   }
 
-  let mut browser_view_delegate =
-    BrowserViewDelegateImpl::new(matches!(kind, WebviewKind::WindowChild));
+  let mut browser_view_delegate = BrowserViewDelegateImpl::new(
+    platform_specific_attributes
+      .iter()
+      .find_map(|attr| match attr {
+        WebviewAtribute::BrowserRuntimeStyle { style } => Some(*style),
+        #[allow(unreachable_patterns)]
+        _ => None,
+      })
+      .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
+        BrowserRuntimeStyle::Alloy
+      } else {
+        BrowserRuntimeStyle::Chrome
+      }),
+  );
 
   // Build BrowserSettings based on webview attributes
   let mut browser_settings = BrowserSettings::default();

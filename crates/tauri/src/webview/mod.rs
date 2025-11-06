@@ -272,6 +272,7 @@ unstable_struct!(
   struct WebviewBuilder<R: Runtime> {
     pub(crate) label: String,
     pub(crate) webview_attributes: WebviewAttributes,
+    pub(crate) platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
     pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
     pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
@@ -280,6 +281,23 @@ unstable_struct!(
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
   }
 );
+
+#[cfg(feature = "cef")]
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
+impl WebviewBuilder<crate::Cef> {
+  /// Sets the browser runtime style.
+  ///
+  /// See [`tauri_runtime_cef::BrowserRuntimeStyle`] for more information.
+  pub fn with_browser_runtime_style(
+    mut self,
+    style: tauri_runtime_cef::BrowserRuntimeStyle,
+  ) -> Self {
+    self
+      .platform_specific_attributes
+      .push(tauri_runtime_cef::WebviewAtribute::BrowserRuntimeStyle { style });
+    self
+  }
+}
 
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
@@ -350,6 +368,7 @@ async fn create_window(app: tauri::AppHandle) {
     Self {
       label: label.into(),
       webview_attributes: WebviewAttributes::new(url),
+      platform_specific_attributes: Vec::new(),
       web_resource_request_handler: None,
       navigation_handler: None,
       new_window_handler: None,
@@ -429,6 +448,7 @@ async fn create_window(app: tauri::AppHandle) {
     Self {
       label: config.label.clone(),
       webview_attributes: WebviewAttributes::from(&config),
+      platform_specific_attributes: Vec::new(),
       web_resource_request_handler: None,
       navigation_handler: None,
       new_window_handler: None,
@@ -702,7 +722,11 @@ tauri::Builder::default()
     manager: &M,
     window_label: &str,
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
-    let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
+    let mut pending = PendingWebview::new(
+      self.webview_attributes,
+      self.platform_specific_attributes,
+      self.label.clone(),
+    )?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.new_window_handler = self.new_window_handler.take().map(|handler| {
       Box::new(
@@ -2313,7 +2337,10 @@ pub(crate) fn custom_scheme_url(scheme: &str, _https: bool) -> String {
 #[cfg(not(feature = "cef"))]
 pub(crate) fn custom_scheme_url(scheme: &str, https: bool) -> String {
   if cfg!(any(windows, target_os = "android")) {
-    format!("{}://{scheme}.localhost", if https { "https" } else { "http" })
+    format!(
+      "{}://{scheme}.localhost",
+      if https { "https" } else { "http" }
+    )
   } else {
     format!("{scheme}://localhost")
   }

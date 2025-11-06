@@ -407,6 +407,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type Handle: RuntimeHandle<T, Runtime = Self>;
   /// The proxy type.
   type EventLoopProxy: EventLoopProxy<T>;
+  /// The platform specific webview attributes.
+  type PlatformSpecificWebviewAttribute: Send + Sync + 'static;
 
   /// Creates a new webview runtime. Must be used on the main thread.
   fn new(args: RuntimeInitArgs) -> Result<Self>;

@@ -1141,6 +1141,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type WebviewDispatcher = MockWebviewDispatcher;
   type Handle = MockRuntimeHandle;
   type EventLoopProxy = EventProxy;
+  type PlatformSpecificWebviewAttribute = ();
 
   fn new(_args: RuntimeInitArgs) -> Result<Self> {
     Ok(Self::init())

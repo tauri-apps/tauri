@@ -199,6 +199,9 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
 
+  /// Runtime specific attributes.
+  pub platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
+
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
   /// How to handle IPC calls on the webview.
@@ -230,6 +233,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
   /// Create a new [`PendingWebview`] with a label from the given [`WebviewAttributes`].
   pub fn new(
     webview_attributes: WebviewAttributes,
+    platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
     let label = label.into();
@@ -238,6 +242,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
     } else {
       Ok(Self {
         webview_attributes,
+        platform_specific_attributes,
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,

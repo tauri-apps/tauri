@@ -54,6 +54,21 @@ pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
   webview_builder: WebviewBuilder<R>,
 }
 
+#[cfg(feature = "cef")]
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
+impl<'a, M: Manager<crate::Cef>> WebviewWindowBuilder<'a, crate::Cef, M> {
+  /// Sets the browser runtime style.
+  ///
+  /// See [`tauri_runtime_cef::BrowserRuntimeStyle`] for more information.
+  pub fn with_browser_runtime_style(
+    mut self,
+    style: tauri_runtime_cef::BrowserRuntimeStyle,
+  ) -> Self {
+    self.webview_builder = self.webview_builder.with_browser_runtime_style(style);
+    self
+  }
+}
+
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// Initializes a webview window builder with the given window label.
   ///

@@ -2219,7 +2219,7 @@ tauri::Builder::default()
       #[cfg(windows)]
       {
         let menus = manager.menu.menus.clone();
-        Some(Box::new(move |msg| {
+        Some(Box::new(move |msg: *const std::ffi::c_void| {
           use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
           unsafe {
             let msg = msg as *const MSG;
@@ -2233,8 +2233,7 @@ tauri::Builder::default()
 
             false
           }
-        })
-          as Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>)
+        }))
       },
     );
 

@@ -262,19 +262,6 @@ wrap_app! {
       Some(AppBrowserProcessHandler::new(self.context.clone()))
     }
 
-    fn on_register_custom_schemes(&self, registrar: Option<&mut SchemeRegistrar>) {
-      if let Some(registrar) = registrar {
-        let scheme_options = (sys::cef_scheme_options_t::CEF_SCHEME_OPTION_FETCH_ENABLED as i32)
-          | (sys::cef_scheme_options_t::CEF_SCHEME_OPTION_SECURE as i32)
-          | (sys::cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED as i32)
-          | (sys::cef_scheme_options_t::CEF_SCHEME_OPTION_STANDARD as i32);
-
-        for scheme in &self.custom_schemes {
-          registrar.add_custom_scheme(Some(&(scheme.as_str()).into()), scheme_options);
-        }
-      }
-    }
-
     fn on_before_command_line_processing(
       &self,
       _process_type: Option<&CefString>,
@@ -314,6 +301,8 @@ wrap_load_handler! {
   struct BrowserLoadHandler {
     initialization_scripts: Vec<CefInitScript>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
+    custom_scheme_domain_names: Vec<String>,
+    custom_protocol_scheme: String,
   }
 
   impl LoadHandler {
@@ -356,7 +345,7 @@ wrap_load_handler! {
         }
       }
 
-      // run init scripts for http/https pages
+      // run init scripts for http/https pages that are not custom schemes
       // custom schemes are handled by the request handler
       // where we inject scripts directly in the html
 
@@ -368,14 +357,19 @@ wrap_load_handler! {
       let url_str = cef::CefString::from(&url).to_string();
       let url_obj = url::Url::parse(&url_str).ok();
 
-      let is_remote_url = url_obj
+      let is_custom_scheme_url = url_obj
         .as_ref()
-        .map(|u| matches!(u.scheme(), "http" | "https"))
-        .unwrap_or(false);
-
-      if !is_remote_url {
-        return;
-      }
+        .map(|u| {
+          let scheme = u.scheme();
+          if scheme == self.custom_protocol_scheme {
+            let host_str = u.host_str().unwrap_or("").to_string();
+            scheme == self.custom_protocol_scheme && self.custom_scheme_domain_names.contains(&host_str)
+          } else {
+            false
+          }
+        });
+      // if we can't parse the URL, also return
+      if is_custom_scheme_url.unwrap_or(true) { return; }
 
       let is_main_frame = frame.is_main() == 1;
 
@@ -606,6 +600,8 @@ wrap_client! {
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
     devtools_enabled: bool,
+    custom_scheme_domain_names: Vec<String>,
+    custom_protocol_scheme: String,
   }
 
   impl Client {
@@ -620,6 +616,8 @@ wrap_client! {
       Some(BrowserLoadHandler::new(
         self.initialization_scripts.clone(),
         self.on_page_load_handler.clone(),
+        self.custom_scheme_domain_names.clone(),
+        self.custom_protocol_scheme.clone(),
       ))
     }
 
@@ -2489,6 +2487,19 @@ pub(crate) fn create_webview<T: UserEvent>(
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
     && webview_attributes.devtools.unwrap_or(true);
 
+  // Determine the protocol scheme (http or https) for custom schemes
+  let custom_protocol_scheme = if webview_attributes.use_https_scheme {
+    "https"
+  } else {
+    "http"
+  };
+
+  // Build cached domain names for custom schemes before uri_scheme_protocols is consumed
+  let custom_scheme_domain_names: Vec<String> = uri_scheme_protocols
+    .keys()
+    .map(|scheme| format!("{scheme}.localhost"))
+    .collect();
+
   let mut client = BrowserClient::new(
     initialization_scripts.clone(),
     on_page_load_handler,
@@ -2496,6 +2507,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     navigation_handler,
     download_handler,
     devtools_enabled,
+    custom_scheme_domain_names.clone(),
+    custom_protocol_scheme.to_string(),
   );
   let url = CefString::from(url.as_str());
 
@@ -2523,13 +2536,13 @@ pub(crate) fn create_webview<T: UserEvent>(
     Option::<&mut RequestContextHandler>::None,
   );
   if let Some(request_context) = &request_context {
-    for (scheme, handler) in uri_scheme_protocols {
+    for (custom_scheme, handler) in uri_scheme_protocols {
       let webview_label = label.clone();
       request_context.register_scheme_handler_factory(
-        Some(&scheme.as_str().into()),
-        None,
+        Some(&custom_protocol_scheme.into()),
+        Some(&format!("{custom_scheme}.localhost").as_str().into()),
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
-          webview_label,
+          webview_label.clone(),
           Arc::new(handler) as Arc<UriSchemeProtocol>,
           initialization_scripts.clone(),
         )),

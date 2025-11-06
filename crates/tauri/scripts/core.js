@@ -14,7 +14,7 @@
   Object.defineProperty(window.__TAURI_INTERNALS__, 'convertFileSrc', {
     value: function (filePath, protocol = 'asset') {
       const path = encodeURIComponent(filePath)
-      return (osName === 'windows' || osName === 'android') && !cef
+      return osName === 'windows' || osName === 'android' || cef
         ? `${protocolScheme}://${protocol}.localhost/${path}`
         : `${protocol}://localhost/${path}`
     }

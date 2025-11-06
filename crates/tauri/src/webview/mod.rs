@@ -2329,14 +2329,8 @@ impl<T: ScopeObject> ResolvedScope<T> {
   }
 }
 
-#[cfg(feature = "cef")]
-pub(crate) fn custom_scheme_url(scheme: &str, _https: bool) -> String {
-  format!("{scheme}://localhost")
-}
-
-#[cfg(not(feature = "cef"))]
 pub(crate) fn custom_scheme_url(scheme: &str, https: bool) -> String {
-  if cfg!(any(windows, target_os = "android")) {
+  if cfg!(any(windows, target_os = "android", feature = "cef")) {
     format!(
       "{}://{scheme}.localhost",
       if https { "https" } else { "http" }

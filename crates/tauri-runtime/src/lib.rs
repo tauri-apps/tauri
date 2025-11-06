@@ -490,6 +490,9 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// [`tao`]: https://crates.io/crates/tao
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
 
+  /// Returns the URL for a custom scheme.
+  fn custom_scheme_url(scheme: &str, _https: bool) -> String;
+
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);

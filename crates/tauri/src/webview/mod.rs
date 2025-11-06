@@ -1703,7 +1703,7 @@ tauri::Builder::default()
 
     // if from `tauri://` custom protocol
     ({
-      let protocol_url = Url::parse(&custom_scheme_url("tauri", uses_https)).unwrap();
+      let protocol_url = Url::parse(&R::custom_scheme_url("tauri", uses_https)).unwrap();
       current_url.scheme() == protocol_url.scheme()
       && current_url.domain() == protocol_url.domain()
     }) ||
@@ -1727,7 +1727,7 @@ tauri::Builder::default()
         // so we check using the first part of the domain
         #[cfg(any(windows, target_os = "android"))]
         let local = {
-          let protocol_url = Url::parse(&custom_scheme_url("tauri", uses_https)).unwrap();
+          let protocol_url = Url::parse(&R::custom_scheme_url("tauri", uses_https)).unwrap();
           let maybe_protocol = current_url
             .domain()
             .and_then(|d| d .split_once('.'))
@@ -2323,17 +2323,6 @@ impl<T: ScopeObject> ResolvedScope<T> {
   /// The command-specific scope.
   pub fn command_scope(&self) -> &CommandScope<T> {
     &self.command_scope
-  }
-}
-
-pub(crate) fn custom_scheme_url(scheme: &str, https: bool) -> String {
-  if cfg!(any(windows, target_os = "android", feature = "cef")) {
-    format!(
-      "{}://{scheme}.localhost",
-      if https { "https" } else { "http" }
-    )
-  } else {
-    format!("{scheme}://localhost")
   }
 }
 

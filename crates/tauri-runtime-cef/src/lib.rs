@@ -2080,6 +2080,14 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
   fn set_device_event_filter(&mut self, _filter: DeviceEventFilter) {}
 
+  fn custom_scheme_url(scheme: &str, https: bool) -> String {
+    // CEF always uses http/https format regardless of platform
+    format!(
+      "{}://{scheme}.localhost",
+      if https { "https" } else { "http" }
+    )
+  }
+
   #[cfg(any(
     target_os = "macos",
     windows,

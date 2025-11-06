@@ -28,7 +28,6 @@ use crate::{
   plugin::PluginStore,
   resources::ResourceTable,
   utils::{config::Config, PackageInfo},
-  webview::custom_scheme_url,
   Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
 };
 
@@ -357,7 +356,7 @@ impl<R: Runtime> AppManager<R> {
   pub(crate) fn get_url(&self, https: bool) -> Cow<'_, Url> {
     match self.base_path() {
       Some(url) => Cow::Borrowed(url),
-      _ => Cow::Owned(Url::parse(&custom_scheme_url("tauri", https)).unwrap()),
+      _ => Cow::Owned(Url::parse(&R::custom_scheme_url("tauri", https)).unwrap()),
     }
   }
 
@@ -438,7 +437,7 @@ impl<R: Runtime> AppManager<R> {
               let default_src = csp_map
                 .entry("default-src".into())
                 .or_insert_with(Default::default);
-              default_src.push(crate::webview::custom_scheme_url(schema, _use_https_schema));
+              default_src.push(R::custom_scheme_url(schema, _use_https_schema));
             }
 
             csp_header.replace(Csp::DirectiveMap(csp_map).to_string());

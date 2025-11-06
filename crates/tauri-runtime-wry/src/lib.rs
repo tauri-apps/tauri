@@ -3027,6 +3027,21 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
   }
 
+  /// Returns the URL for a custom scheme.
+  ///
+  /// On Windows and Android, custom schemes use `http://<scheme>.localhost` or `https://<scheme>.localhost`.
+  /// On other platforms, custom schemes use `<scheme>://localhost`.
+  fn custom_scheme_url(scheme: &str, _https: bool) -> String {
+    if cfg!(any(windows, target_os = "android")) {
+      format!(
+        "{}://{scheme}.localhost",
+        if _https { "https" } else { "http" }
+      )
+    } else {
+      format!("{scheme}://localhost")
+    }
+  }
+
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
     use tao::platform::run_return::EventLoopExtRunReturn;

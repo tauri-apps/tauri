@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use crate::{
   manager::{set_csp, webview::PROCESS_IPC_MESSAGE_FN, AppManager},
-  webview::{UriSchemeProtocolHandler, custom_scheme_url},
+  webview::UriSchemeProtocolHandler,
   Runtime,
 };
 
@@ -26,7 +26,7 @@ pub fn get<R: Runtime>(
   window_origin: String,
   use_https_scheme: bool,
 ) -> UriSchemeProtocolHandler {
-  let frame_src = custom_scheme_url(schema, use_https_scheme);
+  let frame_src = R::custom_scheme_url(schema, use_https_scheme);
 
   let assets = assets as Arc<dyn Assets<R>>;
 

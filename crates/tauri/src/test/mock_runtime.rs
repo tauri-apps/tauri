@@ -1264,6 +1264,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}
 
+  fn custom_scheme_url(scheme: &str, _https: bool) -> String {
+    format!("{scheme}://localhost")
+  }
+
   #[cfg(any(
     target_os = "macos",
     windows,

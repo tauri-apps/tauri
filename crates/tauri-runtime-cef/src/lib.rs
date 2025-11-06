@@ -276,7 +276,6 @@ pub struct RuntimeContext<T: UserEvent> {
   main_thread_task_runner: cef::TaskRunner,
   main_thread_id: ThreadId,
   cef_context: cef_impl::Context<T>,
-  event_queue: Arc<RefCell<Vec<RunEvent<T>>>>,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -1781,6 +1780,8 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 #[derive(Debug)]
 pub struct CefRuntime<T: UserEvent> {
   pub context: RuntimeContext<T>,
+  event_tx: std::sync::mpsc::Sender<RunEvent<T>>,
+  event_rx: std::sync::mpsc::Receiver<RunEvent<T>>,
 }
 
 #[cfg(target_os = "macos")]
@@ -1834,8 +1835,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
 
-    let event_queue = Arc::new(RefCell::new(Vec::new()));
-    let event_queue_ = event_queue.clone();
+    let (event_tx, event_rx) = channel();
 
     let cache_base = dirs::cache_dir().unwrap_or_else(|| std::env::temp_dir());
     let cache_path = cache_base.join(&runtime_args.identifier).join("cef");
@@ -1843,16 +1843,18 @@ impl<T: UserEvent> CefRuntime<T> {
     // Ensure the cache directory exists
     let _ = create_dir_all(&cache_path);
 
+    let event_tx_ = event_tx.clone();
     let cef_context = cef_impl::Context {
       windows: Default::default(),
       callback: Arc::new(RefCell::new(Box::new(move |event| {
-        event_queue_.borrow_mut().push(event);
+        event_tx_.send(event).unwrap();
       }))),
       next_webview_event_id: Default::default(),
       next_webview_id: Default::default(),
       next_window_id: Default::default(),
       next_window_event_id: Default::default(),
     };
+
     let mut app = cef_impl::TauriApp::new(cef_context.clone(), runtime_args.custom_schemes);
 
     let cmd = args.as_cmd_line().unwrap();
@@ -1894,9 +1896,12 @@ impl<T: UserEvent> CefRuntime<T> {
       main_thread_task_runner: cef::task_runner_get_for_current_thread().expect("null task runner"),
       main_thread_id,
       cef_context,
-      event_queue,
     };
-    Self { context }
+    Self {
+      context,
+      event_tx,
+      event_rx,
+    }
   }
 }
 
@@ -2050,22 +2055,38 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     let callback = Arc::new(RefCell::new(callback));
+    let event_tx_ = self.event_tx.clone();
+    let _ = self.context.cef_context.callback.replace(Box::new(move |event| {
+      if let RunEvent::Exit = event {
+        // notify the event loop to exit
+        let _ = event_tx_.send(RunEvent::Exit);
+      } else {
+        // Try to call callback directly, if busy queue to channel
+        if let Ok(mut cb) = callback.try_borrow_mut() {
+          cb(event);
+        } else {
+          let _ = event_tx_.send(event);
+        }
+      }
+    }));
 
-    let callback_ = callback.clone();
-    let _ = self
-      .context
-      .cef_context
-      .callback
-      .replace(Box::new(move |event| {
-        (callback_.borrow_mut())(event);
-      }));
+    'main_loop: loop {
+      while let Ok(event) = self.event_rx.try_recv() {
+        if matches!(&event, RunEvent::Exit) {
+          // Exit event is triggered when we break out of the loop
+          break 'main_loop;
+        }
 
-    // clear event queue
-    for event in self.context.event_queue.replace(Vec::new()) {
-      (callback.borrow_mut())(event);
+        (self.context.cef_context.callback.borrow())(event);
+      }
+
+      // Do CEF message loop work
+      // This processes one iteration of the message loop
+      cef::do_message_loop_work();
+
+      // Emit MainEventsCleared event
+      (self.context.cef_context.callback.borrow())(RunEvent::MainEventsCleared);
     }
-
-    cef::run_message_loop();
 
     let windows = self.context.windows.borrow();
     for window in windows.values() {
@@ -2074,7 +2095,8 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
     cef::shutdown();
 
-    (callback.borrow_mut())(RunEvent::Exit);
+    // Final Exit event
+    (self.context.cef_context.callback.borrow())(RunEvent::Exit);
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {

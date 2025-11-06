@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use crate::{
   manager::{set_csp, webview::PROCESS_IPC_MESSAGE_FN, AppManager},
-  webview::UriSchemeProtocolHandler,
+  webview::{UriSchemeProtocolHandler, custom_scheme_url},
   Runtime,
 };
 
@@ -26,12 +26,7 @@ pub fn get<R: Runtime>(
   window_origin: String,
   use_https_scheme: bool,
 ) -> UriSchemeProtocolHandler {
-  let frame_src = if cfg!(any(windows, target_os = "android")) {
-    let https = if use_https_scheme { "https" } else { "http" };
-    format!("{https}://{schema}.localhost")
-  } else {
-    format!("{schema}:")
-  };
+  let frame_src = custom_scheme_url(schema, use_https_scheme);
 
   let assets = assets as Arc<dyn Assets<R>>;
 

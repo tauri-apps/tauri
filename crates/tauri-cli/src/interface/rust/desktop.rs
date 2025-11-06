@@ -54,7 +54,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   config_features: Vec<String>,
   on_exit: F,
 ) -> crate::Result<DevChild> {
-  #[cfg(not(target_os = "windows"))]
+  #[cfg(not(target_os = "macos"))]
   let _app_settings = app_settings;
   #[cfg(target_os = "macos")]
   {

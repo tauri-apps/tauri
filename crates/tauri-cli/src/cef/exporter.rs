@@ -24,7 +24,7 @@ fn default_version() -> &'static str {
 fn default_download_url() -> &'static str {
   static DEFAULT_DOWNLOAD_URL: OnceLock<String> = OnceLock::new();
   DEFAULT_DOWNLOAD_URL
-    .get_or_init(|| download_cef::default_download_url())
+    .get_or_init(download_cef::default_download_url)
     .as_str()
 }
 

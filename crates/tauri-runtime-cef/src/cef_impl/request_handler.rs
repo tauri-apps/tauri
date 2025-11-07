@@ -16,12 +16,14 @@ use http::{
   HeaderMap, HeaderName, HeaderValue,
 };
 use kuchiki::NodeRef;
-use tauri_runtime::webview::UriSchemeProtocol;
+use tauri_runtime::{webview::UriSchemeProtocol, UserEvent};
 use tauri_utils::{
   config::{Csp, CspDirectiveSources},
   html::{parse as parse_html, serialize_node},
 };
 use url::Url;
+
+use crate::cef_impl::Context;
 
 use super::CefInitScript;
 
@@ -108,7 +110,7 @@ fn inject_scripts_into_html_body(
 
 wrap_resource_request_handler! {
   pub struct WebResourceRequestHandler {
-    initialization_scripts: Vec<CefInitScript>,
+    initialization_scripts: Arc<Vec<CefInitScript>>,
   }
 
   impl ResourceRequestHandler {
@@ -128,7 +130,7 @@ wrap_resource_request_handler! {
 
 wrap_request_handler! {
   pub struct WebRequestHandler {
-    initialization_scripts: Vec<CefInitScript>,
+    initialization_scripts: Arc<Vec<CefInitScript>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
   }
 
@@ -180,8 +182,8 @@ wrap_request_handler! {
 wrap_resource_handler! {
   pub struct WebResourceHandler {
     webview_label: String,
-    handler: Arc<UriSchemeProtocol>,
-    initialization_scripts: Vec<CefInitScript>,
+    handler: Arc<Box<UriSchemeProtocol>>,
+    initialization_scripts: Arc<Vec<CefInitScript>>,
     // we clone response to send it to the handler thread
     response: Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>,
   }
@@ -239,7 +241,8 @@ wrap_resource_handler! {
         std::thread::spawn(move || {
           let mut http_request = http::Request::builder().method(method).uri(url.as_str()).body(data).unwrap();
           *http_request.headers_mut() = headers;
-          (handler)(&label, http_request, responder);
+          // handler is Arc<Box<UriSchemeProtocol>>, so we need to dereference to call it
+          (**handler)(&label, http_request, responder);
         });
         1
       } else {
@@ -319,9 +322,7 @@ wrap_resource_handler! {
         .unwrap_or("text/plain");
       response.set_mime_type(Some(&mime_type.into()));
 
-      response_length.map(|length| {
-        *length = -1;
-      });
+      if let Some(length) = response_length { *length = -1; }
 
       if let Some(redirect_url) = redirect_url {
         let _ = std::mem::take(redirect_url);
@@ -331,21 +332,34 @@ wrap_resource_handler! {
 }
 
 wrap_scheme_handler_factory! {
-  pub struct UriSchemeHandlerFactory {
-    webview_label: String,
-    handler: Arc<UriSchemeProtocol>,
-    initialization_scripts: Vec<CefInitScript>,
+  pub struct UriSchemeHandlerFactory<T: UserEvent> {
+    context: Context<T>,
+    scheme: String,
   }
 
   impl SchemeHandlerFactory {
     fn create(
       &self,
-      _browser: Option<&mut Browser>,
+      browser: Option<&mut Browser>,
       _frame: Option<&mut Frame>,
       _scheme_name: Option<&CefString>,
       _request: Option<&mut Request>,
     ) -> Option<ResourceHandler> {
-      Some(WebResourceHandler::new(self.webview_label.clone(), self.handler.clone(), self.initialization_scripts.clone(), Arc::new(RefCell::new(None))))
+      let browser = browser?;
+      let id = browser.identifier();
+
+      // get handler from AppWebview - UriSchemeFactory can be overwritten
+      // when registered on multiple RequestContexts sharing the same cache path
+      let (webview_label, handler, initialization_scripts) = self.context.windows.borrow().values().find_map(|window| {
+        window.webviews.iter().find(|webview| *webview.browser_id.borrow() == id)
+        .and_then(|webview| {
+          webview.uri_scheme_protocols.get(&self.scheme).map(|handler| {
+            (webview.label.clone(), handler.clone(), webview.initialization_scripts.clone())
+          })
+        })
+      })?;
+
+      Some(WebResourceHandler::new(webview_label, handler, initialization_scripts, Arc::new(RefCell::new(None))))
     }
   }
 }
@@ -367,7 +381,7 @@ fn read_request_body(request: &mut Request) -> Vec<u8> {
   if let Some(post_data) = request.post_data() {
     let mut elements = vec![None; post_data.element_count()];
     post_data.elements(Some(&mut elements));
-    for element in elements.into_iter().filter_map(|v| v) {
+    for element in elements.into_iter().flatten() {
       match element.get_type().as_ref() {
         sys::cef_postdataelement_type_t::PDE_TYPE_BYTES => {
           let size = element.bytes_count();
@@ -388,7 +402,7 @@ fn read_request_body(request: &mut Request) -> Vec<u8> {
           if let Ok(mut file) = std::fs::File::open(&file_path) {
             use std::io::Read;
             let mut buf = Vec::new();
-            if let Ok(_) = file.read_to_end(&mut buf) {
+            if file.read_to_end(&mut buf).is_ok() {
               body.extend(buf);
             }
           }

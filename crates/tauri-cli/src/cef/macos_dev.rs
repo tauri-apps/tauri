@@ -71,7 +71,7 @@ fn write_info_plist(
   let mut ls_env = HashMap::new();
   ls_env.insert("MallocNanoZone".into(), "0".into());
   let product_compact = product_name.replace(' ', "");
-  let identifier = format!("dev.tauri.{}", product_compact);
+  let identifier = format!("dev.tauri.{product_compact}");
   let info_plist = InfoPlist {
     cf_bundle_development_region: "en".into(),
     cf_bundle_display_name: product_name.into(),
@@ -155,7 +155,7 @@ pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send +
   let product_name = app_settings.get_package_settings().product_name.clone();
   let version = app_settings.get_package_settings().version.clone();
 
-  let app_bundle_path = out_dir.join(format!("{}.app", product_name));
+  let app_bundle_path = out_dir.join(format!("{product_name}.app"));
   let _ = std::fs::remove_dir_all(&app_bundle_path);
   create_app_layout(&app_bundle_path)?;
   write_info_plist(
@@ -179,7 +179,7 @@ pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send +
   for helper_name in helpers {
     let helper_app = app_bundle_path
       .join(FRAMEWORKS_PATH)
-      .join(format!("{}.app", helper_name));
+      .join(format!("{helper_name}.app"));
     create_app_layout(&helper_app)?;
     write_info_plist(
       &helper_app.join("Contents"),
@@ -259,7 +259,7 @@ pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send +
     if status.success() {
       on_exit(status.code(), ExitReason::NormalExit);
     } else {
-      let _ = stderr_lines.lock().unwrap().clear();
+      stderr_lines.lock().unwrap().clear();
       on_exit(
         status.code(),
         if manually_killed_app_.load(Ordering::Relaxed) {

@@ -299,7 +299,7 @@ wrap_browser_process_handler! {
 
 wrap_load_handler! {
   struct BrowserLoadHandler {
-    initialization_scripts: Vec<CefInitScript>,
+    initialization_scripts: Arc<Vec<CefInitScript>>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     custom_scheme_domain_names: Vec<String>,
     custom_protocol_scheme: String,
@@ -349,7 +349,7 @@ wrap_load_handler! {
       // custom schemes are handled by the request handler
       // where we inject scripts directly in the html
 
-      if http_status_code < 200 || http_status_code >= 300 {
+      if !(200..300).contains(&http_status_code) {
         return;
       }
 
@@ -373,22 +373,20 @@ wrap_load_handler! {
 
       let is_main_frame = frame.is_main() == 1;
 
-      let scripts_to_execute: Vec<_> = if is_main_frame {
-        self.initialization_scripts.clone()
+      let scripts_to_execute = if is_main_frame {
+       Box::new(self.initialization_scripts.iter().map(|s| &s.script.script)) as Box<dyn std::iter::Iterator<Item = &String>>
       } else {
-        self.initialization_scripts
+        Box::new(self.initialization_scripts
           .iter()
           .filter(|s| !s.script.for_main_frame_only)
-          .cloned()
-          .collect()
+          .map(|s| &s.script.script)) as Box<dyn std::iter::Iterator<Item = &String>>
       };
 
       for script in scripts_to_execute {
-        let script_text = script.script.script.clone();
         let script_url = format!("{}://__tauri_init_script__", url_obj.as_ref().map(|u| u.scheme()).unwrap_or("http"));
 
         frame.execute_java_script(
-          Some(&cef::CefString::from(script_text.as_str())),
+          Some(&cef::CefString::from(script.as_str())),
           Some(&cef::CefString::from(script_url.as_str())),
           0,
         );
@@ -530,7 +528,7 @@ wrap_download_handler! {
 
       let suggested_path = suggested_name
         .map(|s| s.to_string())
-        .map(|s| std::path::PathBuf::from(s))
+        .map(std::path::PathBuf::from)
         .unwrap_or_default();
 
       let mut destination = suggested_path;
@@ -592,40 +590,9 @@ wrap_download_handler! {
   }
 }
 
-wrap_life_span_handler! {
-  struct BrowserLifeSpanHandler<T: UserEvent> {
-    context: Context<T>,
-    window_id: WindowId,
-    webview_id: u32,
-    devtools_enabled: bool,
-  }
-
-  impl LifeSpanHandler {
-    fn on_after_created(&self, browser: Option<&mut Browser>) {
-      let Some(browser) = browser else { return; };
-
-      // Get the browser_view for this browser
-      if let Some(browser_view) = cef::browser_view_get_for_browser(Some(browser)) {
-        // Add the browser_view to the webviews
-        if let Ok(mut windows) = self.context.windows.try_borrow_mut() {
-          if let Some(app_window) = windows.get_mut(&self.window_id) {
-            app_window.webviews.push(AppWebview {
-              webview_id: self.webview_id,
-              browser_view,
-              overlay: None,
-              bounds: Arc::new(Mutex::new(None)),
-              devtools_enabled: self.devtools_enabled,
-            });
-          }
-        }
-      }
-    }
-  }
-}
-
 wrap_client! {
   struct BrowserClient<T: UserEvent> {
-    initialization_scripts: Vec<CefInitScript>,
+    initialization_scripts: Arc<Vec<CefInitScript>>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
@@ -635,7 +602,6 @@ wrap_client! {
     custom_protocol_scheme: String,
     context: Context<T>,
     window_id: WindowId,
-    pending_browser_webview_id: Option<u32>,
   }
 
   impl Client {
@@ -666,11 +632,7 @@ wrap_client! {
     }
 
     fn download_handler(&self) -> Option<DownloadHandler> {
-      if let Some(handler) = self.download_handler.clone() {
-        Some(BrowserDownloadHandler::new(handler))
-      } else {
-        None
-      }
+      self.download_handler.clone().map(|handler| BrowserDownloadHandler::new(handler))
     }
 
     fn context_menu_handler(&self) -> Option<ContextMenuHandler> {
@@ -680,30 +642,24 @@ wrap_client! {
     fn keyboard_handler(&self) -> Option<KeyboardHandler> {
       Some(BrowserKeyboardHandler::new(self.devtools_enabled))
     }
-
-    fn life_span_handler(&self) -> Option<LifeSpanHandler> {
-      if let Some(pending_browser_webview_id) = self.pending_browser_webview_id {
-        Some(BrowserLifeSpanHandler::new(
-          self.context.clone(),
-          self.window_id,
-          pending_browser_webview_id,
-          self.devtools_enabled,
-        ))
-      } else {
-        None
-      }
-    }
   }
 }
 
 wrap_browser_view_delegate! {
   struct BrowserViewDelegateImpl {
+    browser_id: Arc<RefCell<i32>>,
     browser_runtime_style: BrowserRuntimeStyle,
   }
 
   impl ViewDelegate {}
 
   impl BrowserViewDelegate {
+    fn on_browser_created(&self, _browser_view: Option<&mut BrowserView>, browser: Option<&mut Browser>) {
+      if let Some(browser) = browser {
+        self.browser_id.replace(browser.identifier());
+      }
+    }
+
     fn browser_runtime_style(&self) -> RuntimeStyle {
       use cef::sys::cef_runtime_style_t;
 
@@ -829,7 +785,7 @@ wrap_window_delegate! {
       if let Some(window) = window {
         let a = self.attributes.borrow();
         if let Some(icon) = a.icon.clone() {
-          set_window_icon(&window, icon);
+          set_window_icon(window, icon);
         }
 
         if let Some(title) = &a.title {
@@ -898,7 +854,7 @@ wrap_window_delegate! {
         }
 
         if let Some(content_protected) = a.content_protected {
-          apply_content_protection(&window, content_protected);
+          apply_content_protection(window, content_protected);
         }
 
         if let Some(skip_taskbar) = a.skip_taskbar {
@@ -1103,7 +1059,7 @@ fn get_browser_view<T: UserEvent>(
         .webviews
         .iter()
         .find(|w| w.webview_id == webview_id)
-        .map(|w| w.browser_view.clone())
+        .and_then(|w| w.browser_view.clone())
     })
 }
 
@@ -1143,33 +1099,39 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::EvaluateScript(script) => {
-      get_browser_view(context, window_id, webview_id)
+      if let Some(frame) = get_browser_view(context, window_id, webview_id)
         .and_then(|bv| bv.browser())
         .and_then(|b| b.main_frame())
-        .map(|frame| {
-          frame.execute_java_script(
-            Some(&cef::CefString::from(script.as_str())),
-            Some(&cef::CefString::from("")),
-            0,
-          );
-        });
+      {
+        frame.execute_java_script(
+          Some(&cef::CefString::from(script.as_str())),
+          Some(&cef::CefString::from("")),
+          0,
+        );
+      }
     }
     WebviewMessage::Navigate(url) => {
-      get_browser_view(context, window_id, webview_id)
+      if let Some(frame) = get_browser_view(context, window_id, webview_id)
         .and_then(|bv| bv.browser())
         .and_then(|b| b.main_frame())
-        .map(|frame| frame.load_url(Some(&cef::CefString::from(url.as_str()))));
+      {
+        frame.load_url(Some(&cef::CefString::from(url.as_str())))
+      }
     }
     WebviewMessage::Reload => {
-      get_browser_view(context, window_id, webview_id)
-        .and_then(|bv| bv.browser())
-        .map(|browser| browser.reload());
+      if let Some(browser) =
+        get_browser_view(context, window_id, webview_id).and_then(|bv| bv.browser())
+      {
+        browser.reload()
+      }
     }
     WebviewMessage::Print => {
-      get_browser_view(context, window_id, webview_id)
+      if let Some(host) = get_browser_view(context, window_id, webview_id)
         .and_then(|bv| bv.browser())
         .and_then(|b| b.host())
-        .map(|host| host.print());
+      {
+        host.print()
+      }
     }
     WebviewMessage::Close => {
       if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
@@ -1194,7 +1156,7 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::Show => {
-      context
+      if let Some(overlay) = context
         .windows
         .borrow()
         .get(&window_id)
@@ -1205,10 +1167,12 @@ fn handle_webview_message<T: UserEvent>(
             .find(|w| w.webview_id == webview_id)
         })
         .and_then(|wrapper| wrapper.overlay.as_ref())
-        .map(|overlay| overlay.set_visible(1));
+      {
+        overlay.set_visible(1)
+      }
     }
     WebviewMessage::Hide => {
-      context
+      if let Some(overlay) = context
         .windows
         .borrow()
         .get(&window_id)
@@ -1219,7 +1183,9 @@ fn handle_webview_message<T: UserEvent>(
             .find(|w| w.webview_id == webview_id)
         })
         .and_then(|wrapper| wrapper.overlay.as_ref())
-        .map(|overlay| overlay.set_visible(0));
+      {
+        overlay.set_visible(0)
+      }
     }
     WebviewMessage::SetPosition(position) => {
       context.windows.borrow().get(&window_id).map(|app_window| {
@@ -1328,19 +1294,19 @@ fn handle_webview_message<T: UserEvent>(
           .unwrap_or(1.0);
         let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
         let logical_size = bounds.size.to_logical::<u32>(device_scale_factor);
-        app_window
+        if let Some(overlay) = app_window
           .webviews
           .iter()
           .find(|w| w.webview_id == webview_id)
           .and_then(|wrapper| wrapper.overlay.as_ref())
-          .map(|overlay| {
-            overlay.set_bounds(Some(&cef::Rect {
-              x: logical_position.x,
-              y: logical_position.y,
-              width: logical_size.width as i32,
-              height: logical_size.height as i32,
-            }));
-          });
+        {
+          overlay.set_bounds(Some(&cef::Rect {
+            x: logical_position.x,
+            y: logical_position.y,
+            width: logical_size.width as i32,
+            height: logical_size.height as i32,
+          }));
+        }
 
         // update autoresize ratios if enabled
         if let Some(wrapper) = app_window
@@ -1372,10 +1338,12 @@ fn handle_webview_message<T: UserEvent>(
       });
     }
     WebviewMessage::SetFocus => {
-      get_browser_view(context, window_id, webview_id)
+      if let Some(host) = get_browser_view(context, window_id, webview_id)
         .and_then(|bv| bv.browser())
         .and_then(|b| b.host())
-        .map(|host| host.set_focus(1));
+      {
+        host.set_focus(1)
+      }
     }
     WebviewMessage::Reparent(target_window_id, tx) => {
       let mut windows = context.windows.borrow_mut();
@@ -1401,6 +1369,11 @@ fn handle_webview_message<T: UserEvent>(
         return;
       };
 
+      let Some(browser_view) = webview_wrapper.browser_view.as_ref() else {
+        let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
+        return;
+      };
+
       let bounds = webview_wrapper
         .overlay
         .as_ref()
@@ -1421,7 +1394,7 @@ fn handle_webview_message<T: UserEvent>(
 
       let overlay = match &mut target_window.window {
         crate::AppWindowKind::Window(window) => window.add_overlay_view(
-          Some(&mut View::from(&webview_wrapper.browser_view)),
+          Some(&mut View::from(browser_view)),
           cef::DockingMode::from(cef::sys::cef_docking_mode_t::CEF_DOCKING_MODE_CUSTOM),
           1,
         ),
@@ -1479,14 +1452,16 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::SetZoom(scale_factor) => {
-      get_browser_view(context, window_id, webview_id)
+      if let Some(host) = get_browser_view(context, window_id, webview_id)
         .and_then(|bv| bv.browser())
         .and_then(|b| b.host())
-        .map(|host| host.set_zoom_level(scale_factor));
+      {
+        host.set_zoom_level(scale_factor)
+      }
     }
     WebviewMessage::SetBackgroundColor(color) => {
       let color_value = color_opt_to_cef_argb(color);
-      context
+      if let Some(bv) = context
         .windows
         .borrow()
         .get(&window_id)
@@ -1496,7 +1471,10 @@ fn handle_webview_message<T: UserEvent>(
             .iter()
             .find(|w| w.webview_id == webview_id)
         })
-        .map(|wrapper| wrapper.browser_view.set_background_color(color_value));
+        .and_then(|wrapper| wrapper.browser_view.as_ref())
+      {
+        bv.set_background_color(color_value)
+      }
     }
     WebviewMessage::ClearAllBrowsingData => {
       // TODO: Implement clear browsing data
@@ -1531,7 +1509,7 @@ fn handle_webview_message<T: UserEvent>(
                 .or_else(|| {
                   let bounds = match &app_window.window {
                     crate::AppWindowKind::Window(window) => window.bounds(),
-                    crate::AppWindowKind::BrowserWindow => webview.browser_view.bounds(),
+                    crate::AppWindowKind::BrowserWindow => webview.browser_view.as_ref()?.bounds(),
                   };
                   Some(bounds)
                 });
@@ -1572,7 +1550,7 @@ fn handle_webview_message<T: UserEvent>(
               let bounds = webview.overlay.as_ref().map(|v| v.bounds()).or_else(|| {
                 let bounds = match &app_window.window {
                   crate::AppWindowKind::Window(window) => window.bounds(),
-                  crate::AppWindowKind::BrowserWindow => webview.browser_view.bounds(),
+                  crate::AppWindowKind::BrowserWindow => webview.browser_view.as_ref()?.bounds(),
                 };
                 Some(bounds)
               })?;
@@ -1603,18 +1581,13 @@ fn handle_webview_message<T: UserEvent>(
             .iter()
             .find(|w| w.webview_id == webview_id)
             .and_then(|webview| {
-              let Some(bounds) = webview
-                .overlay
-                .as_ref()
-                .and_then(|v| Some(v.bounds()))
-                .or_else(|| {
-                  let bounds = match &app_window.window {
-                    crate::AppWindowKind::Window(window) => window.bounds(),
-                    crate::AppWindowKind::BrowserWindow => webview.browser_view.bounds(),
-                  };
-                  Some(bounds)
-                })
-              else {
+              let Some(bounds) = webview.overlay.as_ref().map(|v| v.bounds()).or_else(|| {
+                let bounds = match &app_window.window {
+                  crate::AppWindowKind::Window(window) => window.bounds(),
+                  crate::AppWindowKind::BrowserWindow => webview.browser_view.as_ref()?.bounds(),
+                };
+                Some(bounds)
+              }) else {
                 return None;
               };
               let scale = match &app_window.window {
@@ -1634,9 +1607,9 @@ fn handle_webview_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WebviewMessage::WithWebview(f) => {
-      get_browser_view(context, window_id, webview_id).map(|browser_view| {
+      if let Some(browser_view) = get_browser_view(context, window_id, webview_id) {
         f(Box::new(browser_view));
-      });
+      }
     }
     // Devtools
     #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -1644,7 +1617,7 @@ fn handle_webview_message<T: UserEvent>(
       get_webview(context, window_id, webview_id)
         .and_then(|bv| {
           if bv.devtools_enabled {
-            bv.browser_view.browser()
+            bv.browser_view?.browser()
           } else {
             // break out of the chain if devtools are not enabled
             None
@@ -1665,10 +1638,12 @@ fn handle_webview_message<T: UserEvent>(
     }
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::CloseDevTools => {
-      get_browser_view(context, window_id, webview_id)
+      if let Some(host) = get_browser_view(context, window_id, webview_id)
         .and_then(|bv| bv.browser())
         .and_then(|b| b.host())
-        .map(|host| host.close_dev_tools());
+      {
+        host.close_dev_tools()
+      }
     }
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::IsDevToolsOpen(tx) => {
@@ -1809,21 +1784,19 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
+        .map(|w| match &w.window {
           crate::AppWindowKind::Window(window) => {
             let bounds = window.bounds();
             let scale = window
               .display()
               .map(|d| d.device_scale_factor() as f64)
               .unwrap_or(1.0);
-            Some(Ok(
+            Ok(
               tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y)
                 .to_physical::<i32>(scale),
-            ))
+            )
           }
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1833,21 +1806,19 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
+        .map(|w| match &w.window {
           crate::AppWindowKind::Window(window) => {
             let bounds = window.bounds();
             let scale = window
               .display()
               .map(|d| d.device_scale_factor() as f64)
               .unwrap_or(1.0);
-            Some(Ok(
+            Ok(
               tauri_runtime::dpi::LogicalPosition::new(bounds.x, bounds.y)
                 .to_physical::<i32>(scale),
-            ))
+            )
           }
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1857,21 +1828,19 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
+        .map(|w| match &w.window {
           crate::AppWindowKind::Window(window) => {
             let bounds = window.bounds();
             let scale = window
               .display()
               .map(|d| d.device_scale_factor() as f64)
               .unwrap_or(1.0);
-            Some(Ok(
+            Ok(
               tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32)
                 .to_physical::<u32>(scale),
-            ))
+            )
           }
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1881,21 +1850,19 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
+        .map(|w| match &w.window {
           crate::AppWindowKind::Window(window) => {
             let bounds = window.bounds();
             let scale = window
               .display()
               .map(|d| d.device_scale_factor() as f64)
               .unwrap_or(1.0);
-            Some(Ok(
+            Ok(
               tauri_runtime::dpi::LogicalSize::new(bounds.width as u32, bounds.height as u32)
                 .to_physical::<u32>(scale),
-            ))
+            )
           }
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1905,11 +1872,9 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Some(Ok(window.is_fullscreen() == 1)),
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+        .map(|w| match &w.window {
+          crate::AppWindowKind::Window(window) => Ok(window.is_fullscreen() == 1),
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1919,11 +1884,9 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Some(Ok(window.is_minimized() == 1)),
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+        .map(|w| match &w.window {
+          crate::AppWindowKind::Window(window) => Ok(window.is_minimized() == 1),
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1933,11 +1896,9 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Some(Ok(window.is_maximized() == 1)),
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+        .map(|w| match &w.window {
+          crate::AppWindowKind::Window(window) => Ok(window.is_maximized() == 1),
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -1947,11 +1908,9 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Some(Ok(window.has_focus() == 1)),
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+        .map(|w| match &w.window {
+          crate::AppWindowKind::Window(window) => Ok(window.has_focus() == 1),
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -2006,11 +1965,9 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Some(Ok(window.is_visible() == 1)),
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+        .map(|w| match &w.window {
+          crate::AppWindowKind::Window(window) => Ok(window.is_visible() == 1),
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -2020,14 +1977,12 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
+        .map(|w| match &w.window {
           crate::AppWindowKind::Window(window) => {
             let title = window.title();
-            Some(Ok(cef::CefString::from(&title).to_string()))
+            Ok(cef::CefString::from(&title).to_string())
           }
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -2106,11 +2061,9 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Some(Ok(window.is_always_on_top() == 1)),
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(tauri_runtime::Error::FailedToSendMessage))
-          }
+        .map(|w| match &w.window {
+          crate::AppWindowKind::Window(window) => Ok(window.is_always_on_top() == 1),
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -2120,29 +2073,29 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| match &w.window {
+        .map(|w| match &w.window {
           crate::AppWindowKind::Window(window) => {
             #[cfg(target_os = "linux")]
             unsafe {
               let xid = window.window_handle() as u64;
-              Some(Ok(raw_window_handle::WindowHandle::borrow_raw(
+              Ok(raw_window_handle::WindowHandle::borrow_raw(
                 raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(
                   xid,
                 )),
-              )))
+              ))
             }
 
             #[cfg(target_os = "macos")]
             unsafe {
-              let ns_view = window.window_handle() as *mut std::ffi::c_void;
+              let ns_view = window.window_handle();
               if let Some(nn) = std::ptr::NonNull::new(ns_view) {
-                Some(Ok(raw_window_handle::WindowHandle::borrow_raw(
+                Ok(raw_window_handle::WindowHandle::borrow_raw(
                   raw_window_handle::RawWindowHandle::AppKit(
                     raw_window_handle::AppKitWindowHandle::new(nn),
                   ),
-                )))
+                ))
               } else {
-                Some(Err(raw_window_handle::HandleError::Unavailable))
+                Err(raw_window_handle::HandleError::Unavailable)
               }
             }
 
@@ -2150,21 +2103,19 @@ fn handle_window_message<T: UserEvent>(
             unsafe {
               let hwnd = window.window_handle().0 as isize;
               if let Some(nz) = std::num::NonZeroIsize::new(hwnd) {
-                Some(Ok(raw_window_handle::WindowHandle::borrow_raw(
+                Ok(raw_window_handle::WindowHandle::borrow_raw(
                   raw_window_handle::RawWindowHandle::Win32(
                     raw_window_handle::Win32WindowHandle::new(nz),
                   ),
-                )))
+                ))
               } else {
-                Some(Err(raw_window_handle::HandleError::Unavailable))
+                Err(raw_window_handle::HandleError::Unavailable)
               }
             }
           }
-          crate::AppWindowKind::BrowserWindow => {
-            Some(Err(raw_window_handle::HandleError::Unavailable))
-          }
+          crate::AppWindowKind::BrowserWindow => Err(raw_window_handle::HandleError::Unavailable),
         })
-        .unwrap_or_else(|| Err(raw_window_handle::HandleError::Unavailable));
+        .unwrap_or(Err(raw_window_handle::HandleError::Unavailable));
       let _ = tx.send(result);
     }
     // Setters
@@ -2508,18 +2459,18 @@ fn create_browser_window<T: UserEvent>(
     download_handler,
   } = webview;
 
-  let initialization_scripts: Vec<_> =
-    std::mem::take(&mut webview_attributes.initialization_scripts)
-      .into_iter()
-      .map(CefInitScript::new)
-      .collect();
+  let initialization_scripts = std::mem::take(&mut webview_attributes.initialization_scripts)
+    .into_iter()
+    .map(CefInitScript::new)
+    .collect::<Vec<_>>();
+  let initialization_scripts = Arc::new(initialization_scripts);
 
   let on_page_load_handler = on_page_load_handler.take().map(Arc::from);
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
 
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
-    && webview_attributes.devtools.clone().unwrap_or(true);
+    && webview_attributes.devtools.unwrap_or(true);
 
   let custom_protocol_scheme = if webview_attributes.use_https_scheme {
     "https"
@@ -2527,17 +2478,26 @@ fn create_browser_window<T: UserEvent>(
     "http"
   };
 
-  // Build cached domain names for custom schemes before uri_scheme_protocols is consumed
-  let custom_scheme_domain_names: Vec<String> = uri_scheme_protocols
-    .keys()
+  // Build cached domain names for custom schemes and clone protocols for storage
+  // before uri_scheme_protocols is moved
+  let scheme_keys: Vec<String> = uri_scheme_protocols.keys().cloned().collect();
+  let custom_scheme_domain_names: Vec<String> = scheme_keys
+    .iter()
     .map(|scheme| format!("{scheme}.localhost"))
     .collect();
 
+  let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocol>>> = uri_scheme_protocols
+    .into_iter()
+    .map(|(k, v)| (k, Arc::new(v)))
+    .collect();
+
+  let custom_schemes = uri_scheme_protocols.keys().cloned().collect::<Vec<_>>();
+
   let mut request_context = request_context_from_webview_attributes(
-    &webview_label,
+    context,
     &webview_attributes,
-    uri_scheme_protocols,
-    &custom_protocol_scheme,
+    &custom_schemes,
+    custom_protocol_scheme,
     &initialization_scripts,
   );
 
@@ -2546,19 +2506,6 @@ fn create_browser_window<T: UserEvent>(
   // Create the AppWindow with BrowserWindow variant before creating the browser
   let force_close = Arc::new(AtomicBool::new(false));
   let attributes = Arc::new(RefCell::new(window_builder));
-
-  context.windows.borrow_mut().insert(
-    window_id,
-    AppWindow {
-      label: label.clone(),
-      window: crate::AppWindowKind::BrowserWindow,
-      force_close: force_close.clone(),
-      attributes: attributes.clone(),
-      webviews: Vec::new(),
-      window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
-      webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
-    },
-  );
 
   let mut client = BrowserClient::new(
     initialization_scripts.clone(),
@@ -2571,7 +2518,6 @@ fn create_browser_window<T: UserEvent>(
     custom_protocol_scheme.to_string(),
     context.clone(),
     window_id,
-    Some(webview_id),
   );
 
   let url = CefString::from(url.as_str());
@@ -2600,13 +2546,39 @@ fn create_browser_window<T: UserEvent>(
     ..Default::default()
   };
 
-  browser_host_create_browser(
+  let Some(browser) = browser_host_create_browser_sync(
     Some(&window_info),
     Some(&mut client),
     Some(&url),
     Some(&browser_settings),
     None,
     request_context.as_mut(),
+  ) else {
+    eprintln!("Failed to create browser");
+    return;
+  };
+
+  context.windows.borrow_mut().insert(
+    window_id,
+    AppWindow {
+      label,
+      window: crate::AppWindowKind::BrowserWindow,
+      force_close: force_close.clone(),
+      attributes: attributes.clone(),
+      webviews: vec![AppWebview {
+        webview_id,
+        browser_id: Arc::new(RefCell::new(browser.identifier())),
+        label: webview_label,
+        browser_view: None,
+        overlay: None,
+        bounds: Arc::new(Mutex::new(None)),
+        devtools_enabled,
+        uri_scheme_protocols: Arc::new(uri_scheme_protocols),
+        initialization_scripts,
+      }],
+      window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
+      webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
+    },
   );
 }
 
@@ -2792,26 +2764,23 @@ pub(crate) fn create_webview<T: UserEvent>(
   {
     Some(w) => w,
     None => {
-      eprintln!(
-        "Window {:?} not found or is a browser window when creating webview",
-        window_id
-      );
+      eprintln!("Window {window_id:?} not found or is a browser window when creating webview",);
       return;
     }
   };
 
-  let initialization_scripts: Vec<_> =
-    std::mem::take(&mut webview_attributes.initialization_scripts)
-      .into_iter()
-      .map(CefInitScript::new)
-      .collect();
+  let initialization_scripts = std::mem::take(&mut webview_attributes.initialization_scripts)
+    .into_iter()
+    .map(CefInitScript::new)
+    .collect::<Vec<_>>();
+  let initialization_scripts = Arc::new(initialization_scripts);
 
   let on_page_load_handler = on_page_load_handler.take().map(Arc::from);
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
 
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
-    && webview_attributes.devtools.clone().unwrap_or(true);
+    && webview_attributes.devtools.unwrap_or(true);
 
   let custom_protocol_scheme = if webview_attributes.use_https_scheme {
     "https"
@@ -2819,9 +2788,9 @@ pub(crate) fn create_webview<T: UserEvent>(
     "http"
   };
 
-  // Build cached domain names for custom schemes before uri_scheme_protocols is consumed
-  let custom_scheme_domain_names: Vec<String> = uri_scheme_protocols
-    .keys()
+  let custom_schemes = uri_scheme_protocols.keys().cloned().collect::<Vec<_>>();
+  let custom_scheme_domain_names: Vec<String> = custom_schemes
+    .iter()
     .map(|scheme| format!("{scheme}.localhost"))
     .collect();
 
@@ -2836,19 +2805,25 @@ pub(crate) fn create_webview<T: UserEvent>(
     custom_protocol_scheme.to_string(),
     context.clone(),
     window_id,
-    None,
   );
   let url = CefString::from(url.as_str());
 
+  let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocol>>> = uri_scheme_protocols
+    .into_iter()
+    .map(|(k, v)| (k, Arc::new(v)))
+    .collect();
+
   let mut request_context = request_context_from_webview_attributes(
-    &label,
+    context,
     &webview_attributes,
-    uri_scheme_protocols,
-    &custom_protocol_scheme,
+    &custom_schemes,
+    custom_protocol_scheme,
     &initialization_scripts,
   );
 
+  let browser_id = Arc::new(RefCell::new(0));
   let mut browser_view_delegate = BrowserViewDelegateImpl::new(
+    browser_id.clone(),
     platform_specific_attributes
       .iter()
       .find_map(|attr| match attr {
@@ -2942,11 +2917,15 @@ pub(crate) fn create_webview<T: UserEvent>(
       .unwrap()
       .webviews
       .push(AppWebview {
+        label,
         webview_id,
-        browser_view,
+        browser_view: Some(browser_view),
+        browser_id,
         overlay: Some(overlay),
         bounds: Arc::new(Mutex::new(initial_bounds_ratio)),
         devtools_enabled,
+        uri_scheme_protocols: Arc::new(uri_scheme_protocols),
+        initialization_scripts,
       });
   } else {
     window.add_child_view(Some(&mut View::from(&browser_view)));
@@ -2961,11 +2940,15 @@ pub(crate) fn create_webview<T: UserEvent>(
       .unwrap()
       .webviews
       .push(AppWebview {
+        label,
         webview_id,
-        browser_view,
+        browser_view: Some(browser_view),
+        browser_id,
         overlay: None,
         bounds: Arc::new(Mutex::new(None)),
         devtools_enabled,
+        uri_scheme_protocols: Arc::new(uri_scheme_protocols),
+        initialization_scripts,
       });
   }
 }
@@ -2973,32 +2956,27 @@ pub(crate) fn create_webview<T: UserEvent>(
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
 ) -> BrowserSettings {
-  // Build BrowserSettings based on webview attributes
-  let mut browser_settings = BrowserSettings::default();
-
-  // Configure JavaScript
-  browser_settings.javascript = State::from(if webview_attributes.javascript_disabled {
-    sys::cef_state_t::STATE_DISABLED
-  } else {
-    sys::cef_state_t::STATE_ENABLED
-  });
-
-  // Configure clipboard access
-  browser_settings.javascript_access_clipboard = State::from(if webview_attributes.clipboard {
-    sys::cef_state_t::STATE_ENABLED
-  } else {
-    sys::cef_state_t::STATE_DISABLED
-  });
-
-  browser_settings
+  BrowserSettings {
+    javascript: State::from(if webview_attributes.javascript_disabled {
+      sys::cef_state_t::STATE_DISABLED
+    } else {
+      sys::cef_state_t::STATE_ENABLED
+    }),
+    javascript_access_clipboard: State::from(if webview_attributes.clipboard {
+      sys::cef_state_t::STATE_ENABLED
+    } else {
+      sys::cef_state_t::STATE_DISABLED
+    }),
+    ..Default::default()
+  }
 }
 
-fn request_context_from_webview_attributes(
-  label: &str,
+fn request_context_from_webview_attributes<T: UserEvent>(
+  context: &Context<T>,
   webview_attributes: &WebviewAttributes,
-  uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
+  custom_schemes: &[String],
   custom_protocol_scheme: &str,
-  initialization_scripts: &Vec<CefInitScript>,
+  _initialization_scripts: &[CefInitScript],
 ) -> Option<RequestContext> {
   let global_context =
     request_context_get_global_context().expect("Failed to get global request context");
@@ -3024,15 +3002,13 @@ fn request_context_from_webview_attributes(
     Option::<&mut RequestContextHandler>::None,
   );
   if let Some(request_context) = &request_context {
-    for (custom_scheme, handler) in uri_scheme_protocols {
-      let webview_label = label.to_string();
+    for custom_scheme in custom_schemes {
       request_context.register_scheme_handler_factory(
         Some(&custom_protocol_scheme.into()),
         Some(&format!("{custom_scheme}.localhost").as_str().into()),
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
-          webview_label.clone(),
-          Arc::new(handler) as Arc<UriSchemeProtocol>,
-          initialization_scripts.clone(),
+          context.clone(),
+          custom_scheme.clone(),
         )),
       );
     }

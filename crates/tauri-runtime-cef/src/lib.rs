@@ -240,10 +240,17 @@ impl<T: UserEvent> Clone for Message<T> {
 #[derive(Clone)]
 pub(crate) struct AppWebview {
   pub webview_id: u32,
-  pub browser_view: cef::BrowserView,
+  pub label: String,
+  pub browser_view: Option<cef::BrowserView>,
+  // browser_view.browser is null on the scheme handler factory,
+  // so we need to use the browser_id to identify the browser
+  pub browser_id: Arc<RefCell<i32>>,
   pub overlay: Option<cef::OverlayController>,
   pub bounds: Arc<Mutex<Option<WebviewBounds>>>,
   pub devtools_enabled: bool,
+  pub uri_scheme_protocols:
+    Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocol>>>>,
+  pub initialization_scripts: Arc<Vec<cef_impl::CefInitScript>>,
 }
 
 #[derive(Debug, Clone)]
@@ -279,10 +286,7 @@ impl AppWindow {
   fn window(&self) -> Option<cef::Window> {
     match &self.window {
       AppWindowKind::Window(window) => Some(window.clone()),
-      AppWindowKind::BrowserWindow => self
-        .webviews
-        .first()
-        .and_then(|webview| webview.browser_view.window()),
+      AppWindowKind::BrowserWindow => None,
     }
   }
 }
@@ -1050,7 +1054,7 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     self.context.post_message(Message::Webview {
       window_id: *self.window_id.lock().unwrap(),
       webview_id: self.webview_id,
-      message: WebviewMessage::WithWebview(Box::new(move |webview| f(webview))),
+      message: WebviewMessage::WithWebview(Box::new(f)),
     })
   }
 
@@ -1863,7 +1867,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let (event_tx, event_rx) = channel();
 
-    let cache_base = dirs::cache_dir().unwrap_or_else(|| std::env::temp_dir());
+    let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
     let cache_path = cache_base.join(&runtime_args.identifier).join("cef");
 
     // Ensure the cache directory exists

@@ -532,7 +532,6 @@ fn ensure_cef_directory_if_needed(
       .cargo_config
       .build()
       .target()
-      .map(|t| t.as_ref())
   });
   if let Err(e) = crate::cef::exporter::ensure_cef_directory(target_triple, &enabled_features) {
     log::warn!(action = "CEF"; "Failed to ensure CEF directory: {}. Continuing anyway.", e);

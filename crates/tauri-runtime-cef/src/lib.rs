@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use cef::{rc::Rc, CefString, ImplCommandLine, ImplTaskRunner, ImplView};
+use cef::{rc::Rc, CefString, ImplCommandLine, ImplTaskRunner};
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,

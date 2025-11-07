@@ -590,8 +590,34 @@ wrap_download_handler! {
   }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum WindowKind {
+  /// Full browser window created with browser_host_create_browser_sync
+  Browser,
+  /// Tauri window created with window_create_top_level
+  Tauri,
+}
+
+wrap_life_span_handler! {
+  struct BrowserLifeSpanHandler<T: UserEvent> {
+    window_kind: WindowKind,
+    window_id: WindowId,
+    context: Context<T>,
+  }
+
+  impl LifeSpanHandler {
+    fn on_before_close(&self, _browser: Option<&mut Browser>) {
+      if self.window_kind == WindowKind::Browser {
+        on_window_destroyed(self.window_id, &self.context.windows, &self.context.callback);
+      }
+    }
+  }
+}
+
 wrap_client! {
   struct BrowserClient<T: UserEvent> {
+    window_kind: WindowKind,
+    window_id: WindowId,
     initialization_scripts: Arc<Vec<CefInitScript>>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
@@ -601,7 +627,6 @@ wrap_client! {
     custom_scheme_domain_names: Vec<String>,
     custom_protocol_scheme: String,
     context: Context<T>,
-    window_id: WindowId,
   }
 
   impl Client {
@@ -610,6 +635,10 @@ wrap_client! {
         self.initialization_scripts.clone(),
         self.navigation_handler.clone(),
       ))
+    }
+
+    fn life_span_handler(&self) -> Option<LifeSpanHandler> {
+      Some(BrowserLifeSpanHandler::new(self.window_kind, self.window_id, self.context.clone()))
     }
 
     fn load_handler(&self) -> Option<LoadHandler> {
@@ -2508,6 +2537,8 @@ fn create_browser_window<T: UserEvent>(
   let attributes = Arc::new(RefCell::new(window_builder));
 
   let mut client = BrowserClient::new(
+    WindowKind::Browser,
+    window_id,
     initialization_scripts.clone(),
     on_page_load_handler,
     document_title_changed_handler,
@@ -2517,7 +2548,6 @@ fn create_browser_window<T: UserEvent>(
     custom_scheme_domain_names.clone(),
     custom_protocol_scheme.to_string(),
     context.clone(),
-    window_id,
   );
 
   let url = CefString::from(url.as_str());
@@ -2795,6 +2825,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     .collect();
 
   let mut client = BrowserClient::new(
+    WindowKind::Tauri,
+    window_id,
     initialization_scripts.clone(),
     on_page_load_handler,
     document_title_changed_handler,
@@ -2804,7 +2836,6 @@ pub(crate) fn create_webview<T: UserEvent>(
     custom_scheme_domain_names.clone(),
     custom_protocol_scheme.to_string(),
     context.clone(),
-    window_id,
   );
   let url = CefString::from(url.as_str());
 

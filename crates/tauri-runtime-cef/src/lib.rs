@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use cef::{rc::Rc, CefString, ImplCommandLine, ImplTaskRunner};
+use cef::{rc::Rc, CefString, ImplCommandLine, ImplTaskRunner, ImplView};
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,
@@ -273,6 +273,18 @@ pub(crate) struct AppWindow {
   pub webviews: Vec<AppWebview>,
   pub window_event_listeners: WindowEventListeners,
   pub webview_event_listeners: WebviewEventListeners,
+}
+
+impl AppWindow {
+  fn window(&self) -> Option<cef::Window> {
+    match &self.window {
+      AppWindowKind::Window(window) => Some(window.clone()),
+      AppWindowKind::BrowserWindow => self
+        .webviews
+        .first()
+        .and_then(|webview| webview.browser_view.window()),
+    }
+  }
 }
 
 #[derive(Clone)]

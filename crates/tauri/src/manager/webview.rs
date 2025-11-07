@@ -414,7 +414,13 @@ impl<R: Runtime> WebviewManager<R> {
           // only proxy the dev server when we're not using embedded assets
           && app_manager.assets.iter().next().is_none()
         {
-          Cow::Owned(Url::parse("tauri://localhost").unwrap())
+          Cow::Owned(
+            Url::parse(&R::custom_scheme_url(
+              "tauri",
+              pending.webview_attributes.use_https_scheme,
+            ))
+            .unwrap(),
+          )
         } else {
           app_url
         };
@@ -439,7 +445,11 @@ impl<R: Runtime> WebviewManager<R> {
           // only proxy the dev server when we're not using embedded assets
           && app_manager.assets.iter().next().is_none()
         {
-          Url::parse("tauri://localhost").unwrap()
+          Url::parse(&R::custom_scheme_url(
+            "tauri",
+            pending.webview_attributes.use_https_scheme,
+          ))
+          .unwrap()
         } else {
           url
         }

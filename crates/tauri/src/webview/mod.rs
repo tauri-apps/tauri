@@ -1717,27 +1717,8 @@ tauri::Builder::default()
 
       // or from a custom protocol registered by the user
       || ({
-        let scheme = current_url.scheme();
-        let protocols = self.manager().webview.uri_scheme_protocols.lock().unwrap();
-
-        #[cfg(all(not(windows), not(target_os = "android")))]
-        let local = protocols.contains_key(scheme);
-
-        // on window and android, custom protocols are `http://<protocol-name>.path/to/route`
-        // so we check using the first part of the domain
-        #[cfg(any(windows, target_os = "android"))]
-        let local = {
-          let protocol_url = Url::parse(&R::custom_scheme_url("tauri", uses_https)).unwrap();
-          let maybe_protocol = current_url
-            .domain()
-            .and_then(|d| d .split_once('.'))
-            .unwrap_or_default()
-            .0;
-
-          protocols.contains_key(maybe_protocol) && scheme == protocol_url.scheme()
-        };
-
-        local
+        let protocol_urls = self.manager().webview.uri_scheme_protocols.lock().unwrap().keys().map(|url| Url::parse(&R::custom_scheme_url(url, uses_https)).unwrap()).collect::<Vec<_>>();
+        protocol_urls.iter().any(|url| url.scheme() == current_url.scheme() && url.domain() == current_url.domain())
       })
   }
 

@@ -88,11 +88,9 @@ fn get_response<R: Runtime>(
   };
 
   let path = path
-    .strip_prefix("tauri://localhost")
+    .strip_prefix(window_origin)
     .map(|p| p.to_string())
-    // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
-    // where `$P` is not `localhost/*`
-    .unwrap_or_else(|| "".to_string());
+    .unwrap_or_default();
 
   let mut builder = HttpResponse::builder()
     .add_configured_headers(manager.config.app.security.headers.as_ref())

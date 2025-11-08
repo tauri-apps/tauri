@@ -24,6 +24,8 @@ pub mod acl;
 pub mod assets;
 pub mod config;
 pub mod config_v1;
+/// CSP Android fix utilities
+pub mod csp_android_fix;
 #[cfg(feature = "html-manipulation")]
 pub mod html;
 pub mod io;

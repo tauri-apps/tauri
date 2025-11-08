@@ -1,0 +1,24 @@
+{
+  "$schema": "../../crates/tauri-cli/schema.json",
+  "productName": "CSP Android Fix Example",
+  "version": "1.0.0",
+  "identifier": "com.tauri.csp-android-fix-example",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devUrl": "../index.html",
+    "frontendDist": "../index.html"
+  },
+  "app": {
+    "security": {
+      "csp": "script-src 'self'; script-src-attr 'none'; style-src 'self'"
+    },
+    "windows": [
+      {
+        "title": "CSP Android Fix Example",
+        "width": 800,
+        "height": 600
+      }
+    ]
+  }
+}

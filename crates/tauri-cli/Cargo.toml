@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.9.3"
+version = "2.9.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.77.2"

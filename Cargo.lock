@@ -8622,7 +8622,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.9.3"
+version = "2.9.4"
 dependencies = [
  "ar",
  "axum",

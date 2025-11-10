@@ -2936,7 +2936,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       )
       .expect("Failed to add overlay view");
 
-    let initial_bounds_ratio = if false {
+    let initial_bounds_ratio = if webview_attributes.auto_resize {
       let window_bounds = window.bounds();
       let window_size = tauri_runtime::dpi::LogicalSize::new(
         window_bounds.width as u32,

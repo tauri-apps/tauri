@@ -4,7 +4,7 @@ use crate::interface::{
   rust::{DevChild, RustupTarget},
   AppSettings, ExitReason, Options,
 };
-use crate::{error::ErrorExt, CommandExt, helpers::fs::copy_dir_all};
+use crate::{error::ErrorExt, helpers::fs::copy_dir_all, CommandExt};
 
 use serde::Serialize;
 use shared_child::SharedChild;

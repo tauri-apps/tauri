@@ -21,6 +21,8 @@ use tauri_runtime::{
   ExitRequestedEventAction, RunEvent, UserEvent,
 };
 use tauri_utils::html::normalize_script_for_csp;
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 
 use crate::{
   AppWebview, AppWindow, CefRuntime, CefWindowBuilder, Message, RuntimeStyle as CefRuntimeStyle,
@@ -822,6 +824,9 @@ wrap_window_delegate! {
         if let Some(icon) = a.icon.clone() {
           set_window_icon(window, icon);
         }
+
+        #[cfg(target_os = "macos")]
+        apply_titlebar_style(window, a.title_bar_style.unwrap_or(TitleBarStyle::Visible));
 
         if let Some(title) = &a.title {
           window.set_title(Some(&CefString::from(title.as_str())));
@@ -3089,9 +3094,50 @@ fn window_titlebar_height(window: &cef::Window) -> i32 {
     let Some(content_view) = Retained::<NSView>::retain(window.window_handle() as _) else {
       return 0;
     };
-    let frame = content_view.frame();
+    let Some(ns_window) = content_view.window() else {
+      return 0;
+    };
+    let content_layout_rect = ns_window.contentLayoutRect();
     let window_bounds = window.bounds();
-    let titlebar_height = window_bounds.height as f64 - frame.size.height;
+    let titlebar_height = window_bounds.height as f64 - content_layout_rect.size.height;
     titlebar_height as i32
+  }
+}
+
+#[cfg(target_os = "macos")]
+fn apply_titlebar_style(window: &cef::Window, style: TitleBarStyle) {
+  use objc2::rc::Retained;
+  use objc2_app_kit::{NSView, NSWindowStyleMask};
+
+  let content_view = unsafe { Retained::<NSView>::retain(window.window_handle() as _) };
+  let Some(content_view) = content_view else {
+    return;
+  };
+
+  let Some(ns_window) = content_view.window() else {
+    return;
+  };
+
+  let mut mask = ns_window.styleMask();
+
+  match style {
+    TitleBarStyle::Visible => {
+      mask |= NSWindowStyleMask::FullSizeContentView;
+      ns_window.setTitlebarAppearsTransparent(false);
+      ns_window.setStyleMask(mask);
+    }
+    TitleBarStyle::Transparent => {
+      ns_window.setTitlebarAppearsTransparent(true);
+      mask &= !NSWindowStyleMask::FullSizeContentView;
+      ns_window.setStyleMask(mask);
+    }
+    TitleBarStyle::Overlay => {
+      ns_window.setTitlebarAppearsTransparent(true);
+      mask |= NSWindowStyleMask::FullSizeContentView;
+      ns_window.setStyleMask(mask);
+    }
+    unknown => {
+      eprintln!("unknown title bar style applied: {unknown}");
+    }
   }
 }

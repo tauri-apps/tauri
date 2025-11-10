@@ -182,17 +182,17 @@ fn apply_content_protection(window: &cef::Window, protected: bool) {
     // Set NSWindow sharing type to NSWindowSharingNone/NSWindowSharingReadOnly
     // Safety: must be called on main thread; CEF window APIs run on main thread.
     unsafe {
+      use objc2::rc::Retained;
       use objc2_app_kit::{NSView, NSWindowSharingType};
-      let ns_view_ptr = window.window_handle() as *mut NSView;
-      if let Some(ns_view) = ns_view_ptr.as_ref() {
-        if let Some(ns_window) = ns_view.window() {
-          let sharing = if protected {
-            NSWindowSharingType::None
-          } else {
-            NSWindowSharingType::ReadOnly
-          };
-          ns_window.setSharingType(sharing);
-        }
+      let ns_view = Retained::<NSView>::retain(window.window_handle() as _);
+      let ns_window = ns_view.as_ref().and_then(|v| v.window());
+      let sharing = if protected {
+        NSWindowSharingType::None
+      } else {
+        NSWindowSharingType::ReadOnly
+      };
+      if let Some(ns_window) = ns_window {
+        ns_window.setSharingType(sharing);
       }
     }
   }
@@ -3083,16 +3083,15 @@ fn macos_webview_bounds(window: &cef::Window, mut bounds: cef::Rect) -> cef::Rec
 #[cfg(target_os = "macos")]
 fn window_titlebar_height(window: &cef::Window) -> i32 {
   use objc2::rc::Retained;
-  use objc2_app_kit::NSWindow;
+  use objc2_app_kit::NSView;
 
   unsafe {
-    if let Some(ns_window) = Retained::<NSWindow>::retain(window.window_handle() as _) {
-      let frame = ns_window.frame();
-      let window_bounds = window.bounds();
-      let titlebar_height = window_bounds.height as f64 - frame.size.height;
-      titlebar_height as i32
-    } else {
-      0
-    }
+    let Some(content_view) = Retained::<NSView>::retain(window.window_handle() as _) else {
+      return 0;
+    };
+    let frame = content_view.frame();
+    let window_bounds = window.bounds();
+    let titlebar_height = window_bounds.height as f64 - frame.size.height;
+    titlebar_height as i32
   }
 }

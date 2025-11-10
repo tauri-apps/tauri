@@ -622,7 +622,7 @@ fn configure_cargo(env: &mut Env, config: &AndroidConfig) -> Result<()> {
   Ok(())
 }
 
-fn generate_tauri_properties(
+pub(crate) fn generate_tauri_properties(
   config: &AndroidConfig,
   tauri_config: &TauriConfig,
   dev: bool,

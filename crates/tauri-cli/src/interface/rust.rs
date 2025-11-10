@@ -29,12 +29,10 @@ use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Runner
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
-  error::{Context, Error, ErrorExt},
-  helpers::{
+  ConfigValue, error::{Context, Error, ErrorExt}, helpers::{
     app_paths::{frontend_dir, tauri_dir},
-    config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
-  },
-  ConfigValue,
+    config::{BundleResources, Config, nsis_settings, reload as reload_config, wix_settings}, fs::copy_dir_all,
+  }
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -192,6 +190,7 @@ impl Interface for Rust {
   fn build(&mut self, options: Options) -> crate::Result<PathBuf> {
     ensure_cef_directory_if_needed(
       &self.app_settings,
+      &options,
       self.config_features.clone(),
       options.target.as_deref(),
       &options.features,
@@ -212,6 +211,7 @@ impl Interface for Rust {
   ) -> crate::Result<()> {
     ensure_cef_directory_if_needed(
       &self.app_settings,
+      &options,
       self.config_features.clone(),
       options.target.as_deref(),
       &options.features,
@@ -514,6 +514,7 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
 
 fn ensure_cef_directory_if_needed(
   app_settings: &RustAppSettings,
+  options: &Options,
   config_features: Vec<String>,
   target: Option<&str>,
   features: &Option<Vec<String>>,
@@ -533,8 +534,20 @@ fn ensure_cef_directory_if_needed(
       .build()
       .target()
   });
-  if let Err(e) = crate::cef::exporter::ensure_cef_directory(target_triple, &enabled_features) {
-    log::warn!(action = "CEF"; "Failed to ensure CEF directory: {}. Continuing anyway.", e);
+  match crate::cef::exporter::ensure_cef_directory(target_triple, &enabled_features) {
+    // cef not enabled
+    Ok(None) => {}
+    #[cfg(not(windows))]
+    Ok(Some(_cef_dir)) => {}
+    // on Windows we must copy the cef files next to the executable
+    #[cfg(windows)]
+    Ok(Some(cef_dir)) => {
+      let out_dir = app_settings.out_dir(options)?;
+      copy_dir_all(&cef_dir, &out_dir)?;
+    }
+    Err(e) => {
+      log::warn!(action = "CEF"; "Failed to ensure CEF directory: {}. Continuing anyway.", e);
+    }
   }
   Ok(())
 }

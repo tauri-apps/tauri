@@ -53,3 +53,21 @@ pub fn find_in_directory(path: &Path, glob_pattern: &str) -> crate::Result<PathB
     glob_pattern
   )
 }
+
+pub fn copy_dir_all(src: &Path, dst: &Path) -> crate::Result<()> {
+  std::fs::create_dir_all(dst).fs_context("failed to create directory", dst.to_path_buf())?;
+  for entry in std::fs::read_dir(src).fs_context("failed to read directory", src.to_path_buf())? {
+    let entry = entry.map_err(|e| crate::Error::GenericError(e.to_string()))?;
+    let dst_path = dst.join(entry.file_name());
+    let file_type = entry
+      .file_type()
+      .map_err(|e| crate::Error::GenericError(e.to_string()))?;
+    if file_type.is_dir() {
+      copy_dir_all(&entry.path(), &dst_path)?;
+    } else {
+      std::fs::copy(entry.path(), &dst_path)
+        .map_err(|e| crate::Error::GenericError(e.to_string()))?;
+    }
+  }
+  Ok(())
+}

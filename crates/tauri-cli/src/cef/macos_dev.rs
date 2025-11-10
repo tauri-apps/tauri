@@ -4,7 +4,7 @@ use crate::interface::{
   rust::{DevChild, RustupTarget},
   AppSettings, ExitReason, Options,
 };
-use crate::{error::ErrorExt, CommandExt};
+use crate::{error::ErrorExt, CommandExt, helpers::fs::copy_dir_all};
 
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -91,24 +91,6 @@ fn write_info_plist(
   };
   plist::to_file_xml(contents_path.join("Info.plist"), &info_plist)
     .map_err(|e| crate::Error::GenericError(e.to_string()))
-}
-
-fn copy_dir_all(src: &Path, dst: &Path) -> crate::Result<()> {
-  std::fs::create_dir_all(dst).fs_context("failed to create directory", dst.to_path_buf())?;
-  for entry in std::fs::read_dir(src).fs_context("failed to read directory", src.to_path_buf())? {
-    let entry = entry.map_err(|e| crate::Error::GenericError(e.to_string()))?;
-    let dst_path = dst.join(entry.file_name());
-    let file_type = entry
-      .file_type()
-      .map_err(|e| crate::Error::GenericError(e.to_string()))?;
-    if file_type.is_dir() {
-      copy_dir_all(&entry.path(), &dst_path)?;
-    } else {
-      std::fs::copy(entry.path(), &dst_path)
-        .map_err(|e| crate::Error::GenericError(e.to_string()))?;
-    }
-  }
-  Ok(())
 }
 
 pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(

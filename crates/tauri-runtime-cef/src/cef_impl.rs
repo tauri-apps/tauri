@@ -800,6 +800,12 @@ wrap_window_delegate! {
               width: (bounds.width as f32 * b.width_rate) as i32,
               height: (bounds.height as f32 * b.height_rate) as i32,
             };
+            #[cfg(target_os = "macos")]
+            let new_rect = if let Some(window) = app_window.window() {
+                macos_webview_bounds(&window, new_rect)
+            } else {
+              new_rect
+            };
             overlay.set_bounds(Some(&new_rect));
           }
         }
@@ -1007,6 +1013,12 @@ wrap_window_delegate! {
               y: (bounds.height as f32 * b.y_rate) as i32,
               width: (bounds.width as f32 * b.width_rate) as i32,
               height: (bounds.height as f32 * b.height_rate) as i32,
+            };
+            #[cfg(target_os = "macos")]
+            let new_rect = if let Some(window) = app_window.window() {
+                macos_webview_bounds(&window, new_rect)
+            } else {
+              new_rect
             };
             overlay.set_bounds(Some(&new_rect));
           }
@@ -1237,6 +1249,12 @@ fn handle_webview_message<T: UserEvent>(
               width: current_bounds.width,
               height: current_bounds.height,
             };
+            #[cfg(target_os = "macos")]
+            let new_bounds = if let Some(window) = app_window.window() {
+              macos_webview_bounds(&window, new_bounds)
+            } else {
+              new_bounds
+            };
             overlay.set_bounds(Some(&new_bounds));
           });
 
@@ -1434,6 +1452,12 @@ fn handle_webview_message<T: UserEvent>(
       };
 
       if let Some(new_overlay) = overlay {
+        #[cfg(target_os = "macos")]
+        let bounds = if let Some(window) = target_window.window() {
+          macos_webview_bounds(&window, bounds)
+        } else {
+          bounds
+        };
         new_overlay.set_bounds(Some(&bounds));
         new_overlay.set_visible(1);
 
@@ -2912,12 +2936,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       )
       .expect("Failed to add overlay view");
 
-    if let Some(bounds) = &bounds {
-      overlay.set_bounds(Some(bounds));
-    }
-    overlay.set_visible(1);
-
-    let initial_bounds_ratio = if webview_attributes.auto_resize {
+    let initial_bounds_ratio = if false {
       let window_bounds = window.bounds();
       let window_size = tauri_runtime::dpi::LogicalSize::new(
         window_bounds.width as u32,
@@ -2940,6 +2959,13 @@ pub(crate) fn create_webview<T: UserEvent>(
     } else {
       None
     };
+
+    if let Some(bounds) = bounds {
+      #[cfg(target_os = "macos")]
+      let bounds = macos_webview_bounds(&window, bounds);
+      overlay.set_bounds(Some(&bounds));
+    }
+    overlay.set_visible(1);
 
     context
       .windows
@@ -3046,4 +3072,27 @@ fn request_context_from_webview_attributes<T: UserEvent>(
   }
 
   request_context
+}
+
+#[cfg(target_os = "macos")]
+fn macos_webview_bounds(window: &cef::Window, mut bounds: cef::Rect) -> cef::Rect {
+  bounds.y += window_titlebar_height(window);
+  bounds
+}
+
+#[cfg(target_os = "macos")]
+fn window_titlebar_height(window: &cef::Window) -> i32 {
+  use objc2::rc::Retained;
+  use objc2_app_kit::NSWindow;
+
+  unsafe {
+    if let Some(ns_window) = Retained::<NSWindow>::retain(window.window_handle() as _) {
+      let frame = ns_window.frame();
+      let window_bounds = window.bounds();
+      let titlebar_height = window_bounds.height as f64 - frame.size.height;
+      titlebar_height as i32
+    } else {
+      0
+    }
+  }
 }

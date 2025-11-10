@@ -48,8 +48,45 @@ fn get_response(
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
+  // On Android, log additional information for debugging external storage access
+  #[cfg(target_os = "android")]
+  {
+    if path.starts_with("/storage/emulated/0/Android/data/") {
+      log::debug!("Attempting to access Android external storage path: {}", path);
+      
+      // Check if the file exists before trying to open it
+      if !std::path::Path::new(&path).exists() {
+        log::error!("File does not exist at path: {}", path);
+        return resp.status(404).body(Vec::new().into()).map_err(Into::into);
+      }
+      
+      // Check if we have read permissions
+      match std::fs::metadata(&path) {
+        Ok(metadata) => {
+          log::debug!("File metadata for {}: size={}, readonly={}", path, metadata.len(), metadata.permissions().readonly());
+        }
+        Err(e) => {
+          log::error!("Failed to get metadata for {}: {}", path, e);
+          return resp.status(500).body(format!("Failed to access file metadata: {}", e).into_bytes().into()).map_err(Into::into);
+        }
+      }
+    }
+  }
+
   let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {
-    let mut file = File::open(&path).await?;
+    let mut file = match File::open(&path).await {
+      Ok(file) => file,
+      Err(e) => {
+        #[cfg(target_os = "android")]
+        {
+          if path.starts_with("/storage/emulated/0/Android/data/") {
+            log::error!("Failed to open Android external storage file '{}': {}. This may be due to missing storage permissions or the file being inaccessible from the webview context.", path, e);
+            log::error!("Ensure your app has the necessary storage permissions and the file is in an accessible location.");
+          }
+        }
+        return Err(e.into());
+      }
+    };
 
     // get file length
     let len = {

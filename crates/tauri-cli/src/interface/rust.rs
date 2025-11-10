@@ -29,10 +29,12 @@ use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Runner
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
-  ConfigValue, error::{Context, Error, ErrorExt}, helpers::{
+  error::{Context, Error, ErrorExt},
+  helpers::{
     app_paths::{frontend_dir, tauri_dir},
-    config::{BundleResources, Config, nsis_settings, reload as reload_config, wix_settings}, fs::copy_dir_all,
-  }
+    config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
+  },
+  ConfigValue,
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -528,22 +530,19 @@ fn ensure_cef_directory_if_needed(
     .lock()
     .unwrap()
     .all_enabled_features(&merged_features);
-  let target_triple = target.or_else(|| {
-    app_settings
-      .cargo_config
-      .build()
-      .target()
-  });
+  let target_triple = target.or_else(|| app_settings.cargo_config.build().target());
   match crate::cef::exporter::ensure_cef_directory(target_triple, &enabled_features) {
     // cef not enabled
     Ok(None) => {}
     #[cfg(not(windows))]
-    Ok(Some(_cef_dir)) => {}
+    Ok(Some(_cef_dir)) => {
+      let _options = options;
+    }
     // on Windows we must copy the cef files next to the executable
     #[cfg(windows)]
     Ok(Some(cef_dir)) => {
       let out_dir = app_settings.out_dir(options)?;
-      copy_dir_all(&cef_dir, &out_dir)?;
+      crate::helpers::fs::copy_dir_all(&cef_dir, &out_dir)?;
     }
     Err(e) => {
       log::warn!(action = "CEF"; "Failed to ensure CEF directory: {}. Continuing anyway.", e);

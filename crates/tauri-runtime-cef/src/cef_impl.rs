@@ -134,7 +134,7 @@ fn icon_to_cef_image(icon: tauri_runtime::Icon<'static>) -> Option<cef::Image> {
 /// Set window icon using CEF native API
 fn set_window_icon(window: &cef::Window, icon: tauri_runtime::Icon<'static>) {
   if let Some(mut cef_image) = icon_to_cef_image(icon) {
-    window.set_window_icon(Some(&mut cef_image));
+    window.set_window_app_icon(Some(&mut cef_image));
   }
 }
 

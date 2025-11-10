@@ -23,7 +23,7 @@ use tauri_runtime::{
 use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{
-  AppWebview, AppWindow, BrowserRuntimeStyle, CefRuntime, CefWindowBuilder, Message,
+  AppWebview, AppWindow, CefRuntime, CefWindowBuilder, Message, RuntimeStyle as CefRuntimeStyle,
   WebviewAtribute, WebviewMessage, WindowMessage,
 };
 
@@ -677,7 +677,7 @@ wrap_client! {
 wrap_browser_view_delegate! {
   struct BrowserViewDelegateImpl {
     browser_id: Arc<RefCell<i32>>,
-    browser_runtime_style: BrowserRuntimeStyle,
+    browser_runtime_style: CefRuntimeStyle,
   }
 
   impl ViewDelegate {}
@@ -693,8 +693,8 @@ wrap_browser_view_delegate! {
       use cef::sys::cef_runtime_style_t;
 
       match self.browser_runtime_style {
-        BrowserRuntimeStyle::Alloy => RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_ALLOY),
-        BrowserRuntimeStyle::Chrome => RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME),
+        CefRuntimeStyle::Alloy => RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_ALLOY),
+        CefRuntimeStyle::Chrome => RuntimeStyle::from(cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME),
       }
     }
   }
@@ -2882,12 +2882,12 @@ pub(crate) fn create_webview<T: UserEvent>(
     platform_specific_attributes
       .iter()
       .find_map(|attr| match attr {
-        WebviewAtribute::BrowserRuntimeStyle { style } => Some(*style),
+        WebviewAtribute::RuntimeStyle { style } => Some(*style),
       })
       .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
-        BrowserRuntimeStyle::Alloy
+        CefRuntimeStyle::Alloy
       } else {
-        BrowserRuntimeStyle::Chrome
+        CefRuntimeStyle::Chrome
       }),
   );
 

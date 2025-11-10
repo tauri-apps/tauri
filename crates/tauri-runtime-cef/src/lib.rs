@@ -1957,12 +1957,12 @@ pub enum RuntimeInitAttribute {
 /// Webview attributes.
 pub enum WebviewAtribute {
   /// Sets the browser runtime style.
-  BrowserRuntimeStyle { style: BrowserRuntimeStyle },
+  RuntimeStyle { style: RuntimeStyle },
 }
 
 /// The browser runtime style.
 #[derive(Clone, Copy)]
-pub enum BrowserRuntimeStyle {
+pub enum RuntimeStyle {
   /// Alloy runtime.
   ///
   /// Used by default on multiwebview mode.

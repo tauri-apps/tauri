@@ -287,11 +287,11 @@ unstable_struct!(
 impl WebviewBuilder<crate::Cef> {
   /// Sets the browser runtime style.
   ///
-  /// See [`tauri_runtime_cef::BrowserRuntimeStyle`] for more information.
-  pub fn browser_runtime_style(mut self, style: tauri_runtime_cef::BrowserRuntimeStyle) -> Self {
+  /// See [`tauri_runtime_cef::RuntimeStyle`] for more information.
+  pub fn browser_runtime_style(mut self, style: tauri_runtime_cef::RuntimeStyle) -> Self {
     self
       .platform_specific_attributes
-      .push(tauri_runtime_cef::WebviewAtribute::BrowserRuntimeStyle { style });
+      .push(tauri_runtime_cef::WebviewAtribute::RuntimeStyle { style });
     self
   }
 }

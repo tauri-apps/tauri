@@ -28,8 +28,6 @@ pub struct DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
-    // Best-effort: attempt to kill the child process tree before killing the process
-    // This mirrors the approach used in the main `tauri` crate's helper.
     if let Some(pid) = self.dev_child.id() {
       #[cfg(windows)]
       {

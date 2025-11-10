@@ -501,15 +501,10 @@ impl<R: Runtime> AppHandle<R> {
     Ok(())
   }
 
-  /// Register a sidecar PID to be killed on application cleanup.
-  ///
-  /// This is a best-effort API: failures to kill child processes are logged but do not
-  /// cause the application to panic.
   pub fn register_sidecar(&self, pid: u32) {
     self.manager.register_sidecar(pid);
   }
 
-  /// Unregister a previously-registered sidecar PID.
   pub fn unregister_sidecar(&self, pid: u32) {
     self.manager.unregister_sidecar(pid);
   }
@@ -1050,9 +1045,7 @@ macro_rules! shared_app_impl {
         for (_, webview) in self.manager.webviews() {
           webview.resources_table().clear();
         }
-        // Best-effort: kill registered sidecar process trees.
-        // We drain the registry so we don't attempt to kill them again.
-        let sidecar_pids = self.manager.drain_sidecar_pids();
+  let sidecar_pids = self.manager.drain_sidecar_pids();
         for pid in sidecar_pids {
           if let Err(e) = crate::process::kill_process_tree(pid) {
             log::warn!("failed to kill sidecar pid {}: {}", pid, e);

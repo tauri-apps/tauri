@@ -214,7 +214,6 @@ pub struct AppManager<R: Runtime> {
 
   /// Application Resources Table
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
-  /// Registered sidecar PIDs that should be cleaned up on app exit.
   pub(crate) sidecar_pids: Arc<Mutex<HashSet<u32>>>,
 
   /// Runtime-generated invoke key.
@@ -700,19 +699,14 @@ impl<R: Runtime> AppManager<R> {
     &self.invoke_key
   }
 
-  /// Register a sidecar PID to be cleaned up on application exit.
   pub fn register_sidecar(&self, pid: u32) {
     let mut pids = self.sidecar_pids.lock().expect("poisoned sidecar_pids");
     pids.insert(pid);
   }
-
-  /// Unregister a previously-registered sidecar PID.
   pub fn unregister_sidecar(&self, pid: u32) {
     let mut pids = self.sidecar_pids.lock().expect("poisoned sidecar_pids");
     pids.remove(&pid);
   }
-
-  /// Drain and return the currently registered sidecar PIDs.
   pub fn drain_sidecar_pids(&self) -> Vec<u32> {
     let mut pids = self.sidecar_pids.lock().expect("poisoned sidecar_pids");
     pids.drain().collect()

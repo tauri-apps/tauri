@@ -129,27 +129,11 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
   }
 }
 
-/// Kill a process and all of its descendant processes (process tree).
-///
-/// This helper will attempt a platform-appropriate recursive kill. It does not add any
-/// extra crate dependencies and instead delegates to the system shell utilities.
-///
-/// - On Windows it calls PowerShell and uses `Get-CimInstance Win32_Process` to traverse
-///   the process tree and `Stop-Process` to terminate processes.
-/// - On Unix (Linux / macOS / *nix) it uses `pgrep -P` recursively to find children and
-///   sends SIGKILL to them. It tolerates missing `pgrep` by returning an error from the
-///   spawned shell command.
-///
-/// Note: This function attempts a best-effort termination and will return the
-/// underlying I/O error if the platform command failed to spawn or returned a non-zero
-/// exit status.
 pub fn kill_process_tree(pid: u32) -> std::io::Result<()> {
   #[cfg(windows)]
   {
     use std::process::Command;
 
-    // Use PowerShell to recursively find and stop child processes, then stop the root.
-    // This mirrors the approach used elsewhere in the project (tauri-cli).
     let ps = format!(
       "function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}",
       pid
@@ -175,9 +159,6 @@ pub fn kill_process_tree(pid: u32) -> std::io::Result<()> {
   {
     use std::process::Command;
 
-    // On Unix, recursively collect children via pgrep -P and kill them. We use a small
-    // shell function to traverse descendants and then kill them. Use SIGKILL to ensure
-    // termination (best effort).
     let sh = format!(r#"
 getcpid() {{
   for cpid in $(pgrep -P "$1" 2>/dev/null || true); do

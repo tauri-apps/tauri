@@ -1,5 +1,15 @@
 # Changelog
 
+## \[Unreleased]
+
+### Enhancements
+
+- Added a best-effort process tree killer and sidecar PID registry:
+  - `kill_process_tree(pid: u32)` helper (cross-platform, shell/PowerShell based).
+  - Runtime-side sidecar PID registry and `AppHandle::register_sidecar` / `unregister_sidecar`.
+  - CLI dev-run integration attempts to kill sidecar descendant processes during terminate.
+  This helps ensure descendant processes spawned by sidecars are terminated when a sidecar is killed. (Fixes #14360)
+
 ## \[2.9.2]
 
 ### Bug Fixes

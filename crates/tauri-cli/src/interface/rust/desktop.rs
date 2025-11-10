@@ -28,6 +28,43 @@ pub struct DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
+    // Best-effort: attempt to kill the child process tree before killing the process
+    // This mirrors the approach used in the main `tauri` crate's helper.
+    if let Some(pid) = self.dev_child.id() {
+      #[cfg(windows)]
+      {
+        use std::process::Command;
+        let ps = format!(
+          "function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}",
+          pid
+        );
+        let _ = Command::new("powershell")
+          .arg("-NoProfile")
+          .arg("-Command")
+          .arg(ps)
+          .status();
+      }
+
+      #[cfg(not(windows))]
+      {
+        use std::process::Command;
+        let sh = format!(r#"
+getcpid() {{
+  for cpid in $(pgrep -P "$1" 2>/dev/null || true); do
+    getcpid "$cpid"
+    echo "$cpid"
+  done
+}}
+for p in $(getcpid {pid}); do
+  kill -9 "$p" 2>/dev/null || true
+done
+kill -9 {pid} 2>/dev/null || true
+"#, pid = pid);
+
+        let _ = Command::new("sh").arg("-c").arg(sh).status();
+      }
+    }
+
     self.dev_child.kill()?;
     self.manually_killed_app.store(true, Ordering::Relaxed);
     Ok(())

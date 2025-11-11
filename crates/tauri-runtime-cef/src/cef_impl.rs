@@ -2719,13 +2719,42 @@ pub(crate) enum WebviewKind {
   WindowChild,
 }
 
+wrap_task! {
+  struct WindowEventTask<T: UserEvent> {
+    window_id: WindowId,
+    windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
+    callback: Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+    event: WindowEvent,
+  }
+
+  impl Task {
+    fn execute(&self) {
+      send_window_event(
+        self.window_id,
+        &self.windows,
+        &self.callback,
+        self.event.clone(),
+      );
+    }
+  }
+}
+
 fn send_window_event<T: UserEvent>(
   window_id: WindowId,
   windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
   callback: &Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
   event: WindowEvent,
 ) {
-  let windows_ref = windows.borrow();
+  let Ok(windows_ref) = windows.try_borrow() else {
+    // post task to run later - windows currently mutably borrowed
+    // happens usually on reparent or destroy when there's a focus change event
+    let mut task =
+      WindowEventTask::new(window_id, windows.clone(), callback.clone(), event.clone());
+
+    cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+    return;
+  };
+
   if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
     let window_event_listeners = w.window_event_listeners.clone();

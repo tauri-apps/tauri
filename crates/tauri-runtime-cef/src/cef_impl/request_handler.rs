@@ -28,11 +28,11 @@ use crate::cef_impl::Context;
 use super::CefInitScript;
 
 fn csp_inject_initialization_scripts_hashes(
-  existing_csp: Option<&str>,
+  existing_csp: String,
   initialization_scripts: &[CefInitScript],
-) -> Option<String> {
+) -> String {
   if initialization_scripts.is_empty() {
-    return existing_csp.map(|s| s.to_string());
+    return existing_csp;
   }
 
   // For custom schemes, include ALL script hashes (we inject all scripts into HTML)
@@ -43,34 +43,23 @@ fn csp_inject_initialization_scripts_hashes(
     .collect();
 
   if script_hashes.is_empty() {
-    return existing_csp.map(|s| s.to_string());
+    return existing_csp;
   }
 
-  let new_csp = if let Some(existing_csp) = existing_csp {
-    // Parse CSP using tauri-utils
-    let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
-      Csp::Policy(existing_csp.to_string()).into();
+  // Parse CSP using tauri-utils
+  let mut csp_map: std::collections::HashMap<String, CspDirectiveSources> =
+    Csp::Policy(existing_csp.to_string()).into();
 
-    // Update or create script-src directive with script hashes
-    let script_src = csp_map
-      .entry("script-src".to_string())
-      .or_insert_with(|| CspDirectiveSources::List(vec!["'self'".to_string()]));
+  // Update or create script-src directive with script hashes
+  let script_src = csp_map
+    .entry("script-src".to_string())
+    .or_insert_with(|| CspDirectiveSources::List(vec!["'self'".to_string()]));
 
-    // Extend with script hashes
-    script_src.extend(script_hashes);
+  // Extend with script hashes
+  script_src.extend(script_hashes);
 
-    // Convert back to CSP string
-    Csp::DirectiveMap(csp_map).to_string()
-  } else {
-    // No existing CSP, create new one with just script-src
-    let mut csp_map = std::collections::HashMap::new();
-    let mut script_src = CspDirectiveSources::List(vec!["'self'".to_string()]);
-    script_src.extend(script_hashes);
-    csp_map.insert("script-src".to_string(), script_src);
-    Csp::DirectiveMap(csp_map).to_string()
-  };
-
-  Some(new_csp)
+  // Convert back to CSP string
+  Csp::DirectiveMap(csp_map).to_string()
 }
 
 /// Helper function to inject initialization scripts into HTML body
@@ -222,7 +211,23 @@ wrap_resource_handler! {
             body_bytes
           };
 
-          let response = http::Response::from_parts(parts, Cursor::new(modified_body));
+          let mut response = http::Response::from_parts(parts, Cursor::new(modified_body));
+
+
+          let csp = response
+            .headers_mut()
+            .get_mut(CONTENT_SECURITY_POLICY);
+
+          if let Some(csp) = csp {
+            let csp_string = csp.to_str().unwrap().to_string();
+            let new_csp = csp_inject_initialization_scripts_hashes(
+              csp_string,
+              &initialization_scripts,
+            );
+            *csp = HeaderValue::from_str(&new_csp).unwrap();
+          }
+
+
           response_store.into_owned().borrow_mut().replace(response);
 
           let callback = callback.into_owned();
@@ -284,35 +289,16 @@ wrap_resource_handler! {
 
       response.set_status(response_data.status().as_u16() as i32);
       let mut content_type = None;
-      let mut csp_header: Option<String> = None;
 
       // First pass: collect CSP header and set other headers
       for (name, value) in response_data.headers() {
         let Ok(value) = value.to_str() else { continue; };
 
-        if name == CONTENT_SECURITY_POLICY {
-          csp_header = Some(value.to_string());
-        } else {
-          response.set_header_by_name(Some(&name.as_str().into()), Some(&value.into()), 0);
-        }
+        response.set_header_by_name(Some(&name.as_str().into()), Some(&value.into()), 0);
 
         if name == CONTENT_TYPE {
           content_type.replace(value.to_string());
         }
-      }
-
-      let new_csp = csp_inject_initialization_scripts_hashes(
-        csp_header.as_deref(),
-        &self.initialization_scripts,
-      );
-
-      if let Some(new_csp) = new_csp {
-        let csp_header_name = CefString::from(CONTENT_SECURITY_POLICY.as_str());
-        response.set_header_by_name(
-          Some(&csp_header_name),
-          Some(&CefString::from(new_csp.as_str())),
-          0,
-        );
       }
 
       let mime_type = content_type

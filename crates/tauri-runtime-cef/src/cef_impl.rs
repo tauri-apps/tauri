@@ -1469,7 +1469,6 @@ fn handle_webview_message<T: UserEvent>(
         target_window.webviews.push(webview_wrapper);
 
         // prevent deadlock - new_overlay.set_visible might change the window focus, which needs the windows borrow
-        drop(target_window);
         drop(windows);
 
         new_overlay.set_bounds(Some(&bounds));

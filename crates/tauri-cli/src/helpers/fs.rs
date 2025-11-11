@@ -54,6 +54,7 @@ pub fn find_in_directory(path: &Path, glob_pattern: &str) -> crate::Result<PathB
   )
 }
 
+#[allow(dead_code)]
 pub fn copy_dir_all(src: &Path, dst: &Path) -> crate::Result<()> {
   std::fs::create_dir_all(dst).fs_context("failed to create directory", dst.to_path_buf())?;
   for entry in std::fs::read_dir(src).fs_context("failed to read directory", src.to_path_buf())? {

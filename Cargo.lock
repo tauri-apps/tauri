@@ -1172,23 +1172,25 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "141.6.0+141.0.11"
-source = "git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast#6c32f2d0114918463000deb735ab4d931366fbc0"
+version = "142.0.0+142.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9dea3afc35e20dd9075356f9484cd70691a9ce423c46528f9d47d041189e577"
 dependencies = [
  "cef-dll-sys",
- "libloading 0.8.6",
+ "libloading 0.9.0",
  "objc2 0.6.3",
  "windows-sys 0.61.1",
 ]
 
 [[package]]
 name = "cef-dll-sys"
-version = "141.6.0+141.0.11"
-source = "git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast#6c32f2d0114918463000deb735ab4d931366fbc0"
+version = "142.0.0+142.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b41eede51cb3240269e46f0f7209f636ddc8e4c82b89cbba8ad4ef3400ea37c"
 dependencies = [
  "anyhow",
  "cmake",
- "download-cef 2.2.0 (git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast)",
+ "download-cef",
  "serde_json",
 ]
 
@@ -2107,24 +2109,6 @@ name = "download-cef"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d98178d9254efef0f69c1f584713d69c790ec00668cd98f783a5085fbefdbddc"
-dependencies = [
- "bzip2 0.6.0",
- "clap",
- "indicatif",
- "regex",
- "semver",
- "serde",
- "serde_json",
- "sha1_smol",
- "tar",
- "thiserror 2.0.12",
- "ureq",
-]
-
-[[package]]
-name = "download-cef"
-version = "2.2.0"
-source = "git+https://github.com/tauri-apps/cef-rs?branch=fix/interface-cast#6c32f2d0114918463000deb735ab4d931366fbc0"
 dependencies = [
  "bzip2 0.6.0",
  "clap",
@@ -4449,6 +4433,16 @@ checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
  "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
+dependencies = [
+ "cfg-if",
+ "windows-link 0.2.0",
 ]
 
 [[package]]
@@ -8777,7 +8771,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "dirs 6.0.0",
- "download-cef 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "download-cef",
  "duct",
  "dunce",
  "elf",

@@ -890,8 +890,10 @@ impl WindowBuilder for WindowBuilderWrapper {
       }
     }
 
-    if let (Some(width), Some(height)) = (config.width, config.height) {
-      window = window.inner_size(width, height);
+    // ignore size from config for mobile for backward compatibility
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    {
+      window = window.inner_size(config.width, config.height);
     }
 
     window = window

@@ -1679,10 +1679,10 @@ pub struct WindowConfig {
   pub y: Option<f64>,
   /// The window width.
   #[serde(default = "default_width")]
-  pub width: Option<f64>,
+  pub width: f64,
   /// The window height.
   #[serde(default = "default_height")]
-  pub height: Option<f64>,
+  pub height: f64,
   /// The min window width.
   #[serde(alias = "min-width")]
   pub min_width: Option<f64>,
@@ -2068,20 +2068,12 @@ fn default_window_label() -> String {
   "main".to_string()
 }
 
-fn default_width() -> Option<f64> {
-  if cfg!(any(target_os = "ios", target_os = "android")) {
-    None
-  } else {
-    Some(800.)
-  }
+fn default_width() -> f64 {
+  800.
 }
 
-fn default_height() -> Option<f64> {
-  if cfg!(any(target_os = "ios", target_os = "android")) {
-    None
-  } else {
-    Some(600.)
-  }
+fn default_height() -> f64 {
+  600.
 }
 
 fn default_title() -> String {
@@ -3551,8 +3543,8 @@ mod build {
       let center = self.center;
       let x = opt_lit(self.x.as_ref());
       let y = opt_lit(self.y.as_ref());
-      let width = opt_lit(self.width.as_ref());
-      let height = opt_lit(self.height.as_ref());
+      let width = self.width;
+      let height = self.height;
       let min_width = opt_lit(self.min_width.as_ref());
       let min_height = opt_lit(self.min_height.as_ref());
       let max_width = opt_lit(self.max_width.as_ref());

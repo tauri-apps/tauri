@@ -280,19 +280,13 @@
         "width": {
           "description": "The window width.",
           "default": 800.0,
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": "number",
           "format": "double"
         },
         "height": {
           "description": "The window height.",
           "default": 600.0,
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": "number",
           "format": "double"
         },
         "minWidth": {

@@ -1469,17 +1469,14 @@ pub(crate) fn tauri_config_to_bundle_settings(
   };
 
   #[cfg(target_os = "macos")]
-  let merge_entitlements = get_merge_entitlements(tauri_config, &enabled_features)?;
-
-  #[cfg(target_os = "macos")]
   let entitlements = {
     let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
       crate::helpers::plist::merge_plist(vec![
         PathBuf::from(user_provided_entitlements).into(),
-        plist::Value::Dictionary(merge_entitlements).into(),
+        plist::Value::Dictionary(required_entitlements(tauri_config, &enabled_features)?).into(),
       ])?
     } else {
-      merge_entitlements.into()
+      required_entitlements(tauri_config, &enabled_features)?.into()
     };
 
     Some(tauri_bundler::bundle::Entitlements::Plist(entitlements))
@@ -1651,7 +1648,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
 }
 
 #[cfg(target_os = "macos")]
-fn get_merge_entitlements(
+fn required_entitlements(
   tauri_config: &Config,
   enabled_features: &[String],
 ) -> crate::Result<plist::Dictionary> {

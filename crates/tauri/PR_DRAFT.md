@@ -41,6 +41,14 @@ Notes & follow-ups
 - Update examples and any existing sidecar spawners to use the shell plugin or to call plugin-provided APIs instead of the removed `AppHandle::register_sidecar`/`unregister_sidecar`.
 - Consider adding an integration test that validates sidecar shutdown via the shell plugin's cleanup hook.
 
+- Windows implementation note
+
+  - On Windows `kill_process_tree` now prefers the built-in `taskkill /T /PID <pid> /F` utility
+    which will terminate a process tree. If `taskkill` isn't available or returns a non-zero
+    exit status (for example due to permissions), the runtime falls back to a PowerShell-based
+    recursive traversal that mirrors the prior behavior. This makes termination more robust on
+    typical Windows environments while still preserving the previous fallback.
+
 References
 
 - Fixes #14360

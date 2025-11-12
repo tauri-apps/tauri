@@ -47,7 +47,7 @@ mod desktop_commands {
     command,
     runtime::dpi::{Position, Size},
     utils::config::Color,
-    AppHandle, Webview,
+    Webview,
   };
 
   fn get_webview<R: Runtime>(
@@ -137,7 +137,7 @@ mod desktop_commands {
   #[cfg(feature = "unstable")]
   #[command(root = "crate")]
   pub async fn create_webview<R: Runtime>(
-    app: AppHandle<R>,
+    app: crate::AppHandle<R>,
     window_label: String,
     options: WindowConfig,
   ) -> crate::Result<()> {

@@ -189,14 +189,12 @@ impl Interface for Rust {
     self.app_settings.clone()
   }
 
+  fn on_before_bundle(&self, options: &Options) -> crate::Result<()> {
+    self.prepare(&options)
+  }
+
   fn build(&mut self, options: Options) -> crate::Result<PathBuf> {
-    ensure_cef_directory_if_needed(
-      &self.app_settings,
-      &options,
-      self.config_features.clone(),
-      options.target.as_deref(),
-      &options.features,
-    )?;
+    self.prepare(&options)?;
     desktop::build(
       options,
       &self.app_settings,
@@ -211,13 +209,7 @@ impl Interface for Rust {
     mut options: Options,
     on_exit: F,
   ) -> crate::Result<()> {
-    ensure_cef_directory_if_needed(
-      &self.app_settings,
-      &options,
-      self.config_features.clone(),
-      options.target.as_deref(),
-      &options.features,
-    )?;
+    self.prepare(&options)?;
     let on_exit = Arc::new(on_exit);
 
     let mut run_args = Vec::new();
@@ -552,6 +544,16 @@ fn ensure_cef_directory_if_needed(
 }
 
 impl Rust {
+  fn prepare(&self, options: &Options) -> crate::Result<()> {
+    ensure_cef_directory_if_needed(
+      &self.app_settings,
+      options,
+      self.config_features.clone(),
+      options.target.as_deref(),
+      &options.features,
+    )
+  }
+
   pub fn build_options(
     &self,
     args: &mut Vec<String>,
@@ -1636,6 +1638,13 @@ fn tauri_config_to_bundle_settings(
         Some(tauri_bundler::bundle::PlistKind::Plist(
           crate::helpers::plist::merge_plist(src_plists)?,
         ))
+      },
+      cef_path: if enabled_features.contains(&"cef".into())
+        || enabled_features.contains(&"tauri/cef".into())
+      {
+        std::env::var_os("CEF_PATH").map(PathBuf::from)
+      } else {
+        None
       },
     },
     windows: WindowsSettings {

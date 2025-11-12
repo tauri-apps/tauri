@@ -18,7 +18,8 @@ html5ever = "0.29"
 raw-window-handle = "0.6"
 url = "2"
 http = "1"
-cef = "142.0.0"
+#cef = "142.0.0"
+cef = { git = "https://github.com/tauri-apps/cef-rs", branch = "feat/helper-symlink" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader" }

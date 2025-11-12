@@ -103,6 +103,7 @@ pub trait Interface: Sized {
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self>;
   fn app_settings(&self) -> Arc<Self::AppSettings>;
   fn env(&self) -> HashMap<&str, String>;
+  fn on_before_bundle(&self, options: &Options) -> crate::Result<()>;
   fn build(&mut self, options: Options) -> crate::Result<PathBuf>;
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,

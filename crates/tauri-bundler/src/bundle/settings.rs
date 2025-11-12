@@ -364,6 +364,13 @@ pub struct MacOsSettings {
   pub entitlements: Option<Entitlements>,
   /// Path to the Info.plist file or raw plist value to merge with the bundle Info.plist.
   pub info_plist: Option<PlistKind>,
+  /// Path to the CEF (Chromium Embedded Framework) root directory.
+  ///
+  /// When set, this will:
+  /// - Create helper .app bundles for CEF (GPU, Renderer, Plugin, Alerts, and main Helper)
+  /// - Create symlinks of the main binary to each helper .app
+  /// - Copy the Chromium Embedded Framework.framework to the app bundle
+  pub cef_path: Option<PathBuf>,
 }
 
 /// Entitlements for macOS code signing.

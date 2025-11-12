@@ -50,6 +50,8 @@ const NESTED_CODE_FOLDER: [&str; 6] = [
   "Libraries",
 ];
 
+const CEF_FRAMEWORK: &str = "Chromium Embedded Framework.framework";
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -107,6 +109,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }));
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
+
+  // Handle CEF support if cef_path is set
+  if let Some(cef_path) = settings.macos().cef_path.as_ref() {
+    let helper_paths = create_cef_helpers(&bundle_directory, settings, cef_path)?;
+    // Add helper apps to sign paths
+    sign_paths.extend(helper_paths.into_iter().map(|path| SignTarget {
+      path,
+      is_an_executable: true,
+    }));
+    let cef_framework_path = copy_cef_framework(&bundle_directory, cef_path)?;
+    // Add CEF framework to sign paths
+    add_framework_sign_path(
+      &cef_path.join(CEF_FRAMEWORK),
+      &cef_framework_path,
+      &mut sign_paths,
+    );
+  }
 
   if settings.no_sign() {
     log::warn!("Skipping signing due to --no-sign flag.",);
@@ -607,6 +626,147 @@ fn add_nested_code_sign_path(src_path: &Path, dest_path: &Path, sign_paths: &mut
       }
     }
   }
+}
+
+/// Creates CEF helper .app bundles.
+/// Returns the paths to the created helper apps for signing.
+fn create_cef_helpers(
+  bundle_directory: &Path,
+  settings: &Settings,
+  _cef_path: &Path,
+) -> crate::Result<Vec<PathBuf>> {
+  let mut helper_paths = Vec::new();
+  let exec_name = settings.main_binary_name()?;
+  let frameworks_dir = bundle_directory.join("Frameworks");
+  fs::create_dir_all(&frameworks_dir).fs_context(
+    "failed to create Frameworks directory for CEF helpers",
+    frameworks_dir.to_path_buf(),
+  )?;
+
+  // Create helper .app bundles
+  let helpers = vec![
+    format!("{} Helper (GPU)", exec_name),
+    format!("{} Helper (Renderer)", exec_name),
+    format!("{} Helper (Plugin)", exec_name),
+    format!("{} Helper (Alerts)", exec_name),
+    format!("{} Helper", exec_name),
+  ];
+
+  for helper_name in helpers {
+    let helper_app = frameworks_dir.join(format!("{helper_name}.app"));
+    let helper_contents = helper_app.join("Contents");
+    let helper_macos = helper_contents.join("MacOS");
+    let helper_resources = helper_contents.join("Resources");
+
+    // Create directory structure
+    fs::create_dir_all(&helper_macos).fs_context(
+      "failed to create helper MacOS directory",
+      helper_macos.to_path_buf(),
+    )?;
+    fs::create_dir_all(&helper_resources).fs_context(
+      "failed to create helper Resources directory",
+      helper_resources.to_path_buf(),
+    )?;
+
+    // Create Info.plist for helper
+    let mut plist = plist::Dictionary::new();
+    plist.insert("CFBundleDevelopmentRegion".into(), "English".into());
+    plist.insert("CFBundleDisplayName".into(), helper_name.clone().into());
+    plist.insert("CFBundleExecutable".into(), helper_name.clone().into());
+    plist.insert(
+      "CFBundleIdentifier".into(),
+      format!("{}.helper", settings.bundle_identifier()).into(),
+    );
+    plist.insert("CFBundleInfoDictionaryVersion".into(), "6.0".into());
+    plist.insert("CFBundleName".into(), helper_name.clone().into());
+    plist.insert("CFBundlePackageType".into(), "APPL".into());
+    plist.insert(
+      "CFBundleShortVersionString".into(),
+      settings.version_string().into(),
+    );
+    plist.insert(
+      "CFBundleVersion".into(),
+      settings
+        .macos()
+        .bundle_version
+        .as_deref()
+        .unwrap_or_else(|| settings.version_string())
+        .into(),
+    );
+    plist.insert("LSMinimumSystemVersion".into(), "11.0".into());
+    plist.insert("LSUIElement".into(), "1".into());
+
+    plist::Value::Dictionary(plist).to_file_xml(helper_contents.join("Info.plist"))?;
+
+    // Create symlink to main binary
+    let helper_exec = helper_macos.join(&helper_name);
+
+    /*std::fs::copy(&main_binary_path, &helper_exec).fs_context(
+      "failed to copy main binary to CEF helper",
+      helper_exec.clone(),
+    )?;*/
+
+    // Calculate relative path from helper MacOS directory to main binary
+    // Helper is at: Contents/Frameworks/{helper_name}.app/Contents/MacOS/{helper_name}
+    // Main binary is at: Contents/MacOS/{exec_name}
+    // From helper MacOS: ../../../../MacOS/{exec_name}
+    let relative_path = PathBuf::from("../../../../MacOS").join(exec_name);
+
+    std::os::unix::fs::symlink(&relative_path, &helper_exec).fs_context(
+      "failed to create symlink for CEF helper",
+      helper_exec.clone(),
+    )?;
+
+    #[cfg(unix)]
+    {
+      use std::os::unix::fs::PermissionsExt;
+      if let Ok(metadata) = fs::metadata(&helper_exec) {
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&helper_exec, perms)?;
+      }
+    }
+
+    helper_paths.push(helper_app);
+  }
+
+  Ok(helper_paths)
+}
+
+/// Copies the CEF framework from cef_path to the app bundle.
+/// Returns the path to the copied framework.
+fn copy_cef_framework(bundle_directory: &Path, cef_path: &Path) -> crate::Result<PathBuf> {
+  let framework_src = cef_path.join(CEF_FRAMEWORK);
+  if !framework_src.exists() {
+    return Err(GenericError(format!(
+      "CEF framework not found at {}",
+      framework_src.display()
+    )));
+  }
+
+  let frameworks_dir = bundle_directory.join("Frameworks");
+  fs::create_dir_all(&frameworks_dir).fs_context(
+    "failed to create Frameworks directory for CEF",
+    frameworks_dir.to_path_buf(),
+  )?;
+
+  let framework_dst = frameworks_dir.join(CEF_FRAMEWORK);
+  if framework_dst.exists() {
+    fs::remove_dir_all(&framework_dst).fs_context(
+      "failed to remove existing CEF framework",
+      framework_dst.to_path_buf(),
+    )?;
+  }
+
+  fs_utils::copy_dir(&framework_src, &framework_dst).with_context(|| {
+    format!(
+      "Failed to copy CEF framework from {} to {}",
+      framework_src.display(),
+      framework_dst.display()
+    )
+  })?;
+
+  Ok(framework_dst)
 }
 
 #[cfg(test)]

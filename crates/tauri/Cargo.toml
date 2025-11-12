@@ -202,7 +202,11 @@ custom-protocol = ["tauri-macros/custom-protocol"]
 native-tls = ["reqwest/native-tls"]
 native-tls-vendored = ["reqwest/native-tls-vendored"]
 rustls-tls = ["reqwest/rustls-tls"]
-devtools = ["tauri-runtime/devtools", "tauri-runtime-wry?/devtools"]
+devtools = [
+  "tauri-runtime/devtools",
+  "tauri-runtime-wry?/devtools",
+  "tauri-runtime-cef?/devtools",
+]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]

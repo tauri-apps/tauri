@@ -652,6 +652,8 @@ fn create_cef_helpers(
     format!("{} Helper", exec_name),
   ];
 
+  let main_binary_path = bundle_directory.join("MacOS").join(exec_name);
+
   for helper_name in helpers {
     let helper_app = frameworks_dir.join(format!("{helper_name}.app"));
     let helper_contents = helper_app.join("Contents");
@@ -698,22 +700,10 @@ fn create_cef_helpers(
 
     plist::Value::Dictionary(plist).to_file_xml(helper_contents.join("Info.plist"))?;
 
-    // Create symlink to main binary
     let helper_exec = helper_macos.join(&helper_name);
 
-    /*std::fs::copy(&main_binary_path, &helper_exec).fs_context(
+    std::fs::copy(&main_binary_path, &helper_exec).fs_context(
       "failed to copy main binary to CEF helper",
-      helper_exec.clone(),
-    )?;*/
-
-    // Calculate relative path from helper MacOS directory to main binary
-    // Helper is at: Contents/Frameworks/{helper_name}.app/Contents/MacOS/{helper_name}
-    // Main binary is at: Contents/MacOS/{exec_name}
-    // From helper MacOS: ../../../../MacOS/{exec_name}
-    let relative_path = PathBuf::from("../../../../MacOS").join(exec_name);
-
-    std::os::unix::fs::symlink(&relative_path, &helper_exec).fs_context(
-      "failed to create symlink for CEF helper",
       helper_exec.clone(),
     )?;
 

@@ -1172,8 +1172,9 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "142.0.0+142.0.8"
-source = "git+https://github.com/tauri-apps/cef-rs?branch=feat/helper-symlink#6ad45759d0a423c80816737751bf793319b6232f"
+version = "142.1.0+142.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40f62927b4e9c36eacc182513066bd0bdc4dcaec9d81e11bedf05473e6f84679"
 dependencies = [
  "cef-dll-sys",
  "libloading 0.9.0",
@@ -1183,12 +1184,13 @@ dependencies = [
 
 [[package]]
 name = "cef-dll-sys"
-version = "142.0.0+142.0.8"
-source = "git+https://github.com/tauri-apps/cef-rs?branch=feat/helper-symlink#6ad45759d0a423c80816737751bf793319b6232f"
+version = "142.1.0+142.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "467a598819af340e1f3c46101d0b2f76425bc1d2ef8eab3d9c7277d87fce3ec9"
 dependencies = [
  "anyhow",
  "cmake",
- "download-cef 2.2.0 (git+https://github.com/tauri-apps/cef-rs?branch=feat/helper-symlink)",
+ "download-cef",
  "serde_json",
 ]
 
@@ -2107,24 +2109,6 @@ name = "download-cef"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d98178d9254efef0f69c1f584713d69c790ec00668cd98f783a5085fbefdbddc"
-dependencies = [
- "bzip2 0.6.0",
- "clap",
- "indicatif",
- "regex",
- "semver",
- "serde",
- "serde_json",
- "sha1_smol",
- "tar",
- "thiserror 2.0.12",
- "ureq",
-]
-
-[[package]]
-name = "download-cef"
-version = "2.2.0"
-source = "git+https://github.com/tauri-apps/cef-rs?branch=feat/helper-symlink#6ad45759d0a423c80816737751bf793319b6232f"
 dependencies = [
  "bzip2 0.6.0",
  "clap",
@@ -8787,7 +8771,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "dirs 6.0.0",
- "download-cef 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "download-cef",
  "duct",
  "dunce",
  "elf",

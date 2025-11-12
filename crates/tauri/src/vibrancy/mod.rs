@@ -25,6 +25,8 @@ pub fn set_window_effects<R: Runtime>(
   } else {
     #[cfg(windows)]
     windows::clear_effects(window);
+    #[cfg(target_os = "macos")]
+    macos::clear_effects(window);
   }
   Ok(())
 }

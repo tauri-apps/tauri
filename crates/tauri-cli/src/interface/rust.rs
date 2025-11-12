@@ -1342,7 +1342,7 @@ pub fn get_profile_dir(options: &Options) -> &str {
 }
 
 #[allow(unused_variables, deprecated)]
-fn tauri_config_to_bundle_settings(
+pub(crate) fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
   features: &[String],
   tauri_config: &Config,
@@ -1639,13 +1639,6 @@ fn tauri_config_to_bundle_settings(
           crate::helpers::plist::merge_plist(src_plists)?,
         ))
       },
-      cef_path: if enabled_features.contains(&"cef".into())
-        || enabled_features.contains(&"tauri/cef".into())
-      {
-        std::env::var_os("CEF_PATH").map(PathBuf::from)
-      } else {
-        None
-      },
     },
     windows: WindowsSettings {
       timestamp_url: config.windows.timestamp_url,
@@ -1678,6 +1671,13 @@ fn tauri_config_to_bundle_settings(
     }),
     license_file: config.license_file.map(|l| tauri_dir().join(l)),
     updater: updater_config,
+    cef_path: if enabled_features.contains(&"cef".into())
+      || enabled_features.contains(&"tauri/cef".into())
+    {
+      std::env::var_os("CEF_PATH").map(PathBuf::from)
+    } else {
+      None
+    },
     ..Default::default()
   })
 }

@@ -1,100 +1,19 @@
 #![cfg(target_os = "macos")]
 
 use crate::interface::{
-  rust::{DevChild, RustupTarget},
+  rust::{tauri_config_to_bundle_settings, DevChild, RustAppSettings, RustupTarget},
   AppSettings, ExitReason, Options,
 };
-use crate::{error::ErrorExt, helpers::fs::copy_dir_all, CommandExt};
+use crate::{error::Context, CommandExt};
 
-use serde::Serialize;
 use shared_child::SharedChild;
-use std::collections::HashMap;
 use std::io::{BufReader, Write};
-use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-#[derive(Serialize)]
-struct InfoPlist {
-  #[serde(rename = "CFBundleDevelopmentRegion")]
-  cf_bundle_development_region: String,
-  #[serde(rename = "CFBundleDisplayName")]
-  cf_bundle_display_name: String,
-  #[serde(rename = "CFBundleExecutable")]
-  cf_bundle_executable: String,
-  #[serde(rename = "CFBundleIdentifier")]
-  cf_bundle_identifier: String,
-  #[serde(rename = "CFBundleInfoDictionaryVersion")]
-  cf_bundle_info_dictionary_version: String,
-  #[serde(rename = "CFBundleName")]
-  cf_bundle_name: String,
-  #[serde(rename = "CFBundlePackageType")]
-  cf_bundle_package_type: String,
-  #[serde(rename = "CFBundleSignature")]
-  cf_bundle_signature: String,
-  #[serde(rename = "CFBundleVersion")]
-  cf_bundle_version: String,
-  #[serde(rename = "CFBundleShortVersionString")]
-  cf_bundle_short_version_string: String,
-  #[serde(rename = "LSEnvironment")]
-  ls_environment: HashMap<String, String>,
-  #[serde(rename = "LSFileQuarantineEnabled")]
-  ls_file_quarantine_enabled: bool,
-  #[serde(rename = "LSMinimumSystemVersion")]
-  ls_minimum_system_version: String,
-  #[serde(rename = "LSUIElement")]
-  ls_ui_element: Option<String>,
-  #[serde(rename = "NSSupportsAutomaticGraphicsSwitching")]
-  ns_supports_automatic_graphics_switching: bool,
-}
-
-const EXEC_PATH: &str = "Contents/MacOS";
-const FRAMEWORKS_PATH: &str = "Contents/Frameworks";
-const FRAMEWORK: &str = "Chromium Embedded Framework.framework";
-
-fn create_app_layout(app_path: &Path) -> crate::Result<()> {
-  for p in [EXEC_PATH, "Contents/Resources", FRAMEWORKS_PATH] {
-    std::fs::create_dir_all(app_path.join(p))
-      .fs_context("failed to create directory", app_path.join(p).to_path_buf())?;
-  }
-  Ok(())
-}
-
-fn write_info_plist(
-  contents_path: &Path,
-  exec_name: &str,
-  product_name: &str,
-  version: &str,
-  is_helper: bool,
-) -> crate::Result<()> {
-  let mut ls_env = HashMap::new();
-  ls_env.insert("MallocNanoZone".into(), "0".into());
-  let product_compact = product_name.replace(' ', "");
-  let identifier = format!("dev.tauri.{product_compact}");
-  let info_plist = InfoPlist {
-    cf_bundle_development_region: "en".into(),
-    cf_bundle_display_name: product_name.into(),
-    cf_bundle_executable: exec_name.into(),
-    cf_bundle_identifier: identifier,
-    cf_bundle_info_dictionary_version: "6.0".into(),
-    cf_bundle_name: product_name.into(),
-    cf_bundle_package_type: "APPL".into(),
-    cf_bundle_signature: "????".into(),
-    cf_bundle_version: version.into(),
-    cf_bundle_short_version_string: version.into(),
-    ls_environment: ls_env,
-    ls_file_quarantine_enabled: true,
-    ls_minimum_system_version: "11.0".into(),
-    ls_ui_element: if is_helper { Some("1".into()) } else { None },
-    ns_supports_automatic_graphics_switching: true,
-  };
-  plist::to_file_xml(contents_path.join("Info.plist"), &info_plist)
-    .map_err(|e| crate::Error::GenericError(e.to_string()))
-}
-
-pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
-  app_settings: &A,
+pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
+  app_settings: &RustAppSettings,
   options: Options,
   run_args: Vec<String>,
   available_targets: &mut Option<Vec<RustupTarget>>,
@@ -106,7 +25,7 @@ pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send +
     false,
     options.clone(),
     available_targets,
-    config_features,
+    config_features.clone(),
   )?;
   build_cmd.env("CARGO_TERM_PROGRESS_WIDTH", "80");
   build_cmd.env("CARGO_TERM_PROGRESS_WHEN", "always");
@@ -126,7 +45,7 @@ pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send +
     }
   }
 
-  // Bundle the .app next to the built binary
+  // Bundle the .app using the bundler
   let out_dir = app_settings.out_dir(&options)?;
   let bin_path = app_settings.app_binary_path(&options)?;
   let exec_name = bin_path
@@ -134,77 +53,65 @@ pub fn run_dev_cef_macos<A: AppSettings, F: Fn(Option<i32>, ExitReason) + Send +
     .and_then(|s| s.to_str())
     .ok_or_else(|| crate::Error::GenericError("failed to determine executable name".into()))?;
 
-  let product_name = app_settings.get_package_settings().product_name.clone();
-  let version = app_settings.get_package_settings().version.clone();
+  // Build bundler settings for dev mode using the shared helper
+  let target = if let Some(target) = options.target.clone() {
+    target
+  } else {
+    tauri_utils::platform::target_triple().context("failed to get target triple")?
+  };
 
-  let app_bundle_path = out_dir.join(format!("{product_name}.app"));
-  let _ = std::fs::remove_dir_all(&app_bundle_path);
-  create_app_layout(&app_bundle_path)?;
-  write_info_plist(
-    &app_bundle_path.join("Contents"),
-    exec_name,
-    &product_name,
-    &version,
-    false,
+  // Merge features
+  let mut merged_features = config_features.clone();
+  if let Some(f) = options.features.clone() {
+    merged_features.extend(f);
+  }
+
+  // Get minimal config for dev mode (we'll use defaults for most things)
+  let tauri_config = crate::helpers::config::get(
+    tauri_utils::platform::Target::MacOS,
+    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
   )?;
-  std::fs::copy(&bin_path, app_bundle_path.join(EXEC_PATH).join(exec_name))
-    .fs_context("failed to copy executable into bundle", bin_path.clone())?;
+  let config_guard = tauri_config.lock().unwrap();
+  let config = config_guard.as_ref().unwrap();
 
-  // Create helper .app bundles inside Frameworks
-  let helpers = vec![
-    format!("{} Helper (GPU)", exec_name),
-    format!("{} Helper (Renderer)", exec_name),
-    format!("{} Helper (Plugin)", exec_name),
-    format!("{} Helper (Alerts)", exec_name),
-    format!("{} Helper", exec_name),
-  ];
-  for helper_name in helpers {
-    let helper_app = app_bundle_path
-      .join(FRAMEWORKS_PATH)
-      .join(format!("{helper_name}.app"));
-    create_app_layout(&helper_app)?;
-    write_info_plist(
-      &helper_app.join("Contents"),
-      &helper_name,
-      &product_name,
-      &version,
-      true,
-    )?;
-    let helper_exec = helper_app.join(EXEC_PATH).join(&helper_name);
-    std::fs::copy(&bin_path, &helper_exec).fs_context(
-      "failed to copy main executable as CEF helper",
-      helper_exec.clone(),
-    )?;
-    #[cfg(unix)]
-    {
-      use std::os::unix::fs::PermissionsExt;
-      let mut perms = std::fs::metadata(&helper_exec).unwrap().permissions();
-      perms.set_mode(0o755);
-      std::fs::set_permissions(&helper_exec, perms).unwrap();
-    }
-  }
+  // Get bundle settings using the shared helper
+  let arch64bits =
+    target.starts_with("x86_64") || target.starts_with("aarch64") || target.starts_with("riscv64");
 
-  // Copy CEF framework from CEF_PATH
-  let cef_base = std::env::var("CEF_PATH").map_err(|_| {
-    crate::Error::GenericError(
-      "CEF_PATH environment variable is not set; set it to the unpacked CEF root".into(),
-    )
-  })?;
-  let framework_src = PathBuf::from(cef_base).join(FRAMEWORK);
-  if !framework_src.exists() {
-    return Err(crate::Error::GenericError(format!(
-      "CEF framework not found at {}",
-      framework_src.display()
-    )));
-  }
-  let framework_dst = app_bundle_path.join(FRAMEWORKS_PATH).join(FRAMEWORK);
-  if framework_dst.exists() {
-    let _ = std::fs::remove_dir_all(&framework_dst);
-  }
-  copy_dir_all(&framework_src, &framework_dst)?;
+  let bundle_settings = tauri_config_to_bundle_settings(
+    app_settings,
+    &merged_features,
+    config,
+    config.bundle.clone(),
+    None, // No updater in dev mode
+    arch64bits,
+  )?;
+  let mut settings = tauri_bundler::bundle::SettingsBuilder::new()
+    .package_settings(app_settings.get_package_settings())
+    .bundle_settings(bundle_settings)
+    .binaries(app_settings.get_binaries(&options)?)
+    .project_out_directory(out_dir.clone())
+    .target(target)
+    .package_types(vec![tauri_bundler::bundle::PackageType::MacOsBundle])
+    .build()
+    .context("failed to build bundler settings")?;
+
+  settings.set_no_sign(true); // Skip signing in dev mode
+  settings.set_log_level(log::Level::Info);
+
+  // Bundle the app
+  let bundles = tauri_bundler::bundle_project(&settings)
+    .map_err(Box::new)
+    .context("failed to bundle app")?;
+
+  let app_bundle_path = bundles
+    .first()
+    .and_then(|b| b.bundle_paths.first())
+    .ok_or_else(|| crate::Error::GenericError("no bundle created".into()))?
+    .clone();
 
   // Launch the app executable from inside the .app
-  let mut exec_cmd = Command::new(app_bundle_path.join(EXEC_PATH).join(exec_name));
+  let mut exec_cmd = Command::new(app_bundle_path.join("Contents/MacOS").join(exec_name));
   exec_cmd.stdout(os_pipe::dup_stdout().unwrap());
   exec_cmd.stderr(Stdio::piped());
   exec_cmd.args(run_args);

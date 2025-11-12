@@ -111,7 +111,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
   // Handle CEF support if cef_path is set
-  if let Some(cef_path) = settings.macos().cef_path.as_ref() {
+  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
     let helper_paths = create_cef_helpers(&bundle_directory, settings, cef_path)?;
     // Add helper apps to sign paths
     sign_paths.extend(helper_paths.into_iter().map(|path| SignTarget {

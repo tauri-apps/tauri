@@ -4,7 +4,7 @@
 
 use std::{
   borrow::Cow,
-  collections::{HashMap, HashSet},
+  collections::HashMap,
   fmt,
   sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
 };
@@ -214,7 +214,6 @@ pub struct AppManager<R: Runtime> {
 
   /// Application Resources Table
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
-  pub(crate) sidecar_pids: Arc<Mutex<HashSet<u32>>>,
 
   /// Runtime-generated invoke key.
   pub(crate) invoke_key: String,
@@ -323,7 +322,6 @@ impl<R: Runtime> AppManager<R> {
       pattern: Arc::new(context.pattern),
       plugin_global_api_scripts: Arc::new(context.plugin_global_api_scripts),
       resources_table: Arc::default(),
-      sidecar_pids: Arc::default(),
       invoke_key,
       channel_interceptor,
       restart_on_exit: AtomicBool::new(false),
@@ -697,19 +695,6 @@ impl<R: Runtime> AppManager<R> {
 
   pub(crate) fn invoke_key(&self) -> &str {
     &self.invoke_key
-  }
-
-  pub fn register_sidecar(&self, pid: u32) {
-    let mut pids = self.sidecar_pids.lock().expect("poisoned sidecar_pids");
-    pids.insert(pid);
-  }
-  pub fn unregister_sidecar(&self, pid: u32) {
-    let mut pids = self.sidecar_pids.lock().expect("poisoned sidecar_pids");
-    pids.remove(&pid);
-  }
-  pub fn drain_sidecar_pids(&self) -> Vec<u32> {
-    let mut pids = self.sidecar_pids.lock().expect("poisoned sidecar_pids");
-    pids.drain().collect()
   }
 }
 

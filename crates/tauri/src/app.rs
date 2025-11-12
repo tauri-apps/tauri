@@ -501,13 +501,7 @@ impl<R: Runtime> AppHandle<R> {
     Ok(())
   }
 
-  pub fn register_sidecar(&self, pid: u32) {
-    self.manager.register_sidecar(pid);
-  }
 
-  pub fn unregister_sidecar(&self, pid: u32) {
-    self.manager.unregister_sidecar(pid);
-  }
 
   /// Removes the plugin with the given name.
   ///
@@ -1045,12 +1039,13 @@ macro_rules! shared_app_impl {
         for (_, webview) in self.manager.webviews() {
           webview.resources_table().clear();
         }
-  let sidecar_pids = self.manager.drain_sidecar_pids();
-        for pid in sidecar_pids {
-          if let Err(e) = crate::process::kill_process_tree(pid) {
-            log::warn!("failed to kill sidecar pid {}: {}", pid, e);
-          }
-        }
+        // run plugin cleanup hooks so plugins can perform shutdown tasks (e.g. stop sidecars)
+        self
+          .manager
+          .plugins
+          .lock()
+          .unwrap()
+          .cleanup_before_exit(self.app_handle());
       }
 
       /// Gets the invoke key that must be referenced when using [`crate::webview::InvokeRequest`].

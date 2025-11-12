@@ -4,11 +4,12 @@
 
 ### Enhancements
 
-- Added a best-effort process tree killer and sidecar PID registry:
+- Added a best-effort process tree killer and plugin-level cleanup hook:
   - `kill_process_tree(pid: u32)` helper (cross-platform, shell/PowerShell based).
-  - Runtime-side sidecar PID registry and `AppHandle::register_sidecar` / `unregister_sidecar`.
+  - Plugin lifecycle hook `Plugin::cleanup_before_exit` and `PluginStore::cleanup_before_exit` — the runtime now delegates shutdown cleanup to plugins (for example the shell plugin) so they can manage sidecar lifecycle and process termination.
+  - Removed public convenience `AppHandle::register_sidecar` / `unregister_sidecar`: sidecar lifecycle and registration should be owned by the plugin responsible for spawning them.
   - CLI dev-run integration attempts to kill sidecar descendant processes during terminate.
-  This helps ensure descendant processes spawned by sidecars are terminated when a sidecar is killed. (Fixes #14360)
+  This ensures descendant processes spawned by sidecars are terminated while keeping process-control logic inside the plugin that owns the sidecar (Fixes #14360)
 
 ## \[2.9.2]
 

@@ -134,6 +134,8 @@ pub fn kill_process_tree(pid: u32) -> std::io::Result<()> {
   {
     use std::process::Command;
 
+    // Use PowerShell to recursively find and stop child processes, then stop the root.
+    // This mirrors the approach used elsewhere in the project (tauri-cli).
     let ps = format!(
       "function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}",
       pid
@@ -159,6 +161,9 @@ pub fn kill_process_tree(pid: u32) -> std::io::Result<()> {
   {
     use std::process::Command;
 
+    // On Unix, recursively collect children via pgrep -P and kill them. We use a small
+    // shell function to traverse descendants and then kill them. Use SIGKILL to ensure
+    // termination (best effort).
     let sh = format!(r#"
 getcpid() {{
   for cpid in $(pgrep -P "$1" 2>/dev/null || true); do

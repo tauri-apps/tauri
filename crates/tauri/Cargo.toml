@@ -25,6 +25,7 @@ features = [
   "protocol-asset",
   "test",
   "specta",
+  "dynamic-acl",
 ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

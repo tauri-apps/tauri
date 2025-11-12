@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.7.3]
+
+### Enhancements
+
+- [`22edc65aa`](https://www.github.com/tauri-apps/tauri/commit/22edc65aad0b3e45515008e8e0866112da70c8a1) ([#14408](https://www.github.com/tauri-apps/tauri/pull/14408) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Set user-agent in bundler and cli http requests when fetching build tools.
+
+### Bug Fixes
+
+- [`9a1922636`](https://www.github.com/tauri-apps/tauri/commit/9a192263693d71123a9953e2a6ee60fad07500b4) ([#14410](https://www.github.com/tauri-apps/tauri/pull/14410) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix uninstall fails if you close the app manually during the 'Click Ok to kill it' dialog
+
 ## \[2.7.2]
 
 ### Enhancements

@@ -14,6 +14,8 @@ use sha2::Digest;
 use url::Url;
 use zip::ZipArchive;
 
+const BUNDLER_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
+
 fn generate_github_mirror_url_from_template(github_url: &str) -> Option<String> {
   std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE")
     .ok()
@@ -47,7 +49,15 @@ fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
 
   generate_github_mirror_url_from_template(url)
     .or_else(|| generate_github_mirror_url_from_base(url))
-    .map(|alt_url| (ureq::agent(), alt_url))
+    .map(|alt_url| {
+      (
+        ureq::Agent::config_builder()
+          .user_agent(BUNDLER_USER_AGENT)
+          .build()
+          .into(),
+        alt_url,
+      )
+    })
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
@@ -55,22 +65,21 @@ fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
 }
 
 pub(crate) fn base_ureq_agent() -> ureq::Agent {
+  #[allow(unused_mut)]
+  let mut config_builder = ureq::Agent::config_builder()
+    .user_agent(BUNDLER_USER_AGENT)
+    .proxy(ureq::Proxy::try_from_env());
+
   #[cfg(feature = "platform-certs")]
-  let agent: ureq::Agent = ureq::Agent::config_builder()
-    .tls_config(
+  {
+    config_builder = config_builder.tls_config(
       ureq::tls::TlsConfig::builder()
         .root_certs(ureq::tls::RootCerts::PlatformVerifier)
         .build(),
-    )
-    .proxy(ureq::Proxy::try_from_env())
-    .build()
-    .into();
-  #[cfg(not(feature = "platform-certs"))]
-  let agent: ureq::Agent = ureq::Agent::config_builder()
-    .proxy(ureq::Proxy::try_from_env())
-    .build()
-    .into();
-  agent
+    );
+  }
+
+  config_builder.build().into()
 }
 
 #[allow(dead_code)]

@@ -50,16 +50,16 @@ webkit2gtk = { version = "=2.0", features = ["v2_40"] }
 jni = "0.21"
 
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
-objc2 = "0.6"
-objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+objc2 = "0.6.3"
+objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIView",
   "UIResponder",
 ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 url = "2"
-objc2 = "0.6"
-objc2-web-kit = { version = "0.3", features = ["objc2-app-kit", "WKWebView"] }
+objc2 = "0.6.3"
+objc2-web-kit = { version = "0.3.2", features = ["objc2-app-kit", "WKWebView"] }
 
 [features]
 devtools = []

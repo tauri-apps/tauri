@@ -1469,52 +1469,20 @@ pub(crate) fn tauri_config_to_bundle_settings(
   };
 
   #[cfg(target_os = "macos")]
-  let entitlements = if let Some(plugin_config) = tauri_config
-    .plugins
-    .0
-    .get("deep-link")
-    .and_then(|c| c.get("desktop").cloned())
-  {
-    let protocols: DesktopDeepLinks =
-      serde_json::from_value(plugin_config).context("failed to parse deep link plugin config")?;
-    let domains = match protocols {
-      DesktopDeepLinks::One(protocol) => protocol.domains,
-      DesktopDeepLinks::List(protocols) => protocols.into_iter().flat_map(|p| p.domains).collect(),
+  let merge_entitlements = get_merge_entitlements(tauri_config, &enabled_features)?;
+
+  #[cfg(target_os = "macos")]
+  let entitlements = {
+    let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
+      crate::helpers::plist::merge_plist(vec![
+        PathBuf::from(user_provided_entitlements).into(),
+        plist::Value::Dictionary(merge_entitlements).into(),
+      ])?
+    } else {
+      merge_entitlements.into()
     };
 
-    if domains.is_empty() {
-      config
-        .macos
-        .entitlements
-        .map(PathBuf::from)
-        .map(tauri_bundler::bundle::Entitlements::Path)
-    } else {
-      let mut app_links_entitlements = plist::Dictionary::new();
-      app_links_entitlements.insert(
-        "com.apple.developer.associated-domains".to_string(),
-        domains
-          .into_iter()
-          .map(|domain| format!("applinks:{domain}").into())
-          .collect::<Vec<_>>()
-          .into(),
-      );
-      let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
-        crate::helpers::plist::merge_plist(vec![
-          PathBuf::from(user_provided_entitlements).into(),
-          plist::Value::Dictionary(app_links_entitlements).into(),
-        ])?
-      } else {
-        app_links_entitlements.into()
-      };
-
-      Some(tauri_bundler::bundle::Entitlements::Plist(entitlements))
-    }
-  } else {
-    config
-      .macos
-      .entitlements
-      .map(PathBuf::from)
-      .map(tauri_bundler::bundle::Entitlements::Path)
+    Some(tauri_bundler::bundle::Entitlements::Plist(entitlements))
   };
   #[cfg(not(target_os = "macos"))]
   let entitlements = None;
@@ -1680,6 +1648,51 @@ pub(crate) fn tauri_config_to_bundle_settings(
     },
     ..Default::default()
   })
+}
+
+#[cfg(target_os = "macos")]
+fn get_merge_entitlements(
+  tauri_config: &Config,
+  enabled_features: &[String],
+) -> crate::Result<plist::Dictionary> {
+  let mut entitlements = plist::Dictionary::new();
+
+  if let Some(plugin_config) = tauri_config
+    .plugins
+    .0
+    .get("deep-link")
+    .and_then(|c| c.get("desktop").cloned())
+  {
+    let protocols: DesktopDeepLinks =
+      serde_json::from_value(plugin_config).context("failed to parse deep link plugin config")?;
+    let domains = match protocols {
+      DesktopDeepLinks::One(protocol) => protocol.domains,
+      DesktopDeepLinks::List(protocols) => protocols.into_iter().flat_map(|p| p.domains).collect(),
+    };
+
+    entitlements.insert(
+      "com.apple.developer.associated-domains".to_string(),
+      domains
+        .into_iter()
+        .map(|domain| format!("applinks:{domain}").into())
+        .collect::<Vec<_>>()
+        .into(),
+    );
+  }
+
+  if enabled_features.contains(&"cef".into()) || enabled_features.contains(&"tauri/cef".into()) {
+    entitlements.insert("com.apple.security.cs.allow-jit".to_string(), true.into());
+    entitlements.insert(
+      "com.apple.security.cs.allow-unsigned-executable-memory".to_string(),
+      true.into(),
+    );
+    entitlements.insert(
+      "com.apple.security.cs.disable-library-validation".to_string(),
+      true.into(),
+    );
+  }
+
+  Ok(entitlements)
 }
 
 #[cfg(target_os = "linux")]

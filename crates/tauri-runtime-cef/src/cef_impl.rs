@@ -856,7 +856,7 @@ wrap_window_delegate! {
 
         if a.center {
           // Use CEF's native centering API
-          window.center_window(None);
+          window.center_window(Some(&window.size()));
         }
 
         if let Some(focused) = a.focused {
@@ -2184,7 +2184,7 @@ fn handle_window_message<T: UserEvent>(
     WindowMessage::Center => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         if let Some(window) = app_window.window() {
-          window.center_window(None);
+          window.center_window(Some(&window.size()));
         }
       }
     }

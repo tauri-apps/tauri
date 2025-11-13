@@ -9032,6 +9032,7 @@ dependencies = [
  "kuchikiki",
  "objc2 0.6.3",
  "objc2-app-kit",
+ "objc2-foundation 0.3.0",
  "raw-window-handle",
  "serde",
  "serde_json",

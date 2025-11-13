@@ -40,6 +40,9 @@ use std::{
   thread::{self, ThreadId},
 };
 
+#[cfg(target_os = "macos")]
+use crate::application::AppDelegateEvent;
+
 mod cef_impl;
 
 #[macro_export]
@@ -1837,6 +1840,8 @@ impl<T: UserEvent> CefRuntime<T> {
   fn init(runtime_args: RuntimeInitArgs<RuntimeInitAttribute>) -> Self {
     let args = cef::args::Args::new();
 
+    let (event_tx, event_rx) = channel();
+
     #[cfg(target_os = "macos")]
     let (_sandbox, _loader) = {
       let is_helper = is_cef_helper_process();
@@ -1857,15 +1862,23 @@ impl<T: UserEvent> CefRuntime<T> {
       assert!(loader.load());
 
       if !is_helper {
-        init_ns_app();
+        let event_tx_ = event_tx.clone();
+        init_ns_app(Box::new(move |event| match event {
+          AppDelegateEvent::ShouldTerminate { tx } => {
+            tx.send(objc2_app_kit::NSApplicationTerminateReply::TerminateCancel)
+              .unwrap();
+            event_tx_.send(RunEvent::Exit).unwrap();
+          }
+          AppDelegateEvent::OpenURLs { urls } => {
+            event_tx_.send(RunEvent::Opened { urls }).unwrap();
+          }
+        }));
       }
 
       (sandbox, loader)
     };
 
     let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
-
-    let (event_tx, event_rx) = channel();
 
     let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
     let cache_path = cache_base.join(&runtime_args.identifier).join("cef");
@@ -2193,23 +2206,24 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 }
 
 #[cfg(target_os = "macos")]
-fn init_ns_app() {
-  use objc2::{
-    msg_send,
-    rc::Retained,
-    runtime::{AnyObject, NSObjectProtocol},
-    ClassType, MainThreadMarker,
-  };
-  use objc2_app_kit::NSApp;
+fn init_ns_app(on_event: Box<dyn Fn(AppDelegateEvent)>) {
+  use objc2::{msg_send, rc::Retained, runtime::NSObjectProtocol, ClassType, MainThreadMarker};
+  use objc2_app_kit::{NSApp, NSApplication};
 
-  use application::SimpleApplication;
+  use application::{AppDelegate, SimpleApplication};
 
   let mtm = MainThreadMarker::new().unwrap();
 
   unsafe {
     // Initialize the SimpleApplication instance.
     // SAFETY: mtm ensures that here is the main thread.
-    let _: Retained<AnyObject> = msg_send![SimpleApplication::class(), sharedApplication];
+
+    use objc2::runtime::ProtocolObject;
+
+    let app: Retained<NSApplication> = msg_send![SimpleApplication::class(), sharedApplication];
+    let delegate = AppDelegate::new(mtm, on_event);
+    let proto_delegate = ProtocolObject::from_ref(&*delegate);
+    app.setDelegate(Some(&proto_delegate));
   }
 
   // If there was an invocation to NSApp prior to here,
@@ -2220,11 +2234,80 @@ fn init_ns_app() {
 
 #[cfg(target_os = "macos")]
 mod application {
-  use std::cell::Cell;
+  use std::{cell::Cell, sync::mpsc::channel};
 
   use cef::application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol};
-  use objc2::{define_class, runtime::Bool, DefinedClass};
-  use objc2_app_kit::NSApplication;
+  use objc2::{
+    define_class, msg_send,
+    rc::Retained,
+    runtime::{Bool, NSObject, NSObjectProtocol},
+    DefinedClass, MainThreadMarker, MainThreadOnly,
+  };
+  use objc2_app_kit::{NSApplication, NSApplicationDelegate, NSApplicationTerminateReply};
+  use objc2_foundation::{NSArray, NSURL};
+
+  pub enum AppDelegateEvent {
+    ShouldTerminate {
+      tx: std::sync::mpsc::Sender<NSApplicationTerminateReply>,
+    },
+    OpenURLs {
+      urls: Vec<url::Url>,
+    },
+  }
+
+  pub struct CefAppDelegateIvars {
+    pub on_event: Box<dyn Fn(AppDelegateEvent)>,
+  }
+
+  define_class!(
+    #[unsafe(super(NSObject))]
+    #[name = "CefAppDelegate"]
+    #[ivars = CefAppDelegateIvars]
+    #[thread_kind = MainThreadOnly]
+    pub struct AppDelegate;
+
+    unsafe impl NSObjectProtocol for AppDelegate {}
+
+    #[allow(non_snake_case)]
+    unsafe impl NSApplicationDelegate for AppDelegate {
+      #[unsafe(method(application:openURLs:))]
+      unsafe fn application_openURLs(&self, _application: &NSApplication, urls: &NSArray<NSURL>) {
+        let converted_urls: Vec<url::Url> = urls
+          .iter()
+          .filter_map(|ns_url| {
+            ns_url
+              .absoluteString()
+              .and_then(|url_string| url_string.to_string().parse().ok())
+          })
+          .collect();
+
+        let handler = &self.ivars().on_event;
+        handler(AppDelegateEvent::OpenURLs {
+          urls: converted_urls,
+        });
+      }
+
+      #[unsafe(method(applicationShouldTerminate:))]
+      unsafe fn applicationShouldTerminate(
+        &self,
+        _sender: &NSApplication,
+      ) -> NSApplicationTerminateReply {
+        let (tx, rx) = channel();
+        let handler = &self.ivars().on_event;
+        handler(AppDelegateEvent::ShouldTerminate { tx });
+        rx.try_recv()
+          .unwrap_or(NSApplicationTerminateReply::TerminateNow)
+      }
+    }
+  );
+
+  impl AppDelegate {
+    pub fn new(mtm: MainThreadMarker, on_event: Box<dyn Fn(AppDelegateEvent)>) -> Retained<Self> {
+      let delegate = Self::alloc(mtm).set_ivars(CefAppDelegateIvars { on_event });
+      let delegate: Retained<Self> = unsafe { msg_send![super(delegate), init] };
+      delegate
+    }
+  }
 
   /// Instance variables of `SimpleApplication`.
   pub struct SimpleApplicationIvars {

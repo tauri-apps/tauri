@@ -469,6 +469,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   });
 
   Ok(quote!({
+    // Wrapping in a function to make rust analyzer faster,
+    // see https://github.com/tauri-apps/tauri/pull/14457
     fn inner<R: #root::Runtime>() -> #root::Context<R> {
       let thread = ::std::thread::Builder::new()
         .name(String::from("generated tauri context creation"))

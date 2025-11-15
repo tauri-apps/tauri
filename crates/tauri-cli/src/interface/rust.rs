@@ -695,11 +695,13 @@ struct WorkspacePackageSettings {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 struct BinarySettings {
   name: String,
   /// This is from nightly: https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#different-binary-name
   filename: Option<String>,
   path: Option<String>,
+  required_features: Option<Vec<String>>,
 }
 
 impl BinarySettings {
@@ -919,7 +921,7 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let binaries = self.get_binaries()?;
+    let binaries = self.get_binaries(options)?;
     let bin_name = binaries
       .iter()
       .find(|x| x.main())
@@ -945,8 +947,8 @@ impl AppSettings for RustAppSettings {
     Ok(path)
   }
 
-  fn get_binaries(&self) -> crate::Result<Vec<BundleBinary>> {
-    let mut binaries: Vec<BundleBinary> = vec![];
+  fn get_binaries(&self, options: &Options) -> crate::Result<Vec<BundleBinary>> {
+    let mut binaries = Vec::new();
 
     if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
@@ -955,6 +957,14 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
+        if let (Some(req_features), Some(opt_features)) =
+          (&bin.required_features, &options.features)
+        {
+          // Check if all required features are enabled.
+          if !req_features.iter().all(|feat| opt_features.contains(feat)) {
+            continue;
+          }
+        }
         let file_name = bin.file_name();
         let is_main = file_name == self.cargo_package_settings.name || file_name == default_run;
         binaries.push(BundleBinary::with_path(
@@ -1659,7 +1669,7 @@ mod tests {
 
   #[test]
   fn parse_cargo_option() {
-    let args = vec![
+    let args = [
       "build".into(),
       "--".into(),
       "--profile".into(),

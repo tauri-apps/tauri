@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.9.3]
+
+### Bug Fixes
+
+- [`4b00130b8`](https://www.github.com/tauri-apps/tauri/commit/4b00130b86a27b6f121bf57897b5e92d83bcc0fc) ([#14385](https://www.github.com/tauri-apps/tauri/pull/14385) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix iOS deadlock when running on the simulator from Xcode by properly piping stdout/stderr messages through the Xcode console and OSLog.
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.5.1`
+- Upgraded to `tauri-build@2.5.2`
+
 ## \[2.9.2]
 
 ### Bug Fixes

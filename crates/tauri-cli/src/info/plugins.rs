@@ -72,7 +72,12 @@ pub fn installed_tauri_packages(
         crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), crate_name).version?;
       let crate_version = semver::Version::parse(&crate_version)
         .inspect_err(|_| {
-          log::error!("Failed to parse version `{crate_version}` for crate `{crate_name}`");
+          // On first run there's no lockfile yet so we get the version requirement from Cargo.toml
+          // In our templates that's `2` which is not a valid semver version but a version requirement.
+          // We only print a warning if the version requirement is invalid but cargo will complain as well.
+          if semver::VersionReq::parse(&crate_version).is_err() {
+            log::error!("Failed to parse version `{crate_version}` for crate `{crate_name}`");
+          }
         })
         .ok()?;
       Some((crate_name.clone(), crate_version))

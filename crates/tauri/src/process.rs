@@ -144,6 +144,8 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
 /// protected or system processes, or when the caller lacks sufficient
 /// privileges. Callers should handle and log any errors returned by this
 /// function.
+
+// TODO: Move this helper into the `process` plugin in the plugins-workspace repo.
 pub fn kill_process_tree(pid: u32) -> std::io::Result<()> {
   #[cfg(windows)]
   {

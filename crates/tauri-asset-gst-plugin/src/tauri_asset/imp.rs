@@ -44,7 +44,6 @@ impl URIHandlerImpl for TauriAsset {
 
   fn set_uri(&self, uri: &str) -> Result<(), glib::Error> {
     // uri is like: asset://path/to/asset or asset://localhost/path/to/asset
-
     let sep = format!("{}://", ASSET_URI_SCHEME);
     let mut split = uri.split(sep.as_str());
     let location = split
@@ -53,6 +52,17 @@ impl URIHandlerImpl for TauriAsset {
 
     // directly having full path after asset:// or having localhost
     let location = location.strip_prefix("localhost").unwrap_or(location);
+
+    // Uri could be percent-encoded
+    let location = percent_encoding::percent_decode_str(location)
+      .decode_utf8()
+      .map_err(|_| {
+        glib::Error::new(
+          gst::URIError::BadUri,
+          "Could not decode percent-encoded URI",
+        )
+      })?
+      .to_string();
 
     // now location is like: /path/to/asset
     let internal_src = gst::ElementFactory::make("filesrc")

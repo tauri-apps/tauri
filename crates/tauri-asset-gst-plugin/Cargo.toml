@@ -10,6 +10,7 @@ description = "Gstreamer plugin for asset protocol"
 [dependencies]
 gstreamer = "0.24"
 gstreamer-base = "0.24"
+percent-encoding = "2.3.2"
 
 [lib]
 name = "gsttauriasset"

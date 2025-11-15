@@ -19,3 +19,9 @@ path = "src/lib.rs"
 
 [build-dependencies]
 gst-plugin-version-helper = "0.8.3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+panic = 'abort'

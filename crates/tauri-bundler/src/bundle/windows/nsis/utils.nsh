@@ -40,15 +40,8 @@
       IfSilent kill_${UniqueID} 0
       ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL $R2 IDOK kill_${UniqueID} IDCANCEL cancel_${UniqueID} ${|}
       kill_${UniqueID}:
-        !if "${INSTALLMODE}" == "currentUser"
-          nsis_tauri_utils::KillProcessCurrentUser "${executableName}"
-        !else
-          nsis_tauri_utils::KillProcess "${executableName}"
-        !endif
-        Pop $R0
-        Sleep 500
+        !insertmacro RestartManager_ShutdownFile "${executableName}" $R0
         ${If} $R0 = 0
-        ${OrIf} $R0 = 2
           Goto app_check_done_${UniqueID}
         ${Else}
           IfSilent silent_${UniqueID} ui_${UniqueID}

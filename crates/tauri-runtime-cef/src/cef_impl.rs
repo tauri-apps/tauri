@@ -1807,6 +1807,92 @@ fn handle_webview_message<T: UserEvent>(
   }
 }
 
+#[cfg(target_os = "macos")]
+fn start_window_dragging(window: &cef::Window) {
+  use objc2::rc::Retained;
+  use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventType, NSView};
+
+  unsafe {
+    let ns_view = Retained::<NSView>::retain(window.window_handle() as _);
+    if let Some(ns_view) = ns_view {
+      if let Some(ns_window) = ns_view.window() {
+        // Get current mouse location
+        let mouse_location = NSEvent::mouseLocation();
+
+        // Try to get the current event from NSApp
+        let mut event = None;
+        if let Some(mtm) = objc2::MainThreadMarker::new() {
+          let ns_app = objc2_app_kit::NSApp(mtm);
+          event = ns_app.currentEvent();
+        }
+
+        // Create a mouse event for dragging
+        // If we have a current event, try to use its properties
+        let drag_event = if let Some(current_event) = event {
+          let event_modifier_flags = current_event.modifierFlags();
+          let event_timestamp = current_event.timestamp();
+          let event_window_number = current_event.windowNumber();
+
+          NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
+            NSEventType::LeftMouseDown,
+            mouse_location,
+            event_modifier_flags,
+            event_timestamp,
+            event_window_number,
+            None,
+            0,
+            1,
+            1.0,
+          )
+        } else {
+          NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
+            NSEventType::LeftMouseDown,
+            mouse_location,
+            NSEventModifierFlags::empty(),
+            0.0,
+            ns_window.windowNumber(),
+            None,
+            0,
+            1,
+            1.0,
+          )
+        };
+
+        if let Some(event) = drag_event {
+          ns_window.performWindowDragWithEvent(&event);
+        }
+      }
+    }
+  }
+}
+
+#[cfg(windows)]
+fn start_window_dragging(window: &cef::Window) {
+  use windows::Win32::Foundation::HWND;
+  use windows::Win32::UI::WindowsAndMessaging::{SendMessageW, HTCAPTION, WM_NCLBUTTONDOWN};
+
+  unsafe {
+    let hwnd = window.window_handle();
+    let _ = SendMessageW(
+      HWND(hwnd.0 as _),
+      WM_NCLBUTTONDOWN,
+      windows::core::WPARAM(HTCAPTION.0 as usize),
+      windows::core::LPARAM(0),
+    );
+  }
+}
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn start_window_dragging(_window: &cef::Window) {
+  unimplemented!()
+}
+
 fn handle_window_message<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
@@ -2428,7 +2514,11 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::StartDragging => {
-      // TODO: Implement start dragging
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        if let Some(window) = app_window.window() {
+          start_window_dragging(&window);
+        }
+      }
     }
     WindowMessage::StartResizeDragging(_direction) => {
       // TODO: Implement start resize dragging

@@ -153,6 +153,8 @@ mod undecorated_resizing;
 mod util;
 mod webview;
 mod window;
+#[cfg(test)]
+mod drag_drop_guarantees;
 
 pub use webview::Webview;
 use window::WindowExt as _;
@@ -4036,6 +4038,9 @@ fn handle_event_loop<T: UserEvent>(
       webview_id,
       WebviewMessage::WebviewEvent(event),
     )) => {
+      #[cfg(any(debug_assertions, feature = "tracing"))]
+      log::debug!("Processing WebviewEvent for webview {}: {:?}", webview_id, event);
+      
       let windows_ref = windows.0.borrow();
       if let Some(window) = windows_ref.get(&window_id) {
         if let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id) {
@@ -4044,10 +4049,15 @@ fn handle_event_loop<T: UserEvent>(
 
           drop(windows_ref);
 
+          // CRITICAL: This callback invocation delivers events to app.run()
+          // This is where drag-drop events reach the user's backend code
           callback(RunEvent::WebviewEvent {
             label,
             event: event.clone(),
           });
+          
+          #[cfg(any(debug_assertions, feature = "tracing"))]
+          log::debug!("WebviewEvent callback invoked successfully");
           let listeners = webview_event_listeners.lock().unwrap();
           let handlers = listeners.values();
           for handler in handlers {
@@ -4062,6 +4072,9 @@ fn handle_event_loop<T: UserEvent>(
       _webview_id,
       WebviewMessage::SynthesizedWindowEvent(event),
     )) => {
+      #[cfg(any(debug_assertions, feature = "tracing"))]
+      log::debug!("Processing SynthesizedWindowEvent for window {:?}: {:?}", window_id, event);
+      
       if let Some(event) = WindowEventWrapper::from(event).0 {
         let windows_ref = windows.0.borrow();
         let window = windows_ref.get(&window_id);
@@ -4071,10 +4084,15 @@ fn handle_event_loop<T: UserEvent>(
 
           drop(windows_ref);
 
+          // CRITICAL: This callback invocation delivers events to app.run()
+          // This is where drag-drop events reach the user's backend code
           callback(RunEvent::WindowEvent {
             label,
             event: event.clone(),
           });
+          
+          #[cfg(any(debug_assertions, feature = "tracing"))]
+          log::debug!("WindowEvent callback invoked successfully");
 
           let listeners = window_event_listeners.lock().unwrap();
           let handlers = listeners.values();
@@ -4631,25 +4649,70 @@ You may have it installed on another user account, but it is not available for t
   if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();
     let window_id_ = window_id.clone();
+    let file_extensions = webview_attributes.drag_drop_file_extensions.clone();
+    
     webview_builder = webview_builder.with_drag_drop_handler(move |event| {
+      #[cfg(any(debug_assertions, feature = "tracing"))]
+      log::debug!("Drag-drop event received: {:?}", event);
+      
+      // Helper function to filter paths by file extensions
+      let filter_paths = |paths: Vec<PathBuf>| -> Vec<PathBuf> {
+        if let Some(ref extensions) = file_extensions {
+          paths
+            .into_iter()
+            .filter(|path| {
+              path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| {
+                  extensions
+                    .iter()
+                    .any(|allowed| allowed.eq_ignore_ascii_case(ext))
+                })
+                .unwrap_or(false) // Reject files without extensions if filter is set
+            })
+            .collect()
+        } else {
+          paths
+        }
+      };
+      
       let event = match event {
         WryDragDropEvent::Enter {
           paths,
           position: (x, y),
-        } => DragDropEvent::Enter {
-          paths,
-          position: PhysicalPosition::new(x as _, y as _),
-        },
+        } => {
+          let filtered_paths = filter_paths(paths);
+          // If all files are filtered out and we have a filter, reject the drag
+          if filtered_paths.is_empty() && file_extensions.is_some() {
+            #[cfg(any(debug_assertions, feature = "tracing"))]
+            log::debug!("All files filtered out by extension filter - rejecting drag");
+            return false; // Reject the drag operation
+          }
+          DragDropEvent::Enter {
+            paths: filtered_paths,
+            position: PhysicalPosition::new(x as _, y as _),
+          }
+        }
         WryDragDropEvent::Over { position: (x, y) } => DragDropEvent::Over {
           position: PhysicalPosition::new(x as _, y as _),
         },
         WryDragDropEvent::Drop {
           paths,
           position: (x, y),
-        } => DragDropEvent::Drop {
-          paths,
-          position: PhysicalPosition::new(x as _, y as _),
-        },
+        } => {
+          let filtered_paths = filter_paths(paths);
+          // If all files are filtered out and we have a filter, reject the drop
+          if filtered_paths.is_empty() && file_extensions.is_some() {
+            #[cfg(any(debug_assertions, feature = "tracing"))]
+            log::warn!("All files filtered out by extension filter - rejecting drop");
+            return false; // Reject the drop operation
+          }
+          DragDropEvent::Drop {
+            paths: filtered_paths,
+            position: PhysicalPosition::new(x as _, y as _),
+          }
+        }
         WryDragDropEvent::Leave => DragDropEvent::Leave,
         _ => unimplemented!(),
       };
@@ -4660,7 +4723,18 @@ You may have it installed on another user account, but it is not available for t
         WebviewMessage::WebviewEvent(WebviewEvent::DragDrop(event))
       };
 
-      let _ = proxy.send_event(Message::Webview(*window_id_.lock().unwrap(), id, message));
+      // CRITICAL: This send_event call is what makes drag-drop events reach app.run() callback.
+      // If this line is removed or fails, drag-drop events will NOT reach the backend.
+      // See: https://github.com/tauri-apps/tauri/pull/8393
+      let send_result = proxy.send_event(Message::Webview(*window_id_.lock().unwrap(), id, message));
+      
+      #[cfg(any(debug_assertions, feature = "tracing"))]
+      if send_result.is_err() {
+        log::error!("Failed to send drag-drop event to event loop - events will not reach app.run() callback!");
+      } else {
+        log::debug!("Drag-drop event sent to event loop successfully");
+      }
+      
       true
     });
   }

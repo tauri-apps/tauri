@@ -6,4 +6,4 @@
 "@tauri-apps/cli": patch:perf
 ---
 
-refactor: remove needless collect
+refactor: remove needless collect. No user facing changes.

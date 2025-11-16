@@ -148,7 +148,7 @@ where
   Ok((
     fs::canonicalize(&signature_path).fs_context(
       "failed to canonicalize signature file",
-      signature_path.clone(),
+      &signature_path,
     )?,
     signature_box,
   ))

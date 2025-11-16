@@ -30,7 +30,7 @@ pub fn run() -> Result<()> {
 
   std::fs::write(&manifest_path, serialize_manifest(&manifest)).fs_context(
     "failed to rewrite Cargo manifest",
-    manifest_path.to_path_buf(),
+    &manifest_path,
   )?;
 
   Ok(())

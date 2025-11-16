@@ -67,13 +67,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path).fs_context(
       "failed to remove old app bundle",
-      app_bundle_path.to_path_buf(),
+      &app_bundle_path,
     )?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
   fs::create_dir_all(&bundle_directory).fs_context(
     "failed to create bundle directory",
-    bundle_directory.to_path_buf(),
+    &bundle_directory,
   )?;
 
   let resources_dir = bundle_directory.join("Resources");
@@ -462,8 +462,7 @@ fn copy_frameworks_to_bundle(
   let frameworks = settings
     .macos()
     .frameworks
-    .as_ref()
-    .cloned()
+    .clone()
     .unwrap_or_default();
   if frameworks.is_empty() {
     return Ok(paths);
@@ -471,7 +470,7 @@ fn copy_frameworks_to_bundle(
   let dest_dir = bundle_directory.join("Frameworks");
   fs::create_dir_all(&dest_dir).fs_context(
     "failed to create Frameworks directory",
-    dest_dir.to_path_buf(),
+    &dest_dir,
   )?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {

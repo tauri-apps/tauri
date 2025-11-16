@@ -493,8 +493,8 @@ wrap_keyboard_handler! {
         // Block Cmd+Opt+I on macOS
         #[cfg(target_os = "macos")]
         {
-          let meta = (modifiers & (cef_event_flags_t::EVENTFLAG_COMMAND_DOWN as u32)) != 0;
-          let alt = (modifiers & (cef_event_flags_t::EVENTFLAG_ALT_DOWN as u32)) != 0;
+          let meta = (modifiers & (cef_event_flags_t::EVENTFLAG_COMMAND_DOWN.0 as u32)) != 0;
+          let alt = (modifiers & (cef_event_flags_t::EVENTFLAG_ALT_DOWN.0 as u32)) != 0;
           if key_code == 73 && meta && alt {
             if let Some(is_keyboard_shortcut) = _is_keyboard_shortcut {
               *is_keyboard_shortcut = 1;

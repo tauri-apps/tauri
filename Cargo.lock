@@ -1172,9 +1172,9 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "142.1.0+142.0.8"
+version = "142.2.1+142.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40f62927b4e9c36eacc182513066bd0bdc4dcaec9d81e11bedf05473e6f84679"
+checksum = "ac48fac3f3200d601510b461fa46bc2d64b425e29fc82c04ab1dbd534ed20570"
 dependencies = [
  "cef-dll-sys",
  "libloading 0.9.0",
@@ -1184,9 +1184,9 @@ dependencies = [
 
 [[package]]
 name = "cef-dll-sys"
-version = "142.1.0+142.0.8"
+version = "142.2.1+142.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "467a598819af340e1f3c46101d0b2f76425bc1d2ef8eab3d9c7277d87fce3ec9"
+checksum = "453f3ac5ced6c4dc6b4b685fd99be20de3d06d81554ed0a110a688881319e58e"
 dependencies = [
  "anyhow",
  "cmake",

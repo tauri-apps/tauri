@@ -30,7 +30,9 @@ use crate::{
 };
 
 mod cookie;
+mod drag_handler;
 mod request_handler;
+
 use cookie::{CollectAllCookiesVisitor, CollectUrlCookiesVisitor};
 
 #[cfg(target_os = "linux")]
@@ -639,6 +641,10 @@ wrap_client! {
       ))
     }
 
+    fn drag_handler(&self) -> Option<DragHandler> {
+      Some(drag_handler::BrowserDragHandler::new(drag_handler::BrowserDragHandlerData::new()))
+    }
+
     fn life_span_handler(&self) -> Option<LifeSpanHandler> {
       Some(BrowserLifeSpanHandler::new(self.window_kind, self.window_id, self.context.clone()))
     }
@@ -820,6 +826,10 @@ wrap_window_delegate! {
   impl WindowDelegate {
     fn on_window_created(&self, window: Option<&mut Window>) {
       if let Some(window) = window {
+
+        #[cfg(windows)]
+        drag_handler::windows::subclass_window_for_dragging(window);
+
         let a = self.attributes.borrow();
         if let Some(icon) = a.icon.clone() {
           set_window_icon(window, icon);

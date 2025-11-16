@@ -73,19 +73,25 @@ pub fn exec(
     .map(|bin| {
       let bin_path = PathBuf::from(&bin);
       let mut build_args = vec!["tauri"];
-
       if let Some(bin_stem) = bin_path.file_stem() {
+        let stem = bin_stem.to_string_lossy();
+        if stem == "bun" {
+          return (std::ffi::OsString::from("bun"), build_args);
+        }
         let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
-        if r.is_match(&bin_stem.to_string_lossy()) {
+        if r.is_match(&stem) {
           if var_os("PNPM_PACKAGE_NAME").is_some() {
             return ("pnpm".into(), build_args);
           } else if is_pnpm_dlx() {
             return ("pnpm".into(), vec!["dlx", "@tauri-apps/cli"]);
           } else if let Some(npm_execpath) = var_os("npm_execpath") {
-            let manager_stem = PathBuf::from(&npm_execpath)
-              .file_stem()
-              .unwrap()
-              .to_os_string();
+            let manager_stem = {
+              let pb = PathBuf::from(&npm_execpath);
+              pb.file_stem()
+                .map(|s| s.to_os_string())
+                .or_else(|| pb.file_name().map(|s| s.to_os_string()))
+                .unwrap_or_else(|| npm_execpath.clone())
+            };
             let is_npm = manager_stem == "npm-cli";
             let binary = if is_npm {
               "npm".into()

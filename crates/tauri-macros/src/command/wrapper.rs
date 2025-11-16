@@ -40,6 +40,7 @@ struct WrapperAttributes {
   root: TokenStream2,
   execution_context: ExecutionContext,
   argument_case: ArgumentCase,
+  alias: Option<TokenStream2>,
 }
 
 impl Parse for WrapperAttributes {
@@ -48,6 +49,7 @@ impl Parse for WrapperAttributes {
       root: quote!(::tauri),
       execution_context: ExecutionContext::Blocking,
       argument_case: ArgumentCase::Camel,
+      alias: None,
     };
 
     let attrs = Punctuated::<WrapperAttributeKind, Token![,]>::parse_terminated(input)?;
@@ -74,6 +76,19 @@ impl Parse for WrapperAttributes {
                 }
               };
             }
+          } else if v.path.is_ident("alias") {
+            if let Expr::Lit(ExprLit {
+              lit: Lit::Str(s), ..
+            }) = v.value
+            {
+              let lit = s.value();
+              wrapper_attributes.alias = Some(quote!(#lit));
+            } else {
+              return Err(syn::Error::new(
+                v.span(),
+                "expected string literal for alias",
+              ));
+            }
           } else if v.path.is_ident("root") {
             if let Expr::Lit(ExprLit {
               lit: Lit::Str(s),
@@ -94,7 +109,7 @@ impl Parse for WrapperAttributes {
         WrapperAttributeKind::Meta(Meta::Path(_)) => {
           return Err(syn::Error::new(
             input.span(),
-            "unexpected input, expected one of `rename_all`, `root`, `async`",
+            "unexpected input, expected one of `rename_all`, `alias`, `root`, `async`",
           ));
         }
         WrapperAttributeKind::Async => {
@@ -138,10 +153,16 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     attrs.execution_context = ExecutionContext::Async;
   }
 
-  // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`
-  let maybe_macro_export = match &function.vis {
-    Visibility::Public(_) | Visibility::Restricted(_) => quote!(#[macro_export]),
-    _ => TokenStream2::default(),
+  // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`.
+  // To avoid crate-root name collisions for same-named commands across modules,
+  // only export non-renamed commands at crate root. Renamed commands remain module-scoped.
+  let maybe_macro_export = if attrs.alias.is_none() {
+    match &function.vis {
+      Visibility::Public(_) | Visibility::Restricted(_) => quote!(#[macro_export]),
+      _ => TokenStream2::default(),
+    }
+  } else {
+    TokenStream2::default()
   };
 
   let invoke = Invoke {
@@ -270,12 +291,39 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream2::default()
   };
 
+  // For renamed commands (no crate-root export), restrict alias visibility to crate-only
+  // to avoid public re-export errors for non-exported macros.
+  let alias_visibility = if attrs.alias.is_some() {
+    quote!(pub(crate))
+  } else {
+    quote!(#visibility)
+  };
+
+  // Always define a hidden constant holding the externally invoked command name.
+  // This lets the handler match on the renamed string while the original function
+  // identifier remains usable in `generate_handler![original_fn_name]`.
+  let command_name_const_ident = {
+    let upper = function.sig.ident.to_string().to_uppercase();
+    format_ident!("__TAURI_COMMAND_NAME_{}", upper)
+  };
+  let command_name_const_value = if let Some(ref alias) = attrs.alias {
+    quote!(#alias)
+  } else {
+    let ident = &function.sig.ident;
+    quote!(stringify!(#ident))
+  };
+
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
     #async_command_check
 
     #maybe_allow_unused
     #function
+
+    // Command name constant used by the handler for pattern matching.
+    #[doc(hidden)]
+    #maybe_allow_unused
+    pub const #command_name_const_ident: &str = #command_name_const_value;
 
     #maybe_allow_unused
     #maybe_macro_export
@@ -303,7 +351,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
     // allow the macro to be resolved with the same path as the command function
     #[allow(unused_imports)]
-    #visibility use #wrapper;
+    #alias_visibility use #wrapper;
   )
   .into()
 }
@@ -467,11 +515,21 @@ fn parse_arg(
   }
 
   let root = &attributes.root;
+  let command_name = if let Some(r) = &attributes.alias {
+    let r_string = match r.clone().into_iter().next() {
+      Some(proc_macro2::TokenTree::Literal(lit)) => lit.to_string(),
+      Some(proc_macro2::TokenTree::Ident(ident)) => ident.to_string(),
+      _ => quote!(#r).to_string(),
+    };
+    quote!(#r_string)
+  } else {
+    quote!(stringify!(#command))
+  };
 
   Ok(quote!(#root::ipc::CommandArg::from_command(
     #root::ipc::CommandItem {
       plugin: #plugin_name,
-      name: stringify!(#command),
+      name: #command_name,
       key: #key,
       message: &#message,
       acl: &#acl,

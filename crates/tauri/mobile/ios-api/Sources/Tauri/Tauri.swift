@@ -109,6 +109,14 @@ extension PluginManager: NSCopying {
   }
 }
 
+private var stdoutRedirector: StdoutRedirector?
+
+@_cdecl("log_stdout")
+func logStdout() {
+  stdoutRedirector = StdoutRedirector()
+  stdoutRedirector!.start()
+}
+
 @_cdecl("register_plugin")
 func registerPlugin(name: SRString, plugin: NSObject, config: SRString, webview: WKWebView?) {
   PluginManager.shared.load(

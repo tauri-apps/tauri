@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.5.1`
+
 ## \[2.5.1]
 
 ### Bug Fixes

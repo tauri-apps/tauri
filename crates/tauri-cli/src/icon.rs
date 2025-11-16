@@ -280,19 +280,15 @@ pub fn command(options: Options) -> Result<()> {
     android(&source, &input, manifest, &bg_color_string, &out_dir)
       .context("Failed to generate android icons")?;
   } else {
-    for target in png_icon_sizes
-      .into_iter()
-      .map(|size| {
-        let name = format!("{size}x{size}.png");
-        let out_path = out_dir.join(&name);
-        PngEntry {
-          name,
-          out_path,
-          size,
-        }
-      })
-      .collect::<Vec<PngEntry>>()
-    {
+    for target in png_icon_sizes.into_iter().map(|size| {
+      let name = format!("{size}x{size}.png");
+      let out_path = out_dir.join(&name);
+      PngEntry {
+        name,
+        out_path,
+        size,
+      }
+    }) {
       log::info!(action = "PNG"; "Creating {}", target.name);
       resize_and_save_png(&source, target.size, &target.out_path, None, None)?;
     }

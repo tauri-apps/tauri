@@ -28,10 +28,8 @@ pub fn run() -> Result<()> {
 
   migrate_npm_dependencies(frontend_dir)?;
 
-  std::fs::write(&manifest_path, serialize_manifest(&manifest)).fs_context(
-    "failed to rewrite Cargo manifest",
-    &manifest_path,
-  )?;
+  std::fs::write(&manifest_path, serialize_manifest(&manifest))
+    .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
 
   Ok(())
 }

@@ -1876,8 +1876,8 @@ fn start_window_dragging(window: &cef::Window) {
     let _ = SendMessageW(
       HWND(hwnd.0 as _),
       WM_NCLBUTTONDOWN,
-      windows::core::WPARAM(HTCAPTION.0 as usize),
-      windows::core::LPARAM(0),
+      Some(windows::Win32::Foundation::WPARAM(HTCAPTION as usize)),
+      Some(windows::Win32::Foundation::LPARAM(0)),
     );
   }
 }

@@ -4910,7 +4910,7 @@ You may have it installed on another user account, but it is not available for t
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
     kind,
-    window_id,
+    window_id.clone(),
     id,
     context.clone(),
     label.clone(),

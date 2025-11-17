@@ -54,6 +54,8 @@ objc2 = "0.6"
 objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
   "UIView",
   "UIResponder",
+  "UIScene",
+  "UISceneOptions",
 ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]

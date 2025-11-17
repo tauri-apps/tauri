@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.webkit.WebView
 import androidx.activity.result.IntentSenderRequest
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import app.tauri.FsUtils
 import app.tauri.Logger
@@ -71,10 +72,18 @@ abstract class Plugin(private val activity: Activity) {
    */
   open fun onResume() {}
 
+
   /**
    * This event is called after onStop() when the current activity is being re-displayed to the user (the user has navigated back to it).
    * It will be followed by onStart() and then onResume().
    */
+  open fun onRestart(activity: AppCompatActivity) {}
+
+  /**
+   * This event is called after onStop() when the current activity is being re-displayed to the user (the user has navigated back to it).
+   * It will be followed by onStart() and then onResume().
+   */
+  @Deprecated("use onRestart(activity: AppCompatActivity) instead")
   open fun onRestart() {}
 
   /**
@@ -86,7 +95,22 @@ abstract class Plugin(private val activity: Activity) {
   /**
    * This event is called before the activity is destroyed.
    */
+  open fun onDestroy(activity: AppCompatActivity) {}
+  /**
+   * This event is called before an activity is destroyed.
+   */
+  @Deprecated("use onDestroy(activity: AppCompatActivity) instead")
   open fun onDestroy() {}
+
+  internal fun triggerOnDestroy(activity: AppCompatActivity) {
+    onDestroy(activity)
+    onDestroy()
+  }
+
+  internal fun triggerOnRestart(activity: AppCompatActivity) {
+    onRestart(activity)
+    onRestart()
+  }
 
   /**
    * This event is called when a configuration change occurs but the app does not recreate the activity.

@@ -252,6 +252,20 @@ pub enum RunEvent {
     /// Indicates whether the NSApplication object found any visible windows in your application.
     has_visible_windows: bool,
   },
+  /// Emitted when a scene is requested by the system.
+  ///
+  /// This event is emitted when a scene is requested by the system.
+  /// Scenes created by [`Window::new`] are not emitted with this event.
+  /// It is also not emitted for the main scene.
+  #[cfg(target_os = "ios")]
+  SceneRequested {
+    /// Scene that was requested by the system.
+    scene: objc2::rc::Retained<objc2_ui_kit::UIScene>,
+    /// Options that were used to request the scene.
+    ///
+    /// This lets you determine why the scene was requested.
+    options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -658,6 +672,16 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    None
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    None
+  }
 }
 
 /// The instance of the currently running application.
@@ -707,6 +731,16 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self.handle()
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    None
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    None
   }
 }
 
@@ -2485,6 +2519,10 @@ fn on_event_loop_event<R: Runtime>(
     } => RunEvent::Reopen {
       has_visible_windows,
     },
+    #[cfg(target_os = "ios")]
+    RuntimeRunEvent::SceneRequested { scene, options } => {
+      RunEvent::SceneRequested { scene, options }
+    }
     _ => unimplemented!(),
   };
 

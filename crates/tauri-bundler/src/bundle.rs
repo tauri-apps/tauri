@@ -241,11 +241,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     return Ok(bundles);
   }
 
-  let bundles_wo_updater = bundles
+  let finished_bundles = bundles
     .iter()
     .filter(|b| b.package_type != PackageType::Updater)
-    .collect::<Vec<_>>();
-  let finished_bundles = bundles_wo_updater.len();
+    .count();
   let pluralised = if finished_bundles == 1 {
     "bundle"
   } else {

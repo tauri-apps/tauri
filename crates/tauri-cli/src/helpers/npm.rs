@@ -332,7 +332,14 @@ impl PackageManager {
       version: String,
     }
 
-    let json: ListOutput = serde_json::from_str(&stdout).context("failed to parse npm list")?;
+    let json = if matches!(self, PackageManager::Pnpm) {
+      serde_json::from_str::<Vec<ListOutput>>(&stdout)
+        .ok()
+        .and_then(|out| out.into_iter().next())
+        .context("failed to parse pnpm list")?
+    } else {
+      serde_json::from_str::<ListOutput>(&stdout).context("failed to parse npm list")?
+    };
     for (package, dependency) in json.dependencies.into_iter().chain(json.dev_dependencies) {
       let version = dependency.version;
       if let Ok(version) = semver::Version::parse(&version) {

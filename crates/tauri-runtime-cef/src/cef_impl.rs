@@ -464,12 +464,12 @@ wrap_keyboard_handler! {
 
         // Get modifier keys
         use cef::sys::cef_event_flags_t;
-        let modifiers = event.modifiers;
+        let modifiers = event.modifiers as i32;
 
         #[cfg(not(target_os = "macos"))]
-        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN as u32)) != 0;
+        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0)) != 0;
         #[cfg(not(target_os = "macos"))]
-        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN as u32)) != 0;
+        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0)) != 0;
 
         let key_code = event.windows_key_code;
 

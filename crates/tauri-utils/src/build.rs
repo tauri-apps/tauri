@@ -94,3 +94,74 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
   println!("cargo:rustc-link-search=native={}", lib_out_dir.display());
   println!("cargo:rustc-link-lib=static={name}");
 }
+
+/// Updates the Android manifest by inserting XML content into a specified parent tag.
+///
+/// The content is wrapped in auto-generated comments and will replace any existing
+/// content with the same block identifier.
+///
+/// # Arguments
+///
+/// * `block_identifier` - A unique identifier for the block (used in comments)
+/// * `parent` - The parent XML tag name (e.g., "activity", "application")
+/// * `insert` - The XML content to insert
+pub fn update_android_manifest(
+  block_identifier: &str,
+  parent: &str,
+  insert: String,
+) -> anyhow::Result<()> {
+  use std::{
+    env::var_os,
+    fs::{read_to_string, write},
+    path::PathBuf,
+  };
+
+  if let Some(project_path) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+    let manifest_path = project_path.join("app/src/main/AndroidManifest.xml");
+    if !manifest_path.exists() {
+      return Ok(());
+    }
+    let manifest = read_to_string(&manifest_path)?;
+    let rewritten = insert_into_xml(&manifest, block_identifier, parent, &insert);
+    if rewritten != manifest {
+      write(&manifest_path, rewritten)?;
+    }
+  }
+  Ok(())
+}
+
+fn xml_block_comment(id: &str) -> String {
+  format!("<!-- {id}. AUTO-GENERATED. DO NOT REMOVE. -->")
+}
+
+fn insert_into_xml(xml: &str, block_identifier: &str, parent_tag: &str, contents: &str) -> String {
+  let block_comment = xml_block_comment(block_identifier);
+
+  let mut rewritten = Vec::new();
+  let mut found_block = false;
+  let parent_closing_tag = format!("</{parent_tag}>");
+  for line in xml.split('\n') {
+    if line.contains(&block_comment) {
+      found_block = !found_block;
+      continue;
+    }
+
+    // found previous block which should be removed
+    if found_block {
+      continue;
+    }
+
+    if let Some(index) = line.find(&parent_closing_tag) {
+      let indentation = " ".repeat(index + 4);
+      rewritten.push(format!("{indentation}{block_comment}"));
+      for l in contents.split('\n') {
+        rewritten.push(format!("{indentation}{l}"));
+      }
+      rewritten.push(format!("{indentation}{block_comment}"));
+    }
+
+    rewritten.push(line.to_string());
+  }
+
+  rewritten.join("\n")
+}

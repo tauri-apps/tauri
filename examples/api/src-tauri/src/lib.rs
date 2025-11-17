@@ -208,7 +208,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .destroy()
           .unwrap();
       }
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
       RunEvent::Opened { urls } => {
         println!("opened urls: {:?}", urls);
       }

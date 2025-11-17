@@ -1319,7 +1319,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4319,7 +4319,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -4743,12 +4743,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ndk-context"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27b02d87554356db9e9a873add8782d4ea6e3e58ea071a9adb9a2e8ddb884a8b"
-
-[[package]]
 name = "ndk-sys"
 version = "0.6.0+11769913"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5131,6 +5125,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-core-location"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d31f4c5b5192304996badc466aeadffe1411d73a9bbd3b18b6b2ee9d048b07bd"
+dependencies = [
+ "objc2 0.6.0",
+ "objc2-foundation 0.3.0",
+]
+
+[[package]]
 name = "objc2-encode"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5214,6 +5218,7 @@ checksum = "6fb3794501bb1bee12f08dcad8c61f2a5875791ad1c6f47faa71a0f033f20071"
 dependencies = [
  "bitflags 2.7.0",
  "objc2 0.6.0",
+ "objc2-core-foundation",
  "objc2-foundation 0.3.0",
 ]
 
@@ -5235,8 +5240,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "777a571be14a42a3990d4ebedaeb8b54cd17377ec21b92e8200ac03797b3bee1"
 dependencies = [
  "bitflags 2.7.0",
+ "block2 0.6.0",
  "objc2 0.6.0",
+ "objc2-cloud-kit",
+ "objc2-core-data",
  "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-core-image",
+ "objc2-core-location",
+ "objc2-foundation 0.3.0",
+ "objc2-quartz-core 0.3.0",
+ "objc2-user-notifications",
+]
+
+[[package]]
+name = "objc2-user-notifications"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "670fe793adbf3b5e93686d48a05a7ed7ee53dfa65d106ced4805fae8969059b2"
+dependencies = [
+ "objc2 0.6.0",
  "objc2-foundation 0.3.0",
 ]
 
@@ -8421,8 +8444,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.34.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3a753bdc39c07b192151523a3f77cd0394aa75413802c883a0f6f6a0e5ee2e7"
+source = "git+https://github.com/tauri-apps/tao?branch=feat/opened-event-android#036d76ac7e795fd62f814731fd439e23c7489374"
 dependencies = [
  "bitflags 2.7.0",
  "block2 0.6.0",
@@ -8440,16 +8462,17 @@ dependencies = [
  "libc",
  "log",
  "ndk",
- "ndk-context",
  "ndk-sys",
  "objc2 0.6.0",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",
+ "objc2-ui-kit",
  "once_cell",
  "parking_lot",
+ "percent-encoding",
  "raw-window-handle",
  "scopeguard",
- "tao-macros",
+ "tao-macros 0.1.3 (git+https://github.com/tauri-apps/tao?branch=feat/opened-event-android)",
  "unicode-segmentation",
  "url",
  "windows 0.61.1",
@@ -8463,6 +8486,16 @@ name = "tao-macros"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4e16beb8b2ac17db28eab8bca40e62dbfbb34c0fcdc6d9826b11b7b5d047dfd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.95",
+]
+
+[[package]]
+name = "tao-macros"
+version = "0.1.3"
+source = "git+https://github.com/tauri-apps/tao?branch=feat/opened-event-android#036d76ac7e795fd62f814731fd439e23c7489374"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10325,7 +10358,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -10957,9 +10990,8 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.53.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d78ec082b80fa088569a970d043bb3050abaabf4454101d44514ee8d9a8c9f6"
+version = "0.53.5"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/android-on-new-intent#435ca59b9eabe094bb8b40c28d583e989aa896d6"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",
@@ -10975,6 +11007,7 @@ dependencies = [
  "javascriptcore-rs",
  "jni 0.21.1",
  "kuchikiki",
+ "lazy_static",
  "libc",
  "ndk",
  "objc2 0.6.0",
@@ -10988,7 +11021,7 @@ dependencies = [
  "raw-window-handle",
  "sha2",
  "soup3",
- "tao-macros",
+ "tao-macros 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.12",
  "tracing",
  "url",

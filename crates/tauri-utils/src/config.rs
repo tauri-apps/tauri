@@ -1239,9 +1239,7 @@ impl FileAssociation {
 ///
 /// Returns a plist dictionary containing `UTExportedTypeDeclarations` and `CFBundleDocumentTypes`
 /// if there are any file associations configured.
-pub fn file_associations_plist(
-  associations: &[FileAssociation],
-) -> Option<plist::Value> {
+pub fn file_associations_plist(associations: &[FileAssociation]) -> Option<plist::Value> {
   use plist::{Dictionary, Value};
 
   if associations.is_empty() {
@@ -1251,45 +1249,42 @@ pub fn file_associations_plist(
   let exported_associations = associations
     .iter()
     .filter_map(|association| {
-      association
-        .exported_type
-        .as_ref()
-        .map(|exported_type| {
-          let mut dict = Dictionary::new();
+      association.exported_type.as_ref().map(|exported_type| {
+        let mut dict = Dictionary::new();
 
+        dict.insert(
+          "UTTypeIdentifier".into(),
+          exported_type.identifier.clone().into(),
+        );
+        if let Some(description) = &association.description {
+          dict.insert("UTTypeDescription".into(), description.clone().into());
+        }
+        if let Some(conforms_to) = &exported_type.conforms_to {
           dict.insert(
-            "UTTypeIdentifier".into(),
-            exported_type.identifier.clone().into(),
+            "UTTypeConformsTo".into(),
+            Value::Array(conforms_to.iter().map(|s| s.clone().into()).collect()),
           );
-          if let Some(description) = &association.description {
-            dict.insert("UTTypeDescription".into(), description.clone().into());
-          }
-          if let Some(conforms_to) = &exported_type.conforms_to {
-            dict.insert(
-              "UTTypeConformsTo".into(),
-              Value::Array(conforms_to.iter().map(|s| s.clone().into()).collect()),
-            );
-          }
+        }
 
-          let mut specification = Dictionary::new();
-          specification.insert(
-            "public.filename-extension".into(),
-            Value::Array(
-              association
-                .ext
-                .iter()
-                .map(|s| s.to_string().into())
-                .collect(),
-            ),
-          );
-          if let Some(mime_type) = &association.mime_type {
-            specification.insert("public.mime-type".into(), mime_type.clone().into());
-          }
+        let mut specification = Dictionary::new();
+        specification.insert(
+          "public.filename-extension".into(),
+          Value::Array(
+            association
+              .ext
+              .iter()
+              .map(|s| s.to_string().into())
+              .collect(),
+          ),
+        );
+        if let Some(mime_type) = &association.mime_type {
+          specification.insert("public.mime-type".into(), mime_type.clone().into());
+        }
 
-          dict.insert("UTTypeTagSpecification".into(), specification.into());
+        dict.insert("UTTypeTagSpecification".into(), specification.into());
 
-          Value::Dictionary(dict)
-        })
+        Value::Dictionary(dict)
+      })
     })
     .collect::<Vec<_>>();
 

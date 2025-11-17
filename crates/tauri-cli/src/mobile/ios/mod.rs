@@ -21,6 +21,7 @@ use cargo_mobile2::{
 use clap::{Parser, Subcommand};
 use serde::Deserialize;
 use sublime_fuzzy::best_match;
+use plist::Value;
 use tauri_utils::resources::ResourcePaths;
 
 use super::{

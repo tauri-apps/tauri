@@ -76,6 +76,37 @@
   },
   "bundle": {
     "active": true,
+    "fileAssociations": [
+      {
+        "ext": ["png"],
+        "mimeType": "image/png",
+        "rank": "Default"
+      },
+      {
+        "ext": ["jpg", "jpeg"],
+        "mimeType": "image/jpeg",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["gif"],
+        "mimeType": "image/gif",
+        "rank": "Owner"
+      },
+      {
+        "ext": ["taurijson"],
+        "exportedType": {
+          "identifier": "com.tauri.dev-file-associations-demo.taurijson",
+          "conformsTo": ["public.json"]
+        }
+      },
+      {
+        "ext": ["taurid"],
+        "exportedType": {
+          "identifier": "com.tauri.dev-file-associations-demo.tauridata",
+          "conformsTo": ["public.data"]
+        }
+      }
+    ],
     "icon": [
       "../../.icons/32x32.png",
       "../../.icons/128x128.png",

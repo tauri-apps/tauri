@@ -227,16 +227,18 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if tauri_path.join("Info.ios.plist").exists() {
     src_plists.push(tauri_path.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .bundle
-    .ios
-    .info_plist
   {
-    src_plists.push(info_plist.clone().into());
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config = tauri_config_guard.as_ref().unwrap();
+
+    if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
+      src_plists.push(info_plist.clone().into());
+    }
+    if let Some(associations) = tauri_config.bundle.file_associations.as_ref() {
+      if let Some(file_associations) = tauri_utils::config::file_associations_plist(associations) {
+        src_plists.push(file_associations.into());
+      }
+    }
   }
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist

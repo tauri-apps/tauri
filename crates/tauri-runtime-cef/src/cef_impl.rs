@@ -1355,12 +1355,19 @@ fn handle_webview_message<T: UserEvent>(
           .find(|w| w.webview_id == webview_id)
           .and_then(|wrapper| wrapper.overlay.as_ref())
         {
-          overlay.set_bounds(Some(&cef::Rect {
+          let bounds = cef::Rect {
             x: logical_position.x,
             y: logical_position.y,
             width: logical_size.width as i32,
             height: logical_size.height as i32,
-          }));
+          };
+          #[cfg(target_os = "macos")]
+          let bounds = if let Some(window) = app_window.window() {
+            macos_webview_bounds(&window, bounds)
+          } else {
+            bounds
+          };
+          overlay.set_bounds(Some(&bounds));
         }
 
         // update autoresize ratios if enabled

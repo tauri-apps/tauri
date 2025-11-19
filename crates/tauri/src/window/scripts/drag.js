@@ -16,6 +16,26 @@
   let initialX = 0
   let initialY = 0
 
+  let dragTimer = null
+  let resizeTimer = null
+
+  function onDragStart(callbackStopped) {
+    function stop() {
+      window.removeEventListener("mousemove", watch);
+      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("mouseleave", stop);
+      callbackStopped();
+    }
+
+    function watch() {
+      // dragging is happening
+    }
+
+    window.addEventListener("mousemove", watch);
+    window.addEventListener("mouseup", stop);
+    window.addEventListener("mouseleave", stop);
+  }
+
   document.addEventListener('mousedown', (e) => {
     const attr = e.target.getAttribute(TAURI_DRAG_REGION_ATTR)
     if (
@@ -43,9 +63,14 @@
       // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
       e.stopImmediatePropagation()
 
-      // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
-      const cmd = e.detail === 2 ? 'internal_toggle_maximize' : 'start_dragging'
-      window.__TAURI_INTERNALS__.invoke('plugin:window|' + cmd)
+      // maximize on double-clicking it, or start dragging on single click
+      if (e.detail === 2) {
+        window.__TAURI_INTERNALS__.invoke('plugin:window|internal_toggle_maximize')
+      } else {
+        onDragStart(() => {
+          window.dispatchEvent(new CustomEvent('drag-stopped'))
+        })
+      }
     }
   })
   // on macOS we maximize on mouseup instead, to match the system behavior where maximization can be canceled
@@ -72,4 +97,11 @@
       }
     })
   }
+
+  window.addEventListener('tauri://resize', () => {
+    clearTimeout(resizeTimer)
+    resizeTimer = setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('resize-stopped'))
+    }, 120)
+  })
 })()

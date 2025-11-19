@@ -127,7 +127,7 @@ wrap_request_handler! {
     fn on_before_browse(
       &self,
       _browser: Option<&mut Browser>,
-      _frame: Option<&mut Frame>,
+      frame: Option<&mut Frame>,
       request: Option<&mut Request>,
       _user_gesture: ::std::os::raw::c_int,
       _is_redirect: ::std::os::raw::c_int,

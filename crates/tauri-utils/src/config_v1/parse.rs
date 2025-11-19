@@ -97,8 +97,8 @@ pub enum ConfigError {
     /// The path that failed to parse into JSON5.
     path: PathBuf,
 
-    /// The parsing [`json5::Error`].
-    error: ::json5::Error,
+    /// The parsing [`serde_json5::Error`].
+    error: ::serde_json5::Error,
   },
 
   /// Failed to parse from TOML.
@@ -232,7 +232,7 @@ fn do_parse_json<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, Confi
 
 #[cfg(feature = "config-json5")]
 fn do_parse_json5<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, ConfigError> {
-  ::json5::from_str(raw).map_err(|error| ConfigError::FormatJson5 {
+  ::serde_json5::from_str(raw).map_err(|error| ConfigError::FormatJson5 {
     path: path.into(),
     error,
   })

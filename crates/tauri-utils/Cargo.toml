@@ -33,7 +33,7 @@ aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }
 serialize-to-javascript = { version = "0.1.2", optional = true }
 ctor = "0.2"
-json5 = { version = "0.4", optional = true }
+serde_json5 = { version = "0.2", optional = true }
 toml = { version = "0.9", features = ["parse"] }
 json-patch = "3.0"
 # Our code requires at least 0.3.1
@@ -71,7 +71,7 @@ compression = ["brotli"]
 schema = ["schemars"]
 isolation = ["aes-gcm", "getrandom", "serialize-to-javascript"]
 process-relaunch-dangerous-allow-symlink-macos = []
-config-json5 = ["json5"]
+config-json5 = ["serde_json5"]
 config-toml = []
 resources = ["walkdir"]
 html-manipulation = ["dep:html5ever", "dep:kuchiki"]

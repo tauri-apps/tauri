@@ -275,7 +275,7 @@ impl CapabilityFile {
       "toml" => toml::from_str(&capability_file)?,
       "json" => serde_json::from_str(&capability_file)?,
       #[cfg(feature = "config-json5")]
-      "json5" => json5::from_str(&capability_file)?,
+      "json5" => serde_json5::from_str(&capability_file)?,
       _ => return Err(super::Error::UnknownCapabilityFormat(ext)),
     };
     Ok(file)

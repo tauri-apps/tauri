@@ -123,7 +123,7 @@ pub enum Error {
   /// Invalid JSON5 encountered
   #[cfg(feature = "config-json5")]
   #[error("failed to parse JSON5: {0}")]
-  Json5(#[from] json5::Error),
+  Json5(#[from] serde_json5::Error),
 
   /// Invalid permissions file format
   #[error("unknown permission format {0}")]

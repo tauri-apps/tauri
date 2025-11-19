@@ -70,7 +70,7 @@ impl FromStr for ConfigValue {
         Some("toml") => Ok(Self(::toml::from_str(&raw).with_context(|| {
           format!("failed to parse config at {} as TOML", path.display())
         })?)),
-        Some("json5") => Ok(Self(::json5::from_str(&raw).with_context(|| {
+        Some("json5") => Ok(Self(::serde_json5::from_str(&raw).with_context(|| {
           format!("failed to parse config at {} as JSON5", path.display())
         })?)),
         // treat all other extensions as json
@@ -78,7 +78,7 @@ impl FromStr for ConfigValue {
           // from tauri-utils/src/config/parse.rs:
           // we also want to support **valid** json5 in the .json extension
           // if the json5 is not valid the serde_json error for regular json will be returned.
-          match ::json5::from_str(&raw) {
+          match ::serde_json5::from_str(&raw) {
             Ok(json5) => json5,
             Err(_) => serde_json::from_str(&raw)
               .with_context(|| format!("failed to parse config at {} as JSON", path.display()))?,

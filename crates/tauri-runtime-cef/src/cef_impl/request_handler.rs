@@ -301,6 +301,12 @@ wrap_resource_handler! {
         }
       }
 
+      response.set_header_by_name(
+        Some(&"Cache-Control".into()),
+        Some(&"no-store".into()),
+        1,
+      );
+
       let mime_type = content_type
         .as_ref()
         .and_then(|t| t.split(';').next())

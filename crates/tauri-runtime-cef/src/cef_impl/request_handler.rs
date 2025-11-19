@@ -132,6 +132,13 @@ wrap_request_handler! {
       _user_gesture: ::std::os::raw::c_int,
       _is_redirect: ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int {
+      let Some(frame) = frame else {
+        return 0;
+      };
+      // we only fire main frame navigation events to match the behavior of the wry runtime
+      if frame.is_main() == 0 {
+        return 0;
+      }
       let Some(handler) = &self.navigation_handler else {
         return 0;
       };

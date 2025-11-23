@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.9.1]
+
+### Bug Fixes
+
+- [`4b6b8690a`](https://www.github.com/tauri-apps/tauri/commit/4b6b8690ab886ebdf1307951cffbe03e31280baa) ([#14347](https://www.github.com/tauri-apps/tauri/pull/14347) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused docs.rs builds to fail. No user facing changes.
+
+## \[2.9.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scroll_bar_style` option to the Webview and WebviewWindow builders.
+  The possible values for this option are gated behind conditional compilation
+  flags, and will need to be applied using conditional compilation if customised.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+
 ## \[2.8.0]
 
 ### New Features

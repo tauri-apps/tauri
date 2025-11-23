@@ -50,7 +50,7 @@ pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 pub const APP_ACL_KEY: &str = "__app-acl__";
 /// Known acl manifests file
 pub const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
-/// Known capabilityies file
+/// Known capabilities file
 pub const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 /// Allowed commands file name
 pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";

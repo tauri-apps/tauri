@@ -5,6 +5,7 @@
 package app.tauri.plugin
 
 import android.app.PendingIntent
+import android.content.res.Configuration
 import android.content.Context
 import android.content.Intent
 import android.webkit.WebView
@@ -95,6 +96,30 @@ class PluginManager(val activity: AppCompatActivity) {
   fun onResume() {
     for (plugin in plugins.values) {
       plugin.instance.onResume()
+    }
+  }
+
+  fun onRestart() {
+    for (plugin in plugins.values) {
+      plugin.instance.onRestart()
+    }
+  }
+
+  fun onStop() {
+    for (plugin in plugins.values) {
+      plugin.instance.onStop()
+    }
+  }
+
+  fun onDestroy() {
+    for (plugin in plugins.values) {
+      plugin.instance.onDestroy()
+    }
+  }
+
+  fun onConfigurationChanged(newConfig: Configuration) {
+    for (plugin in plugins.values) {
+      plugin.instance.onConfigurationChanged(newConfig)
     }
   }
 

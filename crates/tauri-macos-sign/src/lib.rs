@@ -238,7 +238,7 @@ fn notarize_inner(
         String::from_utf8_lossy(&output.stdout)
       )))
     } else {
-      Err(Error::Notarize(log_message.to_string()))
+      Err(Error::Notarize(log_message))
     }
   } else {
     Err(Error::ParseNotarytoolOutput {

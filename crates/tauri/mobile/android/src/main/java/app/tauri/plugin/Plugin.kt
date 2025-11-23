@@ -5,6 +5,7 @@
 package app.tauri.plugin
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -69,6 +70,28 @@ abstract class Plugin(private val activity: Activity) {
    * This event is called when the user returns to the activity. It is also called on cold starts.
    */
   open fun onResume() {}
+
+  /**
+   * This event is called after onStop() when the current activity is being re-displayed to the user (the user has navigated back to it).
+   * It will be followed by onStart() and then onResume().
+   */
+  open fun onRestart() {}
+
+  /**
+   * This event is called when the app is no longer visible to the user.
+   * You will next receive either onRestart(), onDestroy(), or nothing, depending on later user activity.
+   */
+  open fun onStop() {}
+
+  /**
+   * This event is called before the activity is destroyed.
+   */
+  open fun onDestroy() {}
+
+  /**
+   * This event is called when a configuration change occurs but the app does not recreate the activity.
+   */
+  open fun onConfigurationChanged(newConfig: Configuration) {}
 
   /**
    * Start activity for result with the provided Intent and resolve calling the provided callback method name.

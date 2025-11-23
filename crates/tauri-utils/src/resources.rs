@@ -206,7 +206,7 @@ impl ResourcePathsIter<'_> {
 
   fn next_current_path(&mut self) -> Option<crate::Result<Resource>> {
     // should be safe to unwrap since every call to `self.next_current_path()`
-    // is preceeded with assignemt to `self.current_path`
+    // is preceded with assignment to `self.current_path`
     let path = self.current_path.take().unwrap();
 
     let is_dir = path.is_dir();

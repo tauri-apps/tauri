@@ -186,16 +186,16 @@ async function addPluginListener<T>(
 ): Promise<PluginListener> {
   const handler = new Channel<T>(cb)
   try {
-    return invoke(`plugin:${plugin}|register_listener`, {
+    await invoke(`plugin:${plugin}|register_listener`, {
       event,
       handler
-    }).then(() => new PluginListener(plugin, event, handler.id))
+    })
+    return new PluginListener(plugin, event, handler.id)
   } catch {
     // TODO(v3): remove this fallback
     // note: we must try with camelCase here for backwards compatibility
-    return invoke(`plugin:${plugin}|registerListener`, { event, handler }).then(
-      () => new PluginListener(plugin, event, handler.id)
-    )
+    await invoke(`plugin:${plugin}|registerListener`, { event, handler })
+    return new PluginListener(plugin, event, handler.id)
   }
 }
 
@@ -294,7 +294,7 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  * A rust-backed resource stored through `tauri::Manager::resources_table` API.
  *
  * The resource lives in the main process and does not exist
- * in the Javascript world, and thus will not be cleaned up automatiacally
+ * in the Javascript world, and thus will not be cleaned up automatically
  * except on application exit. If you want to clean it up early, call {@linkcode Resource.close}
  *
  * @example

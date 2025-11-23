@@ -311,7 +311,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       tempfile::NamedTempFile::new().context("failed to create temporary file")?;
 
     let merged_plist = merge_plist(vec![
-      export_options_plist_path.clone().into(),
+      export_options_plist_path.into(),
       plist::Value::from(export_options_plist).into(),
     ])?;
     merged_plist

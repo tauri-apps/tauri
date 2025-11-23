@@ -41,7 +41,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
     std::fs::write(binary, &file_data)
       .map_err(|e| crate::Error::BinaryWriteError(e.to_string()))?;
   } else {
-    return Err(crate::Error::MissingBundleTypeVar)?;
+    return Err(crate::Error::MissingBundleTypeVar);
   }
   Ok(())
 }

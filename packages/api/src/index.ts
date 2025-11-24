@@ -31,6 +31,7 @@ import * as image from './image'
 import * as menu from './menu'
 import * as mocks from './mocks'
 import * as path from './path'
+import * as recentDoc from './recentDoc'
 import * as tray from './tray'
 import * as webview from './webview'
 import * as webviewWindow from './webviewWindow'
@@ -45,6 +46,7 @@ export {
   menu,
   mocks,
   path,
+  recentDoc,
   tray,
   webview,
   webviewWindow,

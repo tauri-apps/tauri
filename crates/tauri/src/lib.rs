@@ -107,6 +107,8 @@ pub mod process;
 /// The allowlist scopes.
 pub mod scope;
 mod state;
+/// Recent Doc APIs.
+pub mod recent_doc;
 
 #[cfg(all(desktop, feature = "tray-icon"))]
 #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]

@@ -166,6 +166,9 @@ pub enum Error {
   /// tokio oneshot channel failed to receive message
   #[error(transparent)]
   TokioOneshotRecv(#[from] tokio::sync::oneshot::error::RecvError),
+  /// Invalid Path Error.
+  #[error("invalid path: {0}")]
+  InvalidPath(String),
 }
 
 impl From<getrandom::Error> for Error {

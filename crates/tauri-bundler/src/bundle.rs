@@ -97,22 +97,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     .expect("Main binary missing in settings");
   let main_binary_path = settings.binary_path(main_binary);
 
-  // When packaging multiple binary types, we make a copy of the unsigned main_binary so that we can
-  // restore it after each package_type step. This avoids two issues:
+  // We make a copy of the unsigned main_binary so that we can restore it after each package_type step.
+  // This allows us to patch the binary correctly and avoids two issues:
   //  - modifying a signed binary without updating its PE checksum can break signature verification
   //    - codesigning tools should handle calculating+updating this, we just need to ensure
   //      (re)signing is performed after every `patch_binary()` operation
   //  - signing an already-signed binary can result in multiple signatures, causing verification errors
-  let main_binary_reset_required = matches!(target_os, TargetPlatform::Windows)
-    && settings.windows().can_sign()
-    && package_types.len() > 1;
-  let mut unsigned_main_binary_copy = tempfile::tempfile()?;
-  if main_binary_reset_required {
-    let mut unsigned_main_binary = std::fs::File::open(&main_binary_path)?;
-    std::io::copy(&mut unsigned_main_binary, &mut unsigned_main_binary_copy)?;
-  }
+  let mut main_binary_copy = tempfile::tempfile()?;
+  let mut main_binary_orignal = std::fs::File::open(&main_binary_path)?;
+  std::io::copy(&mut main_binary_orignal, &mut main_binary_copy)?;
 
-  let mut main_binary_signed = false;
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
@@ -126,16 +120,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
     // sign main binary for every package type after patch
     if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
-      if main_binary_signed && main_binary_reset_required {
-        let mut signed_main_binary = std::fs::OpenOptions::new()
-          .write(true)
-          .truncate(true)
-          .open(&main_binary_path)?;
-        unsigned_main_binary_copy.seek(SeekFrom::Start(0))?;
-        std::io::copy(&mut unsigned_main_binary_copy, &mut signed_main_binary)?;
-      }
       windows::sign::try_sign(&main_binary_path, settings)?;
-      main_binary_signed = true;
     }
 
     let bundle_paths = match package_type {
@@ -177,6 +162,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       package_type: package_type.to_owned(),
       bundle_paths,
     });
+
+    // Restore unsigne and unpatched binary
+    let mut modified_main_binary = std::fs::OpenOptions::new()
+      .write(true)
+      .truncate(true)
+      .open(&main_binary_path)?;
+    main_binary_copy.seek(SeekFrom::Start(0))?;
+    std::io::copy(&mut main_binary_copy, &mut modified_main_binary)?;
   }
 
   if let Some(updater) = settings.updater() {

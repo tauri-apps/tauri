@@ -193,7 +193,18 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       &app,
       tauri_config_,
       dev_options.features.as_ref(),
-      &Default::default(),
+      &CliOptions {
+        dev: true,
+        features: dev_options.features.clone(),
+        args: dev_options.args.clone(),
+        noise_level,
+        vars: Default::default(),
+        config: dev_options.config.clone(),
+        target_device: device.as_ref().map(|d| TargetDevice {
+          id: d.serial_no().to_string(),
+          name: d.name().to_string(),
+        }),
+      },
     );
     (interface, config, metadata)
   };

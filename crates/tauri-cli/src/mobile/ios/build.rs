@@ -202,7 +202,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       &app,
       tauri_config_,
       build_options.features.as_ref(),
-      &Default::default(),
+      &CliOptions {
+        dev: false,
+        features: build_options.features.clone(),
+        args: build_options.args.clone(),
+        noise_level,
+        vars: Default::default(),
+        config: build_options.config.clone(),
+        target_device: options.target_device.clone(),
+      },
     )?;
     (interface, config)
   };

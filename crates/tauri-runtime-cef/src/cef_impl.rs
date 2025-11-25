@@ -1312,6 +1312,12 @@ fn handle_webview_message<T: UserEvent>(
               width: logical_size.width as i32,
               height: logical_size.height as i32,
             };
+            #[cfg(target_os = "macos")]
+            let new_bounds = if let Some(window) = app_window.window() {
+              macos_webview_bounds(&window, new_bounds)
+            } else {
+              new_bounds
+            };
             overlay.set_bounds(Some(&new_bounds));
           });
 

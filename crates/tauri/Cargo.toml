@@ -85,6 +85,13 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 # WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
 cookie = "0.18"
 
+# dev server proxy
+bytes = { version = "1", features = ["serde"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "stream",
+] }
+
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
 muda = { version = "0.17", default-features = false, features = [
@@ -94,14 +101,6 @@ muda = { version = "0.17", default-features = false, features = [
 tray-icon = { version = "0.21", default-features = false, features = [
   "serde",
 ], optional = true }
-
-# dev server proxy
-bytes = { version = "1", features = ["serde"] }
-reqwest = { version = "0.12", default-features = false, features = [
-  "json",
-  "stream",
-
-] }
 
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]

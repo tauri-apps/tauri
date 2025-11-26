@@ -186,10 +186,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       .into(),
   );
 
-  let tauri_config = get_tauri_config(
-    tauri_utils::platform::Target::Ios,
-    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
-  )?;
+  let config_refs: Vec<_> = options.config.iter().map(|c| &c.0).collect();
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &config_refs)?;
   let (interface, mut config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();

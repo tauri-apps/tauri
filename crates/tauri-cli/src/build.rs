@@ -96,10 +96,8 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let config = get_config(
-    target,
-    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
-  )?;
+  let config_refs: Vec<_> = options.config.iter().map(|c| &c.0).collect();
+  let config = get_config(target, &config_refs)?;
 
   let mut interface = AppInterface::new(
     config.lock().unwrap().as_ref().unwrap(),

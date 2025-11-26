@@ -183,10 +183,8 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .unwrap_or_else(|| "aarch64-apple-ios".into());
   dev_options.target = Some(target_triple.clone());
 
-  let tauri_config = get_tauri_config(
-    tauri_utils::platform::Target::Ios,
-    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
-  )?;
+  let config_refs: Vec<_> = options.config.iter().map(|c| &c.0).collect();
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &config_refs)?;
   let (interface, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();

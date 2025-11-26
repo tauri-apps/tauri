@@ -222,14 +222,14 @@ impl Interface for Rust {
       rx.recv().unwrap();
       Ok(())
     } else {
-      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
+      let config_refs: Vec<_> = options.config.iter().map(|c| &c.0).collect();
       let run = Arc::new(|rust: &mut Rust| {
         let on_exit = on_exit.clone();
         rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
+      self.run_dev_watcher(&options.additional_watch_folders, &config_refs, run)
     }
   }
 
@@ -266,9 +266,9 @@ impl Interface for Rust {
     options: WatcherOptions,
     runner: R,
   ) -> crate::Result<()> {
-    let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
+    let config_refs: Vec<_> = options.config.iter().map(|c| &c.0).collect();
     let run = Arc::new(|_rust: &mut Rust| runner());
-    self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
+    self.run_dev_watcher(&options.additional_watch_folders, &config_refs, run)
   }
 
   fn env(&self) -> HashMap<&str, String> {

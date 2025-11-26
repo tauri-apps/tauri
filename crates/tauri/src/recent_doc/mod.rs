@@ -1,4 +1,1 @@
-/// windows implementation
-pub mod windows;
-/// recent document plugin
-pub mod plugin;
+pub(crate) mod plugin;

@@ -29,7 +29,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
       crate::PackageType::WindowsMsi => b"__TAURI_BUNDLE_TYPE_VAR_MSI",
       _ => {
-        return Err(crate::Error::InvalidPackageType(
+        return Err(crate::Error::WrongPackageType(
           package_type.short_name().to_owned(),
         ))
       }
@@ -103,6 +103,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   //    - codesigning tools should handle calculating+updating this, we just need to ensure
   //      (re)signing is performed after every `patch_binary()` operation
   //  - signing an already-signed binary can result in multiple signatures, causing verification errors
+  // TODO: change this to work on a copy while preserving the main binary unchanged
   let mut main_binary_copy = tempfile::tempfile()?;
   let mut main_binary_orignal = std::fs::File::open(&main_binary_path)?;
   std::io::copy(&mut main_binary_orignal, &mut main_binary_copy)?;

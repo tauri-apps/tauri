@@ -57,7 +57,7 @@ fn get_response(
   // Check if we have read permissions
   if let Err(e) = std::fs::metadata(&path) {
     log::error!("Failed to get metadata for {}: {}", path, e);
-    return resp.status(500).body(format!("Failed to access file metadata: {}", e).into_bytes().into()).map_err(Into::into);
+    return resp.status(422).body(format!("Failed to access file metadata: {}", e).into_bytes().into()).map_err(Into::into);
   }
 
   let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {

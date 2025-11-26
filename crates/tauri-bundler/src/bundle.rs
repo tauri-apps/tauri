@@ -164,7 +164,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       bundle_paths,
     });
 
-    // Restore unsigne and unpatched binary
+    // Restore unsigned and unpatched binary
     let mut modified_main_binary = std::fs::OpenOptions::new()
       .write(true)
       .truncate(true)

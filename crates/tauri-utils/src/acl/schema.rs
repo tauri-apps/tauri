@@ -317,6 +317,9 @@ pub fn generate_capability_schema(
   extend_permission_entry_schema(&mut schema, acl);
 
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
+  // FIXME: in schemars@v1 this doesn't seem to be necessary anymore. If it is, find a better solution.
+  let schema_str = schema_str.replace("\\r\\n", "\\n");
+
   let out_dir = PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH);
   fs::create_dir_all(&out_dir)?;
 

@@ -96,18 +96,18 @@ pub enum Error {
   #[error("Binary parse error: `{0}`")]
   BinaryParseError(#[from] goblin::error::Error),
   /// Package type is not supported by target platform
-  #[deprecated(note = "User WrongPackageType instead")]
   #[error("Wrong package type {0} for platform {1}")]
   InvalidPackageType(String, String),
-  /// Package type is not supported by target platform
-  #[error("Wrong package type {0}")]
-  WrongPackageType(String),
   /// Bundle type symbol missing in binary
   #[error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date")]
   MissingBundleTypeVar,
   /// Failed to write binary file changed
   #[error("Failed to write binary file changes: `{0}`")]
   BinaryWriteError(String),
+  /// Invalid offset while patching binary file
+  #[deprecated]
+  #[error("Invalid offset while patching binary file")]
+  BinaryOffsetOutOfRange,
   /// Unsupported architecture.
   #[error("Architecture Error: `{0}`")]
   ArchError(String),

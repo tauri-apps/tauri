@@ -22,15 +22,26 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
   let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
 
   if let Some(bundle_var_index) = kmp::index_of(BUNDLE_VAR_TOKEN, &file_data) {
+    #[cfg(target_os = "linux")]
     let bundle_type = match package_type {
       crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
       crate::PackageType::Rpm => b"__TAURI_BUNDLE_TYPE_VAR_RPM",
       crate::PackageType::AppImage => b"__TAURI_BUNDLE_TYPE_VAR_APP",
+      _ => {
+        return Err(crate::Error::InvalidPackageType(
+          package_type.short_name().to_owned(),
+          "Linux".to_owned(),
+        ))
+      }
+    };
+    #[cfg(target_os = "windows")]
+    let bundle_type = match package_type {
       crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
       crate::PackageType::WindowsMsi => b"__TAURI_BUNDLE_TYPE_VAR_MSI",
       _ => {
-        return Err(crate::Error::WrongPackageType(
+        return Err(crate::Error::InvalidPackageType(
           package_type.short_name().to_owned(),
+          "Windows".to_owned(),
         ))
       }
     };

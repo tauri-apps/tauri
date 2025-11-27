@@ -18,6 +18,7 @@ use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
   let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
 
@@ -126,6 +127,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
     if let Err(e) = patch_binary(&main_binary_path, package_type) {
       log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
     }

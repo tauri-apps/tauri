@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 mod category;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod kmp;
 #[cfg(target_os = "linux")]
 mod linux;
@@ -16,6 +17,7 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
 #[cfg(any(target_os = "linux", target_os = "windows"))]

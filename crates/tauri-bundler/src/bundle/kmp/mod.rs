@@ -5,6 +5,7 @@
 
 // Knuth–Morris–Pratt algorithm
 // based on https://github.com/howeih/rust_kmp
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 pub fn index_of(pattern: &[u8], target: &[u8]) -> Option<usize> {
   let failure_function = find_failure_function(pattern);
 
@@ -37,6 +38,7 @@ pub fn index_of(pattern: &[u8], target: &[u8]) -> Option<usize> {
   None
 }
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn find_failure_function(pattern: &[u8]) -> Vec<usize> {
   let mut i = 1;
   let mut j = 0;

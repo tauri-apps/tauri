@@ -466,12 +466,15 @@ wrap_keyboard_handler! {
 
         // Get modifier keys
         use cef::sys::cef_event_flags_t;
+        #[cfg(windows)]
+        let modifiers = event.modifiers as i32;
+        #[cfg(not(windows))]
         let modifiers = event.modifiers;
 
         #[cfg(not(target_os = "macos"))]
-        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN as u32)) != 0;
+        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0)) != 0;
         #[cfg(not(target_os = "macos"))]
-        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN as u32)) != 0;
+        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0)) != 0;
 
         let key_code = event.windows_key_code;
 
@@ -495,8 +498,8 @@ wrap_keyboard_handler! {
         // Block Cmd+Opt+I on macOS
         #[cfg(target_os = "macos")]
         {
-          let meta = (modifiers & (cef_event_flags_t::EVENTFLAG_COMMAND_DOWN as u32)) != 0;
-          let alt = (modifiers & (cef_event_flags_t::EVENTFLAG_ALT_DOWN as u32)) != 0;
+          let meta = (modifiers & (cef_event_flags_t::EVENTFLAG_COMMAND_DOWN.0 as u32)) != 0;
+          let alt = (modifiers & (cef_event_flags_t::EVENTFLAG_ALT_DOWN.0 as u32)) != 0;
           if key_code == 73 && meta && alt {
             if let Some(is_keyboard_shortcut) = _is_keyboard_shortcut {
               *is_keyboard_shortcut = 1;
@@ -1319,6 +1322,12 @@ fn handle_webview_message<T: UserEvent>(
               width: logical_size.width as i32,
               height: logical_size.height as i32,
             };
+            #[cfg(target_os = "macos")]
+            let new_bounds = if let Some(window) = app_window.window() {
+              macos_webview_bounds(&window, new_bounds)
+            } else {
+              new_bounds
+            };
             overlay.set_bounds(Some(&new_bounds));
           });
 
@@ -1362,12 +1371,19 @@ fn handle_webview_message<T: UserEvent>(
           .find(|w| w.webview_id == webview_id)
           .and_then(|wrapper| wrapper.overlay.as_ref())
         {
-          overlay.set_bounds(Some(&cef::Rect {
+          let bounds = cef::Rect {
             x: logical_position.x,
             y: logical_position.y,
             width: logical_size.width as i32,
             height: logical_size.height as i32,
-          }));
+          };
+          #[cfg(target_os = "macos")]
+          let bounds = if let Some(window) = app_window.window() {
+            macos_webview_bounds(&window, bounds)
+          } else {
+            bounds
+          };
+          overlay.set_bounds(Some(&bounds));
         }
 
         // update autoresize ratios if enabled
@@ -3065,6 +3081,47 @@ pub(crate) fn create_webview<T: UserEvent>(
     }
   });
 
+  // check if we were a WebviewWindow and now must add child webviews
+  // in this case we want to move the webview to its own overlay
+  {
+    let mut windows = context.windows.borrow_mut();
+    let app_window = windows.get_mut(&window_id).unwrap();
+
+    if let Some(main_webview_to_overlay) =
+      match (app_window.webviews.len(), app_window.webviews.first_mut()) {
+        (1, Some(webview)) => {
+          if webview.overlay.is_none() && webview.browser_view.is_some() {
+            Some(webview)
+          } else {
+            None
+          }
+        }
+        _ => None,
+      }
+    {
+      // safe to unwrap - we checked it above
+      let browser_view = main_webview_to_overlay.browser_view.as_ref().unwrap();
+      let overlay = window
+        .add_overlay_view(
+          Some(&mut View::from(browser_view)),
+          cef::DockingMode::from(cef::sys::cef_docking_mode_t::CEF_DOCKING_MODE_CUSTOM),
+          1,
+        )
+        .expect("Failed to add overlay view");
+
+      let bounds = browser_view.bounds();
+      overlay.set_bounds(Some(&bounds));
+      overlay.set_visible(1);
+
+      main_webview_to_overlay
+        .bounds
+        .lock()
+        .unwrap()
+        .replace(webview_bounds_ratio(&window, None, &overlay));
+      main_webview_to_overlay.overlay.replace(overlay);
+    }
+  }
+
   if kind == WebviewKind::WindowChild {
     let overlay = window
       .add_overlay_view(
@@ -3075,25 +3132,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       .expect("Failed to add overlay view");
 
     let initial_bounds_ratio = if webview_attributes.auto_resize {
-      let window_bounds = window.bounds();
-      let window_size = tauri_runtime::dpi::LogicalSize::new(
-        window_bounds.width as u32,
-        window_bounds.height as u32,
-      );
-
-      let ob = match &bounds {
-        Some(b) => b.clone(),
-        None => overlay.bounds(),
-      };
-      let pos = tauri_runtime::dpi::LogicalPosition::new(ob.x, ob.y);
-      let size = tauri_runtime::dpi::LogicalSize::new(ob.width as u32, ob.height as u32);
-
-      Some(crate::WebviewBounds {
-        x_rate: pos.x as f32 / window_size.width as f32,
-        y_rate: pos.y as f32 / window_size.height as f32,
-        width_rate: size.width as f32 / window_size.width as f32,
-        height_rate: size.height as f32 / window_size.height as f32,
-      })
+      Some(webview_bounds_ratio(&window, bounds.clone(), &overlay))
     } else {
       None
     };
@@ -3145,6 +3184,27 @@ pub(crate) fn create_webview<T: UserEvent>(
         uri_scheme_protocols: Arc::new(uri_scheme_protocols),
         initialization_scripts,
       });
+  }
+}
+
+fn webview_bounds_ratio(
+  window: &cef::Window,
+  webview_bounds: Option<cef::Rect>,
+  overlay: &OverlayController,
+) -> crate::WebviewBounds {
+  let window_bounds = window.bounds();
+  let window_size =
+    tauri_runtime::dpi::LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
+
+  let ob = webview_bounds.unwrap_or_else(|| overlay.bounds());
+  let pos = tauri_runtime::dpi::LogicalPosition::new(ob.x, ob.y);
+  let size = tauri_runtime::dpi::LogicalSize::new(ob.width as u32, ob.height as u32);
+
+  crate::WebviewBounds {
+    x_rate: pos.x as f32 / window_size.width as f32,
+    y_rate: pos.y as f32 / window_size.height as f32,
+    width_rate: size.width as f32 / window_size.width as f32,
+    height_rate: size.height as f32 / window_size.height as f32,
   }
 }
 

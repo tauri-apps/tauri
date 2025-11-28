@@ -127,11 +127,18 @@ wrap_request_handler! {
     fn on_before_browse(
       &self,
       _browser: Option<&mut Browser>,
-      _frame: Option<&mut Frame>,
+      frame: Option<&mut Frame>,
       request: Option<&mut Request>,
       _user_gesture: ::std::os::raw::c_int,
       _is_redirect: ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int {
+      let Some(frame) = frame else {
+        return 0;
+      };
+      // we only fire main frame navigation events to match the behavior of the wry runtime
+      if frame.is_main() == 0 {
+        return 0;
+      }
       let Some(handler) = &self.navigation_handler else {
         return 0;
       };
@@ -300,6 +307,12 @@ wrap_resource_handler! {
           content_type.replace(value.to_string());
         }
       }
+
+      response.set_header_by_name(
+        Some(&"Cache-Control".into()),
+        Some(&"no-store".into()),
+        1,
+      );
 
       let mime_type = content_type
         .as_ref()

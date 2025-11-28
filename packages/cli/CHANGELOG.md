@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.9.4]
+
+### Bug Fixes
+
+- [`b586ecf1f`](https://www.github.com/tauri-apps/tauri/commit/b586ecf1f4b3b087f9aa6c4668c2c18b1b7925f4) ([#14416](https://www.github.com/tauri-apps/tauri/pull/14416) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Premultiply Alpha before Resizing which gets rid of the gray fringe around the icons for svg images.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.9.4`
+
 ## \[2.9.3]
 
 ### Bug Fixes

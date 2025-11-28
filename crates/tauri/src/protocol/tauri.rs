@@ -89,6 +89,9 @@ fn get_response<R: Runtime>(
 
   let path = path
     .strip_prefix(window_origin)
+    // wry always sends us <scheme>://localhost format for custom protocols
+    // even when it is actually http://<scheme>.localhost
+    .or_else(|| path.strip_prefix("tauri://localhost"))
     .map(|p| p.to_string())
     .unwrap_or_default();
 

@@ -13,32 +13,25 @@ wrap_drag_handler! {
       &self,
       browser: Option<&mut Browser>,
       _frame: Option<&mut Frame>,
-      regions_count: usize,
-      regions: Option<&cef::DraggableRegion>,
+      regions: Option<&[cef::DraggableRegion]>
     ) {
 
       let Some(regions) = regions else { return; };
       let Some(browser) = browser else { return; };
 
-      let regions = regions as *const cef::DraggableRegion;
-      let regions = unsafe { std::slice::from_raw_parts(regions, regions_count) };
-
-      unsafe {
-        windows::on_dragged_region_changed(&self.data, browser, regions);
-      }
+      #[cfg(windows)]
+      unsafe { windows::on_dragged_region_changed(&self.data, browser, regions) };
     }
   }
 }
 
+#[cfg(windows)]
 pub mod windows {
   use cef::*;
   use windows::core::{w, BOOL, PCWSTR};
   use windows::Win32::Foundation::*;
   use windows::Win32::Graphics::Gdi::*;
   use windows::Win32::UI::WindowsAndMessaging::*;
-
-  const K_PARENT_WND_PROC: PCWSTR = w!("CefParentWndProc");
-  const K_DRAGGABLE_REGION: PCWSTR = w!("CefDraggableRegion");
 
   #[derive(Clone)]
   pub struct BrowserDragHandlerData {
@@ -52,6 +45,9 @@ pub mod windows {
       }
     }
   }
+
+  const K_PARENT_WND_PROC: PCWSTR = w!("CefParentWndProc");
+  const K_DRAGGABLE_REGION: PCWSTR = w!("CefDraggableRegion");
 
   pub unsafe fn on_dragged_region_changed(
     data: &super::BrowserDragHandlerData,
@@ -214,14 +210,8 @@ pub mod windows {
         };
 
         let _ = ScreenToClient(hwnd, &mut point);
-        dbg!(&point);
-
-        let mut rect = RECT::default();
-        GetRgnBox(draggable_region, &mut rect);
-        dbg!(rect);
 
         if PtInRegion(draggable_region, point.x, point.y).as_bool() {
-          dbg!("Point is inside draggable region, returning HTTRANSPARENT");
           return LRESULT(HTTRANSPARENT as isize);
         }
       }
@@ -278,7 +268,6 @@ pub mod windows {
         let _ = ScreenToClient(hwnd, &mut point);
 
         if PtInRegion(draggable_region, point.x, point.y).as_bool() {
-          dbg!("Point is inside draggable region, returning HTCAPTION");
           // If cursor is inside a draggable region return HTCAPTION to allow dragging.
           return LRESULT(HTCAPTION as _);
         }

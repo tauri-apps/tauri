@@ -753,7 +753,7 @@ pub fn build_wix_app_installer(
   }
 
   let main_wxs_path = output_path.join("main.wxs");
-  fs::write(main_wxs_path.clone(), handlebars.render("main.wxs", &data)?)?;
+  fs::write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
   let mut candle_inputs = vec![];
 

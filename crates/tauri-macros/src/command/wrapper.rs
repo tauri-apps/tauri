@@ -6,7 +6,7 @@ use std::{env::var, sync::OnceLock};
 
 use heck::{ToLowerCamelCase, ToSnakeCase};
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Literal, Span, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, quote_spanned};
 use syn::{
   ext::IdentExt,
@@ -82,7 +82,7 @@ impl Parse for WrapperAttributes {
             }) = v.value
             {
               let lit = s.value();
-              wrapper_attributes.rename = RenamePolicy::Rename(lit);
+              wrapper_attributes.rename = RenamePolicy::Rename(quote!(#lit));
             } else {
               return Err(syn::Error::new(
                 v.span(),
@@ -138,7 +138,7 @@ enum ArgumentCase {
 /// The rename policy for the command.
 enum RenamePolicy {
   Keep,
-  Rename(String),
+  Rename(TokenStream2),
 }
 
 /// The bindings we attach to `tauri::Invoke`.
@@ -522,8 +522,7 @@ fn parse_arg(
 
   let root = &attributes.root;
   let command_name = if let RenamePolicy::Rename(r) = &attributes.rename {
-    let r_literal = Literal::string(r.as_str());
-    quote!(#r_literal)
+    quote!(stringify!(#r))
   } else {
     quote!(stringify!(#command))
   };

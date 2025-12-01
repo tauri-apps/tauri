@@ -753,14 +753,14 @@ pub fn build_wix_app_installer(
   }
 
   let main_wxs_path = output_path.join("main.wxs");
-  fs::write(main_wxs_path, handlebars.render("main.wxs", &data)?)?;
+  fs::write(main_wxs_path.clone(), handlebars.render("main.wxs", &data)?)?;
 
   let mut candle_inputs = vec![];
 
   let current_dir = std::env::current_dir()?;
   let extension_regex = Regex::new("\"http://schemas.microsoft.com/wix/(\\w+)\"")?;
-  let input_paths = std::iter::once(output_path.join(PathBuf::from("main.wxs")))
-    .chain(fragment_paths.iter().map(|p| current_dir.join(p)));
+  let input_paths =
+    std::iter::once(main_wxs_path).chain(fragment_paths.iter().map(|p| current_dir.join(p)));
 
   for input_path in input_paths {
     let input_content = fs::read_to_string(&input_path)?;

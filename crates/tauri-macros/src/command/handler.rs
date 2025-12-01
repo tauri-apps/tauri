@@ -154,7 +154,7 @@ impl From<Handler> for proc_macro::TokenStream {
     let (paths, attrs, command_name_consts): (Vec<Path>, Vec<Vec<Attribute>>, Vec<Path>) =
       command_defs
         .into_iter()
-        .zip(commands.into_iter())
+        .zip(commands)
         .map(|(def, command)| {
           let path = def.path;
           let attrs = def.attrs;

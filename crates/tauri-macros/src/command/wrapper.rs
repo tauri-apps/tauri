@@ -6,7 +6,7 @@ use std::{env::var, sync::OnceLock};
 
 use heck::{ToLowerCamelCase, ToSnakeCase};
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Literal, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, quote_spanned};
 use syn::{
   ext::IdentExt,
@@ -40,7 +40,7 @@ struct WrapperAttributes {
   root: TokenStream2,
   execution_context: ExecutionContext,
   argument_case: ArgumentCase,
-  rename: Option<TokenStream2>,
+  rename: RenamePolicy,
 }
 
 impl Parse for WrapperAttributes {
@@ -49,7 +49,7 @@ impl Parse for WrapperAttributes {
       root: quote!(::tauri),
       execution_context: ExecutionContext::Blocking,
       argument_case: ArgumentCase::Camel,
-      rename: None,
+      rename: RenamePolicy::Keep,
     };
 
     let attrs = Punctuated::<WrapperAttributeKind, Token![,]>::parse_terminated(input)?;
@@ -82,7 +82,7 @@ impl Parse for WrapperAttributes {
             }) = v.value
             {
               let lit = s.value();
-              wrapper_attributes.rename = Some(quote!(#lit));
+              wrapper_attributes.rename = RenamePolicy::Rename(lit);
             } else {
               return Err(syn::Error::new(
                 v.span(),
@@ -135,6 +135,12 @@ enum ArgumentCase {
   Camel,
 }
 
+/// The rename policy for the command.
+enum RenamePolicy {
+  Keep,
+  Rename(String),
+}
+
 /// The bindings we attach to `tauri::Invoke`.
 struct Invoke {
   message: Ident,
@@ -156,7 +162,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`.
   // To avoid crate-root name collisions for same-named commands across modules,
   // only export non-renamed commands at crate root. Renamed commands remain module-scoped.
-  let maybe_macro_export = if attrs.rename.is_none() {
+  let maybe_macro_export = if let RenamePolicy::Keep = attrs.rename {
     match &function.vis {
       Visibility::Public(_) | Visibility::Restricted(_) => quote!(#[macro_export]),
       _ => TokenStream2::default(),
@@ -293,7 +299,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
   // For renamed commands (no crate-root export), restrict rename visibility to crate-only
   // to avoid public re-export errors for non-exported macros.
-  let rename_visibility = if attrs.rename.is_some() {
+  let rename_visibility = if let RenamePolicy::Rename(_) = &attrs.rename {
     quote!(pub(crate))
   } else {
     quote!(#visibility)
@@ -306,7 +312,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     let upper = function.sig.ident.to_string().to_uppercase();
     format_ident!("__TAURI_COMMAND_NAME_{}", upper)
   };
-  let command_name_const_value = if let Some(ref rename) = attrs.rename {
+  let command_name_const_value = if let RenamePolicy::Rename(ref rename) = attrs.rename {
     quote!(#rename)
   } else {
     let ident = &function.sig.ident;
@@ -515,13 +521,9 @@ fn parse_arg(
   }
 
   let root = &attributes.root;
-  let command_name = if let Some(r) = &attributes.rename {
-    let r_string = match r.clone().into_iter().next() {
-      Some(proc_macro2::TokenTree::Literal(lit)) => lit.to_string(),
-      Some(proc_macro2::TokenTree::Ident(ident)) => ident.to_string(),
-      _ => quote!(#r).to_string(),
-    };
-    quote!(#r_string)
+  let command_name = if let RenamePolicy::Rename(r) = &attributes.rename {
+    let r_literal = Literal::string(r.as_str());
+    quote!(#r_literal)
   } else {
     quote!(stringify!(#command))
   };

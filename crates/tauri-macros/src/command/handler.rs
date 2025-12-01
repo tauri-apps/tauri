@@ -151,25 +151,23 @@ impl From<Handler> for proc_macro::TokenStream {
   ) -> Self {
     let cmd = format_ident!("__tauri_cmd__");
     let invoke = format_ident!("__tauri_invoke__");
-    let (paths, attrs): (Vec<Path>, Vec<Vec<Attribute>>) = command_defs
-      .into_iter()
-      .map(|def| (def.path, def.attrs))
-      .unzip();
-    // Build the module-qualified paths for the command name constants emitted by the wrapper macro.
-    let command_name_consts: Vec<Path> = paths
-      .iter()
-      .zip(commands.iter())
-      .map(|(p, name)| {
-        let mut p = p.clone();
-        let last = p
-          .segments
-          .last_mut()
-          .expect("path has at least one segment");
-        let upper = name.to_string().to_uppercase();
-        last.ident = format_ident!("__TAURI_COMMAND_NAME_{}", upper);
-        p
-      })
-      .collect();
+    let (paths, attrs, command_name_consts): (Vec<Path>, Vec<Vec<Attribute>>, Vec<Path>) =
+      command_defs
+        .into_iter()
+        .zip(commands.into_iter())
+        .map(|(def, command)| {
+          let path = def.path;
+          let attrs = def.attrs;
+          let mut const_path = path.clone();
+          let last = const_path
+            .segments
+            .last_mut()
+            .expect("path has at least one segment");
+          let upper = command.to_string().to_uppercase();
+          last.ident = format_ident!("__TAURI_COMMAND_NAME_{}", upper);
+          (path, attrs, const_path)
+        })
+        .collect();
 
     quote::quote!(move |#invoke| {
       let #cmd = #invoke.message.command();

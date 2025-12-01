@@ -162,13 +162,11 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`.
   // To avoid crate-root name collisions for same-named commands across modules,
   // only export non-renamed commands at crate root. Renamed commands remain module-scoped.
-  let maybe_macro_export = if let RenamePolicy::Keep = attrs.rename {
-    match &function.vis {
-      Visibility::Public(_) | Visibility::Restricted(_) => quote!(#[macro_export]),
-      _ => TokenStream2::default(),
+  let maybe_macro_export = match (&attrs.rename, &function.vis) {
+    (RenamePolicy::Keep, Visibility::Public(_) | Visibility::Restricted(_)) => {
+      quote!(#[macro_export])
     }
-  } else {
-    TokenStream2::default()
+    _ => TokenStream2::default(),
   };
 
   let invoke = Invoke {

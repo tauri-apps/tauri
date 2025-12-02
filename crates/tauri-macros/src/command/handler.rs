@@ -151,23 +151,23 @@ impl From<Handler> for proc_macro::TokenStream {
   ) -> Self {
     let cmd = format_ident!("__tauri_cmd__");
     let invoke = format_ident!("__tauri_invoke__");
-    let (paths, attrs, command_name_consts): (Vec<Path>, Vec<Vec<Attribute>>, Vec<Path>) =
-      command_defs
-        .into_iter()
-        .zip(commands)
-        .map(|(def, command)| {
-          let path = def.path;
-          let attrs = def.attrs;
-          let mut const_path = path.clone();
-          let last = const_path
-            .segments
-            .last_mut()
-            .expect("path has at least one segment");
-          let upper = command.to_string().to_uppercase();
-          last.ident = format_ident!("__TAURI_COMMAND_NAME_{}", upper);
-          (path, attrs, const_path)
-        })
-        .collect();
+    let mut paths: Vec<Path> = Vec::new();
+    let mut attrs: Vec<Vec<Attribute>> = Vec::new();
+    let mut command_name_consts: Vec<Path> = Vec::new();
+    for (def, command) in command_defs.into_iter().zip(commands) {
+      let path = def.path;
+      let attrs_vec = def.attrs;
+      let mut const_path = path.clone();
+      let last = const_path
+        .segments
+        .last_mut()
+        .expect("path has at least one segment");
+      let upper = command.to_string().to_uppercase();
+      last.ident = format_ident!("__TAURI_COMMAND_NAME_{}", upper);
+      paths.push(path);
+      attrs.push(attrs_vec);
+      command_name_consts.push(const_path);
+    }
 
     quote::quote!(move |#invoke| {
       let #cmd = #invoke.message.command();

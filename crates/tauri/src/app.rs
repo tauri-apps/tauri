@@ -231,7 +231,10 @@ pub enum RunEvent {
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
-  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(target_os = "macos", target_os = "ios", target_os = "android")))
+  )]
   Opened {
     /// The URL of the resources that is being open.
     urls: Vec<url::Url>,

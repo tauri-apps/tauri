@@ -5,7 +5,7 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use anyhow::{Context, Result};
-use tauri_utils::write_if_changed;
+use tauri_utils::{config::AndroidIntentAction, write_if_changed};
 
 /// Updates the Android manifest to add file association intent filters
 pub fn update_android_manifest_file_associations(
@@ -29,22 +29,40 @@ fn generate_file_association_intent_filters(
     let mut mime_types = HashSet::new();
 
     if let Some(mime_type) = &association.mime_type {
-      mime_types.insert(mime_type.clone());
+      mime_types.insert((
+        mime_type.clone(),
+        association.android_intent_action_filters.clone(),
+      ));
     } else {
       // Infer mime types from extensions
       for ext in &association.ext {
         if let Some(mime) = extension_to_mime_type(&ext.0) {
-          mime_types.insert(mime);
+          mime_types.insert((mime, association.android_intent_action_filters.clone()));
         }
       }
     }
 
     // If we have mime types, create intent filters
     if !mime_types.is_empty() {
-      for mime_type in &mime_types {
+      for (mime_type, actions) in &mime_types {
         filters.push_str("<intent-filter>\n");
-        filters.push_str("    <action android:name=\"android.intent.action.SEND\" />\n");
-        filters.push_str("    <action android:name=\"android.intent.action.SEND_MULTIPLE\" />\n");
+        if let Some(actions) = actions {
+          for action in actions {
+            let action = match action {
+              AndroidIntentAction::Send => "SEND",
+              AndroidIntentAction::SendMultiple => "SEND_MULTIPLE",
+              AndroidIntentAction::View => "VIEW",
+              _ => unimplemented!(),
+            };
+            filters.push_str(&format!(
+              "    <action android:name=\"android.intent.action.{action}\" />\n"
+            ));
+          }
+        } else {
+          filters.push_str("    <action android:name=\"android.intent.action.SEND\" />\n");
+          filters.push_str("    <action android:name=\"android.intent.action.SEND_MULTIPLE\" />\n");
+          filters.push_str("    <action android:name=\"android.intent.action.VIEW\" />\n");
+        }
         filters.push_str("    <category android:name=\"android.intent.category.DEFAULT\" />\n");
         filters.push_str("    <category android:name=\"android.intent.category.BROWSABLE\" />\n");
         filters.push_str(&format!(

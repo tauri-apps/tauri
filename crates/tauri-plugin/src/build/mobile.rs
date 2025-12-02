@@ -5,8 +5,7 @@
 //! Mobile-specific build utilities.
 
 use std::{
-  env::var_os,
-  fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, write},
+  fs::{copy, create_dir, create_dir_all, remove_dir_all},
   path::{Path, PathBuf},
 };
 
@@ -17,7 +16,7 @@ use super::{build_var, cfg_alias};
 #[cfg(target_os = "macos")]
 pub fn update_entitlements<F: FnOnce(&mut plist::Dictionary)>(f: F) -> Result<()> {
   if let (Some(project_path), Ok(app_name)) = (
-    var_os("TAURI_IOS_PROJECT_PATH").map(PathBuf::from),
+    std::env::var_os("TAURI_IOS_PROJECT_PATH").map(PathBuf::from),
     std::env::var("TAURI_IOS_APP_NAME"),
   ) {
     update_plist_file(
@@ -34,7 +33,7 @@ pub fn update_entitlements<F: FnOnce(&mut plist::Dictionary)>(f: F) -> Result<()
 #[cfg(target_os = "macos")]
 pub fn update_info_plist<F: FnOnce(&mut plist::Dictionary)>(f: F) -> Result<()> {
   if let (Some(project_path), Ok(app_name)) = (
-    var_os("TAURI_IOS_PROJECT_PATH").map(PathBuf::from),
+    std::env::var_os("TAURI_IOS_PROJECT_PATH").map(PathBuf::from),
     std::env::var("TAURI_IOS_APP_NAME"),
   ) {
     update_plist_file(
@@ -154,7 +153,7 @@ fn update_plist_file<P: AsRef<Path>, F: FnOnce(&mut plist::Dictionary)>(
 
   let path = path.as_ref();
   if path.exists() {
-    let plist_str = read_to_string(path)?;
+    let plist_str = std::fs::read_to_string(path)?;
     let mut plist = plist::Value::from_reader(Cursor::new(&plist_str))?;
     if let Some(dict) = plist.as_dictionary_mut() {
       f(dict);
@@ -163,7 +162,7 @@ fn update_plist_file<P: AsRef<Path>, F: FnOnce(&mut plist::Dictionary)>(
       plist::to_writer_xml(writer, &plist)?;
       let new_plist_str = String::from_utf8(plist_buf)?;
       if new_plist_str != plist_str {
-        write(path, new_plist_str)?;
+        std::fs::write(path, new_plist_str)?;
       }
     }
   }

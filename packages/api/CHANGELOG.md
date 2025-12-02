@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.9.1]
+
+### Bug Fixes
+
+- [`ad1dec2e2`](https://www.github.com/tauri-apps/tauri/commit/ad1dec2e2488fe5c0a004b69f1bd290dfc593bf8) ([#14464](https://www.github.com/tauri-apps/tauri/pull/14464) by [@funnydino](https://www.github.com/tauri-apps/tauri/../../funnydino)) Fix `addPluginListener` fallback added in https://github.com/tauri-apps/tauri/pull/14132 didn't work properly
+
 ## \[2.9.0]
 
 ### New Features

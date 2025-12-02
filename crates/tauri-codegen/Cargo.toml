@@ -30,7 +30,7 @@ brotli = { version = "8", optional = true, default-features = false, features = 
 ] }
 uuid = { version = "1", features = ["v4"] }
 semver = "1"
-ico = "0.4"
+ico = "0.5"
 png = "0.17"
 json-patch = "3"
 url = "2"

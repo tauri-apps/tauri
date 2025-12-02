@@ -108,7 +108,11 @@ enum BaseDirectory {
   /**
    * @see {@link templateDir} for more information.
    */
-  Template = 23
+  Template = 23,
+  /**
+   * @see {@link appLibraryDir} for more information.
+   */
+  AppLibrary = 24
 }
 
 /**
@@ -176,6 +180,29 @@ async function appLocalDataDir(): Promise<string> {
 async function appCacheDir(): Promise<string> {
   return invoke('plugin:path|resolve_directory', {
     directory: BaseDirectory.AppCache
+  })
+}
+
+/**
+ * Returns the path to the app's library directory.
+ *
+ * #### Platform-specific
+ *
+ * - **iOS:** Resolves to `NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, true)`.
+ * - **Android:** Not supported.
+ * - **Desktop:** Resolves to the same path as {@link appLocalDataDir}.
+ *
+ * @example
+ * ```typescript
+ * import { appLibraryDir } from '@tauri-apps/api/path';
+ * const appLibraryDirPath = await appLibraryDir();
+ * ```
+ *
+ * @since 2.0.0
+ */
+async function appLibraryDir(): Promise<string> {
+  return invoke('plugin:path|resolve_directory', {
+    directory: BaseDirectory.AppLibrary
   })
 }
 
@@ -755,6 +782,7 @@ export {
   appDataDir,
   appLocalDataDir,
   appCacheDir,
+  appLibraryDir,
   appLogDir,
   audioDir,
   cacheDir,

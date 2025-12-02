@@ -268,6 +268,17 @@ impl<R: Runtime> PathResolver<R> {
       .map(|dir| dir.join(&self.0.config().identifier))
   }
 
+  /// Returns the path to the app's library directory.
+  ///
+  /// On iOS, resolves to `NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, true)`.
+  /// On desktop, resolves to [`app_local_data_dir`](Self::app_local_data_dir).
+  pub fn app_library_dir(&self) -> Result<PathBuf> {
+    #[cfg(target_os = "ios")]
+    return super::ios_native::app_library_dir().ok_or(Error::UnknownPath);
+    #[cfg(not(target_os = "ios"))]
+    self.app_local_data_dir()
+  }
+
   /// Returns the path to the suggested directory for your app's log files.
   ///
   /// ## Platform-specific

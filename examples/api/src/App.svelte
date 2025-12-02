@@ -9,6 +9,7 @@
   import Communication from './views/Communication.svelte'
   import Window from './views/Window.svelte'
   import WebRTC from './views/WebRTC.svelte'
+  import Path from './views/Path.svelte'
   import App from './views/App.svelte'
   import Menu from './views/Menu.svelte'
   import Tray from './views/Tray.svelte'
@@ -26,6 +27,12 @@
 
   const userAgent = navigator.userAgent.toLowerCase()
   const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
+
+  /** Android/iOS WebViews often need a minimum inset when env(safe-area-inset-*) is 0. */
+  const mobileShellStyle =
+    'padding-top: max(env(safe-area-inset-top, 0px), 28px); padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px)'
+  const mobileMenuBtnStyle =
+    'top: calc(max(env(safe-area-inset-top, 0px), 28px) + 0.5rem); left: calc(max(env(safe-area-inset-left, 0px), 0px) + 0.5rem)'
 
   const desktopViews = [
     {
@@ -66,6 +73,11 @@
       label: 'WebRTC',
       component: WebRTC,
       icon: 'i-ph-broadcast'
+    },
+    {
+      label: 'Path',
+      component: Path,
+      icon: 'i-ph-folder'
     }
   ]
 
@@ -222,8 +234,10 @@
 <!-- Sidebar toggle, only visible on small screens -->
 <div
   id="sidebarToggle"
-  class="z-2000 hidden lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8
-            bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
+  class="z-2000 hidden lt-sm:flex justify-center items-center absolute w-8 h-8 rd-8
+            bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark
+            {isMobile ? '' : 'top-2 left-2'}"
+  style={isMobile ? mobileMenuBtnStyle : undefined}
 >
   {#if isSideBarOpen}
     <span class="i-codicon-close animate-duration-300ms animate-fade-in"></span>
@@ -234,6 +248,7 @@
 
 <div
   class="flex h-screen w-screen overflow-hidden children-pt4 children-pb-2 text-primaryText dark:text-darkPrimaryText"
+  style={isMobile ? mobileShellStyle : undefined}
 >
   <aside
     id="sidebar"

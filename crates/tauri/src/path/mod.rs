@@ -20,6 +20,8 @@ use crate::error::*;
 mod android;
 #[cfg(not(target_os = "android"))]
 mod desktop;
+#[cfg(target_os = "ios")]
+mod ios_native;
 
 #[cfg(target_os = "android")]
 pub use android::PathResolver;
@@ -174,6 +176,10 @@ pub enum BaseDirectory {
   /// Resolves to [`crate::path::PathResolver::template_dir`].
   #[cfg(not(target_os = "android"))]
   Template = 23,
+  /// The app library directory (iOS only).
+  /// Resolves to [`crate::path::PathResolver::app_library_dir`].
+  #[cfg(target_os = "ios")]
+  AppLibrary = 24,
 }
 
 impl BaseDirectory {
@@ -209,6 +215,8 @@ impl BaseDirectory {
       Self::Runtime => "$RUNTIME",
       #[cfg(not(target_os = "android"))]
       Self::Template => "$TEMPLATE",
+      #[cfg(target_os = "ios")]
+      Self::AppLibrary => "$APPLIBRARY",
     }
   }
 
@@ -245,6 +253,8 @@ impl BaseDirectory {
       "$RUNTIME" => Self::Runtime,
       #[cfg(not(target_os = "android"))]
       "$TEMPLATE" => Self::Template,
+      #[cfg(target_os = "ios")]
+      "$APPLIBRARY" => Self::AppLibrary,
 
       _ => return None,
     };
@@ -344,6 +354,8 @@ fn resolve_path<R: Runtime>(
     BaseDirectory::Runtime => resolver.runtime_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Template => resolver.template_dir(),
+    #[cfg(target_os = "ios")]
+    BaseDirectory::AppLibrary => resolver.app_library_dir(),
   }?;
 
   if let Some(path) = path {

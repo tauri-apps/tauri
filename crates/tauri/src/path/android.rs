@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::Result;
+use super::{Error, Result};
 use crate::{plugin::PluginHandle, Runtime};
 use std::path::{Path, PathBuf};
 

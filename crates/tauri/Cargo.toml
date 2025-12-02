@@ -158,6 +158,11 @@ jni = "0.21"
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
 swift-rs = "1"
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "NSArray",
+  "NSString",
+  "NSPathUtilities",
+] }
 objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
   "UIApplication",
   "UIResponder",

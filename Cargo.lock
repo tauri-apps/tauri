@@ -10991,7 +10991,7 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 [[package]]
 name = "wry"
 version = "0.53.5"
-source = "git+https://github.com/tauri-apps/wry?branch=feat/android-on-new-intent#25cfa68f8e80ed51eb4cbd664da64a1c51c32a45"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/android-on-new-intent#1e09d85df7df2371baea1449810b479491077845"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

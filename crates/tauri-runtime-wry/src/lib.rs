@@ -2638,6 +2638,28 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    #[cfg(target_os = "macos")]
+    {
+      let monitors = self.available_monitors();
+      for monitor in monitors {
+        let position = monitor.position;
+        let size = monitor.size;
+        let monitor_x = position.x as f64;
+        let monitor_y = position.y as f64;
+        let monitor_width = size.width as f64;
+        let monitor_height = size.height as f64;
+
+        if x >= monitor_x
+          && x < (monitor_x + monitor_width)
+          && y >= monitor_y
+          && y < (monitor_y + monitor_height)
+        {
+          return Some(monitor);
+        }
+      }
+      None
+    }
+    #[cfg(not(target_os = "macos"))]
     self
       .context
       .main_thread

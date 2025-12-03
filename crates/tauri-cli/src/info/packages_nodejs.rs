@@ -137,12 +137,27 @@ pub fn items(
 ) -> Vec<SectionItem> {
   let mut items = Vec::new();
   if let Some(frontend_dir) = frontend_dir {
-    for (package, version) in [
-      ("@tauri-apps/api", None),
-      ("@tauri-apps/cli", Some(metadata.js_cli.version.clone())),
-    ] {
+    let mut packages = vec![("@tauri-apps/api", None)];
+    if let Some(cli) = &metadata.js_cli.version {
+      packages.push(("@tauri-apps/cli", Some(cli.clone())));
+    }
+
+    let versions = package_manager
+      .current_package_versions(
+        &packages.iter().map(|(p, _)| p.to_string()).collect::<Vec<_>>(),
+        frontend_dir,
+      )
+      .unwrap_or_default();
+
+    for (package, version) in packages {
       let frontend_dir = frontend_dir.clone();
-      let item = nodejs_section_item(package.into(), version, frontend_dir, package_manager);
+      let item = nodejs_section_item(
+        package.into(),
+        version,
+        frontend_dir,
+        package_manager,
+        versions.get(package).cloned(),
+      );
       items.push(item);
     }
   }
@@ -155,12 +170,17 @@ pub fn nodejs_section_item(
   version: Option<String>,
   frontend_dir: PathBuf,
   package_manager: PackageManager,
+  current_version: Option<semver::Version>,
 ) -> SectionItem {
   SectionItem::new().action(move || {
     let version = version.clone().unwrap_or_else(|| {
-      package_manager
-        .current_package_version(&package, &frontend_dir)
-        .unwrap_or_default()
+      current_version
+        .map(|v| v.to_string())
+        .or_else(|| {
+          package_manager
+            .current_package_version(&package, &frontend_dir)
+            .unwrap_or_default()
+        })
         .unwrap_or_default()
     });
 

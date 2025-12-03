@@ -115,7 +115,20 @@ pub fn items(
     if let Some(tauri_dir) = tauri_dir {
       let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
 
-      for p in helpers::plugins::known_plugins().keys() {
+      let known_plugins = helpers::plugins::known_plugins();
+      let npm_plugins = if let Some(frontend_dir) = frontend_dir {
+        let npm_names: Vec<String> = known_plugins
+          .keys()
+          .map(|plugin_name| format!("@tauri-apps/plugin-{plugin_name}"))
+          .collect();
+        package_manager
+          .current_package_versions(&npm_names, frontend_dir)
+          .unwrap_or_default()
+      } else {
+        HashMap::new()
+      };
+
+      for p in known_plugins.keys() {
         let dep = format!("tauri-plugin-{p}");
         let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), &dep);
         if !crate_version.has_version() {
@@ -131,10 +144,11 @@ pub fn items(
         let package = format!("@tauri-apps/plugin-{p}");
 
         let item = packages_nodejs::nodejs_section_item(
-          package,
+          package.clone(),
           None,
           frontend_dir.clone(),
           package_manager,
+          npm_plugins.get(&package).cloned(),
         );
         items.push(item);
       }

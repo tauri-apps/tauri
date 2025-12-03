@@ -651,6 +651,18 @@ impl<R: Runtime> AppHandle<R> {
   pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
     self.runtime_handle.set_device_event_filter(filter);
   }
+
+  /// Whether the application supports multiple windows.
+  #[cfg(target_os = "ios")]
+  pub fn supports_multiple_windows(&self) -> bool {
+    let (tx, rx) = std::sync::mpsc::channel();
+    self.run_on_main_thread(move || unsafe {
+      let mtm = objc2::MainThreadMarker::new().unwrap();
+      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+      tx.send(ui_application.supportsMultipleScenes()).unwrap();
+    });
+    rx.recv().unwrap()
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {
@@ -1084,6 +1096,40 @@ macro_rules! shared_app_impl {
       pub fn invoke_key(&self) -> &str {
         self.manager.invoke_key()
       }
+
+      /// Whether the application supports multiple windows.
+      #[cfg(desktop)]
+      pub fn supports_multiple_windows(&self) -> bool {
+        true
+      }
+
+      /// Whether the application supports multiple windows.
+      #[cfg(target_os = "android")]
+      pub fn supports_multiple_windows(&self) -> bool {
+        let runtime_handle = match self.runtime() {
+          RuntimeOrDispatch::Runtime(runtime) => runtime.handle(),
+          RuntimeOrDispatch::RuntimeHandle(handle) => handle,
+          _ => unreachable!(),
+        };
+
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        runtime_handle.run_on_android_context(move |env, _activity, _webview| {
+          let supports = (|| {
+            let version_class = env.find_class("android/os/Build$VERSION")?;
+            let sdk = env
+              .get_static_field(version_class, "SDK_INT", "I")?
+              .i()
+              .unwrap_or_default();
+            crate::Result::Ok(sdk >= 32)
+          })()
+          .unwrap_or(false);
+
+          let _ = tx.send(supports);
+        });
+
+        rx.recv().unwrap_or(false)
+      }
     }
 
     impl<R: Runtime> Listener<R> for $app {
@@ -1181,6 +1227,16 @@ impl<R: Runtime> App<R> {
   /// Gets a handle to the application instance.
   pub fn handle(&self) -> &AppHandle<R> {
     &self.handle
+  }
+
+  /// Whether the application supports multiple windows.
+  #[cfg(target_os = "ios")]
+  pub fn supports_multiple_windows(&self) -> bool {
+    unsafe {
+      let mtm = objc2::MainThreadMarker::new().unwrap();
+      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+      ui_application.supportsMultipleScenes()
+    }
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.

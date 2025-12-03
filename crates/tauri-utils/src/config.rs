@@ -1236,6 +1236,12 @@ impl FileAssociation {
   pub fn infer_content_types(&self) -> HashSet<String> {
     let mut content_types = HashSet::new();
 
+    // when we have an exported type, we only reference it
+    if let Some(exported_type) = &self.exported_type {
+      content_types.insert(exported_type.identifier.clone());
+      return content_types;
+    }
+
     // Start with explicitly provided content types
     if let Some(explicit_types) = &self.content_types {
       content_types.extend(explicit_types.iter().cloned());

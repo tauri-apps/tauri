@@ -314,7 +314,7 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
 
   if persist && original_manifest_str != new_manifest_str {
     std::fs::write(&manifest_path, new_manifest_str)
-      .fs_context("failed to rewrite Cargo manifest", manifest_path.clone())?;
+      .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
     Ok((
       Manifest {
         inner: manifest,

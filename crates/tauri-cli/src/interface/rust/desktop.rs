@@ -335,7 +335,7 @@ fn rename_app(
       ""
     };
     let new_path = bin_path.with_file_name(format!("{main_binary_name}{extension}"));
-    fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path.clone())?;
+    fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path)?;
     Ok(new_path)
   } else {
     Ok(bin_path)

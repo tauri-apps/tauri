@@ -753,26 +753,28 @@ pub fn build_wix_app_installer(
   }
 
   let main_wxs_path = output_path.join("main.wxs");
-  fs::write(main_wxs_path, handlebars.render("main.wxs", &data)?)?;
+  fs::write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
-  let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
+  let mut candle_inputs = vec![];
 
   let current_dir = std::env::current_dir()?;
   let extension_regex = Regex::new("\"http://schemas.microsoft.com/wix/(\\w+)\"")?;
-  for fragment_path in fragment_paths {
-    let fragment_path = current_dir.join(fragment_path);
-    let fragment_content = fs::read_to_string(&fragment_path)?;
-    let fragment_handlebars = Handlebars::new();
-    let fragment = fragment_handlebars.render_template(&fragment_content, &data)?;
+  let input_paths =
+    std::iter::once(main_wxs_path).chain(fragment_paths.iter().map(|p| current_dir.join(p)));
+
+  for input_path in input_paths {
+    let input_content = fs::read_to_string(&input_path)?;
+    let input_handlebars = Handlebars::new();
+    let input = input_handlebars.render_template(&input_content, &data)?;
     let mut extensions = Vec::new();
-    for cap in extension_regex.captures_iter(&fragment) {
+    for cap in extension_regex.captures_iter(&input) {
       let path = wix_toolset_path.join(format!("Wix{}.dll", &cap[1]));
       if settings.windows().can_sign() {
         try_sign(&path, settings)?;
       }
       extensions.push(path);
     }
-    candle_inputs.push((fragment_path, extensions));
+    candle_inputs.push((input_path, extensions));
   }
 
   let mut fragment_extensions = HashSet::new();

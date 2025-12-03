@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.8.1]
+
+### Bug Fixes
+
+- [`1573c7240`](https://www.github.com/tauri-apps/tauri/commit/1573c72402352949d1fd3ca5c6fdbee46fe69fbb) ([#14561](https://www.github.com/tauri-apps/tauri/pull/14561) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused schema files to have `\r` characters on Windows.
+
 ## \[2.8.0]
 
 ### New Features

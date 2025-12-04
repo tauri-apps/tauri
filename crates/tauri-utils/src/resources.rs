@@ -152,8 +152,7 @@ impl ResourcePathsIter<'_> {
       Err(err) => return Some(Err(err.into())),
     };
 
-    self.current_path = Some(normalize(&entry));
-    self.next_current_path()
+    self.next_current_path(normalize(&entry))
   }
 
   fn next_walk_iter(&mut self) -> Option<crate::Result<Resource>> {
@@ -164,8 +163,7 @@ impl ResourcePathsIter<'_> {
       Err(err) => return Some(Err(err.into())),
     };
 
-    self.current_path = Some(normalize(entry.path()));
-    self.next_current_path()
+    self.next_current_path(normalize(entry.path()))
   }
 
   fn resource_from_path(&mut self, path: &Path) -> crate::Result<Resource> {
@@ -198,11 +196,7 @@ impl ResourcePathsIter<'_> {
     })
   }
 
-  fn next_current_path(&mut self) -> Option<crate::Result<Resource>> {
-    // should be safe to unwrap since every call to `self.next_current_path()`
-    // is preceded with assignment to `self.current_path`
-    let path = self.current_path.take().unwrap();
-
+  fn next_current_path(&mut self, path: PathBuf) -> Option<crate::Result<Resource>> {
     let is_dir = path.is_dir();
 
     if is_dir {
@@ -257,8 +251,7 @@ impl ResourcePathsIter<'_> {
       }
     }
 
-    self.current_path = Some(normalize(Path::new(pattern)));
-    self.next_current_path()
+    self.next_current_path(normalize(Path::new(pattern)))
   }
 }
 
@@ -274,8 +267,8 @@ impl Iterator for ResourcePathsIter<'_> {
   type Item = crate::Result<Resource>;
 
   fn next(&mut self) -> Option<crate::Result<Resource>> {
-    if self.current_path.is_some() {
-      return self.next_current_path();
+    if let Some(path) = self.current_path.take() {
+      return self.next_current_path(path);
     }
 
     if self.walk_iter.is_some() {

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.9.4"
+version = "2.9.5"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.77.2"
@@ -47,7 +47,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
 thiserror = "2"
-tauri-bundler = { version = "2.7.3", default-features = false, path = "../tauri-bundler" }
+tauri-bundler = { version = "2.7.4", default-features = false, path = "../tauri-bundler" }
 colored = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
@@ -58,7 +58,7 @@ shared_child = "1"
 duct = "1.0"
 toml_edit = { version = "0.23", features = ["serde"] }
 json-patch = "3"
-tauri-utils = { version = "2.8.0", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.8.1", path = "../tauri-utils", features = [
   "isolation",
   "schema",
   "config-json5",
@@ -133,7 +133,7 @@ libc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
-tauri-macos-sign = { version = "2.3.0", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.3.1", path = "../tauri-macos-sign" }
 object = { version = "0.36", default-features = false, features = [
   "macho",
   "read_core",

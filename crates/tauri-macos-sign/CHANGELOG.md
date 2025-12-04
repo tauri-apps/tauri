@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.3.1]
+
+### Performance Improvements
+
+- [`ee3cc4a91`](https://www.github.com/tauri-apps/tauri/commit/ee3cc4a91bf1315ecaefe90f423ffd55ef6c40db) ([#14475](https://www.github.com/tauri-apps/tauri/pull/14475) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) perf: remove needless clones in various files for improved performance. No user facing changes.
+
 ## \[2.3.0]
 
 ### Enhancements

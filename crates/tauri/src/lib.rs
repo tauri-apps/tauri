@@ -248,38 +248,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub fn log_stdout() {
-  use std::{
-    ffi::CString,
-    fs::File,
-    io::{BufRead, BufReader},
-    os::unix::prelude::*,
-    thread,
-  };
-
-  let mut logpipe: [RawFd; 2] = Default::default();
+  #[cfg(target_os = "ios")]
   unsafe {
-    libc::pipe(logpipe.as_mut_ptr());
-    libc::dup2(logpipe[1], libc::STDOUT_FILENO);
-    libc::dup2(logpipe[1], libc::STDERR_FILENO);
+    crate::ios::log_stdout();
   }
-  thread::spawn(move || unsafe {
-    let file = File::from_raw_fd(logpipe[0]);
-    let mut reader = BufReader::new(file);
-    let mut buffer = String::new();
-    loop {
-      buffer.clear();
-      if let Ok(len) = reader.read_line(&mut buffer) {
-        if len == 0 {
-          break;
-        } else if let Ok(msg) = CString::new(buffer.as_bytes())
-          .map_err(|_| ())
-          .and_then(|c| c.into_string().map_err(|_| ()))
-        {
-          log::info!("{}", msg);
-        }
-      }
-    }
-  });
 }
 
 /// The user event type.

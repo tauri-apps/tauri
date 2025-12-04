@@ -249,6 +249,11 @@ fn sign_updaters(
     return Ok(());
   }
 
+  if settings.no_sign() {
+    log::warn!("Updater signing is skipped due to --no-sign flag.");
+    return Ok(());
+  }
+
   // get the public key
   let pubkey = &update_settings.pubkey;
   // check if pubkey points to a file...

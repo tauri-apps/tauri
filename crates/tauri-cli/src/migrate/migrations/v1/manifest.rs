@@ -21,7 +21,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
   migrate_manifest(&mut manifest)?;
 
   std::fs::write(&manifest_path, serialize_manifest(&manifest))
-    .fs_context("failed to rewrite Cargo manifest", manifest_path.clone())?;
+    .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
 
   Ok(())
 }

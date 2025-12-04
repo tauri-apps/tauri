@@ -128,19 +128,14 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   config: &TauriConfig,
-  features: Option<&Vec<String>>,
+  features: &[String],
   cli_options: &CliOptions,
 ) -> (AndroidConfig, AndroidMetadata) {
   let mut android_options = cli_options.clone();
-  if let Some(features) = features {
-    android_options
-      .features
-      .get_or_insert(Vec::new())
-      .extend_from_slice(features);
-  }
+  android_options.features.extend_from_slice(features);
 
   let raw = RawAndroidConfig {
-    features: android_options.features.clone(),
+    features: Some(android_options.features.clone()),
     logcat_filter_specs: vec![
       "RustStdoutStderr".into(),
       format!(
@@ -161,7 +156,7 @@ pub fn get_config(
   let metadata = AndroidMetadata {
     supported: true,
     cargo_args: Some(android_options.args),
-    features: android_options.features,
+    features: Some(android_options.features),
     ..Default::default()
   };
 

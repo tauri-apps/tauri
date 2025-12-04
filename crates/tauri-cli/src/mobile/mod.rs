@@ -178,10 +178,16 @@ impl Default for DevHost {
   }
 }
 
+fn is_empty(v: &[String]) -> bool {
+  v.is_empty()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub dev: bool,
-  pub features: Option<Vec<String>>,
+  #[serde(default)]
+  #[serde(skip_serializing_if = "is_empty")]
+  pub features: Vec<String>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
@@ -193,7 +199,7 @@ impl Default for CliOptions {
   fn default() -> Self {
     Self {
       dev: false,
-      features: None,
+      features: Vec::new(),
       args: vec!["--lib".into()],
       noise_level: Default::default(),
       vars: Default::default(),

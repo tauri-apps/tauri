@@ -419,6 +419,14 @@ pub fn is_dev() -> bool {
     == "true"
 }
 
+/// Returns true if we're running in a check-only build (cargo check, cargo clippy, etc.)
+/// These commands don't actually build the binary, so we should skip resource validation.
+fn is_check_build() -> bool {
+  // During cargo check/clippy, CARGO_CFG_PANIC is not set
+  // During actual builds (cargo build, cargo test, cargo run), it is set
+  env::var("CARGO_CFG_PANIC").is_err()
+}
+
 /// Run all build time helpers for your Tauri Application.
 ///
 /// To provide extra configuration, such as [`AppManifest::commands`]
@@ -529,8 +537,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .unwrap();
 
   if let Some(paths) = &config.bundle.external_bin {
+    let should_validate = !is_check_build();
     copy_binaries(
-      ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
+      ResourcePaths::new_with_validation(&external_binaries(paths, &target_triple, &target), true, should_validate),
       &target_triple,
       target_dir,
       manifest.package.as_ref().map(|p| &p.name),
@@ -551,11 +560,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       resources.push(fixed_webview2_runtime_path.display().to_string());
     }
   }
+  let should_validate = !is_check_build();
   match resources {
     BundleResources::List(res) => {
-      copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?
+      copy_resources(ResourcePaths::new_with_validation(res.as_slice(), true, should_validate), target_dir)?
     }
-    BundleResources::Map(map) => copy_resources(ResourcePaths::from_map(&map, true), target_dir)?,
+    BundleResources::Map(map) => copy_resources(ResourcePaths::from_map_with_validation(&map, true, should_validate), target_dir)?,
   }
 
   if target_triple.contains("darwin") {

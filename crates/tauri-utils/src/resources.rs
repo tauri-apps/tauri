@@ -97,6 +97,7 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Slice(patterns.iter()),
         allow_walk,
+        validate_paths: true,
         current_path: None,
         current_pattern: None,
         current_dest: None,
@@ -112,6 +113,39 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Map(patterns.iter()),
         allow_walk,
+        validate_paths: true,
+        current_path: None,
+        current_pattern: None,
+        current_dest: None,
+        walk_iter: None,
+        glob_iter: None,
+      },
+    }
+  }
+
+  /// Creates a new ResourcePaths from a slice of patterns to iterate with optional path validation
+  pub fn new_with_validation(patterns: &'a [String], allow_walk: bool, validate_paths: bool) -> ResourcePaths<'a> {
+    ResourcePaths {
+      iter: ResourcePathsIter {
+        pattern_iter: PatternIter::Slice(patterns.iter()),
+        allow_walk,
+        validate_paths,
+        current_path: None,
+        current_pattern: None,
+        current_dest: None,
+        walk_iter: None,
+        glob_iter: None,
+      },
+    }
+  }
+
+  /// Creates a new ResourcePaths from a map of patterns to iterate with optional path validation
+  pub fn from_map_with_validation(patterns: &'a HashMap<String, String>, allow_walk: bool, validate_paths: bool) -> ResourcePaths<'a> {
+    ResourcePaths {
+      iter: ResourcePathsIter {
+        pattern_iter: PatternIter::Map(patterns.iter()),
+        allow_walk,
+        validate_paths,
         current_path: None,
         current_pattern: None,
         current_dest: None,
@@ -135,6 +169,8 @@ pub struct ResourcePathsIter<'a> {
   pattern_iter: PatternIter<'a>,
   /// whether the resource paths allows directories or not.
   allow_walk: bool,
+  /// whether to validate that paths exist.
+  validate_paths: bool,
 
   current_path: Option<PathBuf>,
   /// The key of map when `pattern_iter` is a [`PatternIter::Map`],
@@ -174,7 +210,7 @@ impl ResourcePathsIter<'_> {
   }
 
   fn resource_from_path(&mut self, path: &Path) -> crate::Result<Resource> {
-    if !path.exists() {
+    if self.validate_paths && !path.exists() {
       return Err(crate::Error::ResourcePathNotFound(path.to_path_buf()));
     }
 
@@ -426,11 +462,11 @@ mod tests {
       // From `../src/textures/**/*`
       (
         "../src/textures/ground/earth.tex",
-        "_up_/src/textures/earth.tex",
+        "_up_/src/textures/ground/earth.tex",
       ),
       (
         "../src/textures/ground/sand.tex",
-        "_up_/src/textures/sand.tex",
+        "_up_/src/textures/ground/sand.tex",
       ),
       ("../src/textures/water.tex", "_up_/src/textures/water.tex"),
       ("../src/textures/fire.tex", "_up_/src/textures/fire.tex"),

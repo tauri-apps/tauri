@@ -17,6 +17,7 @@ jobs:
       - name: install Rust stable and rustfmt
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: stable
           components: rustfmt
 
       - name: run cargo fmt
@@ -42,6 +43,8 @@ jobs:
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - name: install taplo-cli
         uses: taiki-e/install-action@v2

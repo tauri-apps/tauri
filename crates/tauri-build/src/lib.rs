@@ -58,9 +58,13 @@ fn copy_binaries(
   target_triple: &str,
   path: &Path,
   package_name: Option<&String>,
+  skip_missing: bool,
 ) -> Result<()> {
   for src in binaries {
     let src = src?;
+    if skip_missing && !src.exists() {
+      continue;
+    }
     println!("cargo:rerun-if-changed={}", src.display());
     let file_name = src
       .file_name()
@@ -85,10 +89,13 @@ fn copy_binaries(
 }
 
 /// Copies resources to a path.
-fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
+fn copy_resources(resources: ResourcePaths<'_>, path: &Path, skip_missing: bool) -> Result<()> {
   let path = path.canonicalize()?;
   for resource in resources.iter() {
     let resource = resource?;
+    if skip_missing && !resource.path().exists() {
+      continue;
+    }
 
     println!("cargo:rerun-if-changed={}", resource.path().display());
 
@@ -419,12 +426,13 @@ pub fn is_dev() -> bool {
     == "true"
 }
 
-/// Returns true if we're running in a check-only build (cargo check, cargo clippy, etc.)
-/// These commands don't actually build the binary, so we should skip resource validation.
-fn is_check_build() -> bool {
-  // During cargo check/clippy, CARGO_CFG_PANIC is not set
-  // During actual builds (cargo build, cargo test, cargo run), it is set
-  env::var("CARGO_CFG_PANIC").is_err()
+/// Returns true if we should skip resource validation.
+///
+/// This is triggered by setting `TAURI_SKIP_RESOURCE_CHECK=true`.
+fn should_skip_resource_check() -> bool {
+  env::var("TAURI_SKIP_RESOURCE_CHECK")
+    .map(|v| v == "true")
+    .unwrap_or(false)
 }
 
 /// Run all build time helpers for your Tauri Application.
@@ -537,7 +545,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .unwrap();
 
   if let Some(paths) = &config.bundle.external_bin {
-    let should_validate = !is_check_build();
+    let should_validate = !should_skip_resource_check();
     copy_binaries(
       ResourcePaths::new_with_validation(
         &external_binaries(paths, &target_triple, &target),
@@ -547,6 +555,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       &target_triple,
       target_dir,
       manifest.package.as_ref().map(|p| &p.name),
+      !should_validate,
     )?;
   }
 
@@ -564,15 +573,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       resources.push(fixed_webview2_runtime_path.display().to_string());
     }
   }
-  let should_validate = !is_check_build();
+  let should_validate = !should_skip_resource_check();
   match resources {
     BundleResources::List(res) => copy_resources(
       ResourcePaths::new_with_validation(res.as_slice(), true, should_validate),
       target_dir,
+      !should_validate,
     )?,
     BundleResources::Map(map) => copy_resources(
       ResourcePaths::from_map_with_validation(&map, true, should_validate),
       target_dir,
+      !should_validate,
     )?,
   }
 

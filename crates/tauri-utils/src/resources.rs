@@ -97,7 +97,6 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Slice(patterns.iter()),
         allow_walk,
-        current_path: None,
         current_pattern: None,
         walk_iter: None,
         glob_iter: None,
@@ -111,7 +110,6 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Map(patterns.iter()),
         allow_walk,
-        current_path: None,
         current_pattern: None,
         walk_iter: None,
         glob_iter: None,
@@ -134,7 +132,6 @@ pub struct ResourcePathsIter<'a> {
   /// whether the resource paths allows directories or not.
   allow_walk: bool,
 
-  current_path: Option<PathBuf>,
   /// The (key, value) of map when `pattern_iter` is a [`PatternIter::Map`],
   /// used for determining [`Resource::target`]
   current_pattern: Option<(String, PathBuf)>,
@@ -226,7 +223,6 @@ impl ResourcePathsIter<'_> {
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
     self.current_pattern = None;
-    self.current_path = None;
 
     let pattern = match &mut self.pattern_iter {
       PatternIter::Slice(iter) => iter.next()?,
@@ -267,10 +263,6 @@ impl Iterator for ResourcePathsIter<'_> {
   type Item = crate::Result<Resource>;
 
   fn next(&mut self) -> Option<crate::Result<Resource>> {
-    if let Some(path) = self.current_path.take() {
-      return self.next_current_path(path);
-    }
-
     if self.walk_iter.is_some() {
       match self.next_walk_iter() {
         Some(r) => return Some(r),

@@ -124,7 +124,11 @@ impl<'a> ResourcePaths<'a> {
   }
 
   /// Creates a new ResourcePaths from a slice of patterns to iterate with optional path validation
-  pub fn new_with_validation(patterns: &'a [String], allow_walk: bool, validate_paths: bool) -> ResourcePaths<'a> {
+  pub fn new_with_validation(
+    patterns: &'a [String],
+    allow_walk: bool,
+    validate_paths: bool,
+  ) -> ResourcePaths<'a> {
     ResourcePaths {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Slice(patterns.iter()),
@@ -140,7 +144,11 @@ impl<'a> ResourcePaths<'a> {
   }
 
   /// Creates a new ResourcePaths from a map of patterns to iterate with optional path validation
-  pub fn from_map_with_validation(patterns: &'a HashMap<String, String>, allow_walk: bool, validate_paths: bool) -> ResourcePaths<'a> {
+  pub fn from_map_with_validation(
+    patterns: &'a HashMap<String, String>,
+    allow_walk: bool,
+    validate_paths: bool,
+  ) -> ResourcePaths<'a> {
     ResourcePaths {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Map(patterns.iter()),

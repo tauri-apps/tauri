@@ -539,7 +539,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   if let Some(paths) = &config.bundle.external_bin {
     let should_validate = !is_check_build();
     copy_binaries(
-      ResourcePaths::new_with_validation(&external_binaries(paths, &target_triple, &target), true, should_validate),
+      ResourcePaths::new_with_validation(
+        &external_binaries(paths, &target_triple, &target),
+        true,
+        should_validate,
+      ),
       &target_triple,
       target_dir,
       manifest.package.as_ref().map(|p| &p.name),
@@ -562,10 +566,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   let should_validate = !is_check_build();
   match resources {
-    BundleResources::List(res) => {
-      copy_resources(ResourcePaths::new_with_validation(res.as_slice(), true, should_validate), target_dir)?
-    }
-    BundleResources::Map(map) => copy_resources(ResourcePaths::from_map_with_validation(&map, true, should_validate), target_dir)?,
+    BundleResources::List(res) => copy_resources(
+      ResourcePaths::new_with_validation(res.as_slice(), true, should_validate),
+      target_dir,
+    )?,
+    BundleResources::Map(map) => copy_resources(
+      ResourcePaths::from_map_with_validation(&map, true, should_validate),
+      target_dir,
+    )?,
   }
 
   if target_triple.contains("darwin") {

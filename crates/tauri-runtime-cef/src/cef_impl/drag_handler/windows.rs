@@ -244,6 +244,12 @@ unsafe extern "system" fn root_window_proc(
     return hit;
   }
 
+  // If the message is WM_NCLBUTTONDOWN, call DefWindowProc
+  // not the original wnd proc to ensure proper dragging behavior.
+  if msg == WM_NCLBUTTONDOWN {
+    return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
+  }
+
   // For other messages, call the original window procedure
   CallWindowProcW(Some(original_wnd_proc), hwnd, msg, wparam, lparam)
 }

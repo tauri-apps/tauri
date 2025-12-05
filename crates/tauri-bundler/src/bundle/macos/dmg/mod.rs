@@ -192,17 +192,25 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   // Sign DMG if needed
   // skipping self-signing DMGs https://github.com/tauri-apps/tauri/issues/12288
-  let identity = settings.macos().signing_identity.as_deref();
-  if !settings.no_sign() && identity != Some("-") {
-    if let Some(keychain) = super::sign::keychain(identity)? {
-      super::sign::sign(
-        &keychain,
-        vec![super::sign::SignTarget {
-          path: dmg_path.clone(),
-          is_an_executable: false,
-        }],
-        settings,
-      )?;
+  if !settings.no_sign() {
+    if let Some(dmg_sign_command) = &settings.macos().dmg_sign_command {
+      // Use custom signing command
+      super::sign::sign_dmg_custom(&dmg_path, dmg_sign_command)?;
+    } else {
+      // Use native codesign
+      let identity = settings.macos().signing_identity.as_deref();
+      if identity != Some("-") {
+        if let Some(keychain) = super::sign::keychain(identity)? {
+          super::sign::sign(
+            &keychain,
+            vec![super::sign::SignTarget {
+              path: dmg_path.clone(),
+              is_an_executable: false,
+            }],
+            settings,
+          )?;
+        }
+      }
     }
   }
 

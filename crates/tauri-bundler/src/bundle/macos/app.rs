@@ -106,9 +106,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   if settings.no_sign() {
     log::warn!("Skipping signing due to --no-sign flag.",);
+  } else if let Some(app_sign_command) = &settings.macos().app_sign_command {
+    // Use custom signing command for the .app bundle
+    // The custom command is responsible for deep signing the contents of the .app
+    super::sign::sign_app_custom(&app_bundle_path, app_sign_command)?;
   } else if let Some(keychain) =
     super::sign::keychain(settings.macos().signing_identity.as_deref())?
   {
+    // Use native codesign
     // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
     // https://developer.apple.com/forums/thread/701514
     sign_paths.push(SignTarget {

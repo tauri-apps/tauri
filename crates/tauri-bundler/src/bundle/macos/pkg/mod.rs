@@ -109,10 +109,18 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .map_err(|e| crate::Error::ShellScriptError(format!("productbuild failed: {}", e)))?;
 
   // Sign PKG if needed
-  let identity = settings.macos().signing_identity.as_deref();
-  if !settings.no_sign() && identity != Some("-") {
-    if let Some(identity) = identity {
-      super::sign::sign_pkg(&pkg_path, identity, settings)?;
+  if !settings.no_sign() {
+    if let Some(pkg_sign_command) = &settings.macos().pkg_sign_command {
+      // Use custom signing command
+      super::sign::sign_pkg_custom(&pkg_path, pkg_sign_command)?;
+    } else {
+      // Use native productsign
+      let identity = settings.macos().signing_identity.as_deref();
+      if identity != Some("-") {
+        if let Some(identity) = identity {
+          super::sign::sign_pkg(&pkg_path, identity, settings)?;
+        }
+      }
     }
   }
 

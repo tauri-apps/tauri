@@ -371,6 +371,38 @@ pub struct MacOsSettings {
   pub entitlements: Option<Entitlements>,
   /// Path to the Info.plist file or raw plist value to merge with the bundle Info.plist.
   pub info_plist: Option<PlistKind>,
+  /// Specify a custom command to sign the .app bundle.
+  /// This command needs to have a `%1` in it which is just a placeholder for the .app bundle path.
+  /// The custom command is responsible for signing everything inside the bundle.
+  ///
+  /// Example:
+  /// ```text
+  /// custom-sign --app %1 --output-dir signed/
+  /// ```
+  ///
+  /// If this is set, it will be used instead of the native codesign process.
+  /// By Default we use `codesign` which can be found only on macOS.
+  pub app_sign_command: Option<CustomSignCommandSettings>,
+  /// Specify a custom command to sign the .pkg installer.
+  /// This command needs to have a `%1` in it which is just a placeholder for the PKG path.
+  ///
+  /// Example:
+  /// ```text
+  /// custom-sign --pkg %1 --output-dir signed/
+  /// ```
+  ///
+  /// By Default we use `productsign` which can be found only on macOS.
+  pub pkg_sign_command: Option<CustomSignCommandSettings>,
+  /// Specify a custom command to sign the .dmg disk image.
+  /// This command needs to have a `%1` in it which is just a placeholder for the DMG path.
+  ///
+  /// Example:
+  /// ```text
+  /// custom-sign --dmg %1 --output-dir signed/
+  /// ```
+  ///
+  /// By Default we use `codesign` which can be found only on macOS.
+  pub dmg_sign_command: Option<CustomSignCommandSettings>,
 }
 
 /// Entitlements for macOS code signing.

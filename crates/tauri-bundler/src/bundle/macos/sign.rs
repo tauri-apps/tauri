@@ -201,3 +201,84 @@ pub fn sign_pkg(
 
   Ok(())
 }
+
+/// Sign a PKG installer using a custom command
+pub fn sign_pkg_custom(
+  pkg_path: &std::path::Path,
+  command: &crate::bundle::settings::CustomSignCommandSettings,
+) -> crate::Result<()> {
+  use crate::utils::CommandExt;
+
+  log::info!(action = "Signing"; "PKG with custom command");
+
+  let mut cmd = sign_command_custom(pkg_path, command)?;
+  let output = cmd.output_ok()?;
+
+  let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
+  log::info!(action = "Signing"; "Output of signing command:\n{}", stdout.trim());
+
+  Ok(())
+}
+
+/// Sign a DMG disk image using a custom command
+pub fn sign_dmg_custom(
+  dmg_path: &std::path::Path,
+  command: &crate::bundle::settings::CustomSignCommandSettings,
+) -> crate::Result<()> {
+  use crate::utils::CommandExt;
+
+  log::info!(action = "Signing"; "DMG with custom command");
+
+  let mut cmd = sign_command_custom(dmg_path, command)?;
+  let output = cmd.output_ok()?;
+
+  let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
+  log::info!(action = "Signing"; "Output of signing command:\n{}", stdout.trim());
+
+  Ok(())
+}
+
+/// Sign an app bundle using a custom command
+pub fn sign_app_custom(
+  app_path: &std::path::Path,
+  command: &crate::bundle::settings::CustomSignCommandSettings,
+) -> crate::Result<()> {
+  use crate::utils::CommandExt;
+
+  log::info!(action = "Signing"; ".app bundle with custom command");
+
+  let mut cmd = sign_command_custom(app_path, command)?;
+  let output = cmd.output_ok()?;
+
+  let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
+  log::info!(action = "Signing"; "Output of signing command:\n{}", stdout.trim());
+
+  Ok(())
+}
+
+/// Build a custom signing command with %1 placeholder substitution
+fn sign_command_custom<P: AsRef<std::path::Path>>(
+  path: P,
+  command: &crate::bundle::settings::CustomSignCommandSettings,
+) -> crate::Result<std::process::Command> {
+  use std::path::Path;
+
+  let path = path.as_ref();
+  let cwd = std::env::current_dir()?;
+
+  let mut cmd = std::process::Command::new(&command.cmd);
+  for arg in &command.args {
+    if arg == "%1" {
+      cmd.arg(path);
+    } else {
+      let arg_path = Path::new(arg);
+      // turn relative paths into absolute paths
+      if arg_path.exists() && arg_path.is_relative() {
+        cmd.arg(cwd.join(arg_path));
+      } else {
+        cmd.arg(arg);
+      }
+    }
+  }
+  Ok(cmd)
+}

@@ -172,16 +172,7 @@ unsafe extern "system" fn subclassed_window_proc(
 
     // If the hit test is in the client area, check if it's in the draggable region
     if hit.0 == HTCLIENT as isize {
-      let points = POINTS {
-        x: LOWORD(lparam.0 as u32) as i16,
-        y: HIWORD(lparam.0 as u32) as i16,
-      };
-      let mut point = POINT {
-        x: points.x as i32,
-        y: points.y as i32,
-      };
-
-      let _ = ScreenToClient(hwnd, &mut point);
+      let point = lparam_to_client_point(lparam, hwnd);
 
       // If the point is inside the draggable region, return HTTRANSPARENT
       // so the root window can handle the dragging
@@ -222,16 +213,7 @@ unsafe extern "system" fn root_window_proc(
 
     // If the hit test is in the client area, check if it's in the draggable region
     if hit.0 == HTCLIENT as isize {
-      let points = POINTS {
-        x: LOWORD(lparam.0 as u32) as i16,
-        y: HIWORD(lparam.0 as u32) as i16,
-      };
-      let mut point = POINT {
-        x: points.x as i32,
-        y: points.y as i32,
-      };
-
-      let _ = ScreenToClient(hwnd, &mut point);
+      let point = lparam_to_client_point(lparam, hwnd);
 
       // If the point is inside the draggable region, return HTCAPTION
       // to allow dragging the window
@@ -244,10 +226,14 @@ unsafe extern "system" fn root_window_proc(
     return hit;
   }
 
-  // If the message is WM_NCLBUTTONDOWN, call DefWindowProc
-  // not the original wnd proc to ensure proper dragging behavior.
   if msg == WM_NCLBUTTONDOWN {
-    return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
+    let point = lparam_to_client_point(lparam, hwnd);
+
+    // If the point is inside the draggable region, call DefWindowProc
+    // not the original wnd proc to ensure proper dragging behavior.
+    if PtInRegion(draggable_region, point.x, point.y).as_bool() {
+      return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
+    }
   }
 
   // For other messages, call the original window procedure
@@ -261,6 +247,23 @@ pub fn subclass_window_for_dragging(window: &mut cef::Window) {
   let hwnd = window.window_handle();
   let hwnd = HWND(hwnd.0 as _);
   subclass_window(hwnd, root_window_proc, HRGN::default());
+}
+
+/// Converts a LPARAM from a mouse event to a POINT in client coordinates.
+fn lparam_to_client_point(lparam: LPARAM, hwnd: HWND) -> POINT {
+  let points = POINTS {
+    x: LOWORD(lparam.0 as u32) as i16,
+    y: HIWORD(lparam.0 as u32) as i16,
+  };
+
+  let mut point = POINT {
+    x: points.x as i32,
+    y: points.y as i32,
+  };
+
+  let _ = unsafe { ScreenToClient(hwnd, &mut point) };
+
+  point
 }
 
 /// Extracts the low-order word from a 32-bit value.

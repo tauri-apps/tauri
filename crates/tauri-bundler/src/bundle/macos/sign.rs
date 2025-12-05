@@ -267,6 +267,11 @@ fn sign_command_custom<P: AsRef<std::path::Path>>(
   let cwd = std::env::current_dir()?;
 
   let mut cmd = std::process::Command::new(&command.cmd);
+
+  // Set the current working directory to where the command is expected to run from
+  // This allows relative paths in the cmd field to work correctly
+  cmd.current_dir(&cwd);
+
   for arg in &command.args {
     if arg == "%1" {
       cmd.arg(path);
@@ -280,5 +285,8 @@ fn sign_command_custom<P: AsRef<std::path::Path>>(
       }
     }
   }
+
+  log::info!(action = "Signing"; "Running command from directory: {}", cwd.display());
+
   Ok(cmd)
 }

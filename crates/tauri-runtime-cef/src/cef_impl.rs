@@ -830,6 +830,7 @@ wrap_window_delegate! {
     fn on_window_created(&self, window: Option<&mut Window>) {
       if let Some(window) = window {
 
+        // Setup handling for `app-region: drag`
         #[cfg(windows)]
         drag_handler::windows::subclass_window_for_dragging(window);
 

@@ -3626,6 +3626,39 @@
             "null"
           ]
         },
+        "appSignCommand": {
+          "description": "Specify a custom command to sign the .app bundle.\n This command needs to have a `%1` in args which is just a placeholder for the .app bundle path.\n\n The custom command is responsible for deep signing the contents of the .app.\n If this is set, it will be used instead of the native codesign process.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CustomSignCommandConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pkgSignCommand": {
+          "description": "Specify a custom command to sign the .pkg installer.\n This command needs to have a `%1` in args which is just a placeholder for the .pkg path.\n\n By Default we use `productsign` which can be found only on macOS.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CustomSignCommandConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dmgSignCommand": {
+          "description": "Specify a custom command to sign the .dmg disk image.\n This command needs to have a `%1` in args which is just a placeholder for the .dmg path.\n\n By Default we use `codesign` which can be found only on macOS.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CustomSignCommandConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "dmg": {
           "description": "DMG-specific settings.",
           "default": {

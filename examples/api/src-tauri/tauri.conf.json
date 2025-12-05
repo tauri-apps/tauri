@@ -83,6 +83,16 @@
       "../../.icons/icon.icns",
       "../../.icons/icon.ico"
     ],
+    "macOS": {
+      "appSignCommand": {
+        "cmd": "./shims/sign_app_mock.sh",
+        "args": ["%1"]
+      },
+      "pkgSignCommand": {
+        "cmd": "./shims/sign_pkg_mock.sh",
+        "args": ["%1"]
+      }
+    },
     "windows": {
       "wix": {
         "language": {

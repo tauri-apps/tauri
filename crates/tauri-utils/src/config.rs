@@ -664,6 +664,25 @@ pub struct MacConfig {
   /// Note that Tauri also looks for a `Info.plist` file in the same directory as the Tauri configuration file.
   #[serde(alias = "info-plist")]
   pub info_plist: Option<PathBuf>,
+  /// Specify a custom command to sign the .app bundle.
+  /// This command needs to have a `%1` in args which is just a placeholder for the .app bundle path.
+  ///
+  /// The custom command is responsible for deep signing the contents of the .app.
+  /// If this is set, it will be used instead of the native codesign process.
+  #[serde(alias = "app-sign-command")]
+  pub app_sign_command: Option<CustomSignCommandConfig>,
+  /// Specify a custom command to sign the .pkg installer.
+  /// This command needs to have a `%1` in args which is just a placeholder for the .pkg path.
+  ///
+  /// By Default we use `productsign` which can be found only on macOS.
+  #[serde(alias = "pkg-sign-command")]
+  pub pkg_sign_command: Option<CustomSignCommandConfig>,
+  /// Specify a custom command to sign the .dmg disk image.
+  /// This command needs to have a `%1` in args which is just a placeholder for the .dmg path.
+  ///
+  /// By Default we use `codesign` which can be found only on macOS.
+  #[serde(alias = "dmg-sign-command")]
+  pub dmg_sign_command: Option<CustomSignCommandConfig>,
   /// DMG-specific settings.
   #[serde(default)]
   pub dmg: DmgConfig,
@@ -683,6 +702,9 @@ impl Default for MacConfig {
       provider_short_name: None,
       entitlements: None,
       info_plist: None,
+      app_sign_command: None,
+      pkg_sign_command: None,
+      dmg_sign_command: None,
       dmg: Default::default(),
     }
   }

@@ -1582,6 +1582,9 @@ fn tauri_config_to_bundle_settings(
           crate::helpers::plist::merge_plist(src_plists)?,
         ))
       },
+      app_sign_command: config.macos.app_sign_command.map(custom_sign_settings),
+      pkg_sign_command: config.macos.pkg_sign_command.map(custom_sign_settings),
+      dmg_sign_command: config.macos.dmg_sign_command.map(custom_sign_settings),
     },
     windows: WindowsSettings {
       timestamp_url: config.windows.timestamp_url,

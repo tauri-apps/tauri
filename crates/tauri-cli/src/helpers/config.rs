@@ -12,7 +12,7 @@ pub use tauri_utils::{config::*, platform::Target};
 use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, set_var},
-  ffi::OsStr,
+  ffi::{OsStr, OsString},
   process::exit,
   sync::{Arc, Mutex, OnceLock},
 };
@@ -30,7 +30,7 @@ pub struct ConfigMetadata {
   inner: Config,
   /// The config extensions (platform-specific config files or the config CLI argument).
   /// Maps the extension name to its value.
-  extensions: HashMap<String, JsonValue>,
+  extensions: HashMap<OsString, JsonValue>,
 }
 
 impl std::ops::Deref for ConfigMetadata {
@@ -50,7 +50,7 @@ impl ConfigMetadata {
   }
 
   /// Checks which config is overwriting the bundle identifier.
-  pub fn find_bundle_identifier_overwriter(&self) -> Option<String> {
+  pub fn find_bundle_identifier_overwriter(&self) -> Option<OsString> {
     for (ext, config) in &self.extensions {
       if let Some(identifier) = config
         .as_object()
@@ -160,7 +160,7 @@ fn get_internal(
   let (mut config, config_path) =
     tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))
       .context("failed to parse config")?;
-  let config_file_name = config_path.file_name().unwrap().to_string_lossy();
+  let config_file_name = config_path.file_name().unwrap();
   let mut extensions = HashMap::new();
 
   let original_identifier = config
@@ -174,10 +174,7 @@ fn get_internal(
       .context("failed to parse platform config")?
   {
     merge(&mut config, &platform_config);
-    extensions.insert(
-      config_path.file_name().unwrap().to_str().unwrap().into(),
-      platform_config,
-    );
+    extensions.insert(config_path.file_name().unwrap().into(), platform_config);
   }
 
   if !merge_configs.is_empty() {
@@ -203,9 +200,9 @@ fn get_internal(
       for error in errors {
         let path = error.instance_path.into_iter().join(" > ");
         if path.is_empty() {
-          log::error!("`{}` error: {}", config_file_name, error);
+          log::error!("`{config_file_name:?}` error: {}", error);
         } else {
-          log::error!("`{}` error on `{}`: {}", config_file_name, path, error);
+          log::error!("`{config_file_name:?}` error on `{}`: {}", path, error);
         }
       }
       if !reload {

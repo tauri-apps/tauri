@@ -181,17 +181,15 @@ pub fn setup(
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
     crate::error::bail!(
-      "The bundle identifier \"{}\" set in `{} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
+      "The bundle identifier \"{}\" set in `{bundle_identifier_source:?} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
       config_.identifier,
-      bundle_identifier_source
     );
   }
 
   if config_.identifier.ends_with(".app") {
     log::warn!(
-      "The bundle identifier \"{}\" set in `{} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
+      "The bundle identifier \"{}\" set in `{bundle_identifier_source:?} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
       config_.identifier,
-      bundle_identifier_source
     );
   }
 

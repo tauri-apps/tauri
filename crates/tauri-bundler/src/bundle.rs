@@ -70,11 +70,15 @@ pub struct Bundle {
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let mut package_types = settings.package_types()?;
+  log::info!("Initial package types: {:?}", package_types);
+
   if package_types.is_empty() {
+    log::warn!("Package types is empty, returning early");
     return Ok(Vec::new());
   }
 
   package_types.sort_by_key(|a| a.priority());
+  log::info!("Sorted package types: {:?}", package_types);
 
   let target_os = settings.target_platform();
 
@@ -110,8 +114,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let mut main_binary_signed = false;
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
+    log::info!("Processing package type: {:?}", package_type);
+
     // bundle was already built! e.g. DMG already built .app
     if bundles.iter().any(|b| b.package_type == *package_type) {
+      log::info!("Skipping {:?}, already built", package_type);
       continue;
     }
 
@@ -149,6 +156,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
           });
         }
         bundled.dmg
+      }
+      // pkg is dependent of MacOsBundle, we send our bundles to prevent rebuilding
+      #[cfg(target_os = "macos")]
+      PackageType::Pkg => {
+        let bundled = macos::pkg::bundle_project(settings, &bundles)?;
+        if !bundled.app.is_empty() {
+          bundles.push(Bundle {
+            package_type: PackageType::MacOsBundle,
+            bundle_paths: bundled.app,
+          });
+        }
+        bundled.pkg
       }
 
       #[cfg(target_os = "windows")]

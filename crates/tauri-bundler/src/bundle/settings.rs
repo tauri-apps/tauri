@@ -40,6 +40,8 @@ pub enum PackageType {
   AppImage,
   /// The macOS DMG bundle (.dmg).
   Dmg,
+  /// The macOS PKG installer (.pkg).
+  Pkg,
   /// The Updater bundle.
   Updater,
 }
@@ -60,7 +62,7 @@ impl From<BundleType> for PackageType {
 
 impl PackageType {
   /// Maps a short name to a PackageType.
-  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg", "updater".
+  /// Possible values are "deb", "ios", "msi", "app", "rpm", "appimage", "dmg", "pkg", "updater".
   pub fn from_short_name(name: &str) -> Option<PackageType> {
     // Other types we may eventually want to support: apk.
     match name {
@@ -72,6 +74,7 @@ impl PackageType {
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
       "dmg" => Some(PackageType::Dmg),
+      "pkg" => Some(PackageType::Pkg),
       "updater" => Some(PackageType::Updater),
       _ => None,
     }
@@ -89,6 +92,7 @@ impl PackageType {
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
       PackageType::Dmg => "dmg",
+      PackageType::Pkg => "pkg",
       PackageType::Updater => "updater",
     }
   }
@@ -114,6 +118,7 @@ impl PackageType {
       PackageType::Rpm => 0,
       PackageType::AppImage => 0,
       PackageType::Dmg => 1,
+      PackageType::Pkg => 1,
       PackageType::Updater => 2,
     }
   }
@@ -134,6 +139,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Rpm,
   #[cfg(target_os = "macos")]
   PackageType::Dmg,
+  #[cfg(target_os = "macos")]
+  PackageType::Pkg,
   #[cfg(target_os = "linux")]
   PackageType::AppImage,
   PackageType::Updater,
@@ -1046,7 +1053,7 @@ impl Settings {
     let target_os = self.target_platform();
 
     let platform_types = match target_os {
-      TargetPlatform::MacOS => vec![PackageType::MacOsBundle, PackageType::Dmg],
+      TargetPlatform::MacOS => vec![PackageType::MacOsBundle, PackageType::Dmg, PackageType::Pkg],
       TargetPlatform::Ios => vec![PackageType::IosBundle],
       TargetPlatform::Linux => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
       TargetPlatform::Windows => vec![PackageType::WindowsMsi, PackageType::Nsis],

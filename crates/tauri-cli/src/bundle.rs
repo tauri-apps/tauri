@@ -186,13 +186,17 @@ pub fn bundle<A: AppSettings>(
       .collect()
   };
 
+  log::debug!("Package types to bundle: {:?}", package_types);
+
   if package_types.is_empty() {
+    log::warn!("No package types specified, exiting bundle command");
     return Ok(());
   }
 
   // if we have a package to bundle, let's run the `before_bundle_command`.
   if !package_types.is_empty() {
     if let Some(before_bundle) = config.build.before_bundle_command.clone() {
+      log::debug!("Running beforeBundleCommand");
       helpers::run_hook(
         "beforeBundleCommand",
         before_bundle,
@@ -202,6 +206,7 @@ pub fn bundle<A: AppSettings>(
     }
   }
 
+  log::debug!("Getting bundler settings");
   let mut settings = app_settings
     .get_bundler_settings(options.clone().into(), config, out_dir, package_types)
     .with_context(|| "failed to build bundler settings")?;
@@ -213,7 +218,10 @@ pub fn bundle<A: AppSettings>(
     _ => log::Level::Trace,
   });
 
+  log::debug!("Calling tauri_bundler::bundle_project");
   let bundles = tauri_bundler::bundle_project(&settings).map_err(Box::new)?;
+
+  log::debug!("Bundle project completed, bundles: {:?}", bundles);
 
   sign_updaters(settings, bundles, ci)?;
 

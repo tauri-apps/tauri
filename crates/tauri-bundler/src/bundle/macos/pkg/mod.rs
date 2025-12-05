@@ -108,6 +108,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .output_ok()
     .map_err(|e| crate::Error::ShellScriptError(format!("productbuild failed: {}", e)))?;
 
+  // Sign PKG if needed
+  let identity = settings.macos().signing_identity.as_deref();
+  if !settings.no_sign() && identity != Some("-") {
+    if let Some(identity) = identity {
+      super::sign::sign_pkg(&pkg_path, identity, settings)?;
+    }
+  }
+
   log::info!(action = "Finished"; "PKG installer at {}", pkg_path.display());
 
   Ok(Bundled {

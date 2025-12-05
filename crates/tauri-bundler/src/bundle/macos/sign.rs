@@ -167,3 +167,37 @@ fn find_api_key(folder: PathBuf, file_name: &OsString) -> Option<PathBuf> {
     None
   }
 }
+
+/// Sign a PKG installer using productsign
+pub fn sign_pkg(
+  pkg_path: &std::path::Path,
+  identity: &str,
+  settings: &Settings,
+) -> crate::Result<()> {
+  use std::process::Command;
+  use crate::utils::CommandExt;
+
+  log::info!(action = "Signing"; "PKG with identity \"{}\"", identity);
+
+  // Create a temporary path for the signed package
+  let signed_pkg_path = pkg_path.with_extension("signed.pkg");
+
+  // Run productsign to sign the package
+  let mut cmd = Command::new("productsign");
+  cmd
+    .arg("--sign")
+    .arg(identity)
+    .arg(pkg_path)
+    .arg(&signed_pkg_path);
+
+  cmd.output_ok().map_err(|e| {
+    crate::Error::GenericError(format!("Failed to sign PKG with productsign: {}", e))
+  })?;
+
+  // Replace the unsigned package with the signed one
+  std::fs::rename(&signed_pkg_path, pkg_path)?;
+
+  log::info!(action = "Signed"; "PKG at {}", pkg_path.display());
+
+  Ok(())
+}

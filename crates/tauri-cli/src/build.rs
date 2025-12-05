@@ -8,7 +8,7 @@ use crate::{
   helpers::{
     self,
     app_paths::{frontend_dir, tauri_dir},
-    config::{get as get_config, ConfigHandle, FrontendDist},
+    config::{get as get_config, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
@@ -106,10 +106,10 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     options.target.clone(),
   )?;
 
-  setup(&interface, &mut options, config.clone(), false)?;
-
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
+
+  setup(&interface, &mut options, config_, false)?;
 
   if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
@@ -144,7 +144,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 pub fn setup(
   interface: &AppInterface,
   options: &mut Options,
-  config: ConfigHandle,
+  config_: &ConfigMetadata,
   mobile: bool,
 ) -> Result<()> {
   let tauri_path = tauri_dir();
@@ -161,9 +161,6 @@ pub fn setup(
   }
 
   set_current_dir(tauri_path).context("failed to set current directory")?;
-
-  let config_guard = config.lock().unwrap();
-  let config_ = config_guard.as_ref().unwrap();
 
   let bundle_identifier_source = config_
     .find_bundle_identifier_overwriter()

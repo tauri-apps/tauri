@@ -132,7 +132,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       verbosity,
       ci,
       &interface,
-      &app_settings,
+      &*app_settings,
       config_,
       &out_dir,
     )?;

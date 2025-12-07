@@ -321,7 +321,7 @@ impl<R: Runtime> PathResolver<R> {
       if let Some(base_directory) = app_directories_override
         .components()
         .next()
-        .and_then(|str| BaseDirectory::from_variable(&str.as_os_str().to_str()?))
+        .and_then(|str| BaseDirectory::from_variable(str.as_os_str().to_str()?))
       {
         return if matches!(
           base_directory,

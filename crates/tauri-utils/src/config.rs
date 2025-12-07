@@ -2766,7 +2766,11 @@ pub struct AppConfig {
   /// Override the path returned from `app_*_dir` APIs,
   /// this is useful for making portable apps that stores all the data inside a single place
   ///
-  /// Note: relative paths are resolved based on the app's executable path
+  /// Note:
+  ///   - Relative paths are resolved based on the app's executable path,
+  ///   - The path can start with a variable that resolves to a system base directory.
+  ///     The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DOCUMENT`, `$DOWNLOAD`, `$PICTURE`,
+  ///     `$PUBLIC`, `$VIDEO`, `$RESOURCE`, `$TEMP`, `$HOME`, `$DESKTOP`, `$EXE`, `$FONT`, `$RUNTIME`, `$TEMPLATE`
   ///
   /// ## Example:
   ///

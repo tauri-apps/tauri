@@ -324,7 +324,7 @@ impl<R: Runtime> PathResolver<R> {
       .as_ref()
       .map(|app_directories_override| {
         Ok(
-          tauri_utils::platform::current_exe()?
+          crate::process::current_binary(&self.0.env())?
             .parent()
             .expect("current executable doesn't have a parent directory")
             .join(app_directories_override),

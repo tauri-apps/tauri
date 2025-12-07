@@ -236,6 +236,10 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`config_dir`](Self::config_dir)`/${bundle_identifier}`.
   pub fn app_config_dir(&self) -> Result<PathBuf> {
+    if let Some(app_directories_override) = self.app_directories_override() {
+      return app_directories_override;
+    }
+
     dirs::config_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier))
@@ -245,6 +249,10 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`data_dir`](Self::data_dir)`/${bundle_identifier}`.
   pub fn app_data_dir(&self) -> Result<PathBuf> {
+    if let Some(app_directories_override) = self.app_directories_override() {
+      return app_directories_override;
+    }
+
     dirs::data_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier))
@@ -254,6 +262,10 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}`.
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
+    if let Some(app_directories_override) = self.app_directories_override() {
+      return app_directories_override;
+    }
+
     dirs::data_local_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier))
@@ -263,6 +275,10 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`cache_dir`](Self::cache_dir)`/${bundle_identifier}`.
   pub fn app_cache_dir(&self) -> Result<PathBuf> {
+    if let Some(app_directories_override) = self.app_directories_override() {
+      return Ok(app_directories_override?.join("caches"));
+    }
+
     dirs::cache_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier))
@@ -276,6 +292,10 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to [`home_dir`](Self::home_dir)`/Library/Logs/${bundle_identifier}`
   /// - **Windows:** Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}/logs`.
   pub fn app_log_dir(&self) -> Result<PathBuf> {
+    if let Some(app_directories_override) = self.app_directories_override() {
+      return Ok(app_directories_override?.join("logs"));
+    }
+
     #[cfg(target_os = "macos")]
     let path = dirs::home_dir()
       .ok_or(Error::UnknownPath)
@@ -292,5 +312,23 @@ impl<R: Runtime> PathResolver<R> {
   /// A temporary directory. Resolves to [`std::env::temp_dir`].
   pub fn temp_dir(&self) -> Result<PathBuf> {
     Ok(std::env::temp_dir())
+  }
+
+  /// Resolves the `app_directories_override` based on `current_exe` if it exists
+  fn app_directories_override(&self) -> Option<Result<PathBuf>> {
+    self
+      .0
+      .config()
+      .app
+      .app_directories_override
+      .as_ref()
+      .map(|app_directories_override| {
+        Ok(
+          tauri_utils::platform::current_exe()?
+            .parent()
+            .expect("current executable doesn't have a parent directory")
+            .join(app_directories_override),
+        )
+      })
   }
 }

@@ -2763,6 +2763,30 @@ pub struct AppConfig {
   /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
+  /// Override the path returned from `app_*_dir` APIs,
+  /// this is useful for making portable apps that stores all the data inside a single place
+  ///
+  /// Note: relative paths are resolved based on the app's executable path
+  ///
+  /// ## Example:
+  ///
+  /// To put all the data besides your current executable:
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "appDirectoriesOverride": "./"
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// `app.path().app_local_data_dir()` should now return `${current_exe_dir}/`
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Unsupported.
+  #[serde(alias = "app-directories-override")]
+  pub app_directories_override: Option<PathBuf>,
 }
 
 impl AppConfig {
@@ -4119,6 +4143,7 @@ mod test {
       macos_private_api: false,
       with_global_tauri: false,
       enable_gtk_app_id: false,
+      app_directories_override: None,
     };
 
     // create a build config

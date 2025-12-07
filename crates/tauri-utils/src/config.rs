@@ -2211,8 +2211,8 @@ impl Default for DisabledCspModificationKind {
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
-/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$TEMP`,
+/// `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]

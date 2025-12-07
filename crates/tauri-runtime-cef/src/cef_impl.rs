@@ -30,7 +30,9 @@ use crate::{
 };
 
 mod cookie;
+mod drag_window;
 mod request_handler;
+
 use cookie::{CollectAllCookiesVisitor, CollectUrlCookiesVisitor};
 
 #[cfg(target_os = "linux")]
@@ -823,6 +825,11 @@ wrap_window_delegate! {
   impl WindowDelegate {
     fn on_window_created(&self, window: Option<&mut Window>) {
       if let Some(window) = window {
+
+        // Setup necessary handling for `start_window_dragging` to work on Windows
+        #[cfg(windows)]
+        drag_window::windows::subclass_window_for_dragging(window);
+
         let a = self.attributes.borrow();
         if let Some(icon) = a.icon.clone() {
           set_window_icon(window, icon);
@@ -1884,16 +1891,28 @@ fn start_window_dragging(window: &cef::Window) {
 
 #[cfg(windows)]
 fn start_window_dragging(window: &cef::Window) {
-  use windows::Win32::Foundation::HWND;
-  use windows::Win32::UI::WindowsAndMessaging::{SendMessageW, HTCAPTION, WM_NCLBUTTONDOWN};
+  use windows::Win32::Foundation::*;
+  use windows::Win32::UI::Input::KeyboardAndMouse::*;
+  use windows::Win32::UI::WindowsAndMessaging::*;
 
   unsafe {
     let hwnd = window.window_handle();
-    let _ = SendMessageW(
-      HWND(hwnd.0 as _),
+
+    let mut pos = std::mem::zeroed();
+    let _ = GetCursorPos(&mut pos);
+
+    let points = POINTS {
+      x: pos.x as i16,
+      y: pos.y as i16,
+    };
+
+    let _ = ReleaseCapture();
+
+    let _ = PostMessageW(
+      Some(HWND(hwnd.0 as _)),
       WM_NCLBUTTONDOWN,
-      Some(windows::Win32::Foundation::WPARAM(HTCAPTION as usize)),
-      Some(windows::Win32::Foundation::LPARAM(0)),
+      WPARAM(HTCAPTION as usize),
+      LPARAM(&points as *const _ as isize),
     );
   }
 }

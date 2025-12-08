@@ -14,7 +14,7 @@ use std::{
   env::{current_dir, set_current_dir, set_var},
   ffi::{OsStr, OsString},
   process::exit,
-  sync::{Mutex, OnceLock},
+  sync::Mutex,
 };
 
 use crate::error::Context;
@@ -142,8 +142,8 @@ pub fn custom_sign_settings(
 }
 
 fn config_handle() -> ConfigHandle {
-  static CONFIG_HANDLE: OnceLock<Mutex<Option<ConfigMetadata>>> = OnceLock::new();
-  CONFIG_HANDLE.get_or_init(Default::default)
+  static CONFIG_HANDLE: Mutex<Option<ConfigMetadata>> = Mutex::new(None);
+  &CONFIG_HANDLE
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.

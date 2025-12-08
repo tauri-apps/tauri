@@ -617,13 +617,16 @@ fn build_nsis_app_installer(
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   if settings.windows().can_sign() {
-    log::info!("Signing NSIS plugins");
-    for dll in NSIS_PLUGIN_FILES {
-      let path = additional_plugins_path.join(dll);
-      if path.exists() {
-        try_sign(&path, settings)?;
-      } else {
-        log::warn!("Could not find {}, skipping signing", path.display());
+    if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+      let plugin_copy_path = plugin_copy_path.join("x86-unicode");
+      log::info!("Signing NSIS plugins");
+      for dll in NSIS_PLUGIN_FILES {
+        let path = plugin_copy_path.join(dll);
+        if path.exists() {
+          try_sign(&path, settings)?;
+        } else {
+          log::warn!("Could not find {}, skipping signing", path.display());
+        }
       }
     }
   }

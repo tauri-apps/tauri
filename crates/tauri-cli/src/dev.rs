@@ -303,12 +303,10 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
 
   if !options.no_dev_server_wait {
     if let Some(url) = dev_url {
-      let host = url
-        .host()
-        .unwrap_or_else(|| panic!("No host name in the URL"));
+      let host = url.host().expect("No host name in the URL");
       let port = url
         .port_or_known_default()
-        .unwrap_or_else(|| panic!("No port number in the URL"));
+        .expect("No port number in the URL");
       let addrs;
       let addr;
       let addrs = match host {

@@ -34,7 +34,7 @@ use std::{
 mod builtin_dev_server;
 
 static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
-static KILL_BEFORE_DEV_FLAG: OnceLock<AtomicBool> = OnceLock::new();
+static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
@@ -218,14 +218,13 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
           let status = child_
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
-          if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
+          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed)) {
             log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
         });
 
         BEFORE_DEV.set(Mutex::new(child)).unwrap();
-        KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
@@ -380,11 +379,10 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let child = child.lock().unwrap();
-    let kill_before_dev_flag = KILL_BEFORE_DEV_FLAG.get().unwrap();
-    if kill_before_dev_flag.load(Ordering::Relaxed) {
+    if KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed) {
       return;
     }
-    kill_before_dev_flag.store(true, Ordering::Relaxed);
+    KILL_BEFORE_DEV_FLAG.store(true, Ordering::Relaxed);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

@@ -63,10 +63,12 @@ pub struct Options {
   pub split_per_abi: bool,
   /// Build APKs.
   #[clap(long)]
-  pub apk: Option<bool>,
+  pub apk: bool,
   /// Build AABs.
   #[clap(long)]
-  pub aab: Option<bool>,
+  pub aab: bool,
+  #[clap(skip)]
+  pub skip_bundle: bool,
   /// Open Android Studio
   #[clap(short, long)]
   pub open: bool,
@@ -246,10 +248,10 @@ fn run_build(
   env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<OptionsHandle> {
-  if !(options.apk.is_some() || options.aab.is_some()) {
+  if !options.skip_bundle && !(options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
-    options.apk = Some(true);
-    options.aab = Some(true);
+    options.apk = true;
+    options.aab = true;
   }
 
   let interface_options = InterfaceOptions {
@@ -276,7 +278,7 @@ fn run_build(
 
   inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
-  let apk_outputs = if options.apk.unwrap_or_default() {
+  let apk_outputs = if options.apk {
     apk::build(
       config,
       env,
@@ -290,7 +292,7 @@ fn run_build(
     Vec::new()
   };
 
-  let aab_outputs = if options.aab.unwrap_or_default() {
+  let aab_outputs = if options.aab {
     aab::build(
       config,
       env,

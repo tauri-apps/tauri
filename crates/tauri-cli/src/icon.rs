@@ -4,7 +4,6 @@
 
 use crate::{
   error::{Context, Error, ErrorExt},
-  helpers::app_paths::tauri_dir,
   Result,
 };
 
@@ -237,8 +236,8 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| {
-    crate::helpers::app_paths::resolve();
-    tauri_dir().join("icons")
+    let dirs = crate::helpers::app_paths::resolve_dirs();
+    dirs.tauri.join("icons")
   });
   let png_icon_sizes = options.png.unwrap_or_default();
 

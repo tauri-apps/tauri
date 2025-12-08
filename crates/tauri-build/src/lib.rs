@@ -165,21 +165,21 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
     .with_context(|| format!("Failed to create frameworks output directory at {dest_dir:?}"))?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
-      let src_path = PathBuf::from(framework);
+      let src_path = Path::new(framework);
       let src_name = src_path
         .file_name()
         .expect("Couldn't get framework filename");
       let dest_path = dest_dir.join(src_name);
-      copy_dir(&src_path, &dest_path)?;
+      copy_dir(src_path, &dest_path)?;
       continue;
     } else if framework.ends_with(".dylib") {
-      let src_path = PathBuf::from(framework);
+      let src_path = Path::new(framework);
       if !src_path.exists() {
         return Err(anyhow::anyhow!("Library not found: {}", framework));
       }
       let src_name = src_path.file_name().expect("Couldn't get library filename");
       let dest_path = dest_dir.join(src_name);
-      copy_file(&src_path, &dest_path)?;
+      copy_file(src_path, &dest_path)?;
       continue;
     } else if framework.contains('/') {
       return Err(anyhow::anyhow!(
@@ -192,12 +192,8 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
         continue;
       }
     }
-    if copy_framework_from(&PathBuf::from("/Library/Frameworks/"), framework, dest_dir)?
-      || copy_framework_from(
-        &PathBuf::from("/Network/Library/Frameworks/"),
-        framework,
-        dest_dir,
-      )?
+    if copy_framework_from("/Library/Frameworks/".as_ref(), framework, dest_dir)?
+      || copy_framework_from("/Network/Library/Frameworks/".as_ref(), framework, dest_dir)?
     {
       continue;
     }

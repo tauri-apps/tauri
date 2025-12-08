@@ -114,6 +114,7 @@ rand = "0.9"
 zip = { version = "4", default-features = false, features = ["deflate"] }
 which = "8"
 rayon = "1.10"
+cargo_toml = "0.22.3"
 
 [dev-dependencies]
 insta = "1"

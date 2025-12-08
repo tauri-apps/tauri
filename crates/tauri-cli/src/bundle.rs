@@ -16,7 +16,6 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     self,
-    app_paths::tauri_dir,
     config::{get as get_config, ConfigMetadata},
     updater_signature,
   },
@@ -118,7 +117,7 @@ impl From<crate::build::Options> for Options {
 }
 
 pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let ci = options.ci;
 
@@ -138,8 +137,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     options.target.clone(),
   )?;
 
-  let tauri_path = tauri_dir();
-  std::env::set_current_dir(tauri_path).context("failed to set current directory")?;
+  std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(windows)]
 pub mod windows {
   use cef::*;
   use windows::core::{w, PCWSTR};

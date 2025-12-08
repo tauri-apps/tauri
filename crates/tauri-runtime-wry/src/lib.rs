@@ -2422,6 +2422,13 @@ impl Drop for WebviewWrapper {
       if let Some(web_context) = context_store.get_mut(&self.context_key) {
         web_context.referenced_by_webviews.remove(&self.label);
 
+        #[cfg(not(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        )))]
         if web_context.referenced_by_webviews.is_empty() {
           context_store.remove(&self.context_key);
         }

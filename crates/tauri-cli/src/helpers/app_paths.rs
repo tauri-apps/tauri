@@ -23,6 +23,11 @@ const ENV_TAURI_APP_PATH: &str = "TAURI_APP_PATH";
 // path to the frontend app directory, usually `<project>/`
 const ENV_TAURI_FRONTEND_PATH: &str = "TAURI_FRONTEND_PATH";
 
+pub struct Dirs {
+  pub tauri: &'static Path,
+  pub frontend: &'static Path,
+}
+
 static FRONTEND_DIR: OnceLock<PathBuf> = OnceLock::new();
 static TAURI_DIR: OnceLock<PathBuf> = OnceLock::new();
 
@@ -120,6 +125,22 @@ pub fn resolve_tauri_dir() -> Option<PathBuf> {
       p.parent().unwrap().to_path_buf()
     }
   })
+}
+
+pub fn resolve_dirs() -> Dirs {
+  let tauri = TAURI_DIR.get_or_init(|| resolve_tauri_dir().unwrap_or_else(|| {
+    let env_var_name = env_tauri_app_path().is_some().then(|| format!("`{ENV_TAURI_APP_PATH}`"));
+    panic!("Couldn't recognize the {} folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",
+      env_var_name.as_deref().unwrap_or("current"),
+      ConfigFormat::Json.into_file_name(),
+      ConfigFormat::Json5.into_file_name(),
+      ConfigFormat::Toml.into_file_name()
+    )
+  }));
+  let frontend = FRONTEND_DIR.get_or_init(|| {
+    resolve_frontend_dir().unwrap_or_else(|| tauri.parent().unwrap().to_path_buf())
+  });
+  Dirs { tauri, frontend }
 }
 
 pub fn resolve() {

@@ -298,8 +298,12 @@ fn build_nsis_app_installer(
   data.insert("copyright", to_json(settings.copyright_string()));
 
   if settings.windows().can_sign() {
-    let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
-    data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
+    if settings.no_sign() {
+      log::warn!("Skipping signing for NSIS uninstaller due to --no-sign flag.");
+    } else {
+      let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
+      data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
+    }
   }
 
   let version = settings.version_string();

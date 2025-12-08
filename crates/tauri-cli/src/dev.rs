@@ -5,7 +5,7 @@
 use crate::{
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::{frontend_dir, tauri_dir},
+    app_paths::Dirs,
     command_env,
     config::{
       get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
@@ -99,16 +99,16 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let r = command_internal(options);
+  let r = command_internal(options, dirs);
   if r.is_err() {
     kill_before_dev_process();
   }
   r
 }
 
-fn command_internal(mut options: Options) -> Result<()> {
+fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
   let target = options
     .target
     .as_deref()
@@ -125,7 +125,7 @@ fn command_internal(mut options: Options) -> Result<()> {
     options.target.clone(),
   )?;
 
-  setup(&interface, &mut options, config)?;
+  setup(&interface, &mut options, config, &dirs)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
@@ -134,16 +134,19 @@ fn command_internal(mut options: Options) -> Result<()> {
   })
 }
 
-pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHandle) -> Result<()> {
-  let tauri_path = tauri_dir();
-
+pub fn setup(
+  interface: &AppInterface,
+  options: &mut Options,
+  config: ConfigHandle,
+  dirs: &Dirs,
+) -> Result<()> {
   std::thread::spawn(|| {
-    if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
+    if let Err(error) = check_mismatched_packages(dirs.frontend, dirs.tauri) {
       log::error!("{error}");
     }
   });
 
-  set_current_dir(tauri_path).context("failed to set current directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
   if let Some(before_dev) = config
     .lock()
@@ -161,7 +164,7 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
         (Some(script), cwd.map(Into::into), wait)
       }
     };
-    let cwd = script_cwd.unwrap_or_else(|| frontend_dir().clone());
+    let cwd = script_cwd.unwrap_or_else(|| dirs.frontend.to_owned());
     if let Some(before_dev) = script {
       log::info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);

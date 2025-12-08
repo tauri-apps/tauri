@@ -10,7 +10,7 @@ use crate::{
   dev::Options as DevOptions,
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
+    app_paths::Dirs,
     config::{get as get_tauri_config, ConfigHandle},
     flock,
   },
@@ -131,16 +131,16 @@ impl From<Options> for DevOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let result = run_command(options, noise_level);
+  let result = run_command(options, noise_level, dirs);
   if result.is_err() {
     crate::dev::kill_before_dev_process();
   }
   result
 }
 
-fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
@@ -198,8 +198,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     (interface, config, metadata)
   };
 
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
@@ -218,6 +217,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &config,
     &metadata,
     noise_level,
+    &dirs,
   )
 }
 
@@ -232,6 +232,7 @@ fn run_dev(
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
+  dirs: &Dirs,
 ) -> Result<()> {
   // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
@@ -257,7 +258,7 @@ fn run_dev(
     use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config)?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config, &dirs)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,

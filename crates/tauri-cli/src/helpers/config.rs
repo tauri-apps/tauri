@@ -14,7 +14,7 @@ use std::{
   env::{current_dir, set_current_dir, set_var},
   ffi::{OsStr, OsString},
   process::exit,
-  sync::{Arc, Mutex, OnceLock},
+  sync::{Mutex, OnceLock},
 };
 
 use crate::error::Context;
@@ -66,7 +66,7 @@ impl ConfigMetadata {
   }
 }
 
-pub type ConfigHandle = Arc<Mutex<Option<ConfigMetadata>>>;
+pub type ConfigHandle = &'static Mutex<Option<ConfigMetadata>>;
 
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
@@ -141,8 +141,8 @@ pub fn custom_sign_settings(
   }
 }
 
-fn config_handle() -> &'static ConfigHandle {
-  static CONFIG_HANDLE: OnceLock<ConfigHandle> = OnceLock::new();
+fn config_handle() -> ConfigHandle {
+  static CONFIG_HANDLE: OnceLock<Mutex<Option<ConfigMetadata>>> = OnceLock::new();
   CONFIG_HANDLE.get_or_init(Default::default)
 }
 
@@ -153,7 +153,7 @@ fn get_internal(
   target: Target,
 ) -> crate::Result<ConfigHandle> {
   if !reload && config_handle().lock().unwrap().is_some() {
-    return Ok(config_handle().clone());
+    return Ok(config_handle());
   }
 
   let tauri_dir = super::app_paths::tauri_dir();
@@ -240,7 +240,7 @@ fn get_internal(
     extensions,
   });
 
-  Ok(config_handle().clone())
+  Ok(config_handle())
 }
 
 pub fn get(target: Target, merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
@@ -265,7 +265,7 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
   let handle = config_handle();
 
   if merge_configs.is_empty() {
-    return Ok(handle.clone());
+    return Ok(handle);
   }
 
   if let Some(config_metadata) = &mut *handle.lock().unwrap() {
@@ -282,7 +282,7 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
     merge(&mut value, &merge_config);
     config_metadata.inner = serde_json::from_value(value).context("failed to parse config")?;
 
-    Ok(handle.clone())
+    Ok(handle)
   } else {
     crate::error::bail!("config not loaded");
   }

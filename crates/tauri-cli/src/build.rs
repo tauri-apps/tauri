@@ -7,7 +7,7 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     self,
-    app_paths::{frontend_dir, tauri_dir},
+    app_paths::Dirs,
     config::{get as get_config, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
@@ -82,7 +82,7 @@ pub struct Options {
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   if options.no_sign {
     log::warn!("--no-sign flag detected: Signing will be skipped.");
@@ -109,7 +109,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
-  setup(&interface, &mut options, config_, false)?;
+  setup(&interface, &mut options, config_, false, &dirs)?;
 
   if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
@@ -146,13 +146,12 @@ pub fn setup(
   options: &mut Options,
   config: &ConfigMetadata,
   mobile: bool,
+  dirs: &Dirs,
 ) -> Result<()> {
-  let tauri_path = tauri_dir();
-
   // TODO: Maybe optimize this to run in parallel in the future
   // see https://github.com/tauri-apps/tauri/pull/13993#discussion_r2280697117
   log::info!("Looking up installed tauri packages to check mismatched versions...");
-  if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
+  if let Err(error) = check_mismatched_packages(dirs.frontend, dirs.tauri) {
     if options.ignore_version_mismatches {
       log::error!("{error}");
     } else {
@@ -160,7 +159,7 @@ pub fn setup(
     }
   }
 
-  set_current_dir(tauri_path).context("failed to set current directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
   let bundle_identifier_source = config
     .find_bundle_identifier_overwriter()

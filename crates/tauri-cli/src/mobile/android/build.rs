@@ -10,7 +10,6 @@ use crate::{
   build::Options as BuildOptions,
   error::Context,
   helpers::{
-    app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
     flock,
   },
@@ -116,7 +115,7 @@ pub struct BuiltApplication {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   delete_codegen_vars();
 
@@ -164,8 +163,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     Profile::Release
   };
 
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
@@ -188,7 +186,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     let config_guard = tauri_config.lock().unwrap();
     let config_ = config_guard.as_ref().unwrap();
 
-    crate::build::setup(&interface, &mut build_options, config_, true)?;
+    crate::build::setup(&interface, &mut build_options, config_, true, &dirs)?;
   }
 
   let installed_targets =

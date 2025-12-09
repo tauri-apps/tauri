@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.7.4"
+version = "2.7.5"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -59,7 +59,7 @@ features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = ["formatting"] }
-tauri-macos-sign = { version = "2.3.1", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.3.2", path = "../tauri-macos-sign" }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.9.3]
+
+### Bug Fixes
+
+- [`251203b89`](https://www.github.com/tauri-apps/tauri/commit/251203b8963419cb3b40741767393e8f3c909ef9) ([#14637](https://www.github.com/tauri-apps/tauri/pull/14637) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Monitor::work_area` returns logical position and size inside the `PhysicalRect` on Linux
+
 ## \[2.9.2]
 
 ### Dependencies

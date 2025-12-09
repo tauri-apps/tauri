@@ -4,4 +4,4 @@
 "tauri-cli": patch:enhance
 ---
 
-Small code refactors for improved code readability
+Small code refactors for improved code readability. No user facing changes.

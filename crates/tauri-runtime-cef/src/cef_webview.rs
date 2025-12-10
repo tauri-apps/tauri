@@ -3,6 +3,9 @@ use cef::*;
 #[cfg(target_os = "macos")]
 mod macos;
 
+#[cfg(windows)]
+mod windows;
+
 #[derive(Clone)]
 pub enum CefWebview {
   BrowserView(cef::BrowserView),
@@ -92,4 +95,6 @@ trait CefBrowserExt {
 
   #[cfg(target_os = "macos")]
   fn nsview(&self) -> Option<objc2::rc::Retained<objc2_app_kit::NSView>>;
+  #[cfg(windows)]
+  fn hwnd(&self) -> Option<::windows::Win32::Foundation::HWND>;
 }

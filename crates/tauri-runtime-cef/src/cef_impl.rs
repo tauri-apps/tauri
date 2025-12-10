@@ -2836,16 +2836,18 @@ pub(crate) fn create_webview<T: UserEvent>(
 
   if kind == WebviewKind::WindowChild {
     let window_info = WindowInfo {
-      parent_view: window.window_handle(),
       bounds: bounds.clone().unwrap_or(cef::Rect::default()),
+      #[cfg(target_os = "macos")]
+      parent_view: window.window_handle(),
       #[cfg(target_os = "macos")]
       hidden: 0,
       #[cfg(windows)]
+      parent_window: window.window_handle(),
+      #[cfg(windows)]
       style: {
         use windows::Win32::UI::WindowsAndMessaging::*;
-        WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE
+        (WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE).0
       },
-
       ..Default::default()
     };
 
@@ -2862,6 +2864,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     };
 
     let browser = CefWebview::Browser(browser);
+
+    browser.set_bounds(bounds.as_ref());
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     if webview_attributes.transparent {

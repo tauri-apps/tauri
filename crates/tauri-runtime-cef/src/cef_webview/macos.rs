@@ -28,6 +28,31 @@ impl CefBrowserExt for cef::Browser {
     }
   }
 
+  fn set_bounds(&self, rect: Option<&cef::Rect>) {
+    let Some(rect) = rect else {
+      return;
+    };
+
+    let Some(nsview) = self.nsview() else {
+      return;
+    };
+
+    let parent = unsafe { nsview.superview().unwrap() };
+    let parent_frame = parent.frame();
+
+    let origin = NSPoint {
+      x: rect.x as f64,
+      y: (parent_frame.size.height as f64 - (rect.y as f64 + rect.height as f64)),
+    };
+
+    let size = NSSize {
+      width: rect.width as f64,
+      height: rect.height as f64,
+    };
+
+    unsafe { nsview.setFrame(NSRect { origin, size }) };
+  }
+
   fn scale_factor(&self) -> f64 {
     let Some(nsview) = self.nsview() else {
       return 1.0;
@@ -56,31 +81,6 @@ impl CefBrowserExt for cef::Browser {
       return;
     };
     let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*color] };
-  }
-
-  fn set_bounds(&self, rect: Option<&cef::Rect>) {
-    let Some(rect) = rect else {
-      return;
-    };
-
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
-
-    let parent = unsafe { nsview.superview().unwrap() };
-    let parent_frame = parent.frame();
-
-    let origin = NSPoint {
-      x: rect.x as f64,
-      y: (parent_frame.size.height as f64 - (rect.y as f64 + rect.height as f64)),
-    };
-
-    let size = NSSize {
-      width: rect.width as f64,
-      height: rect.height as f64,
-    };
-
-    unsafe { nsview.setFrame(NSRect { origin, size }) };
   }
 
   fn set_visible(&self, visible: i32) {

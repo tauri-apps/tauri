@@ -12,9 +12,9 @@ pub use tauri_utils::{config::*, platform::Target};
 use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, set_var},
-  ffi::OsStr,
+  ffi::{OsStr, OsString},
   process::exit,
-  sync::{Arc, Mutex, OnceLock},
+  sync::Mutex,
 };
 
 use crate::error::Context;
@@ -30,7 +30,7 @@ pub struct ConfigMetadata {
   inner: Config,
   /// The config extensions (platform-specific config files or the config CLI argument).
   /// Maps the extension name to its value.
-  extensions: HashMap<String, JsonValue>,
+  extensions: HashMap<OsString, JsonValue>,
 }
 
 impl std::ops::Deref for ConfigMetadata {
@@ -50,7 +50,7 @@ impl ConfigMetadata {
   }
 
   /// Checks which config is overwriting the bundle identifier.
-  pub fn find_bundle_identifier_overwriter(&self) -> Option<String> {
+  pub fn find_bundle_identifier_overwriter(&self) -> Option<OsString> {
     for (ext, config) in &self.extensions {
       if let Some(identifier) = config
         .as_object()
@@ -66,7 +66,7 @@ impl ConfigMetadata {
   }
 }
 
-pub type ConfigHandle = Arc<Mutex<Option<ConfigMetadata>>>;
+pub type ConfigHandle = &'static Mutex<Option<ConfigMetadata>>;
 
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
@@ -141,9 +141,9 @@ pub fn custom_sign_settings(
   }
 }
 
-fn config_handle() -> &'static ConfigHandle {
-  static CONFIG_HANDLE: OnceLock<ConfigHandle> = OnceLock::new();
-  CONFIG_HANDLE.get_or_init(Default::default)
+fn config_handle() -> ConfigHandle {
+  static CONFIG_HANDLE: Mutex<Option<ConfigMetadata>> = Mutex::new(None);
+  &CONFIG_HANDLE
 }
 
 /// Gets the static parsed config from `tauri.conf.json`.
@@ -153,14 +153,14 @@ fn get_internal(
   target: Target,
 ) -> crate::Result<ConfigHandle> {
   if !reload && config_handle().lock().unwrap().is_some() {
-    return Ok(config_handle().clone());
+    return Ok(config_handle());
   }
 
   let tauri_dir = super::app_paths::tauri_dir();
   let (mut config, config_path) =
     tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))
       .context("failed to parse config")?;
-  let config_file_name = config_path.file_name().unwrap().to_string_lossy();
+  let config_file_name = config_path.file_name().unwrap();
   let mut extensions = HashMap::new();
 
   let original_identifier = config
@@ -174,10 +174,7 @@ fn get_internal(
       .context("failed to parse platform config")?
   {
     merge(&mut config, &platform_config);
-    extensions.insert(
-      config_path.file_name().unwrap().to_str().unwrap().into(),
-      platform_config,
-    );
+    extensions.insert(config_path.file_name().unwrap().into(), platform_config);
   }
 
   if !merge_configs.is_empty() {
@@ -203,9 +200,9 @@ fn get_internal(
       for error in errors {
         let path = error.instance_path.into_iter().join(" > ");
         if path.is_empty() {
-          log::error!("`{}` error: {}", config_file_name, error);
+          log::error!("`{config_file_name:?}` error: {}", error);
         } else {
-          log::error!("`{}` error on `{}`: {}", config_file_name, path, error);
+          log::error!("`{config_file_name:?}` error on `{}`: {}", path, error);
         }
       }
       if !reload {
@@ -243,7 +240,7 @@ fn get_internal(
     extensions,
   });
 
-  Ok(config_handle().clone())
+  Ok(config_handle())
 }
 
 pub fn get(target: Target, merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
@@ -268,7 +265,7 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
   let handle = config_handle();
 
   if merge_configs.is_empty() {
-    return Ok(handle.clone());
+    return Ok(handle);
   }
 
   if let Some(config_metadata) = &mut *handle.lock().unwrap() {
@@ -285,7 +282,7 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
     merge(&mut value, &merge_config);
     config_metadata.inner = serde_json::from_value(value).context("failed to parse config")?;
 
-    Ok(handle.clone())
+    Ok(handle)
   } else {
     crate::error::bail!("config not loaded");
   }

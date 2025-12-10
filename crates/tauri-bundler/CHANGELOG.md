@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.7.5]
+
+### Enhancements
+
+- [`4176f93ae`](https://www.github.com/tauri-apps/tauri/commit/4176f93ae43ef66714c4934feb3df19df3a3e28a) ([#14570](https://www.github.com/tauri-apps/tauri/pull/14570) by [@chfaft](https://www.github.com/tauri-apps/tauri/../../chfaft)) Consider extensions that are defined in the wxs template.
+
+### Bug Fixes
+
+- [`018b4db22`](https://www.github.com/tauri-apps/tauri/commit/018b4db22e167fa67b37b0933e192a0f3556d3e5) ([#14625](https://www.github.com/tauri-apps/tauri/pull/14625) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Skip signing for NSIS uninstaller when using `--no-sign` flag
+- [`91becd9e4`](https://www.github.com/tauri-apps/tauri/commit/91becd9e4fa2db089ddc6b21dadc06133e939e08) ([#14627](https://www.github.com/tauri-apps/tauri/pull/14627) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix NSIS plugins not being signed due to wrong path handlings
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.3.2`
+
 ## \[2.7.4]
 
 ### Bug Fixes

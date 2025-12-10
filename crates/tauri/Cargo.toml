@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.9.4"
+version = "2.9.5"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -60,7 +60,7 @@ tauri-macros = { version = "2.5.2", path = "../tauri-macros" }
 tauri-utils = { version = "2.8.1", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.9.2", path = "../tauri-runtime-wry", default-features = false, optional = true }
+tauri-runtime-wry = { version = "2.9.3", path = "../tauri-runtime-wry", default-features = false, optional = true }
 getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"

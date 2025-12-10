@@ -1,0 +1,95 @@
+use cef::*;
+
+#[cfg(target_os = "macos")]
+mod macos;
+
+#[derive(Clone)]
+pub enum CefWebview {
+  BrowserView(cef::BrowserView),
+  Browser(cef::Browser),
+}
+
+impl CefWebview {
+  pub fn is_browser(&self) -> bool {
+    matches!(self, CefWebview::Browser(_))
+  }
+
+  pub fn browser(&self) -> Option<cef::Browser> {
+    match self {
+      CefWebview::BrowserView(view) => view.browser(),
+      CefWebview::Browser(browser) => Some(browser.clone()),
+    }
+  }
+
+  pub fn browser_id(&self) -> i32 {
+    match self {
+      CefWebview::BrowserView(view) => view.browser().map_or(-1, |b| b.identifier()),
+      CefWebview::Browser(browser) => browser.identifier(),
+    }
+  }
+
+  pub fn bounds(&self) -> cef::Rect {
+    match self {
+      CefWebview::BrowserView(view) => view.bounds(),
+      CefWebview::Browser(browser) => browser.bounds(),
+    }
+  }
+
+  pub fn set_bounds(&self, rect: Option<&cef::Rect>) {
+    match self {
+      CefWebview::BrowserView(view) => view.set_bounds(rect),
+      CefWebview::Browser(browser) => browser.set_bounds(rect),
+    }
+  }
+
+  pub fn scale_factor(&self) -> f64 {
+    match self {
+      CefWebview::BrowserView(view) => view
+        .window()
+        .and_then(|w| w.display())
+        .map_or(1.0, |d| d.device_scale_factor() as f64),
+      CefWebview::Browser(browser) => browser.scale_factor(),
+    }
+  }
+
+  pub fn set_background_color(&self, color: cef::Color) {
+    match self {
+      CefWebview::BrowserView(view) => view.set_background_color(color),
+      CefWebview::Browser(browser) => browser.set_background_color(color),
+    }
+  }
+
+  pub fn set_visible(&self, visible: i32) {
+    match self {
+      CefWebview::BrowserView(view) => view.set_visible(visible),
+      CefWebview::Browser(browser) => browser.set_visible(visible),
+    }
+  }
+
+  pub fn close(&self) {
+    match self {
+      CefWebview::BrowserView(_) => {}
+      CefWebview::Browser(browser) => browser.close(),
+    }
+  }
+
+  pub fn set_parent(&self, parent: &cef::Window) {
+    match self {
+      CefWebview::BrowserView(_) => {}
+      CefWebview::Browser(browser) => browser.set_parent(parent),
+    }
+  }
+}
+
+trait CefBrowserExt {
+  fn bounds(&self) -> cef::Rect;
+  fn set_bounds(&self, rect: Option<&cef::Rect>);
+  fn scale_factor(&self) -> f64;
+  fn set_background_color(&self, color: cef::Color);
+  fn set_visible(&self, visible: i32);
+  fn close(&self);
+  fn set_parent(&self, parent: &cef::Window);
+
+  #[cfg(target_os = "macos")]
+  fn nsview(&self) -> Option<objc2::rc::Retained<objc2_app_kit::NSView>>;
+}

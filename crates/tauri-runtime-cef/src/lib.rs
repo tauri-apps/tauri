@@ -42,8 +42,10 @@ use std::{
 
 #[cfg(target_os = "macos")]
 use crate::application::AppDelegateEvent;
+use crate::cef_webview::CefWebview;
 
 mod cef_impl;
+mod cef_webview;
 
 #[macro_export]
 macro_rules! getter {
@@ -244,11 +246,10 @@ impl<T: UserEvent> Clone for Message<T> {
 pub(crate) struct AppWebview {
   pub webview_id: u32,
   pub label: String,
-  pub browser_view: Option<cef::BrowserView>,
+  pub inner: CefWebview,
   // browser_view.browser is null on the scheme handler factory,
   // so we need to use the browser_id to identify the browser
   pub browser_id: Arc<RefCell<i32>>,
-  pub overlay: Option<cef::OverlayController>,
   pub bounds: Arc<Mutex<Option<WebviewBounds>>>,
   pub devtools_enabled: bool,
   pub uri_scheme_protocols:

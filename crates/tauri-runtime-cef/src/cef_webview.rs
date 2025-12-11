@@ -6,6 +6,9 @@ mod macos;
 #[cfg(windows)]
 mod windows;
 
+#[cfg(target_os = "linux")]
+mod linux;
+
 #[derive(Clone)]
 pub enum CefWebview {
   BrowserView(cef::BrowserView),

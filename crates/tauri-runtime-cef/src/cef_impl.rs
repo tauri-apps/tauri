@@ -3057,7 +3057,7 @@ fn apply_titlebar_style(window: &cef::Window, style: TitleBarStyle, hidden_title
 
   match style {
     TitleBarStyle::Visible => {
-      mask |= NSWindowStyleMask::FullSizeContentView;
+      mask &= !NSWindowStyleMask::FullSizeContentView;
       ns_window.setTitlebarAppearsTransparent(false);
       ns_window.setStyleMask(mask);
     }

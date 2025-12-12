@@ -97,9 +97,7 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Slice(patterns.iter()),
         allow_walk,
-        current_path: None,
         current_pattern: None,
-        current_dest: None,
         walk_iter: None,
         glob_iter: None,
       },
@@ -112,9 +110,7 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Map(patterns.iter()),
         allow_walk,
-        current_path: None,
         current_pattern: None,
-        current_dest: None,
         walk_iter: None,
         glob_iter: None,
       },
@@ -136,13 +132,9 @@ pub struct ResourcePathsIter<'a> {
   /// whether the resource paths allows directories or not.
   allow_walk: bool,
 
-  current_path: Option<PathBuf>,
-  /// The key of map when `pattern_iter` is a [`PatternIter::Map`],
+  /// The (key, value) of map when `pattern_iter` is a [`PatternIter::Map`],
   /// used for determining [`Resource::target`]
-  current_pattern: Option<String>,
-  /// The value of the map when `pattern_iter` is a [`PatternIter::Map`],
-  /// used for determining [`Resource::target`]
-  current_dest: Option<PathBuf>,
+  current_pattern: Option<(String, PathBuf)>,
 
   walk_iter: Option<walkdir::IntoIter>,
   glob_iter: Option<glob::Paths>,
@@ -157,8 +149,7 @@ impl ResourcePathsIter<'_> {
       Err(err) => return Some(Err(err.into())),
     };
 
-    self.current_path = Some(normalize(&entry));
-    self.next_current_path()
+    self.next_current_path(normalize(&entry))
   }
 
   fn next_walk_iter(&mut self) -> Option<crate::Result<Resource>> {
@@ -169,8 +160,7 @@ impl ResourcePathsIter<'_> {
       Err(err) => return Some(Err(err.into())),
     };
 
-    self.current_path = Some(normalize(entry.path()));
-    self.next_current_path()
+    self.next_current_path(normalize(entry.path()))
   }
 
   fn resource_from_path(&mut self, path: &Path) -> crate::Result<Resource> {
@@ -180,12 +170,11 @@ impl ResourcePathsIter<'_> {
 
     Ok(Resource {
       path: path.to_path_buf(),
-      target: if let Some(current_dest) = &self.current_dest {
+      target: if let Some((pattern, dest)) = &self.current_pattern {
         // if processing a directory, preserve directory structure under current_dest
         if self.walk_iter.is_some() {
-          let current_pattern = self.current_pattern.as_ref().unwrap();
-          current_dest.join(path.strip_prefix(current_pattern).unwrap_or(path))
-        } else if current_dest.components().count() == 0 {
+          dest.join(path.strip_prefix(pattern).unwrap_or(path))
+        } else if dest.components().count() == 0 {
           // if current_dest is empty while processing a file pattern or glob
           // we preserve the file name as it is
           PathBuf::from(path.file_name().unwrap())
@@ -193,9 +182,9 @@ impl ResourcePathsIter<'_> {
           // if processing a glob and current_dest is not empty
           // we put all globbed paths under current_dest
           // preserving the file name as it is
-          current_dest.join(path.file_name().unwrap())
+          dest.join(path.file_name().unwrap())
         } else {
-          current_dest.clone()
+          dest.clone()
         }
       } else {
         // If `pattern_iter` is a [`PatternIter::Slice`]
@@ -204,11 +193,7 @@ impl ResourcePathsIter<'_> {
     })
   }
 
-  fn next_current_path(&mut self) -> Option<crate::Result<Resource>> {
-    // should be safe to unwrap since every call to `self.next_current_path()`
-    // is preceded with assignment to `self.current_path`
-    let path = self.current_path.take().unwrap();
-
+  fn next_current_path(&mut self, path: PathBuf) -> Option<crate::Result<Resource>> {
     let is_dir = path.is_dir();
 
     if is_dir {
@@ -238,15 +223,12 @@ impl ResourcePathsIter<'_> {
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
     self.current_pattern = None;
-    self.current_dest = None;
-    self.current_path = None;
 
     let pattern = match &mut self.pattern_iter {
       PatternIter::Slice(iter) => iter.next()?,
       PatternIter::Map(iter) => {
         let (pattern, dest) = iter.next()?;
-        self.current_pattern = Some(pattern.clone());
-        self.current_dest = Some(resource_relpath(Path::new(dest)));
+        self.current_pattern = Some((pattern.clone(), resource_relpath(Path::new(dest))));
         pattern
       }
     };
@@ -265,8 +247,7 @@ impl ResourcePathsIter<'_> {
       }
     }
 
-    self.current_path = Some(normalize(Path::new(pattern)));
-    self.next_current_path()
+    self.next_current_path(normalize(Path::new(pattern)))
   }
 }
 
@@ -282,10 +263,6 @@ impl Iterator for ResourcePathsIter<'_> {
   type Item = crate::Result<Resource>;
 
   fn next(&mut self) -> Option<crate::Result<Resource>> {
-    if self.current_path.is_some() {
-      return self.next_current_path();
-    }
-
     if self.walk_iter.is_some() {
       match self.next_walk_iter() {
         Some(r) => return Some(r),

@@ -2421,9 +2421,12 @@ impl Drop for WebviewWrapper {
 
       if let Some(web_context) = context_store.get_mut(&self.context_key) {
         web_context.referenced_by_webviews.remove(&self.label);
-        // On Linux/BSD, we keep the WebContext alive even when all windows are closed.
-        // This ensures only one WebKitNetworkProcess is spawned for the lifetime of the app.
-        // For tray-only or long-running apps, the process will still terminate when the application exits.
+
+        // https://github.com/tauri-apps/tauri/issues/14626
+        // Because WebKit does not close its network process even when no webviews are running,
+        // we need to ensure to re-use the existing process on Linux by keeping the WebContext
+        // alive for the lifetime of the app.
+        // WebKit on macOS handles this itself.
         #[cfg(not(any(
           target_os = "linux",
           target_os = "dragonfly",

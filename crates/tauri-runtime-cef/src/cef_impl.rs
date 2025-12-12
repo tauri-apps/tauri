@@ -3095,7 +3095,9 @@ fn apply_titlebar_style(window: &cef::Window, style: TitleBarStyle, hidden_title
 ///
 /// SAFETY: Only call this function for Windows that are intended to host multiple webviews.
 #[cfg(target_os = "macos")]
-fn ensure_valid_content_view(window_handle: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
+pub(crate) fn ensure_valid_content_view(
+  window_handle: *mut std::ffi::c_void,
+) -> *mut std::ffi::c_void {
   use objc2::rc::Retained;
   use objc2::{MainThreadMarker, MainThreadOnly};
   use objc2_app_kit::NSView;

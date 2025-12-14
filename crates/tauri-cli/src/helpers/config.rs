@@ -155,7 +155,16 @@ fn get_internal(
   if !reload && config_handle().lock().unwrap().is_some() {
     return Ok(config_handle());
   }
+  let config = load_config(merge_configs, reload, target)?;
+  *config_handle().lock().unwrap() = Some(config);
+  Ok(config_handle())
+}
 
+fn load_config(
+  merge_configs: &[&serde_json::Value],
+  reload: bool,
+  target: Target,
+) -> crate::Result<ConfigMetadata> {
   let tauri_dir = super::app_paths::tauri_dir();
   let (mut config, config_path) =
     tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))
@@ -232,14 +241,12 @@ fn get_internal(
     std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir);
   }
 
-  *config_handle().lock().unwrap() = Some(ConfigMetadata {
+  Ok(ConfigMetadata {
     target,
     original_identifier,
     inner: config,
     extensions,
-  });
-
-  Ok(config_handle())
+  })
 }
 
 pub fn get(target: Target, merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {

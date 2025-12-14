@@ -1653,7 +1653,7 @@ pub struct WindowConfig {
   /// ```rust
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
   ///   });
   /// ```
@@ -2006,7 +2006,7 @@ impl Default for WindowConfig {
       closable: true,
       title: default_title(),
       fullscreen: false,
-      focus: false,
+      focus: true,
       focusable: true,
       transparent: false,
       maximized: false,
@@ -4383,5 +4383,13 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
+  }
+
+  #[test]
+  fn window_config_default_same_as_deserialize() {
+    let config_from_deserialization: WindowConfig = serde_json::from_str("{}").unwrap();
+    let config_from_default: WindowConfig = WindowConfig::default();
+
+    assert_eq!(config_from_deserialization, config_from_default);
   }
 }

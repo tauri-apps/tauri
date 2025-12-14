@@ -231,7 +231,7 @@
           "type": "string"
         },
         "create": {
-          "description": "Whether Tauri should create this window at app startup or not.\n\n When this is set to `false` you must manually grab the config object via `app.config().app.windows`\n and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).\n\n ## Example:\n\n ```rust\n tauri::Builder::default()\n   .setup(|app| {\n     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;\n     Ok(())\n   });\n ```",
+          "description": "Whether Tauri should create this window at app startup or not.\n\n When this is set to `false` you must manually grab the config object via `app.config().app.windows`\n and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).\n\n ## Example:\n\n ```rust\n tauri::Builder::default()\n   .setup(|app| {\n     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;\n     Ok(())\n   });\n ```",
           "default": true,
           "type": "boolean"
         },

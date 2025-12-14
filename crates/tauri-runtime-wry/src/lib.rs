@@ -1125,7 +1125,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  fn transient_for(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.inner = self.inner.with_transient_for(parent);
     self
   }
@@ -3275,7 +3275,10 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::GtkWindow(tx) => {
+            use gtk::prelude::Cast;
+            tx.send(GtkWindow(window.gtk_window().clone().upcast())).unwrap()
+          }
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -4431,7 +4434,10 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      gtk_window: window.gtk_window(),
+      gtk_window: {
+        use gtk::prelude::Cast;
+        window.gtk_window().upcast_ref()
+      },
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

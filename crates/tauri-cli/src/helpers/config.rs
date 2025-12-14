@@ -195,19 +195,18 @@ fn get_internal(
     let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
       .context("failed to parse config schema")?;
     let validator = jsonschema::validator_for(&schema).expect("Invalid schema");
-    let mut errors = validator.iter_errors(&config).peekable();
-    if errors.peek().is_some() {
-      for error in errors {
-        let path = error.instance_path.into_iter().join(" > ");
-        if path.is_empty() {
-          log::error!("`{config_file_name:?}` error: {}", error);
-        } else {
-          log::error!("`{config_file_name:?}` error on `{}`: {}", path, error);
-        }
+    let mut got_errors = false;
+    for error in validator.iter_errors(&config) {
+      got_errors = true;
+      let path = error.instance_path.into_iter().join(" > ");
+      if path.is_empty() {
+        log::error!("`{config_file_name:?}` error: {}", error);
+      } else {
+        log::error!("`{config_file_name:?}` error on `{}`: {}", path, error);
       }
-      if !reload {
-        exit(1);
-      }
+    }
+    if got_errors && !reload {
+      exit(1);
     }
   }
 

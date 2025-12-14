@@ -111,7 +111,6 @@ pub fn items(
 ) -> Vec<SectionItem> {
   let mut items = Vec::new();
 
-  if tauri_dir.is_some() || frontend_dir.is_some() {
     if let Some(tauri_dir) = tauri_dir {
       let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
 
@@ -138,7 +137,6 @@ pub fn items(
         );
         items.push(item);
       }
-    }
   }
 
   items

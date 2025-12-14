@@ -4,6 +4,7 @@
 
 use std::{
   collections::HashMap,
+  env,
   path::{Component, Path, PathBuf},
 };
 
@@ -40,6 +41,24 @@ fn normalize(path: &Path) -> PathBuf {
     }
   }
   dest
+}
+
+fn replace_target(pattern: &str) -> String {
+  if cfg!(target_os = "macos") {
+    pattern.replace("{{target}}", "darwin")
+  } else {
+    pattern.replace("{{target}}", env::consts::OS)
+  }
+}
+
+fn replace_arch(pattern: &str) -> String {
+  if cfg!(target_arch = "x86") {
+    pattern.replace("{{arch}}", "i686")
+  } else if cfg!(target_arch = "arm") {
+    pattern.replace("{{arch}}", "armv7")
+  } else {
+    pattern.replace("{{arch}}", env::consts::ARCH)
+  }
 }
 
 /// Parses the external binaries to bundle, adding the target triple suffix to each of them.
@@ -233,8 +252,23 @@ impl ResourcePathsIter<'_> {
       }
     };
 
-    if pattern.contains('*') {
-      self.glob_iter = match glob::glob(pattern) {
+    //Replace the {{target}} and {{arch}} params with respective fields
+    let mod_pattern = {
+      match (pattern.contains("{{target}}"), pattern.contains("{{arch}}")) {
+        (true, true) => {
+          //Both target and arch is present
+          let replaced_arch = replace_arch(pattern);
+          let replaced_target = replace_target(&replaced_arch);
+          replaced_target
+        }
+        (true, false) => replace_target(pattern),
+        (false, true) => replace_arch(pattern),
+        (false, false) => pattern.to_owned(),
+      }
+    };
+
+    if mod_pattern.contains('*') {
+      self.glob_iter = match glob::glob(&mod_pattern) {
         Ok(glob) => Some(glob),
         Err(error) => return Some(Err(error.into())),
       };
@@ -242,12 +276,12 @@ impl ResourcePathsIter<'_> {
         Some(r) => return Some(r),
         None => {
           self.glob_iter = None;
-          return Some(Err(crate::Error::GlobPathNotFound(pattern.clone())));
+          return Some(Err(crate::Error::GlobPathNotFound(mod_pattern.clone())));
         }
       }
     }
 
-    self.next_current_path(normalize(Path::new(pattern)))
+    self.next_current_path(normalize(Path::new(&mod_pattern)))
   }
 }
 
@@ -342,6 +376,9 @@ mod tests {
       "src/script.js",
       "src/dir/another-dir/file1.txt",
       "src/dir/another-dir2/file2.txt",
+      "src/dir/{{target}}/another-dir3/file1.txt",
+      "src/dir/{{target}}/another-dir3/{{arch}}/file2.txt",
+      "src/dir/another-dir3/{{arch}}/file3.txt",
     ];
 
     for path in paths {

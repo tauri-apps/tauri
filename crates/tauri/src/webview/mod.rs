@@ -1698,6 +1698,26 @@ tauri::Builder::default()
     self.webview.dispatcher.reload().map_err(Into::into)
   }
 
+  /// Navigates the webview back to the previous page.
+  pub fn go_back(&self) -> crate::Result<()> {
+    self.webview.dispatcher.go_back().map_err(Into::into)
+  }
+
+  /// Checks whether the webview can navigate back.
+  pub fn can_go_back(&self) -> crate::Result<bool> {
+    self.webview.dispatcher.can_go_back().map_err(Into::into)
+  }
+
+  /// Navigates the webview forward to the next page.
+  pub fn go_forward(&self) -> crate::Result<()> {
+    self.webview.dispatcher.go_forward().map_err(Into::into)
+  }
+
+  /// Checks whether the webview can navigate forward.
+  pub fn can_go_forward(&self) -> crate::Result<bool> {
+    self.webview.dispatcher.can_go_forward().map_err(Into::into)
+  }
+
   fn is_local_url(&self, current_url: &Url) -> bool {
     let uses_https = current_url.scheme() == "https";
 

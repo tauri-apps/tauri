@@ -552,6 +552,14 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Reloads the current page.
   fn reload(&self) -> Result<()>;
 
+  fn go_back(&self) -> Result<()>;
+
+  fn can_go_back(&self) -> Result<bool>;
+
+  fn go_forward(&self) -> Result<()>;
+
+  fn can_go_forward(&self) -> Result<bool>;
+
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> Result<()>;
 

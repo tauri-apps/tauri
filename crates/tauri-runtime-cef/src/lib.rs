@@ -205,6 +205,10 @@ pub enum WebviewMessage {
   DeleteCookie(Cookie<'static>),
   Navigate(Url),
   Reload,
+  GoBack,
+  CanGoBack(Sender<Result<bool>>),
+  GoForward,
+  CanGoForward(Sender<Result<bool>>),
   Print,
   Close,
   Show,
@@ -1131,6 +1135,30 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
       webview_id: self.webview_id,
       message: WebviewMessage::Reload,
     })
+  }
+
+  fn go_back(&self) -> Result<()> {
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::GoBack,
+    })
+  }
+
+  fn can_go_back(&self) -> Result<bool> {
+    webview_getter!(self, WebviewMessage::CanGoBack)?
+  }
+
+  fn go_forward(&self) -> Result<()> {
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::GoForward,
+    })
+  }
+
+  fn can_go_forward(&self) -> Result<bool> {
+    webview_getter!(self, WebviewMessage::CanGoForward)?
   }
 
   fn print(&self) -> Result<()> {

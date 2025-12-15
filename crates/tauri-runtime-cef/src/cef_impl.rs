@@ -1167,6 +1167,30 @@ fn handle_webview_message<T: UserEvent>(
         browser.reload()
       }
     }
+    WebviewMessage::GoBack => {
+      if let Some(browser) = get_browser(context, window_id, webview_id) {
+        browser.go_back()
+      }
+    }
+    WebviewMessage::CanGoBack(tx) => {
+      if let Some(browser) = get_browser(context, window_id, webview_id) {
+        let _ = tx.send(Ok(browser.can_go_back() != 0));
+      } else {
+        let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
+      }
+    }
+    WebviewMessage::GoForward => {
+      if let Some(browser) = get_browser(context, window_id, webview_id) {
+        browser.go_forward()
+      }
+    }
+    WebviewMessage::CanGoForward(tx) => {
+      if let Some(browser) = get_browser(context, window_id, webview_id) {
+        let _ = tx.send(Ok(browser.can_go_forward() != 0));
+      } else {
+        let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
+      }
+    }
     WebviewMessage::Print => {
       if let Some(host) = get_browser(context, window_id, webview_id).and_then(|b| b.host()) {
         host.print()
@@ -1494,7 +1518,7 @@ fn handle_webview_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WebviewMessage::WithWebview(f) => {
-      if let Some(browser_view) = get_webview(context, window_id, webview_id) {
+      if let Some(browser_view) = get_browser(context, window_id, webview_id) {
         f(Box::new(browser_view));
       }
     }

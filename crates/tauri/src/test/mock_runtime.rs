@@ -606,6 +606,22 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
+  fn go_back(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn can_go_back(&self) -> Result<bool> {
+    Ok(false)
+  }
+
+  fn go_forward(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn can_go_forward(&self) -> Result<bool> {
+    Ok(false)
+  }
+
   fn print(&self) -> Result<()> {
     Ok(())
   }

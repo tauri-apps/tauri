@@ -2317,6 +2317,26 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.reload()
   }
 
+  /// Navigates the webview back to the previous page.
+  pub fn go_back(&self) -> crate::Result<()> {
+    self.webview.go_back()
+  }
+
+  /// Checks whether the webview can navigate back.
+  pub fn can_go_back(&self) -> crate::Result<bool> {
+    self.webview.can_go_back()
+  }
+
+  /// Navigates the webview forward to the next page.
+  pub fn go_forward(&self) -> crate::Result<()> {
+    self.webview.go_forward()
+  }
+
+  /// Checks whether the webview can navigate forward.
+  pub fn can_go_forward(&self) -> crate::Result<bool> {
+    self.webview.can_go_forward()
+  }
+
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].
   pub fn on_message(
     self,

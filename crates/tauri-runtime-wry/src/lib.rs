@@ -1598,6 +1598,26 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     )
   }
 
+  fn go_back(&self) -> Result<()> {
+    // TODO: implement this
+    Err(Error::FailedToSendMessage)
+  }
+
+  fn can_go_back(&self) -> Result<bool> {
+    // TODO: implement this
+    Err(Error::FailedToSendMessage)
+  }
+
+  fn go_forward(&self) -> Result<()> {
+    // TODO: implement this
+    Err(Error::FailedToSendMessage)
+  }
+
+  fn can_go_forward(&self) -> Result<bool> {
+    // TODO: implement this
+    Err(Error::FailedToSendMessage)
+  }
+
   fn print(&self) -> Result<()> {
     send_user_message(
       &self.context,

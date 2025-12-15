@@ -2507,9 +2507,7 @@ fn create_browser_window<T: UserEvent>(
     bounds.y = position.y;
   }
 
-  let window_info = WindowInfo {
-    ..Default::default()
-  };
+  let window_info = cef::WindowInfo::default();
 
   let Some(browser) = browser_host_create_browser_sync(
     Some(&window_info),
@@ -2834,15 +2832,20 @@ pub(crate) fn create_webview<T: UserEvent>(
     }
   });
 
+  let window_handle = window.window_handle();
+
   if kind == WebviewKind::WindowChild {
-    let window_info = WindowInfo {
+    #[cfg(target_os = "macos")]
+    let window_handle = ensure_valid_content_view(window_handle);
+
+    let window_info = cef::WindowInfo {
       bounds: bounds.clone().unwrap_or(cef::Rect::default()),
       #[cfg(target_os = "macos")]
-      parent_view: window.window_handle(),
+      parent_view: window_handle,
       #[cfg(target_os = "macos")]
       hidden: 0,
       #[cfg(windows)]
-      parent_window: window.window_handle(),
+      parent_window: window_handle,
       #[cfg(windows)]
       style: {
         use windows::Win32::UI::WindowsAndMessaging::*;
@@ -3079,4 +3082,63 @@ fn apply_titlebar_style(window: &cef::Window, style: TitleBarStyle, hidden_title
   if hidden_title {
     ns_window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
   }
+}
+
+/// On macOS, if the window content view is CEF's default `BridgedContentView`,
+/// and does not have the expected subviews, replace it with a generic `NSView`
+/// to avoid interactivity issues.
+///
+/// Returns the new content view pointer, or the original window handle if no replacement was made.
+///
+/// Subsequent calls to this function are no-ops, since the content view has already
+/// been replaced and is no longer a BridgedContentView.
+///
+/// SAFETY: Only call this function for Windows that are intended to host multiple webviews.
+#[cfg(target_os = "macos")]
+pub(crate) fn ensure_valid_content_view(
+  window_handle: *mut std::ffi::c_void,
+) -> *mut std::ffi::c_void {
+  use objc2::rc::Retained;
+  use objc2::{MainThreadMarker, MainThreadOnly};
+  use objc2_app_kit::NSView;
+
+  let nsview = unsafe { Retained::<NSView>::retain(window_handle as _) };
+  let nsview = nsview.expect("NSView is null");
+
+  let class = nsview.class().name().to_string_lossy();
+  let subviews = unsafe { nsview.subviews() };
+
+  // Filter subviews to only those that are expected in a valid CEF content view,
+  // which can only happen if a WebviewKind::WindowContent webview
+  // has been created in it using CEF's window.add_child_view API.
+  fn is_cef_view(subview: &Retained<NSView>) -> bool {
+    let class = subview.class().name().to_string_lossy();
+    class == "ViewsCompositorSuperview" || class == "WebContentsViewCocoa"
+  }
+
+  // If it's a BridgedContentView without the expected subviews,
+  // replace it with a generic NSView to avoid interactivity issues.
+  if class == "BridgedContentView" && subviews.iter().filter(is_cef_view).count() != 2 {
+    let mtm = MainThreadMarker::new().expect("Not on main thread");
+
+    // Create a new generic NSView
+    let generic_nsview = NSView::alloc(mtm);
+    let generic_nsview = unsafe { NSView::init(generic_nsview) };
+
+    // Re-add subviews to the new generic NSView (excluding CEF's views)
+    for subview in subviews.iter().filter(|v| !is_cef_view(v)) {
+      unsafe { subview.removeFromSuperview() };
+      unsafe { generic_nsview.addSubview(&subview) };
+    }
+
+    // Set the new generic NSView as the content view of the window
+    let nswindow = nsview.window().expect("NSWindow is null");
+    nswindow.setContentView(Some(&generic_nsview));
+
+    // Return the new content view pointer
+    return Retained::into_raw(generic_nsview) as *mut std::ffi::c_void;
+  }
+
+  // No replacement needed; return the original handle
+  window_handle
 }

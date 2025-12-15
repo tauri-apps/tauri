@@ -104,6 +104,8 @@ impl CefBrowserExt for cef::Browser {
   }
 
   fn set_parent(&self, parent: &cef::Window) {
+    crate::cef_impl::ensure_valid_content_view(parent.window_handle());
+
     let Some(nsview) = self.nsview() else {
       return;
     };

@@ -28,12 +28,12 @@ pub fn command(cli: Cli) -> Result<()> {
 
 // NOTE: if this is ever changed, make sure to also update Wix upgrade code generation in tauri-bundler
 fn wix_upgrade_code() -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let target = tauri_utils::platform::Target::Windows;
-  let config = crate::helpers::config::get(target, &[])?;
+  let config = crate::helpers::config::get_config(target, &[], dirs.tauri)?;
 
-  let interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap(), None)?;
+  let interface = AppInterface::new(&config, None)?;
 
   let product_name = interface.app_settings().get_package_settings().product_name;
 
@@ -44,13 +44,13 @@ fn wix_upgrade_code() -> Result<()> {
   .to_string();
 
   log::info!("Default WiX Upgrade Code, derived from {product_name}: {upgrade_code}");
-  if let Some(code) = config.lock().unwrap().as_ref().and_then(|c| {
-    c.bundle
-      .windows
-      .wix
-      .as_ref()
-      .and_then(|wix| wix.upgrade_code)
-  }) {
+  if let Some(code) = config
+    .bundle
+    .windows
+    .wix
+    .as_ref()
+    .and_then(|wix| wix.upgrade_code)
+  {
     log::info!("Application Upgrade Code override: {code}");
   }
 

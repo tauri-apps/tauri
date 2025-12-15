@@ -13,6 +13,7 @@ use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, set_var},
   ffi::{OsStr, OsString},
+  path::Path,
   process::exit,
   sync::Mutex,
 };
@@ -155,7 +156,7 @@ fn get_internal(
   if !reload && config_handle().lock().unwrap().is_some() {
     return Ok(config_handle());
   }
-  let config = load_config(merge_configs, reload, target)?;
+  let config = load_config(merge_configs, reload, target, None)?;
   *config_handle().lock().unwrap() = Some(config);
   Ok(config_handle())
 }
@@ -164,8 +165,9 @@ fn load_config(
   merge_configs: &[&serde_json::Value],
   reload: bool,
   target: Target,
+  tauri_dir: Option<&Path>,
 ) -> crate::Result<ConfigMetadata> {
-  let tauri_dir = super::app_paths::tauri_dir();
+  let tauri_dir = tauri_dir.unwrap_or_else(|| super::app_paths::tauri_dir().as_ref());
   let (mut config, config_path) =
     tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))
       .context("failed to parse config")?;
@@ -247,6 +249,14 @@ fn load_config(
     inner: config,
     extensions,
   })
+}
+
+pub fn get_config(
+  target: Target,
+  merge_configs: &[&serde_json::Value],
+  tauri_dir: &Path,
+) -> crate::Result<ConfigMetadata> {
+  load_config(merge_configs, false, target, Some(tauri_dir))
 }
 
 pub fn get(target: Target, merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {

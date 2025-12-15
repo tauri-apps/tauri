@@ -954,6 +954,33 @@ wrap_window_delegate! {
       1
     }
 
+    #[cfg(target_os = "macos")]
+    fn titlebar_height(&self, window: Option<&mut Window>, titlebar_height: Option<&mut f32>) -> ::std::os::raw::c_int {
+      let Some(window) = window else {
+        return 0;
+      };
+
+      let Some(titlebar_height) = titlebar_height else {
+        return 0;
+      };
+
+      let attrs = self.attributes.borrow();
+      let Some(pos) = attrs.traffic_light_position else {
+        return 0;
+      };
+
+      let scale = window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+
+      // CEF positions titlebar at the center of titlebar height
+      // so we set it to double the y position of traffic lights
+      *titlebar_height = pos.to_logical::<f32>(scale).y * 2.0;
+
+      1
+    }
+
     fn on_window_destroyed(&self, _window: Option<&mut Window>) {
       on_window_destroyed(self.window_id, &self.windows, &self.callback);
     }
@@ -2311,7 +2338,10 @@ fn handle_window_message<T: UserEvent>(
       // TODO: Implement title bar style
     }
     WindowMessage::SetTrafficLightPosition(_position) => {
-      // TODO: Implement traffic light position
+      #[cfg(target_os = "macos")]
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().traffic_light_position = Some(_position);
+      }
     }
     WindowMessage::SetTheme(_theme) => {
       // TODO: Implement theme

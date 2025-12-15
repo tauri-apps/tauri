@@ -857,6 +857,14 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Sets the [`crate::TitleBarStyle`].
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.window_builder = self.window_builder.traffic_light_position(position);
+    self
+  }
+
   /// Hide the window title.
   #[cfg(target_os = "macos")]
   #[must_use]

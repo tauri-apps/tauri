@@ -194,7 +194,7 @@ impl ResourcePathsIter<'_> {
               current_pattern, ..
             } => {
               if let Some(pattern) = current_pattern {
-                dest.join((&path).strip_prefix(pattern).unwrap_or(&path))
+                dest.join((path).strip_prefix(pattern).unwrap_or(&path))
               } else {
                 dest.join(path)
               }

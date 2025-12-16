@@ -32,7 +32,7 @@ use crate::{
   error::{Context, Error, ErrorExt},
   helpers::{
     app_paths::{frontend_dir, tauri_dir},
-    config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
+    config::{nsis_settings, reload_config, wix_settings, BundleResources, Config, ConfigMetadata},
   },
   ConfigValue,
 };
@@ -198,8 +198,10 @@ impl Interface for Rust {
 
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     mut options: Options,
     on_exit: F,
+    tauri_dir: &Path,
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
 
@@ -229,14 +231,22 @@ impl Interface for Rust {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
+      self.run_dev_watcher(
+        config,
+        &options.additional_watch_folders,
+        &merge_configs,
+        run,
+        tauri_dir,
+      )
     }
   }
 
   fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     mut options: MobileOptions,
     runner: R,
+    tauri_dir: &Path,
   ) -> crate::Result<()> {
     let mut run_args = Vec::new();
     dev_options(
@@ -252,23 +262,33 @@ impl Interface for Rust {
       Ok(())
     } else {
       self.watch(
+        config,
         WatcherOptions {
           config: options.config.clone(),
           additional_watch_folders: options.additional_watch_folders.clone(),
         },
         move || runner(options.clone()),
+        tauri_dir,
       )
     }
   }
 
   fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     options: WatcherOptions,
     runner: R,
+    tauri_dir: &Path,
   ) -> crate::Result<()> {
     let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
     let run = Arc::new(|_rust: &mut Rust| runner());
-    self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
+    self.run_dev_watcher(
+      config,
+      &options.additional_watch_folders,
+      &merge_configs,
+      run,
+      tauri_dir,
+    )
   }
 
   fn env(&self) -> HashMap<&str, String> {
@@ -523,9 +543,11 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     additional_watch_folders: &[PathBuf],
     merge_configs: &[&serde_json::Value],
     run: Arc<F>,
+    tauri_dir: &Path,
   ) -> crate::Result<()> {
     let child = run(self)?;
 
@@ -573,16 +595,15 @@ impl Rust {
 
           if let Some(event_path) = event.paths.first() {
             if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
-              if is_configuration_file(self.app_settings.target_platform, event_path) {
-                if let Ok(config) = reload_config(merge_configs) {
-                  let (manifest, modified) =
-                    rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
-                  if modified {
-                    *self.app_settings.manifest.lock().unwrap() = manifest;
-                    // no need to run the watcher logic, the manifest was modified
-                    // and it will trigger the watcher again
-                    continue;
-                  }
+              if is_configuration_file(self.app_settings.target_platform, event_path)
+                && reload_config(&mut config.lock().unwrap(), merge_configs, tauri_dir).is_ok()
+              {
+                let (manifest, modified) = rewrite_manifest(&config.lock().unwrap())?;
+                if modified {
+                  *self.app_settings.manifest.lock().unwrap() = manifest;
+                  // no need to run the watcher logic, the manifest was modified
+                  // and it will trigger the watcher again
+                  continue;
                 }
               }
 

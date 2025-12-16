@@ -77,6 +77,17 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  let tauri_config = crate::helpers::config::get_config(
+    tauri_utils::platform::Target::Android,
+    &options
+      .config
+      .iter()
+      .map(|conf| &conf.0)
+      .collect::<Vec<_>>(),
+    dirs.tauri,
+  )?;
+  let meta = (dirs, tauri_config);
   let mut built_application = super::build::command(
     super::build::Options {
       debug: !options.release,
@@ -102,7 +113,9 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }),
     },
     noise_level,
+    Some(&meta),
   )?;
+  let (dirs, tauri_config) = &meta;
 
   configure_cargo(&mut env, &built_application.config)?;
 
@@ -139,11 +152,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       runner()?;
     } else {
       built_application.interface.watch(
+        tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
+        dirs.tauri,
       )?;
     }
   }

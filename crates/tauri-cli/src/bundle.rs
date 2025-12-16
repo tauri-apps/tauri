@@ -16,7 +16,7 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     self,
-    config::{get as get_config, ConfigMetadata},
+    config::{get_config, ConfigMetadata},
     updater_signature,
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -130,17 +130,14 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   let config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
-  let interface = AppInterface::new(
-    config.lock().unwrap().as_ref().unwrap(),
-    options.target.clone(),
-  )?;
+  let interface = AppInterface::new(&config.lock().unwrap(), options.target.clone())?;
 
   std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
-  let config_guard = config.lock().unwrap();
-  let config_ = config_guard.as_ref().unwrap();
+  let config_ = config.lock().unwrap();
 
   if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
@@ -157,7 +154,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     ci,
     &interface,
     &*app_settings,
-    config_,
+    &config_,
     &out_dir,
   )
 }

@@ -30,7 +30,7 @@ use super::{
 use crate::{
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
+    app_paths::Dirs,
     config::{BundleResources, Config as TauriConfig, ConfigHandle},
     pbxproj, strip_semver_prerelease_tag,
   },
@@ -236,8 +236,6 @@ pub fn get_config(
   let config = AppleConfig::from_raw(app.clone(), Some(raw))
     .context("failed to create Apple configuration")?;
 
-  let tauri_dir = tauri_dir();
-
   let mut vendor_frameworks = Vec::new();
   let mut frameworks = Vec::new();
   for framework in tauri_config
@@ -261,7 +259,7 @@ pub fn get_config(
       );
     } else {
       vendor_frameworks.push(
-        relativize_path(tauri_dir.join(framework_path), config.project_dir())
+        relativize_path(dirs.tauri.join(framework_path), config.project_dir())
           .to_string_lossy()
           .to_string(),
       );
@@ -559,20 +557,8 @@ pub fn synchronize_project_config(
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .identifier
-    .clone();
-  let product_name = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .product_name
-    .clone();
+  let identifier = tauri_config.lock().unwrap().identifier.clone();
+  let product_name = tauri_config.lock().unwrap().product_name.clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();

@@ -12,6 +12,7 @@ use colored::{ColoredString, Colorize};
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
+use tauri_utils::platform::Target;
 
 mod app;
 mod env_nodejs;
@@ -313,9 +314,13 @@ pub fn command(options: Options) -> Result<()> {
     interactive,
     items: Vec::new(),
   };
-  app
-    .items
-    .extend(app::items(frontend_dir.as_ref(), tauri_dir.as_deref()));
+  if let Some(tauri_dir) = &tauri_dir {
+    if let Ok(config) = crate::helpers::config::get_config(Target::current(), &[], tauri_dir) {
+      app
+        .items
+        .extend(app::items(&config.lock().unwrap(), frontend_dir.as_ref()));
+    };
+  }
 
   environment.display();
 

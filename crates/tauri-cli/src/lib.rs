@@ -273,8 +273,9 @@ where
     eprintln!("Failed to attach logger: {err}");
   }
 
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   match cli.command {
-    Commands::Build(options) => build::command(options, cli.verbose)?,
+    Commands::Build(options) => build::command(options, cli.verbose, &dirs)?,
     Commands::Bundle(options) => bundle::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
     Commands::Add(options) => add::command(options)?,

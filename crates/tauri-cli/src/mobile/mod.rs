@@ -6,7 +6,7 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
-    config::{reload as reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
+    config::{reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
   ConfigValue, Error, Result,
@@ -31,7 +31,7 @@ use std::{
   fmt::{Display, Write},
   fs::{read_to_string, write},
   net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
-  path::PathBuf,
+  path::{Path, PathBuf},
   process::{exit, ExitStatus},
   str::FromStr,
   sync::{
@@ -255,15 +255,9 @@ fn use_network_address_for_dev_url(
   config: &ConfigHandle,
   dev_options: &mut crate::dev::Options,
   force_ip_prompt: bool,
+  tauri_dir: &Path,
 ) -> crate::Result<DevUrlConfig> {
-  let mut dev_url = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
+  let mut dev_url = config.lock().unwrap().build.dev_url.clone();
 
   let ip = if let Some(url) = &mut dev_url {
     let localhost = match url.host() {
@@ -299,11 +293,13 @@ fn use_network_address_for_dev_url(
         })));
 
       reload_config(
+        &mut config.lock().unwrap(),
         &dev_options
           .config
           .iter()
           .map(|conf| &conf.0)
           .collect::<Vec<_>>(),
+        tauri_dir,
       )?;
 
       Some(ip)
@@ -509,7 +505,7 @@ fn ensure_init(
   }
 
   let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+  let tauri_config_ = &tauri_config_guard;
 
   let mut project_outdated_reasons = Vec::new();
 

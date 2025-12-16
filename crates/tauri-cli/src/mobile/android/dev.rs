@@ -11,7 +11,7 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get as get_tauri_config, ConfigHandle},
+    config::{get_config as get_tauri_config, ConfigHandle},
     flock,
   },
   interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
@@ -160,6 +160,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
       .iter()
       .map(|conf| &conf.0)
       .collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
   let env = env(false)?;
@@ -184,7 +185,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
 
   let (interface, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    let tauri_config_ = &tauri_config_guard;
 
     let interface = AppInterface::new(tauri_config_, dev_options.target.clone())?;
 
@@ -211,7 +212,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     interface,
     options,
     dev_options,
-    tauri_config,
+    &tauri_config,
     device,
     env,
     &config,
@@ -226,7 +227,7 @@ fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
-  tauri_config: ConfigHandle,
+  tauri_config: &ConfigHandle,
   device: Option<Device>,
   mut env: Env,
   config: &AndroidConfig,
@@ -243,8 +244,6 @@ fn run_dev(
     || tauri_config
       .lock()
       .unwrap()
-      .as_ref()
-      .unwrap()
       .build
       .dev_url
       .as_ref()
@@ -255,10 +254,15 @@ fn run_dev(
         )
       })
   {
-    use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
+    use_network_address_for_dev_url(
+      tauri_config,
+      &mut dev_options,
+      options.force_ip_prompt,
+      dirs.tauri,
+    )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config, &dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config, dirs)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -272,7 +276,7 @@ fn run_dev(
 
   configure_cargo(&mut env, config)?;
 
-  generate_tauri_properties(config, tauri_config.lock().unwrap().as_ref().unwrap(), true)?;
+  generate_tauri_properties(config, &tauri_config.lock().unwrap(), true)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();
@@ -308,6 +312,7 @@ fn run_dev(
 
   let open = options.open;
   interface.mobile_dev(
+    tauri_config,
     MobileOptions {
       debug: !options.release_mode,
       features: options.features,
@@ -330,9 +335,9 @@ fn run_dev(
         }),
       };
 
-      let _handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+      let _handle = write_options(&tauri_config.lock().unwrap(), cli_options)?;
 
-      inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+      inject_resources(config, &tauri_config.lock().unwrap())?;
 
       if open {
         open_and_wait(config, &env)
@@ -348,6 +353,7 @@ fn run_dev(
         open_and_wait(config, &env)
       }
     },
+    dirs.tauri,
   )
 }
 

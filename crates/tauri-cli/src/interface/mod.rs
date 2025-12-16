@@ -9,9 +9,10 @@ use std::{
   path::{Path, PathBuf},
   process::ExitStatus,
   sync::Arc,
+  sync::Mutex,
 };
 
-use crate::{error::Context, helpers::config::Config};
+use crate::{error::Context, helpers::config::Config, helpers::config::ConfigMetadata};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{MobileOptions, Options, Rust as AppInterface, WatcherOptions};
@@ -105,17 +106,23 @@ pub trait Interface: Sized {
   fn build(&mut self, options: Options) -> crate::Result<PathBuf>;
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     options: Options,
     on_exit: F,
+    tauri_dir: &Path,
   ) -> crate::Result<()>;
   fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     options: MobileOptions,
     runner: R,
+    tauri_dir: &Path,
   ) -> crate::Result<()>;
   fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     options: WatcherOptions,
     runner: R,
+    tauri_dir: &Path,
   ) -> crate::Result<()>;
 }

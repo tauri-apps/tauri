@@ -67,7 +67,7 @@ impl ConfigMetadata {
   }
 }
 
-pub type ConfigHandle = &'static Mutex<Option<ConfigMetadata>>;
+pub type ConfigHandle = Mutex<ConfigMetadata>;
 
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
@@ -140,25 +140,6 @@ pub fn custom_sign_settings(
       tauri_bundler::CustomSignCommandSettings { cmd, args }
     }
   }
-}
-
-fn config_handle() -> ConfigHandle {
-  static CONFIG_HANDLE: Mutex<Option<ConfigMetadata>> = Mutex::new(None);
-  &CONFIG_HANDLE
-}
-
-/// Gets the static parsed config from `tauri.conf.json`.
-fn get_internal(
-  merge_configs: &[&serde_json::Value],
-  reload: bool,
-  target: Target,
-) -> crate::Result<ConfigHandle> {
-  if !reload && config_handle().lock().unwrap().is_some() {
-    return Ok(config_handle());
-  }
-  let config = load_config(merge_configs, reload, target, None)?;
-  *config_handle().lock().unwrap() = Some(config);
-  Ok(config_handle())
 }
 
 fn load_config(
@@ -255,53 +236,42 @@ pub fn get_config(
   target: Target,
   merge_configs: &[&serde_json::Value],
   tauri_dir: &Path,
-) -> crate::Result<ConfigMetadata> {
-  load_config(merge_configs, false, target, Some(tauri_dir))
+) -> crate::Result<Mutex<ConfigMetadata>> {
+  load_config(merge_configs, false, target, Some(tauri_dir)).map(Mutex::new)
 }
 
-pub fn get(target: Target, merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
-  get_internal(merge_configs, false, target)
-}
-
-pub fn reload(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
-  let target = config_handle()
-    .lock()
-    .unwrap()
-    .as_ref()
-    .map(|conf| conf.target);
-  if let Some(target) = target {
-    get_internal(merge_configs, true, target)
-  } else {
-    crate::error::bail!("config not loaded");
-  }
+pub fn reload_config(
+  config: &mut ConfigMetadata,
+  merge_configs: &[&serde_json::Value],
+  tauri_dir: &Path,
+) -> crate::Result<()> {
+  let target = config.target;
+  *config = load_config(merge_configs, true, target, Some(tauri_dir))?;
+  Ok(())
 }
 
 /// merges the loaded config with the given value
-pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
-  let handle = config_handle();
-
+pub fn merge_config_with(
+  config: &mut ConfigMetadata,
+  merge_configs: &[&serde_json::Value],
+) -> crate::Result<()> {
   if merge_configs.is_empty() {
-    return Ok(handle);
+    return Ok(());
   }
 
-  if let Some(config_metadata) = &mut *handle.lock().unwrap() {
-    let mut merge_config = serde_json::Value::Object(Default::default());
-    for conf in merge_configs {
-      merge_patches(&mut merge_config, conf);
-    }
-
-    let merge_config_str = serde_json::to_string(&merge_config).unwrap();
-    set_var("TAURI_CONFIG", merge_config_str);
-
-    let mut value =
-      serde_json::to_value(config_metadata.inner.clone()).context("failed to serialize config")?;
-    merge(&mut value, &merge_config);
-    config_metadata.inner = serde_json::from_value(value).context("failed to parse config")?;
-
-    Ok(handle)
-  } else {
-    crate::error::bail!("config not loaded");
+  let mut merge_config = serde_json::Value::Object(Default::default());
+  for conf in merge_configs {
+    merge_patches(&mut merge_config, conf);
   }
+
+  let merge_config_str = serde_json::to_string(&merge_config).unwrap();
+  set_var("TAURI_CONFIG", merge_config_str);
+
+  let mut value =
+    serde_json::to_value(config.inner.clone()).context("failed to serialize config")?;
+  merge(&mut value, &merge_config);
+  config.inner = serde_json::from_value(value).context("failed to parse config")?;
+  Ok(())
 }
 
 /// Same as [`json_patch::merge`] but doesn't delete the key when the patch's value is `null`

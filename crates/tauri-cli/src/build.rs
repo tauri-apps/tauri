@@ -8,7 +8,7 @@ use crate::{
   helpers::{
     self,
     app_paths::Dirs,
-    config::{get as get_config, ConfigMetadata, FrontendDist},
+    config::{get_config, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
@@ -81,9 +81,7 @@ pub struct Options {
   pub no_sign: bool,
 }
 
-pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
-  let dirs = crate::helpers::app_paths::resolve_dirs();
-
+pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
   if options.no_sign {
     log::warn!("--no-sign flag detected: Signing will be skipped.");
   }
@@ -99,15 +97,13 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   let config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(
-    config.lock().unwrap().as_ref().unwrap(),
-    options.target.clone(),
-  )?;
+  let mut interface = AppInterface::new(&config.lock().unwrap(), options.target.clone())?;
 
   let config_guard = config.lock().unwrap();
-  let config_ = config_guard.as_ref().unwrap();
+  let config_ = &*config_guard;
 
   setup(&interface, &mut options, config_, false, &dirs)?;
 

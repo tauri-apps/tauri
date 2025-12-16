@@ -4,7 +4,7 @@
 
 use super::{get_app, Target};
 use crate::{
-  helpers::{config::get as get_tauri_config, template::JsonMap},
+  helpers::{config::get_config as get_tauri_config, template::JsonMap},
   interface::{AppInterface, Interface},
   ConfigValue, Result,
 };
@@ -50,18 +50,19 @@ pub fn exec(
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
 ) -> Result<App> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   let tauri_config = get_tauri_config(
     target.platform_target(),
     &config.iter().map(|conf| &conf.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+  let tauri_config = tauri_config.lock().unwrap();
 
   let app = get_app(
     target,
-    tauri_config_,
-    &AppInterface::new(tauri_config_, None)?,
+    &tauri_config,
+    &AppInterface::new(&tauri_config, None)?,
   );
 
   let (handlebars, mut map) = handlebars(&app);
@@ -135,7 +136,7 @@ pub fn exec(
     Target::Android => {
       let _env = super::android::env(non_interactive)?;
       let (config, metadata) =
-        super::android::get_config(&app, tauri_config_, &[], &Default::default());
+        super::android::get_config(&app, &tauri_config, &[], &Default::default());
       map.insert("android", &config);
       super::android::project::gen(
         &config,
@@ -150,10 +151,10 @@ pub fn exec(
     // Generate Xcode project
     Target::Ios => {
       let (config, metadata) =
-        super::ios::get_config(&app, tauri_config_, &[], &Default::default())?;
+        super::ios::get_config(&app, &*tauri_config, &[], &Default::default())?;
       map.insert("apple", &config);
       super::ios::project::gen(
-        tauri_config_,
+        &*tauri_config,
         &config,
         &metadata,
         (handlebars, map),

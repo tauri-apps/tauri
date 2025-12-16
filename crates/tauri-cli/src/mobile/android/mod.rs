@@ -117,7 +117,7 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
       )?
     }
     Commands::Dev(options) => dev::command(options, noise_level)?,
-    Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
+    Commands::Build(options) => build::command(options, noise_level, None).map(|_| ())?,
     Commands::Run(options) => run::command(options, noise_level)?,
     Commands::AndroidStudioScript(options) => android_studio_script::command(options)?,
   }

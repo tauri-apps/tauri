@@ -73,6 +73,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+
   let mut built_application = super::build::command(
     super::build::Options {
       debug: !options.release,
@@ -91,6 +93,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }),
     },
     noise_level,
+    &dirs,
   )?;
 
   // options.open is handled by the build command
@@ -122,6 +125,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
+        dirs.tauri,
       )?;
     }
   }

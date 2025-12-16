@@ -7,9 +7,7 @@ use crate::{
   helpers::{
     app_paths::Dirs,
     command_env,
-    config::{
-      get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
-    },
+    config::{get_config, reload_config, BeforeDevCommand, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
   interface::{AppInterface, ExitReason, Interface},
@@ -118,26 +116,27 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
   let config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(
-    config.lock().unwrap().as_ref().unwrap(),
-    options.target.clone(),
-  )?;
+  let mut interface = AppInterface::new(&config.lock().unwrap(), options.target.clone())?;
 
-  setup(&interface, &mut options, config, &dirs)?;
+  setup(&interface, &mut options, &config, &dirs)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
-  interface.dev(options.into(), move |status, reason| {
-    on_app_exit(status, reason, exit_on_panic, no_watch)
-  })
+  interface.dev(
+    &config,
+    options.into(),
+    move |status, reason| on_app_exit(status, reason, exit_on_panic, no_watch),
+    dirs.tauri,
+  )
 }
 
 pub fn setup(
   interface: &AppInterface,
   options: &mut Options,
-  config: ConfigHandle,
+  config: &Mutex<ConfigMetadata>,
   dirs: &Dirs,
 ) -> Result<()> {
   std::thread::spawn(|| {
@@ -148,15 +147,7 @@ pub fn setup(
 
   set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
-  if let Some(before_dev) = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .before_dev_command
-    .clone()
-  {
+  if let Some(before_dev) = config.lock().unwrap().build.before_dev_command.clone() {
     let (script, script_cwd, wait) = match before_dev {
       BeforeDevCommand::Script(s) if s.is_empty() => (None, None, false),
       BeforeDevCommand::Script(s) => (Some(s), None, false),
@@ -238,20 +229,11 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .runner
-      .clone();
+    options.runner = config.lock().unwrap().build.runner.clone();
   }
 
   let mut cargo_features = config
     .lock()
-    .unwrap()
-    .as_ref()
     .unwrap()
     .build
     .features
@@ -259,22 +241,8 @@ pub fn setup(
     .unwrap_or_default();
   cargo_features.extend(options.features.clone());
 
-  let mut dev_url = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
-  let frontend_dist = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .frontend_dist
-    .clone();
+  let mut dev_url = config.lock().unwrap().build.dev_url.clone();
+  let frontend_dist = config.lock().unwrap().build.frontend_dist.clone();
   if !options.no_dev_server && dev_url.is_none() {
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
       if path.exists() {
@@ -297,7 +265,11 @@ pub fn setup(
           }
         })));
 
-        reload_config(&options.config.iter().map(|c| &c.0).collect::<Vec<_>>())?;
+        reload_config(
+          &mut config.lock().unwrap(),
+          &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+          dirs.tauri,
+        )?;
       }
     }
   }
@@ -353,8 +325,6 @@ pub fn setup(
     options.additional_watch_folders.extend(
       config
         .lock()
-        .unwrap()
-        .as_ref()
         .unwrap()
         .build
         .additional_watch_folders

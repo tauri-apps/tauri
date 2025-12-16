@@ -130,6 +130,8 @@ pub struct ResourcePathsIter<'a> {
   /// whether the resource paths allows directories or not.
   allow_walk: bool,
 
+  /// The value of map when `pattern_iter` is a [`PatternIter::Map`],
+  /// used for determining [`Resource::target`]
   current_dest: Option<PathBuf>,
   current_iter: Option<ResourcePathsInnerIter>,
 }
@@ -138,6 +140,8 @@ pub struct ResourcePathsIter<'a> {
 enum ResourcePathsInnerIter {
   Walk {
     iter: walkdir::IntoIter,
+    /// The key of map when `pattern_iter` is a [`PatternIter::Map`],
+    /// used for determining [`Resource::target`]
     current_pattern: Option<PathBuf>,
   },
   Glob {

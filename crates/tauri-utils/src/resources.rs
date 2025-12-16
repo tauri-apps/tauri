@@ -406,11 +406,11 @@ mod tests {
       // From `../src/textures/**/*`
       (
         "../src/textures/ground/earth.tex",
-        "_up_/src/textures/earth.tex",
+        "_up_/src/textures/ground/earth.tex",
       ),
       (
         "../src/textures/ground/sand.tex",
-        "_up_/src/textures/sand.tex",
+        "_up_/src/textures/ground/sand.tex",
       ),
       ("../src/textures/water.tex", "_up_/src/textures/water.tex"),
       ("../src/textures/fire.tex", "_up_/src/textures/fire.tex"),
@@ -592,7 +592,7 @@ mod tests {
     .iter()
     .collect::<Vec<_>>();
 
-    assert_eq!(resources.len(), 4);
+    assert_eq!(resources.len(), 5);
 
     assert!(resources.iter().all(|r| r.is_err()));
 
@@ -625,7 +625,7 @@ mod tests {
         .iter()
         .filter(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_))))
         .count(),
-      1
+      2
     );
   }
 }

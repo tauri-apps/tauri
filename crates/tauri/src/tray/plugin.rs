@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(not(target_os = "linux"))]
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -28,6 +29,7 @@ struct TrayIconOptions {
   icon: Option<JsImage>,
   tooltip: Option<String>,
   title: Option<String>,
+  #[cfg(not(target_os = "linux"))]
   temp_dir_path: Option<PathBuf>,
   icon_as_template: Option<bool>,
   menu_on_left_click: Option<bool>,
@@ -74,6 +76,7 @@ fn new<R: Runtime>(
   if let Some(title) = options.title {
     builder = builder.title(title);
   }
+  #[cfg(not(target_os = "linux"))]
   if let Some(temp_dir_path) = options.temp_dir_path {
     builder = builder.temp_dir_path(temp_dir_path);
   }
@@ -181,6 +184,7 @@ fn set_visible<R: Runtime>(app: AppHandle<R>, rid: ResourceId, visible: bool) ->
   tray.set_visible(visible)
 }
 
+#[cfg(not(target_os = "linux"))]
 #[command(root = "crate")]
 fn set_temp_dir_path<R: Runtime>(
   app: AppHandle<R>,
@@ -214,6 +218,7 @@ fn set_show_menu_on_left_click<R: Runtime>(
   tray.set_show_menu_on_left_click(on_left)
 }
 
+#[cfg(not(target_os = "linux"))]
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("tray")
     .invoke_handler(crate::generate_handler![
@@ -227,6 +232,25 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_title,
       set_visible,
       set_temp_dir_path,
+      set_icon_as_template,
+      set_show_menu_on_left_click,
+    ])
+    .build()
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("tray")
+    .invoke_handler(crate::generate_handler![
+      #![plugin(tray)]
+      new,
+      get_by_id,
+      remove_by_id,
+      set_icon,
+      set_menu,
+      set_tooltip,
+      set_title,
+      set_visible,
       set_icon_as_template,
       set_show_menu_on_left_click,
     ])

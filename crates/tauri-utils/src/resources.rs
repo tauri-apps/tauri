@@ -130,9 +130,11 @@ pub struct ResourcePathsIter<'a> {
   /// whether the resource paths allows directories or not.
   allow_walk: bool,
 
-  /// The value of map when `pattern_iter` is a [`PatternIter::Map`],
+  /// The value of map when [`Self::pattern_iter`] is a [`PatternIter::Map`],
   /// used for determining [`Resource::target`]
   current_dest: Option<PathBuf>,
+  /// The iter for the current pattern. The cycle goes like this:
+  /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
 }
 
@@ -140,7 +142,7 @@ pub struct ResourcePathsIter<'a> {
 enum ResourcePathsInnerIter {
   Walk {
     iter: walkdir::IntoIter,
-    /// The key of map when `pattern_iter` is a [`PatternIter::Map`],
+    /// The key of map when [`ResourcePathsIter::pattern_iter`] is a [`PatternIter::Map`],
     /// used for determining [`Resource::target`]
     current_pattern: Option<PathBuf>,
   },
@@ -210,7 +212,7 @@ impl ResourcePathsIter<'_> {
           None => dest.clone(),
         }
       } else {
-        // If `pattern_iter` is a [`PatternIter::Slice`]
+        // If [`ResourcePathsIter::pattern_iter`] is a [`PatternIter::Slice`]
         resource_relpath(&path)
       },
       path,

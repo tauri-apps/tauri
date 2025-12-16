@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test core
+name: test utils
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
       - dev
   pull_request:
     paths:
-      - '.github/workflows/test-core.yml'
+      - '.github/workflows/test-utils.yml'
       - 'crates/tauri-utils/**'
 
 env:

@@ -857,6 +857,14 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Sets the [`crate::TitleBarStyle`].
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.window_builder = self.window_builder.traffic_light_position(position);
+    self
+  }
+
   /// Hide the window title.
   #[cfg(target_os = "macos")]
   #[must_use]
@@ -2171,6 +2179,19 @@ tauri::Builder::default()
       .window
       .dispatcher
       .set_title_bar_style(style)
+      .map_err(Into::into)
+  }
+
+  /// Sets the position of the traffic light buttons. **macOS only**.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS only**.
+  pub fn set_traffic_light_position(&self, position: Position) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_traffic_light_position(position)
       .map_err(Into::into)
   }
 

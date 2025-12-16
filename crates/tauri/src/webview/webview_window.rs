@@ -859,10 +859,14 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    let position = position.into();
+
+    self.window_builder = self.window_builder.traffic_light_position(position.clone());
+
     self.webview_builder.webview_attributes = self
       .webview_builder
       .webview_attributes
-      .traffic_light_position(position.into());
+      .traffic_light_position(position);
     self
   }
 
@@ -2211,6 +2215,15 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Sets the title bar style. **macOS only**.
   pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
     self.window.set_title_bar_style(style)
+  }
+
+  /// Sets the position of the traffic light buttons. **macOS only**.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS only**.
+  pub fn set_traffic_light_position(&self, position: Position) -> crate::Result<()> {
+    self.window.set_traffic_light_position(position)
   }
 
   /// Sets the theme for this window.

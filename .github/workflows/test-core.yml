@@ -75,11 +75,11 @@ jobs:
         crates:
           - name: tauri
             manifest-path: crates/tauri/Cargo.toml
-            args: ""
+            args: ''
           - name: tauri-utils
             manifest-path: crates/tauri-utils/Cargo.toml
             # Using --lib --bins --tests to skip doc tests
-            args: "--lib --bins --tests"
+            args: '--lib --bins --tests'
 
     steps:
       - uses: actions/checkout@v4

@@ -97,9 +97,8 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Slice(patterns.iter()),
         allow_walk,
-        current_pattern: None,
-        walk_iter: None,
-        glob_iter: None,
+        current_dest: None,
+        current_iter: None,
       },
     }
   }
@@ -110,9 +109,8 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Map(patterns.iter()),
         allow_walk,
-        current_pattern: None,
-        walk_iter: None,
-        glob_iter: None,
+        current_dest: None,
+        current_iter: None,
       },
     }
   }
@@ -132,122 +130,133 @@ pub struct ResourcePathsIter<'a> {
   /// whether the resource paths allows directories or not.
   allow_walk: bool,
 
-  /// The (key, value) of map when `pattern_iter` is a [`PatternIter::Map`],
-  /// used for determining [`Resource::target`]
-  current_pattern: Option<(String, PathBuf)>,
+  current_dest: Option<PathBuf>,
+  current_iter: Option<ResourcePathsInnerIter>,
+}
 
-  walk_iter: Option<walkdir::IntoIter>,
-  glob_iter: Option<glob::Paths>,
+#[derive(Debug)]
+enum ResourcePathsInnerIter {
+  Walk {
+    iter: walkdir::IntoIter,
+    current_pattern: Option<PathBuf>,
+  },
+  Glob {
+    iter: glob::Paths,
+  },
+}
+
+impl Iterator for ResourcePathsInnerIter {
+  type Item = crate::Result<PathBuf>;
+
+  fn next(&mut self) -> Option<crate::Result<PathBuf>> {
+    match self {
+      ResourcePathsInnerIter::Walk { iter, .. } => Some(
+        iter
+          .next()?
+          .map(|entry| entry.into_path())
+          .map_err(Into::into),
+      ),
+      ResourcePathsInnerIter::Glob { iter } => Some(iter.next()?.map_err(Into::into)),
+    }
+  }
 }
 
 impl ResourcePathsIter<'_> {
-  fn next_glob_iter(&mut self) -> Option<crate::Result<Resource>> {
-    let entry = self.glob_iter.as_mut().unwrap().next()?;
+  fn next_current_iter(&mut self) -> Option<crate::Result<Resource>> {
+    let current_iter = self.current_iter.as_mut().unwrap();
+    let entry = current_iter.next()?;
 
-    let entry = match entry {
-      Ok(entry) => entry,
-      Err(err) => return Some(Err(err.into())),
-    };
-
-    self.next_current_path(normalize(&entry))
+    Some(match entry {
+      Ok(entry) => {
+        // Skip directories
+        if entry.is_dir() {
+          self.next_current_iter()?
+        } else {
+          self.resource_from_path(normalize(&entry))
+        }
+      }
+      Err(error) => Err(error),
+    })
   }
 
-  fn next_walk_iter(&mut self) -> Option<crate::Result<Resource>> {
-    let entry = self.walk_iter.as_mut().unwrap().next()?;
-
-    let entry = match entry {
-      Ok(entry) => entry,
-      Err(err) => return Some(Err(err.into())),
-    };
-
-    self.next_current_path(normalize(entry.path()))
-  }
-
-  fn resource_from_path(&mut self, path: &Path) -> crate::Result<Resource> {
+  fn resource_from_path(&self, path: PathBuf) -> crate::Result<Resource> {
     if !path.exists() {
-      return Err(crate::Error::ResourcePathNotFound(path.to_path_buf()));
+      return Err(crate::Error::ResourcePathNotFound(path));
     }
 
     Ok(Resource {
-      path: path.to_path_buf(),
-      target: if let Some((pattern, dest)) = &self.current_pattern {
-        // if processing a directory, preserve directory structure under current_dest
-        if self.walk_iter.is_some() {
-          dest.join(path.strip_prefix(pattern).unwrap_or(path))
-        } else if dest.components().count() == 0 {
-          // if current_dest is empty while processing a file pattern or glob
-          // we preserve the file name as it is
-          PathBuf::from(path.file_name().unwrap())
-        } else if self.glob_iter.is_some() {
-          // if processing a glob and current_dest is not empty
-          // we put all globbed paths under current_dest
-          // preserving the file name as it is
-          dest.join(path.file_name().unwrap())
-        } else {
-          dest.clone()
+      path: path.clone(),
+      target: if let Some(dest) = &self.current_dest {
+        match &self.current_iter {
+          Some(current_iter) => match current_iter {
+            // if processing a directory, preserve directory structure under current_dest
+            ResourcePathsInnerIter::Walk {
+              current_pattern, ..
+            } => {
+              if let Some(pattern) = current_pattern {
+                dest.join((&path).strip_prefix(pattern).unwrap_or(&path))
+              } else {
+                dest.join(path)
+              }
+            }
+            // if processing a glob and current_dest is not empty
+            // we put all globbed paths under current_dest
+            // preserving the file name as it is
+            ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
+          },
+          None => dest.clone(),
         }
       } else {
         // If `pattern_iter` is a [`PatternIter::Slice`]
-        resource_relpath(path)
+        resource_relpath(&path)
       },
     })
   }
 
-  fn next_current_path(&mut self, path: PathBuf) -> Option<crate::Result<Resource>> {
-    let is_dir = path.is_dir();
-
-    if is_dir {
-      if self.glob_iter.is_some() {
-        return self.next();
-      }
-
-      if !self.allow_walk {
-        return Some(Err(crate::Error::NotAllowedToWalkDir(path.to_path_buf())));
-      }
-
-      if self.walk_iter.is_none() {
-        self.walk_iter = Some(WalkDir::new(&path).into_iter());
-      }
-
-      match self.next_walk_iter() {
-        Some(resource) => Some(resource),
-        None => {
-          self.walk_iter = None;
-          self.next()
-        }
-      }
-    } else {
-      Some(self.resource_from_path(&path))
-    }
-  }
-
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
-    self.current_pattern = None;
+    self.current_dest = None;
 
     let pattern = match &mut self.pattern_iter {
       PatternIter::Slice(iter) => iter.next()?,
       PatternIter::Map(iter) => {
         let (pattern, dest) = iter.next()?;
-        self.current_pattern = Some((pattern.clone(), resource_relpath(Path::new(dest))));
+        self.current_dest = Some(resource_relpath(Path::new(dest)));
         pattern
       }
     };
 
     if pattern.contains('*') {
-      self.glob_iter = match glob::glob(pattern) {
-        Ok(glob) => Some(glob),
+      self.current_iter = match glob::glob(pattern) {
+        Ok(glob) => Some(ResourcePathsInnerIter::Glob { iter: glob }),
         Err(error) => return Some(Err(error.into())),
       };
-      match self.next_glob_iter() {
+      match self.next_current_iter() {
         Some(r) => return Some(r),
         None => {
-          self.glob_iter = None;
+          self.current_iter = None;
           return Some(Err(crate::Error::GlobPathNotFound(pattern.clone())));
         }
       }
+    } else {
+      let path = normalize(Path::new(pattern));
+      if path.is_dir() {
+        if !self.allow_walk {
+          return Some(Err(crate::Error::NotAllowedToWalkDir(path)));
+        }
+        self.current_iter = Some(ResourcePathsInnerIter::Walk {
+          iter: WalkDir::new(&path).into_iter(),
+          current_pattern: if matches!(self.pattern_iter, PatternIter::Map(_)) {
+            Some(path)
+          } else {
+            None
+          },
+        });
+      } else {
+        return Some(self.resource_from_path(path));
+      }
     }
 
-    self.next_current_path(normalize(Path::new(pattern)))
+    self.next_current_iter()
   }
 }
 
@@ -263,17 +272,10 @@ impl Iterator for ResourcePathsIter<'_> {
   type Item = crate::Result<Resource>;
 
   fn next(&mut self) -> Option<crate::Result<Resource>> {
-    if self.walk_iter.is_some() {
-      match self.next_walk_iter() {
+    if self.current_iter.is_some() {
+      match self.next_current_iter() {
         Some(r) => return Some(r),
-        None => self.walk_iter = None,
-      }
-    }
-
-    if self.glob_iter.is_some() {
-      match self.next_glob_iter() {
-        Some(r) => return Some(r),
-        None => self.glob_iter = None,
+        None => self.current_iter = None,
       }
     }
 
@@ -322,6 +324,7 @@ mod tests {
       "src-tauri/Cargo.toml",
       "src-tauri/Tauri.toml",
       "src-tauri/build.rs",
+      "src-tauri/some-folder/some-file.txt",
       "src/assets/javascript.svg",
       "src/assets/tauri.svg",
       "src/assets/rust.svg",
@@ -483,6 +486,7 @@ mod tests {
         ("../src/tiles/**/*", "tiles"),
         ("*.toml", ""),
         ("*.conf.json", "json"),
+        ("./some-folder/", "some-target-folder/"),
         ("../non-existent-file", "asd"), // invalid case
         ("../non/*", "asd"),             // invalid case
       ]),
@@ -511,6 +515,10 @@ mod tests {
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
       ("tauri.conf.json", "json/tauri.conf.json"),
+      (
+        "some-folder/some-file.txt",
+        "some-target-folder/some-file.txt",
+      ),
     ]);
 
     assert_eq!(resources.len(), expected.len());

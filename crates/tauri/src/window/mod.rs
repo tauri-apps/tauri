@@ -2182,6 +2182,19 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
+  /// Sets the position of the traffic light buttons. **macOS only**.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS only**.
+  pub fn set_traffic_light_position(&self, position: Position) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_traffic_light_position(position)
+      .map_err(Into::into)
+  }
+
   /// Sets the theme for this window.
   ///
   /// ## Platform-specific

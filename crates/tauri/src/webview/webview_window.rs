@@ -2217,6 +2217,15 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_title_bar_style(style)
   }
 
+  /// Sets the position of the traffic light buttons. **macOS only**.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS only**.
+  pub fn set_traffic_light_position(&self, position: Position) -> crate::Result<()> {
+    self.window.set_traffic_light_position(position)
+  }
+
   /// Sets the theme for this window.
   ///
   /// ## Platform-specific

@@ -714,6 +714,7 @@ wrap_window_delegate! {
     attributes: Arc<RefCell<crate::CefWindowBuilder>>,
     last_emitted_position: RefCell<PhysicalPosition<i32>>,
     last_emitted_size: RefCell<PhysicalSize<u32>>,
+    context: Context<T>
   }
 
   impl ViewDelegate {
@@ -937,6 +938,19 @@ wrap_window_delegate! {
         if a.visible.unwrap_or(true) {
           window.show();
         }
+
+        // Set traffic light position on macOS after window is fully created
+        // by posting a task to the UI thread to avoid issues with early setting
+        #[cfg(target_os = "macos")]
+        if let Some(pos) = a.traffic_light_position {
+          let window_message = WindowMessage::SetTrafficLightPosition(pos);
+          let message = Message::Window {
+            window_id: self.window_id,
+            message: window_message,
+          };
+
+          send_message_task(&self.context, message);
+        }
       }
     }
 
@@ -951,33 +965,6 @@ wrap_window_delegate! {
     }
 
     fn with_standard_window_buttons(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
-      1
-    }
-
-    #[cfg(target_os = "macos")]
-    fn titlebar_height(&self, window: Option<&mut Window>, titlebar_height: Option<&mut f32>) -> ::std::os::raw::c_int {
-      let Some(window) = window else {
-        return 0;
-      };
-
-      let Some(titlebar_height) = titlebar_height else {
-        return 0;
-      };
-
-      let attrs = self.attributes.borrow();
-      let Some(pos) = attrs.traffic_light_position else {
-        return 0;
-      };
-
-      let scale = window
-          .display()
-          .map(|d| d.device_scale_factor() as f64)
-          .unwrap_or(1.0);
-
-      // CEF positions titlebar at the center of titlebar height
-      // so we set it to double the y position of traffic lights
-      *titlebar_height = pos.to_logical::<f32>(scale).y * 2.0;
-
       1
     }
 
@@ -1043,6 +1030,11 @@ wrap_window_delegate! {
       bounds: Option<&cef::Rect>,
     ) {
       let (Some(window), Some(bounds)) = (window, bounds) else { return; };
+
+      #[cfg(target_os = "macos")]
+      if let Some(pos) = &self.attributes.borrow().traffic_light_position {
+        apply_traffic_light_position(window.window_handle(), pos);
+      }
 
       // Update autoresize overlay bounds (moved from on_layout_changed)
       if let Some(app_window) = self.windows.borrow().get(&self.window_id) {
@@ -2341,6 +2333,9 @@ fn handle_window_message<T: UserEvent>(
       #[cfg(target_os = "macos")]
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().traffic_light_position = Some(_position);
+        if let Some(window) = app_window.window() {
+          apply_traffic_light_position(window.window_handle(), &_position);
+        }
       }
     }
     WindowMessage::SetTheme(_theme) => {
@@ -2614,6 +2609,7 @@ pub(crate) fn create_window<T: UserEvent>(
     attributes.clone(),
     RefCell::new(Default::default()),
     RefCell::new(Default::default()),
+    context.clone(),
   );
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
@@ -2668,6 +2664,11 @@ wrap_task! {
       );
     }
   }
+}
+
+fn send_message_task<T: UserEvent>(context: &Context<T>, message: Message<T>) {
+  let mut task = SendMessageTask::new(context.clone(), Arc::new(RefCell::new(message)));
+  cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
 }
 
 fn send_window_event<T: UserEvent>(
@@ -3171,4 +3172,51 @@ pub(crate) fn ensure_valid_content_view(
 
   // No replacement needed; return the original handle
   window_handle
+}
+
+#[cfg(target_os = "macos")]
+fn apply_traffic_light_position(window: *mut std::ffi::c_void, position: &Position) {
+  use objc2::msg_send;
+  use objc2::rc::Retained;
+  use objc2_app_kit::{NSView, NSWindowButton};
+
+  let nsview = unsafe { Retained::<NSView>::retain(window as _) };
+  let Some(nsview) = nsview else {
+    return;
+  };
+
+  let Some(nswindow) = nsview.window() else {
+    return;
+  };
+
+  let Some(close) = nswindow.standardWindowButton(NSWindowButton::CloseButton) else {
+    return;
+  };
+  let Some(miniaturize) = nswindow.standardWindowButton(NSWindowButton::MiniaturizeButton) else {
+    return;
+  };
+  let Some(zoom) = nswindow.standardWindowButton(NSWindowButton::ZoomButton) else {
+    return;
+  };
+
+  let pos = position.to_logical::<f64>(nswindow.backingScaleFactor() as f64);
+  let (x, y) = (pos.x, pos.y);
+
+  let title_bar_container_view = unsafe { close.superview().unwrap().superview().unwrap() };
+
+  let close_rect = NSView::frame(&close);
+  let title_bar_frame_height = close_rect.size.height + y;
+  let mut title_bar_rect = NSView::frame(&title_bar_container_view);
+  title_bar_rect.size.height = title_bar_frame_height;
+  title_bar_rect.origin.y = nswindow.frame().size.height - title_bar_frame_height;
+  let _: () = unsafe { msg_send![&title_bar_container_view, setFrame: title_bar_rect] };
+
+  let window_buttons = vec![close, miniaturize.clone(), zoom];
+  let space_between = NSView::frame(&miniaturize).origin.x - close_rect.origin.x;
+
+  for (i, button) in window_buttons.into_iter().enumerate() {
+    let mut rect = NSView::frame(&button);
+    rect.origin.x = x + (i as f64 * space_between);
+    unsafe { button.setFrameOrigin(rect.origin) };
+  }
 }

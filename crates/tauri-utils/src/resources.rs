@@ -185,7 +185,6 @@ impl ResourcePathsIter<'_> {
     }
 
     Ok(Resource {
-      path: path.clone(),
       target: if let Some(dest) = &self.current_dest {
         match &self.current_iter {
           Some(current_iter) => match current_iter {
@@ -194,9 +193,9 @@ impl ResourcePathsIter<'_> {
               current_pattern, ..
             } => {
               if let Some(pattern) = current_pattern {
-                dest.join((path).strip_prefix(pattern).unwrap_or(&path))
+                dest.join(path.strip_prefix(pattern).unwrap_or(&path))
               } else {
-                dest.join(path)
+                dest.join(&path)
               }
             }
             // if processing a glob and current_dest is not empty
@@ -210,6 +209,7 @@ impl ResourcePathsIter<'_> {
         // If `pattern_iter` is a [`PatternIter::Slice`]
         resource_relpath(&path)
       },
+      path,
     })
   }
 

@@ -8499,6 +8499,7 @@ dependencies = [
  "bytes",
  "cargo_toml",
  "cookie",
+ "dashmap",
  "data-url",
  "dirs 6.0.0",
  "dunce",

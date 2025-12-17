@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::HashMap,
   str::FromStr,
   sync::{
     atomic::{AtomicU32, AtomicUsize, Ordering},
-    Arc, Mutex,
+    Arc,
   },
 };
 
+use dashmap::DashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
@@ -43,7 +43,7 @@ static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default, Clone)]
-pub struct ChannelDataIpcQueue(Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
+pub struct ChannelDataIpcQueue(DashMap<u32, InvokeResponseBody>);
 
 /// An IPC channel.
 pub struct Channel<TSend = InvokeResponseBody> {
@@ -171,8 +171,6 @@ impl JavaScriptChannelId {
             webview
               .state::<ChannelDataIpcQueue>()
               .0
-              .lock()
-              .unwrap()
               .insert(data_id, body);
 
             webview.eval(format!(
@@ -267,8 +265,6 @@ impl<TSend> Channel<TSend> {
             webview
               .state::<ChannelDataIpcQueue>()
               .0
-              .lock()
-              .unwrap()
               .insert(data_id, body);
 
             webview.eval(format!(
@@ -326,7 +322,7 @@ fn fetch(
     .and_then(|v| v.to_str().ok())
     .and_then(|id| id.parse().ok())
   {
-    if let Some(data) = cache.0.lock().unwrap().remove(&id) {
+    if let Some((_, data)) = cache.0.remove(&id) {
       Ok(Response::new(data))
     } else {
       Err("data not found")

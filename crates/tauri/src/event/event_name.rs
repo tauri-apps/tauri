@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 /// Checks if an event name is valid.
 fn is_event_name_valid(event: &str) -> bool {
@@ -10,8 +10,7 @@ fn is_event_name_valid(event: &str) -> bool {
     .chars()
     .all(|c| c.is_alphanumeric() || c == '-' || c == '/' || c == ':' || c == '_')
 }
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct EventName<S = String>(S);
 
 impl Copy for EventName<&str> {}

@@ -8,6 +8,7 @@ use std::{convert::Infallible, str::FromStr};
 
 pub(crate) use listener::Listeners;
 use serde::{Deserialize, Serialize};
+use serialize_to_javascript::RawValue;
 
 mod event_name;
 
@@ -113,12 +114,12 @@ impl FromStr for EventTarget {
 }
 
 /// Serialized emit arguments.
-#[derive(Clone)]
+#[derive(Serialize)]
 pub struct EmitArgs {
   /// event name.
   event: EventName,
   /// Serialized payload.
-  payload: String,
+  payload: Box<RawValue>,
 }
 
 impl EmitArgs {
@@ -127,7 +128,7 @@ impl EmitArgs {
     let _span = tracing::debug_span!("window::emit::serialize").entered();
     Ok(EmitArgs {
       event: event.into_owned(),
-      payload: serde_json::to_string(payload)?,
+      payload: serde_json::value::to_raw_value(payload)?,
     })
   }
 
@@ -136,7 +137,7 @@ impl EmitArgs {
     let _span = tracing::debug_span!("window::emit::json").entered();
     Ok(EmitArgs {
       event: event.into_owned(),
-      payload,
+      payload: RawValue::from_string(payload)?,
     })
   }
 }
@@ -145,11 +146,11 @@ impl EmitArgs {
 #[derive(Debug, Clone)]
 pub struct Event {
   id: EventId,
-  data: String,
+  data: Box<RawValue>,
 }
 
 impl Event {
-  fn new(id: EventId, data: String) -> Self {
+  fn new(id: EventId, data: Box<RawValue>) -> Self {
     Self { id, data }
   }
 
@@ -160,7 +161,7 @@ impl Event {
 
   /// The event payload.
   pub fn payload(&self) -> &str {
-    &self.data
+    self.data.get()
   }
 }
 
@@ -248,5 +249,51 @@ mod tests {
       .unwrap_err()
       .to_string();
     assert_eq!("only alphanumeric, '-', '/', ':', '_' permitted for event names: \"some\\r illegal event name\"", s);
+  }
+
+  #[test]
+  fn test_emit_args_output() {
+    let data = r#"{"id":1,"name":"test"}"#.to_string();
+    let event = EventName::new("test-event").unwrap();
+    let args = EmitArgs::new_str(event, data).expect("Failed to create EmitArgs");
+    let final_json = serde_json::to_string(&args).expect("Failed to serialize");
+    assert!(
+      final_json.contains(r#""payload":{"id":1"#),
+      "Payload should be a raw JSON object, not a string"
+    );
+    assert!(
+      !final_json.contains(r#"\"name\""#),
+      "Should not contain escaped quotes"
+    );
+  }
+
+  #[test]
+  fn test_emit_zero_copy_hint() {
+    let data = "{\"key\":\"value\"}".to_string();
+    let original_ptr = data.as_ptr();
+    let event = EventName::new("test").unwrap();
+    let args = EmitArgs::new_str(event, data).unwrap();
+    let raw_ptr = args.payload.get().as_ptr();
+    assert_eq!(
+      original_ptr, raw_ptr,
+      "The memory address should remain the same for zero-copy"
+    );
+  }
+  #[test]
+  fn test_emit_zero_copy_hint_large() {
+    // create a large JSON string payload (around 5MB)
+    let size = 5_000_000usize;
+    let mut data = String::with_capacity(size + 2);
+    data.push('"');
+    data.extend(std::iter::repeat('a').take(size));
+    data.push('"');
+    let original_ptr = data.as_ptr();
+    let event = EventName::new("test-large").unwrap();
+    let args = EmitArgs::new_str(event, data).unwrap();
+    let raw_ptr = args.payload.get().as_ptr();
+    assert_eq!(
+      original_ptr, raw_ptr,
+      "The memory address should remain the same for zero-copy with large payload"
+    );
   }
 }

@@ -118,6 +118,7 @@ pub use tao::platform::macos::{
 use tauri_runtime::ActivationPolicy;
 
 use std::{
+  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -486,7 +487,12 @@ pub struct TaoIcon(pub TaoWindowIcon);
 impl TryFrom<Icon<'_>> for TaoIcon {
   type Error = Error;
   fn try_from(icon: Icon<'_>) -> std::result::Result<Self, Self::Error> {
-    TaoWindowIcon::from_rgba(icon.rgba.to_vec(), icon.width, icon.height)
+    let rgba = match icon.rgba {
+      Cow::Borrowed(bytes) => bytes.to_vec(),
+      Cow::Owned(bytes) => bytes,
+    };
+
+    TaoWindowIcon::from_rgba(rgba, icon.width, icon.height)
       .map(Self)
       .map_err(|e| Error::InvalidIcon(Box::new(e)))
   }

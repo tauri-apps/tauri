@@ -73,7 +73,8 @@ pub fn command(options: Options) -> Result<()> {
       &get_app(
         MobileTarget::Android,
         tauri_config_,
-        &AppInterface::new(tauri_config_, None)?,
+        &AppInterface::new(tauri_config_, None, dirs.tauri)?,
+        dirs.tauri,
       ),
       tauri_config_,
       &[],

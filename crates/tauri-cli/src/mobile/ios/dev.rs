@@ -266,7 +266,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     env,
     &config,
     noise_level,
-    dirs.tauri,
+    &dirs,
   )
 }
 
@@ -280,7 +280,7 @@ fn run_dev(
   env: Env,
   config: &AppleConfig,
   noise_level: NoiseLevel,
-  tauri_dir: &Path,
+  dirs: &Dirs,
 ) -> Result<()> {
   // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
@@ -369,6 +369,7 @@ fn run_dev(
         open_xcode()
       }
     },
+    &dirs,
   )
 }
 

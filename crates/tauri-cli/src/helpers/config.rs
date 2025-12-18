@@ -146,9 +146,8 @@ fn load_config(
   merge_configs: &[&serde_json::Value],
   reload: bool,
   target: Target,
-  tauri_dir: Option<&Path>,
+  tauri_dir: &Path,
 ) -> crate::Result<ConfigMetadata> {
-  let tauri_dir = tauri_dir.unwrap_or_else(|| super::app_paths::tauri_dir().as_ref());
   let (mut config, config_path) =
     tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))
       .context("failed to parse config")?;
@@ -237,7 +236,7 @@ pub fn get_config(
   merge_configs: &[&serde_json::Value],
   tauri_dir: &Path,
 ) -> crate::Result<Mutex<ConfigMetadata>> {
-  load_config(merge_configs, false, target, Some(tauri_dir)).map(Mutex::new)
+  load_config(merge_configs, false, target, tauri_dir).map(Mutex::new)
 }
 
 pub fn reload_config(
@@ -246,7 +245,7 @@ pub fn reload_config(
   tauri_dir: &Path,
 ) -> crate::Result<()> {
   let target = config.target;
-  *config = load_config(merge_configs, true, target, Some(tauri_dir))?;
+  *config = load_config(merge_configs, true, target, tauri_dir)?;
   Ok(())
 }
 

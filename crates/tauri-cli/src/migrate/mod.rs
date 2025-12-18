@@ -4,10 +4,7 @@
 
 use crate::{
   error::{bail, Context, ErrorExt},
-  helpers::{
-    app_paths::tauri_dir,
-    cargo_manifest::{crate_version, CargoLock, CargoManifest},
-  },
+  helpers::cargo_manifest::{crate_version, CargoLock, CargoManifest},
   interface::rust::get_workspace_dir,
   Result,
 };
@@ -17,22 +14,20 @@ use std::{fs::read_to_string, str::FromStr};
 mod migrations;
 
 pub fn command() -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let tauri_dir = tauri_dir();
-
-  let manifest_contents = read_to_string(tauri_dir.join("Cargo.toml")).fs_context(
+  let manifest_contents = read_to_string(dirs.tauri.join("Cargo.toml")).fs_context(
     "failed to read Cargo manifest",
-    tauri_dir.join("Cargo.toml"),
+    dirs.tauri.join("Cargo.toml"),
   )?;
   let manifest = toml::from_str::<CargoManifest>(&manifest_contents).with_context(|| {
     format!(
       "failed to parse Cargo manifest {}",
-      tauri_dir.join("Cargo.toml").display()
+      dirs.tauri.join("Cargo.toml").display()
     )
   })?;
 
-  let workspace_dir = get_workspace_dir()?;
+  let workspace_dir = get_workspace_dir(dirs.tauri)?;
   let lock_path = workspace_dir.join("Cargo.lock");
   let lock = if lock_path.exists() {
     let lockfile_contents =
@@ -44,7 +39,7 @@ pub fn command() -> Result<()> {
     None
   };
 
-  let tauri_version = crate_version(tauri_dir, Some(&manifest), lock.as_ref(), "tauri")
+  let tauri_version = crate_version(dirs.tauri, Some(&manifest), lock.as_ref(), "tauri")
     .version
     .context("failed to get tauri version")?;
   let tauri_version = semver::Version::from_str(&tauri_version)
@@ -56,7 +51,7 @@ pub fn command() -> Result<()> {
     if let Some((pre, _number)) = tauri_version.pre.as_str().split_once('.') {
       match pre {
         "beta" => {
-          migrations::v2_beta::run().context("failed to migrate from v2 beta")?;
+          migrations::v2_beta::run(&dirs).context("failed to migrate from v2 beta")?;
         }
         "alpha" => {
           bail!(

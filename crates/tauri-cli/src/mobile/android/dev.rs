@@ -187,9 +187,9 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = &tauri_config_guard;
 
-    let interface = AppInterface::new(tauri_config_, dev_options.target.clone())?;
+    let interface = AppInterface::new(tauri_config_, dev_options.target.clone(), dirs.tauri)?;
 
-    let app = get_app(MobileTarget::Android, tauri_config_, &interface);
+    let app = get_app(MobileTarget::Android, tauri_config_, &interface, dirs.tauri);
     let (config, metadata) = get_config(
       &app,
       tauri_config_,
@@ -271,7 +271,7 @@ fn run_dev(
   };
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   configure_cargo(&mut env, config)?;
@@ -353,7 +353,7 @@ fn run_dev(
         open_and_wait(config, &env)
       }
     },
-    dirs.tauri,
+    dirs,
   )
 }
 

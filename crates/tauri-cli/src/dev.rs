@@ -119,7 +119,8 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&config.lock().unwrap(), options.target.clone())?;
+  let mut interface =
+    AppInterface::new(&config.lock().unwrap(), options.target.clone(), dirs.tauri)?;
 
   setup(&interface, &mut options, &config, &dirs)?;
 
@@ -129,7 +130,7 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     &config,
     options.into(),
     move |status, reason| on_app_exit(status, reason, exit_on_panic, no_watch),
-    dirs.tauri,
+    &dirs,
   )
 }
 

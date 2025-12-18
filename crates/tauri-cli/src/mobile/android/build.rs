@@ -27,6 +27,7 @@ use cargo_mobile2::{
 };
 
 use std::env::set_current_dir;
+use std::path::Path;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Parser)]
@@ -155,10 +156,10 @@ pub fn command(
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = &tauri_config_guard;
 
-    let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
+    let interface = AppInterface::new(tauri_config_, build_options.target.clone(), dirs.tauri)?;
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Android, tauri_config_, &interface);
+    let app = get_app(MobileTarget::Android, tauri_config_, &interface, dirs.tauri);
     let (config, metadata) = get_config(
       &app,
       tauri_config_,
@@ -224,6 +225,7 @@ pub fn command(
     &config,
     &mut env,
     noise_level,
+    dirs.tauri,
   )?;
 
   if open {
@@ -247,6 +249,7 @@ fn run_build(
   config: &AndroidConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
+  tauri_dir: &Path,
 ) -> Result<OptionsHandle> {
   if !(options.apk.is_some() || options.aab.is_some()) {
     // if the user didn't specify the format to build, we'll do both
@@ -262,7 +265,7 @@ fn run_build(
   };
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, tauri_dir)?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let cli_options = CliOptions {

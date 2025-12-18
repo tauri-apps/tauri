@@ -62,7 +62,8 @@ pub fn exec(
   let app = get_app(
     target,
     &tauri_config,
-    &AppInterface::new(&tauri_config, None)?,
+    &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+    dirs.tauri,
   );
 
   let (handlebars, mut map) = handlebars(&app);

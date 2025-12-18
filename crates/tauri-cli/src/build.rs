@@ -100,7 +100,8 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&config.lock().unwrap(), options.target.clone())?;
+  let mut interface =
+    AppInterface::new(&config.lock().unwrap(), options.target.clone(), dirs.tauri)?;
 
   let config_guard = config.lock().unwrap();
   let config_ = &*config_guard;
@@ -114,9 +115,9 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
 
-  let bin_path = interface.build(interface_options)?;
+  let bin_path = interface.build(interface_options, &dirs)?;
 
   log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(bin_path));
 
@@ -131,6 +132,7 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
       &*app_settings,
       config_,
       &out_dir,
+      &dirs,
     )?;
   }
 
@@ -186,7 +188,13 @@ pub fn setup(
   }
 
   if let Some(before_build) = config.build.before_build_command.clone() {
-    helpers::run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
+    helpers::run_hook(
+      "beforeBuildCommand",
+      before_build,
+      interface,
+      options.debug,
+      dirs.frontend,
+    )?;
   }
 
   if let Some(FrontendDist::Directory(web_asset_path)) = &config.build.frontend_dist {
@@ -214,7 +222,7 @@ pub fn setup(
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
     // https://github.com/tauri-apps/tauri/issues/13287
-    let target_path = get_cargo_target_dir(&options.args)?;
+    let target_path = get_cargo_target_dir(&options.args, dirs.tauri)?;
     let mut out_folders = Vec::new();
     if let Ok(web_asset_canonical) = dunce::canonicalize(web_asset_path) {
       if let Ok(relative_path) = target_path.strip_prefix(&web_asset_canonical) {

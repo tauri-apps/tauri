@@ -16,6 +16,7 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     self,
+    app_paths::Dirs,
     config::{get_config, ConfigMetadata},
     updater_signature,
   },
@@ -133,7 +134,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     dirs.tauri,
   )?;
 
-  let interface = AppInterface::new(&config.lock().unwrap(), options.target.clone())?;
+  let interface = AppInterface::new(&config.lock().unwrap(), options.target.clone(), dirs.tauri)?;
 
   std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
@@ -146,7 +147,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
 
   bundle(
     &options,
@@ -156,6 +157,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     &*app_settings,
     &config_,
     &out_dir,
+    &dirs,
   )
 }
 
@@ -168,6 +170,7 @@ pub fn bundle<A: AppSettings>(
   app_settings: &A,
   config: &ConfigMetadata,
   out_dir: &Path,
+  dirs: &Dirs,
 ) -> crate::Result<()> {
   let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
     bundles.iter().map(|bundle| bundle.0).collect::<Vec<_>>()
@@ -193,12 +196,19 @@ pub fn bundle<A: AppSettings>(
         before_bundle,
         interface,
         options.debug,
+        dirs.frontend,
       )?;
     }
   }
 
   let mut settings = app_settings
-    .get_bundler_settings(options.clone().into(), config, out_dir, package_types)
+    .get_bundler_settings(
+      options.clone().into(),
+      config,
+      out_dir,
+      package_types,
+      dirs.tauri,
+    )
     .with_context(|| "failed to build bundler settings")?;
   settings.set_no_sign(options.no_sign);
 

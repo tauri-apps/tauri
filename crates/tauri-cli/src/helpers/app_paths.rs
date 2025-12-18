@@ -143,27 +143,6 @@ pub fn resolve_dirs() -> Dirs {
   Dirs { tauri, frontend }
 }
 
-pub fn resolve() {
-  TAURI_DIR.set(resolve_tauri_dir().unwrap_or_else(|| {
-    let env_var_name = env_tauri_app_path().is_some().then(|| format!("`{ENV_TAURI_APP_PATH}`"));
-    panic!("Couldn't recognize the {} folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",
-      env_var_name.as_deref().unwrap_or("current"),
-      ConfigFormat::Json.into_file_name(),
-      ConfigFormat::Json5.into_file_name(),
-      ConfigFormat::Toml.into_file_name()
-    )
-  })).expect("tauri dir already resolved");
-  FRONTEND_DIR
-    .set(resolve_frontend_dir().unwrap_or_else(|| tauri_dir().parent().unwrap().to_path_buf()))
-    .expect("app dir already resolved");
-}
-
-pub fn tauri_dir() -> &'static PathBuf {
-  TAURI_DIR
-    .get()
-    .expect("app paths not initialized, this is a Tauri CLI bug")
-}
-
 pub fn resolve_frontend_dir() -> Option<PathBuf> {
   let frontend_dir =
     env_tauri_frontend_path().unwrap_or_else(|| current_dir().expect("failed to read cwd"));
@@ -185,10 +164,4 @@ pub fn resolve_frontend_dir() -> Option<PathBuf> {
     }
   })
   .map(|p| p.parent().unwrap().to_path_buf())
-}
-
-pub fn frontend_dir() -> &'static PathBuf {
-  FRONTEND_DIR
-    .get()
-    .expect("app paths not initialized, this is a Tauri CLI bug")
 }

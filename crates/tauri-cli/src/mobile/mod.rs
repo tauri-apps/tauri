@@ -4,10 +4,7 @@
 
 use crate::{
   error::{Context, ErrorExt},
-  helpers::{
-    app_paths::tauri_dir,
-    config::{reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
-  },
+  helpers::config::{reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
   ConfigValue, Error, Result,
 };
@@ -437,7 +434,12 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
   options
 }
 
-pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -> App {
+pub fn get_app(
+  target: Target,
+  config: &TauriConfig,
+  interface: &AppInterface,
+  tauri_dir: &Path,
+) -> App {
   let identifier = match target {
     Target::Android => config.identifier.replace('-', "_"),
     #[cfg(target_os = "macos")]
@@ -474,15 +476,19 @@ pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -
   };
 
   let app_settings = interface.app_settings();
-  App::from_raw(tauri_dir().to_path_buf(), raw)
+  let tauri_dir = tauri_dir.to_path_buf();
+  App::from_raw(tauri_dir.to_path_buf(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
       app_settings
-        .out_dir(&InterfaceOptions {
-          debug: matches!(profile, Profile::Debug),
-          target: Some(target.into()),
-          ..Default::default()
-        })
+        .out_dir(
+          &InterfaceOptions {
+            debug: matches!(profile, Profile::Debug),
+            target: Some(target.into()),
+            ..Default::default()
+          },
+          &tauri_dir,
+        )
         .expect("failed to resolve target directory")
     })
 }

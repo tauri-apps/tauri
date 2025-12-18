@@ -266,11 +266,6 @@ pub fn command(options: Options) -> Result<()> {
   let frontend_dir = resolve_frontend_dir();
   let tauri_dir = resolve_tauri_dir();
 
-  if tauri_dir.is_some() {
-    // safe to initialize
-    crate::helpers::app_paths::resolve();
-  }
-
   let package_manager = frontend_dir
     .as_ref()
     .map(packages_nodejs::package_manager)

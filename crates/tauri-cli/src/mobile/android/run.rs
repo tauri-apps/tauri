@@ -158,7 +158,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
-        dirs.tauri,
+        dirs,
       )?;
     }
   }

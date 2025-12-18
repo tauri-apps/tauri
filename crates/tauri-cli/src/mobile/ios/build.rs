@@ -11,7 +11,6 @@ use crate::{
   build::Options as BuildOptions,
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
     config::{get_config as get_tauri_config, ConfigHandle},
     flock,
     plist::merge_plist,

@@ -795,6 +795,8 @@ pub struct Settings {
   local_tools_directory: Option<PathBuf>,
   /// the bundle settings.
   bundle_settings: BundleSettings,
+  /// Same as `bundle_settings.icon`, but without the .icon directory.
+  icon_files: Option<Vec<String>>,
   /// the binaries to bundle.
   binaries: Vec<BundleBinary>,
   /// The target platform.
@@ -906,6 +908,14 @@ impl SettingsBuilder {
     };
     let target_platform = TargetPlatform::from_triple(&target);
 
+    let icon_files = self.bundle_settings.icon.as_ref().map(|paths| {
+      paths
+        .iter()
+        .filter(|p| !p.ends_with(".icon"))
+        .cloned()
+        .collect()
+    });
+
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
       package: self
@@ -925,6 +935,7 @@ impl SettingsBuilder {
           .map(|bins| external_binaries(bins, &target, &target_platform)),
         ..self.bundle_settings
       },
+      icon_files,
       target_platform,
       target,
       no_sign: self.no_sign,
@@ -1092,7 +1103,7 @@ impl Settings {
 
   /// Returns an iterator over the icon files to be used for this bundle.
   pub fn icon_files(&self) -> ResourcePaths<'_> {
-    match self.bundle_settings.icon {
+    match self.icon_files {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), false),
       None => ResourcePaths::new(&[], false),
     }

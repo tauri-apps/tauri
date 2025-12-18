@@ -375,7 +375,7 @@ fn main() -> Result<()> {
   if let Some(filename) = bench_file.to_str() {
     utils::write_json(filename, &serde_json::to_value(&new_data)?)
       .context("failed to write benchmark results to file")?;
-    println!("Results written to: {}", filename);
+    println!("Results written to: {filename}");
   } else {
     eprintln!("Cannot write bench.json, path contains invalid UTF-8");
   }

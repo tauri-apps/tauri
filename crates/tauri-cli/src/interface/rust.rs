@@ -14,7 +14,6 @@ use std::{
   time::Duration,
 };
 
-use anyhow::Context;
 use dunce::canonicalize;
 use glob::glob;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
@@ -30,6 +29,7 @@ use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Runner
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
+  error::{Context, Error, ErrorExt},
   helpers::{
     app_paths::{frontend_dir, tauri_dir},
     config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
@@ -115,6 +115,12 @@ pub struct MobileOptions {
   pub additional_watch_folders: Vec<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct WatcherOptions {
+  pub config: Vec<ConfigValue>,
+  pub additional_watch_folders: Vec<PathBuf>,
+}
+
 #[derive(Debug)]
 pub struct RustupTarget {
   name: String,
@@ -140,7 +146,14 @@ impl Interface for Rust {
         }
       })
       .unwrap();
-      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)?;
+      watcher
+        .watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)
+        .with_context(|| {
+          format!(
+            "failed to watch {}",
+            tauri_dir().join("Cargo.toml").display()
+          )
+        })?;
       let (manifest, modified) = rewrite_manifest(config)?;
       if modified {
         // Wait for the modified event so we don't trigger a re-build later on
@@ -202,8 +215,8 @@ impl Interface for Rust {
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
       self.run_dev(options, run_args, move |status, reason| {
+        on_exit(status, reason);
         tx.send(()).unwrap();
-        on_exit(status, reason)
       })?;
 
       rx.recv().unwrap();
@@ -238,10 +251,24 @@ impl Interface for Rust {
       runner(options)?;
       Ok(())
     } else {
-      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
-      let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
+      self.watch(
+        WatcherOptions {
+          config: options.config.clone(),
+          additional_watch_folders: options.additional_watch_folders.clone(),
+        },
+        move || runner(options.clone()),
+      )
     }
+  }
+
+  fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
+    &mut self,
+    options: WatcherOptions,
+    runner: R,
+  ) -> crate::Result<()> {
+    let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
+    let run = Arc::new(|_rust: &mut Rust| runner());
+    self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
   }
 
   fn env(&self) -> HashMap<&str, String> {
@@ -411,9 +438,9 @@ fn dev_options(
 // Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
 fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   let path = path.to_str().context("path is not UTF-8 compatible")?;
-  let res = glob(path).with_context(|| format!("could not parse pattern `{path}`"))?;
+  let res = glob(path).with_context(|| format!("failed to expand glob pattern for {path}"))?;
   let res = res
-    .map(|p| p.with_context(|| format!("unable to match path to pattern `{path}`")))
+    .map(|p| p.with_context(|| format!("failed to expand glob pattern for {path}")))
     .collect::<Result<Vec<_>, _>>()?;
   Ok(res)
 }
@@ -574,7 +601,7 @@ impl Rust {
               );
 
               let mut p = process.lock().unwrap();
-              p.kill().with_context(|| "failed to kill app process")?;
+              p.kill().context("failed to kill app process")?;
 
               // wait for the process to exit
               // note that on mobile, kill() already waits for the process to exit (duct implementation)
@@ -622,18 +649,19 @@ impl<T> MaybeWorkspace<T> {
   fn resolve(
     self,
     label: &str,
-    get_ws_field: impl FnOnce() -> anyhow::Result<T>,
-  ) -> anyhow::Result<T> {
+    get_ws_field: impl FnOnce() -> crate::Result<T>,
+  ) -> crate::Result<T> {
     match self {
       MaybeWorkspace::Defined(value) => Ok(value),
-      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: true }) => {
-        get_ws_field().context(format!(
-          "error inheriting `{label}` from workspace root manifest's `workspace.package.{label}`"
-        ))
-      }
-      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(anyhow::anyhow!(
-        "`workspace=false` is unsupported for `package.{label}`"
-      )),
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: true }) => get_ws_field()
+        .with_context(|| {
+          format!(
+            "error inheriting `{label}` from workspace root manifest's `workspace.package.{label}`"
+          )
+        }),
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(
+        crate::Error::GenericError("`workspace=false` is unsupported for `package.{label}`".into()),
+      ),
     }
   }
   fn _as_defined(&self) -> Option<&T> {
@@ -667,11 +695,13 @@ struct WorkspacePackageSettings {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 struct BinarySettings {
   name: String,
   /// This is from nightly: https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#different-binary-name
   filename: Option<String>,
   path: Option<String>,
+  required_features: Option<Vec<String>>,
 }
 
 impl BinarySettings {
@@ -721,8 +751,11 @@ impl CargoSettings {
   fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
     let toml_str = std::fs::read_to_string(&toml_path)
-      .with_context(|| format!("Failed to read {}", toml_path.display()))?;
-    toml::from_str(&toml_str).with_context(|| format!("Failed to parse {}", toml_path.display()))
+      .fs_context("Failed to read Cargo manifest", toml_path.clone())?;
+    toml::from_str(&toml_str).context(format!(
+      "failed to parse Cargo manifest at {}",
+      toml_path.display()
+    ))
   }
 }
 
@@ -754,7 +787,7 @@ pub struct UpdaterConfig {
 }
 
 /// Install modes for the Windows update.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
@@ -762,15 +795,10 @@ pub enum WindowsUpdateInstallMode {
   /// Requires admin privileges if the installer does.
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
+  #[default]
   Passive,
   // to add more modes, we need to check if the updater relaunch makes sense
   // i.e. for a full UI mode, the user can also mark the installer to start the app
-}
-
-impl Default for WindowsUpdateInstallMode {
-  fn default() -> Self {
-    Self::Passive
-  }
 }
 
 impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
@@ -831,11 +859,10 @@ impl AppSettings for RustAppSettings {
           .plugins
           .0
           .get("updater")
-          .ok_or_else(|| {
-            anyhow::anyhow!("failed to get updater configuration: plugins > updater doesn't exist")
-          })?
+          .context("failed to get updater configuration: plugins > updater doesn't exist")?
           .clone(),
-      )?;
+      )
+      .context("failed to parse updater plugin configuration")?;
       Some(UpdaterSettings {
         v1_compatible,
         pubkey: updater.pubkey,
@@ -848,7 +875,7 @@ impl AppSettings for RustAppSettings {
     let mut settings = tauri_config_to_bundle_settings(
       self,
       features,
-      config.identifier.clone(),
+      config,
       config.bundle.clone(),
       updater_settings,
       arch64bits,
@@ -862,7 +889,8 @@ impl AppSettings for RustAppSettings {
       .get("deep-link")
       .and_then(|c| c.get("desktop").cloned())
     {
-      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config)?;
+      let protocols: DesktopDeepLinks =
+        serde_json::from_value(plugin_config).context("failed to parse desktop deep links from Tauri configuration > plugins > deep-link > desktop")?;
       settings.deep_link_protocols = Some(match protocols {
         DesktopDeepLinks::One(p) => vec![p],
         DesktopDeepLinks::List(p) => p,
@@ -893,7 +921,7 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let binaries = self.get_binaries()?;
+    let binaries = self.get_binaries(options)?;
     let bin_name = binaries
       .iter()
       .find(|x| x.main())
@@ -919,8 +947,8 @@ impl AppSettings for RustAppSettings {
     Ok(path)
   }
 
-  fn get_binaries(&self) -> crate::Result<Vec<BundleBinary>> {
-    let mut binaries: Vec<BundleBinary> = vec![];
+  fn get_binaries(&self, options: &Options) -> crate::Result<Vec<BundleBinary>> {
+    let mut binaries = Vec::new();
 
     if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
@@ -929,6 +957,14 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
+        if let (Some(req_features), Some(opt_features)) =
+          (&bin.required_features, &options.features)
+        {
+          // Check if all required features are enabled.
+          if !req_features.iter().all(|feat| opt_features.contains(feat)) {
+            continue;
+          }
+        }
         let file_name = bin.file_name();
         let is_main = file_name == self.cargo_package_settings.name || file_name == default_run;
         binaries.push(BundleBinary::with_path(
@@ -1034,18 +1070,18 @@ impl AppSettings for RustAppSettings {
 impl RustAppSettings {
   pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let tauri_dir = tauri_dir();
-    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load cargo settings")?;
+    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load Cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
       Some(package_info) => package_info.clone(),
       None => {
-        return Err(anyhow::anyhow!(
+        return Err(crate::Error::GenericError(
           "No package info in the config file".to_owned(),
         ))
       }
     };
 
     let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
-      .context("failed to load cargo settings from workspace root")?
+      .context("failed to load Cargo settings from workspace root")?
       .workspace
       .and_then(|v| v.package);
 
@@ -1058,7 +1094,7 @@ impl RustAppSettings {
           ws_package_settings
             .as_ref()
             .and_then(|p| p.version.clone())
-            .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
+            .context("Couldn't inherit value for `version` from workspace")
         })
         .expect("Cargo project does not have a version")
     });
@@ -1078,9 +1114,7 @@ impl RustAppSettings {
               ws_package_settings
                 .as_ref()
                 .and_then(|v| v.description.clone())
-                .ok_or_else(|| {
-                  anyhow::anyhow!("Couldn't inherit value for `description` from workspace")
-                })
+                .context("Couldn't inherit value for `description` from workspace")
             })
             .unwrap()
         })
@@ -1091,9 +1125,7 @@ impl RustAppSettings {
             ws_package_settings
               .as_ref()
               .and_then(|v| v.homepage.clone())
-              .ok_or_else(|| {
-                anyhow::anyhow!("Couldn't inherit value for `homepage` from workspace")
-              })
+              .context("Couldn't inherit value for `homepage` from workspace")
           })
           .unwrap()
       }),
@@ -1103,7 +1135,7 @@ impl RustAppSettings {
             ws_package_settings
               .as_ref()
               .and_then(|v| v.authors.clone())
-              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `authors` from workspace"))
+              .context("Couldn't inherit value for `authors` from workspace")
           })
           .unwrap()
       }),
@@ -1168,16 +1200,20 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   let output = Command::new("cargo")
     .args(["metadata", "--no-deps", "--format-version", "1"])
     .current_dir(tauri_dir())
-    .output()?;
+    .output()
+    .map_err(|error| Error::CommandFailed {
+      command: "cargo metadata --no-deps --format-version 1".to_string(),
+      error,
+    })?;
 
   if !output.status.success() {
-    return Err(anyhow::anyhow!(
-      "cargo metadata command exited with a non zero exit code: {}",
-      String::from_utf8_lossy(&output.stderr)
-    ));
+    return Err(Error::CommandFailed {
+      command: "cargo metadata".to_string(),
+      error: std::io::Error::other(String::from_utf8_lossy(&output.stderr)),
+    });
   }
 
-  Ok(serde_json::from_slice(&output.stdout)?)
+  serde_json::from_slice(&output.stdout).context("failed to parse cargo metadata")
 }
 
 /// Get the cargo target directory based on the provided arguments.
@@ -1185,10 +1221,12 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
 /// Otherwise, use the target directory from cargo metadata.
 pub(crate) fn get_cargo_target_dir(args: &[String]) -> crate::Result<PathBuf> {
   let path = if let Some(target) = get_cargo_option(args, "--target-dir") {
-    std::env::current_dir()?.join(target)
+    std::env::current_dir()
+      .context("failed to get current directory")?
+      .join(target)
   } else {
     get_cargo_metadata()
-      .with_context(|| "failed to run 'cargo metadata' command to get target directory")?
+      .context("failed to run 'cargo metadata' command to get target directory")?
       .target_directory
   };
 
@@ -1250,7 +1288,7 @@ pub fn get_profile_dir(options: &Options) -> &str {
 fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
   features: &[String],
-  identifier: String,
+  tauri_config: &Config,
   config: crate::helpers::config::BundleConfig,
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
@@ -1373,8 +1411,59 @@ fn tauri_config_to_bundle_settings(
     BundleResources::Map(map) => (None, Some(map)),
   };
 
+  #[cfg(target_os = "macos")]
+  let entitlements = if let Some(plugin_config) = tauri_config
+    .plugins
+    .0
+    .get("deep-link")
+    .and_then(|c| c.get("desktop").cloned())
+  {
+    let protocols: DesktopDeepLinks =
+      serde_json::from_value(plugin_config).context("failed to parse deep link plugin config")?;
+    let domains = match protocols {
+      DesktopDeepLinks::One(protocol) => protocol.domains,
+      DesktopDeepLinks::List(protocols) => protocols.into_iter().flat_map(|p| p.domains).collect(),
+    };
+
+    if domains.is_empty() {
+      config
+        .macos
+        .entitlements
+        .map(PathBuf::from)
+        .map(tauri_bundler::bundle::Entitlements::Path)
+    } else {
+      let mut app_links_entitlements = plist::Dictionary::new();
+      app_links_entitlements.insert(
+        "com.apple.developer.associated-domains".to_string(),
+        domains
+          .into_iter()
+          .map(|domain| format!("applinks:{domain}").into())
+          .collect::<Vec<_>>()
+          .into(),
+      );
+      let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
+        crate::helpers::plist::merge_plist(vec![
+          PathBuf::from(user_provided_entitlements).into(),
+          plist::Value::Dictionary(app_links_entitlements).into(),
+        ])?
+      } else {
+        app_links_entitlements.into()
+      };
+
+      Some(tauri_bundler::bundle::Entitlements::Plist(entitlements))
+    }
+  } else {
+    config
+      .macos
+      .entitlements
+      .map(PathBuf::from)
+      .map(tauri_bundler::bundle::Entitlements::Path)
+  };
+  #[cfg(not(target_os = "macos"))]
+  let entitlements = None;
+
   Ok(BundleSettings {
-    identifier: Some(identifier),
+    identifier: Some(tauri_config.identifier.clone()),
     publisher: config.publisher,
     homepage: config.homepage,
     icon: Some(config.icon),
@@ -1383,8 +1472,8 @@ fn tauri_config_to_bundle_settings(
     copyright: config.copyright,
     category: match config.category {
       Some(category) => Some(AppCategory::from_str(&category).map_err(|e| match e {
-        Some(e) => anyhow::anyhow!("invalid category, did you mean `{}`?", e),
-        None => anyhow::anyhow!("invalid category"),
+        Some(e) => Error::GenericError(format!("invalid category, did you mean `{e}`?")),
+        None => Error::GenericError("invalid category".to_string()),
       })?),
       None => None,
     },
@@ -1474,14 +1563,24 @@ fn tauri_config_to_bundle_settings(
       skip_stapling: false,
       hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
-      entitlements: config.macos.entitlements,
-      info_plist_path: {
+      entitlements,
+      #[cfg(not(target_os = "macos"))]
+      info_plist: None,
+      #[cfg(target_os = "macos")]
+      info_plist: {
+        let mut src_plists = vec![];
+
         let path = tauri_dir().join("Info.plist");
         if path.exists() {
-          Some(path)
-        } else {
-          None
+          src_plists.push(path.into());
         }
+        if let Some(info_plist) = &config.macos.info_plist {
+          src_plists.push(info_plist.clone().into());
+        }
+
+        Some(tauri_bundler::bundle::PlistKind::Plist(
+          crate::helpers::plist::merge_plist(src_plists)?,
+        ))
       },
     },
     windows: WindowsSettings {
@@ -1508,9 +1607,7 @@ fn tauri_config_to_bundle_settings(
                 .cargo_ws_package_settings
                 .as_ref()
                 .and_then(|v| v.license.clone())
-                .ok_or_else(|| {
-                  anyhow::anyhow!("Couldn't inherit value for `license` from workspace")
-                })
+                .context("Couldn't inherit value for `license` from workspace")
             })
             .unwrap()
         })
@@ -1572,7 +1669,7 @@ mod tests {
 
   #[test]
   fn parse_cargo_option() {
-    let args = vec![
+    let args = [
       "build".into(),
       "--".into(),
       "--profile".into(),

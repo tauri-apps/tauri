@@ -14,11 +14,11 @@
 // explanation.
 
 use crate::{
+  error::{Context, ErrorExt},
   utils::{self, fs_utils},
   Settings,
 };
 
-use anyhow::Context;
 use image::{codecs::png::PngDecoder, GenericImageView, ImageDecoder};
 
 use std::{
@@ -45,10 +45,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .with_context(|| format!("Failed to remove old {app_product_name}"))?;
+      .fs_context("failed to remove old app bundle", &app_bundle_path)?;
   }
   fs::create_dir_all(&app_bundle_path)
-    .with_context(|| format!("Failed to create bundle directory at {app_bundle_path:?}"))?;
+    .fs_context("failed to create bundle directory", &app_bundle_path)?;
 
   for src in settings.resource_files() {
     let src = src?;

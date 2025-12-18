@@ -8,14 +8,16 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::helpers::{
-  self,
-  cargo_manifest::{cargo_manifest_and_lock, crate_version},
-  npm::PackageManager,
+use crate::{
+  helpers::{
+    self,
+    cargo_manifest::{cargo_manifest_and_lock, crate_version},
+    npm::PackageManager,
+  },
+  Error,
 };
 
 use super::{packages_nodejs, packages_rust, SectionItem};
-use anyhow::anyhow;
 
 #[derive(Debug)]
 pub struct InstalledPackage {
@@ -70,7 +72,10 @@ pub fn installed_tauri_packages(
         crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), crate_name).version?;
       let crate_version = semver::Version::parse(&crate_version)
         .inspect_err(|_| {
-          log::error!("Failed to parse version `{crate_version}` for crate `{crate_name}`");
+          // On first run there's no lockfile yet so we get the version requirement from Cargo.toml.
+          // In our templates that's `2` which is not a valid semver version but a version requirement.
+          // log::error confused users so we use log::debug to still be able to see this error if needed.
+          log::debug!("Failed to parse version `{crate_version}` for crate `{crate_name}`");
         })
         .ok()?;
       Some((crate_name.clone(), crate_version))
@@ -161,5 +166,5 @@ pub fn check_mismatched_packages(frontend_dir: &Path, tauri_path: &Path) -> crat
     )
     .collect::<Vec<_>>()
     .join("\n");
-  Err(anyhow!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{mismatched_text}"))
+  Err(Error::GenericError(format!("Found version mismatched Tauri packages. Make sure the NPM package and Rust crate versions are on the same major/minor releases:\n{mismatched_text}")))
 }

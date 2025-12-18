@@ -25,9 +25,10 @@
     "example:api:dev": "pnpm run --filter \"api\" tauri dev"
   },
   "devDependencies": {
-    "prettier": "^3.5.3"
+    "prettier": "^3.6.2"
   },
-  "packageManager": "pnpm@10.12.1",
+  "minimumReleaseAge": 4320,
+  "packageManager": "pnpm@10.16.0",
   "pnpm": {
     "overrides": {
       "brace-expansion@<4.0.1": ">=4.0.1",

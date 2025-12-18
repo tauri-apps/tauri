@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.8.4"
+version = "2.9.6"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.77.2"
@@ -36,7 +36,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-cargo-mobile2 = { version = "0.20.6", default-features = false }
+cargo-mobile2 = { version = "0.21.1", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.24", features = ["server"] }
@@ -46,8 +46,8 @@ jsonrpsee-ws-client = { version = "0.24", default-features = false }
 sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
-anyhow = "1"
-tauri-bundler = { version = "2.6.1", default-features = false, path = "../tauri-bundler" }
+thiserror = "2"
+tauri-bundler = { version = "2.7.5", default-features = false, path = "../tauri-bundler" }
 colored = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
@@ -58,7 +58,7 @@ shared_child = "1"
 duct = "1.0"
 toml_edit = { version = "0.23", features = ["serde"] }
 json-patch = "3"
-tauri-utils = { version = "2.7.0", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.8.1", path = "../tauri-utils", features = [
   "isolation",
   "schema",
   "config-json5",
@@ -69,7 +69,8 @@ toml = "0.9"
 jsonschema = "0.33"
 handlebars = "6"
 include_dir = "0.7"
-minisign = "=0.7.3"
+dirs = "6"
+minisign = "0.8"
 base64 = "0.22"
 ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"
@@ -110,6 +111,9 @@ memchr = "2"
 tempfile = "3"
 uuid = { version = "1", features = ["v5"] }
 rand = "0.9"
+zip = { version = "4", default-features = false, features = ["deflate"] }
+which = "8"
+rayon = "1.10"
 
 [dev-dependencies]
 insta = "1"
@@ -129,7 +133,7 @@ libc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
-tauri-macos-sign = { version = "2.2.0", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.3.2", path = "../tauri-macos-sign" }
 object = { version = "0.36", default-features = false, features = [
   "macho",
   "read_core",

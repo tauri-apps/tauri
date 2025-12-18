@@ -45,12 +45,10 @@ pub use self::{
   category::AppCategory,
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, IosSettings, MacOsSettings, PackageSettings, PackageType, Position, RpmSettings,
-    Settings, SettingsBuilder, Size, UpdaterSettings,
+    DmgSettings, Entitlements, IosSettings, MacOsSettings, PackageSettings, PackageType, PlistKind,
+    Position, RpmSettings, Settings, SettingsBuilder, Size, UpdaterSettings,
   },
 };
-#[cfg(target_os = "macos")]
-use anyhow::Context;
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
 use std::{
@@ -223,31 +221,30 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         .map(|b| b.bundle_paths)
       {
         for app_bundle_path in &app_bundle_paths {
+          use crate::error::ErrorExt;
+
           log::info!(action = "Cleaning"; "{}", app_bundle_path.display());
           match app_bundle_path.is_dir() {
             true => std::fs::remove_dir_all(app_bundle_path),
             false => std::fs::remove_file(app_bundle_path),
           }
-          .with_context(|| {
-            format!(
-              "Failed to clean the app bundle at {}",
-              app_bundle_path.display()
-            )
-          })?
+          .fs_context(
+            "failed to clean the app bundle",
+            app_bundle_path.to_path_buf(),
+          )?;
         }
       }
     }
   }
 
   if bundles.is_empty() {
-    return Err(anyhow::anyhow!("No bundles were built").into());
+    return Ok(bundles);
   }
 
-  let bundles_wo_updater = bundles
+  let finished_bundles = bundles
     .iter()
     .filter(|b| b.package_type != PackageType::Updater)
-    .collect::<Vec<_>>();
-  let finished_bundles = bundles_wo_updater.len();
+    .count();
   let pluralised = if finished_bundles == 1 {
     "bundle"
   } else {
@@ -276,7 +273,7 @@ fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> c
   if matches!(target_os, TargetPlatform::Windows) {
     if settings.windows().can_sign() {
       if settings.no_sign() {
-        log::info!("Skipping binary signing due to --no-sign flag.");
+        log::warn!("Skipping binary signing due to --no-sign flag.");
         return Ok(());
       }
 

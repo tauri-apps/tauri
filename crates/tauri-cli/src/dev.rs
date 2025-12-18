@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::{frontend_dir, tauri_dir},
     command_env,
@@ -12,10 +13,9 @@ use crate::{
   },
   info::plugins::check_mismatched_packages,
   interface::{AppInterface, ExitReason, Interface},
-  CommandExt, ConfigValue, Result,
+  CommandExt, ConfigValue, Error, Result,
 };
 
-use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
 use shared_child::SharedChild;
 use tauri_utils::{config::RunnerConfig, platform::Target};
@@ -34,7 +34,7 @@ use std::{
 mod builtin_dev_server;
 
 static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
-static KILL_BEFORE_DEV_FLAG: OnceLock<AtomicBool> = OnceLock::new();
+static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
@@ -143,7 +143,7 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
     }
   });
 
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).context("failed to set current directory")?;
 
   if let Some(before_dev) = config
     .lock()
@@ -190,15 +190,15 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
       };
 
       if wait {
-        let status = command.piped().with_context(|| {
-          format!(
-            "failed to run `{}` with `{}`",
-            before_dev,
+        let status = command.piped().map_err(|error| Error::CommandFailed {
+          command: format!(
+            "`{before_dev}` with `{}`",
             if cfg!(windows) { "cmd /S /C" } else { "sh -c" }
-          )
+          ),
+          error,
         })?;
         if !status.success() {
-          bail!(
+          crate::error::bail!(
             "beforeDevCommand `{}` failed with exit code {}",
             before_dev,
             status.code().unwrap_or_default()
@@ -206,8 +206,8 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
         }
       } else {
         command.stdin(Stdio::piped());
-        command.stdout(os_pipe::dup_stdout()?);
-        command.stderr(os_pipe::dup_stderr()?);
+        command.stdout(os_pipe::dup_stdout().unwrap());
+        command.stderr(os_pipe::dup_stderr().unwrap());
 
         let child = SharedChild::spawn(&mut command)
           .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
@@ -218,14 +218,13 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
           let status = child_
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
-          if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
+          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed)) {
             log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
         });
 
         BEFORE_DEV.set(Mutex::new(child)).unwrap();
-        KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
@@ -278,13 +277,16 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   if !options.no_dev_server && dev_url.is_none() {
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
       if path.exists() {
-        let path = path.canonicalize()?;
+        let path = path
+          .canonicalize()
+          .fs_context("failed to canonicalize path", path.to_path_buf())?;
 
         let ip = options
           .host
           .unwrap_or_else(|| Ipv4Addr::new(127, 0, 0, 1).into());
 
-        let server_url = builtin_dev_server::start(path, ip, options.port)?;
+        let server_url = builtin_dev_server::start(path, ip, options.port)
+          .context("failed to start builtin dev server")?;
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());
 
@@ -301,18 +303,16 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
 
   if !options.no_dev_server_wait {
     if let Some(url) = dev_url {
-      let host = url
-        .host()
-        .unwrap_or_else(|| panic!("No host name in the URL"));
+      let host = url.host().expect("No host name in the URL");
       let port = url
         .port_or_known_default()
-        .unwrap_or_else(|| panic!("No port number in the URL"));
+        .expect("No port number in the URL");
       let addrs;
       let addr;
       let addrs = match host {
         url::Host::Domain(domain) => {
           use std::net::ToSocketAddrs;
-          addrs = (domain, port).to_socket_addrs()?;
+          addrs = (domain, port).to_socket_addrs().unwrap();
           addrs.as_slice()
         }
         url::Host::Ipv4(ip) => {
@@ -377,11 +377,10 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let child = child.lock().unwrap();
-    let kill_before_dev_flag = KILL_BEFORE_DEV_FLAG.get().unwrap();
-    if kill_before_dev_flag.load(Ordering::Relaxed) {
+    if KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed) {
       return;
     }
-    kill_before_dev_flag.store(true, Ordering::Relaxed);
+    KILL_BEFORE_DEV_FLAG.store(true, Ordering::Relaxed);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

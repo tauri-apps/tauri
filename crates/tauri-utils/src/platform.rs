@@ -238,16 +238,12 @@ const CARGO_OUTPUT_DIRECTORIES: &[&str] = &["debug", "release", "custom-profile"
 
 #[cfg(test)]
 fn is_cargo_output_directory(path: &std::path::Path) -> bool {
-  let last_component = path
-    .components()
-    .next_back()
-    .unwrap()
-    .as_os_str()
-    .to_str()
-    .unwrap();
+  let Some(last_component) = path.components().next_back() else {
+    return false;
+  };
   CARGO_OUTPUT_DIRECTORIES
     .iter()
-    .any(|dirname| &last_component == dirname)
+    .any(|dirname| &last_component.as_os_str() == dirname)
 }
 
 /// Computes the resource directory of the current environment.
@@ -351,7 +347,7 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
 #[no_mangle]
 #[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
 #[cfg_attr(target_vendor = "apple", link_section = "__DATA,taubndl")]
-// Marked as `mut` becuase it could get optimized away without it,
+// Marked as `mut` because it could get optimized away without it,
 // see https://github.com/tauri-apps/tauri/pull/13812
 static mut __TAURI_BUNDLE_TYPE: &str = "UNK";
 

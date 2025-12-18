@@ -4,16 +4,16 @@
 
 use crate::{
   bundle::BundleFormat,
+  error::{Context, ErrorExt},
   helpers::{
     self,
     app_paths::{frontend_dir, tauri_dir},
-    config::{get as get_config, ConfigHandle, FrontendDist},
+    config::{get as get_config, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
   ConfigValue, Result,
 };
-use anyhow::Context;
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
 use tauri_utils::config::RunnerConfig;
@@ -106,10 +106,10 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     options.target.clone(),
   )?;
 
-  setup(&interface, &mut options, config.clone(), false)?;
-
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
+
+  setup(&interface, &mut options, config_, false)?;
 
   if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
@@ -132,7 +132,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       verbosity,
       ci,
       &interface,
-      &app_settings,
+      &*app_settings,
       config_,
       &out_dir,
     )?;
@@ -144,7 +144,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 pub fn setup(
   interface: &AppInterface,
   options: &mut Options,
-  config: ConfigHandle,
+  config: &ConfigMetadata,
   mobile: bool,
 ) -> Result<()> {
   let tauri_path = tauri_dir();
@@ -160,61 +160,61 @@ pub fn setup(
     }
   }
 
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).context("failed to set current directory")?;
 
-  let config_guard = config.lock().unwrap();
-  let config_ = config_guard.as_ref().unwrap();
-
-  let bundle_identifier_source = config_
+  let bundle_identifier_source = config
     .find_bundle_identifier_overwriter()
     .unwrap_or_else(|| "tauri.conf.json".into());
 
-  if config_.identifier == "com.tauri.dev" {
-    anyhow::bail!(
+  if config.identifier == "com.tauri.dev" {
+    crate::error::bail!(
       "You must change the bundle identifier in `{bundle_identifier_source} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
     );
   }
 
-  if config_
+  if config
     .identifier
     .chars()
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
-    anyhow::bail!(
-      "The bundle identifier \"{}\" set in `{} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
-      config_.identifier,
-      bundle_identifier_source
+    crate::error::bail!(
+      "The bundle identifier \"{}\" set in `{bundle_identifier_source:?} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
+      config.identifier,
     );
   }
 
-  if config_.identifier.ends_with(".app") {
+  if config.identifier.ends_with(".app") {
     log::warn!(
-      "The bundle identifier \"{}\" set in `{} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
-      config_.identifier,
-      bundle_identifier_source
+      "The bundle identifier \"{}\" set in `{bundle_identifier_source:?} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
+      config.identifier,
     );
   }
 
-  if let Some(before_build) = config_.build.before_build_command.clone() {
+  if let Some(before_build) = config.build.before_build_command.clone() {
     helpers::run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
   }
 
-  if let Some(FrontendDist::Directory(web_asset_path)) = &config_.build.frontend_dist {
+  if let Some(FrontendDist::Directory(web_asset_path)) = &config.build.frontend_dist {
     if !web_asset_path.exists() {
       let absolute_path = web_asset_path
         .parent()
         .and_then(|p| p.canonicalize().ok())
         .map(|p| p.join(web_asset_path.file_name().unwrap()))
         .unwrap_or_else(|| std::env::current_dir().unwrap().join(web_asset_path));
-      return Err(anyhow::anyhow!(
-          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
-          web_asset_path.display(), absolute_path.display(),
-        ));
+      crate::error::bail!(
+        "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
+        web_asset_path.display(), absolute_path.display(),
+      );
     }
-    if web_asset_path.canonicalize()?.file_name() == Some(std::ffi::OsStr::new("src-tauri")) {
-      return Err(anyhow::anyhow!(
+    if web_asset_path
+      .canonicalize()
+      .fs_context("failed to canonicalize path", web_asset_path.to_path_buf())?
+      .file_name()
+      == Some(std::ffi::OsStr::new("src-tauri"))
+    {
+      crate::error::bail!(
           "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
-        ));
+        );
     }
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
@@ -238,22 +238,22 @@ pub fn setup(
     }
 
     if !out_folders.is_empty() {
-      return Err(anyhow::anyhow!(
+      crate::error::bail!(
         "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
         out_folders,
         if out_folders.len() == 1 { "folder" } else { "folders" }
-      ));
+      );
     }
   }
 
   if options.runner.is_none() {
-    options.runner = config_.build.runner.clone();
+    options.runner = config.build.runner.clone();
   }
 
   options
     .features
     .get_or_insert(Vec::new())
-    .extend(config_.build.features.clone().unwrap_or_default());
+    .extend(config.build.features.clone().unwrap_or_default());
   interface.build_options(&mut options.args, &mut options.features, mobile);
 
   Ok(())

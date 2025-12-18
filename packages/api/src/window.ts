@@ -2229,7 +2229,7 @@ enum Effect {
    */
   Acrylic = 'acrylic',
   /**
-   * Tabbed effect that matches the system dark perefence **Windows 11 Only**
+   * Tabbed effect that matches the system dark preference **Windows 11 Only**
    */
   Tabbed = 'tabbed',
   /**

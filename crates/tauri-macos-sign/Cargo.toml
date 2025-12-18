@@ -1,6 +1,6 @@
 [package]
 name = "tauri-macos-sign"
-version = "2.2.0"
+version = "2.3.2"
 authors = ["Tauri Programme within The Commons Conservancy"]
 license = "Apache-2.0 OR MIT"
 keywords = ["codesign", "signing", "macos", "ios", "tauri"]
@@ -10,7 +10,7 @@ edition = "2021"
 rust-version = "1.77.2"
 
 [dependencies]
-anyhow = "1"
+thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"

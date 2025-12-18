@@ -45,12 +45,14 @@ pub struct ContextData {
 }
 
 fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  if let Ok(inline_script_elements) = document.select("script:not(empty)") {
+  if let Ok(inline_script_elements) = document.select("script:not(:empty)") {
     let mut scripts = Vec::new();
     for inline_script_el in inline_script_elements {
       let script = inline_script_el.as_node().text_contents();
       let mut hasher = Sha256::new();
-      hasher.update(&script);
+      hasher.update(tauri_utils::html::normalize_script_for_csp(
+        script.as_bytes(),
+      ));
       let hash = hasher.finalize();
       scripts.push(format!(
         "'sha256-{}'",
@@ -467,19 +469,24 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   });
 
   Ok(quote!({
-    let thread = ::std::thread::Builder::new()
-      .name(String::from("generated tauri context creation"))
-      .stack_size(8 * 1024 * 1024)
-      .spawn(|| #context)
-      .expect("unable to create thread with 8MiB stack");
+    // Wrapping in a function to make rust analyzer faster,
+    // see https://github.com/tauri-apps/tauri/pull/14457
+    fn inner<R: #root::Runtime>() -> #root::Context<R> {
+      let thread = ::std::thread::Builder::new()
+        .name(String::from("generated tauri context creation"))
+        .stack_size(8 * 1024 * 1024)
+        .spawn(|| #context)
+        .expect("unable to create thread with 8MiB stack");
 
-    match thread.join() {
-      Ok(context) => context,
-      Err(_) => {
-        eprintln!("the generated Tauri `Context` panicked during creation");
-        ::std::process::exit(101);
+      match thread.join() {
+        Ok(context) => context,
+        Err(_) => {
+          eprintln!("the generated Tauri `Context` panicked during creation");
+          ::std::process::exit(101);
+        }
       }
     }
+    inner()
   }))
 }
 

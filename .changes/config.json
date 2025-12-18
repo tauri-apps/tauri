@@ -28,12 +28,6 @@
           "pipe": true
         },
         {
-          "command": "cargo generate-lockfile",
-          "dryRunCommand": true,
-          "runFromRoot": true,
-          "pipe": true
-        },
-        {
           "command": "cargo audit ${ process.env.CARGO_AUDIT_OPTIONS || '' }",
           "dryRunCommand": true,
           "runFromRoot": true,

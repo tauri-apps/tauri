@@ -197,7 +197,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
             };
 
             async_command_check = quote_spanned! {return_type.span() =>
-              #[allow(unreachable_code, clippy::diverging_sub_expression)]
+              #[allow(unreachable_code, clippy::diverging_sub_expression, clippy::used_underscore_binding)]
               const _: () = if false {
                 #diagnostic
                 trait AsyncCommandMustReturnResult {}

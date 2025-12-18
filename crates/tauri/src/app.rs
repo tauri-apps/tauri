@@ -2486,7 +2486,7 @@ fn on_event_loop_event<R: Runtime>(
     },
     RuntimeRunEvent::Ready => {
       // set the app icon in development
-      #[cfg(all(dev, target_os = "macos"))]
+      #[cfg(all(dev, target_os = "macos", not(feature = "cef")))]
       {
         use objc2::AllocAnyThread;
         use objc2_app_kit::{NSApplication, NSImage};

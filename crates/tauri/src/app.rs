@@ -64,7 +64,7 @@ pub(crate) type GlobalWebviewEventListener<R> =
   Box<dyn Fn(&Webview<R>, &WebviewEvent) + Send + Sync>;
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
-  Box<dyn FnOnce(&mut App<R>) -> std::result::Result<(), Box<dyn std::error::Error>> + Send>;
+  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
 pub type ChannelInterceptor<R> =
@@ -443,7 +443,7 @@ impl<R: Runtime> Clone for AppHandle<R> {
 
 impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
   /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`AppHandle`]. This will never fail.
-  fn from_command(command: CommandItem<'de, R>) -> std::result::Result<Self, InvokeError> {
+  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     Ok(command.message.webview().app_handle)
   }
 }
@@ -1640,7 +1640,7 @@ tauri::Builder::default()
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&mut App<R>) -> std::result::Result<(), Box<dyn std::error::Error>> + Send + 'static,
+    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -2353,7 +2353,7 @@ fn init_app_menu<R: Runtime>(menu: &Menu<R>) -> crate::Result<()> {
 impl<R: Runtime> HasDisplayHandle for AppHandle<R> {
   fn display_handle(
     &self,
-  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+  ) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
     self.runtime_handle.display_handle()
   }
 }
@@ -2361,7 +2361,7 @@ impl<R: Runtime> HasDisplayHandle for AppHandle<R> {
 impl<R: Runtime> HasDisplayHandle for App<R> {
   fn display_handle(
     &self,
-  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+  ) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
     self.handle.display_handle()
   }
 }

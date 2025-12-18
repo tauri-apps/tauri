@@ -969,6 +969,11 @@ impl Settings {
     &self.target_platform
   }
 
+  /// Raw list of icons.
+  pub fn icons(&self) -> Option<&Vec<String>> {
+    self.bundle_settings.icon.as_ref()
+  }
+
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
   pub fn binary_arch(&self) -> Arch {
     if self.target.starts_with("x86_64") {

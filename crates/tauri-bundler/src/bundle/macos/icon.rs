@@ -127,7 +127,7 @@ pub fn create_assets_car_file(
   out_dir: &Path,
   settings: &Settings,
 ) -> crate::Result<Option<PathBuf>> {
-  let Some(icons) = settings.bundle_settings().icon.as_ref() else {
+  let Some(icons) = settings.icons() else {
     return Ok(None);
   };
   // If one of the icon files is already a CAR file, just use that.

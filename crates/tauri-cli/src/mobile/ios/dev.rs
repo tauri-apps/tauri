@@ -312,7 +312,7 @@ fn run_dev(
     use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(&InterfaceOptions {

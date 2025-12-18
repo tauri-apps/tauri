@@ -1,0 +1,19 @@
+[package]
+name = "tauri-cef-helper"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[dependencies]
+cef = { version = "142.2.1", default-features = false }
+
+[features]
+default = ["sandbox"]
+# Mirrors `tauri-runtime-cef` default feature to enable CEF sandbox support on macOS.
+sandbox = ["cef/sandbox"]
+
+# Ensure this crate is NOT treated as part of the repo workspace.
+[workspace]
+
+

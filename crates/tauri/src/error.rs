@@ -6,18 +6,13 @@ use std::fmt;
 
 /// A generic boxed error.
 #[derive(Debug)]
-pub struct SetupError(Box<dyn std::error::Error>);
+pub struct SetupError(Box<dyn std::error::Error + Send + Sync>);
 
-impl From<Box<dyn std::error::Error>> for SetupError {
-  fn from(error: Box<dyn std::error::Error>) -> Self {
+impl From<Box<dyn std::error::Error + Send + Sync>> for SetupError {
+  fn from(error: Box<dyn std::error::Error + Send + Sync>) -> Self {
     Self(error)
   }
 }
-
-// safety: the setup error is only used on the main thread
-// and we exit the process immediately.
-unsafe impl Send for SetupError {}
-unsafe impl Sync for SetupError {}
 
 impl fmt::Display for SetupError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

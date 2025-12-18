@@ -64,7 +64,7 @@ pub(crate) type GlobalWebviewEventListener<R> =
   Box<dyn Fn(&Webview<R>, &WebviewEvent) + Send + Sync>;
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
-  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
+  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> + Send>;
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
 pub type ChannelInterceptor<R> =
@@ -1640,7 +1640,7 @@ tauri::Builder::default()
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
+    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self

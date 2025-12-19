@@ -104,6 +104,7 @@ enum Commands {
 }
 
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
     Commands::Init(options) => init_command(
@@ -112,6 +113,7 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
       false,
       options.skip_targets_install,
       options.config,
+      &dirs,
     )?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level, None).map(|_| ())?,

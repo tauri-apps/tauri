@@ -30,7 +30,6 @@ use super::{
 use crate::{
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::Dirs,
     config::{BundleResources, Config as TauriConfig, ConfigHandle},
     pbxproj, strip_semver_prerelease_tag,
   },
@@ -103,19 +102,18 @@ enum Commands {
 
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   match cli.command {
-    Commands::Init(options) => {
-      crate::helpers::app_paths::resolve();
-      init_command(
-        MobileTarget::Ios,
-        options.ci,
-        options.reinstall_deps,
-        options.skip_targets_install,
-        options.config,
-      )?
-    }
+    Commands::Init(options) => init_command(
+      MobileTarget::Ios,
+      options.ci,
+      options.reinstall_deps,
+      options.skip_targets_install,
+      options.config,
+      &dirs,
+    )?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
-    Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
+    Commands::Build(options) => build::command(options, noise_level, &dirs).map(|_| ())?,
     Commands::Run(options) => run::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,
   }
@@ -128,6 +126,7 @@ pub fn get_config(
   tauri_config: &TauriConfig,
   features: &[String],
   cli_options: &CliOptions,
+  tauri_dir: &Path,
 ) -> Result<(AppleConfig, AppleMetadata)> {
   let mut ios_options = cli_options.clone();
   ios_options.features.extend_from_slice(features);
@@ -259,7 +258,7 @@ pub fn get_config(
       );
     } else {
       vendor_frameworks.push(
-        relativize_path(dirs.tauri.join(framework_path), config.project_dir())
+        relativize_path(tauri_dir.join(framework_path), config.project_dir())
           .to_string_lossy()
           .to_string(),
       );

@@ -192,14 +192,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = &tauri_config_guard;
 
-    let interface = AppInterface::new(tauri_config_, Some(target_triple))?;
+    let interface = AppInterface::new(tauri_config_, Some(target_triple), dirs.tauri)?;
 
-    let app = get_app(MobileTarget::Ios, tauri_config_, &interface);
+    let app = get_app(MobileTarget::Ios, tauri_config_, &interface, dirs.tauri);
     let (config, _metadata) = get_config(
       &app,
       tauri_config_,
       &dev_options.features,
       &Default::default(),
+      dirs.tauri,
     )?;
 
     (interface, config)

@@ -4,6 +4,7 @@
 
 use super::{get_app, Target};
 use crate::{
+  helpers::app_paths::Dirs,
   helpers::{config::get_config as get_tauri_config, template::JsonMap},
   interface::{AppInterface, Interface},
   ConfigValue, Result,
@@ -28,6 +29,7 @@ pub fn command(
   reinstall_deps: bool,
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
+  dirs: &Dirs,
 ) -> Result<()> {
   let wrapper = TextWrapper::default();
 
@@ -38,6 +40,7 @@ pub fn command(
     reinstall_deps,
     skip_targets_install,
     config,
+    dirs,
   )?;
   Ok(())
 }
@@ -49,8 +52,8 @@ pub fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
+  dirs: &Dirs,
 ) -> Result<App> {
-  let dirs = crate::helpers::app_paths::resolve_dirs();
   let tauri_config = get_tauri_config(
     target.platform_target(),
     &config.iter().map(|conf| &conf.0).collect::<Vec<_>>(),

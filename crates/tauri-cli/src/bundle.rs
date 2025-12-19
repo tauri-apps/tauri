@@ -132,15 +132,15 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
-  )?;
+  )?
+  .into_inner()
+  .unwrap();
 
-  let interface = AppInterface::new(&config.lock().unwrap(), options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
   std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
-  let config_ = config.lock().unwrap();
-
-  if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
+  if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
   }
 
@@ -155,7 +155,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     ci,
     &interface,
     &*app_settings,
-    &config_,
+    &config,
     &out_dir,
     &dirs,
   )

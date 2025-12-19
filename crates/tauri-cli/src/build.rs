@@ -98,17 +98,15 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
-  )?;
+  )?
+  .into_inner()
+  .unwrap();
 
-  let mut interface =
-    AppInterface::new(&config.lock().unwrap(), options.target.clone(), dirs.tauri)?;
+  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
-  let config_guard = config.lock().unwrap();
-  let config_ = &*config_guard;
+  setup(&interface, &mut options, &config, false, dirs)?;
 
-  setup(&interface, &mut options, config_, false, dirs)?;
-
-  if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
+  if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
   }
 
@@ -123,14 +121,14 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
 
   let app_settings = interface.app_settings();
 
-  if !options.no_bundle && (config_.bundle.active || options.bundles.is_some()) {
+  if !options.no_bundle && (config.bundle.active || options.bundles.is_some()) {
     crate::bundle::bundle(
       &options.into(),
       verbosity,
       ci,
       &interface,
       &*app_settings,
-      config_,
+      &config,
       &out_dir,
       dirs,
     )?;

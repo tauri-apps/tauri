@@ -184,7 +184,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     false,
   )?;
 
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+  {
+    let config_guard = tauri_config.lock().unwrap();
+    let config_ = config_guard.as_ref().unwrap();
+
+    crate::build::setup(&interface, &mut build_options, config_, true)?;
+  }
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();

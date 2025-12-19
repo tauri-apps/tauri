@@ -158,7 +158,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     verbosity,
     ci,
     &interface,
-    &app_settings,
+    &*app_settings,
     config_,
     &out_dir,
   )
@@ -170,7 +170,7 @@ pub fn bundle<A: AppSettings>(
   verbosity: u8,
   ci: bool,
   interface: &AppInterface,
-  app_settings: &std::sync::Arc<A>,
+  app_settings: &A,
   config: &ConfigMetadata,
   out_dir: &Path,
 ) -> crate::Result<()> {

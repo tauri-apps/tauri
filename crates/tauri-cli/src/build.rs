@@ -106,7 +106,7 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
   let config_guard = config.lock().unwrap();
   let config_ = &*config_guard;
 
-  setup(&interface, &mut options, config_, false, &dirs)?;
+  setup(&interface, &mut options, config_, false, dirs)?;
 
   if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
@@ -117,7 +117,7 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
 
   let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
 
-  let bin_path = interface.build(interface_options, &dirs)?;
+  let bin_path = interface.build(interface_options, dirs)?;
 
   log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(bin_path));
 
@@ -132,7 +132,7 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
       &*app_settings,
       config_,
       &out_dir,
-      &dirs,
+      dirs,
     )?;
   }
 

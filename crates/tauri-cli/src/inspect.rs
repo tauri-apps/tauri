@@ -31,9 +31,7 @@ pub fn command(cli: Cli) -> Result<()> {
 // NOTE: if this is ever changed, make sure to also update Wix upgrade code generation in tauri-bundler
 fn wix_upgrade_code(tauri_dir: &Path) -> Result<()> {
   let target = tauri_utils::platform::Target::Windows;
-  let config = crate::helpers::config::get_config(target, &[], tauri_dir)?
-    .into_inner()
-    .unwrap();
+  let config = crate::helpers::config::get_config(target, &[], tauri_dir)?;
 
   let interface = AppInterface::new(&config, None, tauri_dir)?;
 

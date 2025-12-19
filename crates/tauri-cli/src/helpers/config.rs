@@ -235,8 +235,8 @@ pub fn get_config(
   target: Target,
   merge_configs: &[&serde_json::Value],
   tauri_dir: &Path,
-) -> crate::Result<Mutex<ConfigMetadata>> {
-  load_config(merge_configs, false, target, tauri_dir).map(Mutex::new)
+) -> crate::Result<ConfigMetadata> {
+  load_config(merge_configs, false, target, tauri_dir)
 }
 
 pub fn reload_config(

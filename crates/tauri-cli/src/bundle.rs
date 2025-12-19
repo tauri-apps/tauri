@@ -132,9 +132,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
-  )?
-  .into_inner()
-  .unwrap();
+  )?;
 
   let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 

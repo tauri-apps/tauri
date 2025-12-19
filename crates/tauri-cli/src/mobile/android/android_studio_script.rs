@@ -46,17 +46,13 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[], dirs.tauri)?;
-  let cli_options = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = &tauri_config_guard;
-    read_options(tauri_config_)
-  };
+  let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[], dirs.tauri)?;
+  let cli_options = read_options(&tauri_config);
 
   if !cli_options.config.is_empty() {
     // reload config with merges from the android dev|build script
     reload_tauri_config(
-      &mut tauri_config.lock().unwrap(),
+      &mut tauri_config,
       &cli_options
         .config
         .iter()
@@ -67,16 +63,14 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let (config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = &*tauri_config_guard;
     let (config, metadata) = get_config(
       &get_app(
         MobileTarget::Android,
-        tauri_config_,
-        &AppInterface::new(tauri_config_, None, dirs.tauri)?,
+        &tauri_config,
+        &AppInterface::new(&tauri_config, None, dirs.tauri)?,
         dirs.tauri,
       ),
-      tauri_config_,
+      &tauri_config,
       &[],
       &cli_options,
     );
@@ -93,7 +87,7 @@ pub fn command(options: Options) -> Result<()> {
 
   if !cli_options.config.is_empty() {
     crate::helpers::config::merge_config_with(
-      &mut tauri_config.lock().unwrap(),
+      &mut tauri_config,
       &cli_options
         .config
         .iter()
@@ -105,9 +99,7 @@ pub fn command(options: Options) -> Result<()> {
   let env = env(std::env::var("CI").is_ok())?;
 
   if cli_options.dev {
-    let dev_url = tauri_config.lock().unwrap().build.dev_url.clone();
-
-    if let Some(url) = dev_url {
+    if let Some(url) = &tauri_config.build.dev_url {
       let localhost = match url.host() {
         Some(url::Host::Domain(d)) => d == "localhost",
         Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,

@@ -98,9 +98,7 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
-  )?
-  .into_inner()
-  .unwrap();
+  )?;
 
   let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 

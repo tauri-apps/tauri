@@ -311,9 +311,7 @@ pub fn command(options: Options) -> Result<()> {
   };
   if let Some(tauri_dir) = &tauri_dir {
     if let Ok(config) = crate::helpers::config::get_config(Target::current(), &[], tauri_dir) {
-      app
-        .items
-        .extend(app::items(&config.lock().unwrap(), frontend_dir.as_ref()));
+      app.items.extend(app::items(&config, frontend_dir.as_ref()));
     };
   }
 

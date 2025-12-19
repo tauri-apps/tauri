@@ -495,7 +495,7 @@ pub fn get_app(
 
 #[allow(unused_variables)]
 fn ensure_init(
-  tauri_config: &ConfigHandle,
+  tauri_config: &ConfigMetadata,
   app: &App,
   project_dir: PathBuf,
   target: Target,
@@ -510,16 +510,13 @@ fn ensure_init(
     )
   }
 
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = &tauri_config_guard;
-
   let mut project_outdated_reasons = Vec::new();
 
   match target {
     Target::Android => {
       let java_folder = project_dir
         .join("app/src/main/java")
-        .join(tauri_config_.identifier.replace('.', "/").replace('-', "_"));
+        .join(tauri_config.identifier.replace('.', "/").replace('-', "_"));
       if java_folder.exists() {
         #[cfg(unix)]
         ensure_gradlew(&project_dir)?;

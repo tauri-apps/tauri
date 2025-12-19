@@ -11,7 +11,7 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigHandle},
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
   interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
@@ -35,6 +35,7 @@ use cargo_mobile2::{
 };
 use url::Host;
 
+use std::sync::Mutex;
 use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 
 #[derive(Debug, Clone, Parser)]
@@ -184,15 +185,12 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   dev_options.target = Some(target_triple);
 
   let (interface, config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = &tauri_config_guard;
+    let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
 
-    let interface = AppInterface::new(tauri_config_, dev_options.target.clone(), dirs.tauri)?;
-
-    let app = get_app(MobileTarget::Android, tauri_config_, &interface, dirs.tauri);
+    let app = get_app(MobileTarget::Android, &tauri_config, &interface, dirs.tauri);
     let (config, metadata) = get_config(
       &app,
-      tauri_config_,
+      &tauri_config,
       dev_options.features.as_ref(),
       &Default::default(),
     );
@@ -212,7 +210,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     interface,
     options,
     dev_options,
-    &tauri_config,
+    tauri_config,
     device,
     env,
     &config,
@@ -227,7 +225,7 @@ fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
-  tauri_config: &ConfigHandle,
+  tauri_config: ConfigMetadata,
   device: Option<Device>,
   mut env: Env,
   config: &AndroidConfig,
@@ -235,6 +233,7 @@ fn run_dev(
   noise_level: NoiseLevel,
   dirs: &Dirs,
 ) -> Result<()> {
+  let tauri_config = Mutex::new(tauri_config);
   // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
     || device
@@ -255,14 +254,14 @@ fn run_dev(
       })
   {
     use_network_address_for_dev_url(
-      tauri_config,
+      &tauri_config,
       &mut dev_options,
       options.force_ip_prompt,
       dirs.tauri,
     )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config, dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, &tauri_config, dirs)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -312,7 +311,7 @@ fn run_dev(
 
   let open = options.open;
   interface.mobile_dev(
-    tauri_config,
+    &tauri_config,
     MobileOptions {
       debug: !options.release_mode,
       features: options.features,

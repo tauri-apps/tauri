@@ -9,6 +9,7 @@ use cargo_mobile2::{
 };
 use clap::{ArgAction, Parser};
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use super::{configure_cargo, device_prompt, env};
 use crate::{
@@ -78,7 +79,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let dirs = crate::helpers::app_paths::resolve_dirs();
-  let tauri_config = crate::helpers::config::get_config(
+  let cfg = crate::helpers::config::get_config(
     tauri_utils::platform::Target::Android,
     &options
       .config
@@ -87,7 +88,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let meta = (dirs, tauri_config);
+  let meta = (dirs, Mutex::new(cfg));
   let mut built_application = super::build::command(
     super::build::Options {
       debug: !options.release,

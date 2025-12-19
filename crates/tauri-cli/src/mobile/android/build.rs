@@ -11,7 +11,7 @@ use crate::{
   error::Context,
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigHandle, ConfigMetadata},
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
   interface::{AppInterface, Interface, Options as InterfaceOptions},
@@ -123,7 +123,7 @@ pub fn command(
   meta: Option<&(Dirs, Mutex<ConfigMetadata>)>,
 ) -> Result<BuiltApplication> {
   let dirs2 = crate::helpers::app_paths::resolve_dirs();
-  let tauri_config2 = get_tauri_config(
+  let tauri_config2 = Mutex::new(get_tauri_config(
     tauri_utils::platform::Target::Android,
     &options
       .config
@@ -131,7 +131,7 @@ pub fn command(
       .map(|conf| &conf.0)
       .collect::<Vec<_>>(),
     dirs2.tauri,
-  )?;
+  )?);
   let (dirs, tauri_config) = match meta {
     Some((dirs, config)) => (dirs, config),
     None => (&dirs2, &tauri_config2),
@@ -151,18 +151,16 @@ pub fn command(
     )
     .unwrap();
   build_options.target = Some(first_target.triple.into());
+  let tauri_config = &tauri_config.lock().unwrap();
 
   let (interface, config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = &tauri_config_guard;
-
-    let interface = AppInterface::new(tauri_config_, build_options.target.clone(), dirs.tauri)?;
+    let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Android, tauri_config_, &interface, dirs.tauri);
+    let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
     let (config, metadata) = get_config(
       &app,
-      tauri_config_,
+      &tauri_config,
       &build_options.features,
       &Default::default(),
     );
@@ -188,14 +186,9 @@ pub fn command(
   let mut env = env(options.ci)?;
   configure_cargo(&mut env, &config)?;
 
-  generate_tauri_properties(&config, &tauri_config.lock().unwrap(), false)?;
+  generate_tauri_properties(&config, tauri_config, false)?;
 
-  {
-    let config_guard = tauri_config.lock().unwrap();
-    let config_ = &config_guard;
-
-    crate::build::setup(&interface, &mut build_options, config_, true, dirs)?;
-  }
+  crate::build::setup(&interface, &mut build_options, tauri_config, true, dirs)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();
@@ -244,7 +237,7 @@ fn run_build(
   interface: &AppInterface,
   mut options: Options,
   build_options: BuildOptions,
-  tauri_config: &ConfigHandle,
+  tauri_config: &ConfigMetadata,
   profile: Profile,
   config: &AndroidConfig,
   env: &mut Env,
@@ -277,9 +270,9 @@ fn run_build(
     config: build_options.config,
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(&tauri_config.lock().unwrap(), cli_options)?;
+  let handle = write_options(tauri_config, cli_options)?;
 
-  inject_resources(config, &tauri_config.lock().unwrap())?;
+  inject_resources(config, tauri_config)?;
 
   let apk_outputs = if options.apk.unwrap_or_default() {
     apk::build(

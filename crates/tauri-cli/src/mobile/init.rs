@@ -60,8 +60,6 @@ pub fn exec(
     dirs.tauri,
   )?;
 
-  let tauri_config = tauri_config.lock().unwrap();
-
   let app = get_app(
     target,
     &tauri_config,
@@ -155,10 +153,10 @@ pub fn exec(
     // Generate Xcode project
     Target::Ios => {
       let (config, metadata) =
-        super::ios::get_config(&app, &*tauri_config, &[], &Default::default())?;
+        super::ios::get_config(&app, &tauri_config, &[], &Default::default())?;
       map.insert("apple", &config);
       super::ios::project::gen(
-        &*tauri_config,
+        &tauri_config,
         &config,
         &metadata,
         (handlebars, map),

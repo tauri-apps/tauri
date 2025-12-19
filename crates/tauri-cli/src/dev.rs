@@ -113,11 +113,12 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let config = get_config(
+  let cfg = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
+  let config = Mutex::new(cfg);
 
   let mut interface =
     AppInterface::new(&config.lock().unwrap(), options.target.clone(), dirs.tauri)?;

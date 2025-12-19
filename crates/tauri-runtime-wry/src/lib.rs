@@ -804,10 +804,6 @@ impl std::fmt::Debug for WindowBuilderWrapper {
   }
 }
 
-// SAFETY: this type is `Send` since `menu_items` are read only here
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for WindowBuilderWrapper {}
-
 impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
@@ -5224,5 +5220,14 @@ fn to_tao_theme(theme: Option<Theme>) -> Option<TaoTheme> {
     Some(Theme::Light) => Some(TaoTheme::Light),
     Some(Theme::Dark) => Some(TaoTheme::Dark),
     _ => None,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  fn is_send<T: Send>() {}
+  #[test]
+  fn are_send() {
+    is_send::<super::WindowBuilderWrapper>();
   }
 }

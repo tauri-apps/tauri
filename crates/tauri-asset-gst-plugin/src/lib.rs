@@ -12,7 +12,7 @@ gst::plugin_define!(
   env!("CARGO_PKG_DESCRIPTION"),
   plugin_init,
   concat!(env!("CARGO_PKG_VERSION"), "-", env!("COMMIT_ID")),
-  "The Plugin's License",
+  "MIT",
   env!("CARGO_PKG_NAME"),
   env!("CARGO_PKG_NAME"),
   env!("CARGO_PKG_REPOSITORY"),

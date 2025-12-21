@@ -11,7 +11,7 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigHandle},
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
     plist::merge_plist,
   },
@@ -35,6 +35,7 @@ use cargo_mobile2::{
 };
 use url::Host;
 
+use std::sync::Mutex;
 use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
@@ -189,15 +190,12 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     dirs.tauri,
   )?;
   let (interface, config) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = &tauri_config_guard;
+    let interface = AppInterface::new(&tauri_config, Some(target_triple), dirs.tauri)?;
 
-    let interface = AppInterface::new(tauri_config_, Some(target_triple), dirs.tauri)?;
-
-    let app = get_app(MobileTarget::Ios, tauri_config_, &interface, dirs.tauri);
+    let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
     let (config, _metadata) = get_config(
       &app,
-      tauri_config_,
+      &tauri_config,
       &dev_options.features,
       &Default::default(),
       dirs.tauri,
@@ -215,7 +213,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     MobileTarget::Ios,
     false,
   )?;
-  inject_resources(&config, &tauri_config.lock().unwrap())?;
+  inject_resources(&config, &tauri_config)?;
 
   let info_plist_path = config
     .project_dir()
@@ -228,7 +226,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   if dirs.tauri.join("Info.ios.plist").exists() {
     src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config.lock().unwrap().bundle.ios.info_plist {
+  if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
     src_plists.push(info_plist.clone().into());
   }
   let merged_info_plist = merge_plist(src_plists)?;
@@ -276,13 +274,14 @@ fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
-  tauri_config: ConfigHandle,
+  tauri_config: ConfigMetadata,
   device: Option<Device>,
   env: Env,
   config: &AppleConfig,
   noise_level: NoiseLevel,
   dirs: &Dirs,
 ) -> Result<()> {
+  let tauri_config = Mutex::new(tauri_config);
   // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
     || device
@@ -313,11 +312,14 @@ fn run_dev(
   crate::dev::setup(&interface, &mut dev_options, &tauri_config, &dirs)?;
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&InterfaceOptions {
-    debug: !dev_options.release_mode,
-    target: dev_options.target.clone(),
-    ..Default::default()
-  })?;
+  let out_dir = app_settings.out_dir(
+    &InterfaceOptions {
+      debug: !dev_options.release_mode,
+      target: dev_options.target.clone(),
+      ..Default::default()
+    },
+    dirs.tauri,
+  )?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let set_host = options.host.0.is_some();

@@ -5,7 +5,6 @@
 use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
   error::{Context, ErrorExt},
-  helpers::app_paths::Dirs,
   helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
   interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
@@ -95,17 +94,13 @@ pub fn command(options: Options) -> Result<()> {
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[], dirs.tauri)?;
+  let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[], dirs.tauri)?;
   let cli_options = {
-    let cli_options = {
-      let tauri_config_guard = tauri_config.lock().unwrap();
-      let tauri_config_ = &tauri_config_guard;
-      read_options(tauri_config_)
-    };
+    let cli_options = { read_options(&tauri_config) };
     if !cli_options.config.is_empty() {
       // reload config with merges from the ios dev|build script
       reload_tauri_config(
-        &mut tauri_config.lock().unwrap(),
+        &mut tauri_config,
         &cli_options
           .config
           .iter()
@@ -119,17 +114,15 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let (config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = &tauri_config_guard;
-    let cli_options = read_options(tauri_config_);
+    let cli_options = read_options(&tauri_config);
     let (config, metadata) = get_config(
       &get_app(
         MobileTarget::Ios,
-        tauri_config_,
-        &AppInterface::new(tauri_config_, None, dirs.tauri)?,
+        &tauri_config,
+        &AppInterface::new(&tauri_config, None, dirs.tauri)?,
         dirs.tauri,
       ),
-      tauri_config_,
+      &tauri_config,
       &[],
       &cli_options,
       dirs.tauri,
@@ -146,7 +139,7 @@ pub fn command(options: Options) -> Result<()> {
 
   if !cli_options.config.is_empty() {
     crate::helpers::config::merge_config_with(
-      tauri_config.lock().unwrap(),
+      &mut tauri_config,
       &cli_options
         .config
         .iter()
@@ -240,11 +233,7 @@ pub fn command(options: Options) -> Result<()> {
       }
     };
 
-    let interface = AppInterface::new(
-      &tauri_config.lock().unwrap(),
-      Some(rust_triple.into()),
-      dirs.tauri,
-    )?;
+    let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri)?;
 
     let cflags = format!("CFLAGS_{env_triple}");
     let cxxflags = format!("CFLAGS_{env_triple}");

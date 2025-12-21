@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use cargo_mobile2::opts::{NoiseLevel, Profile};
 use clap::{ArgAction, Parser};
@@ -97,11 +98,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &dirs,
   )?;
 
-  let tauri_config = get_tauri_config(
+  let cfg = get_tauri_config(
     tauri_utils::platform::Target::Ios,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
+  let tauri_config = Mutex::new(cfg);
 
   // options.open is handled by the build command
   // so all we need to do here is run the app on the selected device
@@ -133,7 +135,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
-        dirs.tauri,
+        &dirs,
       )?;
     }
   }

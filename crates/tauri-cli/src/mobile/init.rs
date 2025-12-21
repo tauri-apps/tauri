@@ -153,7 +153,7 @@ pub fn exec(
     // Generate Xcode project
     Target::Ios => {
       let (config, metadata) =
-        super::ios::get_config(&app, &tauri_config, &[], &Default::default())?;
+        super::ios::get_config(&app, &tauri_config, &[], &Default::default(), dirs.tauri)?;
       map.insert("apple", &config);
       super::ios::project::gen(
         &tauri_config,

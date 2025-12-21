@@ -30,7 +30,7 @@ use super::{
 use crate::{
   error::{Context, ErrorExt},
   helpers::{
-    config::{BundleResources, Config as TauriConfig, ConfigHandle},
+    config::{BundleResources, Config as TauriConfig, ConfigMetadata},
     pbxproj, strip_semver_prerelease_tag,
   },
   ConfigValue, Error, Result,
@@ -550,14 +550,14 @@ pub fn load_pbxproj(config: &AppleConfig) -> Result<pbxproj::Pbxproj> {
 
 pub fn synchronize_project_config(
   config: &AppleConfig,
-  tauri_config: &ConfigHandle,
+  tauri_config: &ConfigMetadata,
   pbxproj: &mut pbxproj::Pbxproj,
   export_options_plist: &mut plist::Dictionary,
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config.lock().unwrap().identifier.clone();
-  let product_name = tauri_config.lock().unwrap().product_name.clone();
+  let identifier = tauri_config.identifier.clone();
+  let product_name = tauri_config.product_name.clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();

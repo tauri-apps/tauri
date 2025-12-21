@@ -12,7 +12,7 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigHandle},
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
     plist::merge_plist,
   },
@@ -190,16 +190,13 @@ pub fn command(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result
     dirs.tauri,
   )?;
   let (interface, mut config) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = &tauri_config_guard;
-
-    let interface = AppInterface::new(tauri_config_, build_options.target.clone(), dirs.tauri)?;
+    let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Ios, tauri_config_, &interface, dirs.tauri);
+    let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
     let (config, _metadata) = get_config(
       &app,
-      tauri_config_,
+      &tauri_config,
       &build_options.features,
       &Default::default(),
       dirs.tauri,
@@ -216,7 +213,7 @@ pub fn command(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result
     MobileTarget::Ios,
     options.ci,
   )?;
-  inject_resources(&config, &tauri_config.lock().unwrap())?;
+  inject_resources(&config, &tauri_config)?;
 
   let mut plist = plist::Dictionary::new();
   plist.insert(
@@ -236,7 +233,7 @@ pub fn command(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result
   if dirs.tauri.join("Info.ios.plist").exists() {
     src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config.lock().unwrap().bundle.ios.info_plist {
+  if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
     src_plists.push(info_plist.clone().into());
   }
   let merged_info_plist = merge_plist(src_plists)?;
@@ -348,7 +345,7 @@ fn run_build(
   interface: &AppInterface,
   options: Options,
   mut build_options: BuildOptions,
-  tauri_config: ConfigHandle,
+  tauri_config: ConfigMetadata,
   config: &mut AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
@@ -360,13 +357,7 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(
-    interface,
-    &mut build_options,
-    &tauri_config.lock().unwrap(),
-    true,
-    dirs,
-  )?;
+  crate::build::setup(interface, &mut build_options, &tauri_config, true, dirs)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(
@@ -389,7 +380,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(&tauri_config.lock().unwrap(), cli_options)?;
+  let handle = write_options(&tauri_config, cli_options)?;
 
   if options.open {
     return Ok(handle);

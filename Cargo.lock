@@ -1083,7 +1083,7 @@ dependencies = [
  "serde_json",
  "textwrap",
  "thiserror 2.0.12",
- "toml 0.9.4",
+ "toml 0.9.10+spec-1.1.0",
  "ureq",
  "which",
  "windows 0.61.1",
@@ -1120,7 +1120,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "374b7c592d9c00c1f4972ea58390ac6b18cbb6ab79011f3bdc90a0b82ca06b77"
 dependencies = [
  "serde",
- "toml 0.9.4",
+ "toml 0.9.10+spec-1.1.0",
 ]
 
 [[package]]
@@ -2219,7 +2219,7 @@ dependencies = [
  "cc",
  "memchr",
  "rustc_version",
- "toml 0.9.4",
+ "toml 0.9.10+spec-1.1.0",
  "vswhom",
  "winreg 0.55.0",
 ]
@@ -3105,7 +3105,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.12",
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "slab",
  "tokio",
  "tokio-util",
@@ -3124,7 +3124,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http 1.3.1",
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "slab",
  "tokio",
  "tokio-util",
@@ -3722,9 +3722,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.12.1"
+version = "2.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ad4bb2b565bca0645f4d68c5c9af97fba094e9791da685bf83cb5f3ce74acf2"
+checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
 dependencies = [
  "equivalent",
  "hashbrown 0.16.1",
@@ -4234,7 +4234,7 @@ checksum = "02cb977175687f33fa4afa0c95c112b987ea1443e5a51c8f8ff27dc618270cc2"
 dependencies = [
  "cssparser",
  "html5ever",
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "selectors",
 ]
 
@@ -5264,7 +5264,7 @@ dependencies = [
  "crc32fast",
  "flate2",
  "hashbrown 0.14.5",
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "memchr",
  "ruzstd",
 ]
@@ -6094,7 +6094,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42cf17e9a1800f5f396bc67d193dc9411b59012a5876445ef450d449881e1016"
 dependencies = [
  "base64 0.22.1",
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "quick-xml",
  "serde",
  "time",
@@ -7622,15 +7622,16 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.140"
+version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
+checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
 dependencies = [
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "itoa",
  "memchr",
  "ryu",
  "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -7694,7 +7695,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "serde",
  "serde_derive",
  "serde_json",
@@ -7720,7 +7721,7 @@ version = "0.9.34+deprecated"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
 dependencies = [
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "itoa",
  "ryu",
  "serde",
@@ -8580,7 +8581,7 @@ dependencies = [
  "tauri-codegen",
  "tauri-utils",
  "tauri-winres",
- "toml 0.9.4",
+ "toml 0.9.10+spec-1.1.0",
  "walkdir",
 ]
 
@@ -8702,7 +8703,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.12",
  "tokio",
- "toml 0.9.4",
+ "toml 0.9.10+spec-1.1.0",
  "toml_edit 0.24.0+spec-1.1.0",
  "ureq",
  "url",
@@ -8833,7 +8834,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-utils",
- "toml 0.9.4",
+ "toml 0.9.10+spec-1.1.0",
  "walkdir",
 ]
 
@@ -8978,7 +8979,7 @@ dependencies = [
  "serialize-to-javascript",
  "swift-rs",
  "thiserror 2.0.12",
- "toml 0.9.4",
+ "toml 0.9.10+spec-1.1.0",
  "url",
  "urlpattern",
  "uuid",
@@ -8992,8 +8993,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c6d9028d41d4de835e3c482c677a8cb88137ac435d6ff9a71f392d4421576c9"
 dependencies = [
  "embed-resource",
- "indexmap 2.12.1",
- "toml 0.9.4",
+ "indexmap 2.11.4",
+ "toml 0.9.10+spec-1.1.0",
 ]
 
 [[package]]
@@ -9322,12 +9323,12 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.4"
+version = "0.9.10+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41ae868b5a0f67631c14589f7e250c1ea2c574ee5ba21c6c8dd4b1485705a5a1"
+checksum = "0825052159284a1a8b4d6c0c86cbc801f2da5afd2b225fa548c72f2e74002f48"
 dependencies = [
- "indexmap 2.12.1",
- "serde",
+ "indexmap 2.11.4",
+ "serde_core",
  "serde_spanned 1.0.4",
  "toml_datetime 0.7.5+spec-1.1.0",
  "toml_parser",
@@ -9359,7 +9360,7 @@ version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "toml_datetime 0.6.8",
  "winnow 0.5.40",
 ]
@@ -9370,7 +9371,7 @@ version = "0.20.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70f427fce4d84c72b5b732388bf4a9f4531b53f74e2887e3ecb2481f68f66d81"
 dependencies = [
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "toml_datetime 0.6.8",
  "winnow 0.5.40",
 ]
@@ -9381,7 +9382,7 @@ version = "0.22.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17b4795ff5edd201c7cd6dca065ae59972ce77d1b80fa0a84d94950ece7d1474"
 dependencies = [
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "serde",
  "serde_spanned 0.6.8",
  "toml_datetime 0.6.8",
@@ -9394,7 +9395,7 @@ version = "0.24.0+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c740b185920170a6d9191122cafef7010bd6270a3824594bff6784c04d7f09e"
 dependencies = [
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "serde_core",
  "serde_spanned 1.0.4",
  "toml_datetime 0.7.5+spec-1.1.0",
@@ -11255,7 +11256,7 @@ dependencies = [
  "arbitrary",
  "crc32fast",
  "flate2",
- "indexmap 2.12.1",
+ "indexmap 2.11.4",
  "memchr",
  "zopfli",
 ]

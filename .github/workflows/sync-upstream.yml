@@ -1,0 +1,45 @@
+name: Sync with Upstream
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: gtk4
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/tauri-apps/tauri.git || true
+
+      - name: Fetch upstream
+        run: git fetch upstream
+
+      - name: Check and merge upstream
+        run: |
+          BEHIND=$(git rev-list --count HEAD..upstream/dev)
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "Found $BEHIND new commits from upstream"
+            if git merge upstream/dev --no-edit; then
+              echo "Successfully merged upstream changes"
+              git push origin gtk4
+            else
+              echo "Merge conflicts detected - manual intervention required"
+              git merge --abort
+              exit 1
+            fi
+          else
+            echo "Already up to date with upstream"
+          fi

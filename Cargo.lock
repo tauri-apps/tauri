@@ -3626,9 +3626,9 @@ dependencies = [
 
 [[package]]
 name = "ico"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc50b891e4acf8fe0e71ef88ec43ad82ee07b3810ad09de10f1d01f072ed4b98"
+checksum = "3e795dff5605e0f04bff85ca41b51a96b83e80b281e96231bcaaf1ac35103371"
 dependencies = [
  "byteorder",
  "png",
@@ -5080,11 +5080,10 @@ dependencies = [
 
 [[package]]
 name = "num-bigint-dig"
-version = "0.8.4"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc84195820f291c7697304f3cbdadd1cb7199c0efc917ff5eafd71225c136151"
+checksum = "e661dda6640fad38e827a6d4a310ff4763082116fe217f279885c97f511bb0b7"
 dependencies = [
- "byteorder",
  "lazy_static",
  "libm",
  "num-integer",
@@ -8721,7 +8720,7 @@ checksum = "df7f62577c25e07834649fc3b39fafdc597c0a3527dc1c60129201ccfcbaa50c"
 
 [[package]]
 name = "tauri"
-version = "2.9.3"
+version = "2.9.4"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8791,7 +8790,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.5.2"
+version = "2.5.3"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -8813,7 +8812,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.7.3"
+version = "2.7.4"
 dependencies = [
  "anyhow",
  "ar",
@@ -8859,7 +8858,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.9.4"
+version = "2.9.5"
 dependencies = [
  "ar",
  "axum",
@@ -8953,7 +8952,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -9019,7 +9018,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macos-sign"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "apple-codesign",
  "chrono",
@@ -9039,7 +9038,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -9051,7 +9050,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "anyhow",
  "glob",
@@ -9099,7 +9098,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.9.1"
+version = "2.9.2"
 dependencies = [
  "cookie",
  "dpi",
@@ -9122,7 +9121,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.9.1"
+version = "2.9.2"
 dependencies = [
  "gtk",
  "http 1.3.1",
@@ -9173,7 +9172,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.8.0"
+version = "2.8.1"
 dependencies = [
  "aes-gcm",
  "anyhow",

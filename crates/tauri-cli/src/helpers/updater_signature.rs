@@ -146,10 +146,8 @@ where
   std::fs::write(&signature_path, encoded_signature.as_bytes())
     .fs_context("failed to write signature file", signature_path.clone())?;
   Ok((
-    fs::canonicalize(&signature_path).fs_context(
-      "failed to canonicalize signature file",
-      signature_path.clone(),
-    )?,
+    fs::canonicalize(&signature_path)
+      .fs_context("failed to canonicalize signature file", &signature_path)?,
     signature_box,
   ))
 }

@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.config.os }}
+    runs-on: ${{ matrix.config.runs_on || matrix.config.os }}
 
     strategy:
       fail-fast: false
@@ -38,16 +38,24 @@ jobs:
             rust_target: aarch64-pc-windows-msvc
             ext: '.exe'
             args: ''
+          - os: ubuntu-22.04
+            runs_on: [self-hosted, riscv64]
+            rust_target: riscv64gc-unknown-linux-gnu
+            ext: ''
+            args: ''
+            self_hosted: true
 
     steps:
       - uses: actions/checkout@v4
 
       - name: 'Setup Rust'
+        if: ${{ !matrix.config.self_hosted }}
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
 
       - uses: Swatinem/rust-cache@v2
+        if: ${{ !matrix.config.self_hosted }}
         with:
           key: ${{ matrix.config.rust_target }}
 

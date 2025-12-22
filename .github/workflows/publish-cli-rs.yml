@@ -48,16 +48,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 'Setup Rust'
+        if: ${{ !matrix.config.cross }}
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
 
       - uses: Swatinem/rust-cache@v2
+        if: ${{ !matrix.config.cross }}
         with:
           key: ${{ matrix.config.rust_target }}
 
       - name: install Linux dependencies
-        if: matrix.config.os == 'ubuntu-latest'
+        if: ${{ !matrix.config.cross && startsWith(matrix.config.os, 'ubuntu') }}
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
@@ -66,7 +68,7 @@ jobs:
         if: ${{ matrix.config.cross }}
         uses: taiki-e/install-action@v2
         with:
-          tool: cross
+          tool: cross@0.2.5
 
       - name: Build CLI
         if: ${{ !matrix.config.cross }}

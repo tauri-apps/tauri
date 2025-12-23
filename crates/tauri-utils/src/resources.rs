@@ -4,13 +4,12 @@
 
 use std::{
   collections::HashMap,
-  env,
   path::{Component, Path, PathBuf},
 };
 
 use walkdir::WalkDir;
 
-use crate::platform::Target as TargetPlatform;
+use crate::platform::{target_triple, Target as TargetPlatform};
 
 /// Given a path (absolute or relative) to a resource file, returns the
 /// relative path from the bundle resources directory where that resource
@@ -43,22 +42,18 @@ fn normalize(path: &Path) -> PathBuf {
   dest
 }
 
-fn replace_target(pattern: &str) -> String {
-  if cfg!(target_os = "macos") {
-    pattern.replace("{{target}}", "darwin")
-  } else {
-    pattern.replace("{{target}}", env::consts::OS)
-  }
-}
+fn replace_pattern_with_target(pattern: &str) -> String {
+  let target_triple = target_triple().unwrap();
+  // log::info!("USING LOCAL replace_pattern_with_target: {}", target_triple);
 
-fn replace_arch(pattern: &str) -> String {
-  if cfg!(target_arch = "x86") {
-    pattern.replace("{{arch}}", "i686")
-  } else if cfg!(target_arch = "arm") {
-    pattern.replace("{{arch}}", "armv7")
-  } else {
-    pattern.replace("{{arch}}", env::consts::ARCH)
-  }
+  let parts: Vec<&str> = target_triple.split('-').collect();
+
+  let arch = parts[0];
+  let target = parts[2];
+
+  pattern
+    .replace("{{arch}}", arch)
+    .replace("{{target}}", &target)
 }
 
 /// Parses the external binaries to bundle, adding the target triple suffix to each of them.
@@ -244,31 +239,20 @@ impl ResourcePathsIter<'_> {
     self.current_pattern = None;
 
     let pattern = match &mut self.pattern_iter {
-      PatternIter::Slice(iter) => iter.next()?,
+      PatternIter::Slice(iter) => {
+        let pattern = iter.next()?;
+        replace_pattern_with_target(pattern)
+      }
       PatternIter::Map(iter) => {
         let (pattern, dest) = iter.next()?;
-        self.current_pattern = Some((pattern.clone(), resource_relpath(Path::new(dest))));
-        pattern
+        let resolved_pattern = replace_pattern_with_target(pattern);
+        self.current_pattern = Some((resolved_pattern.clone(), resource_relpath(Path::new(dest))));
+        resolved_pattern
       }
     };
 
-    //Replace the {{target}} and {{arch}} params with respective fields
-    let mod_pattern = {
-      match (pattern.contains("{{target}}"), pattern.contains("{{arch}}")) {
-        (true, true) => {
-          //Both target and arch is present
-          let replaced_arch = replace_arch(pattern);
-          let replaced_target = replace_target(&replaced_arch);
-          replaced_target
-        }
-        (true, false) => replace_target(pattern),
-        (false, true) => replace_arch(pattern),
-        (false, false) => pattern.to_owned(),
-      }
-    };
-
-    if mod_pattern.contains('*') {
-      self.glob_iter = match glob::glob(&mod_pattern) {
+    if pattern.contains('*') {
+      self.glob_iter = match glob::glob(&pattern) {
         Ok(glob) => Some(glob),
         Err(error) => return Some(Err(error.into())),
       };
@@ -276,12 +260,12 @@ impl ResourcePathsIter<'_> {
         Some(r) => return Some(r),
         None => {
           self.glob_iter = None;
-          return Some(Err(crate::Error::GlobPathNotFound(mod_pattern.clone())));
+          return Some(Err(crate::Error::GlobPathNotFound(pattern.clone())));
         }
       }
     }
 
-    self.next_current_path(normalize(Path::new(&mod_pattern)))
+    self.next_current_path(normalize(Path::new(&pattern)))
   }
 }
 

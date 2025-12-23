@@ -1,8 +1,8 @@
 use gst::glib::subclass::types::ObjectSubclassExt;
-use gst::prelude::{ElementExt, GhostPadExt, GstBinExt, PadExt};
+use gst::prelude::{ElementExt, GstBinExt, PadExt};
 use gst::subclass::prelude::{BinImpl, ElementImpl, ObjectImpl, URIHandlerImpl};
 use gst::subclass::prelude::{GstObjectImpl, ObjectSubclass};
-use gst::{glib, GhostPad, PadDirection};
+use gst::{glib, GhostPad};
 use gstreamer_base::gst;
 
 const ASSET_URI_SCHEME: &str = "asset";
@@ -66,7 +66,6 @@ impl URIHandlerImpl for TauriAsset {
 
     // now location is like: /path/to/asset
     let internal_src = gst::ElementFactory::make("filesrc")
-      .name("filesrc")
       .property("location", location)
       .build()
       .ok();
@@ -86,9 +85,7 @@ impl URIHandlerImpl for TauriAsset {
         )
       })?;
 
-    let ghostpad = GhostPad::new(PadDirection::Src);
-    ghostpad
-      .set_target(Some(&srcpad))
+    let ghostpad = GhostPad::with_target(&srcpad)
       .ok()
       .ok_or_else(|| glib::Error::new(gst::URIError::BadUri, "Could not create ghost pad"))?;
 

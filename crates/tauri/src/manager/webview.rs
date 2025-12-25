@@ -413,7 +413,7 @@ impl<R: Runtime> WebviewManager<R> {
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
-        let app_url = app_manager.get_url(pending.webview_attributes.use_https_scheme);
+        let app_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let url = if PROXY_DEV_SERVER && is_local_network_url(&app_url) {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
@@ -431,7 +431,7 @@ impl<R: Runtime> WebviewManager<R> {
         }
       }
       WebviewUrl::External(url) => {
-        let config_url = app_manager.get_url(pending.webview_attributes.use_https_scheme);
+        let config_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
         let is_app_url = config_url.make_relative(url).is_some();
         let mut url = url.clone();
         if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {

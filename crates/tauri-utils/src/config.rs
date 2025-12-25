@@ -739,7 +739,7 @@ pub struct WixConfig {
   /// Because a valid version is required for MSI installer, it will be derived from [`Config::version`] if this field is not set.
   ///
   /// The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.
-  /// The third and foruth fields have a maximum value of 65,535.
+  /// The third and forth fields have a maximum value of 65,535.
   ///
   /// See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.
   pub version: Option<String>,
@@ -996,7 +996,7 @@ pub enum CustomSignCommandConfig {
   /// This is a simpler notation for the command.
   /// Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.
   ///
-  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].
+  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::CommandWithOptions`].
   Command(String),
   /// An object notation of the command.
   ///

@@ -333,8 +333,8 @@ impl<R: Runtime> AppManager<R> {
     self.state.clone()
   }
 
-  /// The `tauri` custom protocol URL we use to serve the embedded assets,
-  /// returns `tauri://localhost` or its `wry` work around URL `http://tauri.localhost`/`https://tauri.localhost`
+  /// The `tauri` custom protocol URL we use to serve the embedded assets.
+  /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
   pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
     if cfg!(windows) || cfg!(target_os = "android") {
       let scheme = if https { "https" } else { "http" };

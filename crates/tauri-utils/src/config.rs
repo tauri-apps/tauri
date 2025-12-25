@@ -2941,11 +2941,11 @@ fn default_min_sdk_version() -> u32 {
 #[serde(untagged, deny_unknown_fields)]
 #[non_exhaustive]
 pub enum FrontendDist {
-  /// An external URL that should be used as the default application URL.
+  /// An external URL that should be used as the default application URL. No assets are embed to the app in this case.
   Url(Url),
   /// Path to a directory containing the frontend dist assets.
   Directory(PathBuf),
-  /// An array of files to embed on the app.
+  /// An array of files to embed in the app.
   Files(Vec<PathBuf>),
 }
 

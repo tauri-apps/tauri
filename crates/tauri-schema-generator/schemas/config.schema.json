@@ -1991,7 +1991,7 @@
       "description": "Defines the URL or assets to embed in the application.",
       "anyOf": [
         {
-          "description": "An external URL that should be used as the default application URL.",
+          "description": "An external URL that should be used as the default application URL. No assets are embed to the app in this case.",
           "type": "string",
           "format": "uri"
         },
@@ -2000,7 +2000,7 @@
           "type": "string"
         },
         {
-          "description": "An array of files to embed on the app.",
+          "description": "An array of files to embed in the app.",
           "type": "array",
           "items": {
             "type": "string"

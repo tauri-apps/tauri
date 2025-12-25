@@ -60,7 +60,7 @@ pub(crate) struct IpcJavascript<'a> {
 pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol:
+  pub handler:
     Box<dyn Fn(UriSchemeContext<'_, R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
@@ -231,7 +231,7 @@ impl<R: Runtime> WebviewManager<R> {
           app_handle: &app_handle,
           webview_label: webview_id,
         };
-        (protocol.protocol)(context, request, UriSchemeResponder(responder))
+        (protocol.handler)(context, request, UriSchemeResponder(responder))
       });
     }
 

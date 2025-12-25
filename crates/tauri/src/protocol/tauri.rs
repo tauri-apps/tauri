@@ -32,7 +32,7 @@ pub fn get<R: Runtime>(
   #[cfg(all(dev, mobile))]
   let url = {
     let mut url = manager
-      .get_url(window_origin.starts_with("https"))
+      .get_app_url(window_origin.starts_with("https"))
       .as_str()
       .to_string();
     if url.ends_with('/') {

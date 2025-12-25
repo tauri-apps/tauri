@@ -785,7 +785,7 @@ mod test {
     #[cfg(custom_protocol)]
     {
       assert_eq!(
-        manager.get_url(false).to_string(),
+        manager.get_app_url(false).to_string(),
         if cfg!(windows) || cfg!(target_os = "android") {
           "http://tauri.localhost/"
         } else {
@@ -793,7 +793,7 @@ mod test {
         }
       );
       assert_eq!(
-        manager.get_url(true).to_string(),
+        manager.get_app_url(true).to_string(),
         if cfg!(windows) || cfg!(target_os = "android") {
           "https://tauri.localhost/"
         } else {

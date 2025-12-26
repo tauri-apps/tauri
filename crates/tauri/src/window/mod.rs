@@ -450,10 +450,24 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// The initial position of the window in physical pixels.
+  #[must_use]
+  pub fn position_physical(mut self, x: i32, y: i32) -> Self {
+    self.window_builder = self.window_builder.position_physical(x, y);
+    self
+  }
+
   /// Window size in logical pixels.
   #[must_use]
   pub fn inner_size(mut self, width: f64, height: f64) -> Self {
     self.window_builder = self.window_builder.inner_size(width, height);
+    self
+  }
+
+  /// Window size in physical pixels.
+  #[must_use]
+  pub fn inner_size_physical(mut self, width: u32, height: u32) -> Self {
+    self.window_builder = self.window_builder.inner_size_physical(width, height);
     self
   }
 
@@ -464,10 +478,24 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Window min inner size in physical pixels.
+  #[must_use]
+  pub fn min_inner_size_physical(mut self, min_width: u32, min_height: u32) -> Self {
+    self.window_builder = self.window_builder.min_inner_size_physical(min_width, min_height);
+    self
+  }
+
   /// Window max inner size in logical pixels.
   #[must_use]
   pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
+    self
+  }
+
+  /// Window max inner size in physical pixels.
+  #[must_use]
+  pub fn max_inner_size_physical(mut self, max_width: u32, max_height: u32) -> Self {
+    self.window_builder = self.window_builder.max_inner_size_physical(max_width, max_height);
     self
   }
 

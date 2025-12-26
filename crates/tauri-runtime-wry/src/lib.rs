@@ -945,10 +945,22 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  fn position_physical(mut self, x: i32, y: i32) -> Self {
+    self.inner = self.inner.with_position(TaoPhysicalPosition::new(x, y));
+    self
+  }
+
   fn inner_size(mut self, width: f64, height: f64) -> Self {
     self.inner = self
       .inner
       .with_inner_size(TaoLogicalSize::new(width, height));
+    self
+  }
+
+  fn inner_size_physical(mut self, width: u32, height: u32) -> Self {
+    self.inner = self
+      .inner
+      .with_inner_size(TaoPhysicalSize::new(width, height));
     self
   }
 
@@ -959,10 +971,24 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  fn min_inner_size_physical(mut self, min_width: u32, min_height: u32) -> Self {
+    self.inner = self
+      .inner
+      .with_min_inner_size(TaoPhysicalSize::new(min_width, min_height));
+    self
+  }
+
   fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.inner = self
       .inner
       .with_max_inner_size(TaoLogicalSize::new(max_width, max_height));
+    self
+  }
+
+  fn max_inner_size_physical(mut self, max_width: u32, max_height: u32) -> Self {
+    self.inner = self
+      .inner
+      .with_max_inner_size(TaoPhysicalSize::new(max_width, max_height));
     self
   }
 

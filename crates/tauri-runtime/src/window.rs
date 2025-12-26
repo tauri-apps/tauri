@@ -251,17 +251,33 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn position(self, x: f64, y: f64) -> Self;
 
+  /// The initial position of the window in physical pixels.
+  #[must_use]
+  fn position_physical(self, x: i32, y: i32) -> Self;
+
   /// Window size in logical pixels.
   #[must_use]
   fn inner_size(self, width: f64, height: f64) -> Self;
+
+  /// Window size in physical pixels.
+  #[must_use]
+  fn inner_size_physical(self, width: u32, height: u32) -> Self;
 
   /// Window min inner size in logical pixels.
   #[must_use]
   fn min_inner_size(self, min_width: f64, min_height: f64) -> Self;
 
+  /// Window min inner size in physical pixels.
+  #[must_use]
+  fn min_inner_size_physical(self, min_width: u32, min_height: u32) -> Self;
+
   /// Window max inner size in logical pixels.
   #[must_use]
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self;
+
+  /// Window max inner size in physical pixels.
+  #[must_use]
+  fn max_inner_size_physical(self, max_width: u32, max_height: u32) -> Self;
 
   /// Window inner size constraints.
   #[must_use]

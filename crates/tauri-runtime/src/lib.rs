@@ -399,8 +399,25 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn new(args: RuntimeInitArgs) -> Result<Self>;
 
   /// Creates a new webview runtime on any thread.
-  #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(docsrs, doc(cfg(any(windows, target_os = "linux"))))]
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )))
+  )]
   fn new_any_thread(args: RuntimeInitArgs) -> Result<Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.

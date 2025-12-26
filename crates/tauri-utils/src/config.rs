@@ -563,6 +563,11 @@ pub struct DmgConfig {
     alias = "application-folder-position"
   )]
   pub application_folder_position: Position,
+  /// Maximum number of attempts to detach the DMG volume before giving up.
+  /// Defaults to 3. Increase this value if you encounter "hdiutil: detach: timeout" errors,
+  /// which can occur with large DMG files on CI environments with throttled CPUs.
+  #[serde(alias = "detach-retries")]
+  pub detach_retries: Option<u32>,
 }
 
 impl Default for DmgConfig {
@@ -573,6 +578,7 @@ impl Default for DmgConfig {
       window_size: dmg_window_size(),
       app_position: dmg_app_position(),
       application_folder_position: dmg_application_folder_position(),
+      detach_retries: None,
     }
   }
 }

@@ -130,6 +130,8 @@ Options:
       execute hdiutil with sandbox compatibility and do not bless (not supported for APFS disk images)
   --skip-jenkins
       skip Finder-prettifying AppleScript, useful in Sandbox and non-GUI environments
+  --detach-retries <attempts>
+      set maximum number of attempts to detach the DMG volume (default: 3)
   --version
 	    show create-dmg version number
   -h, --help
@@ -264,6 +266,9 @@ while [[ "${1:0:1}" = "-" ]]; do
 		--skip-jenkins)
 			SKIP_JENKINS=1
 			shift;;
+		--detach-retries)
+			MAXIMUM_UNMOUNTING_ATTEMPTS="$2"
+			shift; shift;;
 		-*)
 			echo "Unknown option: $1. Run 'create-dmg --help' for help."
 			exit 1;;

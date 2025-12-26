@@ -304,6 +304,9 @@ pub struct DmgSettings {
   pub app_position: Position,
   /// Position of application folder on window.
   pub application_folder_position: Position,
+  /// Maximum number of attempts to detach the DMG volume before giving up.
+  /// Defaults to 3. Increase this value if you encounter "hdiutil: detach: timeout" errors.
+  pub detach_retries: Option<u32>,
 }
 
 /// The iOS bundle settings.

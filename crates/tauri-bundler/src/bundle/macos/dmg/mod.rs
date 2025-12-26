@@ -179,6 +179,11 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     }
   }
 
+  // Issue #14686 - Allow customizing detach retries for large DMGs
+  if let Some(detach_retries) = dmg_settings.detach_retries {
+    bundle_dmg_cmd.args(["--detach-retries", &detach_retries.to_string()]);
+  }
+
   log::info!(action = "Running"; "bundle_dmg.sh");
 
   // execute the bundle script

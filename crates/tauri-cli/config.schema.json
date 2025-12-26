@@ -1991,7 +1991,7 @@
       "description": "Defines the URL or assets to embed in the application.",
       "anyOf": [
         {
-          "description": "An external URL that should be used as the default application URL.",
+          "description": "An external URL that should be used as the default application URL. No assets are embedded in the app in this case.",
           "type": "string",
           "format": "uri"
         },
@@ -2000,7 +2000,7 @@
           "type": "string"
         },
         {
-          "description": "An array of files to embed on the app.",
+          "description": "An array of files to embed in the app.",
           "type": "array",
           "items": {
             "type": "string"
@@ -2792,7 +2792,7 @@
       "type": "object",
       "properties": {
         "version": {
-          "description": "MSI installer version in the format `major.minor.patch.build` (build is optional).\n\n Because a valid version is required for MSI installer, it will be derived from [`Config::version`] if this field is not set.\n\n The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.\n The third and foruth fields have a maximum value of 65,535.\n\n See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.",
+          "description": "MSI installer version in the format `major.minor.patch.build` (build is optional).\n\n Because a valid version is required for MSI installer, it will be derived from [`Config::version`] if this field is not set.\n\n The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.\n The third and fourth fields have a maximum value of 65,535.\n\n See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.",
           "type": [
             "string",
             "null"
@@ -3096,7 +3096,7 @@
       "description": "Custom Signing Command configuration.",
       "anyOf": [
         {
-          "description": "A string notation of the script to execute.\n\n \"%1\" will be replaced with the path to the binary to be signed.\n\n This is a simpler notation for the command.\n Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.\n\n If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].",
+          "description": "A string notation of the script to execute.\n\n \"%1\" will be replaced with the path to the binary to be signed.\n\n This is a simpler notation for the command.\n Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.\n\n If you need to use whitespace in the command or arguments, use the object notation [`Self::CommandWithOptions`].",
           "type": "string"
         },
         {

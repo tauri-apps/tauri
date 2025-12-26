@@ -2422,6 +2422,18 @@ impl Drop for WebviewWrapper {
       if let Some(web_context) = context_store.get_mut(&self.context_key) {
         web_context.referenced_by_webviews.remove(&self.label);
 
+        // https://github.com/tauri-apps/tauri/issues/14626
+        // Because WebKit does not close its network process even when no webviews are running,
+        // we need to ensure to re-use the existing process on Linux by keeping the WebContext
+        // alive for the lifetime of the app.
+        // WebKit on macOS handles this itself.
+        #[cfg(not(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        )))]
         if web_context.referenced_by_webviews.is_empty() {
           context_store.remove(&self.context_key);
         }

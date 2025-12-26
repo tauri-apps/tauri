@@ -333,25 +333,9 @@ impl<R: Runtime> AppManager<R> {
     self.state.clone()
   }
 
-  /// Get the base path to serve data from.
-  ///
-  /// * In dev mode, this will be based on the `devUrl` configuration value.
-  /// * Otherwise, this will be based on the `frontendDist` configuration value.
-  #[cfg(not(dev))]
-  fn base_path(&self) -> Option<&Url> {
-    use crate::utils::config::FrontendDist;
-    match self.config.build.frontend_dist.as_ref() {
-      Some(FrontendDist::Url(url)) => Some(url),
-      _ => None,
-    }
-  }
-
-  #[cfg(dev)]
-  fn base_path(&self) -> Option<&Url> {
-    self.config.build.dev_url.as_ref()
-  }
-
-  pub(crate) fn protocol_url(&self, https: bool) -> Cow<'_, Url> {
+  /// The `tauri` custom protocol URL we use to serve the embedded assets.
+  /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
+  pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
     if cfg!(windows) || cfg!(target_os = "android") {
       let scheme = if https { "https" } else { "http" };
       Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
@@ -360,13 +344,24 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  /// Get the base URL to use for webview requests.
+  /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
   ///
-  /// In dev mode, this will be based on the `devUrl` configuration value.
-  pub(crate) fn get_url(&self, https: bool) -> Cow<'_, Url> {
-    match self.base_path() {
-      Some(url) => Cow::Borrowed(url),
-      _ => self.protocol_url(https),
+  /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exsits.
+  /// * In production mode, this is the [`frontendDist`](tauri_utils::config::BuildConfig::frontend_dist) configuration value if it's a [`FrontendDist::Url`](tauri_utils::config::FrontendDist::Url).
+  /// * Returns [`Self::tauri_protocol_url`] (e.g. `tauri://localhost`) otherwise.
+  pub(crate) fn get_app_url(&self, https: bool) -> Cow<'_, Url> {
+    #[cfg(dev)]
+    let url = self.config.build.dev_url.as_ref();
+    #[cfg(not(dev))]
+    let url = match self.config.build.frontend_dist.as_ref() {
+      Some(crate::utils::config::FrontendDist::Url(url)) => Some(url),
+      _ => None,
+    };
+
+    if let Some(url) = url {
+      Cow::Borrowed(url)
+    } else {
+      self.tauri_protocol_url(https)
     }
   }
 
@@ -790,7 +785,7 @@ mod test {
     #[cfg(custom_protocol)]
     {
       assert_eq!(
-        manager.get_url(false).to_string(),
+        manager.get_app_url(false).to_string(),
         if cfg!(windows) || cfg!(target_os = "android") {
           "http://tauri.localhost/"
         } else {
@@ -798,7 +793,7 @@ mod test {
         }
       );
       assert_eq!(
-        manager.get_url(true).to_string(),
+        manager.get_app_url(true).to_string(),
         if cfg!(windows) || cfg!(target_os = "android") {
           "https://tauri.localhost/"
         } else {
@@ -808,7 +803,10 @@ mod test {
     }
 
     #[cfg(dev)]
-    assert_eq!(manager.get_url(false).to_string(), "http://localhost:4000/");
+    assert_eq!(
+      manager.get_app_url(false).to_string(),
+      "http://localhost:4000/"
+    );
   }
 
   struct EventSetup {

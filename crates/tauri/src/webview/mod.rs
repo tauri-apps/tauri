@@ -1682,7 +1682,7 @@ tauri::Builder::default()
 
     // if from `tauri://` custom protocol
     ({
-      let protocol_url = self.manager().protocol_url(uses_https);
+      let protocol_url = self.manager().tauri_protocol_url(uses_https);
       current_url.scheme() == protocol_url.scheme()
       && current_url.domain() == protocol_url.domain()
     }) ||
@@ -1690,7 +1690,7 @@ tauri::Builder::default()
     // or if relative to `devUrl` or `frontendDist`
       self
           .manager()
-          .get_url(uses_https)
+          .get_app_url(uses_https)
           .make_relative(current_url)
           .is_some()
 
@@ -1706,7 +1706,7 @@ tauri::Builder::default()
         // so we check using the first part of the domain
         #[cfg(any(windows, target_os = "android"))]
         let local = {
-          let protocol_url = self.manager().protocol_url(uses_https);
+          let protocol_url = self.manager().tauri_protocol_url(uses_https);
           let maybe_protocol = current_url
             .domain()
             .and_then(|d| d .split_once('.'))

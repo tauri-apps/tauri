@@ -1593,9 +1593,9 @@ pub struct WindowEffectsConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PreventOverflowMargin {
-  /// Horizontal margin in physical unit
+  /// Horizontal margin in physical pixels
   pub width: u32,
-  /// Vertical margin in physical unit
+  /// Vertical margin in physical pixels
   pub height: u32,
 }
 
@@ -1673,26 +1673,26 @@ pub struct WindowConfig {
   /// Whether or not the window starts centered or not.
   #[serde(default)]
   pub center: bool,
-  /// The horizontal position of the window's top left corner
+  /// The horizontal position of the window's top left corner in logical pixels
   pub x: Option<f64>,
-  /// The vertical position of the window's top left corner
+  /// The vertical position of the window's top left corner in logical pixels
   pub y: Option<f64>,
-  /// The window width.
+  /// The window width in logical pixels.
   #[serde(default = "default_width")]
   pub width: f64,
-  /// The window height.
+  /// The window height in logical pixels.
   #[serde(default = "default_height")]
   pub height: f64,
-  /// The min window width.
+  /// The min window width in logical pixels.
   #[serde(alias = "min-width")]
   pub min_width: Option<f64>,
-  /// The min window height.
+  /// The min window height in logical pixels.
   #[serde(alias = "min-height")]
   pub min_height: Option<f64>,
-  /// The max window width.
+  /// The max window width in logical pixels.
   #[serde(alias = "max-width")]
   pub max_width: Option<f64>,
-  /// The max window height.
+  /// The max window height in logical pixels.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
   /// Whether or not to prevent the window from overflowing the workarea

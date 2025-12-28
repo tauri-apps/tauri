@@ -155,9 +155,9 @@ fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
 }
 
 fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
-  let path = dunce::canonicalize(&path).fs_context("failed to canonicalize path", path.clone())?;
+  let path = dunce::canonicalize(&path).fs_context("failed to canonicalize path", path)?;
   if path.starts_with(scope) {
-    std::fs::read(&path).fs_context("failed to read file", path.clone())
+    std::fs::read(&path).fs_context("failed to read file", &path)
   } else {
     crate::error::bail!("forbidden path")
   }

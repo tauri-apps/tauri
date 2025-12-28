@@ -75,21 +75,13 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
 }
 
 fn env_tauri_app_path() -> Option<PathBuf> {
-  std::env::var(ENV_TAURI_APP_PATH)
-    .map(PathBuf::from)
-    .ok()?
-    .canonicalize()
-    .ok()
-    .map(|p| dunce::simplified(&p).to_path_buf())
+  let p = PathBuf::from(std::env::var_os(ENV_TAURI_APP_PATH)?);
+  dunce::canonicalize(p).ok()
 }
 
 fn env_tauri_frontend_path() -> Option<PathBuf> {
-  std::env::var(ENV_TAURI_FRONTEND_PATH)
-    .map(PathBuf::from)
-    .ok()?
-    .canonicalize()
-    .ok()
-    .map(|p| dunce::simplified(&p).to_path_buf())
+  let p = PathBuf::from(std::env::var_os(ENV_TAURI_FRONTEND_PATH)?);
+  dunce::canonicalize(p).ok()
 }
 
 pub fn resolve_tauri_dir() -> Option<PathBuf> {

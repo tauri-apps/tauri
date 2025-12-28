@@ -44,15 +44,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   log::info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
-    fs::remove_dir_all(&app_bundle_path).fs_context(
-      "failed to remove old app bundle",
-      app_bundle_path.to_path_buf(),
-    )?;
+    fs::remove_dir_all(&app_bundle_path)
+      .fs_context("failed to remove old app bundle", &app_bundle_path)?;
   }
-  fs::create_dir_all(&app_bundle_path).fs_context(
-    "failed to create bundle directory",
-    app_bundle_path.to_path_buf(),
-  )?;
+  fs::create_dir_all(&app_bundle_path)
+    .fs_context("failed to create bundle directory", &app_bundle_path)?;
 
   for src in settings.resource_files() {
     let src = src?;

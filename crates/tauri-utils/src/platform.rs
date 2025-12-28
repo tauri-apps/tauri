@@ -238,16 +238,12 @@ const CARGO_OUTPUT_DIRECTORIES: &[&str] = &["debug", "release", "custom-profile"
 
 #[cfg(test)]
 fn is_cargo_output_directory(path: &std::path::Path) -> bool {
-  let last_component = path
-    .components()
-    .next_back()
-    .unwrap()
-    .as_os_str()
-    .to_str()
-    .unwrap();
+  let Some(last_component) = path.components().next_back() else {
+    return false;
+  };
   CARGO_OUTPUT_DIRECTORIES
     .iter()
-    .any(|dirname| &last_component == dirname)
+    .any(|dirname| &last_component.as_os_str() == dirname)
 }
 
 /// Computes the resource directory of the current environment.

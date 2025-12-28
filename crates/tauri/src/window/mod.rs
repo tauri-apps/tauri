@@ -443,28 +443,28 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
-  /// The initial position of the window's.
+  /// The initial position of the window in logical pixels.
   #[must_use]
   pub fn position(mut self, x: f64, y: f64) -> Self {
     self.window_builder = self.window_builder.position(x, y);
     self
   }
 
-  /// Window size.
+  /// Window size in logical pixels.
   #[must_use]
   pub fn inner_size(mut self, width: f64, height: f64) -> Self {
     self.window_builder = self.window_builder.inner_size(width, height);
     self
   }
 
-  /// Window min inner size.
+  /// Window min inner size in logical pixels.
   #[must_use]
   pub fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
     self.window_builder = self.window_builder.min_inner_size(min_width, min_height);
     self
   }
 
-  /// Window max inner size.
+  /// Window max inner size in logical pixels.
   #[must_use]
   pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.window_builder = self.window_builder.max_inner_size(max_width, max_height);

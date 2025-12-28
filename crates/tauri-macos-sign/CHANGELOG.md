@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.3.2]
+
+### Dependencies
+
+- [`514cf21e1`](https://www.github.com/tauri-apps/tauri/commit/514cf21e1417c7a78a0db494f891ba79d948b73d) ([#14591](https://www.github.com/tauri-apps/tauri/pull/14591) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) Update num-bigint-dig from 0.8.4 to 0.8.6
+
 ## \[2.3.1]
 
 ### Performance Improvements

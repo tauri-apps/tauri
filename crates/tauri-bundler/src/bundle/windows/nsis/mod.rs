@@ -298,8 +298,12 @@ fn build_nsis_app_installer(
   data.insert("copyright", to_json(settings.copyright_string()));
 
   if settings.windows().can_sign() {
-    let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
-    data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
+    if settings.no_sign() {
+      log::warn!("Skipping signing for NSIS uninstaller due to --no-sign flag.");
+    } else {
+      let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
+      data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
+    }
   }
 
   let version = settings.version_string();
@@ -617,13 +621,16 @@ fn build_nsis_app_installer(
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   if settings.windows().can_sign() {
-    log::info!("Signing NSIS plugins");
-    for dll in NSIS_PLUGIN_FILES {
-      let path = additional_plugins_path.join(dll);
-      if path.exists() {
-        try_sign(&path, settings)?;
-      } else {
-        log::warn!("Could not find {}, skipping signing", path.display());
+    if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+      let plugin_copy_path = plugin_copy_path.join("x86-unicode");
+      log::info!("Signing NSIS plugins");
+      for dll in NSIS_PLUGIN_FILES {
+        let path = plugin_copy_path.join(dll);
+        if path.exists() {
+          try_sign(&path, settings)?;
+        } else {
+          log::warn!("Could not find {}, skipping signing", path.display());
+        }
       }
     }
   }

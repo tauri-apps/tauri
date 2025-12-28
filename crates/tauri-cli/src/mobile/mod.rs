@@ -178,15 +178,9 @@ impl Default for DevHost {
   }
 }
 
-fn is_empty(v: &[String]) -> bool {
-  v.is_empty()
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub dev: bool,
-  #[serde(default)]
-  #[serde(skip_serializing_if = "is_empty")]
   pub features: Vec<String>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
@@ -386,7 +380,7 @@ pub fn write_options(
 
     let mut module = RpcModule::new(());
     module
-      .register_method("options", move |_, _, _| Some(options.clone())) // <- Serialize, Deserialize used
+      .register_method("options", move |_, _, _| Some(options.clone()))
       .context("failed to register options method")?;
 
     let handle = server.start(module);
@@ -434,7 +428,7 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
         .context("failed to build WebSocket client")?;
       let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
       let options: CliOptions = client
-        .request("options", rpc_params![]) // <- Serialize, Deserialize used
+        .request("options", rpc_params![])
         .await
         .context("failed to request options")?;
       Ok::<CliOptions, Error>(options)

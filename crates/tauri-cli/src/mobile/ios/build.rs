@@ -313,7 +313,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       tempfile::NamedTempFile::new().context("failed to create temporary file")?;
 
     let merged_plist = merge_plist(vec![
-      export_options_plist_path.clone().into(),
+      export_options_plist_path.into(),
       plist::Value::from(export_options_plist).into(),
     ])?;
     merged_plist
@@ -369,7 +369,12 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(interface, &mut build_options, tauri_config.clone(), true)?;
+  crate::build::setup(
+    interface,
+    &mut build_options,
+    tauri_config.lock().unwrap().as_ref().unwrap(),
+    true,
+  )?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(&InterfaceOptions {

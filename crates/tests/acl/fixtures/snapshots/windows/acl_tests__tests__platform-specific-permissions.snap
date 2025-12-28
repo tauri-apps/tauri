@@ -56,7 +56,7 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$APP/EBWebView/**",
+                            "$APPLOCALDATA/EBWebView/**",
                         ),
                     },
                 ),

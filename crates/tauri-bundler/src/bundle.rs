@@ -273,7 +273,7 @@ fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> c
   if matches!(target_os, TargetPlatform::Windows) {
     if settings.windows().can_sign() {
       if settings.no_sign() {
-        log::info!("Skipping binary signing due to --no-sign flag.");
+        log::warn!("Skipping binary signing due to --no-sign flag.");
         return Ok(());
       }
 

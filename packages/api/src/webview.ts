@@ -714,13 +714,13 @@ interface WebviewOptions {
    * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
-  /** The initial vertical position. */
+  /** The initial vertical position in logical pixels. */
   x: number
-  /** The initial horizontal position. */
+  /** The initial horizontal position in logical pixels. */
   y: number
-  /** The initial width. */
+  /** The initial width in logical pixels. */
   width: number
-  /** The initial height. */
+  /** The initial height in logical pixels. */
   height: number
   /**
    * Whether the webview is transparent or not.

@@ -386,7 +386,7 @@ pub fn write_options(
 
     let mut module = RpcModule::new(());
     module
-      .register_method("options", move |_, _, _| Some(options.clone()))
+      .register_method("options", move |_, _, _| Some(options.clone())) // <- Serialize, Deserialize used
       .context("failed to register options method")?;
 
     let handle = server.start(module);
@@ -434,7 +434,7 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
         .context("failed to build WebSocket client")?;
       let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
       let options: CliOptions = client
-        .request("options", rpc_params![])
+        .request("options", rpc_params![]) // <- Serialize, Deserialize used
         .await
         .context("failed to request options")?;
       Ok::<CliOptions, Error>(options)

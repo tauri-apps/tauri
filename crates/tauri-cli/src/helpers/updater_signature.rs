@@ -122,8 +122,8 @@ where
   // We need to append .sig at the end it's where the signature will be stored
   // Previously if the file didn't have an extension, it broke as
   // bin_path.extension().unwrap().to_os_string(); returned None and unwrwap failed.
-  let signature_path = if bin_path.extension().is_some() {
-    let mut extension = bin_path.extension().unwrap().to_os_string();
+  let signature_path = if let Some(ext) = bin_path.extension() {
+    let mut extension = ext.to_os_string();
     extension.push(".sig");
     bin_path.with_extension(extension)
   } else {

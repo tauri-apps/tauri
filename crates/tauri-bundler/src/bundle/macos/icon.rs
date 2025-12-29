@@ -152,10 +152,7 @@ pub fn create_assets_car_file(
   // Check actool version - must be >= 26
   if let Some(version) = get_actool_version() {
     // Parse the major version number (before the dot)
-    let major_version: Option<u32> = version
-      .split('.')
-      .next()
-      .and_then(|s| s.parse().ok());
+    let major_version: Option<u32> = version.split('.').next().and_then(|s| s.parse().ok());
 
     if let Some(major) = major_version {
       if major < 26 {

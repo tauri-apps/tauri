@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Custom protocol handlers
+
 #[cfg(feature = "protocol-asset")]
 pub mod asset;
 #[cfg(feature = "isolation")]

@@ -160,10 +160,8 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   }
 
   // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`.
-  // To avoid crate-root name collisions for same-named commands across modules,
-  // only export non-renamed commands at crate root. Renamed commands remain module-scoped.
-  let maybe_macro_export = match (&attrs.rename, &function.vis) {
-    (RenamePolicy::Keep, Visibility::Public(_) | Visibility::Restricted(_)) => {
+  let maybe_macro_export = match &function.vis {
+    Visibility::Public(_) | Visibility::Restricted(_) => {
       quote!(#[macro_export])
     }
     _ => TokenStream2::default(),
@@ -295,22 +293,11 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream2::default()
   };
 
-  // For renamed commands (no crate-root export), restrict rename visibility to crate-only
-  // to avoid public re-export errors for non-exported macros.
-  let rename_visibility = if let RenamePolicy::Rename(_) = &attrs.rename {
-    quote!(pub(crate))
-  } else {
-    quote!(#visibility)
-  };
-
-  // Always define a hidden constant holding the externally invoked command name.
+  // Always define a hidden macro that returns the externally invoked command name.
   // This lets the handler match on the renamed string while the original function
   // identifier remains usable in `generate_handler![original_fn_name]`.
-  let command_name_const_ident = {
-    let upper = function.sig.ident.to_string().to_uppercase();
-    format_ident!("__TAURI_COMMAND_NAME_{}", upper)
-  };
-  let command_name_const_value = if let RenamePolicy::Rename(ref rename) = attrs.rename {
+  let command_name_macro_ident = format_ident!("__tauri_command_name_{}", function.sig.ident);
+  let command_name_value = if let RenamePolicy::Rename(ref rename) = attrs.rename {
     quote!(#rename)
   } else {
     let ident = &function.sig.ident;
@@ -324,10 +311,16 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #maybe_allow_unused
     #function
 
-    // Command name constant used by the handler for pattern matching.
-    #[doc(hidden)]
+    // Command name macro used by the handler for pattern matching.
+    // This macro returns the command name string literal (renamed or original).
     #maybe_allow_unused
-    pub const #command_name_const_ident: &str = #command_name_const_value;
+    #maybe_macro_export
+    #[doc(hidden)]
+    macro_rules! #command_name_macro_ident {
+      () => {
+        #command_name_value
+      };
+    }
 
     #maybe_allow_unused
     #maybe_macro_export
@@ -355,7 +348,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
     // allow the macro to be resolved with the same path as the command function
     #[allow(unused_imports)]
-    #rename_visibility use #wrapper;
+    #visibility use {#wrapper, #command_name_macro_ident};
   )
   .into()
 }

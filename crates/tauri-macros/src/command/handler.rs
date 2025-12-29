@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use quote::format_ident;
+use quote::{format_ident, quote};
 use syn::{
   parse::{Parse, ParseBuffer, ParseStream},
   Attribute, Ident, Path, Token,
@@ -153,26 +153,28 @@ impl From<Handler> for proc_macro::TokenStream {
     let invoke = format_ident!("__tauri_invoke__");
     let mut paths: Vec<Path> = Vec::new();
     let mut attrs: Vec<Vec<Attribute>> = Vec::new();
-    let mut command_name_consts: Vec<Path> = Vec::new();
+    let mut command_name_macros: Vec<proc_macro2::TokenStream> = Vec::new();
     for (def, command) in command_defs.into_iter().zip(commands) {
       let path = def.path;
       let attrs_vec = def.attrs;
-      let mut const_path = path.clone();
-      let last = const_path
+
+      let mut command_name_macro_path = path.clone();
+      let last = command_name_macro_path
         .segments
         .last_mut()
         .expect("path has at least one segment");
-      let upper = command.to_string().to_uppercase();
-      last.ident = format_ident!("__TAURI_COMMAND_NAME_{}", upper);
+      last.ident = format_ident!("__tauri_command_name_{command}");
+
       paths.push(path);
       attrs.push(attrs_vec);
-      command_name_consts.push(const_path);
+      // Call the macro to get the command name string literal
+      command_name_macros.push(quote!(#command_name_macro_path!()));
     }
 
     quote::quote!(move |#invoke| {
       let #cmd = #invoke.message.command();
       match #cmd {
-        #(#(#attrs)* #command_name_consts => #wrappers!(#paths, #invoke),)*
+        #(#(#attrs)* #command_name_macros => #wrappers!(#paths, #invoke),)*
         _ => {
           return false;
         },

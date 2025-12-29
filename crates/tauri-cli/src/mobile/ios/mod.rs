@@ -227,11 +227,7 @@ pub fn get_config(
             }
           }
         }),
-    ios_features: if ios_options.features.is_empty() {
-        None
-    } else {
-        Some(ios_options.features.clone())
-    },
+    ios_features: Some(ios_options.features.clone()),
     bundle_version,
     bundle_version_short,
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),

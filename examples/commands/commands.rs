@@ -25,3 +25,8 @@ pub fn simple_command(the_argument: String) {
 pub fn stateful_command(the_argument: Option<String>, state: State<'_, super::MyState>) {
   println!("{:?} {:?}", the_argument, state.inner());
 }
+
+#[command(rename = "renamed_command_in_mod_new")]
+pub fn renamed_command_in_mod() {
+  println!("renamed command in mod called");
+}

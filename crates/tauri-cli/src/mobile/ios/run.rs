@@ -26,7 +26,7 @@ pub struct Options {
   pub release: bool,
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
@@ -77,7 +77,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     super::build::Options {
       debug: !options.release,
       targets: Some(vec![]), /* skips IPA build since there's no target */
-      features: None,
+      features: Vec::new(),
       config: options.config.clone(),
       build_number: None,
       open: options.open,

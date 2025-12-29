@@ -40,7 +40,7 @@ pub struct Options {
   pub target: Option<String>,
   /// Space or comma separated list of features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// Space or comma separated list of bundles to package.
   #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub bundles: Option<Vec<BundleFormat>>,
@@ -252,8 +252,7 @@ pub fn setup(
 
   options
     .features
-    .get_or_insert(Vec::new())
-    .extend(config.build.features.clone().unwrap_or_default());
+    .extend_from_slice(config.build.features.as_deref().unwrap_or_default());
   interface.build_options(&mut options.args, &mut options.features, mobile);
 
   Ok(())

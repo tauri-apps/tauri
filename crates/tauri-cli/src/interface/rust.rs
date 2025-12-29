@@ -51,7 +51,7 @@ pub struct Options {
   pub runner: Option<RunnerConfig>,
   pub debug: bool,
   pub target: Option<String>,
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
@@ -108,7 +108,7 @@ impl From<crate::dev::Options> for Options {
 #[derive(Debug, Clone)]
 pub struct MobileOptions {
   pub debug: bool,
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
@@ -393,7 +393,7 @@ fn dev_options(
   mobile: bool,
   args: &mut Vec<String>,
   run_args: &mut Vec<String>,
-  features: &mut Option<Vec<String>>,
+  features: &mut Vec<String>,
   app_settings: &RustAppSettings,
 ) {
   let mut dev_args = Vec::new();
@@ -429,9 +429,7 @@ fn dev_options(
       })
       .collect();
     args.push("--no-default-features".into());
-    if !enable_features.is_empty() {
-      features.get_or_insert(Vec::new()).extend(enable_features);
-    }
+    features.extend(enable_features);
   }
 }
 
@@ -498,15 +496,8 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
 }
 
 impl Rust {
-  pub fn build_options(
-    &self,
-    args: &mut Vec<String>,
-    features: &mut Option<Vec<String>>,
-    mobile: bool,
-  ) {
-    features
-      .get_or_insert(Vec::new())
-      .push("tauri/custom-protocol".into());
+  pub fn build_options(&self, args: &mut Vec<String>, features: &mut Vec<String>, mobile: bool) {
+    features.push("tauri/custom-protocol".into());
     if mobile {
       args.push("--lib".into());
     } else {
@@ -957,11 +948,12 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        if let (Some(req_features), Some(opt_features)) =
-          (&bin.required_features, &options.features)
-        {
+        if let Some(req_features) = &bin.required_features {
           // Check if all required features are enabled.
-          if !req_features.iter().all(|feat| opt_features.contains(feat)) {
+          if !req_features
+            .iter()
+            .all(|feat| options.features.contains(feat))
+          {
             continue;
           }
         }

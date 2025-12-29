@@ -57,7 +57,7 @@ pub struct Options {
   pub target: Option<String>,
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
   pub exit_on_panic: bool,
@@ -254,9 +254,7 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
     .features
     .clone()
     .unwrap_or_default();
-  if let Some(features) = &options.features {
-    cargo_features.extend(features.clone());
-  }
+  cargo_features.extend(options.features.clone());
 
   let mut dev_url = config
     .lock()

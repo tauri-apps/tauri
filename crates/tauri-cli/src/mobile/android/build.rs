@@ -48,7 +48,7 @@ pub struct Options {
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
@@ -152,7 +152,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     let (config, metadata) = get_config(
       &app,
       tauri_config_,
-      build_options.features.as_ref(),
+      &build_options.features,
       &Default::default(),
     );
     (interface, config, metadata)

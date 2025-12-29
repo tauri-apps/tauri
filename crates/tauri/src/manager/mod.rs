@@ -129,14 +129,7 @@ fn replace_csp_nonce(
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
-    #[cfg(target_pointer_width = "64")]
-    let mut raw = [0u8; 8];
-    #[cfg(target_pointer_width = "32")]
-    let mut raw = [0u8; 4];
-    #[cfg(target_pointer_width = "16")]
-    let mut raw = [0u8; 2];
-    getrandom::fill(&mut raw).expect("failed to get random bytes");
-    let nonce = usize::from_ne_bytes(raw);
+    let nonce = getrandom::u64().expect("failed to get random bytes");
     nonces.push(nonce);
     nonce.to_string()
   });

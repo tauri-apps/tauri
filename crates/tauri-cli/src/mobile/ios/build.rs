@@ -165,6 +165,8 @@ pub struct BuiltApplication {
   // prevent drop
   #[allow(dead_code)]
   options_handle: OptionsHandle,
+  #[allow(dead_code)]
+  export_options_tmp: Option<tempfile::NamedTempFile>,
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
@@ -305,7 +307,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
   }
 
   // merge export options and write to temp file
-  let _export_options_tmp = if !export_options_plist.is_empty() {
+  let export_options_tmp = if !export_options_plist.is_empty() {
     let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
     let export_options =
       tempfile::NamedTempFile::new().context("failed to create temporary file")?;
@@ -348,6 +350,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     config,
     interface,
     options_handle,
+    export_options_tmp,
   })
 }
 

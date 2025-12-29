@@ -120,9 +120,15 @@ where
 {
   let bin_path = bin_path.as_ref();
   // We need to append .sig at the end it's where the signature will be stored
-  let mut extension = bin_path.extension().unwrap().to_os_string();
-  extension.push(".sig");
-  let signature_path = bin_path.with_extension(extension);
+  // Previously if the file didn't have an extension, it broke as
+  // bin_path.extension().unwrap().to_os_string(); returned None and unwrwap failed.
+  let signature_path = if bin_path.extension().is_some() {
+    let mut extension = bin_path.extension().unwrap().to_os_string();
+    extension.push(".sig");
+    bin_path.with_extension(extension)
+  } else {
+    bin_path.with_extension("sig")
+  };
 
   let trusted_comment = format!(
     "timestamp:{}\tfile:{}",

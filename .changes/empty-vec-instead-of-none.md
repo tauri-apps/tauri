@@ -3,4 +3,4 @@
 "tauri-cli": patch:enhance
 ---
 
-Replace Option<Vec> with simple Vec
+Simplified internal representation of `features: Option<Vec<String>>` with `Vec<String>`, no user facing changes

@@ -262,9 +262,7 @@ fn cargo_command(
   build_cmd.args(&options.args);
 
   let mut features = config_features;
-  if let Some(f) = options.features {
-    features.extend(f);
-  }
+  features.extend(options.features);
   if !features.is_empty() {
     build_cmd.arg("--features");
     build_cmd.arg(features.join(","));

@@ -135,7 +135,7 @@ fn replace_csp_nonce(
       // > https://w3c.github.io/webappsec-csp/#security-nonces
       let mut buffer: [u8; 16] = [0; 16];
       getrandom::fill(&mut buffer).expect("failed to get random bytes");
-      format!("{buffer:x?}")
+      u128::from_ne_bytes(buffer).to_string()
     })
   });
 

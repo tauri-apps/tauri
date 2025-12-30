@@ -8508,6 +8508,7 @@ name = "tauri"
 version = "2.9.5"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "bytes",
  "cargo_toml",
  "cookie",

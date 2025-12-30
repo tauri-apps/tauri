@@ -66,7 +66,6 @@ serde_repr = "0.1"
 http = "1"
 dirs = "6"
 percent-encoding = "2"
-base64 = "0.22"
 raw-window-handle = { version = "0.6", features = ["std"] }
 glob = "0.3"
 mime = "0.3"

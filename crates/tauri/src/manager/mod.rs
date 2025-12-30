@@ -10,7 +10,6 @@ use std::{
   sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
 };
 
-use base64::{prelude::BASE64_STANDARD_NO_PAD, Engine};
 use serde::Serialize;
 use url::Url;
 
@@ -136,7 +135,7 @@ fn replace_csp_nonce(
       // > https://w3c.github.io/webappsec-csp/#security-nonces
       let mut buffer: [u8; 16] = [0; 16];
       getrandom::fill(&mut buffer).expect("failed to get random bytes");
-      BASE64_STANDARD_NO_PAD.encode(buffer)
+      format!("{buffer:x?}")
     })
   });
 

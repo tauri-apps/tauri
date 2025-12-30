@@ -40,7 +40,7 @@ use crate::{
 use std::{
   env::{set_var, var_os},
   fs::create_dir_all,
-  path::PathBuf,
+  path::Path,
   str::FromStr,
   thread::sleep,
   time::Duration,
@@ -126,16 +126,11 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   tauri_config: &TauriConfig,
-  features: Option<&Vec<String>>,
+  features: &[String],
   cli_options: &CliOptions,
 ) -> Result<(AppleConfig, AppleMetadata)> {
   let mut ios_options = cli_options.clone();
-  if let Some(features) = features {
-    ios_options
-      .features
-      .get_or_insert(Vec::new())
-      .extend_from_slice(features);
-  }
+  ios_options.features.extend_from_slice(features);
 
   let bundle_version = if let Some(bundle_version) = tauri_config
     .bundle
@@ -232,7 +227,7 @@ pub fn get_config(
             }
           }
         }),
-    ios_features: ios_options.features.clone(),
+    ios_features: Some(ios_options.features.clone()),
     bundle_version,
     bundle_version_short,
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
@@ -252,7 +247,7 @@ pub fn get_config(
     .clone()
     .unwrap_or_default()
   {
-    let framework_path = PathBuf::from(&framework);
+    let framework_path = Path::new(&framework);
     let ext = framework_path.extension().unwrap_or_default();
     if ext.is_empty() {
       frameworks.push(framework);
@@ -277,7 +272,11 @@ pub fn get_config(
     supported: true,
     ios: ApplePlatform {
       cargo_args: Some(ios_options.args),
-      features: ios_options.features,
+      features: if ios_options.features.is_empty() {
+        None
+      } else {
+        Some(ios_options.features)
+      },
       frameworks: Some(frameworks),
       vendor_frameworks: Some(vendor_frameworks),
       ..Default::default()

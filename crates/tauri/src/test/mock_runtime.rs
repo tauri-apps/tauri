@@ -1146,7 +1146,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     Ok(Self::init())
   }
 
-  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
     Ok(Self::init())
   }

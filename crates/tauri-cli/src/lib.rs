@@ -12,6 +12,7 @@
 
 mod acl;
 mod add;
+mod audit;
 mod build;
 mod bundle;
 mod completions;
@@ -165,6 +166,8 @@ enum Commands {
   Icon(icon::Options),
   Signer(signer::Cli),
   Completions(completions::Options),
+  /// Run dependency audits for Rust and JS
+  Audit(audit::Options),
   Permission(acl::permission::Cli),
   Capability(acl::capability::Cli),
   Inspect(inspect::Cli),
@@ -285,6 +288,7 @@ where
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
     Commands::Completions(options) => completions::command(options, cli_)?,
+    Commands::Audit(options) => audit::command(options)?,
     Commands::Permission(options) => acl::permission::command(options)?,
     Commands::Capability(options) => acl::capability::command(options)?,
     Commands::Android(c) => mobile::android::command(c, cli.verbose)?,

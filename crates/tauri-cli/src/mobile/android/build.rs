@@ -160,7 +160,7 @@ pub fn command(
     let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
     let (config, metadata) = get_config(
       &app,
-      &tauri_config,
+      tauri_config,
       &build_options.features,
       &Default::default(),
     );

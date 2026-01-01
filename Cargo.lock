@@ -8978,6 +8978,7 @@ dependencies = [
  "serial_test",
  "serialize-to-javascript",
  "swift-rs",
+ "tauri",
  "thiserror 2.0.12",
  "toml 0.9.10+spec-1.1.0",
  "url",

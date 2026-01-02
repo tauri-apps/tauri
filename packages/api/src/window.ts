@@ -2511,6 +2511,22 @@ interface WindowOptions {
    * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
    */
   scrollBarStyle?: ScrollBarStyle
+  /**
+   * Disable webview autofill and form suggestions.
+   *
+   * This prevents browser-like autofill UI from appearing inside the webview.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows**:
+   *   Disables WebView2 autofill and form suggestions. WebView2 may show autofill
+   *   UI even when `autocomplete="off"` is specified on input elements.
+   * - **Linux / Android / iOS / macOS**:
+   *   Unsupported and performs no operation.
+   *
+   * @since 2.x.x
+   */
+  disableAutofill?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

@@ -4886,6 +4886,10 @@ You may have it installed on another user account, but it is not available for t
         ScrollBarStyle::FluentOverlay => WryScrollBarStyle::FluentOverlay,
         _ => unreachable!(),
       });
+
+    if webview_attributes.disable_autofill {
+      webview_builder = webview_builder.with_general_autofill_enabled(false);
+    }
   }
 
   #[cfg(windows)]

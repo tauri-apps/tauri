@@ -1184,6 +1184,24 @@ fn main() {
     self
   }
 
+  /// Disable webview autofill and form suggestions.
+  ///
+  /// This prevents browser-like autofill UI from appearing inside the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   Disables WebView2 autofill and form suggestions.
+  ///   WebView2 may show autofill UI even when `autocomplete="off"` is specified
+  ///   on input elements.
+  /// - **Linux / Android / iOS / macOS**:
+  ///   Unsupported and performs no operation.
+  #[must_use]
+  pub fn disable_autofill(mut self, disable: bool) -> Self {
+    self.webview_attributes = self.webview_attributes.disable_autofill(disable);
+    self
+  }
+
   /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
   ///
   /// Default is true.

@@ -1230,6 +1230,24 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
+  /// Disable webview autofill and form suggestions.
+  ///
+  /// This prevents browser-like autofill UI from appearing inside the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   Disables WebView2 autofill and form suggestions.
+  ///   WebView2 may show autofill UI even when `autocomplete="off"` is specified
+  ///   on input elements.
+  /// - **Linux / Android / iOS / macOS**:
+  ///   Unsupported and performs no operation.
+  #[must_use]
+  pub fn disable_autofill(mut self, disable: bool) -> Self {
+    self.webview_builder = self.webview_builder.disable_autofill(disable);
+    self
+  }
+
   /// Allows overriding the the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///

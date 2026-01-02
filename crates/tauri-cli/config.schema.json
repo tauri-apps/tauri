@@ -603,6 +603,11 @@
               "$ref": "#/definitions/ScrollBarStyle"
             }
           ]
+        },
+        "disableAutofill": {
+          "description": "Disable webview autofill and form suggestions.\n\n This option prevents browser-like autofill UI from appearing inside\n the webview, improving the native application experience.\n\n ## Platform-specific\n\n - **Windows**:\n   Disables WebView2 autofill and form suggestions.\n   This is useful because WebView2 may show autofill UI\n   even when `autocomplete=\"off\"` is specified on input elements.\n - **Linux / macOS / iOS / Android**:\n   Unsupported and performs no operation.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

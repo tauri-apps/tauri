@@ -1980,6 +1980,21 @@ pub struct WindowConfig {
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
+  /// Disable webview autofill and form suggestions.
+  ///
+  /// This option prevents browser-like autofill UI from appearing inside
+  /// the webview, improving the native application experience.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   Disables WebView2 autofill and form suggestions.
+  ///   This is useful because WebView2 may show autofill UI
+  ///   even when `autocomplete="off"` is specified on input elements.
+  /// - **Linux / macOS / iOS / Android**:
+  ///   Unsupported and performs no operation.
+  #[serde(default, alias = "disable-autofill")]
+  pub disable_autofill: bool,
 }
 
 impl Default for WindowConfig {
@@ -2042,6 +2057,7 @@ impl Default for WindowConfig {
       data_directory: None,
       data_store_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
+      disable_autofill: false,
     }
   }
 }
@@ -3574,6 +3590,7 @@ mod build {
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
+      let disable_autofill = self.disable_autofill;
 
       literal_struct!(
         tokens,
@@ -3634,7 +3651,8 @@ mod build {
         disable_input_accessory_view,
         data_directory,
         data_store_identifier,
-        scroll_bar_style
+        scroll_bar_style,
+        disable_autofill
       );
     }
   }

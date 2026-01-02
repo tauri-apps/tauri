@@ -363,6 +363,12 @@ pub struct WebviewAttributes {
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
   pub allow_link_preview: bool,
   pub scroll_bar_style: ScrollBarStyle,
+  /// Disable webview autofill and form suggestions.
+  ///
+  /// On Windows, WebView2 may show autofill UI even when
+  /// `autocomplete="off"` is specified on input elements.
+  /// This flag disables that behavior.
+  pub disable_autofill: bool,
   /// Allows overriding the the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
@@ -433,7 +439,8 @@ impl From<&WindowConfig> for WebviewAttributes {
         #[cfg(windows)]
         ConfigScrollBarStyle::FluentOverlay => ScrollBarStyle::FluentOverlay,
         _ => ScrollBarStyle::Default,
-      });
+      })
+      .disable_autofill(config.disable_autofill);
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
@@ -467,6 +474,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     }
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
+    builder.disable_autofill = config.disable_autofill;
     #[cfg(target_os = "ios")]
     if config.disable_input_accessory_view {
       builder
@@ -508,6 +516,7 @@ impl WebviewAttributes {
       javascript_disabled: false,
       allow_link_preview: true,
       scroll_bar_style: ScrollBarStyle::Default,
+      disable_autofill: false,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
       #[cfg(windows)]
@@ -799,8 +808,25 @@ impl WebviewAttributes {
     self.scroll_bar_style = style;
     self
   }
-}
 
+  /// Disable webview autofill and form suggestions.
+  ///
+  /// This prevents browser-like autofill UI from appearing inside the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   Disables WebView2 autofill and form suggestions.
+  ///   WebView2 may show autofill UI even when `autocomplete="off"` is specified
+  ///   on input elements.
+  /// - **Linux / Android / iOS / macOS**:
+  ///   Unsupported and performs no operation.
+  #[must_use]
+  pub fn disable_autofill(mut self, disable: bool) -> Self {
+    self.disable_autofill = disable;
+    self
+  }
+}
 /// IPC handler.
 pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;
 

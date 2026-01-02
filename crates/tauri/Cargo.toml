@@ -141,7 +141,7 @@ windows = { version = "0.61", features = [
 # mobile
 [target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
 bytes = { version = "1", features = ["serde"] }
-reqwest = { version = "0.12", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
   "json",
   "stream",
 

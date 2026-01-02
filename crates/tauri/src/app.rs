@@ -278,12 +278,11 @@ impl<R: Runtime> AssetResolver<R> {
   /// were configured with [`crate::webview::WebviewBuilder::use_https_scheme`] or `tauri.conf.json > app > windows > useHttpsScheme`.
   /// If you are resolving an asset for a webview with a more dynamic configuration, see [`AssetResolver::get_for_scheme`].
   ///
-  /// Resolves to the embedded asset that is part of the app
-  /// in dev when [`devUrl`](https://v2.tauri.app/reference/config/#devurl) points to a folder in your filesystem
-  /// or in production when [`frontendDist`](https://v2.tauri.app/reference/config/#frontenddist)
-  /// points to your frontend assets.
+  /// In production, this resolves to the embedded asset bundled in the app executable
+  /// which contains your frontend assets in [`frontendDist`](https://v2.tauri.app/reference/config/#frontenddist) during build time.
   ///
-  /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.
+  /// In dev mode, if [`devUrl`](https://v2.tauri.app/reference/config/#devurl) is set, we don't bundle the assets to reduce re-builds,
+  /// and this will fall back to read from `frontendDist` directly.
   /// Note that the dist directory must exist so you might need to build your frontend assets first.
   pub fn get(&self, path: String) -> Option<Asset> {
     let use_https_scheme = self
@@ -301,9 +300,8 @@ impl<R: Runtime> AssetResolver<R> {
   pub fn get_for_scheme(&self, path: String, use_https_scheme: bool) -> Option<Asset> {
     #[cfg(dev)]
     {
-      // on dev if the devPath is a path to a directory we have the embedded assets
-      // so we can use get_asset() directly
-      // we only fallback to reading from distDir directly if we're using an external URL (which is likely)
+      // We don't bundle the assets when in dev mode and `devUrl` is set, so fall back to read from `frontendDist` directly
+      // TODO: Maybe handle `FrontendDist::Files` as well
       if let (Some(_), Some(crate::utils::config::FrontendDist::Directory(dist_path))) = (
         &self.manager.config().build.dev_url,
         &self.manager.config().build.frontend_dist,
@@ -1990,13 +1988,13 @@ tauri::Builder::default()
   >(
     mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(move |ctx, request, responder| {
-          responder.respond(protocol(ctx, request))
+        handler: Box::new(move |ctx, request, responder| {
+          responder.respond(protocol_handler(ctx, request))
         }),
       }),
     );
@@ -2032,8 +2030,8 @@ tauri::Builder::default()
   ///             .body("failed to read file".as_bytes().to_vec())
   ///             .unwrap()
   ///         );
-  ///     }
-  ///   });
+  ///       }
+  ///     });
   ///   });
   /// ```
   ///
@@ -2054,12 +2052,12 @@ tauri::Builder::default()
   >(
     mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(protocol),
+        handler: Box::new(protocol_handler),
       }),
     );
     self

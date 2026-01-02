@@ -71,7 +71,7 @@ pub struct Options {
   pub config: Vec<ConfigValue>,
   /// Space or comma separated list of features, should be the same features passed to `tauri build` if any.
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// Target triple to build against.
   ///
   /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.

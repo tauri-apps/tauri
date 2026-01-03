@@ -146,10 +146,9 @@ fn config_handle() -> ConfigHandle {
   &CONFIG_HANDLE
 }
 
-// TODO: Switch to `LazyLock` when we bump MSRV to above 1.80
-static CONFIG_SCHEMA_VALIDATOR: OnceLock<jsonschema::Validator> = OnceLock::new();
-
 fn config_schema_validator() -> &'static jsonschema::Validator {
+  // TODO: Switch to `LazyLock` when we bump MSRV to above 1.80
+  static CONFIG_SCHEMA_VALIDATOR: OnceLock<jsonschema::Validator> = OnceLock::new();
   CONFIG_SCHEMA_VALIDATOR.get_or_init(|| {
     let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
       .expect("Failed to parse config schema bundled in the tauri-cli");

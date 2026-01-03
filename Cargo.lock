@@ -8538,6 +8538,7 @@ dependencies = [
  "quickcheck_macros",
  "raw-window-handle",
  "reqwest 0.13.1",
+ "rustls 0.23.35",
  "serde",
  "serde_json",
  "serde_repr",

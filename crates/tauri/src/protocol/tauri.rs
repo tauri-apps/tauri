@@ -114,6 +114,11 @@ fn get_response<R: Runtime>(
       decoded_path.trim_start_matches('/')
     );
 
+    #[cfg(feature = "rustls-tls")]
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+      let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+
     let mut client = reqwest::ClientBuilder::new();
 
     if url.starts_with("https://") {

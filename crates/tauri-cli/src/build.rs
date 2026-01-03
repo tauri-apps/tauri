@@ -79,6 +79,9 @@ pub struct Options {
   /// Skip code signing when bundling the app
   #[clap(long)]
   pub no_sign: bool,
+  /// Run dependency audit as part of the build (honors `build.audit` config)
+  #[clap(long)]
+  pub audit: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
@@ -125,7 +128,36 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(bin_path));
 
   let app_settings = interface.app_settings();
+  // Run audit if requested via flag or persistent config
+  let mut should_run_audit = options.audit;
+  if !should_run_audit {
+    let tauri_conf = crate::helpers::app_paths::tauri_dir().join("tauri.conf.json");
+    if tauri_conf.exists() {
+      if let Ok(raw) = std::fs::read_to_string(&tauri_conf) {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
+          if let Some(mode) = val
+            .get("build")
+            .and_then(|b| b.get("audit"))
+            .and_then(|a| a.get("mode"))
+            .and_then(|m| m.as_str())
+          {
+            if mode != "off" {
+              should_run_audit = true;
+            }
+          }
+        }
+      }
+    }
+  }
 
+  if should_run_audit {
+    log::info!(action = "Audit"; "Running `tauri audit` as part of build...");
+    crate::audit::command(crate::audit::Options {
+      mode: Some(crate::audit::Mode::Warn),
+      format: Some(crate::audit::OutputFormat::Human),
+      install_tools: false,
+    })?;
+  }
   if !options.no_bundle && (config_.bundle.active || options.bundles.is_some()) {
     crate::bundle::bundle(
       &options.into(),

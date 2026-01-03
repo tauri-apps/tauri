@@ -1945,6 +1945,14 @@
             "type": "string"
           }
         }
+      ,
+        "audit": {
+          "description": "Configuration for build-time dependency auditing.",
+          "anyOf": [
+            { "$ref": "#/definitions/BuildAuditConfig" },
+            { "type": "null" }
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -3844,3 +3852,51 @@
     }
   }
 }
+
+    ,
+    "BuildAuditConfig": {
+      "description": "Build audit configuration used by `tauri audit`.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "The mode for audit results: off, warn or error.",
+          "type": "string",
+          "enum": ["off", "warn", "error"],
+          "default": "warn"
+        },
+        "failOn": {
+          "description": "Severity threshold to fail the build (e.g. \"high\").",
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "high"
+        },
+        "rust": {
+          "description": "Rust provider options.",
+          "type": ["object", "null"],
+          "properties": {
+            "providers": { "type": "array", "items": { "type": "string" } },
+            "ignore": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "js": {
+          "description": "JS provider options.",
+          "type": ["object", "null"],
+          "properties": {
+            "providers": { "type": "array", "items": { "type": "string" } },
+            "ignore": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "description": "Output configuration for audit results.",
+          "type": "object",
+          "properties": {
+            "formats": { "type": "array", "items": { "type": "string" } },
+            "sarifPath": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }

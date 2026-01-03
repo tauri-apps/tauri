@@ -13,7 +13,6 @@ use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, set_var},
   ffi::{OsStr, OsString},
-  process::exit,
   sync::Mutex,
 };
 
@@ -205,8 +204,11 @@ fn get_internal(
           log::error!("`{config_file_name:?}` error on `{}`: {}", path, error);
         }
       }
+      // return an error instead of exiting so callers (like the `audit` command)
+      // can map the failure to the appropriate exit code. This keeps process
+      // termination centralized in higher-level commands.
       if !reload {
-        exit(1);
+        crate::error::bail!("configuration schema validation failed");
       }
     }
   }

@@ -126,10 +126,9 @@ fn get_response<R: Runtime>(
         ))]
         {
           log::info!("adding dev server root certificate");
-          client = client.add_root_certificate(
-            reqwest::Certificate::from_pem(cert_pem.as_bytes())
-              .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE"),
-          );
+          let certificate = reqwest::Certificate::from_pem(cert_pem.as_bytes())
+            .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE");
+          client = client.tls_certs_merge([certificate]);
         }
 
         #[cfg(not(any(

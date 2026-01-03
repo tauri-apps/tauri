@@ -207,9 +207,9 @@ fn get_internal(
       for error in errors {
         let path = error.instance_path.into_iter().join(" > ");
         if path.is_empty() {
-          log::error!("`{config_file_name:?}` error: {}", error);
+          log::error!("`{config_file_name:?}` error: {error}");
         } else {
-          log::error!("`{config_file_name:?}` error on `{}`: {}", path, error);
+          log::error!("`{config_file_name:?}` error on `{path}`: {error}");
         }
       }
       if !reload {

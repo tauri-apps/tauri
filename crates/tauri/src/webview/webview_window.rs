@@ -1309,7 +1309,6 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// ## Platform-specific
   ///
   /// - **Linux / Windows / Android / MacOS:** Unsupported.
-  #[cfg(target_os = "ios")]
   pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
     self.webview_builder = self
       .webview_builder

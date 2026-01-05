@@ -1228,10 +1228,8 @@ fn main() {
   /// ## Platform-specific
   ///
   /// - **Linux / Windows / Android / MacOS:** Unsupported.
-  #[cfg(target_os = "ios")]
   #[must_use]
   pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
-    // self.
     self.webview_attributes = self
       .webview_attributes
       .limit_navigations_to_app_bound_domains(limit_navigations);

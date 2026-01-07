@@ -257,7 +257,7 @@ pub(crate) struct AppWebview {
   pub bounds: Arc<Mutex<Option<WebviewBounds>>>,
   pub devtools_enabled: bool,
   pub uri_scheme_protocols:
-    Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocol>>>>,
+    Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
   pub initialization_scripts: Arc<Vec<cef_impl::CefInitScript>>,
 }
 

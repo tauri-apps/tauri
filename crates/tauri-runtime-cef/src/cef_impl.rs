@@ -18,7 +18,7 @@ use tauri_runtime::{
   dpi::{
     LogicalPosition, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Size,
   },
-  webview::{InitializationScript, PendingWebview, UriSchemeProtocol, WebviewAttributes},
+  webview::{InitializationScript, PendingWebview, UriSchemeProtocolHandler, WebviewAttributes},
   window::{PendingWindow, WindowEvent, WindowId},
   ExitRequestedEventAction, RunEvent, UserEvent,
 };
@@ -2499,10 +2499,11 @@ fn create_browser_window<T: UserEvent>(
     .map(|scheme| format!("{scheme}.localhost"))
     .collect();
 
-  let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocol>>> = uri_scheme_protocols
-    .into_iter()
-    .map(|(k, v)| (k, Arc::new(v)))
-    .collect();
+  let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocolHandler>>> =
+    uri_scheme_protocols
+      .into_iter()
+      .map(|(k, v)| (k, Arc::new(v)))
+      .collect();
 
   let custom_schemes = uri_scheme_protocols.keys().cloned().collect::<Vec<_>>();
 
@@ -2857,10 +2858,11 @@ pub(crate) fn create_webview<T: UserEvent>(
   );
   let url = CefString::from(url.as_str());
 
-  let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocol>>> = uri_scheme_protocols
-    .into_iter()
-    .map(|(k, v)| (k, Arc::new(v)))
-    .collect();
+  let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocolHandler>>> =
+    uri_scheme_protocols
+      .into_iter()
+      .map(|(k, v)| (k, Arc::new(v)))
+      .collect();
 
   let mut request_context = request_context_from_webview_attributes(
     context,

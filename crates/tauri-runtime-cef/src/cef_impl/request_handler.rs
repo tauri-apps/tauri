@@ -16,7 +16,7 @@ use http::{
   HeaderMap, HeaderName, HeaderValue,
 };
 use kuchiki::NodeRef;
-use tauri_runtime::{webview::UriSchemeProtocol, UserEvent};
+use tauri_runtime::{webview::UriSchemeProtocolHandler, UserEvent};
 use tauri_utils::{
   config::{Csp, CspDirectiveSources},
   html::{parse as parse_html, serialize_node},
@@ -178,7 +178,7 @@ wrap_request_handler! {
 wrap_resource_handler! {
   pub struct WebResourceHandler {
     webview_label: String,
-    handler: Arc<Box<UriSchemeProtocol>>,
+    handler: Arc<Box<UriSchemeProtocolHandler>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
     // we clone response to send it to the handler thread
     response: Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>,

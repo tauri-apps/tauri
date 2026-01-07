@@ -128,7 +128,7 @@ pub fn command(options: Options) -> Result<()> {
         &AppInterface::new(tauri_config_, None)?,
       ),
       tauri_config_,
-      None,
+      &[],
       &cli_options,
     )?;
     (config, metadata)

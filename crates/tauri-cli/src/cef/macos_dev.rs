@@ -62,9 +62,7 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
 
   // Merge features
   let mut merged_features = config_features.clone();
-  if let Some(f) = options.features.clone() {
-    merged_features.extend(f);
-  }
+  merged_features.extend(options.features.clone());
 
   // Get minimal config for dev mode (we'll use defaults for most things)
   let tauri_config = crate::helpers::config::get(

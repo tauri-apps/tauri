@@ -23,7 +23,7 @@ use std::{
   sync::Arc,
 };
 
-pub type UriSchemeProtocol = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
+pub type UriSchemeProtocolHandler = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
   + Send
   + Sync
   + 'static;
@@ -202,7 +202,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// Runtime specific attributes.
   pub platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
 
-  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
+  /// Custom protocols to register on the webview
+  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocolHandler>>,
 
   /// How to handle IPC calls on the webview.
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
@@ -268,12 +269,12 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
   >(
     &mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) {
     let uri_scheme = uri_scheme.into();
     self
       .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(protocol));
+      .insert(uri_scheme, Box::new(protocol_handler));
   }
 
   #[cfg(target_os = "android")]

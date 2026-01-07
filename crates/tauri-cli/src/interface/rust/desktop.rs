@@ -60,9 +60,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   {
     // compute enabled features by merging config_features and options.features, then asking the manifest
     let mut merged_features = config_features.clone();
-    if let Some(f) = options.features.clone() {
-      merged_features.extend(f);
-    }
+    merged_features.extend(options.features.clone());
     let enabled_features = app_settings
       .manifest
       .lock()
@@ -290,9 +288,7 @@ pub fn cargo_command(
   build_cmd.args(&options.args);
 
   let mut features = config_features;
-  if let Some(f) = options.features {
-    features.extend(f);
-  }
+  features.extend(options.features);
   if !features.is_empty() {
     build_cmd.arg("--features");
     build_cmd.arg(features.join(","));

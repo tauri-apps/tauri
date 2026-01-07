@@ -1731,7 +1731,7 @@ tauri::Builder::default()
     // or if relative to `devUrl` or `frontendDist`
       self
           .manager()
-          .get_url(uses_https)
+          .get_app_url(uses_https)
           .make_relative(current_url)
           .is_some()
 

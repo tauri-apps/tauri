@@ -6,7 +6,7 @@ license = "Apache-2.0 OR MIT"
 publish = false
 
 [dependencies]
-cef = { version = "142.2.1", default-features = false }
+cef = { version = "143.6.0", default-features = false }
 
 [features]
 default = ["sandbox"]
@@ -15,5 +15,3 @@ sandbox = ["cef/sandbox"]
 
 # Ensure this crate is NOT treated as part of the repo workspace.
 [workspace]
-
-

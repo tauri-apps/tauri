@@ -817,7 +817,7 @@ impl WebviewAttributes {
   ///
   /// - **Linux / Windows / Android / MacOS:** Unsupported.
   #[must_use]
-  // #[cfg(target_os = "ios")]
+  #[allow(unused_variables, unused_mut)]
   pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
     #[cfg(target_os = "ios")]
     {

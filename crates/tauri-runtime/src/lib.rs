@@ -435,7 +435,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
       target_os = "openbsd"
     )))
   )]
-  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self>;
+  fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> Self::EventLoopProxy;

@@ -21,10 +21,13 @@ fn default_version() -> &'static str {
   })
 }
 
+/// Patched CEF builds hosted on CrabNebula CDN
+const DEFAULT_CDN_URL: &str = "https://cdn.crabnebula.app/download/crabnebula/cef-patched/latest";
+
 fn default_download_url() -> &'static str {
   static DEFAULT_DOWNLOAD_URL: OnceLock<String> = OnceLock::new();
   DEFAULT_DOWNLOAD_URL
-    .get_or_init(download_cef::default_download_url)
+    .get_or_init(|| std::env::var("CEF_DOWNLOAD_URL").unwrap_or(DEFAULT_CDN_URL.to_owned()))
     .as_str()
 }
 

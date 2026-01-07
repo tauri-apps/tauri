@@ -45,48 +45,71 @@ impl ObjectImpl for TauriAsset {
     self.parent_constructed();
 
     let element = self.obj();
-    let filesrc = gst::ElementFactory::make("filesrc")
-      .build()
-      .unwrap_or_else(|err| {
-        gst::error!(CAT, imp = self, "Failed to create filesrc element: {err}");
-        panic!("Creating filesrc element failed");
-      });
+    let filesrc = match gst::ElementFactory::make("filesrc").build()
+      {
+        Ok(src) => src,
+        Err(err) => {
+          gst::error!(CAT, imp = self, "Failed to create filesrc element: {err}");
+          return;
+        },
+      };
 
-    element
-      .add(&filesrc)
-      .unwrap_or_else(|err| {
+    match element.add(&filesrc) {
+      Ok(_) => (),
+      Err(err) => {
         gst::error!(CAT, imp = self, "Failed to add filesrc to bin: {err}");
-        panic!("Adding filesrc to bin failed");
-      });
+        return;
+      },
+    };
 
-    let srcpad = filesrc
-      .static_pad("src")
-      .unwrap_or_else(|| {
-        gst::error!(CAT, imp = self, "Failed to get src pad from filesrc");
-        panic!("Getting src pad failed");
-      });
+    let srcpad = match filesrc.static_pad("src") {
+      Some(pad) => pad,
+      None => {
+        gst::error!(CAT, imp = self, "filesrc has no src pad");
+        return;
+      },
+    };
 
-    let ghostpad = GhostPad::with_target(&srcpad).unwrap_or_else(|err| {
-      gst::error!(CAT, imp = self, "Failed to create ghost pad: {err}");
-      panic!("Creating ghost pad failed");
-    });
+    match filesrc.static_pad("src") {
+      Some(pad) => pad,
+      None => {
+        gst::error!(CAT, imp = self, "filesrc has no src pad");
+        return;
+      },
+    };
 
-    element
-      .add_pad(&ghostpad)
-      .unwrap_or_else(|err| {
-        gst::error!(CAT, imp = self, "Failed to add ghost pad: {err}");
-        panic!("Adding ghost pad failed");
-      });
+    let ghostpad = match GhostPad::with_target(&srcpad) {
+      Ok(pad) => pad,
+      Err(err) => {
+        gst::error!(CAT, imp = self, "Failed to create ghost pad: {err}");
+        return;
+      },
+    };
 
-    ghostpad.set_active(true).unwrap_or_else(|err| {
+    match element
+      .add_pad(&ghostpad) {
+      Ok(_) => (),
+      Err(err) => {
+        gst::error!(CAT, imp = self, "Failed to add ghost pad to bin: {err}");
+        return;
+      }
+    };
+
+    match ghostpad.set_active(true) {
+      Ok(_) => (),
+      Err(err) => {
         gst::error!(CAT, imp = self, "Failed to activate ghost pad: {err}");
-        panic!("Ghost pad activation failed");
-    });
+        return;
+      },
+    };
 
-    self.filesrc.set(filesrc).unwrap_or_else(|_| {
+    match self.filesrc.set(filesrc) {
+      Ok(_) => (),
+      Err(_) => {
         gst::error!(CAT, imp = self, "Failed to set filesrc OnceLock");
-        panic!("Setting filesrc OnceLock failed");
-    });
+        return;  
+      },
+    }
 
     gst::debug!(CAT, imp = self, "TauriAsset constructed");
   }
@@ -130,16 +153,14 @@ impl URIHandlerImpl for TauriAsset {
 
     gst::debug!(CAT, imp = self, "URI from \"{}\" to \"{}\"", uri, &location);
 
-    self
+    return Ok(self
       .filesrc
       .get()
       .ok_or_else(|| {
         let msg = "filesrc element is not initialized";
         gst::error!(CAT, imp = self, "{msg}");
         glib::Error::new(gst::URIError::BadUri, &msg)
-      })
-      .map(|filesrc| {
-        filesrc.set_property("location", &location);
-      })
+      })?.set_property("location", &location)
+    );
   }
 }

@@ -2557,7 +2557,10 @@ fn create_browser_window<T: UserEvent>(
     bounds.y = position.y;
   }
 
-  let window_info = cef::WindowInfo::default();
+  let window_info = cef::WindowInfo {
+    bounds,
+    ..Default::default()
+  };
 
   let Some(browser) = browser_host_create_browser_sync(
     Some(&window_info),
@@ -2895,21 +2898,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     #[cfg(target_os = "macos")]
     let window_handle = ensure_valid_content_view(window_handle);
 
-    let window_info = cef::WindowInfo {
-      bounds: bounds.clone().unwrap_or(cef::Rect::default()),
-      #[cfg(target_os = "macos")]
-      parent_view: window_handle,
-      #[cfg(target_os = "macos")]
-      hidden: 0,
-      #[cfg(windows)]
-      parent_window: window_handle,
-      #[cfg(windows)]
-      style: {
-        use windows::Win32::UI::WindowsAndMessaging::*;
-        (WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE).0
-      },
-      ..Default::default()
-    };
+    let window_info = cef::WindowInfo::default()
+      .set_as_child(window_handle, bounds.as_ref().unwrap_or(&Rect::default()));
 
     let Some(browser) = browser_host_create_browser_sync(
       Some(&window_info),
@@ -3048,6 +3038,13 @@ fn browser_settings_from_webview_attributes(
     } else {
       sys::cef_state_t::STATE_DISABLED
     }),
+    background_color: if let Some(color) = webview_attributes.background_color {
+      color_to_cef_argb(color)
+    } else if webview_attributes.transparent {
+      0x00000000
+    } else {
+      0xFFFFFFFF
+    },
     ..Default::default()
   }
 }

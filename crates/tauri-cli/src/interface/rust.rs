@@ -15,7 +15,6 @@ use std::{
 };
 
 use dunce::canonicalize;
-use glob::glob;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::RecursiveMode;
 use notify_debouncer_full::new_debouncer;
@@ -433,22 +432,14 @@ fn dev_options(
   }
 }
 
-// Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
-fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
-  let path = path.to_str().context("path is not UTF-8 compatible")?;
-  let res = glob(path).with_context(|| format!("failed to expand glob pattern for {path}"))?;
-  let res = res
-    .map(|p| p.with_context(|| format!("failed to expand glob pattern for {path}")))
-    .collect::<Result<Vec<_>, _>>()?;
-  Ok(res)
-}
-
 fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<PathBuf>> {
   let tauri_path = tauri_dir();
-  let workspace_path = get_workspace_dir()?;
+  let workspace_dependency_paths = get_in_workspace_dependency_paths()?;
 
   // We always want to watch the main tauri folder.
   let mut watch_folders = vec![tauri_path.to_path_buf()];
+
+  watch_folders.extend(workspace_dependency_paths);
 
   // Add the additional watch folders, resolving the path from the tauri path if it is relative
   watch_folders.extend(additional_watch_folders.iter().filter_map(|dir| {
@@ -467,30 +458,6 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
     }
     canonicalized
   }));
-
-  // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
-  let cargo_settings = CargoSettings::load(&workspace_path)?;
-  if let Some(members) = cargo_settings.workspace.and_then(|w| w.members) {
-    for p in members {
-      let p = workspace_path.join(p);
-      match expand_member_path(&p) {
-        // Sometimes expand_member_path returns an empty vec, for example if the path contains `[]` as in `C:/[abc]/project/`.
-        // Cargo won't complain unless theres a workspace.members config with glob patterns so we should support it too.
-        Ok(expanded_paths) => {
-          if expanded_paths.is_empty() {
-            watch_folders.push(p);
-          } else {
-            watch_folders.extend(expanded_paths);
-          }
-        }
-        Err(err) => {
-          // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
-          log::error!("Error watching {}: {}", p.display(), err);
-          watch_folders.push(p);
-        }
-      };
-    }
-  }
 
   Ok(watch_folders)
 }
@@ -672,7 +639,7 @@ pub struct TomlWorkspaceField {
 #[derive(Clone, Debug, Deserialize)]
 struct WorkspaceSettings {
   /// the workspace members.
-  members: Option<Vec<String>>,
+  // members: Option<Vec<String>>,
   package: Option<WorkspacePackageSettings>,
 }
 
@@ -1188,7 +1155,7 @@ pub(crate) struct CargoMetadata {
   pub(crate) workspace_root: PathBuf,
 }
 
-pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
+fn run_cargo_metadata() -> crate::Result<Vec<u8>> {
   let output = Command::new("cargo")
     .args(["metadata", "--no-deps", "--format-version", "1"])
     .current_dir(tauri_dir())
@@ -1205,7 +1172,91 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
     });
   }
 
-  serde_json::from_slice(&output.stdout).context("failed to parse cargo metadata")
+  Ok(output.stdout)
+}
+
+pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
+  let output = run_cargo_metadata()?;
+  serde_json::from_slice(&output).context("failed to parse cargo metadata")
+}
+
+#[derive(Deserialize)]
+pub struct CargoMetadataExpended {
+  workspace_members: Vec<String>,
+  workspace_default_members: Vec<String>,
+  packages: Vec<Package>,
+}
+
+#[derive(Deserialize)]
+struct Package {
+  name: String,
+  id: String,
+  manifest_path: PathBuf,
+  dependencies: Vec<Dependency>,
+}
+
+#[derive(Deserialize)]
+struct Dependency {
+  name: String,
+  /// Local package
+  path: Option<PathBuf>,
+}
+
+pub fn get_in_workspace_dependency_paths() -> crate::Result<Vec<PathBuf>> {
+  let output = run_cargo_metadata()?;
+  let metadata: CargoMetadataExpended =
+    serde_json::from_slice(&output).context("failed to parse cargo metadata")?;
+  if metadata.workspace_default_members.len() != 1 {
+    return Err(crate::Error::GenericError(
+      "The length of cargo metadata output `workspace_default_members` is not `1` for the tauri project directory ".to_owned(),
+    ));
+  }
+  // Checked from above
+  let tauri_project_id = metadata.workspace_default_members.first().unwrap();
+  let tauri_project_package = metadata
+    .packages
+    .iter()
+    .find(|package| package.id == *tauri_project_id)
+    .context("tauri project package doesn't exist in cargo metadata output `packages`")?;
+
+  let workspace_packages = metadata
+    .workspace_members
+    .iter()
+    .map(|member_package_id| {
+      metadata
+        .packages
+        .iter()
+        .find(|package| package.id == *member_package_id)
+        .context("workspace member doesn't exist in cargo metadata output `packages`")
+    })
+    .collect::<crate::Result<Vec<_>>>()?;
+
+  let mut found_dependency_paths = Vec::new();
+  find_dependencies(
+    tauri_project_package,
+    &workspace_packages,
+    &mut found_dependency_paths,
+  );
+  Ok(found_dependency_paths)
+}
+
+fn find_dependencies(
+  package: &Package,
+  workspace_packages: &Vec<&Package>,
+  found_dependency_paths: &mut Vec<PathBuf>,
+) {
+  for dependency in &package.dependencies {
+    if let Some(path) = &dependency.path {
+      if let Some(package) = workspace_packages.iter().find(|workspace_package| {
+        workspace_package.name == dependency.name
+          && path.join("Cargo.toml") == workspace_package.manifest_path
+          && !found_dependency_paths.contains(path)
+      }) {
+        found_dependency_paths.push(path.to_owned());
+        find_dependencies(package, workspace_packages, found_dependency_paths);
+      }
+    }
+  }
 }
 
 /// Get the cargo target directory based on the provided arguments.

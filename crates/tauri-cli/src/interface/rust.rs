@@ -434,12 +434,11 @@ fn dev_options(
 
 fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<PathBuf>> {
   let tauri_path = tauri_dir();
-  let workspace_dependency_paths = get_in_workspace_dependency_paths()?;
 
   // We always want to watch the main tauri folder.
   let mut watch_folders = vec![tauri_path.to_path_buf()];
 
-  watch_folders.extend(workspace_dependency_paths);
+  watch_folders.extend(get_in_workspace_dependency_paths()?);
 
   // Add the additional watch folders, resolving the path from the tauri path if it is relative
   watch_folders.extend(additional_watch_folders.iter().filter_map(|dir| {
@@ -1183,7 +1182,6 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
 #[derive(Deserialize)]
 pub struct CargoMetadataExpended {
   workspace_members: Vec<String>,
-  workspace_default_members: Vec<String>,
   packages: Vec<Package>,
 }
 
@@ -1202,21 +1200,16 @@ struct Dependency {
   path: Option<PathBuf>,
 }
 
-pub fn get_in_workspace_dependency_paths() -> crate::Result<Vec<PathBuf>> {
+/// Get the tauri project crate's dependencies that are inside the workspace
+fn get_in_workspace_dependency_paths() -> crate::Result<Vec<PathBuf>> {
   let output = run_cargo_metadata()?;
   let metadata: CargoMetadataExpended =
     serde_json::from_slice(&output).context("failed to parse cargo metadata")?;
-  if metadata.workspace_default_members.len() != 1 {
-    return Err(crate::Error::GenericError(
-      "The length of cargo metadata output `workspace_default_members` is not `1` for the tauri project directory ".to_owned(),
-    ));
-  }
-  // Checked from above
-  let tauri_project_id = metadata.workspace_default_members.first().unwrap();
+  let tauri_project_manifest_path = tauri_dir().join("Cargo.toml");
   let tauri_project_package = metadata
     .packages
     .iter()
-    .find(|package| package.id == *tauri_project_id)
+    .find(|package| package.manifest_path == tauri_project_manifest_path)
     .context("tauri project package doesn't exist in cargo metadata output `packages`")?;
 
   let workspace_packages = metadata

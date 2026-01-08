@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::error::ErrorExt;
+use crate::helpers::cargo_manifest::{cargo_manifest_and_lock, crate_version};
+use crate::interface::rust::get_workspace_dir;
 use crate::VersionMetadata;
 use download_cef::{CefFile, CefIndex, OsAndArch, DEFAULT_TARGET};
 use std::{
@@ -12,13 +14,20 @@ use std::{
   time::Duration,
 };
 
-fn default_version() -> &'static str {
-  static DEFAULT_VERSION: OnceLock<String> = OnceLock::new();
-  DEFAULT_VERSION.get_or_init(|| {
-    let metadata: VersionMetadata = serde_json::from_str(include_str!("../../metadata-v2.json"))
-      .expect("failed to parse metadata-v2.json");
-    download_cef::default_version(&metadata.cef)
-  })
+fn default_version() -> String {
+  // Try to get version from Cargo.lock first
+  if let Ok(workspace_dir) = get_workspace_dir() {
+    let (_, lock) = cargo_manifest_and_lock(&workspace_dir);
+    let crate_version = crate_version(&workspace_dir, None, lock.as_ref(), "cef");
+    if let Some(version) = crate_version.version {
+      return download_cef::default_version(&version);
+    }
+  }
+
+  // Fallback to previous implementation: read from metadata-v2.json
+  let metadata: VersionMetadata = serde_json::from_str(include_str!("../../metadata-v2.json"))
+    .expect("failed to parse metadata-v2.json");
+  download_cef::default_version(&metadata.cef)
 }
 
 /// Patched CEF builds hosted on CrabNebula CDN
@@ -66,9 +75,7 @@ pub fn export_cef_directory(options: ExporterOptions) -> crate::Result<()> {
   let url = options
     .mirror_url
     .unwrap_or_else(|| default_download_url().to_string());
-  let version = options
-    .version
-    .unwrap_or_else(|| default_version().to_string());
+  let version = options.version.unwrap_or_else(|| default_version());
 
   let parent = output.parent().ok_or_else(|| {
     crate::Error::GenericError(format!("invalid target directory: {}", output.display()))
@@ -270,25 +277,29 @@ pub fn ensure_cef_directory(
   let os_arch = OsAndArch::try_from(target)
     .map_err(|e| crate::Error::GenericError(format!("invalid target: {e}")))?;
 
+  let version = default_version();
   let cef_dir = if let Ok(cef_path) = std::env::var("CEF_PATH") {
     let path = PathBuf::from(cef_path);
     // If CEF_PATH is set but directory doesn't exist, we'll create it
     if !path.exists() {
       log::info!(action = "CEF"; "CEF_PATH set but directory doesn't exist, will export to {}", path.display());
     }
-    path
+    path.join(&version)
   } else {
     // Default to a directory in the user's cache or home directory
     let base_dir = dirs::cache_dir()
       .or_else(dirs::home_dir)
       .ok_or_else(|| crate::Error::GenericError("failed to find cache or home directory".into()))?;
-    base_dir.join("tauri-cef").join(os_arch.to_string())
+    base_dir
+      .join("tauri-cef")
+      .join(os_arch.to_string())
+      .join(&version)
   };
 
   export_cef_directory(ExporterOptions {
     output: cef_dir.clone(),
     target: target.to_string(),
-    version: None,
+    version: Some(version),
     mirror_url: None,
     force: false,
     overwrite: true,

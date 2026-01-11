@@ -15,7 +15,7 @@ use std::{
   ffi::{OsStr, OsString},
   path::Path,
   process::exit,
-  sync::Mutex,
+  sync::{Mutex, OnceLock},
 };
 
 use crate::error::Context;
@@ -142,6 +142,16 @@ pub fn custom_sign_settings(
   }
 }
 
+fn config_schema_validator() -> &'static jsonschema::Validator {
+  // TODO: Switch to `LazyLock` when we bump MSRV to above 1.80
+  static CONFIG_SCHEMA_VALIDATOR: OnceLock<jsonschema::Validator> = OnceLock::new();
+  CONFIG_SCHEMA_VALIDATOR.get_or_init(|| {
+    let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
+      .expect("Failed to parse config schema bundled in the tauri-cli");
+    jsonschema::validator_for(&schema).expect("Config schema bundled in the tauri-cli is invalid")
+  })
+}
+
 fn load_config(
   merge_configs: &[&serde_json::Value],
   reload: bool,
@@ -183,21 +193,19 @@ fn load_config(
   if config_path.extension() == Some(OsStr::new("json"))
     || config_path.extension() == Some(OsStr::new("json5"))
   {
-    let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
-      .context("failed to parse config schema")?;
-    let validator = jsonschema::validator_for(&schema).expect("Invalid schema");
-    let mut got_errors = false;
-    for error in validator.iter_errors(&config) {
-      got_errors = true;
-      let path = error.instance_path.into_iter().join(" > ");
-      if path.is_empty() {
-        log::error!("`{config_file_name:?}` error: {}", error);
-      } else {
-        log::error!("`{config_file_name:?}` error on `{}`: {}", path, error);
+    let mut errors = config_schema_validator().iter_errors(&config).peekable();
+    if errors.peek().is_some() {
+      for error in errors {
+        let path = error.instance_path.into_iter().join(" > ");
+        if path.is_empty() {
+          log::error!("`{config_file_name:?}` error: {error}");
+        } else {
+          log::error!("`{config_file_name:?}` error on `{path}`: {error}");
+        }
       }
-    }
-    if got_errors && !reload {
-      exit(1);
+      if !reload {
+        exit(1);
+      }
     }
   }
 

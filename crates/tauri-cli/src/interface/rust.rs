@@ -503,7 +503,7 @@ fn get_watch_folders(
         }
         Err(err) => {
           // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
-          log::error!("Error watching {}: {}", p.display(), err.to_string());
+          log::error!("Error watching {}: {}", p.display(), err);
           watch_folders.push(p);
         }
       };

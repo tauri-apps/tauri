@@ -15,7 +15,7 @@ use std::{
   ffi::{OsStr, OsString},
   path::Path,
   process::exit,
-  sync::{Mutex, OnceLock},
+  sync::OnceLock,
 };
 
 use crate::error::Context;
@@ -66,8 +66,6 @@ impl ConfigMetadata {
     None
   }
 }
-
-pub type ConfigHandle = Mutex<ConfigMetadata>;
 
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {

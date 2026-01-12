@@ -4,7 +4,7 @@
 
 use crate::{
   error::{Context, ErrorExt},
-  helpers::config::{reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
+  helpers::config::{reload_config, Config as TauriConfig, ConfigMetadata},
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
   ConfigValue, Error, Result,
 };
@@ -33,7 +33,7 @@ use std::{
   str::FromStr,
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, OnceLock,
+    Arc, Mutex, OnceLock,
   },
 };
 use tokio::runtime::Runtime;
@@ -249,7 +249,7 @@ struct DevUrlConfig {
 }
 
 fn use_network_address_for_dev_url(
-  config: &ConfigHandle,
+  config: &Mutex<ConfigMetadata>,
   dev_options: &mut crate::dev::Options,
   force_ip_prompt: bool,
   tauri_dir: &Path,

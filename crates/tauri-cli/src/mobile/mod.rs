@@ -33,7 +33,7 @@ use std::{
   str::FromStr,
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex, OnceLock,
+    Arc, OnceLock,
   },
 };
 use tokio::runtime::Runtime;
@@ -246,12 +246,12 @@ struct DevUrlConfig {
 }
 
 fn use_network_address_for_dev_url(
-  config: &Mutex<ConfigMetadata>,
+  config: &mut ConfigMetadata,
   dev_options: &mut crate::dev::Options,
   force_ip_prompt: bool,
   tauri_dir: &Path,
 ) -> crate::Result<DevUrlConfig> {
-  let mut dev_url = config.lock().unwrap().build.dev_url.clone();
+  let mut dev_url = config.build.dev_url.clone();
 
   let ip = if let Some(url) = &mut dev_url {
     let localhost = match url.host() {
@@ -287,7 +287,7 @@ fn use_network_address_for_dev_url(
         })));
 
       reload_config(
-        &mut config.lock().unwrap(),
+        config,
         &dev_options
           .config
           .iter()

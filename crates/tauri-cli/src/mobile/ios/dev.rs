@@ -274,42 +274,37 @@ fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
-  tauri_config: ConfigMetadata,
+  mut tauri_config: ConfigMetadata,
   device: Option<Device>,
   env: Env,
   config: &AppleConfig,
   noise_level: NoiseLevel,
   dirs: &Dirs,
 ) -> Result<()> {
-  let tauri_config = Mutex::new(tauri_config);
   // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
     || device
       .as_ref()
       .map(|device| !matches!(device.kind(), DeviceKind::Simulator))
       .unwrap_or(false)
-    || tauri_config
-      .lock()
-      .unwrap()
-      .build
-      .dev_url
-      .as_ref()
-      .is_some_and(|url| {
-        matches!(
+    || tauri_config.build.dev_url.as_ref().is_some_and(|url| {
+      matches!(
           url.host(),
           Some(Host::Ipv4(i)) if i == Ipv4Addr::UNSPECIFIED
-        )
-      })
+      )
+    })
   {
     use_network_address_for_dev_url(
-      &tauri_config,
+      &mut tauri_config,
       &mut dev_options,
       options.force_ip_prompt,
       dirs.tauri,
     )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, &tauri_config, &dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, &dirs)?;
+
+  let tauri_config = Mutex::new(tauri_config);
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(

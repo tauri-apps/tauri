@@ -225,7 +225,7 @@ fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
-  tauri_config: ConfigMetadata,
+  mut tauri_config: ConfigMetadata,
   device: Option<Device>,
   mut env: Env,
   config: &AndroidConfig,
@@ -233,35 +233,30 @@ fn run_dev(
   noise_level: NoiseLevel,
   dirs: &Dirs,
 ) -> Result<()> {
-  let tauri_config = Mutex::new(tauri_config);
   // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
     || device
       .as_ref()
       .map(|device| !device.serial_no().starts_with("emulator"))
       .unwrap_or(false)
-    || tauri_config
-      .lock()
-      .unwrap()
-      .build
-      .dev_url
-      .as_ref()
-      .is_some_and(|url| {
-        matches!(
-          url.host(),
-          Some(Host::Ipv4(i)) if i == Ipv4Addr::UNSPECIFIED
-        )
-      })
+    || tauri_config.build.dev_url.as_ref().is_some_and(|url| {
+      matches!(
+        url.host(),
+        Some(Host::Ipv4(i)) if i == Ipv4Addr::UNSPECIFIED
+      )
+    })
   {
     use_network_address_for_dev_url(
-      &tauri_config,
+      &mut tauri_config,
       &mut dev_options,
       options.force_ip_prompt,
       dirs.tauri,
     )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, &tauri_config, dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs)?;
+
+  let tauri_config = Mutex::new(tauri_config);
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,

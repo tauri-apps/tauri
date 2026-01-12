@@ -81,7 +81,9 @@ pub struct Options {
   pub no_sign: bool,
 }
 
-pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
+pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+
   if options.no_sign {
     log::warn!("--no-sign flag detected: Signing will be skipped.");
   }
@@ -102,7 +104,7 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
 
   let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
-  setup(&interface, &mut options, &config, false, dirs)?;
+  setup(&interface, &mut options, &config, false, &dirs)?;
 
   if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
@@ -113,7 +115,7 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
 
   let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
 
-  let bin_path = interface.build(interface_options, dirs)?;
+  let bin_path = interface.build(interface_options, &dirs)?;
 
   log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(bin_path));
 
@@ -128,7 +130,7 @@ pub fn command(mut options: Options, verbosity: u8, dirs: &Dirs) -> Result<()> {
       &*app_settings,
       &config,
       &out_dir,
-      dirs,
+      &dirs,
     )?;
   }
 

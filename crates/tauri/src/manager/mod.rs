@@ -325,17 +325,6 @@ impl<R: Runtime> AppManager<R> {
     self.state.clone()
   }
 
-  /// The `tauri` custom protocol URL we use to serve the embedded assets.
-  /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
-  pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
-    if cfg!(windows) || cfg!(target_os = "android") {
-      let scheme = if https { "https" } else { "http" };
-      Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
-    } else {
-      Cow::Owned(Url::parse("tauri://localhost").unwrap())
-    }
-  }
-
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
   ///
   /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exsits.
@@ -353,7 +342,7 @@ impl<R: Runtime> AppManager<R> {
     if let Some(url) = url {
       Cow::Borrowed(url)
     } else {
-      self.tauri_protocol_url(https)
+      Cow::Owned(R::custom_scheme_url("tauri", https).parse().unwrap())
     }
   }
 

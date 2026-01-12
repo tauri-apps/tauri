@@ -71,8 +71,7 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
     version: config.version,
     upgrade_code: config.upgrade_code,
-    fips_compliant: std::env::var("TAURI_BUNDLER_WIX_FIPS_COMPLIANT")
-      .ok()
+    fips_compliant: std::env::var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT")
       .map(|v| v == "true")
       .unwrap_or(config.fips_compliant),
     language: tauri_bundler::WixLanguage(match config.language {

@@ -214,12 +214,9 @@ fn local_ip_address(force: bool) -> &'static IpAddr {
 
         })
         .collect();
-      match addresses.len() {
-        0 => panic!("No external IP detected."),
-        1 => {
-          let ipaddr = addresses.first().unwrap();
-          *ipaddr
-        }
+      match addresses.as_slice() {
+        [] => panic!("No external IP detected."),
+        [ipaddr] => *ipaddr,
         _ => {
           let selected = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
             .with_prompt(

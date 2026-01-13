@@ -112,6 +112,11 @@ fn get_response<R: Runtime>(
       decoded_path.trim_start_matches('/')
     );
 
+    #[cfg(feature = "rustls-tls")]
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+      let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+
     #[allow(unused_mut)]
     let mut client = reqwest::ClientBuilder::new();
 
@@ -125,10 +130,9 @@ fn get_response<R: Runtime>(
         ))]
         {
           log::info!("adding dev server root certificate");
-          client = client.add_root_certificate(
-            reqwest::Certificate::from_pem(cert_pem.as_bytes())
-              .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE"),
-          );
+          let certificate = reqwest::Certificate::from_pem(cert_pem.as_bytes())
+            .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE");
+          client = client.tls_certs_merge([certificate]);
         }
 
         #[cfg(not(any(

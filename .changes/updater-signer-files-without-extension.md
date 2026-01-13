@@ -1,5 +1,6 @@
 ---
 tauri-cli: patch:bug
+"@tauri-apps/cli": patch:bug
 ---
 
-`ext.to_os_string().unwrap()` returns None on files without an extension in `sign_file()`
+`tauri signer sign` doesn't work for files without an extension

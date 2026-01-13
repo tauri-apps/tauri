@@ -9,7 +9,8 @@ use gstreamer::glib::object::ObjectExt;
 use gstreamer::glib::subclass::object::ObjectImplExt;
 use gstreamer_base::gst;
 
-// GST_DEBUG=tauri_asset:5 ...
+// for debugging
+// GST_DEBUG=tauri_asset:5 <your-binary-using-the-plugin>
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
   gst::DebugCategory::new(
     "tauri_asset",
@@ -23,12 +24,6 @@ const ASSET_URI_SCHEME: &str = "asset";
 #[derive(Default)]
 pub struct TauriAsset {
   pub filesrc: OnceLock<gst::Element>,
-}
-
-impl TauriAsset {
-  pub fn new() -> Self {
-    Self::default()
-  }
 }
 
 #[glib::object_subclass]
@@ -45,52 +40,62 @@ impl ObjectImpl for TauriAsset {
     self.parent_constructed();
 
     let element = self.obj();
-    let filesrc = match gst::ElementFactory::make("filesrc").build()
-      {
-        Ok(src) => src,
-        Err(err) => {
-          gst::error!(CAT, imp = self, "Failed to create filesrc element: {err}");
-          return;
-        },
-      };
+    let filesrc = match gst::ElementFactory::make("filesrc").build() {
+      Ok(src) => src,
+      Err(err) => {
+        gst::element_error!(
+          element,
+          gst::LibraryError::Init,
+          ("Failed to create filesrc: {}", err)
+        );
+        return;
+      }
+    };
 
     match element.add(&filesrc) {
       Ok(_) => (),
       Err(err) => {
-        gst::error!(CAT, imp = self, "Failed to add filesrc to bin: {err}");
+        gst::element_error!(
+          element,
+          gst::LibraryError::Init,
+          ("Failed to add filesrc to bin: {}", err)
+        );
         return;
-      },
+      }
     };
 
     let srcpad = match filesrc.static_pad("src") {
       Some(pad) => pad,
       None => {
-        gst::error!(CAT, imp = self, "filesrc has no src pad");
+        gst::element_error!(
+          element,
+          gst::LibraryError::Init,
+          ("Failed to get src pad from filesrc")
+        );
         return;
-      },
-    };
-
-    match filesrc.static_pad("src") {
-      Some(pad) => pad,
-      None => {
-        gst::error!(CAT, imp = self, "filesrc has no src pad");
-        return;
-      },
+      }
     };
 
     let ghostpad = match GhostPad::with_target(&srcpad) {
       Ok(pad) => pad,
       Err(err) => {
-        gst::error!(CAT, imp = self, "Failed to create ghost pad: {err}");
+        gst::element_error!(
+          element,
+          gst::LibraryError::Init,
+          ("Failed to create ghost pad from filesrc src pad: {}", err)
+        );
         return;
-      },
+      }
     };
 
-    match element
-      .add_pad(&ghostpad) {
+    match element.add_pad(&ghostpad) {
       Ok(_) => (),
       Err(err) => {
-        gst::error!(CAT, imp = self, "Failed to add ghost pad to bin: {err}");
+        gst::element_error!(
+          element,
+          gst::LibraryError::Init,
+          ("Failed to add ghost pad to bin: {}", err)
+        );
         return;
       }
     };
@@ -98,17 +103,25 @@ impl ObjectImpl for TauriAsset {
     match ghostpad.set_active(true) {
       Ok(_) => (),
       Err(err) => {
-        gst::error!(CAT, imp = self, "Failed to activate ghost pad: {err}");
+        gst::element_error!(
+          element,
+          gst::LibraryError::Init,
+          ("Failed to activate ghost pad: {}", err)
+        );
         return;
-      },
+      }
     };
 
     match self.filesrc.set(filesrc) {
       Ok(_) => (),
       Err(_) => {
-        gst::error!(CAT, imp = self, "Failed to set filesrc OnceLock");
-        return;  
-      },
+        gst::element_error!(
+          element,
+          gst::LibraryError::Init,
+          ("Failed to store filesrc element")
+        );
+        return;
+      }
     }
 
     gst::debug!(CAT, imp = self, "TauriAsset constructed");
@@ -125,7 +138,12 @@ impl URIHandlerImpl for TauriAsset {
   }
 
   fn uri(&self) -> Option<String> {
-    None
+    self.filesrc.get().and_then(|src| {
+      src
+        .property::<Option<String>>("location")
+        .filter(|p| !p.is_empty())
+        .map(|p| format!("{}://{}", ASSET_URI_SCHEME, p))
+    })
   }
 
   fn set_uri(&self, uri: &str) -> Result<(), glib::Error> {
@@ -153,14 +171,14 @@ impl URIHandlerImpl for TauriAsset {
 
     gst::debug!(CAT, imp = self, "URI from \"{}\" to \"{}\"", uri, &location);
 
-    return Ok(self
+    self
       .filesrc
       .get()
+      .map(|src| src.set_property("location", &location))
       .ok_or_else(|| {
         let msg = "filesrc element is not initialized";
         gst::error!(CAT, imp = self, "{msg}");
-        glib::Error::new(gst::URIError::BadUri, &msg)
-      })?.set_property("location", &location)
-    );
+        glib::Error::new(gst::URIError::BadUri, msg)
+      })
   }
 }

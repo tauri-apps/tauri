@@ -3,7 +3,7 @@ name = "tauri-asset-gst-plugin"
 version = "0.1.0"
 authors = ["Alexander Yanovskyy <contact@yanovskyy.com>"]
 license = "MIT OR Apache-2.0"
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Gstreamer plugin for asset protocol"
 

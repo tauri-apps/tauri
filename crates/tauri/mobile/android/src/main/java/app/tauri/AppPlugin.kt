@@ -8,10 +8,8 @@ import android.app.Activity
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Plugin
-import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 
 @TauriPlugin
@@ -46,9 +44,4 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
     (activity as AppCompatActivity).onBackPressedDispatcher.addCallback(activity, callback)
   }
 
-  @Command
-  fun exit(invoke: Invoke) {
-    invoke.resolve()
-    activity.finish()
-  }
 }

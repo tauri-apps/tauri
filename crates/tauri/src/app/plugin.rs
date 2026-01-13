@@ -47,6 +47,11 @@ pub fn app_hide<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
 }
 
 #[command(root = "crate")]
+pub fn exit<R: Runtime>(app: AppHandle<R>, exit_code: Option<i32>) {
+  app.exit(exit_code.unwrap_or(0));
+}
+
+#[command(root = "crate")]
 #[allow(unused_variables)]
 pub async fn fetch_data_store_identifiers<R: Runtime>(
   app: AppHandle<R>,
@@ -125,6 +130,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       identifier,
       app_show,
       app_hide,
+      exit,
       fetch_data_store_identifiers,
       remove_data_store,
       default_window_icon,

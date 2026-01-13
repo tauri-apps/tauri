@@ -39,26 +39,29 @@ pub fn command(mut options: Options) -> Result<()> {
       save_keypair(options.force, output_path, &keypair.sk, &keypair.pk)
         .expect("Unable to write keypair");
 
-    println!(
-        "\nYour keypair was generated successfully\nPrivate: {} (Keep it secret!)\nPublic: {}\n---------------------------",
-        display_path(secret_path),
-        display_path(public_path)
-        )
+    println!();
+    println!("Your keypair was generated successfully:");
+    println!("Private: {} (Keep it secret!)", display_path(secret_path));
+    println!("Public: {}", display_path(public_path));
+    println!("---------------------------")
   } else {
-    println!(
-      "\nYour secret key was generated successfully - Keep it secret!\n{}\n\n",
-      keypair.sk
-    );
-    println!(
-          "Your public key was generated successfully:\n{}\n\nAdd the public key in your tauri.conf.json\n---------------------------\n",
-          keypair.pk
-        );
+    println!();
+    println!("Your keys were generated successfully!",);
+    println!();
+    println!("Private: (Keep it secret!)");
+    println!("{}", keypair.sk);
+    println!();
+    println!("Public:");
+    println!("{}", keypair.pk);
   }
 
-  println!("\nEnvironment variables used to sign:");
-  println!("`TAURI_SIGNING_PRIVATE_KEY`  Path or String of your private key");
-  println!("`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`  Your private key password (optional)");
-  println!("\nATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not work.\n---------------------------\n");
+  println!();
+  println!("Environment variables used to sign:");
+  println!("- `TAURI_SIGNING_PRIVATE_KEY`: String of your private key");
+  println!("- `TAURI_SIGNING_PRIVATE_KEY_PATH`: Path to your private key file");
+  println!("- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`:  Your private key password (optional if key has no password)");
+  println!();
+  println!("ATTENTION: If you lose your private key OR password, you'll not be able to sign your update package and updates will not work");
 
   Ok(())
 }

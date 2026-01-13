@@ -2742,7 +2742,7 @@ pub struct AppConfig {
   /// ```rust
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
   ///   });
   /// ```

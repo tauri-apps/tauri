@@ -14,7 +14,7 @@ use std::{
   env::{current_dir, set_current_dir, set_var},
   ffi::{OsStr, OsString},
   process::exit,
-  sync::Mutex,
+  sync::{Mutex, OnceLock},
 };
 
 use crate::error::Context;
@@ -146,6 +146,16 @@ fn config_handle() -> ConfigHandle {
   &CONFIG_HANDLE
 }
 
+fn config_schema_validator() -> &'static jsonschema::Validator {
+  // TODO: Switch to `LazyLock` when we bump MSRV to above 1.80
+  static CONFIG_SCHEMA_VALIDATOR: OnceLock<jsonschema::Validator> = OnceLock::new();
+  CONFIG_SCHEMA_VALIDATOR.get_or_init(|| {
+    let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
+      .expect("Failed to parse config schema bundled in the tauri-cli");
+    jsonschema::validator_for(&schema).expect("Config schema bundled in the tauri-cli is invalid")
+  })
+}
+
 /// Gets the static parsed config from `tauri.conf.json`.
 fn get_internal(
   merge_configs: &[&serde_json::Value],
@@ -192,17 +202,14 @@ fn get_internal(
   if config_path.extension() == Some(OsStr::new("json"))
     || config_path.extension() == Some(OsStr::new("json5"))
   {
-    let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
-      .context("failed to parse config schema")?;
-    let validator = jsonschema::validator_for(&schema).expect("Invalid schema");
-    let mut errors = validator.iter_errors(&config).peekable();
+    let mut errors = config_schema_validator().iter_errors(&config).peekable();
     if errors.peek().is_some() {
       for error in errors {
         let path = error.instance_path.into_iter().join(" > ");
         if path.is_empty() {
-          log::error!("`{config_file_name:?}` error: {}", error);
+          log::error!("`{config_file_name:?}` error: {error}");
         } else {
-          log::error!("`{config_file_name:?}` error on `{}`: {}", path, error);
+          log::error!("`{config_file_name:?}` error on `{path}`: {error}");
         }
       }
       if !reload {

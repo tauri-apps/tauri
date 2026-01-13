@@ -91,6 +91,9 @@ reqwest = { version = "0.13", default-features = false, features = [
   "json",
   "stream",
 ] }
+rustls = { version = "0.23", default-features = false, features = [
+  "ring",
+], optional = true }
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
@@ -145,17 +148,6 @@ windows = { version = "0.61", features = [
   "Win32_UI",
   "Win32_UI_WindowsAndMessaging",
 ] }
-
-# mobile
-[target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
-bytes = { version = "1", features = ["serde"] }
-reqwest = { version = "0.13", default-features = false, features = [
-  "json",
-  "stream",
-] }
-rustls = { version = "0.23", default-features = false, features = [
-  "ring",
-], optional = true }
 
 # android
 [target.'cfg(target_os = "android")'.dependencies]

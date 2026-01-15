@@ -45,7 +45,7 @@ use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 pub struct Options {
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
   exit_on_panic: bool,
@@ -257,7 +257,7 @@ fn run_dev(
     use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,

@@ -46,7 +46,7 @@ pub trait AppSettings {
     package_types: Vec<PackageType>,
   ) -> crate::Result<Settings> {
     let no_default_features = options.args.contains(&"--no-default-features".into());
-    let mut enabled_features = options.features.clone().unwrap_or_default();
+    let mut enabled_features = options.features.clone();
     if !no_default_features {
       enabled_features.push("default".into());
     }

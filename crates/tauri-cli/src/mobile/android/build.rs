@@ -48,7 +48,7 @@ pub struct Options {
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
@@ -152,7 +152,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     let (config, metadata) = get_config(
       &app,
       tauri_config_,
-      build_options.features.as_ref(),
+      &build_options.features,
       &Default::default(),
     );
     (interface, config, metadata)
@@ -184,7 +184,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     false,
   )?;
 
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+  {
+    let config_guard = tauri_config.lock().unwrap();
+    let config_ = config_guard.as_ref().unwrap();
+
+    crate::build::setup(&interface, &mut build_options, config_, true)?;
+  }
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();

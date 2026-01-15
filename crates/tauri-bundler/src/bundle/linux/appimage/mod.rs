@@ -232,7 +232,7 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     write_and_make_executable(&apprun, &data)?;
   }
 
-  let linuxdeploy_arch = if arch == "i686" { "i383" } else { arch };
+  let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
   let linuxdeploy = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}.AppImage"));
   if !linuxdeploy.exists() {
     let data = download(&format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"))?;

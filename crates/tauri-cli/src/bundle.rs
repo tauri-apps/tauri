@@ -71,7 +71,7 @@ pub struct Options {
   pub config: Vec<ConfigValue>,
   /// Space or comma separated list of features, should be the same features passed to `tauri build` if any.
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// Target triple to build against.
   ///
   /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
@@ -158,7 +158,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     verbosity,
     ci,
     &interface,
-    &app_settings,
+    &*app_settings,
     config_,
     &out_dir,
   )
@@ -170,7 +170,7 @@ pub fn bundle<A: AppSettings>(
   verbosity: u8,
   ci: bool,
   interface: &AppInterface,
-  app_settings: &std::sync::Arc<A>,
+  app_settings: &A,
   config: &ConfigMetadata,
   out_dir: &Path,
 ) -> crate::Result<()> {
@@ -246,6 +246,11 @@ fn sign_updaters(
     .collect();
 
   if update_enabled_bundles.is_empty() {
+    return Ok(());
+  }
+
+  if settings.no_sign() {
+    log::warn!("Updater signing is skipped due to --no-sign flag.");
     return Ok(());
   }
 

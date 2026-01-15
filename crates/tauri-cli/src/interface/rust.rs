@@ -1657,14 +1657,16 @@ fn required_entitlements(
       DesktopDeepLinks::List(protocols) => protocols.into_iter().flat_map(|p| p.domains).collect(),
     };
 
-    entitlements.insert(
-      "com.apple.developer.associated-domains".to_string(),
-      domains
-        .into_iter()
-        .map(|domain| format!("applinks:{domain}").into())
-        .collect::<Vec<_>>()
-        .into(),
-    );
+    if !domains.is_empty() {
+      entitlements.insert(
+        "com.apple.developer.associated-domains".to_string(),
+        domains
+          .into_iter()
+          .map(|domain| format!("applinks:{domain}").into())
+          .collect::<Vec<_>>()
+          .into(),
+      );
+    }
   }
 
   if enabled_features.contains(&"cef".into()) || enabled_features.contains(&"tauri/cef".into()) {

@@ -72,3 +72,7 @@ schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch =
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
+tao = { git = "https://github.com/rmakestrash-jpg/tao.git", branch = "gtk4-v0.34.5" }
+wry = { git = "https://github.com/rmakestrash-jpg/wry.git", branch = "gtk4" }
+muda = { git = "https://github.com/rmakestrash-jpg/muda.git", branch = "feat/gtk4" }
+tray-icon = { git = "https://github.com/rmakestrash-jpg/tray-icon.git", branch = "feat/gtk4" }

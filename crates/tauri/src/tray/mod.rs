@@ -15,6 +15,7 @@ use crate::{
 };
 use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;
+#[cfg(not(target_os = "linux"))]
 use std::path::Path;
 pub use tray_icon::TrayIconId;
 
@@ -286,6 +287,10 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+  ///
+  /// Note: Not available when using ksni (DBus-based tray) on Linux,
+  /// as ksni handles icons differently without temp files.
+  #[cfg(not(target_os = "linux"))]
   pub fn temp_dir_path<P: AsRef<Path>>(mut self, s: P) -> Self {
     self.inner = self.inner.with_temp_dir_path(s);
     self
@@ -549,10 +554,14 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux with ksni:** Not available. When using the `linux-ksni` feature,
+  ///   icons are transmitted over DBus and temp files are not needed.
+  #[cfg(not(target_os = "linux"))]
   pub fn set_temp_dir_path<P: AsRef<Path>>(&self, path: Option<P>) -> crate::Result<()> {
-    #[allow(unused)]
     let p = path.map(|p| p.as_ref().to_path_buf());
-    #[cfg(target_os = "linux")]
     run_item_main_thread!(self, |self_: Self| self_.inner.set_temp_dir_path(p))?;
     Ok(())
   }

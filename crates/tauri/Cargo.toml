@@ -92,12 +92,13 @@ muda = { version = "0.17", default-features = false, features = [
 ] }
 tray-icon = { version = "0.21", default-features = false, features = [
   "serde",
+  "linux-ksni",
 ], optional = true }
 
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
-gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0.1", features = ["v2_40"], optional = true }
+gtk = { package = "gtk4", version = "0.10", features = ["v4_6"] }
+webkit6 = { version = "0.5", features = ["v2_42"], optional = true }
 
 # darwin
 [target.'cfg(target_vendor = "apple")'.dependencies]
@@ -193,7 +194,7 @@ tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
-wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
+wry = ["webview2-com", "webkit6", "tauri-runtime-wry"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
@@ -220,6 +221,7 @@ image-png = ["image/png"]
 macos-proxy = ["tauri-runtime-wry?/macos-proxy"]
 dynamic-acl = []
 specta = ["dep:specta"]
+libadwaita = ["tauri-runtime-wry?/libadwaita"]
 
 [[example]]
 name = "commands"

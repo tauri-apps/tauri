@@ -10,7 +10,7 @@
   target_os = "openbsd"
 ))]
 mod imp {
-  pub type Webview = webkit2gtk::WebView;
+  pub type Webview = webkit6::WebView;
 }
 
 #[cfg(target_vendor = "apple")]

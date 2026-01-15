@@ -1425,14 +1425,16 @@ fn tauri_config_to_bundle_settings(
         .map(tauri_bundler::bundle::Entitlements::Path)
     } else {
       let mut app_links_entitlements = plist::Dictionary::new();
-      app_links_entitlements.insert(
-        "com.apple.developer.associated-domains".to_string(),
-        domains
-          .into_iter()
-          .map(|domain| format!("applinks:{domain}").into())
-          .collect::<Vec<_>>()
-          .into(),
-      );
+      if !domains.is_empty() {
+        app_links_entitlements.insert(
+          "com.apple.developer.associated-domains".to_string(),
+          domains
+            .into_iter()
+            .map(|domain| format!("applinks:{domain}").into())
+            .collect::<Vec<_>>()
+            .into(),
+        );
+      }
       let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
         crate::helpers::plist::merge_plist(vec![
           PathBuf::from(user_provided_entitlements).into(),

@@ -117,26 +117,26 @@ pub struct BuiltApplication {
   options_handle: OptionsHandle,
 }
 
-pub fn command(
-  options: Options,
-  noise_level: NoiseLevel,
-  meta: Option<&(Dirs, Mutex<ConfigMetadata>)>,
-) -> Result<BuiltApplication> {
-  let dirs2 = crate::helpers::app_paths::resolve_dirs();
-  let tauri_config2 = Mutex::new(get_tauri_config(
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  let tauri_config = Mutex::new(get_tauri_config(
     tauri_utils::platform::Target::Android,
     &options
       .config
       .iter()
       .map(|conf| &conf.0)
       .collect::<Vec<_>>(),
-    dirs2.tauri,
+    dirs.tauri,
   )?);
-  let (dirs, tauri_config) = match meta {
-    Some((dirs, config)) => (dirs, config),
-    None => (&dirs2, &tauri_config2),
-  };
+  run(options, noise_level, &dirs, &tauri_config)
+}
 
+pub fn run(
+  options: Options,
+  noise_level: NoiseLevel,
+  dirs: &Dirs,
+  tauri_config: &Mutex<ConfigMetadata>,
+) -> Result<BuiltApplication> {
   delete_codegen_vars();
 
   let mut build_options: BuildOptions = options.clone().into();

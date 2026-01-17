@@ -88,8 +88,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let meta = (dirs, Mutex::new(cfg));
-  let mut built_application = super::build::command(
+  let tauri_config = Mutex::new(cfg);
+  let mut built_application = super::build::run(
     super::build::Options {
       debug: !options.release,
       targets: device.as_ref().map(|d| {
@@ -114,9 +114,9 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }),
     },
     noise_level,
-    Some(&meta),
+    &dirs,
+    &tauri_config,
   )?;
-  let (dirs, tauri_config) = &meta;
 
   configure_cargo(&mut env, &built_application.config)?;
 
@@ -153,13 +153,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       runner()?;
     } else {
       built_application.interface.watch(
-        tauri_config,
+        &tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
-        dirs,
+        &dirs,
       )?;
     }
   }

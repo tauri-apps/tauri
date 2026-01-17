@@ -97,7 +97,7 @@ tray-icon = { version = "0.21", default-features = false, features = [
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0.1", features = ["v2_40"], optional = true }
+webkit2gtk = { version = "=2.0.2", features = ["v2_40"], optional = true }
 
 # darwin
 [target.'cfg(target_vendor = "apple")'.dependencies]

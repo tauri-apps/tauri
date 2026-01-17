@@ -1202,7 +1202,7 @@ fn main() {
     self
   }
 
-  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
   /// The closure parameter is the webview instance.

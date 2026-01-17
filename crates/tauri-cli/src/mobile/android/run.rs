@@ -9,6 +9,7 @@ use cargo_mobile2::{
 };
 use clap::{ArgAction, Parser};
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use super::{configure_cargo, device_prompt, env};
 use crate::{
@@ -77,7 +78,18 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
-  let mut built_application = super::build::command(
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  let cfg = crate::helpers::config::get_config(
+    tauri_utils::platform::Target::Android,
+    &options
+      .config
+      .iter()
+      .map(|conf| &conf.0)
+      .collect::<Vec<_>>(),
+    dirs.tauri,
+  )?;
+  let tauri_config = Mutex::new(cfg);
+  let mut built_application = super::build::run(
     super::build::Options {
       debug: !options.release,
       targets: device.as_ref().map(|d| {
@@ -102,6 +114,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }),
     },
     noise_level,
+    &dirs,
+    &tauri_config,
   )?;
 
   configure_cargo(&mut env, &built_application.config)?;
@@ -139,11 +153,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       runner()?;
     } else {
       built_application.interface.watch(
+        &tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
+        &dirs,
       )?;
     }
   }

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use cargo_mobile2::opts::{NoiseLevel, Profile};
 use clap::{ArgAction, Parser};
@@ -10,6 +11,7 @@ use clap::{ArgAction, Parser};
 use super::{device_prompt, env};
 use crate::{
   error::Context,
+  helpers::config::get_config as get_tauri_config,
   interface::{DevProcess, Interface, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
@@ -73,6 +75,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+
   let mut built_application = super::build::command(
     super::build::Options {
       debug: !options.release,
@@ -91,7 +95,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }),
     },
     noise_level,
+    &dirs,
   )?;
+
+  let cfg = get_tauri_config(
+    tauri_utils::platform::Target::Ios,
+    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
+  )?;
+  let tauri_config = Mutex::new(cfg);
 
   // options.open is handled by the build command
   // so all we need to do here is run the app on the selected device
@@ -117,11 +129,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       runner()?;
     } else {
       built_application.interface.watch(
+        &tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
+        &dirs,
       )?;
     }
   }

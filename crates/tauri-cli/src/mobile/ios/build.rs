@@ -11,8 +11,8 @@ use crate::{
   build::Options as BuildOptions,
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_tauri_config, ConfigHandle},
+    app_paths::Dirs,
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
     plist::merge_plist,
   },
@@ -167,9 +167,7 @@ pub struct BuiltApplication {
   options_handle: OptionsHandle,
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
-  crate::helpers::app_paths::resolve();
-
+pub fn command(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<BuiltApplication> {
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -189,26 +187,24 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
   let (interface, mut config) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-
-    let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
+    let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Ios, tauri_config_, &interface);
+    let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
     let (config, _metadata) = get_config(
       &app,
-      tauri_config_,
+      &tauri_config,
       &build_options.features,
       &Default::default(),
+      dirs.tauri,
     )?;
     (interface, config)
   };
 
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).context("failed to set current directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
   ensure_init(
     &tauri_config,
@@ -217,7 +213,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     MobileTarget::Ios,
     options.ci,
   )?;
-  inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+  inject_resources(&config, &tauri_config)?;
 
   let mut plist = plist::Dictionary::new();
   plist.insert(
@@ -231,21 +227,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     .join("Info.plist");
   let mut src_plists = vec![info_plist_path.clone().into()];
   src_plists.push(plist::Value::Dictionary(plist).into());
-  if tauri_path.join("Info.plist").exists() {
-    src_plists.push(tauri_path.join("Info.plist").into());
+  if dirs.tauri.join("Info.plist").exists() {
+    src_plists.push(dirs.tauri.join("Info.plist").into());
   }
-  if tauri_path.join("Info.ios.plist").exists() {
-    src_plists.push(tauri_path.join("Info.ios.plist").into());
+  if dirs.tauri.join("Info.ios.plist").exists() {
+    src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .bundle
-    .ios
-    .info_plist
-  {
+  if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
     src_plists.push(info_plist.clone().into());
   }
   let merged_info_plist = merge_plist(src_plists)?;
@@ -338,6 +326,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     &mut config,
     &mut env,
     noise_level,
+    &dirs,
   )?;
 
   if open {
@@ -356,10 +345,11 @@ fn run_build(
   interface: &AppInterface,
   options: Options,
   mut build_options: BuildOptions,
-  tauri_config: ConfigHandle,
+  tauri_config: ConfigMetadata,
   config: &mut AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
+  dirs: &Dirs,
 ) -> Result<OptionsHandle> {
   let profile = if options.debug {
     Profile::Debug
@@ -367,20 +357,18 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(
-    interface,
-    &mut build_options,
-    tauri_config.lock().unwrap().as_ref().unwrap(),
-    true,
-  )?;
+  crate::build::setup(interface, &mut build_options, &tauri_config, true, dirs)?;
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&InterfaceOptions {
-    debug: build_options.debug,
-    target: build_options.target.clone(),
-    args: build_options.args.clone(),
-    ..Default::default()
-  })?;
+  let out_dir = app_settings.out_dir(
+    &InterfaceOptions {
+      debug: build_options.debug,
+      target: build_options.target.clone(),
+      args: build_options.args.clone(),
+      ..Default::default()
+    },
+    dirs.tauri,
+  )?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let cli_options = CliOptions {
@@ -392,7 +380,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+  let handle = write_options(&tauri_config, cli_options)?;
 
   if options.open {
     return Ok(handle);

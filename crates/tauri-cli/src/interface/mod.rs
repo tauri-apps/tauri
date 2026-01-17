@@ -9,9 +9,13 @@ use std::{
   path::{Path, PathBuf},
   process::ExitStatus,
   sync::Arc,
+  sync::Mutex,
 };
 
-use crate::{error::Context, helpers::config::Config};
+use crate::{
+  error::Context, helpers::app_paths::Dirs, helpers::config::Config,
+  helpers::config::ConfigMetadata,
+};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{MobileOptions, Options, Rust as AppInterface, WatcherOptions};
@@ -32,9 +36,14 @@ pub trait AppSettings {
     options: &Options,
     config: &Config,
     features: &[String],
+    tauri_dir: &Path,
   ) -> crate::Result<tauri_bundler::BundleSettings>;
-  fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf>;
-  fn get_binaries(&self, options: &Options) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
+  fn app_binary_path(&self, options: &Options, tauri_dir: &Path) -> crate::Result<PathBuf>;
+  fn get_binaries(
+    &self,
+    options: &Options,
+    tauri_dir: &Path,
+  ) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
   fn app_name(&self) -> Option<String>;
   fn lib_name(&self) -> Option<String>;
 
@@ -44,6 +53,7 @@ pub trait AppSettings {
     config: &Config,
     out_dir: &Path,
     package_types: Vec<PackageType>,
+    tauri_dir: &Path,
   ) -> crate::Result<Settings> {
     let no_default_features = options.args.contains(&"--no-default-features".into());
     let mut enabled_features = options.features.clone();
@@ -57,7 +67,7 @@ pub trait AppSettings {
       tauri_utils::platform::target_triple().context("failed to get target triple")?
     };
 
-    let mut bins = self.get_binaries(&options)?;
+    let mut bins = self.get_binaries(&options, tauri_dir)?;
     if let Some(main_binary_name) = &config.main_binary_name {
       let main = bins.iter_mut().find(|b| b.main()).context("no main bin?")?;
       main.set_name(main_binary_name.to_owned());
@@ -65,7 +75,7 @@ pub trait AppSettings {
 
     let mut settings_builder = SettingsBuilder::new()
       .package_settings(self.get_package_settings())
-      .bundle_settings(self.get_bundle_settings(&options, config, &enabled_features)?)
+      .bundle_settings(self.get_bundle_settings(&options, config, &enabled_features, tauri_dir)?)
       .binaries(bins)
       .project_out_directory(out_dir)
       .target(target)
@@ -73,7 +83,7 @@ pub trait AppSettings {
 
     if config.bundle.use_local_tools_dir {
       settings_builder = settings_builder.local_tools_directory(
-        rust::get_cargo_metadata()
+        rust::get_cargo_metadata(tauri_dir)
           .context("failed to get cargo metadata")?
           .target_directory,
       )
@@ -99,23 +109,29 @@ pub enum ExitReason {
 pub trait Interface: Sized {
   type AppSettings: AppSettings;
 
-  fn new(config: &Config, target: Option<String>) -> crate::Result<Self>;
+  fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self>;
   fn app_settings(&self) -> Arc<Self::AppSettings>;
   fn env(&self) -> HashMap<&str, String>;
-  fn build(&mut self, options: Options) -> crate::Result<PathBuf>;
+  fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf>;
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     options: Options,
     on_exit: F,
+    dirs: &Dirs,
   ) -> crate::Result<()>;
   fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     options: MobileOptions,
     runner: R,
+    dirs: &Dirs,
   ) -> crate::Result<()>;
   fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    config: &Mutex<ConfigMetadata>,
     options: WatcherOptions,
     runner: R,
+    dirs: &Dirs,
   ) -> crate::Result<()>;
 }

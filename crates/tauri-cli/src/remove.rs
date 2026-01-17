@@ -6,11 +6,7 @@ use clap::Parser;
 
 use crate::{
   acl,
-  helpers::{
-    app_paths::{resolve_frontend_dir, tauri_dir},
-    cargo,
-    npm::PackageManager,
-  },
+  helpers::{app_paths::resolve_frontend_dir, cargo, npm::PackageManager},
   Result,
 };
 
@@ -22,11 +18,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
-  run(options)
-}
-
-pub fn run(options: Options) -> Result<()> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   let plugin = options.plugin;
 
   let crate_name = format!("tauri-plugin-{plugin}");
@@ -35,7 +27,6 @@ pub fn run(options: Options) -> Result<()> {
   let metadata = plugins.remove(plugin.as_str()).unwrap_or_default();
 
   let frontend_dir = resolve_frontend_dir();
-  let tauri_dir = tauri_dir();
 
   let target_str = metadata
     .desktop_only
@@ -48,14 +39,14 @@ pub fn run(options: Options) -> Result<()> {
 
   cargo::uninstall_one(cargo::CargoUninstallOptions {
     name: &crate_name,
-    cwd: Some(tauri_dir),
+    cwd: Some(dirs.tauri),
     target: target_str,
   })?;
 
   if !metadata.rust_only {
     if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
       let npm_name = format!("@tauri-apps/plugin-{plugin}");
-      manager.remove(&[npm_name], tauri_dir)?;
+      manager.remove(&[npm_name], dirs.tauri)?;
     }
 
     acl::permission::rm::command(acl::permission::rm::Options {

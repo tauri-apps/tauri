@@ -13,7 +13,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wry = { version = "0.53.4", default-features = false, features = [
+wry = { version = "0.54.0", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",

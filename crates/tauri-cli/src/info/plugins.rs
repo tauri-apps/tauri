@@ -111,33 +111,27 @@ pub fn items(
 ) -> Vec<SectionItem> {
   let mut items = Vec::new();
 
-  if tauri_dir.is_some() || frontend_dir.is_some() {
-    if let Some(tauri_dir) = tauri_dir {
-      let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
+  if let Some(tauri_dir) = tauri_dir {
+    let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
 
-      for p in helpers::plugins::known_plugins().keys() {
-        let dep = format!("tauri-plugin-{p}");
-        let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), &dep);
-        if !crate_version.has_version() {
-          continue;
-        }
-        let item = packages_rust::rust_section_item(&dep, crate_version);
-        items.push(item);
-
-        let Some(frontend_dir) = frontend_dir else {
-          continue;
-        };
-
-        let package = format!("@tauri-apps/plugin-{p}");
-
-        let item = packages_nodejs::nodejs_section_item(
-          package,
-          None,
-          frontend_dir.clone(),
-          package_manager,
-        );
-        items.push(item);
+    for p in helpers::plugins::known_plugins().keys() {
+      let dep = format!("tauri-plugin-{p}");
+      let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), &dep);
+      if !crate_version.has_version() {
+        continue;
       }
+      let item = packages_rust::rust_section_item(&dep, crate_version);
+      items.push(item);
+
+      let Some(frontend_dir) = frontend_dir else {
+        continue;
+      };
+
+      let package = format!("@tauri-apps/plugin-{p}");
+
+      let item =
+        packages_nodejs::nodejs_section_item(package, None, frontend_dir.clone(), package_manager);
+      items.push(item);
     }
   }
 

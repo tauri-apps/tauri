@@ -4,7 +4,8 @@
 
 use super::{get_app, Target};
 use crate::{
-  helpers::{config::get as get_tauri_config, template::JsonMap},
+  helpers::app_paths::Dirs,
+  helpers::{config::get_config as get_tauri_config, template::JsonMap},
   interface::{AppInterface, Interface},
   ConfigValue, Result,
 };
@@ -28,6 +29,7 @@ pub fn command(
   reinstall_deps: bool,
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
+  dirs: &Dirs,
 ) -> Result<()> {
   let wrapper = TextWrapper::default();
 
@@ -38,6 +40,7 @@ pub fn command(
     reinstall_deps,
     skip_targets_install,
     config,
+    dirs,
   )?;
   Ok(())
 }
@@ -49,19 +52,19 @@ pub fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
+  dirs: &Dirs,
 ) -> Result<App> {
   let tauri_config = get_tauri_config(
     target.platform_target(),
     &config.iter().map(|conf| &conf.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
-
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
   let app = get_app(
     target,
-    tauri_config_,
-    &AppInterface::new(tauri_config_, None)?,
+    &tauri_config,
+    &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+    dirs.tauri,
   );
 
   let (handlebars, mut map) = handlebars(&app);
@@ -135,7 +138,7 @@ pub fn exec(
     Target::Android => {
       let _env = super::android::env(non_interactive)?;
       let (config, metadata) =
-        super::android::get_config(&app, tauri_config_, &[], &Default::default());
+        super::android::get_config(&app, &tauri_config, &[], &Default::default());
       map.insert("android", &config);
       super::android::project::gen(
         &config,
@@ -150,10 +153,10 @@ pub fn exec(
     // Generate Xcode project
     Target::Ios => {
       let (config, metadata) =
-        super::ios::get_config(&app, tauri_config_, &[], &Default::default())?;
+        super::ios::get_config(&app, &tauri_config, &[], &Default::default(), dirs.tauri)?;
       map.insert("apple", &config);
       super::ios::project::gen(
-        tauri_config_,
+        &tauri_config,
         &config,
         &metadata,
         (handlebars, map),

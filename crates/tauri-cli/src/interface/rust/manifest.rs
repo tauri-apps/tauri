@@ -4,10 +4,7 @@
 
 use crate::{
   error::{Context, ErrorExt},
-  helpers::{
-    app_paths::tauri_dir,
-    config::{Config, PatternKind},
-  },
+  helpers::config::{Config, PatternKind},
 };
 
 use itertools::Itertools;
@@ -272,8 +269,8 @@ fn inject_features(
   Ok(persist)
 }
 
-pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
-  let manifest_path = tauri_dir().join("Cargo.toml");
+pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Manifest, bool)> {
+  let manifest_path = tauri_dir.join("Cargo.toml");
   let (mut manifest, original_manifest_str) = read_manifest(&manifest_path)?;
 
   let mut dependencies = Vec::new();

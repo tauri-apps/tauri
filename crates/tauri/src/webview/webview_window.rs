@@ -1230,7 +1230,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
-  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
   /// The closure parameter is the webview instance.

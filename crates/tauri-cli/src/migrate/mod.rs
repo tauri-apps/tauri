@@ -46,7 +46,7 @@ pub fn command() -> Result<()> {
     .with_context(|| format!("failed to parse tauri version {tauri_version}"))?;
 
   if tauri_version.major == 1 {
-    migrations::v1::run().context("failed to migrate from v1")?;
+    migrations::v1::run(&dirs).context("failed to migrate from v1")?;
   } else if tauri_version.major == 2 {
     if let Some((pre, _number)) = tauri_version.pre.as_str().split_once('.') {
       match pre {

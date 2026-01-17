@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{error::Context, Result};
+use crate::{error::Context, helpers::app_paths::Dirs, Result};
 
 mod config;
 mod frontend;
 mod manifest;
 
-pub fn run() -> Result<()> {
-  let dirs = crate::helpers::app_paths::resolve_dirs();
-
+pub fn run(dirs: &Dirs) -> Result<()> {
   let mut migrated = config::migrate(dirs.tauri).context("Could not migrate config")?;
   manifest::migrate(dirs.tauri).context("Could not migrate manifest")?;
   let plugins = frontend::migrate(dirs.frontend)?;
@@ -27,7 +25,7 @@ pub fn run() -> Result<()> {
         rev: None,
         no_fmt: false,
       },
-      &dirs,
+      dirs,
     )
     .with_context(|| format!("Could not migrate plugin '{plugin}'"))?;
   }

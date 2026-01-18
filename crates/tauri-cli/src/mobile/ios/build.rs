@@ -357,7 +357,7 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(interface, &mut build_options, &tauri_config, true, dirs)?;
+  crate::build::setup(interface, &mut build_options, &tauri_config, dirs, true)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(

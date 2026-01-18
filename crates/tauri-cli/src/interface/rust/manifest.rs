@@ -351,10 +351,7 @@ mod tests {
         } else {
           None
         };
-        if let Some(f) = item_table
-          .and_then(|t| t.get("features").cloned())
-          .and_then(|f| f.as_array().cloned())
-        {
+        if let Some(f) = item_table.and_then(|t| t.get("features")?.as_array().cloned()) {
           for feature in f.iter() {
             let feature = feature.as_str().expect("feature is not a string");
             if !dep.all_cli_managed_features.contains(&feature) {

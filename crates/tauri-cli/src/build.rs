@@ -104,7 +104,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
-  setup(&interface, &mut options, &config, false, &dirs)?;
+  setup(&interface, &mut options, &config, &dirs, false)?;
 
   if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
@@ -129,8 +129,8 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       &interface,
       &*app_settings,
       &config,
-      &out_dir,
       &dirs,
+      &out_dir,
     )?;
   }
 
@@ -141,8 +141,8 @@ pub fn setup(
   interface: &AppInterface,
   options: &mut Options,
   config: &ConfigMetadata,
-  mobile: bool,
   dirs: &Dirs,
+  mobile: bool,
 ) -> Result<()> {
   // TODO: Maybe optimize this to run in parallel in the future
   // see https://github.com/tauri-apps/tauri/pull/13993#discussion_r2280697117

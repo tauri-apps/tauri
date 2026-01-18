@@ -188,7 +188,7 @@ pub fn run(
 
   generate_tauri_properties(&config, tauri_config, false)?;
 
-  crate::build::setup(&interface, &mut build_options, tauri_config, true, dirs)?;
+  crate::build::setup(&interface, &mut build_options, tauri_config, dirs, true)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();

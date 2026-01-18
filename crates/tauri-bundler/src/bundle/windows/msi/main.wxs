@@ -286,6 +286,7 @@
         </Property>
 
         {{#if download_bootstrapper}}
+        <!-- Download webview bootstrapper mode -->
         <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden try [\{] [\[]Net.ServicePointManager[\]]::SecurityProtocol = [\[]Net.SecurityProtocolType[\]]::Tls12 [\}] catch [\{][\}]; Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; Start-Process -FilePath "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" -ArgumentList ({{webview_installer_args}} &apos;/install&apos;) -Wait' Return='check'/>
         <InstallExecuteSequence>
             <Custom Action='DownloadAndInvokeBootstrapper' Before='InstallFinalize'>
@@ -294,8 +295,8 @@
         </InstallExecuteSequence>
         {{/if}}
 
-        <!-- Embedded webview bootstrapper mode -->
         {{#if webview2_bootstrapper_path}}
+        <!-- Embedded webview bootstrapper mode -->
         <Binary Id="MicrosoftEdgeWebview2Setup.exe" SourceFile="{{webview2_bootstrapper_path}}"/>
         <CustomAction Id='InvokeBootstrapper' BinaryKey='MicrosoftEdgeWebview2Setup.exe' Execute="deferred" ExeCommand='{{webview_installer_args}} /install' Return='check' />
         <InstallExecuteSequence>
@@ -305,8 +306,8 @@
         </InstallExecuteSequence>
         {{/if}}
 
-        <!-- Embedded offline installer -->
         {{#if webview2_installer_path}}
+        <!-- Embedded offline installer -->
         <Binary Id="MicrosoftEdgeWebView2RuntimeInstaller.exe" SourceFile="{{webview2_installer_path}}"/>
         <CustomAction Id='InvokeStandalone' BinaryKey='MicrosoftEdgeWebView2RuntimeInstaller.exe' Execute="deferred" ExeCommand='{{webview_installer_args}} /install' Return='check' />
         <InstallExecuteSequence>
@@ -316,8 +317,8 @@
         </InstallExecuteSequence>
         {{/if}}
 
-        <!-- Update WebView2 if minimum version requirement not met -->
         {{#if minimum_webview2_version}}
+        <!-- Update WebView2 if minimum version requirement not met -->
         <Property Id="MINIMUM_WEBVIEW2_VERSION" Value="{{minimum_webview2_version}}" />
         <Property Id="EDGEUPDATE_PATH">
             <RegistrySearch Id="EdgeUpdateLocalMachine64" Root="HKLM" Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate" Name="path" Type="raw" />

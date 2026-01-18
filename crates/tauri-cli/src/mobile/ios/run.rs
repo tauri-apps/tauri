@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use cargo_mobile2::opts::{NoiseLevel, Profile};
 use clap::{ArgAction, Parser};
@@ -107,7 +106,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   // options.open is handled by the build command
   // so all we need to do here is run the app on the selected device
   if let Some(device) = device {
-    let runner = move |_tauri_config| {
+    let runner = move |_tauri_config: &ConfigMetadata| {
       device
         .run(
           &built_application.config,

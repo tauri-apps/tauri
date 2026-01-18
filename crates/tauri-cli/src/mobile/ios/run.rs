@@ -98,17 +98,16 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &dirs,
   )?;
 
-  let cfg = get_tauri_config(
+  let mut tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let tauri_config = Mutex::new(cfg);
 
   // options.open is handled by the build command
   // so all we need to do here is run the app on the selected device
   if let Some(device) = device {
-    let runner = move || {
+    let runner = move |_tauri_config| {
       device
         .run(
           &built_application.config,
@@ -126,10 +125,10 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     };
 
     if options.no_watch {
-      runner()?;
+      runner(&tauri_config)?;
     } else {
       built_application.interface.watch(
-        &tauri_config,
+        &mut tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,

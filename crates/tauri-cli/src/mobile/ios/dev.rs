@@ -304,8 +304,6 @@ fn run_dev(
 
   crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, &dirs)?;
 
-  let tauri_config = Mutex::new(tauri_config);
-
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(
     &InterfaceOptions {
@@ -321,7 +319,7 @@ fn run_dev(
 
   let open = options.open;
   interface.mobile_dev(
-    &tauri_config,
+    &mut tauri_config,
     MobileOptions {
       debug: true,
       features: options.features,
@@ -330,7 +328,7 @@ fn run_dev(
       no_watch: options.no_watch,
       additional_watch_folders: options.additional_watch_folders,
     },
-    |options| {
+    |options, _tauri_config| {
       let cli_options = CliOptions {
         dev: true,
         features: options.features.clone(),

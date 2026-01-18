@@ -597,7 +597,7 @@ impl Rust {
               if is_configuration_file(self.app_settings.target_platform, event_path)
                 && reload_config(config, merge_configs, dirs.tauri).is_ok()
               {
-                let (manifest, modified) = rewrite_manifest(&config, dirs.tauri)?;
+                let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
                 if modified {
                   *self.app_settings.manifest.lock().unwrap() = manifest;
                   // no need to run the watcher logic, the manifest was modified

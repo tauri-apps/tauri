@@ -326,9 +326,9 @@ fn run_dev(
         }),
       };
 
-      let _handle = write_options(&tauri_config, cli_options)?;
+      let _handle = write_options(tauri_config, cli_options)?;
 
-      inject_resources(config, &tauri_config)?;
+      inject_resources(config, tauri_config)?;
 
       if open {
         open_and_wait(config, &env)

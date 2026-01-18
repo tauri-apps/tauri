@@ -28,7 +28,6 @@ use cargo_mobile2::{
 
 use std::env::set_current_dir;
 use std::path::Path;
-use std::sync::Mutex;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -119,7 +118,7 @@ pub struct BuiltApplication {
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
-  let tauri_config = Mutex::new(get_tauri_config(
+  let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
     &options
       .config
@@ -127,7 +126,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       .map(|conf| &conf.0)
       .collect::<Vec<_>>(),
     dirs.tauri,
-  )?);
+  )?;
   run(options, noise_level, &dirs, &tauri_config)
 }
 
@@ -135,7 +134,7 @@ pub fn run(
   options: Options,
   noise_level: NoiseLevel,
   dirs: &Dirs,
-  tauri_config: &Mutex<ConfigMetadata>,
+  tauri_config: &ConfigMetadata,
 ) -> Result<BuiltApplication> {
   delete_codegen_vars();
 
@@ -151,7 +150,6 @@ pub fn run(
     )
     .unwrap();
   build_options.target = Some(first_target.triple.into());
-  let tauri_config = &tauri_config.lock().unwrap();
 
   let (interface, config, metadata) = {
     let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;

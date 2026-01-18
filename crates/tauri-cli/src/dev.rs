@@ -113,22 +113,20 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let mut cfg = get_config(
+  let mut config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&cfg, options.target.clone(), dirs.tauri)?;
+  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
-  setup(&interface, &mut options, &mut cfg, &dirs)?;
-
-  let config = Mutex::new(cfg);
+  setup(&interface, &mut options, &mut config, &dirs)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
   interface.dev(
-    &config,
+    &mut config,
     options.into(),
     move |status, reason| on_app_exit(status, reason, exit_on_panic, no_watch),
     &dirs,

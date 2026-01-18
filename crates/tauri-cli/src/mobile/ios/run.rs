@@ -10,7 +10,7 @@ use clap::{ArgAction, Parser};
 use super::{device_prompt, env};
 use crate::{
   error::Context,
-  helpers::config::get_config as get_tauri_config,
+  helpers::config::{get_config as get_tauri_config, ConfigMetadata},
   interface::{DevProcess, Interface, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,

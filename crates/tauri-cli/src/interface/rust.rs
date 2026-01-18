@@ -540,7 +540,7 @@ impl Rust {
   }
 
   fn run_dev_watcher<
-    F: for<'a> Fn(&'a mut Rust, &'a ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
+    F: Fn(&mut Rust, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
   >(
     &mut self,
     config: &mut ConfigMetadata,

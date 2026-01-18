@@ -35,7 +35,6 @@ use cargo_mobile2::{
 };
 use url::Host;
 
-use std::sync::Mutex;
 use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";

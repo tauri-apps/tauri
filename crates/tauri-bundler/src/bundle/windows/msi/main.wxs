@@ -279,16 +279,17 @@
 
         {{#if install_webview}}
         <!-- WebView2 -->
-        <Property Id="WVRTINSTALLED">
-            <RegistrySearch Id="WVRTInstalledSystem" Root="HKLM" Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" Win64="no" />
-            <RegistrySearch Id="WVRTInstalledUser" Root="HKCU" Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw"/>
+        <Property Id="INSTALLED_WEBVIEW2_VERSION">
+            <RegistrySearch Id="Webview2VersionSystemx64" Root="HKLM" Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" />
+            <RegistrySearch Id="Webview2VersionSystemx86" Root="HKLM" Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw" />
+            <RegistrySearch Id="Webview2VersionUser" Root="HKCU" Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Name="pv" Type="raw"/>
         </Property>
 
         {{#if download_bootstrapper}}
         <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden try [\{] [\[]Net.ServicePointManager[\]]::SecurityProtocol = [\[]Net.SecurityProtocolType[\]]::Tls12 [\}] catch [\{][\}]; Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; Start-Process -FilePath "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" -ArgumentList ({{webview_installer_args}} &apos;/install&apos;) -Wait' Return='check'/>
         <InstallExecuteSequence>
             <Custom Action='DownloadAndInvokeBootstrapper' Before='InstallFinalize'>
-                <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
+                <![CDATA[NOT(REMOVE OR INSTALLED_WEBVIEW2_VERSION)]]>
             </Custom>
         </InstallExecuteSequence>
         {{/if}}
@@ -299,7 +300,7 @@
         <CustomAction Id='InvokeBootstrapper' BinaryKey='MicrosoftEdgeWebview2Setup.exe' Execute="deferred" ExeCommand='{{webview_installer_args}} /install' Return='check' />
         <InstallExecuteSequence>
             <Custom Action='InvokeBootstrapper' Before='InstallFinalize'>
-                <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
+                <![CDATA[NOT(REMOVE OR INSTALLED_WEBVIEW2_VERSION)]]>
             </Custom>
         </InstallExecuteSequence>
         {{/if}}
@@ -310,7 +311,29 @@
         <CustomAction Id='InvokeStandalone' BinaryKey='MicrosoftEdgeWebView2RuntimeInstaller.exe' Execute="deferred" ExeCommand='{{webview_installer_args}} /install' Return='check' />
         <InstallExecuteSequence>
             <Custom Action='InvokeStandalone' Before='InstallFinalize'>
-                <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
+                <![CDATA[NOT(REMOVE OR INSTALLED_WEBVIEW2_VERSION)]]>
+            </Custom>
+        </InstallExecuteSequence>
+        {{/if}}
+
+        <!-- Update WebView2 if minimum version requirement not met -->
+        {{#if minimum_webview2_version}}
+        <Property Id="MINIMUM_WEBVIEW2_VERSION" Value="{{minimum_webview2_version}}" />
+        <Property Id="EDGEUPDATE_PATH">
+            <RegistrySearch Id="EdgeUpdateLocalMachine64" Root="HKLM" Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate" Name="path" Type="raw" />
+            <RegistrySearch Id="EdgeUpdateLocalMachine32" Root="HKLM" Key="SOFTWARE\Microsoft\EdgeUpdate" Name="path" Type="raw"/>
+            <RegistrySearch Id="EdgeUpdateCurrentUser" Root="HKCU" Key="SOFTWARE\Microsoft\EdgeUpdate" Name="path" Type="raw"/>
+        </Property>
+        <!-- Chromium updater docs: https://source.chromium.org/chromium/chromium/src/+/main:docs/updater/user_manual.md -->
+        <!-- Modified from "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView\ModifyPath" -->
+        <CustomAction Id="UpdateWebView2ViaEdgeUpdate" Execute="deferred" Property="EDGEUPDATE_PATH" Return="check" Impersonate="no" ExeCommand="/install appguid={F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}&amp;needsadmin=true" />
+        <InstallExecuteSequence>
+            <Custom Action='UpdateWebView2ViaEdgeUpdate' Before='InstallFinalize'>
+                <![CDATA[
+                  NOT REMOVE
+                  AND INSTALLED_WEBVIEW2_VERSION
+                  AND (INSTALLED_WEBVIEW2_VERSION < MINIMUM_WEBVIEW2_VERSION)
+                ]]>
             </Custom>
         </InstallExecuteSequence>
         {{/if}}

@@ -532,6 +532,10 @@ pub struct NsisSettings {
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.8.0",
+    note = "Use `WindowsSettings::minimum_webview2_version` instead."
+  )]
   pub minimum_webview2_version: Option<String>,
 }
 
@@ -587,6 +591,10 @@ pub struct WindowsSettings {
   /// if you are on another platform and want to cross-compile and sign you will
   /// need to use another tool like `osslsigncode`.
   pub sign_command: Option<CustomSignCommandSettings>,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  pub minimum_webview2_version: Option<String>,
 }
 
 impl WindowsSettings {
@@ -612,6 +620,7 @@ mod _default {
         webview_install_mode: Default::default(),
         allow_downgrades: true,
         sign_command: None,
+        minimum_webview2_version: None,
       }
     }
   }

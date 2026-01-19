@@ -35,8 +35,6 @@ use crate::{
   CommandExt,
 };
 
-use self::app_paths::frontend_dir;
-
 pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
 
@@ -78,13 +76,14 @@ pub fn run_hook(
   hook: HookCommand,
   interface: &AppInterface,
   debug: bool,
+  frontend_dir: &Path,
 ) -> crate::Result<()> {
   let (script, script_cwd) = match hook {
     HookCommand::Script(s) if s.is_empty() => (None, None),
     HookCommand::Script(s) => (Some(s), None),
     HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
   };
-  let cwd = script_cwd.unwrap_or_else(|| frontend_dir().clone());
+  let cwd = script_cwd.unwrap_or_else(|| frontend_dir.to_owned());
   if let Some(script) = script {
     log::info!(action = "Running"; "{} `{}`", name, script);
 

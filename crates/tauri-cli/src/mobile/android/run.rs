@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use super::{configure_cargo, device_prompt, env};
 use crate::{
   error::Context,
+  helpers::config::ConfigMetadata,
   interface::{DevProcess, Interface, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
@@ -29,7 +30,7 @@ pub struct Options {
   pub release: bool,
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
@@ -77,7 +78,17 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
-  let mut built_application = super::build::command(
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  let mut tauri_config = crate::helpers::config::get_config(
+    tauri_utils::platform::Target::Android,
+    &options
+      .config
+      .iter()
+      .map(|conf| &conf.0)
+      .collect::<Vec<_>>(),
+    dirs.tauri,
+  )?;
+  let mut built_application = super::build::run(
     super::build::Options {
       debug: !options.release,
       targets: device.as_ref().map(|d| {
@@ -103,6 +114,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }),
     },
     noise_level,
+    &dirs,
+    &tauri_config,
   )?;
 
   configure_cargo(&mut env, &built_application.config)?;
@@ -112,7 +125,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(device) = device {
     let config = built_application.config.clone();
     let release = options.release;
-    let runner = move || {
+    let runner = move |_tauri_config: &ConfigMetadata| {
       device
         .run(
           &config,
@@ -137,14 +150,16 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     };
 
     if options.no_watch {
-      runner()?;
+      runner(&tauri_config)?;
     } else {
       built_application.interface.watch(
+        &mut tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
+        &dirs,
       )?;
     }
   }

@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.9.6]
+
+### What's Changed
+
+- [`7b1b3514d`](https://www.github.com/tauri-apps/tauri/commit/7b1b3514df771e6e9859b9f54fa4df332433948e) ([#14621](https://www.github.com/tauri-apps/tauri/pull/14621) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Errors like `Error Failed to parse version 2 for for NPM package tauri` when there was no `package-lock.json` file present yet or when using ones like `link:./tauri` are now only logged in `--verbose` mode.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.3.2`
+- Upgraded to `tauri-bundler@2.7.5`
+
 ## \[2.9.5]
 
 ### Bug Fixes

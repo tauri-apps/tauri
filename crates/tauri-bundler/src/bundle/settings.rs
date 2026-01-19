@@ -231,7 +231,7 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
-  /// the list of of RPM dependencies your application recommends.
+  /// the list of RPM dependencies your application recommends.
   pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,

@@ -23,7 +23,7 @@ use std::{
   sync::Arc,
 };
 
-type UriSchemeProtocol = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
+type UriSchemeProtocolHandler = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
   + Send
   + Sync
   + 'static;
@@ -199,7 +199,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
 
-  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
+  /// Custom protocols to register on the webview
+  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocolHandler>>,
 
   /// How to handle IPC calls on the webview.
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
@@ -263,12 +264,12 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
   >(
     &mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) {
     let uri_scheme = uri_scheme.into();
     self
       .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(protocol));
+      .insert(uri_scheme, Box::new(protocol_handler));
   }
 
   #[cfg(target_os = "android")]
@@ -362,7 +363,7 @@ pub struct WebviewAttributes {
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
   pub allow_link_preview: bool,
   pub scroll_bar_style: ScrollBarStyle,
-  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
   /// The closure parameter is the webview instance.

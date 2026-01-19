@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.9.2"
+version = "2.9.3"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -13,7 +13,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wry = { version = "0.53.4", default-features = false, features = [
+wry = { version = "0.54.0", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",

@@ -240,7 +240,7 @@ fn run_build(
   env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<OptionsHandle> {
-  if !options.skip_bundle && !(options.apk || options.aab) {
+  if !(options.skip_bundle || options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
     options.apk = true;
     options.aab = true;

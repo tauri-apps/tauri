@@ -5,7 +5,7 @@
 use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
   error::{Context, ErrorExt},
-  helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
+  helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
   interface::{AppInterface, Interface},
   mobile::CliOptions,
   Error, Result,
@@ -38,7 +38,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let profile = if options.release {
     Profile::Release
@@ -46,40 +46,31 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let (tauri_config, cli_options) = {
-    let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[])?;
-    let cli_options = {
-      let tauri_config_guard = tauri_config.lock().unwrap();
-      let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-      read_options(tauri_config_)
-    };
+  let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[], dirs.tauri)?;
+  let cli_options = read_options(&tauri_config);
 
-    let tauri_config = if cli_options.config.is_empty() {
-      tauri_config
-    } else {
-      // reload config with merges from the android dev|build script
-      reload_tauri_config(
-        &cli_options
-          .config
-          .iter()
-          .map(|conf| &conf.0)
-          .collect::<Vec<_>>(),
-      )?
-    };
-
-    (tauri_config, cli_options)
+  if !cli_options.config.is_empty() {
+    // reload config with merges from the android dev|build script
+    reload_tauri_config(
+      &mut tauri_config,
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+      dirs.tauri,
+    )?
   };
 
   let (config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     let (config, metadata) = get_config(
       &get_app(
         MobileTarget::Android,
-        tauri_config_,
-        &AppInterface::new(tauri_config_, None)?,
+        &tauri_config,
+        &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+        dirs.tauri,
       ),
-      tauri_config_,
+      &tauri_config,
       &[],
       &cli_options,
     );
@@ -95,7 +86,8 @@ pub fn command(options: Options) -> Result<()> {
   )?;
 
   if !cli_options.config.is_empty() {
-    crate::helpers::config::merge_with(
+    crate::helpers::config::merge_config_with(
+      &mut tauri_config,
       &cli_options
         .config
         .iter()
@@ -107,16 +99,7 @@ pub fn command(options: Options) -> Result<()> {
   let env = env(std::env::var("CI").is_ok())?;
 
   if cli_options.dev {
-    let dev_url = tauri_config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_url
-      .clone();
-
-    if let Some(url) = dev_url {
+    if let Some(url) = &tauri_config.build.dev_url {
       let localhost = match url.host() {
         Some(url::Host::Domain(d)) => d == "localhost",
         Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,

@@ -30,8 +30,7 @@ use super::{
 use crate::{
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
-    config::{BundleResources, Config as TauriConfig, ConfigHandle},
+    config::{BundleResources, Config as TauriConfig, ConfigMetadata},
     pbxproj, strip_semver_prerelease_tag,
   },
   ConfigValue, Error, Result,
@@ -103,19 +102,18 @@ enum Commands {
 
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   match cli.command {
-    Commands::Init(options) => {
-      crate::helpers::app_paths::resolve();
-      init_command(
-        MobileTarget::Ios,
-        options.ci,
-        options.reinstall_deps,
-        options.skip_targets_install,
-        options.config,
-      )?
-    }
+    Commands::Init(options) => init_command(
+      MobileTarget::Ios,
+      options.ci,
+      options.reinstall_deps,
+      options.skip_targets_install,
+      options.config,
+      &dirs,
+    )?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
-    Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
+    Commands::Build(options) => build::command(options, noise_level, &dirs).map(|_| ())?,
     Commands::Run(options) => run::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,
   }
@@ -128,6 +126,7 @@ pub fn get_config(
   tauri_config: &TauriConfig,
   features: &[String],
   cli_options: &CliOptions,
+  tauri_dir: &Path,
 ) -> Result<(AppleConfig, AppleMetadata)> {
   let mut ios_options = cli_options.clone();
   ios_options.features.extend_from_slice(features);
@@ -236,8 +235,6 @@ pub fn get_config(
   let config = AppleConfig::from_raw(app.clone(), Some(raw))
     .context("failed to create Apple configuration")?;
 
-  let tauri_dir = tauri_dir();
-
   let mut vendor_frameworks = Vec::new();
   let mut frameworks = Vec::new();
   for framework in tauri_config
@@ -272,11 +269,7 @@ pub fn get_config(
     supported: true,
     ios: ApplePlatform {
       cargo_args: Some(ios_options.args),
-      features: if ios_options.features.is_empty() {
-        None
-      } else {
-        Some(ios_options.features)
-      },
+      features: Some(ios_options.features),
       frameworks: Some(frameworks),
       vendor_frameworks: Some(vendor_frameworks),
       ..Default::default()
@@ -553,26 +546,14 @@ pub fn load_pbxproj(config: &AppleConfig) -> Result<pbxproj::Pbxproj> {
 
 pub fn synchronize_project_config(
   config: &AppleConfig,
-  tauri_config: &ConfigHandle,
+  tauri_config: &ConfigMetadata,
   pbxproj: &mut pbxproj::Pbxproj,
   export_options_plist: &mut plist::Dictionary,
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .identifier
-    .clone();
-  let product_name = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .product_name
-    .clone();
+  let identifier = tauri_config.identifier.clone();
+  let product_name = tauri_config.product_name.clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();

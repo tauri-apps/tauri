@@ -39,7 +39,7 @@ pub trait WindowExt {
   /// - **Android / iOS**: Unsupported.
   fn center(&self) {}
 
-  /// Clears the window surface. i.e make it it transparent.
+  /// Clears the window surface. i.e make it transparent.
   #[cfg(windows)]
   fn draw_surface(
     &self,

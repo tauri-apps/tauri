@@ -10,6 +10,7 @@ use clap::{ArgAction, Parser};
 use super::{device_prompt, env};
 use crate::{
   error::Context,
+  helpers::config::{get_config as get_tauri_config, ConfigMetadata},
   interface::{DevProcess, Interface, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
@@ -73,6 +74,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+
   let mut built_application = super::build::command(
     super::build::Options {
       debug: !options.release,
@@ -91,12 +94,19 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }),
     },
     noise_level,
+    &dirs,
+  )?;
+
+  let mut tauri_config = get_tauri_config(
+    tauri_utils::platform::Target::Ios,
+    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
   // options.open is handled by the build command
   // so all we need to do here is run the app on the selected device
   if let Some(device) = device {
-    let runner = move || {
+    let runner = move |_tauri_config: &ConfigMetadata| {
       device
         .run(
           &built_application.config,
@@ -114,14 +124,16 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     };
 
     if options.no_watch {
-      runner()?;
+      runner(&tauri_config)?;
     } else {
       built_application.interface.watch(
+        &mut tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
+        &dirs,
       )?;
     }
   }

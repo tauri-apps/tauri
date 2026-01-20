@@ -4,10 +4,7 @@
 
 use crate::{
   error::{Context, ErrorExt},
-  helpers::{
-    app_paths::tauri_dir,
-    config::{reload as reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
-  },
+  helpers::config::{reload_config, Config as TauriConfig, ConfigMetadata},
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
   ConfigValue, Error, Result,
 };
@@ -31,7 +28,7 @@ use std::{
   fmt::{Display, Write},
   fs::{read_to_string, write},
   net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
-  path::PathBuf,
+  path::{Path, PathBuf},
   process::{exit, ExitStatus},
   str::FromStr,
   sync::{
@@ -217,12 +214,9 @@ fn local_ip_address(force: bool) -> &'static IpAddr {
 
         })
         .collect();
-      match addresses.len() {
-        0 => panic!("No external IP detected."),
-        1 => {
-          let ipaddr = addresses.first().unwrap();
-          *ipaddr
-        }
+      match addresses.as_slice() {
+        [] => panic!("No external IP detected."),
+        [ipaddr] => *ipaddr,
         _ => {
           let selected = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
             .with_prompt(
@@ -252,18 +246,12 @@ struct DevUrlConfig {
 }
 
 fn use_network_address_for_dev_url(
-  config: &ConfigHandle,
+  config: &mut ConfigMetadata,
   dev_options: &mut crate::dev::Options,
   force_ip_prompt: bool,
+  tauri_dir: &Path,
 ) -> crate::Result<DevUrlConfig> {
-  let mut dev_url = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
+  let mut dev_url = config.build.dev_url.clone();
 
   let ip = if let Some(url) = &mut dev_url {
     let localhost = match url.host() {
@@ -299,11 +287,13 @@ fn use_network_address_for_dev_url(
         })));
 
       reload_config(
+        config,
         &dev_options
           .config
           .iter()
           .map(|conf| &conf.0)
           .collect::<Vec<_>>(),
+        tauri_dir,
       )?;
 
       Some(ip)
@@ -441,7 +431,12 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
   options
 }
 
-pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -> App {
+pub fn get_app(
+  target: Target,
+  config: &TauriConfig,
+  interface: &AppInterface,
+  tauri_dir: &Path,
+) -> App {
   let identifier = match target {
     Target::Android => config.identifier.replace('-', "_"),
     #[cfg(target_os = "macos")]
@@ -478,22 +473,26 @@ pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -
   };
 
   let app_settings = interface.app_settings();
-  App::from_raw(tauri_dir().to_path_buf(), raw)
+  let tauri_dir = tauri_dir.to_path_buf();
+  App::from_raw(tauri_dir.to_path_buf(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
       app_settings
-        .out_dir(&InterfaceOptions {
-          debug: matches!(profile, Profile::Debug),
-          target: Some(target.into()),
-          ..Default::default()
-        })
+        .out_dir(
+          &InterfaceOptions {
+            debug: matches!(profile, Profile::Debug),
+            target: Some(target.into()),
+            ..Default::default()
+          },
+          &tauri_dir,
+        )
         .expect("failed to resolve target directory")
     })
 }
 
 #[allow(unused_variables)]
 fn ensure_init(
-  tauri_config: &ConfigHandle,
+  tauri_config: &ConfigMetadata,
   app: &App,
   project_dir: PathBuf,
   target: Target,
@@ -508,16 +507,13 @@ fn ensure_init(
     )
   }
 
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-
   let mut project_outdated_reasons = Vec::new();
 
   match target {
     Target::Android => {
       let java_folder = project_dir
         .join("app/src/main/java")
-        .join(tauri_config_.identifier.replace('.', "/").replace('-', "_"));
+        .join(tauri_config.identifier.replace('.', "/").replace('-', "_"));
       if java_folder.exists() {
         #[cfg(unix)]
         ensure_gradlew(&project_dir)?;

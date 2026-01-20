@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 
 mod category;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+mod kmp;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]
@@ -15,29 +17,46 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
-  match package_type {
-    #[cfg(target_os = "linux")]
-    PackageType::AppImage | PackageType::Deb | PackageType::Rpm => {
-      log::info!(
-        "Patching binary {:?} for type {}",
-        binary,
-        package_type.short_name()
-      );
-      linux::patch_binary(binary, package_type)?;
-    }
-    PackageType::Nsis | PackageType::WindowsMsi => {
-      log::info!(
-        "Patching binary {:?} for type {}",
-        binary,
-        package_type.short_name()
-      );
-      windows::patch_binary(binary, package_type)?;
-    }
-    _ => (),
-  }
+  let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
 
+  if let Some(bundle_var_index) = kmp::index_of(BUNDLE_VAR_TOKEN, &file_data) {
+    #[cfg(target_os = "linux")]
+    let bundle_type = match package_type {
+      crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
+      crate::PackageType::Rpm => b"__TAURI_BUNDLE_TYPE_VAR_RPM",
+      crate::PackageType::AppImage => b"__TAURI_BUNDLE_TYPE_VAR_APP",
+      _ => {
+        return Err(crate::Error::InvalidPackageType(
+          package_type.short_name().to_owned(),
+          "Linux".to_owned(),
+        ))
+      }
+    };
+    #[cfg(target_os = "windows")]
+    let bundle_type = match package_type {
+      crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
+      crate::PackageType::WindowsMsi => b"__TAURI_BUNDLE_TYPE_VAR_MSI",
+      _ => {
+        return Err(crate::Error::InvalidPackageType(
+          package_type.short_name().to_owned(),
+          "Windows".to_owned(),
+        ))
+      }
+    };
+
+    file_data[bundle_var_index..bundle_var_index + BUNDLE_VAR_TOKEN.len()]
+      .copy_from_slice(bundle_type);
+
+    std::fs::write(binary, &file_data)
+      .map_err(|e| crate::Error::BinaryWriteError(e.to_string()))?;
+  } else {
+    return Err(crate::Error::MissingBundleTypeVar);
+  }
   Ok(())
 }
 
@@ -92,22 +111,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     .expect("Main binary missing in settings");
   let main_binary_path = settings.binary_path(main_binary);
 
-  // When packaging multiple binary types, we make a copy of the unsigned main_binary so that we can
-  // restore it after each package_type step. This avoids two issues:
+  // We make a copy of the unsigned main_binary so that we can restore it after each package_type step.
+  // This allows us to patch the binary correctly and avoids two issues:
   //  - modifying a signed binary without updating its PE checksum can break signature verification
   //    - codesigning tools should handle calculating+updating this, we just need to ensure
   //      (re)signing is performed after every `patch_binary()` operation
   //  - signing an already-signed binary can result in multiple signatures, causing verification errors
-  let main_binary_reset_required = matches!(target_os, TargetPlatform::Windows)
-    && settings.windows().can_sign()
-    && package_types.len() > 1;
-  let mut unsigned_main_binary_copy = tempfile::tempfile()?;
-  if main_binary_reset_required {
-    let mut unsigned_main_binary = std::fs::File::open(&main_binary_path)?;
-    std::io::copy(&mut unsigned_main_binary, &mut unsigned_main_binary_copy)?;
-  }
+  // TODO: change this to work on a copy while preserving the main binary unchanged
+  let mut main_binary_copy = tempfile::tempfile()?;
+  let mut main_binary_orignal = std::fs::File::open(&main_binary_path)?;
+  std::io::copy(&mut main_binary_orignal, &mut main_binary_copy)?;
 
-  let mut main_binary_signed = false;
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
@@ -115,22 +129,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
     if let Err(e) = patch_binary(&main_binary_path, package_type) {
       log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
     }
 
     // sign main binary for every package type after patch
     if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
-      if main_binary_signed && main_binary_reset_required {
-        let mut signed_main_binary = std::fs::OpenOptions::new()
-          .write(true)
-          .truncate(true)
-          .open(&main_binary_path)?;
-        unsigned_main_binary_copy.seek(SeekFrom::Start(0))?;
-        std::io::copy(&mut unsigned_main_binary_copy, &mut signed_main_binary)?;
-      }
       windows::sign::try_sign(&main_binary_path, settings)?;
-      main_binary_signed = true;
     }
 
     let bundle_paths = match package_type {
@@ -172,6 +178,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       package_type: package_type.to_owned(),
       bundle_paths,
     });
+
+    // Restore unsigned and unpatched binary
+    let mut modified_main_binary = std::fs::OpenOptions::new()
+      .write(true)
+      .truncate(true)
+      .open(&main_binary_path)?;
+    main_binary_copy.seek(SeekFrom::Start(0))?;
+    std::io::copy(&mut main_binary_copy, &mut modified_main_binary)?;
   }
 
   if let Some(updater) = settings.updater() {

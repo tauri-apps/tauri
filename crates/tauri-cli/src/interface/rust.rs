@@ -1173,35 +1173,6 @@ impl RustAppSettings {
 pub(crate) struct CargoMetadata {
   pub(crate) target_directory: PathBuf,
   pub(crate) workspace_root: PathBuf,
-}
-
-fn run_cargo_metadata(tauri_dir: &Path) -> crate::Result<Vec<u8>> {
-  let output = Command::new("cargo")
-    .args(["metadata", "--no-deps", "--format-version", "1"])
-    .current_dir(tauri_dir)
-    .output()
-    .map_err(|error| Error::CommandFailed {
-      command: "cargo metadata --no-deps --format-version 1".to_string(),
-      error,
-    })?;
-
-  if !output.status.success() {
-    return Err(Error::CommandFailed {
-      command: "cargo metadata".to_string(),
-      error: std::io::Error::other(String::from_utf8_lossy(&output.stderr)),
-    });
-  }
-
-  Ok(output.stdout)
-}
-
-pub(crate) fn get_cargo_metadata(tauri_dir: &Path) -> crate::Result<CargoMetadata> {
-  let output = run_cargo_metadata(tauri_dir)?;
-  serde_json::from_slice(&output).context("failed to parse cargo metadata")
-}
-
-#[derive(Deserialize)]
-pub struct CargoMetadataExpended {
   workspace_members: Vec<String>,
   packages: Vec<Package>,
 }
@@ -1221,11 +1192,29 @@ struct Dependency {
   path: Option<PathBuf>,
 }
 
+pub(crate) fn get_cargo_metadata(tauri_dir: &Path) -> crate::Result<CargoMetadata> {
+  let output = Command::new("cargo")
+    .args(["metadata", "--no-deps", "--format-version", "1"])
+    .current_dir(tauri_dir)
+    .output()
+    .map_err(|error| Error::CommandFailed {
+      command: "cargo metadata --no-deps --format-version 1".to_string(),
+      error,
+    })?;
+
+  if !output.status.success() {
+    return Err(Error::CommandFailed {
+      command: "cargo metadata".to_string(),
+      error: std::io::Error::other(String::from_utf8_lossy(&output.stderr)),
+    });
+  }
+
+  serde_json::from_slice(&output.stdout).context("failed to parse cargo metadata")
+}
+
 /// Get the tauri project crate's dependencies that are inside the workspace
 fn get_in_workspace_dependency_paths(tauri_dir: &Path) -> crate::Result<Vec<PathBuf>> {
-  let output = run_cargo_metadata(tauri_dir)?;
-  let metadata: CargoMetadataExpended =
-    serde_json::from_slice(&output).context("failed to parse cargo metadata")?;
+  let metadata = get_cargo_metadata(tauri_dir)?;
   let tauri_project_manifest_path = tauri_dir.join("Cargo.toml");
   let tauri_project_package = metadata
     .packages

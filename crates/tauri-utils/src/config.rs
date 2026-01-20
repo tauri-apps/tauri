@@ -3164,18 +3164,18 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
               })?;
             Ok(PackageVersion(
               Version::from_str(version)
-                .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+                .map_err(|_| DeError::custom("`tauri.conf.json > version` must be a semver string"))?
                 .to_string(),
             ))
           } else {
             Err(DeError::custom(
-              "`package > version` value is not a path to a JSON object",
+              "`tauri.conf.json > version` value is not a path to a JSON object",
             ))
           }
         } else {
           Ok(PackageVersion(
             Version::from_str(value)
-              .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+              .map_err(|_| DeError::custom("`tauri.conf.json > version` must be a semver string"))?
               .to_string(),
           ))
         }

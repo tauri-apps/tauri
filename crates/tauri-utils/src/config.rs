@@ -3164,7 +3164,9 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
               })?;
             Ok(PackageVersion(
               Version::from_str(version)
-                .map_err(|_| DeError::custom("`tauri.conf.json > version` must be a semver string"))?
+                .map_err(|_| {
+                  DeError::custom("`tauri.conf.json > version` must be a semver string")
+                })?
                 .to_string(),
             ))
           } else {

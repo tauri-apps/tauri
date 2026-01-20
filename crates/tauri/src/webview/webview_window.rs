@@ -2057,6 +2057,20 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_fullscreen(fullscreen)
   }
 
+  /// Toggles a fullscreen mode that doesn't require a new macOS space.
+  /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
+  ///
+  /// This is how fullscreen used to work on macOS in versions before Lion.
+  /// And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Uses native simple fullscreen mode.
+  /// - **Other platforms:** Falls back to [`Self::set_fullscreen`].
+  pub fn set_simple_fullscreen(&self, enable: bool) -> crate::Result<()> {
+    self.window.set_simple_fullscreen(enable)
+  }
+
   /// Bring the window to front and focus.
   pub fn set_focus(&self) -> crate::Result<()> {
     self.window.set_focus()

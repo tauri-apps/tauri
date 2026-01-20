@@ -9,7 +9,6 @@ use std::{
   path::{Path, PathBuf},
   process::ExitStatus,
   sync::Arc,
-  sync::Mutex,
 };
 
 use crate::{
@@ -115,21 +114,23 @@ pub trait Interface: Sized {
   fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf>;
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
-    config: &Mutex<ConfigMetadata>,
+    config: &mut ConfigMetadata,
     options: Options,
     on_exit: F,
     dirs: &Dirs,
   ) -> crate::Result<()>;
-  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
+  fn mobile_dev<
+    R: Fn(MobileOptions, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
+  >(
     &mut self,
-    config: &Mutex<ConfigMetadata>,
+    config: &mut ConfigMetadata,
     options: MobileOptions,
     runner: R,
     dirs: &Dirs,
   ) -> crate::Result<()>;
-  fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
+  fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
-    config: &Mutex<ConfigMetadata>,
+    config: &mut ConfigMetadata,
     options: WatcherOptions,
     runner: R,
     dirs: &Dirs,

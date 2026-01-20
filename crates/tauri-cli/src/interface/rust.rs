@@ -193,7 +193,7 @@ impl Interface for Rust {
 
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
-    config: &Mutex<ConfigMetadata>,
+    config: &mut ConfigMetadata,
     mut options: Options,
     on_exit: F,
     dirs: &Dirs,
@@ -220,25 +220,26 @@ impl Interface for Rust {
       Ok(())
     } else {
       let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
-      let run = Arc::new(|rust: &mut Rust| {
-        let on_exit = on_exit.clone();
-        rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
-          on_exit(status, reason)
-        })
-      });
       self.run_dev_watcher(
         config,
         &options.additional_watch_folders,
         &merge_configs,
-        run,
+        |rust: &mut Rust, _config| {
+          let on_exit = on_exit.clone();
+          rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
+            on_exit(status, reason)
+          })
+        },
         dirs,
       )
     }
   }
 
-  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
+  fn mobile_dev<
+    R: Fn(MobileOptions, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
+  >(
     &mut self,
-    config: &Mutex<ConfigMetadata>,
+    config: &mut ConfigMetadata,
     mut options: MobileOptions,
     runner: R,
     dirs: &Dirs,
@@ -253,7 +254,7 @@ impl Interface for Rust {
     );
 
     if options.no_watch {
-      runner(options)?;
+      runner(options, config)?;
       Ok(())
     } else {
       self.watch(
@@ -262,26 +263,25 @@ impl Interface for Rust {
           config: options.config.clone(),
           additional_watch_folders: options.additional_watch_folders.clone(),
         },
-        move || runner(options.clone()),
+        move |config| runner(options.clone(), config),
         dirs,
       )
     }
   }
 
-  fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
+  fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
-    config: &Mutex<ConfigMetadata>,
+    config: &mut ConfigMetadata,
     options: WatcherOptions,
     runner: R,
     dirs: &Dirs,
   ) -> crate::Result<()> {
     let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
-    let run = Arc::new(|_rust: &mut Rust| runner());
     self.run_dev_watcher(
       config,
       &options.additional_watch_folders,
       &merge_configs,
-      run,
+      |_rust: &mut Rust, config| runner(config),
       dirs,
     )
   }
@@ -504,15 +504,17 @@ impl Rust {
     .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
   }
 
-  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
+  fn run_dev_watcher<
+    F: Fn(&mut Rust, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
+  >(
     &mut self,
-    config: &Mutex<ConfigMetadata>,
+    config: &mut ConfigMetadata,
     additional_watch_folders: &[PathBuf],
     merge_configs: &[&serde_json::Value],
-    run: Arc<F>,
+    run: F,
     dirs: &Dirs,
   ) -> crate::Result<()> {
-    let child = run(self)?;
+    let child = run(self, config)?;
 
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
@@ -558,9 +560,9 @@ impl Rust {
           if let Some(event_path) = event.paths.first() {
             if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
               if is_configuration_file(self.app_settings.target_platform, event_path)
-                && reload_config(&mut config.lock().unwrap(), merge_configs, dirs.tauri).is_ok()
+                && reload_config(config, merge_configs, dirs.tauri).is_ok()
               {
-                let (manifest, modified) = rewrite_manifest(&config.lock().unwrap(), dirs.tauri)?;
+                let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
                 if modified {
                   *self.app_settings.manifest.lock().unwrap() = manifest;
                   // no need to run the watcher logic, the manifest was modified
@@ -584,7 +586,7 @@ impl Rust {
                   break;
                 }
               }
-              *p = run(self)?;
+              *p = run(self, config)?;
             }
           }
         }
@@ -1484,14 +1486,16 @@ fn tauri_config_to_bundle_settings(
         .map(tauri_bundler::bundle::Entitlements::Path)
     } else {
       let mut app_links_entitlements = plist::Dictionary::new();
-      app_links_entitlements.insert(
-        "com.apple.developer.associated-domains".to_string(),
-        domains
-          .into_iter()
-          .map(|domain| format!("applinks:{domain}").into())
-          .collect::<Vec<_>>()
-          .into(),
-      );
+      if !domains.is_empty() {
+        app_links_entitlements.insert(
+          "com.apple.developer.associated-domains".to_string(),
+          domains
+            .into_iter()
+            .map(|domain| format!("applinks:{domain}").into())
+            .collect::<Vec<_>>()
+            .into(),
+        );
+      }
       let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
         crate::helpers::plist::merge_plist(vec![
           PathBuf::from(user_provided_entitlements).into(),

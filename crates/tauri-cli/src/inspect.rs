@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 use crate::interface::{AppInterface, AppSettings, Interface};
 
 #[derive(Debug, Parser)]
-#[clap(about = "Manage or create permissions for your app or plugin")]
+#[clap(about = "Inspect values used by Tauri")]
 pub struct Cli {
   #[clap(subcommand)]
   command: Commands,
@@ -40,8 +40,7 @@ fn wix_upgrade_code(tauri_dir: &Path) -> Result<()> {
   let upgrade_code = uuid::Uuid::new_v5(
     &uuid::Uuid::NAMESPACE_DNS,
     format!("{product_name}.exe.app.x64").as_bytes(),
-  )
-  .to_string();
+  );
 
   log::info!("Default WiX Upgrade Code, derived from {product_name}: {upgrade_code}");
   if let Some(code) = config

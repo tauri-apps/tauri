@@ -35,7 +35,6 @@ use cargo_mobile2::{
 };
 use url::Host;
 
-use std::sync::Mutex;
 use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
@@ -304,8 +303,6 @@ fn run_dev(
 
   crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, &dirs)?;
 
-  let tauri_config = Mutex::new(tauri_config);
-
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(
     &InterfaceOptions {
@@ -321,7 +318,7 @@ fn run_dev(
 
   let open = options.open;
   interface.mobile_dev(
-    &tauri_config,
+    &mut tauri_config,
     MobileOptions {
       debug: true,
       features: options.features,
@@ -330,7 +327,7 @@ fn run_dev(
       no_watch: options.no_watch,
       additional_watch_folders: options.additional_watch_folders,
     },
-    |options| {
+    |options, tauri_config| {
       let cli_options = CliOptions {
         dev: true,
         features: options.features.clone(),
@@ -340,7 +337,7 @@ fn run_dev(
         config: dev_options.config.clone(),
         target_device: None,
       };
-      let _handle = write_options(&tauri_config.lock().unwrap(), cli_options)?;
+      let _handle = write_options(tauri_config, cli_options)?;
 
       let open_xcode = || {
         if !set_host {

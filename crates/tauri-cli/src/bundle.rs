@@ -154,8 +154,8 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     &interface,
     &*app_settings,
     &config,
-    &out_dir,
     &dirs,
+    &out_dir,
   )
 }
 
@@ -167,8 +167,8 @@ pub fn bundle<A: AppSettings>(
   interface: &AppInterface,
   app_settings: &A,
   config: &ConfigMetadata,
-  out_dir: &Path,
   dirs: &Dirs,
+  out_dir: &Path,
 ) -> crate::Result<()> {
   let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
     bundles.iter().map(|bundle| bundle.0).collect::<Vec<_>>()

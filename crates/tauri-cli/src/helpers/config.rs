@@ -55,8 +55,7 @@ impl ConfigMetadata {
     for (ext, config) in &self.extensions {
       if let Some(identifier) = config
         .as_object()
-        .and_then(|bundle_config| bundle_config.get("identifier"))
-        .and_then(|id| id.as_str())
+        .and_then(|bundle_config| bundle_config.get("identifier")?.as_str())
       {
         if identifier == self.inner.identifier {
           return Some(ext.clone());
@@ -163,8 +162,7 @@ fn load_config(
 
   let original_identifier = config
     .as_object()
-    .and_then(|config| config.get("identifier"))
-    .and_then(|id| id.as_str())
+    .and_then(|config| config.get("identifier")?.as_str())
     .map(ToString::to_string);
 
   if let Some((platform_config, config_path)) =

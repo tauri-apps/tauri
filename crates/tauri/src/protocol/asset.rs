@@ -48,32 +48,29 @@ fn get_response(
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
-  // Check if the file exists before trying to open it
-  if !std::path::Path::new(&path).exists() {
-    log::error!("File does not exist at path: {}", path);
-    return resp.status(404).body(Vec::new().into()).map_err(Into::into);
-  }
-  
-  // Check if we have read permissions
-  if let Err(e) = std::fs::metadata(&path) {
-    log::error!("Failed to get metadata for {}: {}", path, e);
-    return resp.status(422).body(format!("Failed to access file metadata: {}", e).into_bytes().into()).map_err(Into::into);
-  }
+  // Separate block for easier error handling
+  let mut file = match crate::async_runtime::safe_block_on(File::open(path.clone())) {
+    Ok(file) => file,
+    Err(e) => {
+      #[cfg(target_os = "android")]
+      {
+        if path.starts_with("/storage/emulated/0/Android/data/") {
+          log::error!("Failed to open Android external storage file '{}': {}. This may be due to missing storage permissions.", path, e);
+        }
+      }
+      return if e.kind() == std::io::ErrorKind::NotFound {
+        log::error!("File does not exist at path: {}", path);
+        return resp.status(404).body(Vec::new().into()).map_err(Into::into);
+      } else if e.kind() == std::io::ErrorKind::PermissionDenied {
+        log::error!("Missing OS permission to access path \"{}\": {}", path, e);
+        return resp.status(403).body(Vec::new().into()).map_err(Into::into);
+      } else {
+        Err(e.into())
+      };
+    }
+  };
 
   let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {
-    let mut file = match File::open(&path).await {
-      Ok(file) => file,
-      Err(e) => {
-        #[cfg(target_os = "android")]
-        {
-          if path.starts_with("/storage/emulated/0/Android/data/") {
-            log::error!("Failed to open Android external storage file '{}': {}. This may be due to missing storage permissions or the file being inaccessible from the webview context.", path, e);
-          }
-        }
-        return Err(e.into());
-      }
-    };
-
     // get file length
     let len = {
       let old_pos = file.stream_position().await?;

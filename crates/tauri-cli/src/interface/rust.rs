@@ -7,6 +7,7 @@ use std::{
   ffi::OsStr,
   fs::FileType,
   io::{BufRead, Write},
+  iter::once,
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
@@ -521,8 +522,13 @@ impl Rust {
 
     let watch_folders = get_watch_folders(additional_watch_folders, dirs.tauri)?;
 
-    let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
-      .expect("watch_folders should not be empty");
+    let common_ancestor = common_path::common_path_all(
+      watch_folders
+        .iter()
+        .map(Path::new)
+        .chain(once(self.app_settings.workspace_dir.as_path())),
+    )
+    .expect("watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
     let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
@@ -744,6 +750,7 @@ pub struct RustAppSettings {
   cargo_config: CargoConfig,
   target_triple: String,
   target_platform: TargetPlatform,
+  workspace_dir: PathBuf,
 }
 
 #[derive(Deserialize)]
@@ -1061,7 +1068,8 @@ impl RustAppSettings {
       }
     };
 
-    let ws_package_settings = CargoSettings::load(&get_workspace_dir(tauri_dir)?)
+    let workspace_dir = get_workspace_dir(tauri_dir)?;
+    let ws_package_settings = CargoSettings::load(&workspace_dir)
       .context("failed to load Cargo settings from workspace root")?
       .workspace
       .and_then(|v| v.package);
@@ -1156,6 +1164,7 @@ impl RustAppSettings {
       cargo_config,
       target_triple,
       target_platform,
+      workspace_dir,
     })
   }
 

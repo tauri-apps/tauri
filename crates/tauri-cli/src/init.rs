@@ -78,8 +78,8 @@ impl Options {
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
-      let package_json_text = read_to_string(&package_json_path)
-        .fs_context("failed to read", package_json_path.clone())?;
+      let package_json_text =
+        read_to_string(&package_json_path).fs_context("failed to read", &package_json_path)?;
       let package_json: crate::PackageJson =
         serde_json::from_str(&package_json_text).context("failed to parse JSON")?;
       let (framework, _) = infer_framework(&package_json_text);

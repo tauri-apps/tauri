@@ -469,19 +469,24 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   });
 
   Ok(quote!({
-    let thread = ::std::thread::Builder::new()
-      .name(String::from("generated tauri context creation"))
-      .stack_size(8 * 1024 * 1024)
-      .spawn(|| #context)
-      .expect("unable to create thread with 8MiB stack");
+    // Wrapping in a function to make rust analyzer faster,
+    // see https://github.com/tauri-apps/tauri/pull/14457
+    fn inner<R: #root::Runtime>() -> #root::Context<R> {
+      let thread = ::std::thread::Builder::new()
+        .name(String::from("generated tauri context creation"))
+        .stack_size(8 * 1024 * 1024)
+        .spawn(|| #context)
+        .expect("unable to create thread with 8MiB stack");
 
-    match thread.join() {
-      Ok(context) => context,
-      Err(_) => {
-        eprintln!("the generated Tauri `Context` panicked during creation");
-        ::std::process::exit(101);
+      match thread.join() {
+        Ok(context) => context,
+        Err(_) => {
+          eprintln!("the generated Tauri `Context` panicked during creation");
+          ::std::process::exit(101);
+        }
       }
     }
+    inner()
   }))
 }
 

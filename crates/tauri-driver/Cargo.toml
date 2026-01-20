@@ -31,8 +31,8 @@ tokio = { version = "1", features = ["macros"] }
 which = "8"
 
 [target."cfg(unix)".dependencies]
-signal-hook = "0.3"
-signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
+signal-hook = "0.4"
+signal-hook-tokio = { version = "0.4", features = ["futures-v0_3"] }
 
 [target."cfg(windows)".dependencies]
 win32job = "2"

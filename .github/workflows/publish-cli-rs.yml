@@ -38,33 +38,60 @@ jobs:
             rust_target: aarch64-pc-windows-msvc
             ext: '.exe'
             args: ''
+          - os: ubuntu-22.04
+            rust_target: riscv64gc-unknown-linux-gnu
+            ext: ''
+            args: ''
+            cross: true
 
     steps:
       - uses: actions/checkout@v4
 
       - name: 'Setup Rust'
+        if: ${{ !matrix.config.cross }}
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
 
       - uses: Swatinem/rust-cache@v2
+        if: ${{ !matrix.config.cross }}
         with:
           key: ${{ matrix.config.rust_target }}
 
       - name: install Linux dependencies
-        if: matrix.config.os == 'ubuntu-latest'
+        if: ${{ !matrix.config.cross && startsWith(matrix.config.os, 'ubuntu') }}
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
 
+      - name: Install cross
+        if: ${{ matrix.config.cross }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross@0.2.5
+
       - name: Build CLI
+        if: ${{ !matrix.config.cross }}
         run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml --profile release-size-optimized ${{ matrix.config.args }}
 
+      - name: Build CLI (cross)
+        if: ${{ matrix.config.cross }}
+        run: cross build --manifest-path ./crates/tauri-cli/Cargo.toml --target ${{ matrix.config.rust_target }} --profile release-size-optimized ${{ matrix.config.args }}
+
       - name: Upload CLI
+        if: ${{ !matrix.config.cross }}
         uses: actions/upload-artifact@v4
         with:
           name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
           path: target/release-size-optimized/cargo-tauri${{ matrix.config.ext }}
+          if-no-files-found: error
+
+      - name: Upload CLI (cross)
+        if: ${{ matrix.config.cross }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
+          path: target/${{ matrix.config.rust_target }}/release-size-optimized/cargo-tauri${{ matrix.config.ext }}
           if-no-files-found: error
 
   upload:

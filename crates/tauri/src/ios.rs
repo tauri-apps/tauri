@@ -46,3 +46,4 @@ swift!(pub fn register_plugin(
   webview: *const c_void
 ));
 swift!(pub fn on_webview_created(webview: *const c_void, controller: *const c_void));
+swift!(pub fn log_stdout());

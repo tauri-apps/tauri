@@ -48,9 +48,29 @@ fn get_response(
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
-  let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {
-    let mut file = File::open(&path).await?;
+  // Separate block for easier error handling
+  let mut file = match crate::async_runtime::safe_block_on(File::open(path.clone())) {
+    Ok(file) => file,
+    Err(e) => {
+      #[cfg(target_os = "android")]
+      {
+        if path.starts_with("/storage/emulated/0/Android/data/") {
+          log::error!("Failed to open Android external storage file '{}': {}. This may be due to missing storage permissions.", path, e);
+        }
+      }
+      return if e.kind() == std::io::ErrorKind::NotFound {
+        log::error!("File does not exist at path: {}", path);
+        return resp.status(404).body(Vec::new().into()).map_err(Into::into);
+      } else if e.kind() == std::io::ErrorKind::PermissionDenied {
+        log::error!("Missing OS permission to access path \"{}\": {}", path, e);
+        return resp.status(403).body(Vec::new().into()).map_err(Into::into);
+      } else {
+        Err(e.into())
+      };
+    }
+  };
 
+  let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {
     // get file length
     let len = {
       let old_pos = file.stream_position().await?;

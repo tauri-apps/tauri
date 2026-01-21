@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use once_cell_regex::regex;
+use once_cell::sync::OnceCell;
+use regex::Regex;
 use std::{collections::BTreeSet, path::Path, process::Command};
 use x509_certificate::certificate::X509Certificate;
 
@@ -49,9 +50,10 @@ impl Team {
       organization
     } else {
       println!(
-        "found cert {common_name:?} but failed to get organization; falling back to displaying common name"
-      );
-      regex!(r"Apple Develop\w+: (.*) \(.+\)")
+                "found cert {common_name:?} but failed to get organization; falling back to displaying common name"
+            );
+      static APPLE_DEV: OnceCell<Regex> = OnceCell::new();
+      APPLE_DEV.get_or_init(|| Regex::new(r"Apple Develop\w+: (.*) \(.+\)").unwrap())
                 .captures(&common_name)
                 .map(|caps| caps[1].to_owned())
                 .unwrap_or_else(|| {

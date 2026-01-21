@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+
 ## \[2.5.1]
 
 ### Performance Improvements

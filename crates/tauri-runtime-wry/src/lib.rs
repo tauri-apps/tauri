@@ -249,6 +249,8 @@ pub(crate) fn send_user_message<T: UserEvent>(
   }
 }
 
+unsafe impl<T: UserEvent> Sync for Context<T> {}
+
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
   pub window_id_map: WindowIdStore,
@@ -436,10 +438,6 @@ pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for WindowsStore {}
 
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Sync for WindowsStore {}
-
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
@@ -453,10 +451,6 @@ pub struct DispatcherMainThreadContext<T: UserEvent> {
 // SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Send for DispatcherMainThreadContext<T> {}
-
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: UserEvent> Sync for DispatcherMainThreadContext<T> {}
 
 impl<T: UserEvent> fmt::Debug for Context<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

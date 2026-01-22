@@ -502,9 +502,11 @@ impl<R: Runtime> WebviewManager<R> {
       manager.manager_owned(),
     ));
 
-    // in `windows`, we need to force a data_directory
+    // in `windows` and `linux`, we need to force a data_directory
     // but we do respect user-specification
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    // Note: Android and OHOS (mobile platforms) don't need data_directory as their webviews
+    // automatically use the app's data directory
+    #[cfg(all(any(target_os = "linux", target_os = "windows"), not(target_env = "ohos")))]
     if pending.webview_attributes.data_directory.is_none() {
       let local_app_data = manager.path().resolve(
         &app_manager.config.identifier,
@@ -516,6 +518,8 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     // make sure the directory is created and available to prevent a panic
+    // On mobile platforms (Android, OHOS), data_directory is not used, so we skip this
+    #[cfg(not(any(target_os = "android", target_env = "ohos")))]
     if let Some(user_data_dir) = &pending.webview_attributes.data_directory {
       if !user_data_dir.exists() {
         create_dir_all(user_data_dir)?;

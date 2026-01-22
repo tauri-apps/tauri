@@ -150,8 +150,8 @@ reqwest = { version = "0.12", default-features = false, features = [
 ] }
 
 [target.'cfg(target_env = "ohos")'.dependencies]
-openharmony-ability = { version = "0.2" }
-openharmony-ability-derive = { version = "0.2" }
+openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
+openharmony-ability-derive = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
 
 # android
 [target.'cfg(target_os = "android")'.dependencies]

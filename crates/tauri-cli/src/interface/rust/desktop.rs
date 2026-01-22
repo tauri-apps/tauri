@@ -61,6 +61,10 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     // compute enabled features by merging config_features and options.features, then asking the manifest
     let mut merged_features = config_features.clone();
     merged_features.extend(options.features.clone());
+    let no_default_features = options.args.contains(&"--no-default-features".into());
+    if !no_default_features {
+      merged_features.push("default".into());
+    }
     let enabled_features = app_settings
       .manifest
       .lock()

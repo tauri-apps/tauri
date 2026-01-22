@@ -513,6 +513,10 @@ fn ensure_cef_directory_if_needed(
 ) -> crate::Result<()> {
   let mut merged_features = config_features;
   merged_features.extend(features.clone());
+  let no_default_features = options.args.contains(&"--no-default-features".into());
+  if !no_default_features {
+    merged_features.push("default".into());
+  }
   let enabled_features = app_settings
     .manifest
     .lock()

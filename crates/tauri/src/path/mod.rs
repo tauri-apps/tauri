@@ -14,7 +14,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub(crate) mod plugin;
 
-use crate::error::*;
+use crate::{Error, Result};
 
 #[cfg(target_os = "android")]
 mod android;
@@ -300,6 +300,60 @@ impl<R: Runtime> PathResolver<R> {
     }
 
     Ok(p)
+  }
+
+  /// Converts a file path to a Tauri asset URL.
+  ///
+  /// This function is useful when you need to reference local files in your frontend
+  /// (e.g., in markdown editors where you're parsing markdown to HTML in Rust).
+  ///
+  /// # Platform-specific behavior
+  ///
+  /// - Windows and Android: Returns URLs in the format `http://asset.localhost/<path>`
+  /// - Other platforms: Returns URLs in the format `asset://localhost/<path>`
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert
+  ///
+  /// # Returns
+  ///
+  /// A URL string that can be used to reference the file in the frontend
+  ///
+  /// # Errors
+  ///
+  /// Returns an error if the path cannot be canonicalized
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// use std::path::Path;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let path = Path::new("/path/to/image.png");
+  ///     let asset_url = app.path().convert_file_src(path)?;
+  ///     println!("Asset URL: {}", asset_url);
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[allow(dead_code)]
+  pub fn convert_file_src<P: AsRef<Path>>(&self, path: P) -> Result<String> {
+    // Platform-specific base URL
+    #[cfg(any(windows, target_os = "android"))]
+    let base = "http://asset.localhost/";
+
+    #[cfg(not(any(windows, target_os = "android")))]
+    let base = "asset://localhost/";
+
+    // Canonicalize the path and encode it
+    let canonicalized = dunce::canonicalize(path.as_ref())?;
+    let encoded = percent_encoding::percent_encode(
+      canonicalized.to_string_lossy().as_bytes(),
+      percent_encoding::NON_ALPHANUMERIC,
+    );
+
+    Ok(format!("{}{}", base, encoded))
   }
 }
 

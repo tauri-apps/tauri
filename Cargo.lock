@@ -1197,9 +1197,9 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "143.6.0+143.0.13"
+version = "144.1.0+144.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "340906790de24e79048b8ba1a81af4ef1208d8b85315d1e54ec80f05bfeae8ec"
+checksum = "dd219b8919445d9a848015e0c3d50fd6b89f5521e711e956aa13f7f6f52992eb"
 dependencies = [
  "anyhow",
  "cargo_metadata 0.23.1",
@@ -1217,9 +1217,9 @@ dependencies = [
 
 [[package]]
 name = "cef-dll-sys"
-version = "143.6.0+143.0.13"
+version = "144.1.0+144.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdd94add6fe5f336163a6b3925985283c573a3fe33d99d76acae0a3acc10d6c3"
+checksum = "abb6189602922e778b99ffc8a8635e696b1417457be3270fd53831eb30bb4843"
 dependencies = [
  "anyhow",
  "cmake",
@@ -1394,7 +1394,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -2085,7 +2085,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.0",
- "windows-sys 0.61.1",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4480,7 +4480,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -6007,7 +6007,7 @@ dependencies = [
  "aes-gcm",
  "aes-kw",
  "argon2",
- "base64 0.22.1",
+ "base64 0.21.7",
  "bitfield",
  "block-padding",
  "blowfish",
@@ -10550,7 +10550,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

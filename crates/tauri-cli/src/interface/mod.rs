@@ -21,7 +21,6 @@ pub use rust::{MobileOptions, Options, Rust as AppInterface, WatcherOptions};
 
 pub trait DevProcess {
   fn kill(&self) -> std::io::Result<()>;
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
   #[allow(unused)]
   fn wait(&self) -> std::io::Result<ExitStatus>;
   #[allow(unused)]

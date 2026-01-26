@@ -584,11 +584,7 @@ impl Rust {
 
               // wait for the process to exit
               // note that on mobile, kill() already waits for the process to exit (duct implementation)
-              loop {
-                if !matches!(child.try_wait(), Ok(None)) {
-                  break;
-                }
-              }
+              let _ = child.wait();
               child = run(self, config)?;
             }
           }

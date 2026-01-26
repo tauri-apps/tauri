@@ -33,10 +33,6 @@ impl DevProcess for DevChild {
     Ok(())
   }
 
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    self.dev_child.try_wait()
-  }
-
   fn wait(&self) -> std::io::Result<ExitStatus> {
     self.dev_child.wait()
   }

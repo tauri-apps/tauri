@@ -9,6 +9,7 @@ fn greet(name: &str) -> String {
   format!("Hello {name}, You have been greeted from Rust!")
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
   #[cfg(not(feature = "cef"))]
   let builder = tauri::Builder::<tauri::Wry>::new();

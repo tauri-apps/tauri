@@ -73,6 +73,8 @@ pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
+#[cfg(feature = "cef")]
+pub use tauri_macros::cef_entry_point;
 pub use tauri_macros::include_image;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
@@ -132,6 +134,11 @@ pub type Cef = tauri_runtime_cef::CefRuntime<EventLoopMessage>;
 #[cfg(feature = "cef")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub type CefHandle = tauri_runtime_cef::CefRuntimeHandle<EventLoopMessage>;
+
+/// Helper function for non-browser CEF processes (renderer, GPU, plugin, etc.).
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub use tauri_runtime_cef::run_cef_helper_process;
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]

@@ -30,6 +30,7 @@ pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>
 pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 pub fn run() {
   #[cfg(feature = "cef")]
   run_app(tauri::Builder::<tauri::Cef>::default(), |_app| {});

@@ -17,6 +17,7 @@ use quote::{quote, ToTokens};
 use syn::{parse2, parse_macro_input, LitStr};
 use tauri_codegen::image::CachedIcon;
 
+mod cef;
 mod command;
 mod menu;
 mod mobile;
@@ -39,6 +40,31 @@ pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenStream {
   mobile::entry_point(attributes, item)
+}
+
+/// Mark a function as the CEF entry point. It creates a main function that only runs
+/// the provided function for the browser process, and runs the CEF helper process
+/// for other processes (renderer, GPU, plugin, etc.).
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use tauri_macros::cef_entry_point;
+///
+/// #[cef_entry_point]
+/// fn main() {
+///   // Your app initialization code here
+///   // This will only run for the browser process
+/// }
+/// ```
+///
+/// # Stability
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
+#[proc_macro_attribute]
+pub fn cef_entry_point(attributes: TokenStream, item: TokenStream) -> TokenStream {
+  cef::entry_point(attributes, item)
 }
 
 /// Accepts a list of command functions. Creates a handler that allows commands to be called from JS with invoke().

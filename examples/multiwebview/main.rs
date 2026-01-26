@@ -6,6 +6,7 @@
 
 use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
   #[cfg(not(feature = "cef"))]
   let builder = tauri::Builder::<tauri::Wry>::new();

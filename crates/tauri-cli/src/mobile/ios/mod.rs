@@ -103,17 +103,13 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => {
-      let dirs = crate::helpers::app_paths::resolve_dirs();
-      init_command(
-        MobileTarget::Ios,
-        options.ci,
-        options.reinstall_deps,
-        options.skip_targets_install,
-        options.config,
-        &dirs,
-      )?
-    }
+    Commands::Init(options) => init_command(
+      MobileTarget::Ios,
+      options.ci,
+      options.reinstall_deps,
+      options.skip_targets_install,
+      options.config,
+    )?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
     Commands::Run(options) => run::command(options, noise_level)?,

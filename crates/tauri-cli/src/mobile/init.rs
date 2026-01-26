@@ -29,8 +29,8 @@ pub fn command(
   reinstall_deps: bool,
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
-  dirs: &Dirs,
 ) -> Result<()> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   let wrapper = TextWrapper::default();
 
   exec(
@@ -52,7 +52,7 @@ fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
-  dirs: &Dirs,
+  dirs: Dirs,
 ) -> Result<App> {
   let tauri_config = get_tauri_config(
     target.platform_target(),

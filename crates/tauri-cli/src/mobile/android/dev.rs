@@ -183,18 +183,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple);
 
-  let (interface, config, metadata) = {
-    let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
 
-    let app = get_app(MobileTarget::Android, &tauri_config, &interface, dirs.tauri);
-    let (config, metadata) = get_config(
-      &app,
-      &tauri_config,
-      dev_options.features.as_ref(),
-      &Default::default(),
-    );
-    (interface, config, metadata)
-  };
+  let app = get_app(MobileTarget::Android, &tauri_config, &interface, dirs.tauri);
+  let (config, metadata) = get_config(
+    &app,
+    &tauri_config,
+    dev_options.features.as_ref(),
+    &Default::default(),
+  );
 
   set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
 

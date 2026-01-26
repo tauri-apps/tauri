@@ -95,40 +95,33 @@ pub fn command(options: Options) -> Result<()> {
   let macos = macos_from_platform(&options.platform);
 
   let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[], dirs.tauri)?;
-  let cli_options = {
-    let cli_options = { read_options(&tauri_config) };
-    if !cli_options.config.is_empty() {
-      // reload config with merges from the ios dev|build script
-      reload_tauri_config(
-        &mut tauri_config,
-        &cli_options
-          .config
-          .iter()
-          .map(|conf| &conf.0)
-          .collect::<Vec<_>>(),
-        dirs.tauri,
-      )?
-    };
-
-    cli_options
-  };
-
-  let (config, metadata) = {
-    let cli_options = read_options(&tauri_config);
-    let (config, metadata) = get_config(
-      &get_app(
-        MobileTarget::Ios,
-        &tauri_config,
-        &AppInterface::new(&tauri_config, None, dirs.tauri)?,
-        dirs.tauri,
-      ),
-      &tauri_config,
-      &[],
-      &cli_options,
+  let cli_options = read_options(&tauri_config);
+  if !cli_options.config.is_empty() {
+    // reload config with merges from the ios dev|build script
+    reload_tauri_config(
+      &mut tauri_config,
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
       dirs.tauri,
-    )?;
-    (config, metadata)
+    )?
   };
+
+  let (config, metadata) = get_config(
+    &get_app(
+      MobileTarget::Ios,
+      &tauri_config,
+      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      dirs.tauri,
+    ),
+    &tauri_config,
+    &[],
+    &cli_options,
+    dirs.tauri,
+  )?;
+
   ensure_init(
     &tauri_config,
     config.app(),

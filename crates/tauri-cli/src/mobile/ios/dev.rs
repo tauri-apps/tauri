@@ -188,20 +188,16 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let (interface, config) = {
-    let interface = AppInterface::new(&tauri_config, Some(target_triple), dirs.tauri)?;
+  let interface = AppInterface::new(&tauri_config, Some(target_triple), dirs.tauri)?;
 
-    let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
-    let (config, _metadata) = get_config(
-      &app,
-      &tauri_config,
-      &dev_options.features,
-      &Default::default(),
-      dirs.tauri,
-    )?;
-
-    (interface, config)
-  };
+  let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
+  let (config, _) = get_config(
+    &app,
+    &tauri_config,
+    &dev_options.features,
+    &Default::default(),
+    dirs.tauri,
+  )?;
 
   set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
 

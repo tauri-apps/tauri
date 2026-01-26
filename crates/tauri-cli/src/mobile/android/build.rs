@@ -153,19 +153,16 @@ pub fn run(
     .unwrap();
   build_options.target = Some(first_target.triple.into());
 
-  let (interface, config, metadata) = {
-    let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
-    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
+  interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
-    let (config, metadata) = get_config(
-      &app,
-      tauri_config,
-      &build_options.features,
-      &Default::default(),
-    );
-    (interface, config, metadata)
-  };
+  let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
+  let (config, metadata) = get_config(
+    &app,
+    tauri_config,
+    &build_options.features,
+    &Default::default(),
+  );
 
   let profile = if options.debug {
     Profile::Debug

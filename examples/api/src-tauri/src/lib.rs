@@ -92,7 +92,11 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
             let builder = tauri::WebviewWindowBuilder::new(
               &app_,
               format!("new-{number}"),
-              tauri::WebviewUrl::External("about:blank".parse().unwrap()),
+              tauri::WebviewUrl::External(if cfg!(feature = "cef") {
+                url.clone()
+              } else {
+                "about:blank".parse().unwrap()
+              }),
             )
             .window_features(features)
             .on_document_title_changed(|window, title| {

@@ -363,7 +363,7 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
       ignore_builder.add(path);
 
-      if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
+      if let Some(ignore_file) = std::env::var_os("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
         ignore_builder.add(dir.join(ignore_file));
       }
 
@@ -395,7 +395,7 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   let mut builder = ignore::WalkBuilder::new(dir);
   builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
-  if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
+  if let Some(ignore_file) = std::env::var_os("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
     builder.add_ignore(ignore_file);
   }
   builder.require_git(false).ignore(false).max_depth(Some(1));
@@ -1382,7 +1382,7 @@ fn tauri_config_to_bundle_settings(
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {
-      let (tray_kind, path) = std::env::var("TAURI_LINUX_AYATANA_APPINDICATOR")
+      let (tray_kind, path) = std::env::var_os("TAURI_LINUX_AYATANA_APPINDICATOR")
         .map(|ayatana| {
           if ayatana == "true" || ayatana == "1" {
             (
@@ -1404,7 +1404,7 @@ fn tauri_config_to_bundle_settings(
             )
           }
         })
-        .unwrap_or_else(|_| pkgconfig_utils::get_appindicator_library_path());
+        .unwrap_or_else(pkgconfig_utils::get_appindicator_library_path);
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
           depends_deb.push("libayatana-appindicator3-1".into());

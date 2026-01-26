@@ -515,9 +515,7 @@ impl Rust {
     run: F,
     dirs: &Dirs,
   ) -> crate::Result<()> {
-    let child = run(self, config)?;
-
-    let process = Arc::new(Mutex::new(child));
+    let mut child = run(self, config)?;
     let (tx, rx) = sync_channel(1);
 
     let watch_folders = get_watch_folders(additional_watch_folders, dirs.tauri)?;
@@ -582,17 +580,16 @@ impl Rust {
                 display_path(event_path.strip_prefix(dirs.frontend).unwrap_or(event_path))
               );
 
-              let mut p = process.lock().unwrap();
-              p.kill().context("failed to kill app process")?;
+              child.kill().context("failed to kill app process")?;
 
               // wait for the process to exit
               // note that on mobile, kill() already waits for the process to exit (duct implementation)
               loop {
-                if !matches!(p.try_wait(), Ok(None)) {
+                if !matches!(child.try_wait(), Ok(None)) {
                   break;
                 }
               }
-              *p = run(self, config)?;
+              child = run(self, config)?;
             }
           }
         }

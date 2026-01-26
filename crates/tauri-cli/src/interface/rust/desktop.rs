@@ -52,7 +52,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
-) -> crate::Result<impl DevProcess> {
+) -> crate::Result<DevChild> {
   let mut dev_cmd = cargo_command(true, options, available_targets, config_features)?;
   let runner = dev_cmd.get_program().to_string_lossy().into_owned();
 

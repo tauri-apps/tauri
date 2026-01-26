@@ -40,8 +40,8 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.2/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "D0C502F45DF55C0465C9406088FF016C2E7E6817";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[

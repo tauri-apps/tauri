@@ -167,7 +167,8 @@ pub struct BuiltApplication {
   options_handle: OptionsHandle,
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<BuiltApplication> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()

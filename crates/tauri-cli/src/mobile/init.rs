@@ -45,7 +45,7 @@ pub fn command(
   Ok(())
 }
 
-pub fn exec(
+fn exec(
   target: Target,
   wrapper: &TextWrapper,
   #[allow(unused_variables)] non_interactive: bool,

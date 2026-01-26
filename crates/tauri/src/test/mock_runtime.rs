@@ -1159,6 +1159,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type EventLoopProxy = EventProxy;
   type PlatformSpecificWebviewAttribute = ();
   type PlatformSpecificInitAttribute = ();
+  type WindowOpener = ();
 
   fn new(_args: RuntimeInitArgs<()>) -> Result<Self> {
     Ok(Self::init())

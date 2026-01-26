@@ -100,4 +100,6 @@ trait CefBrowserExt {
   fn nsview(&self) -> Option<objc2::rc::Retained<objc2_app_kit::NSView>>;
   #[cfg(windows)]
   fn hwnd(&self) -> Option<::windows::Win32::Foundation::HWND>;
+  #[cfg(target_os = "linux")]
+  fn xid(&self) -> Option<u64>;
 }

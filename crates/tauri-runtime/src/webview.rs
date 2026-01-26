@@ -33,7 +33,8 @@ pub type WebResourceRequestHandler =
 
 pub type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
-pub type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send + Sync;
+pub type NewWindowHandler<T, R> =
+  dyn Fn(Url, NewWindowFeatures<T, R>) -> NewWindowResponse + Send + Sync;
 
 pub type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 
@@ -85,50 +86,19 @@ pub enum PageLoadEvent {
   Finished,
 }
 
-/// Information about the webview that initiated a new window request.
-#[derive(Debug)]
-pub struct NewWindowOpener {
-  /// The instance of the webview that initiated the new window request.
-  ///
-  /// This must be set as the related view of the new webview. See [`WebviewAttributes::related_view`].
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-  ))]
-  pub webview: webkit2gtk::WebView,
-  /// The instance of the webview that initiated the new window request.
-  ///
-  /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::environment`].
-  #[cfg(windows)]
-  pub webview: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2,
-  #[cfg(windows)]
-  pub environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
-  /// The instance of the webview that initiated the new window request.
-  #[cfg(target_os = "macos")]
-  pub webview: objc2::rc::Retained<objc2_web_kit::WKWebView>,
-  /// Configuration of the target webview.
-  ///
-  /// This **MUST** be used when creating the target webview. See [`WebviewAttributes::webview_configuration`].
-  #[cfg(target_os = "macos")]
-  pub target_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
-}
-
 /// Window features of a window requested to open.
 #[derive(Debug)]
-pub struct NewWindowFeatures {
+pub struct NewWindowFeatures<T: UserEvent, R: Runtime<T>> {
   pub(crate) size: Option<crate::dpi::LogicalSize<f64>>,
   pub(crate) position: Option<crate::dpi::LogicalPosition<f64>>,
-  pub(crate) opener: NewWindowOpener,
+  pub(crate) opener: R::WindowOpener,
 }
 
-impl NewWindowFeatures {
+impl<T: UserEvent, R: Runtime<T>> NewWindowFeatures<T, R> {
   pub fn new(
     size: Option<crate::dpi::LogicalSize<f64>>,
     position: Option<crate::dpi::LogicalPosition<f64>>,
-    opener: NewWindowOpener,
+    opener: R::WindowOpener,
   ) -> Self {
     Self {
       size,
@@ -150,8 +120,13 @@ impl NewWindowFeatures {
   }
 
   /// Returns information about the webview that initiated a new window request.
-  pub fn opener(&self) -> &NewWindowOpener {
+  pub fn opener(&self) -> &R::WindowOpener {
     &self.opener
+  }
+
+  /// Returns information about the webview that initiated a new window request.
+  pub fn into_opener(self) -> R::WindowOpener {
+    self.opener
   }
 }
 
@@ -161,10 +136,7 @@ pub enum NewWindowResponse {
   Allow,
   /// Allow the window to be opened, with the given window.
   ///
-  /// ## Platform-specific:
-  ///
-  /// **Linux**: The webview must be related to the caller webview. See [`WebviewAttributes::related_view`].
-  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewAttributes::environment`].
+  /// The window must be created referencing the opener window so it can inherit the appropriate attributes.
   #[cfg(not(any(target_os = "android", target_os = "ios")))]
   Create { window_id: WindowId },
   /// Deny the window from being opened.
@@ -199,6 +171,9 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
 
+  /// Information about the webview that initiated a new window request.
+  pub opener: Option<R::WindowOpener>,
+
   /// Runtime specific attributes.
   pub platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
 
@@ -211,7 +186,7 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<NavigationHandler>>,
 
-  pub new_window_handler: Option<Box<NewWindowHandler>>,
+  pub new_window_handler: Option<Box<NewWindowHandler<T, R>>>,
 
   pub document_title_changed_handler: Option<Box<DocumentTitleChangedHandler>>,
 
@@ -243,6 +218,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
     } else {
       Ok(Self {
         webview_attributes,
+        opener: None,
         platform_specific_attributes,
         uri_scheme_protocols: Default::default(),
         label,
@@ -381,25 +357,6 @@ pub struct WebviewAttributes {
   /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
   #[cfg(target_os = "ios")]
   pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
-
-  /// Set the environment for the webview.
-  /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
-  #[cfg(windows)]
-  pub environment: Option<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment>,
-
-  /// Creates a new webview sharing the same web process with the provided webview.
-  /// Useful if you need to link a webview to another, for instance when using the [`PendingWebview::new_window_handler`].
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-  ))]
-  pub related_view: Option<webkit2gtk::WebView>,
-
-  #[cfg(target_os = "macos")]
-  pub webview_configuration: Option<objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>>,
 }
 
 unsafe impl Send for WebviewAttributes {}
@@ -515,18 +472,6 @@ impl WebviewAttributes {
       scroll_bar_style: ScrollBarStyle::Default,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
-      #[cfg(windows)]
-      environment: None,
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-      ))]
-      related_view: None,
-      #[cfg(target_os = "macos")]
-      webview_configuration: None,
     }
   }
 

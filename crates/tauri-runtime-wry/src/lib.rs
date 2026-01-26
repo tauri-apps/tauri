@@ -163,6 +163,69 @@ mod window;
 pub use webview::Webview;
 use window::WindowExt as _;
 
+/// Information about the webview that initiated a new window request.
+#[derive(Debug)]
+pub struct NewWindowOpener {
+  /// The instance of the webview that initiated the new window request.
+  ///
+  /// This must be set as the related view of the new webview.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+  ))]
+  pub webview: webkit2gtk::WebView,
+  /// The instance of the webview that initiated the new window request.
+  ///
+  /// The target webview environment **MUST** match the environment of the opener webview.
+  #[cfg(windows)]
+  pub webview: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2,
+  #[cfg(windows)]
+  pub environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
+  /// The instance of the webview that initiated the new window request.
+  #[cfg(target_os = "macos")]
+  pub webview: objc2::rc::Retained<objc2_web_kit::WKWebView>,
+  /// Configuration of the target webview.
+  ///
+  /// This **MUST** be used when creating the target webview.
+  #[cfg(target_os = "macos")]
+  pub target_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
+}
+
+// opener is only used on the main thread
+unsafe impl Send for NewWindowOpener {}
+unsafe impl Sync for NewWindowOpener {}
+
+/// Platform-specific webview attributes.
+pub enum WebviewAttribute {
+  /// Set the environment for the webview.
+  /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
+  #[cfg(windows)]
+  Environment(webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment),
+
+  /// Creates a new webview sharing the same web process with the provided webview.
+  /// Useful if you need to link a webview to another, for instance when using the [`PendingWebview::new_window_handler`].
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+  ))]
+  RelatedView(webkit2gtk::WebView),
+
+  /// Set the webview configuration.
+  /// Useful if you need to share the use a predefined webview configuration, for instance when using the [`PendingWebview::new_window_handler`].
+  #[cfg(target_os = "macos")]
+  WebviewConfiguration(objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>),
+}
+
+// attribute is only used on the main thread
+unsafe impl Send for WebviewAttribute {}
+unsafe impl Sync for WebviewAttribute {}
+
 #[derive(Debug)]
 pub struct WebContext {
   pub inner: WryWebContext,
@@ -2850,8 +2913,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   type Handle = WryHandle<T>;
 
   type EventLoopProxy = EventProxy<T>;
-  type PlatformSpecificWebviewAttribute = ();
+  type PlatformSpecificWebviewAttribute = WebviewAttribute;
   type PlatformSpecificInitAttribute = ();
+  type WindowOpener = NewWindowOpener;
 
   fn new(args: RuntimeInitArgs<()>) -> Result<Self> {
     Self::init_with_builder(EventLoopBuilder::<Message<T>>::with_user_event(), args)
@@ -4620,10 +4684,12 @@ You may have it installed on another user account, but it is not available for t
   #[allow(unused_mut)]
   let PendingWebview {
     webview_attributes,
+    platform_specific_attributes,
     uri_scheme_protocols,
     label,
     ipc_handler,
     url,
+    opener,
     ..
   } = pending;
 
@@ -4672,7 +4738,15 @@ You may have it installed on another user account, but it is not available for t
   }
 
   #[cfg(target_os = "macos")]
-  if let Some(webview_configuration) = webview_attributes.webview_configuration {
+  if let Some(webview_configuration) = platform_specific_attributes
+    .iter()
+    .find_map(|attr| match attr {
+      WebviewAttribute::WebviewConfiguration(config) => Some(config),
+      #[allow(unreachable_patterns)]
+      _ => None,
+    })
+    .or_else(|| opener.as_ref().map(|opener| &opener.target_configuration))
+  {
     webview_builder = webview_builder.with_webview_configuration(webview_configuration);
   }
 
@@ -4761,7 +4835,7 @@ You may have it installed on another user account, but it is not available for t
             tauri_runtime::webview::NewWindowFeatures::new(
               features.size,
               features.position,
-              tauri_runtime::webview::NewWindowOpener {
+              NewWindowOpener {
                 #[cfg(desktop)]
                 webview: features.opener.webview,
                 #[cfg(windows)]
@@ -4907,8 +4981,16 @@ You may have it installed on another user account, but it is not available for t
       webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
     }
 
-    if let Some(environment) = webview_attributes.environment {
-      webview_builder = webview_builder.with_environment(environment);
+    if let Some(environment) = platform_specific_attributes
+      .iter()
+      .find_map(|attr| match attr {
+        WebviewAttribute::Environment(env) => Some(env),
+        #[allow(unreachable_patterns)]
+        _ => None,
+      })
+      .or_else(|| opener.as_ref().map(|opener| &opener.environment))
+    {
+      webview_builder = webview_builder.with_environment(environment.clone());
     }
 
     webview_builder = webview_builder.with_theme(match window.theme() {
@@ -4953,8 +5035,16 @@ You may have it installed on another user account, but it is not available for t
     target_os = "openbsd"
   ))]
   {
-    if let Some(related_view) = webview_attributes.related_view {
-      webview_builder = webview_builder.with_related_view(related_view);
+    if let Some(related_view) = platform_specific_attributes
+      .iter()
+      .find_map(|attr| match attr {
+        WebviewAttribute::RelatedView(view) => Some(view),
+        #[allow(unreachable_patterns)]
+        _ => None,
+      })
+      .or_else(|| opener.as_ref().map(|opener| &opener.webview))
+    {
+      webview_builder = webview_builder.with_related_view(related_view.clone());
     }
   }
 

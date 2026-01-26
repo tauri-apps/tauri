@@ -18,6 +18,12 @@ pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
+
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::NewWindowOpener as CefWindowOpener;
+#[cfg(feature = "wry")]
+pub use tauri_runtime_wry::NewWindowOpener as WryWindowOpener;
+
 pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent, ScrollBarStyle};
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
@@ -58,8 +64,9 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-pub(crate) type NewWindowHandler<R> =
-  dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync;
+pub(crate) type NewWindowHandler<R> = dyn Fn(Url, tauri_runtime::webview::NewWindowFeatures<EventLoopMessage, R>) -> NewWindowResponse<R>
+  + Send
+  + Sync;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
@@ -272,6 +279,7 @@ unstable_struct!(
   struct WebviewBuilder<R: Runtime> {
     pub(crate) label: String,
     pub(crate) webview_attributes: WebviewAttributes,
+    pub(crate) opener: Option<R::WindowOpener>,
     pub(crate) platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
     pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
@@ -365,6 +373,7 @@ async fn create_window(app: tauri::AppHandle) {
     Self {
       label: label.into(),
       webview_attributes: WebviewAttributes::new(url),
+      opener: None,
       platform_specific_attributes: Vec::new(),
       web_resource_request_handler: None,
       navigation_handler: None,
@@ -445,6 +454,7 @@ async fn create_window(app: tauri::AppHandle) {
     Self {
       label: config.label.clone(),
       webview_attributes: WebviewAttributes::from(&config),
+      opener: None,
       platform_specific_attributes: Vec::new(),
       web_resource_request_handler: None,
       navigation_handler: None,
@@ -602,7 +612,13 @@ tauri::Builder::default()
   ///
   /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
   pub fn on_new_window<
-    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
+    F: Fn(
+        Url,
+        tauri_runtime::webview::NewWindowFeatures<EventLoopMessage, R>,
+      ) -> NewWindowResponse<R>
+      + Send
+      + Sync
+      + 'static,
   >(
     mut self,
     f: F,
@@ -714,6 +730,11 @@ tauri::Builder::default()
     self
   }
 
+  pub fn opener(mut self, opener: R::WindowOpener) -> Self {
+    self.opener.replace(opener);
+    self
+  }
+
   pub(crate) fn into_pending_webview<M: Manager<R>>(
     mut self,
     manager: &M,
@@ -724,26 +745,32 @@ tauri::Builder::default()
       self.platform_specific_attributes,
       self.label.clone(),
     )?;
+    pending.opener = self.opener.take();
     pending.navigation_handler = self.navigation_handler.take();
     pending.new_window_handler = self.new_window_handler.take().map(|handler| {
       Box::new(
-        move |url, features: NewWindowFeatures| match handler(url, features) {
-          NewWindowResponse::Allow => tauri_runtime::webview::NewWindowResponse::Allow,
-          #[cfg(mobile)]
-          NewWindowResponse::Create { window: _ } => {
-            tauri_runtime::webview::NewWindowResponse::Allow
-          }
-          #[cfg(desktop)]
-          NewWindowResponse::Create { window } => {
-            tauri_runtime::webview::NewWindowResponse::Create {
-              window_id: window.window.window.id,
+        move |url, features: tauri_runtime::webview::NewWindowFeatures<EventLoopMessage, R>| {
+          match handler(url, features) {
+            NewWindowResponse::Allow => tauri_runtime::webview::NewWindowResponse::Allow,
+            #[cfg(mobile)]
+            NewWindowResponse::Create { window: _ } => {
+              tauri_runtime::webview::NewWindowResponse::Allow
             }
+            #[cfg(desktop)]
+            NewWindowResponse::Create { window } => {
+              tauri_runtime::webview::NewWindowResponse::Create {
+                window_id: window.window.window.id,
+              }
+            }
+            NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
           }
-          NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
         },
       )
         as Box<
-          dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
+          dyn Fn(
+              Url,
+              tauri_runtime::webview::NewWindowFeatures<EventLoopMessage, R>,
+            ) -> tauri_runtime::webview::NewWindowResponse
             + Send
             + Sync
             + 'static,
@@ -1252,32 +1279,41 @@ fn main() {
       ));
     self
   }
+}
 
+/// Wry APIs
+#[cfg(feature = "wry")]
+impl WebviewBuilder<crate::Wry> {
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
-  #[cfg(all(feature = "wry", windows))]
+  #[cfg(windows)]
   pub fn with_environment(
     mut self,
     environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
   ) -> Self {
-    self.webview_attributes.environment.replace(environment);
+    self
+      .platform_specific_attributes
+      .push(tauri_runtime_wry::WebviewAttribute::Environment(
+        environment,
+      ));
     self
   }
 
   /// Creates a new webview sharing the same web process with the provided webview.
   /// Useful if you need to link a webview to another, for instance when using the [`Self::on_new_window`].
-  #[cfg(all(
-    feature = "wry",
-    any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd",
-    )
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
   ))]
   pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
-    self.webview_attributes.related_view.replace(related_view);
+    self
+      .platform_specific_attributes
+      .push(tauri_runtime_wry::WebviewAttribute::RelatedView(
+        related_view,
+      ));
     self
   }
 
@@ -1288,10 +1324,9 @@ fn main() {
     mut self,
     webview_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
   ) -> Self {
-    self
-      .webview_attributes
-      .webview_configuration
-      .replace(webview_configuration);
+    self.platform_specific_attributes.push(
+      tauri_runtime_wry::WebviewAttribute::WebviewConfiguration(webview_configuration),
+    );
     self
   }
 }

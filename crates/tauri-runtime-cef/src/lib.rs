@@ -2017,6 +2017,9 @@ pub enum RuntimeStyle {
   Chrome,
 }
 
+#[derive(Debug)]
+pub struct NewWindowOpener {}
+
 impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type WindowDispatcher = CefWindowDispatcher<T>;
   type WebviewDispatcher = CefWebviewDispatcher<T>;
@@ -2024,6 +2027,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type EventLoopProxy = EventProxy<T>;
   type PlatformSpecificWebviewAttribute = WebviewAtribute;
   type PlatformSpecificInitAttribute = RuntimeInitAttribute;
+  type WindowOpener = NewWindowOpener;
 
   fn new(args: RuntimeInitArgs<RuntimeInitAttribute>) -> Result<Self> {
     Ok(Self::init(args))

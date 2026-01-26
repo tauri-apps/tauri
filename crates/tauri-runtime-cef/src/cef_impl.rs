@@ -608,12 +608,88 @@ wrap_life_span_handler! {
     window_kind: WindowKind,
     window_id: WindowId,
     context: Context<T>,
+    new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
   }
 
   impl LifeSpanHandler {
     fn on_before_close(&self, _browser: Option<&mut Browser>) {
       if self.window_kind == WindowKind::Browser {
         on_window_destroyed(self.window_id, &self.context.windows, &self.context.callback);
+      }
+    }
+
+    fn on_before_popup(
+      &self,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _popup_id: std::os::raw::c_int,
+      target_url: Option<&CefString>,
+      _target_frame_name: Option<&CefString>,
+      _target_disposition: WindowOpenDisposition,
+      _user_gesture: std::os::raw::c_int,
+      popup_features: Option<&PopupFeatures>,
+      _window_info: Option<&mut WindowInfo>,
+      _client: Option<&mut Option<Client>>,
+      _settings: Option<&mut BrowserSettings>,
+      _extra_info: Option<&mut Option<DictionaryValue>>,
+      _no_javascript_access: Option<&mut i32>,
+    ) -> std::os::raw::c_int {
+      let Some(handler) = &self.new_window_handler else {
+        // No handler, allow default behavior
+        return 0;
+      };
+
+      let Some(target_url) = target_url else {
+        // No URL, deny
+        return 1;
+      };
+
+      let url_str = target_url.to_string();
+      let Ok(url) = url::Url::parse(&url_str) else {
+        // Invalid URL, deny
+        return 1;
+      };
+
+      // Extract size and position from popup_features
+      // Note: PopupFeatures fields may vary by CEF version, so we handle them defensively
+      let size = popup_features.and_then(|_features| {
+        // Try to access width/height fields - structure may vary
+        // For now, we'll use None if we can't determine the size
+        None // TODO: Implement proper PopupFeatures field access when CEF API is available
+      });
+
+      let position = popup_features.and_then(|_features| {
+        // Try to access x/y fields - structure may vary
+        // For now, we'll use None if we can't determine the position
+        None // TODO: Implement proper PopupFeatures field access when CEF API is available
+      });
+
+      let features = tauri_runtime::webview::NewWindowFeatures::new(
+        size,
+        position,
+        crate::NewWindowOpener {},
+      );
+
+      let response = handler(url, features);
+
+      match response {
+        tauri_runtime::webview::NewWindowResponse::Allow => {
+          // Allow CEF to handle the popup with default behavior
+          0
+        }
+        tauri_runtime::webview::NewWindowResponse::Create { window_id: _window_id } => {
+          // We need to create a window and associate it with the popup
+          // For now, we'll deny the popup and let the handler create the window
+          // The window creation should happen via the message system
+          // This is a limitation - CEF doesn't easily support creating a window
+          // and associating it with a popup in the callback
+          // We return 1 to cancel the popup, and the handler should create the window
+          1
+        }
+        tauri_runtime::webview::NewWindowResponse::Deny => {
+          // Deny the popup
+          1
+        }
       }
     }
   }
@@ -627,6 +703,7 @@ wrap_client! {
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
+    new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
     devtools_enabled: bool,
     custom_scheme_domain_names: Vec<String>,
@@ -643,7 +720,12 @@ wrap_client! {
     }
 
     fn life_span_handler(&self) -> Option<LifeSpanHandler> {
-      Some(BrowserLifeSpanHandler::new(self.window_kind, self.window_id, self.context.clone()))
+      Some(BrowserLifeSpanHandler::new(
+        self.window_kind,
+        self.window_id,
+        self.context.clone(),
+        self.new_window_handler.clone(),
+      ))
     }
 
     fn load_handler(&self) -> Option<LoadHandler> {
@@ -2459,12 +2541,13 @@ fn create_browser_window<T: UserEvent>(
 ) {
   let PendingWebview {
     label: webview_label,
+    opener: _,
     mut webview_attributes,
     platform_specific_attributes: _,
     uri_scheme_protocols,
     ipc_handler: _,
     navigation_handler,
-    new_window_handler: _,
+    new_window_handler,
     document_title_changed_handler,
     url,
     web_resource_request_handler: _,
@@ -2481,6 +2564,7 @@ fn create_browser_window<T: UserEvent>(
   let on_page_load_handler = on_page_load_handler.take().map(Arc::from);
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
+  let new_window_handler = new_window_handler.map(Arc::from);
 
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
     && webview_attributes.devtools.unwrap_or(true);
@@ -2528,6 +2612,7 @@ fn create_browser_window<T: UserEvent>(
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
+    new_window_handler,
     download_handler,
     devtools_enabled,
     custom_scheme_domain_names.clone(),
@@ -2795,12 +2880,13 @@ pub(crate) fn create_webview<T: UserEvent>(
 ) {
   let PendingWebview {
     label,
+    opener: _,
     mut webview_attributes,
     platform_specific_attributes,
     uri_scheme_protocols,
     ipc_handler: _,
     navigation_handler,
-    new_window_handler: _,
+    new_window_handler,
     document_title_changed_handler,
     url,
     web_resource_request_handler: _,
@@ -2830,6 +2916,7 @@ pub(crate) fn create_webview<T: UserEvent>(
   let on_page_load_handler = on_page_load_handler.take().map(Arc::from);
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
+  let new_window_handler = new_window_handler.map(Arc::from);
 
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
     && webview_attributes.devtools.unwrap_or(true);
@@ -2853,6 +2940,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
+    new_window_handler,
     download_handler,
     devtools_enabled,
     custom_scheme_domain_names.clone(),

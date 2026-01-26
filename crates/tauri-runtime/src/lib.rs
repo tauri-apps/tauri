@@ -411,6 +411,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type PlatformSpecificWebviewAttribute: Send + Sync + 'static;
   /// The platform specific runtime init arguments.
   type PlatformSpecificInitAttribute: Send + Sync + 'static;
+  /// Data about the window that requested the new window for [`PendingWebview::new_window_handler`].
+  type WindowOpener: Send + Sync + Debug;
 
   /// Creates a new webview runtime. Must be used on the main thread.
   fn new(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self>;

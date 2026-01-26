@@ -3005,6 +3005,18 @@ pub(crate) fn create_webview<T: UserEvent>(
 
     browser.set_bounds(bounds.as_ref());
 
+    // On Linux, explicitly set parent after creation as set_as_child may not work correctly
+    #[cfg(target_os = "linux")]
+    {
+      // Try to set parent - if window handle isn't available yet, this will be a no-op
+      // but the browser should become visible once the handle is available
+      browser.set_parent(&window);
+      // Ensure browser is visible after setting parent
+      browser.set_visible(1);
+      // Set bounds again after reparenting to ensure correct size
+      browser.set_bounds(bounds.as_ref());
+    }
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     if webview_attributes.transparent {
       browser.set_background_color(0x00000000);
@@ -3052,6 +3064,7 @@ pub(crate) fn create_webview<T: UserEvent>(
         }),
     );
 
+    println!(" browser view");
     let browser_view = browser_view_create(
       Some(&mut client),
       Some(&url),

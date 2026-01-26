@@ -91,6 +91,8 @@ impl CefBrowserExt for cef::Browser {
         rect.width as u32,
         rect.height as u32,
       );
+      // Ensure window is mapped and raised after setting bounds
+      (xlib.XMapRaised)(display, xid as xlib::Window);
       (xlib.XFlush)(display);
       (xlib.XCloseDisplay)(display);
     }
@@ -161,6 +163,9 @@ impl CefBrowserExt for cef::Browser {
     };
 
     let parent_xid = parent.window_handle() as u64;
+    if parent_xid == 0 {
+      return;
+    }
 
     let Some(xlib) = X11.as_ref() else {
       return;
@@ -172,6 +177,24 @@ impl CefBrowserExt for cef::Browser {
         return;
       }
 
+      // Check if window exists before reparenting
+      let mut root: xlib::Window = 0;
+      let mut parent_window: xlib::Window = 0;
+      let mut children: *mut xlib::Window = std::ptr::null_mut();
+      let mut nchildren: u32 = 0;
+      let status = (xlib.XQueryTree)(
+        display,
+        xid as xlib::Window,
+        &mut root,
+        &mut parent_window,
+        &mut children,
+        &mut nchildren,
+      );
+
+      if status != 0 && !children.is_null() {
+        (xlib.XFree)(children as *mut std::ffi::c_void);
+      }
+
       (xlib.XReparentWindow)(
         display,
         xid as xlib::Window,
@@ -179,6 +202,9 @@ impl CefBrowserExt for cef::Browser {
         0,
         0,
       );
+
+      // Ensure window is mapped and raised after reparenting
+      (xlib.XMapRaised)(display, xid as xlib::Window);
       (xlib.XFlush)(display);
       (xlib.XCloseDisplay)(display);
     }

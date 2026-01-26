@@ -227,9 +227,11 @@ impl Interface for Rust {
         &merge_configs,
         |rust: &mut Rust, _config| {
           let on_exit = on_exit.clone();
-          rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
-            on_exit(status, reason)
-          })
+          rust
+            .run_dev(options.clone(), run_args.clone(), move |status, reason| {
+              on_exit(status, reason)
+            })
+            .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
         },
         dirs,
       )
@@ -494,7 +496,7 @@ impl Rust {
     options: Options,
     run_args: Vec<String>,
     on_exit: F,
-  ) -> crate::Result<Box<dyn DevProcess + Send>> {
+  ) -> crate::Result<desktop::DevChild> {
     desktop::run_dev(
       options,
       run_args,
@@ -502,7 +504,6 @@ impl Rust {
       self.config_features.clone(),
       on_exit,
     )
-    .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
   }
 
   fn run_dev_watcher<

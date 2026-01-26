@@ -3064,7 +3064,6 @@ pub(crate) fn create_webview<T: UserEvent>(
         }),
     );
 
-    println!(" browser view");
     let browser_view = browser_view_create(
       Some(&mut client),
       Some(&url),

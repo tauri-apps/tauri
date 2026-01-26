@@ -4747,7 +4747,7 @@ You may have it installed on another user account, but it is not available for t
     })
     .or_else(|| opener.as_ref().map(|opener| &opener.target_configuration))
   {
-    webview_builder = webview_builder.with_webview_configuration(webview_configuration);
+    webview_builder = webview_builder.with_webview_configuration(webview_configuration.clone());
   }
 
   #[cfg(any(target_os = "windows", target_os = "android"))]

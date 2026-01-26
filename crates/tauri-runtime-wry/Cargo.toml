@@ -56,6 +56,7 @@ objc2-app-kit = { version = "0.3", features = [
   "NSScreen",
   "NSGraphics",
 ] }
+objc2-web-kit = { version = "0.3", features = ["objc2-app-kit", "WKWebView"] }
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"

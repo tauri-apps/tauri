@@ -1172,7 +1172,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
+  fn new_any_thread(_args: RuntimeInitArgs<()>) -> Result<Self> {
     Ok(Self::init())
   }
 

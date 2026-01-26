@@ -6,7 +6,7 @@ use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_option
 use crate::{
   error::{Context, ErrorExt},
   helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
-  interface::{AppInterface, Interface},
+  interface::AppInterface,
   mobile::CliOptions,
   Error, Result,
 };

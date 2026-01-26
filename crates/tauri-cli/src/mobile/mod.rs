@@ -5,7 +5,7 @@
 use crate::{
   error::{Context, ErrorExt},
   helpers::config::{reload_config, Config as TauriConfig, ConfigMetadata},
-  interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
   ConfigValue, Error, Result,
 };
 use heck::ToSnekCase;

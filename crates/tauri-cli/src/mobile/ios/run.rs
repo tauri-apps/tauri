@@ -11,7 +11,7 @@ use super::{device_prompt, env};
 use crate::{
   error::Context,
   helpers::config::{get_config as get_tauri_config, ConfigMetadata},
-  interface::{DevProcess, Interface, WatcherOptions},
+  interface::{DevProcess, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
 };

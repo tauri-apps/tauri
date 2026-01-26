@@ -10,7 +10,7 @@ use crate::{
     config::{get_config, reload_config, BeforeDevCommand, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
-  interface::{AppInterface, ExitReason, Interface},
+  interface::{AppInterface, ExitReason},
   CommandExt, ConfigValue, Error, Result,
 };
 

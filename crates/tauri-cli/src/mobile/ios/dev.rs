@@ -15,7 +15,7 @@ use crate::{
     flock,
     plist::merge_plist,
   },
-  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
     ios::ensure_ios_runtime_installed, use_network_address_for_dev_url, write_options, CliOptions,
     DevChild, DevHost, DevProcess,

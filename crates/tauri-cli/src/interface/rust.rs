@@ -27,7 +27,7 @@ use tauri_bundler::{
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
-use super::{AppSettings, DevProcess, ExitReason, Interface};
+use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
   error::{Context, Error, ErrorExt},
   helpers::{
@@ -134,10 +134,8 @@ pub struct Rust {
   main_binary_name: Option<String>,
 }
 
-impl Interface for Rust {
-  type AppSettings = RustAppSettings;
-
-  fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self> {
+impl Rust {
+  pub fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
@@ -177,11 +175,11 @@ impl Interface for Rust {
     })
   }
 
-  fn app_settings(&self) -> Arc<Self::AppSettings> {
+  pub fn app_settings(&self) -> Arc<RustAppSettings> {
     self.app_settings.clone()
   }
 
-  fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
+  pub fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
     desktop::build(
       options,
       &self.app_settings,
@@ -192,7 +190,7 @@ impl Interface for Rust {
     )
   }
 
-  fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
+  pub fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     config: &mut ConfigMetadata,
     mut options: Options,
@@ -236,7 +234,7 @@ impl Interface for Rust {
     }
   }
 
-  fn mobile_dev<
+  pub fn mobile_dev<
     R: Fn(MobileOptions, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
   >(
     &mut self,
@@ -270,7 +268,7 @@ impl Interface for Rust {
     }
   }
 
-  fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
+  pub fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: &mut ConfigMetadata,
     options: WatcherOptions,
@@ -287,7 +285,7 @@ impl Interface for Rust {
     )
   }
 
-  fn env(&self) -> HashMap<&str, String> {
+  pub fn env(&self) -> HashMap<&str, String> {
     let mut env = HashMap::new();
     env.insert(
       "TAURI_ENV_TARGET_TRIPLE",

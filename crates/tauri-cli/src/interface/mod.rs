@@ -5,16 +5,11 @@
 pub mod rust;
 
 use std::{
-  collections::HashMap,
   path::{Path, PathBuf},
   process::ExitStatus,
-  sync::Arc,
 };
 
-use crate::{
-  error::Context, helpers::app_paths::Dirs, helpers::config::Config,
-  helpers::config::ConfigMetadata,
-};
+use crate::{error::Context, helpers::config::Config};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{MobileOptions, Options, Rust as AppInterface, WatcherOptions};
@@ -103,36 +98,4 @@ pub enum ExitReason {
   CompilationFailed,
   /// Regular exit.
   NormalExit,
-}
-
-pub trait Interface: Sized {
-  type AppSettings: AppSettings;
-
-  fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self>;
-  fn app_settings(&self) -> Arc<Self::AppSettings>;
-  fn env(&self) -> HashMap<&str, String>;
-  fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf>;
-  fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
-    &mut self,
-    config: &mut ConfigMetadata,
-    options: Options,
-    on_exit: F,
-    dirs: &Dirs,
-  ) -> crate::Result<()>;
-  fn mobile_dev<
-    R: Fn(MobileOptions, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
-  >(
-    &mut self,
-    config: &mut ConfigMetadata,
-    options: MobileOptions,
-    runner: R,
-    dirs: &Dirs,
-  ) -> crate::Result<()>;
-  fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
-    &mut self,
-    config: &mut ConfigMetadata,
-    options: WatcherOptions,
-    runner: R,
-    dirs: &Dirs,
-  ) -> crate::Result<()>;
 }

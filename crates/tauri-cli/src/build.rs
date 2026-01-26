@@ -11,7 +11,7 @@ use crate::{
     config::{get_config, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
-  interface::{rust::get_cargo_target_dir, AppInterface, Interface},
+  interface::{rust::get_cargo_target_dir, AppInterface},
   ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};

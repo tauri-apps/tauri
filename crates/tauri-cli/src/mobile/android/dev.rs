@@ -14,7 +14,7 @@ use crate::{
     config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
-  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
     android::generate_tauri_properties, use_network_address_for_dev_url, write_options, CliOptions,
     DevChild, DevHost, DevProcess, TargetDevice,

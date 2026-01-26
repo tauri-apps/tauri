@@ -212,7 +212,7 @@ impl Interface for Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, run_args, move |status, reason| {
+      self.run_dev(options, &run_args, move |status, reason| {
         on_exit(status, reason);
         tx.send(()).unwrap();
       })?;
@@ -228,7 +228,7 @@ impl Interface for Rust {
         |rust: &mut Rust, _config| {
           let on_exit = on_exit.clone();
           rust
-            .run_dev(options.clone(), run_args.clone(), move |status, reason| {
+            .run_dev(options.clone(), &run_args, move |status, reason| {
               on_exit(status, reason)
             })
             .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
@@ -494,7 +494,7 @@ impl Rust {
   fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
-    run_args: Vec<String>,
+    run_args: &[String],
     on_exit: F,
   ) -> crate::Result<desktop::DevChild> {
     desktop::run_dev(

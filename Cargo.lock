@@ -9077,6 +9077,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "cef",
+ "cef-dll-sys",
  "dirs 6.0.0",
  "gtk",
  "html5ever",

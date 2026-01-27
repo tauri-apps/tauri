@@ -25,13 +25,13 @@ use std::{
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex, OnceLock,
+    OnceLock,
   },
 };
 
 mod builtin_dev_server;
 
-static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
+static BEFORE_DEV: OnceLock<SharedChild> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
@@ -205,11 +205,10 @@ pub fn setup(
 
         let child = SharedChild::spawn(&mut command)
           .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
-        let child = Arc::new(child);
-        let child_ = child.clone();
 
+        let child = BEFORE_DEV.get_or_init(move || child);
         std::thread::spawn(move || {
-          let status = child_
+          let status = child
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
           if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed)) {
@@ -217,8 +216,6 @@ pub fn setup(
             exit(status.code().unwrap_or(1));
           }
         });
-
-        BEFORE_DEV.set(Mutex::new(child)).unwrap();
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
@@ -336,7 +333,6 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
 
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    let child = child.lock().unwrap();
     if KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed) {
       return;
     }

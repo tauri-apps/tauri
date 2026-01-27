@@ -68,7 +68,7 @@ impl DevChild {
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
     self.child.kill()?;
-    self.manually_killed_process.store(true, Ordering::Relaxed);
+    self.manually_killed_process.store(true, Ordering::SeqCst);
     Ok(())
   }
 
@@ -81,7 +81,7 @@ impl DevProcess for DevChild {
   }
 
   fn manually_killed_process(&self) -> bool {
-    self.manually_killed_process.load(Ordering::Relaxed)
+    self.manually_killed_process.load(Ordering::SeqCst)
   }
 }
 

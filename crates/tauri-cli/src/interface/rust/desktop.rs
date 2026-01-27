@@ -29,7 +29,7 @@ pub struct DevChild {
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
     self.dev_child.kill()?;
-    self.manually_killed_app.store(true, Ordering::Relaxed);
+    self.manually_killed_app.store(true, Ordering::SeqCst);
     Ok(())
   }
 
@@ -42,7 +42,7 @@ impl DevProcess for DevChild {
   }
 
   fn manually_killed_process(&self) -> bool {
-    self.manually_killed_app.load(Ordering::Relaxed)
+    self.manually_killed_app.load(Ordering::SeqCst)
   }
 }
 
@@ -137,7 +137,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         status.code(),
         if status.code() == Some(101) && is_cargo_compile_error {
           ExitReason::CompilationFailed
-        } else if manually_killed_app_.load(Ordering::Relaxed) {
+        } else if manually_killed_app_.load(Ordering::SeqCst) {
           ExitReason::TriggeredKill
         } else {
           ExitReason::NormalExit

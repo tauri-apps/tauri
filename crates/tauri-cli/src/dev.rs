@@ -211,7 +211,7 @@ pub fn setup(
           let status = child
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
-          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed)) {
+          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst)) {
             log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
@@ -333,10 +333,10 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
 
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    if KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed) {
+    if KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst) {
       return;
     }
-    KILL_BEFORE_DEV_FLAG.store(true, Ordering::Relaxed);
+    KILL_BEFORE_DEV_FLAG.store(true, Ordering::SeqCst);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

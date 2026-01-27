@@ -1057,44 +1057,119 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     directory_entry.add_file(resource_entry);
   }
 
-  let mut dlls = Vec::new();
+  // Adding WebViewer2Loader.dll in case windows-gnu toolchain is used
+  if settings.target().ends_with("-gnu") {
+    let loader_path =
+      dunce::simplified(&settings.project_out_directory().join("WebView2Loader.dll")).to_path_buf();
 
-  // TODO: The bundler should not include all DLLs it finds. Instead it should only include WebView2Loader.dll if present and leave the rest to the resources config.
-  let out_dir = settings.project_out_directory();
-  for dll in glob::glob(
-    &PathBuf::from(glob::Pattern::escape(&out_dir.to_string_lossy()))
-      .join("*.dll")
-      .to_string_lossy(),
-  )? {
-    let path = dll?;
-    let resource_path = dunce::simplified(&path);
-    let relative_path = path
-      .strip_prefix(out_dir)
-      .unwrap()
-      .to_string_lossy()
-      .into_owned();
-    if !added_resources.iter().any(|r| r.ends_with(&relative_path)) {
+    if loader_path.exists() {
       if settings.windows().can_sign() {
-        try_sign(resource_path, settings)?;
+        try_sign(&loader_path, settings)?;
       }
-
-      dlls.push(ResourceFile {
+      added_resources.push(loader_path.clone());
+      let loader_resource = ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),
         guid: Uuid::new_v4().to_string(),
-        path: resource_path.to_path_buf(),
-      });
+        path: loader_path,
+      };
+
+      resources
+        .entry("".to_string())
+        .and_modify(|r| r.files.push(loader_resource.clone()))
+        .or_insert(ResourceDirectory {
+          path: "".to_string(),
+          name: "".to_string(),
+          directories: vec![],
+          files: vec![loader_resource],
+        });
     }
   }
 
-  if !dlls.is_empty() {
+  // Handle CEF support if cef_path is set,
+  // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/win/README.redistrib.txt as a reference
+  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+    let mut cef_files = [
+      // required
+      "libcef.dll",
+      "chrome_elf.dll",
+      "icudtl.dat",
+      "v8_context_snapshot.bin",
+      // required end
+      // "optional" - but not really since we want support for all of this
+      "chrome_100_percent.pak",
+      "chrome_200_percent.pak",
+      "resources.pak",
+      // Direct3D support
+      "d3dcompiler_47.dll",
+      // DirectX compiler support
+      // TODO: check if x64 means no arm64
+      "dxil.dll",
+      "dxcompiler.dll",
+      // ANGEL support
+      "libEGL.dll",
+      "libGLESv2.dll",
+      // SwANGLE support
+      "vk_swiftshader.dll",
+      "vk_swiftshader_icd.json",
+      "vulkan-1.dll",
+      // sandbox - may need to be behind a setting?
+      "bootstrap.exe",
+      "bootstrapc.exe",
+    ]
+    .map(|f| ResourceFile {
+      id: format!("I{}", Uuid::new_v4().as_simple()),
+      guid: Uuid::new_v4().to_string(),
+      // We don't want to sign the cached files directly so we use the copied ones.
+      path: dunce::simplified(&settings.project_out_directory().join(f)).to_path_buf(),
+    })
+    .to_vec();
+
+    for f in &cef_files {
+      if settings.windows().can_sign() && should_sign(&f.path)? {
+        try_sign(&f.path, settings)?;
+      }
+      added_resources.push(f.path.clone());
+    }
+
     resources
       .entry("".to_string())
-      .and_modify(|r| r.files.append(&mut dlls))
+      .and_modify(|r| r.files.append(&mut cef_files))
       .or_insert(ResourceDirectory {
         path: "".to_string(),
         name: "".to_string(),
         directories: vec![],
-        files: dlls,
+        files: cef_files,
+      });
+
+    // TODO: locales?
+    // crash without at least en
+    let mut locales = [
+      "en-US.pak",
+      "en-US_FEMININE.pak",
+      "en-US_MASCULINE.pak",
+      "en-US_NEUTER.pak",
+    ]
+    .map(|f| ResourceFile {
+      id: format!("I{}", Uuid::new_v4().as_simple()),
+      guid: Uuid::new_v4().to_string(),
+      // We don't want to sign the cached files directly so we use the copied ones.
+      path: dunce::simplified(&settings.project_out_directory().join("locales").join(f))
+        .to_path_buf(),
+    })
+    .to_vec();
+
+    for f in &locales {
+      added_resources.push(f.path.clone());
+    }
+
+    resources
+      .entry("locales".to_string())
+      .and_modify(|r| r.files.append(&mut locales))
+      .or_insert(ResourceDirectory {
+        path: "locales".to_string(),
+        name: "locales".to_string(),
+        directories: vec![],
+        files: locales,
       });
   }
 

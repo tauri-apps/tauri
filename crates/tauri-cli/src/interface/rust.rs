@@ -530,7 +530,8 @@ fn ensure_cef_directory_if_needed(
     Ok(Some(_cef_dir)) => {
       let _options = options;
     }
-    // on Windows we must copy the cef files next to the executable
+    // on Windows we must copy the cef files next to the executable.
+    // We also do this for builds since we can't codesign the global cache.
     #[cfg(windows)]
     Ok(Some(cef_dir)) => {
       let out_dir = app_settings.out_dir(options)?;

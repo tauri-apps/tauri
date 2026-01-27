@@ -755,6 +755,65 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     }
   }
 
+  // Handle CEF support if cef_path is set,
+  // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/win/README.redistrib.txt as a reference
+  if settings.bundle_settings().cef_path.is_some() {
+    let cef_files = [
+      // required
+      "libcef.dll",
+      "chrome_elf.dll",
+      "icudtl.dat",
+      "v8_context_snapshot.bin",
+      // required end
+      // "optional" - but not really since we want support for all of this
+      "chrome_100_percent.pak",
+      "chrome_200_percent.pak",
+      "resources.pak",
+      // Direct3D support
+      "d3dcompiler_47.dll",
+      // DirectX compiler support
+      // TODO: check if x64 means no arm64
+      "dxil.dll",
+      "dxcompiler.dll",
+      // ANGEL support
+      "libEGL.dll",
+      "libGLESv2.dll",
+      // SwANGLE support
+      "vk_swiftshader.dll",
+      "vk_swiftshader_icd.json",
+      "vulkan-1.dll",
+      // sandbox - may need to be behind a setting?
+      "bootstrap.exe",
+      "bootstrapc.exe",
+    ];
+
+    for f in &cef_files {
+      let src_path = dunce::simplified(&settings.project_out_directory().join(f)).to_path_buf();
+      if settings.windows().can_sign() && should_sign(&src_path)? {
+        try_sign(&src_path, settings)?;
+      }
+      added_resources.push(src_path.clone());
+      resources.insert(src_path, (PathBuf::new(), PathBuf::from(f)));
+    }
+
+    // TODO: locales?
+    // crash without at least en
+    let locales = [
+      "en-US.pak",
+      "en-US_FEMININE.pak",
+      "en-US_MASCULINE.pak",
+      "en-US_NEUTER.pak",
+    ];
+
+    for f in &locales {
+      let target_file = PathBuf::from("locales").join(f);
+      let src_path =
+        dunce::simplified(&settings.project_out_directory().join(&target_file)).to_path_buf();
+      added_resources.push(src_path.clone());
+      resources.insert(src_path, (PathBuf::from("locales"), target_file));
+    }
+  }
+
   for resource in settings.resource_files().iter() {
     let resource = resource?;
 

@@ -1087,7 +1087,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
   // Handle CEF support if cef_path is set,
   // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/win/README.redistrib.txt as a reference
-  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+  if settings.bundle_settings().cef_path.is_some() {
     let mut cef_files = [
       // required
       "libcef.dll",

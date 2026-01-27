@@ -609,9 +609,18 @@ wrap_life_span_handler! {
     window_id: WindowId,
     context: Context<T>,
     new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
+    initial_url: Option<String>,
   }
 
   impl LifeSpanHandler {
+    fn on_after_created(&self, browser: Option<&mut Browser>) {
+      if let Some(browser) = browser {
+        if let Some(initial_url) = &self.initial_url {
+          check_and_reload_if_blank(browser.clone(), initial_url.clone());
+        }
+      }
+    }
+
     fn on_before_close(&self, _browser: Option<&mut Browser>) {
       if self.window_kind == WindowKind::Browser {
         on_window_destroyed(self.window_id, &self.context.windows, &self.context.callback);
@@ -709,6 +718,7 @@ wrap_client! {
     custom_scheme_domain_names: Vec<String>,
     custom_protocol_scheme: String,
     context: Context<T>,
+    initial_url: Option<String>,
   }
 
   impl Client {
@@ -725,6 +735,7 @@ wrap_client! {
         self.window_id,
         self.context.clone(),
         self.new_window_handler.clone(),
+        self.initial_url.clone(),
       ))
     }
 
@@ -2605,6 +2616,9 @@ fn create_browser_window<T: UserEvent>(
   let force_close = Arc::new(AtomicBool::new(false));
   let attributes = Arc::new(RefCell::new(window_builder));
 
+  let initial_url = url.clone();
+  let url = CefString::from(url.as_str());
+
   let mut client = BrowserClient::new(
     WindowKind::Browser,
     window_id,
@@ -2618,9 +2632,8 @@ fn create_browser_window<T: UserEvent>(
     custom_scheme_domain_names.clone(),
     custom_protocol_scheme.to_string(),
     context.clone(),
+    Some(initial_url),
   );
-
-  let url = CefString::from(url.as_str());
 
   let mut bounds = cef::Rect {
     x: 0,
@@ -2933,6 +2946,9 @@ pub(crate) fn create_webview<T: UserEvent>(
     .map(|scheme| format!("{scheme}.localhost"))
     .collect();
 
+  let initial_url = url.clone();
+  let url = CefString::from(url.as_str());
+
   let mut client = BrowserClient::new(
     WindowKind::Tauri,
     window_id,
@@ -2946,8 +2962,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     custom_scheme_domain_names.clone(),
     custom_protocol_scheme.to_string(),
     context.clone(),
+    Some(initial_url.clone()),
   );
-  let url = CefString::from(url.as_str());
 
   let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocolHandler>>> =
     uri_scheme_protocols
@@ -3074,6 +3090,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     )
     .expect("Failed to create browser view");
 
+    let browser_webview = CefWebview::BrowserView(browser_view.clone());
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     if webview_attributes.transparent {
       browser_view.set_background_color(0x00000000);
@@ -3092,7 +3110,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       .unwrap()
       .webviews
       .push(AppWebview {
-        inner: CefWebview::BrowserView(browser_view),
+        inner: browser_webview,
         label,
         webview_id,
         browser_id,
@@ -3102,6 +3120,39 @@ pub(crate) fn create_webview<T: UserEvent>(
         initialization_scripts,
       });
   }
+}
+
+// there is some race condition on CEF that causes the app loading to fail
+// when there is a network service crash
+// "[85296:47750637:0127/131203.017395:ERROR:content/browser/network_service_instance_impl.cc:610] Network service crashed or was terminated, restarting service."
+// we check the app URL for a while until it actually loads the initial URL
+fn check_and_reload_if_blank(browser: cef::Browser, initial_url: String) {
+  if initial_url == "about:blank" {
+    return;
+  }
+
+  std::thread::spawn(move || {
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
+    let start_time = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(5);
+    let check_interval = std::time::Duration::from_millis(100);
+
+    while start_time.elapsed() < timeout {
+      if let Some(frame) = browser.main_frame() {
+        let url = frame.url();
+        let current_url = cef::CefString::from(&url).to_string();
+        if current_url == "" || current_url == "about:blank" {
+          frame.load_url(Some(&cef::CefString::from(initial_url.as_str())));
+          // Continue checking in case it loads about:blank again
+        } else {
+          // URL has changed to something else (not about:blank), we can stop checking
+          return;
+        }
+      }
+      std::thread::sleep(check_interval);
+    }
+  });
 }
 
 fn webview_bounds_ratio(

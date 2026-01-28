@@ -623,7 +623,7 @@ wrap_life_span_handler! {
 
     fn on_before_close(&self, _browser: Option<&mut Browser>) {
       if self.window_kind == WindowKind::Browser {
-        on_window_destroyed(self.window_id, &self.context.windows, &self.context.callback);
+        on_window_destroyed(self.window_id, &self.context);
       }
     }
 
@@ -1062,7 +1062,7 @@ wrap_window_delegate! {
     }
 
     fn on_window_destroyed(&self, _window: Option<&mut Window>) {
-      on_window_destroyed(self.window_id, &self.windows, &self.callback);
+      on_window_destroyed(self.window_id, &self.context);
     }
 
     fn can_resize(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
@@ -1091,6 +1091,7 @@ wrap_window_delegate! {
 
     fn can_close(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
       if self.force_close.load(Ordering::SeqCst) {
+        close_window_browsers(self.window_id, &self.windows);
         return 1;
       }
       let closable = self
@@ -1113,7 +1114,7 @@ wrap_window_delegate! {
       if should_prevent {
         0
       } else {
-        1
+        close_window_browsers(self.window_id, &self.windows) as i32
       }
     }
 
@@ -2848,38 +2849,57 @@ fn on_close_requested<T: UserEvent>(
   }
 }
 
+// returns a bool indicating if all browsers were closed
+fn close_window_browsers(
+  window_id: WindowId,
+  windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
+) -> bool {
+  let mut all_closed = true;
+  if let Some(app_window) = windows.borrow().get(&window_id) {
+    for webview in &app_window.webviews {
+      if let Some(browser) = webview.inner.browser() {
+        if let Some(browser_host) = browser.host() {
+          let closed = browser_host.try_close_browser() == 1;
+          if !closed {
+            all_closed = false;
+          }
+        }
+      }
+    }
+  }
+
+  all_closed
+}
+
 fn on_window_close(window_id: WindowId, windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>) {
   if let Some(app_window) = windows.borrow().get(&window_id) {
     app_window.force_close.store(true, Ordering::SeqCst);
+
     if let Some(window) = app_window.window() {
       window.close();
     }
-    // For BrowserWindow, we can't close it directly, but the browser will handle it
   }
 }
 
-fn on_window_destroyed<T: UserEvent>(
-  window_id: WindowId,
-  windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
-  callback: &Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
-) {
+fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) {
   let event = WindowEvent::Destroyed;
-  send_window_event(window_id, windows, callback, event);
+  send_window_event(window_id, &context.windows, &context.callback, event);
 
-  let removed = windows.borrow_mut().remove(&window_id).is_some();
+  let removed = context.windows.borrow_mut().remove(&window_id).is_some();
+  if !removed {
+    return;
+  }
 
-  if removed {
-    let is_empty = windows.borrow().is_empty();
-    if is_empty {
-      let (tx, rx) = channel();
-      (callback.borrow())(RunEvent::ExitRequested { code: None, tx });
+  let is_empty = context.windows.borrow().is_empty();
+  if is_empty {
+    let (tx, rx) = channel();
+    (context.callback.borrow())(RunEvent::ExitRequested { code: None, tx });
 
-      let recv = rx.try_recv();
-      let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+    let recv = rx.try_recv();
+    let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
-      if !should_prevent {
-        (callback.borrow())(RunEvent::Exit);
-      }
+    if !should_prevent {
+      (context.callback.borrow())(RunEvent::Exit);
     }
   }
 }

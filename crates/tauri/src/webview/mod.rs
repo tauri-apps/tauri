@@ -730,6 +730,9 @@ tauri::Builder::default()
     self
   }
 
+  /// Set information about the opener of the window.
+  ///
+  /// Must be when creating a new window on the [`WebviewBuilder::on_new_window`] handler.
   pub fn opener(mut self, opener: R::WindowOpener) -> Self {
     self.opener.replace(opener);
     self

@@ -94,7 +94,6 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
     .build()
     .context("failed to build bundler settings")?;
 
-  settings.set_no_sign(true); // Skip signing in dev mode
   settings.set_log_level(log::Level::Info);
 
   // Bundle the app

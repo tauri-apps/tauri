@@ -90,21 +90,16 @@ pub enum UserAttentionType {
   Informational,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "type")]
 pub enum DeviceEventFilter {
   /// Always filter out device events.
   Always,
   /// Filter out device events while the window is not focused.
+  #[default]
   Unfocused,
   /// Report all device events regardless of window focus.
   Never,
-}
-
-impl Default for DeviceEventFilter {
-  fn default() -> Self {
-    Self::Unfocused
-  }
 }
 
 /// Defines the orientation that a window resize will be performed.
@@ -404,8 +399,25 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn new(args: RuntimeInitArgs) -> Result<Self>;
 
   /// Creates a new webview runtime on any thread.
-  #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(docsrs, doc(cfg(any(windows, target_os = "linux"))))]
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )))
+  )]
   fn new_any_thread(args: RuntimeInitArgs) -> Result<Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.

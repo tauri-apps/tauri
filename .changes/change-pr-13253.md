@@ -3,4 +3,4 @@
 "tauri-cli": patch:enhance
 ---
 
-Set a default log level filter when running `tauri add log`.
+Allow electron to run the CLI directly

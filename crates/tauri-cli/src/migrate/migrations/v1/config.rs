@@ -104,7 +104,7 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       }
 
       // dangerousUseHttpScheme/useHttpsScheme
-      let dangerouse_use_http = tauri_config
+      let dangerous_use_http = tauri_config
         .get("security")
         .and_then(|w| w.as_object())
         .and_then(|w| {
@@ -120,7 +120,7 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       {
         for window in windows {
           if let Some(window) = window.as_object_mut() {
-            window.insert("useHttpsScheme".to_string(), (!dangerouse_use_http).into());
+            window.insert("useHttpsScheme".to_string(), (!dangerous_use_http).into());
           }
         }
       }

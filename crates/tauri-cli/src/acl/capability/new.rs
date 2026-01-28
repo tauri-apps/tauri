@@ -7,12 +7,7 @@ use std::{collections::HashSet, path::PathBuf};
 use clap::Parser;
 use tauri_utils::acl::capability::{Capability, PermissionEntry};
 
-use crate::{
-  acl::FileFormat,
-  error::ErrorExt,
-  helpers::{app_paths::tauri_dir, prompts},
-  Result,
-};
+use crate::{acl::FileFormat, error::ErrorExt, helpers::prompts, Result};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Create a new permission file")]
@@ -37,7 +32,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let identifier = match options.identifier {
     Some(i) => i,
@@ -111,8 +106,7 @@ pub fn command(options: Options) -> Result<()> {
       .canonicalize()
       .fs_context("failed to canonicalize capability file path", o.clone())?,
     None => {
-      let dir = tauri_dir();
-      let capabilities_dir = dir.join("capabilities");
+      let capabilities_dir = dirs.tauri.join("capabilities");
       capabilities_dir.join(format!(
         "{}.{}",
         capability.identifier,

@@ -157,7 +157,7 @@ fn read_plugins_manifests() -> Result<BTreeMap<String, Manifest>> {
   Ok(manifests)
 }
 
-struct InlinedPuginsAcl {
+struct InlinedPluginsAcl {
   manifests: BTreeMap<String, Manifest>,
   permission_files: BTreeMap<String, Vec<PermissionFile>>,
 }
@@ -165,7 +165,7 @@ struct InlinedPuginsAcl {
 fn inline_plugins(
   out_dir: &Path,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
-) -> Result<InlinedPuginsAcl> {
+) -> Result<InlinedPluginsAcl> {
   let mut acl_manifests = BTreeMap::new();
   let mut permission_files_map = BTreeMap::new();
 
@@ -250,7 +250,7 @@ permissions = [{default_permissions}]
     acl_manifests.insert(name.into(), manifest);
   }
 
-  Ok(InlinedPuginsAcl {
+  Ok(InlinedPluginsAcl {
     manifests: acl_manifests,
     permission_files: permission_files_map,
   })

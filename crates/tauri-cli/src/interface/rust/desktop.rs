@@ -12,7 +12,7 @@ use shared_child::SharedChild;
 use std::{
   fs,
   io::{BufReader, ErrorKind, Write},
-  path::PathBuf,
+  path::{Path, PathBuf},
   process::{Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -158,9 +158,10 @@ pub fn build(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   main_binary_name: Option<&str>,
+  tauri_dir: &Path,
 ) -> crate::Result<PathBuf> {
-  let out_dir = app_settings.out_dir(&options)?;
-  let bin_path = app_settings.app_binary_path(&options)?;
+  let out_dir = app_settings.out_dir(&options, tauri_dir)?;
+  let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
 
   if !std::env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "false") {
     std::env::set_var("STATIC_VCRUNTIME", "true");
@@ -182,7 +183,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(&options)
+        .out_dir(&options, tauri_dir)
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())
@@ -262,9 +263,7 @@ fn cargo_command(
   build_cmd.args(&options.args);
 
   let mut features = config_features;
-  if let Some(f) = options.features {
-    features.extend(f);
-  }
+  features.extend(options.features);
   if !features.is_empty() {
     build_cmd.arg("--features");
     build_cmd.arg(features.join(","));
@@ -335,7 +334,7 @@ fn rename_app(
       ""
     };
     let new_path = bin_path.with_file_name(format!("{main_binary_name}{extension}"));
-    fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path.clone())?;
+    fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path)?;
     Ok(new_path)
   } else {
     Ok(bin_path)

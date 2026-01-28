@@ -52,19 +52,21 @@
               return response.arrayBuffer().then((r) => [callbackId, r])
           }
         })
-        .catch((e) => {
-          console.warn(
-            'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
-            e
-          )
-          // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
-          // so we need to fallback to the postMessage interface
-          customProtocolIpcFailed = true
-          sendIpcMessage(message)
-        })
-        .then(([callbackId, data]) => {
-          window.__TAURI_INTERNALS__.runCallback(callbackId, data)
-        })
+        .then(
+          ([callbackId, data]) => {
+            window.__TAURI_INTERNALS__.runCallback(callbackId, data)
+          },
+          (e) => {
+            console.warn(
+              'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
+              e
+            )
+            // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
+            // so we need to fallback to the postMessage interface
+            customProtocolIpcFailed = true
+            sendIpcMessage(message)
+          }
+        )
     } else {
       // otherwise use the postMessage interface
       const { data } = processIpcMessage({
@@ -78,6 +80,7 @@
         payload,
         __TAURI_INVOKE_KEY__
       })
+      // `window.ipc.postMessage` came from `tauri-runtime-wry` > `wry` [`with_ipc_handler`](https://github.com/tauri-apps/wry/blob/a0403b9e2f1ff9d73be7dce1184f058afcaa1d82/src/lib.rs#L1130)
       window.ipc.postMessage(data)
     }
   }

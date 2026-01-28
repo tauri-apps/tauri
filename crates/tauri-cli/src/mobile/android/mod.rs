@@ -18,6 +18,7 @@ use cargo_mobile2::{
   util::prompt,
 };
 use clap::{Parser, Subcommand};
+use semver::Version;
 use std::{
   env::set_var,
   fs::{create_dir, create_dir_all, read_dir, write},
@@ -105,16 +106,13 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => {
-      crate::helpers::app_paths::resolve();
-      init_command(
-        MobileTarget::Android,
-        options.ci,
-        false,
-        options.skip_targets_install,
-        options.config,
-      )?
-    }
+    Commands::Init(options) => init_command(
+      MobileTarget::Android,
+      options.ci,
+      false,
+      options.skip_targets_install,
+      options.config,
+    )?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
     Commands::Run(options) => run::command(options, noise_level)?,
@@ -127,19 +125,14 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   config: &TauriConfig,
-  features: Option<&Vec<String>>,
+  features: &[String],
   cli_options: &CliOptions,
 ) -> (AndroidConfig, AndroidMetadata) {
   let mut android_options = cli_options.clone();
-  if let Some(features) = features {
-    android_options
-      .features
-      .get_or_insert(Vec::new())
-      .extend_from_slice(features);
-  }
+  android_options.features.extend_from_slice(features);
 
   let raw = RawAndroidConfig {
-    features: android_options.features.clone(),
+    features: Some(android_options.features.clone()),
     logcat_filter_specs: vec![
       "RustStdoutStderr".into(),
       format!(
@@ -160,7 +153,7 @@ pub fn get_config(
   let metadata = AndroidMetadata {
     supported: true,
     cargo_args: Some(android_options.args),
-    features: android_options.features,
+    features: Some(android_options.features),
     ..Default::default()
   };
 
@@ -256,8 +249,8 @@ fn ensure_java() -> Result<()> {
 
 fn ensure_sdk(non_interactive: bool) -> Result<()> {
   let android_home = std::env::var_os("ANDROID_HOME")
-    .map(PathBuf::from)
-    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT").map(PathBuf::from));
+    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT"))
+    .map(PathBuf::from);
   if !android_home.as_ref().is_some_and(|v| v.exists()) {
     log::info!(
       "ANDROID_HOME {}, trying to locate Android SDK...",
@@ -353,8 +346,8 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
 fn ensure_ndk(non_interactive: bool) -> Result<()> {
   // re-evaluate ANDROID_HOME
   let android_home = std::env::var_os("ANDROID_HOME")
+    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT"))
     .map(PathBuf::from)
-    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT").map(PathBuf::from))
     .context("Failed to locate Android SDK")?;
   let mut installed_ndks = read_dir(android_home.join("ndk"))
     .map(|dir| {
@@ -616,6 +609,69 @@ fn configure_cargo(env: &mut Env, config: &AndroidConfig) -> Result<()> {
       format!("CARGO_TARGET_{target_var_name}_RUSTFLAGS"),
       config.rustflags.join(" ").into(),
     );
+  }
+
+  Ok(())
+}
+
+fn generate_tauri_properties(
+  config: &AndroidConfig,
+  tauri_config: &TauriConfig,
+  dev: bool,
+) -> Result<()> {
+  let app_tauri_properties_path = config.project_dir().join("app").join("tauri.properties");
+
+  let mut app_tauri_properties = Vec::new();
+  if let Some(version) = tauri_config.version.as_ref() {
+    app_tauri_properties.push(format!("tauri.android.versionName={version}"));
+    if tauri_config.bundle.android.auto_increment_version_code && !dev {
+      let last_version_code = std::fs::read_to_string(&app_tauri_properties_path)
+        .ok()
+        .and_then(|content| {
+          content
+            .lines()
+            .find(|line| line.starts_with("tauri.android.versionCode="))
+            .and_then(|line| line.split('=').nth(1))
+            .and_then(|s| s.trim().parse::<u32>().ok())
+        });
+      let new_version_code = last_version_code.map(|v| v.saturating_add(1)).unwrap_or(1);
+      app_tauri_properties.push(format!("tauri.android.versionCode={new_version_code}"));
+    } else if let Some(version_code) = tauri_config.bundle.android.version_code.as_ref() {
+      app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
+    } else if let Ok(version) = Version::parse(version) {
+      let mut version_code = version.major * 1000000 + version.minor * 1000 + version.patch;
+
+      if dev {
+        version_code = version_code.clamp(1, 2100000000);
+      }
+
+      if version_code == 0 {
+        crate::error::bail!(
+          "You must change the `version` in `tauri.conf.json`. The default value `0.0.0` is not allowed for Android package and must be at least `0.0.1`."
+        );
+      } else if version_code > 2100000000 {
+        crate::error::bail!(
+          "Invalid version code {}. Version code must be between 1 and 2100000000. You must change the `version` in `tauri.conf.json`.",
+          version_code
+        );
+      }
+
+      app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
+    }
+  }
+
+  if !app_tauri_properties.is_empty() {
+    let app_tauri_properties_content = format!(
+      "// THIS IS AN AUTOGENERATED FILE. DO NOT EDIT THIS FILE DIRECTLY.\n{}",
+      app_tauri_properties.join("\n")
+    );
+    if std::fs::read_to_string(&app_tauri_properties_path)
+      .map(|o| o != app_tauri_properties_content)
+      .unwrap_or(true)
+    {
+      write(&app_tauri_properties_path, app_tauri_properties_content)
+        .context("failed to write tauri.properties")?;
+    }
   }
 
   Ok(())

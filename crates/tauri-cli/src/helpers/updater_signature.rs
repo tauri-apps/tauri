@@ -120,9 +120,14 @@ where
 {
   let bin_path = bin_path.as_ref();
   // We need to append .sig at the end it's where the signature will be stored
-  let mut extension = bin_path.extension().unwrap().to_os_string();
-  extension.push(".sig");
-  let signature_path = bin_path.with_extension(extension);
+  // TODO: use with_added_extension when we bump MSRV to > 1.91'
+  let signature_path = if let Some(ext) = bin_path.extension() {
+    let mut extension = ext.to_os_string();
+    extension.push(".sig");
+    bin_path.with_extension(extension)
+  } else {
+    bin_path.with_extension("sig")
+  };
 
   let trusted_comment = format!(
     "timestamp:{}\tfile:{}",
@@ -146,10 +151,8 @@ where
   std::fs::write(&signature_path, encoded_signature.as_bytes())
     .fs_context("failed to write signature file", signature_path.clone())?;
   Ok((
-    fs::canonicalize(&signature_path).fs_context(
-      "failed to canonicalize signature file",
-      signature_path.clone(),
-    )?,
+    fs::canonicalize(&signature_path)
+      .fs_context("failed to canonicalize signature file", &signature_path)?,
     signature_box,
   ))
 }
@@ -203,7 +206,7 @@ where
 mod tests {
   const PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
 
-  // we use minisign=0.7.3 to prevent a breaking change
+  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords.
   #[test]
   fn empty_password_is_valid() {
     let path = std::env::temp_dir().join("minisign-password-text.txt");

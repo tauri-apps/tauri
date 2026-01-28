@@ -65,16 +65,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   log::info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
-    fs::remove_dir_all(&app_bundle_path).fs_context(
-      "failed to remove old app bundle",
-      app_bundle_path.to_path_buf(),
-    )?;
+    fs::remove_dir_all(&app_bundle_path)
+      .fs_context("failed to remove old app bundle", &app_bundle_path)?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
-  fs::create_dir_all(&bundle_directory).fs_context(
-    "failed to create bundle directory",
-    bundle_directory.to_path_buf(),
-  )?;
+  fs::create_dir_all(&bundle_directory)
+    .fs_context("failed to create bundle directory", &bundle_directory)?;
 
   let resources_dir = bundle_directory.join("Resources");
   let bin_dir = bundle_directory.join("MacOS");
@@ -459,20 +455,12 @@ fn copy_frameworks_to_bundle(
 ) -> crate::Result<Vec<SignTarget>> {
   let mut paths = Vec::new();
 
-  let frameworks = settings
-    .macos()
-    .frameworks
-    .as_ref()
-    .cloned()
-    .unwrap_or_default();
+  let frameworks = settings.macos().frameworks.clone().unwrap_or_default();
   if frameworks.is_empty() {
     return Ok(paths);
   }
   let dest_dir = bundle_directory.join("Frameworks");
-  fs::create_dir_all(&dest_dir).fs_context(
-    "failed to create Frameworks directory",
-    dest_dir.to_path_buf(),
-  )?;
+  fs::create_dir_all(&dest_dir).fs_context("failed to create Frameworks directory", &dest_dir)?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
       let src_path = PathBuf::from(framework);

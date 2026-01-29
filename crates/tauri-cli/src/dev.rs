@@ -241,9 +241,7 @@ pub fn setup(
           .canonicalize()
           .fs_context("failed to canonicalize path", path.to_path_buf())?;
 
-        let ip = options
-          .host
-          .unwrap_or_else(|| Ipv4Addr::new(127, 0, 0, 1).into());
+        let ip = options.host.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
 
         let server_url = builtin_dev_server::start(path, ip, options.port)
           .context("failed to start builtin dev server")?;

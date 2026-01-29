@@ -10,10 +10,12 @@ use std::{
 
 use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
 use tauri_bundler::PackageType;
+use tauri_utils::platform::target_triple;
 use tauri_utils::platform::Target;
+use tauri_utils::resources::{external_binaries, ResourcePaths};
 
 use crate::{
-  error::{Context, ErrorExt},
+  error::{bail, Context, ErrorExt},
   helpers::{
     self,
     app_paths::Dirs,
@@ -117,6 +119,14 @@ impl From<crate::build::Options> for Options {
   }
 }
 
+fn target(options: &Options) -> (Target, String) {
+  let target_triple = options
+    .target
+    .clone()
+    .unwrap_or_else(|| target_triple().unwrap());
+  (Target::from_triple(&target_triple), target_triple)
+}
+
 pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
@@ -159,6 +169,48 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   )
 }
 
+fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
+  if !from.exists() {
+    bail!("{:?} does not exist", from);
+  }
+  if !from.is_file() {
+    bail!("{:?} is not a file", from);
+  }
+  let dest_dir = to.parent().expect("No data in parent");
+  std::fs::create_dir_all(dest_dir).with_context(|| format!("failed to create {dest_dir:?}"))?;
+  std::fs::copy(from, to).with_context(|| format!("failed to copy {from:?} to {to:?}"))?;
+  Ok(())
+}
+
+fn copy_binaries(
+  binaries: ResourcePaths,
+  target_triple: &str,
+  path: &Path,
+  package_name: Option<&String>,
+) -> crate::Result<()> {
+  for src in binaries {
+    let src = src.context("error iterating through resources")?;
+    let file_name = src
+      .file_name()
+      .expect("failed to extract external binary filename")
+      .to_string_lossy()
+      .replace(&format!("-{target_triple}"), "");
+
+    if package_name == Some(&file_name) {
+      bail!(
+        "Cannot define a sidecar with the same name as the Cargo package name `{file_name}`. Please change the sidecar name in the filesystem and the Tauri configuration.",
+      );
+    }
+
+    let dest = path.join(file_name);
+    if dest.exists() {
+      std::fs::remove_file(&dest).unwrap();
+    }
+    copy_file(&src, &dest)?;
+  }
+  Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn bundle<A: AppSettings>(
   options: &Options,
@@ -170,6 +222,22 @@ pub fn bundle<A: AppSettings>(
   dirs: &Dirs,
   out_dir: &Path,
 ) -> crate::Result<()> {
+  use cargo_toml::Manifest;
+  use cargo_toml::Value;
+
+  let (target, target_triple) = target(options);
+  let cargo_toml_path = tauri_dir().join("Cargo.toml");
+  let manifest = Manifest::<Value>::from_path_with_metadata(cargo_toml_path)
+    .context("failed to open Cargo.toml")?;
+
+  if let Some(paths) = &config.bundle.external_bin {
+    copy_binaries(
+      ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
+      &target_triple,
+      out_dir,
+      manifest.package.as_ref().map(|p| &p.name),
+    )?;
+  }
   let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
     bundles.iter().map(|bundle| bundle.0).collect::<Vec<_>>()
   } else {

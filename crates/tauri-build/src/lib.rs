@@ -16,7 +16,7 @@ use cargo_toml::Manifest;
 
 use tauri_utils::{
   config::{BundleResources, Config, WebviewInstallMode},
-  resources::{external_binaries, ResourcePaths},
+  resources::ResourcePaths,
 };
 
 use std::{
@@ -50,37 +50,6 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   let dest_dir = to.parent().expect("No data in parent");
   fs::create_dir_all(dest_dir)?;
   fs::copy(from, to)?;
-  Ok(())
-}
-
-fn copy_binaries(
-  binaries: ResourcePaths,
-  target_triple: &str,
-  path: &Path,
-  package_name: Option<&String>,
-) -> Result<()> {
-  for src in binaries {
-    let src = src?;
-    println!("cargo:rerun-if-changed={}", src.display());
-    let file_name = src
-      .file_name()
-      .expect("failed to extract external binary filename")
-      .to_string_lossy()
-      .replace(&format!("-{target_triple}"), "");
-
-    if package_name == Some(&file_name) {
-      return Err(anyhow::anyhow!(
-        "Cannot define a sidecar with the same name as the Cargo package name `{}`. Please change the sidecar name in the filesystem and the Tauri configuration.",
-        file_name
-      ));
-    }
-
-    let dest = path.join(file_name);
-    if dest.exists() {
-      fs::remove_file(&dest).unwrap();
-    }
-    copy_file(&src, &dest)?;
-  }
   Ok(())
 }
 
@@ -523,15 +492,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .unwrap()
     .parent()
     .unwrap();
-
-  if let Some(paths) = &config.bundle.external_bin {
-    copy_binaries(
-      ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
-      &target_triple,
-      target_dir,
-      manifest.package.as_ref().map(|p| &p.name),
-    )?;
-  }
 
   #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config

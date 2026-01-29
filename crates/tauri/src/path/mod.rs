@@ -7,6 +7,56 @@ use std::{
   str::FromStr,
 };
 
+/// Convert a device file path to a URL that can be loaded by the webview.
+///
+/// Note that `asset:` and `http://asset.localhost` must be added to
+/// [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) in `tauri.conf.json`.
+///
+/// Additionally, `"enable": true` must be added to
+/// [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+/// in `tauri.conf.json` and its access scope must be defined on the `scope` array.
+///
+/// # Arguments
+///
+/// * `file_path` - The file path to convert.
+/// * `protocol` - The protocol to use. Defaults to `"asset"`. You only need to set this
+///   when using a custom protocol.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tauri::path::convert_file_src;
+///
+/// let path = "/path/to/video.mp4";
+/// let asset_url = convert_file_src(path, None);
+/// // asset_url can now be used as src in the webview
+/// ```
+///
+/// # Returns
+///
+/// A URL string that can be used as source on the webview.
+pub fn convert_file_src<P: AsRef<Path>>(file_path: P, protocol: Option<&str>) -> String {
+  use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+
+  let protocol = protocol.unwrap_or("asset");
+  let path = file_path.as_ref().to_string_lossy();
+
+  // URL encode the path (similar to JavaScript's encodeURIComponent)
+  let encoded_path = utf8_percent_encode(&path, NON_ALPHANUMERIC).to_string();
+
+  // On Windows and Android, use http:// scheme with .localhost
+  // On other platforms, use custom protocol scheme directly
+  #[cfg(any(windows, target_os = "android"))]
+  {
+    format!("http://{}.localhost/{}", protocol, encoded_path)
+  }
+
+  #[cfg(not(any(windows, target_os = "android")))]
+  {
+    format!("{}://localhost/{}", protocol, encoded_path)
+  }
+}
+
 use crate::Runtime;
 
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
@@ -364,7 +414,7 @@ fn resolve_path<R: Runtime>(
 
 #[cfg(test)]
 mod test {
-  use super::SafePathBuf;
+  use super::{convert_file_src, SafePathBuf};
   use quickcheck::{Arbitrary, Gen};
 
   use std::path::PathBuf;
@@ -377,5 +427,37 @@ mod test {
     fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
       Box::new(self.0.shrink().map(SafePathBuf))
     }
+  }
+
+  #[test]
+  fn test_convert_file_src_default_protocol() {
+    let url = convert_file_src("/path/to/file.mp4", None);
+
+    #[cfg(any(windows, target_os = "android"))]
+    assert!(url.starts_with("http://asset.localhost/"));
+
+    #[cfg(not(any(windows, target_os = "android")))]
+    assert!(url.starts_with("asset://localhost/"));
+
+    // Path should be URL encoded
+    assert!(url.contains("%2F")); // "/" encoded
+  }
+
+  #[test]
+  fn test_convert_file_src_custom_protocol() {
+    let url = convert_file_src("/path/to/file.mp4", Some("custom"));
+
+    #[cfg(any(windows, target_os = "android"))]
+    assert!(url.starts_with("http://custom.localhost/"));
+
+    #[cfg(not(any(windows, target_os = "android")))]
+    assert!(url.starts_with("custom://localhost/"));
+  }
+
+  #[test]
+  fn test_convert_file_src_special_chars() {
+    let url = convert_file_src("/path/with spaces/file.mp4", None);
+    // Spaces should be encoded
+    assert!(url.contains("%20"));
   }
 }

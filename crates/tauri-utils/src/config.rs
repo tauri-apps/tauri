@@ -926,6 +926,8 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
+  /// Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.
+  ///
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.

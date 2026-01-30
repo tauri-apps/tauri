@@ -57,7 +57,7 @@ fn copy_binaries(
   binaries: ResourcePaths,
   target_triple: &str,
   path: &Path,
-  package_name: Option<&String>,
+  package_name: Option<&str>,
 ) -> Result<()> {
   for src in binaries {
     let src = src?;
@@ -529,7 +529,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
       &target_triple,
       target_dir,
-      manifest.package.as_ref().map(|p| &p.name),
+      manifest.package.as_ref().map(|p| p.name.as_ref()),
     )?;
   }
 
@@ -593,8 +593,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         .icon
         .iter()
         .find(|i| predicate(i))
-        .cloned()
-        .unwrap_or_else(|| default.to_string());
+        .map(AsRef::as_ref)
+        .unwrap_or_else(|| default);
       icon_path.into()
     }
 

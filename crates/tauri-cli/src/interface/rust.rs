@@ -559,15 +559,12 @@ impl Rust {
         .into_iter()
         .filter(|event| !event.kind.is_access())
         .flat_map(|event| event.event.paths)
+        .filter(|path| !ignore_matcher.is_ignore(path, path.is_dir()))
         .collect();
-
-      let Some(first_changed_path) = paths.first() else {
-        continue;
-      };
 
       let config_file_changed = paths
         .iter()
-        .any(|path| is_configuration_file(self.app_settings.target_platform, &path));
+        .any(|path| is_configuration_file(self.app_settings.target_platform, path));
       if config_file_changed && reload_config(config, merge_configs, dirs.tauri).is_ok() {
         let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
         if modified {
@@ -578,12 +575,16 @@ impl Rust {
         }
       }
 
+      let Some(first_changed_path) = paths.first() else {
+        continue;
+      };
+
       log::info!(
         "File {} changed. Rebuilding application...",
         display_path(
           first_changed_path
             .strip_prefix(dirs.frontend)
-            .unwrap_or(&first_changed_path)
+            .unwrap_or(first_changed_path)
         )
       );
 

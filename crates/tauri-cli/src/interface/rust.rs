@@ -555,43 +555,43 @@ impl Rust {
     }
 
     while let Ok(events) = rx.recv() {
-      for event in events {
-        if event.kind.is_access() {
+      let paths: Vec<PathBuf> = events
+        .into_iter()
+        .filter(|event| !event.kind.is_access())
+        .flat_map(|event| event.event.paths)
+        .collect();
+
+      let Some(first_changed_path) = paths.first() else {
+        continue;
+      };
+
+      let config_file_changed = paths
+        .iter()
+        .any(|path| is_configuration_file(self.app_settings.target_platform, &path));
+      if config_file_changed && reload_config(config, merge_configs, dirs.tauri).is_ok() {
+        let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
+        if modified {
+          *self.app_settings.manifest.lock().unwrap() = manifest;
+          // no need to run the watcher logic, the manifest was modified
+          // and it will trigger the watcher again
           continue;
         }
-
-        let Some(event_path) = event.paths.first() else {
-          continue;
-        };
-
-        if ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
-          continue;
-        }
-
-        if is_configuration_file(self.app_settings.target_platform, event_path)
-          && reload_config(config, merge_configs, dirs.tauri).is_ok()
-        {
-          let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
-          if modified {
-            *self.app_settings.manifest.lock().unwrap() = manifest;
-            // no need to run the watcher logic, the manifest was modified
-            // and it will trigger the watcher again
-            continue;
-          }
-        }
-
-        log::info!(
-          "File {} changed. Rebuilding application...",
-          display_path(event_path.strip_prefix(dirs.frontend).unwrap_or(event_path))
-        );
-
-        child.kill().context("failed to kill app process")?;
-
-        // wait for the process to exit
-        // note that on mobile, kill() already waits for the process to exit (duct implementation)
-        let _ = child.wait();
-        child = run(self, config)?;
       }
+
+      log::info!(
+        "File {} changed. Rebuilding application...",
+        display_path(
+          first_changed_path
+            .strip_prefix(dirs.frontend)
+            .unwrap_or(&first_changed_path)
+        )
+      );
+
+      child.kill().context("failed to kill app process")?;
+      // wait for the process to exit
+      // note that on mobile, kill() already waits for the process to exit (duct implementation)
+      let _ = child.wait();
+      child = run(self, config)?;
     }
     bail!("File watcher exited unexpectedly")
   }

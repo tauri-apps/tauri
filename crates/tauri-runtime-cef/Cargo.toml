@@ -30,7 +30,14 @@ base64 = "0.22"
 dirs = "6"
 
 [target."cfg(windows)".dependencies]
-windows = "0.61"
+windows = { version = "0.61", features = [
+  "Win32_Graphics",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Input",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_System_LibraryLoader",
+] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 objc2 = "0.6"

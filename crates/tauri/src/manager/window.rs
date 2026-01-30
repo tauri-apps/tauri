@@ -133,7 +133,7 @@ impl<R: Runtime> Window<R> {
     let payload = EmitPayload::Serialize(payload);
     self
       .manager()
-      .emit_filter(event, payload, |target| match target {
+      .emit_filter(event, payload, &|target| match target {
         EventTarget::Window { label } | EventTarget::WebviewWindow { label } => {
           label == window_label
         }

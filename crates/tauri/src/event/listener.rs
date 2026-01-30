@@ -198,7 +198,7 @@ impl Listeners {
       Ok(lock) => {
         if let Some(handlers) = lock.get(&emit_args.event) {
           let handlers = handlers.iter();
-          let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, &filter));
+          let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, filter.as_ref()));
           for (&id, Handler { callback, .. }) in handlers {
             maybe_pending = true;
             (callback)(Event::new(id, emit_args.payload.clone()))
@@ -283,7 +283,7 @@ impl Listeners {
       if let Some(handlers) = js_listeners.get(webview.label()).and_then(|s| s.get(event)) {
         let ids = handlers
           .iter()
-          .filter(|handler| match_any_or_filter(&handler.target, &filter))
+          .filter(|handler| match_any_or_filter(&handler.target, filter.as_ref()))
           .map(|handler| handler.id)
           .collect::<Vec<_>>();
         webview.emit_js(emit_args, &ids)?;
@@ -305,7 +305,7 @@ impl Listeners {
 #[inline(always)]
 fn match_any_or_filter<F: Fn(&EventTarget) -> bool>(
   target: &EventTarget,
-  filter: &Option<F>,
+  filter: Option<&F>,
 ) -> bool {
   *target == EventTarget::Any || filter.as_ref().map(|f| f(target)).unwrap_or(true)
 }

@@ -663,7 +663,7 @@ impl<R: Runtime> Webview<R> {
     let payload = EmitPayload::Serialize(payload);
     self
       .manager()
-      .emit_filter(event, payload, |target| match target {
+      .emit_filter(event, payload, &|target| match target {
         EventTarget::Webview { label } | EventTarget::WebviewWindow { label } => {
           label == window_label
         }

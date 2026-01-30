@@ -557,7 +557,7 @@ impl<R: Runtime> AppManager<R> {
     &self,
     event: EventName<&str>,
     payload: EmitPayload<'_, S>,
-    filter: F,
+    filter: &F,
   ) -> crate::Result<()>
   where
     S: Serialize,
@@ -578,7 +578,7 @@ impl<R: Runtime> AppManager<R> {
       Some(&filter),
     )?;
 
-    listeners.emit_filter(emit_args, Some(filter))?;
+    listeners.emit_filter(emit_args, Some(&filter))?;
 
     Ok(())
   }
@@ -631,7 +631,7 @@ impl<R: Runtime> AppManager<R> {
     match target {
       // if targeting all, emit to all using emit without filter
       EventTarget::Any => self.emit(event, payload),
-      target => self.emit_filter(event, payload, |t| filter_target(&target, t)),
+      target => self.emit_filter(event, payload, &|t| filter_target(&target, t)),
     }
   }
 

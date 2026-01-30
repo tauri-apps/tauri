@@ -10,7 +10,7 @@ use crate::{
     config::{get_config, reload_config, BeforeDevCommand, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
-  interface::{AppInterface, ExitReason, Interface},
+  interface::{AppInterface, ExitReason},
   CommandExt, ConfigValue, Error, Result,
 };
 
@@ -25,13 +25,13 @@ use std::{
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex, OnceLock,
+    OnceLock,
   },
 };
 
 mod builtin_dev_server;
 
-static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
+static BEFORE_DEV: OnceLock<SharedChild> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
@@ -113,22 +113,20 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let mut cfg = get_config(
+  let mut config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&cfg, options.target.clone(), dirs.tauri)?;
+  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
-  setup(&interface, &mut options, &mut cfg, &dirs)?;
-
-  let config = Mutex::new(cfg);
+  setup(&interface, &mut options, &mut config, &dirs)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
   interface.dev(
-    &config,
+    &mut config,
     options.into(),
     move |status, reason| on_app_exit(status, reason, exit_on_panic, no_watch),
     &dirs,
@@ -207,20 +205,17 @@ pub fn setup(
 
         let child = SharedChild::spawn(&mut command)
           .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
-        let child = Arc::new(child);
-        let child_ = child.clone();
 
+        let child = BEFORE_DEV.get_or_init(move || child);
         std::thread::spawn(move || {
-          let status = child_
+          let status = child
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
-          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed)) {
+          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst)) {
             log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
         });
-
-        BEFORE_DEV.set(Mutex::new(child)).unwrap();
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
@@ -338,11 +333,10 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
 
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    let child = child.lock().unwrap();
-    if KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed) {
+    if KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst) {
       return;
     }
-    KILL_BEFORE_DEV_FLAG.store(true, Ordering::Relaxed);
+    KILL_BEFORE_DEV_FLAG.store(true, Ordering::SeqCst);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

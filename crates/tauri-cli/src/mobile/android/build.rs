@@ -14,7 +14,7 @@ use crate::{
     config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Options as InterfaceOptions},
   mobile::{android::generate_tauri_properties, write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };
@@ -28,7 +28,6 @@ use cargo_mobile2::{
 
 use std::env::set_current_dir;
 use std::path::Path;
-use std::sync::Mutex;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -65,10 +64,12 @@ pub struct Options {
   pub split_per_abi: bool,
   /// Build APKs.
   #[clap(long)]
-  pub apk: Option<bool>,
+  pub apk: bool,
   /// Build AABs.
   #[clap(long)]
-  pub aab: Option<bool>,
+  pub aab: bool,
+  #[clap(skip)]
+  pub skip_bundle: bool,
   /// Open Android Studio
   #[clap(short, long)]
   pub open: bool,
@@ -119,7 +120,7 @@ pub struct BuiltApplication {
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
-  let tauri_config = Mutex::new(get_tauri_config(
+  let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
     &options
       .config
@@ -127,7 +128,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       .map(|conf| &conf.0)
       .collect::<Vec<_>>(),
     dirs.tauri,
-  )?);
+  )?;
   run(options, noise_level, &dirs, &tauri_config)
 }
 
@@ -135,7 +136,7 @@ pub fn run(
   options: Options,
   noise_level: NoiseLevel,
   dirs: &Dirs,
-  tauri_config: &Mutex<ConfigMetadata>,
+  tauri_config: &ConfigMetadata,
 ) -> Result<BuiltApplication> {
   delete_codegen_vars();
 
@@ -151,21 +152,17 @@ pub fn run(
     )
     .unwrap();
   build_options.target = Some(first_target.triple.into());
-  let tauri_config = &tauri_config.lock().unwrap();
 
-  let (interface, config, metadata) = {
-    let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
-    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
+  interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
-    let (config, metadata) = get_config(
-      &app,
-      tauri_config,
-      &build_options.features,
-      &Default::default(),
-    );
-    (interface, config, metadata)
-  };
+  let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
+  let (config, metadata) = get_config(
+    &app,
+    tauri_config,
+    &build_options.features,
+    &Default::default(),
+  );
 
   let profile = if options.debug {
     Profile::Debug
@@ -188,7 +185,7 @@ pub fn run(
 
   generate_tauri_properties(&config, tauri_config, false)?;
 
-  crate::build::setup(&interface, &mut build_options, tauri_config, true, dirs)?;
+  crate::build::setup(&interface, &mut build_options, tauri_config, dirs, true)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();
@@ -244,10 +241,10 @@ fn run_build(
   noise_level: NoiseLevel,
   tauri_dir: &Path,
 ) -> Result<OptionsHandle> {
-  if !(options.apk.is_some() || options.aab.is_some()) {
+  if !(options.skip_bundle || options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
-    options.apk = Some(true);
-    options.aab = Some(true);
+    options.apk = true;
+    options.aab = true;
   }
 
   let interface_options = InterfaceOptions {
@@ -274,7 +271,7 @@ fn run_build(
 
   inject_resources(config, tauri_config)?;
 
-  let apk_outputs = if options.apk.unwrap_or_default() {
+  let apk_outputs = if options.apk {
     apk::build(
       config,
       env,
@@ -288,7 +285,7 @@ fn run_build(
     Vec::new()
   };
 
-  let aab_outputs = if options.aab.unwrap_or_default() {
+  let aab_outputs = if options.aab {
     aab::build(
       config,
       env,

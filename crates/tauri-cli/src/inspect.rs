@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::Result;
 use clap::{Parser, Subcommand};
 
-use crate::interface::{AppInterface, AppSettings, Interface};
+use crate::interface::{AppInterface, AppSettings};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Inspect values used by Tauri")]

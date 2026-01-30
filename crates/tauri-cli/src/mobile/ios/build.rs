@@ -16,7 +16,7 @@ use crate::{
     flock,
     plist::merge_plist,
   },
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Options as InterfaceOptions},
   mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };
@@ -167,7 +167,12 @@ pub struct BuiltApplication {
   options_handle: OptionsHandle,
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<BuiltApplication> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  run(options, noise_level, &dirs)
+}
+
+pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<BuiltApplication> {
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -189,20 +194,17 @@ pub fn command(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let (interface, mut config) = {
-    let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
-    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
+  interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
-    let (config, _metadata) = get_config(
-      &app,
-      &tauri_config,
-      &build_options.features,
-      &Default::default(),
-      dirs.tauri,
-    )?;
-    (interface, config)
-  };
+  let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
+  let (mut config, _) = get_config(
+    &app,
+    &tauri_config,
+    &build_options.features,
+    &Default::default(),
+    dirs.tauri,
+  )?;
 
   set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
@@ -357,7 +359,7 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(interface, &mut build_options, &tauri_config, true, dirs)?;
+  crate::build::setup(interface, &mut build_options, &tauri_config, dirs, true)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(

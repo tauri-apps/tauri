@@ -6,7 +6,7 @@ use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_option
 use crate::{
   error::{Context, ErrorExt},
   helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
-  interface::{AppInterface, Interface},
+  interface::AppInterface,
   mobile::CliOptions,
   Error, Result,
 };
@@ -62,20 +62,17 @@ pub fn command(options: Options) -> Result<()> {
     )?
   };
 
-  let (config, metadata) = {
-    let (config, metadata) = get_config(
-      &get_app(
-        MobileTarget::Android,
-        &tauri_config,
-        &AppInterface::new(&tauri_config, None, dirs.tauri)?,
-        dirs.tauri,
-      ),
+  let (config, metadata) = get_config(
+    &get_app(
+      MobileTarget::Android,
       &tauri_config,
-      &[],
-      &cli_options,
-    );
-    (config, metadata)
-  };
+      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      dirs.tauri,
+    ),
+    &tauri_config,
+    &[],
+    &cli_options,
+  );
 
   ensure_init(
     &tauri_config,

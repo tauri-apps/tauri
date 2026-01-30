@@ -2312,4 +2312,25 @@ mod tests {
     crate::test_utils::assert_send::<super::Webview>();
     crate::test_utils::assert_sync::<super::Webview>();
   }
+
+  #[cfg(target_os = "macos")]
+  #[test]
+  fn test_webview_window_has_set_simple_fullscreen_method() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    // Create a mock app with proper context
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+
+    // Get or create a webview window
+    let webview_window =
+      crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
+        .build()
+        .unwrap();
+
+    // This should compile if set_simple_fullscreen exists
+    let result = webview_window.set_simple_fullscreen(true);
+
+    // We expect this to work without panicking
+    assert!(result.is_ok(), "set_simple_fullscreen should succeed");
+  }
 }

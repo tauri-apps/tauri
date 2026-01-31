@@ -587,21 +587,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};
 
-    fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
-      let icon_path = config
-        .bundle
-        .icon
-        .iter()
-        .find(|i| predicate(i))
-        .map(AsRef::as_ref)
-        .unwrap_or_else(|| default);
-      icon_path.into()
-    }
-
     let window_icon_path = attributes
       .windows_attributes
       .window_icon_path
-      .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
+      .unwrap_or_else(|| {
+        config
+          .bundle
+          .icon
+          .iter()
+          .find(|i| i.ends_with(".ico"))
+          .map(AsRef::as_ref)
+          .unwrap_or_else(|| "icons/icon.ico")
+          .into()
+      });
 
     let mut res = WindowsResource::new();
 

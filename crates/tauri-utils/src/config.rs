@@ -1306,7 +1306,7 @@ pub struct BundleConfig {
   pub homepage: Option<String>,
   /// The app's icons
   #[serde(default)]
-  pub icon: Vec<String>,
+  pub icon: Option<Vec<String>>,
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
@@ -3695,7 +3695,12 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let publisher = quote!(None);
       let homepage = quote!(None);
-      let icon = vec_lit(&self.icon, str_lit);
+      let icon = if let Some(ref icons) = self.icon {
+        let vec = vec_lit(icons, str_lit);
+        quote!(Some(#vec))
+      } else {
+        quote!(None)
+      };
       let active = self.active;
       let targets = quote!(Default::default());
       let create_updater_artifacts = quote!(Default::default());
@@ -4143,7 +4148,7 @@ mod test {
       create_updater_artifacts: Default::default(),
       publisher: None,
       homepage: None,
-      icon: Vec::new(),
+      icon: Some(Vec::new()),
       resources: None,
       copyright: None,
       category: None,

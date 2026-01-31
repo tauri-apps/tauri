@@ -101,11 +101,13 @@ impl CodegenContext {
       }
       _ => (),
     }
-    for icon in &config.bundle.icon {
-      println!(
-        "cargo:rerun-if-changed={}",
-        config_parent.join(icon).display()
-      );
+    if let Some(icons) = &config.bundle.icon {
+      for icon in icons {
+        println!(
+          "cargo:rerun-if-changed={}",
+          config_parent.join(icon).display()
+        );
+      }
     }
     if let Some(tray_icon) = config.app.tray_icon.as_ref().map(|t| &t.icon_path) {
       println!(

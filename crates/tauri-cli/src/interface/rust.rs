@@ -1522,7 +1522,7 @@ fn tauri_config_to_bundle_settings(
     identifier: Some(tauri_config.identifier.clone()),
     publisher: config.publisher,
     homepage: config.homepage,
-    icon: Some(config.icon),
+    icon: config.icon,
     resources,
     resources_map,
     copyright: config.copyright,

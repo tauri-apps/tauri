@@ -213,56 +213,74 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let default_window_icon = {
     if target == Target::Windows {
       // handle default window icons for Windows targets
-      let icon_path = find_icon(
+      let icon_path_opt = find_icon(
         &config,
         &config_parent,
         |i| i.ends_with(".ico"),
         "icons/icon.ico",
       );
-      if icon_path.exists() {
-        let icon = CachedIcon::new(&root, &icon_path)?;
-        quote!(::std::option::Option::Some(#icon))
+      if let Some(icon_path) = icon_path_opt {
+        if icon_path.exists() {
+          let icon = CachedIcon::new(&root, &icon_path)?;
+          quote!(::std::option::Option::Some(#icon))
+        } else {
+          let icon_path_opt = find_icon(
+            &config,
+            &config_parent,
+            |i| i.ends_with(".png"),
+            "icons/icon.png",
+          );
+          if let Some(icon_path) = icon_path_opt {
+            let icon = CachedIcon::new(&root, &icon_path)?;
+            quote!(::std::option::Option::Some(#icon))
+          } else {
+            quote!(::std::option::Option::None)
+          }
+        }
       } else {
-        let icon_path = find_icon(
-          &config,
-          &config_parent,
-          |i| i.ends_with(".png"),
-          "icons/icon.png",
-        );
-        let icon = CachedIcon::new(&root, &icon_path)?;
-        quote!(::std::option::Option::Some(#icon))
+        quote!(::std::option::Option::None)
       }
     } else {
       // handle default window icons for Unix targets
-      let icon_path = find_icon(
+      let icon_path_opt = find_icon(
         &config,
         &config_parent,
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      let icon = CachedIcon::new(&root, &icon_path)?;
-      quote!(::std::option::Option::Some(#icon))
+      if let Some(icon_path) = icon_path_opt {
+        let icon = CachedIcon::new(&root, &icon_path)?;
+        quote!(::std::option::Option::Some(#icon))
+      } else {
+        quote!(::std::option::Option::None)
+      }
     }
   };
 
   let app_icon = if target == Target::MacOS && dev {
-    let mut icon_path = find_icon(
+    let mut icon_path_opt = find_icon(
       &config,
       &config_parent,
       |i| i.ends_with(".icns"),
       "icons/icon.png",
     );
-    if !icon_path.exists() {
-      icon_path = find_icon(
-        &config,
-        &config_parent,
-        |i| i.ends_with(".png"),
-        "icons/icon.png",
-      );
+    if let Some(ref icon_path) = icon_path_opt {
+      if !icon_path.exists() {
+        icon_path_opt = find_icon(
+          &config,
+          &config_parent,
+          |i| i.ends_with(".png"),
+          "icons/icon.png",
+        );
+      }
     }
 
-    let icon = CachedIcon::new_raw(&root, &icon_path)?;
-    quote!(::std::option::Option::Some(#icon.to_vec()))
+    if let Some(icon_path) = icon_path_opt {
+      let icon = CachedIcon::new_raw(&root, &icon_path)?;
+      quote!(::std::option::Option::Some(#icon.to_vec()))
+    } else {
+      quote!(::std::option::Option::None)
+    }
   } else {
     quote!(::std::option::Option::None)
   };
@@ -495,13 +513,14 @@ fn find_icon(
   config_parent: &Path,
   predicate: impl Fn(&&String) -> bool,
   default: &str,
-) -> PathBuf {
-  let icon_path = config
-    .bundle
-    .icon
-    .iter()
-    .find(predicate)
-    .map(AsRef::as_ref)
-    .unwrap_or(default);
-  config_parent.join(icon_path)
+) -> Option<PathBuf> {
+  match &config.bundle.icon {
+    // None => No specified, fall back to default.
+    None => Some(config_parent.join(default)),
+    // Some(_) => Use explicitly specified icon set.
+    Some(icons) => icons
+      .iter()
+      .find(predicate)
+      .map(|s| config_parent.join(s)),
+  }
 }

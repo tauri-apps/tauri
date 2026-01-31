@@ -493,14 +493,14 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
 fn find_icon(
   config: &Config,
   config_parent: &Path,
-  predicate: impl Fn(&&String) -> bool,
+  predicate: impl Fn(&str) -> bool,
   default: &str,
 ) -> PathBuf {
   let icon_path = config
     .bundle
     .icon
     .iter()
-    .find(predicate)
+    .find(|i| predicate(i))
     .map(AsRef::as_ref)
     .unwrap_or(default);
   config_parent.join(icon_path)

@@ -10916,9 +10916,8 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.54.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e456eeaf7f09413fdc16799782879b2b9f1d264dfdbce4cf7e924df0ef36afb9"
+version = "0.54.1"
+source = "git+https://github.com/Legend-Master/wry.git?branch=new-window-handler-no-send#d76ecad82587b52dd09ff2bf0b75e032f8d06895"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

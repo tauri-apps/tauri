@@ -1927,7 +1927,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
     };
 
-    let command_line_args: Vec<(String, Option<String>)> = runtime_args
+    let mut command_line_args: Vec<(String, Option<String>)> = runtime_args
       .platform_specific_attributes
       .into_iter()
       .filter_map(|arg| match arg {
@@ -1935,6 +1935,13 @@ impl<T: UserEvent> CefRuntime<T> {
       })
       .flatten()
       .collect();
+    // Enable media stream so that getUserMedia (mic/camera) can trigger permission requests
+    if !command_line_args
+      .iter()
+      .any(|(k, _)| k == "enable-media-stream")
+    {
+      command_line_args.push(("enable-media-stream".to_string(), None));
+    }
 
     let mut app = cef_impl::TauriApp::new(
       cef_context.clone(),

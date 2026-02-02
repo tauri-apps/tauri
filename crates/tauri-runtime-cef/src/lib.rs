@@ -1935,13 +1935,7 @@ impl<T: UserEvent> CefRuntime<T> {
       })
       .flatten()
       .collect();
-    // Enable media stream so that getUserMedia (mic/camera) can trigger permission requests
-    if !command_line_args
-      .iter()
-      .any(|(k, _)| k == "enable-media-stream")
-    {
-      command_line_args.push(("enable-media-stream".to_string(), None));
-    }
+    command_line_args.push(("--enable-media-stream".to_string(), None));
 
     let mut app = cef_impl::TauriApp::new(
       cef_context.clone(),

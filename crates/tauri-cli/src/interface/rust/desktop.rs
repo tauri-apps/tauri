@@ -29,12 +29,8 @@ pub struct DevChild {
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
     self.dev_child.kill()?;
-    self.manually_killed_app.store(true, Ordering::Relaxed);
+    self.manually_killed_app.store(true, Ordering::SeqCst);
     Ok(())
-  }
-
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    self.dev_child.try_wait()
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
@@ -42,17 +38,17 @@ impl DevProcess for DevChild {
   }
 
   fn manually_killed_process(&self) -> bool {
-    self.manually_killed_app.load(Ordering::Relaxed)
+    self.manually_killed_app.load(Ordering::SeqCst)
   }
 }
 
 pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   options: Options,
-  run_args: Vec<String>,
+  run_args: &[String],
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
-) -> crate::Result<impl DevProcess> {
+) -> crate::Result<DevChild> {
   let mut dev_cmd = cargo_command(true, options, available_targets, config_features)?;
   let runner = dev_cmd.get_program().to_string_lossy().into_owned();
 
@@ -137,7 +133,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         status.code(),
         if status.code() == Some(101) && is_cargo_compile_error {
           ExitReason::CompilationFailed
-        } else if manually_killed_app_.load(Ordering::Relaxed) {
+        } else if manually_killed_app_.load(Ordering::SeqCst) {
           ExitReason::TriggeredKill
         } else {
           ExitReason::NormalExit
@@ -163,7 +159,7 @@ pub fn build(
   let out_dir = app_settings.out_dir(&options, tauri_dir)?;
   let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
 
-  if !std::env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "false") {
+  if !std::env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "false") {
     std::env::set_var("STATIC_VCRUNTIME", "true");
   }
 

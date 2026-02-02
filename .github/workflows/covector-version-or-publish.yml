@@ -74,10 +74,11 @@ jobs:
         with:
           fetch-depth: 0
       - run: npm i -g --force corepack
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
-          registry-url: 'https://registry.npmjs.org'
+      - name: Update npm
+        run: npm install -g npm
 
       - name: cargo login
         run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}

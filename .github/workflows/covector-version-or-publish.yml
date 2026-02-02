@@ -76,7 +76,7 @@ jobs:
       - run: npm i -g --force corepack
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
       - name: cargo login

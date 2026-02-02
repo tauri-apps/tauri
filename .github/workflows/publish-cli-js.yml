@@ -375,7 +375,8 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts

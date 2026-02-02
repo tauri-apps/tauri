@@ -390,8 +390,8 @@ jobs:
         shell: bash
       - name: Publish
         run: |
-          npm install -g npm
           npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ''
           RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}

@@ -6,7 +6,7 @@ use super::{get_app, Target};
 use crate::{
   helpers::app_paths::Dirs,
   helpers::{config::get_config as get_tauri_config, template::JsonMap},
-  interface::{AppInterface, Interface},
+  interface::AppInterface,
   ConfigValue, Result,
 };
 use cargo_mobile2::{

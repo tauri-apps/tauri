@@ -20,7 +20,7 @@ use crate::{
     config::{get_config, ConfigMetadata},
     updater_signature,
   },
-  interface::{AppInterface, AppSettings, Interface},
+  interface::{AppInterface, AppSettings},
   ConfigValue,
 };
 

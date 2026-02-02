@@ -16,7 +16,7 @@ use crate::{
     flock,
     plist::merge_plist,
   },
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Options as InterfaceOptions},
   mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };
@@ -194,20 +194,17 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let (interface, mut config) = {
-    let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
-    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
+  interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
-    let (config, _metadata) = get_config(
-      &app,
-      &tauri_config,
-      &build_options.features,
-      &Default::default(),
-      dirs.tauri,
-    )?;
-    (interface, config)
-  };
+  let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
+  let (mut config, _) = get_config(
+    &app,
+    &tauri_config,
+    &build_options.features,
+    &Default::default(),
+    dirs.tauri,
+  )?;
 
   set_current_dir(dirs.tauri).context("failed to set current directory")?;
 

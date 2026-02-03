@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.10.1]
+
+### Dependencies
+
+- [`ce8fddb46`](https://www.github.com/tauri-apps/tauri/commit/ce8fddb4648d6421579d43c7dd44959bc57a74e0) ([#14873](https://www.github.com/tauri-apps/tauri/pull/14873)) Unlocked version range for webkit2gtk-rs dependency.
+
 ## \[2.10.0]
 
 ### New Features
@@ -165,7 +171,7 @@
 - [`f1232671a`](https://www.github.com/tauri-apps/tauri/commit/f1232671abc15f03118a35da1883ce9aca88ff2a) ([#13959](https://www.github.com/tauri-apps/tauri/pull/13959) by [@petersamokhin](https://www.github.com/tauri-apps/tauri/../../petersamokhin)) Introduce `with_inner_tray_icon` for Tauri `TrayIcon` to access the inner platform-specific tray icon.
 
   Note that `tray-icon` crate may be updated in minor releases of Tauri.
-  Therefore, it’s recommended to pin Tauri to at least a minor version when you’re using `with_inner_tray_icon`.
+  Therefore, it's recommended to pin Tauri to at least a minor version when you're using `with_inner_tray_icon`.
 - [`72b4226ee`](https://www.github.com/tauri-apps/tauri/commit/72b4226ee9932b4dafa4837a49420b2c02d14bb7) ([#13809](https://www.github.com/tauri-apps/tauri/pull/13809) by [@Beanow](https://www.github.com/tauri-apps/tauri/../../Beanow)) Reduced `Debug` format size for binary buffers.
 - [`21ebc6e82`](https://www.github.com/tauri-apps/tauri/commit/21ebc6e82062b55a12f3a360d9a979daf5ae7e66) ([#14007](https://www.github.com/tauri-apps/tauri/pull/14007) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Changed the parameter type of `AppHandle::remove_plugin` from `&'static str` to `&str`.
 - [`5ba1c3faa`](https://www.github.com/tauri-apps/tauri/commit/5ba1c3faa468073512bdb5035a01f7f99720fcf0) ([#13722](https://www.github.com/tauri-apps/tauri/pull/13722) by [@s00d](https://www.github.com/tauri-apps/tauri/../../s00d)) Added icon (icon and nativeIcon) support for Submenu:

@@ -79,7 +79,7 @@ pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
 
 use tauri_utils::assets::AssetsIter;
-pub use url::Url;
+pub use url::{form_urlencoded, Url};
 
 pub(crate) mod app;
 pub mod async_runtime;

@@ -339,7 +339,15 @@ fn run_dev(
       if open {
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
-        match run(device, options, config, &env, metadata, noise_level) {
+        match run(
+          device,
+          options,
+          config,
+          &env,
+          metadata,
+          noise_level,
+          &*tauri_config,
+        ) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
           Err(e) => {
             crate::dev::kill_before_dev_process();
@@ -361,6 +369,7 @@ fn run(
   env: &Env,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
+  tauri_config: &tauri_utils::config::Config,
 ) -> crate::Result<DevChild> {
   let profile = if options.debug {
     Profile::Debug
@@ -370,8 +379,18 @@ fn run(
 
   let build_app_bundle = metadata.asset_packs().is_some();
 
+  let application_id_suffix = if profile == Profile::Debug {
+    tauri_config
+      .bundle
+      .android
+      .debug_application_id_suffix
+      .clone()
+  } else {
+    None
+  };
+
   device
-    .run(
+    .run_with_application_id_suffix(
       config,
       env,
       noise_level,
@@ -383,7 +402,8 @@ fn run(
       }),
       build_app_bundle,
       false,
-      ".MainActivity".into(),
+      format!("{}.MainActivity", config.app().identifier()),
+      application_id_suffix,
     )
     .map(DevChild::new)
     .context("failed to run Android app")

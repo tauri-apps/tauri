@@ -70,8 +70,7 @@ fn copy_binaries(
 
     if package_name == Some(&file_name) {
       return Err(anyhow::anyhow!(
-        "Cannot define a sidecar with the same name as the Cargo package name `{}`. Please change the sidecar name in the filesystem and the Tauri configuration.",
-        file_name
+        "Cannot define a sidecar with the same name as the Cargo package name `{file_name}`. Please change the sidecar name in the filesystem and the Tauri configuration."
       ));
     }
 
@@ -183,8 +182,7 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
       continue;
     } else if framework.contains('/') {
       return Err(anyhow::anyhow!(
-        "Framework path should have .framework extension: {}",
-        framework
+        "Framework path should have .framework extension: {framework}"
       ));
     }
     if let Some(home_dir) = dirs::home_dir() {
@@ -642,7 +640,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
 
     if window_icon_path.exists() {
-      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
+      res.set_icon(&window_icon_path.display().to_string());
     } else {
       return Err(anyhow!(format!(
         "`{}` not found; required for generating a Windows Resource file during tauri-build",

@@ -6,7 +6,7 @@ use std::{
   collections::HashMap,
   ffi::OsStr,
   fs::FileType,
-  io::{BufRead, Write},
+  io::BufRead,
   iter::once,
   path::{Path, PathBuf},
   process::Command,
@@ -382,14 +382,14 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 }
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
-  let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".tauri");
-  let _ = std::fs::create_dir_all(&default_gitignore);
-  default_gitignore.push(".gitignore");
+  let default_gitignore_folder = std::env::temp_dir().join(".tauri");
+  let _ = std::fs::create_dir_all(&default_gitignore_folder);
+  let default_gitignore = default_gitignore_folder.join(".gitignore");
   if !default_gitignore.exists() {
-    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
-    }
+    let _ = std::fs::write(
+      &default_gitignore,
+      crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE,
+    );
   }
 
   let mut builder = ignore::WalkBuilder::new(dir);

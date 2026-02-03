@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
-# GTK3 environment variables: https://developer.gnome.org/gtk3/stable/gtk-running.html
-# GTK4 environment variables: https://developer.gnome.org/gtk4/stable/gtk-running.html
+# GTK3 environment variables: https://docs.gtk.org/gtk3/running.html
+# GTK4 environment variables: https://docs.gtk.org/gtk4/running.html
 
 # abort on all errors
 set -e

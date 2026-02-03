@@ -4,7 +4,6 @@
 
 use crate::error::ErrorExt;
 use crate::helpers::cargo_manifest::{cargo_manifest_and_lock, crate_version};
-use crate::interface::rust::get_workspace_dir;
 use crate::VersionMetadata;
 use download_cef::{CefFile, CefIndex, OsAndArch, DEFAULT_TARGET};
 use std::{
@@ -14,14 +13,12 @@ use std::{
   time::Duration,
 };
 
-fn default_version() -> String {
+fn default_version(workspace_dir: &Path) -> String {
   // Try to get version from Cargo.lock first
-  if let Ok(workspace_dir) = get_workspace_dir() {
-    let (_, lock) = cargo_manifest_and_lock(&workspace_dir);
-    let crate_version = crate_version(&workspace_dir, None, lock.as_ref(), "cef");
-    if let Some(version) = crate_version.version {
-      return download_cef::default_version(&version);
-    }
+  let (_, lock) = cargo_manifest_and_lock(workspace_dir);
+  let crate_version = crate_version(workspace_dir, None, lock.as_ref(), "cef");
+  if let Some(version) = crate_version.version {
+    return download_cef::default_version(&version);
   }
 
   // Fallback to previous implementation: read from metadata-v2.json
@@ -70,12 +67,14 @@ impl Default for ExporterOptions {
   }
 }
 
-pub fn export_cef_directory(options: ExporterOptions) -> crate::Result<()> {
+pub fn export_cef_directory(options: ExporterOptions, workspace_dir: &Path) -> crate::Result<()> {
   let output = &options.output;
   let url = options
     .mirror_url
     .unwrap_or_else(|| default_download_url().to_string());
-  let version = options.version.unwrap_or_else(|| default_version());
+  let version = options
+    .version
+    .unwrap_or_else(|| default_version(workspace_dir));
 
   let parent = output.parent().ok_or_else(|| {
     crate::Error::GenericError(format!("invalid target directory: {}", output.display()))
@@ -263,6 +262,7 @@ fn check_archive_outdated(archive_json_path: &Path, required_version: &str) -> c
 pub fn ensure_cef_directory(
   target: Option<&str>,
   enabled_features: &[String],
+  workspace_dir: &Path,
 ) -> crate::Result<Option<PathBuf>> {
   // Check if cef feature is enabled
   let cef_enabled = enabled_features
@@ -277,7 +277,7 @@ pub fn ensure_cef_directory(
   let os_arch = OsAndArch::try_from(target)
     .map_err(|e| crate::Error::GenericError(format!("invalid target: {e}")))?;
 
-  let version = default_version();
+  let version = default_version(workspace_dir);
   let cef_dir = if let Ok(cef_path) = std::env::var("CEF_PATH") {
     let path = PathBuf::from(cef_path);
     // If CEF_PATH is set but directory doesn't exist, we'll create it
@@ -296,15 +296,18 @@ pub fn ensure_cef_directory(
       .join(&version)
   };
 
-  export_cef_directory(ExporterOptions {
-    output: cef_dir.clone(),
-    target: target.to_string(),
-    version: Some(version),
-    mirror_url: None,
-    force: false,
-    overwrite: true,
-    archive: None,
-  })?;
+  export_cef_directory(
+    ExporterOptions {
+      output: cef_dir.clone(),
+      target: target.to_string(),
+      version: Some(version),
+      mirror_url: None,
+      force: false,
+      overwrite: true,
+      archive: None,
+    },
+    workspace_dir,
+  )?;
 
   std::env::set_var("CEF_PATH", cef_dir.to_string_lossy().as_ref());
   export_cef_library_path(&cef_dir);

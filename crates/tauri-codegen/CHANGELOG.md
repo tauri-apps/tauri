@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.5.4]
+
+### Bug Fixes
+
+- [`eb5d88427`](https://www.github.com/tauri-apps/tauri/commit/eb5d88427a7dcb347fb0feae9e816db05b101844) ([#14883](https://www.github.com/tauri-apps/tauri/pull/14883) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `tauri::Context` code generation failing with `can't capture dynamic environment in a fn item` when custom assets are provided.
+
 ## \[2.5.3]
 
 ### Dependencies

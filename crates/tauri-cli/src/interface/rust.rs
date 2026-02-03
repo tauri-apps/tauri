@@ -219,10 +219,15 @@ impl Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, &run_args, move |status, reason| {
-        on_exit(status, reason);
-        tx.send(()).unwrap();
-      })?;
+      self.run_dev(
+        options,
+        &run_args,
+        move |status, reason| {
+          on_exit(status, reason);
+          tx.send(()).unwrap();
+        },
+        &dirs.tauri,
+      )?;
 
       rx.recv().unwrap();
       Ok(())
@@ -235,9 +240,12 @@ impl Rust {
         |rust: &mut Rust, _config| {
           let on_exit = on_exit.clone();
           rust
-            .run_dev(options.clone(), &run_args, move |status, reason| {
-              on_exit(status, reason)
-            })
+            .run_dev(
+              options.clone(),
+              &run_args,
+              move |status, reason| on_exit(status, reason),
+              &dirs.tauri,
+            )
             .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
         },
         dirs,
@@ -559,6 +567,7 @@ impl Rust {
     options: Options,
     run_args: &[String],
     on_exit: F,
+    tauri_dir: &Path,
   ) -> crate::Result<desktop::DevChild> {
     desktop::run_dev(
       &self.app_settings,
@@ -567,6 +576,7 @@ impl Rust {
       &mut self.available_targets,
       self.config_features.clone(),
       on_exit,
+      tauri_dir,
     )
   }
 

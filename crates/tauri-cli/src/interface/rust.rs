@@ -182,12 +182,12 @@ impl Rust {
     self.app_settings.clone()
   }
 
-  pub fn on_before_bundle(&self, options: &Options) -> crate::Result<()> {
-    self.prepare(options)
+  pub fn on_before_bundle(&self, options: &Options, dirs: &Dirs) -> crate::Result<()> {
+    self.prepare(options, dirs)
   }
 
   pub fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
-    self.prepare(&options)?;
+    self.prepare(&options, dirs)?;
     desktop::build(
       options,
       &self.app_settings,
@@ -205,7 +205,7 @@ impl Rust {
     on_exit: F,
     dirs: &Dirs,
   ) -> crate::Result<()> {
-    self.prepare(&options)?;
+    self.prepare(&options, dirs)?;
     let on_exit = Arc::new(on_exit);
 
     let mut run_args = Vec::new();
@@ -494,6 +494,7 @@ fn ensure_cef_directory_if_needed(
   config_features: Vec<String>,
   target: Option<&str>,
   features: &Vec<String>,
+  tauri_dir: &Path,
 ) -> crate::Result<()> {
   let mut merged_features = config_features;
   merged_features.extend(features.clone());
@@ -522,7 +523,7 @@ fn ensure_cef_directory_if_needed(
     // We also do this for builds since we can't codesign the global cache.
     #[cfg(windows)]
     Ok(Some(cef_dir)) => {
-      let out_dir = app_settings.out_dir(options)?;
+      let out_dir = app_settings.out_dir(options, tauri_dir)?;
       crate::helpers::fs::copy_dir_all(&cef_dir, &out_dir)?;
     }
     Err(e) => {
@@ -533,13 +534,14 @@ fn ensure_cef_directory_if_needed(
 }
 
 impl Rust {
-  fn prepare(&self, options: &Options) -> crate::Result<()> {
+  fn prepare(&self, options: &Options, dirs: &Dirs) -> crate::Result<()> {
     ensure_cef_directory_if_needed(
       &self.app_settings,
       options,
       self.config_features.clone(),
       options.target.as_deref(),
       &options.features,
+      dirs.tauri,
     )
   }
 

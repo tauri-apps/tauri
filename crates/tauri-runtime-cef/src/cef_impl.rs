@@ -2933,7 +2933,12 @@ fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) 
   let event = WindowEvent::Destroyed;
   send_window_event(window_id, &context.windows, &context.callback, event);
 
-  let removed = context.windows.borrow_mut().remove(&window_id).is_some();
+  let window = {
+    let mut guard = context.windows.borrow_mut();
+    guard.remove(&window_id)
+  };
+  let removed = window.is_some();
+  drop(window);
   if !removed {
     return;
   }

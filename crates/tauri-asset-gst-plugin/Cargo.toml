@@ -9,16 +9,19 @@ description = "Gstreamer plugin for asset protocol"
 
 [dependencies]
 gstreamer = "0.24"
-gstreamer-base = "0.24"
 percent-encoding = "2.3.2"
 
 [lib]
 name = "gsttauriasset"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [build-dependencies]
 gst-plugin-version-helper = "0.8.3"
+
+[dev-dependencies]
+gstreamer-check = "0.24"
+gstreamer-audio = "0.24"
 
 [profile.release]
 lto = true

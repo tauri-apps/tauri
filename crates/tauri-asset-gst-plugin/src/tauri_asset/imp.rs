@@ -5,9 +5,9 @@ use gst::prelude::{ElementExt, GstBinExt, PadExt};
 use gst::subclass::prelude::{BinImpl, ElementImpl, ObjectImpl, URIHandlerImpl};
 use gst::subclass::prelude::{GstObjectImpl, ObjectSubclass};
 use gst::{glib, GhostPad};
+use gstreamer as gst;
 use gstreamer::glib::object::ObjectExt;
 use gstreamer::glib::subclass::object::ObjectImplExt;
-use gstreamer_base::gst;
 
 // for debugging
 // GST_DEBUG=tauri_asset:5 <your-binary-using-the-plugin>
@@ -150,7 +150,7 @@ impl URIHandlerImpl for TauriAsset {
     // uri is like: asset://path/to/asset or asset://localhost/path/to/asset
     let sep = format!("{}://", ASSET_URI_SCHEME);
     let mut split = uri.split(sep.as_str());
-    let location = split.nth(1).ok_or_else(|| {
+    let location = split.nth(1).filter(|l| !l.is_empty()).ok_or_else(|| {
       let msg = format!("URI does not contain location: {}", uri);
       gst::error!(CAT, imp = self, "{msg}");
       glib::Error::new(gst::URIError::BadUri, &msg)

@@ -3161,10 +3161,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "gstreamer-base"
-version = "0.24.2"
+name = "gstreamer-audio"
+version = "0.24.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71ff9b0bbc8041f0c6c8a53b206a6542f86c7d9fa8a7dff3f27d9c374d9f39b4"
+checksum = "92829dbca7c59ed4bf0c9154dd8c0cf3185d6bf9dad821b058b801d9671fa763"
+dependencies = [
+ "cfg-if",
+ "glib 0.21.4",
+ "gstreamer",
+ "gstreamer-audio-sys",
+ "gstreamer-base",
+ "libc",
+ "smallvec",
+]
+
+[[package]]
+name = "gstreamer-audio-sys"
+version = "0.24.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6acd80847b78122c45983597f74a29071d63273c1eded14be5f7381301711475"
+dependencies = [
+ "glib-sys 0.21.2",
+ "gobject-sys 0.21.2",
+ "gstreamer-base-sys",
+ "gstreamer-sys",
+ "libc",
+ "system-deps 7.0.7",
+]
+
+[[package]]
+name = "gstreamer-base"
+version = "0.24.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dd15c7e37d306573766834a5cbdd8ee711265f217b060f40a9a8eda45298488"
 dependencies = [
  "atomic_refcell",
  "cfg-if",
@@ -3176,9 +3205,33 @@ dependencies = [
 
 [[package]]
 name = "gstreamer-base-sys"
-version = "0.24.2"
+version = "0.24.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed78852b92db1459b8f4288f86e6530274073c20be2f94ba642cddaca08b00e"
+checksum = "27a2eda2c61e13c11883bf19b290d07ea6b53d04fd8bfeb7af64b6006c6c9ee6"
+dependencies = [
+ "glib-sys 0.21.2",
+ "gobject-sys 0.21.2",
+ "gstreamer-sys",
+ "libc",
+ "system-deps 7.0.7",
+]
+
+[[package]]
+name = "gstreamer-check"
+version = "0.24.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f961b2962a6c3247a38c48d70be6c8866a9f5632e94d954371ba4695021b5f6"
+dependencies = [
+ "glib 0.21.4",
+ "gstreamer",
+ "gstreamer-check-sys",
+]
+
+[[package]]
+name = "gstreamer-check-sys"
+version = "0.24.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "882fb7efd0341cae7fefd85e0f8ed03dc444b9ecf7a9e8679b13be3a4fb27ef3"
 dependencies = [
  "glib-sys 0.21.2",
  "gobject-sys 0.21.2",
@@ -8784,7 +8837,8 @@ version = "0.1.0"
 dependencies = [
  "gst-plugin-version-helper",
  "gstreamer",
- "gstreamer-base",
+ "gstreamer-audio",
+ "gstreamer-check",
  "percent-encoding",
 ]
 

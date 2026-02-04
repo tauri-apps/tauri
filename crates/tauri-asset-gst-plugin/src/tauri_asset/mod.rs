@@ -1,6 +1,6 @@
 use gst::glib;
 use gst::prelude::*;
-use gstreamer_base::gst;
+use gstreamer as gst;
 
 mod imp;
 

@@ -1,5 +1,5 @@
 use gst::glib;
-use gstreamer_base::gst;
+use gstreamer as gst;
 
 mod tauri_asset;
 

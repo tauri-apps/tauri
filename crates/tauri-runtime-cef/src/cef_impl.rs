@@ -4,9 +4,9 @@
 
 use base64::Engine;
 use cef::{rc::*, *};
+use dioxus_debug_cell::RefCell;
 use sha2::{Digest, Sha256};
 use std::{
-  cell::RefCell,
   collections::HashMap,
   sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
@@ -831,7 +831,7 @@ wrap_browser_view_delegate! {
   impl BrowserViewDelegate {
     fn on_browser_created(&self, _browser_view: Option<&mut BrowserView>, browser: Option<&mut Browser>) {
       if let Some(browser) = browser {
-        self.browser_id.replace(browser.identifier());
+        let _ = std::mem::replace(&mut *self.browser_id.borrow_mut(), browser.identifier());
       }
     }
 
@@ -2586,7 +2586,7 @@ wrap_task! {
 
   impl Task {
     fn execute(&self) {
-      handle_message(&self.context, self.message.replace(Message::Noop));
+      handle_message(&self.context, std::mem::replace(&mut self.message.borrow_mut(), Message::Noop));
     }
   }
 }

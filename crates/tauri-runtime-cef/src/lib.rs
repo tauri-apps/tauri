@@ -27,8 +27,8 @@ use url::Url;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
+use dioxus_debug_cell::RefCell;
 use std::{
-  cell::RefCell,
   collections::HashMap,
   fmt,
   fs::create_dir_all,
@@ -2210,11 +2210,9 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     let callback = Arc::new(RefCell::new(callback));
     let callback_ = callback.clone();
     let event_tx_ = self.event_tx.clone();
-    let _ = self
-      .context
-      .cef_context
-      .callback
-      .replace(Box::new(move |event| {
+    let _ = std::mem::replace(
+      &mut *self.context.cef_context.callback.borrow_mut(),
+      Box::new(move |event| {
         if let RunEvent::Exit = event {
           // notify the event loop to exit
           let _ = event_tx_.send(RunEvent::Exit);
@@ -2226,7 +2224,8 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
             let _ = event_tx_.send(event);
           }
         }
-      }));
+      }),
+    );
 
     'main_loop: loop {
       while let Ok(event) = self.event_rx.try_recv() {

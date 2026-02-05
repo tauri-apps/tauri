@@ -316,6 +316,7 @@ impl<T: UserEvent> Context<T> {
       })
       .unwrap_or((None, false));
 
+    let (tx, rx) = channel();
     send_user_message(
       self,
       Message::CreateWindow(
@@ -330,8 +331,14 @@ impl<T: UserEvent> Context<T> {
             after_window_creation,
           )
         }),
+        tx,
       ),
     )?;
+
+    // Wait for window creation to complete before returning.
+    // This fixes a race condition on Windows ARM64 where create_window
+    // would return before the window was inserted into the windows map.
+    rx.recv().map_err(|_| Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWindowDispatcher {
       window_id,
@@ -1491,7 +1498,7 @@ pub enum Message<T: 'static> {
   Webview(WindowId, WebviewId, WebviewMessage),
   EventLoopWindowTarget(EventLoopWindowTargetMessage),
   CreateWebview(WindowId, CreateWebviewClosure),
-  CreateWindow(WindowId, CreateWindowClosure<T>),
+  CreateWindow(WindowId, CreateWindowClosure<T>, Sender<Result<()>>),
   CreateRawWindow(
     WindowId,
     Box<dyn FnOnce() -> (String, TaoWindowBuilder) + Send>,
@@ -3931,16 +3938,18 @@ fn handle_user_message<T: UserEvent>(
         }
       }
     }
-    Message::CreateWindow(window_id, handler) => match handler(event_loop) {
+    Message::CreateWindow(window_id, handler, tx) => match handler(event_loop) {
       // wait for borrow_mut to be available - on Windows we might poll for the window to be inserted
       Ok(webview) => loop {
         if let Ok(mut windows) = windows.0.try_borrow_mut() {
           windows.insert(window_id, webview);
+          let _ = tx.send(Ok(()));
           break;
         }
       },
       Err(e) => {
         log::error!("{e}");
+        let _ = tx.send(Err(e));
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {

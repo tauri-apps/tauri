@@ -183,7 +183,7 @@ impl PlatformWebview {
   }
 
   /// Returns the WebView2 controller.
-  #[cfg(windows)]
+  #[cfg(all(windows, feature = "wry"))]
   #[cfg_attr(docsrs, doc(cfg(windows)))]
   pub fn controller(
     &self,
@@ -192,7 +192,7 @@ impl PlatformWebview {
   }
 
   /// Returns the WebView2 environment.
-  #[cfg(windows)]
+  #[cfg(all(windows, feature = "wry"))]
   #[cfg_attr(docsrs, doc(cfg(windows)))]
   pub fn environment(
     &self,

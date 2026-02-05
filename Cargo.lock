@@ -9073,7 +9073,6 @@ dependencies = [
  "tauri-utils",
  "thiserror 2.0.12",
  "url",
- "webview2-com",
  "windows 0.61.1",
 ]
 

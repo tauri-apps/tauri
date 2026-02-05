@@ -83,7 +83,6 @@ fn main() {
     .run(
       #[allow(unused_variables)]
       |app, event| {
-        #[cfg(any(target_os = "macos", target_os = "ios"))]
         if let tauri::RunEvent::Opened { urls } = event {
           let files = urls
             .into_iter()

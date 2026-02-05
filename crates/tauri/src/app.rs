@@ -34,7 +34,7 @@ use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
-  RuntimeInitArgs,
+  InitAttribute, RuntimeInitArgs,
 };
 use tauri_utils::{assets::AssetsIter, PackageInfo};
 
@@ -230,8 +230,6 @@ pub enum RunEvent {
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", feature = "ios"))))]
   Opened {
     /// The URL of the resources that is being open.
     urls: Vec<url::Url>,
@@ -1506,6 +1504,28 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
+/// Helper so `Builder<R>` can merge user-provided platform attributes with config-derived ones
+/// ([`InitAttribute::new`]). User attrs come first, then config-derived.
+pub(crate) trait PlatformSpecificAttributesHelper {
+  type Attr: Send + Sync + 'static;
+  fn process_platform_specific_attributes(
+    user_attrs: Vec<Self::Attr>,
+    config: &Config,
+  ) -> crate::Result<Vec<Self::Attr>>;
+}
+
+impl<R: Runtime> PlatformSpecificAttributesHelper for Builder<R> {
+  type Attr = R::PlatformSpecificInitAttribute;
+  fn process_platform_specific_attributes(
+    mut user_attrs: Vec<Self::Attr>,
+    config: &Config,
+  ) -> crate::Result<Vec<Self::Attr>> {
+    let from_config = R::PlatformSpecificInitAttribute::new(config).map_err(crate::Error::from)?;
+    user_attrs.extend(from_config);
+    Ok(user_attrs)
+  }
+}
+
 #[cfg(feature = "cef")]
 impl Builder<crate::Cef> {
   /// Appends command line arguments to the CEF command line.
@@ -2163,6 +2183,13 @@ tauri::Builder::default()
       }));
     }
 
+    let config = context.config();
+    let attrs = self.platform_specific_attributes;
+    let platform_specific_attributes =
+      <Self as PlatformSpecificAttributesHelper>::process_platform_specific_attributes(
+        attrs, config,
+      )?;
+
     let manager = Arc::new(AppManager::with_handlers(
       context,
       self.plugins,
@@ -2205,7 +2232,7 @@ tauri::Builder::default()
     let runtime_args = Self::build_runtime_init_args(
       &manager.config.identifier,
       custom_schemes,
-      self.platform_specific_attributes,
+      platform_specific_attributes,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -2547,7 +2574,6 @@ fn on_event_loop_event<R: Runtime>(
       #[allow(unreachable_code)]
       t.into()
     }
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
     RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
     #[cfg(target_os = "macos")]
     RuntimeRunEvent::Reopen {

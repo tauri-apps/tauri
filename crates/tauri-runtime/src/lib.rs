@@ -233,7 +233,6 @@ pub enum RunEvent<T: UserEvent> {
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
   Opened { urls: Vec<url::Url> },
   /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
   #[cfg(target_os = "macos")]
@@ -397,6 +396,22 @@ pub struct RuntimeInitArgs<A> {
   pub platform_specific_attributes: Vec<A>,
 }
 
+/// Builds platform-specific init attributes from config. These are merged with
+/// user-provided attributes before runtime creation. Implement for the runtime's
+/// [`Runtime::PlatformSpecificInitAttribute`]; default is to return none (implement for `()`).
+pub trait InitAttribute: Send + Sync + 'static {
+  /// Returns attributes derived from config (e.g. deep-link schemes). Merged with user attrs by the app.
+  fn new(config: &tauri_utils::config::Config) -> Result<Vec<Self>>
+  where
+    Self: Sized;
+}
+
+impl InitAttribute for () {
+  fn new(_config: &tauri_utils::config::Config) -> Result<Vec<Self>> {
+    Ok(vec![])
+  }
+}
+
 /// The webview runtime interface.
 pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The window message dispatcher.
@@ -409,8 +424,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type EventLoopProxy: EventLoopProxy<T>;
   /// The platform specific webview attributes.
   type PlatformSpecificWebviewAttribute: Send + Sync + 'static;
-  /// The platform specific runtime init arguments.
-  type PlatformSpecificInitAttribute: Send + Sync + 'static;
+  /// The platform specific runtime init arguments. Must implement [`InitAttribute`].
+  type PlatformSpecificInitAttribute: InitAttribute + Send + Sync + 'static;
   /// Data about the window that requested the new window for [`PendingWebview::new_window_handler`].
   type WindowOpener: Send + Sync + Debug;
 

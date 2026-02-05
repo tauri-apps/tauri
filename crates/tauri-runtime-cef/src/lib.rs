@@ -11,9 +11,9 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WebviewEvent,
     WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
   },
-  Cookie, DeviceEventFilter, EventLoopProxy, Icon, ProgressBarState, Result, RunEvent, Runtime,
-  RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId,
-  WindowDispatch, WindowEventId,
+  Cookie, DeviceEventFilter, EventLoopProxy, Icon, InitAttribute, ProgressBarState, Result,
+  RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
+  WebviewEventId, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
@@ -1927,19 +1927,20 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
     };
 
-    let mut command_line_args: Vec<(String, Option<String>)> = runtime_args
-      .platform_specific_attributes
-      .into_iter()
-      .filter_map(|arg| match arg {
-        RuntimeInitAttribute::CommandLineArgs { args } => Some(args),
-      })
-      .flatten()
-      .collect();
+    let mut command_line_args = Vec::new();
+    let mut deep_link_schemes = Vec::new();
+    for arg in runtime_args.platform_specific_attributes {
+      match arg {
+        RuntimeInitAttribute::CommandLineArgs { args } => command_line_args.extend(args),
+        RuntimeInitAttribute::DeepLinkSchemes { schemes } => deep_link_schemes.extend(schemes),
+      }
+    }
     command_line_args.push(("--enable-media-stream".to_string(), None));
 
     let mut app = cef_impl::TauriApp::new(
       cef_context.clone(),
       runtime_args.custom_schemes,
+      deep_link_schemes,
       command_line_args,
     );
 
@@ -2021,6 +2022,37 @@ pub fn run_cef_helper_process() {
 pub enum RuntimeInitAttribute {
   /// Command line arguments passed to CEF.
   CommandLineArgs { args: Vec<(String, Option<String>)> },
+  /// Deep link schemes.
+  DeepLinkSchemes { schemes: Vec<String> },
+}
+
+impl InitAttribute for RuntimeInitAttribute {
+  fn new(config: &tauri_utils::config::Config) -> Result<Vec<Self>> {
+    let mut attrs = Vec::new();
+    if let Some(plugin_config) = config
+      .plugins
+      .0
+      .get("deep-link")
+      .and_then(|c| c.get("desktop").cloned())
+    {
+      #[derive(serde::Deserialize)]
+      #[serde(untagged)]
+      enum DesktopDeepLinks {
+        One(tauri_utils::config::DeepLinkProtocol),
+        List(Vec<tauri_utils::config::DeepLinkProtocol>),
+      }
+
+      let protocols: DesktopDeepLinks =
+        serde_json::from_value(plugin_config).map_err(tauri_runtime::Error::Json)?;
+      let schemes = match protocols {
+        DesktopDeepLinks::One(p) => p.schemes,
+        DesktopDeepLinks::List(p) => p.into_iter().flat_map(|p| p.schemes).collect(),
+      };
+
+      attrs.push(RuntimeInitAttribute::DeepLinkSchemes { schemes });
+    }
+    Ok(attrs)
+  }
 }
 
 /// Webview attributes.

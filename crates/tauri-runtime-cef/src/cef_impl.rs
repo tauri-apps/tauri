@@ -256,12 +256,16 @@ wrap_app! {
   pub struct TauriApp<T: UserEvent> {
     context: Context<T>,
     custom_schemes: Vec<String>,
+    deep_link_schemes: Vec<String>,
     command_line_args: Vec<(String, Option<String>)>,
   }
 
   impl App {
     fn browser_process_handler(&self) -> Option<BrowserProcessHandler> {
-      Some(AppBrowserProcessHandler::new(self.context.clone()))
+      Some(AppBrowserProcessHandler::new(
+        self.context.clone(),
+        self.deep_link_schemes.clone(),
+      ))
     }
 
     fn on_before_command_line_processing(
@@ -290,11 +294,38 @@ wrap_app! {
 wrap_browser_process_handler! {
   struct AppBrowserProcessHandler<T: UserEvent> {
     context: Context<T>,
+    deep_link_schemes: Vec<String>,
   }
 
   impl BrowserProcessHandler {
     fn on_context_initialized(&self) {
       (self.context.callback.borrow())(RunEvent::Ready);
+    }
+
+    fn on_already_running_app_relaunch(
+      &self,
+      command_line: Option<&mut CommandLine>,
+      _current_directory: Option<&CefString>,
+    ) -> std::os::raw::c_int {
+      let Some(command_line) = command_line else {
+        return 0;
+      };
+      let mut list = CefStringList::new();
+      command_line.arguments(Some(&mut list));
+      let args: Vec<String> = list.into_iter().collect();
+      if args.len() == 1 {
+        if let Ok(url) = url::Url::parse(&args[0]) {
+          let scheme = url.scheme().to_string();
+          if self.deep_link_schemes.iter().any(|s| s == &scheme) {
+            (self.context.callback.borrow())(RunEvent::Opened {
+              urls: vec![url],
+            });
+            return 1;
+          }
+        }
+      }
+      // TODO: add event
+      1
     }
   }
 }
@@ -2841,6 +2872,7 @@ wrap_task! {
   }
 }
 
+#[cfg(target_os = "macos")]
 fn send_message_task<T: UserEvent>(context: &Context<T>, message: Message<T>) {
   let mut task = SendMessageTask::new(context.clone(), Arc::new(RefCell::new(message)));
   cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));

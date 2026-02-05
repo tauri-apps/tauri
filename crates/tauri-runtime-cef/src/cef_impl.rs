@@ -1927,8 +1927,79 @@ fn start_window_dragging(window: &cef::Window) {
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-fn start_window_dragging(_window: &cef::Window) {
-  unimplemented!()
+fn start_window_dragging(window: &cef::Window) {
+  use std::ffi::CString;
+  use std::os::raw::c_long;
+  use x11_dl::xlib;
+
+  let Some(xlib) = xlib::Xlib::open().ok() else {
+    return;
+  };
+
+  unsafe {
+    let display = (xlib.XOpenDisplay)(std::ptr::null());
+    if display.is_null() {
+      return;
+    }
+
+    let win = window.window_handle() as u64;
+
+    let mut root_x: std::ffi::c_int = 0;
+    let mut root_y: std::ffi::c_int = 0;
+    let mut _win_x: std::ffi::c_int = 0;
+    let mut _win_y: std::ffi::c_int = 0;
+    let mut _mask: std::ffi::c_uint = 0;
+    let mut root: xlib::Window = (xlib.XDefaultRootWindow)(display);
+    let mut _child_return: xlib::Window = 0;
+    let _ = (xlib.XQueryPointer)(
+      display,
+      win,
+      &mut root,
+      &mut _child_return,
+      &mut root_x,
+      &mut root_y,
+      &mut _win_x,
+      &mut _win_y,
+      &mut _mask,
+    );
+
+    let net_wm_moveresize = CString::new("_NET_WM_MOVERESIZE").unwrap();
+    let atom = (xlib.XInternAtom)(display, net_wm_moveresize.as_ptr(), xlib::False);
+    if atom == 0 {
+      (xlib.XCloseDisplay)(display);
+      return;
+    }
+
+    // EWMH _NET_WM_MOVERESIZE: direction 8 = move, button 1 = left, source 1 = application
+    const NET_WM_MOVERESIZE_MOVE: c_long = 8;
+    const SOURCE_APPLICATION: c_long = 1;
+
+    let mut data: xlib::ClientMessageData = std::mem::zeroed();
+    {
+      let longs = <xlib::ClientMessageData as std::convert::AsMut<[i64]>>::as_mut(&mut data);
+      longs[0] = root_x as i64;
+      longs[1] = root_y as i64;
+      longs[2] = NET_WM_MOVERESIZE_MOVE as i64;
+      longs[3] = 1; // Button 1 (left)
+      longs[4] = SOURCE_APPLICATION as i64;
+    }
+
+    let xclient = xlib::XClientMessageEvent {
+      type_: xlib::ClientMessage,
+      serial: 0,
+      send_event: xlib::True,
+      display,
+      window: win,
+      message_type: atom,
+      format: 32,
+      data,
+    };
+
+    let mut event: xlib::XEvent = xclient.into();
+    let _ = (xlib.XSendEvent)(display, root, xlib::False, 0, &mut event);
+    (xlib.XFlush)(display);
+    (xlib.XCloseDisplay)(display);
+  }
 }
 
 fn handle_window_message<T: UserEvent>(

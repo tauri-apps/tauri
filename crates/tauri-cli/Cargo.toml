@@ -1,3 +1,8 @@
+# Injected by [Your Name] for dependency testing
+
+[dependencies]
+serde = "1.0"
+
 [package]
 name = "tauri-cli"
 version = "2.10.0"
@@ -99,10 +104,10 @@ resvg = "0.45.0"
 dunce = "1"
 glob = "0.3"
 # 0.39 raised msrv to above 1.78 but 0.37+ can't compile on 1.77.2 either.
-oxc_parser = "0.36"
-oxc_span = "0.36"
-oxc_allocator = "0.36"
-oxc_ast = "0.36"
+oxct_parser = "0.36"
+oxct_span = "0.36"
+oxct_allocator = "0.36"
+oxct_ast = "0.36"
 magic_string = "0.3"
 phf = { version = "0.11", features = ["macros"] }
 walkdir = "2"
@@ -114,40 +119,3 @@ rand = "0.9"
 zip = { version = "4", default-features = false, features = ["deflate"] }
 which = "8"
 rayon = "1.10"
-
-[dev-dependencies]
-insta = "1"
-pretty_assertions = "1"
-
-[target."cfg(windows)".dependencies.windows-sys]
-version = "0.60"
-features = [
-  "Win32_Security",
-  "Win32_Storage_FileSystem",
-  "Win32_System_IO",
-  "Win32_System_Console",
-]
-
-[target."cfg(unix)".dependencies]
-libc = "0.2"
-
-[target."cfg(target_os = \"macos\")".dependencies]
-plist = "1"
-tauri-macos-sign = { version = "2.3.3", path = "../tauri-macos-sign" }
-object = { version = "0.36", default-features = false, features = [
-  "macho",
-  "read_core",
-  "std",
-] }
-ar = "0.9"
-
-[features]
-default = ["rustls", "platform-certs"]
-native-tls = [
-  "tauri-bundler/native-tls",
-  "cargo-mobile2/native-tls",
-  "ureq/native-tls",
-]
-native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
-rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]
-platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]

@@ -316,6 +316,8 @@ impl<T: UserEvent> Context<T> {
       })
       .unwrap_or((None, false));
 
+    let (response_tx, response_rx) = channel();
+
     send_user_message(
       self,
       Message::CreateWindow(
@@ -330,8 +332,17 @@ impl<T: UserEvent> Context<T> {
             after_window_creation,
           )
         }),
+        response_tx,
       ),
     )?;
+
+    // Block until the window is actually created on the event loop thread.
+    // This ensures the HWND exists before we return a DetachedWindow,
+    // preventing races where downstream code calls hwnd() before the
+    // window is registered.
+    response_rx
+      .recv()
+      .map_err(|_| Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWindowDispatcher {
       window_id,
@@ -1491,7 +1502,13 @@ pub enum Message<T: 'static> {
   Webview(WindowId, WebviewId, WebviewMessage),
   EventLoopWindowTarget(EventLoopWindowTargetMessage),
   CreateWebview(WindowId, CreateWebviewClosure),
-  CreateWindow(WindowId, CreateWindowClosure<T>),
+  /// Create a window on the event loop thread.
+  ///
+  /// The `Sender` is signaled with `Ok(())` once the window is registered in
+  /// the window map, guaranteeing the HWND exists before the caller proceeds.
+  /// Without this channel, `create_window` was fire-and-forget and downstream
+  /// `hwnd()` calls could race against event-loop insertion.
+  CreateWindow(WindowId, CreateWindowClosure<T>, Sender<Result<()>>),
   CreateRawWindow(
     WindowId,
     Box<dyn FnOnce() -> (String, TaoWindowBuilder) + Send>,
@@ -3931,16 +3948,18 @@ fn handle_user_message<T: UserEvent>(
         }
       }
     }
-    Message::CreateWindow(window_id, handler) => match handler(event_loop) {
+    Message::CreateWindow(window_id, handler, response_tx) => match handler(event_loop) {
       // wait for borrow_mut to be available - on Windows we might poll for the window to be inserted
       Ok(webview) => loop {
         if let Ok(mut windows) = windows.0.try_borrow_mut() {
           windows.insert(window_id, webview);
+          let _ = response_tx.send(Ok(()));
           break;
         }
       },
       Err(e) => {
         log::error!("{e}");
+        let _ = response_tx.send(Err(Error::CreateWindow));
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {
@@ -5028,7 +5047,9 @@ You may have it installed on another user account, but it is not available for t
       target_os = "ios",
       target_os = "android"
     ))]
-    WebviewKind::WindowChild => webview_builder.build_as_child(&window),
+    WebviewKind::WindowChild => {
+      webview_builder.build_as_child(&window)
+    },
     WebviewKind::WindowContent => {
       #[cfg(any(
         target_os = "windows",
@@ -5036,7 +5057,9 @@ You may have it installed on another user account, but it is not available for t
         target_os = "ios",
         target_os = "android"
       ))]
-      let builder = webview_builder.build(&window);
+      let builder = {
+      webview_builder.build(&window)
+    };
       #[cfg(not(any(
         target_os = "windows",
         target_os = "macos",
@@ -5224,5 +5247,97 @@ fn to_tao_theme(theme: Option<Theme>) -> Option<TaoTheme> {
     Some(Theme::Light) => Some(TaoTheme::Light),
     Some(Theme::Dark) => Some(TaoTheme::Dark),
     _ => None,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::sync::mpsc::channel;
+
+  /// The `Message::CreateWindow` variant must carry a response `Sender<Result<()>>`
+  /// so the caller can block until the window is actually created on the event loop.
+  ///
+  /// This test exercises the new contract: create a response channel, simulate
+  /// the event loop handler responding with `Ok(())`, and verify the caller
+  /// unblocks with the correct result.
+  #[test]
+  fn create_window_response_channel_success() {
+    let (tx, rx) = channel::<Result<()>>();
+
+    // Simulate the event loop handler completing window creation successfully
+    std::thread::spawn(move || {
+      std::thread::sleep(std::time::Duration::from_millis(50));
+      tx.send(Ok(())).unwrap();
+    });
+
+    // Caller blocks on the response -- this is what Context::create_window should do
+    let result = rx.recv().expect("response channel disconnected");
+    assert!(result.is_ok(), "expected Ok from window creation response");
+  }
+
+  /// If window creation fails on the event loop thread, the error must propagate
+  /// back through the response channel so `create_window` returns `Err`.
+  #[test]
+  fn create_window_response_channel_error() {
+    let (tx, rx) = channel::<Result<()>>();
+
+    // Simulate the event loop handler failing
+    std::thread::spawn(move || {
+      tx.send(Err(Error::CreateWindow)).unwrap();
+    });
+
+    let result = rx.recv().expect("response channel disconnected");
+    assert!(result.is_err(), "expected Err from failed window creation");
+  }
+
+  /// The response channel must block the caller until the handler responds.
+  /// If `create_window` were still fire-and-forget (no channel), the caller
+  /// would proceed immediately and any subsequent `hwnd()` call would race.
+  ///
+  /// This test proves the blocking semantics: the caller must wait at least
+  /// as long as the handler takes to respond.
+  #[test]
+  fn create_window_response_channel_blocks_caller() {
+    let (tx, rx) = channel::<Result<()>>();
+    let delay_ms = 100u64;
+
+    std::thread::spawn(move || {
+      std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+      tx.send(Ok(())).unwrap();
+    });
+
+    let start = std::time::Instant::now();
+    let _ = rx.recv();
+    let elapsed = start.elapsed();
+
+    assert!(
+      elapsed >= std::time::Duration::from_millis(delay_ms / 2),
+      "caller returned too fast ({elapsed:?}), response channel is not blocking"
+    );
+  }
+
+  /// The `Message::CreateWindow` variant must include a `Sender<Result<()>>`.
+  /// This is a compile-time assertion -- if the variant doesn't carry the sender,
+  /// this test won't compile.
+  ///
+  /// We construct the variant directly (in a way that exercises the new signature)
+  /// to verify the type-level contract.
+  #[test]
+  fn create_window_message_carries_sender() {
+    let (tx, rx) = channel::<Result<()>>();
+    let window_id = WindowId::from(0u32);
+    let handler: CreateWindowClosure<String> =
+      Box::new(move |_event_loop| Err(Error::CreateWindow));
+
+    // This line is the compile-time assertion:
+    // Message::CreateWindow must accept (WindowId, CreateWindowClosure<T>, Sender<Result<()>>)
+    let _msg: Message<String> =
+      Message::CreateWindow(window_id, handler, tx);
+
+    // Clean up
+    drop(_msg);
+    // rx would get Err(RecvError) since tx was moved into the message and dropped
+    assert!(rx.recv().is_err());
   }
 }

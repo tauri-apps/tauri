@@ -178,6 +178,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .env("OUTPUT_APPIMAGE", "1")
     .env("URUNTIME2APPIMAGE_SOURCE", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/uruntime2appimage.sh")
     .env("DEPLOY_CHROMIUM", "1")
+    .env("ADD_HOOKS", "fix-namespaces.hook")
     .args([
       "-c",
       &format!(

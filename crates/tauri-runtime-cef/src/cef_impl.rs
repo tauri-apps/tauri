@@ -961,30 +961,6 @@ wrap_window_delegate! {
         cef::Size { width: 0, height: 0 }
       }
     }
-
-    fn on_layout_changed(&self, _view: Option<&mut View>, bounds: Option<&cef::Rect>) {
-      let Some(bounds) = bounds else {
-        return;
-      };
-
-      let Ok(windows) = self.windows.try_borrow() else {  return;  };
-
-      if let Some(app_window) = windows.get(&self.window_id) {
-        for wrapper in &app_window.webviews {
-          if wrapper.inner.is_browser() {
-            if let  Some(b) =  &*wrapper.bounds.lock().unwrap() {
-              let new_rect = cef::Rect {
-                x: (bounds.width as f32 * b.x_rate) as i32,
-                y: (bounds.height as f32 * b.y_rate) as i32,
-                width: (bounds.width as f32 * b.width_rate) as i32,
-                height: (bounds.height as f32 * b.height_rate) as i32,
-              };
-              wrapper.inner.set_bounds(Some(&new_rect));
-            }
-          }
-        }
-      }
-    }
   }
 
   impl PanelDelegate {}
@@ -1013,10 +989,21 @@ wrap_window_delegate! {
           window.set_title(Some(&CefString::from(title.as_str())));
         }
 
-        if let Some(inner_size) = &a.inner_size {
+        if let Some(mut inner_size) = &a.inner_size {
           if let Some(display) = window.display() {
-            let device_scale_factor = display.device_scale_factor() as f64;
-            let logical_size = inner_size.to_logical::<u32>(device_scale_factor);
+            let scale = display.device_scale_factor() as f64;
+
+            // On Windows, the size set via CEF APIs is the outer size (including borders),
+            // so we need to adjust it to set the correct inner size.
+            #[cfg(windows)]
+            {
+              let size = inner_size.to_physical::<u32>(scale);
+              inner_size = crate::utils::windows::adjust_size(window.window_handle(), size).into();
+            }
+
+            let logical_size = inner_size.to_logical::<f32>(scale);
+
+
             window.set_size(Some(&cef::Size {
               width: logical_size.width as i32,
               height: logical_size.height as i32,
@@ -1209,16 +1196,23 @@ wrap_window_delegate! {
         apply_traffic_light_position(window.window_handle(), pos);
       }
 
-      // Update autoresize overlay bounds (moved from on_layout_changed)
+      #[cfg(not(windows))]
+      let size = LogicalSize::new(bounds.width as u32, bounds.height as u32);
+
+      // On Windows, we need to get the inner size because the bounds include the window borders.
+      #[cfg(windows)]
+      let size = crate::utils::windows::inner_size(window.window_handle());
+
+      // Update autoresize overlay bounds
       if let Some(app_window) = self.windows.borrow().get(&self.window_id) {
         for wrapper in &app_window.webviews {
           if wrapper.inner.is_browser() {
             if let Some(b) = &*wrapper.bounds.lock().unwrap(){
               let new_rect = cef::Rect {
-                x: (bounds.width as f32 * b.x_rate) as i32,
-                y: (bounds.height as f32 * b.y_rate) as i32,
-                width: (bounds.width as f32 * b.width_rate) as i32,
-                height: (bounds.height as f32 * b.height_rate) as i32,
+                x: (size.width as f32 * b.x_rate) as i32,
+                y: (size.height as f32 * b.y_rate) as i32,
+                width: (size.width as f32 * b.width_rate) as i32,
+                height: (size.height as f32 * b.height_rate) as i32,
               };
               wrapper.inner.set_bounds(Some(&new_rect));
             }
@@ -2081,14 +2075,22 @@ fn handle_window_message<T: UserEvent>(
         .get(&window_id)
         .map(|w| match &w.window {
           crate::AppWindowKind::Window(window) => {
-            let bounds = window.bounds();
-            let scale = window
-              .display()
-              .map(|d| d.device_scale_factor() as f64)
-              .unwrap_or(1.0);
-            Ok(
-              LogicalSize::new(bounds.width as u32, bounds.height as u32).to_physical::<u32>(scale),
-            )
+            #[cfg(not(windows))]
+            let size = {
+              let scale = window
+                .display()
+                .map(|d| d.device_scale_factor() as f64)
+                .unwrap_or(1.0);
+
+              let bounds = window.bounds();
+              LogicalSize::new(bounds.width as u32, bounds.height as u32).to_physical::<u32>(scale)
+            };
+
+            // On Windows, window.bounds() is the outer size, not the inner size.
+            #[cfg(windows)]
+            let size = crate::utils::windows::inner_size(window.window_handle());
+
+            Ok(size)
           }
           crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
@@ -2485,12 +2487,21 @@ fn handle_window_message<T: UserEvent>(
         }
       }
     }
-    WindowMessage::SetSize(size) => {
+    WindowMessage::SetSize(mut size) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         if let Some(window) = app_window.window() {
           if let Some(display) = window.display() {
             let device_scale_factor = display.device_scale_factor() as f64;
-            let logical_size = size.to_logical::<u32>(device_scale_factor);
+
+            // On Windows, the size set via CEF APIs is the outer size (including borders),
+            // so we need to adjust it to set the correct inner size.
+            #[cfg(windows)]
+            {
+              let inner_size = size.to_physical::<u32>(device_scale_factor);
+              size = crate::utils::windows::adjust_size(window.window_handle(), inner_size).into();
+            }
+
+            let logical_size = size.to_logical::<f32>(device_scale_factor);
             window.set_size(Some(&cef::Size {
               width: logical_size.width as i32,
               height: logical_size.height as i32,
@@ -3162,8 +3173,20 @@ pub(crate) fn create_webview<T: UserEvent>(
       .display()
       .map(|d| d.device_scale_factor() as f64)
       .unwrap_or(1.0);
+
+    // On Windows, CEF expects physical coordinates for child windows.
+    #[cfg(windows)]
+    let logical_position = bounds.position.to_physical::<i32>(device_scale_factor);
+    #[cfg(windows)]
+    let logical_size = bounds.size.to_physical::<u32>(device_scale_factor);
+
+    dbg!(logical_size);
+
+    #[cfg(not(windows))]
     let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
+    #[cfg(not(windows))]
     let logical_size = bounds.size.to_logical::<u32>(device_scale_factor);
+
     cef::Rect {
       x: logical_position.x,
       y: logical_position.y,
@@ -3336,18 +3359,23 @@ fn webview_bounds_ratio(
   webview_bounds: Option<cef::Rect>,
   browser: &CefWebview,
 ) -> crate::WebviewBounds {
-  let window_bounds = window.bounds();
-  let window_size = LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
+  #[cfg(not(windows))]
+  let window_size = {
+    let window_bounds = window.bounds();
+    LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32)
+  };
+
+  // On Windows, CEF's window bounds is the outer size not the inner size.
+  #[cfg(windows)]
+  let window_size = crate::utils::windows::inner_size(window.window_handle());
 
   let ob = webview_bounds.unwrap_or_else(|| browser.bounds());
-  let pos = LogicalPosition::new(ob.x, ob.y);
-  let size = LogicalSize::new(ob.width as u32, ob.height as u32);
 
   crate::WebviewBounds {
-    x_rate: pos.x as f32 / window_size.width as f32,
-    y_rate: pos.y as f32 / window_size.height as f32,
-    width_rate: size.width as f32 / window_size.width as f32,
-    height_rate: size.height as f32 / window_size.height as f32,
+    x_rate: ob.x as f32 / window_size.width as f32,
+    y_rate: ob.y as f32 / window_size.height as f32,
+    width_rate: ob.width as f32 / window_size.width as f32,
+    height_rate: ob.height as f32 / window_size.height as f32,
   }
 }
 

@@ -697,9 +697,9 @@ wrap_life_span_handler! {
     }
 
     fn on_before_close(&self, _browser: Option<&mut Browser>) {
-      if self.window_kind == WindowKind::Browser {
-        on_window_destroyed(self.window_id, &self.context);
-      }
+      // if self.window_kind == WindowKind::Browser {
+      on_window_destroyed(self.window_id, &self.context);
+      // }
     }
 
     fn on_before_popup(

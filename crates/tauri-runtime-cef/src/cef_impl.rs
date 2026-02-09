@@ -3180,8 +3180,6 @@ pub(crate) fn create_webview<T: UserEvent>(
     #[cfg(windows)]
     let logical_size = bounds.size.to_physical::<u32>(device_scale_factor);
 
-    dbg!(logical_size);
-
     #[cfg(not(windows))]
     let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
     #[cfg(not(windows))]

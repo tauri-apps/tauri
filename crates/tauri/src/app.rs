@@ -1708,6 +1708,12 @@ tauri::Builder::default()
   /// but accepts a boxed trait object instead of a generic type.
   #[must_use]
   pub fn plugin_boxed(mut self, plugin: Box<dyn Plugin<R>>) -> Self {
+    if self.plugins.has(plugin.name()) {
+      panic!(
+        "a plugin with name `{}` is already registered",
+        plugin.name()
+      );
+    }
     self.plugins.register(plugin);
     self
   }

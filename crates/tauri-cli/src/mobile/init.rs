@@ -182,6 +182,7 @@ fn handlebars(app: &App) -> (Handlebars<'static>, JsonMap) {
   h.register_escape_fn(handlebars::no_escape);
 
   h.register_helper("html-escape", Box::new(html_escape));
+  h.register_helper("android-string-escape", Box::new(android_string_escape));
   h.register_helper("join", Box::new(join));
   h.register_helper("quote-and-join", Box::new(quote_and_join));
   h.register_helper(
@@ -225,6 +226,23 @@ fn html_escape(
   out
     .write(&handlebars::html_escape(get_str(helper)))
     .map_err(Into::into)
+}
+
+fn android_string_escape(
+  helper: &Helper,
+  _: &Handlebars,
+  _ctx: &Context,
+  _: &mut RenderContext,
+  out: &mut dyn Output,
+) -> HelperResult {
+  let raw = get_str(helper);
+  let escaped = raw
+    .replace('&', "&amp;")
+    .replace('<', "&lt;")
+    .replace('>', "&gt;")
+    .replace('"', "\\\"")
+    .replace('\'', "\\'");
+  out.write(&escaped).map_err(Into::into)
 }
 
 fn join(

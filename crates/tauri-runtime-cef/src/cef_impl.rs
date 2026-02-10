@@ -696,9 +696,43 @@ wrap_life_span_handler! {
       }
     }
 
-    fn on_before_close(&self, _browser: Option<&mut Browser>) {
-      if self.window_kind == WindowKind::Browser {
-        on_window_destroyed(self.window_id, &self.context);
+    fn on_before_close(&self, browser: Option<&mut Browser>) {
+      match self.window_kind {
+        WindowKind::Browser => {
+          on_window_destroyed(self.window_id, &self.context);
+        }
+        WindowKind::Tauri => {
+          let Some(browser) = browser else {
+            return;
+          };
+          let browser_id = browser.identifier();
+
+          let mut windows = self.context.windows.borrow_mut();
+          let Some(app_window) = windows.get_mut(&self.window_id) else {
+            return;
+          };
+          let webview_index = app_window
+            .webviews
+            .iter()
+            .position(|w| *w.browser_id.borrow() == browser_id);
+          let Some(index) = webview_index else {
+            return;
+          };
+          let webview = app_window.webviews.remove(index);
+          let webview_id = webview.webview_id;
+          app_window
+            .webview_event_listeners
+            .lock()
+            .unwrap()
+            .remove(&webview_id);
+          drop(webview);
+
+          let is_last_in_window = app_window.webviews.is_empty();
+          if is_last_in_window {
+            drop(windows);
+            on_window_destroyed(self.window_id, &self.context);
+          }
+        }
       }
     }
 
@@ -989,6 +1023,7 @@ wrap_window_delegate! {
           window.set_title(Some(&CefString::from(title.as_str())));
         }
 
+        #[allow(unused_mut)]
         if let Some(mut inner_size) = &a.inner_size {
           if let Some(display) = window.display() {
             let scale = display.device_scale_factor() as f64;
@@ -2487,6 +2522,7 @@ fn handle_window_message<T: UserEvent>(
         }
       }
     }
+    #[allow(unused_mut)]
     WindowMessage::SetSize(mut size) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         if let Some(window) = app_window.window() {
@@ -3044,17 +3080,16 @@ fn on_window_close(window_id: WindowId, windows: &Arc<RefCell<HashMap<WindowId, 
 }
 
 fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) {
+  if context.windows.borrow().get(&window_id).is_none() {
+    return;
+  }
+
   let event = WindowEvent::Destroyed;
   send_window_event(window_id, &context.windows, &context.callback, event);
 
-  let window = {
+  {
     let mut guard = context.windows.borrow_mut();
-    guard.remove(&window_id)
-  };
-  let removed = window.is_some();
-  drop(window);
-  if !removed {
-    return;
+    guard.remove(&window_id);
   }
 
   let is_empty = context.windows.borrow().is_empty();

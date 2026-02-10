@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use cef::{rc::Rc, CefString, ImplCommandLine, ImplTaskRunner};
+use cef::{CefString, ImplCommandLine, ImplTaskRunner};
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,
@@ -256,6 +256,7 @@ pub(crate) struct AppWebview {
   // so we need to use the browser_id to identify the browser
   pub browser_id: Arc<RefCell<i32>>,
   pub bounds: Arc<Mutex<Option<WebviewBounds>>>,
+  #[allow(unused)]
   pub devtools_enabled: bool,
   pub uri_scheme_protocols:
     Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
@@ -302,7 +303,6 @@ impl AppWindow {
 
 #[derive(Clone)]
 pub struct RuntimeContext<T: UserEvent> {
-  windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
   main_thread_task_runner: cef::TaskRunner,
   main_thread_id: ThreadId,
   cef_context: cef_impl::Context<T>,
@@ -1980,7 +1980,6 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let main_thread_id = thread::current().id();
     let context = RuntimeContext {
-      windows: Default::default(),
       main_thread_task_runner: cef::task_runner_get_for_current_thread().expect("null task runner"),
       main_thread_id,
       cef_context,
@@ -2276,13 +2275,6 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
       // Emit MainEventsCleared event
       (self.context.cef_context.callback.borrow())(RunEvent::MainEventsCleared);
-    }
-
-    let windows = self.context.windows.borrow();
-    for window in windows.values() {
-      if let AppWindowKind::Window(window) = &window.window {
-        assert!(window.has_one_ref());
-      }
     }
 
     cef::shutdown();

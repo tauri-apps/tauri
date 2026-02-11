@@ -1381,6 +1381,7 @@ pub enum WindowMessage {
   SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
+  SetFullscreenOnMonitor(PhysicalPosition<f64>),
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
@@ -2243,6 +2244,16 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetPosition(position)),
+    )
+  }
+
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetFullscreenOnMonitor(position),
+      ),
     )
   }
 
@@ -3417,6 +3428,11 @@ fn handle_user_message<T: UserEvent>(
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
             } else {
               window.set_fullscreen(None)
+            }
+          }
+          WindowMessage::SetFullscreenOnMonitor(position) => {
+            if let Some(monitor) = window.monitor_from_point(position.x, position.y) {
+              window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))))
             }
           }
 

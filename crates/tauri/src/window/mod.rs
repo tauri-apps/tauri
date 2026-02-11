@@ -1968,6 +1968,15 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
+  /// Sets the window as fullscreen, on the monitor that contains the specified position.
+  pub fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_fullscreen_on_monitor(position)
+      .map_err(Into::into)
+  }
+
   /// Toggles a fullscreen mode that doesn't require a new macOS space.
   /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
   ///

@@ -154,14 +154,22 @@ pub fn run(
   build_options.target = Some(first_target.triple.into());
 
   let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
-  interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
   let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
   let (config, metadata) = get_config(
     &app,
     tauri_config,
     &build_options.features,
-    &Default::default(),
+    &CliOptions {
+      dev: false,
+      features: build_options.features.clone(),
+      args: build_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: build_options.config.clone(),
+      target_device: None,
+    },
   );
 
   let profile = if options.debug {

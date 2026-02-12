@@ -182,6 +182,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple);
+  dev_options.args.push("--lib".into());
 
   let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
 
@@ -190,7 +191,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     &app,
     &tauri_config,
     dev_options.features.as_ref(),
-    &Default::default(),
+    &CliOptions {
+      dev: true,
+      features: dev_options.features.clone(),
+      args: dev_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: dev_options.config.clone(),
+      target_device: None,
+    },
   );
 
   set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;

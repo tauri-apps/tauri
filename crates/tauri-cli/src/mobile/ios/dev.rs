@@ -306,7 +306,7 @@ fn run_dev(
     )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, &dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(
@@ -369,7 +369,7 @@ fn run_dev(
         open_xcode()
       }
     },
-    &dirs,
+    dirs,
   )
 }
 

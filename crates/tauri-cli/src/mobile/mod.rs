@@ -182,7 +182,7 @@ impl Default for CliOptions {
     Self {
       dev: false,
       features: Vec::new(),
-      args: vec!["--lib".into()],
+      args: Vec::new(),
       noise_level: Default::default(),
       vars: Default::default(),
       config: Vec::new(),

@@ -425,7 +425,7 @@ fn dev_options(
   }
   *args = dev_args;
 
-  if mobile {
+  if mobile && !args.contains(&"--lib".into()) {
     args.push("--lib".into());
   }
 
@@ -483,7 +483,9 @@ impl Rust {
   pub fn build_options(&self, args: &mut Vec<String>, features: &mut Vec<String>, mobile: bool) {
     features.push("tauri/custom-protocol".into());
     if mobile {
-      args.push("--lib".into());
+      if !args.contains(&"--lib".into()) {
+        args.push("--lib".into());
+      }
     } else {
       args.push("--bins".into());
     }

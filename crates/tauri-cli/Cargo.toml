@@ -110,7 +110,7 @@ elf = "0.7"
 memchr = "2"
 tempfile = "3"
 uuid = { version = "1", features = ["v5"] }
-rand = "0.9"
+rand = "0.10"
 zip = { version = "4", default-features = false, features = ["deflate"] }
 which = "8"
 rayon = "1.10"

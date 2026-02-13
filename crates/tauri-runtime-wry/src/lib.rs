@@ -60,6 +60,17 @@ use wry::WebViewBuilderExtWindows;
 #[cfg(target_vendor = "apple")]
 use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn is_using_nvidia_driver() -> bool {
+  std::fs::read_to_string("/proc/driver/nvidia/version").is_ok()
+}
+
 use tao::{
   dpi::{
     LogicalPosition as TaoLogicalPosition, LogicalSize as TaoLogicalSize,
@@ -533,7 +544,7 @@ impl WindowEventWrapper {
           if !*focused
             && focused_webview
               .as_deref()
-              .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
+              .map_or(false, |w| w != FOCUSED_WEBVIEW_MARKER)
           {
             return Self(None);
           }
@@ -4344,6 +4355,17 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let background_color = window_builder.inner.window.background_color;
   #[cfg(windows)]
   let is_window_transparent = window_builder.inner.window.transparent;
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  if window_builder.inner.window.transparent && is_using_nvidia_driver() {
+    eprintln!("Tauri warning: Transparent windows on Linux with Nvidia GPUs may crash or have visual artifacts. See https://github.com/tauri-apps/tauri/issues/14924");
+  }
 
   #[cfg(target_os = "macos")]
   {

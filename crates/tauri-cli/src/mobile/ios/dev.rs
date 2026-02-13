@@ -182,6 +182,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| "aarch64-apple-ios".into());
   dev_options.target = Some(target_triple.clone());
+  dev_options.args.push("--lib".into());
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
@@ -195,7 +196,15 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     &app,
     &tauri_config,
     &dev_options.features,
-    &Default::default(),
+    &CliOptions {
+      dev: true,
+      features: dev_options.features.clone(),
+      args: dev_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: dev_options.config.clone(),
+      target_device: None,
+    },
     dirs.tauri,
   )?;
 
@@ -297,7 +306,7 @@ fn run_dev(
     )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, &dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(
@@ -360,7 +369,7 @@ fn run_dev(
         open_xcode()
       }
     },
-    &dirs,
+    dirs,
   )
 }
 

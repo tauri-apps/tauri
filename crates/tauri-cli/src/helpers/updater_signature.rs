@@ -33,7 +33,15 @@ fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
 
 /// Generate base64 encoded keypair
 pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
-  let KP { pk, sk } = KP::generate_encrypted_keypair(password).unwrap();
+  // Normalize empty password to None. minisign's generate_encrypted_keypair
+  // sets KDF parameters even for empty passwords but skips actual encryption,
+  // creating an inconsistent state where into_secret_key later fails with
+  // "Wrong password for that key".
+  let password = password.filter(|p| !p.is_empty());
+  let KP { pk, sk } = match password {
+    Some(_) => KP::generate_encrypted_keypair(password).unwrap(),
+    None => KP::generate_unencrypted_keypair().unwrap(),
+  };
 
   let pk_box_str = pk.to_box().unwrap().to_string();
   let sk_box_str = sk.to_box(None).unwrap().to_string();
@@ -162,12 +170,24 @@ pub fn secret_key<S: AsRef<[u8]>>(
   private_key: S,
   password: Option<String>,
 ) -> crate::Result<SecretKey> {
+  // Normalize empty password to None. minisign's generate_encrypted_keypair
+  // with Some("") sets KDF parameters but skips encryption, creating an
+  // inconsistent key state. into_secret_key(Some("")) then tries scrypt
+  // decryption on unencrypted data, corrupting it and failing with
+  // "Wrong password for that key". Using into_unencrypted_secret_key
+  // avoids this by skipping decryption entirely.
+  let password = password.filter(|p| !p.is_empty());
   let decoded_secret = decode_key(private_key).context("failed to decode base64 secret key")?;
   let sk_box =
     SecretKeyBox::from_string(&decoded_secret).context("failed to load updater private key")?;
-  let sk = sk_box
-    .into_secret_key(password)
-    .context("incorrect updater private key password")?;
+  let sk = match password {
+    Some(_) => sk_box
+      .into_secret_key(password)
+      .context("incorrect updater private key password")?,
+    None => sk_box
+      .into_unencrypted_secret_key()
+      .context("incorrect updater private key password")?,
+  };
   Ok(sk)
 }
 
@@ -204,16 +224,60 @@ where
 
 #[cfg(test)]
 mod tests {
-  const PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
-
-  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords.
   #[test]
-  fn empty_password_is_valid() {
-    let path = std::env::temp_dir().join("minisign-password-text.txt");
-    std::fs::write(&path, b"TAURI").expect("failed to write test file");
+  fn generate_and_sign_with_empty_password() {
+    let path = std::env::temp_dir().join("minisign-empty-pw-roundtrip.txt");
+    std::fs::write(&path, b"TAURI ROUNDTRIP").expect("failed to write test file");
 
+    // Generate a key with an empty password (same as `tauri signer generate -p ""`)
+    let keypair = super::generate_key(Some("".into())).expect("failed to generate key");
+
+    // Sign with an empty password (same as `tauri signer sign -p ""`)
     let secret_key =
-      super::secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
+      super::secret_key(&keypair.sk, Some("".into())).expect("failed to resolve secret key");
+    super::sign_file(&secret_key, &path).expect("failed to sign file");
+  }
+
+  #[test]
+  fn generate_and_sign_with_no_password() {
+    let path = std::env::temp_dir().join("minisign-none-pw-roundtrip.txt");
+    std::fs::write(&path, b"TAURI ROUNDTRIP NONE").expect("failed to write test file");
+
+    // Generate a key with no password
+    let keypair = super::generate_key(None).expect("failed to generate key");
+
+    // Sign with no password
+    let secret_key =
+      super::secret_key(&keypair.sk, None).expect("failed to resolve secret key");
+    super::sign_file(&secret_key, &path).expect("failed to sign file");
+  }
+
+  #[test]
+  fn generate_with_password_and_sign() {
+    let path = std::env::temp_dir().join("minisign-with-pw-roundtrip.txt");
+    std::fs::write(&path, b"TAURI ROUNDTRIP PW").expect("failed to write test file");
+
+    // Generate with a real password
+    let keypair =
+      super::generate_key(Some("test-password".into())).expect("failed to generate key");
+
+    // Sign with the same password
+    let secret_key = super::secret_key(&keypair.sk, Some("test-password".into()))
+      .expect("failed to resolve secret key");
+    super::sign_file(&secret_key, &path).expect("failed to sign file");
+  }
+
+  #[test]
+  fn empty_password_sign_then_none_sign_are_interchangeable() {
+    let path = std::env::temp_dir().join("minisign-empty-none-interop.txt");
+    std::fs::write(&path, b"TAURI INTEROP").expect("failed to write test file");
+
+    // Generate with empty password
+    let keypair = super::generate_key(Some("".into())).expect("failed to generate key");
+
+    // Sign with None (should work the same as empty password)
+    let secret_key =
+      super::secret_key(&keypair.sk, None).expect("failed to resolve secret key");
     super::sign_file(&secret_key, &path).expect("failed to sign file");
   }
 }

@@ -245,6 +245,75 @@ pub use {self::webview::WebviewBuilder, self::window::WindowBuilder};
 /// The Tauri version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Convert a file path to a URL that can be loaded by the webview.
+///
+/// This is the Rust equivalent of the JavaScript `convertFileSrc()` function.
+/// It encodes the given file path into a URL using the specified protocol
+/// (default `asset`) so that it can be used as a source in the webview
+/// (e.g. for images, videos, or other media).
+///
+/// # Arguments
+///
+/// * `file_path` - The file path to convert.
+/// * `protocol` - The protocol to use. Defaults to `"asset"` if `None`.
+///
+/// # Examples
+///
+/// ```
+/// let url = tauri::convert_file_src("/path/to/file.png", None);
+/// ```
+///
+/// ```
+/// let url = tauri::convert_file_src("/path/to/file.png", Some("myprotocol"));
+/// ```
+pub fn convert_file_src(file_path: &str, protocol: Option<&str>) -> String {
+  let protocol = protocol.unwrap_or("asset");
+  let encoded_path = percent_encoding::utf8_percent_encode(
+    file_path,
+    percent_encoding::NON_ALPHANUMERIC,
+  );
+
+  #[cfg(any(target_os = "windows", target_os = "android"))]
+  {
+    format!("https://{}.localhost/{}", protocol, encoded_path)
+  }
+
+  #[cfg(not(any(target_os = "windows", target_os = "android")))]
+  {
+    format!("{}://localhost/{}", protocol, encoded_path)
+  }
+}
+
+#[cfg(test)]
+mod convert_file_src_tests {
+  use super::convert_file_src;
+
+  #[test]
+  fn default_protocol() {
+    let url = convert_file_src("/path/to/file.png", None);
+    // On macOS (non-windows, non-android) it should use {protocol}://localhost/{encoded}
+    assert!(url.starts_with("asset://localhost/"));
+    assert!(url.contains("%2Fpath%2Fto%2Ffile%2Epng"));
+  }
+
+  #[test]
+  fn custom_protocol() {
+    let url = convert_file_src("/tmp/video.mp4", Some("stream"));
+    assert!(url.starts_with("stream://localhost/"));
+    assert!(url.contains("%2Ftmp%2Fvideo%2Emp4"));
+  }
+
+  #[test]
+  fn encodes_special_characters() {
+    let url = convert_file_src("/path/to/my file (1).png", None);
+    // Spaces and parens should be encoded
+    assert!(!url.contains(' '));
+    assert!(!url.contains('('));
+    assert!(url.contains("%20"));
+    assert!(url.contains("%28"));
+  }
+}
+
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub fn log_stdout() {

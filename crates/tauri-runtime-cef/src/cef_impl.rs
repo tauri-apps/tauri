@@ -224,6 +224,19 @@ fn hash_script(script: &str) -> String {
   )
 }
 
+pub type SchemeHandlerRegistry = Arc<
+  Mutex<
+    HashMap<
+      (i32, String),
+      (
+        String,
+        Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>,
+        Arc<Vec<CefInitScript>>,
+      ),
+    >,
+  >,
+>;
+
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
   pub windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
@@ -232,6 +245,7 @@ pub struct Context<T: UserEvent> {
   pub next_webview_id: Arc<AtomicU32>,
   pub next_window_event_id: Arc<AtomicU32>,
   pub next_webview_event_id: Arc<AtomicU32>,
+  pub scheme_handler_registry: SchemeHandlerRegistry,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -707,29 +721,45 @@ wrap_life_span_handler! {
           };
           let browser_id = browser.identifier();
 
-          let mut windows = self.context.windows.borrow_mut();
-          let Some(app_window) = windows.get_mut(&self.window_id) else {
-            return;
+          let (webview, is_last_in_window) = {
+            let mut windows = self.context.windows.borrow_mut();
+            let Some(app_window) = windows.get_mut(&self.window_id) else {
+              return;
+            };
+            let webview_index = app_window
+              .webviews
+              .iter()
+              .position(|w| *w.browser_id.borrow() == browser_id);
+            let Some(index) = webview_index else {
+              return;
+            };
+            let webview = app_window.webviews.remove(index);
+            let webview_id = webview.webview_id;
+            app_window
+              .webview_event_listeners
+              .lock()
+              .unwrap()
+              .remove(&webview_id);
+            let is_last = app_window.webviews.is_empty();
+            (webview, is_last)
           };
-          let webview_index = app_window
-            .webviews
-            .iter()
-            .position(|w| *w.browser_id.borrow() == browser_id);
-          let Some(index) = webview_index else {
-            return;
-          };
-          let webview = app_window.webviews.remove(index);
-          let webview_id = webview.webview_id;
-          app_window
-            .webview_event_listeners
-            .lock()
-            .unwrap()
-            .remove(&webview_id);
+
+          {
+            let mut registry = self.context.scheme_handler_registry.lock().unwrap();
+            let schemes: Vec<_> = webview
+              .uri_scheme_protocols
+              .keys()
+              .cloned()
+              .collect();
+            for scheme in schemes {
+              registry.remove(&(browser_id, scheme));
+            }
+          }
+
+          // safe to drop - CEF callbacks can borrow windows
           drop(webview);
 
-          let is_last_in_window = app_window.webviews.is_empty();
           if is_last_in_window {
-            drop(windows);
             on_window_destroyed(self.window_id, &self.context);
           }
         }
@@ -889,6 +919,10 @@ wrap_browser_view_delegate! {
   struct BrowserViewDelegateImpl {
     browser_id: Arc<RefCell<i32>>,
     browser_runtime_style: CefRuntimeStyle,
+    scheme_handler_registry: SchemeHandlerRegistry,
+    webview_label: String,
+    uri_scheme_protocols: Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
+    initialization_scripts: Arc<Vec<CefInitScript>>,
   }
 
   impl ViewDelegate {}
@@ -896,7 +930,20 @@ wrap_browser_view_delegate! {
   impl BrowserViewDelegate {
     fn on_browser_created(&self, _browser_view: Option<&mut BrowserView>, browser: Option<&mut Browser>) {
       if let Some(browser) = browser {
-        let _ = std::mem::replace(&mut *self.browser_id.borrow_mut(), browser.identifier());
+        let real_id = browser.identifier();
+        let _ = std::mem::replace(&mut *self.browser_id.borrow_mut(), real_id);
+
+        let mut registry = self.scheme_handler_registry.lock().unwrap();
+        for (scheme, handler) in self.uri_scheme_protocols.iter() {
+          registry.insert(
+            (real_id, scheme.clone()),
+            (
+              self.webview_label.clone(),
+              handler.clone(),
+              self.initialization_scripts.clone(),
+            ),
+          );
+        }
       }
     }
 
@@ -1239,20 +1286,37 @@ wrap_window_delegate! {
       let size = crate::utils::windows::inner_size(window.window_handle());
 
       // Update autoresize overlay bounds
-      if let Some(app_window) = self.windows.borrow().get(&self.window_id) {
-        for wrapper in &app_window.webviews {
-          if wrapper.inner.is_browser() {
-            if let Some(b) = &*wrapper.bounds.lock().unwrap(){
-              let new_rect = cef::Rect {
-                x: (size.width as f32 * b.x_rate) as i32,
-                y: (size.height as f32 * b.y_rate) as i32,
-                width: (size.width as f32 * b.width_rate) as i32,
-                height: (size.height as f32 * b.height_rate) as i32,
-              };
-              wrapper.inner.set_bounds(Some(&new_rect));
-            }
+      let bounds_updates: Vec<(CefWebview, cef::Rect)> =
+        if let Ok(windows_ref) = self.windows.try_borrow() {
+          if let Some(app_window) = windows_ref.get(&self.window_id) {
+            app_window
+              .webviews
+              .iter()
+              .filter_map(|wrapper| {
+                if wrapper.inner.is_browser() {
+                  wrapper.bounds.lock().unwrap().as_ref().map(|b| {
+                    let new_rect = cef::Rect {
+                      x: (size.width as f32 * b.x_rate) as i32,
+                      y: (size.height as f32 * b.y_rate) as i32,
+                      width: (size.width as f32 * b.width_rate) as i32,
+                      height: (size.height as f32 * b.height_rate) as i32,
+                    };
+                    (wrapper.inner.clone(), new_rect)
+                  })
+                } else {
+                  None
+                }
+              })
+              .collect()
+          } else {
+            Vec::new()
           }
-        }
+        } else {
+          Vec::new()
+        };
+
+      for (inner, rect) in bounds_updates {
+        inner.set_bounds(Some(&rect));
       }
 
       let scale = window
@@ -1418,23 +1482,39 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::Close => {
-      if let Some(app_window) = context.windows.borrow_mut().get_mut(&window_id) {
-        let webview_index = app_window
-          .webviews
-          .iter()
-          .position(|w| w.webview_id == webview_id);
+      let webview_to_close = {
+        let mut windows = context.windows.borrow_mut();
+        if let Some(app_window) = windows.get_mut(&window_id) {
+          let webview_index = app_window
+            .webviews
+            .iter()
+            .position(|w| w.webview_id == webview_id);
 
-        if let Some(index) = webview_index {
-          let browser_view_wrapper = app_window.webviews.remove(index);
-
-          browser_view_wrapper.inner.close();
-
-          app_window
-            .webview_event_listeners
-            .lock()
-            .unwrap()
-            .remove(&webview_id);
+          if let Some(index) = webview_index {
+            let wrapper = app_window.webviews.remove(index);
+            app_window
+              .webview_event_listeners
+              .lock()
+              .unwrap()
+              .remove(&webview_id);
+            Some(wrapper)
+          } else {
+            None
+          }
+        } else {
+          None
         }
+      };
+
+      if let Some(wrapper) = webview_to_close {
+        let browser_id = *wrapper.browser_id.borrow();
+        {
+          let mut registry = context.scheme_handler_registry.lock().unwrap();
+          for scheme in wrapper.uri_scheme_protocols.keys() {
+            registry.remove(&(browser_id, scheme.clone()));
+          }
+        }
+        wrapper.inner.close();
       }
     }
     WebviewMessage::Show => {
@@ -1448,142 +1528,186 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::SetPosition(position) => {
-      context.windows.borrow().get(&window_id).map(|app_window| {
-        let device_scale_factor = app_window
-          .window()
-          .and_then(|window| window.display())
-          .map(|d| d.device_scale_factor() as f64)
-          .unwrap_or(1.0);
-        let logical_position = position.to_logical::<i32>(device_scale_factor);
-        app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-          .map(|wrapper| {
-            let current_bounds = wrapper.inner.bounds();
-            let new_bounds = cef::Rect {
-              x: logical_position.x,
-              y: logical_position.y,
-              width: current_bounds.width,
-              height: current_bounds.height,
-            };
-            wrapper.inner.set_bounds(Some(&new_bounds));
-          });
+      let data = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .and_then(|app_window| {
+          let device_scale_factor = app_window
+            .window()
+            .and_then(|window| window.display())
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          let logical_position = position.to_logical::<i32>(device_scale_factor);
+          app_window
+            .webviews
+            .iter()
+            .find(|w| w.webview_id == webview_id)
+            .map(|wrapper| {
+              let current_bounds = wrapper.inner.bounds();
+              let new_bounds = cef::Rect {
+                x: logical_position.x,
+                y: logical_position.y,
+                width: current_bounds.width,
+                height: current_bounds.height,
+              };
+              let inner = wrapper.inner.clone();
+              let bounds_arc = wrapper.bounds.clone();
+              let is_browser = wrapper.inner.is_browser();
+              let window_bounds = if is_browser {
+                app_window.window().map(|w| w.bounds())
+              } else {
+                None
+              };
+              (
+                inner,
+                new_bounds,
+                is_browser,
+                bounds_arc,
+                logical_position,
+                window_bounds,
+              )
+            })
+        });
 
-        // update autoresize ratios if enabled
-        if let Some(wrapper) = app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-        {
-          if wrapper.inner.is_browser() {
-            if let Some(b) = &mut *wrapper.bounds.lock().unwrap() {
-              if let Some(window) = app_window.window() {
-                let window_bounds = window.bounds();
-                let window_size =
-                  LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
-
-                let pos = LogicalPosition::new(logical_position.x, logical_position.y);
-                b.x_rate = pos.x as f32 / window_size.width as f32;
-                b.y_rate = pos.y as f32 / window_size.height as f32;
-              }
+      if let Some((inner, new_bounds, is_browser, bounds_arc, logical_position, window_bounds)) =
+        data
+      {
+        inner.set_bounds(Some(&new_bounds));
+        if is_browser {
+          if let Some(b) = &mut *bounds_arc.lock().unwrap() {
+            if let Some(wb) = window_bounds {
+              let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
+              b.x_rate = logical_position.x as f32 / window_size.width as f32;
+              b.y_rate = logical_position.y as f32 / window_size.height as f32;
             }
           }
         }
-      });
+      }
     }
     WebviewMessage::SetSize(size) => {
-      context.windows.borrow().get(&window_id).map(|app_window| {
-        let device_scale_factor = app_window
-          .window()
-          .and_then(|window| window.display())
-          .map(|d| d.device_scale_factor() as f64)
-          .unwrap_or(1.0);
-        let logical_size = size.to_logical::<u32>(device_scale_factor);
-        app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-          .map(|wrapper| {
-            let current_bounds = wrapper.inner.bounds();
-            let new_bounds = cef::Rect {
-              x: current_bounds.x,
-              y: current_bounds.y,
-              width: logical_size.width as i32,
-              height: logical_size.height as i32,
-            };
-            wrapper.inner.set_bounds(Some(&new_bounds));
-          });
+      let data = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .and_then(|app_window| {
+          let device_scale_factor = app_window
+            .window()
+            .and_then(|window| window.display())
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          let logical_size = size.to_logical::<u32>(device_scale_factor);
+          app_window
+            .webviews
+            .iter()
+            .find(|w| w.webview_id == webview_id)
+            .map(|wrapper| {
+              let current_bounds = wrapper.inner.bounds();
+              let new_bounds = cef::Rect {
+                x: current_bounds.x,
+                y: current_bounds.y,
+                width: logical_size.width as i32,
+                height: logical_size.height as i32,
+              };
+              let inner = wrapper.inner.clone();
+              let bounds_arc = wrapper.bounds.clone();
+              let is_browser = wrapper.inner.is_browser();
+              let window_bounds = if is_browser {
+                app_window.window().map(|w| w.bounds())
+              } else {
+                None
+              };
+              (
+                inner,
+                new_bounds,
+                is_browser,
+                bounds_arc,
+                logical_size,
+                window_bounds,
+              )
+            })
+        });
 
-        // update autoresize ratios if enabled
-        if let Some(wrapper) = app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-        {
-          if wrapper.inner.is_browser() {
-            if let Some(b) = &mut *wrapper.bounds.lock().unwrap() {
-              if let Some(window) = app_window.window() {
-                let window_bounds = window.bounds();
-                let window_size =
-                  LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
-
-                let s = LogicalSize::new(logical_size.width, logical_size.height);
-                b.width_rate = s.width as f32 / window_size.width as f32;
-                b.height_rate = s.height as f32 / window_size.height as f32;
-              }
+      if let Some((inner, new_bounds, is_browser, bounds_arc, logical_size, window_bounds)) = data {
+        inner.set_bounds(Some(&new_bounds));
+        if is_browser {
+          if let Some(b) = &mut *bounds_arc.lock().unwrap() {
+            if let Some(wb) = window_bounds {
+              let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
+              b.width_rate = logical_size.width as f32 / window_size.width as f32;
+              b.height_rate = logical_size.height as f32 / window_size.height as f32;
             }
           }
         }
-      });
+      }
     }
     WebviewMessage::SetBounds(bounds) => {
-      context.windows.borrow().get(&window_id).map(|app_window| {
-        let device_scale_factor = app_window
-          .window()
-          .and_then(|window| window.display())
-          .map(|d| d.device_scale_factor() as f64)
-          .unwrap_or(1.0);
-        let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
-        let logical_size = bounds.size.to_logical::<u32>(device_scale_factor);
-        if let Some(wrapper) = app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-        {
-          let bounds = cef::Rect {
-            x: logical_position.x,
-            y: logical_position.y,
-            width: logical_size.width as i32,
-            height: logical_size.height as i32,
-          };
-          wrapper.inner.set_bounds(Some(&bounds));
-        }
+      let data = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .and_then(|app_window| {
+          let device_scale_factor = app_window
+            .window()
+            .and_then(|window| window.display())
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
+          let logical_size = bounds.size.to_logical::<u32>(device_scale_factor);
+          app_window
+            .webviews
+            .iter()
+            .find(|w| w.webview_id == webview_id)
+            .map(|wrapper| {
+              let new_bounds = cef::Rect {
+                x: logical_position.x,
+                y: logical_position.y,
+                width: logical_size.width as i32,
+                height: logical_size.height as i32,
+              };
+              let inner = wrapper.inner.clone();
+              let bounds_arc = wrapper.bounds.clone();
+              let is_browser = wrapper.inner.is_browser();
+              let window_bounds = if is_browser {
+                app_window.window().map(|w| w.bounds())
+              } else {
+                None
+              };
+              (
+                inner,
+                new_bounds,
+                is_browser,
+                bounds_arc,
+                logical_position,
+                logical_size,
+                window_bounds,
+              )
+            })
+        });
 
-        // update autoresize ratios if enabled
-        if let Some(wrapper) = app_window
-          .webviews
-          .iter()
-          .find(|w| w.webview_id == webview_id)
-        {
-          if wrapper.inner.is_browser() {
-            if let Some(b) = &mut *wrapper.bounds.lock().unwrap() {
-              if let Some(window) = app_window.window() {
-                let window_bounds = window.bounds();
-                let window_size =
-                  LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
-
-                let pos = LogicalPosition::new(logical_position.x, logical_position.y);
-                let s = LogicalSize::new(logical_size.width, logical_size.height);
-                b.x_rate = pos.x as f32 / window_size.width as f32;
-                b.y_rate = pos.y as f32 / window_size.height as f32;
-                b.width_rate = s.width as f32 / window_size.width as f32;
-                b.height_rate = s.height as f32 / window_size.height as f32;
-              }
+      if let Some((
+        inner,
+        new_bounds,
+        is_browser,
+        bounds_arc,
+        logical_position,
+        logical_size,
+        window_bounds,
+      )) = data
+      {
+        inner.set_bounds(Some(&new_bounds));
+        if is_browser {
+          if let Some(b) = &mut *bounds_arc.lock().unwrap() {
+            if let Some(wb) = window_bounds {
+              let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
+              b.x_rate = logical_position.x as f32 / window_size.width as f32;
+              b.y_rate = logical_position.y as f32 / window_size.height as f32;
+              b.width_rate = logical_size.width as f32 / window_size.width as f32;
+              b.height_rate = logical_size.height as f32 / window_size.height as f32;
             }
           }
         }
-      });
+      }
     }
     WebviewMessage::SetFocus => {
       if let Some(host) = get_webview(context, window_id, webview_id)
@@ -1594,45 +1718,57 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::Reparent(target_window_id, tx) => {
-      let mut windows = context.windows.borrow_mut();
+      let reparent_data = {
+        let mut windows = context.windows.borrow_mut();
 
-      if !windows.contains_key(&target_window_id) {
-        let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
-        return;
-      };
-
-      let Some(webview_wrapper) = windows.get_mut(&window_id).and_then(|app_window| {
-        app_window
-          .webviews
-          .iter()
-          .position(|w| w.webview_id == webview_id)
-          .map(|index| app_window.webviews.remove(index))
-      }) else {
-        let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
-        return;
-      };
-
-      let Some(target_window) = windows.get_mut(&target_window_id) else {
-        let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
-        return;
-      };
-
-      let bounds = webview_wrapper.inner.bounds();
-
-      let target_cef_window = match &mut target_window.window {
-        crate::AppWindowKind::Window(window) => window,
-        crate::AppWindowKind::BrowserWindow => {
+        if !windows.contains_key(&target_window_id) {
           let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
           return;
-        }
+        };
+
+        let Some(webview_wrapper) = windows.get_mut(&window_id).and_then(|app_window| {
+          app_window
+            .webviews
+            .iter()
+            .position(|w| w.webview_id == webview_id)
+            .map(|index| app_window.webviews.remove(index))
+        }) else {
+          let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
+          return;
+        };
+
+        let target_cef_window = match windows.get(&target_window_id) {
+          Some(tw) => match &tw.window {
+            crate::AppWindowKind::Window(window) => window.clone(),
+            crate::AppWindowKind::BrowserWindow => {
+              let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
+              return;
+            }
+          },
+          None => {
+            let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
+            return;
+          }
+        };
+
+        (webview_wrapper, target_cef_window)
       };
 
-      webview_wrapper.inner.set_parent(target_cef_window);
+      let (webview_wrapper, target_cef_window) = reparent_data;
+
+      let bounds = webview_wrapper.inner.bounds();
+      webview_wrapper.inner.set_parent(&target_cef_window);
       webview_wrapper.inner.set_bounds(Some(&bounds));
 
-      target_window.webviews.push(webview_wrapper);
-
-      let _ = tx.send(Ok(()));
+      {
+        let mut windows = context.windows.borrow_mut();
+        if let Some(target_window) = windows.get_mut(&target_window_id) {
+          target_window.webviews.push(webview_wrapper);
+          let _ = tx.send(Ok(()));
+        } else {
+          let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
+        }
+      }
     }
     WebviewMessage::SetAutoResize(auto_resize) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -2871,6 +3007,21 @@ fn create_browser_window<T: UserEvent>(
   };
 
   let browser = CefWebview::Browser(browser);
+  let browser_id_val = browser.browser_id();
+
+  {
+    let mut registry = context.scheme_handler_registry.lock().unwrap();
+    for (scheme, handler) in &uri_scheme_protocols {
+      registry.insert(
+        (browser_id_val, scheme.clone()),
+        (
+          webview_label.clone(),
+          handler.clone(),
+          initialization_scripts.clone(),
+        ),
+      );
+    }
+  }
 
   context.windows.borrow_mut().insert(
     window_id,
@@ -2881,7 +3032,7 @@ fn create_browser_window<T: UserEvent>(
       attributes: attributes.clone(),
       webviews: vec![AppWebview {
         webview_id,
-        browser_id: Arc::new(RefCell::new(browser.browser_id())),
+        browser_id: Arc::new(RefCell::new(browser_id_val)),
         label: webview_label,
         inner: browser,
         bounds: Arc::new(Mutex::new(None)),
@@ -3052,30 +3203,40 @@ fn close_window_browsers(
   window_id: WindowId,
   windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
 ) -> bool {
+  let hosts: Vec<_> = {
+    let windows_ref = windows.borrow();
+    let Some(app_window) = windows_ref.get(&window_id) else {
+      return true;
+    };
+    app_window
+      .webviews
+      .iter()
+      .filter_map(|webview| webview.inner.browser().and_then(|b| b.host()))
+      .collect()
+  };
+
   let mut all_closed = true;
-  if let Some(app_window) = windows.borrow().get(&window_id) {
-    for webview in &app_window.webviews {
-      if let Some(browser) = webview.inner.browser() {
-        if let Some(browser_host) = browser.host() {
-          let closed = browser_host.try_close_browser() == 1;
-          if !closed {
-            all_closed = false;
-          }
-        }
-      }
+  for host in hosts {
+    let closed = host.try_close_browser() == 1;
+    if !closed {
+      all_closed = false;
     }
   }
-
   all_closed
 }
 
 fn on_window_close(window_id: WindowId, windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>) {
-  if let Some(app_window) = windows.borrow().get(&window_id) {
+  let cef_window = {
+    let windows_ref = windows.borrow();
+    let Some(app_window) = windows_ref.get(&window_id) else {
+      return;
+    };
     app_window.force_close.store(true, Ordering::SeqCst);
+    app_window.window()
+  };
 
-    if let Some(window) = app_window.window() {
-      window.close();
-    }
+  if let Some(window) = cef_window {
+    window.close();
   }
 }
 
@@ -3087,10 +3248,22 @@ fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) 
   let event = WindowEvent::Destroyed;
   send_window_event(window_id, &context.windows, &context.callback, event);
 
-  {
+  let removed_window = {
     let mut guard = context.windows.borrow_mut();
-    guard.remove(&window_id);
+    guard.remove(&window_id)
+  };
+
+  if let Some(ref app_window) = removed_window {
+    let mut registry = context.scheme_handler_registry.lock().unwrap();
+    for webview in &app_window.webviews {
+      let browser_id = *webview.browser_id.borrow();
+      for scheme in webview.uri_scheme_protocols.keys() {
+        registry.remove(&(browser_id, scheme.clone()));
+      }
+    }
   }
+
+  drop(removed_window);
 
   let is_empty = context.windows.borrow().is_empty();
   if is_empty {
@@ -3280,6 +3453,21 @@ pub(crate) fn create_webview<T: UserEvent>(
       None
     };
 
+    let browser_id_val = browser.browser_id();
+    {
+      let mut registry = context.scheme_handler_registry.lock().unwrap();
+      for (scheme, handler) in &uri_scheme_protocols {
+        registry.insert(
+          (browser_id_val, scheme.clone()),
+          (
+            label.clone(),
+            handler.clone(),
+            initialization_scripts.clone(),
+          ),
+        );
+      }
+    }
+
     context
       .windows
       .borrow_mut()
@@ -3289,7 +3477,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       .push(AppWebview {
         label,
         webview_id,
-        browser_id: Arc::new(RefCell::new(browser.browser_id())),
+        browser_id: Arc::new(RefCell::new(browser_id_val)),
         bounds: Arc::new(Mutex::new(initial_bounds_ratio)),
         inner: browser,
         devtools_enabled,
@@ -3298,6 +3486,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       });
   } else {
     let browser_id = Arc::new(RefCell::new(0));
+    let uri_scheme_protocols = Arc::new(uri_scheme_protocols);
     let mut browser_view_delegate = BrowserViewDelegateImpl::new(
       browser_id.clone(),
       platform_specific_attributes
@@ -3310,6 +3499,10 @@ pub(crate) fn create_webview<T: UserEvent>(
         } else {
           CefRuntimeStyle::Chrome
         }),
+      context.scheme_handler_registry.clone(),
+      label.clone(),
+      uri_scheme_protocols.clone(),
+      initialization_scripts.clone(),
     );
 
     let browser_view = browser_view_create(
@@ -3348,7 +3541,7 @@ pub(crate) fn create_webview<T: UserEvent>(
         browser_id,
         bounds: Arc::new(Mutex::new(None)),
         devtools_enabled,
-        uri_scheme_protocols: Arc::new(uri_scheme_protocols),
+        uri_scheme_protocols,
         initialization_scripts,
       });
   }
@@ -3473,7 +3666,7 @@ fn request_context_from_webview_attributes<T: UserEvent>(
         Some(&custom_protocol_scheme.into()),
         Some(&format!("{custom_scheme}.localhost").as_str().into()),
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
-          context.clone(),
+          context.scheme_handler_registry.clone(),
           custom_scheme.clone(),
         )),
       );

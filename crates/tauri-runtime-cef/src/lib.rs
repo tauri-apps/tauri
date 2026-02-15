@@ -1926,6 +1926,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_webview_id: Default::default(),
       next_window_id: Default::default(),
       next_window_event_id: Default::default(),
+      scheme_handler_registry: Default::default(),
     };
 
     let mut command_line_args = Vec::new();

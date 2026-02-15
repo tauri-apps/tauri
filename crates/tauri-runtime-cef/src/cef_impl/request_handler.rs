@@ -16,14 +16,12 @@ use http::{
   HeaderMap, HeaderName, HeaderValue,
 };
 use kuchiki::NodeRef;
-use tauri_runtime::{webview::UriSchemeProtocolHandler, UserEvent};
+use tauri_runtime::webview::UriSchemeProtocolHandler;
 use tauri_utils::{
   config::{Csp, CspDirectiveSources},
   html::{parse as parse_html, serialize_node},
 };
 use url::Url;
-
-use crate::cef_impl::Context;
 
 use super::CefInitScript;
 
@@ -331,8 +329,8 @@ wrap_resource_handler! {
 }
 
 wrap_scheme_handler_factory! {
-  pub struct UriSchemeHandlerFactory<T: UserEvent> {
-    context: Context<T>,
+  pub struct UriSchemeHandlerFactory {
+    registry: super::SchemeHandlerRegistry,
     scheme: String,
   }
 
@@ -347,16 +345,13 @@ wrap_scheme_handler_factory! {
       let browser = browser?;
       let id = browser.identifier();
 
-      // get handler from AppWebview - UriSchemeFactory can be overwritten
-      // when registered on multiple RequestContexts sharing the same cache path
-      let (webview_label, handler, initialization_scripts) = self.context.windows.borrow().values().find_map(|window| {
-        window.webviews.iter().find(|webview| *webview.browser_id.borrow() == id)
-        .and_then(|webview| {
-          webview.uri_scheme_protocols.get(&self.scheme).map(|handler| {
-            (webview.label.clone(), handler.clone(), webview.initialization_scripts.clone())
-          })
-        })
-      })?;
+      // get handler from our regsitry based on browser ID and scheme
+      let (webview_label, handler, initialization_scripts) = self
+        .registry
+        .lock()
+        .unwrap()
+        .get(&(id, self.scheme.clone()))
+        .cloned()?;
 
       Some(WebResourceHandler::new(webview_label, handler, initialization_scripts, Arc::new(RefCell::new(None))))
     }

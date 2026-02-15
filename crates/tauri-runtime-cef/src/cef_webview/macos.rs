@@ -42,7 +42,7 @@ impl CefBrowserExt for cef::Browser {
 
     let origin = NSPoint {
       x: rect.x as f64,
-      y: (parent_frame.size.height as f64 - (rect.y as f64 + rect.height as f64)),
+      y: (parent_frame.size.height - (rect.y as f64 + rect.height as f64)),
     };
 
     let size = NSSize {
@@ -59,7 +59,7 @@ impl CefBrowserExt for cef::Browser {
     };
 
     let screen = nsview.window().and_then(|w| w.screen());
-    screen.map(|s| s.backingScaleFactor() as f64).unwrap_or(1.0)
+    screen.map(|s| s.backingScaleFactor()).unwrap_or(1.0)
   }
 
   fn set_background_color(&self, color: cef::Color) {

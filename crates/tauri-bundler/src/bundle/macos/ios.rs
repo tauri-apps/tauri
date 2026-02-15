@@ -108,7 +108,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
       let icon_path = icon_path?;
       if icon_path
         .extension()
-        .map_or(false, |ext| ext == "png" || ext == "car")
+        .is_some_and(|ext| ext == "png" || ext == "car")
       {
         continue;
       } else if icon_path.extension() == Some(OsStr::new("icns")) {

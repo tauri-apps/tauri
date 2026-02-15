@@ -1,5 +1,3 @@
-#![cfg(target_os = "macos")]
-
 use crate::interface::{
   rust::{tauri_config_to_bundle_settings, DevChild, RustAppSettings, RustupTarget},
   AppSettings, ExitReason, Options,

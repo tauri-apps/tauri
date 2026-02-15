@@ -25,6 +25,8 @@ use url::Url;
 
 use super::CefInitScript;
 
+type HttpResponse = Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>;
+
 fn csp_inject_initialization_scripts_hashes(
   existing_csp: String,
   initialization_scripts: &[CefInitScript],
@@ -179,7 +181,7 @@ wrap_resource_handler! {
     handler: Arc<Box<UriSchemeProtocolHandler>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
     // we clone response to send it to the handler thread
-    response: Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>,
+    response: HttpResponse,
   }
 
   impl ResourceHandler {

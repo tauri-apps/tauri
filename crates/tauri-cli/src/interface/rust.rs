@@ -226,7 +226,7 @@ impl Rust {
           on_exit(status, reason);
           tx.send(()).unwrap();
         },
-        &dirs.tauri,
+        dirs.tauri,
       )?;
 
       rx.recv().unwrap();
@@ -244,7 +244,7 @@ impl Rust {
               options.clone(),
               &run_args,
               move |status, reason| on_exit(status, reason),
-              &dirs.tauri,
+              dirs.tauri,
             )
             .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
         },
@@ -501,11 +501,11 @@ fn ensure_cef_directory_if_needed(
   options: &Options,
   config_features: Vec<String>,
   target: Option<&str>,
-  features: &Vec<String>,
-  tauri_dir: &Path,
+  features: &[String],
+  #[allow(unused_variables)] tauri_dir: &Path,
 ) -> crate::Result<()> {
   let mut merged_features = config_features;
-  merged_features.extend(features.clone());
+  merged_features.extend(features.to_owned());
   let no_default_features = options.args.contains(&"--no-default-features".into());
   if !no_default_features {
     merged_features.push("default".into());

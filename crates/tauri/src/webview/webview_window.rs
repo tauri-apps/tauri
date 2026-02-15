@@ -864,7 +864,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   pub fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
     let position = position.into();
 
-    self.window_builder = self.window_builder.traffic_light_position(position.clone());
+    self.window_builder = self.window_builder.traffic_light_position(position);
 
     self.webview_builder.webview_attributes = self
       .webview_builder

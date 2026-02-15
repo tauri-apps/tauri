@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(clippy::arc_with_non_send_sync)]
+#![allow(clippy::too_many_arguments)]
+
 use cef::{CefString, ImplCommandLine, ImplTaskRunner};
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
@@ -87,18 +90,20 @@ macro_rules! window_getter {
   }};
 }
 
+type AfterWindowCreation = Box<dyn Fn(RawWindow) + Send + 'static>;
+
 enum Message<T: UserEvent + 'static> {
   Task(Box<dyn FnOnce() + Send>),
   CreateWindow {
     window_id: WindowId,
     webview_id: u32,
-    pending: PendingWindow<T, CefRuntime<T>>,
-    after_window_creation: Option<Box<dyn Fn(RawWindow) + Send + 'static>>,
+    pending: Box<PendingWindow<T, CefRuntime<T>>>,
+    after_window_creation: Option<AfterWindowCreation>,
   },
   CreateWebview {
     window_id: WindowId,
     webview_id: u32,
-    pending: PendingWebview<T, CefRuntime<T>>,
+    pending: Box<PendingWebview<T, CefRuntime<T>>>,
   },
   Window {
     window_id: WindowId,
@@ -250,6 +255,7 @@ impl<T: UserEvent> Clone for Message<T> {
 #[derive(Clone)]
 pub(crate) struct AppWebview {
   pub webview_id: u32,
+  #[allow(dead_code)]
   pub label: String,
   pub inner: CefWebview,
   // browser_view.browser is null on the scheme handler factory,
@@ -260,6 +266,7 @@ pub(crate) struct AppWebview {
   pub devtools_enabled: bool,
   pub uri_scheme_protocols:
     Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
+  #[allow(dead_code)]
   pub initialization_scripts: Arc<Vec<cef_impl::CefInitScript>>,
 }
 
@@ -356,9 +363,9 @@ impl<T: UserEvent> RuntimeContext<T> {
     self.post_message(Message::CreateWindow {
       window_id,
       webview_id: webview_id.unwrap_or_default(),
-      pending,
+      pending: Box::new(pending),
       after_window_creation: after_window_creation
-        .map(|f| Box::new(f) as Box<dyn Fn(RawWindow) + Send + 'static>),
+        .map(|f| Box::new(f) as AfterWindowCreation),
     })?;
 
     let dispatcher = CefWindowDispatcher {
@@ -400,7 +407,7 @@ impl<T: UserEvent> RuntimeContext<T> {
     self.post_message(Message::CreateWebview {
       window_id,
       webview_id,
-      pending,
+      pending: Box::new(pending),
     })?;
 
     let dispatcher = CefWebviewDispatcher {
@@ -2308,7 +2315,7 @@ fn init_ns_app(on_event: Box<dyn Fn(AppDelegateEvent)>) {
     let app: Retained<NSApplication> = msg_send![SimpleApplication::class(), sharedApplication];
     let delegate = AppDelegate::new(mtm, on_event);
     let proto_delegate = ProtocolObject::from_ref(&*delegate);
-    app.setDelegate(Some(&proto_delegate));
+    app.setDelegate(Some(proto_delegate));
   }
 
   // If there was an invocation to NSApp prior to here,

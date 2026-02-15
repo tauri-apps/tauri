@@ -237,10 +237,12 @@ pub type SchemeHandlerRegistry = Arc<
   >,
 >;
 
+pub type RunEventCallback<T> = Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>;
+
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
   pub windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
-  pub callback: Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+  pub callback: RunEventCallback<T>,
   pub next_window_id: Arc<AtomicU32>,
   pub next_webview_id: Arc<AtomicU32>,
   pub next_window_event_id: Arc<AtomicU32>,
@@ -515,9 +517,9 @@ wrap_keyboard_handler! {
         let modifiers = event.modifiers;
 
         #[cfg(not(target_os = "macos"))]
-        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0)) != 0;
+        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0 as u32)) != 0;
         #[cfg(not(target_os = "macos"))]
-        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0)) != 0;
+        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0 as u32)) != 0;
 
         let key_code = event.windows_key_code;
 
@@ -541,8 +543,8 @@ wrap_keyboard_handler! {
         // Block Cmd+Opt+I on macOS
         #[cfg(target_os = "macos")]
         {
-          let meta = (modifiers & (cef_event_flags_t::EVENTFLAG_COMMAND_DOWN.0 as u32)) != 0;
-          let alt = (modifiers & (cef_event_flags_t::EVENTFLAG_ALT_DOWN.0 as u32)) != 0;
+          let meta = (modifiers & cef_event_flags_t::EVENTFLAG_COMMAND_DOWN.0) != 0;
+          let alt = (modifiers & cef_event_flags_t::EVENTFLAG_ALT_DOWN.0) != 0;
           if key_code == 73 && meta && alt {
             if let Some(is_keyboard_shortcut) = _is_keyboard_shortcut {
               *is_keyboard_shortcut = 1;
@@ -800,13 +802,13 @@ wrap_life_span_handler! {
 
       // Extract size and position from popup_features
       // Note: PopupFeatures fields may vary by CEF version, so we handle them defensively
-      let size = popup_features.and_then(|_features| {
+      let size = popup_features.and({
         // Try to access width/height fields - structure may vary
         // For now, we'll use None if we can't determine the size
         None // TODO: Implement proper PopupFeatures field access when CEF API is available
       });
 
-      let position = popup_features.and_then(|_features| {
+      let position = popup_features.and({
         // Try to access x/y fields - structure may vary
         // For now, we'll use None if we can't determine the position
         None // TODO: Implement proper PopupFeatures field access when CEF API is available
@@ -961,7 +963,7 @@ wrap_browser_view_delegate! {
 wrap_window_delegate! {
   struct AppWindowDelegate<T: UserEvent> {
     window_id: WindowId,
-    callback: Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+    callback: RunEventCallback<T>,
     force_close: Arc<AtomicBool>,
     windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
     attributes: Arc<RefCell<crate::CefWindowBuilder>>,
@@ -1855,21 +1857,21 @@ fn handle_webview_message<T: UserEvent>(
     }
     WebviewMessage::Position(tx) => {
       let result = get_webview(context, window_id, webview_id)
-        .and_then(|webview| {
+        .map(|webview| {
           let bounds = webview.inner.bounds();
           let scale = webview.inner.scale_factor();
-          Some(LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale))
+          LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale)
         })
         .ok_or(tauri_runtime::Error::FailedToSendMessage);
       let _ = tx.send(result);
     }
     WebviewMessage::Size(tx) => {
       let result = get_webview(context, window_id, webview_id)
-        .and_then(|webview| {
+        .map(|webview| {
           let bounds = webview.inner.bounds();
           let scale = webview.inner.scale_factor();
           let size = LogicalSize::new(bounds.width as u32, bounds.height as u32);
-          Some(size.to_physical::<u32>(scale))
+          size.to_physical::<u32>(scale)
         })
         .ok_or(tauri_runtime::Error::FailedToSendMessage);
       let _ = tx.send(result);
@@ -1882,19 +1884,19 @@ fn handle_webview_message<T: UserEvent>(
     // Devtools
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::OpenDevTools => {
-      get_browser(context, window_id, webview_id)
+      if let Some(host) = get_browser(context, window_id, webview_id)
         .and_then(|b| b.host())
-        .map(|host| {
-          let window_info = cef::WindowInfo::default();
-          let settings = cef::BrowserSettings::default();
-          let inspect_at = cef::Point { x: 0, y: 0 };
-          host.show_dev_tools(
-            Some(&window_info),
-            Option::<&mut cef::Client>::None,
-            Some(&settings),
-            Some(&inspect_at),
-          );
-        });
+      {
+        let window_info = cef::WindowInfo::default();
+        let settings = cef::BrowserSettings::default();
+        let inspect_at = cef::Point { x: 0, y: 0 };
+        host.show_dev_tools(
+          Some(&window_info),
+          Option::<&mut cef::Client>::None,
+          Some(&settings),
+          Some(&inspect_at),
+        );
+      }
     }
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::CloseDevTools => {
@@ -1948,9 +1950,11 @@ fn handle_webview_message<T: UserEvent>(
           .map(|frame| cef::CefString::from(&frame.url()).to_string())
           .unwrap_or_default();
 
-        let mut cef_cookie = cef::Cookie::default();
-        cef_cookie.name = cef::CefString::from(cookie.name());
-        cef_cookie.value = cef::CefString::from(cookie.value());
+        let mut cef_cookie = cef::Cookie {
+          name: cef::CefString::from(cookie.name()),
+          value: cef::CefString::from(cookie.value()),
+          ..Default::default()
+        };
         if let Some(d) = cookie.domain() {
           cef_cookie.domain = cef::CefString::from(d);
         }
@@ -2821,7 +2825,7 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       webview_id,
       pending,
       after_window_creation: _todo,
-    } => create_window(context, window_id, webview_id, pending),
+    } => create_window(context, window_id, webview_id, *pending),
     Message::CreateWebview {
       window_id,
       webview_id,
@@ -2831,7 +2835,7 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       context,
       window_id,
       webview_id,
-      pending,
+      *pending,
     ),
     Message::Window { window_id, message } => {
       handle_window_message(context, window_id, message);
@@ -3125,7 +3129,7 @@ wrap_task! {
   struct WindowEventTask<T: UserEvent> {
     window_id: WindowId,
     windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
-    callback: Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+    callback: RunEventCallback<T>,
     event: WindowEvent,
   }
 
@@ -3150,7 +3154,7 @@ fn send_message_task<T: UserEvent>(context: &Context<T>, message: Message<T>) {
 fn send_window_event<T: UserEvent>(
   window_id: WindowId,
   windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
-  callback: &Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+  callback: &RunEventCallback<T>,
   event: WindowEvent,
 ) {
   let Ok(windows_ref) = windows.try_borrow() else {
@@ -3184,7 +3188,7 @@ fn send_window_event<T: UserEvent>(
 fn on_close_requested<T: UserEvent>(
   window_id: WindowId,
   windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
-  callback: &Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>,
+  callback: &RunEventCallback<T>,
 ) {
   let (tx, rx) = channel();
   let event = WindowEvent::CloseRequested { signal_tx: tx };
@@ -3491,9 +3495,10 @@ pub(crate) fn create_webview<T: UserEvent>(
       browser_id.clone(),
       platform_specific_attributes
         .iter()
-        .find_map(|attr| match attr {
-          WebviewAtribute::RuntimeStyle { style } => Some(*style),
+        .map(|attr| match attr {
+          WebviewAtribute::RuntimeStyle { style } => *style,
         })
+        .next()
         .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
           CefRuntimeStyle::Alloy
         } else {
@@ -3567,7 +3572,7 @@ fn check_and_reload_if_blank(browser: cef::Browser, initial_url: String) {
       if let Some(frame) = browser.main_frame() {
         let url = frame.url();
         let current_url = cef::CefString::from(&url).to_string();
-        if current_url == "" || current_url == "about:blank" {
+        if current_url.is_empty() || current_url == "about:blank" {
           frame.load_url(Some(&cef::CefString::from(initial_url.as_str())));
           // Continue checking in case it loads about:blank again
         } else {
@@ -3803,7 +3808,7 @@ fn apply_traffic_light_position(window: *mut std::ffi::c_void, position: &Positi
     return;
   };
 
-  let pos = position.to_logical::<f64>(nswindow.backingScaleFactor() as f64);
+  let pos = position.to_logical::<f64>(nswindow.backingScaleFactor());
   let (x, y) = (pos.x, pos.y);
 
   let title_bar_container_view = unsafe { close.superview().unwrap().superview().unwrap() };

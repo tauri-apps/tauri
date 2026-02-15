@@ -1928,6 +1928,53 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
     };
 
+    fn extend_switch_value(
+      args: &mut Vec<(String, Option<String>)>,
+      switch_name: &str,
+      value: &str,
+    ) {
+      if let Some((_, existing_value)) = args
+        .iter_mut()
+        .find(|(name, _)| name.trim_start_matches('-') == switch_name)
+      {
+        match existing_value {
+          Some(existing) => {
+            if !existing.split(',').any(|entry| entry.trim() == value) {
+              existing.push(',');
+              existing.push_str(value);
+            }
+          }
+          None => {
+            *existing_value = Some(value.to_string());
+          }
+        }
+      } else {
+        args.push((format!("--{switch_name}"), Some(value.to_string())));
+      }
+    }
+    fn append_switch_if_absent(args: &mut Vec<(String, Option<String>)>, switch_name: &str) {
+      if args
+        .iter()
+        .any(|(name, _)| name.trim_start_matches('-') == switch_name)
+      {
+        return;
+      }
+      args.push((format!("--{switch_name}"), None));
+    }
+    fn set_switch_value_if_absent(
+      args: &mut Vec<(String, Option<String>)>,
+      switch_name: &str,
+      value: &str,
+    ) {
+      if args
+        .iter()
+        .any(|(name, _)| name.trim_start_matches('-') == switch_name)
+      {
+        return;
+      }
+      args.push((format!("--{switch_name}"), Some(value.to_string())));
+    }
+
     let mut command_line_args = Vec::new();
     let mut deep_link_schemes = Vec::new();
     for arg in runtime_args.platform_specific_attributes {
@@ -1937,6 +1984,72 @@ impl<T: UserEvent> CefRuntime<T> {
       }
     }
     command_line_args.push(("--enable-media-stream".to_string(), None));
+    extend_switch_value(
+      &mut command_line_args,
+      "disable-features",
+      "BlockInsecurePrivateNetworkRequests",
+    );
+    extend_switch_value(
+      &mut command_line_args,
+      "disable-features",
+      "PrivateNetworkAccessSendPreflights",
+    );
+    // Chromium 144 Actor/Glic UI paths assume full tab model integration.
+    // In embedded CEF single-webview flows this can crash during startup.
+    extend_switch_value(&mut command_line_args, "disable-features", "GlicActor");
+    extend_switch_value(&mut command_line_args, "disable-features", "GlicActorUi");
+    extend_switch_value(&mut command_line_args, "disable-features", "ActorUiThemed");
+    #[cfg(target_os = "linux")]
+    {
+      let force_software = std::env::var("TAURI_CEF_FORCE_SOFTWARE")
+        .map(|v| !v.is_empty() && v != "0")
+        .unwrap_or(false);
+      let force_gpu = std::env::var("TAURI_CEF_FORCE_GPU")
+        .map(|v| !v.is_empty() && v != "0")
+        .unwrap_or(false);
+
+      if force_software {
+        extend_switch_value(
+          &mut command_line_args,
+          "disable-features",
+          "VaapiVideoDecoder",
+        );
+        extend_switch_value(
+          &mut command_line_args,
+          "disable-features",
+          "VaapiVideoEncoder",
+        );
+        append_switch_if_absent(&mut command_line_args, "disable-gpu");
+        append_switch_if_absent(&mut command_line_args, "disable-gpu-compositing");
+        append_switch_if_absent(&mut command_line_args, "disable-gpu-vsync");
+        append_switch_if_absent(&mut command_line_args, "disable-accelerated-video-decode");
+        append_switch_if_absent(&mut command_line_args, "disable-accelerated-video-encode");
+        append_switch_if_absent(&mut command_line_args, "disable-accelerated-mjpeg-decode");
+      } else if force_gpu {
+        extend_switch_value(
+          &mut command_line_args,
+          "enable-features",
+          "VaapiVideoDecoder",
+        );
+        extend_switch_value(
+          &mut command_line_args,
+          "enable-features",
+          "VaapiVideoEncoder",
+        );
+        extend_switch_value(
+          &mut command_line_args,
+          "enable-features",
+          "VaapiIgnoreDriverChecks",
+        );
+        append_switch_if_absent(&mut command_line_args, "ignore-gpu-blocklist");
+        append_switch_if_absent(&mut command_line_args, "enable-gpu-rasterization");
+        append_switch_if_absent(&mut command_line_args, "enable-zero-copy");
+        // Wayland + Vulkan is unstable in some Linux environments.
+        // Keep GPU acceleration on X11/GL while avoiding the Vulkan crash path.
+        set_switch_value_if_absent(&mut command_line_args, "ozone-platform", "x11");
+        append_switch_if_absent(&mut command_line_args, "disable-vulkan");
+      }
+    }
 
     let mut app = cef_impl::TauriApp::new(
       cef_context.clone(),

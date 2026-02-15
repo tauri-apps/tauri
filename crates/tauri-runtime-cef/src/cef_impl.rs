@@ -275,13 +275,17 @@ wrap_app! {
     ) {
       if let Some(command_line) = command_line {
         for (arg, value) in &self.command_line_args {
+          let normalized = arg.trim_start_matches('-');
+          if normalized.is_empty() {
+            continue;
+          }
           if let Some(value) = value {
             command_line.append_switch_with_value(
-              Some(&CefString::from(arg.as_str())),
+              Some(&CefString::from(normalized)),
               Some(&CefString::from(value.as_str())),
             );
           } else if arg.starts_with("-") {
-            command_line.append_switch(Some(&CefString::from(arg.as_str())));
+            command_line.append_switch(Some(&CefString::from(normalized)));
           } else {
             command_line.append_argument(Some(&CefString::from(arg.as_str())));
           }
@@ -572,7 +576,7 @@ wrap_permission_handler! {
       _browser: Option<&mut Browser>,
       _prompt_id: u64,
       _requesting_origin: Option<&CefString>,
-      requested_permissions: u32,
+      _requested_permissions: u32,
       callback: Option<&mut PermissionPromptCallback>,
     ) -> ::std::os::raw::c_int {
       let Some(callback) = callback else {
@@ -3450,8 +3454,8 @@ fn request_context_from_webview_attributes<T: UserEvent>(
   let cache_path: CefStringUtf16 = if webview_attributes.incognito {
     CefStringUtf16::from("")
   } else if let Some(_data_directory) = &webview_attributes.data_directory {
-    // TODO: setting a custom data directory must be a child of the root data directory, but it returns None on browser_view_create
-    eprintln!("data directory is not yet implemented");
+    // TODO: setting a custom data directory must be a child of the root data directory.
+    // Keep current behavior without emitting noisy runtime stderr logs.
     (&global_context.cache_path()).into()
     // CefStringUtf16::from(data_directory.to_string_lossy().as_ref())
   } else {

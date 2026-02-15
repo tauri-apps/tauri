@@ -403,11 +403,11 @@ mod tests {
       // From `../src/textures/**/*`
       (
         "../src/textures/ground/earth.tex",
-        "_up_/src/textures/earth.tex",
+        "_up_/src/textures/ground/earth.tex",
       ),
       (
         "../src/textures/ground/sand.tex",
-        "_up_/src/textures/sand.tex",
+        "_up_/src/textures/ground/sand.tex",
       ),
       ("../src/textures/water.tex", "_up_/src/textures/water.tex"),
       ("../src/textures/fire.tex", "_up_/src/textures/fire.tex"),

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-codegen"
-version = "2.5.3"
+version = "2.5.4"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"

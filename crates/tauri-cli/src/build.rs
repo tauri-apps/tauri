@@ -39,7 +39,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// Space or comma separated list of features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..), use_value_delimiter = true)]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Space or comma separated list of bundles to package.
   #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]

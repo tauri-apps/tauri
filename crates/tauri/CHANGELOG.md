@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.10.2]
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.5.4`
+- Upgraded to `tauri-build@2.5.5`
+
 ## \[2.10.1]
 
 ### Dependencies

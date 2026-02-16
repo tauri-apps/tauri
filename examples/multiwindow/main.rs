@@ -4,7 +4,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::WebviewWindowBuilder;
+use tauri::{Runtime, WebviewWindowBuilder};
 
 #[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
@@ -25,7 +25,7 @@ fn main() {
     .expect("failed to run tauri application");
 }
 
-fn generate_context() -> tauri::Context {
+fn generate_context<R: Runtime>() -> tauri::Context<R> {
   let mut context = tauri::generate_context!("../../examples/multiwindow/tauri.conf.json");
   for cmd in [
     "plugin:event|listen",

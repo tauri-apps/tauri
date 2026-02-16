@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 mod cmd;
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test), not(feature = "cef")))]
 mod menu_plugin;
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test), not(feature = "cef")))]
 mod tray;
 
 use serde::Serialize;
@@ -27,7 +27,7 @@ struct Reply {
 pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
 #[cfg(all(desktop, not(test)))]
-pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
+pub struct PopupMenu<R: Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[cfg_attr(feature = "cef", tauri::cef_entry_point)]

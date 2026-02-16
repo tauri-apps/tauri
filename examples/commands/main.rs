@@ -10,7 +10,7 @@ use commands::{cmd, invoke, message, resolver};
 
 use serde::Deserialize;
 use tauri::{
-  State, Window, command,
+  Runtime, State, Window, command,
   ipc::{Request, Response},
 };
 
@@ -29,7 +29,7 @@ enum MyError {
 
 // ------------------------ Commands using Window ------------------------
 #[command]
-fn window_label(window: Window) {
+fn window_label<R: Runtime>(window: Window<R>) {
   println!("window label: {}", window.label());
 }
 
@@ -183,7 +183,7 @@ async fn async_stateful_command_with_result(
 // Non-Ident command function arguments
 
 #[command]
-fn command_arguments_wild(_: Window) {
+fn command_arguments_wild<R: Runtime>(_: Window<R>) {
   println!("we saw the wildcard!")
 }
 

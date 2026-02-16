@@ -49,7 +49,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
-  tauri_dir: &Path,
+  #[allow(unused_variables)] tauri_dir: &Path,
 ) -> crate::Result<DevChild> {
   #[cfg(not(target_os = "macos"))]
   let _app_settings = app_settings;

@@ -4,10 +4,10 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Runtime};
 
 #[tauri::command]
-fn close_splashscreen(app: AppHandle) {
+fn close_splashscreen<R: Runtime>(app: AppHandle<R>) {
   // Close splashscreen
   app
     .get_webview_window("splashscreen")

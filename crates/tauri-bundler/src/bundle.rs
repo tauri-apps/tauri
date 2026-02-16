@@ -165,7 +165,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(settings, false)?,
-      // note: don't restrict to windows as NSIS installers can be built in linux using cargo-xwin
+      // don't restrict to windows as NSIS installers can be built in linux+macOS using cargo-xwin
       PackageType::Nsis => windows::nsis::bundle_project(settings, false)?,
 
       #[cfg(target_os = "linux")]

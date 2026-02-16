@@ -3,4 +3,4 @@
 "@tauri-apps/cli": patch:bug
 ---
 
-Fix `build --bundles` to allow `nsis` arg in linux.
+Fix `build --bundles` to allow `nsis` arg in linux+macOS

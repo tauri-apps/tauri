@@ -126,7 +126,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  #[cfg(any(target_os = "windows", target_os = "linux"))]
+  #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
   PackageType::Nsis,
   #[cfg(target_os = "macos")]
   PackageType::MacOsBundle,

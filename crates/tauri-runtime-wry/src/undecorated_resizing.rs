@@ -544,31 +544,31 @@ mod gtk {
           if let Some(window) = webview.parent().and_then(|w| w.parent()) {
             // Safe to unwrap unless this is not from tao
             let window: gtk::Window = window.downcast().unwrap();
-            if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
-              if let Some(window) = window.window() {
-                let (root_x, root_y) = event.root();
-                let (window_x, window_y) = window.position();
-                let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
-                let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
-                let edge = hit_test(
-                  0.0,
-                  0.0,
-                  window.width() as f64,
-                  window.height() as f64,
-                  client_x,
-                  client_y,
-                  border as _,
-                  border as _,
-                )
-                .to_gtk_edge();
+            if !window.is_decorated()
+              && window.is_resizable()
+              && !window.is_maximized()
+              && let Some(window) = window.window()
+            {
+              let (root_x, root_y) = event.root();
+              let (window_x, window_y) = window.position();
+              let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
+              let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
+              let edge = hit_test(
+                0.0,
+                0.0,
+                window.width() as f64,
+                window.height() as f64,
+                client_x,
+                client_y,
+                border as _,
+                border as _,
+              )
+              .to_gtk_edge();
 
-                // we ignore the `__Unknown` variant so the webview receives the click correctly if it is not on the edges.
-                match edge {
-                  WindowEdge::__Unknown(_) => (),
-                  _ => {
-                    window.begin_resize_drag(edge, 1, root_x as i32, root_y as i32, event.time())
-                  }
-                }
+              // we ignore the `__Unknown` variant so the webview receives the click correctly if it is not on the edges.
+              match edge {
+                WindowEdge::__Unknown(_) => (),
+                _ => window.begin_resize_drag(edge, 1, root_x as i32, root_y as i32, event.time()),
               }
             }
           }
@@ -584,39 +584,39 @@ mod gtk {
         if let Some(window) = webview.parent().and_then(|w| w.parent()) {
           // Safe to unwrap unless this is not from tao
           let window: gtk::Window = window.downcast().unwrap();
-          if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
-            if let Some(window) = window.window() {
-              if let Some((root_x, root_y)) = event.root_coords() {
-                if let Some(device) = event.device() {
-                  let (window_x, window_y) = window.position();
-                  let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
-                  let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
-                  let edge = hit_test(
-                    0.0,
-                    0.0,
-                    window.width() as f64,
-                    window.height() as f64,
-                    client_x,
-                    client_y,
-                    border as _,
-                    border as _,
-                  )
-                  .to_gtk_edge();
+          if !window.is_decorated()
+            && window.is_resizable()
+            && !window.is_maximized()
+            && let Some(window) = window.window()
+            && let Some((root_x, root_y)) = event.root_coords()
+            && let Some(device) = event.device()
+          {
+            let (window_x, window_y) = window.position();
+            let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
+            let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
+            let edge = hit_test(
+              0.0,
+              0.0,
+              window.width() as f64,
+              window.height() as f64,
+              client_x,
+              client_y,
+              border as _,
+              border as _,
+            )
+            .to_gtk_edge();
 
-                  // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
-                  match edge {
-                    WindowEdge::__Unknown(_) => (),
-                    _ => window.begin_resize_drag_for_device(
-                      edge,
-                      &device,
-                      0,
-                      root_x as i32,
-                      root_y as i32,
-                      event.time(),
-                    ),
-                  }
-                }
-              }
+            // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+            match edge {
+              WindowEdge::__Unknown(_) => (),
+              _ => window.begin_resize_drag_for_device(
+                edge,
+                &device,
+                0,
+                root_x as i32,
+                root_y as i32,
+                event.time(),
+              ),
             }
           }
         }

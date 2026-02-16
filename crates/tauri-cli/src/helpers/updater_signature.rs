@@ -33,7 +33,16 @@ fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
 
 /// Generate base64 encoded keypair
 pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
-  let KP { pk, sk } = KP::generate_encrypted_keypair(password).unwrap();
+  // Treat empty password as no password, using an unencrypted keypair.
+  // minisign's generate_encrypted_keypair sets kdf_alg to KDF_ALG even
+  // when it skips encryption for empty passwords, which causes
+  // into_secret_key to fail later with "Wrong password for that key".
+  let password = password.filter(|p| !p.is_empty());
+  let KP { pk, sk } = if password.is_some() {
+    KP::generate_encrypted_keypair(password).unwrap()
+  } else {
+    KP::generate_unencrypted_keypair().unwrap()
+  };
 
   let pk_box_str = pk.to_box().unwrap().to_string();
   let sk_box_str = sk.to_box(None).unwrap().to_string();
@@ -165,9 +174,25 @@ pub fn secret_key<S: AsRef<[u8]>>(
   let decoded_secret = decode_key(private_key).context("failed to decode base64 secret key")?;
   let sk_box =
     SecretKeyBox::from_string(&decoded_secret).context("failed to load updater private key")?;
-  let sk = sk_box
-    .into_secret_key(password)
-    .context("incorrect updater private key password")?;
+  // Treat empty password as no password. Keys generated with an empty
+  // password are now properly unencrypted (kdf_alg = KDF_NONE), so we
+  // first try to load as unencrypted, then fall back to the encrypted
+  // path for keys generated with a real password.
+  let password = password.filter(|p| !p.is_empty());
+  let sk = if password.is_some() {
+    sk_box
+      .into_secret_key(password)
+      .context("incorrect updater private key password")?
+  } else {
+    // Try unencrypted first (for keys generated with empty password after this fix),
+    // then fall back to encrypted with no password (shouldn't normally happen, but
+    // provides the best error message if the key truly requires a password).
+    sk_box.into_unencrypted_secret_key().or_else(|_| {
+      SecretKeyBox::from_string(&decoded_secret)
+        .and_then(|b| b.into_secret_key(Some(String::new())))
+        .context("incorrect updater private key password")
+    })?
+  };
   Ok(sk)
 }
 
@@ -215,5 +240,20 @@ mod tests {
     let secret_key =
       super::secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
     super::sign_file(&secret_key, &path).expect("failed to sign file");
+  }
+
+  // Verify that generating a key with an empty password and then signing
+  // with that key (also using an empty password) works end-to-end.
+  // Regression test for https://github.com/tauri-apps/tauri/issues/14829
+  #[test]
+  fn generate_and_sign_with_empty_password() {
+    let path = std::env::temp_dir().join("minisign-empty-pw-roundtrip.txt");
+    std::fs::write(&path, b"TAURI").expect("failed to write test file");
+
+    let keypair =
+      super::generate_key(Some("".into())).expect("failed to generate key with empty password");
+    let sk =
+      super::secret_key(&keypair.sk, Some("".into())).expect("failed to load generated key");
+    super::sign_file(&sk, &path).expect("failed to sign file with generated key");
   }
 }

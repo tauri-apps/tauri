@@ -5,9 +5,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
+  Result,
   error::Context,
   helpers::updater_signature::{secret_key, sign_file},
-  Result,
 };
 use base64::Engine;
 use clap::Parser;
@@ -45,8 +45,8 @@ fn backward_env_vars(mut options: Options) -> Options {
   let get_env = |old, new| {
     if let Ok(old_value) = std::env::var(old) {
       println!(
-      "\x1b[33mWarning: The environment variable '{old}' is deprecated. Please use '{new}' instead.\x1b[0m",
-    );
+        "\x1b[33mWarning: The environment variable '{old}' is deprecated. Please use '{new}' instead.\x1b[0m",
+      );
       Some(old_value)
     } else {
       None
@@ -93,10 +93,10 @@ pub fn command(mut options: Options) -> Result<()> {
       .with_context(|| "failed to sign file")?;
 
   println!(
-           "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
-           display_path(manifest_dir),
-           base64::engine::general_purpose::STANDARD.encode(signature.to_string())
-         );
+    "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
+    display_path(manifest_dir),
+    base64::engine::general_purpose::STANDARD.encode(signature.to_string())
+  );
 
   Ok(())
 }

@@ -6,7 +6,7 @@ use std::{error::Error, path::PathBuf};
 
 use serde::Deserialize;
 use tauri_utils::{
-  acl::{capability::Capability, Permission, Scopes},
+  acl::{Permission, Scopes, capability::Capability},
   config::Config,
   write_if_changed,
 };
@@ -44,10 +44,12 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let metadata = include_str!("../tauri-cli/metadata-v2.json");
     let tauri_ver = serde_json::from_str::<VersionMetadata>(metadata)?.tauri;
 
-    // set id for generated schema
+    // set $id for generated schema
     let (filename, mut config_schema) = schema!("config", Config);
-    let schema_metadata = config_schema.schema.metadata.as_mut().unwrap();
-    schema_metadata.id = Some(format!("https://schema.tauri.app/config/{tauri_ver}"));
+    config_schema.insert(
+      "$id".to_string(),
+      serde_json::Value::String(format!("https://schema.tauri.app/config/{tauri_ver}")),
+    );
 
     let config_schema = serde_json::to_string_pretty(&config_schema)?;
     write_if_changed(schemas_dir.join(filename), &config_schema)?;

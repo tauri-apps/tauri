@@ -3,23 +3,23 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
+  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
-    InvokeHandler, InvokeResponseBody,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler, InvokeResponseBody,
+    channel::ChannelDataIpcQueue,
   },
-  manager::{webview::UriSchemeProtocol, AppManager, Asset},
+  manager::{AppManager, Asset, webview::UriSchemeProtocol},
   plugin::{Plugin, PluginStore},
   resources::ResourceTable,
   runtime::{
-    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
+    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::{config::Config, Env},
+  utils::{Env, config::Config},
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
-  Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]
@@ -27,27 +27,27 @@ use crate::menu::{Menu, MenuEvent};
 #[cfg(all(desktop, feature = "tray-icon"))]
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
-use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
+  InitAttribute, RuntimeInitArgs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
-  InitAttribute, RuntimeInitArgs,
 };
-use tauri_utils::{assets::AssetsIter, PackageInfo};
+use tauri_utils::{PackageInfo, assets::AssetsIter};
 
 use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic, mpsc::Sender, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, atomic, mpsc::Sender},
   thread::ThreadId,
   time::Duration,
 };
 
-use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
+use crate::{Event, EventTarget, event::EventId, runtime::RuntimeHandle};
 
 #[cfg(target_os = "macos")]
 use crate::ActivationPolicy;
@@ -396,10 +396,9 @@ impl<R: Runtime> AppHandle<R> {
         if let Some(tx) = cloned_lock.lock().unwrap().take() {
           let _ = tx.send(Ok(ids));
         }
-      }) {
-        if let Some(tx) = lock.lock().unwrap().take() {
-          let _ = tx.send(Err(err));
-        }
+      }) && let Some(tx) = lock.lock().unwrap().take()
+      {
+        let _ = tx.send(Err(err));
       }
     })?;
 
@@ -419,10 +418,9 @@ impl<R: Runtime> AppHandle<R> {
         if let Some(tx) = cloned_lock.lock().unwrap().take() {
           let _ = tx.send(result);
         }
-      }) {
-        if let Some(tx) = lock.lock().unwrap().take() {
-          let _ = tx.send(Err(err));
-        }
+      }) && let Some(tx) = lock.lock().unwrap().take()
+      {
+        let _ = tx.send(Err(err));
       }
     })?;
     rx.await?.map_err(Into::into)
@@ -1344,10 +1342,10 @@ impl<R: Runtime> App<R> {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
 
-    if !self.ran_setup {
-      if let Err(e) = setup(self) {
-        panic!("Failed to setup app: {e}");
-      }
+    if !self.ran_setup
+      && let Err(e) = setup(self)
+    {
+      panic!("Failed to setup app: {e}");
     }
 
     app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
@@ -2245,7 +2243,7 @@ tauri::Builder::default()
       {
         let menus = manager.menu.menus.clone();
         Some(Box::new(move |msg: *const std::ffi::c_void| {
-          use windows::Win32::UI::WindowsAndMessaging::{TranslateAcceleratorW, HACCEL, MSG};
+          use windows::Win32::UI::WindowsAndMessaging::{HACCEL, MSG, TranslateAcceleratorW};
           unsafe {
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {
@@ -2435,15 +2433,15 @@ impl<'a, R: Runtime> UriSchemeContext<'a, R> {
 fn init_app_menu<R: Runtime>(menu: &Menu<R>) -> crate::Result<()> {
   menu.inner().init_for_nsapp();
 
-  if let Some(window_menu) = menu.get(crate::menu::WINDOW_SUBMENU_ID) {
-    if let Some(m) = window_menu.as_submenu() {
-      m.set_as_windows_menu_for_nsapp()?;
-    }
+  if let Some(window_menu) = menu.get(crate::menu::WINDOW_SUBMENU_ID)
+    && let Some(m) = window_menu.as_submenu()
+  {
+    m.set_as_windows_menu_for_nsapp()?;
   }
-  if let Some(help_menu) = menu.get(crate::menu::HELP_SUBMENU_ID) {
-    if let Some(m) = help_menu.as_submenu() {
-      m.set_as_help_menu_for_nsapp()?;
-    }
+  if let Some(help_menu) = menu.get(crate::menu::HELP_SUBMENU_ID)
+    && let Some(m) = help_menu.as_submenu()
+  {
+    m.set_as_help_menu_for_nsapp()?;
   }
 
   Ok(())
@@ -2562,10 +2560,10 @@ fn on_event_loop_event<R: Runtime>(
           }
 
           for (id, listener) in &*app_handle.manager.tray.event_listeners.lock().unwrap() {
-            if e.id() == id {
-              if let Some(tray) = app_handle.tray_by_id(id) {
-                listener(&tray, e.clone());
-              }
+            if e.id() == id
+              && let Some(tray) = app_handle.tray_by_id(id)
+            {
+              listener(&tray, e.clone());
             }
           }
         }

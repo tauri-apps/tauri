@@ -10,10 +10,10 @@ use std::{
 
 use cef::{rc::*, *};
 use dioxus_debug_cell::RefCell;
-use html5ever::{interface::QualName, namespace_url, ns, LocalName};
+use html5ever::{LocalName, interface::QualName, namespace_url, ns};
 use http::{
-  header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE},
   HeaderMap, HeaderName, HeaderValue,
+  header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE},
 };
 use kuchiki::NodeRef;
 use tauri_runtime::webview::UriSchemeProtocolHandler;

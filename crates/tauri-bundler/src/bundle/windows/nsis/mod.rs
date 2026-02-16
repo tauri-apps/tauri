@@ -3,27 +3,27 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Error, Settings,
   bundle::{
     settings::Arch,
     windows::{
       sign::{should_sign, sign_command, try_sign},
       util::{
-        download_webview2_bootstrapper, download_webview2_offline_installer,
-        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+        NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
+        download_webview2_offline_installer,
       },
     },
   },
   error::ErrorExt,
   utils::{
-    http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
     CommandExt,
+    http_utils::{HashAlgorithm, download_and_verify, verify_file_hash},
   },
-  Error, Settings,
 };
 use tauri_utils::display_path;
 
 use crate::error::Context;
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
@@ -39,8 +39,7 @@ const NSIS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D";
-const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_URL: &str = "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
 #[cfg(target_os = "windows")]
@@ -184,7 +183,7 @@ fn build_nsis_app_installer(
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported architecture: {target:?}"
-      )))
+      )));
     }
   };
 
@@ -431,7 +430,9 @@ fn build_nsis_app_installer(
         write_utf8_with_bom(&path, content)?;
         language_files_paths.push(path);
       } else {
-        log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`");
+        log::warn!(
+          "Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`"
+        );
       }
     }
   }
@@ -620,17 +621,17 @@ fn build_nsis_app_installer(
   ));
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
-  if settings.windows().can_sign() {
-    if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
-      let plugin_copy_path = plugin_copy_path.join("x86-unicode");
-      log::info!("Signing NSIS plugins");
-      for dll in NSIS_PLUGIN_FILES {
-        let path = plugin_copy_path.join(dll);
-        if path.exists() {
-          try_sign(&path, settings)?;
-        } else {
-          log::warn!("Could not find {}, skipping signing", path.display());
-        }
+  if settings.windows().can_sign()
+    && let Some(plugin_copy_path) = &maybe_plugin_copy_path
+  {
+    let plugin_copy_path = plugin_copy_path.join("x86-unicode");
+    log::info!("Signing NSIS plugins");
+    for dll in NSIS_PLUGIN_FILES {
+      let path = plugin_copy_path.join(dll);
+      if path.exists() {
+        try_sign(&path, settings)?;
+      } else {
+        log::warn!("Could not find {}, skipping signing", path.display());
       }
     }
   }
@@ -670,7 +671,9 @@ fn build_nsis_app_installer(
     try_sign(&nsis_installer_path, settings)?;
   } else {
     #[cfg(not(target_os = "windows"))]
-    log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+    log::warn!(
+      "Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer..."
+    );
   }
 
   Ok(vec![nsis_installer_path])

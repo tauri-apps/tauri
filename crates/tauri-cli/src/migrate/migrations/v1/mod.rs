@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{error::Context, helpers::app_paths::Dirs, Result};
+use crate::{Result, error::Context, helpers::app_paths::Dirs};
 
 mod config;
 mod frontend;

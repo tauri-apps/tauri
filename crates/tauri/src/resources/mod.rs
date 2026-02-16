@@ -8,7 +8,7 @@
 pub(crate) mod plugin;
 
 use std::{
-  any::{type_name, Any, TypeId},
+  any::{Any, TypeId, type_name},
   borrow::Cow,
   collections::BTreeMap,
   sync::Arc,
@@ -45,7 +45,7 @@ impl dyn Resource {
   }
 
   #[inline(always)]
-  pub(crate) fn downcast_arc<'a, T: Resource>(self: &'a Arc<Self>) -> Option<&'a Arc<T>> {
+  pub(crate) fn downcast_arc<T: Resource>(self: &Arc<Self>) -> Option<&Arc<T>> {
     if self.is::<T>() {
       // A resource is stored as `Arc<T>` in a BTreeMap
       // and is safe to cast to `Arc<T>` because of the runtime

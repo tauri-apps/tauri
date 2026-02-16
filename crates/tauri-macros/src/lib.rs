@@ -13,8 +13,8 @@ use std::path::PathBuf;
 
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse2, parse_macro_input, LitStr};
+use quote::{ToTokens, quote};
+use syn::{LitStr, parse_macro_input, parse2};
 use tauri_codegen::image::CachedIcon;
 
 mod cef;

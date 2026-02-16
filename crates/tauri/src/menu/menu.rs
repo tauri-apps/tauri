@@ -9,8 +9,8 @@ use super::sealed::ContextMenuBase;
 use super::{
   AboutMetadata, IsMenuItem, Menu, MenuInner, MenuItemKind, PredefinedMenuItem, Submenu,
 };
-use crate::run_main_thread;
 use crate::Window;
+use crate::run_main_thread;
 use crate::{AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
 use muda::MenuId;

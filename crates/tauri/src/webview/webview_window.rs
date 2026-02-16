@@ -11,21 +11,21 @@ use std::{
 };
 
 use crate::{
+  Emitter, EventName, Listener, ResourceTable, Window,
   event::EventTarget,
   ipc::ScopeObject,
   runtime::dpi::{PhysicalPosition, PhysicalSize},
   webview::{NewWindowResponse, ScrollBarStyle},
   window::Monitor,
-  Emitter, EventName, Listener, ResourceTable, Window,
 };
 #[cfg(desktop)]
 use crate::{
   image::Image,
   menu::{ContextMenu, Menu},
   runtime::{
+    UserAttentionType,
     dpi::{Position, Size},
     window::CursorIcon,
-    UserAttentionType,
   },
 };
 use tauri_runtime::webview::NewWindowFeatures;
@@ -33,12 +33,12 @@ use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowC
 use url::Url;
 
 use crate::{
+  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::{Cookie, PageLoadPayload, WebviewBuilder, WebviewEvent},
   window::WindowBuilder,
-  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
 
 use tauri_macros::default_runtime;

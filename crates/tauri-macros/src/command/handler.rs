@@ -4,8 +4,8 @@
 
 use quote::format_ident;
 use syn::{
-  parse::{Parse, ParseBuffer, ParseStream},
   Attribute, Ident, Path, Token,
+  parse::{Parse, ParseBuffer, ParseStream},
 };
 
 struct CommandDef {

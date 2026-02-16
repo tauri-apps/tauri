@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Result,
   error::ErrorExt,
   interface::rust::manifest::{read_manifest, serialize_manifest},
-  Result,
 };
 
 use tauri_utils::config_v1::Allowlist;
@@ -80,7 +80,10 @@ fn migrate_manifest(manifest: &mut DocumentMut) -> Result<()> {
         .and_then(|v| v.as_bool())
         .unwrap_or_default()
       {
-        log::warn!("`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.", rename_message);
+        log::warn!(
+          "`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.",
+          rename_message
+        );
       } else {
         migrate_dependency(item, &version, &remove_features, &rename_features);
       }
@@ -136,12 +139,11 @@ fn find_dependency<'a>(
       } else if k == "target" {
         let mut matching_deps = Vec::new();
         for (_, target_value) in t.iter_mut() {
-          if let Some(target_table) = target_value.as_table_mut() {
-            if let Some(deps) = target_table.get_mut(table) {
-              if let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name)) {
-                matching_deps.push(item);
-              }
-            }
+          if let Some(target_table) = target_value.as_table_mut()
+            && let Some(deps) = target_table.get_mut(table)
+            && let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name))
+          {
+            matching_deps.push(item);
           }
         }
         return matching_deps;

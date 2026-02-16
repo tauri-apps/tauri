@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 use serde_json::Value as JsonValue;
-use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 
 use crate::plugin::{Builder, TauriPlugin};
-use crate::{command, ipc::CallbackFn, EventId, Result, Runtime};
 use crate::{AppHandle, Emitter, Manager, Webview};
+use crate::{EventId, Result, Runtime, command, ipc::CallbackFn};
 
 use super::EventName;
 use super::EventTarget;

@@ -24,16 +24,16 @@ use sublime_fuzzy::best_match;
 use tauri_utils::resources::ResourcePaths;
 
 use super::{
-  ensure_init, env, get_app, init::command as init_command, log_finished, read_options, CliOptions,
-  OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
+  CliOptions, MIN_DEVICE_MATCH_SCORE, OptionsHandle, Target as MobileTarget, ensure_init, env,
+  get_app, init::command as init_command, log_finished, read_options,
 };
 use crate::{
+  ConfigValue, Error, Result,
   error::{Context, ErrorExt},
   helpers::{
     config::{BundleResources, Config as TauriConfig, ConfigMetadata},
     pbxproj, strip_semver_prerelease_tag,
   },
-  ConfigValue, Error, Result,
 };
 
 use std::{
@@ -198,7 +198,9 @@ pub fn get_config(
     );
 
     if short_version != full_version {
-      log::warn!("{full_version:?} is not a valid CFBundleShortVersionString since it must contain exactly three dot separated integers; setting it to {short_version} instead");
+      log::warn!(
+        "{full_version:?} is not a valid CFBundleShortVersionString since it must contain exactly three dot separated integers; setting it to {short_version} instead"
+      );
     }
 
     Some(short_version)
@@ -275,8 +277,10 @@ pub fn get_config(
     macos: Default::default(),
   };
 
-  set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
-  set_var("TAURI_IOS_APP_NAME", config.app().name());
+  unsafe {
+    set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
+    set_var("TAURI_IOS_APP_NAME", config.app().name());
+  }
 
   Ok((config, metadata))
 }
@@ -496,7 +500,9 @@ pub fn signing_from_env() -> Result<(
         .map_err(Box::new)?
     }
     (Some(_), None) => {
-      log::warn!("The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate...");
+      log::warn!(
+        "The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate..."
+      );
       None
     }
     _ => None,
@@ -508,7 +514,9 @@ pub fn signing_from_env() -> Result<(
       .map_err(Box::new)?
   } else {
     if keychain.is_some() {
-      log::warn!("You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project.");
+      log::warn!(
+        "You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project."
+      );
     }
     None
   };

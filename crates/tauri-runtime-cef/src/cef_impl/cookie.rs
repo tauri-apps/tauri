@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use cef::{rc::*, *};
-use std::sync::{mpsc::Sender, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::Sender};
 
 cef::wrap_cookie_visitor! {
   pub struct CollectUrlCookiesVisitor {

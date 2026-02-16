@@ -4,7 +4,7 @@
 
 use base64::Engine;
 use minisign::{
-  sign, KeyPair as KP, PublicKey, PublicKeyBox, SecretKey, SecretKeyBox, SignatureBox,
+  KeyPair as KP, PublicKey, PublicKeyBox, SecretKey, SecretKeyBox, SignatureBox, sign,
 };
 use std::{
   fs::{self, File, OpenOptions},

@@ -9,7 +9,7 @@ use std::{ffi::OsStr, str::FromStr};
 
 use crate::{
   embedded_assets::{
-    ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
+    AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult, ensure_out_dir,
   },
   image::CachedIcon,
 };
@@ -20,12 +20,12 @@ use sha2::{Digest, Sha256};
 use syn::Expr;
 use tauri_utils::{
   acl::{
-    get_capabilities, manifest::Manifest, resolved::Resolved, ACL_MANIFESTS_FILE_NAME,
-    CAPABILITIES_FILE_NAME,
+    ACL_MANIFESTS_FILE_NAME, CAPABILITIES_FILE_NAME, get_capabilities, manifest::Manifest,
+    resolved::Resolved,
   },
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
-  html::{inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef},
+  html::{NodeRef, inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node},
   platform::Target,
   tokens::{map_lit, str_lit},
 };
@@ -378,10 +378,12 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       })?;
 
       if !sets_isolation_hook {
-        panic!("The isolation application does not contain a file setting the `window.__TAURI_ISOLATION_HOOK__` value.");
+        panic!(
+          "The isolation application does not contain a file setting the `window.__TAURI_ISOLATION_HOOK__` value."
+        );
       }
 
-      let schema = options.isolation_schema;
+      let schema = options.isolation_schema.clone();
 
       quote!(#root::Pattern::Isolation {
         assets: ::std::sync::Arc::new(#assets),

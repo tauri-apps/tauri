@@ -3,13 +3,13 @@ use std::sync::LazyLock;
 
 use crate::cef_webview::CefBrowserExt;
 use windows::{
-  core::{HRESULT, HSTRING, PCSTR},
   Win32::{
     Foundation::*,
     Graphics::Gdi::*,
     System::LibraryLoader::*,
     UI::{HiDpi::*, WindowsAndMessaging::*},
   },
+  core::{HRESULT, HSTRING, PCSTR},
 };
 
 impl CefBrowserExt for cef::Browser {

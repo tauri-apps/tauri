@@ -151,15 +151,15 @@ fn rlib_size(target_dir: &Path, prefix: &str) -> Result<u64> {
     let entry = entry.context("failed to read directory entry")?;
     let name = entry.file_name().to_string_lossy().to_string();
 
-    if name.starts_with(prefix) && name.ends_with(".rlib") {
-      if let Some(start) = name.split('-').next() {
-        if seen.insert(start.to_string()) {
-          size += entry
-            .metadata()
-            .context("failed to read file metadata")?
-            .len();
-        }
-      }
+    if name.starts_with(prefix)
+      && name.ends_with(".rlib")
+      && let Some(start) = name.split('-').next()
+      && seen.insert(start.to_string())
+    {
+      size += entry
+        .metadata()
+        .context("failed to read file metadata")?
+        .len();
     }
   }
 

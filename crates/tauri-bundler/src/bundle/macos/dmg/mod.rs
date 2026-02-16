@@ -5,10 +5,10 @@
 
 use super::{app, icon::create_icns_file};
 use crate::{
-  bundle::{settings::Arch, Bundle},
+  PackageType, Settings,
+  bundle::{Bundle, settings::Arch},
   error::{Context, ErrorExt},
   utils::CommandExt,
-  PackageType, Settings,
 };
 
 use std::{
@@ -171,12 +171,11 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   // Issue #592 - Building MacOS dmg files on CI
   // https://github.com/tauri-apps/tauri/issues/592
-  if env::var_os("TAURI_BUNDLER_DMG_IGNORE_CI").unwrap_or_default() != "true" {
-    if let Some(value) = env::var_os("CI") {
-      if value == "true" {
-        bundle_dmg_cmd.arg("--skip-jenkins");
-      }
-    }
+  if env::var_os("TAURI_BUNDLER_DMG_IGNORE_CI").unwrap_or_default() != "true"
+    && let Some(value) = env::var_os("CI")
+    && value == "true"
+  {
+    bundle_dmg_cmd.arg("--skip-jenkins");
   }
 
   log::info!(action = "Running"; "bundle_dmg.sh");
@@ -193,17 +192,18 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // Sign DMG if needed
   // skipping self-signing DMGs https://github.com/tauri-apps/tauri/issues/12288
   let identity = settings.macos().signing_identity.as_deref();
-  if !settings.no_sign() && identity != Some("-") {
-    if let Some(keychain) = super::sign::keychain(identity)? {
-      super::sign::sign(
-        &keychain,
-        vec![super::sign::SignTarget {
-          path: dmg_path.clone(),
-          is_an_executable: false,
-        }],
-        settings,
-      )?;
-    }
+  if !settings.no_sign()
+    && identity != Some("-")
+    && let Some(keychain) = super::sign::keychain(identity)?
+  {
+    super::sign::sign(
+      &keychain,
+      vec![super::sign::SignTarget {
+        path: dmg_path.clone(),
+        is_an_executable: false,
+      }],
+      settings,
+    )?;
   }
 
   Ok(Bundled {

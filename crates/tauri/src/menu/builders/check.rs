@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::CheckMenuItem, menu::MenuId, Manager, Runtime};
+use crate::{Manager, Runtime, menu::CheckMenuItem, menu::MenuId};
 
 /// A builder type for [`CheckMenuItem`]
 pub struct CheckMenuItemBuilder {

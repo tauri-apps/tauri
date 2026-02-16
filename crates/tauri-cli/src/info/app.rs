@@ -33,17 +33,17 @@ pub fn items(config: &ConfigMetadata, frontend_dir: Option<&PathBuf>) -> Vec<Sec
     items.push(SectionItem::new().description(format!("devUrl: {dev_url}")));
   }
 
-  if let Some(frontend_dir) = frontend_dir {
-    if let Ok(package_json) = read_to_string(frontend_dir.join("package.json")) {
-      let (framework, bundler) = framework::infer_from_package_json(&package_json);
+  if let Some(frontend_dir) = frontend_dir
+    && let Ok(package_json) = read_to_string(frontend_dir.join("package.json"))
+  {
+    let (framework, bundler) = framework::infer_from_package_json(&package_json);
 
-      if let Some(framework) = framework {
-        items.push(SectionItem::new().description(format!("framework: {framework}")));
-      }
+    if let Some(framework) = framework {
+      items.push(SectionItem::new().description(format!("framework: {framework}")));
+    }
 
-      if let Some(bundler) = bundler {
-        items.push(SectionItem::new().description(format!("bundler: {bundler}")));
-      }
+    if let Some(bundler) = bundler {
+      items.push(SectionItem::new().description(format!("bundler: {bundler}")));
     }
   }
 

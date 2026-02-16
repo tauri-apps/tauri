@@ -9,13 +9,12 @@ use tauri_runtime::dpi::Position;
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{
-  command,
+  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window, command,
   image::JsImage,
-  ipc::{channel::JavaScriptChannelId, Channel},
+  ipc::{Channel, channel::JavaScriptChannelId},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   sealed::ManagerBase,
-  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window,
 };
 use tauri_macros::do_menu_item;
 
@@ -891,10 +890,10 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       Ok(())
     })
     .on_event(|app, e| {
-      if let RunEvent::MenuEvent(e) = e {
-        if let Some(channel) = app.state::<MenuChannels>().0.lock().unwrap().get(&e.id) {
-          let _ = channel.send(e.id.clone());
-        }
+      if let RunEvent::MenuEvent(e) = e
+        && let Some(channel) = app.state::<MenuChannels>().0.lock().unwrap().get(&e.id)
+      {
+        let _ = channel.send(e.id.clone());
       }
     })
     .invoke_handler(crate::generate_handler![

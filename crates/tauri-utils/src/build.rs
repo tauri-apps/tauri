@@ -20,7 +20,9 @@ fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
   let source = source.as_ref();
 
   let sdk_root = std::env::var_os("SDKROOT");
-  std::env::remove_var("SDKROOT");
+  unsafe {
+    std::env::remove_var("SDKROOT");
+  }
 
   swift_rs::SwiftLinker::new(
     &std::env::var("MACOSX_DEPLOYMENT_TARGET").unwrap_or_else(|_| "10.13".into()),
@@ -30,7 +32,9 @@ fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
   .link();
 
   if let Some(root) = sdk_root {
-    std::env::set_var("SDKROOT", root);
+    unsafe {
+      std::env::set_var("SDKROOT", root);
+    }
   }
 }
 

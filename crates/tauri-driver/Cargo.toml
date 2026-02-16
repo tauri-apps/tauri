@@ -8,8 +8,8 @@ homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Webdriver server for Tauri applications"
 readme = "README.md"
-edition = "2021"
-rust-version = "1.77.2"
+edition = "2024"
+rust-version = "1.88"
 
 [dependencies]
 anyhow = "1"

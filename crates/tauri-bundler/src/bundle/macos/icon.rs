@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::bundle::Settings;
-use crate::utils::{self, fs_utils, CommandExt};
+use crate::utils::{self, CommandExt, fs_utils};
 use std::{
   cmp::min,
   ffi::OsStr,

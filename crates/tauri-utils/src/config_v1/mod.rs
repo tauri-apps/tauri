@@ -12,8 +12,8 @@
 
 use semver::Version;
 use serde::{
-  de::{Deserializer, Error as DeError, Visitor},
   Deserialize, Serialize, Serializer,
+  de::{Deserializer, Error as DeError, Visitor},
 };
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
@@ -142,113 +142,44 @@ pub enum BundleTarget {
   One(BundleType),
 }
 
-#[cfg(feature = "schemars")]
-pub(crate) trait Merge: Sized {
-  fn merge(self, other: Self) -> Self;
-}
-
 #[cfg(feature = "schema")]
-use schemars::schema::{Metadata, Schema};
-
-#[cfg(feature = "schema")]
-impl<T: Merge> Merge for Option<T> {
-  fn merge(self, other: Self) -> Self {
-    match (self, other) {
-      (Some(x), Some(y)) => Some(x.merge(y)),
-      (None, y) => y,
-      (x, None) => x,
-    }
+fn add_description(
+  mut schema: schemars::Schema,
+  description: impl Into<String>,
+) -> schemars::Schema {
+  let value = description.into();
+  if !value.is_empty() {
+    schema.insert("description".to_string(), serde_json::Value::String(value));
   }
-}
-
-#[cfg(feature = "schema")]
-impl<T: Merge> Merge for Box<T> {
-  fn merge(mut self, other: Self) -> Self {
-    *self = (*self).merge(*other);
-    self
-  }
-}
-
-#[cfg(feature = "schema")]
-impl<T> Merge for Vec<T> {
-  fn merge(mut self, other: Self) -> Self {
-    self.extend(other);
-    self
-  }
-}
-
-#[cfg(feature = "schema")]
-impl Merge for Metadata {
-  fn merge(self, other: Self) -> Self {
-    Metadata {
-      id: self.id.or(other.id),
-      title: self.title.or(other.title),
-      description: self.description.or(other.description),
-      default: self.default.or(other.default),
-      deprecated: self.deprecated || other.deprecated,
-      read_only: self.read_only || other.read_only,
-      write_only: self.write_only || other.write_only,
-      examples: self.examples.merge(other.examples),
-    }
-  }
-}
-
-#[cfg(feature = "schema")]
-fn apply_metadata(schema: Schema, metadata: Metadata) -> Schema {
-  if metadata == Metadata::default() {
-    schema
-  } else {
-    let mut schema_obj = schema.into_object();
-    schema_obj.metadata = Some(Box::new(metadata)).merge(schema_obj.metadata);
-    Schema::Object(schema_obj)
-  }
+  schema
 }
 
 #[cfg(feature = "schema")]
 impl schemars::JsonSchema for BundleTarget {
-  fn schema_name() -> std::string::String {
-    "BundleTarget".to_owned()
+  fn schema_name() -> std::borrow::Cow<'static, str> {
+    "BundleTarget".into()
   }
 
-  fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    let any_of = vec![
-      schemars::schema::SchemaObject {
-        enum_values: Some(vec!["all".into()]),
-        metadata: Some(Box::new(schemars::schema::Metadata {
-          description: Some("Bundle all targets.".to_owned()),
-          ..Default::default()
-        })),
-        ..Default::default()
-      }
-      .into(),
-      apply_metadata(
+  fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let any_of: Vec<serde_json::Value> = vec![
+      serde_json::json!({
+        "enum": ["all"],
+        "description": "Bundle all targets."
+      }),
+      serde_json::Value::from(add_description(
         generator.subschema_for::<Vec<BundleType>>(),
-        schemars::schema::Metadata {
-          description: Some("A list of bundle targets.".to_owned()),
-          ..Default::default()
-        },
-      ),
-      apply_metadata(
+        "A list of bundle targets.",
+      )),
+      serde_json::Value::from(add_description(
         generator.subschema_for::<BundleType>(),
-        schemars::schema::Metadata {
-          description: Some("A single bundle target.".to_owned()),
-          ..Default::default()
-        },
-      ),
+        "A single bundle target.",
+      )),
     ];
 
-    schemars::schema::SchemaObject {
-      subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
-        any_of: Some(any_of),
-        ..Default::default()
-      })),
-      metadata: Some(Box::new(schemars::schema::Metadata {
-        description: Some("Targets to bundle. Each value is case insensitive.".to_owned()),
-        ..Default::default()
-      })),
-      ..Default::default()
-    }
-    .into()
+    schemars::json_schema!({
+      "anyOf": any_of,
+      "description": "Targets to bundle. Each value is case insensitive."
+    })
   }
 }
 
@@ -2060,11 +1991,7 @@ impl Allowlist for OsAllowlistConfig {
   }
 
   fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["os-all"]
-    } else {
-      vec![]
-    }
+    if self.all { vec!["os-all"] } else { vec![] }
   }
 }
 
@@ -2089,11 +2016,7 @@ impl Allowlist for PathAllowlistConfig {
   }
 
   fn to_features(&self) -> Vec<&'static str> {
-    if self.all {
-      vec!["path-all"]
-    } else {
-      vec![]
-    }
+    if self.all { vec!["path-all"] } else { vec![] }
   }
 }
 
@@ -2840,7 +2763,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 pub struct PackageConfig {
   /// App name.
   #[serde(alias = "product-name")]
-  #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
+  #[cfg_attr(feature = "schema", schemars(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   #[serde(deserialize_with = "version_deserializer", default)]

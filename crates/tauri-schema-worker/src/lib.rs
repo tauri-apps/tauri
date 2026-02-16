@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use tower_service::Service;
 use worker::*;
 

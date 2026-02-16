@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
-use http::{header::*, status::StatusCode, Request, Response};
+use http::{Request, Response, header::*, status::StatusCode};
 use http_range::HttpRange;
 use std::{borrow::Cow, io::SeekFrom};
 use tauri_utils::mime_type::MimeType;
@@ -55,7 +55,11 @@ fn get_response(
       #[cfg(target_os = "android")]
       {
         if path.starts_with("/storage/emulated/0/Android/data/") {
-          log::error!("Failed to open Android external storage file '{}': {}. This may be due to missing storage permissions.", path, e);
+          log::error!(
+            "Failed to open Android external storage file '{}': {}. This may be due to missing storage permissions.",
+            path,
+            e
+          );
         }
       }
       return if e.kind() == std::io::ErrorKind::NotFound {

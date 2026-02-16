@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use axum::{
-  extract::{ws, State, WebSocketUpgrade},
-  http::{header, StatusCode, Uri},
+  extract::{State, WebSocketUpgrade, ws},
+  http::{StatusCode, Uri, header},
   response::{IntoResponse, Response},
 };
-use html5ever::{namespace_url, ns, LocalName, QualName};
-use kuchiki::{traits::TendrilSink, NodeRef};
+use html5ever::{LocalName, QualName, namespace_url, ns};
+use kuchiki::{NodeRef, traits::TendrilSink};
 use std::{
   net::{IpAddr, SocketAddr},
   path::{Path, PathBuf},
@@ -16,7 +16,7 @@ use std::{
   time::Duration,
 };
 use tauri_utils::mime_type::MimeType;
-use tokio::sync::broadcast::{channel, Sender};
+use tokio::sync::broadcast::{Sender, channel};
 
 use crate::error::ErrorExt;
 
@@ -175,12 +175,11 @@ fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
       .expect("builtin server failed to watch dir");
 
     loop {
-      if let Ok(Ok(event)) = rx.recv() {
-        if let Some(event) = event.first() {
-          if !event.kind.is_access() {
-            handler();
-          }
-        }
+      if let Ok(Ok(event)) = rx.recv()
+        && let Some(event) = event.first()
+        && !event.kind.is_access()
+      {
+        handler();
       }
     }
   });

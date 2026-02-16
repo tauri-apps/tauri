@@ -77,10 +77,10 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
                   value.push_str(next_line);
                   value.push('\n');
 
-                  if let Some((_, token)) = split_at_identation(next_line) {
-                    if token == ");" {
-                      break;
-                    }
+                  if let Some((_, token)) = split_at_identation(next_line)
+                    && token == ");"
+                  {
+                    break;
                   }
                 }
                 value

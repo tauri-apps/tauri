@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{error::ErrorExt, Result};
+use crate::{Result, error::ErrorExt};
 use clap::{Command, Parser};
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 
 use std::{fs::write, path::PathBuf};
 

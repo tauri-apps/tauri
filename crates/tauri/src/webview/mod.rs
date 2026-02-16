@@ -27,20 +27,22 @@ pub use tauri_runtime_wry::NewWindowOpener as WryWindowOpener;
 pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent, ScrollBarStyle};
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
+use tauri_runtime::{
+  WebviewDispatch,
+  webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
+};
 #[cfg(desktop)]
 use tauri_runtime::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
-};
-use tauri_runtime::{
-  webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
-  WebviewDispatch,
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
 };
 pub use tauri_utils::config::Color;
 use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
+  AppHandle, Emitter, Event, EventId, EventLoopMessage, EventName, Listener, Manager,
+  ResourceTable, Runtime, Window,
   app::{UriSchemeResponder, WebviewEvent},
   event::{EmitArgs, EventTarget},
   ipc::{
@@ -50,8 +52,6 @@ use crate::{
   manager::AppManager,
   path::SafePathBuf,
   sealed::{ManagerBase, RuntimeOrDispatch},
-  AppHandle, Emitter, Event, EventId, EventLoopMessage, EventName, Listener, Manager,
-  ResourceTable, Runtime, Window,
 };
 
 use std::{
@@ -820,10 +820,10 @@ tauri::Builder::default()
     pending
       .on_page_load_handler
       .replace(Box::new(move |url, event| {
-        if let Some(w) = manager_.get_webview(&label_) {
-          if let Some(handler) = self.on_page_load_handler.as_ref() {
-            handler(w, PageLoadPayload { url: &url, event });
-          }
+        if let Some(w) = manager_.get_webview(&label_)
+          && let Some(handler) = self.on_page_load_handler.as_ref()
+        {
+          handler(w, PageLoadPayload { url: &url, event });
         }
       }));
 

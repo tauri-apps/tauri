@@ -13,8 +13,8 @@
 pub use tokio::{
   runtime::{Handle as TokioHandle, Runtime as TokioRuntime},
   sync::{
-    mpsc::{channel, Receiver, Sender},
     Mutex, RwLock,
+    mpsc::{Receiver, Sender, channel},
   },
   task::JoinHandle as TokioJoinHandle,
 };

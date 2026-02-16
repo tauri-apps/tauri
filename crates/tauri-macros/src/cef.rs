@@ -4,7 +4,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn};
+use syn::{ItemFn, parse_macro_input};
 
 pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
   let mut function = parse_macro_input!(item as ItemFn);

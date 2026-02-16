@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::{bail, Context, ErrorExt},
-  helpers::cargo_manifest::{crate_version, CargoLock, CargoManifest},
-  interface::rust::get_workspace_dir,
   Result,
+  error::{Context, ErrorExt, bail},
+  helpers::cargo_manifest::{CargoLock, CargoManifest, crate_version},
+  interface::rust::get_workspace_dir,
 };
 
 use std::{fs::read_to_string, str::FromStr};

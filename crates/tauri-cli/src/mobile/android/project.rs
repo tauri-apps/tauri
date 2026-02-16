@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Error, Result,
   error::{Context, ErrorExt},
   helpers::template,
-  Error, Result,
 };
 use cargo_mobile2::{
   android::{
@@ -22,7 +22,7 @@ use cargo_mobile2::{
   },
 };
 use handlebars::Handlebars;
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 
 use std::{
   ffi::OsStr,
@@ -32,7 +32,7 @@ use std::{
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile/android");
 
-pub fn gen(
+pub fn generate(
   config: &Config,
   metadata: &Metadata,
   (handlebars, mut map): (Handlebars, template::JsonMap),

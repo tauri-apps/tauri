@@ -17,8 +17,8 @@ use tauri_runtime::{
 };
 
 use crate::{
-  app::GlobalWindowEventListener, event::EventName, image::Image, sealed::ManagerBase, AppHandle,
-  EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Window, WindowEvent,
+  AppHandle, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Window, WindowEvent,
+  app::GlobalWindowEventListener, event::EventName, image::Image, sealed::ManagerBase,
 };
 
 use super::EmitPayload;
@@ -67,10 +67,10 @@ impl<R: Runtime> WindowManager<R> {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
 
-    if !pending.window_builder.has_icon() {
-      if let Some(default_window_icon) = self.default_icon.clone() {
-        pending.window_builder = pending.window_builder.icon(default_window_icon.into())?;
-      }
+    if !pending.window_builder.has_icon()
+      && let Some(default_window_icon) = self.default_icon.clone()
+    {
+      pending.window_builder = pending.window_builder.icon(default_window_icon.into())?;
     }
 
     Ok(pending)

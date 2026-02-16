@@ -5,9 +5,9 @@
 #[cfg(windows)]
 pub mod windows {
   use cef::*;
-  use windows::core::{w, PCWSTR};
   use windows::Win32::Foundation::*;
   use windows::Win32::UI::WindowsAndMessaging::*;
+  use windows::core::{PCWSTR, w};
 
   /// Same as [WNDPROC] but without the Option wrapper.
   type WindowProc = unsafe extern "system" fn(HWND, u32, WPARAM, LPARAM) -> LRESULT;

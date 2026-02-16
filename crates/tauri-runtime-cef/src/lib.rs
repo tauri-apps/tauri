@@ -7,6 +7,9 @@
 
 use cef::{CefString, ImplCommandLine, ImplTaskRunner};
 use tauri_runtime::{
+  Cookie, DeviceEventFilter, EventLoopProxy, Icon, InitAttribute, ProgressBarState, Result,
+  RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
+  WebviewEventId, WindowDispatch, WindowEventId,
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
@@ -14,16 +17,13 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WebviewEvent,
     WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
   },
-  Cookie, DeviceEventFilter, EventLoopProxy, Icon, InitAttribute, ProgressBarState, Result,
-  RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
-  WebviewEventId, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{
-  config::{Color, WindowConfig},
   Theme,
+  config::{Color, WindowConfig},
 };
 use url::Url;
 
@@ -36,9 +36,9 @@ use std::{
   fmt,
   fs::create_dir_all,
   sync::{
-    atomic::AtomicBool,
-    mpsc::{channel, Sender},
     Arc, Mutex,
+    atomic::AtomicBool,
+    mpsc::{Sender, channel},
   },
   thread::{self, ThreadId},
 };
@@ -2298,7 +2298,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
 #[cfg(target_os = "macos")]
 fn init_ns_app(on_event: Box<dyn Fn(AppDelegateEvent)>) {
-  use objc2::{msg_send, rc::Retained, runtime::NSObjectProtocol, ClassType, MainThreadMarker};
+  use objc2::{ClassType, MainThreadMarker, msg_send, rc::Retained, runtime::NSObjectProtocol};
   use objc2_app_kit::{NSApp, NSApplication};
 
   use application::{AppDelegate, SimpleApplication};
@@ -2329,10 +2329,9 @@ mod application {
 
   use cef::application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol};
   use objc2::{
-    define_class, msg_send,
+    DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::Retained,
     runtime::{Bool, NSObject, NSObjectProtocol},
-    DefinedClass, MainThreadMarker, MainThreadOnly,
   };
   use objc2_app_kit::{NSApplication, NSApplicationDelegate, NSApplicationTerminateReply};
   use objc2_foundation::{NSArray, NSURL};
@@ -2365,7 +2364,7 @@ mod application {
       unsafe fn application_openURLs(&self, _application: &NSApplication, urls: &NSArray<NSURL>) {
         let converted_urls: Vec<url::Url> = urls
           .iter()
-          .filter_map(|ns_url| {
+          .filter_map(|ns_url| unsafe {
             ns_url
               .absoluteString()
               .and_then(|url_string| url_string.to_string().parse().ok())

@@ -5,16 +5,16 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
+  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
   app::UriSchemeResponder,
   ipc::{Invoke, InvokeHandler, ScopeObject, ScopeValue},
   manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
   webview::PageLoadPayload,
-  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
 };
 use serde::{
-  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
   Serialize, Serializer,
+  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
 };
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;

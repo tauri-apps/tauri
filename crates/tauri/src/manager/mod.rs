@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, atomic::AtomicBool},
 };
 
 use serde::Serialize;
@@ -19,6 +19,7 @@ use tauri_utils::{
 };
 
 use crate::{
+  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
@@ -27,8 +28,7 @@ use crate::{
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
   resources::ResourceTable,
-  utils::{config::Config, PackageInfo},
-  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
+  utils::{PackageInfo, config::Config},
 };
 
 #[cfg(desktop)]
@@ -712,19 +712,19 @@ mod tests {
 #[cfg(test)]
 mod test {
   use std::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
     time::Duration,
   };
 
   use crate::{
+    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
+    Window, Wry,
     event::EventTarget,
     generate_context,
     plugin::PluginStore,
-    test::{mock_app, MockRuntime},
+    test::{MockRuntime, mock_app},
     webview::WebviewBuilder,
     window::WindowBuilder,
-    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
-    Window, Wry,
   };
 
   use super::AppManager;

@@ -4,7 +4,7 @@
 
 use super::{ActionResult, SectionItem};
 use crate::helpers::cargo_manifest::{
-  cargo_manifest_and_lock, crate_latest_version, crate_version, CrateVersion,
+  CrateVersion, cargo_manifest_and_lock, crate_latest_version, crate_version,
 };
 use colored::Colorize;
 use std::path::{Path, PathBuf};
@@ -12,14 +12,14 @@ use std::path::{Path, PathBuf};
 pub fn items(frontend_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
   let mut items = Vec::new();
 
-  if tauri_dir.is_some() || frontend_dir.is_some() {
-    if let Some(tauri_dir) = tauri_dir {
-      let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
-      for dep in ["tauri", "tauri-build", "wry", "tao"] {
-        let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
-        let item = rust_section_item(dep, crate_version);
-        items.push(item);
-      }
+  if (tauri_dir.is_some() || frontend_dir.is_some())
+    && let Some(tauri_dir) = tauri_dir
+  {
+    let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
+    for dep in ["tauri", "tauri-build", "wry", "tao"] {
+      let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
+      let item = rust_section_item(dep, crate_version);
+      items.push(item);
     }
   }
 

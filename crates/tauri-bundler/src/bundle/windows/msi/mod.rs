@@ -9,19 +9,19 @@ use crate::{
     windows::{
       sign::{should_sign, try_sign},
       util::{
-        download_webview2_bootstrapper, download_webview2_offline_installer,
-        WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+        WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
+        download_webview2_offline_installer,
       },
     },
   },
   error::Context,
   utils::{
-    fs_utils::copy_file,
-    http_utils::{download_and_verify, extract_zip, HashAlgorithm},
     CommandExt,
+    fs_utils::copy_file,
+    http_utils::{HashAlgorithm, download_and_verify, extract_zip},
   },
 };
-use handlebars::{html_escape, to_json, Handlebars};
+use handlebars::{Handlebars, html_escape, to_json};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -222,7 +222,7 @@ fn app_installer_output_path(
     target => {
       return Err(crate::Error::ArchError(format!(
         "Unsupported architecture: {target:?}"
-      )))
+      )));
     }
   };
 
@@ -321,7 +321,9 @@ fn convert_version(version_str: &str) -> crate::Result<String> {
         version.major, version.minor, version.patch, version.build
       ));
     } else {
-      crate::error::bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      crate::error::bail!(
+        "optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target"
+      );
     }
   }
 
@@ -333,7 +335,9 @@ fn convert_version(version_str: &str) -> crate::Result<String> {
         version.major, version.minor, version.patch, version.pre
       ));
     } else {
-      crate::error::bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      crate::error::bail!(
+        "optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target"
+      );
     }
   }
 
@@ -355,7 +359,7 @@ fn run_candle(
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported architecture: {target:?}"
-      )))
+      )));
     }
   };
 
@@ -437,7 +441,7 @@ pub fn build_wix_app_installer(
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported architecture: {target:?}"
-      )))
+      )));
     }
   };
 

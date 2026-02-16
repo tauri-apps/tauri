@@ -16,7 +16,7 @@ use cargo_toml::Manifest;
 
 use tauri_utils::{
   config::{BundleResources, Config, WebviewInstallMode},
-  resources::{external_binaries, ResourcePaths},
+  resources::{ResourcePaths, external_binaries},
 };
 
 use std::{
@@ -187,10 +187,10 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
         framework
       ));
     }
-    if let Some(home_dir) = dirs::home_dir() {
-      if copy_framework_from(&home_dir.join("Library/Frameworks/"), framework, dest_dir)? {
-        continue;
-      }
+    if let Some(home_dir) = dirs::home_dir()
+      && copy_framework_from(&home_dir.join("Library/Frameworks/"), framework, dest_dir)?
+    {
+      continue;
     }
     if copy_framework_from("/Library/Frameworks/".as_ref(), framework, dest_dir)?
       || copy_framework_from("/Network/Library/Frameworks/".as_ref(), framework, dest_dir)?
@@ -442,7 +442,9 @@ pub fn build() {
     let error = format!("{error:#}");
     println!("{error}");
     if error.starts_with("unknown field") {
-      print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
+      print!(
+        "found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. "
+      );
       println!(
         "Please try updating the Rust crates by running `cargo update` in the Tauri app folder."
       );
@@ -513,7 +515,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
   // when running codegen in this build script, we need to access the env var directly
-  env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
+  unsafe { env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple) };
 
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = out_dir
@@ -539,13 +541,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .resources
     .clone()
     .unwrap_or_else(|| BundleResources::List(Vec::new()));
-  if target_triple.contains("windows") {
-    if let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
+  if target_triple.contains("windows")
+    && let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
       WebviewInstallMode::FixedRuntime { path } => Some(path),
       _ => None,
-    } {
-      resources.push(fixed_webview2_runtime_path.display().to_string());
     }
+  {
+    resources.push(fixed_webview2_runtime_path.display().to_string());
   }
   match resources {
     BundleResources::List(res) => {
@@ -555,24 +557,24 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   if target_triple.contains("darwin") {
-    if let Some(frameworks) = &config.bundle.macos.frameworks {
-      if !frameworks.is_empty() {
-        let frameworks_dir = target_dir.parent().unwrap().join("Frameworks");
-        let _ = fs::remove_dir_all(&frameworks_dir);
-        // copy frameworks to the root `target` folder (instead of `target/debug` for instance)
-        // because the rpath is set to `@executable_path/../Frameworks`.
-        copy_frameworks(&frameworks_dir, frameworks)?;
+    if let Some(frameworks) = &config.bundle.macos.frameworks
+      && !frameworks.is_empty()
+    {
+      let frameworks_dir = target_dir.parent().unwrap().join("Frameworks");
+      let _ = fs::remove_dir_all(&frameworks_dir);
+      // copy frameworks to the root `target` folder (instead of `target/debug` for instance)
+      // because the rpath is set to `@executable_path/../Frameworks`.
+      copy_frameworks(&frameworks_dir, frameworks)?;
 
-        // If we have frameworks, we need to set the @rpath
-        // https://github.com/tauri-apps/tauri/issues/7710
-        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
-      }
+      // If we have frameworks, we need to set the @rpath
+      // https://github.com/tauri-apps/tauri/issues/7710
+      println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
     }
 
-    if !is_dev() {
-      if let Some(version) = &config.bundle.macos.minimum_system_version {
-        println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
-      }
+    if !is_dev()
+      && let Some(version) = &config.bundle.macos.minimum_system_version
+    {
+      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
     }
   }
 
@@ -607,12 +609,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       res.set_manifest(&manifest);
     }
 
-    if let Some(version_str) = &config.version {
-      if let Ok(v) = Version::parse(version_str) {
-        let version = (v.major << 48) | (v.minor << 32) | (v.patch << 16);
-        res.set_version_info(VersionInfo::FILEVERSION, version);
-        res.set_version_info(VersionInfo::PRODUCTVERSION, version);
-      }
+    if let Some(version_str) = &config.version
+      && let Ok(v) = Version::parse(version_str)
+    {
+      let version = (v.major << 48) | (v.minor << 32) | (v.patch << 16);
+      res.set_version_info(VersionInfo::FILEVERSION, version);
+      res.set_version_info(VersionInfo::PRODUCTVERSION, version);
     }
 
     if let Some(product_name) = &config.product_name {

@@ -9,15 +9,15 @@ use std::{
 };
 
 use crate::{
+  Error,
   helpers::{
     self,
     cargo_manifest::{cargo_manifest_and_lock, crate_version},
     npm::PackageManager,
   },
-  Error,
 };
 
-use super::{packages_nodejs, packages_rust, SectionItem};
+use super::{SectionItem, packages_nodejs, packages_rust};
 
 #[derive(Debug)]
 pub struct InstalledPackage {
@@ -160,5 +160,7 @@ pub fn check_mismatched_packages(frontend_dir: &Path, tauri_path: &Path) -> crat
     )
     .collect::<Vec<_>>()
     .join("\n");
-  Err(Error::GenericError(format!("Found version mismatched Tauri packages. Make sure the NPM package and Rust crate versions are on the same major/minor releases:\n{mismatched_text}")))
+  Err(Error::GenericError(format!(
+    "Found version mismatched Tauri packages. Make sure the NPM package and Rust crate versions are on the same major/minor releases:\n{mismatched_text}"
+  )))
 }

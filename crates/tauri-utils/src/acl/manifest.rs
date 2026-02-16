@@ -7,8 +7,6 @@
 use std::{collections::BTreeMap, num::NonZeroU64};
 
 use super::{Permission, PermissionSet};
-#[cfg(feature = "schema")]
-use schemars::schema::*;
 use serde::{Deserialize, Serialize};
 
 /// The default permission set of the plugin.
@@ -98,7 +96,7 @@ impl Manifest {
 }
 
 #[cfg(feature = "schema")]
-type ScopeSchema = (Schema, schemars::Map<String, Schema>);
+type ScopeSchema = (schemars::Schema, serde_json::Map<String, serde_json::Value>);
 
 #[cfg(feature = "schema")]
 impl Manifest {
@@ -108,17 +106,25 @@ impl Manifest {
       .global_scope_schema
       .as_ref()
       .map(|s| {
-        serde_json::from_value::<RootSchema>(s.clone()).map(|s| {
-          // convert RootSchema to Schema
-          let scope_schema = Schema::Object(SchemaObject {
-            array: Some(Box::new(ArrayValidation {
-              items: Some(Schema::Object(s.schema).into()),
-              ..Default::default()
-            })),
-            ..Default::default()
+        serde_json::from_value::<schemars::Schema>(s.clone()).map(|mut root| {
+          // Extract definitions from the schema
+          let definitions = root
+            .remove("$defs")
+            .or_else(|| root.remove("definitions"))
+            .and_then(|v| match v {
+              serde_json::Value::Object(m) => Some(m),
+              _ => None,
+            })
+            .unwrap_or_default();
+
+          // Wrap in an array schema
+          let items = serde_json::Value::from(root);
+          let scope_schema = schemars::json_schema!({
+            "type": "array",
+            "items": items
           });
 
-          (scope_schema, s.definitions)
+          (scope_schema, definitions)
         })
       })
       .transpose()
@@ -129,7 +135,7 @@ impl Manifest {
 #[cfg(feature = "build")]
 mod build {
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
   use std::convert::identity;
 
   use super::*;

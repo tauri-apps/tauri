@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use serde::Serialize;
-use serialize_to_javascript::{default_template, Template};
+use serialize_to_javascript::{Template, default_template};
 
 /// An application pattern.
 #[derive(Debug)]

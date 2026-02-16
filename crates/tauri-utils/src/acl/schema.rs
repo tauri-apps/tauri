@@ -5,21 +5,21 @@
 //! Schema generation for ACL items.
 
 use std::{
-  collections::{btree_map::Values, BTreeMap},
+  collections::{BTreeMap, btree_map::Values},
   fs,
   path::{Path, PathBuf},
   slice::Iter,
 };
 
-use schemars::schema::*;
+use schemars::Schema;
 
 use super::{Error, PERMISSION_SCHEMAS_FOLDER_NAME};
 use crate::{platform::Target, write_if_changed};
 
 use super::{
+  PERMISSION_SCHEMA_FILE_NAME, Permission, PermissionSet,
   capability::CapabilityFile,
   manifest::{Manifest, PermissionFile},
-  Permission, PermissionSet, PERMISSION_SCHEMA_FILE_NAME,
 };
 
 /// Capability schema file name.
@@ -59,28 +59,24 @@ pub trait PermissionSchemaGenerator<
       _ => id.to_string(),
     };
 
-    let extensions = if let Some(description) = description {
-      [(
-        // This is non-standard, and only used by vscode right now,
-        // but it does work really well
+    let mut schema = schemars::json_schema!({
+      "type": "string",
+      "const": command_name
+    });
+
+    if let Some(description) = description {
+      schema.insert(
+        "description".to_string(),
+        serde_json::Value::String(description.to_string()),
+      );
+      // Non-standard, used by vscode for rich hover tooltips
+      schema.insert(
         "markdownDescription".to_string(),
         serde_json::Value::String(description.to_string()),
-      )]
-      .into()
-    } else {
-      Default::default()
-    };
+      );
+    }
 
-    Schema::Object(SchemaObject {
-      metadata: Some(Box::new(Metadata {
-        description: description.map(ToString::to_string),
-        ..Default::default()
-      })),
-      instance_type: Some(InstanceType::String.into()),
-      const_value: Some(serde_json::Value::String(command_name)),
-      extensions,
-      ..Default::default()
-    })
+    schema
   }
 
   /// Generate schemas for all possible permissions.
@@ -195,22 +191,27 @@ impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permiss
 }
 
 /// Collect and include all possible identifiers in `Identifier` definition in the schema
-fn extend_identifier_schema(schema: &mut RootSchema, acl: &BTreeMap<String, Manifest>) {
-  if let Some(Schema::Object(identifier_schema)) = schema.definitions.get_mut("Identifier") {
-    let permission_schemas = acl
-      .iter()
-      .flat_map(|(name, manifest)| manifest.gen_possible_permission_schemas(Some(name)))
-      .collect::<Vec<_>>();
+fn extend_identifier_schema(schema: &mut Schema, acl: &BTreeMap<String, Manifest>) {
+  let permission_schemas: Vec<serde_json::Value> = acl
+    .iter()
+    .flat_map(|(name, manifest)| manifest.gen_possible_permission_schemas(Some(name)))
+    .map(serde_json::Value::from)
+    .collect();
 
-    let new_subschemas = Box::new(SubschemaValidation {
-      one_of: Some(permission_schemas),
-      ..Default::default()
-    });
-
-    identifier_schema.subschemas = Some(new_subschemas);
-    identifier_schema.object = None;
-    identifier_schema.instance_type = None;
-    identifier_schema.metadata().description = Some("Permission identifier".to_string());
+  if let Some(identifier_schema) = schema
+    .pointer_mut("/$defs/Identifier")
+    .and_then(|v| v.as_object_mut())
+  {
+    identifier_schema.insert(
+      "oneOf".to_string(),
+      serde_json::Value::Array(permission_schemas),
+    );
+    identifier_schema.remove("properties");
+    identifier_schema.remove("type");
+    identifier_schema.insert(
+      "description".to_string(),
+      serde_json::Value::String("Permission identifier".to_string()),
+    );
   }
 }
 
@@ -234,34 +235,57 @@ fn extend_identifier_schema(schema: &mut RootSchema, acl: &BTreeMap<String, Mani
 ///         },
 ///         ...etc,
 ///         {
-///           No "if" or "then", just "allow" and "deny" properties with default "#/definitions/Value"
+///           No "if" or "then", just "allow" and "deny" properties with default "#/defs/Value"
 ///         },
 ///       }
 ///     }
 ///   }
 /// }
 /// ```
-fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<String, Manifest>) {
+fn extend_permission_entry_schema(root_schema: &mut Schema, acl: &BTreeMap<String, Manifest>) {
   const IDENTIFIER: &str = "identifier";
   const ALLOW: &str = "allow";
   const DENY: &str = "deny";
 
-  let mut collected_defs = vec![];
+  let mut collected_defs: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
 
-  if let Some(Schema::Object(obj)) = root_schema.definitions.get_mut("PermissionEntry") {
-    let any_of = obj.subschemas().any_of.as_mut().unwrap();
-    let Schema::Object(extend_permission_entry) = any_of.last_mut().unwrap() else {
-      unreachable!("PermissionsEntry should be an object not a boolean");
+  // Scope the mutable borrow of root_schema
+  {
+    let defs = match root_schema.get_mut("$defs").and_then(|v| v.as_object_mut()) {
+      Some(d) => d,
+      None => return,
     };
 
-    // remove default properties and save it to be added later as a fallback
-    let obj = extend_permission_entry.object.as_mut().unwrap();
-    let default_properties = std::mem::take(&mut obj.properties);
+    let perm_entry = match defs
+      .get_mut("PermissionEntry")
+      .and_then(|v| v.as_object_mut())
+    {
+      Some(p) => p,
+      None => return,
+    };
+
+    let any_of = match perm_entry.get_mut("anyOf").and_then(|v| v.as_array_mut()) {
+      Some(a) => a,
+      None => return,
+    };
+
+    let extend_perm_entry = match any_of.last_mut().and_then(|v| v.as_object_mut()) {
+      Some(e) => e,
+      None => return,
+    };
+
+    // Remove default properties and save to be added later as a fallback
+    let default_properties = extend_perm_entry
+      .remove("properties")
+      .and_then(|v| match v {
+        serde_json::Value::Object(m) => Some(m),
+        _ => None,
+      })
+      .unwrap_or_default();
 
     let default_identifier = default_properties.get(IDENTIFIER).cloned().unwrap();
-    let default_identifier = (IDENTIFIER.to_string(), default_identifier);
 
-    let mut all_of = vec![];
+    let mut all_of: Vec<serde_json::Value> = vec![];
 
     let schemas = acl.iter().filter_map(|(name, manifest)| {
       manifest
@@ -271,39 +295,54 @@ fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<S
     });
 
     for ((scope_schema, defs), acl_perm_schema) in schemas {
-      let mut perm_schema = SchemaObject::default();
-      perm_schema.subschemas().any_of = Some(acl_perm_schema);
+      let perm_schema_values: Vec<serde_json::Value> = acl_perm_schema
+        .into_iter()
+        .map(serde_json::Value::from)
+        .collect();
 
-      let mut if_schema = SchemaObject::default();
-      if_schema.object().properties = [(IDENTIFIER.to_string(), perm_schema.into())].into();
+      let scope_value = serde_json::Value::from(scope_schema);
 
-      let mut then_schema = SchemaObject::default();
-      then_schema.object().properties = [
-        (ALLOW.to_string(), scope_schema.clone()),
-        (DENY.to_string(), scope_schema.clone()),
-      ]
-      .into();
+      let obj = serde_json::json!({
+        "properties": {
+          IDENTIFIER: default_identifier.clone()
+        },
+        "if": {
+          "properties": {
+            IDENTIFIER: { "anyOf": perm_schema_values }
+          }
+        },
+        "then": {
+          "properties": {
+            ALLOW: scope_value.clone(),
+            DENY: scope_value,
+          }
+        }
+      });
 
-      let mut obj = SchemaObject::default();
-      obj.object().properties = [default_identifier.clone()].into();
-      obj.subschemas().if_schema = Some(Box::new(if_schema.into()));
-      obj.subschemas().then_schema = Some(Box::new(then_schema.into()));
-
-      all_of.push(Schema::Object(obj));
+      all_of.push(obj);
       collected_defs.extend(defs);
     }
 
-    // add back default properties as a fallback
-    let mut default_obj = SchemaObject::default();
-    default_obj.object().properties = default_properties;
-    all_of.push(Schema::Object(default_obj));
+    // Add back default properties as a fallback
+    all_of.push(serde_json::json!({
+      "properties": serde_json::Value::Object(default_properties)
+    }));
 
-    // replace extended PermissionEntry with the new schema
-    extend_permission_entry.subschemas().all_of = Some(all_of);
+    // Replace extended PermissionEntry with the new schema
+    extend_perm_entry.insert("allOf".to_string(), serde_json::Value::Array(all_of));
   }
 
-  // extend root schema with definitions collected from plugins
-  root_schema.definitions.extend(collected_defs);
+  // Extend root schema with definitions collected from plugins
+  if !collected_defs.is_empty() {
+    let root_defs = root_schema
+      .ensure_object()
+      .entry("$defs")
+      .or_insert(serde_json::Value::Object(serde_json::Map::new()))
+      .as_object_mut()
+      .unwrap();
+
+    root_defs.extend(collected_defs);
+  }
 }
 
 /// Generate schema for CapabilityFile with all possible plugins permissions
@@ -317,8 +356,6 @@ pub fn generate_capability_schema(
   extend_permission_entry_schema(&mut schema, acl);
 
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
-  // FIXME: in schemars@v1 this doesn't seem to be necessary anymore. If it is, find a better solution.
-  let schema_str = schema_str.replace("\\r\\n", "\\n");
 
   let out_dir = PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH);
   fs::create_dir_all(&out_dir)?;
@@ -344,40 +381,44 @@ pub fn generate_capability_schema(
 }
 
 /// Extend schema with collected permissions from the passed [`PermissionFile`]s.
-fn extend_permission_file_schema(schema: &mut RootSchema, permissions: &[PermissionFile]) {
-  // collect possible permissions
-  let permission_schemas = permissions
+fn extend_permission_file_schema(schema: &mut Schema, permissions: &[PermissionFile]) {
+  // Collect possible permissions
+  let permission_schemas: Vec<serde_json::Value> = permissions
     .iter()
     .flat_map(|p| p.gen_possible_permission_schemas(None))
+    .map(serde_json::Value::from)
     .collect();
 
-  if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionSet") {
-    let permissions_obj = obj.object().properties.get_mut("permissions");
-    if let Some(Schema::Object(permissions_obj)) = permissions_obj {
-      // replace the permissions property schema object
-      // from a mere string to a reference to `PermissionKind`
-      permissions_obj.array().items.replace(
-        Schema::Object(SchemaObject {
-          reference: Some("#/definitions/PermissionKind".into()),
-          ..Default::default()
-        })
-        .into(),
-      );
+  // Update the permissions property to reference PermissionKind
+  let updated = if let Some(permissions_obj) = schema
+    .pointer_mut("/$defs/PermissionSet/properties/permissions")
+    .and_then(|v| v.as_object_mut())
+  {
+    permissions_obj.insert(
+      "items".to_string(),
+      serde_json::json!({ "$ref": "#/$defs/PermissionKind" }),
+    );
+    true
+  } else {
+    false
+  };
 
-      // add the new `PermissionKind` definition in the schema that
-      // is a list of all possible permissions collected
-      schema.definitions.insert(
-        "PermissionKind".into(),
-        Schema::Object(SchemaObject {
-          instance_type: Some(InstanceType::String.into()),
-          subschemas: Some(Box::new(SubschemaValidation {
-            one_of: Some(permission_schemas),
-            ..Default::default()
-          })),
-          ..Default::default()
-        }),
-      );
-    }
+  // Add the new PermissionKind definition
+  if updated {
+    let defs = schema
+      .ensure_object()
+      .entry("$defs")
+      .or_insert(serde_json::Value::Object(serde_json::Map::new()))
+      .as_object_mut()
+      .unwrap();
+
+    defs.insert(
+      "PermissionKind".into(),
+      serde_json::json!({
+        "type": "string",
+        "oneOf": permission_schemas,
+      }),
+    );
   }
 }
 
@@ -391,9 +432,6 @@ pub fn generate_permissions_schema<P: AsRef<Path>>(
   extend_permission_file_schema(&mut schema, permissions);
 
   let schema_str = serde_json::to_string_pretty(&schema)?;
-
-  // FIXME: in schemars@v1 this doesn't seem to be necessary anymore. If it is, find a better solution.
-  let schema_str = schema_str.replace("\\r\\n", "\\n");
 
   let out_dir = out_dir.as_ref().join(PERMISSION_SCHEMAS_FOLDER_NAME);
   fs::create_dir_all(&out_dir).map_err(|e| Error::CreateDir(e, out_dir.clone()))?;

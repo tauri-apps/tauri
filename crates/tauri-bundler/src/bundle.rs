@@ -37,6 +37,8 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
     crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
     crate::PackageType::Rpm => b"__TAURI_BUNDLE_TYPE_VAR_RPM",
     crate::PackageType::AppImage => b"__TAURI_BUNDLE_TYPE_VAR_APP",
+    // NSIS installers can be built in linux using cargo-xwin
+    crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
     _ => {
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),

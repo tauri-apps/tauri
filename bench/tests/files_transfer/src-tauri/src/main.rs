@@ -22,8 +22,14 @@ async fn read_file<R: Runtime>(app: AppHandle<R>) -> Result<Response, String> {
   Ok(Response::new(contents))
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .invoke_handler(tauri::generate_handler![app_should_close, read_file])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

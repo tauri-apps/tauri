@@ -11,8 +11,14 @@ fn read_to_string(path: &str) -> String {
   std::fs::read_to_string(path).unwrap_or_default()
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .setup(move |app| {
       let path = app
         .path()

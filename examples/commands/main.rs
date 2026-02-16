@@ -222,8 +222,14 @@ fn raw_request(request: Request<'_>) -> Response {
   Response::new(include_bytes!("./README.md").to_vec())
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .manage(MyState {
       value: 0,
       label: "Tauri!".into(),

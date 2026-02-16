@@ -4,8 +4,14 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  let app = tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  let app = builder
     .build(tauri::generate_context!(
       "../../examples/run-return/tauri.conf.json"
     ))

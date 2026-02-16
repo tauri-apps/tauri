@@ -6,8 +6,14 @@
 
 use tauri::WebviewWindowBuilder;
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .setup(|app| {
       WebviewWindowBuilder::new(app, "Third", tauri::WebviewUrl::default())
         .title("Tauri - Third")

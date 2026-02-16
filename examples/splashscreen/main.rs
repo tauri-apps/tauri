@@ -18,8 +18,14 @@ fn close_splashscreen(app: AppHandle) {
   app.get_webview_window("main").unwrap().show().unwrap();
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .menu(tauri::menu::Menu::default)
     .invoke_handler(tauri::generate_handler![close_splashscreen])
     .run(tauri::generate_context!(

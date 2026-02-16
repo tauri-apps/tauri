@@ -9,8 +9,14 @@ fn ping() {
   println!("ping: {:?}", std::time::Instant::now());
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .invoke_handler(tauri::generate_handler![ping])
     .run(tauri::generate_context!(
       "../../examples/isolation/tauri.conf.json"

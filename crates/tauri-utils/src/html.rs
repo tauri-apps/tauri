@@ -164,6 +164,15 @@ pub fn inject_csp(document: &NodeRef, csp: &str) {
   });
 }
 
+/// Injects a content security policy to the HTML.
+pub fn append_script_to_head(document: &NodeRef, script: &str) {
+  with_head(document, |head| {
+    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
+    script_el.append(NodeRef::new_text(script));
+    head.prepend(script_el);
+  });
+}
+
 fn create_csp_meta_tag(csp: &str) -> NodeRef {
   NodeRef::new_element(
     QualName::new(None, ns!(html), LocalName::from("meta")),
@@ -395,6 +404,19 @@ mod tests {
       format!(
         r#"<html><head><style nonce="{STYLE_NONCE_TOKEN}">body {{ color: red; }}</style></head><body></body></html>"#
       )
+    );
+  }
+
+  #[test]
+  fn append_script_to_head_test() {
+    let html = r#"<html><head></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    append_script_to_head(&document, r#"console.log('Test')"#);
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      format!(r#"<html><head><script>console.log('Test')</script></head><body></body></html>"#)
     );
   }
 

@@ -1809,7 +1809,16 @@ fn handle_webview_message<T: UserEvent>(
         .and_then(|bv| bv.inner.browser())
         .and_then(|b| b.host())
       {
-        host.set_zoom_level(scale_factor)
+        // CEF uses a logarithmic zoom level where percentage = 1.2^level
+        // (Chromium's kTextSizeMultiplierRatio). Convert from Tauri linear
+        // scale factor (1.0 = 100%) to CEF's level (0.0 = 100%)
+        const CEF_ZOOM_BASE: f64 = 1.2;
+        let zoom_level = if scale_factor > 0.0 {
+          scale_factor.ln() / CEF_ZOOM_BASE.ln()
+        } else {
+          0.0
+        };
+        host.set_zoom_level(zoom_level)
       }
     }
     WebviewMessage::SetBackgroundColor(color) => {
@@ -1884,9 +1893,7 @@ fn handle_webview_message<T: UserEvent>(
     // Devtools
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::OpenDevTools => {
-      if let Some(host) = get_browser(context, window_id, webview_id)
-        .and_then(|b| b.host())
-      {
+      if let Some(host) = get_browser(context, window_id, webview_id).and_then(|b| b.host()) {
         let window_info = cef::WindowInfo::default();
         let settings = cef::BrowserSettings::default();
         let inspect_at = cef::Point { x: 0, y: 0 };

@@ -364,8 +364,7 @@ impl<T: UserEvent> RuntimeContext<T> {
       window_id,
       webview_id: webview_id.unwrap_or_default(),
       pending: Box::new(pending),
-      after_window_creation: after_window_creation
-        .map(|f| Box::new(f) as AfterWindowCreation),
+      after_window_creation: after_window_creation.map(|f| Box::new(f) as AfterWindowCreation),
     })?;
 
     let dispatcher = CefWindowDispatcher {

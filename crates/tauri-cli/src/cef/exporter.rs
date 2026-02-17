@@ -34,8 +34,11 @@ fn default_download_url() -> &'static str {
   static DEFAULT_DOWNLOAD_URL: OnceLock<String> = OnceLock::new();
   DEFAULT_DOWNLOAD_URL
     .get_or_init(|| {
+      if let Ok(url) = std::env::var("CEF_DOWNLOAD_URL") {
+        return url;
+      }
       if cfg!(any(windows, target_os = "macos")) {
-        std::env::var("CEF_DOWNLOAD_URL").unwrap_or(DEFAULT_CDN_URL.to_owned())
+        DEFAULT_CDN_URL.to_owned()
       } else {
         download_cef::default_download_url()
       }
@@ -259,6 +262,63 @@ fn check_archive_outdated(archive_json_path: &Path, required_version: &str) -> c
   }
 }
 
+fn is_cef_runtime_directory(path: &Path, os: &str) -> bool {
+  match os {
+    "linux" => path.join("libcef.so").exists(),
+    "windows" => path.join("libcef.dll").exists(),
+    "macos" => path.join("Chromium Embedded Framework.framework").exists(),
+    _ => false,
+  }
+}
+
+fn ffmpeg_relative_path(os: &str) -> Option<&'static str> {
+  match os {
+    "linux" => Some("libffmpeg.so"),
+    "windows" => Some("libffmpeg.dll"),
+    "macos" => Some("Chromium Embedded Framework.framework/Libraries/libffmpeg.dylib"),
+    _ => None,
+  }
+}
+
+fn maybe_override_ffmpeg_library(cef_dir: &Path, os: &str) -> crate::Result<()> {
+  let Ok(override_path) = std::env::var("CEF_FFMPEG_PATH") else {
+    return Ok(());
+  };
+
+  let source = PathBuf::from(&override_path);
+  if !source.is_file() {
+    return Err(crate::Error::GenericError(format!(
+      "CEF_FFMPEG_PATH is not a file: {}",
+      source.display()
+    )));
+  }
+
+  let Some(relative) = ffmpeg_relative_path(os) else {
+    log::warn!(
+      action = "CEF";
+      "CEF_FFMPEG_PATH is set but OS `{os}` is not supported for ffmpeg override"
+    );
+    return Ok(());
+  };
+
+  let destination = cef_dir.join(relative);
+  if let Some(parent) = destination.parent() {
+    fs::create_dir_all(parent).fs_context("failed to create ffmpeg destination directory", parent)?;
+  }
+  fs::copy(&source, &destination).fs_context(
+    "failed to copy ffmpeg override library",
+    destination.clone(),
+  )?;
+  log::info!(
+    action = "CEF";
+    "Applied ffmpeg override: {} -> {}",
+    source.display(),
+    destination.display()
+  );
+
+  Ok(())
+}
+
 pub fn ensure_cef_directory(
   target: Option<&str>,
   enabled_features: &[String],
@@ -279,7 +339,18 @@ pub fn ensure_cef_directory(
 
   let version = default_version(workspace_dir);
   let cef_dir = if let Ok(cef_path) = std::env::var("CEF_PATH") {
-    let path = PathBuf::from(cef_path);
+    let path = PathBuf::from(&cef_path);
+    if is_cef_runtime_directory(&path, os_arch.os) {
+      std::env::set_var("CEF_PATH", path.to_string_lossy().as_ref());
+      export_cef_library_path(&path);
+      maybe_override_ffmpeg_library(&path, os_arch.os)?;
+      log::info!(
+        action = "CEF";
+        "Using CEF_PATH as a direct CEF runtime directory: {}",
+        path.display()
+      );
+      return Ok(Some(path));
+    }
     // If CEF_PATH is set but directory doesn't exist, we'll create it
     if !path.exists() {
       log::info!(action = "CEF"; "CEF_PATH set but directory doesn't exist, will export to {}", path.display());
@@ -309,6 +380,7 @@ pub fn ensure_cef_directory(
     workspace_dir,
   )?;
 
+  maybe_override_ffmpeg_library(&cef_dir, os_arch.os)?;
   std::env::set_var("CEF_PATH", cef_dir.to_string_lossy().as_ref());
   export_cef_library_path(&cef_dir);
   log::info!(action = "CEF"; "CEF directory exported to: {}", cef_dir.display());

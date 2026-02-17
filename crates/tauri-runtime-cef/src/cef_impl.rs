@@ -200,6 +200,125 @@ fn apply_content_protection(window: &cef::Window, protected: bool) {
   }
 }
 
+#[inline]
+fn apply_window_decorations(window: &cef::Window, decorations: bool) {
+  #[cfg(target_os = "linux")]
+  {
+    let _ = (window, decorations);
+  }
+
+  #[cfg(windows)]
+  {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+      GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_STYLE, SWP_FRAMECHANGED,
+      SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CAPTION, WS_MAXIMIZEBOX,
+      WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
+    };
+
+    let hwnd = HWND(window.window_handle().0 as _);
+    let current_style = unsafe { GetWindowLongPtrW(hwnd, GWL_STYLE) } as u32;
+    let decoration_bits =
+      WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0;
+
+    let next_style = if decorations {
+      current_style | decoration_bits
+    } else {
+      current_style & !decoration_bits
+    };
+
+    unsafe {
+      let _ = SetWindowLongPtrW(hwnd, GWL_STYLE, next_style as isize);
+      let _ = SetWindowPos(
+        hwnd,
+        None,
+        0,
+        0,
+        0,
+        0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+      );
+    }
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    use objc2::rc::Retained;
+    use objc2_app_kit::{NSView, NSWindowStyleMask};
+
+    let ns_view = unsafe { Retained::<NSView>::retain(window.window_handle() as _) };
+    let Some(ns_window) = ns_view.and_then(|v| v.window()) else {
+      return;
+    };
+
+    let mut mask = ns_window.styleMask();
+    let decorated_mask =
+      NSWindowStyleMask::Titled | NSWindowStyleMask::Closable | NSWindowStyleMask::Miniaturizable;
+
+    if decorations {
+      mask |= decorated_mask;
+    } else {
+      mask &= !decorated_mask;
+    }
+
+    ns_window.setStyleMask(mask);
+  }
+}
+
+#[inline]
+fn apply_window_shadow(window: &cef::Window, shadow: bool) {
+  #[cfg(not(target_os = "macos"))]
+  {
+    let _ = (window, shadow);
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    use objc2::msg_send;
+    use objc2::rc::Retained;
+    use objc2_app_kit::NSView;
+
+    let ns_view = unsafe { Retained::<NSView>::retain(window.window_handle() as _) };
+    let Some(ns_window) = ns_view.and_then(|v| v.window()) else {
+      return;
+    };
+    let _: () = unsafe { msg_send![&ns_window, setHasShadow: shadow] };
+  }
+}
+
+#[inline]
+fn apply_window_theme(window: &cef::Window, theme: Option<tauri_utils::Theme>) {
+  #[cfg(any(target_os = "linux", target_os = "macos"))]
+  {
+    let _ = (window, theme);
+  }
+
+  #[cfg(windows)]
+  {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE};
+
+    // DWMWA_USE_IMMERSIVE_DARK_MODE is 20 on Windows 10 1809+.
+    const DWMWA_USE_IMMERSIVE_DARK_MODE: DWMWINDOWATTRIBUTE = DWMWINDOWATTRIBUTE(20);
+
+    let hwnd = HWND(window.window_handle().0 as _);
+    let dark_mode: i32 = match theme {
+      Some(tauri_utils::Theme::Dark) => 1,
+      Some(tauri_utils::Theme::Light) => 0,
+      None => 0,
+    };
+
+    unsafe {
+      let _ = DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_USE_IMMERSIVE_DARK_MODE,
+        (&dark_mode as *const i32).cast(),
+        std::mem::size_of::<i32>() as u32,
+      );
+    }
+  }
+}
+
 #[derive(Clone)]
 pub struct CefInitScript {
   pub script: InitializationScript,
@@ -1111,9 +1230,7 @@ wrap_window_delegate! {
         }
 
         if let Some(shadow) = a.shadow {
-          if !shadow {
-            // TODO: Implement shadow control for CEF
-          }
+          apply_window_shadow(window, shadow);
         }
 
         #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -1125,8 +1242,8 @@ wrap_window_delegate! {
           window.set_background_color(color_to_cef_argb(color));
         }
 
-        if let Some(_theme) = a.theme {
-          // TODO: Implement theme for CEF
+        if let Some(theme) = a.theme {
+          apply_window_theme(window, Some(theme));
         }
 
         if let Some(focusable) = a.focusable {
@@ -1163,7 +1280,11 @@ wrap_window_delegate! {
     }
 
     fn with_standard_window_buttons(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
-      1
+      self
+        .attributes
+        .borrow()
+        .decorations
+        .unwrap_or(true) as i32
     }
 
     fn on_window_destroyed(&self, _window: Option<&mut Window>) {
@@ -2492,10 +2613,18 @@ fn handle_window_message<T: UserEvent>(
     WindowMessage::SetDecorations(decorations) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().decorations = Some(decorations);
+        if let Some(window) = app_window.window() {
+          apply_window_decorations(&window, decorations);
+        }
       }
     }
-    WindowMessage::SetShadow(_shadow) => {
-      // TODO: Implement shadow
+    WindowMessage::SetShadow(shadow) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().shadow = Some(shadow);
+        if let Some(window) = app_window.window() {
+          apply_window_shadow(&window, shadow);
+        }
+      }
     }
     WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -2646,7 +2775,14 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::SetTitleBarStyle(_style) => {
-      // TODO: Implement title bar style
+      #[cfg(target_os = "macos")]
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().title_bar_style = Some(_style);
+        if let Some(window) = app_window.window() {
+          let hidden_title = app_window.attributes.borrow().hidden_title.unwrap_or(false);
+          apply_titlebar_style(&window, _style, hidden_title);
+        }
+      }
     }
     WindowMessage::SetTrafficLightPosition(_position) => {
       #[cfg(target_os = "macos")]
@@ -2657,8 +2793,13 @@ fn handle_window_message<T: UserEvent>(
         }
       }
     }
-    WindowMessage::SetTheme(_theme) => {
-      // TODO: Implement theme
+    WindowMessage::SetTheme(theme) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().theme = theme;
+        if let Some(window) = app_window.window() {
+          apply_window_theme(&window, theme);
+        }
+      }
     }
     WindowMessage::SetBackgroundColor(color) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -3309,11 +3450,7 @@ pub(crate) fn create_webview<T: UserEvent>(
         .find_map(|attr| match attr {
           WebviewAtribute::RuntimeStyle { style } => Some(*style),
         })
-        .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
-          CefRuntimeStyle::Alloy
-        } else {
-          CefRuntimeStyle::Chrome
-        }),
+        .unwrap_or(CefRuntimeStyle::Alloy),
     );
 
     let browser_view = browser_view_create(

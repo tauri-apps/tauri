@@ -1218,13 +1218,13 @@ dependencies = [
 [[package]]
 name = "cef-dll-sys"
 version = "144.1.0+144.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abb6189602922e778b99ffc8a8635e696b1417457be3270fd53831eb30bb4843"
 dependencies = [
  "anyhow",
  "cmake",
  "download-cef",
  "serde_json",
+ "sha1_smol",
+ "ureq",
 ]
 
 [[package]]

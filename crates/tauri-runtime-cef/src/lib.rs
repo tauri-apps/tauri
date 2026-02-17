@@ -2044,10 +2044,39 @@ impl<T: UserEvent> CefRuntime<T> {
         append_switch_if_absent(&mut command_line_args, "ignore-gpu-blocklist");
         append_switch_if_absent(&mut command_line_args, "enable-gpu-rasterization");
         append_switch_if_absent(&mut command_line_args, "enable-zero-copy");
-        // Wayland + Vulkan is unstable in some Linux environments.
-        // Keep GPU acceleration on X11/GL while avoiding the Vulkan crash path.
-        set_switch_value_if_absent(&mut command_line_args, "ozone-platform", "x11");
+        // Auto-detect display server and set ozone platform accordingly.
+        let session_type = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
+        if session_type == "wayland" {
+          set_switch_value_if_absent(&mut command_line_args, "ozone-platform", "wayland");
+          // Use ANGLE with OpenGL backend for GPU compositing on Wayland + NVIDIA.
+          set_switch_value_if_absent(&mut command_line_args, "use-angle", "opengl");
+        } else {
+          // Keep GPU acceleration on X11/GL while avoiding the Vulkan crash path.
+          set_switch_value_if_absent(&mut command_line_args, "ozone-platform", "x11");
+        }
         append_switch_if_absent(&mut command_line_args, "disable-vulkan");
+      } else {
+        // Default safe GPU mode: use ANGLE with OpenGL backend for hardware acceleration
+        // while avoiding the broken default GL=none path and Vulkan crashes.
+        let session_type = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
+        if session_type == "wayland" {
+          set_switch_value_if_absent(&mut command_line_args, "ozone-platform", "wayland");
+        } else {
+          set_switch_value_if_absent(&mut command_line_args, "ozone-platform", "x11");
+        }
+        set_switch_value_if_absent(&mut command_line_args, "use-angle", "opengl");
+        append_switch_if_absent(&mut command_line_args, "disable-vulkan");
+        append_switch_if_absent(&mut command_line_args, "ignore-gpu-blocklist");
+        extend_switch_value(
+          &mut command_line_args,
+          "disable-features",
+          "VaapiVideoDecoder",
+        );
+        extend_switch_value(
+          &mut command_line_args,
+          "disable-features",
+          "VaapiVideoEncoder",
+        );
       }
     }
 

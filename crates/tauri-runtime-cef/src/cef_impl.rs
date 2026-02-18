@@ -510,9 +510,9 @@ wrap_keyboard_handler! {
         let modifiers = event.modifiers;
 
         #[cfg(not(target_os = "macos"))]
-        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0 as u32)) != 0;
+        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0)) != 0;
         #[cfg(not(target_os = "macos"))]
-        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0 as u32)) != 0;
+        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0)) != 0;
 
         let key_code = event.windows_key_code;
 
@@ -1071,9 +1071,9 @@ wrap_window_delegate! {
             // On Windows, the size set via CEF APIs is the outer size (including borders),
             // so we need to adjust it to set the correct inner size.
             #[cfg(windows)]
-            let inner_size = {
+            let inner_size: tauri_runtime::dpi::Size = {
               let size = inner_size.to_physical::<u32>(scale);
-              crate::utils::windows::adjust_size(window.window_handle(), size).into();
+              crate::utils::windows::adjust_size(window.window_handle(), size).into()
             };
 
             let logical_size = inner_size.to_logical::<f32>(scale);
@@ -2094,7 +2094,7 @@ fn start_window_dragging(window: &cef::Window) {
       return;
     }
 
-    let win = window.window_handle() as u64;
+    let win = window.window_handle();
 
     let mut root_x: std::ffi::c_int = 0;
     let mut root_y: std::ffi::c_int = 0;
@@ -2131,9 +2131,9 @@ fn start_window_dragging(window: &cef::Window) {
       let longs = <xlib::ClientMessageData as std::convert::AsMut<[i64]>>::as_mut(&mut data);
       longs[0] = root_x as i64;
       longs[1] = root_y as i64;
-      longs[2] = NET_WM_MOVERESIZE_MOVE as i64;
+      longs[2] = NET_WM_MOVERESIZE_MOVE;
       longs[3] = 1; // Button 1 (left)
-      longs[4] = SOURCE_APPLICATION as i64;
+      longs[4] = SOURCE_APPLICATION;
     }
 
     let xclient = xlib::XClientMessageEvent {
@@ -2484,7 +2484,7 @@ fn handle_window_message<T: UserEvent>(
           crate::AppWindowKind::Window(window) => {
             #[cfg(target_os = "linux")]
             unsafe {
-              let xid = window.window_handle() as u64;
+              let xid = window.window_handle();
               Ok(raw_window_handle::WindowHandle::borrow_raw(
                 raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(
                   xid,

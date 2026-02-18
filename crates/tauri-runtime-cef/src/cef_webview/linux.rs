@@ -9,7 +9,7 @@ static X11: LazyLock<Option<xlib::Xlib>> = LazyLock::new(|| xlib::Xlib::open().o
 impl CefBrowserExt for cef::Browser {
   fn xid(&self) -> Option<u64> {
     let host = self.host()?;
-    let xid = host.window_handle() as u64;
+    let xid = host.window_handle();
     Some(xid)
   }
 
@@ -162,7 +162,7 @@ impl CefBrowserExt for cef::Browser {
       return;
     };
 
-    let parent_xid = parent.window_handle() as u64;
+    let parent_xid = parent.window_handle();
     if parent_xid == 0 {
       return;
     }

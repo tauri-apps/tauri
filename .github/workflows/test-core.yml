@@ -72,6 +72,11 @@ jobs:
         features:
           - { args: --no-default-features, key: no-default }
           - { args: --all-features, key: all }
+        exclude:
+          - platform: { target: aarch64-apple-ios }
+            features: { key: all }
+          - platform: { target: aarch64-linux-android }
+            features: { key: all }
 
     steps:
       - uses: actions/checkout@v4

@@ -59,7 +59,11 @@ objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
 [target."cfg(target_os = \"macos\")".dependencies]
 url = "2"
 objc2 = "0.6"
-objc2-web-kit = { version = "0.3", features = ["objc2-app-kit", "WKWebView"] }
+objc2-web-kit = { version = "0.3", default-features = false, features = [
+  "objc2-app-kit",
+  "WKWebView",
+  "WKWebViewConfiguration",
+] }
 
 [features]
 devtools = []

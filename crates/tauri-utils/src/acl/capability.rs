@@ -8,8 +8,8 @@ use std::{path::Path, str::FromStr};
 
 use crate::{acl::Identifier, platform::Target};
 use serde::{
-  de::{Error, IntoDeserializer},
   Deserialize, Deserializer, Serialize,
+  de::{Error, IntoDeserializer},
 };
 use serde_untagged::UntaggedEnumVisitor;
 
@@ -216,18 +216,13 @@ impl Capability {
 }
 
 #[cfg(feature = "schema")]
-fn unique_permission(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-  use schemars::schema;
-  schema::SchemaObject {
-    instance_type: Some(schema::InstanceType::Array.into()),
-    array: Some(Box::new(schema::ArrayValidation {
-      unique_items: Some(true),
-      items: Some(gen.subschema_for::<PermissionEntry>().into()),
-      ..Default::default()
-    })),
-    ..Default::default()
-  }
-  .into()
+fn unique_permission(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+  let items = serde_json::Value::from(generator.subschema_for::<PermissionEntry>());
+  schemars::json_schema!({
+    "type": "array",
+    "uniqueItems": true,
+    "items": items
+  })
 }
 
 fn default_capability_local() -> bool {
@@ -327,7 +322,7 @@ mod build {
   use std::convert::identity;
 
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
 
   use super::*;
   use crate::{literal_struct, tokens::*};

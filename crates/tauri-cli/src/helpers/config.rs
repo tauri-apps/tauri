@@ -56,10 +56,9 @@ impl ConfigMetadata {
       if let Some(identifier) = config
         .as_object()
         .and_then(|bundle_config| bundle_config.get("identifier")?.as_str())
+        && identifier == self.inner.identifier
       {
-        if identifier == self.inner.identifier {
-          return Some(ext.clone());
-        }
+        return Some(ext.clone());
       }
     }
     None
@@ -180,7 +179,7 @@ fn load_config(
     }
 
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
-    set_var("TAURI_CONFIG", merge_config_str);
+    unsafe { set_var("TAURI_CONFIG", merge_config_str) };
     merge(&mut config, &merge_config);
     extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
   }
@@ -213,17 +212,19 @@ fn load_config(
   set_current_dir(current_dir).context("failed to set current directory")?;
 
   for (plugin, conf) in &config.plugins.0 {
-    set_var(
-      format!(
-        "TAURI_{}_PLUGIN_CONFIG",
-        plugin.to_uppercase().replace('-', "_")
-      ),
-      serde_json::to_string(&conf).context("failed to serialize config")?,
-    );
+    unsafe {
+      set_var(
+        format!(
+          "TAURI_{}_PLUGIN_CONFIG",
+          plugin.to_uppercase().replace('-', "_")
+        ),
+        serde_json::to_string(&conf).context("failed to serialize config")?,
+      )
+    };
   }
 
   if config.build.remove_unused_commands {
-    std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir);
+    unsafe { std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir) };
   }
 
   Ok(ConfigMetadata {
@@ -267,7 +268,7 @@ pub fn merge_config_with(
   }
 
   let merge_config_str = serde_json::to_string(&merge_config).unwrap();
-  set_var("TAURI_CONFIG", merge_config_str);
+  unsafe { set_var("TAURI_CONFIG", merge_config_str) };
 
   let mut value =
     serde_json::to_value(config.inner.clone()).context("failed to serialize config")?;

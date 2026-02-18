@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 mod cmd;
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test), not(feature = "cef")))]
 mod menu_plugin;
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test), not(feature = "cef")))]
 mod tray;
 
 use serde::Serialize;
 use tauri::{
+  App, Emitter, Listener, Runtime, WebviewUrl,
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
-  App, Emitter, Listener, Runtime, WebviewUrl,
 };
 #[allow(unused)]
 use tauri::{Manager, RunEvent};
@@ -27,7 +27,7 @@ struct Reply {
 pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
 #[cfg(all(desktop, not(test)))]
-pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
+pub struct PopupMenu<R: Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[cfg_attr(feature = "cef", tauri::cef_entry_point)]
@@ -35,7 +35,7 @@ pub fn run() {
   #[cfg(feature = "cef")]
   run_app(tauri::Builder::<tauri::Cef>::default(), |_app| {});
   #[cfg(not(feature = "cef"))]
-  run_app(tauri::Builder::default(), |_app| {});
+  run_app(tauri::Builder::<tauri::Wry>::new(), |_app| {});
 }
 
 pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(

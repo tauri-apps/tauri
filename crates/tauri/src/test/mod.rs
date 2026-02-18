@@ -27,8 +27,8 @@
 //! }
 //!
 //! fn main() {
-//!     // Use `tauri::Builder::default()` to use the default runtime rather than the `MockRuntime`;
-//!     // let app = create_app(tauri::Builder::default());
+//!     // Use `tauri::Builder::<tauri::Wry>::new()` to use the default runtime rather than the `MockRuntime`;
+//!     // let app = create_app(tauri::Builder::<tauri::Wry>::new());
 //!     let app = create_app(mock_builder());
 //!     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
 //!
@@ -59,9 +59,9 @@ use serialize_to_javascript::DefaultTemplate;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug};
 
 use crate::{
+  App, Assets, Builder, Context, Pattern, Runtime, Webview,
   ipc::{InvokeError, InvokeResponse, InvokeResponseBody},
   webview::InvokeRequest,
-  App, Assets, Builder, Context, Pattern, Runtime, Webview,
 };
 use tauri_utils::{
   acl::resolved::Resolved,

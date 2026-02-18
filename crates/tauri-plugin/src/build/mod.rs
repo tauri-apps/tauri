@@ -35,7 +35,7 @@ pub fn plugin_config<T: DeserializeOwned>(name: &str) -> Option<T> {
 
 pub struct Builder<'a> {
   commands: &'a [&'static str],
-  global_scope_schema: Option<schemars::schema::RootSchema>,
+  global_scope_schema: Option<schemars::Schema>,
   global_api_script_path: Option<PathBuf>,
   android_path: Option<PathBuf>,
   ios_path: Option<PathBuf>,
@@ -53,7 +53,7 @@ impl<'a> Builder<'a> {
   }
 
   /// Sets the global scope JSON schema.
-  pub fn global_scope_schema(mut self, schema: schemars::schema::RootSchema) -> Self {
+  pub fn global_scope_schema(mut self, schema: schemars::Schema) -> Self {
     self.global_scope_schema.replace(schema);
     self
   }

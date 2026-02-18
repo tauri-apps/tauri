@@ -26,8 +26,7 @@ html5ever = { version = "0.29", optional = true }
 kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader", optional = true }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
-# Our code requires at least 0.8.21 so don't change this to 0.8
-schemars = { version = "0.8.21", features = ["url", "uuid1"], optional = true }
+schemars = { version = "1", features = ["url2", "uuid1"], optional = true }
 serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }

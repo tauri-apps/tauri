@@ -9,26 +9,26 @@ use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
   sync::{
+    Arc, Mutex,
     atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::channel,
-    Arc, Mutex,
   },
 };
 use tauri_runtime::{
+  ExitRequestedEventAction, RunEvent, UserEvent,
   dpi::{
     LogicalPosition, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Size,
   },
   webview::{InitializationScript, PendingWebview, UriSchemeProtocolHandler, WebviewAttributes},
   window::{PendingWindow, WindowEvent, WindowId},
-  ExitRequestedEventAction, RunEvent, UserEvent,
 };
-use tauri_utils::html::normalize_script_for_csp;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
+use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{
-  cef_webview::CefWebview, AppWebview, AppWindow, CefRuntime, CefWindowBuilder, Message,
-  RuntimeStyle as CefRuntimeStyle, WebviewAtribute, WebviewMessage, WindowMessage,
+  AppWebview, AppWindow, CefRuntime, CefWindowBuilder, Message, RuntimeStyle as CefRuntimeStyle,
+  WebviewAtribute, WebviewMessage, WindowMessage, cef_webview::CefWebview,
 };
 
 mod cookie;
@@ -126,11 +126,7 @@ fn icon_to_cef_image(icon: tauri_runtime::Icon<'static>) -> Option<cef::Image> {
     Some(&rgba),
   );
 
-  if result == 1 {
-    Some(image)
-  } else {
-    None
-  }
+  if result == 1 { Some(image) } else { None }
 }
 
 /// Set window icon using CEF native API
@@ -329,8 +325,8 @@ wrap_browser_process_handler! {
       let mut list = CefStringList::new();
       command_line.arguments(Some(&mut list));
       let args: Vec<String> = list.into_iter().collect();
-      if args.len() == 1 {
-        if let Ok(url) = url::Url::parse(&args[0]) {
+      if args.len() == 1
+        && let Ok(url) = url::Url::parse(&args[0]) {
           let scheme = url.scheme().to_string();
           if self.deep_link_schemes.iter().any(|s| s == &scheme) {
             (self.context.callback.borrow())(RunEvent::Opened {
@@ -339,7 +335,6 @@ wrap_browser_process_handler! {
             return 1;
           }
         }
-      }
       // TODO: add event
       1
     }
@@ -384,15 +379,14 @@ wrap_load_handler! {
     ) {
       let Some(frame) = frame else { return };
 
-      if let Some(handler) = &self.on_page_load_handler {
-        if frame.is_main() == 1 {
+      if let Some(handler) = &self.on_page_load_handler
+        && frame.is_main() == 1 {
           let url = frame.url();
           let url_str = cef::CefString::from(&url).to_string();
           if let Ok(url) = url::Url::parse(&url_str) {
             handler(url, tauri_runtime::webview::PageLoadEvent::Finished);
           }
         }
-      }
 
       // run init scripts for http/https pages that are not custom schemes
       // custom schemes are handled by the request handler
@@ -476,11 +470,10 @@ wrap_context_menu_handler! {
       _params: Option<&mut ContextMenuParams>,
       model: Option<&mut MenuModel>,
     ) {
-      if !self.devtools_enabled {
-        if let Some(model) = model {
+      if !self.devtools_enabled
+        && let Some(model) = model {
           model.remove_at(model.count() - 1);
         }
-      }
     }
   }
 }
@@ -517,9 +510,9 @@ wrap_keyboard_handler! {
         let modifiers = event.modifiers;
 
         #[cfg(not(target_os = "macos"))]
-        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0 as u32)) != 0;
+        let ctrl = (modifiers & (cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0)) != 0;
         #[cfg(not(target_os = "macos"))]
-        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0 as u32)) != 0;
+        let shift = (modifiers & (cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0)) != 0;
 
         let key_code = event.windows_key_code;
 
@@ -705,11 +698,10 @@ wrap_life_span_handler! {
 
   impl LifeSpanHandler {
     fn on_after_created(&self, browser: Option<&mut Browser>) {
-      if let Some(browser) = browser {
-        if let Some(initial_url) = &self.initial_url {
+      if let Some(browser) = browser
+        && let Some(initial_url) = &self.initial_url {
           check_and_reload_if_blank(browser.clone(), initial_url.clone());
         }
-      }
     }
 
     fn on_before_close(&self, browser: Option<&mut Browser>) {
@@ -1051,7 +1043,6 @@ wrap_window_delegate! {
   impl WindowDelegate {
     fn on_window_created(&self, window: Option<&mut Window>) {
       if let Some(window) = window {
-
         // Setup necessary handling for `start_window_dragging` to work on Windows
         #[cfg(windows)]
         drag_window::windows::subclass_window_for_dragging(window);
@@ -1072,31 +1063,29 @@ wrap_window_delegate! {
           window.set_title(Some(&CefString::from(title.as_str())));
         }
 
-        #[allow(unused_mut)]
-        if let Some(mut inner_size) = &a.inner_size {
-          if let Some(display) = window.display() {
+        if let Some(inner_size) = a.inner_size
+
+          && let Some(display) = window.display() {
             let scale = display.device_scale_factor() as f64;
 
             // On Windows, the size set via CEF APIs is the outer size (including borders),
             // so we need to adjust it to set the correct inner size.
             #[cfg(windows)]
-            {
+            let inner_size: tauri_runtime::dpi::Size = {
               let size = inner_size.to_physical::<u32>(scale);
-              inner_size = crate::utils::windows::adjust_size(window.window_handle(), size).into();
-            }
+              crate::utils::windows::adjust_size(window.window_handle(), size).into()
+            };
 
             let logical_size = inner_size.to_logical::<f32>(scale);
-
 
             window.set_size(Some(&cef::Size {
               width: logical_size.width as i32,
               height: logical_size.height as i32,
             }));
           }
-        }
 
-        if let Some(position) = &a.position {
-          if let Some(display) = window.display() {
+        if let Some(position) = &a.position
+          && let Some(display) = window.display() {
             let device_scale_factor = display.device_scale_factor() as f64;
             let logical_position = position.to_logical::<i32>(device_scale_factor);
             window.set_position(Some(&cef::Point {
@@ -1104,62 +1093,54 @@ wrap_window_delegate! {
               y: logical_position.y,
             }));
           }
-        }
 
         if a.center {
           // Use CEF's native centering API
           window.center_window(Some(&window.size()));
         }
 
-        if let Some(focused) = a.focused {
-          if focused {
+        if let Some(focused) = a.focused
+          && focused {
             window.request_focus();
           }
-        }
 
-        if let Some(maximized) = a.maximized {
-          if maximized {
+        if let Some(maximized) = a.maximized
+          && maximized {
             window.maximize();
           }
-        }
 
-        if let Some(fullscreen) = a.fullscreen {
-          if fullscreen {
+        if let Some(fullscreen) = a.fullscreen
+          && fullscreen {
             window.set_fullscreen(1);
           }
-        }
 
-        if let Some(always_on_top) = a.always_on_top {
-          if always_on_top {
+        if let Some(always_on_top) = a.always_on_top
+          && always_on_top {
             window.set_always_on_top(1);
           }
-        }
 
         if let Some(_always_on_bottom) = a.always_on_bottom {
           // TODO: Implement always on bottom for CEF
         }
 
-        if let Some(visible_on_all_workspaces) = a.visible_on_all_workspaces {
-          if visible_on_all_workspaces {
+        if let Some(visible_on_all_workspaces) = a.visible_on_all_workspaces
+          && visible_on_all_workspaces {
             // TODO: Implement visible on all workspaces for CEF
           }
-        }
 
         if let Some(content_protected) = a.content_protected {
           apply_content_protection(window, content_protected);
         }
 
-        if let Some(skip_taskbar) = a.skip_taskbar {
-          if skip_taskbar {
+        if let Some(skip_taskbar) = a.skip_taskbar
+          && skip_taskbar {
             // TODO: Implement skip taskbar for CEF
           }
-        }
 
-        if let Some(shadow) = a.shadow {
-          if !shadow {
+        if let Some(shadow) = a.shadow
+          && !shadow {
             // TODO: Implement shadow control for CEF
           }
-        }
 
         #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
         if a.transparent.unwrap_or_default() {
@@ -1576,14 +1557,13 @@ fn handle_webview_message<T: UserEvent>(
         data
       {
         inner.set_bounds(Some(&new_bounds));
-        if is_browser {
-          if let Some(b) = &mut *bounds_arc.lock().unwrap() {
-            if let Some(wb) = window_bounds {
-              let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
-              b.x_rate = logical_position.x as f32 / window_size.width as f32;
-              b.y_rate = logical_position.y as f32 / window_size.height as f32;
-            }
-          }
+        if is_browser
+          && let Some(b) = &mut *bounds_arc.lock().unwrap()
+          && let Some(wb) = window_bounds
+        {
+          let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
+          b.x_rate = logical_position.x as f32 / window_size.width as f32;
+          b.y_rate = logical_position.y as f32 / window_size.height as f32;
         }
       }
     }
@@ -1632,14 +1612,13 @@ fn handle_webview_message<T: UserEvent>(
 
       if let Some((inner, new_bounds, is_browser, bounds_arc, logical_size, window_bounds)) = data {
         inner.set_bounds(Some(&new_bounds));
-        if is_browser {
-          if let Some(b) = &mut *bounds_arc.lock().unwrap() {
-            if let Some(wb) = window_bounds {
-              let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
-              b.width_rate = logical_size.width as f32 / window_size.width as f32;
-              b.height_rate = logical_size.height as f32 / window_size.height as f32;
-            }
-          }
+        if is_browser
+          && let Some(b) = &mut *bounds_arc.lock().unwrap()
+          && let Some(wb) = window_bounds
+        {
+          let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
+          b.width_rate = logical_size.width as f32 / window_size.width as f32;
+          b.height_rate = logical_size.height as f32 / window_size.height as f32;
         }
       }
     }
@@ -1698,16 +1677,15 @@ fn handle_webview_message<T: UserEvent>(
       )) = data
       {
         inner.set_bounds(Some(&new_bounds));
-        if is_browser {
-          if let Some(b) = &mut *bounds_arc.lock().unwrap() {
-            if let Some(wb) = window_bounds {
-              let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
-              b.x_rate = logical_position.x as f32 / window_size.width as f32;
-              b.y_rate = logical_position.y as f32 / window_size.height as f32;
-              b.width_rate = logical_size.width as f32 / window_size.width as f32;
-              b.height_rate = logical_size.height as f32 / window_size.height as f32;
-            }
-          }
+        if is_browser
+          && let Some(b) = &mut *bounds_arc.lock().unwrap()
+          && let Some(wb) = window_bounds
+        {
+          let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
+          b.x_rate = logical_position.x as f32 / window_size.width as f32;
+          b.y_rate = logical_position.y as f32 / window_size.height as f32;
+          b.width_rate = logical_size.width as f32 / window_size.width as f32;
+          b.height_rate = logical_size.height as f32 / window_size.height as f32;
         }
       }
     }
@@ -1773,34 +1751,32 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::SetAutoResize(auto_resize) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(wrapper) = app_window
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(wrapper) = app_window
           .webviews
           .iter()
           .find(|w| w.webview_id == webview_id)
-        {
-          if wrapper.inner.is_browser() {
-            if auto_resize {
-              if let Some(window) = app_window.window() {
-                let window_bounds = window.bounds();
-                let window_size =
-                  LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
+        && wrapper.inner.is_browser()
+      {
+        if auto_resize {
+          if let Some(window) = app_window.window() {
+            let window_bounds = window.bounds();
+            let window_size =
+              LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
 
-                let ob = wrapper.inner.bounds();
-                let pos = LogicalPosition::new(ob.x, ob.y);
-                let size = LogicalSize::new(ob.width as u32, ob.height as u32);
+            let ob = wrapper.inner.bounds();
+            let pos = LogicalPosition::new(ob.x, ob.y);
+            let size = LogicalSize::new(ob.width as u32, ob.height as u32);
 
-                *wrapper.bounds.lock().unwrap() = Some(crate::WebviewBounds {
-                  x_rate: pos.x as f32 / window_size.width as f32,
-                  y_rate: pos.y as f32 / window_size.height as f32,
-                  width_rate: size.width as f32 / window_size.width as f32,
-                  height_rate: size.height as f32 / window_size.height as f32,
-                });
-              }
-            } else {
-              *wrapper.bounds.lock().unwrap() = None;
-            }
+            *wrapper.bounds.lock().unwrap() = Some(crate::WebviewBounds {
+              x_rate: pos.x as f32 / window_size.width as f32,
+              y_rate: pos.y as f32 / window_size.height as f32,
+              width_rate: size.width as f32 / window_size.width as f32,
+              height_rate: size.height as f32 / window_size.height as f32,
+            });
           }
+        } else {
+          *wrapper.bounds.lock().unwrap() = None;
         }
       }
     }
@@ -2016,26 +1992,27 @@ fn start_window_dragging(window: &cef::Window) {
 
   unsafe {
     let ns_view = Retained::<NSView>::retain(window.window_handle() as _);
-    if let Some(ns_view) = ns_view {
-      if let Some(ns_window) = ns_view.window() {
-        // Get current mouse location
-        let mouse_location = NSEvent::mouseLocation();
+    if let Some(ns_view) = ns_view
+      && let Some(ns_window) = ns_view.window()
+    {
+      // Get current mouse location
+      let mouse_location = NSEvent::mouseLocation();
 
-        // Try to get the current event from NSApp
-        let mut event = None;
-        if let Some(mtm) = objc2::MainThreadMarker::new() {
-          let ns_app = objc2_app_kit::NSApp(mtm);
-          event = ns_app.currentEvent();
-        }
+      // Try to get the current event from NSApp
+      let mut event = None;
+      if let Some(mtm) = objc2::MainThreadMarker::new() {
+        let ns_app = objc2_app_kit::NSApp(mtm);
+        event = ns_app.currentEvent();
+      }
 
-        // Create a mouse event for dragging
-        // If we have a current event, try to use its properties
-        let drag_event = if let Some(current_event) = event {
-          let event_modifier_flags = current_event.modifierFlags();
-          let event_timestamp = current_event.timestamp();
-          let event_window_number = current_event.windowNumber();
+      // Create a mouse event for dragging
+      // If we have a current event, try to use its properties
+      let drag_event = if let Some(current_event) = event {
+        let event_modifier_flags = current_event.modifierFlags();
+        let event_timestamp = current_event.timestamp();
+        let event_window_number = current_event.windowNumber();
 
-          NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
+        NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
             NSEventType::LeftMouseDown,
             mouse_location,
             event_modifier_flags,
@@ -2046,8 +2023,8 @@ fn start_window_dragging(window: &cef::Window) {
             1,
             1.0,
           )
-        } else {
-          NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
+      } else {
+        NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
             NSEventType::LeftMouseDown,
             mouse_location,
             NSEventModifierFlags::empty(),
@@ -2058,11 +2035,10 @@ fn start_window_dragging(window: &cef::Window) {
             1,
             1.0,
           )
-        };
+      };
 
-        if let Some(event) = drag_event {
-          ns_window.performWindowDragWithEvent(&event);
-        }
+      if let Some(event) = drag_event {
+        ns_window.performWindowDragWithEvent(&event);
       }
     }
   }
@@ -2118,7 +2094,7 @@ fn start_window_dragging(window: &cef::Window) {
       return;
     }
 
-    let win = window.window_handle() as u64;
+    let win = window.window_handle();
 
     let mut root_x: std::ffi::c_int = 0;
     let mut root_y: std::ffi::c_int = 0;
@@ -2155,9 +2131,9 @@ fn start_window_dragging(window: &cef::Window) {
       let longs = <xlib::ClientMessageData as std::convert::AsMut<[i64]>>::as_mut(&mut data);
       longs[0] = root_x as i64;
       longs[1] = root_y as i64;
-      longs[2] = NET_WM_MOVERESIZE_MOVE as i64;
+      longs[2] = NET_WM_MOVERESIZE_MOVE;
       longs[3] = 1; // Button 1 (left)
-      longs[4] = SOURCE_APPLICATION as i64;
+      longs[4] = SOURCE_APPLICATION;
     }
 
     let xclient = xlib::XClientMessageEvent {
@@ -2508,7 +2484,7 @@ fn handle_window_message<T: UserEvent>(
           crate::AppWindowKind::Window(window) => {
             #[cfg(target_os = "linux")]
             unsafe {
-              let xid = window.window_handle() as u64;
+              let xid = window.window_handle();
               Ok(raw_window_handle::WindowHandle::borrow_raw(
                 raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(
                   xid,
@@ -2551,10 +2527,10 @@ fn handle_window_message<T: UserEvent>(
     }
     // Setters
     WindowMessage::Center => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.center_window(Some(&window.size()));
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.center_window(Some(&window.size()));
       }
     }
     WindowMessage::RequestUserAttention(_attention_type) => {
@@ -2584,52 +2560,52 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::SetTitle(title) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.set_title(Some(&cef::CefString::from(title.as_str())));
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.set_title(Some(&cef::CefString::from(title.as_str())));
       }
     }
     WindowMessage::Maximize => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.maximize();
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.maximize();
       }
     }
     WindowMessage::Unmaximize => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.restore();
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.restore();
       }
     }
     WindowMessage::Minimize => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.minimize();
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.minimize();
       }
     }
     WindowMessage::Unminimize => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.restore();
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.restore();
       }
     }
     WindowMessage::Show => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.show();
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.show();
       }
     }
     WindowMessage::Hide => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.hide();
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.hide();
       }
     }
     WindowMessage::SetDecorations(decorations) => {
@@ -2671,26 +2647,25 @@ fn handle_window_message<T: UserEvent>(
     }
     #[allow(unused_mut)]
     WindowMessage::SetSize(mut size) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          if let Some(display) = window.display() {
-            let device_scale_factor = display.device_scale_factor() as f64;
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+        && let Some(display) = window.display()
+      {
+        let device_scale_factor = display.device_scale_factor() as f64;
 
-            // On Windows, the size set via CEF APIs is the outer size (including borders),
-            // so we need to adjust it to set the correct inner size.
-            #[cfg(windows)]
-            {
-              let inner_size = size.to_physical::<u32>(device_scale_factor);
-              size = crate::utils::windows::adjust_size(window.window_handle(), inner_size).into();
-            }
-
-            let logical_size = size.to_logical::<f32>(device_scale_factor);
-            window.set_size(Some(&cef::Size {
-              width: logical_size.width as i32,
-              height: logical_size.height as i32,
-            }));
-          }
+        // On Windows, the size set via CEF APIs is the outer size (including borders),
+        // so we need to adjust it to set the correct inner size.
+        #[cfg(windows)]
+        {
+          let inner_size = size.to_physical::<u32>(device_scale_factor);
+          size = crate::utils::windows::adjust_size(window.window_handle(), inner_size).into();
         }
+
+        let logical_size = size.to_logical::<f32>(device_scale_factor);
+        window.set_size(Some(&cef::Size {
+          width: logical_size.width as i32,
+          height: logical_size.height as i32,
+        }));
       }
     }
     WindowMessage::SetMinSize(size) => {
@@ -2709,24 +2684,23 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::SetPosition(position) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          if let Some(display) = window.display() {
-            let device_scale_factor = display.device_scale_factor() as f64;
-            let logical_position = position.to_logical::<i32>(device_scale_factor);
-            window.set_position(Some(&cef::Point {
-              x: logical_position.x,
-              y: logical_position.y,
-            }));
-          }
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+        && let Some(display) = window.display()
+      {
+        let device_scale_factor = display.device_scale_factor() as f64;
+        let logical_position = position.to_logical::<i32>(device_scale_factor);
+        window.set_position(Some(&cef::Point {
+          x: logical_position.x,
+          y: logical_position.y,
+        }));
       }
     }
     WindowMessage::SetFullscreen(fullscreen) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.set_fullscreen(if fullscreen { 1 } else { 0 });
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.set_fullscreen(if fullscreen { 1 } else { 0 });
       }
     }
     #[cfg(target_os = "macos")]
@@ -2734,24 +2708,24 @@ fn handle_window_message<T: UserEvent>(
       // TODO: Implement simple fullscreen
     }
     WindowMessage::SetFocus => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.request_focus();
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.request_focus();
       }
     }
     WindowMessage::SetFocusable(focusable) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          window.set_focusable(if focusable { 1 } else { 0 });
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.set_focusable(if focusable { 1 } else { 0 });
       }
     }
     WindowMessage::SetIcon(icon) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          set_window_icon(&window, icon);
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        set_window_icon(&window, icon);
       }
     }
     WindowMessage::SetSkipTaskbar(_skip) => {
@@ -2782,10 +2756,10 @@ fn handle_window_message<T: UserEvent>(
       // TODO: Implement badge label
     }
     WindowMessage::SetOverlayIcon(icon) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          set_overlay_icon(&window, icon);
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        set_overlay_icon(&window, icon);
       }
     }
     WindowMessage::SetTitleBarStyle(_style) => {
@@ -2813,10 +2787,10 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::StartDragging => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        if let Some(window) = app_window.window() {
-          start_window_dragging(&window);
-        }
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        start_window_dragging(&window);
       }
     }
     WindowMessage::StartResizeDragging(_direction) => {

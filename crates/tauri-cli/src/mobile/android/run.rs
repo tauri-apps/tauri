@@ -12,11 +12,11 @@ use std::path::PathBuf;
 
 use super::{configure_cargo, device_prompt, env};
 use crate::{
+  ConfigValue, Result,
   error::Context,
   helpers::config::ConfigMetadata,
   interface::{DevProcess, WatcherOptions},
   mobile::{DevChild, TargetDevice},
-  ConfigValue, Result,
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -92,11 +92,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     super::build::Options {
       debug: !options.release,
       targets: device.as_ref().map(|d| {
-        vec![Target::all()
-          .iter()
-          .find(|(_key, t)| t.arch == d.target().arch)
-          .map(|(key, _t)| key.to_string())
-          .expect("Target not found")]
+        vec![
+          Target::all()
+            .iter()
+            .find(|(_key, t)| t.arch == d.target().arch)
+            .map(|(key, _t)| key.to_string())
+            .expect("Target not found"),
+        ]
       }),
       features: options.features,
       config: options.config.clone(),

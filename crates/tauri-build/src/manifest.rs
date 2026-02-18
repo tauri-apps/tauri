@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cargo_toml::{Dependency, Manifest};
 use tauri_utils::config::{AppConfig, Config, PatternKind};
 
@@ -62,11 +62,11 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
   for metadata in dependencies {
     let mut name = metadata.name.clone();
     let mut deps = find_dependency(manifest, &metadata.name, metadata.kind);
-    if deps.is_empty() {
-      if let Some(alias) = &metadata.alias {
-        deps = find_dependency(manifest, alias, metadata.kind);
-        name.clone_from(alias);
-      }
+    if deps.is_empty()
+      && let Some(alias) = &metadata.alias
+    {
+      deps = find_dependency(manifest, alias, metadata.kind);
+      name.clone_from(alias);
     }
 
     for dep in deps {

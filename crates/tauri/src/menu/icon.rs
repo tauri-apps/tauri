@@ -8,7 +8,7 @@ use super::run_item_main_thread;
 use super::{IconMenuItem, NativeIcon};
 use crate::menu::IconMenuItemInner;
 use crate::run_main_thread;
-use crate::{image::Image, menu::MenuId, AppHandle, Manager, Runtime};
+use crate::{AppHandle, Manager, Runtime, image::Image, menu::MenuId};
 
 impl<R: Runtime> IconMenuItem<R> {
   /// Create a new menu item.

@@ -9,8 +9,14 @@ fn app_completed_successfully() {
   std::process::exit(0);
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::default();
+
+  builder
     .invoke_handler(tauri::generate_handler![app_completed_successfully])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

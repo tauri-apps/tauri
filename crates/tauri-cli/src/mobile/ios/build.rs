@@ -3,22 +3,22 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  detect_target_ok, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  log_finished, open_and_wait, project_config, synchronize_project_config, MobileTarget,
-  OptionsHandle,
+  MobileTarget, OptionsHandle, detect_target_ok, ensure_init, env, get_app, get_config,
+  inject_resources, load_pbxproj, log_finished, open_and_wait, project_config,
+  synchronize_project_config,
 };
 use crate::{
+  ConfigValue, Error, Result,
   build::Options as BuildOptions,
   error::{Context, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{get_config as get_tauri_config, ConfigMetadata},
+    config::{ConfigMetadata, get_config as get_tauri_config},
     flock,
     plist::merge_plist,
   },
   interface::{AppInterface, Options as InterfaceOptions},
-  mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions, TargetDevice},
-  ConfigValue, Error, Result,
+  mobile::{CliOptions, TargetDevice, ios::ensure_ios_runtime_installed, write_options},
 };
 use clap::{ArgAction, Parser, ValueEnum};
 
@@ -29,7 +29,7 @@ use cargo_mobile2::{
   },
   env::Env,
   opts::{NoiseLevel, Profile},
-  target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
+  target::{TargetInvalid, TargetTrait, call_for_targets_with_fallback},
 };
 use rand::distr::{Alphanumeric, SampleString};
 

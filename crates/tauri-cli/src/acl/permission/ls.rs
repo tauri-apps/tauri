@@ -5,11 +5,11 @@
 use clap::Parser;
 
 use crate::{
-  error::{Context, ErrorExt},
   Result,
+  error::{Context, ErrorExt},
 };
 use colored::Colorize;
-use tauri_utils::acl::{manifest::Manifest, APP_ACL_KEY};
+use tauri_utils::acl::{APP_ACL_KEY, manifest::Manifest};
 
 use std::{collections::BTreeMap, fs::read_to_string};
 
@@ -56,25 +56,24 @@ pub fn command(options: Options) -> Result<()> {
         format!("{}:", key.magenta())
       };
 
-      if let Some(default) = manifest.default_permission {
-        if options
+      if let Some(default) = manifest.default_permission
+        && options
           .filter
           .as_ref()
           .map(|f| "default".contains(f))
           .unwrap_or(true)
-        {
-          permissions.push(format!(
-            "{prefix}{}\n{}\nPermissions: {}",
-            "default".cyan(),
-            default.description,
-            default
-              .permissions
-              .iter()
-              .map(|c| c.cyan().to_string())
-              .collect::<Vec<_>>()
-              .join(", ")
-          ));
-        }
+      {
+        permissions.push(format!(
+          "{prefix}{}\n{}\nPermissions: {}",
+          "default".cyan(),
+          default.description,
+          default
+            .permissions
+            .iter()
+            .map(|c| c.cyan().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+        ));
       }
 
       for set in manifest.permission_sets.values() {

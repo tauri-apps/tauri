@@ -11,7 +11,7 @@
 //! - JSON read/write utilities
 //! - File download utilities (via `curl` or file copy)
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -138,11 +138,11 @@ pub fn parse_max_mem(file_path: &str) -> Result<Option<u64>> {
 
   for line in output.lines().map_while(Result::ok) {
     let split: Vec<&str> = line.split(' ').collect();
-    if split.len() == 3 {
-      if let Ok(mb) = split[1].parse::<f64>() {
-        let current_bytes = (mb * 1024.0 * 1024.0) as u64;
-        highest = highest.max(current_bytes);
-      }
+    if split.len() == 3
+      && let Ok(mb) = split[1].parse::<f64>()
+    {
+      let current_bytes = (mb * 1024.0 * 1024.0) as u64;
+      highest = highest.max(current_bytes);
     }
   }
 
@@ -173,21 +173,21 @@ pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
     let syscall_fields: Vec<&str> = line.split_whitespace().collect();
     let len = syscall_fields.len();
 
-    if let Some(&syscall_name) = syscall_fields.last() {
-      if (5..=6).contains(&len) {
-        let output = StraceOutput {
-          percent_time: syscall_fields[0].parse().unwrap_or(0.0),
-          seconds: syscall_fields[1].parse().unwrap_or(0.0),
-          usecs_per_call: syscall_fields[2].parse().ok(),
-          calls: syscall_fields[3].parse().unwrap_or(0),
-          errors: if len < 6 {
-            0
-          } else {
-            syscall_fields[4].parse().unwrap_or(0)
-          },
-        };
-        summary.insert(syscall_name.to_string(), output);
-      }
+    if let Some(&syscall_name) = syscall_fields.last()
+      && (5..=6).contains(&len)
+    {
+      let output = StraceOutput {
+        percent_time: syscall_fields[0].parse().unwrap_or(0.0),
+        seconds: syscall_fields[1].parse().unwrap_or(0.0),
+        usecs_per_call: syscall_fields[2].parse().ok(),
+        calls: syscall_fields[3].parse().unwrap_or(0),
+        errors: if len < 6 {
+          0
+        } else {
+          syscall_fields[4].parse().unwrap_or(0)
+        },
+      };
+      summary.insert(syscall_name.to_string(), output);
     }
   }
 

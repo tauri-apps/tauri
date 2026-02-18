@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  VersionMetadata,
   helpers::{
-    framework::{infer_from_package_json as infer_framework, Framework},
+    framework::{Framework, infer_from_package_json as infer_framework},
     npm::PackageManager,
     prompts, resolve_tauri_path, template,
   },
-  VersionMetadata,
 };
 use std::{
   collections::BTreeMap,
@@ -18,12 +18,12 @@ use std::{
 };
 
 use crate::{
-  error::{Context, ErrorExt},
   Result,
+  error::{Context, ErrorExt},
 };
 use clap::Parser;
-use handlebars::{to_json, Handlebars};
-use include_dir::{include_dir, Dir};
+use handlebars::{Handlebars, to_json};
+use include_dir::{Dir, include_dir};
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");

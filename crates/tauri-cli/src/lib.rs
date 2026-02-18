@@ -31,13 +31,13 @@ mod remove;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
-use env_logger::fmt::style::{AnsiColor, Style};
 use env_logger::Builder;
+use env_logger::fmt::style::{AnsiColor, Style};
 pub use error::{Error, ErrorExt, Result};
 use log::Level;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
-use std::process::{exit, Command, ExitStatus, Output, Stdio};
+use std::process::{Command, ExitStatus, Output, Stdio, exit};
 use std::{
   ffi::OsString,
   fmt::Display,
@@ -230,7 +230,7 @@ where
   };
   // set the verbosity level so subsequent CLI calls (xcode-script, android-studio-script) refer to it
   let verbosity_number = get_verbosity(cli.verbose);
-  std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string());
+  unsafe { std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string()) };
 
   let mut builder = Builder::from_default_env();
   if let Err(err) = builder

@@ -5,17 +5,17 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
+  Runtime,
   ipc::InvokeResponseBody,
   manager::AppManager,
   webview::{InvokeRequest, UriSchemeProtocolHandler},
-  Runtime,
 };
 use http::{
+  HeaderValue, Method, Request, StatusCode,
   header::{
     ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
     CONTENT_TYPE,
   },
-  HeaderValue, Method, Request, StatusCode,
 };
 use url::Url;
 
@@ -558,7 +558,7 @@ mod tests {
   use std::str::FromStr;
 
   use super::*;
-  use crate::{ipc::InvokeBody, manager::AppManager, plugin::PluginStore, StateManager, Wry};
+  use crate::{StateManager, Wry, ipc::InvokeBody, manager::AppManager, plugin::PluginStore};
   use http::header::*;
   use serde_json::json;
   use tauri_macros::generate_context;

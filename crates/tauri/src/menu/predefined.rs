@@ -8,7 +8,7 @@ use super::run_item_main_thread;
 use super::{AboutMetadata, PredefinedMenuItem};
 use crate::menu::PredefinedMenuItemInner;
 use crate::run_main_thread;
-use crate::{menu::MenuId, AppHandle, Manager, Runtime};
+use crate::{AppHandle, Manager, Runtime, menu::MenuId};
 
 impl<R: Runtime> PredefinedMenuItem<R> {
   /// Separator menu item

@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::{Context, ErrorExt},
-  helpers::config::{reload_config, Config as TauriConfig, ConfigMetadata},
-  interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
   ConfigValue, Error, Result,
+  error::{Context, ErrorExt},
+  helpers::config::{Config as TauriConfig, ConfigMetadata, reload_config},
+  interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
 };
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
@@ -16,10 +16,10 @@ use jsonrpsee_core::rpc_params;
 use serde::{Deserialize, Serialize};
 
 use cargo_mobile2::{
+  ChildHandle,
   config::app::{App, Raw as RawAppConfig},
   env::Error as EnvError,
   opts::{NoiseLevel, Profile},
-  ChildHandle,
 };
 use std::{
   collections::HashMap,
@@ -29,11 +29,11 @@ use std::{
   fs::{read_to_string, write},
   net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
   path::{Path, PathBuf},
-  process::{exit, ExitStatus},
+  process::{ExitStatus, exit},
   str::FromStr,
   sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, OnceLock,
+    atomic::{AtomicBool, Ordering},
   },
 };
 use tokio::runtime::Runtime;
@@ -292,8 +292,10 @@ fn use_network_address_for_dev_url(
   };
 
   if let Some(ip) = ip {
-    std::env::set_var("TAURI_DEV_HOST", ip.to_string());
-    std::env::set_var("TRUNK_SERVE_ADDRESS", ip.to_string());
+    unsafe {
+      set_var("TAURI_DEV_HOST", ip.to_string());
+      set_var("TRUNK_SERVE_ADDRESS", ip.to_string());
+    }
     if ip.is_ipv6() {
       // in this case we can't ping the server for some reason
       dev_url_config.no_dev_server_wait = true;
@@ -403,7 +405,7 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
     .expect("failed to read CLI options");
 
   for (k, v) in &options.vars {
-    set_var(k, v);
+    unsafe { set_var(k, v) };
   }
   options
 }
@@ -575,11 +577,11 @@ fn ensure_init(
   if !project_outdated_reasons.is_empty() {
     let reason = project_outdated_reasons.join(" and ");
     crate::error::bail!(
-        "{} project directory is outdated because {reason}. Please delete {}, run `tauri {} init` and try again.",
-        target.ide_name(),
-        project_dir.display(),
-        target.command_name(),
-      )
+      "{} project directory is outdated because {reason}. Please delete {}, run `tauri {} init` and try again.",
+      target.ide_name(),
+      project_dir.display(),
+      target.command_name(),
+    )
   }
 
   Ok(())

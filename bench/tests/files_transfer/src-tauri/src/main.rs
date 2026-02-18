@@ -5,7 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::fs::read;
-use tauri::{command, ipc::Response, path::BaseDirectory, AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Manager, Runtime, command, ipc::Response, path::BaseDirectory};
 
 #[command]
 fn app_should_close(exit_code: i32) {
@@ -22,8 +22,14 @@ async fn read_file<R: Runtime>(app: AppHandle<R>) -> Result<Response, String> {
   Ok(Response::new(contents))
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .invoke_handler(tauri::generate_handler![app_should_close, read_file])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

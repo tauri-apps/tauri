@@ -21,6 +21,9 @@ use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 #[cfg(windows)]
 use tauri_runtime::webview::ScrollBarStyle;
 use tauri_runtime::{
+  Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
+  ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
+  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -28,9 +31,6 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, DragDropEvent, PendingWindow, RawWindow,
     WebviewEvent, WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
   },
-  Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
-  ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
-  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_vendor = "apple")]
@@ -78,13 +78,13 @@ use tao::{
     UserAttentionType as TaoUserAttentionType,
   },
 };
-#[cfg(desktop)]
-use tauri_utils::config::PreventOverflowConfig;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
+#[cfg(desktop)]
+use tauri_utils::config::PreventOverflowConfig;
 use tauri_utils::{
-  config::{Color, WindowConfig},
   Theme,
+  config::{Color, WindowConfig},
 };
 use url::Url;
 #[cfg(windows)]
@@ -103,8 +103,8 @@ pub use wry::webview_version;
 use wry::WebViewExtWindows;
 #[cfg(target_os = "android")]
 use wry::{
-  prelude::{dispatch, find_class},
   WebViewBuilderExtAndroid, WebViewExtAndroid,
+  prelude::{dispatch, find_class},
 };
 #[cfg(not(any(
   target_os = "windows",
@@ -126,19 +126,19 @@ use tauri_runtime::ActivationPolicy;
 use std::{
   cell::RefCell,
   collections::{
-    hash_map::Entry::{Occupied, Vacant},
     BTreeMap, HashMap, HashSet,
+    hash_map::Entry::{Occupied, Vacant},
   },
   fmt,
   ops::Deref,
   path::PathBuf,
   rc::Rc,
   sync::{
-    atomic::{AtomicBool, AtomicU32, Ordering},
-    mpsc::{channel, Sender},
     Arc, Mutex, Weak,
+    atomic::{AtomicBool, AtomicU32, Ordering},
+    mpsc::{Sender, channel},
   },
-  thread::{current as current_thread, ThreadId},
+  thread::{ThreadId, current as current_thread},
 };
 
 pub type WebviewId = u32;
@@ -3238,7 +3238,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 fn make_event_handler<T, F>(
   runtime: &Wry<T>,
   mut callback: F,
-) -> impl FnMut(Event<'_, Message<T>>, &EventLoopWindowTarget<Message<T>>, &mut ControlFlow)
+) -> impl FnMut(Event<'_, Message<T>>, &EventLoopWindowTarget<Message<T>>, &mut ControlFlow) + use<T, F>
 where
   T: UserEvent,
   F: FnMut(RunEvent<T>) + 'static,
@@ -4176,22 +4176,22 @@ fn handle_event_loop<T: UserEvent>(
       WebviewMessage::WebviewEvent(event),
     )) => {
       let windows_ref = windows.0.borrow();
-      if let Some(window) = windows_ref.get(&window_id) {
-        if let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id) {
-          let label = webview.label.clone();
-          let webview_event_listeners = webview.webview_event_listeners.clone();
+      if let Some(window) = windows_ref.get(&window_id)
+        && let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id)
+      {
+        let label = webview.label.clone();
+        let webview_event_listeners = webview.webview_event_listeners.clone();
 
-          drop(windows_ref);
+        drop(windows_ref);
 
-          callback(RunEvent::WebviewEvent {
-            label,
-            event: event.clone(),
-          });
-          let listeners = webview_event_listeners.lock().unwrap();
-          let handlers = listeners.values();
-          for handler in handlers {
-            handler(&event);
-          }
+        callback(RunEvent::WebviewEvent {
+          label,
+          event: event.clone(),
+        });
+        let listeners = webview_event_listeners.lock().unwrap();
+        let handlers = listeners.values();
+        for handler in handlers {
+          handler(&event);
         }
       }
     }
@@ -4230,22 +4230,22 @@ fn handle_event_loop<T: UserEvent>(
       if let Some(window_id) = window_id_map.get(&window_id) {
         {
           let windows_ref = windows.0.borrow();
-          if let Some(window) = windows_ref.get(&window_id) {
-            if let Some(event) = WindowEventWrapper::parse(window, &event).0 {
-              let label = window.label.clone();
-              let window_event_listeners = window.window_event_listeners.clone();
+          if let Some(window) = windows_ref.get(&window_id)
+            && let Some(event) = WindowEventWrapper::parse(window, &event).0
+          {
+            let label = window.label.clone();
+            let window_event_listeners = window.window_event_listeners.clone();
 
-              drop(windows_ref);
+            drop(windows_ref);
 
-              callback(RunEvent::WindowEvent {
-                label,
-                event: event.clone(),
-              });
-              let listeners = window_event_listeners.lock().unwrap();
-              let handlers = listeners.values();
-              for handler in handlers {
-                handler(&event);
-              }
+            callback(RunEvent::WindowEvent {
+              label,
+              event: event.clone(),
+            });
+            let listeners = window_event_listeners.lock().unwrap();
+            let handlers = listeners.values();
+            for handler in handlers {
+              handler(&event);
             }
           }
         }
@@ -4295,15 +4295,15 @@ fn handle_event_loop<T: UserEvent>(
             {
               let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
-                if let Some(b) = &*webview.bounds.lock().unwrap() {
-                  if let Err(e) = webview.set_bounds(wry::Rect {
+                if let Some(b) = &*webview.bounds.lock().unwrap()
+                  && let Err(e) = webview.set_bounds(wry::Rect {
                     position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
                       .into(),
                     size: LogicalSize::new(size.width * b.width_rate, size.height * b.height_rate)
                       .into(),
-                  }) {
-                    log::error!("failed to autoresize webview: {e}");
-                  }
+                  })
+                {
+                  log::error!("failed to autoresize webview: {e}");
                 }
               }
             }

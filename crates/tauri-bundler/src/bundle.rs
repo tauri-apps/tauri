@@ -41,7 +41,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Linux".to_owned(),
-      ))
+      ));
     }
   };
   #[cfg(target_os = "windows")]
@@ -52,7 +52,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Windows".to_owned(),
-      ))
+      ));
     }
   };
 
@@ -102,7 +102,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let target_os = settings.target_platform();
 
   if *target_os != TargetPlatform::current() {
-    log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+    log::warn!(
+      "Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility."
+    );
   }
 
   // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
@@ -135,7 +137,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if let Err(e) = patch_binary(&main_binary_path, package_type) {
-      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+      log::warn!(
+        "Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues"
+      );
     }
 
     // sign main binary for every package type after patch
@@ -221,36 +225,39 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         )
       })
     {
-      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
+      log::warn!(
+        "The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis"
+      );
     }
     if updater.v1_compatible {
-      log::warn!("Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin");
+      log::warn!(
+        "Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin"
+      );
     }
   }
 
   #[cfg(target_os = "macos")]
   {
     // Clean up .app if only building dmg or updater
-    if !package_types.contains(&PackageType::MacOsBundle) {
-      if let Some(app_bundle_paths) = bundles
+    if !package_types.contains(&PackageType::MacOsBundle)
+      && let Some(app_bundle_paths) = bundles
         .iter()
         .position(|b| b.package_type == PackageType::MacOsBundle)
         .map(|i| bundles.remove(i))
         .map(|b| b.bundle_paths)
-      {
-        for app_bundle_path in &app_bundle_paths {
-          use crate::error::ErrorExt;
+    {
+      for app_bundle_path in &app_bundle_paths {
+        use crate::error::ErrorExt;
 
-          log::info!(action = "Cleaning"; "{}", app_bundle_path.display());
-          match app_bundle_path.is_dir() {
-            true => std::fs::remove_dir_all(app_bundle_path),
-            false => std::fs::remove_file(app_bundle_path),
-          }
-          .fs_context(
-            "failed to clean the app bundle",
-            app_bundle_path.to_path_buf(),
-          )?;
+        log::info!(action = "Cleaning"; "{}", app_bundle_path.display());
+        match app_bundle_path.is_dir() {
+          true => std::fs::remove_dir_all(app_bundle_path),
+          false => std::fs::remove_file(app_bundle_path),
         }
+        .fs_context(
+          "failed to clean the app bundle",
+          app_bundle_path.to_path_buf(),
+        )?;
       }
     }
   }
@@ -325,7 +332,9 @@ fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> c
       }
     } else {
       #[cfg(not(target_os = "windows"))]
-      log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+      log::warn!(
+        "Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer..."
+      );
     }
   }
 

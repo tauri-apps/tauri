@@ -11,7 +11,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
-  sync::{mpsc::sync_channel, Arc, Mutex},
+  sync::{Arc, Mutex, mpsc::sync_channel},
   time::Duration,
 };
 
@@ -25,16 +25,16 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
+use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
 
 use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
+  ConfigValue,
   error::{Context, Error, ErrorExt},
   helpers::{
     app_paths::Dirs,
-    config::{nsis_settings, reload_config, wix_settings, BundleResources, Config, ConfigMetadata},
+    config::{BundleResources, Config, ConfigMetadata, nsis_settings, reload_config, wix_settings},
   },
-  ConfigValue,
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -44,10 +44,10 @@ pub mod installation;
 pub mod manifest;
 use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
-use manifest::{rewrite_manifest, Manifest};
+use manifest::{Manifest, rewrite_manifest};
 
 #[cfg(target_os = "macos")]
-pub use desktop::{cargo_command, DevChild};
+pub use desktop::{DevChild, cargo_command};
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
@@ -162,10 +162,12 @@ impl Rust {
       .as_ref()
       .is_some_and(|target| target.ends_with("ios") || target.ends_with("ios-sim"));
     if target_ios {
-      std::env::set_var(
-        "IPHONEOS_DEPLOYMENT_TARGET",
-        &config.bundle.ios.minimum_system_version,
-      );
+      unsafe {
+        std::env::set_var(
+          "IPHONEOS_DEPLOYMENT_TARGET",
+          &config.bundle.ios.minimum_system_version,
+        );
+      }
     }
 
     let app_settings = RustAppSettings::new(config, manifest, target, tauri_dir)?;
@@ -403,10 +405,10 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   default_gitignore.push(".tauri");
   let _ = std::fs::create_dir_all(&default_gitignore);
   default_gitignore.push(".gitignore");
-  if !default_gitignore.exists() {
-    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
-    }
+  if !default_gitignore.exists()
+    && let Ok(mut file) = std::fs::File::create(default_gitignore.clone())
+  {
+    let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
   }
 
   let mut builder = ignore::WalkBuilder::new(dir);
@@ -638,32 +640,32 @@ impl Rust {
             continue;
           }
 
-          if let Some(event_path) = event.paths.first() {
-            if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
-              if is_configuration_file(self.app_settings.target_platform, event_path)
-                && reload_config(config, merge_configs, dirs.tauri).is_ok()
-              {
-                let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
-                if modified {
-                  *self.app_settings.manifest.lock().unwrap() = manifest;
-                  // no need to run the watcher logic, the manifest was modified
-                  // and it will trigger the watcher again
-                  continue;
-                }
+          if let Some(event_path) = event.paths.first()
+            && !ignore_matcher.is_ignore(event_path, event_path.is_dir())
+          {
+            if is_configuration_file(self.app_settings.target_platform, event_path)
+              && reload_config(config, merge_configs, dirs.tauri).is_ok()
+            {
+              let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
+              if modified {
+                *self.app_settings.manifest.lock().unwrap() = manifest;
+                // no need to run the watcher logic, the manifest was modified
+                // and it will trigger the watcher again
+                continue;
               }
-
-              log::info!(
-                "File {} changed. Rebuilding application...",
-                display_path(event_path.strip_prefix(dirs.frontend).unwrap_or(event_path))
-              );
-
-              child.kill().context("failed to kill app process")?;
-
-              // wait for the process to exit
-              // note that on mobile, kill() already waits for the process to exit (duct implementation)
-              let _ = child.wait();
-              child = run(self, config)?;
             }
+
+            log::info!(
+              "File {} changed. Rebuilding application...",
+              display_path(event_path.strip_prefix(dirs.frontend).unwrap_or(event_path))
+            );
+
+            child.kill().context("failed to kill app process")?;
+
+            // wait for the process to exit
+            // note that on mobile, kill() already waits for the process to exit (duct implementation)
+            let _ = child.wait();
+            child = run(self, config)?;
           }
         }
       }
@@ -952,10 +954,10 @@ impl AppSettings for RustAppSettings {
       });
     }
 
-    if let Some(open) = config.plugins.0.get("shell").and_then(|v| v.get("open")) {
-      if open.as_bool().is_some_and(|x| x) || open.is_string() {
-        settings.appimage.bundle_xdg_open = true;
-      }
+    if let Some(open) = config.plugins.0.get("shell").and_then(|v| v.get("open"))
+      && (open.as_bool().is_some_and(|x| x) || open.is_string())
+    {
+      settings.appimage.bundle_xdg_open = true;
     }
 
     if let Some(deps) = self
@@ -966,11 +968,10 @@ impl AppSettings for RustAppSettings {
       .as_table()
       .get("dependencies")
       .and_then(|f| f.as_table())
+      && deps.contains_key("tauri-plugin-opener")
     {
-      if deps.contains_key("tauri-plugin-opener") {
-        settings.appimage.bundle_xdg_open = true;
-      };
-    }
+      settings.appimage.bundle_xdg_open = true;
+    };
 
     Ok(settings)
   }
@@ -1138,7 +1139,7 @@ impl RustAppSettings {
       None => {
         return Err(crate::Error::GenericError(
           "No package info in the config file".to_owned(),
-        ))
+        ));
       }
     };
 
@@ -1334,15 +1335,15 @@ fn find_dependencies(
   found_dependency_paths: &mut Vec<PathBuf>,
 ) {
   for dependency in &package.dependencies {
-    if let Some(path) = &dependency.path {
-      if let Some(package) = workspace_packages.iter().find(|workspace_package| {
+    if let Some(path) = &dependency.path
+      && let Some(package) = workspace_packages.iter().find(|workspace_package| {
         workspace_package.name == dependency.name
           && path.join("Cargo.toml") == workspace_package.manifest_path
           && !found_dependency_paths.contains(path)
-      }) {
-        found_dependency_paths.push(path.to_owned());
-        find_dependencies(package, workspace_packages, found_dependency_paths);
-      }
+      })
+    {
+      found_dependency_paths.push(path.to_owned());
+      find_dependencies(package, workspace_packages, found_dependency_paths);
     }
   }
 }
@@ -1958,7 +1959,7 @@ mod tests {
 
     #[cfg(windows)]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir");
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("D:\\path\\to\\env\\dir\\release")
@@ -1971,7 +1972,7 @@ mod tests {
 
     #[cfg(not(windows))]
     {
-      std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir");
+      unsafe { std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir") };
       assert_eq!(
         get_target_dir(None, &options, dirs.tauri).unwrap(),
         PathBuf::from("/path/to/env/dir/release")

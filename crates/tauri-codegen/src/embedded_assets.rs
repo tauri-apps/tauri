@@ -4,7 +4,7 @@
 
 use base64::Engine;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
@@ -176,23 +176,23 @@ impl CspHashes {
     let path = entry.path();
 
     // we only hash JavaScript files for now, may expand to other CSP hashable types in the future
-    if let Some("js") | Some("mjs") = path.extension().and_then(|os| os.to_str()) {
-      if dangerous_disable_asset_csp_modification.can_modify("script-src") {
-        let mut hasher = Sha256::new();
-        hasher.update(
-          &std::fs::read(path)
-            .map(|b| tauri_utils::html::normalize_script_for_csp(&b))
-            .map_err(|error| EmbeddedAssetsError::AssetRead {
-              path: path.to_path_buf(),
-              error,
-            })?,
-        );
-        let hash = hasher.finalize();
-        self.scripts.push(format!(
-          "'sha256-{}'",
-          base64::engine::general_purpose::STANDARD.encode(hash)
-        ));
-      }
+    if let Some("js") | Some("mjs") = path.extension().and_then(|os| os.to_str())
+      && dangerous_disable_asset_csp_modification.can_modify("script-src")
+    {
+      let mut hasher = Sha256::new();
+      hasher.update(
+        &std::fs::read(path)
+          .map(|b| tauri_utils::html::normalize_script_for_csp(&b))
+          .map_err(|error| EmbeddedAssetsError::AssetRead {
+            path: path.to_path_buf(),
+            error,
+          })?,
+      );
+      let hash = hasher.finalize();
+      self.scripts.push(format!(
+        "'sha256-{}'",
+        base64::engine::general_purpose::STANDARD.encode(hash)
+      ));
     }
 
     Ok(())

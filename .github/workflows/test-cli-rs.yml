@@ -44,9 +44,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 'Setup Rust'
-        uses: dtolnay/rust-toolchain@1.77.2
+        uses: dtolnay/rust-toolchain@1.88
         with:
           targets: ${{ matrix.platform.target }}
+
+      - name: install x86_64-apple-darwin target (required by bundler CEF helper on macOS)
+        if: matrix.platform.os == 'macos-latest'
+        run: rustup target add x86_64-apple-darwin
 
       - name: install Linux dependencies
         if: matrix.platform.os == 'ubuntu-latest'

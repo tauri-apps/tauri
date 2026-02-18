@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
+  sync::{Arc, Mutex, MutexGuard, atomic::AtomicBool},
 };
 
 use serde::Serialize;
@@ -19,6 +19,7 @@ use tauri_utils::{
 };
 
 use crate::{
+  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
@@ -27,8 +28,7 @@ use crate::{
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
   resources::ResourceTable,
-  utils::{config::Config, PackageInfo},
-  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
+  utils::{PackageInfo, config::Config},
 };
 
 #[cfg(desktop)]
@@ -712,19 +712,19 @@ mod tests {
 #[cfg(test)]
 mod test {
   use std::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
     time::Duration,
   };
 
   use crate::{
+    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
+    Window, Wry,
     event::EventTarget,
     generate_context,
     plugin::PluginStore,
-    test::{mock_app, MockRuntime},
+    test::{MockRuntime, mock_app},
     webview::WebviewBuilder,
     window::WindowBuilder,
-    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
-    Window, Wry,
   };
 
   use super::AppManager;
@@ -740,7 +740,7 @@ mod test {
   const TEST_EVENT_NAME: &str = "event";
 
   #[test]
-  fn check_get_url() {
+  fn check_get_url_wry() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
     let manager: AppManager<Wry> = AppManager::with_handlers(
       context,
@@ -763,20 +763,61 @@ mod test {
     #[cfg(custom_protocol)]
     {
       assert_eq!(
-        manager.get_url(false).to_string(),
-        if cfg!(windows) || cfg!(target_os = "android") || cfg!(feature = "cef") {
+        manager.get_app_url(false).to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
           "http://tauri.localhost/"
         } else {
           "tauri://localhost"
         }
       );
       assert_eq!(
-        manager.get_url(true).to_string(),
-        if cfg!(windows) || cfg!(target_os = "android") || cfg!(feature = "cef") {
+        manager.get_app_url(true).to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
           "https://tauri.localhost/"
         } else {
           "tauri://localhost"
         }
+      );
+    }
+
+    #[cfg(dev)]
+    assert_eq!(
+      manager.get_app_url(false).to_string(),
+      "http://localhost:4000/"
+    );
+  }
+
+  #[cfg(feature = "cef")]
+  #[test]
+  fn check_get_url_cef() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
+    let manager: AppManager<crate::Cef> = AppManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      None,
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      Default::default(),
+      Default::default(),
+      Default::default(),
+      Default::default(),
+      "".into(),
+      None,
+      crate::generate_invoke_key().unwrap(),
+    );
+
+    #[cfg(custom_protocol)]
+    {
+      assert_eq!(
+        manager.get_app_url(false).to_string(),
+        "http://tauri.localhost/"
+      );
+      assert_eq!(
+        manager.get_app_url(true).to_string(),
+        "https://tauri.localhost/"
       );
     }
 

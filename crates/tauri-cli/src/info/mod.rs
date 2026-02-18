@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Result,
   error::Context,
   helpers::app_paths::{resolve_frontend_dir, resolve_tauri_dir},
-  Result,
 };
 use clap::Parser;
 use colored::{ColoredString, Colorize};
-use dialoguer::{theme::ColorfulTheme, Confirm};
+use dialoguer::{Confirm, theme::ColorfulTheme};
 use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
 use tauri_utils::platform::Target;
@@ -201,18 +201,20 @@ impl SectionItem {
   fn run(&mut self, interactive: bool) -> Status {
     self.run_action();
 
-    if self.status == Status::Error && interactive && self.action_if_err.is_some() {
-      if let Some(description) = &self.description {
-        let confirmed = Confirm::with_theme(&ColorfulTheme::default())
-          .with_prompt(format!(
-            "{}\n  Run the automatic fix?",
-            description.replace('\n', "\n  ")
-          ))
-          .interact()
-          .unwrap_or(false);
-        if confirmed {
-          self.run_action_if_err()
-        }
+    if self.status == Status::Error
+      && interactive
+      && self.action_if_err.is_some()
+      && let Some(description) = &self.description
+    {
+      let confirmed = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(format!(
+          "{}\n  Run the automatic fix?",
+          description.replace('\n', "\n  ")
+        ))
+        .interact()
+        .unwrap_or(false);
+      if confirmed {
+        self.run_action_if_err()
       }
     }
 
@@ -309,11 +311,11 @@ pub fn command(options: Options) -> Result<()> {
     interactive,
     items: Vec::new(),
   };
-  if let Some(tauri_dir) = &tauri_dir {
-    if let Ok(config) = crate::helpers::config::get_config(Target::current(), &[], tauri_dir) {
-      app.items.extend(app::items(&config, frontend_dir.as_ref()));
-    };
-  }
+  if let Some(tauri_dir) = &tauri_dir
+    && let Ok(config) = crate::helpers::config::get_config(Target::current(), &[], tauri_dir)
+  {
+    app.items.extend(app::items(&config, frontend_dir.as_ref()));
+  };
 
   environment.display();
 
@@ -321,10 +323,10 @@ pub fn command(options: Options) -> Result<()> {
 
   plugins.display();
 
-  if let (Some(frontend_dir), Some(tauri_dir)) = (&frontend_dir, &tauri_dir) {
-    if let Err(error) = plugins::check_mismatched_packages(frontend_dir, tauri_dir) {
-      println!("\n{}: {error}", "Error".bright_red().bold());
-    }
+  if let (Some(frontend_dir), Some(tauri_dir)) = (&frontend_dir, &tauri_dir)
+    && let Err(error) = plugins::check_mismatched_packages(frontend_dir, tauri_dir)
+  {
+    println!("\n{}: {error}", "Error".bright_red().bold());
   }
 
   app.display();
@@ -332,16 +334,16 @@ pub fn command(options: Options) -> Result<()> {
   // iOS
   #[cfg(target_os = "macos")]
   {
-    if let Some(p) = &tauri_dir {
-      if p.join("gen/apple").exists() {
-        let mut ios = Section {
-          label: "iOS",
-          interactive,
-          items: Vec::new(),
-        };
-        ios.items.extend(ios::items());
-        ios.display();
-      }
+    if let Some(p) = &tauri_dir
+      && p.join("gen/apple").exists()
+    {
+      let mut ios = Section {
+        label: "iOS",
+        interactive,
+        items: Vec::new(),
+      };
+      ios.items.extend(ios::items());
+      ios.display();
     }
   }
 

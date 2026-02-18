@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  fs::{create_dir_all, File},
+  fs::{File, create_dir_all},
   io::Write,
   path::{Path, PathBuf},
 };
 
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use include_dir::Dir;
 use serde::Serialize;
 use serde_json::value::{Map, Value as JsonValue};
@@ -71,10 +71,10 @@ pub fn render_with_generator<
     let mut file_path = file.path().to_path_buf();
     // cargo for some reason ignores the /templates folder packaging when it has a Cargo.toml file inside
     // so we rename the extension to `.crate-manifest`
-    if let Some(extension) = file_path.extension() {
-      if extension == "crate-manifest" {
-        file_path.set_extension("toml");
-      }
+    if let Some(extension) = file_path.extension()
+      && extension == "crate-manifest"
+    {
+      file_path.set_extension("toml");
     }
     if let Some(mut output_file) = out_file_generator(file_path.clone())
       .fs_context("failed to generate output file", file_path.clone())?

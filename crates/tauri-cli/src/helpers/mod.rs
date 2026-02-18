@@ -30,7 +30,7 @@ use tauri_utils::config::HookCommand;
 
 #[cfg(not(target_os = "windows"))]
 use crate::Error;
-use crate::{interface::AppInterface, CommandExt};
+use crate::{CommandExt, interface::AppInterface};
 
 pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
@@ -129,23 +129,23 @@ pub fn run_hook(
 #[cfg(target_os = "macos")]
 pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Result<()> {
   use crate::error::Context;
-  if !version.pre.is_empty() {
-    if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
-      version.pre = semver::Prerelease::EMPTY;
-      version.build = semver::BuildMetadata::new(&format!(
-        "{prefix}{number}",
-        prefix = if version.build.is_empty() {
-          "".to_string()
-        } else {
-          format!(".{}", version.build.as_str())
-        }
-      ))
-      .with_context(|| {
-        format!(
-          "failed to parse {version} as semver: bundle version {number:?} prerelease is invalid"
-        )
-      })?;
-    }
+  if !version.pre.is_empty()
+    && let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.')
+  {
+    version.pre = semver::Prerelease::EMPTY;
+    version.build = semver::BuildMetadata::new(&format!(
+      "{prefix}{number}",
+      prefix = if version.build.is_empty() {
+        "".to_string()
+      } else {
+        format!(".{}", version.build.as_str())
+      }
+    ))
+    .with_context(|| {
+      format!(
+        "failed to parse {version} as semver: bundle version {number:?} prerelease is invalid"
+      )
+    })?;
   }
 
   Ok(())

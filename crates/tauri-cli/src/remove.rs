@@ -5,9 +5,8 @@
 use clap::Parser;
 
 use crate::{
-  acl,
+  Result, acl,
   helpers::{app_paths::resolve_frontend_dir, cargo, npm::PackageManager},
-  Result,
 };
 
 #[derive(Debug, Parser)]

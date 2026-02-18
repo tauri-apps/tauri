@@ -7,14 +7,13 @@ use colored::Colorize;
 use regex::Regex;
 
 use crate::{
-  acl,
+  Result, acl,
   error::ErrorExt,
   helpers::{
-    app_paths::{resolve_frontend_dir, Dirs},
+    app_paths::{Dirs, resolve_frontend_dir},
     cargo,
     npm::PackageManager,
   },
-  Result,
 };
 
 use std::process::Command;
@@ -186,7 +185,7 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
     r#" {}
 {}
      {}"#,
-    "tauri::Builder::default()".dimmed(),
+    "tauri::Builder::<tauri::Wry>::new()".dimmed(),
     builder_code.normal().green(),
     r#".invoke_handler(tauri::generate_handler![])
      .run(tauri::generate_context!())

@@ -10,9 +10,8 @@ use commands::{cmd, invoke, message, resolver};
 
 use serde::Deserialize;
 use tauri::{
-  command,
+  Runtime, State, Window, command,
   ipc::{Request, Response},
-  State, Window,
 };
 
 #[derive(Debug)]
@@ -30,7 +29,7 @@ enum MyError {
 
 // ------------------------ Commands using Window ------------------------
 #[command]
-fn window_label(window: Window) {
+fn window_label<R: Runtime>(window: Window<R>) {
   println!("window label: {}", window.label());
 }
 
@@ -184,7 +183,7 @@ async fn async_stateful_command_with_result(
 // Non-Ident command function arguments
 
 #[command]
-fn command_arguments_wild(_: Window) {
+fn command_arguments_wild<R: Runtime>(_: Window<R>) {
   println!("we saw the wildcard!")
 }
 
@@ -223,8 +222,14 @@ fn raw_request(request: Request<'_>) -> Response {
   Response::new(include_bytes!("./README.md").to_vec())
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .manage(MyState {
       value: 0,
       label: "Tauri!".into(),

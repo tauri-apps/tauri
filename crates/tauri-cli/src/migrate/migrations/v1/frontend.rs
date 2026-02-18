@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  Error, ErrorExt, Result,
   error::Context,
   helpers::{app_paths::walk_builder, npm::PackageManager},
-  Error, ErrorExt, Result,
 };
 use itertools::Itertools;
 use magic_string::MagicString;

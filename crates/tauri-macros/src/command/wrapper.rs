@@ -9,12 +9,12 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, quote_spanned};
 use syn::{
+  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
   ext::IdentExt,
   parse::{Parse, ParseStream},
   parse_macro_input,
   punctuated::Punctuated,
   spanned::Spanned,
-  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
 };
 use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 
@@ -70,25 +70,24 @@ impl Parse for WrapperAttributes {
                   return Err(syn::Error::new(
                     s.span(),
                     "expected \"camelCase\" or \"snake_case\"",
-                  ))
+                  ));
                 }
               };
             }
-          } else if v.path.is_ident("root") {
-            if let Expr::Lit(ExprLit {
+          } else if v.path.is_ident("root")
+            && let Expr::Lit(ExprLit {
               lit: Lit::Str(s),
               attrs: _,
             }) = v.value
-            {
-              let lit = s.value();
+          {
+            let lit = s.value();
 
-              wrapper_attributes.root = if lit == "crate" {
-                quote!($crate)
-              } else {
-                let ident = Ident::new(&lit, Span::call_site());
-                quote!(#ident)
-              };
-            }
+            wrapper_attributes.root = if lit == "crate" {
+              quote!($crate)
+            } else {
+              let ident = Ident::new(&lit, Span::call_site());
+              quote!(#ident)
+            };
           }
         }
         WrapperAttributeKind::Meta(Meta::Path(_)) => {
@@ -169,14 +168,13 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           syn::Type::Path(path) => {
             // Check if the type contains a lifetime argument
             let last = path.path.segments.last().unwrap();
-            if let syn::PathArguments::AngleBracketed(args) = &last.arguments {
-              if args
+            if let syn::PathArguments::AngleBracketed(args) = &last.arguments
+              && args
                 .args
                 .iter()
                 .any(|arg| matches!(arg, syn::GenericArgument::Lifetime(_)))
-              {
-                ref_argument_span = Some(pat.span());
-              }
+            {
+              ref_argument_span = Some(pat.span());
             }
           }
           _ => {}
@@ -431,7 +429,7 @@ fn parse_arg(
       return Err(syn::Error::new(
         arg.span(),
         "unable to use self as a command function parameter",
-      ))
+      ));
     }
   };
 
@@ -445,7 +443,7 @@ fn parse_arg(
       return Err(syn::Error::new(
         err.span(),
         "only named, wildcard, struct, and tuple struct arguments allowed",
-      ))
+      ));
     }
   };
 

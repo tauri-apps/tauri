@@ -5,19 +5,19 @@
 use super::PluginIosFramework;
 use crate::Result;
 use crate::{
+  VersionMetadata,
   error::{Context, ErrorExt},
   helpers::{prompts, resolve_tauri_path, template},
-  VersionMetadata,
 };
 use clap::Parser;
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use std::ffi::{OsStr, OsString};
 use std::{
   collections::BTreeMap,
   env::current_dir,
-  fs::{create_dir_all, remove_dir_all, File, OpenOptions},
+  fs::{File, OpenOptions, create_dir_all, remove_dir_all},
   path::{Component, Path, PathBuf},
 };
 

@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  embedded_assets::{EmbeddedAssetsError, EmbeddedAssetsResult},
   Cached,
+  embedded_assets::{EmbeddedAssetsError, EmbeddedAssetsResult},
 };
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use std::{ffi::OsStr, io::Cursor, path::Path};
 
 /// The format the Icon is consumed as.

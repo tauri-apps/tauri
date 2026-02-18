@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use windows::core::{w, HSTRING};
+use windows::core::{HSTRING, w};
 
 enum Level {
   Error,
@@ -46,11 +46,11 @@ fn dialog_inner(err: &str, level: Level) {
 
   #[cfg(feature = "common-controls-v6")]
   {
-    use windows::core::{HRESULT, PCWSTR};
     use windows::Win32::Foundation::*;
     use windows::Win32::UI::Controls::*;
     use windows::Win32::UI::Shell::*;
     use windows::Win32::UI::WindowsAndMessaging::*;
+    use windows::core::{HRESULT, PCWSTR};
 
     extern "system" fn task_dialog_callback(
       _hwnd: HWND,

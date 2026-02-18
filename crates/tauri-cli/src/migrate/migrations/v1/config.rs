@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{error::Context, ErrorExt, Result};
+use crate::{ErrorExt, Result, error::Context};
 
 use serde_json::{Map, Value};
 use tauri_utils::acl::{
-  capability::{Capability, PermissionEntry},
   Scopes, Value as AclValue,
+  capability::{Capability, PermissionEntry},
 };
 
 use std::{
@@ -185,25 +185,25 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
 }
 
 fn process_package_metadata(config: &mut Map<String, Value>) {
-  if let Some(mut package_config) = config.remove("package") {
-    if let Some(package_config) = package_config.as_object_mut() {
-      if let Some((product_name, key)) = package_config
-        .remove("productName")
-        .map(|v| (v, "productName"))
-        .or_else(|| {
-          package_config
-            .remove("product-name")
-            .map(|v| (v, "product-name"))
-        })
-      {
-        config.insert(key.into(), product_name.clone());
-        // keep main binary name unchanged
-        config.insert("mainBinaryName".into(), product_name);
-      }
+  if let Some(mut package_config) = config.remove("package")
+    && let Some(package_config) = package_config.as_object_mut()
+  {
+    if let Some((product_name, key)) = package_config
+      .remove("productName")
+      .map(|v| (v, "productName"))
+      .or_else(|| {
+        package_config
+          .remove("product-name")
+          .map(|v| (v, "product-name"))
+      })
+    {
+      config.insert(key.into(), product_name.clone());
+      // keep main binary name unchanged
+      config.insert("mainBinaryName".into(), product_name);
+    }
 
-      if let Some(version) = package_config.remove("version") {
-        config.insert("version".into(), version);
-      }
+    if let Some(version) = package_config.remove("version") {
+      config.insert("version".into(), version);
     }
   }
 
@@ -211,10 +211,9 @@ fn process_package_metadata(config: &mut Map<String, Value>) {
     .get_mut("tauri")
     .and_then(|t| t.get_mut("bundle"))
     .and_then(|b| b.as_object_mut())
+    && let Some(identifier) = bundle_config.remove("identifier")
   {
-    if let Some(identifier) = bundle_config.remove("identifier") {
-      config.insert("identifier".into(), identifier);
-    }
+    config.insert("identifier".into(), identifier);
   }
 }
 
@@ -303,45 +302,43 @@ fn process_bundle(config: &mut Map<String, Value>, migrated: &MigratedConfig) {
       if let Some(macos) = bundle_config
         .get_mut("macOS")
         .and_then(|v| v.as_object_mut())
+        && let Some(license) = macos.remove("license")
       {
-        if let Some(license) = macos.remove("license") {
-          license_file = Some(license);
-        }
+        license_file = Some(license);
       }
 
       // Windows
-      if let Some(windows) = bundle_config.get_mut("windows") {
-        if let Some(windows) = windows.as_object_mut() {
-          if let Some(wix) = windows.get_mut("wix").and_then(|v| v.as_object_mut()) {
-            if let Some(license_path) = wix.remove("license") {
-              license_file = Some(license_path);
-            }
-          }
-          if let Some(nsis) = windows.get_mut("nsis").and_then(|v| v.as_object_mut()) {
-            if let Some(license_path) = nsis.remove("license") {
-              license_file = Some(license_path);
-            }
-          }
+      if let Some(windows) = bundle_config.get_mut("windows")
+        && let Some(windows) = windows.as_object_mut()
+      {
+        if let Some(wix) = windows.get_mut("wix").and_then(|v| v.as_object_mut())
+          && let Some(license_path) = wix.remove("license")
+        {
+          license_file = Some(license_path);
+        }
+        if let Some(nsis) = windows.get_mut("nsis").and_then(|v| v.as_object_mut())
+          && let Some(license_path) = nsis.remove("license")
+        {
+          license_file = Some(license_path);
+        }
 
-          if let Some((fixed_runtime_path, key)) = windows
-            .remove("webviewFixedRuntimePath")
-            .map(|v| (v, "webviewInstallMode"))
-            .or_else(|| {
-              windows
-                .remove("webview-fixed-runtime-path")
-                .map(|v| (v, "webview-install-mode"))
-            })
-          {
-            if !fixed_runtime_path.is_null() {
-              windows.insert(
-                key.into(),
-                serde_json::json!({
-                  "type": "fixedRuntime",
-                  "path": fixed_runtime_path
-                }),
-              );
-            }
-          }
+        if let Some((fixed_runtime_path, key)) = windows
+          .remove("webviewFixedRuntimePath")
+          .map(|v| (v, "webviewInstallMode"))
+          .or_else(|| {
+            windows
+              .remove("webview-fixed-runtime-path")
+              .map(|v| (v, "webview-install-mode"))
+          })
+          && !fixed_runtime_path.is_null()
+        {
+          windows.insert(
+            key.into(),
+            serde_json::json!({
+              "type": "fixedRuntime",
+              "path": fixed_runtime_path
+            }),
+          );
         }
       }
       if let Some(license_file) = license_file {
@@ -410,7 +407,7 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
             csp.insert(
               "connect-src".into(),
               tauri_utils::config_v1::CspDirectiveSources::List(vec![
-                "ipc: http://ipc.localhost".to_string()
+                "ipc: http://ipc.localhost".to_string(),
               ]),
             );
           }
@@ -427,7 +424,9 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
     .remove("dangerousRemoteDomainIpcAccess")
     .or_else(|| security.remove("dangerous-remote-domain-ipc-access"))
   {
-    println!("dangerous remote domain IPC access config ({dangerous_remote_domain_ipc_access:?}) no longer exists, see documentation for capabilities and remote access: https://v2.tauri.app/security/capabilities/#remote-api-access")
+    println!(
+      "dangerous remote domain IPC access config ({dangerous_remote_domain_ipc_access:?}) no longer exists, see documentation for capabilities and remote access: https://v2.tauri.app/security/capabilities/#remote-api-access"
+    )
   }
   security
     .remove("dangerousUseHttpScheme")
@@ -671,26 +670,26 @@ fn process_updater(
   plugins: &mut Map<String, Value>,
   migrated: &mut MigratedConfig,
 ) -> Result<()> {
-  if let Some(mut updater) = tauri_config.remove("updater") {
-    if let Some(updater) = updater.as_object_mut() {
-      updater.remove("dialog");
+  if let Some(mut updater) = tauri_config.remove("updater")
+    && let Some(updater) = updater.as_object_mut()
+  {
+    updater.remove("dialog");
 
-      // we only migrate the updater config if it's active
-      // since we now assume it's always active if the config object is set
-      // we also migrate if pubkey is set so we do not lose that information on the migration
-      // in this case, the user need to deal with the updater being inactive on their own
-      if updater
-        .remove("active")
-        .and_then(|a| a.as_bool())
-        .unwrap_or_default()
-        || updater.get("pubkey").is_some()
-      {
-        plugins.insert(
-          "updater".into(),
-          serde_json::to_value(updater).context("failed to serialize updater")?,
-        );
-        migrated.plugins.insert("updater".to_string());
-      }
+    // we only migrate the updater config if it's active
+    // since we now assume it's always active if the config object is set
+    // we also migrate if pubkey is set so we do not lose that information on the migration
+    // in this case, the user need to deal with the updater being inactive on their own
+    if updater
+      .remove("active")
+      .and_then(|a| a.as_bool())
+      .unwrap_or_default()
+      || updater.get("pubkey").is_some()
+    {
+      plugins.insert(
+        "updater".into(),
+        serde_json::to_value(updater).context("failed to serialize updater")?,
+      );
+      migrated.plugins.insert("updater".to_string());
     }
   }
 
@@ -731,13 +730,13 @@ mod test {
     let mut migrated = original.clone();
     super::migrate_config(&mut migrated).expect("failed to migrate config");
 
-    if original.get("$schema").is_some() {
-      if let Some(map) = migrated.as_object_mut() {
-        map.insert(
-          "$schema".to_string(),
-          serde_json::Value::String("https://schema.tauri.app/config/2".to_string()),
-        );
-      }
+    if original.get("$schema").is_some()
+      && let Some(map) = migrated.as_object_mut()
+    {
+      map.insert(
+        "$schema".to_string(),
+        serde_json::Value::String("https://schema.tauri.app/config/2".to_string()),
+      );
     }
 
     if original
@@ -745,13 +744,12 @@ mod test {
       .and_then(|v| v.get("bundle"))
       .and_then(|v| v.get("identifier"))
       .is_none()
+      && let Some(map) = migrated.as_object_mut()
     {
-      if let Some(map) = migrated.as_object_mut() {
-        map.insert(
-          "identifier".to_string(),
-          serde_json::Value::String("com.tauri.test-injected".to_string()),
-        );
-      }
+      map.insert(
+        "identifier".to_string(),
+        serde_json::Value::String("com.tauri.test-injected".to_string()),
+      );
     }
 
     if let Err(e) = serde_json::from_value::<tauri_utils::config::Config>(migrated.clone()) {
@@ -1138,10 +1136,12 @@ mod test {
       migrated["app"]["security"]["csp"]["default-src"],
       original["tauri"]["security"]["csp"]["default-src"]
     );
-    assert!(migrated["app"]["security"]["csp"]["connect-src"]
-      .as_array()
-      .expect("connect-src isn't an array")
-      .contains(&"ipc: http://ipc.localhost".into()));
+    assert!(
+      migrated["app"]["security"]["csp"]["connect-src"]
+        .as_array()
+        .expect("connect-src isn't an array")
+        .contains(&"ipc: http://ipc.localhost".into())
+    );
   }
 
   #[test]

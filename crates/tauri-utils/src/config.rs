@@ -24,13 +24,11 @@
 //! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
 #[cfg(feature = "schema")]
-use schemars::schema::Schema;
-#[cfg(feature = "schema")]
-use schemars::JsonSchema;
+use schemars::{JsonSchema, Schema};
 use semver::Version;
 use serde::{
-  de::{Deserializer, Error as DeError, Visitor},
   Deserialize, Serialize, Serializer,
+  de::{Deserializer, Error as DeError, Visitor},
 };
 use serde_json::Value as JsonValue;
 use serde_untagged::UntaggedEnumVisitor;
@@ -46,21 +44,18 @@ use std::{
 };
 
 #[cfg(feature = "schema")]
-fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
+fn add_description(mut schema: Schema, description: impl Into<String>) -> Schema {
   let value = description.into();
-  if value.is_empty() {
-    schema
-  } else {
-    let mut schema_obj = schema.into_object();
-    schema_obj.metadata().description = value.into();
-    Schema::Object(schema_obj)
+  if !value.is_empty() {
+    schema.insert("description".to_string(), serde_json::Value::String(value));
   }
+  schema
 }
 
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
+use crate::{TitleBarStyle, WindowEffect, WindowEffectState, acl::capability::Capability};
 
 pub use self::parse::parse;
 
@@ -220,40 +215,30 @@ pub enum BundleTarget {
 
 #[cfg(feature = "schema")]
 impl schemars::JsonSchema for BundleTarget {
-  fn schema_name() -> std::string::String {
-    "BundleTarget".to_owned()
+  fn schema_name() -> std::borrow::Cow<'static, str> {
+    "BundleTarget".into()
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    let any_of = vec![
-      schemars::schema::SchemaObject {
-        const_value: Some("all".into()),
-        metadata: Some(Box::new(schemars::schema::Metadata {
-          description: Some("Bundle all targets.".to_owned()),
-          ..Default::default()
-        })),
-        ..Default::default()
-      }
-      .into(),
-      add_description(
-        gen.subschema_for::<Vec<BundleType>>(),
+  fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let any_of: Vec<serde_json::Value> = vec![
+      serde_json::json!({
+        "const": "all",
+        "description": "Bundle all targets."
+      }),
+      serde_json::Value::from(add_description(
+        generator.subschema_for::<Vec<BundleType>>(),
         "A list of bundle targets.",
-      ),
-      add_description(gen.subschema_for::<BundleType>(), "A single bundle target."),
+      )),
+      serde_json::Value::from(add_description(
+        generator.subschema_for::<BundleType>(),
+        "A single bundle target.",
+      )),
     ];
 
-    schemars::schema::SchemaObject {
-      subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
-        any_of: Some(any_of),
-        ..Default::default()
-      })),
-      metadata: Some(Box::new(schemars::schema::Metadata {
-        description: Some("Targets to bundle. Each value is case insensitive.".to_owned()),
-        ..Default::default()
-      })),
-      ..Default::default()
-    }
-    .into()
+    schemars::json_schema!({
+      "anyOf": any_of,
+      "description": "Targets to bundle. Each value is case insensitive."
+    })
   }
 }
 
@@ -1471,8 +1456,8 @@ impl FromStr for Color {
     let color = match color.len() {
       // TODO: use repeat_n once our MSRV is bumped to 1.82
       3 => color.chars()
-            .flat_map(|c| std::iter::repeat(c).take(2))
-            .chain(std::iter::repeat('f').take(2))
+            .flat_map(|c| std::iter::repeat_n(c, 2))
+            .chain(std::iter::repeat_n('f', 2))
             .collect(),
       6 => format!("{color}FF"),
       8 => color.to_string(),
@@ -1536,22 +1521,25 @@ impl<'de> Deserialize<'de> for Color {
 
 #[cfg(feature = "schema")]
 impl schemars::JsonSchema for Color {
-  fn schema_name() -> String {
-    "Color".to_string()
+  fn schema_name() -> std::borrow::Cow<'static, str> {
+    "Color".into()
   }
 
-  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    let mut schema = schemars::schema_for!(InnerColor).schema;
-    schema.metadata = None; // Remove `title: InnerColor` from schema
+  fn json_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let mut schema = schemars::schema_for!(InnerColor);
+    schema.remove("title"); // Remove `title: InnerColor` from schema
 
-    // add hex color pattern validation
-    let any_of = schema.subschemas().any_of.as_mut().unwrap();
-    let schemars::schema::Schema::Object(str_schema) = any_of.first_mut().unwrap() else {
-      unreachable!()
-    };
-    str_schema.string().pattern = Some("^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$".into());
+    // Add hex color pattern validation to the first variant (string)
+    if let Some(serde_json::Value::Array(any_of)) = schema.get_mut("anyOf")
+      && let Some(str_schema) = any_of.first_mut().and_then(|v| v.as_object_mut())
+    {
+      str_schema.insert(
+        "pattern".to_string(),
+        "^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$".into(),
+      );
+    }
 
-    schema.into()
+    schema
   }
 }
 
@@ -1650,7 +1638,7 @@ pub struct WindowConfig {
   /// ## Example:
   ///
   /// ```rust
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
@@ -2377,101 +2365,101 @@ impl HeaderAddition for http::response::Builder {
     headers: Option<&HeaderConfig>,
   ) -> http::response::Builder {
     if let Some(headers) = headers {
-      if let Some(value) = &headers.access_control_allow_credentials {
-        if value.matches_path(path) {
-          self = self.header(
-            "Access-Control-Allow-Credentials",
-            value.get_value().to_string(),
-          );
-        }
+      if let Some(value) = &headers.access_control_allow_credentials
+        && value.matches_path(path)
+      {
+        self = self.header(
+          "Access-Control-Allow-Credentials",
+          value.get_value().to_string(),
+        );
       };
 
-      if let Some(value) = &headers.access_control_allow_headers {
-        if value.matches_path(path) {
-          self = self.header(
-            "Access-Control-Allow-Headers",
-            value.get_value().to_string(),
-          );
-        }
+      if let Some(value) = &headers.access_control_allow_headers
+        && value.matches_path(path)
+      {
+        self = self.header(
+          "Access-Control-Allow-Headers",
+          value.get_value().to_string(),
+        );
       };
 
-      if let Some(value) = &headers.access_control_allow_methods {
-        if value.matches_path(path) {
-          self = self.header(
-            "Access-Control-Allow-Methods",
-            value.get_value().to_string(),
-          );
-        }
+      if let Some(value) = &headers.access_control_allow_methods
+        && value.matches_path(path)
+      {
+        self = self.header(
+          "Access-Control-Allow-Methods",
+          value.get_value().to_string(),
+        );
       };
 
-      if let Some(value) = &headers.access_control_expose_headers {
-        if value.matches_path(path) {
-          self = self.header(
-            "Access-Control-Expose-Headers",
-            value.get_value().to_string(),
-          );
-        }
+      if let Some(value) = &headers.access_control_expose_headers
+        && value.matches_path(path)
+      {
+        self = self.header(
+          "Access-Control-Expose-Headers",
+          value.get_value().to_string(),
+        );
       };
 
-      if let Some(value) = &headers.access_control_max_age {
-        if value.matches_path(path) {
-          self = self.header("Access-Control-Max-Age", value.get_value().to_string());
-        }
+      if let Some(value) = &headers.access_control_max_age
+        && value.matches_path(path)
+      {
+        self = self.header("Access-Control-Max-Age", value.get_value().to_string());
       };
 
-      if let Some(value) = &headers.cross_origin_embedder_policy {
-        if value.matches_path(path) {
-          self = self.header(
-            "Cross-Origin-Embedder-Policy",
-            value.get_value().to_string(),
-          );
-        }
+      if let Some(value) = &headers.cross_origin_embedder_policy
+        && value.matches_path(path)
+      {
+        self = self.header(
+          "Cross-Origin-Embedder-Policy",
+          value.get_value().to_string(),
+        );
       };
 
-      if let Some(value) = &headers.cross_origin_opener_policy {
-        if value.matches_path(path) {
-          self = self.header("Cross-Origin-Opener-Policy", value.get_value().to_string());
-        }
+      if let Some(value) = &headers.cross_origin_opener_policy
+        && value.matches_path(path)
+      {
+        self = self.header("Cross-Origin-Opener-Policy", value.get_value().to_string());
       };
 
-      if let Some(value) = &headers.cross_origin_resource_policy {
-        if value.matches_path(path) {
-          self = self.header(
-            "Cross-Origin-Resource-Policy",
-            value.get_value().to_string(),
-          );
-        }
+      if let Some(value) = &headers.cross_origin_resource_policy
+        && value.matches_path(path)
+      {
+        self = self.header(
+          "Cross-Origin-Resource-Policy",
+          value.get_value().to_string(),
+        );
       };
 
-      if let Some(value) = &headers.permissions_policy {
-        if value.matches_path(path) {
-          self = self.header("Permission-Policy", value.get_value().to_string());
-        }
+      if let Some(value) = &headers.permissions_policy
+        && value.matches_path(path)
+      {
+        self = self.header("Permission-Policy", value.get_value().to_string());
       };
 
-      if let Some(value) = &headers.service_worker_allowed {
-        if value.matches_path(path) {
-          self = self.header("Service-Worker-Allowed", value.get_value().to_string());
-        }
+      if let Some(value) = &headers.service_worker_allowed
+        && value.matches_path(path)
+      {
+        self = self.header("Service-Worker-Allowed", value.get_value().to_string());
       }
 
-      if let Some(value) = &headers.timing_allow_origin {
-        if value.matches_path(path) {
-          self = self.header("Timing-Allow-Origin", value.get_value().to_string());
-        }
+      if let Some(value) = &headers.timing_allow_origin
+        && value.matches_path(path)
+      {
+        self = self.header("Timing-Allow-Origin", value.get_value().to_string());
       };
 
-      if let Some(value) = &headers.x_content_type_options {
-        if value.matches_path(path) {
-          self = self.header("X-Content-Type-Options", value.get_value().to_string());
-        }
+      if let Some(value) = &headers.x_content_type_options
+        && value.matches_path(path)
+      {
+        self = self.header("X-Content-Type-Options", value.get_value().to_string());
       };
 
-      if let Some(value) = &headers.tauri_custom_header {
-        if value.matches_path(path) {
-          // Keep in mind to correctly set the Access-Control-Expose-Headers
-          self = self.header("Tauri-Custom-Header", value.get_value().to_string());
-        }
+      if let Some(value) = &headers.tauri_custom_header
+        && value.matches_path(path)
+      {
+        // Keep in mind to correctly set the Access-Control-Expose-Headers
+        self = self.header("Tauri-Custom-Header", value.get_value().to_string());
       };
     }
     self
@@ -2837,7 +2825,7 @@ pub struct AppConfig {
   /// and use it like this
   ///
   /// ```rust
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
@@ -3367,7 +3355,7 @@ pub struct Config {
   pub schema: Option<String>,
   /// App name.
   #[serde(alias = "product-name")]
-  #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
+  #[cfg_attr(feature = "schema", schemars(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// Overrides app's main binary filename.
   ///
@@ -3438,7 +3426,7 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
   use std::convert::identity;
 
   impl ToTokens for WebviewUrl {

@@ -7,13 +7,13 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use crate::{
+  Result,
   acl::FileFormat,
   error::{Context, ErrorExt},
   helpers::{app_paths::resolve_tauri_dir, prompts},
-  Result,
 };
 
-use tauri_utils::acl::{manifest::PermissionFile, Commands, Permission};
+use tauri_utils::acl::{Commands, Permission, manifest::PermissionFile};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Create a new permission file")]

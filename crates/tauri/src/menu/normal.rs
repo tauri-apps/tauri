@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::run_item_main_thread;
 use crate::menu::MenuItemInner;
 use crate::run_main_thread;
-use crate::{menu::MenuId, AppHandle, Manager, Runtime};
+use crate::{AppHandle, Manager, Runtime, menu::MenuId};
 
 use super::MenuItem;
 

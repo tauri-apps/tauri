@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
+use super::{MobileTarget, detect_target_ok, ensure_init, env, get_app, get_config, read_options};
 use crate::{
+  Error, Result,
   error::{Context, ErrorExt},
   helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
   interface::AppInterface,
   mobile::CliOptions,
-  Error, Result,
 };
 use clap::{ArgAction, Parser};
 
 use cargo_mobile2::{
   android::{adb, target::Target},
   opts::Profile,
-  target::{call_for_targets_with_fallback, TargetTrait},
+  target::{TargetTrait, call_for_targets_with_fallback},
 };
 
 use std::path::Path;
@@ -95,19 +95,17 @@ pub fn command(options: Options) -> Result<()> {
 
   let env = env(std::env::var("CI").is_ok())?;
 
-  if cli_options.dev {
-    if let Some(url) = &tauri_config.build.dev_url {
-      let localhost = match url.host() {
-        Some(url::Host::Domain(d)) => d == "localhost",
-        Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,
-        _ => false,
-      };
+  if cli_options.dev
+    && let Some(url) = &tauri_config.build.dev_url
+  {
+    let localhost = match url.host() {
+      Some(url::Host::Domain(d)) => d == "localhost",
+      Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,
+      _ => false,
+    };
 
-      if localhost {
-        if let Some(port) = url.port_or_known_default() {
-          adb_forward_port(port, &env, &cli_options)?;
-        }
-      }
+    if localhost && let Some(port) = url.port_or_known_default() {
+      adb_forward_port(port, &env, &cli_options)?;
     }
   }
 
@@ -224,8 +222,14 @@ fn adb_forward_port(
     let device = devices.first().unwrap();
     Some((device.serial_no().to_string(), device.name().to_string()))
   } else if devices.len() > 1 {
-    crate::error::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
-      devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
+    crate::error::bail!(
+      "Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
+      devices
+        .iter()
+        .map(|d| d.name())
+        .collect::<Vec<_>>()
+        .join(", ")
+    );
   } else {
     // when building the app without running to a device, we might have an empty devices list
     None

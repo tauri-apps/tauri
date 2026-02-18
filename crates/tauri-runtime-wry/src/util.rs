@@ -14,13 +14,13 @@ mod imp {
 
   use once_cell::sync::Lazy;
   use windows::{
-    core::{HRESULT, PCSTR, PCWSTR},
     Win32::{
       Foundation::*,
       Graphics::Gdi::*,
       System::LibraryLoader::{GetProcAddress, LoadLibraryW},
       UI::{HiDpi::*, WindowsAndMessaging::*},
     },
+    core::{HRESULT, PCSTR, PCWSTR},
   };
 
   pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {

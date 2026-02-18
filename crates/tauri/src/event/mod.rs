@@ -247,6 +247,9 @@ mod tests {
     let s = EventName::new("some\r illegal event name")
       .unwrap_err()
       .to_string();
-    assert_eq!("only alphanumeric, '-', '/', ':', '_' permitted for event names: \"some\\r illegal event name\"", s);
+    assert_eq!(
+      "only alphanumeric, '-', '/', ':', '_' permitted for event names: \"some\\r illegal event name\"",
+      s
+    );
   }
 }

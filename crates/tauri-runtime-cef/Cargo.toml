@@ -19,8 +19,7 @@ html5ever = "0.29"
 raw-window-handle = "0.6"
 url = "2"
 http = "1"
-# ideally we could lock on metadata but cargo ignores that
-cef = "=144.1.0"
+cef = { version = "=144.1.0", default-features = false }
 # Not actually used directly, just locking it.
 cef-dll-sys = "=144.1.0"
 serde = { version = "1", features = ["derive"] }

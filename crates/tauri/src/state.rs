@@ -11,8 +11,8 @@ use std::{
 };
 
 use crate::{
-  ipc::{CommandArg, CommandItem, InvokeError},
   Runtime,
+  ipc::{CommandArg, CommandItem, InvokeError},
 };
 
 /// A guard for a state value.

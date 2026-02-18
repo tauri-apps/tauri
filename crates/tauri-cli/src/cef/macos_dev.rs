@@ -1,8 +1,8 @@
 use crate::interface::{
-  rust::{tauri_config_to_bundle_settings, DevChild, RustAppSettings, RustupTarget},
   AppSettings, ExitReason, Options,
+  rust::{DevChild, RustAppSettings, RustupTarget, tauri_config_to_bundle_settings},
 };
-use crate::{error::Context, CommandExt};
+use crate::{CommandExt, error::Context};
 
 use shared_child::SharedChild;
 use std::process::{Command, Stdio};
@@ -37,13 +37,13 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
       return Err(crate::Error::CommandFailed {
         command: build_cmd.get_program().to_string_lossy().into_owned(),
         error: std::io::Error::other(format!("exit with status {status}")),
-      })
+      });
     }
     Err(e) => {
       return Err(crate::Error::CommandFailed {
         command: build_cmd.get_program().to_string_lossy().into_owned(),
         error: e,
-      })
+      });
     }
   }
 

@@ -5,11 +5,11 @@
 use anyhow::{Context, Result};
 use std::{
   env::var,
-  fs::{create_dir_all, File},
+  fs::{File, create_dir_all},
   io::{BufWriter, Write},
   path::{Path, PathBuf},
 };
-use tauri_codegen::{context_codegen, ContextData};
+use tauri_codegen::{ContextData, context_codegen};
 use tauri_utils::config::FrontendDist;
 
 // TODO docs
@@ -148,9 +148,9 @@ impl CodegenContext {
       .with_context(|| "unable to find OUT_DIR during tauri-build")?;
 
     // make sure any nested directories in OUT_DIR are created
-    let parent = out.parent().with_context(|| {
-      "`Codegen` could not find the parent to `out_file` while creating the file"
-    })?;
+    let parent = out.parent().with_context(
+      || "`Codegen` could not find the parent to `out_file` while creating the file",
+    )?;
     create_dir_all(parent)?;
 
     let mut file = File::create(&out).map(BufWriter::new).with_context(|| {

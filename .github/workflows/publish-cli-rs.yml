@@ -53,6 +53,10 @@ jobs:
         with:
           targets: ${{ matrix.config.rust_target }}
 
+      - name: install x86_64-apple-darwin target (required by bundler CEF helper on macOS)
+        if: ${{ !matrix.config.cross && matrix.config.os == 'macos-latest' }}
+        run: rustup target add x86_64-apple-darwin
+
       - uses: Swatinem/rust-cache@v2
         if: ${{ !matrix.config.cross }}
         with:

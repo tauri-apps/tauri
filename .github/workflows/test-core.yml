@@ -37,41 +37,46 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.77.2',
+              toolchain: '1.88',
               cross: false,
               command: 'test'
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.77.2',
+              toolchain: '1.88',
               cross: false,
               command: 'test'
             }
           - {
               target: aarch64-apple-darwin,
               os: macos-14,
-              toolchain: '1.77.2',
+              toolchain: '1.88',
               cross: false,
               command: 'test'
             }
           - {
               target: aarch64-apple-ios,
               os: macos-latest,
-              toolchain: '1.77.2',
+              toolchain: '1.88',
               cross: false,
               command: 'build'
             }
           - {
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              toolchain: '1.77.2',
+              toolchain: '1.88',
               cross: true,
               command: 'build'
             }
         features:
           - { args: --no-default-features, key: no-default }
           - { args: --all-features, key: all }
+        exclude:
+          - platform: { target: aarch64-apple-ios }
+            features: { key: all }
+          - platform: { target: aarch64-linux-android }
+            features: { key: all }
 
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +86,10 @@ jobs:
         with:
           toolchain: ${{ matrix.platform.toolchain }}
           targets: ${{ matrix.platform.target }}
+
+      - name: install x86_64-apple-darwin target (required by bundler CEF helper on macOS)
+        if: ${{ startsWith(matrix.platform.os, 'macos-') }}
+        run: rustup target add x86_64-apple-darwin
 
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')
@@ -92,6 +101,38 @@ jobs:
         with:
           prefix-key: v3
           save-if: ${{ matrix.features.key == 'all' }}
+
+      - name: Cache CEF
+        if: matrix.features.key == 'all'
+        id: cache-cef
+        uses: actions/cache@v5.0.3
+        with:
+          path: ~/.local/share/cef
+          key: cef-${{ matrix.platform.os }}-${{ hashFiles('Cargo.toml') }}
+
+      - name: ${{ steps.cache-cef.outputs.cache-hit && 'Use cache' || 'Export CEF' }}
+        if: matrix.features.key == 'all'
+        run: |
+          ${{ steps.cache-cef.outputs.cache-hit && 'echo "Cached CEF"'
+            || (matrix.platform.os == 'windows-latest'
+              && 'cargo install export-cef-dir && export-cef-dir --version 144.0.7 "$env:USERPROFILE/.local/share/cef"'
+              || 'cargo install export-cef-dir && export-cef-dir --version 144.0.7 "$HOME/.local/share/cef"')
+          }}
+          echo "CEF_PATH=${{ matrix.platform.os == 'windows-latest'
+            && '$env:USERPROFILE'
+            || '$HOME'
+          }}/.local/share/cef" >> "$${{ matrix.platform.os == 'windows-latest'
+            && 'env:'
+            || ''
+          }}GITHUB_ENV"
+          echo "${{ startsWith(matrix.platform.os, 'macos-')
+            && 'DYLD_FALLBACK_LIBRARY_PATH=$DYLD_FALLBACK_LIBRARY_PATH:$HOME/.local/share/cef:$HOME/.local/share/cef/Chromium Embedded Framework.framework/Libraries'
+            || (matrix.platform.os == 'windows-latest'
+              && 'PATH=$env:PATH;$env:USERPROFILE/.local/share/cef'
+              || 'LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.local/share/cef') }}" >> "$${{ matrix.platform.os == 'windows-latest'
+                    && 'env:'
+                    || ''
+                  }}GITHUB_ENV"
 
       - name: test
         if: ${{ !matrix.platform.cross }}

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{image::Image, menu::*, Manager, Runtime};
+use crate::{Manager, Runtime, image::Image, menu::*};
 
 /// A builder type for [`Menu`]
 ///
@@ -14,7 +14,7 @@ use crate::{image::Image, menu::*, Manager, Runtime};
 ///
 /// ```no_run
 /// use tauri::menu::*;
-/// tauri::Builder::default()
+/// tauri::Builder::<tauri::Wry>::new()
 ///   .setup(move |app| {
 ///     let handle = app.handle();
 ///     # let icon1 = tauri::image::Image::new(&[], 0, 0);
@@ -85,7 +85,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
 ///
 /// ```no_run
 /// use tauri::menu::*;
-/// tauri::Builder::default()
+/// tauri::Builder::<tauri::Wry>::new()
 ///   .setup(move |app| {
 ///     let handle = app.handle();
 ///     # let icon1 = tauri::image::Image::new(&[], 0, 0);

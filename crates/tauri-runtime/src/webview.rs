@@ -6,7 +6,7 @@
 //!
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use crate::window::WindowId;
-use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
+use crate::{Rect, Runtime, UserEvent, window::is_label_valid};
 
 use http::Request;
 use tauri_utils::config::{

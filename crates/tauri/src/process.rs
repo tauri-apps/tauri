@@ -37,7 +37,7 @@ use std::path::PathBuf;
 /// use tauri::{process::current_binary, Env, Manager};
 /// let current_binary_path = current_binary(&Env::default()).unwrap();
 ///
-/// tauri::Builder::default()
+/// tauri::Builder::<tauri::Wry>::new()
 ///   .setup(|app| {
 ///     let current_binary_path = current_binary(&app.env())?;
 ///     Ok(())
@@ -65,14 +65,14 @@ pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
 /// ```rust,no_run
 /// use tauri::{process::restart, Env, Manager};
 ///
-/// tauri::Builder::default()
+/// tauri::Builder::<tauri::Wry>::new()
 ///   .setup(|app| {
 ///     restart(&app.env());
 ///     Ok(())
 ///   });
 /// ```
 pub fn restart(env: &Env) -> ! {
-  use std::process::{exit, Command};
+  use std::process::{Command, exit};
 
   if let Ok(path) = current_binary(env) {
     // on macOS on updates the binary name might have changed
@@ -90,7 +90,7 @@ pub fn restart(env: &Env) -> ! {
 
 #[cfg(target_os = "macos")]
 fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
-  use std::process::{exit, Command};
+  use std::process::{Command, exit};
 
   if let Some(macos_directory) = current_binary.parent() {
     if macos_directory.components().next_back()
@@ -110,20 +110,18 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
 
       if let Ok(info_plist) =
         plist::from_file::<_, plist::Dictionary>(contents_directory.join("Info.plist"))
-      {
-        if let Some(binary_name) = info_plist
+        && let Some(binary_name) = info_plist
           .get("CFBundleExecutable")
           .and_then(|v| v.as_string())
+      {
+        if let Err(e) = Command::new(macos_directory.join(binary_name))
+          .args(env.args_os.iter().skip(1))
+          .spawn()
         {
-          if let Err(e) = Command::new(macos_directory.join(binary_name))
-            .args(env.args_os.iter().skip(1))
-            .spawn()
-          {
-            log::error!("failed to restart app: {e}");
-          }
-
-          exit(0);
+          log::error!("failed to restart app: {e}");
         }
+
+        exit(0);
       }
     }
   }

@@ -13,8 +13,8 @@
 pub use tokio::{
   runtime::{Handle as TokioHandle, Runtime as TokioRuntime},
   sync::{
-    mpsc::{channel, Receiver, Sender},
     Mutex, RwLock,
+    mpsc::{Receiver, Sender, channel},
   },
   task::JoinHandle as TokioJoinHandle,
 };
@@ -234,7 +234,7 @@ fn default_runtime() -> GlobalRuntime {
 ///   tauri::async_runtime::set(tokio::runtime::Handle::current());
 ///
 ///   // bootstrap the tauri app...
-///   // tauri::Builder::default().run().unwrap();
+///   // tauri::Builder::<tauri::Wry>::new().run().unwrap();
 /// }
 ///
 /// async fn do_something() {}

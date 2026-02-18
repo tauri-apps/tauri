@@ -132,12 +132,11 @@ fn find_dependency<'a>(
       } else if k == "target" {
         let mut matching_deps = Vec::new();
         for (_, target_value) in t.iter_mut() {
-          if let Some(target_table) = target_value.as_table_mut() {
-            if let Some(deps) = target_table.get_mut(table) {
-              if let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name)) {
-                matching_deps.push(item);
-              }
-            }
+          if let Some(target_table) = target_value.as_table_mut()
+            && let Some(deps) = target_table.get_mut(table)
+            && let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name))
+          {
+            matching_deps.push(item);
           }
         }
         return matching_deps;
@@ -203,10 +202,10 @@ fn inject_features_table<D: TableLike, F: Fn(&str) -> bool>(
   let manifest_features = dep.entry("features").or_insert(Item::None);
   if let Item::Value(Value::Array(f)) = &manifest_features {
     for feat in f.iter() {
-      if let Value::String(feature) = feat {
-        if !is_managed_feature(feature.value().as_str()) {
-          features.insert(feature.value().to_string());
-        }
+      if let Value::String(feature) = feat
+        && !is_managed_feature(feature.value().as_str())
+      {
+        features.insert(feature.value().to_string());
       }
     }
   }
@@ -222,10 +221,10 @@ fn inject_features_table<D: TableLike, F: Fn(&str) -> bool>(
     let mut i = features_array.len();
     while i != 0 {
       let index = i - 1;
-      if let Some(f) = features_array.get(index).and_then(|f| f.as_str()) {
-        if !features.contains(f) {
-          features_array.remove(index);
-        }
+      if let Some(f) = features_array.get(index).and_then(|f| f.as_str())
+        && !features.contains(f)
+      {
+        features_array.remove(index);
       }
       i -= 1;
     }
@@ -250,7 +249,10 @@ fn inject_features(
         .and_then(|v| v.as_bool())
         .unwrap_or_default()
       {
-        log::info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", dependency.features.iter().join(", "));
+        log::info!(
+          "`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]",
+          dependency.features.iter().join(", ")
+        );
       } else {
         let all_cli_managed_features = dependency.all_cli_managed_features.clone();
         let is_managed_feature: Box<dyn Fn(&str) -> bool> =

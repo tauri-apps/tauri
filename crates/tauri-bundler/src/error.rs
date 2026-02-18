@@ -99,7 +99,9 @@ pub enum Error {
   #[error("Wrong package type {0} for platform {1}")]
   InvalidPackageType(String, String),
   /// Bundle type symbol missing in binary
-  #[error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date")]
+  #[error(
+    "__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date"
+  )]
   MissingBundleTypeVar,
   /// Failed to write binary file changed
   #[error("Failed to write binary file changes: `{0}`")]
@@ -115,7 +117,9 @@ pub enum Error {
   #[error("Could not find Icon paths.  Please make sure they exist in the tauri config JSON file")]
   IconPathError,
   /// Couldn't find background file.
-  #[error("Could not find background file. Make sure it exists in the tauri config JSON file and extension is png/jpg/gif")]
+  #[error(
+    "Could not find background file. Make sure it exists in the tauri config JSON file and extension is png/jpg/gif"
+  )]
   BackgroundPathError,
   /// Error on path util operation.
   #[error("Path Error:`{0}`")]
@@ -186,9 +190,13 @@ pub enum NotarizeAuthError {
     "The team ID is now required for notarization with app-specific password as authentication. Please set the `APPLE_TEAM_ID` environment variable. You can find the team ID in https://developer.apple.com/account#MembershipDetailsCard."
   )]
   MissingTeamId,
-  #[error("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {file_name} file")]
+  #[error(
+    "could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {file_name} file"
+  )]
   MissingApiKey { file_name: String },
-  #[error("no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found")]
+  #[error(
+    "no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found"
+  )]
   MissingCredentials,
 }
 

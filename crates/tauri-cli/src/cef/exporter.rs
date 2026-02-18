@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::VersionMetadata;
 use crate::error::ErrorExt;
 use crate::helpers::cargo_manifest::{cargo_manifest_and_lock, crate_version};
-use crate::VersionMetadata;
-use download_cef::{CefFile, CefIndex, OsAndArch, DEFAULT_TARGET};
+use download_cef::{CefFile, CefIndex, DEFAULT_TARGET, OsAndArch};
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -219,7 +219,7 @@ fn export_cef_library_path(cef_path: &Path) {
   let mut ld_library_path = std::env::var_os("LD_LIBRARY_PATH").unwrap_or_default();
   ld_library_path.push(":");
   ld_library_path.push(cef_path);
-  std::env::set_var("LD_LIBRARY_PATH", ld_library_path);
+  unsafe { std::env::set_var("LD_LIBRARY_PATH", ld_library_path) };
 }
 
 #[cfg(windows)]
@@ -227,7 +227,7 @@ fn export_cef_library_path(cef_path: &Path) {
   let mut path = std::env::var_os("PATH").unwrap_or_default();
   path.push(";");
   path.push(cef_path);
-  std::env::set_var("PATH", path);
+  unsafe { std::env::set_var("PATH", path) };
 }
 
 #[cfg(target_os = "macos")]
@@ -241,7 +241,7 @@ fn export_cef_library_path(cef_path: &Path) {
       .join("Chromium Embedded Framework.framework")
       .join("Libraries"),
   );
-  std::env::set_var("DYLD_FALLBACK_LIBRARY_PATH", ld_library_path);
+  unsafe { std::env::set_var("DYLD_FALLBACK_LIBRARY_PATH", ld_library_path) };
 }
 
 fn check_archive_outdated(archive_json_path: &Path, required_version: &str) -> crate::Result<bool> {
@@ -309,7 +309,7 @@ pub fn ensure_cef_directory(
     workspace_dir,
   )?;
 
-  std::env::set_var("CEF_PATH", cef_dir.to_string_lossy().as_ref());
+  unsafe { std::env::set_var("CEF_PATH", cef_dir.to_string_lossy().as_ref()) };
   export_cef_library_path(&cef_dir);
   log::info!(action = "CEF"; "CEF directory exported to: {}", cef_dir.display());
 

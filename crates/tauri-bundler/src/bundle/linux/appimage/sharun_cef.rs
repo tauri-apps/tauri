@@ -7,9 +7,9 @@ use std::{fs, path::PathBuf, process::Command};
 use anyhow::Context;
 
 use crate::{
-  bundle::{linux::debian, settings::Arch},
-  utils::{fs_utils, http_utils::download, CommandExt},
   Settings,
+  bundle::{linux::debian, settings::Arch},
+  utils::{CommandExt, fs_utils, http_utils::download},
 };
 
 use super::write_and_make_executable;
@@ -48,7 +48,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // TODO: mirror
   let quick_sharun = tools_path.join("quick-sharun.sh");
   if !quick_sharun.exists() {
-    let data = download("https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh")?;
+    let data = download(
+      "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
+    )?;
     write_and_make_executable(&quick_sharun, data)?;
   }
 

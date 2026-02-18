@@ -8,9 +8,9 @@
 )]
 
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Runtime};
 
-fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
+fn handle_file_associations<R: Runtime>(app: AppHandle<R>, files: Vec<PathBuf>) {
   // -- Scope handling start --
 
   // You can remove this block if you only want to know about the paths, but not actually "use" them in the frontend.
@@ -47,8 +47,14 @@ fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
     .unwrap();
 }
 
+#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  tauri::Builder::default()
+  #[cfg(feature = "cef")]
+  let builder = tauri::Builder::<tauri::Cef>::default();
+  #[cfg(not(feature = "cef"))]
+  let builder = tauri::Builder::<tauri::Wry>::new();
+
+  builder
     .setup(|#[allow(unused_variables)] app| {
       #[cfg(any(windows, target_os = "linux"))]
       {

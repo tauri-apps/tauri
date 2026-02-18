@@ -6,6 +6,9 @@
 #![allow(missing_docs)]
 
 use tauri_runtime::{
+  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
+  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
+  WebviewDispatch, WindowDispatch, WindowEventId,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
@@ -13,14 +16,11 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WindowBuilder,
     WindowBuilderBase, WindowEvent, WindowId,
   },
-  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
-  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
-  WebviewDispatch, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{Theme, config::WindowConfig};
 use url::Url;
 
 #[cfg(windows)]
@@ -31,9 +31,9 @@ use std::{
   collections::HashMap,
   fmt,
   sync::{
-    atomic::{AtomicBool, AtomicU32, Ordering},
-    mpsc::{channel, sync_channel, Receiver, SyncSender},
     Arc, Mutex,
+    atomic::{AtomicBool, AtomicU32, Ordering},
+    mpsc::{Receiver, SyncSender, channel, sync_channel},
   },
 };
 

@@ -26,17 +26,16 @@ pub struct Identifier {
 
 #[cfg(feature = "schema")]
 impl schemars::JsonSchema for Identifier {
-  fn schema_name() -> String {
-    "Identifier".to_string()
+  fn schema_name() -> std::borrow::Cow<'static, str> {
+    "Identifier".into()
   }
 
   fn schema_id() -> std::borrow::Cow<'static, str> {
-    // Include the module, in case a type with the same name is in another module/crate
     std::borrow::Cow::Borrowed(concat!(module_path!(), "::Identifier"))
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    String::json_schema(gen)
+  fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    String::json_schema(generator)
   }
 }
 
@@ -127,7 +126,9 @@ pub enum ParseIdentifierError {
   Humongous(usize),
 
   /// Identifier is not in a valid format.
-  #[error("identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix")]
+  #[error(
+    "identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix"
+  )]
   InvalidFormat,
 
   /// Identifier has multiple separators.
@@ -286,7 +287,7 @@ mod tests {
 #[cfg(feature = "build")]
 mod build {
   use proc_macro2::TokenStream;
-  use quote::{quote, ToTokens, TokenStreamExt};
+  use quote::{ToTokens, TokenStreamExt, quote};
 
   use super::*;
 

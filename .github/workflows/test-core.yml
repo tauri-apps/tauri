@@ -115,8 +115,8 @@ jobs:
         run: |
           ${{ steps.cache-cef.outputs.cache-hit && 'echo "Cached CEF"'
             || (matrix.platform.os == 'windows-latest'
-              && 'cargo install export-cef-dir && export-cef-dir -- --version 144.0.7 "$env:USERPROFILE/.local/share/cef"'
-              || 'cargo install export-cef-dir && export-cef-dir -- --version 144.0.7 "$HOME/.local/share/cef"')
+              && 'cargo install export-cef-dir && export-cef-dir --version 144.0.7 "$env:USERPROFILE/.local/share/cef"'
+              || 'cargo install export-cef-dir && export-cef-dir --version 144.0.7 "$HOME/.local/share/cef"')
           }}
           echo "CEF_PATH=${{ matrix.platform.os == 'windows-latest'
             && '$env:USERPROFILE'

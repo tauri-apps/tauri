@@ -730,13 +730,13 @@ mod test {
     let mut migrated = original.clone();
     super::migrate_config(&mut migrated).expect("failed to migrate config");
 
-    if original.get("$schema").is_some() {
-      if let Some(map) = migrated.as_object_mut() {
-        map.insert(
-          "$schema".to_string(),
-          serde_json::Value::String("https://schema.tauri.app/config/2".to_string()),
-        );
-      }
+    if original.get("$schema").is_some()
+      && let Some(map) = migrated.as_object_mut()
+    {
+      map.insert(
+        "$schema".to_string(),
+        serde_json::Value::String("https://schema.tauri.app/config/2".to_string()),
+      );
     }
 
     if original
@@ -744,13 +744,12 @@ mod test {
       .and_then(|v| v.get("bundle"))
       .and_then(|v| v.get("identifier"))
       .is_none()
+      && let Some(map) = migrated.as_object_mut()
     {
-      if let Some(map) = migrated.as_object_mut() {
-        map.insert(
-          "identifier".to_string(),
-          serde_json::Value::String("com.tauri.test-injected".to_string()),
-        );
-      }
+      map.insert(
+        "identifier".to_string(),
+        serde_json::Value::String("com.tauri.test-injected".to_string()),
+      );
     }
 
     if let Err(e) = serde_json::from_value::<tauri_utils::config::Config>(migrated.clone()) {

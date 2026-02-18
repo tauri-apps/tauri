@@ -138,29 +138,22 @@ fn forward_to_native_driver(
 /// only happy path for now, no errors
 fn map_capabilities(mut json: Value) -> Value {
   let mut native = None;
-  if let Some(capabilities) = json.get_mut("capabilities") {
-    if let Some(always_match) = capabilities.get_mut("alwaysMatch") {
-      if let Some(always_match) = always_match.as_object_mut() {
-        if let Some(tauri_options) = always_match.remove(TAURI_OPTIONS) {
-          if let Ok(options) = serde_json::from_value::<TauriOptions>(tauri_options) {
-            native = Some(options.into_native_object());
-          }
-        }
-
-        if let Some(native) = native.clone() {
-          always_match.extend(native);
-        }
-      }
-    }
+  if let Some(capabilities) = json.get_mut("capabilities")
+    && let Some(capabilities) = capabilities.as_object_mut()
+    && let Some(always_match) = capabilities.get_mut("alwaysMatch")
+    && let Some(always_match) = always_match.as_object_mut()
+    && let Some(tauri_options) = always_match.remove(TAURI_OPTIONS)
+    && let Ok(options) = serde_json::from_value::<TauriOptions>(tauri_options)
+  {
+    native = Some(options.into_native_object());
   }
 
-  if let Some(native) = native {
-    if let Some(desired) = json.get_mut("desiredCapabilities") {
-      if let Some(desired) = desired.as_object_mut() {
-        desired.remove(TAURI_OPTIONS);
-        desired.extend(native);
-      }
-    }
+  if let Some(native) = native
+    && let Some(desired) = json.get_mut("desiredCapabilities")
+    && let Some(desired) = desired.as_object_mut()
+  {
+    desired.remove(TAURI_OPTIONS);
+    desired.extend(native);
   }
 
   json

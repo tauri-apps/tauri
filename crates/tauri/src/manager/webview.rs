@@ -466,18 +466,17 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     #[cfg(feature = "webview-data-url")]
-    if let Some(csp) = app_manager.csp() {
-      if url.scheme() == "data" {
-        if let Ok(data_url) = data_url::DataUrl::process(url.as_str()) {
-          let (body, _) = data_url.decode_to_vec().unwrap();
-          let html = String::from_utf8_lossy(&body).into_owned();
-          // naive way to check if it's an html
-          if html.contains('<') && html.contains('>') {
-            let document = tauri_utils::html::parse(html);
-            tauri_utils::html::inject_csp(&document, &csp.to_string());
-            url.set_path(&format!("{},{document}", mime::TEXT_HTML));
-          }
-        }
+    if let Some(csp) = app_manager.csp()
+      && url.scheme() == "data"
+      && let Ok(data_url) = data_url::DataUrl::process(url.as_str())
+    {
+      let (body, _) = data_url.decode_to_vec().unwrap();
+      let html = String::from_utf8_lossy(&body).into_owned();
+      // naive way to check if it's an html
+      if html.contains('<') && html.contains('>') {
+        let document = tauri_utils::html::parse(html);
+        tauri_utils::html::inject_csp(&document, &csp.to_string());
+        url.set_path(&format!("{},{document}", mime::TEXT_HTML));
       }
     }
 

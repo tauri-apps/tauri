@@ -253,7 +253,7 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// ```rust,no_run
   /// use tauri::{path::BaseDirectory, Manager};
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let path = app.path().resolve("path/to/something", BaseDirectory::Config)?;
   ///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.config/path/to/something");
@@ -270,7 +270,7 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// ```rust,no_run
   /// use tauri::Manager;
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let path = app.path().parse("$HOME/.bashrc")?;
   ///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.bashrc");

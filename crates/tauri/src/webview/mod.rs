@@ -321,7 +321,7 @@ impl<R: Runtime> WebviewBuilder<R> {
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
     let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
@@ -338,7 +338,7 @@ tauri::Builder::default()
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let handle = app.handle().clone();
     std::thread::spawn(move || {
@@ -485,7 +485,7 @@ use tauri::{
 };
 use http::header::HeaderValue;
 use std::collections::HashMap;
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
 
@@ -537,7 +537,7 @@ use tauri::{
 };
 use http::header::HeaderValue;
 use std::collections::HashMap;
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
 
@@ -575,7 +575,7 @@ use tauri::{
 };
 use http::header::HeaderValue;
 use std::collections::HashMap;
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
 
@@ -652,7 +652,7 @@ use tauri::{
   webview::{DownloadEvent, WebviewBuilder},
 };
 
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = WindowBuilder::new(app, "label").build()?;
     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
@@ -702,7 +702,7 @@ use tauri::{
 };
 use http::header::HeaderValue;
 use std::collections::HashMap;
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
@@ -905,7 +905,7 @@ const INIT_SCRIPT: &str = r#"
 "#;
 
 fn main() {
-  tauri::Builder::default()
+  tauri::Builder::<tauri::Wry>::new()
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
@@ -964,7 +964,7 @@ const INIT_SCRIPT: &str = r#"
 "#;
 
 fn main() {
-  tauri::Builder::default()
+  tauri::Builder::<tauri::Wry>::new()
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
@@ -1470,7 +1470,7 @@ impl<R: Runtime> Webview<R> {
   ///   some_value: String,
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview = app.get_webview_window("main").unwrap();
   ///     let scope = webview.resolve_command_scope::<ScopeType>("my-plugin", "read");
@@ -1661,7 +1661,7 @@ impl<R: Runtime> Webview<R> {
 ```rust,no_run
 use tauri::Manager;
 
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let main_webview = app.get_webview("main").unwrap();
     main_webview.with_webview(|webview| {
@@ -2018,7 +2018,7 @@ tauri::Builder::default()
     doc = r####"
 ```rust,no_run
 use tauri::Manager;
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     #[cfg(debug_assertions)]
     app.get_webview("main").unwrap().open_devtools();
@@ -2049,7 +2049,7 @@ tauri::Builder::default()
     doc = r####"
 ```rust,no_run
 use tauri::Manager;
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     #[cfg(debug_assertions)]
     {
@@ -2087,7 +2087,7 @@ tauri::Builder::default()
     doc = r####"
 ```rust,no_run
 use tauri::Manager;
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     #[cfg(debug_assertions)]
     {
@@ -2234,7 +2234,7 @@ impl<R: Runtime> Listener<R> for Webview<R> {
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let webview = app.get_webview("main").unwrap();
     webview.listen("component-loaded", move |event| {
@@ -2286,7 +2286,7 @@ tauri::Builder::default()
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let webview = app.get_webview("main").unwrap();
     let webview_ = webview.clone();

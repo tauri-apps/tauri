@@ -35,7 +35,7 @@ pub fn run() {
   #[cfg(feature = "cef")]
   run_app(tauri::Builder::<tauri::Cef>::default(), |_app| {});
   #[cfg(not(feature = "cef"))]
-  run_app(tauri::Builder::default(), |_app| {});
+  run_app(tauri::Builder::<tauri::Wry>::new(), |_app| {});
 }
 
 pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(

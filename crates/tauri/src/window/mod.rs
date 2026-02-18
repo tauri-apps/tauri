@@ -158,7 +158,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label")
       .build()?;
@@ -173,7 +173,7 @@ tauri::Builder::default()
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let handle = app.handle().clone();
     std::thread::spawn(move || {
@@ -289,7 +289,7 @@ async fn reopen_window(app: tauri::AppHandle) {
     doc = r####"
 ```
 use tauri::menu::{Menu, Submenu, MenuItem};
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let handle = app.handle();
     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
@@ -1132,7 +1132,7 @@ impl<R: Runtime> Window<R> {
     doc = r####"
 ```
 use tauri::menu::{Menu, Submenu, MenuItem};
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let handle = app.handle();
     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
@@ -1833,7 +1833,7 @@ impl<R: Runtime> Window<R> {
     doc = r####"
 ```rust,no_run
 use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     window.set_effects(
@@ -2251,7 +2251,7 @@ impl<R: Runtime> Listener<R> for Window<R> {
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     window.listen("component-loaded", move |event| {
@@ -2303,7 +2303,7 @@ tauri::Builder::default()
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     let window_ = window.clone();

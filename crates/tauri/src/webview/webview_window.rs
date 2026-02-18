@@ -88,7 +88,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// - Create a window in the setup hook:
   ///
   /// ```
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview_window = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()))
   ///       .build()?;
@@ -99,7 +99,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// - Create a window in a separate thread:
   ///
   /// ```
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
@@ -190,7 +190,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// # Examples
   /// ```
   /// use tauri::menu::{Menu, Submenu, MenuItem};
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let handle = app.handle();
   ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
@@ -236,7 +236,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// };
   /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
   ///       .on_web_resource_request(|request, response| {
@@ -277,7 +277,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// };
   /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
   ///       .on_navigation(|url| {
@@ -307,7 +307,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// };
   /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let app_ = app.handle().clone();
   ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
@@ -387,7 +387,7 @@ use tauri::{
   webview::{DownloadEvent, WebviewWindowBuilder},
 };
 
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let handle = app.handle();
     let webview_window = WebviewWindowBuilder::new(handle, "core", WebviewUrl::App("index.html".into()))
@@ -432,7 +432,7 @@ tauri::Builder::default()
   /// };
   /// use http::header::HeaderValue;
   /// use std::collections::HashMap;
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
   ///       .on_page_load(|window, payload| {
@@ -961,7 +961,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// "#;
   ///
   /// fn main() {
-  ///   tauri::Builder::default()
+  ///   tauri::Builder::<tauri::Wry>::new()
   ///     .setup(|app| {
   ///       let webview = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()))
   ///         .initialization_script(INIT_SCRIPT)
@@ -1003,7 +1003,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// "#;
   ///
   /// fn main() {
-  ///   tauri::Builder::default()
+  ///   tauri::Builder::<tauri::Wry>::new()
   ///     .setup(|app| {
   ///       let webview = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()))
   ///         .initialization_script_for_all_frames(INIT_SCRIPT)
@@ -1270,7 +1270,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// ```
   /// fn main() {
-  ///   tauri::Builder::default()
+  ///   tauri::Builder::<tauri::Wry>::new()
   ///     .setup(|app| {
   ///       let mut builder = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()));
   ///       #[cfg(target_os = "ios")]
@@ -1507,7 +1507,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///   some_value: String,
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview = app.get_webview_window("main").unwrap();
   ///     let scope = webview.resolve_command_scope::<ScopeType>("my-plugin", "read");
@@ -1540,7 +1540,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// use tauri::menu::{Menu, Submenu, MenuItem};
   /// use tauri::{WebviewWindowBuilder, WebviewUrl};
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let handle = app.handle();
   ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
@@ -1978,7 +1978,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// ```rust,no_run
   /// use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview_window = app.get_webview_window("main").unwrap();
   ///     webview_window.set_effects(
@@ -2257,7 +2257,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// use tauri::Manager;
   ///
   /// fn main() {
-  ///   tauri::Builder::default()
+  ///   tauri::Builder::<tauri::Wry>::new()
   ///     .setup(|app| {
   ///       let main_webview = app.get_webview_window("main").unwrap();
   ///       main_webview.with_webview(|webview| {
@@ -2370,7 +2370,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// ```rust,no_run
   /// use tauri::Manager;
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     #[cfg(debug_assertions)]
   ///     app.get_webview_window("main").unwrap().open_devtools();
@@ -2396,7 +2396,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// ```rust,no_run
   /// use tauri::Manager;
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     #[cfg(debug_assertions)]
   ///     {
@@ -2429,7 +2429,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// ```rust,no_run
   /// use tauri::Manager;
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     #[cfg(debug_assertions)]
   ///     {
@@ -2532,7 +2532,7 @@ impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   /// ```
   /// use tauri::{Manager, Listener};
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview_window = app.get_webview_window("main").unwrap();
   ///     webview_window.listen("component-loaded", move |event| {
@@ -2579,7 +2579,7 @@ impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   /// ```
   /// use tauri::{Manager, Listener};
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let webview_window = app.get_webview_window("main").unwrap();
   ///     let webview_window_ = webview_window.clone();

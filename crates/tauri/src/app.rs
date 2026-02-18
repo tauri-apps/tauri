@@ -468,7 +468,7 @@ impl<R: Runtime> AppHandle<R> {
   ///   PluginBuilder::new("dummy").build()
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(move |app| {
   ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
@@ -509,7 +509,7 @@ impl<R: Runtime> AppHandle<R> {
   /// let plugin = init_plugin();
   /// // `.name()` requires the `Plugin` trait import
   /// let plugin_name = plugin.name();
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .plugin(plugin)
   ///   .setup(move |app| {
   ///     let handle = app.handle().clone();
@@ -582,7 +582,7 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -602,7 +602,7 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.handle().set_dock_visibility(false);
@@ -1051,7 +1051,7 @@ macro_rules! shared_app_impl {
       /// ```
       /// use tauri::Listener;
       ///
-      /// tauri::Builder::default()
+      /// tauri::Builder::<tauri::Wry>::new()
       ///   .setup(|app| {
       ///     app.listen("component-loaded", move |event| {
       ///       println!("window just loaded a component");
@@ -1086,7 +1086,7 @@ macro_rules! shared_app_impl {
       /// ```
       /// use tauri::Listener;
       ///
-      /// tauri::Builder::default()
+      /// tauri::Builder::<tauri::Wry>::new()
       ///   .setup(|app| {
       ///     let handler = app.listen("component-loaded", move |event| {
       ///       println!("app just loaded a component");
@@ -1144,7 +1144,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -1165,7 +1165,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.set_dock_visibility(false);
@@ -1194,7 +1194,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let mut app = tauri::Builder::default()
+  /// let mut app = tauri::Builder::<tauri::Wry>::new()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1222,7 +1222,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let app = tauri::Builder::default()
+  /// let app = tauri::Builder::<tauri::Wry>::new()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1258,7 +1258,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let app = tauri::Builder::default()
+  /// let app = tauri::Builder::<tauri::Wry>::new()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1321,7 +1321,7 @@ impl<R: Runtime> App<R> {
   /// ```no_run
   /// use tauri::Manager;
   ///
-  /// let mut app = tauri::Builder::default()
+  /// let mut app = tauri::Builder::<tauri::Wry>::new()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1361,7 +1361,7 @@ impl<R: Runtime> App<R> {
 ///
 /// # Examples
 /// ```,no_run
-/// tauri::Builder::default()
+/// tauri::Builder::<tauri::Wry>::new()
 ///   // on an actual app, remove the string argument
 ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
 ///  .expect("error while running tauri application");
@@ -1598,7 +1598,7 @@ impl<R: Runtime> Builder<R> {
   /// fn command_1() -> String {
   ///   return "hello world".to_string();
   /// }
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .invoke_handler(tauri::generate_handler![
   ///     command_1,
   ///     // etc...
@@ -1689,7 +1689,7 @@ impl<R: Runtime> Builder<R> {
   /// }
   /// "#;
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .append_invoke_initialization_script(custom_script);
   /// ```
   pub fn append_invoke_initialization_script(
@@ -1710,7 +1710,7 @@ impl<R: Runtime> Builder<R> {
     doc = r####"
 ```
 use tauri::Manager;
-tauri::Builder::default()
+tauri::Builder::<tauri::Wry>::new()
   .setup(|app| {
     let main_window = app.get_webview_window("main").unwrap();
     main_window.set_title("Tauri!")?;
@@ -1776,7 +1776,7 @@ tauri::Builder::default()
   ///   }
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .plugin(plugin::init());
   /// ```
   #[must_use]
@@ -1837,7 +1837,7 @@ tauri::Builder::default()
   ///   storage.store.lock().unwrap().insert(key, value);
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .manage(Storage { store: Default::default() })
   ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
@@ -1864,7 +1864,7 @@ tauri::Builder::default()
   ///     println!("state: {}", state.inner().0);
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .manage(MyInt(10))
   ///   .manage(MyString("Hello, managed state!".to_string()))
   ///   .invoke_handler(tauri::generate_handler![int_command, string_command])
@@ -1891,7 +1891,7 @@ tauri::Builder::default()
   /// ```
   /// use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .menu(|handle| Menu::with_items(handle, &[
   ///     &Submenu::with_items(
   ///       handle,
@@ -1921,7 +1921,7 @@ tauri::Builder::default()
   /// ```
   /// use tauri::menu::*;
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .on_menu_event(|app, event| {
   ///      if event.id() == "quit" {
   ///        app.exit(0);
@@ -1944,7 +1944,7 @@ tauri::Builder::default()
   /// ```
   /// use tauri::Manager;
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .on_tray_icon_event(|app, event| {
   ///      let tray = app.tray_by_id(event.id()).expect("can't find tray icon");
   ///      let _ = tray.set_visible(false);
@@ -1965,7 +1965,7 @@ tauri::Builder::default()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .enable_macos_default_menu(false);
   /// ```
   #[must_use]
@@ -1978,7 +1978,7 @@ tauri::Builder::default()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .on_window_event(|window, event| match event {
   ///     tauri::WindowEvent::Focused(focused) => {
   ///       // hide window whenever it loses focus
@@ -2002,7 +2002,7 @@ tauri::Builder::default()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .on_webview_event(|window, event| match event {
   ///     tauri::WebviewEvent::DragDrop(event) => {
   ///       println!("{:?}", event);
@@ -2032,7 +2032,7 @@ tauri::Builder::default()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .register_uri_scheme_protocol("app-files", |_ctx, request| {
   ///     // skip leading `/`
   ///     if let Ok(data) = std::fs::read(&request.uri().path()[1..]) {
@@ -2093,7 +2093,7 @@ tauri::Builder::default()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .register_asynchronous_uri_scheme_protocol("app-files", |_ctx, request, responder| {
   ///     // skip leading `/`
   ///     let path = request.uri().path()[1..].to_string();
@@ -2157,7 +2157,7 @@ tauri::Builder::default()
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .device_event_filter(tauri::DeviceEventFilter::Always);
   /// ```
   ///

@@ -662,7 +662,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   storage.store.lock().unwrap().insert(key, value);
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .manage(Storage { store: Default::default() })
   ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
@@ -689,7 +689,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///     println!("state: {}", state.inner().0);
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     app.manage(MyInt(0));
   ///     app.manage(MyString("tauri".into()));
@@ -800,7 +800,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// ```
   /// use tauri::Manager;
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     #[cfg(feature = "beta")]
   ///     app.add_capability(include_str!("../capabilities/beta/cap.json"));
@@ -857,7 +857,7 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///   window.emit("synchronized", ());
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     app.listen("synchronized", |event| {
   ///       println!("app is in sync");
@@ -887,7 +887,7 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   /// ```
   /// use tauri::{Manager, Listener};
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     let handle = app.handle().clone();
   ///     let handler = app.listen_any("ready", move |event| {
@@ -919,7 +919,7 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///   window.emit("synchronized", ());
   /// }
   ///
-  /// tauri::Builder::default()
+  /// tauri::Builder::<tauri::Wry>::new()
   ///   .setup(|app| {
   ///     app.listen_any("synchronized", |event| {
   ///       println!("app is in sync");

@@ -82,6 +82,10 @@ jobs:
           toolchain: ${{ matrix.platform.toolchain }}
           targets: ${{ matrix.platform.target }}
 
+      - name: install x86_64-apple-darwin target (required by bundler CEF helper on macOS)
+        if: ${{ startsWith(matrix.platform.os, 'macos-') }}
+        run: rustup target add x86_64-apple-darwin
+
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |

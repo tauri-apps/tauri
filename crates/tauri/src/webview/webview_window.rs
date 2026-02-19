@@ -1248,7 +1248,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///       #[cfg(target_os = "ios")]
   ///       {
   ///         window_builder = window_builder.with_input_accessory_view_builder(|_webview| unsafe {
-  ///           let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+  ///           let mtm = objc2::MainThreadMarker::new_unchecked();
   ///           let button = objc2_ui_kit::UIButton::buttonWithType(objc2_ui_kit::UIButtonType(1), mtm);
   ///           button.setTitle_forState(
   ///             Some(&objc2_foundation::NSString::from_str("Tauri")),

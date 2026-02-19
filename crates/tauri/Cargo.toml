@@ -121,9 +121,10 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSWindow",
   "NSImage",
 ] }
-objc2-web-kit = { version = "0.3", features = [
+objc2-web-kit = { version = "0.3", default-features = false, features = [
   "objc2-app-kit",
   "WKWebView",
+  "WKWebViewConfiguration",
   "WKUserContentController",
 ] }
 window-vibrancy = "0.6"

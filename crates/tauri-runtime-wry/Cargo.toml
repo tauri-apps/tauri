@@ -57,7 +57,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 ] }
 
 [target."cfg(target_os = \"android\")".dependencies]
-jni = "0.21"
+jni = "0.22"
 
 [features]
 default = ["x11"]

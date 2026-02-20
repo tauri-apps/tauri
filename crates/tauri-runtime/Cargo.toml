@@ -47,7 +47,7 @@ gtk = { version = "0.18", features = ["v3_24"] }
 webkit2gtk = { version = "=2.0", features = ["v2_40"] }
 
 [target."cfg(target_os = \"android\")".dependencies]
-jni = "0.21"
+jni = "0.22"
 
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 objc2 = "0.6"

@@ -143,9 +143,9 @@ class PluginHandle(private val manager: PluginManager, val name: String, val ins
 
   private fun indexMethods() {
     val methods = mutableListOf<Method>()
-    var pluginCursor: Class<*> = instance.javaClass
-    while (pluginCursor.name != Any::class.java.name) {
-      methods.addAll(listOf(*pluginCursor.declaredMethods))
+    var pluginCursor: Class<*>? = instance.javaClass
+    while (pluginCursor != null && pluginCursor != Any::class.java) {
+      methods.addAll(pluginCursor.declaredMethods)
       pluginCursor = pluginCursor.superclass
     }
 

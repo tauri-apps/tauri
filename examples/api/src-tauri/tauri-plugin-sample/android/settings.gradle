@@ -8,10 +8,7 @@ pluginManagement {
         eachPlugin {
             switch (requested.id.id) {
                 case "com.android.library":
-                    useVersion("8.0.2")
-                    break
-                case "org.jetbrains.kotlin.android":
-                    useVersion("1.8.20")
+                    useVersion("9.0.1")
                     break
             }
         }

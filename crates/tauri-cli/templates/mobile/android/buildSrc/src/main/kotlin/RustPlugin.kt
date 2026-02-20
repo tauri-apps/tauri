@@ -17,10 +17,10 @@ open class RustPlugin : Plugin<Project> {
     override fun apply(project: Project) = with(project) {
         config = extensions.create("rust", Config::class.java)
 
-        val defaultAbiList = listOf({{quote-and-join abi-list}});
+        val defaultAbiList = listOf({{quote-and-join abi-list}})
         val abiList = (findProperty("abiList") as? String)?.split(',') ?: defaultAbiList
 
-        val defaultArchList = listOf({{quote-and-join arch-list}});
+        val defaultArchList = listOf({{quote-and-join arch-list}})
         val archList = (findProperty("archList") as? String)?.split(',') ?: defaultArchList
 
         val targetsList = (findProperty("targetList") as? String)?.split(',') ?: listOf({{quote-and-join target-list}})
@@ -69,7 +69,7 @@ open class RustPlugin : Plugin<Project> {
                     ).apply {
                         group = TASK_GROUP
                         description = "Build dynamic library in $profile mode for $targetArch"
-                        rootDirRel = config.rootDirRel
+                        rootDirRel = layout.projectDirectory.dir(config.rootDirRel).toString()
                         target = targetName
                         release = profile == "release"
                     }

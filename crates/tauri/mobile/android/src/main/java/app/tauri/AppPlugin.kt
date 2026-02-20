@@ -15,7 +15,7 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 
 @TauriPlugin
-class AppPlugin(private val activity: Activity): Plugin(activity) {
+class AppPlugin(private val activity: AppCompatActivity): Plugin(activity) {
   private val BACK_BUTTON_EVENT = "back-button"
 
   private var webView: WebView? = null
@@ -32,7 +32,7 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
             this@AppPlugin.webView!!.goBack()
           } else {
             this.isEnabled = false
-            this@AppPlugin.activity.onBackPressed()
+            this@AppPlugin.activity.onBackPressedDispatcher.onBackPressed()
             this.isEnabled = true
           }
         } else {
@@ -43,7 +43,7 @@ class AppPlugin(private val activity: Activity): Plugin(activity) {
         }
       }
     }
-    (activity as AppCompatActivity).onBackPressedDispatcher.addCallback(activity, callback)
+    activity.onBackPressedDispatcher.addCallback(activity, callback)
   }
 
   @Command

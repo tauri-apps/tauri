@@ -52,7 +52,7 @@ android {
 }
 
 kotlin {
-    jvmToolchain(8)
+    jvmToolchain(24)
 }
 
 rust {

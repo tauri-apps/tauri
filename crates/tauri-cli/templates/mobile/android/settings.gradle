@@ -1,3 +1,6 @@
+plugins {
+  id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
 include ':app'
 {{~#each asset-packs}}
 include ':{{this}}'{{/each}}

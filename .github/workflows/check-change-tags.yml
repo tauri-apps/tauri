@@ -9,6 +9,10 @@ on:
     paths:
       - '.changes/*.md'
 
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

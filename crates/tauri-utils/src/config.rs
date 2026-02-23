@@ -3842,6 +3842,9 @@ mod build {
           quote!(#prefix::Policy(#policy.into()))
         }
         Self::DirectiveMap(list) => {
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
           let mut sorted: Vec<_> = list.iter().collect();
           sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
@@ -3902,6 +3905,9 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
           let mut sorted: Vec<_> = m.iter().collect();
           sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
@@ -4056,6 +4062,9 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // Pass a sorted vec so the HashMap constructor is deterministic
+      // see: https://github.com/tauri-apps/tauri/issues/14978
+      // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
       let mut sorted: Vec<_> = self.0.iter().collect();
       sorted.sort_by_key(|(k, _)| *k);
       let config = map_lit(

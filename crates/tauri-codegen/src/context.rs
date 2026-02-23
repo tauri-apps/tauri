@@ -25,7 +25,9 @@ use tauri_utils::{
   },
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
-  html::{inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef},
+  html2::{
+    inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, Document,
+  },
   platform::Target,
   tokens::{map_lit, str_lit},
 };
@@ -44,13 +46,14 @@ pub struct ContextData {
   pub test: bool,
 }
 
-fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  if let Ok(inline_script_elements) = document.select("script:not(:empty)") {
+fn inject_script_hashes(document: &Document, key: &AssetKey, csp_hashes: &mut CspHashes) {
+  let inline_script_elements = document.select("script:not(:empty)");
+  if !inline_script_elements.is_empty() {
     let mut scripts = Vec::new();
-    for inline_script_el in inline_script_elements {
-      let script = inline_script_el.as_node().text_contents();
+    for inline_script_el in inline_script_elements.iter() {
+      let script = inline_script_el.text();
       let mut hasher = Sha256::new();
-      hasher.update(tauri_utils::html::normalize_script_for_csp(
+      hasher.update(tauri_utils::html2::normalize_script_for_csp(
         script.as_bytes(),
       ));
       let hash = hasher.finalize();
@@ -111,10 +114,10 @@ fn map_isolation(
       let isolation_html = parse_html(String::from_utf8_lossy(input).into_owned());
 
       // this is appended, so no need to reverse order it
-      tauri_utils::html::inject_codegen_isolation_script(&isolation_html);
+      tauri_utils::html2::inject_codegen_isolation_script(&isolation_html);
 
       // temporary workaround for windows not loading assets
-      tauri_utils::html::inline_isolation(&isolation_html, &dir);
+      tauri_utils::html2::inline_isolation(&isolation_html, &dir);
 
       inject_nonce_token(
         &isolation_html,
@@ -125,7 +128,7 @@ fn map_isolation(
 
       csp_hashes.styles.push(iframe_style_csp_hash.clone());
 
-      *input = isolation_html.to_string().as_bytes().to_vec()
+      *input = serialize_html_node(&isolation_html)
     }
 
     Ok(())

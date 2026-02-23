@@ -6,16 +6,9 @@
 
 use std::path::{Path, PathBuf};
 
-use html5ever::{
-  interface::QualName,
-  namespace_url, ns,
-  serialize::{HtmlSerializer, SerializeOpts, Serializer, TraversalScope},
-  tendril::TendrilSink,
-  LocalName,
-};
-pub use kuchiki::NodeRef;
-use kuchiki::{Attribute, ExpandedName, NodeData};
+use dom_query::NodeRef;
 use serde::Serialize;
+
 #[cfg(feature = "isolation")]
 use serialize_to_javascript::DefaultTemplate;
 
@@ -26,127 +19,43 @@ use crate::{
   config::{DisabledCspModificationKind, PatternKind},
 };
 
-// taken from <https://github.com/kuchiki-rs/kuchiki/blob/57ee6920d835315a498e748ba4b07a851ae5e498/src/serializer.rs#L12>
-fn serialize_node_ref_internal<S: Serializer>(
-  node: &NodeRef,
-  serializer: &mut S,
-  traversal_scope: TraversalScope,
-) -> crate::Result<()> {
-  match (traversal_scope, node.data()) {
-    (ref scope, NodeData::Element(element)) => {
-      if *scope == TraversalScope::IncludeNode {
-        let attrs = element.attributes.borrow();
+pub use dom_query::Document;
 
-        // Unfortunately we need to allocate something to hold these &'a QualName
-        let attrs = attrs
-          .map
-          .iter()
-          .map(|(name, attr)| {
-            (
-              QualName::new(attr.prefix.clone(), name.ns.clone(), name.local.clone()),
-              &attr.value,
-            )
-          })
-          .collect::<Vec<_>>();
-
-        serializer.start_elem(
-          element.name.clone(),
-          attrs.iter().map(|&(ref name, value)| (name, &**value)),
-        )?
-      }
-
-      let children = match element.template_contents.as_ref() {
-        Some(template_root) => template_root.children(),
-        None => node.children(),
-      };
-      for child in children {
-        serialize_node_ref_internal(&child, serializer, TraversalScope::IncludeNode)?
-      }
-
-      if *scope == TraversalScope::IncludeNode {
-        serializer.end_elem(element.name.clone())?
-      }
-      Ok(())
-    }
-
-    (_, &NodeData::DocumentFragment) | (_, &NodeData::Document(_)) => {
-      for child in node.children() {
-        serialize_node_ref_internal(&child, serializer, TraversalScope::IncludeNode)?
-      }
-      Ok(())
-    }
-
-    (TraversalScope::ChildrenOnly(_), _) => Ok(()),
-
-    (TraversalScope::IncludeNode, NodeData::Doctype(doctype)) => {
-      serializer.write_doctype(&doctype.name).map_err(Into::into)
-    }
-    (TraversalScope::IncludeNode, NodeData::Text(text)) => {
-      serializer.write_text(&text.borrow()).map_err(Into::into)
-    }
-    (TraversalScope::IncludeNode, NodeData::Comment(text)) => {
-      serializer.write_comment(&text.borrow()).map_err(Into::into)
-    }
-    (TraversalScope::IncludeNode, NodeData::ProcessingInstruction(contents)) => {
-      let contents = contents.borrow();
-      serializer
-        .write_processing_instruction(&contents.0, &contents.1)
-        .map_err(Into::into)
-    }
-  }
-}
-
-/// Serializes the node to HTML.
-pub fn serialize_node(node: &NodeRef) -> Vec<u8> {
-  let mut u8_vec = Vec::new();
-  let mut ser = HtmlSerializer::new(
-    &mut u8_vec,
-    SerializeOpts {
-      traversal_scope: TraversalScope::IncludeNode,
-      ..Default::default()
-    },
-  );
-  serialize_node_ref_internal(node, &mut ser, TraversalScope::IncludeNode).unwrap();
-  u8_vec
+/// Serializes the document to HTML.
+pub fn serialize_node(document: &Document) -> Vec<u8> {
+  document.html().as_bytes().to_vec()
 }
 
 /// Parses the given HTML string.
-pub fn parse(html: String) -> NodeRef {
-  kuchiki::parse_html().one(html).document_node
+pub fn parse(html: String) -> Document {
+  Document::from(html.as_str())
 }
 
-fn with_head<F: FnOnce(&NodeRef)>(document: &NodeRef, f: F) {
-  if let Ok(ref node) = document.select_first("head") {
-    f(node.as_node())
+fn with_head<F: FnOnce(NodeRef<'_>)>(document: &Document, f: F) {
+  if let Some(head) = document.head() {
+    f(head)
   } else {
-    let node = NodeRef::new_element(
-      QualName::new(None, ns!(html), LocalName::from("head")),
-      None,
-    );
-    f(&node);
-    document.prepend(node)
+    let html = document.html_root();
+    html.append_html("<head></head>");
+
+    f(document.head().unwrap())
   }
 }
 
-fn inject_nonce(document: &NodeRef, selector: &str, token: &str) {
-  if let Ok(elements) = document.select(selector) {
-    for target in elements {
-      let node = target.as_node();
-      let element = node.as_element().unwrap();
-
-      let mut attrs = element.attributes.borrow_mut();
-      // if the node already has the `nonce` attribute, skip it
-      if attrs.get("nonce").is_some() {
-        continue;
-      }
-      attrs.insert("nonce", token.into());
+fn inject_nonce(document: &Document, selector: &str, token: &str) {
+  let elements = document.select(selector);
+  for elem in elements.iter() {
+    // if the node already has the `nonce` attribute, skip it
+    if elem.attr("nonce").is_some() {
+      continue;
     }
+    elem.set_attr("nonce", token);
   }
 }
 
 /// Inject nonce tokens to all scripts and styles.
 pub fn inject_nonce_token(
-  document: &NodeRef,
+  document: &Document,
   dangerous_disable_asset_csp_modification: &DisabledCspModificationKind,
 ) {
   if dangerous_disable_asset_csp_modification.can_modify("script-src") {
@@ -158,41 +67,21 @@ pub fn inject_nonce_token(
 }
 
 /// Injects a content security policy to the HTML.
-pub fn inject_csp(document: &NodeRef, csp: &str) {
+pub fn inject_csp(document: &Document, csp: &str) {
   with_head(document, |head| {
-    head.append(create_csp_meta_tag(csp));
+    let meta_tag = format!(r#"<meta http-equiv="Content-Security-Policy" content="{csp}">"#);
+
+    head.prepend_html(meta_tag.as_str());
   });
 }
 
 /// Injects a content security policy to the HTML.
-pub fn append_script_to_head(document: &NodeRef, script: &str) {
+pub fn append_script_to_head(document: &Document, script: &str) {
   with_head(document, |head| {
-    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-    script_el.append(NodeRef::new_text(script));
-    head.prepend(script_el);
-  });
-}
+    let script_tag = format!(r#"<script>{script}</script>"#);
 
-fn create_csp_meta_tag(csp: &str) -> NodeRef {
-  NodeRef::new_element(
-    QualName::new(None, ns!(html), LocalName::from("meta")),
-    vec![
-      (
-        ExpandedName::new(ns!(), LocalName::from("http-equiv")),
-        Attribute {
-          prefix: None,
-          value: "Content-Security-Policy".into(),
-        },
-      ),
-      (
-        ExpandedName::new(ns!(), LocalName::from("content")),
-        Attribute {
-          prefix: None,
-          value: csp.into(),
-        },
-      ),
-    ],
-  )
+    head.prepend_html(script_tag.as_str());
+  });
 }
 
 /// The shape of the JavaScript Pattern config
@@ -234,26 +123,19 @@ pub enum IsolationSide {
 ///
 /// Note: This function is not considered part of the stable API.
 #[cfg(feature = "isolation")]
-pub fn inject_codegen_isolation_script(document: &NodeRef) {
+pub fn inject_codegen_isolation_script(document: &Document) {
   with_head(document, |head| {
-    let script = NodeRef::new_element(
-      QualName::new(None, ns!(html), "script".into()),
-      vec![(
-        ExpandedName::new(ns!(), LocalName::from("nonce")),
-        Attribute {
-          prefix: None,
-          value: SCRIPT_NONCE_TOKEN.into(),
-        },
-      )],
-    );
-    script.append(NodeRef::new_text(
-      IsolationJavascriptCodegen {}
-        .render_default(&Default::default())
-        .expect("unable to render codegen isolation script template")
-        .into_string(),
-    ));
+    let script_content = IsolationJavascriptCodegen {}
+      .render_default(&Default::default())
+      .expect("unable to render codegen isolation script template")
+      .into_string();
 
-    head.prepend(script);
+    let script_tag = format!(
+      r#"<script nonce="{}">{}</script>"#,
+      SCRIPT_NONCE_TOKEN, script_content
+    );
+
+    head.prepend_html(script_tag.as_str());
   });
 }
 
@@ -261,17 +143,13 @@ pub fn inject_codegen_isolation_script(document: &NodeRef) {
 ///
 /// Note: this does not prevent path traversal due to the isolation application expectation that it
 /// is secure.
-pub fn inline_isolation(document: &NodeRef, dir: &Path) {
-  for script in document
-    .select("script[src]")
-    .expect("unable to parse document for scripts")
-  {
-    let src = {
-      let attributes = script.attributes.borrow();
-      attributes
-        .get(LocalName::from("src"))
-        .expect("script with src attribute has no src value")
-        .to_string()
+pub fn inline_isolation(document: &Document, dir: &Path) {
+  let scripts = document.select("script[src]");
+
+  for script in scripts.iter() {
+    let src = match script.attr("src") {
+      Some(s) => s.to_string(),
+      None => continue,
     };
 
     let mut path = PathBuf::from(src);
@@ -283,10 +161,9 @@ pub fn inline_isolation(document: &NodeRef, dir: &Path) {
     }
 
     let file = std::fs::read_to_string(dir.join(path)).expect("unable to find isolation file");
-    script.as_node().append(NodeRef::new_text(file));
 
-    let mut attributes = script.attributes.borrow_mut();
-    attributes.remove(LocalName::from("src"));
+    script.set_html(file.as_str());
+    script.remove_attr("src");
   }
 }
 
@@ -323,7 +200,6 @@ pub fn normalize_script_for_csp(input: &[u8]) -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
   use std::io::Write;
 
@@ -348,7 +224,7 @@ mod tests {
       assert_eq!(
         String::from_utf8(serialize_node(&document)).unwrap(),
         format!(
-          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></head><body></body></html>"#,
+          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></head><body></body></html>"#
         )
       );
     }

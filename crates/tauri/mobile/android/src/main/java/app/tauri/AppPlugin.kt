@@ -4,7 +4,6 @@
 
 package app.tauri
 
-import android.app.Activity
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity

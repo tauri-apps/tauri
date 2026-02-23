@@ -28,7 +28,12 @@ anyhow = "1"
 quote = { version = "1", optional = true }
 tauri-codegen = { version = "2.5.5", path = "../tauri-codegen", optional = true }
 tauri-utils = { version = "2.8.3", path = "../tauri-utils", features = [
-  "build",
+  "proc-macro2",
+  "quote",
+  "cargo_metadata",
+  "schema",
+  "swift-rs",
+  "html-manipulation-2",
   "resources",
 ] }
 cargo_toml = "0.22"

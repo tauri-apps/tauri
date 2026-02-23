@@ -29,7 +29,12 @@ runtime = []
 anyhow = { version = "1", optional = true }
 serde = { version = "1", optional = true }
 tauri-utils = { version = "2.8.3", default-features = false, features = [
-  "build",
+  "proc-macro2",
+  "quote",
+  "cargo_metadata",
+  "schema",
+  "swift-rs",
+  "html-manipulation-2",
 ], path = "../tauri-utils" }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }

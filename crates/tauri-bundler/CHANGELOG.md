@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.8.0]
+
+### Enhancements
+
+- [`c769f211f`](https://www.github.com/tauri-apps/tauri/commit/c769f211fcaa543884c9d0f87ebd2ee106c01382) ([#14824](https://www.github.com/tauri-apps/tauri/pull/14824) by [@Kf637](https://www.github.com/tauri-apps/tauri/../../Kf637)) feat(nsis): add Norwegian language support for installer.
+
+### Bug Fixes
+
+- [`7fca58230`](https://www.github.com/tauri-apps/tauri/commit/7fca58230f97c3e6834134419514a0c7dbbe784b) ([#14830](https://www.github.com/tauri-apps/tauri/pull/14830) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Updated `nsis_tauri_utils` to 0.5.3:
+
+  - Use an alternative method `CreateProcessWithTokenW` to run programs as user, this fixed a problem that the program launched with the previous method can't query its own handle
+
+### What's Changed
+
+- [`0575dd287`](https://www.github.com/tauri-apps/tauri/commit/0575dd287e021b61d2aedf64d62ae84a2c925fb4) ([#14521](https://www.github.com/tauri-apps/tauri/pull/14521) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Change the way bundle type information is added to binary files. Instead of looking up the value of a variable we simply look for the default value.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- Upgraded to `tauri-macos-sign@2.3.3`
+
 ## \[2.7.5]
 
 ### Enhancements

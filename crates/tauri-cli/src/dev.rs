@@ -5,14 +5,12 @@
 use crate::{
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::{frontend_dir, tauri_dir},
+    app_paths::Dirs,
     command_env,
-    config::{
-      get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
-    },
+    config::{get_config, reload_config, BeforeDevCommand, ConfigMetadata, FrontendDist},
   },
   info::plugins::check_mismatched_packages,
-  interface::{AppInterface, ExitReason, Interface},
+  interface::{AppInterface, ExitReason},
   CommandExt, ConfigValue, Error, Result,
 };
 
@@ -27,13 +25,13 @@ use std::{
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex, OnceLock,
+    OnceLock,
   },
 };
 
 mod builtin_dev_server;
 
-static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
+static BEFORE_DEV: OnceLock<SharedChild> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
@@ -56,7 +54,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
@@ -99,61 +97,57 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let r = command_internal(options);
+  let r = command_internal(options, dirs);
   if r.is_err() {
     kill_before_dev_process();
   }
   r
 }
 
-fn command_internal(mut options: Options) -> Result<()> {
+fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
   let target = options
     .target
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let config = get_config(
+  let mut config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(
-    config.lock().unwrap().as_ref().unwrap(),
-    options.target.clone(),
-  )?;
+  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
-  setup(&interface, &mut options, config)?;
+  setup(&interface, &mut options, &mut config, &dirs)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
-  interface.dev(options.into(), move |status, reason| {
-    on_app_exit(status, reason, exit_on_panic, no_watch)
-  })
+  interface.dev(
+    &mut config,
+    options.into(),
+    move |status, reason| on_app_exit(status, reason, exit_on_panic, no_watch),
+    &dirs,
+  )
 }
 
-pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHandle) -> Result<()> {
-  let tauri_path = tauri_dir();
-
+pub fn setup(
+  interface: &AppInterface,
+  options: &mut Options,
+  config: &mut ConfigMetadata,
+  dirs: &Dirs,
+) -> Result<()> {
   std::thread::spawn(|| {
-    if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
+    if let Err(error) = check_mismatched_packages(dirs.frontend, dirs.tauri) {
       log::error!("{error}");
     }
   });
 
-  set_current_dir(tauri_path).context("failed to set current directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
-  if let Some(before_dev) = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .before_dev_command
-    .clone()
-  {
+  if let Some(before_dev) = config.build.before_dev_command.clone() {
     let (script, script_cwd, wait) = match before_dev {
       BeforeDevCommand::Script(s) if s.is_empty() => (None, None, false),
       BeforeDevCommand::Script(s) => (Some(s), None, false),
@@ -161,7 +155,7 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
         (Some(script), cwd.map(Into::into), wait)
       }
     };
-    let cwd = script_cwd.unwrap_or_else(|| frontend_dir().clone());
+    let cwd = script_cwd.unwrap_or_else(|| dirs.frontend.to_owned());
     if let Some(before_dev) = script {
       log::info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);
@@ -211,20 +205,17 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
 
         let child = SharedChild::spawn(&mut command)
           .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
-        let child = Arc::new(child);
-        let child_ = child.clone();
 
+        let child = BEFORE_DEV.get_or_init(move || child);
         std::thread::spawn(move || {
-          let status = child_
+          let status = child
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
-          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed)) {
+          if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst)) {
             log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
         });
-
-        BEFORE_DEV.set(Mutex::new(child)).unwrap();
 
         let _ = ctrlc::set_handler(move || {
           kill_before_dev_process();
@@ -235,43 +226,14 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   }
 
   if options.runner.is_none() {
-    options.runner = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .runner
-      .clone();
+    options.runner = config.build.runner.clone();
   }
 
-  let mut cargo_features = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .features
-    .clone()
-    .unwrap_or_default();
+  let mut cargo_features = config.build.features.clone().unwrap_or_default();
   cargo_features.extend(options.features.clone());
 
-  let mut dev_url = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
-  let frontend_dist = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .frontend_dist
-    .clone();
+  let mut dev_url = config.build.dev_url.clone();
+  let frontend_dist = config.build.frontend_dist.clone();
   if !options.no_dev_server && dev_url.is_none() {
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
       if path.exists() {
@@ -294,7 +256,11 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
           }
         })));
 
-        reload_config(&options.config.iter().map(|c| &c.0).collect::<Vec<_>>())?;
+        reload_config(
+          config,
+          &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+          dirs.tauri,
+        )?;
       }
     }
   }
@@ -347,16 +313,9 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   }
 
   if options.additional_watch_folders.is_empty() {
-    options.additional_watch_folders.extend(
-      config
-        .lock()
-        .unwrap()
-        .as_ref()
-        .unwrap()
-        .build
-        .additional_watch_folders
-        .clone(),
-    );
+    options
+      .additional_watch_folders
+      .extend(config.build.additional_watch_folders.clone());
   }
 
   Ok(())
@@ -374,11 +333,10 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
 
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    let child = child.lock().unwrap();
-    if KILL_BEFORE_DEV_FLAG.load(Ordering::Relaxed) {
+    if KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst) {
       return;
     }
-    KILL_BEFORE_DEV_FLAG.store(true, Ordering::Relaxed);
+    KILL_BEFORE_DEV_FLAG.store(true, Ordering::SeqCst);
     #[cfg(windows)]
     {
       let powershell_path = std::env::var("SYSTEMROOT").map_or_else(

@@ -344,23 +344,20 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
 // Variable holding the type of bundle the executable is stored in. This is modified by binary
 // patching during build
 #[used]
-#[no_mangle]
-#[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
-#[cfg_attr(target_vendor = "apple", link_section = "__DATA,taubndl")]
 // Marked as `mut` because it could get optimized away without it,
 // see https://github.com/tauri-apps/tauri/pull/13812
-static mut __TAURI_BUNDLE_TYPE: &str = "UNK";
+static mut __TAURI_BUNDLE_TYPE: &str = "__TAURI_BUNDLE_TYPE_VAR_UNK";
 
 /// Get the type of the bundle current binary is packaged in.
 /// If the bundle type is unknown, it returns [`Option::None`].
 pub fn bundle_type() -> Option<BundleType> {
   unsafe {
     match __TAURI_BUNDLE_TYPE {
-      "DEB" => Some(BundleType::Deb),
-      "RPM" => Some(BundleType::Rpm),
-      "APP" => Some(BundleType::AppImage),
-      "MSI" => Some(BundleType::Msi),
-      "NSS" => Some(BundleType::Nsis),
+      "__TAURI_BUNDLE_TYPE_VAR_DEB" => Some(BundleType::Deb),
+      "__TAURI_BUNDLE_TYPE_VAR_RPM" => Some(BundleType::Rpm),
+      "__TAURI_BUNDLE_TYPE_VAR_APP" => Some(BundleType::AppImage),
+      "__TAURI_BUNDLE_TYPE_VAR_MSI" => Some(BundleType::Msi),
+      "__TAURI_BUNDLE_TYPE_VAR_NSS" => Some(BundleType::Nsis),
       _ => {
         if cfg!(target_os = "macos") {
           Some(BundleType::App)

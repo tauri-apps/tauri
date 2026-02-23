@@ -57,7 +57,7 @@ fn copy_binaries(
   binaries: ResourcePaths,
   target_triple: &str,
   path: &Path,
-  package_name: Option<&String>,
+  package_name: Option<&str>,
 ) -> Result<()> {
   for src in binaries {
     let src = src?;
@@ -529,7 +529,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
       &target_triple,
       target_dir,
-      manifest.package.as_ref().map(|p| &p.name),
+      manifest.package.as_ref().map(|p| p.name.as_ref()),
     )?;
   }
 
@@ -587,21 +587,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};
 
-    fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
-      let icon_path = config
-        .bundle
-        .icon
-        .iter()
-        .find(|i| predicate(i))
-        .cloned()
-        .unwrap_or_else(|| default.to_string());
-      icon_path.into()
-    }
-
     let window_icon_path = attributes
       .windows_attributes
       .window_icon_path
-      .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
+      .unwrap_or_else(|| {
+        config
+          .bundle
+          .icon
+          .iter()
+          .find(|i| i.ends_with(".ico"))
+          .map(AsRef::as_ref)
+          .unwrap_or("icons/icon.ico")
+          .into()
+      });
 
     let mut res = WindowsResource::new();
 

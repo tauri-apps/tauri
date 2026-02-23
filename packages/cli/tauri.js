@@ -20,7 +20,7 @@ if (globalThis.navigator?.userAgent?.includes('Deno')) {
 }
 // Even if started by a package manager, the binary will be NodeJS.
 // Some distribution still use "nodejs" as the binary name.
-else if (binStem.match(/(nodejs|node|bun)\-?([0-9]*)*$/g)) {
+else if (binStem.match(/(nodejs|node|bun|electron)\-?([0-9]*)*$/g)) {
   const managerStem = process.env.npm_execpath
     ? path.parse(process.env.npm_execpath).name.toLowerCase()
     : null

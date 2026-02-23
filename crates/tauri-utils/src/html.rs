@@ -323,7 +323,6 @@ pub fn normalize_script_for_csp(input: &[u8]) -> Vec<u8> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
   use std::io::Write;
 

@@ -25,7 +25,6 @@ pub mod assets;
 pub mod config;
 pub mod config_v1;
 #[cfg(feature = "html-manipulation")]
-#[deprecated]
 pub mod html;
 #[cfg(feature = "html-manipulation-2")]
 pub mod html2;

@@ -2524,6 +2524,67 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 }
 
+/// APIs specific to the CEF runtime.
+#[cfg(feature = "cef")]
+impl WebviewWindow<crate::Cef> {
+  /// Send a message to the DevTools agent. The message should be a UTF-8 encoded JSON
+  /// string following the Chrome DevTools Protocol format.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::<tauri::Cef>::new()
+  ///   .setup(|app| {
+  ///     let window = app.get_webview_window("main").unwrap();
+  ///     // Enable Page domain to receive page lifecycle events
+  ///     let msg = br#"{"id":1,"method":"Page.enable","params":{}}"#;
+  ///     window.send_dev_tools_message(msg)?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn send_dev_tools_message(&self, message: &[u8]) -> crate::Result<()> {
+    self.webview.send_dev_tools_message(message)
+  }
+
+  /// Register a callback to receive DevTools protocol messages. Messages include
+  /// both method results and events from the DevTools agent.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{Manager, CefDevToolsProtocol};
+  ///
+  /// tauri::Builder::<tauri::Cef>::new()
+  ///   .setup(|app| {
+  ///     let window = app.get_webview_window("main").unwrap();
+  ///     window.on_dev_tools_protocol(|protocol| {
+  ///       match protocol {
+  ///         CefDevToolsProtocol::Message(msg) => {
+  ///           if let Ok(s) = std::str::from_utf8(&msg) {
+  ///             println!("DevTools message: {}", s);
+  ///           }
+  ///         }
+  ///         CefDevToolsProtocol::Event { method, params } => {
+  ///           println!("DevTools event: {} {:?}", method, params);
+  ///         }
+  ///         CefDevToolsProtocol::MethodResult { message_id, success, result } => {
+  ///           println!("DevTools result: id={} success={}", message_id, success);
+  ///         }
+  ///       }
+  ///     })?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_dev_tools_protocol<F: Fn(crate::CefDevToolsProtocol) + Send + Sync + 'static>(
+    &self,
+    f: F,
+  ) -> crate::Result<()> {
+    self.webview.on_dev_tools_protocol(f)
+  }
+}
+
 impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   /// Listen to an event on this webview window.
   ///

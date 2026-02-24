@@ -24,6 +24,8 @@ pub use tauri_runtime_cef::NewWindowOpener as CefWindowOpener;
 #[cfg(feature = "wry")]
 pub use tauri_runtime_wry::NewWindowOpener as WryWindowOpener;
 
+#[cfg(feature = "cef")]
+use crate::CefDevToolsProtocol;
 pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent, ScrollBarStyle};
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
@@ -2220,6 +2222,75 @@ tauri::Builder::<tauri::Wry>::new()
       .webview
       .dispatcher
       .delete_cookie(cookie)
+      .map_err(Into::into)
+  }
+}
+
+/// APIs specific to the CEF runtime.
+#[cfg(feature = "cef")]
+impl Webview<crate::Cef> {
+  /// Send a message to the DevTools agent. The message should be a UTF-8 encoded JSON
+  /// string following the Chrome DevTools Protocol format.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::<tauri::Cef>::new()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview("main").unwrap();
+  ///     // Enable Page domain to receive page lifecycle events
+  ///     let msg = br#"{"id":1,"method":"Page.enable","params":{}}"#;
+  ///     webview.send_dev_tools_message(msg)?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn send_dev_tools_message(&self, message: &[u8]) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .send_dev_tools_message(message)
+      .map_err(Into::into)
+  }
+
+  /// Register a callback to receive DevTools protocol messages. Messages include
+  /// both method results and events from the DevTools agent.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{Manager, CefDevToolsProtocol};
+  ///
+  /// tauri::Builder::<tauri::Cef>::new()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview("main").unwrap();
+  ///     webview.on_dev_tools_protocol(|protocol| {
+  ///       match protocol {
+  ///         CefDevToolsProtocol::Message(msg) => {
+  ///           if let Ok(s) = std::str::from_utf8(&msg) {
+  ///             println!("DevTools message: {}", s);
+  ///           }
+  ///         }
+  ///         CefDevToolsProtocol::Event { method, params } => {
+  ///           println!("DevTools event: {} {:?}", method, params);
+  ///         }
+  ///         CefDevToolsProtocol::MethodResult { message_id, success, result } => {
+  ///           println!("DevTools result: id={} success={}", message_id, success);
+  ///         }
+  ///       }
+  ///     })?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_dev_tools_protocol<F: Fn(CefDevToolsProtocol) + Send + Sync + 'static>(
+    &self,
+    f: F,
+  ) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .on_dev_tools_protocol(f)
       .map_err(Into::into)
   }
 }

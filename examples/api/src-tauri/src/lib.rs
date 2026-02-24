@@ -18,6 +18,11 @@ use tauri::{
 use tauri::{Manager, RunEvent};
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
+#[cfg(feature = "cef")]
+type TauriRuntime = tauri::Cef;
+#[cfg(not(feature = "cef"))]
+type TauriRuntime = tauri::Wry;
+
 #[derive(Clone, Serialize)]
 struct Reply {
   data: String,
@@ -32,14 +37,11 @@ pub struct PopupMenu<R: Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 pub fn run() {
-  #[cfg(feature = "cef")]
-  run_app(tauri::Builder::<tauri::Cef>::default(), |_app| {});
-  #[cfg(not(feature = "cef"))]
-  run_app(tauri::Builder::<tauri::Wry>::new(), |_app| {});
+  run_app(tauri::Builder::<TauriRuntime>::default(), |_app| {});
 }
 
-pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
-  builder: tauri::Builder<R>,
+pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
+  builder: tauri::Builder<TauriRuntime>,
   setup: F,
 ) {
   #[allow(unused_mut)]
@@ -59,7 +61,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       }
 
       #[cfg(target_os = "macos")]
-      app.manage(AppMenu::<R>(Default::default()));
+      app.manage(AppMenu::<TauriRuntime>(Default::default()));
 
       #[cfg(all(desktop, not(test)))]
       app.manage(PopupMenu(
@@ -114,6 +116,41 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       #[cfg(debug_assertions)]
       webview.open_devtools();
+
+      #[cfg(feature = "cef")]
+      {
+        webview
+          .on_dev_tools_protocol(|protocol| match protocol {
+            tauri::CefDevToolsProtocol::Message(msg) => {
+              if let Ok(s) = std::str::from_utf8(&msg) {
+                log::info!("DevTools message: {s}");
+              } else {
+                log::error!("Failed to convert DevTools message to UTF-8");
+              }
+            }
+            tauri::CefDevToolsProtocol::Event { method, params } => {
+              log::info!(
+                "DevTools event: {method} (params: {})",
+                String::from_utf8_lossy(&params)
+              );
+            }
+            tauri::CefDevToolsProtocol::MethodResult {
+              message_id,
+              success,
+              result,
+            } => {
+              log::info!(
+                "DevTools result: id={message_id} success={success} ({})",
+                String::from_utf8_lossy(&result)
+              );
+            }
+          })
+          .expect("failed to register DevTools protocol callback");
+        let msg = br#"{"id":1,"method":"Page.enable","params":{}}"#;
+        webview
+          .send_dev_tools_message(msg)
+          .expect("failed to send DevTools message");
+      }
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {

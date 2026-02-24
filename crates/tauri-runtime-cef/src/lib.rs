@@ -241,6 +241,26 @@ pub enum WebviewMessage {
   CloseDevTools,
   #[cfg(any(debug_assertions, feature = "devtools"))]
   IsDevToolsOpen(Sender<bool>),
+  SendDevToolsMessage(Vec<u8>, Sender<Result<()>>),
+  OnDevToolsProtocol(
+    Arc<dyn Fn(DevToolsProtocol) + Send + Sync>,
+    Sender<Result<()>>,
+  ),
+}
+
+/// A DevTools protocol message delivered to [`on_dev_tools_protocol`](CefWebviewDispatcher::on_dev_tools_protocol) callbacks.
+#[derive(Debug, Clone)]
+pub enum DevToolsProtocol {
+  /// Raw UTF-8 encoded JSON message (method result or event).
+  Message(Vec<u8>),
+  /// DevTools protocol event with method name and params.
+  Event { method: String, params: Vec<u8> },
+  /// Result of a DevTools method call.
+  MethodResult {
+    message_id: i32,
+    success: bool,
+    result: Vec<u8>,
+  },
 }
 
 impl<T: UserEvent> Clone for Message<T> {
@@ -268,6 +288,10 @@ pub(crate) struct AppWebview {
     Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
   #[allow(dead_code)]
   pub initialization_scripts: Arc<Vec<cef_impl::CefInitScript>>,
+  pub devtools_protocol_handlers: Arc<Mutex<Vec<Arc<dyn Fn(DevToolsProtocol) + Send + Sync>>>>,
+  /// Keeps the DevTools message observer registered. Dropping this unregisters the observer.
+  #[allow(dead_code)]
+  pub devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -1042,6 +1066,40 @@ impl WindowBuilder for CefWindowBuilder {
     let mut s = self;
     s.background_color = Some(color);
     s
+  }
+}
+
+/// CEF-specific webview APIs.
+impl<T: UserEvent> CefWebviewDispatcher<T> {
+  /// Send a message to the DevTools agent. The message should be a UTF-8 encoded JSON
+  /// string following the Chrome DevTools Protocol format.
+  pub fn send_dev_tools_message(&self, message: &[u8]) -> Result<()> {
+    let (tx, rx) = channel();
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::SendDevToolsMessage(message.to_vec(), tx),
+    })?;
+    rx.recv()
+      .map_err(|_| tauri_runtime::Error::FailedToReceiveMessage)?
+  }
+
+  /// Register a callback to receive DevTools protocol messages. Messages include
+  /// both method results and events from the DevTools agent.
+  pub fn on_dev_tools_protocol<F: Fn(DevToolsProtocol) + Send + Sync + 'static>(
+    &self,
+    f: F,
+  ) -> Result<()> {
+    let (tx, rx) = channel();
+    let handler = Arc::new(move |protocol: DevToolsProtocol| f(protocol))
+      as Arc<dyn Fn(DevToolsProtocol) + Send + Sync>;
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::OnDevToolsProtocol(handler, tx),
+    })?;
+    rx.recv()
+      .map_err(|_| tauri_runtime::Error::FailedToReceiveMessage)?
   }
 }
 

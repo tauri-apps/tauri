@@ -141,6 +141,11 @@ pub type CefHandle = tauri_runtime_cef::CefRuntimeHandle<EventLoopMessage>;
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub use tauri_runtime_cef::run_cef_helper_process;
 
+/// DevTools protocol message type for the CEF runtime.
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
+
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
 #[doc(hidden)]

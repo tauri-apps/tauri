@@ -478,6 +478,81 @@ wrap_context_menu_handler! {
   }
 }
 
+cef::wrap_dev_tools_message_observer! {
+  struct TauriDevToolsProtocolObserver {
+    handlers: Arc<Mutex<Vec<Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>>>>,
+  }
+
+  impl DevToolsMessageObserver {
+    fn on_dev_tools_message(
+      &self,
+      _browser: Option<&mut cef::Browser>,
+      message: Option<&[u8]>,
+    ) -> std::os::raw::c_int {
+      if let Some(msg) = message {
+        let protocol = crate::DevToolsProtocol::Message(msg.to_vec());
+        if let Ok(handlers) = self.handlers.lock() {
+          for handler in handlers.iter() {
+            handler(protocol.clone());
+          }
+        }
+      }
+      0
+    }
+
+    fn on_dev_tools_method_result(
+      &self,
+      _browser: Option<&mut Browser>,
+      message_id: std::os::raw::c_int,
+      success: std::os::raw::c_int,
+      result: Option<&[u8]>,
+    ) {
+      let protocol = crate::DevToolsProtocol::MethodResult {
+        message_id,
+        success: success != 0,
+        result: result.map(|r| r.to_vec()).unwrap_or_default(),
+      };
+      if let Ok(handlers) = self.handlers.lock() {
+        for handler in handlers.iter() {
+          handler(protocol.clone());
+        }
+      }
+    }
+
+    fn on_dev_tools_event(
+      &self,
+      _browser: Option<&mut Browser>,
+      method: Option<&CefString>,
+      params: Option<&[u8]>,
+    ) {
+      let protocol = crate::DevToolsProtocol::Event {
+        method: method
+          .map(|m| format!("{m}"))
+          .unwrap_or_default(),
+        params: params.map(|p| p.to_vec()).unwrap_or_default(),
+      };
+      if let Ok(handlers) = self.handlers.lock() {
+        for handler in handlers.iter() {
+          handler(protocol.clone());
+        }
+      }
+    }
+  }
+}
+
+/// Registers a DevTools protocol observer. Returns the [`cef::Registration`] which must be
+/// kept alive for the observer to stay registered. The observer is unregistered when
+/// the Registration is dropped.
+fn add_dev_tools_observer(
+  browser: &cef::Browser,
+  handlers: Arc<Mutex<Vec<Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>>>>,
+) -> Option<cef::Registration> {
+  browser.host().and_then(|host| {
+    let mut observer = TauriDevToolsProtocolObserver::new(handlers);
+    host.add_dev_tools_message_observer(Some(&mut observer))
+  })
+}
+
 wrap_keyboard_handler! {
   struct BrowserKeyboardHandler {
     devtools_enabled: bool,
@@ -917,6 +992,8 @@ wrap_browser_view_delegate! {
     webview_label: String,
     uri_scheme_protocols: Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
+    devtools_protocol_handlers: Arc<Mutex<Vec<Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>>>>,
+    devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
   }
 
   impl ViewDelegate {}
@@ -926,6 +1003,10 @@ wrap_browser_view_delegate! {
       if let Some(browser) = browser {
         let real_id = browser.identifier();
         let _ = std::mem::replace(&mut *self.browser_id.borrow_mut(), real_id);
+
+        if let Some(registration) = add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone()) {
+          self.devtools_observer_registration.lock().unwrap().replace(registration);
+        }
 
         let mut registry = self.scheme_handler_registry.lock().unwrap();
         for (scheme, handler) in self.uri_scheme_protocols.iter() {
@@ -1889,7 +1970,39 @@ fn handle_webview_message<T: UserEvent>(
     }
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::IsDevToolsOpen(tx) => {
-      let _ = tx.send(false);
+      let result = get_browser(context, window_id, webview_id)
+        .and_then(|b| b.host())
+        .map(|host| host.has_dev_tools() != 0)
+        .unwrap_or(false);
+      let _ = tx.send(result);
+    }
+    WebviewMessage::SendDevToolsMessage(message, tx) => {
+      let result = get_browser(context, window_id, webview_id)
+        .and_then(|b| b.host())
+        .map(|host| {
+          let result = host.send_dev_tools_message(Some(&message));
+          if result == 1 {
+            Ok(())
+          } else {
+            Err(tauri_runtime::Error::FailedToSendMessage)
+          }
+        })
+        .unwrap_or(Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = tx.send(result);
+    }
+    WebviewMessage::OnDevToolsProtocol(handler, tx) => {
+      let result = match get_webview(context, window_id, webview_id) {
+        Some(webview) => {
+          webview
+            .devtools_protocol_handlers
+            .lock()
+            .unwrap()
+            .push(handler);
+          Ok(())
+        }
+        None => Err(tauri_runtime::Error::FailedToSendMessage),
+      };
+      let _ = tx.send(result);
     }
     WebviewMessage::CookiesForUrl(url, tx) => {
       // Collect cookies for a specific URL
@@ -2991,6 +3104,14 @@ fn create_browser_window<T: UserEvent>(
     return;
   };
 
+  let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+    Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+  >::new()));
+  let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
+    &browser,
+    devtools_protocol_handlers.clone(),
+  )));
+
   let browser = CefWebview::Browser(browser);
   let browser_id_val = browser.browser_id();
 
@@ -3024,6 +3145,8 @@ fn create_browser_window<T: UserEvent>(
         devtools_enabled,
         uri_scheme_protocols: Arc::new(uri_scheme_protocols),
         initialization_scripts,
+        devtools_protocol_handlers,
+        devtools_observer_registration,
       }],
       window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
       webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
@@ -3395,7 +3518,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     let window_info = cef::WindowInfo::default()
       .set_as_child(window_handle, bounds.as_ref().unwrap_or(&Rect::default()));
 
-    let Some(browser) = browser_host_create_browser_sync(
+    let Some(browser_host) = browser_host_create_browser_sync(
       Some(&window_info),
       Some(&mut client),
       Some(&url),
@@ -3407,7 +3530,15 @@ pub(crate) fn create_webview<T: UserEvent>(
       return;
     };
 
-    let browser = CefWebview::Browser(browser);
+    let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+      Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+    >::new()));
+    let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
+      &browser_host,
+      devtools_protocol_handlers.clone(),
+    )));
+
+    let browser = CefWebview::Browser(browser_host);
 
     browser.set_bounds(bounds.as_ref());
 
@@ -3468,10 +3599,17 @@ pub(crate) fn create_webview<T: UserEvent>(
         devtools_enabled,
         uri_scheme_protocols: Arc::new(uri_scheme_protocols),
         initialization_scripts,
+        devtools_protocol_handlers,
+        devtools_observer_registration,
       });
   } else {
     let browser_id = Arc::new(RefCell::new(0));
     let uri_scheme_protocols = Arc::new(uri_scheme_protocols);
+    let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+      Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+    >::new()));
+    let devtools_observer_registration = Arc::new(Mutex::new(None));
+
     let mut browser_view_delegate = BrowserViewDelegateImpl::new(
       browser_id.clone(),
       platform_specific_attributes
@@ -3489,6 +3627,8 @@ pub(crate) fn create_webview<T: UserEvent>(
       label.clone(),
       uri_scheme_protocols.clone(),
       initialization_scripts.clone(),
+      devtools_protocol_handlers.clone(),
+      devtools_observer_registration.clone(),
     );
 
     let browser_view = browser_view_create(
@@ -3529,6 +3669,8 @@ pub(crate) fn create_webview<T: UserEvent>(
         devtools_enabled,
         uri_scheme_protocols,
         initialization_scripts,
+        devtools_protocol_handlers,
+        devtools_observer_registration,
       });
   }
 }

@@ -35,10 +35,10 @@ pub mod plugin;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
 pub mod resources;
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 pub mod tokens;
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 pub mod build;
 
 /// Application pattern.

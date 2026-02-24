@@ -104,7 +104,7 @@ pub enum Error {
   CreateDir(std::io::Error, PathBuf),
 
   /// [`cargo_metadata`] was not able to complete successfully
-  #[cfg(feature = "build")]
+  #[cfg(any(feature = "build", feature = "build-2"))]
   #[error("failed to execute: {0}")]
   Metadata(#[from] ::cargo_metadata::Error),
 
@@ -460,7 +460,7 @@ mod tests {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build_ {
   use std::convert::identity;
 

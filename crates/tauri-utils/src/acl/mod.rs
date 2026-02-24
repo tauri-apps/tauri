@@ -58,7 +58,7 @@ pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
 /// the value is set to the config's directory
 pub const REMOVE_UNUSED_COMMANDS_ENV_VAR: &str = "REMOVE_UNUSED_COMMANDS";
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 pub mod build;
 pub mod capability;
 pub mod identifier;

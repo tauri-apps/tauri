@@ -670,7 +670,7 @@ pub struct App<R: Runtime> {
   ran_setup: bool,
 }
 
-impl<R: Runtime> fmt::Debug for App<R> {
+impl<R: Runtime + fmt::Debug> fmt::Debug for App<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("App")
       .field("runtime", &self.runtime)

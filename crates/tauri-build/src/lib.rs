@@ -84,6 +84,30 @@ fn copy_binaries(
   Ok(())
 }
 
+fn get_scan_path(pattern: &str) -> Option<PathBuf> {
+  let mut root = PathBuf::from(pattern);
+  if let Some(index) = pattern.find(|c| c == '*' || c == '?' || c == '[') {
+    let (base, _) = pattern.split_at(index);
+    root = PathBuf::from(base);
+  }
+
+  if root.as_os_str().is_empty() {
+    return Some(PathBuf::from("."));
+  }
+
+  if root.is_dir() {
+    return Some(root);
+  }
+
+  if let Some(parent) = root.parent() {
+    if parent.is_dir() {
+      return Some(parent.to_path_buf());
+    }
+  }
+
+  None
+}
+
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   let path = path.canonicalize()?;
@@ -549,9 +573,21 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   match resources {
     BundleResources::List(res) => {
+      for pattern in &res {
+        if let Some(path) = get_scan_path(pattern) {
+          println!("cargo:rerun-if-changed={}", path.display());
+        }
+      }
       copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?
     }
-    BundleResources::Map(map) => copy_resources(ResourcePaths::from_map(&map, true), target_dir)?,
+    BundleResources::Map(map) => {
+      for pattern in map.keys() {
+        if let Some(path) = get_scan_path(pattern) {
+          println!("cargo:rerun-if-changed={}", path.display());
+        }
+      }
+      copy_resources(ResourcePaths::from_map(&map, true), target_dir)?
+    }
   }
 
   if target_triple.contains("darwin") {
@@ -696,4 +732,58 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::fs;
+
+  #[test]
+  fn test_get_scan_path() {
+    let temp = std::env::temp_dir().join(format!(
+      "tauri_build_test_{}",
+      std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos()
+    ));
+    let _ = fs::remove_dir_all(&temp);
+    fs::create_dir_all(temp.join("src/assets")).unwrap();
+
+    let root = temp.join("src");
+    let _assets = root.join("assets");
+
+    let _guard = TestDirGuard::new(&temp);
+
+    assert_eq!(get_scan_path("src/assets"), Some(PathBuf::from("src/assets")));
+    assert_eq!(get_scan_path("src/assets/**/*"), Some(PathBuf::from("src/assets/")));
+    assert_eq!(get_scan_path("src/assets/*.png"), Some(PathBuf::from("src/assets/")));
+
+    // File case
+    fs::write("src/assets/file.txt", "").unwrap();
+    assert_eq!(get_scan_path("src/assets/file.txt"), Some(PathBuf::from("src/assets/")));
+
+    // Missing dir case
+    assert_eq!(get_scan_path("src/missing"), Some(PathBuf::from("src")));
+
+    // Current dir
+    assert_eq!(get_scan_path("*.txt"), Some(PathBuf::from(".")));
+  }
+
+  struct TestDirGuard {
+      original: PathBuf,
+  }
+  impl TestDirGuard {
+      fn new(path: &Path) -> Self {
+          let original = std::env::current_dir().unwrap();
+          std::env::set_current_dir(path).unwrap();
+          Self { original }
+      }
+  }
+  impl Drop for TestDirGuard {
+      fn drop(&mut self) {
+          let _ = std::env::set_current_dir(&self.original);
+      }
+  }
 }

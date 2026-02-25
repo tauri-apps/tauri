@@ -1004,8 +1004,11 @@ wrap_browser_view_delegate! {
         let real_id = browser.identifier();
         let _ = std::mem::replace(&mut *self.browser_id.borrow_mut(), real_id);
 
-        if let Some(registration) = add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone()) {
-          self.devtools_observer_registration.lock().unwrap().replace(registration);
+        // Only add the observer when at least one listener is registered
+        if !self.devtools_protocol_handlers.lock().unwrap().is_empty() {
+          if let Some(registration) = add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone()) {
+            self.devtools_observer_registration.lock().unwrap().replace(registration);
+          }
         }
 
         let mut registry = self.scheme_handler_registry.lock().unwrap();
@@ -1993,11 +1996,18 @@ fn handle_webview_message<T: UserEvent>(
     WebviewMessage::OnDevToolsProtocol(handler, tx) => {
       let result = match get_webview(context, window_id, webview_id) {
         Some(webview) => {
-          webview
-            .devtools_protocol_handlers
-            .lock()
-            .unwrap()
-            .push(handler);
+          let mut handlers = webview.devtools_protocol_handlers.lock().unwrap();
+          handlers.push(handler);
+          // Add the observer when the first listener is registered
+          if handlers.len() == 1 {
+            if let Some(browser) = get_browser(context, window_id, webview_id) {
+              if let Some(registration) =
+                add_dev_tools_observer(&browser, webview.devtools_protocol_handlers.clone())
+              {
+                *webview.devtools_observer_registration.lock().unwrap() = Some(registration);
+              }
+            }
+          }
           Ok(())
         }
         None => Err(tauri_runtime::Error::FailedToSendMessage),
@@ -3533,10 +3543,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
       Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
     >::new()));
-    let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
-      &browser_host,
-      devtools_protocol_handlers.clone(),
-    )));
+    let devtools_observer_registration = Arc::new(Mutex::new(None));
 
     let browser = CefWebview::Browser(browser_host);
 

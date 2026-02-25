@@ -70,7 +70,7 @@ pub struct Options {
   #[clap(short, long)]
   pub config: Vec<ConfigValue>,
   /// Space or comma separated list of features, should be the same features passed to `tauri build` if any.
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Target triple to build against.
   ///

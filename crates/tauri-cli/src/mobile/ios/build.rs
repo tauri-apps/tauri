@@ -328,7 +328,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     &mut config,
     &mut env,
     noise_level,
-    &dirs,
+    dirs,
   )?;
 
   if open {

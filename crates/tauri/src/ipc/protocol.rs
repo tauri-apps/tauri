@@ -65,8 +65,8 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
               span.record(
                 "request",
                 match &request.body {
-                  super::InvokeBody::Json(j) => serde_json::to_string(j).unwrap(),
-                  super::InvokeBody::Raw(b) => serde_json::to_string(b).unwrap(),
+                  super::InvokeBody::Json(j) => serde_json::to_string(j).unwrap_or_else(|e| e.to_string()),
+                  super::InvokeBody::Raw(b) => serde_json::to_string(b).unwrap_or_else(|e| e.to_string()),
                 },
               );
               #[cfg(feature = "tracing")]

@@ -333,7 +333,11 @@ tauri::Builder::default()
     let pending_webview = webview.into_pending_webview(self.manager, &self.label)?;
     let window = self.build_internal(Some(pending_webview))?;
 
-    let webview = window.webviews().first().unwrap().clone();
+    let webview = window
+      .webviews()
+      .first()
+      .cloned()
+      .ok_or(crate::Error::WebviewNotFound)?;
 
     Ok((window, webview))
   }

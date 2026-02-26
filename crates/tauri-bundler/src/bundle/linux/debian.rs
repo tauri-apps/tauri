@@ -134,12 +134,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     for f in cef_files {
       let file_dest = share_dir.join(f);
       fs::copy(cef_path.join(f), &file_dest)?;
-      if f == "chrome-sandbox" {
-        let bin = File::open(&file_dest)?;
-        let mut perms = bin.metadata()?.permissions();
-        perms.set_mode(0o4755);
-        bin.set_permissions(perms)?;
-      }
       if f.ends_with(".so") {
         // since libcef.so is 1.5GB unstripped we will error out if strip fails.
         Command::new("strip").arg(file_dest).output_ok()?;
@@ -460,6 +454,9 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       let mut header = tar::Header::new_gnu();
       header.set_metadata_in_mode(&stat, HeaderMode::Deterministic);
       header.set_mtime(stat.mtime() as u64);
+      if src_path.ends_with("chrome-sandbox") {
+        header.set_mode(0o4755);
+      }
 
       if entry.file_type().is_dir() {
         tar_builder.append_data(&mut header, dest_path, &mut io::empty())?;

@@ -585,6 +585,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     );
   }
 
+  if !is_dev() && target_triple.contains("unknown-linux-gnu") {
+    // TODO: Only needed for CEF.
+    println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
+  }
+
   if target_triple.contains("windows") {
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};

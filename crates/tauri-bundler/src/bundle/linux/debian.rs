@@ -28,7 +28,7 @@ use crate::{
   Settings,
   bundle::settings::Arch,
   error::{Context, ErrorExt},
-  utils::fs_utils,
+  utils::{CommandExt, fs_utils},
 };
 use flate2::{Compression, write::GzEncoder};
 use tar::HeaderMode;
@@ -37,8 +37,9 @@ use walkdir::WalkDir;
 use std::{
   fs::{self, File, OpenOptions},
   io::{self, Write},
-  os::unix::fs::{MetadataExt, OpenOptionsExt},
+  os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt, symlink},
   path::{Path, PathBuf},
+  process::Command,
 };
 
 /// Bundles the project.
@@ -82,6 +83,85 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
     .context("Failed to copy custom files")?;
 
+  // Handle CEF support if cef_path is set,
+  // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/linux/README.redistrib.txt as a reference
+  //
+  // Dealing with rpath or LD_LIBRARY_PATH is annoying so we'll somewhat follow the approach of spotify(cef) and electron apps and move the binary out of /usr/bin for now.
+  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+    let share_dir = data_dir.join("usr/share").join(settings.product_name());
+    fs::create_dir_all(&share_dir)?;
+
+    // TODO: we may have to copy all binaries.
+    let main_bin = settings
+      .binaries()
+      .iter()
+      .find(|b| b.main())
+      .expect("one main binary should always exist")
+      .name();
+
+    fs::rename(
+      data_dir.join("usr/bin").join(main_bin),
+      share_dir.join(main_bin),
+    )?;
+
+    symlink(
+      format!("../share/{}/{main_bin}", settings.product_name()),
+      data_dir.join("usr/bin").join(main_bin),
+    )?;
+
+    let cef_files = [
+      // required
+      "libcef.so",
+      "icudtl.dat",
+      "v8_context_snapshot.bin",
+      // required end
+      // "optional" - but not really since we want support for all of this
+      "chrome_100_percent.pak",
+      "chrome_200_percent.pak",
+      "resources.pak",
+      // ANGEL support
+      "libEGL.so",
+      "libGLESv2.so",
+      // SwANGLE support
+      "libvk_swiftshader.so",
+      "vk_swiftshader_icd.json",
+      "libvulkan.so.1",
+      // sandbox
+      "chrome-sandbox",
+    ];
+
+    for f in cef_files {
+      let file_dest = share_dir.join(f);
+      fs::copy(cef_path.join(f), &file_dest)?;
+      if f == "chrome-sandbox" {
+        let bin = File::open(&file_dest)?;
+        let mut perms = bin.metadata()?.permissions();
+        perms.set_mode(0o4755);
+        bin.set_permissions(perms)?;
+      }
+      if f.ends_with(".so") {
+        // since libcef.so is 1.5GB unstripped we will error out if strip fails.
+        Command::new("strip").arg(file_dest).output_ok()?;
+      }
+    }
+    // TODO: Check if/when we need the other lang files
+    let locales = [
+      "en-US.pak",
+      "en-US_FEMININE.pak",
+      "en-US_MASCULINE.pak",
+      "en-US_NEUTER.pak",
+    ];
+
+    let cef_path = cef_path.join("locales");
+    let share_dir = share_dir.join("locales");
+    fs::create_dir_all(&share_dir)?;
+
+    for f in locales {
+      fs::copy(cef_path.join(f), share_dir.join(f))?;
+    }
+    // cef_path and share_dir still point to locales!
+  }
+
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
@@ -94,6 +174,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let debian_binary_path = package_dir.join("debian-binary");
   create_file_with_data(&debian_binary_path, "2.0\n")
     .context("Failed to create debian-binary file")?;
+
+  log::info!(action = "Bundling"; "Creating .deb archive...");
 
   // Apply tar/gzip/ar to create the final package file.
   let control_tar_gz_path =
@@ -360,17 +442,30 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
     if src_path == src_dir {
       continue;
     }
-    let dest_path = src_path.strip_prefix(src_dir)?;
-    let stat = fs::metadata(src_path)?;
-    let mut header = tar::Header::new_gnu();
-    header.set_metadata_in_mode(&stat, HeaderMode::Deterministic);
-    header.set_mtime(stat.mtime() as u64);
 
-    if entry.file_type().is_dir() {
-      tar_builder.append_data(&mut header, dest_path, &mut io::empty())?;
+    let dest_path = src_path.strip_prefix(src_dir)?;
+
+    let stat_metadata = fs::symlink_metadata(src_path)?;
+    // TODO: This should probably only trigger for the main binary for cef apps
+    if stat_metadata.is_symlink() {
+      let mut header = tar::Header::new_gnu();
+      header.set_metadata_in_mode(&stat_metadata, HeaderMode::Deterministic);
+      header.set_mtime(stat_metadata.mtime() as u64);
+      header.set_entry_type(tar::EntryType::Symlink);
+      let target_path = fs::read_link(src_path)?;
+      tar_builder.append_link(&mut header, dbg!(dest_path), dbg!(target_path))?;
     } else {
-      let mut src_file = fs::File::open(src_path)?;
-      tar_builder.append_data(&mut header, dest_path, &mut src_file)?;
+      let stat = fs::metadata(src_path)?;
+      let mut header = tar::Header::new_gnu();
+      header.set_metadata_in_mode(&stat, HeaderMode::Deterministic);
+      header.set_mtime(stat.mtime() as u64);
+
+      if entry.file_type().is_dir() {
+        tar_builder.append_data(&mut header, dest_path, &mut io::empty())?;
+      } else {
+        let mut src_file = fs::File::open(src_path)?;
+        tar_builder.append_data(&mut header, dest_path, &mut src_file)?;
+      }
     }
   }
   let dest_file = tar_builder.into_inner()?;

@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Settings, bundle::settings::Arch, error::ErrorExt};
+use crate::{Settings, bundle::settings::Arch, error::ErrorExt, utils::CommandExt};
 
 use rpm::{self, Dependency, FileMode, FileOptions, signature::pgp};
 use std::{
   env,
   fs::{self, File},
   path::{Path, PathBuf},
+  process::Command,
 };
 use tauri_utils::config::RpmCompression;
 
@@ -141,7 +142,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for bin in settings.binaries() {
     let src = settings.binary_path(bin);
     let dest = Path::new("/usr/bin").join(bin.name());
-    builder = builder.with_file(src, FileOptions::new(dest.to_string_lossy()))?;
+    // This may cause issues when you try to submit the app to the distro repos but this is how apps like spotify do it as well (in .deb)
+    if settings.bundle_settings().cef_path.is_some() && bin.main() {
+      let cef_bin_dest = Path::new("/usr/share")
+        .join(settings.product_name())
+        .join(bin.name());
+      let empty_file_path = &package_dir.join("empty");
+      File::create(empty_file_path)?;
+      builder = builder.with_file(src, FileOptions::new(cef_bin_dest.to_string_lossy()))?;
+      builder = builder.with_file(
+        empty_file_path,
+        FileOptions::new(dest.to_string_lossy())
+          .symlink(cef_bin_dest.to_string_lossy().replace("/usr", ".."))
+          .mode(0o120555),
+      )?;
+    } else {
+      builder = builder.with_file(src, FileOptions::new(dest.to_string_lossy()))?;
+    }
   }
 
   // Add external binaries
@@ -178,8 +195,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     builder = builder.post_uninstall_script(script);
   }
 
-  // Add resources
-  if settings.resource_files().count() > 0 {
+  // Add resources and/or prepare for CEF files
+  if settings.resource_files().count() > 0 || settings.bundle_settings().cef_path.is_some() {
     let resource_dir = Path::new("/usr/lib").join(settings.product_name());
     // Create an empty file, needed to add a directory to the RPM package
     // (cf https://github.com/rpm-rs/rpm/issues/177)
@@ -195,6 +212,72 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       let resource = resource?;
       let dest = resource_dir.join(resource.target());
       builder = builder.with_file(resource.path(), FileOptions::new(dest.to_string_lossy()))?;
+    }
+  }
+  // Handle CEF support if cef_path is set,
+  // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/linux/README.redistrib.txt as a reference
+  //
+  // Dealing with rpath or LD_LIBRARY_PATH is annoying so we'll somewhat follow the spotify approach and move the binary out of /usr/bin for now.
+  // This still requires adding $ORIGIN to RUNPATH, which we currently do in tauri-build.
+  // TODO: This may cause issues when you try to submit the app to the distro repos but we can revisit this later.
+  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+    let cef_resource_dir = Path::new("/usr/share").join(settings.product_name());
+    // TODO: We probably want this in a shared and versioned location.
+    let cef_temp_dir = package_dir.join("cef_temp");
+    fs::create_dir_all(&cef_temp_dir).fs_context(
+      "Failed to create temporary cef directory",
+      cef_temp_dir.clone(),
+    )?;
+
+    let cef_files = [
+      // required
+      "libcef.so",
+      "icudtl.dat",
+      "v8_context_snapshot.bin",
+      // required end
+      // "optional" - but not really since we want support for all of this
+      "chrome_100_percent.pak",
+      "chrome_200_percent.pak",
+      "resources.pak",
+      // ANGEL support
+      "libEGL.so",
+      "libGLESv2.so",
+      // SwANGLE support
+      "libvk_swiftshader.so",
+      "vk_swiftshader_icd.json",
+      "libvulkan.so.1",
+      // sandbox - may need to be behind a setting?
+      "chrome-sandbox",
+    ];
+
+    for f in cef_files {
+      let temp_file = cef_temp_dir.join(f);
+      fs::copy(cef_path.join(f), &temp_file)?;
+      if f.ends_with(".so") {
+        // since libcef.so is 1.5GB unstripped we will error out if strip fails.
+        Command::new("strip").arg(&temp_file).output_ok()?;
+      }
+      let mut fileopts = FileOptions::new(cef_resource_dir.join(f).to_string_lossy());
+      if f == "chrome-sandbox" {
+        fileopts = fileopts.mode(0o104755);
+      }
+      builder = builder.with_file(temp_file, fileopts).unwrap();
+    }
+    let locales = [
+      "en-US.pak",
+      "en-US_FEMININE.pak",
+      "en-US_MASCULINE.pak",
+      "en-US_NEUTER.pak",
+    ];
+
+    let cef_path = cef_path.join("locales");
+    let cef_resource_dir = cef_resource_dir.join("locales");
+
+    for f in locales {
+      builder = builder.with_file(
+        cef_path.join(f),
+        FileOptions::new(cef_resource_dir.join(f).to_string_lossy()),
+      )?;
     }
   }
 

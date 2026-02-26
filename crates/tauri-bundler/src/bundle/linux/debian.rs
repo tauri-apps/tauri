@@ -87,6 +87,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/linux/README.redistrib.txt as a reference
   //
   // Dealing with rpath or LD_LIBRARY_PATH is annoying so we'll somewhat follow the approach of spotify(cef) and electron apps and move the binary out of /usr/bin for now.
+  // This still requires adding $ORIGIN to RUNPATH, which we currently do in tauri-build.
   if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
     let share_dir = data_dir.join("usr/share").join(settings.product_name());
     fs::create_dir_all(&share_dir)?;

@@ -107,11 +107,11 @@ After making changes to the code, run `pnpm build` to build it. To test your cha
 
 ## AI Tool Policy
 
-It takes a lot of time to review a Pull Request while too easy to make a nonsense but plausible looking one using AI tools.
+It takes a lot of time to review a Pull Request while it's very easy to make a nonsense but plausible looking one using AI tools.
 It is unfair for other contributors and the reviewers to spend much of the time dealing with this, hence these rules:
 
 1. Review and test all LLM-generated content before submitting, you're the one responsible for it, not the AI.
-2. Don't use AI to respond to review comments (execpt only for translations)
+2. Don't use AI to respond to review comments (except for translations).
 
 We will close the Pull Request with a `ai-slop` tag if you failed to do so.
 

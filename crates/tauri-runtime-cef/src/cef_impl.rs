@@ -441,6 +441,7 @@ wrap_load_handler! {
 wrap_display_handler! {
   struct BrowserDisplayHandler {
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
+    navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
   }
 
   impl DisplayHandler {
@@ -453,6 +454,24 @@ wrap_display_handler! {
       let Some(title) = title else { return };
       let title_str = title.to_string();
       handler(title_str);
+    }
+
+    fn on_address_change(
+      &self,
+      _browser: Option<&mut Browser>,
+      frame: Option<&mut Frame>,
+      url: Option<&CefString>,
+    ) {
+      // Only fire for main frame URL changes (matches on_before_browse behavior)
+      if let Some(frame) = frame {
+        if frame.is_main() == 0 { return; }
+      }
+      let Some(handler) = &self.navigation_handler else { return };
+      let Some(url) = url else { return };
+      let url_str = url.to_string();
+      if let Ok(parsed) = url::Url::parse(&url_str) {
+        let _ = handler(&parsed);
+      }
     }
   }
 }
@@ -957,9 +976,10 @@ wrap_client! {
     }
 
     fn display_handler(&self) -> Option<DisplayHandler> {
-      if self.document_title_changed_handler.is_some() {
+      if self.document_title_changed_handler.is_some() || self.navigation_handler.is_some() {
         Some(BrowserDisplayHandler::new(
           self.document_title_changed_handler.clone(),
+          self.navigation_handler.clone(),
         ))
       } else {
         None

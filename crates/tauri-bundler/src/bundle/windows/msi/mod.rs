@@ -56,10 +56,12 @@ const WIX_REQUIRED_FILES: &[&str] = &[
 /// Runs all of the commands to build the MSI installer.
 /// Returns a vector of PathBuf that shows where the MSI was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
-  let tauri_tools_path = settings
-    .local_tools_directory()
-    .map(|d| d.join(".tauri"))
-    .unwrap_or_else(|| dirs::cache_dir().unwrap().join("tauri"));
+  let tauri_tools_path = match settings.local_tools_directory() {
+    Some(d) => d.join(".tauri"),
+    None => dirs::cache_dir()
+      .context("failed to resolve cache directory")?
+      .join("tauri"),
+  };
 
   let wix_path = tauri_tools_path.join("WixTools314");
 
@@ -327,14 +329,15 @@ fn convert_version(version_str: &str) -> crate::Result<String> {
 
   if !version.pre.is_empty() {
     let pre = version.pre.parse::<u64>();
-    if pre.is_ok() && pre.unwrap() <= 65535 {
-      return Ok(format!(
-        "{}.{}.{}.{}",
-        version.major, version.minor, version.patch, version.pre
-      ));
-    } else {
-      crate::error::bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
+    if let Ok(pre_val) = pre {
+      if pre_val <= 65535 {
+        return Ok(format!(
+          "{}.{}.{}.{}",
+          version.major, version.minor, version.patch, version.pre
+        ));
+      }
     }
+    crate::error::bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
   }
 
   Ok(version_str.to_string())
@@ -555,7 +558,8 @@ pub fn build_wix_app_installer(
   }
 
   let language_map: HashMap<String, LanguageMetadata> =
-    serde_json::from_str(include_str!("./languages.json")).unwrap();
+    serde_json::from_str(include_str!("./languages.json"))
+      .context("failed to parse WiX languages.json")?;
 
   let configured_languages = settings
     .windows()
@@ -666,7 +670,7 @@ pub fn build_wix_app_installer(
     if let Some(banner_path) = &wix.banner_path {
       let filename = banner_path
         .file_name()
-        .unwrap()
+        .context("failed to extract banner filename")?
         .to_string_lossy()
         .into_owned();
       data.insert(
@@ -678,7 +682,7 @@ pub fn build_wix_app_installer(
     if let Some(dialog_image_path) = &wix.dialog_image_path {
       let filename = dialog_image_path
         .file_name()
-        .unwrap()
+        .context("failed to extract dialog image filename")?
         .to_string_lossy()
         .into_owned();
       data.insert(
@@ -705,13 +709,11 @@ pub fn build_wix_app_installer(
   if let Some(path) = custom_template_path {
     handlebars
       .register_template_string("main.wxs", fs::read_to_string(path)?)
-      .map_err(|e| e.to_string())
-      .expect("Failed to setup custom handlebar template");
+      .context("failed to setup custom handlebar template")?;
   } else {
     handlebars
       .register_template_string("main.wxs", include_str!("./main.wxs"))
-      .map_err(|e| e.to_string())
-      .expect("Failed to setup handlebar template");
+      .context("failed to setup handlebar template")?;
   }
 
   if enable_elevated_update_task {
@@ -799,8 +801,8 @@ pub fn build_wix_app_installer(
   let mut output_paths = Vec::new();
 
   for (language, language_config) in configured_languages.0 {
-    let language_metadata = language_map.get(&language).unwrap_or_else(|| {
-      panic!(
+    let language_metadata = language_map.get(&language).with_context(|| {
+      format!(
         "Language {} not found. It must be one of {}",
         language,
         language_map
@@ -809,7 +811,7 @@ pub fn build_wix_app_installer(
           .collect::<Vec<String>>()
           .join(", ")
       )
-    });
+    })?;
 
     let locale_contents = match language_config.locale_path {
       Some(p) => fs::read_to_string(p)?,
@@ -828,10 +830,13 @@ pub fn build_wix_app_installer(
     let prefix_len = "<String ".len();
     for locale_string in locale_strings.split('\n').filter(|s| !s.is_empty()) {
       // strip `<String ` prefix and `>{value}</String` suffix.
+      let closing_bracket = locale_string
+        .find('>')
+        .context("invalid locale string: missing '>'")?;
       let id = locale_string
         .chars()
         .skip(prefix_len)
-        .take(locale_string.find('>').unwrap() - prefix_len)
+        .take(closing_bracket - prefix_len)
         .collect::<String>();
       if !locale_contents.contains(&id) {
         unset_locale_strings.push_str(locale_string);
@@ -844,7 +849,7 @@ pub fn build_wix_app_installer(
     );
     let locale_path = output_path.join("locale.wxl");
     {
-      let mut fileout = File::create(&locale_path).expect("Failed to create locale file");
+      let mut fileout = File::create(&locale_path).context("failed to create locale file")?;
       fileout.write_all(locale_contents.as_bytes())?;
     }
 
@@ -864,7 +869,11 @@ pub fn build_wix_app_installer(
     let msi_output_path = output_path.join("output.msi");
     let msi_path =
       app_installer_output_path(settings, &language, settings.version_string(), updater)?;
-    fs::create_dir_all(msi_path.parent().unwrap())?;
+    fs::create_dir_all(
+      msi_path
+        .parent()
+        .context("failed to resolve MSI output parent directory")?,
+    )?;
 
     log::info!(action = "Running"; "light to produce {}", display_path(&msi_path));
 
@@ -898,18 +907,19 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
     let binary_path = cwd.join(&src);
     let dest_filename = src
       .file_name()
-      .expect("failed to extract external binary filename")
+      .context("failed to extract external binary filename")?
       .to_string_lossy()
       .replace(&format!("-{}", settings.target()), "");
     let dest = tmp_dir.join(&dest_filename);
     std::fs::copy(binary_path, &dest)?;
 
+    let path = dest
+      .into_os_string()
+      .into_string()
+      .map_err(|p| crate::Error::GenericError(format!("failed to read external binary path: {p:?}")))?;
     binaries.push(Binary {
       guid: Uuid::new_v4().to_string(),
-      path: dest
-        .into_os_string()
-        .into_string()
-        .expect("failed to read external binary path"),
+      path,
       id: regex
         .replace_all(&dest_filename.replace('-', "_"), "")
         .to_string(),
@@ -918,13 +928,14 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
 
   for bin in settings.binaries() {
     if !bin.main() {
+      let path = settings
+        .binary_path(bin)
+        .into_os_string()
+        .into_string()
+        .map_err(|p| crate::Error::GenericError(format!("failed to read binary path: {p:?}")))?;
       binaries.push(Binary {
         guid: Uuid::new_v4().to_string(),
-        path: settings
-          .binary_path(bin)
-          .into_os_string()
-          .into_string()
-          .expect("failed to read binary path"),
+        path,
         id: regex
           .replace_all(&bin.name().replace('-', "_"), "")
           .to_string(),
@@ -954,10 +965,10 @@ fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
     let path = msm?;
     let filename = path
       .file_name()
-      .expect("failed to extract merge module filename")
+      .context("failed to extract merge module filename")?
       .to_os_string()
       .into_string()
-      .expect("failed to convert merge module filename to string");
+      .map_err(|p| crate::Error::GenericError(format!("failed to convert merge module filename to string: {p:?}")))?;
     merge_modules.push(MergeModule {
       name: regex.replace_all(&filename, "").to_string(),
       path: path.to_string_lossy().to_string(),
@@ -1024,7 +1035,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
     let mut directory_entry = resources
       .get_mut(&first_directory)
-      .expect("Unable to handle resources");
+      .context("Unable to handle resources")?;
 
     let mut path = String::new();
     // the first component is already parsed on `first_directory` so we skip(1)
@@ -1033,7 +1044,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
         .as_os_str()
         .to_os_string()
         .into_string()
-        .expect("failed to read resource folder name");
+        .map_err(|p| crate::Error::GenericError(format!("failed to read resource folder name: {p:?}")))?;
       path.push_str(directory_name.as_str());
       path.push(std::path::MAIN_SEPARATOR);
 
@@ -1042,7 +1053,12 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
         .iter()
         .position(|f| f.path == path);
       match index {
-        Some(i) => directory_entry = directory_entry.directories.get_mut(i).unwrap(),
+        Some(i) => {
+          directory_entry = directory_entry
+            .directories
+            .get_mut(i)
+            .context("failed to get resource directory entry")?;
+        }
         None => {
           directory_entry.directories.push(ResourceDirectory {
             path: path.clone(),
@@ -1050,7 +1066,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
             directories: vec![],
             files: vec![],
           });
-          directory_entry = directory_entry.directories.iter_mut().last().unwrap();
+          directory_entry = directory_entry
+            .directories
+            .iter_mut()
+            .last()
+            .context("failed to get last resource directory entry")?;
         }
       }
     }
@@ -1070,7 +1090,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let resource_path = dunce::simplified(&path);
     let relative_path = path
       .strip_prefix(out_dir)
-      .unwrap()
+      .context("failed to strip output directory prefix from DLL path")?
       .to_string_lossy()
       .into_owned();
     if !added_resources.iter().any(|r| r.ends_with(&relative_path)) {

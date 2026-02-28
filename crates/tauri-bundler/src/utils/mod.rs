@@ -102,9 +102,10 @@ impl CommandExt for Command {
     if output.status.success() {
       Ok(output)
     } else {
-      Err(crate::Error::GenericError(format!(
-        "failed to run {program}"
-      )))
+      Err(crate::Error::CommandFailed {
+        command: program,
+        error: std::io::Error::other(String::from_utf8_lossy(&output.stderr).to_string()),
+      })
     }
   }
 }

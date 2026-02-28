@@ -304,6 +304,14 @@ impl WebviewBuilder<crate::Cef> {
       .push(tauri_runtime_cef::WebviewAtribute::RuntimeStyle { style });
     self
   }
+
+  /// Register a callback to be invoked when the webview's address (URL) changes.
+  pub fn on_address_change<F: Fn(&Url) + Send + Sync + 'static>(mut self, f: F) -> Self {
+    self.platform_specific_attributes.push(
+      tauri_runtime_cef::WebviewAtribute::AddressChangedHandler(Box::new(f)),
+    );
+    self
+  }
 }
 
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]

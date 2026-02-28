@@ -441,7 +441,7 @@ wrap_load_handler! {
 wrap_display_handler! {
   struct BrowserDisplayHandler {
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
-    navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
+    address_changed_handler: Option<Arc<dyn Fn(&url::Url) + Send + Sync>>,
   }
 
   impl DisplayHandler {
@@ -464,14 +464,15 @@ wrap_display_handler! {
     ) {
       // Only fire for main frame URL changes (matches on_before_browse behavior)
       if let Some(frame) = frame {
-        if frame.is_main() == 0 { return; }
+        if frame.is_main() == 0 {
+          return;
+        }
       }
-      let Some(handler) = &self.navigation_handler else { return };
+      let Some(handler) = &self.address_changed_handler else { return };
       let Some(url) = url else { return };
       let url_str = url.to_string();
-      if let Ok(parsed) = url::Url::parse(&url_str) {
-        let _ = handler(&parsed);
-      }
+      let Ok(parsed) = url::Url::parse(&url_str) else { return };
+      handler(&parsed);
     }
   }
 }
@@ -939,6 +940,7 @@ wrap_client! {
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
+    address_changed_handler: Option<Arc<dyn Fn(&url::Url) + Send + Sync>>,
     new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
     devtools_enabled: bool,
@@ -976,14 +978,10 @@ wrap_client! {
     }
 
     fn display_handler(&self) -> Option<DisplayHandler> {
-      if self.document_title_changed_handler.is_some() || self.navigation_handler.is_some() {
-        Some(BrowserDisplayHandler::new(
-          self.document_title_changed_handler.clone(),
-          self.navigation_handler.clone(),
-        ))
-      } else {
-        None
-      }
+      Some(BrowserDisplayHandler::new(
+        self.document_title_changed_handler.clone(),
+        self.address_changed_handler.clone(),
+      ))
     }
 
     fn download_handler(&self) -> Option<DownloadHandler> {
@@ -3016,7 +3014,7 @@ fn create_browser_window<T: UserEvent>(
     label: webview_label,
     opener: _,
     mut webview_attributes,
-    platform_specific_attributes: _,
+    platform_specific_attributes,
     uri_scheme_protocols,
     ipc_handler: _,
     navigation_handler,
@@ -3027,6 +3025,16 @@ fn create_browser_window<T: UserEvent>(
     mut on_page_load_handler,
     download_handler,
   } = webview;
+
+  let address_changed_handler: Option<Arc<dyn Fn(&url::Url) + Send + Sync>> =
+    platform_specific_attributes
+      .into_iter()
+      .find_map(|attr| match attr {
+        WebviewAtribute::AddressChangedHandler(f) => {
+          Some(Arc::new(move |url: &url::Url| f(url)) as Arc<dyn Fn(&url::Url) + Send + Sync>)
+        }
+        _ => None,
+      });
 
   let initialization_scripts = std::mem::take(&mut webview_attributes.initialization_scripts)
     .into_iter()
@@ -3088,6 +3096,7 @@ fn create_browser_window<T: UserEvent>(
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
+    address_changed_handler,
     new_window_handler,
     download_handler,
     devtools_enabled,
@@ -3463,6 +3472,21 @@ pub(crate) fn create_webview<T: UserEvent>(
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
   let new_window_handler = new_window_handler.map(Arc::from);
+  let (address_changed_handler, platform_specific_attributes) = {
+    let mut handler = None;
+    let attrs: Vec<_> = platform_specific_attributes
+      .into_iter()
+      .filter_map(|attr| match attr {
+        WebviewAtribute::AddressChangedHandler(f) => {
+          handler =
+            Some(Arc::new(move |url: &url::Url| f(url)) as Arc<dyn Fn(&url::Url) + Send + Sync>);
+          None
+        }
+        other => Some(other),
+      })
+      .collect();
+    (handler, attrs)
+  };
 
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
     && webview_attributes.devtools.unwrap_or(true);
@@ -3489,6 +3513,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
+    address_changed_handler,
     new_window_handler,
     download_handler,
     devtools_enabled,
@@ -3641,10 +3666,10 @@ pub(crate) fn create_webview<T: UserEvent>(
       browser_id.clone(),
       platform_specific_attributes
         .iter()
-        .map(|attr| match attr {
-          WebviewAtribute::RuntimeStyle { style } => *style,
+        .find_map(|attr| match attr {
+          WebviewAtribute::RuntimeStyle { style } => Some(*style),
+          WebviewAtribute::AddressChangedHandler(_) => None,
         })
-        .next()
         .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
           CefRuntimeStyle::Alloy
         } else {

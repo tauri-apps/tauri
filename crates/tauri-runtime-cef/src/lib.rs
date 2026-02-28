@@ -2124,6 +2124,8 @@ impl InitAttribute for RuntimeInitAttribute {
 pub enum WebviewAtribute {
   /// Sets the browser runtime style.
   RuntimeStyle { style: RuntimeStyle },
+  /// Callback invoked when the webview's address (URL) changes.
+  AddressChangedHandler(Box<dyn Fn(&Url) + Send + Sync>),
 }
 
 /// The browser runtime style.

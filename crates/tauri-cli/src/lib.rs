@@ -414,10 +414,10 @@ impl CommandExt for Command {
     if output.status.success() {
       Ok(output)
     } else {
-      crate::error::bail!(
-        "failed to run command `{cmdline}`: command exited with status code {}",
-        output.status.code().unwrap_or(-1)
-      );
+      Err(crate::error::Error::CommandFailed {
+        command: cmdline,
+        error: std::io::Error::other(String::from_utf8_lossy(&output.stderr).to_string()),
+      })
     }
   }
 }

@@ -3014,27 +3014,21 @@ fn create_browser_window<T: UserEvent>(
     label: webview_label,
     opener: _,
     mut webview_attributes,
-    platform_specific_attributes,
+    platform_specific_attributes: _,
     uri_scheme_protocols,
     ipc_handler: _,
     navigation_handler,
     new_window_handler,
     document_title_changed_handler,
+    address_changed_handler,
     url,
     web_resource_request_handler: _,
     mut on_page_load_handler,
     download_handler,
   } = webview;
 
-  let address_changed_handler: Option<Arc<dyn Fn(&url::Url) + Send + Sync>> =
-    platform_specific_attributes
-      .into_iter()
-      .find_map(|attr| match attr {
-        WebviewAtribute::AddressChangedHandler(f) => {
-          Some(Arc::new(move |url: &url::Url| f(url)) as Arc<dyn Fn(&url::Url) + Send + Sync>)
-        }
-        _ => None,
-      });
+  let address_changed_handler = address_changed_handler
+    .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<dyn Fn(&url::Url) + Send + Sync>);
 
   let initialization_scripts = std::mem::take(&mut webview_attributes.initialization_scripts)
     .into_iter()
@@ -3443,11 +3437,15 @@ pub(crate) fn create_webview<T: UserEvent>(
     navigation_handler,
     new_window_handler,
     document_title_changed_handler,
+    address_changed_handler,
     url,
     web_resource_request_handler: _,
     mut on_page_load_handler,
     download_handler,
   } = pending;
+
+  let address_changed_handler = address_changed_handler
+    .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<dyn Fn(&url::Url) + Send + Sync>);
 
   let window = match context
     .windows
@@ -3472,21 +3470,6 @@ pub(crate) fn create_webview<T: UserEvent>(
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
   let new_window_handler = new_window_handler.map(Arc::from);
-  let (address_changed_handler, platform_specific_attributes) = {
-    let mut handler = None;
-    let attrs: Vec<_> = platform_specific_attributes
-      .into_iter()
-      .filter_map(|attr| match attr {
-        WebviewAtribute::AddressChangedHandler(f) => {
-          handler =
-            Some(Arc::new(move |url: &url::Url| f(url)) as Arc<dyn Fn(&url::Url) + Send + Sync>);
-          None
-        }
-        other => Some(other),
-      })
-      .collect();
-    (handler, attrs)
-  };
 
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
     && webview_attributes.devtools.unwrap_or(true);
@@ -3668,7 +3651,6 @@ pub(crate) fn create_webview<T: UserEvent>(
         .iter()
         .find_map(|attr| match attr {
           WebviewAtribute::RuntimeStyle { style } => Some(*style),
-          WebviewAtribute::AddressChangedHandler(_) => None,
         })
         .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
           CefRuntimeStyle::Alloy

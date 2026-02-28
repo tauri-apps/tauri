@@ -75,6 +75,9 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
+        })
+        .on_address_change(|url| {
+          println!("CEF address changed: {url}");
         });
 
       #[cfg(all(desktop, not(test)))]
@@ -110,13 +113,6 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
             let window = builder.build().unwrap();
             tauri::webview::NewWindowResponse::Create { window }
           });
-      }
-
-      #[cfg(feature = "cef")]
-      {
-        window_builder = window_builder.on_address_change(|url| {
-          println!("CEF address changed: {url}");
-        });
       }
 
       let webview = window_builder.build()?;

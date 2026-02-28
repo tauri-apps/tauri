@@ -73,12 +73,6 @@ impl<'a, M: Manager<crate::Cef>> WebviewWindowBuilder<'a, crate::Cef, M> {
     self.window_builder.window_builder = self.window_builder.window_builder.browser_window();
     self
   }
-
-  /// Register a callback to be invoked when the webview's address (URL) changes.
-  pub fn on_address_change<F: Fn(&Url) + Send + Sync + 'static>(mut self, f: F) -> Self {
-    self.webview_builder = self.webview_builder.on_address_change(f);
-    self
-  }
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
@@ -296,6 +290,23 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// ```
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.webview_builder = self.webview_builder.on_navigation(f);
+    self
+  }
+
+  /// Register a callback to be invoked when the webview's address (URL) changes.
+  pub fn on_address_change<F: Fn(WebviewWindow<R>, &Url) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder = self.webview_builder.on_address_change(move |webview, url| {
+      f(
+        WebviewWindow {
+          window: webview.window(),
+          webview,
+        },
+        url,
+      )
+    });
     self
   }
 

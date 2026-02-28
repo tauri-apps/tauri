@@ -4690,6 +4690,8 @@ You may have it installed on another user account, but it is not available for t
     ipc_handler,
     url,
     opener,
+    address_changed_handler,
+    navigation_handler,
     ..
   } = pending;
 
@@ -4814,11 +4816,19 @@ You may have it installed on another user account, but it is not available for t
     });
   }
 
-  if let Some(navigation_handler) = pending.navigation_handler {
+  if address_changed_handler.is_some() || navigation_handler.is_some() {
     webview_builder = webview_builder.with_navigation_handler(move |url| {
       url
         .parse()
-        .map(|url| navigation_handler(&url))
+        .map(|url| {
+          if let Some(ref addr) = address_changed_handler {
+            addr(&url);
+          }
+          navigation_handler
+            .as_ref()
+            .map(|nav| nav(&url))
+            .unwrap_or(true)
+        })
         .unwrap_or(true)
     });
   }

@@ -76,7 +76,7 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
         })
-        .on_address_change(|url| {
+        .on_address_change(|_webview, url| {
           println!("CEF address changed: {url}");
         });
 

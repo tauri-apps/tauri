@@ -112,6 +112,13 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
           });
       }
 
+      #[cfg(feature = "cef")]
+      {
+        window_builder = window_builder.on_address_change(|url| {
+          println!("CEF address changed: {url}");
+        });
+      }
+
       let webview = window_builder.build()?;
 
       #[cfg(debug_assertions)]

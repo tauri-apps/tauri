@@ -70,6 +70,7 @@ build = [
   "swift-rs",
   "html-manipulation",
 ]
+# Same as `build` but uses `html-manipulation-2` to avoid the `kuchikiki` dependency.
 build-2 = [
   "proc-macro2",
   "quote",

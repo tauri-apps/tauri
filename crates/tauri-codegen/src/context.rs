@@ -47,27 +47,24 @@ pub struct ContextData {
 }
 
 fn inject_script_hashes(document: &Document, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  let inline_script_elements = document.select("script:not(:empty)");
-  if !inline_script_elements.is_empty() {
-    let mut scripts = Vec::new();
-    for inline_script_el in inline_script_elements.iter() {
-      let script = inline_script_el.text();
-      let mut hasher = Sha256::new();
-      hasher.update(tauri_utils::html2::normalize_script_for_csp(
-        script.as_bytes(),
-      ));
-      let hash = hasher.finalize();
-      scripts.push(format!(
-        "'sha256-{}'",
-        base64::engine::general_purpose::STANDARD.encode(hash)
-      ));
-    }
-    csp_hashes
-      .inline_scripts
-      .entry(key.clone().into())
-      .or_default()
-      .append(&mut scripts);
-  }
+  let script_elements = document.select("script:not(:empty)");
+
+  let scripts = script_elements
+    .iter()
+    .map(|element| {
+      let script = tauri_utils::html2::normalize_script_for_csp(element.text().as_bytes());
+      let script_hash = Sha256::digest(script);
+      let hash_base64 = base64::engine::general_purpose::STANDARD.encode(script_hash);
+
+      format!("'sha256-{hash_base64}'")
+    })
+    .collect::<Vec<_>>();
+
+  csp_hashes
+    .inline_scripts
+    .entry(key.clone().into())
+    .or_default()
+    .extend(scripts);
 }
 
 fn map_core_assets(

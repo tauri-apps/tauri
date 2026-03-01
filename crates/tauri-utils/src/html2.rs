@@ -32,14 +32,14 @@ pub fn parse(html: String) -> Document {
 }
 
 fn with_head<F: FnOnce(NodeRef<'_>)>(document: &Document, f: F) {
-  if let Some(head) = document.head() {
-    f(head)
-  } else {
+  let head = document.head().unwrap_or_else(|| {
     let html = document.html_root();
-    html.append_html("<head></head>");
+    let head = document.tree.new_element("head");
+    html.prepend_child(&head);
+    head
+  });
 
-    f(document.head().unwrap())
-  }
+  f(head)
 }
 
 fn inject_nonce(document: &Document, selector: &str, token: &str) {

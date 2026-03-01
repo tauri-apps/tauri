@@ -9,7 +9,7 @@ use std::{
 
 use walkdir::WalkDir;
 
-use crate::platform::Target as TargetPlatform;
+use crate::platform::{target_triple, Target as TargetPlatform};
 
 /// Given a path (absolute or relative) to a resource file, returns the
 /// relative path from the bundle resources directory where that resource
@@ -40,6 +40,20 @@ fn normalize(path: &Path) -> PathBuf {
     }
   }
   dest
+}
+
+fn replace_pattern_with_target(pattern: &str) -> String {
+  let target_triple = target_triple().unwrap();
+  // log::info!("USING LOCAL replace_pattern_with_target: {}", target_triple);
+
+  let parts: Vec<&str> = target_triple.split('-').collect();
+
+  let arch = parts[0];
+  let target = parts[2];
+
+  pattern
+    .replace("{{arch}}", arch)
+    .replace("{{target}}", &target)
 }
 
 /// Parses the external binaries to bundle, adding the target triple suffix to each of them.
@@ -225,16 +239,20 @@ impl ResourcePathsIter<'_> {
     self.current_pattern = None;
 
     let pattern = match &mut self.pattern_iter {
-      PatternIter::Slice(iter) => iter.next()?,
+      PatternIter::Slice(iter) => {
+        let pattern = iter.next()?;
+        replace_pattern_with_target(pattern)
+      }
       PatternIter::Map(iter) => {
         let (pattern, dest) = iter.next()?;
-        self.current_pattern = Some((pattern.clone(), resource_relpath(Path::new(dest))));
-        pattern
+        let resolved_pattern = replace_pattern_with_target(pattern);
+        self.current_pattern = Some((resolved_pattern.clone(), resource_relpath(Path::new(dest))));
+        resolved_pattern
       }
     };
 
     if pattern.contains('*') {
-      self.glob_iter = match glob::glob(pattern) {
+      self.glob_iter = match glob::glob(&pattern) {
         Ok(glob) => Some(glob),
         Err(error) => return Some(Err(error.into())),
       };
@@ -247,7 +265,7 @@ impl ResourcePathsIter<'_> {
       }
     }
 
-    self.next_current_path(normalize(Path::new(pattern)))
+    self.next_current_path(normalize(Path::new(&pattern)))
   }
 }
 
@@ -342,6 +360,9 @@ mod tests {
       "src/script.js",
       "src/dir/another-dir/file1.txt",
       "src/dir/another-dir2/file2.txt",
+      "src/dir/{{target}}/another-dir3/file1.txt",
+      "src/dir/{{target}}/another-dir3/{{arch}}/file2.txt",
+      "src/dir/another-dir3/{{arch}}/file3.txt",
     ];
 
     for path in paths {

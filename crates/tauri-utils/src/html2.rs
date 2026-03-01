@@ -22,12 +22,12 @@ use crate::{
 pub use dom_query::Document;
 
 /// Serializes the document to HTML.
-pub fn serialize_node(document: &Document) -> Vec<u8> {
+pub fn serialize_doc(document: &Document) -> Vec<u8> {
   document.html().as_bytes().to_vec()
 }
 
 /// Parses the given HTML string.
-pub fn parse(html: String) -> Document {
+pub fn parse_doc(html: String) -> Document {
   Document::from(html.as_str())
 }
 
@@ -217,12 +217,12 @@ mod tests {
     ];
 
     for html in htmls {
-      let document = parse(html);
+      let document = parse_doc(html);
       let csp = "csp-string";
       inject_csp(&document, csp);
 
       assert_eq!(
-        String::from_utf8(serialize_node(&document)).unwrap(),
+        String::from_utf8(serialize_doc(&document)).unwrap(),
         format!(
           r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></head><body></body></html>"#
         )
@@ -246,8 +246,8 @@ mod tests {
     ];
 
     for html in htmls {
-      let parsed = parse(html.to_string());
-      let serialized = serialize_node(&parsed);
+      let parsed = parse_doc(html.to_string());
+      let serialized = serialize_doc(&parsed);
       let result = String::from_utf8(serialized).unwrap();
 
       assert_eq!(result, html);
@@ -258,11 +258,11 @@ mod tests {
   fn inject_nonce_to_scripts() {
     let html = r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#;
 
-    let document = parse(html.to_string());
+    let document = parse_doc(html.to_string());
     inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
 
     assert_eq!(
-      String::from_utf8(serialize_node(&document)).unwrap(),
+      String::from_utf8(serialize_doc(&document)).unwrap(),
       format!(
         r#"<html><head><script src="http://example.com/script.js" nonce="{SCRIPT_NONCE_TOKEN}"></script></head><body></body></html>"#
       )
@@ -273,11 +273,11 @@ mod tests {
   fn inject_nonce_to_styles() {
     let html = r#"<html><head><style>body { color: red; }</style></head><body></body></html>"#;
 
-    let document = parse(html.to_string());
+    let document = parse_doc(html.to_string());
     inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
 
     assert_eq!(
-      String::from_utf8(serialize_node(&document)).unwrap(),
+      String::from_utf8(serialize_doc(&document)).unwrap(),
       format!(
         r#"<html><head><style nonce="{STYLE_NONCE_TOKEN}">body {{ color: red; }}</style></head><body></body></html>"#
       )
@@ -288,11 +288,11 @@ mod tests {
   fn append_script_to_head_test() {
     let html = r#"<html><head></head><body></body></html>"#;
 
-    let document = parse(html.to_string());
+    let document = parse_doc(html.to_string());
     append_script_to_head(&document, r#"console.log('Test')"#);
 
     assert_eq!(
-      String::from_utf8(serialize_node(&document)).unwrap(),
+      String::from_utf8(serialize_doc(&document)).unwrap(),
       format!(r#"<html><head><script>console.log('Test')</script></head><body></body></html>"#)
     );
   }
@@ -301,21 +301,21 @@ mod tests {
   fn inject_nonce_skips_existing() {
     let html = r#"<html><head><script src="http://example.com/script.js" nonce="existing"></script></head><body></body></html>"#;
 
-    let document = parse(html.to_string());
+    let document = parse_doc(html.to_string());
     inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
 
-    assert_eq!(String::from_utf8(serialize_node(&document)).unwrap(), html);
+    assert_eq!(String::from_utf8(serialize_doc(&document)).unwrap(), html);
   }
 
   #[test]
   fn inject_nonce_respects_disabled_modification() {
     let html = r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#;
 
-    let document = parse(html.to_string());
+    let document = parse_doc(html.to_string());
     inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(true));
 
     assert_eq!(
-      String::from_utf8(serialize_node(&document)).unwrap(),
+      String::from_utf8(serialize_doc(&document)).unwrap(),
       r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#
     );
   }
@@ -327,11 +327,11 @@ mod tests {
     file.write_all(b"console.log('test');").unwrap();
 
     let html = r#"<html><head><script src="/test_script.js"></script></head><body></body></html>"#;
-    let document = parse(html.to_string());
+    let document = parse_doc(html.to_string());
     inline_isolation(&document, temp_dir.path());
 
     assert_eq!(
-      String::from_utf8(serialize_node(&document)).unwrap(),
+      String::from_utf8(serialize_doc(&document)).unwrap(),
       r#"<html><head><script>console.log('test');</script></head><body></body></html>"#
     );
   }

@@ -26,7 +26,7 @@ use tauri_utils::{
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
   html2::{
-    inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, Document,
+    inject_nonce_token, parse_doc as parse_html, serialize_doc as serialize_html_node, Document,
   },
   platform::Target,
   tokens::{map_lit, str_lit},

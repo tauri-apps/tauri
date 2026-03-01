@@ -126,14 +126,14 @@ async fn ws_handler(ws: WebSocketUpgrade, state: State<ServerState>) -> Response
 }
 
 fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
-  let document = tauri_utils::html2::parse(String::from_utf8_lossy(&html_bytes).into_owned());
+  let document = tauri_utils::html2::parse_doc(String::from_utf8_lossy(&html_bytes).into_owned());
 
   tauri_utils::html2::append_script_to_head(
     &document,
     &RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli")),
   );
 
-  tauri_utils::html2::serialize_node(&document)
+  tauri_utils::html2::serialize_doc(&document)
 }
 
 fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {

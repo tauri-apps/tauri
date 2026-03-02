@@ -30,8 +30,7 @@ use super::{
 use crate::{
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
-    config::{BundleResources, Config as TauriConfig, ConfigHandle},
+    config::{BundleResources, Config as TauriConfig, ConfigMetadata},
     pbxproj, strip_semver_prerelease_tag,
   },
   ConfigValue, Error, Result,
@@ -40,7 +39,7 @@ use crate::{
 use std::{
   env::{set_var, var_os},
   fs::create_dir_all,
-  path::PathBuf,
+  path::Path,
   str::FromStr,
   thread::sleep,
   time::Duration,
@@ -104,16 +103,13 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => {
-      crate::helpers::app_paths::resolve();
-      init_command(
-        MobileTarget::Ios,
-        options.ci,
-        options.reinstall_deps,
-        options.skip_targets_install,
-        options.config,
-      )?
-    }
+    Commands::Init(options) => init_command(
+      MobileTarget::Ios,
+      options.ci,
+      options.reinstall_deps,
+      options.skip_targets_install,
+      options.config,
+    )?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
     Commands::Run(options) => run::command(options, noise_level)?,
@@ -126,16 +122,12 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   tauri_config: &TauriConfig,
-  features: Option<&Vec<String>>,
+  features: &[String],
   cli_options: &CliOptions,
+  tauri_dir: &Path,
 ) -> Result<(AppleConfig, AppleMetadata)> {
   let mut ios_options = cli_options.clone();
-  if let Some(features) = features {
-    ios_options
-      .features
-      .get_or_insert(Vec::new())
-      .extend_from_slice(features);
-  }
+  ios_options.features.extend_from_slice(features);
 
   let bundle_version = if let Some(bundle_version) = tauri_config
     .bundle
@@ -232,7 +224,7 @@ pub fn get_config(
             }
           }
         }),
-    ios_features: ios_options.features.clone(),
+    ios_features: Some(ios_options.features.clone()),
     bundle_version,
     bundle_version_short,
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
@@ -240,8 +232,6 @@ pub fn get_config(
   };
   let config = AppleConfig::from_raw(app.clone(), Some(raw))
     .context("failed to create Apple configuration")?;
-
-  let tauri_dir = tauri_dir();
 
   let mut vendor_frameworks = Vec::new();
   let mut frameworks = Vec::new();
@@ -252,7 +242,7 @@ pub fn get_config(
     .clone()
     .unwrap_or_default()
   {
-    let framework_path = PathBuf::from(&framework);
+    let framework_path = Path::new(&framework);
     let ext = framework_path.extension().unwrap_or_default();
     if ext.is_empty() {
       frameworks.push(framework);
@@ -277,7 +267,7 @@ pub fn get_config(
     supported: true,
     ios: ApplePlatform {
       cargo_args: Some(ios_options.args),
-      features: ios_options.features,
+      features: Some(ios_options.features),
       frameworks: Some(frameworks),
       vendor_frameworks: Some(vendor_frameworks),
       ..Default::default()
@@ -554,26 +544,14 @@ pub fn load_pbxproj(config: &AppleConfig) -> Result<pbxproj::Pbxproj> {
 
 pub fn synchronize_project_config(
   config: &AppleConfig,
-  tauri_config: &ConfigHandle,
+  tauri_config: &ConfigMetadata,
   pbxproj: &mut pbxproj::Pbxproj,
   export_options_plist: &mut plist::Dictionary,
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .identifier
-    .clone();
-  let product_name = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .product_name
-    .clone();
+  let identifier = tauri_config.identifier.clone();
+  let product_name = tauri_config.product_name.clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();

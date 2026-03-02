@@ -465,28 +465,28 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// The initial position of the window's.
+  /// The initial position of the window in logical pixels.
   #[must_use]
   pub fn position(mut self, x: f64, y: f64) -> Self {
     self.window_builder = self.window_builder.position(x, y);
     self
   }
 
-  /// Window size.
+  /// Window size in logical pixels.
   #[must_use]
   pub fn inner_size(mut self, width: f64, height: f64) -> Self {
     self.window_builder = self.window_builder.inner_size(width, height);
     self
   }
 
-  /// Window min inner size.
+  /// Window min inner size in logical pixels.
   #[must_use]
   pub fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
     self.window_builder = self.window_builder.min_inner_size(min_width, min_height);
     self
   }
 
-  /// Window max inner size.
+  /// Window max inner size in logical pixels.
   #[must_use]
   pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
@@ -1230,7 +1230,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
-  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
   /// The closure parameter is the webview instance.
@@ -1248,7 +1248,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///       #[cfg(target_os = "ios")]
   ///       {
   ///         window_builder = window_builder.with_input_accessory_view_builder(|_webview| unsafe {
-  ///           let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+  ///           let mtm = objc2::MainThreadMarker::new_unchecked();
   ///           let button = objc2_ui_kit::UIButton::buttonWithType(objc2_ui_kit::UIButtonType(1), mtm);
   ///           button.setTitle_forState(
   ///             Some(&objc2_foundation::NSString::from_str("Tauri")),
@@ -2055,6 +2055,20 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Determines if this window should be fullscreen.
   pub fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
     self.window.set_fullscreen(fullscreen)
+  }
+
+  /// Toggles a fullscreen mode that doesn't require a new macOS space.
+  /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
+  ///
+  /// This is how fullscreen used to work on macOS in versions before Lion.
+  /// And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Uses native simple fullscreen mode.
+  /// - **Other platforms:** Falls back to [`Self::set_fullscreen`].
+  pub fn set_simple_fullscreen(&self, enable: bool) -> crate::Result<()> {
+    self.window.set_simple_fullscreen(enable)
   }
 
   /// Bring the window to front and focus.

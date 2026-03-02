@@ -2305,21 +2305,21 @@ interface PreventOverflowMargin {
 interface WindowOptions {
   /** Show window in the center of the screen.. */
   center?: boolean
-  /** The initial vertical position. Only applies if `y` is also set. */
+  /** The initial vertical position in logical pixels. Only applies if `y` is also set. */
   x?: number
-  /** The initial horizontal position. Only applies if `x` is also set. */
+  /** The initial horizontal position in logical pixels. Only applies if `x` is also set. */
   y?: number
-  /** The initial width. */
+  /** The initial width in logical pixels. */
   width?: number
-  /** The initial height. */
+  /** The initial height in logical pixels. */
   height?: number
-  /** The minimum width. Only applies if `minHeight` is also set. */
+  /** The minimum width in logical pixels. Only applies if `minHeight` is also set. */
   minWidth?: number
-  /** The minimum height. Only applies if `minWidth` is also set. */
+  /** The minimum height in logical pixels. Only applies if `minWidth` is also set. */
   minHeight?: number
-  /** The maximum width. Only applies if `maxHeight` is also set. */
+  /** The maximum width in logical pixels. Only applies if `maxHeight` is also set. */
   maxWidth?: number
-  /** The maximum height. Only applies if `maxWidth` is also set. */
+  /** The maximum height in logical pixels. Only applies if `maxWidth` is also set. */
   maxHeight?: number
   /**
    * Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)

@@ -443,28 +443,28 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
-  /// The initial position of the window's.
+  /// The initial position of the window in logical pixels.
   #[must_use]
   pub fn position(mut self, x: f64, y: f64) -> Self {
     self.window_builder = self.window_builder.position(x, y);
     self
   }
 
-  /// Window size.
+  /// Window size in logical pixels.
   #[must_use]
   pub fn inner_size(mut self, width: f64, height: f64) -> Self {
     self.window_builder = self.window_builder.inner_size(width, height);
     self
   }
 
-  /// Window min inner size.
+  /// Window min inner size in logical pixels.
   #[must_use]
   pub fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
     self.window_builder = self.window_builder.min_inner_size(min_width, min_height);
     self
   }
 
-  /// Window max inner size.
+  /// Window max inner size in logical pixels.
   #[must_use]
   pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
@@ -1968,25 +1968,27 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
-  /// Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won’t work if the window was already in the native fullscreen).
+  /// Toggles a fullscreen mode that doesn't require a new macOS space.
+  /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
   ///
-  /// This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
-  #[cfg(target_os = "macos")]
+  /// This is how fullscreen used to work on macOS in versions before Lion.
+  /// And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Uses native simple fullscreen mode.
+  /// - **Other platforms:** Falls back to [`Self::set_fullscreen`].
   pub fn set_simple_fullscreen(&self, enable: bool) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .set_simple_fullscreen(enable)
-      .map_err(Into::into)
-  }
-
-  /// On macOS, Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won’t work if the window was already in the native fullscreen).
-  /// This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
-  ///
-  /// On other platforms, this is the same as [`Window#method.set_fullscreen`].
-  #[cfg(not(target_os = "macos"))]
-  pub fn set_simple_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
-    self.set_fullscreen(fullscreen)
+    #[cfg(target_os = "macos")]
+    {
+      self
+        .window
+        .dispatcher
+        .set_simple_fullscreen(enable)
+        .map_err(Into::into)
+    }
+    #[cfg(not(target_os = "macos"))]
+    self.set_fullscreen(enable)
   }
 
   /// Bring the window to front and focus.

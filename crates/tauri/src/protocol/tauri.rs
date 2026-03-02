@@ -32,7 +32,7 @@ pub fn get<R: Runtime>(
   #[cfg(all(dev, mobile))]
   let url = {
     let mut url = manager
-      .get_url(window_origin.starts_with("https"))
+      .get_app_url(window_origin.starts_with("https"))
       .as_str()
       .to_string();
     if url.ends_with('/') {
@@ -95,9 +95,9 @@ fn get_response<R: Runtime>(
   let path = path
     .strip_prefix("tauri://localhost")
     .map(|p| p.to_string())
-    // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
+    // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows and Android
     // where `$P` is not `localhost/*`
-    .unwrap_or_else(|| "".to_string());
+    .unwrap_or_default();
 
   let mut builder = HttpResponse::builder()
     .add_configured_headers(manager.config.app.security.headers.as_ref())
@@ -114,6 +114,11 @@ fn get_response<R: Runtime>(
       decoded_path.trim_start_matches('/')
     );
 
+    #[cfg(feature = "rustls-tls")]
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+      let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+
     let mut client = reqwest::ClientBuilder::new();
 
     if url.starts_with("https://") {
@@ -126,10 +131,9 @@ fn get_response<R: Runtime>(
         ))]
         {
           log::info!("adding dev server root certificate");
-          client = client.add_root_certificate(
-            reqwest::Certificate::from_pem(cert_pem.as_bytes())
-              .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE"),
-          );
+          let certificate = reqwest::Certificate::from_pem(cert_pem.as_bytes())
+            .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE");
+          client = client.tls_certs_merge([certificate]);
         }
 
         #[cfg(not(any(

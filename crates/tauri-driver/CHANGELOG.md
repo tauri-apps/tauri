@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.5]
+
+### Bug Fixes
+
+- [`06f911aaf`](https://www.github.com/tauri-apps/tauri/commit/06f911aaff495121f08ebc77d9d1b41382298a1f) ([#14871](https://www.github.com/tauri-apps/tauri/pull/14871) by [@goosewobbler](https://www.github.com/tauri-apps/tauri/../../goosewobbler)) Prevent native WebDriver stdout from polluting tauri-driver's stdout used by test frameworks.
+
 ## \[2.0.4]
 
 ### Enhancements

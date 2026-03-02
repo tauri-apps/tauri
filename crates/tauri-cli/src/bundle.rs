@@ -16,11 +16,11 @@ use crate::{
   error::{Context, ErrorExt},
   helpers::{
     self,
-    app_paths::tauri_dir,
-    config::{get as get_config, ConfigMetadata},
+    app_paths::Dirs,
+    config::{get_config, ConfigMetadata},
     updater_signature,
   },
-  interface::{AppInterface, AppSettings, Interface},
+  interface::{AppInterface, AppSettings},
   ConfigValue,
 };
 
@@ -70,8 +70,8 @@ pub struct Options {
   #[clap(short, long)]
   pub config: Vec<ConfigValue>,
   /// Space or comma separated list of features, should be the same features passed to `tauri build` if any.
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
+  pub features: Vec<String>,
   /// Target triple to build against.
   ///
   /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
@@ -118,7 +118,7 @@ impl From<crate::build::Options> for Options {
 }
 
 pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let ci = options.ci;
 
@@ -131,27 +131,21 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   let config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
-  let interface = AppInterface::new(
-    config.lock().unwrap().as_ref().unwrap(),
-    options.target.clone(),
-  )?;
+  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
-  let tauri_path = tauri_dir();
-  std::env::set_current_dir(tauri_path).context("failed to set current directory")?;
+  std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
-  let config_guard = config.lock().unwrap();
-  let config_ = config_guard.as_ref().unwrap();
-
-  if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
+  if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
   }
 
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
 
   bundle(
     &options,
@@ -159,7 +153,8 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     ci,
     &interface,
     &*app_settings,
-    config_,
+    &config,
+    &dirs,
     &out_dir,
   )
 }
@@ -172,6 +167,7 @@ pub fn bundle<A: AppSettings>(
   interface: &AppInterface,
   app_settings: &A,
   config: &ConfigMetadata,
+  dirs: &Dirs,
   out_dir: &Path,
 ) -> crate::Result<()> {
   let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
@@ -198,12 +194,19 @@ pub fn bundle<A: AppSettings>(
         before_bundle,
         interface,
         options.debug,
+        dirs.frontend,
       )?;
     }
   }
 
   let mut settings = app_settings
-    .get_bundler_settings(options.clone().into(), config, out_dir, package_types)
+    .get_bundler_settings(
+      options.clone().into(),
+      config,
+      out_dir,
+      package_types,
+      dirs.tauri,
+    )
     .with_context(|| "failed to build bundler settings")?;
   settings.set_no_sign(options.no_sign);
 

@@ -739,7 +739,7 @@ pub struct WixConfig {
   /// Because a valid version is required for MSI installer, it will be derived from [`Config::version`] if this field is not set.
   ///
   /// The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.
-  /// The third and foruth fields have a maximum value of 65,535.
+  /// The third and fourth fields have a maximum value of 65,535.
   ///
   /// See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.
   pub version: Option<String>,
@@ -996,7 +996,7 @@ pub enum CustomSignCommandConfig {
   /// This is a simpler notation for the command.
   /// Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.
   ///
-  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].
+  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::CommandWithOptions`].
   Command(String),
   /// An object notation of the command.
   ///
@@ -1593,9 +1593,9 @@ pub struct WindowEffectsConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PreventOverflowMargin {
-  /// Horizontal margin in physical unit
+  /// Horizontal margin in physical pixels
   pub width: u32,
-  /// Vertical margin in physical unit
+  /// Vertical margin in physical pixels
   pub height: u32,
 }
 
@@ -1653,7 +1653,7 @@ pub struct WindowConfig {
   /// ```rust
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
   ///   });
   /// ```
@@ -1673,26 +1673,26 @@ pub struct WindowConfig {
   /// Whether or not the window starts centered or not.
   #[serde(default)]
   pub center: bool,
-  /// The horizontal position of the window's top left corner
+  /// The horizontal position of the window's top left corner in logical pixels
   pub x: Option<f64>,
-  /// The vertical position of the window's top left corner
+  /// The vertical position of the window's top left corner in logical pixels
   pub y: Option<f64>,
-  /// The window width.
+  /// The window width in logical pixels.
   #[serde(default = "default_width")]
   pub width: f64,
-  /// The window height.
+  /// The window height in logical pixels.
   #[serde(default = "default_height")]
   pub height: f64,
-  /// The min window width.
+  /// The min window width in logical pixels.
   #[serde(alias = "min-width")]
   pub min_width: Option<f64>,
-  /// The min window height.
+  /// The min window height in logical pixels.
   #[serde(alias = "min-height")]
   pub min_height: Option<f64>,
-  /// The max window width.
+  /// The max window width in logical pixels.
   #[serde(alias = "max-width")]
   pub max_width: Option<f64>,
-  /// The max window height.
+  /// The max window height in logical pixels.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
   /// Whether or not to prevent the window from overflowing the workarea
@@ -2006,7 +2006,7 @@ impl Default for WindowConfig {
       closable: true,
       title: default_title(),
       fullscreen: false,
-      focus: false,
+      focus: true,
       focusable: true,
       transparent: false,
       maximized: false,
@@ -2742,7 +2742,7 @@ pub struct AppConfig {
   /// ```rust
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
   ///   });
   /// ```
@@ -2941,11 +2941,11 @@ fn default_min_sdk_version() -> u32 {
 #[serde(untagged, deny_unknown_fields)]
 #[non_exhaustive]
 pub enum FrontendDist {
-  /// An external URL that should be used as the default application URL.
+  /// An external URL that should be used as the default application URL. No assets are embedded in the app in this case.
   Url(Url),
   /// Path to a directory containing the frontend dist assets.
   Directory(PathBuf),
-  /// An array of files to embed on the app.
+  /// An array of files to embed in the app.
   Files(Vec<PathBuf>),
 }
 
@@ -3164,18 +3164,20 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
               })?;
             Ok(PackageVersion(
               Version::from_str(version)
-                .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+                .map_err(|_| {
+                  DeError::custom("`tauri.conf.json > version` must be a semver string")
+                })?
                 .to_string(),
             ))
           } else {
             Err(DeError::custom(
-              "`package > version` value is not a path to a JSON object",
+              "`tauri.conf.json > version` value is not a path to a JSON object",
             ))
           }
         } else {
           Ok(PackageVersion(
             Version::from_str(value)
-              .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+              .map_err(|_| DeError::custom("`tauri.conf.json > version` must be a semver string"))?
               .to_string(),
           ))
         }
@@ -3840,9 +3842,14 @@ mod build {
           quote!(#prefix::Policy(#policy.into()))
         }
         Self::DirectiveMap(list) => {
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = list.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
             quote! { ::std::collections::HashMap },
-            list,
+            sorted,
             str_lit,
             identity,
           );
@@ -3898,7 +3905,17 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
-          let map = map_lit(quote! { ::std::collections::HashMap }, m, str_lit, str_lit);
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = m.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
+          let map = map_lit(
+            quote! { ::std::collections::HashMap },
+            sorted,
+            str_lit,
+            str_lit,
+          );
           quote!(#prefix::Map(#map))
         }
       })
@@ -4045,9 +4062,14 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // Pass a sorted vec so the HashMap constructor is deterministic
+      // see: https://github.com/tauri-apps/tauri/issues/14978
+      // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+      let mut sorted: Vec<_> = self.0.iter().collect();
+      sorted.sort_by_key(|(k, _)| *k);
       let config = map_lit(
         quote! { ::std::collections::HashMap },
-        &self.0,
+        sorted,
         str_lit,
         json_value_lit,
       );
@@ -4383,5 +4405,13 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
+  }
+
+  #[test]
+  fn window_config_default_same_as_deserialize() {
+    let config_from_deserialization: WindowConfig = serde_json::from_str("{}").unwrap();
+    let config_from_default: WindowConfig = WindowConfig::default();
+
+    assert_eq!(config_from_deserialization, config_from_default);
   }
 }

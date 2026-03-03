@@ -2890,11 +2890,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       context: self.context.clone(),
     };
 
-    self
-      .context
-      .main_thread
-      .windows
-      .store_mut(|store| store.insert(window_id, window))?;
+    self.context.main_thread.windows.insert(window_id, window)?;
 
     let detached_webview = webview_id.map(|id| {
       let webview = DetachedWebview {
@@ -2949,12 +2945,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         focused_webview,
       )?;
 
-      self.context.main_thread.windows.store_mut(move |store| {
-        if let Some(w) = store.get_mut(&window_id) {
-          w.webviews.push(webview);
-          w.has_children.store(true, Ordering::Relaxed);
-        };
-      })?;
+      self
+        .context
+        .main_thread
+        .windows
+        .add_webview(window_id, webview)?;
 
       let dispatcher = WryWebviewDispatcher {
         window_id: window_id_wrapper,
@@ -3183,14 +3178,7 @@ fn reparent_webview(
   webview: WebviewId,
   windows: Arc<WindowsStore>,
 ) -> Result<()> {
-  let removed_webview = windows.store_mut(|store| {
-    store.get_mut(&new_parent_window_id).and_then(|w| {
-      w.webviews
-        .iter()
-        .position(|w| w.id == webview)
-        .map(|webview_index| w.webviews.remove(webview_index))
-    })
-  })?;
+  let removed_webview = windows.remove_webview(new_parent_window_id, webview)?;
 
   match removed_webview {
     None => Err(Error::FailedToSendMessage),
@@ -3228,11 +3216,7 @@ fn reparent_webview(
 
           match reparent_result {
             Ok(_) => {
-              windows.store_mut(|store| {
-                store
-                  .get_mut(&new_parent_window_id)
-                  .map(|w| w.webviews.push(webview))
-              })?;
+              windows.add_webview(new_parent_window_id, webview)?;
               Ok(())
             }
             Err(_err) => Err(Error::FailedToSendMessage),
@@ -3684,14 +3668,7 @@ fn handle_user_message<T: UserEvent>(
             let _ = webview.print();
           }
           WebviewMessage::Close => {
-            if let Err(e) = windows.store_mut(|store| {
-              let window = store.get_mut(&window_id);
-              if let Some(window) = window {
-                if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
-                  window.webviews.remove(i);
-                }
-              }
-            }) {
+            if let Err(e) = windows.remove_webview(window_id, webview.id) {
               log::error!("unable to remove webview from window: {e}")
             }
           }
@@ -3937,12 +3914,7 @@ fn handle_user_message<T: UserEvent>(
         Ok(Some((Some(window), focused_webview))) => {
           match handler(&window, CreateWebviewOptions { focused_webview }) {
             Ok(webview) => {
-              if let Err(e) = windows.store_mut(move |store| {
-                if let Some(w) = store.get_mut(&window_id) {
-                  w.webviews.push(webview);
-                  w.has_children.store(true, Ordering::Relaxed);
-                };
-              }) {
+              if let Err(e) = windows.add_webview(window_id, webview) {
                 log::error!("unable to add webview to window: {e}");
               }
             }
@@ -3957,7 +3929,7 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
       Ok(webview) => {
-        if let Err(e) = windows.store_mut(|store| store.insert(window_id, webview)) {
+        if let Err(e) = windows.insert(window_id, webview) {
           log::error!("unable to create window: {e}");
         }
       }
@@ -3994,25 +3966,23 @@ fn handle_user_message<T: UserEvent>(
           None
         };
 
-        if let Err(e) = windows.store_mut(|store| {
-          store.insert(
-            window_id,
-            WindowWrapper {
-              label,
-              has_children: AtomicBool::new(false),
-              inner: Some(window.clone()),
-              window_event_listeners: Default::default(),
-              webviews: Vec::new(),
-              #[cfg(windows)]
-              background_color,
-              #[cfg(windows)]
-              is_window_transparent,
-              #[cfg(windows)]
-              surface,
-              focused_webview: Default::default(),
-            },
-          )
-        }) {
+        if let Err(e) = windows.insert(
+          window_id,
+          WindowWrapper {
+            label,
+            has_children: AtomicBool::new(false),
+            inner: Some(window.clone()),
+            window_event_listeners: Default::default(),
+            webviews: Vec::new(),
+            #[cfg(windows)]
+            background_color,
+            #[cfg(windows)]
+            is_window_transparent,
+            #[cfg(windows)]
+            surface,
+            focused_webview: Default::default(),
+          },
+        ) {
           log::error!("unable to add window to store: {e}");
         }
 

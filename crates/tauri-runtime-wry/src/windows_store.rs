@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{Result, WebviewId, WebviewWrapper, WindowWrapper};
-use std::cell::{RefCell, RefMut};
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{cell::RefCell, collections::BTreeMap, sync::atomic::Ordering, sync::Arc};
 use tao::window::Window;
 use tauri_runtime::{window::WindowId, Error};
 
@@ -47,6 +45,38 @@ impl WindowsStore {
     })
   }
 
+  pub fn insert(&self, id: WindowId, window: WindowWrapper) -> Result<Option<WindowWrapper>> {
+    self.store_mut(|store| store.insert(id, window))
+  }
+
+  pub fn remove(&self, id: WindowId) -> Result<Option<WindowWrapper>> {
+    self.store_mut(|store| store.remove(&id))
+  }
+
+  pub fn add_webview(&self, window: WindowId, webview: WebviewWrapper) -> Result<()> {
+    self.store_mut(|store| {
+      if let Some(w) = store.get_mut(&window) {
+        w.webviews.push(webview);
+        w.has_children.store(true, Ordering::Relaxed);
+      }
+    })
+  }
+
+  pub fn remove_webview(
+    &self,
+    window: WindowId,
+    webview: WebviewId,
+  ) -> Result<Option<WebviewWrapper>> {
+    self.store_mut(|store| {
+      store.get_mut(&window).and_then(|w| {
+        w.webviews
+          .iter()
+          .position(|wv| wv.id == webview)
+          .map(|i| w.webviews.remove(i))
+      })
+    })
+  }
+
   pub fn store<F, T>(&self, f: F) -> Result<T>
   where
     F: FnOnce(&WindowMap) -> T,
@@ -62,13 +92,10 @@ impl WindowsStore {
   where
     F: FnOnce(&mut WindowMap) -> T,
   {
-    self.try_store_mut().map(|mut s| f(&mut s))
-  }
-
-  pub fn try_store_mut(&self) -> Result<RefMut<'_, WindowMap>> {
     self
       .0
       .try_borrow_mut()
+      .map(|mut s| f(&mut s))
       .map_err(|e| Error::WindowsStore(Box::new(e)))
   }
 }

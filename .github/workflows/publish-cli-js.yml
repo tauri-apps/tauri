@@ -20,6 +20,10 @@ defaults:
   run:
     working-directory: packages/cli/
 
+permissions:
+  contents: write # update release
+  id-token: write # oidc token
+
 jobs:
   build:
     strategy:
@@ -366,16 +370,13 @@ jobs:
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
-    permissions:
-      contents: write # update release
-      id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
       - run: npm i -g --force corepack
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts
@@ -390,10 +391,8 @@ jobs:
         shell: bash
       - name: Publish
         run: |
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ''
           RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}
-          NPM_CONFIG_PROVENANCE: true

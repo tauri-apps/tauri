@@ -453,7 +453,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
       #config,
-      ::std::boxed::Box::new(#assets),
+      ::std::boxed::Box::new(assets),
       #default_window_icon,
       #app_icon,
       #package_info,
@@ -468,14 +468,16 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     context
   });
 
-  Ok(quote!({
-    // Wrapping in a function to make rust analyzer faster,
-    // see https://github.com/tauri-apps/tauri/pull/14457
-    fn inner<R: #root::Runtime>() -> #root::Context<R> {
+  // Wrapping in a function to make rust analyzer faster,
+  // see https://github.com/tauri-apps/tauri/pull/14457
+  // We take the assets as an argument so when the caller provides custom `assets` the closure
+  // does not capture from the caller's scope ("can't capture dynamic environment in a fn item").
+  let output = quote!({
+    fn inner<R: #root::Runtime, A: #root::Assets<R> + 'static>(assets: A) -> #root::Context<R> {
       let thread = ::std::thread::Builder::new()
         .name(String::from("generated tauri context creation"))
         .stack_size(8 * 1024 * 1024)
-        .spawn(|| #context)
+        .spawn(move || #context)
         .expect("unable to create thread with 8MiB stack");
 
       match thread.join() {
@@ -486,8 +488,10 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         }
       }
     }
-    inner()
-  }))
+    inner(#assets)
+  });
+
+  Ok(output)
 }
 
 fn find_icon(

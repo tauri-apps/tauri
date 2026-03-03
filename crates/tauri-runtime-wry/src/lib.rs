@@ -127,7 +127,7 @@ use std::{
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
-    BTreeMap, HashMap, HashSet,
+    HashMap, HashSet,
   },
   fmt,
   ops::Deref,
@@ -425,16 +425,9 @@ pub enum ActiveTracingSpan {
   },
 }
 
-#[derive(Debug)]
-pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
+pub use self::windows_store::WindowsStore;
 
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for WindowsStore {}
-
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Sync for WindowsStore {}
+mod windows_store;
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
@@ -532,8 +525,8 @@ impl WindowEventWrapper {
           // so on blur we should only send events if the current focus is owned by the window
           if !*focused
             && focused_webview
-              .as_deref()
-              .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
+            .as_deref()
+            .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
           {
             return Self(None);
           }
@@ -1470,10 +1463,10 @@ pub enum EventLoopWindowTargetMessage {
 }
 
 pub type CreateWindowClosure<T> =
-  Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
+Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
 
 pub type CreateWebviewClosure =
-  Box<dyn FnOnce(&Window, CreateWebviewOptions) -> Result<WebviewWrapper> + Send>;
+Box<dyn FnOnce(&Window, CreateWebviewOptions) -> Result<WebviewWrapper> + Send>;
 
 pub struct CreateWebviewOptions {
   pub focused_webview: Arc<Mutex<Option<String>>>,
@@ -2795,7 +2788,7 @@ impl<T: UserEvent> Wry<T> {
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
-    let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
+    let windows = Default::default();
     let window_id_map = WindowIdStore::default();
 
     let context = Context {
@@ -2902,9 +2895,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .context
       .main_thread
       .windows
-      .0
-      .borrow_mut()
-      .insert(window_id, window);
+      .store_mut(|store| store.insert(window_id, window))?;
 
     let detached_webview = webview_id.map(|id| {
       let webview = DetachedWebview {
@@ -2936,15 +2927,15 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   ) -> Result<DetachedWebview<T, Self>> {
     let label = pending.label.clone();
 
-    let window = self
-      .context
-      .main_thread
-      .windows
-      .0
-      .borrow()
-      .get(&window_id)
-      .map(|w| (w.inner.clone(), w.focused_webview.clone()));
-    if let Some((Some(window), focused_webview)) = window {
+    let window = self.context.main_thread.windows.store(|store| {
+      store.get(&window_id).and_then(|w| {
+        w.inner
+          .as_ref()
+          .map(|i| (Arc::clone(i), Arc::clone(&w.focused_webview)))
+      })
+    })?;
+
+    if let Some((window, focused_webview)) = window {
       let window_id_wrapper = Arc::new(Mutex::new(window_id));
 
       let webview_id = self.context.next_webview_id();
@@ -2959,19 +2950,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         focused_webview,
       )?;
 
-      #[allow(unknown_lints, clippy::manual_inspect)]
-      self
-        .context
-        .main_thread
-        .windows
-        .0
-        .borrow_mut()
-        .get_mut(&window_id)
-        .map(|w| {
+      self.context.main_thread.windows.store_mut(move |store| {
+        if let Some(w) = store.get_mut(&window_id) {
           w.webviews.push(webview);
           w.has_children.store(true, Ordering::Relaxed);
-          w
-        });
+        };
+      })?;
 
       let dispatcher = WryWebviewDispatcher {
         window_id: window_id_wrapper,
@@ -3186,6 +3170,123 @@ where
   }
 }
 
+fn reparent_webview(
+  new_parent_window_id: WindowId,
+  webview: WebviewId,
+  windows: Arc<WindowsStore>,
+) -> Result<()> {
+  let removed_webview = windows.store_mut(|store| {
+    store.get_mut(&new_parent_window_id).and_then(|w| {
+      w.webviews
+        .iter()
+        .position(|w| w.id == webview)
+        .map(|webview_index| w.webviews.remove(webview_index))
+    })
+  })?;
+
+  match removed_webview {
+    None => Err(Error::FailedToSendMessage),
+    Some(webview) => {
+      let window = windows.store(|w| {
+        w.get(&new_parent_window_id)
+          .and_then(|w| w.inner.as_ref().map(Arc::clone))
+      })?;
+      match window {
+        None => Err(Error::FailedToSendMessage),
+        Some(new_parent_window) => {
+          #[cfg(target_os = "macos")]
+          let reparent_result = {
+            use wry::WebViewExtMacOS;
+            webview.inner.reparent(new_parent_window.ns_window() as _)
+          };
+
+          #[cfg(windows)]
+          let reparent_result = { webview.inner.reparent(new_parent_window.hwnd()) };
+
+          #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ))]
+          let reparent_result = {
+            if let Some(container) = new_parent_window.default_vbox() {
+              webview.inner.reparent(container)
+            } else {
+              Err(wry::Error::MessageSender)
+            }
+          };
+
+          match reparent_result {
+            Ok(_) => {
+              windows.store_mut(|store| {
+                store
+                  .get_mut(&new_parent_window_id)
+                  .map(|w| w.webviews.push(webview))
+              })?;
+              Ok(())
+            }
+            Err(_err) => Err(Error::FailedToSendMessage),
+          }
+        }
+      }
+    }
+  }
+
+  /* if let Some(webview) = webview_handle {
+    let window = windows.store(|w| {
+      w.get(&new_parent_window_id)
+        .and_then(|w| w.inner.as_ref().map(Arc::clone))
+    });
+
+    if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
+      .0
+      .borrow_mut()
+      .get_mut(&new_parent_window_id)
+      .map(|w| (w.inner.clone(), &mut w.webviews))
+    {
+      #[cfg(target_os = "macos")]
+      let reparent_result = {
+        use wry::WebViewExtMacOS;
+        webview.inner.reparent(new_parent_window.ns_window() as _)
+      };
+      #[cfg(windows)]
+      let reparent_result = { webview.inner.reparent(new_parent_window.hwnd()) };
+
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      let reparent_result = {
+        if let Some(container) = new_parent_window.default_vbox() {
+          webview.inner.reparent(container)
+        } else {
+          Err(wry::Error::MessageSender)
+        }
+      };
+
+      match reparent_result {
+        Ok(_) => {
+          new_parent_window_webviews.push(webview);
+          tx.send(Ok(())).unwrap();
+        }
+        Err(e) => {
+          log::error!("failed to reparent webview: {e}");
+          tx.send(Err(Error::FailedToSendMessage)).unwrap();
+        }
+      }
+    } else {
+      Err(Error::WindowNotFound)
+    }
+  } else {
+    Err(Error::FailedToSendMessage)
+  }*/
+}
+
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub window_id_map: WindowIdStore,
@@ -3242,15 +3343,28 @@ fn handle_user_message<T: UserEvent>(
       }
     },
     Message::Window(id, window_message) => {
-      let w = windows.0.borrow().get(&id).map(|w| {
-        (
-          w.inner.clone(),
-          w.webviews.clone(),
-          w.has_children.load(Ordering::Relaxed),
-          w.window_event_listeners.clone(),
-        )
+      let windows = windows.store(|store| {
+        store.get(&id).and_then(|w| {
+          w.inner.as_ref().map(|inner| {
+            (
+              Arc::clone(inner),
+              w.webviews.clone(),
+              w.has_children.load(Ordering::Relaxed),
+              Arc::clone(&w.window_event_listeners),
+            )
+          })
+        })
       });
-      if let Some((Some(window), webviews, has_children, window_event_listeners)) = w {
+
+      let windows = match windows {
+        Ok(windows) => windows,
+        Err(e) => {
+          log::error!("{e}");
+          return;
+        }
+      };
+
+      if let Some((window, webviews, has_children, window_event_listeners)) = windows {
         match window_message {
           WindowMessage::AddEventListener(id, listener) => {
             window_event_listeners.lock().unwrap().insert(id, listener);
@@ -3555,69 +3669,15 @@ fn handle_user_message<T: UserEvent>(
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      if let WebviewMessage::Reparent(new_parent_window_id, tx) = webview_message {
-        let webview_handle = windows.0.borrow_mut().get_mut(&window_id).and_then(|w| {
-          w.webviews
-            .iter()
-            .position(|w| w.id == webview_id)
-            .map(|webview_index| w.webviews.remove(webview_index))
-        });
-
-        if let Some(webview) = webview_handle {
-          if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
-            .0
-            .borrow_mut()
-            .get_mut(&new_parent_window_id)
-            .map(|w| (w.inner.clone(), &mut w.webviews))
-          {
-            #[cfg(target_os = "macos")]
-            let reparent_result = {
-              use wry::WebViewExtMacOS;
-              webview.inner.reparent(new_parent_window.ns_window() as _)
-            };
-            #[cfg(windows)]
-            let reparent_result = { webview.inner.reparent(new_parent_window.hwnd()) };
-
-            #[cfg(any(
-              target_os = "linux",
-              target_os = "dragonfly",
-              target_os = "freebsd",
-              target_os = "netbsd",
-              target_os = "openbsd"
-            ))]
-            let reparent_result = {
-              if let Some(container) = new_parent_window.default_vbox() {
-                webview.inner.reparent(container)
-              } else {
-                Err(wry::Error::MessageSender)
-              }
-            };
-
-            match reparent_result {
-              Ok(_) => {
-                new_parent_window_webviews.push(webview);
-                tx.send(Ok(())).unwrap();
-              }
-              Err(e) => {
-                log::error!("failed to reparent webview: {e}");
-                tx.send(Err(Error::FailedToSendMessage)).unwrap();
-              }
-            }
-          }
-        } else {
-          tx.send(Err(Error::FailedToSendMessage)).unwrap();
+      if let WebviewMessage::Reparent(new_parent_window_id, ref tx) = webview_message {
+        if let Err(e) = reparent_webview(new_parent_window_id, webview_id, Arc::clone(&windows)) {
+          log::error!("failed to reparent webview: {e}");
+          tx.send(Err(e)).unwrap();
+          return;
         }
-
-        return;
       }
 
-      let webview_handle = windows.0.borrow().get(&window_id).map(|w| {
-        (
-          w.inner.clone(),
-          w.webviews.iter().find(|w| w.id == webview_id).cloned(),
-        )
-      });
-      if let Some((Some(window), Some(webview))) = webview_handle {
+      if let Ok(Some((window, webview))) = windows.window_and_webview(window_id, webview_id) {
         match webview_message {
           WebviewMessage::WebviewEvent(_) => { /* already handled */ }
           WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
@@ -3668,13 +3728,16 @@ fn handle_user_message<T: UserEvent>(
             let _ = webview.print();
           }
           WebviewMessage::Close => {
-            #[allow(unknown_lints, clippy::manual_inspect)]
-            windows.0.borrow_mut().get_mut(&window_id).map(|window| {
-              if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
-                window.webviews.remove(i);
+            if let Err(e) = windows.store_mut(|store| {
+              let window = store.get_mut(&window_id);
+              if let Some(window) = window {
+                if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
+                  window.webviews.remove(i);
+                }
               }
-              window
-            });
+            }) {
+              log::error!("unable to remove webview from window: {e}")
+            }
           }
           WebviewMessage::SetBounds(bounds) => {
             let bounds: RectWrapper = bounds.into();
@@ -3762,7 +3825,7 @@ fn handle_user_message<T: UserEvent>(
                 .map(|u| u.parse().expect("invalid webview URL"))
                 .map_err(|_| Error::FailedToSendMessage),
             )
-            .unwrap();
+              .unwrap();
           }
 
           WebviewMessage::Cookies(tx) => {
@@ -3799,7 +3862,7 @@ fn handle_user_message<T: UserEvent>(
                 })
                 .map_err(|_| Error::FailedToSendMessage),
             )
-            .unwrap();
+              .unwrap();
           }
           WebviewMessage::Position(tx) => {
             tx.send(
@@ -3808,7 +3871,7 @@ fn handle_user_message<T: UserEvent>(
                 .map(|bounds| bounds.position.to_physical(window.scale_factor()))
                 .map_err(|_| Error::FailedToSendMessage),
             )
-            .unwrap();
+              .unwrap();
           }
           WebviewMessage::Size(tx) => {
             tx.send(
@@ -3817,7 +3880,7 @@ fn handle_user_message<T: UserEvent>(
                 .map(|bounds| bounds.size.to_physical(window.scale_factor()))
                 .map_err(|_| Error::FailedToSendMessage),
             )
-            .unwrap();
+              .unwrap();
           }
           WebviewMessage::SetFocus => {
             if let Err(e) = webview.focus() {
@@ -3910,30 +3973,37 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWebview(window_id, handler) => {
-      let window = windows
-        .0
-        .borrow()
-        .get(&window_id)
-        .map(|w| (w.inner.clone(), w.focused_webview.clone()));
-      if let Some((Some(window), focused_webview)) = window {
-        match handler(&window, CreateWebviewOptions { focused_webview }) {
-          Ok(webview) => {
-            #[allow(unknown_lints, clippy::manual_inspect)]
-            windows.0.borrow_mut().get_mut(&window_id).map(|w| {
-              w.webviews.push(webview);
-              w.has_children.store(true, Ordering::Relaxed);
-              w
-            });
-          }
-          Err(e) => {
-            log::error!("{e}");
+      let window = windows.window(window_id, |window| {
+        Some((window.inner.clone(), window.focused_webview.clone()))
+      });
+
+      match window {
+        Ok(Some((Some(window), focused_webview))) => {
+          match handler(&window, CreateWebviewOptions { focused_webview }) {
+            Ok(webview) => {
+              if let Err(e) = windows.store_mut(move |store| {
+                if let Some(w) = store.get_mut(&window_id) {
+                  w.webviews.push(webview);
+                  w.has_children.store(true, Ordering::Relaxed);
+                };
+              }) {
+                log::error!("unable to add webview to window: {e}");
+              }
+            }
+            Err(e) => {
+              log::error!("{e}");
+            }
           }
         }
+        Ok(_) => log::error!("window not found: {window_id:?}"),
+        Err(e) => log::error!("unable to create webview: {e}"),
       }
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
       Ok(webview) => {
-        windows.0.borrow_mut().insert(window_id, webview);
+        if let Err(e) = windows.store_mut(|store| store.insert(window_id, webview)) {
+          log::error!("unable to create window: {e}");
+        }
       }
       Err(e) => {
         log::error!("{e}");
@@ -3968,23 +4038,28 @@ fn handle_user_message<T: UserEvent>(
           None
         };
 
-        windows.0.borrow_mut().insert(
-          window_id,
-          WindowWrapper {
-            label,
-            has_children: AtomicBool::new(false),
-            inner: Some(window.clone()),
-            window_event_listeners: Default::default(),
-            webviews: Vec::new(),
-            #[cfg(windows)]
-            background_color,
-            #[cfg(windows)]
-            is_window_transparent,
-            #[cfg(windows)]
-            surface,
-            focused_webview: Default::default(),
-          },
-        );
+        if let Err(e) = windows.store_mut(|store| {
+          store.insert(
+            window_id,
+            WindowWrapper {
+              label,
+              has_children: AtomicBool::new(false),
+              inner: Some(window.clone()),
+              window_event_listeners: Default::default(),
+              webviews: Vec::new(),
+              #[cfg(windows)]
+              background_color,
+              #[cfg(windows)]
+              is_window_transparent,
+              #[cfg(windows)]
+              surface,
+              focused_webview: Default::default(),
+            },
+          )
+        }) {
+          log::error!("unable to add window to store: {e}");
+        }
+
         sender.send(Ok(Arc::downgrade(&window))).unwrap();
       } else {
         sender.send(Err(Error::CreateWindow)).unwrap();
@@ -4066,18 +4141,18 @@ fn handle_event_loop<T: UserEvent>(
     }
 
     Event::UserEvent(Message::Webview(
-      window_id,
-      webview_id,
-      WebviewMessage::WebviewEvent(event),
-    )) => {
-      let windows_ref = windows.0.borrow();
-      if let Some(window) = windows_ref.get(&window_id) {
-        if let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id) {
-          let label = webview.label.clone();
-          let webview_event_listeners = webview.webview_event_listeners.clone();
-
-          drop(windows_ref);
-
+                       window_id,
+                       webview_id,
+                       WebviewMessage::WebviewEvent(event),
+                     )) => {
+      match windows.window(window_id, |window| {
+        window
+          .webviews
+          .iter()
+          .find(|w| w.id == webview_id)
+          .map(|w| (w.label.clone(), w.webview_event_listeners.clone()))
+      }) {
+        Ok(Some((label, webview_event_listeners))) => {
           callback(RunEvent::WebviewEvent {
             label,
             event: event.clone(),
@@ -4088,33 +4163,36 @@ fn handle_event_loop<T: UserEvent>(
             handler(&event);
           }
         }
+        Ok(_) => log::error!("failed to handle {event:?} because window not found: {window_id:?}"),
+        Err(e) => log::error!("failed to handle {event:?} because: {e}"),
       }
     }
 
     Event::UserEvent(Message::Webview(
-      window_id,
-      _webview_id,
-      WebviewMessage::SynthesizedWindowEvent(event),
-    )) => {
+                       window_id,
+                       _webview_id,
+                       WebviewMessage::SynthesizedWindowEvent(event),
+                     )) => {
       if let Some(event) = WindowEventWrapper::from(event).0 {
-        let windows_ref = windows.0.borrow();
-        let window = windows_ref.get(&window_id);
-        if let Some(window) = window {
-          let label = window.label.clone();
-          let window_event_listeners = window.window_event_listeners.clone();
+        match windows.window(window_id, |window| {
+          Some((window.label.clone(), window.window_event_listeners.clone()))
+        }) {
+          Ok(Some((label, window_event_listeners))) => {
+            callback(RunEvent::WindowEvent {
+              label,
+              event: event.clone(),
+            });
 
-          drop(windows_ref);
-
-          callback(RunEvent::WindowEvent {
-            label,
-            event: event.clone(),
-          });
-
-          let listeners = window_event_listeners.lock().unwrap();
-          let handlers = listeners.values();
-          for handler in handlers {
-            handler(&event);
+            let listeners = window_event_listeners.lock().unwrap();
+            let handlers = listeners.values();
+            for handler in handlers {
+              handler(&event);
+            }
           }
+          Ok(_) => {
+            log::error!("failed to handle {event:?} because window not found: {window_id:?}")
+          }
+          Err(e) => log::error!("failed to handle {event:?} because: {e}"),
         }
       }
     }
@@ -4124,14 +4202,16 @@ fn handle_event_loop<T: UserEvent>(
     } => {
       if let Some(window_id) = window_id_map.get(&window_id) {
         {
-          let windows_ref = windows.0.borrow();
-          if let Some(window) = windows_ref.get(&window_id) {
-            if let Some(event) = WindowEventWrapper::parse(window, &event).0 {
-              let label = window.label.clone();
-              let window_event_listeners = window.window_event_listeners.clone();
-
-              drop(windows_ref);
-
+          match windows.window(window_id, |window| {
+            WindowEventWrapper::parse(window, &event).0.map(|event| {
+              (
+                event,
+                window.label.clone(),
+                window.window_event_listeners.clone(),
+              )
+            })
+          }) {
+            Ok(Some((event, label, window_event_listeners))) => {
               callback(RunEvent::WindowEvent {
                 label,
                 event: event.clone(),
@@ -4142,6 +4222,11 @@ fn handle_event_loop<T: UserEvent>(
                 handler(&event);
               }
             }
+            Ok(_) => {
+              log::error!("failed to handle {event:?} because window not found: {window_id:?}")
+            }
+
+            Err(e) => log::error!("failed to handle {event:?} because: {e}"),
           }
         }
 
@@ -4165,10 +4250,9 @@ fn handle_event_loop<T: UserEvent>(
             on_close_requested(callback, window_id, windows);
           }
           TaoWindowEvent::Destroyed => {
-            let removed = windows.0.borrow_mut().remove(&window_id).is_some();
-            if removed {
-              let is_empty = windows.0.borrow().is_empty();
-              if is_empty {
+            match windows.store_mut(|store| store.remove(&window_id).map(|_| store.is_empty())) {
+              Ok(Some(false)) => { /* more windows exist */ }
+              Ok(Some(true)) => {
                 let (tx, rx) = channel();
                 callback(RunEvent::ExitRequested { code: None, tx });
 
@@ -4179,28 +4263,41 @@ fn handle_event_loop<T: UserEvent>(
                   *control_flow = ControlFlow::Exit;
                 }
               }
+              Ok(None) => log::warn!(
+                "received TaoWindowEvent::Destroyed for window that does not exist: {window_id:?}"
+              ),
+              Err(e) => log::error!("failed to remove window from store: {e}"),
             }
           }
           TaoWindowEvent::Resized(size) => {
-            if let Some((Some(window), webviews)) = windows
-              .0
-              .borrow()
-              .get(&window_id)
-              .map(|w| (w.inner.clone(), w.webviews.clone()))
-            {
-              let size = size.to_logical::<f32>(window.scale_factor());
-              for webview in webviews {
-                if let Some(b) = &*webview.bounds.lock().unwrap() {
-                  if let Err(e) = webview.set_bounds(wry::Rect {
-                    position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
-                      .into(),
-                    size: LogicalSize::new(size.width * b.width_rate, size.height * b.height_rate)
-                      .into(),
-                  }) {
-                    log::error!("failed to autoresize webview: {e}");
+            match windows.window(window_id, |window| {
+              window
+                .inner
+                .as_ref()
+                .map(|i| (Arc::clone(i), window.webviews.clone()))
+            }) {
+              Ok(Some((window, webviews))) => {
+                let size = size.to_logical::<f32>(window.scale_factor());
+                for webview in webviews {
+                  if let Some(b) = &*webview.bounds.lock().unwrap() {
+                    if let Err(e) = webview.set_bounds(wry::Rect {
+                      position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
+                        .into(),
+                      size: LogicalSize::new(
+                        size.width * b.width_rate,
+                        size.height * b.height_rate,
+                      )
+                        .into(),
+                    }) {
+                      log::error!("failed to autoresize webview: {e}");
+                    }
                   }
                 }
               }
+              Ok(_) => {
+                log::error!("failed to resize window because window not found: {window_id:?}")
+              }
+              Err(e) => log::error!("failed to resize window: {e}"),
             }
           }
           _ => {}
@@ -4261,36 +4358,43 @@ fn on_close_requested<'a, T: UserEvent>(
   windows: Arc<WindowsStore>,
 ) {
   let (tx, rx) = channel();
-  let windows_ref = windows.0.borrow();
-  if let Some(w) = windows_ref.get(&window_id) {
-    let label = w.label.clone();
-    let window_event_listeners = w.window_event_listeners.clone();
-
-    drop(windows_ref);
-
-    let listeners = window_event_listeners.lock().unwrap();
-    let handlers = listeners.values();
-    for handler in handlers {
-      handler(&WindowEvent::CloseRequested {
-        signal_tx: tx.clone(),
+  match windows.window(window_id, |window| {
+    Some((window.label.clone(), window.window_event_listeners.clone()))
+  }) {
+    Ok(Some((label, window_event_listeners))) => {
+      let listeners = window_event_listeners.lock().unwrap();
+      let handlers = listeners.values();
+      for handler in handlers {
+        handler(&WindowEvent::CloseRequested {
+          signal_tx: tx.clone(),
+        });
+      }
+      callback(RunEvent::WindowEvent {
+        label,
+        event: WindowEvent::CloseRequested { signal_tx: tx },
       });
+      if let Ok(true) = rx.try_recv() {
+      } else {
+        on_window_close(window_id, windows);
+      }
     }
-    callback(RunEvent::WindowEvent {
-      label,
-      event: WindowEvent::CloseRequested { signal_tx: tx },
-    });
-    if let Ok(true) = rx.try_recv() {
-    } else {
-      on_window_close(window_id, windows);
+    Ok(_) => {
+      log::error!("failed to close window because window not found: {window_id:?}")
     }
+    Err(e) => log::error!("failed to close window: {e}"),
   }
 }
 
 fn on_window_close(window_id: WindowId, windows: Arc<WindowsStore>) {
-  if let Some(window_wrapper) = windows.0.borrow_mut().get_mut(&window_id) {
-    window_wrapper.inner = None;
+  match windows.window_mut(window_id, |window| {
+    window.inner = None;
     #[cfg(windows)]
     window_wrapper.surface.take();
+    Some(())
+  }) {
+    Ok(Some(())) => {}
+    Ok(_) => log::error!("failed to close window because window not found: {window_id:?}"),
+    Err(e) => log::error!("failed to close window: {e}"),
   }
 }
 
@@ -4734,31 +4838,34 @@ You may have it installed on another user account, but it is not available for t
         tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
         #[cfg(desktop)]
         tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
-          let windows = &context.main_thread.windows.0;
-          let webview = windows
-            .borrow()
-            .get(&window_id)
-            .unwrap()
-            .webviews
-            .first()
-            .unwrap()
-            .clone();
-
-          #[cfg(desktop)]
-          wry::NewWindowResponse::Create {
-            #[cfg(target_os = "macos")]
-            webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
-            #[cfg(any(
-              target_os = "linux",
-              target_os = "dragonfly",
-              target_os = "freebsd",
-              target_os = "netbsd",
-              target_os = "openbsd",
-            ))]
-            webview: webview.webview(),
-            #[cfg(windows)]
-            webview: webview.webview(),
+          match context
+            .main_thread
+            .windows
+            .window(window_id, |window| window.webviews.first().cloned())
+          {
+            Ok(Some(webview)) =>
+              {
+                #[cfg(desktop)]
+                return wry::NewWindowResponse::Create {
+                  #[cfg(target_os = "macos")]
+                  webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
+                  #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd",
+                  ))]
+                  webview: webview.webview(),
+                  #[cfg(windows)]
+                  webview: webview.webview(),
+                }
+              }
+            Ok(None) => log::error!("no window or webviews found {window_id:?}"),
+            Err(e) => log::error!("NewWindowResponse::Create: {e}"),
           }
+
+          wry::NewWindowResponse::Deny
         }
         tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
       }
@@ -5039,7 +5146,7 @@ You may have it installed on another user account, but it is not available for t
       builder
     }
   }
-  .map_err(|e| Error::CreateWebview(Box::new(e)))?;
+    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   if kind == WebviewKind::WindowContent {
     #[cfg(any(
@@ -5085,7 +5192,7 @@ You may have it installed on another user account, but it is not available for t
         &mut token,
       )
     }
-    .unwrap();
+      .unwrap();
     unsafe {
       let label_ = label.clone();
       let window_id_ = window_id.clone();
@@ -5116,7 +5223,7 @@ You may have it installed on another user account, but it is not available for t
         &mut token,
       )
     }
-    .unwrap();
+      .unwrap();
 
     if let Ok(webview) = unsafe { controller.CoreWebView2() } {
       let proxy_clone = context.proxy.clone();

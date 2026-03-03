@@ -167,17 +167,6 @@ pub fn secret_key<S: AsRef<[u8]>>(
   let decoded_secret = decode_key(private_key).context("failed to decode base64 secret key")?;
   let sk_box =
     SecretKeyBox::from_string(&decoded_secret).context("failed to load updater private key")?;
-  // TODO: use `is_none_or` instead when MSRV is high enough
-  if match password.as_ref() {
-    Some(password) => password.is_empty(),
-    None => true,
-  } {
-    // If no password or the password is an empty string,
-    // we try to decrypt the secret key as unencrypted first
-    if let Ok(sk) = SecretKey::from_unencrypted_box(sk_box.clone()) {
-      return Ok(sk);
-    }
-  }
   let sk = sk_box
     .into_secret_key(password)
     .context("incorrect updater private key password")?;
@@ -222,7 +211,7 @@ mod tests {
   // This was encrypted with an empty string
   const PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
 
-  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords.
+  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords if the private key is encrypted with an empty string.
   #[test]
   fn empty_password_is_valid() {
     let path = std::env::temp_dir().join("minisign-password-text.txt");
@@ -234,7 +223,7 @@ mod tests {
   }
 
   // This tests the newly generated keys with empty string password works
-  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords.
+  // minisign >=0.7.4,<=0.8.0 generate keys unencrypted if the password is empty but is marked encrypted hence unusable
   #[test]
   fn generate_empty_password_keys_and_use() {
     let KeyPair { pk, sk } = generate_key(Some("".to_owned())).unwrap();

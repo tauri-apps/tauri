@@ -2229,12 +2229,17 @@ tauri::Builder::<tauri::Wry>::new()
       custom_schemes.push(schema.clone());
     }
 
-    let user_agents: Vec<&String> = manager.config.app.windows
+    let user_agents: Vec<&String> = manager
+      .config
+      .app
+      .windows
       .iter()
       .filter_map(|w| w.user_agent.as_ref())
       .collect();
     if user_agents.windows(2).any(|ua| ua[0] != ua[1]) {
-      eprintln!("The CEF runtime only supports setting a single user agent - the first user agent defined in the app windows config will be used");
+      eprintln!(
+        "The CEF runtime only supports setting a single user agent - the first user agent defined in the app windows config will be used"
+      );
     }
     let user_agent = user_agents.first().map(|ua| ua.as_str().to_owned());
 

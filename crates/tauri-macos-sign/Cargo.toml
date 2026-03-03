@@ -1,6 +1,6 @@
 [package]
 name = "tauri-macos-sign"
-version = "2.3.2"
+version = "2.3.3"
 authors = ["Tauri Programme within The Commons Conservancy"]
 license = "Apache-2.0 OR MIT"
 keywords = ["codesign", "signing", "macos", "ios", "tauri"]

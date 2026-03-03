@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.10.1]
+
+### Bug Fixes
+
+- Re-release of `2.10.0` with working assets.
+
+## \[2.10.0]
+
+### Dependencies
+
+- [`517b81e97`](https://www.github.com/tauri-apps/tauri/commit/517b81e97005d087ca5fc4538d954982fce0f4ac) ([#14876](https://www.github.com/tauri-apps/tauri/pull/14876)) Upgraded to `tauri@2.10`
+
 ## \[2.9.1]
 
 ### Bug Fixes

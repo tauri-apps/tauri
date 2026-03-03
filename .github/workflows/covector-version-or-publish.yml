@@ -61,7 +61,7 @@ jobs:
       actions: write # required for workflow_dispatch
       contents: write # required to create new releases
       pull-requests: write # required to open version update pr
-      id-token: write # pnpm provenance
+      id-token: write # pnpm provenance / oidc token
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
@@ -74,10 +74,9 @@ jobs:
         with:
           fetch-depth: 0
       - run: npm i -g --force corepack
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
+          node-version: 24
 
       - name: cargo login
         run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}
@@ -95,7 +94,6 @@ jobs:
         uses: jbolda/covector/packages/action@covector-v0
         id: covector
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
           NPM_CONFIG_PROVENANCE: true
         with:

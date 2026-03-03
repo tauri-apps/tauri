@@ -3164,18 +3164,20 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
               })?;
             Ok(PackageVersion(
               Version::from_str(version)
-                .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+                .map_err(|_| {
+                  DeError::custom("`tauri.conf.json > version` must be a semver string")
+                })?
                 .to_string(),
             ))
           } else {
             Err(DeError::custom(
-              "`package > version` value is not a path to a JSON object",
+              "`tauri.conf.json > version` value is not a path to a JSON object",
             ))
           }
         } else {
           Ok(PackageVersion(
             Version::from_str(value)
-              .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+              .map_err(|_| DeError::custom("`tauri.conf.json > version` must be a semver string"))?
               .to_string(),
           ))
         }
@@ -3840,9 +3842,14 @@ mod build {
           quote!(#prefix::Policy(#policy.into()))
         }
         Self::DirectiveMap(list) => {
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = list.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
             quote! { ::std::collections::HashMap },
-            list,
+            sorted,
             str_lit,
             identity,
           );
@@ -3898,7 +3905,17 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
-          let map = map_lit(quote! { ::std::collections::HashMap }, m, str_lit, str_lit);
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = m.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
+          let map = map_lit(
+            quote! { ::std::collections::HashMap },
+            sorted,
+            str_lit,
+            str_lit,
+          );
           quote!(#prefix::Map(#map))
         }
       })
@@ -4045,9 +4062,14 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // Pass a sorted vec so the HashMap constructor is deterministic
+      // see: https://github.com/tauri-apps/tauri/issues/14978
+      // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+      let mut sorted: Vec<_> = self.0.iter().collect();
+      sorted.sort_by_key(|(k, _)| *k);
       let config = map_lit(
         quote! { ::std::collections::HashMap },
-        &self.0,
+        sorted,
         str_lit,
         json_value_lit,
       );

@@ -54,9 +54,9 @@ pub struct Channel<TSend = InvokeResponseBody> {
 #[cfg(feature = "specta")]
 const _: () = {
   #[derive(specta::Type)]
-  #[specta(remote = super::Channel, rename = "TAURI_CHANNEL")]
-  #[allow(dead_code)]
-  struct Channel<TSend>(std::marker::PhantomData<TSend>);
+  #[specta(remote = super::Channel)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_CHANNEL<TSend>(std::marker::PhantomData<TSend>);
 };
 
 impl<TSend> Clone for Channel<TSend> {

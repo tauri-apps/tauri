@@ -11,7 +11,7 @@ use super::{device_prompt, env};
 use crate::{
   error::Context,
   helpers::config::{get_config as get_tauri_config, ConfigMetadata},
-  interface::{DevProcess, Interface, WatcherOptions},
+  interface::{DevProcess, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
 };
@@ -26,7 +26,7 @@ pub struct Options {
   #[clap(short, long)]
   pub release: bool,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
@@ -76,7 +76,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let mut built_application = super::build::command(
+  let mut built_application = super::build::run(
     super::build::Options {
       debug: !options.release,
       targets: Some(vec![]), /* skips IPA build since there's no target */

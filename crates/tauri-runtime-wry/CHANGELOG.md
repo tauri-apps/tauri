@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.10.0]
+
+### Bug Fixes
+
+- [`c1d82eb3a`](https://www.github.com/tauri-apps/tauri/commit/c1d82eb3a3fa4b555745ba699edf1cc532030117) ([#14628](https://www.github.com/tauri-apps/tauri/pull/14628) by [@KushalMeghani1644](https://www.github.com/tauri-apps/tauri/../../KushalMeghani1644)) On Linux, keep the WebContext alive to prevent zombie WebKit processes after repeatedly closing all windows and re-opening them.
+- [`9b242e40c`](https://www.github.com/tauri-apps/tauri/commit/9b242e40c844189c877a91e513ae6196202d5ae9) ([#14700](https://www.github.com/tauri-apps/tauri/pull/14700) by [@mewi99](https://www.github.com/tauri-apps/tauri/../../mewi99)) Fix compilation errors when targeting BSD.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- Upgraded to `tauri-runtime@2.10.0`
+- [`75057c7c0`](https://www.github.com/tauri-apps/tauri/commit/75057c7c08f0d4d3dd8d10cea4e2217e5d61fe1a) ([#14778](https://www.github.com/tauri-apps/tauri/pull/14778) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) **Breaking Change** for `with_webview` users: Updated webkit2gtk-rs crates to `v2.0.2`.
+- [`75057c7c0`](https://www.github.com/tauri-apps/tauri/commit/75057c7c08f0d4d3dd8d10cea4e2217e5d61fe1a) ([#14778](https://www.github.com/tauri-apps/tauri/pull/14778) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Update wry to `v0.54`.
+
 ## \[2.9.3]
 
 ### Bug Fixes

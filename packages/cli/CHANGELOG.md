@@ -1,5 +1,44 @@
 # Changelog
 
+## \[2.10.0]
+
+### Enhancements
+
+- [`f82594410`](https://www.github.com/tauri-apps/tauri/commit/f82594410cd57d6f794f58d4afea0ed335aa796f) ([#13253](https://www.github.com/tauri-apps/tauri/pull/13253) by [@Armaldio](https://www.github.com/tauri-apps/tauri/../../Armaldio)) Allow electron to run the CLI directly
+- [`a2abe2e6b`](https://www.github.com/tauri-apps/tauri/commit/a2abe2e6bcb9e1eed8484240dfdb76a5bc28ae58) ([#14607](https://www.github.com/tauri-apps/tauri/pull/14607) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Simplified internal representation of `features: Option<Vec<String>>` with `Vec<String>`, no user facing changes
+- [`84b04c4a8`](https://www.github.com/tauri-apps/tauri/commit/84b04c4a8d3310b7a7091d10e36244bf94996e51) ([#14759](https://www.github.com/tauri-apps/tauri/pull/14759) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added new environment variables for `tauri signer sign` command, to align with existing environment variables used in `tauri build`, `tauri bundle` and `tauri signer generate`
+
+  - `TAURI_SIGNING_PRIVATE_KEY`
+  - `TAURI_SIGNING_PRIVATE_KEY_PATH`
+  - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+  The old environment variables are deprecated and will be removed in a future release.
+
+  - `TAURI_PRIVATE_KEY`
+  - `TAURI_PRIVATE_KEY_PATH`
+  - `TAURI_PRIVATE_KEY_PASSWORD`
+
+### Bug Fixes
+
+- [`62aa13a12`](https://www.github.com/tauri-apps/tauri/commit/62aa13a124ef46bb5ce9887a2a574dd35ef86d4f) ([#14629](https://www.github.com/tauri-apps/tauri/pull/14629) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `android build`'s `--aab` and `--apk` flags requiring a value to be provided.
+- [`eccff9758`](https://www.github.com/tauri-apps/tauri/commit/eccff97588232055bd0cafd83e6ee03d11a501fb) ([#14779](https://www.github.com/tauri-apps/tauri/pull/14779) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix empty associated-domains entitlements when domains are not configured for deep links.
+- [`ea31b07f1`](https://www.github.com/tauri-apps/tauri/commit/ea31b07f19e0aa467ed0f921f60575cfe09809c8) ([#14789](https://www.github.com/tauri-apps/tauri/pull/14789) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fixed the command description for `tauri inspect`
+- [`7fca58230`](https://www.github.com/tauri-apps/tauri/commit/7fca58230f97c3e6834134419514a0c7dbbe784b) ([#14830](https://www.github.com/tauri-apps/tauri/pull/14830) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Updated `nsis_tauri_utils` to 0.5.3:
+
+  - Use an alternative method `CreateProcessWithTokenW` to run programs as user, this fixed a problem that the program launched with the previous method can't query its own handle
+- [`53611c4d7`](https://www.github.com/tauri-apps/tauri/commit/53611c4d7bdaf89b9a5d7c46a9c4bf4e34216148) ([#14747](https://www.github.com/tauri-apps/tauri/pull/14747) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Only watch dependent workspace members when running `tauri dev` instead of watching on all members
+- [`1b0e335d3`](https://www.github.com/tauri-apps/tauri/commit/1b0e335d3f3445948d6590f7e074275d97cd9859) ([#14713](https://www.github.com/tauri-apps/tauri/pull/14713) by [@wasuaje](https://www.github.com/tauri-apps/tauri/../../wasuaje)) `tauri signer sign` doesn't work for files without an extension
+
+### What's Changed
+
+- [`e3fdcb500`](https://www.github.com/tauri-apps/tauri/commit/e3fdcb5002b362b46cde2a1971e4e7f2a1161208) ([#14836](https://www.github.com/tauri-apps/tauri/pull/14836) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Continued refactors of tauri-cli, fix too weak atomics.
+- [`0575dd287`](https://www.github.com/tauri-apps/tauri/commit/0575dd287e021b61d2aedf64d62ae84a2c925fb4) ([#14521](https://www.github.com/tauri-apps/tauri/pull/14521) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Change the way bundle type information is added to binary files. Instead of looking up the value of a variable we simply look for the default value.
+- [`7f7d9aac2`](https://www.github.com/tauri-apps/tauri/commit/7f7d9aac214e22d9492490543f7a9bcae0a6659e) ([#14668](https://www.github.com/tauri-apps/tauri/pull/14668) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Refactored internal use of static on config and directory resolvings, no user facing changes, please report any regressions if you encounter any
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.10.0`
+
 ## \[2.9.6]
 
 ### Dependencies

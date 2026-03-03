@@ -72,3 +72,4 @@ schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch =
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
+minisign = { git = "https://github.com/Legend-Master/rust-minisign.git", branch = "fix-empty-password" }

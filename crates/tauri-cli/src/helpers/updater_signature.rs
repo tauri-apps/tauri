@@ -158,6 +158,8 @@ where
 }
 
 /// Gets the updater secret key from the given private key and password.
+///
+/// If `password` is `None`, a password is going to be prompted interactively.
 pub fn secret_key<S: AsRef<[u8]>>(
   private_key: S,
   password: Option<String>,
@@ -165,6 +167,17 @@ pub fn secret_key<S: AsRef<[u8]>>(
   let decoded_secret = decode_key(private_key).context("failed to decode base64 secret key")?;
   let sk_box =
     SecretKeyBox::from_string(&decoded_secret).context("failed to load updater private key")?;
+  // TODO: use `is_none_or` instead when MSRV is high enough
+  if match password.as_ref() {
+    Some(password) => password.is_empty(),
+    None => true,
+  } {
+    // If no password or the password is an empty string,
+    // we try to decrypt the secret key as unencrypted first
+    if let Ok(sk) = SecretKey::from_unencrypted_box(sk_box.clone()) {
+      return Ok(sk);
+    }
+  }
   let sk = sk_box
     .into_secret_key(password)
     .context("incorrect updater private key password")?;
@@ -204,6 +217,9 @@ where
 
 #[cfg(test)]
 mod tests {
+  use super::*;
+
+  // This was encrypted with an empty string
   const PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
 
   // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords.
@@ -213,7 +229,18 @@ mod tests {
     std::fs::write(&path, b"TAURI").expect("failed to write test file");
 
     let secret_key =
-      super::secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
-    super::sign_file(&secret_key, &path).expect("failed to sign file");
+      secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
+    sign_file(&secret_key, &path).expect("failed to sign file");
+  }
+
+  // This tests the newly generated keys with empty string password works
+  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords.
+  #[test]
+  fn generate_empty_password_keys_and_use() {
+    let KeyPair { pk, sk } = generate_key(Some("".to_owned())).unwrap();
+    let pk = pub_key(pk).unwrap();
+    let sk = secret_key(sk, Some("".into())).unwrap();
+    let data = b"TAURI".as_slice();
+    sign(Some(&pk), &sk, data, None, None).expect("failed to sign file");
   }
 }

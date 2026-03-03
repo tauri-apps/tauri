@@ -4609,8 +4609,7 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 [[package]]
 name = "minisign"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6bf96cef396a17a96f7600281aa4da9229860b7a082601b1f6db6eaa5f99ee5"
+source = "git+https://github.com/Legend-Master/rust-minisign.git?branch=fix-empty-password#a6644c7d261b16c5e03b4f87c2386a10ead3478f"
 dependencies = [
  "ct-codecs",
  "getrandom 0.3.3",

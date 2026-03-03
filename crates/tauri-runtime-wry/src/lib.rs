@@ -3233,58 +3233,6 @@ fn reparent_webview(
       }
     }
   }
-
-  /* if let Some(webview) = webview_handle {
-    let window = windows.store(|w| {
-      w.get(&new_parent_window_id)
-        .and_then(|w| w.inner.as_ref().map(Arc::clone))
-    });
-
-    if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
-      .0
-      .borrow_mut()
-      .get_mut(&new_parent_window_id)
-      .map(|w| (w.inner.clone(), &mut w.webviews))
-    {
-      #[cfg(target_os = "macos")]
-      let reparent_result = {
-        use wry::WebViewExtMacOS;
-        webview.inner.reparent(new_parent_window.ns_window() as _)
-      };
-      #[cfg(windows)]
-      let reparent_result = { webview.inner.reparent(new_parent_window.hwnd()) };
-
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      let reparent_result = {
-        if let Some(container) = new_parent_window.default_vbox() {
-          webview.inner.reparent(container)
-        } else {
-          Err(wry::Error::MessageSender)
-        }
-      };
-
-      match reparent_result {
-        Ok(_) => {
-          new_parent_window_webviews.push(webview);
-          tx.send(Ok(())).unwrap();
-        }
-        Err(e) => {
-          log::error!("failed to reparent webview: {e}");
-          tx.send(Err(Error::FailedToSendMessage)).unwrap();
-        }
-      }
-    } else {
-      Err(Error::WindowNotFound)
-    }
-  } else {
-    Err(Error::FailedToSendMessage)
-  }*/
 }
 
 pub struct EventLoopIterationContext<'a, T: UserEvent> {

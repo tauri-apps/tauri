@@ -398,6 +398,7 @@ mod tests {
   use crate::{Env, PackageInfo};
 
   #[test]
+  #[cfg(not(target_os = "android"))]
   fn resolve_resource_dir() {
     let package_info = PackageInfo {
       name: "MyApp".into(),

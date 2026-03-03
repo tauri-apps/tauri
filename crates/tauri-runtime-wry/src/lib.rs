@@ -3169,6 +3169,15 @@ where
   }
 }
 
+#[cfg(any(
+  target_os = "macos",
+  windows,
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 fn reparent_webview(
   new_parent_window_id: WindowId,
   webview: WebviewId,

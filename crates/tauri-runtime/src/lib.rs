@@ -393,6 +393,7 @@ pub struct RuntimeInitArgs<A> {
   pub msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
   pub identifier: String,
   pub custom_schemes: Vec<String>,
+  pub user_agent: Option<String>,
   pub platform_specific_attributes: Vec<A>,
 }
 

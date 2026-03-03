@@ -4080,7 +4080,7 @@ fn handle_event_loop<T: UserEvent>(
         if let Err(e) = windows.window_mut(window_id, |window| {
           if window.is_window_transparent {
             let background_color = window.background_color;
-            if let Some(inner) = window.inner {
+            if let Some(inner) = &window.inner {
               if let Some(surface) = &mut window.surface {
                 inner.draw_surface(surface, background_color);
               }

@@ -124,7 +124,6 @@ pub use tao::platform::macos::{
 use tauri_runtime::ActivationPolicy;
 
 use std::{
-  cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
     HashMap, HashSet,
@@ -404,7 +403,7 @@ impl<T: UserEvent> Context<T> {
 
 #[cfg(feature = "tracing")]
 #[derive(Debug, Clone, Default)]
-pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
+pub struct ActiveTraceSpanStore(Rc<std::cell::RefCell<Vec<ActiveTracingSpan>>>);
 
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
@@ -525,8 +524,8 @@ impl WindowEventWrapper {
           // so on blur we should only send events if the current focus is owned by the window
           if !*focused
             && focused_webview
-            .as_deref()
-            .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
+              .as_deref()
+              .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
           {
             return Self(None);
           }
@@ -1463,10 +1462,10 @@ pub enum EventLoopWindowTargetMessage {
 }
 
 pub type CreateWindowClosure<T> =
-Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
+  Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
 
 pub type CreateWebviewClosure =
-Box<dyn FnOnce(&Window, CreateWebviewOptions) -> Result<WebviewWrapper> + Send>;
+  Box<dyn FnOnce(&Window, CreateWebviewOptions) -> Result<WebviewWrapper> + Send>;
 
 pub struct CreateWebviewOptions {
   pub focused_webview: Arc<Mutex<Option<String>>>,
@@ -3773,7 +3772,7 @@ fn handle_user_message<T: UserEvent>(
                 .map(|u| u.parse().expect("invalid webview URL"))
                 .map_err(|_| Error::FailedToSendMessage),
             )
-              .unwrap();
+            .unwrap();
           }
 
           WebviewMessage::Cookies(tx) => {
@@ -3810,7 +3809,7 @@ fn handle_user_message<T: UserEvent>(
                 })
                 .map_err(|_| Error::FailedToSendMessage),
             )
-              .unwrap();
+            .unwrap();
           }
           WebviewMessage::Position(tx) => {
             tx.send(
@@ -3819,7 +3818,7 @@ fn handle_user_message<T: UserEvent>(
                 .map(|bounds| bounds.position.to_physical(window.scale_factor()))
                 .map_err(|_| Error::FailedToSendMessage),
             )
-              .unwrap();
+            .unwrap();
           }
           WebviewMessage::Size(tx) => {
             tx.send(
@@ -3828,7 +3827,7 @@ fn handle_user_message<T: UserEvent>(
                 .map(|bounds| bounds.size.to_physical(window.scale_factor()))
                 .map_err(|_| Error::FailedToSendMessage),
             )
-              .unwrap();
+            .unwrap();
           }
           WebviewMessage::SetFocus => {
             if let Err(e) = webview.focus() {
@@ -4069,16 +4068,16 @@ fn handle_event_loop<T: UserEvent>(
     #[cfg(windows)]
     Event::RedrawRequested(id) => {
       if let Some(window_id) = window_id_map.get(&id) {
-        let mut windows_ref = windows.0.borrow_mut();
-        if let Some(window) = windows_ref.get_mut(&window_id) {
-          if window.is_window_transparent {
-            let background_color = window.background_color;
-            if let Some(surface) = &mut window.surface {
-              if let Some(window) = &window.inner {
-                window.draw_surface(surface, background_color);
-              }
-            }
-          }
+        if let Err(e) = windows.window_mut(window_id, |window| {
+          window.is_window_transparent.then(|| {
+            window.surface.and_then(|mut surface| {
+              window
+                .inner
+                .map(|i| i.draw_surface(&mut surface, window.background_color))
+            })
+          })
+        }) {
+          log::error!("redraw requested: unable to get window: {e}");
         }
       }
     }
@@ -4089,10 +4088,10 @@ fn handle_event_loop<T: UserEvent>(
     }
 
     Event::UserEvent(Message::Webview(
-                       window_id,
-                       webview_id,
-                       WebviewMessage::WebviewEvent(event),
-                     )) => {
+      window_id,
+      webview_id,
+      WebviewMessage::WebviewEvent(event),
+    )) => {
       match windows.window(window_id, |window| {
         window
           .webviews
@@ -4117,10 +4116,10 @@ fn handle_event_loop<T: UserEvent>(
     }
 
     Event::UserEvent(Message::Webview(
-                       window_id,
-                       _webview_id,
-                       WebviewMessage::SynthesizedWindowEvent(event),
-                     )) => {
+      window_id,
+      _webview_id,
+      WebviewMessage::SynthesizedWindowEvent(event),
+    )) => {
       if let Some(event) = WindowEventWrapper::from(event).0 {
         match windows.window(window_id, |window| {
           Some((window.label.clone(), window.window_event_listeners.clone()))
@@ -4181,17 +4180,23 @@ fn handle_event_loop<T: UserEvent>(
         match event {
           #[cfg(windows)]
           TaoWindowEvent::ThemeChanged(theme) => {
-            if let Some(window) = windows.0.borrow().get(&window_id) {
-              for webview in &window.webviews {
-                let theme = match theme {
-                  TaoTheme::Dark => wry::Theme::Dark,
-                  TaoTheme::Light => wry::Theme::Light,
-                  _ => wry::Theme::Light,
-                };
-                if let Err(e) = webview.set_theme(theme) {
-                  log::error!("failed to set theme: {e}");
+            match windows.window(window_id, |w| w.webviews.clone()) {
+              Ok(Some(webviews)) => {
+                for webview in webviews {
+                  let theme = match theme {
+                    TaoTheme::Dark => wry::Theme::Dark,
+                    TaoTheme::Light => wry::Theme::Light,
+                    _ => wry::Theme::Light,
+                  };
+                  if let Err(e) = webview.set_theme(theme) {
+                    log::error!("failed to set theme: {e}");
+                  }
                 }
               }
+              Ok(_) => {
+                log::error!("failed to handle {event:?} because window not found: {window_id:?}")
+              }
+              Err(e) => log::error!("failed to handle {event:?} because: {e}"),
             }
           }
           TaoWindowEvent::CloseRequested => {
@@ -4235,7 +4240,7 @@ fn handle_event_loop<T: UserEvent>(
                         size.width * b.width_rate,
                         size.height * b.height_rate,
                       )
-                        .into(),
+                      .into(),
                     }) {
                       log::error!("failed to autoresize webview: {e}");
                     }
@@ -4337,7 +4342,7 @@ fn on_window_close(window_id: WindowId, windows: Arc<WindowsStore>) {
   match windows.window_mut(window_id, |window| {
     window.inner = None;
     #[cfg(windows)]
-    window_wrapper.surface.take();
+    window.surface.take();
     Some(())
   }) {
     Ok(Some(())) => {}
@@ -4792,23 +4797,23 @@ You may have it installed on another user account, but it is not available for t
             .window(window_id, |window| window.webviews.first().cloned())
           {
             Ok(Some(webview)) =>
-              {
-                #[cfg(desktop)]
-                return wry::NewWindowResponse::Create {
-                  #[cfg(target_os = "macos")]
-                  webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
-                  #[cfg(any(
-                    target_os = "linux",
-                    target_os = "dragonfly",
-                    target_os = "freebsd",
-                    target_os = "netbsd",
-                    target_os = "openbsd",
-                  ))]
-                  webview: webview.webview(),
-                  #[cfg(windows)]
-                  webview: webview.webview(),
-                }
+            {
+              #[cfg(desktop)]
+              return wry::NewWindowResponse::Create {
+                #[cfg(target_os = "macos")]
+                webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd",
+                ))]
+                webview: webview.webview(),
+                #[cfg(windows)]
+                webview: webview.webview(),
               }
+            }
             Ok(None) => log::error!("no window or webviews found {window_id:?}"),
             Err(e) => log::error!("NewWindowResponse::Create: {e}"),
           }
@@ -5094,7 +5099,7 @@ You may have it installed on another user account, but it is not available for t
       builder
     }
   }
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
+  .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   if kind == WebviewKind::WindowContent {
     #[cfg(any(
@@ -5140,7 +5145,7 @@ You may have it installed on another user account, but it is not available for t
         &mut token,
       )
     }
-      .unwrap();
+    .unwrap();
     unsafe {
       let label_ = label.clone();
       let window_id_ = window_id.clone();
@@ -5171,7 +5176,7 @@ You may have it installed on another user account, but it is not available for t
         &mut token,
       )
     }
-      .unwrap();
+    .unwrap();
 
     if let Ok(webview) = unsafe { controller.CoreWebView2() } {
       let proxy_clone = context.proxy.clone();

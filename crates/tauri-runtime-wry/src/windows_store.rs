@@ -1,5 +1,5 @@
 use crate::{Result, WebviewId, WebviewWrapper, WindowWrapper};
-use std::cell::{ RefCell, RefMut};
+use std::cell::{RefCell, RefMut};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use tao::window::Window;

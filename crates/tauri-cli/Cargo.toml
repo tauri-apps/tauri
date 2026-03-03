@@ -70,7 +70,9 @@ jsonschema = { version = "0.33", default-features = false }
 handlebars = "6"
 include_dir = "0.7"
 dirs = "6"
-minisign = "0.8"
+# 0.7.4 to 0.8.0 were broken, 0.9 pulls in getrandom 0.4 with a high MSRV
+# see https://github.com/tauri-apps/tauri/pull/15022
+minisign = "=0.7.3"
 base64 = "0.22"
 ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"

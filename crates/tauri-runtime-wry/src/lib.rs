@@ -4078,13 +4078,16 @@ fn handle_event_loop<T: UserEvent>(
     Event::RedrawRequested(id) => {
       if let Some(window_id) = window_id_map.get(&id) {
         if let Err(e) = windows.window_mut(window_id, |window| {
-          window.is_window_transparent.then(|| {
-            window.surface.and_then(|mut surface| {
-              window
-                .inner
-                .map(|i| i.draw_surface(&mut surface, window.background_color))
-            })
-          })
+          if window.is_window_transparent {
+            let background_color = window.background_color;
+            if let Some(inner) = window.inner {
+              if let Some(surface) = &mut window.surface {
+                inner.draw_surface(surface, background_color);
+              }
+            }
+          }
+
+          Some(())
         }) {
           log::error!("redraw requested: unable to get window: {e}");
         }

@@ -65,9 +65,14 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
               span.record(
                 "request",
                 match &request.body {
-                  super::InvokeBody::Json(j) => serde_json::to_string(j).unwrap_or_else(|e| e.to_string()),
-                  super::InvokeBody::Raw(b) => serde_json::to_string(b).unwrap_or_else(|e| e.to_string()),
-                },
+                  super::InvokeBody::Json(j) => serde_json::to_string(j),
+                  super::InvokeBody::Raw(b) => serde_json::to_string(b),
+                }
+                .unwrap_or_else(|e| {
+                  let msg = format!("failed to serialize request body: {e}");
+                  tracing::debug!("{msg}");
+                  serde_json::Value::String(msg).to_string()
+                }),
               );
               #[cfg(feature = "tracing")]
               let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);

@@ -4180,7 +4180,7 @@ fn handle_event_loop<T: UserEvent>(
         match event {
           #[cfg(windows)]
           TaoWindowEvent::ThemeChanged(theme) => {
-            match windows.window(window_id, |w| w.webviews.clone()) {
+            match windows.window(window_id, |w| Some(w.webviews.clone())) {
               Ok(Some(webviews)) => {
                 for webview in webviews {
                   let theme = match theme {

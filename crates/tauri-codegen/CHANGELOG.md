@@ -1,11 +1,5 @@
 # Changelog
 
-## \[2.5.5]
-
-### Dependencies
-
-- Upgraded to `tauri-utils@2.8.3`
-
 ## \[2.5.4]
 
 ### Bug Fixes

@@ -1,21 +1,5 @@
 # Changelog
 
-## \[2.10.1]
-
-### Bug Fixes
-
-- [`35c35f27a`](https://www.github.com/tauri-apps/tauri/commit/35c35f27aedc430b602ec74059b271128c15ad36) ([#14931](https://www.github.com/tauri-apps/tauri/pull/14931) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Support comma-separated list of Cargo features on all commands.
-- [`0d1cb83ba`](https://www.github.com/tauri-apps/tauri/commit/0d1cb83bab2aa482c7d73116893fd7ff6aa56283) ([#14932](https://www.github.com/tauri-apps/tauri/pull/14932) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix missing Cargo args when running mobile dev and build commands.
-- [`33754ae5e`](https://www.github.com/tauri-apps/tauri/commit/33754ae5e3740d022483b6164511c5c001a3c24b) ([#15022](https://www.github.com/tauri-apps/tauri/pull/15022) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix updater signing private keys generated using `tauri signer generate` with empty password can't be used (The keys generated during tauri were broken between v2.9.3 and v2.10.0, you'll need to regenerate them)
-
-### What's Changed
-
-- [`7be58a1c6`](https://www.github.com/tauri-apps/tauri/commit/7be58a1c643a7ed6d0f484a7e1134022618eb2b2) ([#14894](https://www.github.com/tauri-apps/tauri/pull/14894) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Log patching bundle type information again
-
-### Dependencies
-
-- Upgraded to `tauri-cli@2.10.1`
-
 ## \[2.10.0]
 
 ### Enhancements

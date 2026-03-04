@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.8.1]
+
+### Bug Fixes
+
+- [`6252432f0`](https://www.github.com/tauri-apps/tauri/commit/6252432f0757d896d7a61819bbff127efac5a156) ([#14945](https://www.github.com/tauri-apps/tauri/pull/14945) by [@veeceey](https://www.github.com/tauri-apps/tauri/../../veeceey)) Fix WIX installer registry search order so that the named `InstallDir` key takes priority over the NSIS default key, preventing install location from changing on updates.
+
+### What's Changed
+
+- [`7be58a1c6`](https://www.github.com/tauri-apps/tauri/commit/7be58a1c643a7ed6d0f484a7e1134022618eb2b2) ([#14894](https://www.github.com/tauri-apps/tauri/pull/14894) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Log patching bundle type information again
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+
 ## \[2.8.0]
 
 ### Enhancements

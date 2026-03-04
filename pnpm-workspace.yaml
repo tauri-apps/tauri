@@ -5,3 +5,10 @@ packages:
   - examples/api
   - examples/resources
   - examples/file-associations
+
+onlyBuiltDependencies:
+  - "esbuild"
+  - "workerd"
+
+# overrides:
+#   -

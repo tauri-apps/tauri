@@ -48,6 +48,13 @@ impl CefWebview {
     }
   }
 
+  pub fn set_background_color(&self, color: cef::Color) {
+    match self {
+      CefWebview::BrowserView(view) => view.set_background_color(color),
+      CefWebview::Browser(_) => {}
+    }
+  }
+
   pub fn scale_factor(&self) -> f64 {
     match self {
       CefWebview::BrowserView(view) => view
@@ -55,13 +62,6 @@ impl CefWebview {
         .and_then(|w| w.display())
         .map_or(1.0, |d| d.device_scale_factor() as f64),
       CefWebview::Browser(browser) => browser.scale_factor(),
-    }
-  }
-
-  pub fn set_background_color(&self, color: cef::Color) {
-    match self {
-      CefWebview::BrowserView(view) => view.set_background_color(color),
-      CefWebview::Browser(browser) => browser.set_background_color(color),
     }
   }
 
@@ -91,7 +91,6 @@ trait CefBrowserExt {
   fn bounds(&self) -> cef::Rect;
   fn set_bounds(&self, rect: Option<&cef::Rect>);
   fn scale_factor(&self) -> f64;
-  fn set_background_color(&self, color: cef::Color);
   fn set_visible(&self, visible: i32);
   fn close(&self);
   fn set_parent(&self, parent: &cef::Window);

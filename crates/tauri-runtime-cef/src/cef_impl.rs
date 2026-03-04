@@ -44,6 +44,17 @@ type CefOsEvent<'a> = *mut u8;
 #[cfg(windows)]
 type CefOsEvent<'a> = Option<&'a mut sys::MSG>;
 
+// TODO: remove once https://github.com/tauri-apps/cef-rs/pull/368 is merged and released
+#[cfg(windows)]
+#[allow(non_upper_case_globals)]
+const CEF_ColorPrimaryBackground: i32 = 222;
+#[cfg(unix)]
+#[allow(non_upper_case_globals)]
+const CEF_ColorPrimaryBackground: i32 = 225;
+
+/// CEF transparent color value (ARGB)
+const TRANSPARENT: u32 = 0x00000000;
+
 #[inline]
 fn color_to_cef_argb(color: tauri_utils::config::Color) -> u32 {
   let (r, g, b, a) = color.into();
@@ -1063,7 +1074,7 @@ wrap_window_delegate! {
     attributes: Arc<RefCell<crate::CefWindowBuilder>>,
     last_emitted_position: RefCell<PhysicalPosition<i32>>,
     last_emitted_size: RefCell<PhysicalSize<u32>>,
-    context: Context<T>
+    context: Context<T>,
   }
 
   impl ViewDelegate {
@@ -1136,6 +1147,24 @@ wrap_window_delegate! {
         }
       } else {
         cef::Size { width: 0, height: 0 }
+      }
+    }
+
+    fn on_theme_changed(&self, view: Option<&mut View>) {
+      let Some(view) = view else { return; };
+      let Some(window) = view.window() else { return; };
+
+      let attrs = self.attributes.borrow();
+
+      #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+      if attrs.transparent.unwrap_or_default() {
+        window.set_background_color(TRANSPARENT);
+        window.set_theme_color(CEF_ColorPrimaryBackground, TRANSPARENT);
+      }
+      if let Some(color) = attrs.background_color {
+        let color = color_to_cef_argb(color);
+        window.set_background_color(color);
+        window.set_theme_color(CEF_ColorPrimaryBackground, color);
       }
     }
   }
@@ -1244,13 +1273,19 @@ wrap_window_delegate! {
             // TODO: Implement shadow control for CEF
           }
 
+        // Set a default background color that matches the default theme background
+        window.set_background_color(window.theme_color(CEF_ColorPrimaryBackground));
+
         #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
         if a.transparent.unwrap_or_default() {
-          window.set_background_color(0x00000000);
+          window.set_background_color(TRANSPARENT);
+          window.set_theme_color(CEF_ColorPrimaryBackground, TRANSPARENT);
         }
 
         if let Some(color) = a.background_color {
-          window.set_background_color(color_to_cef_argb(color));
+          let color = color_to_cef_argb(color);
+          window.set_background_color(color);
+          window.set_theme_color(CEF_ColorPrimaryBackground, color);
         }
 
         if let Some(_theme) = a.theme {
@@ -1912,7 +1947,7 @@ fn handle_webview_message<T: UserEvent>(
             .find(|w| w.webview_id == webview_id)
         })
       {
-        bv.inner.set_background_color(color_value)
+        bv.inner.set_background_color(color_value);
       }
     }
     WebviewMessage::ClearAllBrowsingData => {
@@ -2922,8 +2957,9 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().background_color = color;
         if let Some(window) = app_window.window() {
-          let color_value = color_opt_to_cef_argb(color);
-          window.set_background_color(color_value);
+          let color = color_opt_to_cef_argb(color);
+          window.set_background_color(color);
+          window.set_theme_color(CEF_ColorPrimaryBackground, color);
         }
       }
     }
@@ -3074,7 +3110,7 @@ fn create_browser_window<T: UserEvent>(
     &initialization_scripts,
   );
 
-  let browser_settings = browser_settings_from_webview_attributes(&webview_attributes);
+  let browser_settings = browser_settings_from_webview_attributes(&webview_attributes, None);
 
   // Create the AppWindow with BrowserWindow variant before creating the browser
   let force_close = Arc::new(AtomicBool::new(false));
@@ -3520,7 +3556,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     &initialization_scripts,
   );
 
-  let browser_settings = browser_settings_from_webview_attributes(&webview_attributes);
+  let browser_settings =
+    browser_settings_from_webview_attributes(&webview_attributes, Some(&window));
 
   let bounds = webview_attributes.bounds.map(|bounds| {
     let device_scale_factor = window
@@ -3587,15 +3624,6 @@ pub(crate) fn create_webview<T: UserEvent>(
       browser.set_visible(1);
       // Set bounds again after reparenting to ensure correct size
       browser.set_bounds(bounds.as_ref());
-    }
-
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    if webview_attributes.transparent {
-      browser.set_background_color(0x00000000);
-    }
-
-    if let Some(background_color) = webview_attributes.background_color {
-      browser.set_background_color(color_to_cef_argb(background_color));
     }
 
     let initial_bounds_ratio = if webview_attributes.auto_resize {
@@ -3676,15 +3704,6 @@ pub(crate) fn create_webview<T: UserEvent>(
     .expect("Failed to create browser view");
 
     let browser_webview = CefWebview::BrowserView(browser_view.clone());
-
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-    if webview_attributes.transparent {
-      browser_view.set_background_color(0x00000000);
-    }
-
-    if let Some(background_color) = webview_attributes.background_color {
-      browser_view.set_background_color(color_to_cef_argb(background_color));
-    }
 
     window.add_child_view(Some(&mut View::from(&browser_view)));
 
@@ -3769,7 +3788,22 @@ fn webview_bounds_ratio(
 
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
+  window: Option<&cef::Window>,
 ) -> BrowserSettings {
+  let background_color = if let Some(color) = webview_attributes.background_color {
+    color_to_cef_argb(color)
+  } else if webview_attributes.transparent {
+    TRANSPARENT
+  } else {
+    if let Some(window) = window {
+      // Use default theme background color
+      let view: cef::View = window.into();
+      view.theme_color(CEF_ColorPrimaryBackground)
+    } else {
+      0xFFFFFFFF // Default to white if window is not available
+    }
+  };
+
   BrowserSettings {
     javascript: State::from(if webview_attributes.javascript_disabled {
       sys::cef_state_t::STATE_DISABLED
@@ -3781,13 +3815,7 @@ fn browser_settings_from_webview_attributes(
     } else {
       sys::cef_state_t::STATE_DISABLED
     }),
-    background_color: if let Some(color) = webview_attributes.background_color {
-      color_to_cef_argb(color)
-    } else if webview_attributes.transparent {
-      0x00000000
-    } else {
-      0xFFFFFFFF
-    },
+    background_color,
     ..Default::default()
   }
 }

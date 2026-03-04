@@ -107,10 +107,6 @@ impl CefBrowserExt for cef::Browser {
       .unwrap_or(1.0)
   }
 
-  fn set_background_color(&self, _color: cef::Color) {
-    // TODO: Implement background color setting for Linux/X11
-  }
-
   fn set_visible(&self, visible: i32) {
     let Some(xid) = self.xid() else {
       return;

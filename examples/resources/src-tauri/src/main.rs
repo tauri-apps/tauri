@@ -4,7 +4,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::Manager;
+use tauri::{Manager, window::Color};
 
 #[tauri::command]
 fn read_to_string(path: &str) -> String {
@@ -20,15 +20,29 @@ fn main() {
 
   builder
     .setup(move |app| {
-      let path = app
-        .path()
-        .resolve("assets/index.js", tauri::path::BaseDirectory::Resource)
-        .unwrap();
+      let window = tauri::WindowBuilder::new(app, "main")
+        .background_color(Color(255, 0, 0, 255)) // red
+        .build()?;
 
-      let content = std::fs::read_to_string(&path).unwrap();
+      let size = window.inner_size()?;
 
-      println!("Resource `assets/index.js` path: {}", path.display());
-      println!("Resource `assets/index.js` content:\n{content}\n");
+      let webview_builder = tauri::WebviewBuilder::new("main", tauri::WebviewUrl::default())
+        .background_color(Color(0, 0, 255, 255)); // blue
+
+      let webview1 = window.add_child(
+        webview_builder,
+        tauri::LogicalPosition::new(0, 0),
+        tauri::LogicalSize::new(size.width / 2, size.height),
+      )?;
+
+      let webview_builder =
+        tauri::WebviewBuilder::new("main2", tauri::WebviewUrl::default()).transparent(true);
+
+      let webview2 = window.add_child(
+        webview_builder,
+        tauri::LogicalPosition::new(size.width / 2, 0),
+        tauri::LogicalSize::new(size.width / 2, size.height),
+      )?;
 
       Ok(())
     })

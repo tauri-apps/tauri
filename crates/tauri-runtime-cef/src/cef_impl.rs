@@ -697,6 +697,17 @@ wrap_download_handler! {
   }
 
   impl DownloadHandler {
+    fn can_download(
+      &self,
+      _browser: Option<&mut Browser>,
+      _url: Option<&CefStringUtf16>,
+      _request_method: Option<&CefStringUtf16>,
+    ) -> ::std::os::raw::c_int {
+      // on_before_download is the one that actually validates the download
+      // so we return 1 to allow the download here
+      1
+    }
+
     fn on_before_download(
       &self,
       _browser: Option<&mut Browser>,

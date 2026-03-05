@@ -2,73 +2,86 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Result, WebviewId, WebviewWrapper, WindowWrapper};
-use std::cell::{RefCell, RefMut};
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use tao::window::Window;
-use tauri_runtime::{window::WindowId, Error};
+use crate::WindowWrapper;
+use std::{
+  cell::{BorrowError, BorrowMutError, Ref, RefCell, RefMut},
+  collections::BTreeMap,
+  fmt,
+  fmt::Formatter,
+};
+use tauri_runtime::window::WindowId;
 
 type WindowMap = BTreeMap<WindowId, WindowWrapper>;
+
+type Result<T, E = Error> = std::result::Result<T, E>;
+
+#[derive(Debug)]
+pub enum Error {
+  Borrow(BorrowError),
+  BorrowMut(BorrowMutError),
+  WindowNotFound(WindowId),
+}
+
+impl std::error::Error for Error {}
+impl fmt::Display for Error {
+  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    match self {
+      Error::Borrow(e) => e.fmt(f),
+      Error::BorrowMut(e) => e.fmt(f),
+      Error::WindowNotFound(id) => write!(f, "Window not in store: {id:?}"),
+    }
+  }
+}
+
+impl From<Error> for tauri_runtime::Error {
+  fn from(value: Error) -> Self {
+    Self::WindowsStore(Box::new(value))
+  }
+}
 
 #[derive(Debug, Default)]
 pub struct WindowsStore(RefCell<BTreeMap<WindowId, WindowWrapper>>);
 
 impl WindowsStore {
-  pub fn window<F, T>(&self, window: WindowId, f: F) -> Result<Option<T>>
+  pub fn window<F, T>(&self, window: WindowId, f: F) -> Result<T>
   where
-    F: FnOnce(&WindowWrapper) -> Option<T>,
+    F: FnOnce(&WindowWrapper) -> T,
   {
-    self.store(|store| store.get(&window).and_then(f))
+    let store = self.try_store()?;
+    let window = store.get(&window).ok_or(Error::WindowNotFound(window))?;
+    Ok(f(window))
   }
 
-  pub fn window_mut<F, T>(&self, window: WindowId, f: F) -> Result<Option<T>>
+  pub fn window_mut<F, T>(&self, window: WindowId, f: F) -> Result<T, Error>
   where
-    F: FnOnce(&mut WindowWrapper) -> Option<T>,
+    F: FnOnce(&mut WindowWrapper) -> T,
   {
-    self.store_mut(|store| store.get_mut(&window).and_then(f))
+    let mut store = self.try_store_mut()?;
+    let window = store
+      .get_mut(&window)
+      .ok_or(Error::WindowNotFound(window))?;
+    Ok(f(window))
   }
 
-  pub fn window_inner(&self, window: WindowId) -> Result<Option<Arc<Window>>> {
-    self.store(|store| store.get(&window).and_then(|w| w.inner.clone()))
-  }
-
-  pub fn window_and_webview(
-    &self,
-    window: WindowId,
-    webview: WebviewId,
-  ) -> Result<Option<(Arc<Window>, WebviewWrapper)>> {
-    self.store(|store| {
-      store.get(&window).and_then(|w| {
-        w.inner
-          .clone()
-          .zip(w.webviews.iter().find(|wv| wv.id == webview).cloned())
-      })
-    })
-  }
-
-  pub fn store<F, T>(&self, f: F) -> Result<T>
+  pub fn store<F, T>(&self, f: F) -> Result<T, Error>
   where
     F: FnOnce(&WindowMap) -> T,
   {
-    self
-      .0
-      .try_borrow()
-      .map(|s| f(&s))
-      .map_err(|e| Error::WindowsStore(Box::new(e)))
+    self.0.try_borrow().map(|s| f(&s)).map_err(Error::Borrow)
   }
 
-  pub fn store_mut<F, T>(&self, f: F) -> Result<T>
+  pub fn store_mut<F, T>(&self, f: F) -> Result<T, Error>
   where
     F: FnOnce(&mut WindowMap) -> T,
   {
     self.try_store_mut().map(|mut s| f(&mut s))
   }
 
-  pub fn try_store_mut(&self) -> Result<RefMut<'_, WindowMap>> {
-    self
-      .0
-      .try_borrow_mut()
-      .map_err(|e| Error::WindowsStore(Box::new(e)))
+  fn try_store_mut(&self) -> Result<RefMut<'_, WindowMap>, Error> {
+    self.0.try_borrow_mut().map_err(Error::BorrowMut)
+  }
+
+  fn try_store(&self) -> Result<Ref<'_, WindowMap>, Error> {
+    self.0.try_borrow().map_err(Error::Borrow)
   }
 }

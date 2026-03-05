@@ -3633,7 +3633,17 @@ fn handle_user_message<T: UserEvent>(
         }
       }
 
-      if let Ok(Some((window, webview))) = windows.window_and_webview(window_id, webview_id) {
+      let window_and_webview = windows.window(window_id, |window| {
+        window.inner.clone().zip(
+          window
+            .webviews
+            .iter()
+            .find(|wv| wv.id == webview_id)
+            .cloned(),
+        )
+      });
+
+      if let Ok(Some((window, webview))) = window_and_webview {
         match webview_message {
           WebviewMessage::WebviewEvent(_) => { /* already handled */ }
           WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
@@ -3930,11 +3940,11 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::CreateWebview(window_id, handler) => {
       let window = windows.window(window_id, |window| {
-        Some((window.inner.clone(), window.focused_webview.clone()))
+        (window.inner.clone(), window.focused_webview.clone())
       });
 
       match window {
-        Ok(Some((Some(window), focused_webview))) => {
+        Ok((Some(window), focused_webview)) => {
           match handler(&window, CreateWebviewOptions { focused_webview }) {
             Ok(webview) => {
               if let Err(e) = windows.store_mut(move |store| {
@@ -4086,8 +4096,6 @@ fn handle_event_loop<T: UserEvent>(
               }
             }
           }
-
-          Some(())
         }) {
           log::error!("redraw requested: unable to get window: {e}");
         }
@@ -4122,7 +4130,7 @@ fn handle_event_loop<T: UserEvent>(
             handler(&event);
           }
         }
-        Ok(_) => log::error!("failed to handle {event:?} because window not found: {window_id:?}"),
+        Ok(None) => log::warn!("webview {webview_id} not found in window {window_id:?}"),
         Err(e) => log::error!("failed to handle {event:?} because: {e}"),
       }
     }
@@ -4134,9 +4142,9 @@ fn handle_event_loop<T: UserEvent>(
     )) => {
       if let Some(event) = WindowEventWrapper::from(event).0 {
         match windows.window(window_id, |window| {
-          Some((window.label.clone(), window.window_event_listeners.clone()))
+          (window.label.clone(), window.window_event_listeners.clone())
         }) {
-          Ok(Some((label, window_event_listeners))) => {
+          Ok((label, window_event_listeners)) => {
             callback(RunEvent::WindowEvent {
               label,
               event: event.clone(),
@@ -4147,9 +4155,6 @@ fn handle_event_loop<T: UserEvent>(
             for handler in handlers {
               handler(&event);
             }
-          }
-          Ok(_) => {
-            log::error!("failed to handle {event:?} because window not found: {window_id:?}")
           }
           Err(e) => log::error!("failed to handle {event:?} because: {e}"),
         }
@@ -4181,10 +4186,9 @@ fn handle_event_loop<T: UserEvent>(
                 handler(&event);
               }
             }
-            Ok(_) => {
-              log::error!("failed to handle {event:?} because window not found: {window_id:?}")
+            Ok(None) => {
+              log::debug!("No WindowEventWrapper found for window {window_id:?} on event {event:?}")
             }
-
             Err(e) => log::error!("failed to handle {event:?} because: {e}"),
           }
         }
@@ -4192,8 +4196,8 @@ fn handle_event_loop<T: UserEvent>(
         match event {
           #[cfg(windows)]
           TaoWindowEvent::ThemeChanged(theme) => {
-            match windows.window(window_id, |w| Some(w.webviews.clone())) {
-              Ok(Some(webviews)) => {
+            match windows.window(window_id, |w| w.webviews.clone()) {
+              Ok(webviews) => {
                 for webview in webviews {
                   let theme = match theme {
                     TaoTheme::Dark => wry::Theme::Dark,
@@ -4204,9 +4208,6 @@ fn handle_event_loop<T: UserEvent>(
                     log::error!("failed to set theme: {e}");
                   }
                 }
-              }
-              Ok(_) => {
-                log::error!("failed to handle {event:?} because window not found: {window_id:?}")
               }
               Err(e) => log::error!("failed to handle {event:?} because: {e}"),
             }
@@ -4260,7 +4261,7 @@ fn handle_event_loop<T: UserEvent>(
                 }
               }
               Ok(_) => {
-                log::error!("failed to resize window because window not found: {window_id:?}")
+                log::error!("window {window_id:?} has no inner window")
               }
               Err(e) => log::error!("failed to resize window: {e}"),
             }
@@ -4324,9 +4325,9 @@ fn on_close_requested<'a, T: UserEvent>(
 ) {
   let (tx, rx) = channel();
   match windows.window(window_id, |window| {
-    Some((window.label.clone(), window.window_event_listeners.clone()))
+    (window.label.clone(), window.window_event_listeners.clone())
   }) {
-    Ok(Some((label, window_event_listeners))) => {
+    Ok((label, window_event_listeners)) => {
       let listeners = window_event_listeners.lock().unwrap();
       let handlers = listeners.values();
       for handler in handlers {
@@ -4343,23 +4344,17 @@ fn on_close_requested<'a, T: UserEvent>(
         on_window_close(window_id, windows);
       }
     }
-    Ok(_) => {
-      log::error!("failed to close window because window not found: {window_id:?}")
-    }
     Err(e) => log::error!("failed to close window: {e}"),
   }
 }
 
 fn on_window_close(window_id: WindowId, windows: Arc<WindowsStore>) {
-  match windows.window_mut(window_id, |window| {
+  if let Err(e) = windows.window_mut(window_id, |window| {
     window.inner = None;
     #[cfg(windows)]
     window.surface.take();
-    Some(())
   }) {
-    Ok(Some(())) => {}
-    Ok(_) => log::error!("failed to close window because window not found: {window_id:?}"),
-    Err(e) => log::error!("failed to close window: {e}"),
+    log::error!("failed to close window: {e}");
   }
 }
 
@@ -4826,7 +4821,7 @@ You may have it installed on another user account, but it is not available for t
                 webview: webview.webview(),
               }
             }
-            Ok(None) => log::error!("no window or webviews found {window_id:?}"),
+            Ok(None) => log::error!("No webviews found in window {window_id:?}"),
             Err(e) => log::error!("NewWindowResponse::Create: {e}"),
           }
 

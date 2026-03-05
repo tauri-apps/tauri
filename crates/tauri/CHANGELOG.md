@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.10.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+- Upgraded to `tauri-runtime@2.10.1`
+- Upgraded to `tauri-runtime-wry@2.10.1`
+- Upgraded to `tauri-macros@2.5.5`
+- Upgraded to `tauri-build@2.5.6`
+
 ## \[2.10.2]
 
 ### Dependencies

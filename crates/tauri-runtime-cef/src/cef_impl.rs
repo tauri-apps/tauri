@@ -697,6 +697,17 @@ wrap_download_handler! {
   }
 
   impl DownloadHandler {
+    fn can_download(
+      &self,
+      _browser: Option<&mut Browser>,
+      _url: Option<&CefStringUtf16>,
+      _request_method: Option<&CefStringUtf16>,
+    ) -> ::std::os::raw::c_int {
+      // on_before_download is the one that actually validates the download
+      // so we return 1 to allow the download here
+      1
+    }
+
     fn on_before_download(
       &self,
       _browser: Option<&mut Browser>,
@@ -715,7 +726,7 @@ wrap_download_handler! {
         .map(std::path::PathBuf::from)
         .unwrap_or_default();
 
-      let mut destination = suggested_path;
+      let mut destination = suggested_path.clone();
 
       // Call handler with Requested event
       let should_allow = (self.download_handler)(tauri_runtime::webview::DownloadEvent::Requested {
@@ -726,7 +737,10 @@ wrap_download_handler! {
       if should_allow {
         // Set the download path
         let destination_cef = CefStringUtf16::from(destination.to_string_lossy().as_ref());
-        callback.cont(Some(&destination_cef), 0);
+
+        // if the user callback did not modify the destination, show the dialog
+        let show_dialog = destination == suggested_path;
+        callback.cont(Some(&destination_cef), show_dialog as ::std::os::raw::c_int);
       }
       1
     }

@@ -190,7 +190,7 @@ fn get_response(
         // multi-part range header
         let mut buf = Vec::new();
 
-        for (end, start) in ranges {
+        for (start, end) in ranges {
           // a new range is being written, write the range boundary
           buf.write_all(boundary_sep.as_bytes()).await?;
 

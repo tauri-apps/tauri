@@ -158,6 +158,8 @@ where
 }
 
 /// Gets the updater secret key from the given private key and password.
+///
+/// If `password` is `None`, a password is going to be prompted interactively.
 pub fn secret_key<S: AsRef<[u8]>>(
   private_key: S,
   password: Option<String>,
@@ -204,16 +206,30 @@ where
 
 #[cfg(test)]
 mod tests {
+  use super::*;
+
+  // This was encrypted with an empty string
   const PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
 
-  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords.
+  // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords if the private key is encrypted with an empty string.
   #[test]
   fn empty_password_is_valid() {
     let path = std::env::temp_dir().join("minisign-password-text.txt");
     std::fs::write(&path, b"TAURI").expect("failed to write test file");
 
     let secret_key =
-      super::secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
-    super::sign_file(&secret_key, &path).expect("failed to sign file");
+      secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
+    sign_file(&secret_key, &path).expect("failed to sign file");
+  }
+
+  // This tests the newly generated keys with empty string password works
+  // minisign >=0.7.4,<=0.8.0 generate keys unencrypted if the password is empty but is marked encrypted hence unusable
+  #[test]
+  fn generate_empty_password_keys_and_use() {
+    let KeyPair { pk, sk } = generate_key(Some("".to_owned())).unwrap();
+    let pk = pub_key(pk).unwrap();
+    let sk = secret_key(sk, Some("".into())).unwrap();
+    let data = b"TAURI".as_slice();
+    sign(Some(&pk), &sk, data, None, None).expect("failed to sign file");
   }
 }

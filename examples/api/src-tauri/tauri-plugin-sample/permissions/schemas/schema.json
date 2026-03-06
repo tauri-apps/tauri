@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PermissionFile",
   "description": "Permission file that can define a default permission, a set of permissions or a list of inlined permissions.",
   "type": "object",
@@ -8,7 +8,7 @@
       "description": "The default permission set for the plugin",
       "anyOf": [
         {
-          "$ref": "#/$defs/DefaultPermission"
+          "$ref": "#/definitions/DefaultPermission"
         },
         {
           "type": "null"
@@ -19,19 +19,19 @@
       "description": "A list of permissions sets defined",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/PermissionSet"
+        "$ref": "#/definitions/PermissionSet"
       }
     },
     "permission": {
       "description": "A list of inlined permissions",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/Permission"
+        "$ref": "#/definitions/Permission"
       },
       "default": []
     }
   },
-  "$defs": {
+  "definitions": {
     "DefaultPermission": {
       "description": "The default permission set of the plugin.\n\nWorks similarly to a permission with the \"default\" identifier.",
       "type": "object",
@@ -80,7 +80,7 @@
           "description": "All permissions this set contains.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/PermissionKind"
+            "type": "string"
           }
         }
       },
@@ -116,15 +116,23 @@
         },
         "commands": {
           "description": "Allowed or denied commands when using this permission.",
-          "$ref": "#/$defs/Commands",
           "default": {
             "allow": [],
             "deny": []
-          }
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Commands"
+            }
+          ]
         },
         "scope": {
           "description": "Allowed or denied scoped when using this permission.",
-          "$ref": "#/$defs/Scopes"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Scopes"
+            }
+          ]
         },
         "platforms": {
           "description": "Target platforms this permission applies. By default all platforms are affected by this permission.",
@@ -133,7 +141,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/Target"
+            "$ref": "#/definitions/Target"
           }
         }
       },
@@ -174,7 +182,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         },
         "deny": {
@@ -184,7 +192,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         }
       }
@@ -202,7 +210,11 @@
         },
         {
           "description": "Represents a valid ACL [`Number`].",
-          "$ref": "#/$defs/Number"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
         },
         {
           "description": "Represents a [`String`].",
@@ -212,14 +224,14 @@
           "description": "Represents a list of other [`Value`]s.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         },
         {
           "description": "Represents a map of [`String`] keys to [`Value`]s.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/Value"
+            "$ref": "#/definitions/Value"
           }
         }
       ]
@@ -266,35 +278,6 @@
           "description": "iOS.",
           "type": "string",
           "const": "iOS"
-        }
-      ]
-    },
-    "PermissionKind": {
-      "type": "string",
-      "oneOf": [
-        {
-          "description": "Enables the ping command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-ping",
-          "markdownDescription": "Enables the ping command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the ping command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-ping",
-          "markdownDescription": "Denies the ping command without any pre-configured scope."
-        },
-        {
-          "description": "Sets a global scope.",
-          "type": "string",
-          "const": "global-scope",
-          "markdownDescription": "Sets a global scope."
-        },
-        {
-          "description": "Enables the ping command with a test scope.",
-          "type": "string",
-          "const": "allow-ping-scoped",
-          "markdownDescription": "Enables the ping command with a test scope."
         }
       ]
     }

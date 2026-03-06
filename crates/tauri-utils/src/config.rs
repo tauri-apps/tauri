@@ -24,7 +24,7 @@
 //! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
 #[cfg(feature = "schema")]
-use schemars::{JsonSchema, Schema};
+use schemars::JsonSchema;
 use semver::Version;
 use serde::{
   Deserialize, Serialize, Serializer,
@@ -42,15 +42,6 @@ use std::{
   path::PathBuf,
   str::FromStr,
 };
-
-#[cfg(feature = "schema")]
-fn add_description(mut schema: Schema, description: impl Into<String>) -> Schema {
-  let value = description.into();
-  if !value.is_empty() {
-    schema.insert("description".to_string(), serde_json::Value::String(value));
-  }
-  schema
-}
 
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
@@ -203,43 +194,21 @@ impl<'de> Deserialize<'de> for BundleType {
 
 /// Targets to bundle. Each value is case insensitive.
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(
+  feature = "schema",
+  derive(JsonSchema),
+  schemars(rename_all = "lowercase")
+)]
 pub enum BundleTarget {
   /// Bundle all targets.
   #[default]
   All,
+  #[cfg_attr(feature = "schema", schemars(untagged))]
   /// A list of bundle targets.
   List(Vec<BundleType>),
+  #[cfg_attr(feature = "schema", schemars(untagged))]
   /// A single bundle target.
   One(BundleType),
-}
-
-#[cfg(feature = "schema")]
-impl schemars::JsonSchema for BundleTarget {
-  fn schema_name() -> std::borrow::Cow<'static, str> {
-    "BundleTarget".into()
-  }
-
-  fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    let any_of: Vec<serde_json::Value> = vec![
-      serde_json::json!({
-        "const": "all",
-        "description": "Bundle all targets."
-      }),
-      serde_json::Value::from(add_description(
-        generator.subschema_for::<Vec<BundleType>>(),
-        "A list of bundle targets.",
-      )),
-      serde_json::Value::from(add_description(
-        generator.subschema_for::<BundleType>(),
-        "A single bundle target.",
-      )),
-    ];
-
-    schemars::json_schema!({
-      "anyOf": any_of,
-      "description": "Targets to bundle. Each value is case insensitive."
-    })
-  }
 }
 
 impl Serialize for BundleTarget {
@@ -1398,6 +1367,7 @@ pub struct BundleConfig {
 
 /// A tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
 #[derive(Debug, PartialEq, Eq, Serialize, Default, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(JsonSchema), schemars(with = "InnerColor"))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
@@ -1482,7 +1452,13 @@ fn default_alpha() -> u8 {
 #[serde(untagged)]
 enum InnerColor {
   /// Color hex string, for example: #fff, #ffffff, or #ffffffff.
-  String(String),
+  String(
+    #[cfg_attr(
+      feature = "schema",
+      schemars(pattern("^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"))
+    )]
+    String,
+  ),
   /// Array of RGB colors. Each value has minimum of 0 and maximum of 255.
   Rgb((u8, u8, u8)),
   /// Array of RGBA colors. Each value has minimum of 0 and maximum of 255.
@@ -1516,30 +1492,6 @@ impl<'de> Deserialize<'de> for Color {
     };
 
     Ok(color)
-  }
-}
-
-#[cfg(feature = "schema")]
-impl schemars::JsonSchema for Color {
-  fn schema_name() -> std::borrow::Cow<'static, str> {
-    "Color".into()
-  }
-
-  fn json_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    let mut schema = schemars::schema_for!(InnerColor);
-    schema.remove("title"); // Remove `title: InnerColor` from schema
-
-    // Add hex color pattern validation to the first variant (string)
-    if let Some(serde_json::Value::Array(any_of)) = schema.get_mut("anyOf")
-      && let Some(str_schema) = any_of.first_mut().and_then(|v| v.as_object_mut())
-    {
-      str_schema.insert(
-        "pattern".to_string(),
-        "^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$".into(),
-      );
-    }
-
-    schema
   }
 }
 

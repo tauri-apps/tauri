@@ -2890,11 +2890,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       context: self.context.clone(),
     };
 
-    self
-      .context
-      .main_thread
-      .windows
-      .store_mut(|store| store.insert(window_id, window))?;
+    self.context.main_thread.windows.insert(window_id, window)?;
 
     let detached_webview = webview_id.map(|id| {
       let webview = DetachedWebview {
@@ -3967,7 +3963,7 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
       Ok(webview) => {
-        if let Err(e) = windows.store_mut(|store| store.insert(window_id, webview)) {
+        if let Err(e) = windows.insert(window_id, webview) {
           log::error!("unable to create window: {e}");
         }
       }
@@ -4216,9 +4212,9 @@ fn handle_event_loop<T: UserEvent>(
             on_close_requested(callback, window_id, windows);
           }
           TaoWindowEvent::Destroyed => {
-            match windows.store_mut(|store| store.remove(&window_id).map(|_| store.is_empty())) {
-              Ok(Some(false)) => { /* more windows exist */ }
-              Ok(Some(true)) => {
+            match windows.remove(window_id) {
+              Ok(false) => { /* more windows exist */ }
+              Ok(true) => {
                 let (tx, rx) = channel();
                 callback(RunEvent::ExitRequested { code: None, tx });
 
@@ -4229,10 +4225,9 @@ fn handle_event_loop<T: UserEvent>(
                   *control_flow = ControlFlow::Exit;
                 }
               }
-              Ok(None) => log::warn!(
-                "received TaoWindowEvent::Destroyed for window that does not exist: {window_id:?}"
-              ),
-              Err(e) => log::error!("failed to remove window from store: {e}"),
+              Err(e) => {
+                log::error!("TaoWindowEvent::Destroyed: failed to remove window from store: {e}")
+              }
             }
           }
           TaoWindowEvent::Resized(size) => {

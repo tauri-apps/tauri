@@ -7,7 +7,6 @@ use std::{
   cell::{BorrowError, BorrowMutError, RefCell},
   collections::BTreeMap,
   fmt,
-  fmt::Formatter,
 };
 use tauri_runtime::window::WindowId;
 
@@ -24,7 +23,7 @@ pub enum Error {
 
 impl std::error::Error for Error {}
 impl fmt::Display for Error {
-  fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Error::Borrow(e) => e.fmt(f),
       Error::BorrowMut(e) => e.fmt(f),
@@ -39,8 +38,14 @@ impl From<Error> for tauri_runtime::Error {
   }
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct WindowsStore(RefCell<BTreeMap<WindowId, WindowWrapper>>);
+
+impl fmt::Debug for WindowsStore {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("WindowsStore(opaque)").finish()
+  }
+}
 
 impl WindowsStore {
   pub fn window<F, T>(&self, id: WindowId, f: F) -> Result<T>

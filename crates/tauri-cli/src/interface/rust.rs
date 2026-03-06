@@ -1499,10 +1499,13 @@ pub(crate) fn tauri_config_to_bundle_settings(
       }
     }
 
-    depends_deb.push("libwebkit2gtk-4.1-0".to_string());
-    depends_deb.push("libgtk-3-0".to_string());
+    if !enabled_features.contains(&"cef".into()) && !enabled_features.contains(&"tauri/cef".into())
+    {
+      depends_deb.push("libwebkit2gtk-4.1-0".to_string());
+      libs.push("libwebkit2gtk-4.1.so.0".into());
+    }
 
-    libs.push("libwebkit2gtk-4.1.so.0".into());
+    depends_deb.push("libgtk-3-0".to_string());
     libs.push("libgtk-3.so.0".into());
 
     for lib in libs {

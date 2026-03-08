@@ -5,7 +5,7 @@
 use crate::{
   error::{Context, ErrorExt},
   helpers::config::{reload_config, Config as TauriConfig, ConfigMetadata},
-  interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
   ConfigValue, Error, Result,
 };
 use heck::ToSnekCase;
@@ -67,18 +67,9 @@ impl DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
-    self.manually_killed_process.store(true, Ordering::Relaxed);
-    match self.child.kill() {
-      Ok(_) => Ok(()),
-      Err(e) => {
-        self.manually_killed_process.store(false, Ordering::Relaxed);
-        Err(e)
-      }
-    }
-  }
-
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    self.child.try_wait().map(|res| res.map(|o| o.status))
+    self.child.kill()?;
+    self.manually_killed_process.store(true, Ordering::SeqCst);
+    Ok(())
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
@@ -86,7 +77,7 @@ impl DevProcess for DevChild {
   }
 
   fn manually_killed_process(&self) -> bool {
-    self.manually_killed_process.load(Ordering::Relaxed)
+    self.manually_killed_process.load(Ordering::SeqCst)
   }
 }
 
@@ -175,7 +166,7 @@ impl Default for DevHost {
   }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub dev: bool,
   pub features: Vec<String>,
@@ -184,20 +175,6 @@ pub struct CliOptions {
   pub vars: HashMap<String, OsString>,
   pub config: Vec<ConfigValue>,
   pub target_device: Option<TargetDevice>,
-}
-
-impl Default for CliOptions {
-  fn default() -> Self {
-    Self {
-      dev: false,
-      features: Vec::new(),
-      args: vec!["--lib".into()],
-      noise_level: Default::default(),
-      vars: Default::default(),
-      config: Vec::new(),
-      target_device: None,
-    }
-  }
 }
 
 fn local_ip_address(force: bool) -> &'static IpAddr {

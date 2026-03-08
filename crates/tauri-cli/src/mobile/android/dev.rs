@@ -14,7 +14,7 @@ use crate::{
     config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
-  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
     android::generate_tauri_properties, use_network_address_for_dev_url, write_options, CliOptions,
     DevChild, DevHost, DevProcess, TargetDevice,
@@ -44,7 +44,7 @@ use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 )]
 pub struct Options {
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
@@ -182,19 +182,25 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple);
+  dev_options.args.push("--lib".into());
 
-  let (interface, config, metadata) = {
-    let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
 
-    let app = get_app(MobileTarget::Android, &tauri_config, &interface, dirs.tauri);
-    let (config, metadata) = get_config(
-      &app,
-      &tauri_config,
-      dev_options.features.as_ref(),
-      &Default::default(),
-    );
-    (interface, config, metadata)
-  };
+  let app = get_app(MobileTarget::Android, &tauri_config, &interface, dirs.tauri);
+  let (config, metadata) = get_config(
+    &app,
+    &tauri_config,
+    dev_options.features.as_ref(),
+    &CliOptions {
+      dev: true,
+      features: dev_options.features.clone(),
+      args: dev_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: dev_options.config.clone(),
+      target_device: None,
+    },
+  );
 
   set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
 

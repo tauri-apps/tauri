@@ -136,7 +136,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         if matches!(e, NotarizeAuthError::MissingTeamId) {
           return Err(e.into());
         } else {
-          log::warn!("skipping app notarization, {}", e.to_string());
+          log::warn!("skipping app notarization, {e}");
         }
       }
     }

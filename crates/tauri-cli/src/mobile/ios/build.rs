@@ -16,7 +16,7 @@ use crate::{
     flock,
     plist::merge_plist,
   },
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Options as InterfaceOptions},
   mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };
@@ -59,7 +59,7 @@ pub struct Options {
   )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
@@ -194,20 +194,25 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let (interface, mut config) = {
-    let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
-    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
+  interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
-    let (config, _metadata) = get_config(
-      &app,
-      &tauri_config,
-      &build_options.features,
-      &Default::default(),
-      dirs.tauri,
-    )?;
-    (interface, config)
-  };
+  let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
+  let (mut config, _) = get_config(
+    &app,
+    &tauri_config,
+    &build_options.features,
+    &CliOptions {
+      dev: false,
+      features: build_options.features.clone(),
+      args: build_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: build_options.config.clone(),
+      target_device: None,
+    },
+    dirs.tauri,
+  )?;
 
   set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
@@ -331,7 +336,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     &mut config,
     &mut env,
     noise_level,
-    &dirs,
+    dirs,
   )?;
 
   if open {

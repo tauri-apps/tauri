@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  fs,
-  path::{Path, PathBuf},
-  process::Command,
-};
+use std::{fs, path::PathBuf, process::Command};
 
 use anyhow::Context;
 
@@ -33,7 +29,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       )));
     }
   };
-  let tools_arch = settings.target().split('-').next().unwrap();
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {
@@ -49,8 +44,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::create_dir_all(&tools_path)?;
 
-  let (sharun_aio, uruntime, uruntime_lite) =
-    prepare_tools(&tools_path, tools_arch, settings.appimage().squashfs)?;
+  // TODO: mirror
+  let quick_sharun = tools_path.join("quick-sharun.sh");
+  if !quick_sharun.exists() {
+    let data = download(
+      "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
+    )?;
+    write_and_make_executable(&quick_sharun, data)?;
+  }
 
   let package_dir = settings
     .project_out_directory()
@@ -72,10 +73,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     main_binary.set_name(main_binary_name_kebab);
   }
 
-  let upinfo = std::env::var("UPINFO")
-    .ok()
-    .or(settings.appimage().update_information.clone());
-
   // generate deb_folder structure
   let (data_dir, icons) = debian::generate_data(&settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
@@ -91,63 +88,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   );
   let appimage_path = output_path.join(&appimage_filename);
 
-  fs::create_dir_all(&tools_path)?;
   let larger_icon = icons
     .iter()
     .filter(|i| i.width == i.height)
     .max_by_key(|i| i.width)
     .expect("couldn't find a square icon to use as AppImage icon");
-  let larger_icon_path = larger_icon
-    .path
-    .strip_prefix(package_dir.join("data"))
-    .unwrap()
-    .to_string_lossy()
-    .to_string();
 
   log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
 
-  fs_utils::copy_dir(&data_dir, &app_dir_path)?;
-
-  let app_dir_share = &app_dir_path.join("share/");
-
-  fs_utils::copy_dir(&data_dir.join("usr/share/"), app_dir_share)?;
-
-  // The appimage spec allows a symlink but sharun doesn't
-  fs::copy(
-    app_dir_share.join(format!("applications/{product_name}.desktop")),
-    app_dir_path.join(format!("{product_name}.desktop")),
-  )?;
-
-  // This could be a symlink as well (supported by sharun as far as i can tell)
-  fs::copy(
-    app_dir_path.join(larger_icon_path.strip_prefix("usr/").unwrap()),
-    app_dir_path.join(format!("{product_name}.png")),
-  )?;
-
-  std::os::unix::fs::symlink(
-    app_dir_path.join(format!("{product_name}.png")),
-    app_dir_path.join(".DirIcon"),
-  )?;
-
-  let verbosity = match settings.log_level() {
+  // TODO:
+  let _verbosity = match settings.log_level() {
     log::Level::Error => "-q", // errors only
     log::Level::Info => "",    // errors + "normal logs" (mostly rpath)
     log::Level::Trace => "-v", // You can expect way over 1k lines from just lib4bin on this level
     _ => "",
-  };
-
-  // TODO: Maybe missing alsa, pipewire, whatever?
-  // TODO: Test on fedora & arch, currently errors out on Ubuntu
-  let gst = if settings.appimage().bundle_media_framework {
-    format!(
-      r#"
-/usr/lib/{tools_arch}-linux-gnu/libpulsecommon* \
-/usr/lib/{tools_arch}-linux-gnu/gstreamer-1.0/* \
-/usr/lib/{tools_arch}-linux-gnu/gstreamer1.0/gstreamer-1.0/* \
-"#
-    )
-  } else {
-    "".to_string()
   };
 
   let bins = settings.copy_binaries(&app_dir_path.join("usr/bin/"))?;
@@ -156,137 +110,46 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .map(|b| format!(" \"{}\"", b.to_string_lossy()))
     .collect::<String>();
 
-  let xvfb = if which::which("xvfb-run").is_ok() {
-    "xvfb-run -a -- "
-  } else {
-    log::warn!("xvfb-run not found but heavily recommended! In headless mode the bundler will likely miss some required libraries.");
-    ""
-  };
-
-  // TODO: Check if we can make parts of the opengl (incl. libvulkan) deps optional
-  Command::new("/bin/sh")
-    .current_dir(&app_dir_path)
+  let mut cmd = Command::new("/bin/sh");
+  cmd
+    .current_dir(&output_path)
+    .env("APPDIR", &app_dir_path)
+    .env("OUTNAME", &appimage_filename)
+    .env(
+      "DESKTOP",
+      data_dir.join(format!("usr/share/applications/{product_name}.desktop")),
+    )
+    .env("ICON", &larger_icon.path)
+    .env("OUTPUT_APPIMAGE", "1")
+    //.env("URUNTIME2APPIMAGE_SOURCE", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/uruntime2appimage.sh")
+    //.env("ADD_HOOKS", "fix-namespaces.hook")
     .args([
       "-c",
       &format!(
-        r#"{}"{}" l -p {verbosity} -e -s -k "{}" {} \
-/usr/lib/{tools_arch}-linux-gnu/libwebkit2gtk-4.1* \{gst}
-/usr/lib/{tools_arch}-linux-gnu/gdk-pixbuf-*/*/*/* \
-/usr/lib/{tools_arch}-linux-gnu/gio/modules/* \
-/usr/lib/{tools_arch}-linux-gnu/libnss*.so* \
-/usr/lib/{tools_arch}-linux-gnu/libGL* \
-/usr/lib/{tools_arch}-linux-gnu/libEGL* \
-/usr/lib/{tools_arch}-linux-gnu/libvulkan* \
-/usr/lib/{tools_arch}-linux-gnu/dri/* \
-/usr/lib/{tools_arch}-linux-gnu/gbm/*
-"#,
-        xvfb,
-        sharun_aio.to_string_lossy(),
-        &app_dir_path
+        r#""{}" "{}" {bins}"#,
+        quick_sharun.to_string_lossy(),
+        data_dir
           .join(format!("usr/bin/{}", main_binary.name()))
           .to_string_lossy(),
-        bins
       ),
-    ])
-    .output_ok()
-    .context("lib4bin command failed to run.")?;
+    ]);
 
-  fs_utils::remove_dir_all(&app_dir_path.join("usr/"))?;
-
-  let sharun = app_dir_path.join("sharun");
-  fs::copy(&sharun, app_dir_path.join("AppRun"))?;
-
-  Command::new(sharun)
-    .current_dir(&app_dir_path)
-    .arg("-g")
-    .output_ok()
-    .context("Failed to generate library path for AppDir.")?;
-
-  if let Some(upinfo) = upinfo.as_deref() {
-    Command::new(&uruntime_lite)
-      .current_dir(&app_dir_path)
-      .args([
-        "--appimage-addupdinfo",
-        &upinfo.replace("$ARCH", tools_arch),
-      ])
-      .output_ok()
-      .context("Failed to add update info.")?;
+  if let Some(upinfo) = std::env::var("UPINFO")
+    .ok()
+    .or(settings.appimage().update_information.clone())
+  {
+    cmd.env("UPINFO", upinfo);
   }
 
-  // TODO: verbosity - uruntime doesn't expose any settings and doesn't log much
-  Command::new(&uruntime)
-    .env("ARCH", tools_arch)
-    // TODO: check if needed like in our old bundler. May not work on the addupinfo call above.
-    // .env("APPIMAGE_EXTRACT_AND_RUN", "1")
-    .args([
-      "--appimage-mkdwarfs",
-      "-f",
-      "--set-owner",
-      "0",
-      "--set-group",
-      "0",
-      "--no-history",
-      "--no-create-timestamp",
-      "--compression",
-      "zstd:level=22",
-      "-S26",
-      "-B8",
-      "--header",
-      &uruntime_lite.to_string_lossy(),
-      "-i",
-      &app_dir_path.to_string_lossy(),
-      "-o",
-      &appimage_path.to_string_lossy(),
-    ])
+  cmd
     .output_ok()
-    .context("Failed to generate AppImage from AppDir.")?;
+    .context("quick-sharun command failed to run.")?;
 
   {
     use std::os::unix::fs::PermissionsExt;
     fs::set_permissions(&appimage_path, fs::Permissions::from_mode(0o770))?;
   }
 
-  if upinfo.is_some() {
-    Command::new("zsyncmake")
-      .args([
-        &appimage_path.to_string_lossy(),
-        "-u",
-        &appimage_path.to_string_lossy(),
-      ])
-      .output_ok()
-      .context("Failed to create .zsync file.")?;
-  }
-
   fs::remove_dir_all(package_dir)?;
   Ok(vec![appimage_path])
-}
-
-// TODO: mirror
-fn prepare_tools(
-  tools_path: &Path,
-  arch: &str,
-  squashfs: bool,
-) -> crate::Result<(PathBuf, PathBuf, PathBuf)> {
-  let fstype = if squashfs { "squashfs" } else { "dwarfs" };
-  let uruntime = tools_path.join(format!("uruntime-appimage-{fstype}-{arch}"));
-  if !uruntime.exists() {
-    let data = download(&format!("https://github.com/VHSgunzo/uruntime/releases/download/v0.5.6/uruntime-appimage-{fstype}-{arch}"))?;
-    write_and_make_executable(&uruntime, data)?;
-  }
-
-  let uruntime_lite = tools_path.join(format!("uruntime-appimage-{fstype}-lite-{arch}"));
-  if !uruntime_lite.exists() {
-    let data = download(&format!("https://github.com/VHSgunzo/uruntime/releases/download/v0.5.6/uruntime-appimage-{fstype}-lite-{arch}"))?;
-    write_and_make_executable(&uruntime_lite, data)?;
-  }
-
-  let sharun_aio = tools_path.join(format!("sharun-{arch}-aio"));
-  if !sharun_aio.exists() {
-    let data = download(&format!(
-      "https://github.com/VHSgunzo/sharun/releases/download/v0.7.9/sharun-{arch}-aio"
-    ))?;
-    write_and_make_executable(&sharun_aio, data)?;
-  }
-
-  Ok((sharun_aio, uruntime, uruntime_lite))
 }

@@ -1551,7 +1551,7 @@
       ]
     },
     "HeaderConfig": {
-      "description": "A struct, where the keys are some specific http header names.\n\nIf the values to those keys are defined, then they will be send as part of a response message.\nThis does not include error messages and ipc messages\n\n## Example configuration\n```javascript\n{\n //...\n  app:{\n    //...\n    security: {\n      headers: {\n        \"Cross-Origin-Opener-Policy\": \"same-origin\",\n        \"Cross-Origin-Embedder-Policy\": \"require-corp\",\n        \"Timing-Allow-Origin\": [\n          \"https://developer.mozilla.org\",\n          \"https://example.com\",\n        ],\n        \"Access-Control-Expose-Headers\": \"Tauri-Custom-Header\",\n        \"Tauri-Custom-Header\": {\n          \"key1\": \"'value1' 'value2'\",\n          \"key2\": \"'value3'\"\n        },\n        // Pattern-based header configuration\n        \"Service-Worker-Allowed\": {\n          \"value\": \"/\",\n          \"pattern\": \"/worker.js\"  // Only set this header for requests to /worker.js\n        }\n      },\n      csp: \"default-src 'self'; connect-src ipc: http://ipc.localhost\",\n    }\n    //...\n  }\n //...\n}\n```\nIn this example `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` are set to allow for the use of [`SharedArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).\nThe result is, that those headers are then set on every response sent via the `get_response` function in crates/tauri/src/protocol/tauri.rs.\nThe Content-Security-Policy header is defined separately, because it is also handled separately.\n\n## Pattern matching\n\nHeaders can be configured with patterns to only apply to specific request paths:\n- Use glob patterns like `*`, `?`, `**` for matching\n- Pattern matching is case-sensitive\n- If no pattern is specified, the header applies to all paths (equivalent to `\"*\"`)\n\nExamples:\n- `\"/worker.js\"` - matches exactly `/worker.js`\n- `\"/api/*\"` - matches any path under `/api/`\n- `\"*.js\"` - matches any JavaScript file\n- `\"**/*.json\"` - matches any JSON file at any depth\n\nFor the helloworld example, this config translates into those response headers:\n```http\naccess-control-allow-origin:  http://tauri.localhost\naccess-control-expose-headers: Tauri-Custom-Header\ncontent-security-policy: default-src 'self'; connect-src ipc: http://ipc.localhost; script-src 'self' 'sha256-Wjjrs6qinmnr+tOry8x8PPwI77eGpUFR3EEGZktjJNs='\ncontent-type: text/html\ncross-origin-embedder-policy: require-corp\ncross-origin-opener-policy: same-origin\ntauri-custom-header: key1 'value1' 'value2'; key2 'value3'\ntiming-allow-origin: https://developer.mozilla.org, https://example.com\n```\nSince the resulting header values are always 'string-like'. So depending on the what data type the HeaderSource is, they need to be converted.\n - `String`(JS/Rust): stay the same for the resulting header value\n - `Array`(JS)/`Vec<String>`(Rust): Item are joined by \", \" for the resulting header value\n - `Object`(JS)/ `Hashmap<String, String>`(Rust): Items are composed from: key + space + value. Items are then joined by \"; \" for the resulting header value\n - `PatternValue`(JS Object with `value` and `pattern`): The `value` field can be any of the above types, and `pattern` is a glob pattern string",
+      "description": "A struct, where the keys are some specific http header names.\n\nIf the values to those keys are defined, then they will be send as part of a response message.\nThis does not include error messages and ipc messages\n\n## Example configuration\n```javascript\n{\n //..\n  app:{\n    //..\n    security: {\n      headers: {\n        \"Cross-Origin-Opener-Policy\": \"same-origin\",\n        \"Cross-Origin-Embedder-Policy\": \"require-corp\",\n        \"Timing-Allow-Origin\": [\n          \"https://developer.mozilla.org\",\n          \"https://example.com\",\n        ],\n        \"Access-Control-Expose-Headers\": \"Tauri-Custom-Header\",\n        \"Tauri-Custom-Header\": {\n          \"key1\": \"'value1' 'value2'\",\n          \"key2\": \"'value3'\"\n        }\n      },\n      csp: \"default-src 'self'; connect-src ipc: http://ipc.localhost\",\n    }\n    //..\n  }\n //..\n}\n```\nIn this example `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` are set to allow for the use of [`SharedArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).\nThe result is, that those headers are then set on every response sent via the `get_response` function in crates/tauri/src/protocol/tauri.rs.\nThe Content-Security-Policy header is defined separately, because it is also handled separately.\n\nFor the helloworld example, this config translates into those response headers:\n```http\naccess-control-allow-origin:  http://tauri.localhost\naccess-control-expose-headers: Tauri-Custom-Header\ncontent-security-policy: default-src 'self'; connect-src ipc: http://ipc.localhost; script-src 'self' 'sha256-Wjjrs6qinmnr+tOry8x8PPwI77eGpUFR3EEGZktjJNs='\ncontent-type: text/html\ncross-origin-embedder-policy: require-corp\ncross-origin-opener-policy: same-origin\ntauri-custom-header: key1 'value1' 'value2'; key2 'value3'\ntiming-allow-origin: https://developer.mozilla.org, https://example.com\n```\nSince the resulting header values are always 'string-like'. So depending on the what data type the HeaderSource is, they need to be converted.\n - `String`(JS/Rust): stay the same for the resulting header value\n - `Array`(JS)/`Vec\\<String\\>`(Rust): Item are joined by \", \" for the resulting header value\n - `Object`(JS)/ `Hashmap\\<String,String\\>`(Rust): Items are composed from: key + space + value. Item are then joined by \"; \" for the resulting header value",
       "type": "object",
       "properties": {
         "Access-Control-Allow-Credentials": {
@@ -1715,29 +1715,7 @@
           }
         },
         {
-          "description": "Header value with a pattern to match against the request path.\nThe pattern supports glob patterns (e.g., \"*\", \"?\", \"**\").",
-          "type": "object",
-          "properties": {
-            "value": {
-              "description": "The header value (can be any HeaderSource variant)",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/HeaderSource"
-                }
-              ]
-            },
-            "pattern": {
-              "description": "The glob pattern to match against the request path.",
-              "type": "string"
-            }
-          },
-          "required": [
-            "value",
-            "pattern"
-          ]
-        },
-        {
-          "description": "(Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Items are then joined by \";\" for the real header value",
+          "description": "(Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Item are then joined by \";\" for the real header value",
           "type": "object",
           "additionalProperties": {
             "type": "string"

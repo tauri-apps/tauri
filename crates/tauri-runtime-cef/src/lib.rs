@@ -51,6 +51,16 @@ mod cef_impl;
 mod cef_webview;
 mod utils;
 
+pub fn webview_version() -> Result<String> {
+  Ok(format!(
+    "{}.{}.{}.{}",
+    cef_dll_sys::CHROME_VERSION_MAJOR,
+    cef_dll_sys::CHROME_VERSION_MINOR,
+    cef_dll_sys::CHROME_VERSION_PATCH,
+    cef_dll_sys::CHROME_VERSION_BUILD
+  ))
+}
+
 #[macro_export]
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{

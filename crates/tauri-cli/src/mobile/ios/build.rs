@@ -478,6 +478,59 @@ fn run_build(
         let path = out_dir.join(app_path.file_name().unwrap());
         fs::rename(&app_path, &path).fs_context("failed to rename app", app_path)?;
         out_files.push(path);
+      } else if options.no_sign {
+        fs::create_dir_all(&out_dir)
+          .fs_context("failed to create Xcode output directory", out_dir.clone())?;
+
+        let app_path = config
+          .archive_dir()
+          .join(format!("{}.xcarchive", config.scheme()))
+          .join("Products")
+          .join("Applications")
+          .join(config.app().stylized_name())
+          .with_extension("app");
+
+        let ipa_path = out_dir.join(config.app().stylized_name()).with_extension("ipa");
+        let ipa_file = fs::File::create(&ipa_path).fs_context("failed to create IPA file", ipa_path.clone())?;
+        let mut zip = zip::ZipWriter::new(ipa_file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .unix_permissions(0o755);
+
+        let mut app_files = Vec::new();
+        let mut stack = vec![app_path.clone()];
+        while let Some(path) = stack.pop() {
+          if path.is_dir() {
+            app_files.push(path.clone());
+            for entry in fs::read_dir(&path).fs_context("failed to read directory", path.clone())? {
+                stack.push(entry.fs_context("failed to read directory entry", path.clone())?.path());
+            }
+          } else {
+            app_files.push(path);
+          }
+        }
+
+        for file_path in app_files {
+          let name = file_path.strip_prefix(app_path.parent().unwrap()).unwrap();
+          let mut name_str = name.to_string_lossy().to_string();
+          // zip expects forward slashes
+          if std::path::MAIN_SEPARATOR == '\\' {
+            name_str = name_str.replace('\\', "/");
+          }
+          let mut name_in_zip = format!("Payload/{}", name_str);
+          
+          if file_path.is_dir() {
+            name_in_zip.push('/');
+            zip.add_directory(name_in_zip, options).context("failed to add directory to zip")?;
+          } else {
+            zip.start_file(name_in_zip, options).context("failed to start file in zip")?;
+            let mut f = fs::File::open(&file_path).fs_context("failed to open file", file_path)?;
+            std::io::copy(&mut f, &mut zip).context("failed to copy file to zip")?;
+          }
+        }
+
+        zip.finish().context("failed to finish zip")?;
+        out_files.push(ipa_path);
       } else {
         // if we skipped code signing, we do not have the entitlements applied to our exported IPA
         // we must force sign the app binary with a dummy certificate just to preserve the entitlements

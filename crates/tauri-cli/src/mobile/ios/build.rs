@@ -94,6 +94,12 @@ pub struct Options {
   /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
   pub ignore_version_mismatches: bool,
+  /// Skip code signing when bundling the app
+  #[clap(long)]
+  pub no_sign: bool,
+  /// Only archive the app, skip generating the IPA.
+  #[clap(long)]
+  pub archive_only: bool,
   /// Target device of this build
   #[clap(skip)]
   pub target_device: Option<TargetDevice>,
@@ -154,7 +160,7 @@ impl From<Options> for BuildOptions {
       ci: options.ci,
       skip_stapling: false,
       ignore_version_mismatches: options.ignore_version_mismatches,
-      no_sign: false,
+      no_sign: options.no_sign,
     }
   }
 }
@@ -416,13 +422,14 @@ fn run_build(
       }
 
       let credentials = auth_credentials_from_env()?;
-      let skip_signing = credentials.is_some();
+      let skip_signing = options.no_sign || credentials.is_some();
 
       let mut build_config = BuildConfig::new().allow_provisioning_updates();
       if let Some(credentials) = &credentials {
-        build_config = build_config
-          .authentication_credentials(credentials.clone())
-          .skip_codesign();
+        build_config = build_config.authentication_credentials(credentials.clone());
+      }
+      if skip_signing {
+        build_config = build_config.skip_codesign();
       }
 
       target
@@ -444,6 +451,15 @@ fn run_build(
           archive_config,
         )
         .context("failed to archive iOS app")?;
+
+      if options.archive_only {
+        out_files.push(
+          config
+            .archive_dir()
+            .join(format!("{}.xcarchive", config.scheme())),
+        );
+        return Ok(());
+      }
 
       let out_dir = config.export_dir().join(target.arch);
 

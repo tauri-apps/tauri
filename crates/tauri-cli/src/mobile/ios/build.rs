@@ -424,19 +424,24 @@ fn run_build(
       let credentials = auth_credentials_from_env()?;
       let skip_signing = options.no_sign || credentials.is_some();
 
-      let mut build_config = BuildConfig::new().allow_provisioning_updates();
+      if !(options.archive_only || options.no_sign) {
+        let mut build_config = BuildConfig::new().allow_provisioning_updates();
+        if let Some(credentials) = &credentials {
+          build_config = build_config.authentication_credentials(credentials.clone());
+        }
+        if skip_signing {
+          build_config = build_config.skip_codesign();
+        }
+
+        target
+          .build(None, config, env, noise_level, profile, build_config)
+          .context("failed to build iOS app")?;
+      }
+
+      let mut archive_config = ArchiveConfig::new().allow_provisioning_updates();
       if let Some(credentials) = &credentials {
-        build_config = build_config.authentication_credentials(credentials.clone());
+        archive_config = archive_config.authentication_credentials(credentials.clone());
       }
-      if skip_signing {
-        build_config = build_config.skip_codesign();
-      }
-
-      target
-        .build(None, config, env, noise_level, profile, build_config)
-        .context("failed to build iOS app")?;
-
-      let mut archive_config = ArchiveConfig::new();
       if skip_signing {
         archive_config = archive_config.skip_codesign();
       }
@@ -496,6 +501,8 @@ fn run_build(
         let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated)
             .unix_permissions(0o755);
+
+        zip.add_directory("Payload/", options).context("failed to add Payload directory to zip")?;
 
         let mut app_files = Vec::new();
         let mut stack = vec![app_path.clone()];

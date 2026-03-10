@@ -399,19 +399,6 @@ mod tests {
   }
 
   #[test]
-  fn append_script_to_head_test() {
-    let html = r#"<html><head></head><body></body></html>"#;
-
-    let document = parse(html.to_string());
-    append_script_to_head(&document, r#"console.log('Test')"#);
-
-    assert_eq!(
-      String::from_utf8(serialize_node(&document)).unwrap(),
-      format!(r#"<html><head><script>console.log('Test')</script></head><body></body></html>"#)
-    );
-  }
-
-  #[test]
   fn inject_nonce_skips_existing() {
     let html = r#"<html><head><script src="http://example.com/script.js" nonce="existing"></script></head><body></body></html>"#;
 

@@ -27,8 +27,9 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{
-  AppWebview, AppWindow, CefRuntime, CefWindowBuilder, Message, RuntimeStyle as CefRuntimeStyle,
-  WebviewAtribute, WebviewMessage, WindowMessage, cef_webview::CefWebview,
+  AppWebview, AppWindow, CefRuntime, CefWindowBuilder, DevToolsProtocolHandler, Message,
+  RuntimeStyle as CefRuntimeStyle, WebviewAtribute, WebviewMessage, WindowMessage,
+  cef_webview::CefWebview,
 };
 
 mod cookie;
@@ -43,6 +44,7 @@ type CefOsEvent<'a> = Option<&'a mut sys::XEvent>;
 type CefOsEvent<'a> = *mut u8;
 #[cfg(windows)]
 type CefOsEvent<'a> = Option<&'a mut sys::MSG>;
+type AddressChangedHandler = dyn Fn(&url::Url) + Send + Sync;
 
 #[inline]
 fn color_to_cef_argb(color: tauri_utils::config::Color) -> u32 {
@@ -441,7 +443,7 @@ wrap_load_handler! {
 wrap_display_handler! {
   struct BrowserDisplayHandler {
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
-    address_changed_handler: Option<Arc<dyn Fn(&url::Url) + Send + Sync>>,
+    address_changed_handler: Option<Arc<AddressChangedHandler>>,
   }
 
   impl DisplayHandler {
@@ -463,11 +465,10 @@ wrap_display_handler! {
       url: Option<&CefString>,
     ) {
       // Only fire for main frame URL changes (matches on_before_browse behavior)
-      if let Some(frame) = frame {
-        if frame.is_main() == 0 {
+      if let Some(frame) = frame
+        && frame.is_main() == 0 {
           return;
         }
-      }
       let Some(handler) = &self.address_changed_handler else { return };
       let Some(url) = url else { return };
       let url_str = url.to_string();
@@ -500,7 +501,7 @@ wrap_context_menu_handler! {
 
 cef::wrap_dev_tools_message_observer! {
   struct TauriDevToolsProtocolObserver {
-    handlers: Arc<Mutex<Vec<Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>>>>,
+    handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
   }
 
   impl DevToolsMessageObserver {
@@ -565,7 +566,7 @@ cef::wrap_dev_tools_message_observer! {
 /// the Registration is dropped.
 fn add_dev_tools_observer(
   browser: &cef::Browser,
-  handlers: Arc<Mutex<Vec<Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>>>>,
+  handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
 ) -> Option<cef::Registration> {
   browser.host().and_then(|host| {
     let mut observer = TauriDevToolsProtocolObserver::new(handlers);
@@ -954,7 +955,7 @@ wrap_client! {
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
-    address_changed_handler: Option<Arc<dyn Fn(&url::Url) + Send + Sync>>,
+    address_changed_handler: Option<Arc<AddressChangedHandler>>,
     new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
     devtools_enabled: bool,
@@ -1024,7 +1025,7 @@ wrap_browser_view_delegate! {
     webview_label: String,
     uri_scheme_protocols: Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
-    devtools_protocol_handlers: Arc<Mutex<Vec<Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>>>>,
+    devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
     devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
   }
 
@@ -1037,11 +1038,10 @@ wrap_browser_view_delegate! {
         let _ = std::mem::replace(&mut *self.browser_id.borrow_mut(), real_id);
 
         // Only add the observer when at least one listener is registered
-        if !self.devtools_protocol_handlers.lock().unwrap().is_empty() {
-          if let Some(registration) = add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone()) {
+        if !self.devtools_protocol_handlers.lock().unwrap().is_empty()
+          && let Some(registration) = add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone()) {
             self.devtools_observer_registration.lock().unwrap().replace(registration);
           }
-        }
 
         let mut registry = self.scheme_handler_registry.lock().unwrap();
         for (scheme, handler) in self.uri_scheme_protocols.iter() {
@@ -2031,14 +2031,12 @@ fn handle_webview_message<T: UserEvent>(
           let mut handlers = webview.devtools_protocol_handlers.lock().unwrap();
           handlers.push(handler);
           // Add the observer when the first listener is registered
-          if handlers.len() == 1 {
-            if let Some(browser) = get_browser(context, window_id, webview_id) {
-              if let Some(registration) =
-                add_dev_tools_observer(&browser, webview.devtools_protocol_handlers.clone())
-              {
-                *webview.devtools_observer_registration.lock().unwrap() = Some(registration);
-              }
-            }
+          if handlers.len() == 1
+            && let Some(browser) = get_browser(context, window_id, webview_id)
+            && let Some(registration) =
+              add_dev_tools_observer(&browser, webview.devtools_protocol_handlers.clone())
+          {
+            *webview.devtools_observer_registration.lock().unwrap() = Some(registration);
           }
           Ok(())
         }
@@ -3042,7 +3040,7 @@ fn create_browser_window<T: UserEvent>(
   } = webview;
 
   let address_changed_handler = address_changed_handler
-    .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<dyn Fn(&url::Url) + Send + Sync>);
+    .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<AddressChangedHandler>);
 
   let initialization_scripts = std::mem::take(&mut webview_attributes.initialization_scripts)
     .into_iter()
@@ -3459,7 +3457,7 @@ pub(crate) fn create_webview<T: UserEvent>(
   } = pending;
 
   let address_changed_handler = address_changed_handler
-    .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<dyn Fn(&url::Url) + Send + Sync>);
+    .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<AddressChangedHandler>);
 
   let window = match context
     .windows
@@ -3659,6 +3657,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     >::new()));
     let devtools_observer_registration = Arc::new(Mutex::new(None));
 
+    #[allow(clippy::unnecessary_find_map)]
     let mut browser_view_delegate = BrowserViewDelegateImpl::new(
       browser_id.clone(),
       platform_specific_attributes

@@ -33,12 +33,6 @@ use super::{
   {AppManager, EmitPayload},
 };
 
-// we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
-// and we do not get a secure context without the custom protocol that proxies to the dev server
-// additionally, we need the custom protocol to inject the initialization scripts on Android
-// must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
-pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, any(mobile, feature = "cef")));
-
 pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
   include_str!("../../scripts/process-ipc-message-fn.js");
 
@@ -360,10 +354,8 @@ impl<R: Runtime> WebviewManager<R> {
 
     #[derive(Template)]
     #[default_template("../../scripts/core.js")]
-    struct CoreJavascript<'a> {
-      os_name: &'a str,
-      protocol_scheme: &'a str,
-      cef: bool,
+    struct CoreJavascript {
+      tauri_scheme_url: String,
     }
 
     let freeze_prototype = if app_manager.config.app.security.freeze_prototype {
@@ -376,9 +368,9 @@ impl<R: Runtime> WebviewManager<R> {
       pattern_script,
       ipc_script,
       core_script: &CoreJavascript {
-        os_name: std::env::consts::OS,
-        protocol_scheme: if use_https_scheme { "https" } else { "http" },
-        cef: cfg!(feature = "cef"),
+        tauri_scheme_url: R::custom_scheme_url("tauri", use_https_scheme)
+          .trim_end_matches('/')
+          .to_string(),
       }
       .render_default(&Default::default())?
       .into_string(),
@@ -409,7 +401,7 @@ impl<R: Runtime> WebviewManager<R> {
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
         let app_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
-        let url = if PROXY_DEV_SERVER
+        let url = if (cfg!(dev) && R::PROXY_DEV_SERVER)
           && is_local_network_url(&app_url)
           // only proxy the dev server when we're not using embedded assets
           && app_manager.assets.iter().next().is_none()
@@ -440,7 +432,7 @@ impl<R: Runtime> WebviewManager<R> {
         let is_app_url = config_url.make_relative(url).is_some();
         let mut url = url.clone();
         if is_app_url
-          && PROXY_DEV_SERVER
+          && (cfg!(dev) && R::PROXY_DEV_SERVER)
           && is_local_network_url(&url)
           // only proxy the dev server when we're not using embedded assets
           && app_manager.assets.iter().next().is_none()
@@ -638,15 +630,6 @@ impl<R: Runtime> WebviewManager<R> {
         .expect("poisoned plugin store")
         .webview_created(webview_);
     });
-
-    #[cfg(all(target_os = "ios", feature = "wry"))]
-    {
-      webview
-        .with_webview(|w| {
-          unsafe { crate::ios::on_webview_created(w.inner() as _, w.view_controller() as _) };
-        })
-        .expect("failed to run on_webview_created hook");
-    }
 
     let event = crate::EventName::from_str("tauri://webview-created");
     let payload = Some(crate::webview::CreatedEvent {

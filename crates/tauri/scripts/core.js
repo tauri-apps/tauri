@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-;(function () {
+; (function () {
   function uid() {
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
 
-  const osName = __TEMPLATE_os_name__
-  const protocolScheme = __TEMPLATE_protocol_scheme__
-  const cef = __TEMPLATE_cef__
+  const tauriSchemeUrl = __TEMPLATE_tauri_scheme_url__
 
   Object.defineProperty(window.__TAURI_INTERNALS__, 'convertFileSrc', {
     value: function (filePath, protocol = 'asset') {
       const path = encodeURIComponent(filePath)
-      return osName === 'windows' || osName === 'android' || cef
-        ? `${protocolScheme}://${protocol}.localhost/${path}`
-        : `${protocol}://localhost/${path}`
+      const schemeUrl = tauriSchemeUrl.replace('tauri', protocol)
+      return `${schemeUrl}/${path}`
     }
   })
 

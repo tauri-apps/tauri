@@ -85,6 +85,7 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
     config.bundle.clone(),
     None, // No updater in dev mode
     arch64bits,
+    Some(&target),
   )?;
   let mut settings = tauri_bundler::bundle::SettingsBuilder::new()
     .package_settings(app_settings.get_package_settings())

@@ -513,27 +513,27 @@ fn ensure_cef_directory_if_needed(
   if !no_default_features {
     merged_features.push("default".into());
   }
-  let enabled_features = app_settings
-    .manifest
-    .lock()
-    .unwrap()
-    .all_enabled_features(&merged_features);
+
   let target_triple = target.or_else(|| app_settings.cargo_config.build().target());
-  match crate::cef::exporter::ensure_cef_directory(
-    target_triple,
-    &enabled_features,
-    &app_settings.workspace_dir,
-  ) {
-    // cef not enabled
-    Ok(None) => {}
+  let is_cef_used = {
+    let manifest_guard = app_settings.manifest.lock().unwrap();
+    let enabled_features = manifest_guard.all_enabled_features(&merged_features);
+    manifest_guard.is_cef_runtime_used(&enabled_features, target_triple)
+  };
+
+  if !is_cef_used {
+    return Ok(());
+  }
+
+  match crate::cef::exporter::ensure_cef_directory(target_triple, &app_settings.workspace_dir) {
     #[cfg(not(windows))]
-    Ok(Some(_cef_dir)) => {
+    Ok(_cef_dir) => {
       let _options = options;
     }
     // on Windows we must copy the cef files next to the executable.
     // We also do this for builds since we can't codesign the global cache.
     #[cfg(windows)]
-    Ok(Some(cef_dir)) => {
+    Ok(cef_dir) => {
       let out_dir = app_settings.out_dir(options, tauri_dir)?;
       crate::helpers::fs::copy_dir_all(&cef_dir, &out_dir)?;
     }
@@ -941,6 +941,7 @@ impl AppSettings for RustAppSettings {
       config.bundle.clone(),
       updater_settings,
       arch64bits,
+      self.target(options),
     )?;
 
     settings.macos.skip_stapling = options.skip_stapling;
@@ -1425,7 +1426,7 @@ pub fn get_profile_dir(options: &Options) -> &str {
   }
 }
 
-#[allow(unused_variables, deprecated)]
+#[allow(unused_variables, deprecated, clippy::too_many_arguments)]
 pub(crate) fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
   features: &[String],
@@ -1434,12 +1435,13 @@ pub(crate) fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
+  target_triple: Option<&str>,
 ) -> crate::Result<BundleSettings> {
-  let enabled_features = settings
-    .manifest
-    .lock()
-    .unwrap()
-    .all_enabled_features(features);
+  let is_cef_used = {
+    let manifest_guard = settings.manifest.lock().unwrap();
+    let enabled_features = manifest_guard.all_enabled_features(features);
+    manifest_guard.is_cef_runtime_used(&enabled_features, target_triple)
+  };
 
   #[allow(unused_mut)]
   let mut resources = config
@@ -1504,8 +1506,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
       }
     }
 
-    if !enabled_features.contains(&"cef".into()) && !enabled_features.contains(&"tauri/cef".into())
-    {
+    if !is_cef_used {
       depends_deb.push("libwebkit2gtk-4.1-0".to_string());
       libs.push("libwebkit2gtk-4.1.so.0".into());
     }
@@ -1561,10 +1562,10 @@ pub(crate) fn tauri_config_to_bundle_settings(
     let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
       crate::helpers::plist::merge_plist(vec![
         PathBuf::from(user_provided_entitlements).into(),
-        plist::Value::Dictionary(required_entitlements(tauri_config, &enabled_features)?).into(),
+        plist::Value::Dictionary(required_entitlements(tauri_config, is_cef_used)?).into(),
       ])?
     } else {
-      required_entitlements(tauri_config, &enabled_features)?.into()
+      required_entitlements(tauri_config, is_cef_used)?.into()
     };
 
     Some(tauri_bundler::bundle::Entitlements::Plist(entitlements))
@@ -1724,9 +1725,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
     }),
     license_file: config.license_file.map(|l| tauri_dir.join(l)),
     updater: updater_config,
-    cef_path: if enabled_features.contains(&"cef".into())
-      || enabled_features.contains(&"tauri/cef".into())
-    {
+    cef_path: if is_cef_used {
       std::env::var_os("CEF_PATH").map(PathBuf::from)
     } else {
       None
@@ -1738,7 +1737,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
 #[cfg(target_os = "macos")]
 fn required_entitlements(
   tauri_config: &Config,
-  enabled_features: &[String],
+  is_cef_used: bool,
 ) -> crate::Result<plist::Dictionary> {
   let mut entitlements = plist::Dictionary::new();
 
@@ -1767,7 +1766,7 @@ fn required_entitlements(
     }
   }
 
-  if enabled_features.contains(&"cef".into()) || enabled_features.contains(&"tauri/cef".into()) {
+  if is_cef_used {
     entitlements.insert("com.apple.security.cs.allow-jit".to_string(), true.into());
     entitlements.insert(
       "com.apple.security.cs.allow-unsigned-executable-memory".to_string(),

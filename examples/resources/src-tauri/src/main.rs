@@ -13,10 +13,10 @@ fn read_to_string(path: &str) -> String {
 
 #[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
+  #[cfg(feature = "wry")]
+  let builder = tauri::Builder::<tauri_runtime_wry::Wry<tauri::EventLoopMessage>>::new();
   #[cfg(feature = "cef")]
-  let builder = tauri::Builder::<tauri::Cef>::default();
-  #[cfg(not(feature = "cef"))]
-  let builder = tauri::Builder::<tauri::Wry>::new();
+  let builder = tauri::Builder::<tauri_runtime_cef::CefRuntime<tauri::EventLoopMessage>>::new();
 
   builder
     .setup(move |app| {

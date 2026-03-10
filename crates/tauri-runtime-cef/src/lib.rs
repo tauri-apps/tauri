@@ -51,6 +51,9 @@ mod cef_impl;
 mod cef_webview;
 mod utils;
 
+mod tauri_ext;
+pub use tauri_ext::*;
+
 type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;
 
 pub fn webview_version() -> Result<String> {
@@ -746,6 +749,11 @@ impl CefWindowBuilder {
   pub fn browser_window(mut self) -> Self {
     self.browser_window = true;
     self
+  }
+
+  /// Set whether to create a browser window (used by extension traits when taking `&mut self`).
+  pub fn set_browser_window(&mut self, value: bool) {
+    self.browser_window = value;
   }
 }
 
@@ -2161,6 +2169,9 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type PlatformSpecificWebviewAttribute = WebviewAtribute;
   type PlatformSpecificInitAttribute = RuntimeInitAttribute;
   type WindowOpener = NewWindowOpener;
+
+  // CEF always uses a custom protocol on dev
+  const PROXY_DEV_SERVER: bool = true;
 
   fn new(args: RuntimeInitArgs<RuntimeInitAttribute>) -> Result<Self> {
     Ok(Self::init(args))

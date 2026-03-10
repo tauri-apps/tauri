@@ -46,8 +46,6 @@ use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
-use tauri_macros::default_runtime;
-
 use std::{
   fmt,
   hash::{Hash, Hasher},
@@ -273,6 +271,13 @@ async fn reopen_window(app: tauri::AppHandle) {
     }
 
     Ok(builder)
+  }
+
+  /// Returns a mutable reference to the inner runtime window builder. Used by runtime-specific extension traits (e.g. CEF `browser_window`).
+  pub fn inner_window_builder_mut(
+    &mut self,
+  ) -> &mut <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder {
+    &mut self.window_builder
   }
 
   /// Registers a global menu event listener.
@@ -925,7 +930,6 @@ pub(crate) struct WindowMenu<R: Runtime> {
 ///
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
-#[default_runtime(crate::Wry, wry)]
 pub struct Window<R: Runtime> {
   /// The window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
@@ -2387,9 +2391,11 @@ impl From<WindowEffectsConfig> for EffectsBuilder {
 
 #[cfg(test)]
 mod tests {
+  use crate::test::MockRuntime;
+
   #[test]
   fn window_is_send_sync() {
-    crate::test_utils::assert_send::<super::Window>();
-    crate::test_utils::assert_sync::<super::Window>();
+    crate::test_utils::assert_send::<super::Window<MockRuntime>>();
+    crate::test_utils::assert_sync::<super::Window<MockRuntime>>();
   }
 }

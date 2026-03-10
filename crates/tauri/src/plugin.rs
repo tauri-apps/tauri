@@ -17,7 +17,6 @@ use serde::{
   de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
 };
 use serde_json::Value as JsonValue;
-use tauri_macros::default_runtime;
 use tauri_runtime::webview::InitializationScript;
 use thiserror::Error;
 use url::Url;
@@ -128,6 +127,13 @@ pub struct PluginHandle<R: Runtime> {
   handle: AppHandle<R>,
 }
 
+impl<R: Runtime> PluginHandle<R> {
+  /// Creates a new plugin handle. Used by runtime-specific extension traits (e.g. iOS plugin registration).
+  pub fn new(name: &'static str, handle: AppHandle<R>) -> Self {
+    Self { name, handle }
+  }
+}
+
 impl<R: Runtime> Clone for PluginHandle<R> {
   fn clone(&self) -> Self {
     Self {
@@ -155,9 +161,19 @@ pub struct PluginApi<R: Runtime, C: DeserializeOwned> {
 }
 
 impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
+  /// Returns the plugin name.
+  pub fn name(&self) -> &'static str {
+    self.name
+  }
+
   /// Returns the plugin configuration.
   pub fn config(&self) -> &C {
     &self.config
+  }
+
+  /// Returns the raw plugin configuration as JSON.
+  pub fn raw_config(&self) -> &Arc<JsonValue> {
+    &self.raw_config
   }
 
   /// Returns the application handle.
@@ -853,7 +869,6 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
 }
 
 /// Plugin collection type.
-#[default_runtime(crate::Wry, wry)]
 pub(crate) struct PluginStore<R: Runtime> {
   store: Vec<Box<dyn Plugin<R>>>,
 }

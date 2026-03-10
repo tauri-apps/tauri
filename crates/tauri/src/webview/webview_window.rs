@@ -33,15 +33,13 @@ use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowC
 use url::Url;
 
 use crate::{
-  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
+  AppHandle, Event, EventId, EventLoopMessage, Manager, Runtime, Webview, WindowEvent,
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::{Cookie, PageLoadPayload, WebviewBuilder, WebviewEvent},
   window::WindowBuilder,
 };
-
-use tauri_macros::default_runtime;
 
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -52,27 +50,6 @@ use super::{DownloadEvent, ResolvedScope};
 pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
   window_builder: WindowBuilder<'a, R, M>,
   webview_builder: WebviewBuilder<R>,
-}
-
-#[cfg(feature = "cef")]
-#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
-impl<'a, M: Manager<crate::Cef>> WebviewWindowBuilder<'a, crate::Cef, M> {
-  /// Sets the browser runtime style.
-  ///
-  /// See [`tauri_runtime_cef::RuntimeStyle`] for more information.
-  pub fn browser_runtime_style(mut self, style: tauri_runtime_cef::RuntimeStyle) -> Self {
-    self.webview_builder = self.webview_builder.browser_runtime_style(style);
-    self
-  }
-
-  /// Crete a full Chrome browser window.
-  ///
-  /// In this case most window builder options are ignored,
-  /// as we can only control the size and position of the window.
-  pub fn browser_window(mut self) -> Self {
-    self.window_builder.window_builder = self.window_builder.window_builder.browser_window();
-    self
-  }
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
@@ -129,6 +106,16 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
       window_builder: WindowBuilder::new(manager, &label),
       webview_builder: WebviewBuilder::new(&label, url),
     }
+  }
+
+  /// Returns a mutable reference to the inner webview builder. Used by runtime-specific extension traits.
+  pub fn webview_builder_mut(&mut self) -> &mut WebviewBuilder<R> {
+    &mut self.webview_builder
+  }
+
+  /// Returns a mutable reference to the inner window builder. Used by runtime-specific extension traits.
+  pub fn window_builder_mut(&mut self) -> &mut WindowBuilder<'a, R, M> {
+    &mut self.window_builder
   }
 
   /// Initializes a webview window builder from a [`WindowConfig`] from tauri.conf.json.
@@ -1356,54 +1343,18 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   }
 }
 
-/// Wry APIs
-#[cfg(feature = "wry")]
-impl<M: Manager<crate::Wry>> WebviewWindowBuilder<'_, crate::Wry, M> {
-  /// Set the environment for the webview.
-  /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
-  #[cfg(windows)]
-  pub fn with_environment(
-    mut self,
-    environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
-  ) -> Self {
-    self.webview_builder = self.webview_builder.with_environment(environment);
-    self
-  }
-
-  /// Creates a new webview sharing the same web process with the provided webview.
-  /// Useful if you need to link a webview to another, for instance when using the [`Self::on_new_window`].
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
-    self.webview_builder = self.webview_builder.with_related_view(related_view);
-    self
-  }
-
-  /// Set the webview configuration.
-  /// Useful if you need to share the same webview configuration, for instance when using the [`Self::on_new_window`].
-  #[cfg(target_os = "macos")]
-  pub fn with_webview_configuration(
-    mut self,
-    webview_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
-  ) -> Self {
-    self.webview_builder = self
-      .webview_builder
-      .with_webview_configuration(webview_configuration);
-    self
-  }
-}
-
 /// A type that wraps a [`Window`] together with a [`Webview`].
-#[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct WebviewWindow<R: Runtime> {
   pub(crate) window: Window<R>,
   pub(crate) webview: Webview<R>,
+}
+
+impl<R: Runtime> WebviewWindow<R> {
+  /// Returns a reference to the webview dispatcher. Used by runtime-specific extension traits.
+  pub fn dispatcher(&self) -> &<R as tauri_runtime::Runtime<EventLoopMessage>>::WebviewDispatcher {
+    self.webview.dispatcher()
+  }
 }
 
 impl<R: Runtime> AsRef<Webview<R>> for WebviewWindow<R> {
@@ -2317,9 +2268,8 @@ impl<R: Runtime> WebviewWindow<R> {
   /// }
   /// ```
   #[allow(clippy::needless_doctest_main)] // To avoid a large diff
-  #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(feature = "wry"))]
-  pub fn with_webview<F: FnOnce(crate::webview::PlatformWebview) + Send + 'static>(
+  /// Runs a closure with the underlying platform webview.
+  pub fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(
     &self,
     f: F,
   ) -> crate::Result<()> {
@@ -2538,67 +2488,6 @@ impl<R: Runtime> WebviewWindow<R> {
   /// See [Self::cookies].
   pub fn delete_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
     self.webview.delete_cookie(cookie)
-  }
-}
-
-/// APIs specific to the CEF runtime.
-#[cfg(feature = "cef")]
-impl WebviewWindow<crate::Cef> {
-  /// Send a message to the DevTools agent. The message should be a UTF-8 encoded JSON
-  /// string following the Chrome DevTools Protocol format.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// use tauri::Manager;
-  ///
-  /// tauri::Builder::<tauri::Cef>::new()
-  ///   .setup(|app| {
-  ///     let window = app.get_webview_window("main").unwrap();
-  ///     // Enable Page domain to receive page lifecycle events
-  ///     let msg = br#"{"id":1,"method":"Page.enable","params":{}}"#;
-  ///     window.send_dev_tools_message(msg)?;
-  ///     Ok(())
-  ///   });
-  /// ```
-  pub fn send_dev_tools_message(&self, message: &[u8]) -> crate::Result<()> {
-    self.webview.send_dev_tools_message(message)
-  }
-
-  /// Register a callback to receive DevTools protocol messages. Messages include
-  /// both method results and events from the DevTools agent.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// use tauri::{Manager, CefDevToolsProtocol};
-  ///
-  /// tauri::Builder::<tauri::Cef>::new()
-  ///   .setup(|app| {
-  ///     let window = app.get_webview_window("main").unwrap();
-  ///     window.on_dev_tools_protocol(|protocol| {
-  ///       match protocol {
-  ///         CefDevToolsProtocol::Message(msg) => {
-  ///           if let Ok(s) = std::str::from_utf8(&msg) {
-  ///             println!("DevTools message: {}", s);
-  ///           }
-  ///         }
-  ///         CefDevToolsProtocol::Event { method, params } => {
-  ///           println!("DevTools event: {} {:?}", method, params);
-  ///         }
-  ///         CefDevToolsProtocol::MethodResult { message_id, success, result } => {
-  ///           println!("DevTools result: id={} success={}", message_id, success);
-  ///         }
-  ///       }
-  ///     })?;
-  ///     Ok(())
-  ///   });
-  /// ```
-  pub fn on_dev_tools_protocol<F: Fn(crate::CefDevToolsProtocol) + Send + Sync + 'static>(
-    &self,
-    f: F,
-  ) -> crate::Result<()> {
-    self.webview.on_dev_tools_protocol(f)
   }
 }
 

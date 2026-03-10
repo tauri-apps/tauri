@@ -130,11 +130,14 @@ tauri-build = "{}"
 #[cfg(target_os = "ios")]
 tauri::ios_plugin_binding!(init_plugin_{plugin_name});
 
+#[cfg(target_os = "ios")]
+use tauri_runtime_wry::tauri_ext::PluginApiWryExt;
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
   Builder::new("{plugin_name}")
-    .setup(|app| {{
+    .setup(|_app, api| {{
       #[cfg(target_os = "ios")]
-      app.register_ios_plugin(init_plugin_{plugin_name})?;
+      api.register_ios_plugin(init_plugin_{plugin_name})?;
       Ok(())
     }})
     .build()

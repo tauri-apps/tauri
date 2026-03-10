@@ -558,7 +558,9 @@ mod tests {
   use std::str::FromStr;
 
   use super::*;
-  use crate::{StateManager, Wry, ipc::InvokeBody, manager::AppManager, plugin::PluginStore};
+  use crate::{
+    StateManager, ipc::InvokeBody, manager::AppManager, plugin::PluginStore, test::MockRuntime,
+  };
   use http::header::*;
   use serde_json::json;
   use tauri_macros::generate_context;
@@ -566,7 +568,7 @@ mod tests {
   #[test]
   fn parse_invoke_request() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
-    let manager: AppManager<Wry> = AppManager::with_handlers(
+    let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
       PluginStore::default(),
       Box::new(|_| false),
@@ -682,7 +684,7 @@ mod tests {
       "contentType":  mime::APPLICATION_JSON.to_string(),
     });
 
-    let manager: AppManager<Wry> = AppManager::with_handlers(
+    let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
       PluginStore::default(),
       Box::new(|_| false),

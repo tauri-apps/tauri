@@ -106,6 +106,74 @@ use wry::{
   WebViewBuilderExtAndroid, WebViewExtAndroid,
   prelude::{dispatch, find_class},
 };
+
+/// Prelude for Android JNI types used by the [`android_binding!`] macro.
+#[cfg(target_os = "android")]
+pub mod prelude {
+  pub use jni::JNIEnv;
+  pub use jni::objects::{JClass, JString};
+}
+
+#[cfg(target_os = "android")]
+pub use wry::android_setup;
+
+/// Setups the binding that initializes the Android app with wry.
+///
+/// This macro is used by [`tauri::mobile_entry_point`] and should not be invoked directly.
+#[cfg(target_os = "android")]
+#[macro_export]
+macro_rules! android_binding {
+  ($domain:ident, $package:ident, $main:ident, $wry:path) => {
+    use $wry::{
+      android_setup,
+      prelude::{JClass, JNIEnv, JString},
+    };
+
+    $wry::wry::android_binding!($domain, $package, $wry);
+
+    $wry::tao::android_binding!(
+      $domain,
+      $package,
+      WryActivity,
+      android_setup,
+      $main,
+      $wry::tao
+    );
+
+    $wry::tao::platform::android::prelude::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      handlePluginResponse,
+      [i32, JString, JString],
+    );
+    $wry::tao::platform::android::prelude::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      sendChannelData,
+      [i64, JString],
+    );
+
+    // this function is a glue between PluginManager.kt > handlePluginResponse and Rust
+    #[allow(non_snake_case)]
+    pub fn handlePluginResponse(
+      mut env: JNIEnv,
+      _: JClass,
+      id: i32,
+      success: JString,
+      error: JString,
+    ) {
+      ::tauri::handle_android_plugin_response(&mut env, id, success, error);
+    }
+
+    // this function is a glue between PluginManager.kt > sendChannelData and Rust
+    #[allow(non_snake_case)]
+    pub fn sendChannelData(mut env: JNIEnv, _: JClass, id: i64, data: JString) {
+      ::tauri::send_channel_data(&mut env, id, data);
+    }
+  };
+}
 #[cfg(not(any(
   target_os = "windows",
   target_os = "macos",
@@ -159,6 +227,9 @@ mod undecorated_resizing;
 mod util;
 mod webview;
 mod window;
+
+mod tauri_ext;
+pub use tauri_ext::*;
 
 pub use webview::Webview;
 use window::WindowExt as _;
@@ -2916,6 +2987,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   type PlatformSpecificWebviewAttribute = WebviewAttribute;
   type PlatformSpecificInitAttribute = ();
   type WindowOpener = NewWindowOpener;
+
+  // mobile uses a custom protocol on dev
+  const PROXY_DEV_SERVER: bool = cfg!(mobile);
 
   fn new(args: RuntimeInitArgs<()>) -> Result<Self> {
     Self::init_with_builder(EventLoopBuilder::<Message<T>>::with_user_event(), args)

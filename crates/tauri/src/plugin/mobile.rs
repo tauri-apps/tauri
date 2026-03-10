@@ -153,49 +153,6 @@ impl<T> fmt::Display for ErrorResponse<T> {
 }
 
 impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
-  /// Registers an iOS plugin.
-  #[cfg(all(target_os = "ios", feature = "wry"))]
-  pub fn register_ios_plugin(
-    &self,
-    init_fn: unsafe fn() -> *const std::ffi::c_void,
-  ) -> Result<PluginHandle<R>, PluginInvokeError> {
-    if let Some(webview) = self.handle.manager.webviews().values().next() {
-      let (tx, rx) = channel();
-      let name = self.name;
-      let config = self.raw_config.clone();
-      webview
-        .with_webview(move |w| {
-          unsafe {
-            crate::ios::register_plugin(
-              &name.into(),
-              init_fn(),
-              &serde_json::to_string(&config).unwrap().as_str().into(),
-              w.inner() as _,
-            )
-          };
-          tx.send(()).unwrap();
-        })
-        .map_err(|_| PluginInvokeError::UnreachableWebview)?;
-      rx.recv().unwrap();
-    } else {
-      unsafe {
-        crate::ios::register_plugin(
-          &self.name.into(),
-          init_fn(),
-          &serde_json::to_string(&self.raw_config)
-            .unwrap()
-            .as_str()
-            .into(),
-          std::ptr::null(),
-        )
-      };
-    }
-    Ok(PluginHandle {
-      name: self.name,
-      handle: self.handle.clone(),
-    })
-  }
-
   /// Registers an Android plugin.
   #[cfg(target_os = "android")]
   pub fn register_android_plugin(

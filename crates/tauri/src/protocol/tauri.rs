@@ -13,7 +13,7 @@ use tauri_utils::config::HeaderAddition;
 
 use crate::{
   Runtime,
-  manager::{AppManager, webview::PROXY_DEV_SERVER},
+  manager::AppManager,
   webview::{UriSchemeProtocolHandler, WebResourceRequestHandler},
 };
 
@@ -72,7 +72,8 @@ fn get_response<R: Runtime>(
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   (url, response_cache): (&str, &Arc<Mutex<HashMap<String, CachedResponse>>>),
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
-  let proxy_dev_server = PROXY_DEV_SERVER && manager.assets.iter().next().is_none();
+  let proxy_dev_server =
+    (cfg!(dev) && R::PROXY_DEV_SERVER) && manager.assets.iter().next().is_none();
   // use the entire URI as we are going to proxy the request
   let path = if proxy_dev_server {
     request.uri().to_string()

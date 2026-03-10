@@ -1161,6 +1161,8 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type PlatformSpecificInitAttribute = ();
   type WindowOpener = ();
 
+  const PROXY_DEV_SERVER: bool = false;
+
   fn new(_args: RuntimeInitArgs<()>) -> Result<Self> {
     Ok(Self::init())
   }

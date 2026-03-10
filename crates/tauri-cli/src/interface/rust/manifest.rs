@@ -61,6 +61,164 @@ impl Manifest {
 
     all_enabled_features
   }
+
+  /// Returns whether the CEF runtime is in use for this build.
+  ///
+  /// This is true if:
+  /// - Any enabled feature is `tauri/cef` (legacy), or
+  /// - `tauri-runtime-cef` is a non-optional dependency in the app's Cargo.toml, or
+  /// - For the currently compiled target, a matching `[target.'cfg(...)'.dependencies]` block
+  ///   contains non-optional `tauri-runtime-cef`, or
+  /// - Any enabled feature enables `tauri-runtime-cef` or `dep:tauri-runtime-cef`.
+  pub fn is_cef_runtime_used(
+    &self,
+    enabled_features: &[String],
+    target_triple: Option<&str>,
+  ) -> bool {
+    let target_triple = target_triple
+      .map(String::from)
+      .or_else(|| tauri_utils::platform::target_triple().ok())
+      .unwrap_or_default();
+
+    // Legacy: app feature tauri/cef
+    if enabled_features.iter().any(|f| f == "tauri/cef") {
+      return true;
+    }
+
+    let table = self.inner.as_table();
+
+    // Non-optional dependency under [dependencies]
+    if is_cef_dependency_required_in_table(table, "dependencies") {
+      return true;
+    }
+
+    // Non-optional under [target.'cfg(...)'.dependencies] for the current target only
+    if let Some(target_section) = table.get("target").and_then(|i| i.as_table()) {
+      for (cfg_key, target_cfg) in target_section.iter() {
+        if cfg_matches_target(cfg_key, &target_triple)
+          && let Some(target_table) = target_cfg.as_table()
+          && is_cef_dependency_required_in_table(target_table, "dependencies")
+        {
+          return true;
+        }
+      }
+    }
+
+    // Any enabled feature enables tauri-runtime-cef (or dep:tauri-runtime-cef)
+    let features = self.features();
+    let mut expanded = HashSet::new();
+    for f in enabled_features {
+      if f == CEF_RUNTIME_CRATE
+        || f == &format!("dep:{}", CEF_RUNTIME_CRATE)
+        || feature_enables_cef_runtime(&features, f, &mut expanded)
+      {
+        return true;
+      }
+    }
+
+    false
+  }
+}
+
+const CEF_RUNTIME_CRATE: &str = "tauri-runtime-cef";
+
+/// Returns whether the given `cfg(...)` key from `[target.'cfg(...)'.dependencies]` matches the
+/// current compilation target triple.
+fn cfg_matches_target(cfg_key: &str, target_triple: &str) -> bool {
+  let s = cfg_key
+    .strip_prefix("cfg(")
+    .and_then(|s| s.strip_suffix(')'))
+    .unwrap_or(cfg_key);
+  // cfg(any(a, b, c)): check if any of the inner conditions match
+  if let Some(inner) = s.strip_prefix("any(").and_then(|s| s.strip_suffix(')')) {
+    for part in inner.split(',') {
+      let part = part.trim();
+      if cfg_matches_target(&format!("cfg({part})"), target_triple) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // cfg(not(...))
+  if let Some(inner) = s.strip_prefix("not(").and_then(|s| s.strip_suffix(')')) {
+    return !cfg_matches_target(&format!("cfg({inner})"), target_triple);
+  }
+  // cfg(windows)
+  if s == "windows" {
+    return target_triple.contains("windows");
+  }
+  // cfg(unix)
+  if s == "unix" {
+    return target_triple.contains("linux")
+      || target_triple.contains("darwin")
+      || target_triple.contains("freebsd")
+      || target_triple.contains("openbsd")
+      || target_triple.contains("netbsd");
+  }
+  // cfg(target_os = "macos") etc.
+  if s.contains("target_os") {
+    if s.contains("macos") {
+      return target_triple.contains("darwin");
+    }
+    if s.contains("linux") {
+      return target_triple.contains("linux");
+    }
+    if s.contains("windows") {
+      return target_triple.contains("windows");
+    }
+    if s.contains("android") {
+      return target_triple.contains("android");
+    }
+    if s.contains("ios") {
+      return target_triple.contains("ios");
+    }
+  }
+  false
+}
+
+fn is_cef_dependency_required_in_table(table: &toml_edit::Table, dependencies_key: &str) -> bool {
+  let deps = match table.get(dependencies_key).and_then(|i| i.as_table()) {
+    Some(d) => d,
+    None => return false,
+  };
+  let dep = match deps.get(CEF_RUNTIME_CRATE) {
+    Some(d) => d,
+    None => return false,
+  };
+  // If it's a table, check optional; otherwise it's a version string -> required
+  let sub = match dep.as_table() {
+    Some(t) => t,
+    None => return true,
+  };
+  let optional = sub
+    .get("optional")
+    .and_then(|i| i.as_value())
+    .and_then(|v| v.as_bool())
+    .unwrap_or(false);
+  !optional
+}
+
+fn feature_enables_cef_runtime(
+  features: &HashMap<String, Vec<String>>,
+  feature_name: &str,
+  expanded: &mut HashSet<String>,
+) -> bool {
+  if !expanded.insert(feature_name.to_string()) {
+    return false;
+  }
+  let list = match features.get(feature_name) {
+    Some(a) => a,
+    None => return false,
+  };
+  for s in list {
+    if s == CEF_RUNTIME_CRATE || s == &format!("dep:{}", CEF_RUNTIME_CRATE) {
+      return true;
+    }
+    if features.contains_key(s) && feature_enables_cef_runtime(features, s, expanded) {
+      return true;
+    }
+  }
+  false
 }
 
 fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> Vec<String> {

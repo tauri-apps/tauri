@@ -35,6 +35,14 @@ features = [
   "tray-icon",
 ]
 
+[dependencies.tauri-runtime-wry]
+path = "../../../crates/tauri-runtime-wry"
+optional = true
+
+[dependencies.tauri-runtime-cef]
+path = "../../../crates/tauri-runtime-cef"
+optional = true
+
 [dev-dependencies.tauri]
 path = "../../../crates/tauri"
 default-features = false
@@ -42,6 +50,6 @@ features = ["test"]
 
 [features]
 default = ["wry"]
-wry = ["tauri/wry"]
+wry = ["dep:tauri-runtime-wry"]
+cef = ["dep:tauri-runtime-cef"]
 prod = ["tauri/custom-protocol"]
-cef = ["tauri/cef"]

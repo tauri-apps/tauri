@@ -19,9 +19,9 @@ use tauri::{Manager, RunEvent};
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[cfg(feature = "cef")]
-type TauriRuntime = tauri::Cef;
+type TauriRuntime = tauri_runtime_cef::CefRuntime<tauri::EventLoopMessage>;
 #[cfg(not(feature = "cef"))]
-type TauriRuntime = tauri::Wry;
+type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
 
 #[derive(Clone, Serialize)]
 struct Reply {
@@ -37,7 +37,7 @@ pub struct PopupMenu<R: Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 pub fn run() {
-  run_app(tauri::Builder::<TauriRuntime>::default(), |_app| {});
+  run_app(tauri::Builder::<TauriRuntime>::new(), |_app| {});
 }
 
 pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
@@ -122,28 +122,25 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
 
       #[cfg(feature = "cef")]
       {
+        use tauri_runtime_cef::WebviewWindowCefExt;
         webview
           .on_dev_tools_protocol(|protocol| match protocol {
-            tauri::CefDevToolsProtocol::Message(msg) => {
-              if let Ok(s) = std::str::from_utf8(&msg) {
-                log::info!("DevTools message: {s}");
-              } else {
-                log::error!("Failed to convert DevTools message to UTF-8");
-              }
+            tauri_runtime_cef::DevToolsProtocol::Message(msg) => {
+              log::info!("DevTools Message: {}", String::from_utf8_lossy(&msg));
             }
-            tauri::CefDevToolsProtocol::Event { method, params } => {
+            tauri_runtime_cef::DevToolsProtocol::Event { method, params } => {
               log::info!(
-                "DevTools event: {method} (params: {})",
+                "DevTools Event: {method} {}",
                 String::from_utf8_lossy(&params)
               );
             }
-            tauri::CefDevToolsProtocol::MethodResult {
+            tauri_runtime_cef::DevToolsProtocol::MethodResult {
               message_id,
               success,
               result,
             } => {
               log::info!(
-                "DevTools result: id={message_id} success={success} ({})",
+                "DevTools MethodResult: id={message_id} success={success} {}",
                 String::from_utf8_lossy(&result)
               );
             }

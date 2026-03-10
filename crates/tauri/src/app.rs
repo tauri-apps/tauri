@@ -28,7 +28,6 @@ use crate::menu::{Menu, MenuEvent};
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
 use serialize_to_javascript::{DefaultTemplate, Template, default_template};
-use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
@@ -337,7 +336,6 @@ impl<R: Runtime> AssetResolver<R> {
 /// A handle to the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
-#[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
@@ -345,39 +343,22 @@ pub struct AppHandle<R: Runtime> {
   event_loop: Arc<Mutex<EventLoop>>,
 }
 
+impl<R: Runtime> AppHandle<R> {
+  /// Returns a reference to the runtime handle. Used by runtime-specific extension traits.
+  pub fn runtime_handle(&self) -> &R::Handle {
+    &self.runtime_handle
+  }
+
+  /// Returns a mutable reference to the runtime handle. Used by runtime-specific extension traits (e.g. wry `wry_plugin`).
+  pub fn runtime_handle_mut(&mut self) -> &mut R::Handle {
+    &mut self.runtime_handle
+  }
+}
+
 /// Not the real event loop, only contains the main thread id of the event loop
 #[derive(Debug)]
 struct EventLoop {
   main_thread_id: ThreadId,
-}
-
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl AppHandle<crate::Wry> {
-  /// Create a new tao window using a callback. The event loop must be running at this point.
-  pub fn create_tao_window<
-    F: FnOnce() -> (String, tauri_runtime_wry::TaoWindowBuilder) + Send + 'static,
-  >(
-    &self,
-    f: F,
-  ) -> crate::Result<std::sync::Weak<tauri_runtime_wry::Window>> {
-    self.runtime_handle.create_tao_window(f).map_err(Into::into)
-  }
-
-  /// Sends a window message to the event loop.
-  pub fn send_tao_window_event(
-    &self,
-    window_id: tauri_runtime_wry::TaoWindowId,
-    message: tauri_runtime_wry::WindowMessage,
-  ) -> crate::Result<()> {
-    self
-      .runtime_handle
-      .send_event(tauri_runtime_wry::Message::Window(
-        self.runtime_handle.window_id(window_id),
-        message,
-      ))
-      .map_err(Into::into)
-  }
 }
 
 #[cfg(target_vendor = "apple")]
@@ -657,7 +638,6 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 /// The instance of the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
-#[default_runtime(crate::Wry, wry)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
   setup: Option<SetupHook<R>>,
@@ -701,24 +681,6 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self.handle()
-  }
-}
-
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl App<crate::Wry> {
-  /// Adds a [`tauri_runtime_wry::Plugin`] using its [`tauri_runtime_wry::PluginBuilder`].
-  ///
-  /// # Stability
-  ///
-  /// This API is unstable.
-  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + Send + 'static>(
-    &mut self,
-    plugin: P,
-  ) where
-    <P as tauri_runtime_wry::PluginBuilder<EventLoopMessage>>::Plugin: Send,
-  {
-    self.handle.runtime_handle.plugin(plugin);
   }
 }
 
@@ -1140,6 +1102,11 @@ impl<R: Runtime> App<R> {
     &self.handle
   }
 
+  /// Returns a mutable reference to the app handle. Used by runtime-specific extension traits.
+  pub fn handle_mut(&mut self) -> &mut AppHandle<R> {
+    &mut self.handle
+  }
+
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   ///
   /// # Examples
@@ -1436,26 +1403,6 @@ pub(crate) struct InvokeInitializationScript<'a> {
   pub(crate) invoke_key: &'a str,
 }
 
-/// Make `Wry` the default `Runtime` for `Builder`
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-impl Default for Builder<crate::Wry> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-/// Make `Cef` the default `Runtime` for `Builder`
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-impl Default for Builder<crate::Cef> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-#[cfg(not(any(feature = "wry", feature = "cef")))]
-#[cfg_attr(docsrs, doc(cfg(not(any(feature = "wry", feature = "cef")))))]
 impl<R: Runtime> Default for Builder<R> {
   fn default() -> Self {
     Self::new()
@@ -1500,6 +1447,11 @@ impl<R: Runtime> Builder<R> {
       platform_specific_attributes: Vec::new(),
     }
   }
+
+  /// Adds a platform-specific init attribute. Used by runtime-specific extension traits (e.g. CEF `command_line_args`).
+  pub fn platform_specific_attribute(&mut self, attr: R::PlatformSpecificInitAttribute) {
+    self.platform_specific_attributes.push(attr);
+  }
 }
 
 /// Helper so `Builder<R>` can merge user-provided platform attributes with config-derived ones
@@ -1521,26 +1473,6 @@ impl<R: Runtime> PlatformSpecificAttributesHelper for Builder<R> {
     let from_config = R::PlatformSpecificInitAttribute::new(config).map_err(crate::Error::from)?;
     user_attrs.extend(from_config);
     Ok(user_attrs)
-  }
-}
-
-#[cfg(feature = "cef")]
-impl Builder<crate::Cef> {
-  /// Appends command line arguments to the CEF command line.
-  #[cfg(feature = "cef")]
-  pub fn command_line_args<K: Into<String>, V: Into<String>>(
-    mut self,
-    args: impl IntoIterator<Item = (K, Option<V>)>,
-  ) -> Self {
-    self.platform_specific_attributes.push(
-      tauri_runtime_cef::RuntimeInitAttribute::CommandLineArgs {
-        args: args
-          .into_iter()
-          .map(|(k, v)| (k.into(), v.map(Into::into)))
-          .collect::<Vec<_>>(),
-      },
-    );
-    self
   }
 }
 
@@ -2511,7 +2443,7 @@ fn on_event_loop_event<R: Runtime>(
     },
     RuntimeRunEvent::Ready => {
       // set the app icon in development
-      #[cfg(all(dev, target_os = "macos", not(feature = "cef")))]
+      #[cfg(all(dev, target_os = "macos"))]
       {
         use objc2::{AllocAnyThread, MainThreadMarker};
         use objc2_app_kit::{NSApplication, NSImage};
@@ -2595,15 +2527,13 @@ fn on_event_loop_event<R: Runtime>(
 
 #[cfg(test)]
 mod tests {
+  use crate::test::MockRuntime;
+
   #[test]
   fn is_send_sync() {
-    crate::test_utils::assert_send::<super::AppHandle>();
-    crate::test_utils::assert_sync::<super::AppHandle>();
-
-    #[cfg(feature = "wry")]
-    {
-      crate::test_utils::assert_send::<super::AssetResolver<crate::Wry>>();
-      crate::test_utils::assert_sync::<super::AssetResolver<crate::Wry>>();
-    }
+    crate::test_utils::assert_send::<super::AppHandle<MockRuntime>>();
+    crate::test_utils::assert_sync::<super::AppHandle<MockRuntime>>();
+    crate::test_utils::assert_send::<super::AssetResolver<MockRuntime>>();
+    crate::test_utils::assert_sync::<super::AssetResolver<MockRuntime>>();
   }
 }

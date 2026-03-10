@@ -11,6 +11,9 @@ rust-version.workspace = true
 
 [dependencies]
 dioxus-debug-cell = "0.1"
+tauri = { version = "2.10", path = "../tauri", default-features = false, features = [
+  "unstable",
+] }
 tauri-runtime = { version = "2.9.2", path = "../tauri-runtime" }
 tauri-utils = { version = "2.8.0", path = "../tauri-utils", features = [
   "html-manipulation",

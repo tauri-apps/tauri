@@ -259,20 +259,8 @@ fn check_archive_outdated(archive_json_path: &Path, required_version: &str) -> c
   }
 }
 
-pub fn ensure_cef_directory(
-  target: Option<&str>,
-  enabled_features: &[String],
-  workspace_dir: &Path,
-) -> crate::Result<Option<PathBuf>> {
-  // Check if cef feature is enabled
-  let cef_enabled = enabled_features
-    .iter()
-    .any(|f| f == "cef" || f == "tauri/cef");
-
-  if !cef_enabled {
-    return Ok(None);
-  }
-
+/// Ensures the CEF directory is available. Returns `None` if CEF is not in use for this build.
+pub fn ensure_cef_directory(target: Option<&str>, workspace_dir: &Path) -> crate::Result<PathBuf> {
   let target = target.unwrap_or(DEFAULT_TARGET);
   let os_arch = OsAndArch::try_from(target)
     .map_err(|e| crate::Error::GenericError(format!("invalid target: {e}")))?;
@@ -313,5 +301,5 @@ pub fn ensure_cef_directory(
   export_cef_library_path(&cef_dir);
   log::info!(action = "CEF"; "CEF directory exported to: {}", cef_dir.display());
 
-  Ok(Some(cef_dir))
+  Ok(cef_dir)
 }

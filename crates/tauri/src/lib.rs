@@ -10,10 +10,19 @@
 //!
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
-//! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
-//! - **cef**: Enables the [CEF](https://github.com/chromiumembedded/cef) runtime.
-// - **common-controls-v6** *(enabled by default)*: Enables [Common Controls v6](https://learn.microsoft.com/en-us/windows/win32/controls/common-control-versions) support on Windows, mainly for the predefined `about` menu item.
-//! - **x11** *(enabled by default)*: Enables X11 support. Disable this if you only target Wayland.
+//! - **common-controls-v6** *(enabled by default)*: Enables [Common Controls v6](https://learn.microsoft.com/en-us/windows/win32/controls/common-control-versions) support on Windows. Enable this on `tauri-runtime-wry` when using the wry runtime.
+//!
+//! ## Choosing a runtime
+//!
+//! Tauri does not bundle a webview runtime. You must add either [`tauri-runtime-wry`](https://docs.rs/tauri-runtime-wry) or [`tauri-runtime-cef`](https://docs.rs/tauri-runtime-cef) to your dependencies and pass the runtime type to [`Builder`]:
+//!
+//! ```ignore
+//! // Using wry (native webview)
+//! tauri::Builder::<tauri_runtime_wry::Wry<tauri::EventLoopMessage>>::new()
+//!
+//! // Using CEF
+//! tauri::Builder::<tauri_runtime_cef::CefRuntime<tauri::EventLoopMessage>>::new()
+//! ```
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
@@ -74,7 +83,6 @@ pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
-#[cfg(feature = "cef")]
 pub use tauri_macros::cef_entry_point;
 pub use tauri_macros::include_image;
 #[cfg(mobile)]
@@ -118,99 +126,6 @@ pub use tauri_utils as utils;
 
 pub use http;
 
-/// A Tauri [`Runtime`] wrapper around wry.
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
-/// A Tauri [`RuntimeHandle`] wrapper around wry.
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-pub type WryHandle = tauri_runtime_wry::WryHandle<EventLoopMessage>;
-
-/// A Tauri [`Runtime`] wrapper around cef.
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub type Cef = tauri_runtime_cef::CefRuntime<EventLoopMessage>;
-/// A Tauri [`RuntimeHandle`] wrapper around cef.
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub type CefHandle = tauri_runtime_cef::CefRuntimeHandle<EventLoopMessage>;
-
-/// Helper function for non-browser CEF processes (renderer, GPU, plugin, etc.).
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub use tauri_runtime_cef::run_cef_helper_process;
-
-/// DevTools protocol message type for the CEF runtime.
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
-
-#[cfg(all(feature = "wry", target_os = "android"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
-#[doc(hidden)]
-#[macro_export]
-macro_rules! android_binding {
-  ($domain:ident, $app_name:ident, $main:ident, $wry:path) => {
-    use $wry::{
-      android_setup,
-      prelude::{JClass, JNIEnv, JString},
-    };
-
-    ::tauri::wry::android_binding!($domain, $app_name, $wry);
-
-    ::tauri::tao::android_binding!(
-      $domain,
-      $app_name,
-      WryActivity,
-      android_setup,
-      $main,
-      ::tauri::tao
-    );
-
-    // be careful when renaming this, the `Java_app_tauri_plugin_PluginManager_handlePluginResponse` symbol is checked by the CLI
-    ::tauri::tao::platform::android::prelude::android_fn!(
-      app_tauri,
-      plugin,
-      PluginManager,
-      handlePluginResponse,
-      [i32, JString, JString],
-    );
-    ::tauri::tao::platform::android::prelude::android_fn!(
-      app_tauri,
-      plugin,
-      PluginManager,
-      sendChannelData,
-      [i64, JString],
-    );
-
-    // this function is a glue between PluginManager.kt > handlePluginResponse and Rust
-    #[allow(non_snake_case)]
-    pub fn handlePluginResponse(
-      mut env: JNIEnv,
-      _: JClass,
-      id: i32,
-      success: JString,
-      error: JString,
-    ) {
-      ::tauri::handle_android_plugin_response(&mut env, id, success, error);
-    }
-
-    // this function is a glue between PluginManager.kt > sendChannelData and Rust
-    #[allow(non_snake_case)]
-    pub fn sendChannelData(mut env: JNIEnv, _: JClass, id: i64, data: JString) {
-      ::tauri::send_channel_data(&mut env, id, data);
-    }
-  };
-}
-
-#[cfg(all(feature = "wry", target_os = "android"))]
-#[doc(hidden)]
-pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
-#[cfg(all(feature = "wry", target_os = "android"))]
-#[doc(hidden)]
-pub use tauri_runtime_wry::{tao, wry};
-
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
@@ -223,13 +138,9 @@ use std::{
 };
 use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-pub use tauri_runtime_wry::webview_version;
-
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub use tauri_runtime_cef::webview_version;
+#[cfg(target_os = "android")]
+#[doc(hidden)]
+pub use plugin::mobile::{handle_android_plugin_response, send_channel_data};
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -377,7 +288,6 @@ impl<R: Runtime> Assets<R> for EmbeddedAssets {
 /// # Stability
 /// This is the output of the [`generate_context`] macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
-#[tauri_macros::default_runtime(Wry, wry)]
 pub struct Context<R: Runtime> {
   pub(crate) config: Config,
   #[cfg(dev)]

@@ -224,10 +224,10 @@ fn raw_request(request: Request<'_>) -> Response {
 
 #[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
+  #[cfg(feature = "wry")]
+  let builder = tauri::Builder::<tauri_runtime_wry::Wry<tauri::EventLoopMessage>>::new();
   #[cfg(feature = "cef")]
-  let builder = tauri::Builder::<tauri::Cef>::default();
-  #[cfg(not(feature = "cef"))]
-  let builder = tauri::Builder::<tauri::Wry>::new();
+  let builder = tauri::Builder::<tauri_runtime_cef::CefRuntime<tauri::EventLoopMessage>>::new();
 
   builder
     .manage(MyState {

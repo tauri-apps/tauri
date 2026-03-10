@@ -429,6 +429,10 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Data about the window that requested the new window for [`PendingWebview::new_window_handler`].
   type WindowOpener: Send + Sync + Debug;
 
+  /// Whether to proxy the dev server via the tauri custom protocol. When true, the tauri protocol
+  /// will proxy requests to the dev server (e.g. when using external URLs in development).
+  const PROXY_DEV_SERVER: bool;
+
   /// Creates a new webview runtime. Must be used on the main thread.
   fn new(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self>;
 
@@ -525,7 +529,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
 
   /// Returns the URL for a custom scheme.
-  fn custom_scheme_url(scheme: &str, _https: bool) -> String;
+  fn custom_scheme_url(scheme: &str, https: bool) -> String;
 
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]

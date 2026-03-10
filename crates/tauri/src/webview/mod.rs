@@ -17,15 +17,7 @@ pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
-use tauri_macros::default_runtime;
 
-#[cfg(feature = "cef")]
-pub use tauri_runtime_cef::NewWindowOpener as CefWindowOpener;
-#[cfg(feature = "wry")]
-pub use tauri_runtime_wry::NewWindowOpener as WryWindowOpener;
-
-#[cfg(feature = "cef")]
-use crate::CefDevToolsProtocol;
 pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent, ScrollBarStyle};
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
@@ -156,96 +148,6 @@ pub struct InvokeRequest {
   pub invoke_key: String,
 }
 
-/// The platform webview handle. Accessed with [`Webview#method.with_webview`];
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-pub struct PlatformWebview(tauri_runtime_wry::Webview);
-
-#[cfg(feature = "wry")]
-impl PlatformWebview {
-  /// Returns [`webkit2gtk::WebView`] handle.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    )))
-  )]
-  pub fn inner(&self) -> webkit2gtk::WebView {
-    self.0.clone()
-  }
-
-  /// Returns the WebView2 controller.
-  #[cfg(all(windows, feature = "wry"))]
-  #[cfg_attr(docsrs, doc(cfg(windows)))]
-  pub fn controller(
-    &self,
-  ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller {
-    self.0.controller.clone()
-  }
-
-  /// Returns the WebView2 environment.
-  #[cfg(all(windows, feature = "wry"))]
-  #[cfg_attr(docsrs, doc(cfg(windows)))]
-  pub fn environment(
-    &self,
-  ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment {
-    self.0.environment.clone()
-  }
-
-  /// Returns the [WKWebView] handle.
-  ///
-  /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
-  pub fn inner(&self) -> *mut std::ffi::c_void {
-    self.0.webview
-  }
-
-  /// Returns WKWebView [controller] handle.
-  ///
-  /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
-  pub fn controller(&self) -> *mut std::ffi::c_void {
-    self.0.manager
-  }
-
-  /// Returns [NSWindow] associated with the WKWebView webview.
-  ///
-  /// [NSWindow]: https://developer.apple.com/documentation/appkit/nswindow
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
-  pub fn ns_window(&self) -> *mut std::ffi::c_void {
-    self.0.ns_window
-  }
-
-  /// Returns [UIViewController] used by the WKWebView webview NSWindow.
-  ///
-  /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
-  #[cfg(target_os = "ios")]
-  #[cfg_attr(docsrs, doc(cfg(target_os = "ios")))]
-  pub fn view_controller(&self) -> *mut std::ffi::c_void {
-    self.0.view_controller
-  }
-
-  /// Returns handle for JNI execution.
-  #[cfg(target_os = "android")]
-  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::JniHandle {
-    self.0
-  }
-}
-
 /// Response for the new window request handler.
 pub enum NewWindowResponse<R: Runtime> {
   /// Allow the window to be opened with the default implementation.
@@ -293,20 +195,6 @@ unstable_struct!(
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
   }
 );
-
-#[cfg(feature = "cef")]
-#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
-impl WebviewBuilder<crate::Cef> {
-  /// Sets the browser runtime style.
-  ///
-  /// See [`tauri_runtime_cef::RuntimeStyle`] for more information.
-  pub fn browser_runtime_style(mut self, style: tauri_runtime_cef::RuntimeStyle) -> Self {
-    self
-      .platform_specific_attributes
-      .push(tauri_runtime_cef::WebviewAtribute::RuntimeStyle { style });
-    self
-  }
-}
 
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
@@ -469,6 +357,11 @@ async fn create_window(app: tauri::AppHandle) {
       address_changed_handler: None,
       download_handler: None,
     }
+  }
+
+  /// Pushes a platform-specific webview attribute. Used by runtime-specific extension traits (e.g. wry `with_environment`, CEF `browser_runtime_style`).
+  pub fn platform_specific_attribute(&mut self, attr: R::PlatformSpecificWebviewAttribute) {
+    self.platform_specific_attributes.push(attr);
   }
 
   /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
@@ -1312,58 +1205,7 @@ fn main() {
   }
 }
 
-/// Wry APIs
-#[cfg(feature = "wry")]
-impl WebviewBuilder<crate::Wry> {
-  /// Set the environment for the webview.
-  /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
-  #[cfg(windows)]
-  pub fn with_environment(
-    mut self,
-    environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
-  ) -> Self {
-    self
-      .platform_specific_attributes
-      .push(tauri_runtime_wry::WebviewAttribute::Environment(
-        environment,
-      ));
-    self
-  }
-
-  /// Creates a new webview sharing the same web process with the provided webview.
-  /// Useful if you need to link a webview to another, for instance when using the [`Self::on_new_window`].
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
-  ))]
-  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
-    self
-      .platform_specific_attributes
-      .push(tauri_runtime_wry::WebviewAttribute::RelatedView(
-        related_view,
-      ));
-    self
-  }
-
-  /// Set the webview configuration.
-  /// Useful if you need to share the use a predefined webview configuration, for instance when using the [`Self::on_new_window`].
-  #[cfg(target_os = "macos")]
-  pub fn with_webview_configuration(
-    mut self,
-    webview_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
-  ) -> Self {
-    self.platform_specific_attributes.push(
-      tauri_runtime_wry::WebviewAttribute::WebviewConfiguration(webview_configuration),
-    );
-    self
-  }
-}
-
 /// Webview.
-#[default_runtime(crate::Wry, wry)]
 pub struct Webview<R: Runtime> {
   pub(crate) window: Arc<Mutex<Window<R>>>,
   /// The webview created by the runtime.
@@ -1438,6 +1280,11 @@ impl<R: Runtime> Webview<R> {
   #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
   pub fn builder<L: Into<String>>(label: L, url: WebviewUrl) -> WebviewBuilder<R> {
     WebviewBuilder::new(label.into(), url)
+  }
+
+  /// Returns a reference to the webview dispatcher. Used by runtime-specific extension traits (e.g. CEF `on_dev_tools_protocol`).
+  pub fn dispatcher(&self) -> &<R as tauri_runtime::Runtime<EventLoopMessage>>::WebviewDispatcher {
+    &self.webview.dispatcher
   }
 
   /// Runs the given closure on the main thread.
@@ -1732,17 +1579,15 @@ tauri::Builder::<tauri::Wry>::new()
 ```
   "####
   )]
-  #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(feature = "wry"))]
-  pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
+  /// Runs a closure with the underlying platform webview.
+  ///
+  /// The closure receives the runtime's webview type (e.g. when using `tauri-runtime-wry`,
+  /// downcast the `Box<dyn Any>` to the wry `Webview` type).
+  pub fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(
     &self,
     f: F,
   ) -> crate::Result<()> {
-    self
-      .webview
-      .dispatcher
-      .with_webview(|w| f(PlatformWebview(*w.downcast().unwrap())))
-      .map_err(Into::into)
+    self.webview.dispatcher.with_webview(f).map_err(Into::into)
   }
 
   /// Returns the current url of the webview.
@@ -2252,75 +2097,6 @@ tauri::Builder::<tauri::Wry>::new()
   }
 }
 
-/// APIs specific to the CEF runtime.
-#[cfg(feature = "cef")]
-impl Webview<crate::Cef> {
-  /// Send a message to the DevTools agent. The message should be a UTF-8 encoded JSON
-  /// string following the Chrome DevTools Protocol format.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// use tauri::Manager;
-  ///
-  /// tauri::Builder::<tauri::Cef>::new()
-  ///   .setup(|app| {
-  ///     let webview = app.get_webview("main").unwrap();
-  ///     // Enable Page domain to receive page lifecycle events
-  ///     let msg = br#"{"id":1,"method":"Page.enable","params":{}}"#;
-  ///     webview.send_dev_tools_message(msg)?;
-  ///     Ok(())
-  ///   });
-  /// ```
-  pub fn send_dev_tools_message(&self, message: &[u8]) -> crate::Result<()> {
-    self
-      .webview
-      .dispatcher
-      .send_dev_tools_message(message)
-      .map_err(Into::into)
-  }
-
-  /// Register a callback to receive DevTools protocol messages. Messages include
-  /// both method results and events from the DevTools agent.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// use tauri::{Manager, CefDevToolsProtocol};
-  ///
-  /// tauri::Builder::<tauri::Cef>::new()
-  ///   .setup(|app| {
-  ///     let webview = app.get_webview("main").unwrap();
-  ///     webview.on_dev_tools_protocol(|protocol| {
-  ///       match protocol {
-  ///         CefDevToolsProtocol::Message(msg) => {
-  ///           if let Ok(s) = std::str::from_utf8(&msg) {
-  ///             println!("DevTools message: {}", s);
-  ///           }
-  ///         }
-  ///         CefDevToolsProtocol::Event { method, params } => {
-  ///           println!("DevTools event: {} {:?}", method, params);
-  ///         }
-  ///         CefDevToolsProtocol::MethodResult { message_id, success, result } => {
-  ///           println!("DevTools result: id={} success={}", message_id, success);
-  ///         }
-  ///       }
-  ///     })?;
-  ///     Ok(())
-  ///   });
-  /// ```
-  pub fn on_dev_tools_protocol<F: Fn(CefDevToolsProtocol) + Send + Sync + 'static>(
-    &self,
-    f: F,
-  ) -> crate::Result<()> {
-    self
-      .webview
-      .dispatcher
-      .on_dev_tools_protocol(f)
-      .map_err(Into::into)
-  }
-}
-
 impl<R: Runtime> Listener<R> for Webview<R> {
   /// Listen to an event on this webview.
   ///
@@ -2464,10 +2240,12 @@ impl<T: ScopeObject> ResolvedScope<T> {
 
 #[cfg(test)]
 mod tests {
+  use crate::test::MockRuntime;
+
   #[test]
   fn webview_is_send_sync() {
-    crate::test_utils::assert_send::<super::Webview>();
-    crate::test_utils::assert_sync::<super::Webview>();
+    crate::test_utils::assert_send::<super::Webview<MockRuntime>>();
+    crate::test_utils::assert_sync::<super::Webview<MockRuntime>>();
   }
 
   #[cfg(target_os = "macos")]

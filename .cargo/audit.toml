@@ -6,4 +6,6 @@ ignore = [
   "RUSTSEC-2020-0095",
   # proc-macro-error is unmaintained
   "RUSTSEC-2024-0370",
+  # time crate can't be updated in the repo because of MSRV, users are unaffected
+  "RUSTSEC-2026-0009",
 ]

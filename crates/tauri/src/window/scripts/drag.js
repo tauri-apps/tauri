@@ -32,9 +32,9 @@
   // Otherwise return true.
   //
   // Supported values for data-tauri-drag-region:
-  //   (bare / no value) → self: only direct clicks on this element trigger drag
-  //   "deep"            → deep: clicks anywhere in the subtree trigger drag
-  //   "false"           → disabled: drag is blocked here (and for ancestors)
+  //   (bare / no value) -> self: only direct clicks on this element trigger drag
+  //   "deep"            -> deep: clicks anywhere in the subtree trigger drag
+  //   "false"           -> disabled: drag is blocked here (and for ancestors)
   function isDragRegion(composedPath) {
     for (const el of composedPath) {
       if (!(el instanceof HTMLElement)) continue
@@ -53,7 +53,7 @@
         if (attr === 'deep') return true
         // bare (or any unrecognized value): self-only
         if (el === composedPath[0]) return true
-        // click was on a child of a self-only region — stop walking, don't drag
+        // click was on a child of a self-only region - stop walking, don't drag
         return false
       }
     }

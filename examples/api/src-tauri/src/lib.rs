@@ -18,10 +18,12 @@ use tauri::{
 use tauri::{Manager, RunEvent};
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
-#[cfg(feature = "cef")]
+#[cfg(all(feature = "cef", not(test)))]
 type TauriRuntime = tauri_runtime_cef::CefRuntime<tauri::EventLoopMessage>;
-#[cfg(not(feature = "cef"))]
+#[cfg(all(not(feature = "cef"), not(test)))]
 type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+#[cfg(test)]
+type TauriRuntime = tauri::test::MockRuntime;
 
 #[derive(Clone, Serialize)]
 struct Reply {

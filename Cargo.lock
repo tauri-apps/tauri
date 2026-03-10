@@ -8921,6 +8921,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-examples"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.3.3",
+ "http 1.3.1",
+ "http-range",
+ "percent-encoding",
+ "serde",
+ "tauri",
+ "tauri-build",
+ "tauri-runtime-cef",
+ "tauri-runtime-wry",
+ "tauri-utils",
+]
+
+[[package]]
 name = "tauri-file-associations-demo"
 version = "0.1.0"
 dependencies = [

@@ -190,7 +190,6 @@ fn download_video() {
 fn main() {
   download_video();
 
-  #[cfg(feature = "cef")]
   #[cfg(feature = "wry")]
   let builder = tauri::Builder::<tauri_runtime_wry::Wry<tauri::EventLoopMessage>>::new();
   #[cfg(feature = "cef")]

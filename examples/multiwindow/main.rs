@@ -35,7 +35,7 @@ fn generate_context<R: Runtime>() -> tauri::Context<R> {
   ] {
     context
       .runtime_authority_mut()
-      .__allow_command(cmd.to_string(), tauri_utils::acl::ExecutionContext::Local);
+      .__allow_command(cmd.to_string(), tauri::utils::acl::ExecutionContext::Local);
   }
   context
 }

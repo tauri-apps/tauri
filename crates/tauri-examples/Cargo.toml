@@ -1,0 +1,77 @@
+[package]
+name = "tauri-examples"
+version = "0.1.0"
+description = "Tauri desktop application examples (Wry and CEF runtimes)"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tauri = { path = "../tauri", default-features = false, features = ["unstable"] }
+tauri-runtime-wry = { path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-cef = { path = "../tauri-runtime-cef", optional = true }
+tauri-utils = { path = "../tauri-utils" }
+serde = { version = "1", features = ["derive"] }
+http = "1"
+http-range = "0.1"
+percent-encoding = "2"
+getrandom = "0.3"
+
+[build-dependencies]
+tauri-build = { path = "../tauri-build", default-features = false, features = [
+  "codegen",
+] }
+
+[features]
+wry = ["dep:tauri-runtime-wry"]
+cef = ["dep:tauri-runtime-cef"]
+isolation = ["tauri/isolation"]
+
+[[example]]
+name = "helloworld"
+path = "../../examples/helloworld/main.rs"
+required-features = ["wry"]
+
+[[example]]
+name = "commands"
+path = "../../examples/commands/main.rs"
+required-features = ["wry"]
+
+[[example]]
+name = "run-return"
+path = "../../examples/run-return/main.rs"
+required-features = ["wry"]
+
+[[example]]
+name = "isolation"
+path = "../../examples/isolation/main.rs"
+required-features = ["wry", "isolation"]
+
+[[example]]
+name = "multiwindow"
+path = "../../examples/multiwindow/main.rs"
+required-features = ["wry"]
+
+[[example]]
+name = "multiwebview"
+path = "../../examples/multiwebview/main.rs"
+required-features = ["wry"]
+
+[[example]]
+name = "splashscreen"
+path = "../../examples/splashscreen/main.rs"
+required-features = ["wry"]
+
+[[example]]
+name = "state"
+path = "../../examples/state/main.rs"
+required-features = ["wry"]
+
+[[example]]
+name = "streaming"
+path = "../../examples/streaming/main.rs"
+required-features = ["wry"]

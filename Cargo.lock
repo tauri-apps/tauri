@@ -1173,9 +1173,9 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "145.5.0+145.0.27"
+version = "145.6.1+145.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dee5cae215a7792a9ebadba2847296aa855f40447f9a1a1e65fd195951ff9a17"
+checksum = "549537e80f5655f48678e6496282cdea6f2b34b66d0e729d3517d7c7ec78954b"
 dependencies = [
  "cef-dll-sys",
  "libloading 0.9.0",
@@ -1185,9 +1185,9 @@ dependencies = [
 
 [[package]]
 name = "cef-dll-sys"
-version = "145.5.0+145.0.27"
+version = "145.6.1+145.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26d076b7d4693afb5cb66992f9ef60385d4b35dcac58243bf9ee24cdc6ed5efc"
+checksum = "687f31c0937d9914d3e5887b94c6194bd8e3e533026cef2cc3ae7b4fe5245b6d"
 dependencies = [
  "anyhow",
  "cmake",
@@ -1362,7 +1362,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2059,7 +2059,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.0",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.1",
 ]
 
 [[package]]
@@ -4454,7 +4454,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -5981,7 +5981,7 @@ dependencies = [
  "aes-gcm",
  "aes-kw",
  "argon2",
- "base64 0.21.7",
+ "base64 0.22.1",
  "bitfield",
  "block-padding",
  "blowfish",
@@ -7366,7 +7366,7 @@ dependencies = [
  "security-framework 3.5.1",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.1",
 ]
 
 [[package]]
@@ -10527,7 +10527,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

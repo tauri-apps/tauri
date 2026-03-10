@@ -20,28 +20,78 @@ fn main() {
 
   builder
     .setup(move |app| {
-      let window = tauri::WindowBuilder::new(app, "main")
-        .background_color(Color(255, 0, 0, 255)) // red
+      let window = tauri::WebviewWindowBuilder::new(app, "main", Default::default())
+        .title("normal")
+        .build()?;
+      let window = tauri::WebviewWindowBuilder::new(app, "main1", Default::default())
+        .background_color(Color(0, 255, 0, 255))
+        .title("normal with background color")
+        .build()?;
+      let window = tauri::WebviewWindowBuilder::new(app, "mai2", Default::default())
+        .decorations(false)
+        .title("decorationless")
+        .build()?;
+      let window = tauri::WebviewWindowBuilder::new(app, "main3", Default::default())
+        .decorations(false)
+        .background_color(Color(255, 0, 0, 255))
+        .title("decorationless with background color")
+        .build()?;
+      let window = tauri::WebviewWindowBuilder::new(app, "main4", Default::default())
+        .decorations(false)
+        .transparent(true)
+        .title("decorationless with background color")
         .build()?;
 
-      let size = window.inner_size()?;
+      let window = tauri::WindowBuilder::new(app, "main50")
+        .title("multiwebview")
+        .build()?;
 
-      let webview_builder = tauri::WebviewBuilder::new("main", tauri::WebviewUrl::default())
-        .background_color(Color(0, 0, 255, 255)); // blue
+      let wv1 = tauri::WebviewBuilder::new("main60", Default::default())
+        .background_color(Color(255, 0, 0, 255));
 
-      let webview1 = window.add_child(
-        webview_builder,
+      window.add_child(
+        wv1,
         tauri::LogicalPosition::new(0, 0),
-        tauri::LogicalSize::new(size.width / 2, size.height),
+        tauri::LogicalSize::new(400, 400),
       )?;
 
-      let webview_builder =
-        tauri::WebviewBuilder::new("main2", tauri::WebviewUrl::default()).transparent(true);
+      let window = tauri::WindowBuilder::new(app, "main5")
+        .decorations(false)
+        // .background_color(Color(0, 255, 0, 255))
+        // .transparent(true)
+        .title("multiwebview decorationless")
+        .build()?;
 
-      let webview2 = window.add_child(
-        webview_builder,
-        tauri::LogicalPosition::new(size.width / 2, 0),
-        tauri::LogicalSize::new(size.width / 2, size.height),
+      let wv1 = tauri::WebviewBuilder::new("main6", Default::default());
+
+      window.add_child(
+        wv1,
+        tauri::LogicalPosition::new(0, 0),
+        tauri::LogicalSize::new(400, 400),
+      )?;
+
+      let wv1 = tauri::WebviewBuilder::new("main7", Default::default())
+        .background_color(Color(255, 0, 0, 255));
+      window.add_child(
+        wv1,
+        tauri::LogicalPosition::new(400, 0),
+        tauri::LogicalSize::new(400, 400),
+      )?;
+
+      let wv1 = tauri::WebviewBuilder::new("main8", Default::default()).transparent(true);
+      window.add_child(
+        wv1,
+        tauri::LogicalPosition::new(0, 400),
+        tauri::LogicalSize::new(400, 400),
+      )?;
+
+      let wv1 = tauri::WebviewBuilder::new("main9", Default::default())
+        .background_color(Color(0, 0, 255, 255))
+        .transparent(true);
+      window.add_child(
+        wv1,
+        tauri::LogicalPosition::new(400, 400),
+        tauri::LogicalSize::new(400, 400),
       )?;
 
       Ok(())

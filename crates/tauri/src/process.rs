@@ -37,7 +37,9 @@ use std::path::PathBuf;
 /// use tauri::{process::current_binary, Env, Manager};
 /// let current_binary_path = current_binary(&Env::default()).unwrap();
 ///
-/// tauri::Builder::<tauri::Wry>::new()
+/// // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+/// # type TauriRuntime = tauri::test::MockRuntime;
+/// tauri::Builder::<TauriRuntime>::new()
 ///   .setup(|app| {
 ///     let current_binary_path = current_binary(&app.env())?;
 ///     Ok(())
@@ -65,7 +67,9 @@ pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
 /// ```rust,no_run
 /// use tauri::{process::restart, Env, Manager};
 ///
-/// tauri::Builder::<tauri::Wry>::new()
+/// // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+/// # type TauriRuntime = tauri::test::MockRuntime;
+/// tauri::Builder::<TauriRuntime>::new()
 ///   .setup(|app| {
 ///     restart(&app.env());
 ///     Ok(())

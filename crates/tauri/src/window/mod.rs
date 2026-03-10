@@ -156,7 +156,9 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label")
       .build()?;
@@ -171,7 +173,9 @@ tauri::Builder::<tauri::Wry>::new()
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let handle = app.handle().clone();
     std::thread::spawn(move || {
@@ -192,7 +196,7 @@ tauri::Builder::<tauri::Wry>::new()
     doc = r####"
 ```
 #[tauri::command]
-async fn create_window(app: tauri::AppHandle) {
+async fn create_window(app: tauri::AppHandle<tauri::test::MockRuntime>) {
   let window = tauri::window::WindowBuilder::new(&app, "label")
     .build()
     .unwrap();
@@ -234,7 +238,7 @@ async fn create_window(app: tauri::AppHandle) {
     doc = r####"
 ```
 #[tauri::command]
-async fn reopen_window(app: tauri::AppHandle) {
+async fn reopen_window(app: tauri::AppHandle<tauri::test::MockRuntime>) {
   let window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
     .unwrap()
     .build()
@@ -294,7 +298,9 @@ async fn reopen_window(app: tauri::AppHandle) {
     doc = r####"
 ```
 use tauri::menu::{Menu, Submenu, MenuItem};
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let handle = app.handle();
     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
@@ -1136,7 +1142,9 @@ impl<R: Runtime> Window<R> {
     doc = r####"
 ```
 use tauri::menu::{Menu, Submenu, MenuItem};
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let handle = app.handle();
     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
@@ -1837,7 +1845,9 @@ impl<R: Runtime> Window<R> {
     doc = r####"
 ```rust,no_run
 use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     window.set_effects(
@@ -2255,7 +2265,9 @@ impl<R: Runtime> Listener<R> for Window<R> {
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     window.listen("component-loaded", move |event| {
@@ -2307,7 +2319,9 @@ tauri::Builder::<tauri::Wry>::new()
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     let window_ = window.clone();

@@ -14,7 +14,9 @@ use crate::{Manager, Runtime, image::Image, menu::*};
 ///
 /// ```no_run
 /// use tauri::menu::*;
-/// tauri::Builder::<tauri::Wry>::new()
+/// // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+/// # type TauriRuntime = tauri::test::MockRuntime;
+/// tauri::Builder::<TauriRuntime>::new()
 ///   .setup(move |app| {
 ///     let handle = app.handle();
 ///     # let icon1 = tauri::image::Image::new(&[], 0, 0);
@@ -85,7 +87,9 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
 ///
 /// ```no_run
 /// use tauri::menu::*;
-/// tauri::Builder::<tauri::Wry>::new()
+/// // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+/// # type TauriRuntime = tauri::test::MockRuntime;
+/// tauri::Builder::<TauriRuntime>::new()
 ///   .setup(move |app| {
 ///     let handle = app.handle();
 ///     # let icon1 = tauri::image::Image::new(&[], 0, 0);

@@ -27,8 +27,8 @@
 //! }
 //!
 //! fn main() {
-//!     // Use `tauri::Builder::<tauri::Wry>::new()` to use the default runtime rather than the `MockRuntime`;
-//!     // let app = create_app(tauri::Builder::<tauri::Wry>::new());
+//!     // To use a real runtime (e.g. wry), add tauri-runtime-wry and use:
+//!     // let app = create_app(tauri::Builder::<tauri_runtime_wry::Wry<tauri::EventLoopMessage>>::new());
 //!     let app = create_app(mock_builder());
 //!     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
 //!
@@ -156,7 +156,9 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
 /// ```rust
 /// #[cfg(test)]
 /// fn do_something() {
-///   let app = tauri::test::mock_builder()
+///   // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+///   # type TauriRuntime = tauri::test::MockRuntime;
+///   let app = tauri::Builder::<TauriRuntime>::new()
 ///     // remove the string argument to use your app's config file
 ///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
 ///     .unwrap();

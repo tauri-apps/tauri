@@ -176,7 +176,7 @@ cargo_toml = "0.22"
 http-range = "0.1.5"
 
 [features]
-default = ["compression", "common-controls-v6", "dynamic-acl"]
+default = ["compression", "common-controls-v6", "dynamic-acl", "test"]
 unstable = []
 macos-proxy = []
 common-controls-v6 = [

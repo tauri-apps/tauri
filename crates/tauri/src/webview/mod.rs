@@ -213,7 +213,9 @@ impl<R: Runtime> WebviewBuilder<R> {
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
     let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
@@ -230,7 +232,9 @@ tauri::Builder::<tauri::Wry>::new()
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let handle = app.handle().clone();
     std::thread::spawn(move || {
@@ -251,7 +255,7 @@ tauri::Builder::<tauri::Wry>::new()
     doc = r####"
 ```
 #[tauri::command]
-async fn create_window(app: tauri::AppHandle) {
+async fn create_window(app: tauri::AppHandle<tauri::test::MockRuntime>) {
   let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
   let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()));
   window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
@@ -295,7 +299,7 @@ async fn create_window(app: tauri::AppHandle) {
     doc = r####"
 ```
 #[tauri::command]
-async fn create_window(app: tauri::AppHandle) {
+async fn create_window(app: tauri::AppHandle<tauri::test::MockRuntime>) {
   let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
   let webview_builder = tauri::webview::WebviewBuilder::from_config(&app.config().app.windows.get(0).unwrap().clone());
   window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
@@ -384,7 +388,9 @@ use tauri::{
 };
 use http::header::HeaderValue;
 use std::collections::HashMap;
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
 
@@ -436,7 +442,9 @@ use tauri::{
 };
 use http::header::HeaderValue;
 use std::collections::HashMap;
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
 
@@ -483,7 +491,9 @@ use tauri::{
 };
 use http::header::HeaderValue;
 use std::collections::HashMap;
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
 
@@ -560,7 +570,9 @@ use tauri::{
   webview::{DownloadEvent, WebviewBuilder},
 };
 
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = WindowBuilder::new(app, "label").build()?;
     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
@@ -610,7 +622,9 @@ use tauri::{
 };
 use http::header::HeaderValue;
 use std::collections::HashMap;
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
     let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
@@ -826,7 +840,9 @@ const INIT_SCRIPT: &str = r#"
 "#;
 
 fn main() {
-  tauri::Builder::<tauri::Wry>::new()
+  // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
@@ -885,7 +901,9 @@ const INIT_SCRIPT: &str = r#"
 "#;
 
 fn main() {
-  tauri::Builder::<tauri::Wry>::new()
+  // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
@@ -1345,7 +1363,9 @@ impl<R: Runtime> Webview<R> {
   ///   some_value: String,
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+  /// # type TauriRuntime = tauri::test::MockRuntime;
+  /// tauri::Builder::<TauriRuntime>::new()
   ///   .setup(|app| {
   ///     let webview = app.get_webview_window("main").unwrap();
   ///     let scope = webview.resolve_command_scope::<ScopeType>("my-plugin", "read");
@@ -1536,7 +1556,9 @@ impl<R: Runtime> Webview<R> {
 ```rust,no_run
 use tauri::Manager;
 
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let main_webview = app.get_webview("main").unwrap();
     main_webview.with_webview(|webview| {
@@ -1891,7 +1913,9 @@ tauri::Builder::<tauri::Wry>::new()
     doc = r####"
 ```rust,no_run
 use tauri::Manager;
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     #[cfg(debug_assertions)]
     app.get_webview("main").unwrap().open_devtools();
@@ -1922,7 +1946,9 @@ tauri::Builder::<tauri::Wry>::new()
     doc = r####"
 ```rust,no_run
 use tauri::Manager;
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     #[cfg(debug_assertions)]
     {
@@ -1960,7 +1986,9 @@ tauri::Builder::<tauri::Wry>::new()
     doc = r####"
 ```rust,no_run
 use tauri::Manager;
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     #[cfg(debug_assertions)]
     {
@@ -2107,7 +2135,9 @@ impl<R: Runtime> Listener<R> for Webview<R> {
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let webview = app.get_webview("main").unwrap();
     webview.listen("component-loaded", move |event| {
@@ -2159,7 +2189,9 @@ tauri::Builder::<tauri::Wry>::new()
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::<tauri::Wry>::new()
+// type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+type TauriRuntime = tauri::test::MockRuntime;
+tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let webview = app.get_webview("main").unwrap();
     let webview_ = webview.clone();

@@ -234,7 +234,9 @@ fn default_runtime() -> GlobalRuntime {
 ///   tauri::async_runtime::set(tokio::runtime::Handle::current());
 ///
 ///   // bootstrap the tauri app...
-///   // tauri::Builder::<tauri::Wry>::new().run().unwrap();
+///   // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
+///   // # type TauriRuntime = tauri::test::MockRuntime;
+///   // tauri::Builder::<TauriRuntime>::new().run().unwrap();
 /// }
 ///
 /// async fn do_something() {}

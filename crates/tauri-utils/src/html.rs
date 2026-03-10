@@ -164,15 +164,6 @@ pub fn inject_csp(document: &NodeRef, csp: &str) {
   });
 }
 
-/// Injects a content security policy to the HTML.
-pub fn append_script_to_head(document: &NodeRef, script: &str) {
-  with_head(document, |head| {
-    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-    script_el.append(NodeRef::new_text(script));
-    head.prepend(script_el);
-  });
-}
-
 fn create_csp_meta_tag(csp: &str) -> NodeRef {
   NodeRef::new_element(
     QualName::new(None, ns!(html), LocalName::from("meta")),

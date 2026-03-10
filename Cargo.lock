@@ -8712,6 +8712,7 @@ name = "tauri-macos-sign"
 version = "2.3.3"
 dependencies = [
  "apple-codesign",
+ "base64 0.22.1",
  "chrono",
  "dirs 6.0.0",
  "log",

@@ -37,7 +37,7 @@ use walkdir::WalkDir;
 use std::{
   fs::{self, File, OpenOptions},
   io::{self, Write},
-  os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt, symlink},
+  os::unix::fs::{MetadataExt, OpenOptionsExt, symlink},
   path::{Path, PathBuf},
   process::Command,
 };

@@ -1,5 +1,5 @@
 ---
-"tauri-utils": minor:enhance
+"tauri-utils": minor:deps
 ---
 
 Add new `html-manipulation-2` and `build-2` feature flags that use `dom_query` instead of `kuchikiki` for HTML parsing / manipulation.

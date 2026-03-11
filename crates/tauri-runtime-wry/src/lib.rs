@@ -631,10 +631,7 @@ struct LogicalPositionWrapper<T>(TaoLogicalPosition<T>);
 
 impl<T> From<LogicalPosition<T>> for LogicalPositionWrapper<T> {
   fn from(position: LogicalPosition<T>) -> Self {
-    Self(TaoLogicalPosition {
-      x: position.x,
-      y: position.y,
-    })
+    Self(TaoLogicalPosition::new(position.x, position.y))
   }
 }
 
@@ -662,10 +659,7 @@ struct LogicalSizeWrapper<T>(TaoLogicalSize<T>);
 
 impl<T> From<LogicalSize<T>> for LogicalSizeWrapper<T> {
   fn from(size: LogicalSize<T>) -> Self {
-    Self(TaoLogicalSize {
-      width: size.width,
-      height: size.height,
-    })
+    Self(TaoLogicalSize::new(size.width, size.height))
   }
 }
 

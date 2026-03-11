@@ -20,7 +20,7 @@ use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[cfg(all(feature = "cef", not(test)))]
 type TauriRuntime = tauri_runtime_cef::CefRuntime<tauri::EventLoopMessage>;
-#[cfg(all(not(feature = "cef"), not(test)))]
+#[cfg(all(feature = "wry", not(test)))]
 type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
 #[cfg(test)]
 type TauriRuntime = tauri::test::MockRuntime;

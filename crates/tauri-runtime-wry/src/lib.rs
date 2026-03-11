@@ -128,9 +128,8 @@ macro_rules! android_binding {
       android_setup,
       prelude::{JClass, JNIEnv, JString},
     };
-    use tauri_runtime_wry::tao::platform::android::prelude::android_fn;
 
-    tauri_runtime_wry::wry::android_binding!($domain, $app_name, tauri_runtime_wry);
+    tauri_runtime_wry::wry::android_binding!($domain, $app_name, tauri_runtime_wry::wry);
 
     tauri_runtime_wry::tao::android_binding!(
       $domain,
@@ -1434,6 +1433,12 @@ unsafe impl Send for GtkBox {}
 pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
+/// Wrapper to send a raw pointer across threads (e.g. from main thread back to plugin setup).
+#[cfg(target_os = "ios")]
+struct SendPtr(pub *const std::ffi::c_void);
+#[cfg(target_os = "ios")]
+unsafe impl Send for SendPtr {}
+
 pub enum ApplicationMessage {
   #[cfg(target_os = "macos")]
   Show,
@@ -1679,6 +1684,19 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         WebviewMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
       ),
     )
+  }
+
+  #[cfg(target_os = "ios")]
+  fn ios_webview_ptr(&self) -> Result<*const std::ffi::c_void> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    self.with_webview(move |w| {
+      let ptr = w
+        .downcast_ref::<Webview>()
+        .map(|w| w.webview as *const std::ffi::c_void)
+        .unwrap_or(std::ptr::null());
+      let _ = tx.send(SendPtr(ptr));
+    })?;
+    Ok(rx.recv().map(|p| p.0).unwrap_or(std::ptr::null()))
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]

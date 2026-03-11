@@ -107,8 +107,9 @@ pub mod webview;
 pub mod window;
 use tauri_runtime as runtime;
 pub mod image;
+#[doc(hidden)]
 #[cfg(target_os = "ios")]
-mod ios;
+pub mod ios;
 #[cfg(desktop)]
 #[cfg_attr(docsrs, doc(cfg(desktop)))]
 pub mod menu;

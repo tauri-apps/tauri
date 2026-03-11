@@ -1,11 +1,13 @@
 //! Extension traits for [`tauri`] types when using the [`Wry`] runtime.
 
-#[cfg(target_os = "ios")]
-use crate::webview::Webview as WryWebview;
 use crate::{Message, PluginBuilder, TaoWindowBuilder, WebviewAttribute, Wry};
 use std::sync::Weak;
 use tao::window::Window;
+#[cfg(target_os = "ios")]
+use tauri::Manager;
 use tauri_runtime::Result;
+#[cfg(target_os = "ios")]
+use wry::WebViewExtIOS;
 
 /// Extension trait for [`tauri::AppHandle`] when using the [`Wry`] runtime.
 pub trait AppHandleWryExt {
@@ -182,7 +184,7 @@ pub trait PluginApiWryExt {
   fn register_ios_plugin(
     &self,
     init_fn: unsafe fn() -> *const std::ffi::c_void,
-  ) -> Result<
+  ) -> std::result::Result<
     tauri::plugin::PluginHandle<Wry<tauri::EventLoopMessage>>,
     tauri::plugin::mobile::PluginInvokeError,
   >;
@@ -195,7 +197,7 @@ impl<C: serde::de::DeserializeOwned> PluginApiWryExt
   fn register_ios_plugin(
     &self,
     init_fn: unsafe fn() -> *const std::ffi::c_void,
-  ) -> Result<
+  ) -> std::result::Result<
     tauri::plugin::PluginHandle<Wry<tauri::EventLoopMessage>>,
     tauri::plugin::mobile::PluginInvokeError,
   > {
@@ -210,13 +212,14 @@ impl<C: serde::de::DeserializeOwned> PluginApiWryExt
       let config_str = serde_json::to_string(&*raw_config).unwrap();
       webview
         .with_webview(move |w| {
-          if let Ok(w) = w.downcast::<WryWebview>() {
+          if let Ok(w) = w.downcast::<wry::WebView>() {
             unsafe {
               tauri::ios::register_plugin(
                 &name_.into(),
                 init_fn(),
                 &config_str.as_str().into(),
-                (*w).webview as *const _,
+                objc2::rc::Retained::into_raw(w.webview()) as *mut objc2::runtime::AnyObject
+                  as *mut std::ffi::c_void,
               );
             }
           }

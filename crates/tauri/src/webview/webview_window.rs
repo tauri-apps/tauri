@@ -2259,24 +2259,28 @@ impl<R: Runtime> WebviewWindow<R> {
   ///     .setup(|app| {
   ///       let main_webview = app.get_webview_window("main").unwrap();
   ///       main_webview.with_webview(|webview| {
+  ///         let webview = *webview.downcast::<tauri_runtime_wry::wry::WebView>().unwrap();
   ///         #[cfg(target_os = "linux")]
   ///         {
   ///           // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
   ///           // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
+  ///           use tauri_runtime_wry::wry::WebViewExtUnix;
   ///           use webkit2gtk::WebViewExt;
-  ///           webview.inner().set_zoom_level(4.);
+  ///           webview.webview().set_zoom_level(4.);
   ///         }
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
+  ///           use tauri_runtime_wry::wry::WebViewExtWindows;
   ///           // see <https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html>
-  ///           webview.controller().SetZoomFactor(4.).unwrap();
+  ///           webview.webview().controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///
   ///         #[cfg(target_os = "macos")]
   ///         unsafe {
-  ///           let view: &objc2_web_kit::WKWebView = &*webview.inner().cast();
-  ///           let controller: &objc2_web_kit::WKUserContentController = &*webview.controller().cast();
+  ///           use tauri_runtime_wry::wry::WebViewExtMacOS;
+  ///           let view: &objc2_web_kit::WKWebView = &*webview.webview().cast();
+  ///           let controller: &objc2_web_kit::WKUserContentController = &*webview.webview().controller().cast();
   ///           let window: &objc2_app_kit::NSWindow = &*webview.ns_window().cast();
   ///
   ///           view.setPageZoom(4.);
@@ -2288,7 +2292,8 @@ impl<R: Runtime> WebviewWindow<R> {
   ///         #[cfg(target_os = "android")]
   ///         {
   ///           use jni::objects::JValue;
-  ///           webview.jni_handle().exec(|env, _, webview| {
+  ///           use tauri_runtime_wry::wry::WebViewExtAndroid;
+  ///           webview.webview().handle().exec(|env, _, webview| {
   ///             env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
   ///           })
   ///         }

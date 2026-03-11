@@ -1551,7 +1551,7 @@ impl<R: Runtime> Webview<R> {
   ///
   /// ## Casting (Wry runtime)
   ///
-  /// When using the Wry runtime, downcast the closure argument to `tauri_runtime_wry::wry::Webview`.
+  /// When using the Wry runtime, downcast the closure argument to `tauri_runtime_wry::wry::WebView`.
   ///
   /// Always gate platform-specific code with `#[cfg(target_os = "...")]` or `#[cfg(windows)]`.
   ///
@@ -1573,7 +1573,7 @@ tauri::Builder::<TauriRuntime>::new()
     let main_webview = app.get_webview("main").unwrap();
     main_webview.with_webview(|webview| {
       // Downcast to the Wry runtime's webview type (required when using tauri_runtime_wry)
-      let webview = *webview.downcast::<tauri_runtime_wry::wry::Webview>().unwrap();
+      let webview = *webview.downcast::<tauri_runtime_wry::wry::WebView>().unwrap();
 
       #[cfg(target_os = "linux")]
       {

@@ -123,31 +123,33 @@ pub use wry::android_setup;
 #[cfg(target_os = "android")]
 #[macro_export]
 macro_rules! android_binding {
-  ($domain:ident, $package:ident, $main:ident, $wry:path) => {
-    use $wry::{
+  ($domain:ident, $app_name:ident, $main:ident) => {
+    use tauri_runtime_wry::{
       android_setup,
       prelude::{JClass, JNIEnv, JString},
     };
+    use tauri_runtime_wry::tao::platform::android::prelude::android_fn;
 
-    $wry::wry::android_binding!($domain, $package, $wry);
+    tauri_runtime_wry::wry::android_binding!($domain, $app_name, tauri_runtime_wry);
 
-    $wry::tao::android_binding!(
+    tauri_runtime_wry::tao::android_binding!(
       $domain,
-      $package,
+      $app_name,
       WryActivity,
       android_setup,
       $main,
-      $wry::tao
+      tauri_runtime_wry::tao
     );
 
-    $wry::tao::platform::android::prelude::android_fn!(
+    // be careful when renaming this, the `Java_app_tauri_plugin_PluginManager_handlePluginResponse` symbol is checked by the CLI
+    tauri_runtime_wry::tao::platform::android::prelude::android_fn!(
       app_tauri,
       plugin,
       PluginManager,
       handlePluginResponse,
       [i32, JString, JString],
     );
-    $wry::tao::platform::android::prelude::android_fn!(
+    tauri_runtime_wry::tao::platform::android::prelude::android_fn!(
       app_tauri,
       plugin,
       PluginManager,

@@ -9103,6 +9103,8 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "raw-window-handle",
+ "serde",
+ "serde_json",
  "softbuffer",
  "tao",
  "tauri",

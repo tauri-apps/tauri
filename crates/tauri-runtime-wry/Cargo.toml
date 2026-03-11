@@ -63,6 +63,10 @@ objc2-web-kit = { version = "0.3", features = ["objc2-app-kit", "WKWebView"] }
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
 
+[target."cfg(target_os = \"ios\")".dependencies]
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+
 [features]
 default = ["x11"]
 devtools = ["wry/devtools", "tauri-runtime/devtools"]

@@ -67,15 +67,28 @@ fn ping<R: tauri::Runtime>(
     .map_err(|e| e.to_string())
 }
 
+#[cfg(mobile)]
+pub fn init() -> TauriPlugin<tauri_runtime_wry::Wry<tauri::EventLoopMessage>> {
+  Builder::new("sample")
+    .setup(|app, api| {
+      let sample = mobile::init(app, api)?;
+      app.manage(sample);
+      Ok(())
+    })
+    .invoke_handler(tauri::generate_handler![ping])
+    .on_navigation(|window, url| {
+      println!("navigation {} {url}", window.label());
+      true
+    })
+    .build()
+}
+
+#[cfg(desktop)]
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("sample")
     .setup(|app, api| {
-      #[cfg(mobile)]
-      let sample = mobile::init(app, api)?;
-      #[cfg(desktop)]
       let sample = desktop::init(app, api)?;
       app.manage(sample);
-
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![ping])

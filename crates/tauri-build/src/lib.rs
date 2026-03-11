@@ -92,6 +92,11 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
 
     println!("cargo:rerun-if-changed={}", resource.path().display());
 
+    // Also mark the parent directory to trigger rebuilds when new files are added
+    if let Some(parent) = resource.path().parent() {
+      println!("cargo:rerun-if-changed={}", parent.display());
+    }
+
     // avoid copying the resource if target is the same as source
     let src = resource.path().canonicalize()?;
     let target = path.join(resource.target());

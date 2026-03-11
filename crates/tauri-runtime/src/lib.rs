@@ -554,6 +554,11 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId;
 
   /// Runs a closure with the platform webview object as argument.
+  ///
+  /// The closure receives the underlying webview as [`Box<dyn Any>`](std::any::Any). You must
+  /// downcast it to the concrete type for your runtime and platform. The concrete type is
+  /// defined by each runtime crate (e.g. `tauri-runtime-wry`, `tauri-runtime-cef`) and varies
+  /// by OS. See the Tauri docs for `Webview::with_webview` for platform-specific types and casting.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Open the web inspector which is usually called devtools.

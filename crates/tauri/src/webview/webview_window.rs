@@ -2298,7 +2298,10 @@ impl<R: Runtime> WebviewWindow<R> {
   /// }
   /// ```
   #[allow(clippy::needless_doctest_main)] // To avoid a large diff
-  /// Runs a closure with the underlying platform webview.
+  ///
+  /// The closure receives the underlying webview as [`Box<dyn std::any::Any>`]. You must downcast it to the
+  /// concrete type for your runtime and platform. See [`Webview::with_webview`](crate::webview::Webview::with_webview)
+  /// for the full casting documentation and platform-specific types (Wry, CEF).
   pub fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(
     &self,
     f: F,

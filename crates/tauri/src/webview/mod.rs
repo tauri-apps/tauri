@@ -1545,6 +1545,16 @@ impl<R: Runtime> Webview<R> {
   ///
   /// The closure is executed on the main thread.
   ///
+  /// The closure receives the underlying webview as [`Box<dyn std::any::Any>`]. You must **downcast** it to the
+  /// concrete type for your runtime and platform (e.g. with `.downcast::<T>()`). The concrete type
+  /// is defined by the runtime crate and varies by OS.
+  ///
+  /// ## Casting (Wry runtime)
+  ///
+  /// When using the Wry runtime, downcast the closure argument to `tauri_runtime_wry::wry::Webview`.
+  ///
+  /// Always gate platform-specific code with `#[cfg(target_os = "...")]` or `#[cfg(windows)]`.
+  ///
   /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
   ///
@@ -1553,7 +1563,7 @@ impl<R: Runtime> Webview<R> {
   #[cfg_attr(
     feature = "unstable",
     doc = r####"
-```rust,no_run
+```ignore
 use tauri::Manager;
 
 // type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
@@ -1562,36 +1572,41 @@ tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let main_webview = app.get_webview("main").unwrap();
     main_webview.with_webview(|webview| {
+      // Downcast to the Wry runtime's webview type (required when using tauri_runtime_wry)
+      let webview = *webview.downcast::<tauri_runtime_wry::wry::Webview>().unwrap();
+
       #[cfg(target_os = "linux")]
       {
         // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
         // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
         use webkit2gtk::WebViewExt;
-        webview.inner().set_zoom_level(4.);
+        use tauri_runtime_wry::wry::WebViewExtUnix;
+        webview.webview().set_zoom_level(4.);
       }
 
       #[cfg(windows)]
       unsafe {
+        use tauri_runtime_wry::wry::WebViewExtWindows;
         // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
         webview.controller().SetZoomFactor(4.).unwrap();
       }
 
       #[cfg(target_os = "macos")]
       unsafe {
-        let view: &objc2_web_kit::WKWebView = &*webview.inner().cast();
-        let controller: &objc2_web_kit::WKUserContentController = &*webview.controller().cast();
-        let window: &objc2_app_kit::NSWindow = &*webview.ns_window().cast();
+        use tauri_runtime_wry::wry::WebViewExtMacOS;
+        let view = webview.webview();
+        let window = webview.ns_window();
 
         view.setPageZoom(4.);
-        controller.removeAllUserScripts();
         let bg_color = objc2_app_kit::NSColor::colorWithDeviceRed_green_blue_alpha(0.5, 0.2, 0.4, 1.);
         window.setBackgroundColor(Some(&bg_color));
       }
 
       #[cfg(target_os = "android")]
       {
+        use tauri_runtime_wry::wry::WebViewExtAndroid;
         use jni::objects::JValue;
-        webview.jni_handle().exec(|env, _, webview| {
+        webview.handle().exec(|env, _, webview| {
           env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
         })
       }
@@ -1601,10 +1616,6 @@ tauri::Builder::<TauriRuntime>::new()
 ```
   "####
   )]
-  /// Runs a closure with the underlying platform webview.
-  ///
-  /// The closure receives the runtime's webview type (e.g. when using `tauri-runtime-wry`,
-  /// downcast the `Box<dyn Any>` to the wry `Webview` type).
   pub fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(
     &self,
     f: F,

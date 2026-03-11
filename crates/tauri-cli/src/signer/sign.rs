@@ -73,8 +73,18 @@ fn backward_env_vars(mut options: Options) -> Options {
 pub fn command(mut options: Options) -> Result<()> {
   options = backward_env_vars(options);
 
+  // If private_key is set, check if it's a file path and read the content if so
   options.private_key = if let Some(private_key) = options.private_key_path {
     Some(std::fs::read_to_string(Path::new(&private_key)).expect("Unable to extract private key"))
+  } else if let Some(ref key) = options.private_key {
+    // Check if the key is actually a file path and read it if so
+    let path = Path::new(key);
+    if path.exists() && path.is_file() {
+      Some(std::fs::read_to_string(path).expect("Unable to extract private key from file"))
+    } else {
+      // Otherwise treat it as the key content directly
+      Some(key.clone())
+    }
   } else {
     options.private_key
   };

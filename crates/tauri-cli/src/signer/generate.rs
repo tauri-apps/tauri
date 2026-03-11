@@ -46,7 +46,7 @@ pub fn command(mut options: Options) -> Result<()> {
     println!("---------------------------")
   } else {
     println!();
-    println!("Your keys were generated successfully!",);
+    println!("Your keys were generated successfully!");
     println!();
     println!("Private: (Keep it secret!)");
     println!("{}", keypair.sk);

@@ -150,6 +150,22 @@ mod desktop_commands {
   setter!(set_theme, Option<Theme>);
   setter!(set_enabled, bool);
 
+  /// Sets the window size and minimum size at once.
+  /// This is more reliable than calling setSize and setMinSize separately,
+  /// as it avoids race conditions where setMinSize uses the old window size.
+  #[command(root = "crate")]
+  pub async fn set_size_with_min_size<R: Runtime>(
+    window: Window<R>,
+    label: Option<String>,
+    size: Size,
+    min_size: Size,
+  ) -> crate::Result<()> {
+    let window = get_window(window, label)?;
+    window.set_size(size)?;
+    window.set_min_size(Some(min_size))?;
+    Ok(())
+  }
+
   #[command(root = "crate")]
   #[cfg(target_os = "windows")]
   pub async fn set_overlay_icon<R: Runtime>(
@@ -301,6 +317,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         desktop_commands::set_min_size,
         desktop_commands::set_max_size,
         desktop_commands::set_size_constraints,
+        desktop_commands::set_size_with_min_size,
         desktop_commands::set_position,
         desktop_commands::set_fullscreen,
         desktop_commands::set_simple_fullscreen,

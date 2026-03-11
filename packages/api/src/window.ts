@@ -1368,6 +1368,31 @@ class Window {
   }
 
   /**
+   * Sets the window size and minimum size at once.
+   * This is more reliable than calling setSize and setMinSize separately,
+   * as it avoids race conditions where setMinSize uses the old window size.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setSizeWithMinSize(new LogicalSize(800, 600), new LogicalSize(800, 600));
+   * ```
+   *
+   * @param size The inner size to set.
+   * @param minSize The minimum inner size to set.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setSizeWithMinSize(
+    size: LogicalSize | PhysicalSize | Size,
+    minSize: LogicalSize | PhysicalSize | Size
+  ): Promise<void> {
+    return invoke('plugin:window|set_size_with_min_size', {
+      label: this.label,
+      size: size instanceof Size ? size : new Size(size),
+      min_size: minSize instanceof Size ? minSize : new Size(minSize)
+    })
+  }
+
+  /**
    * Sets the window outer position.
    * @example
    * ```typescript

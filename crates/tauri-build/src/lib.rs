@@ -87,10 +87,25 @@ fn copy_binaries(
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   let path = path.canonicalize()?;
+  
+  // Track which directories we've already emitted rerun-if-changed for
+  let mut processed_dirs: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+  
   for resource in resources.iter() {
     let resource = resource?;
 
     println!("cargo:rerun-if-changed={}", resource.path().display());
+
+    // Also emit rerun-if-changed for the parent directory to detect new files
+    // This ensures that when new files are added to a resource directory,
+    // Cargo will rebuild and copy them
+    if let Some(parent) = resource.path().parent() {
+      let parent = parent.to_path_buf();
+      if !processed_dirs.contains(&parent) {
+        println!("cargo:rerun-if-changed={}", parent.display());
+        processed_dirs.insert(parent);
+      }
+    }
 
     // avoid copying the resource if target is the same as source
     let src = resource.path().canonicalize()?;

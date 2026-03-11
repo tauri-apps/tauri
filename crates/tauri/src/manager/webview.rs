@@ -236,7 +236,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
-    let window_origin = if window_url.scheme() == "data" {
+    let window_origin = if window_url.scheme() == "data" || window_url.scheme() == "about" {
       "null".into()
     } else if (cfg!(windows) || cfg!(target_os = "android"))
       && window_url.scheme() != "http"

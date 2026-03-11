@@ -2414,9 +2414,9 @@ fn on_event_loop_event<R: Runtime>(
       // set the app icon in development
       #[cfg(all(dev, target_os = "macos"))]
       {
-        use objc2::AllocAnyThread;
+        use objc2::{AllocAnyThread, MainThreadMarker};
         use objc2_app_kit::{NSApplication, NSImage};
-        use objc2_foundation::{MainThreadMarker, NSData};
+        use objc2_foundation::NSData;
 
         if let Some(icon) = app_handle.manager.app_icon.clone() {
           // TODO: Enable this check.

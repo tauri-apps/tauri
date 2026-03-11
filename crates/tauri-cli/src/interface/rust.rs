@@ -27,9 +27,9 @@ use tauri_bundler::{
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
-use super::{AppSettings, DevProcess, ExitReason, Interface};
+use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
-  error::{Context, Error, ErrorExt},
+  error::{bail, Context, Error, ErrorExt},
   helpers::{
     app_paths::Dirs,
     config::{nsis_settings, reload_config, wix_settings, BundleResources, Config, ConfigMetadata},
@@ -134,10 +134,8 @@ pub struct Rust {
   main_binary_name: Option<String>,
 }
 
-impl Interface for Rust {
-  type AppSettings = RustAppSettings;
-
-  fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self> {
+impl Rust {
+  pub fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
@@ -146,9 +144,10 @@ impl Interface for Rust {
         }
       })
       .unwrap();
+      let manifest_path = tauri_dir.join("Cargo.toml");
       watcher
-        .watch(tauri_dir.join("Cargo.toml"), RecursiveMode::NonRecursive)
-        .with_context(|| format!("failed to watch {}", tauri_dir.join("Cargo.toml").display()))?;
+        .watch(&manifest_path, RecursiveMode::NonRecursive)
+        .with_context(|| format!("failed to watch {}", manifest_path.display()))?;
       let (manifest, modified) = rewrite_manifest(config, tauri_dir)?;
       if modified {
         // Wait for the modified event so we don't trigger a re-build later on
@@ -177,11 +176,11 @@ impl Interface for Rust {
     })
   }
 
-  fn app_settings(&self) -> Arc<Self::AppSettings> {
+  pub fn app_settings(&self) -> Arc<RustAppSettings> {
     self.app_settings.clone()
   }
 
-  fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
+  pub fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
     desktop::build(
       options,
       &self.app_settings,
@@ -192,7 +191,7 @@ impl Interface for Rust {
     )
   }
 
-  fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
+  pub fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     config: &mut ConfigMetadata,
     mut options: Options,
@@ -212,7 +211,7 @@ impl Interface for Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, run_args, move |status, reason| {
+      self.run_dev(options, &run_args, move |status, reason| {
         on_exit(status, reason);
         tx.send(()).unwrap();
       })?;
@@ -227,16 +226,18 @@ impl Interface for Rust {
         &merge_configs,
         |rust: &mut Rust, _config| {
           let on_exit = on_exit.clone();
-          rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
-            on_exit(status, reason)
-          })
+          rust
+            .run_dev(options.clone(), &run_args, move |status, reason| {
+              on_exit(status, reason)
+            })
+            .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
         },
         dirs,
       )
     }
   }
 
-  fn mobile_dev<
+  pub fn mobile_dev<
     R: Fn(MobileOptions, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
   >(
     &mut self,
@@ -270,7 +271,7 @@ impl Interface for Rust {
     }
   }
 
-  fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
+  pub fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: &mut ConfigMetadata,
     options: WatcherOptions,
@@ -287,7 +288,7 @@ impl Interface for Rust {
     )
   }
 
-  fn env(&self) -> HashMap<&str, String> {
+  pub fn env(&self) -> HashMap<&str, String> {
     let mut env = HashMap::new();
     env.insert(
       "TAURI_ENV_TARGET_TRIPLE",
@@ -363,7 +364,7 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
       ignore_builder.add(path);
 
-      if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
+      if let Some(ignore_file) = std::env::var_os("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
         ignore_builder.add(dir.join(ignore_file));
       }
 
@@ -395,7 +396,7 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   let mut builder = ignore::WalkBuilder::new(dir);
   builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
-  if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
+  if let Some(ignore_file) = std::env::var_os("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
     builder.add_ignore(ignore_file);
   }
   builder.require_git(false).ignore(false).max_depth(Some(1));
@@ -425,7 +426,7 @@ fn dev_options(
   }
   *args = dev_args;
 
-  if mobile {
+  if mobile && !args.contains(&"--lib".into()) {
     args.push("--lib".into());
   }
 
@@ -483,7 +484,9 @@ impl Rust {
   pub fn build_options(&self, args: &mut Vec<String>, features: &mut Vec<String>, mobile: bool) {
     features.push("tauri/custom-protocol".into());
     if mobile {
-      args.push("--lib".into());
+      if !args.contains(&"--lib".into()) {
+        args.push("--lib".into());
+      }
     } else {
       args.push("--bins".into());
     }
@@ -492,9 +495,9 @@ impl Rust {
   fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
-    run_args: Vec<String>,
+    run_args: &[String],
     on_exit: F,
-  ) -> crate::Result<Box<dyn DevProcess + Send>> {
+  ) -> crate::Result<desktop::DevChild> {
     desktop::run_dev(
       options,
       run_args,
@@ -502,7 +505,6 @@ impl Rust {
       self.config_features.clone(),
       on_exit,
     )
-    .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
   }
 
   fn run_dev_watcher<
@@ -515,9 +517,7 @@ impl Rust {
     run: F,
     dirs: &Dirs,
   ) -> crate::Result<()> {
-    let child = run(self, config)?;
-
-    let process = Arc::new(Mutex::new(child));
+    let mut child = run(self, config)?;
     let (tx, rx) = sync_channel(1);
 
     let watch_folders = get_watch_folders(additional_watch_folders, dirs.tauri)?;
@@ -556,48 +556,47 @@ impl Rust {
       }
     }
 
-    loop {
-      if let Ok(events) = rx.recv() {
-        for event in events {
-          if event.kind.is_access() {
-            continue;
-          }
+    while let Ok(events) = rx.recv() {
+      let paths: Vec<PathBuf> = events
+        .into_iter()
+        .filter(|event| !event.kind.is_access())
+        .flat_map(|event| event.event.paths)
+        .filter(|path| !ignore_matcher.is_ignore(path, path.is_dir()))
+        .collect();
 
-          if let Some(event_path) = event.paths.first() {
-            if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
-              if is_configuration_file(self.app_settings.target_platform, event_path)
-                && reload_config(config, merge_configs, dirs.tauri).is_ok()
-              {
-                let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
-                if modified {
-                  *self.app_settings.manifest.lock().unwrap() = manifest;
-                  // no need to run the watcher logic, the manifest was modified
-                  // and it will trigger the watcher again
-                  continue;
-                }
-              }
-
-              log::info!(
-                "File {} changed. Rebuilding application...",
-                display_path(event_path.strip_prefix(dirs.frontend).unwrap_or(event_path))
-              );
-
-              let mut p = process.lock().unwrap();
-              p.kill().context("failed to kill app process")?;
-
-              // wait for the process to exit
-              // note that on mobile, kill() already waits for the process to exit (duct implementation)
-              loop {
-                if !matches!(p.try_wait(), Ok(None)) {
-                  break;
-                }
-              }
-              *p = run(self, config)?;
-            }
-          }
+      let config_file_changed = paths
+        .iter()
+        .any(|path| is_configuration_file(self.app_settings.target_platform, path));
+      if config_file_changed && reload_config(config, merge_configs, dirs.tauri).is_ok() {
+        let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
+        if modified {
+          *self.app_settings.manifest.lock().unwrap() = manifest;
+          // no need to run the watcher logic, the manifest was modified
+          // and it will trigger the watcher again
+          continue;
         }
       }
+
+      let Some(first_changed_path) = paths.first() else {
+        continue;
+      };
+
+      log::info!(
+        "File {} changed. Rebuilding application...",
+        display_path(
+          first_changed_path
+            .strip_prefix(dirs.frontend)
+            .unwrap_or(first_changed_path)
+        )
+      );
+
+      child.kill().context("failed to kill app process")?;
+      // wait for the process to exit
+      // note that on mobile, kill() already waits for the process to exit (duct implementation)
+      let _ = child.wait();
+      child = run(self, config)?;
     }
+    bail!("File watcher exited unexpectedly")
   }
 }
 
@@ -1382,7 +1381,7 @@ fn tauri_config_to_bundle_settings(
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {
-      let (tray_kind, path) = std::env::var("TAURI_LINUX_AYATANA_APPINDICATOR")
+      let (tray_kind, path) = std::env::var_os("TAURI_LINUX_AYATANA_APPINDICATOR")
         .map(|ayatana| {
           if ayatana == "true" || ayatana == "1" {
             (
@@ -1404,7 +1403,7 @@ fn tauri_config_to_bundle_settings(
             )
           }
         })
-        .unwrap_or_else(|_| pkgconfig_utils::get_appindicator_library_path());
+        .unwrap_or_else(pkgconfig_utils::get_appindicator_library_path);
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
           depends_deb.push("libayatana-appindicator3-1".into());

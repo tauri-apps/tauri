@@ -19,7 +19,8 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE` - Specify a GitHub mirror template to download files and tools used by tauri bundler, for example: `https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>`.
 - `TAURI_BUNDLER_DMG_IGNORE_CI` - Disable the check for `CI: true` in the `.dmg` bundler.
 - `TAURI_SKIP_SIDECAR_SIGNATURE_CHECK` - Skip signing sidecars.
-- `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles, can be either a string or a path to the file.
+- `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles. Can be either the key content as a string, or a path to a file containing the key (the path will be used if the file exists). Takes precedence over `TAURI_SIGNING_PRIVATE_KEY_PATH` unless the file doesn't exist.
+- `TAURI_SIGNING_PRIVATE_KEY_PATH` — Path to the private key file used to sign your app bundles. If set, takes priority over `TAURI_SIGNING_PRIVATE_KEY` when the file exists.
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — The signing private key password, see `TAURI_SIGNING_PRIVATE_KEY`.
 - `TAURI_SIGNING_RPM_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.
 - `TAURI_SIGNING_RPM_KEY_PASSPHRASE` — The GPG key passphrase for `TAURI_SIGNING_RPM_KEY`, if needed.

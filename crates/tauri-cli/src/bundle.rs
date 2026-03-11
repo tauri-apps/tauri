@@ -274,18 +274,22 @@ fn sign_updaters(
     .or_else(|| if ci { Some("".into()) } else { None });
 
   // get the private key
-  let private_key = std::env::var("TAURI_SIGNING_PRIVATE_KEY")
-    .ok()
-    .context("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")?;
-  // check if private_key points to a file...
-  let maybe_path = Path::new(&private_key);
-  let private_key = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path).fs_context(
-      "failed to read private key from file",
-      maybe_path.to_path_buf(),
-    )?
+  // Priority: TAURI_SIGNING_PRIVATE_KEY_PATH (if set and file exists) > TAURI_SIGNING_PRIVATE_KEY
+  let private_key = if let Ok(path) = std::env::var("TAURI_SIGNING_PRIVATE_KEY_PATH") {
+    // TAURI_SIGNING_PRIVATE_KEY_PATH takes priority if set
+    std::fs::read_to_string(Path::new(&path))
+      .fs_context("failed to read private key from TAURI_SIGNING_PRIVATE_KEY_PATH", Path::new(&path).to_path_buf())?
+  } else if let Ok(key_or_path) = std::env::var("TAURI_SIGNING_PRIVATE_KEY") {
+    // TAURI_SIGNING_PRIVATE_KEY can be either the key content or a path to a file
+    let maybe_path = Path::new(&key_or_path);
+    if maybe_path.exists() {
+      std::fs::read_to_string(maybe_path)
+        .fs_context("failed to read private key from file specified in TAURI_SIGNING_PRIVATE_KEY", maybe_path.to_path_buf())?
+    } else {
+      key_or_path
+    }
   } else {
-    private_key
+    return Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` or `TAURI_SIGNING_PRIVATE_KEY_PATH` environment variable."));
   };
   if password.is_none() {
     log::info!("Decrypting updater signing key, expect a prompt for password")

@@ -1148,6 +1148,11 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     })
   }
 
+  #[cfg(target_os = "ios")]
+  fn ios_webview_ptr(&self) -> Result<*const std::ffi::c_void> {
+    Ok(std::ptr::null())
+  }
+
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
     let _ = self.context.post_message(Message::Webview {

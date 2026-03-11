@@ -1551,7 +1551,10 @@ impl<R: Runtime> Webview<R> {
   ///
   /// ## Casting (Wry runtime)
   ///
-  /// When using the Wry runtime, downcast the closure argument to `tauri_runtime_wry::wry::WebView`.
+  /// When using the Wry runtime, downcast the closure argument to [`tauri_runtime_wry::Webview`].
+  /// That type is a platform-specific struct or type alias: Linux uses `webkit2gtk::WebView`;
+  /// Windows a struct with `controller` and `environment`; macOS/iOS a struct with raw pointer
+  /// fields (`webview`, `manager`, and `ns_window` or `view_controller`); Android uses `wry::JniHandle`.
   ///
   /// Always gate platform-specific code with `#[cfg(target_os = "...")]` or `#[cfg(windows)]`.
   ///
@@ -1572,31 +1575,28 @@ tauri::Builder::<TauriRuntime>::new()
   .setup(|app| {
     let main_webview = app.get_webview("main").unwrap();
     main_webview.with_webview(|webview| {
-      // Downcast to the Wry runtime's webview type (required when using tauri_runtime_wry)
-      let webview = *webview.downcast::<tauri_runtime_wry::wry::WebView>().unwrap();
+      // Downcast to the Wry runtime's webview type (tauri_runtime_wry::Webview)
+      let webview = *webview.downcast::<tauri_runtime_wry::Webview>().unwrap();
 
       #[cfg(target_os = "linux")]
       {
-        // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
-        // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
+        // On Linux, Webview is webkit2gtk::WebView
         use webkit2gtk::WebViewExt;
-        use tauri_runtime_wry::wry::WebViewExtUnix;
-        webview.webview().set_zoom_level(4.);
+        webview.set_zoom_level(4.);
       }
 
       #[cfg(windows)]
       unsafe {
-        use tauri_runtime_wry::wry::WebViewExtWindows;
-        // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
-        webview.controller().SetZoomFactor(4.).unwrap();
+        // On Windows, Webview has .controller and .environment
+        webview.controller.SetZoomFactor(4.).unwrap();
       }
 
       #[cfg(target_os = "macos")]
       unsafe {
-        use tauri_runtime_wry::wry::WebViewExtMacOS;
-        let view = webview.webview();
-        let window = webview.ns_window();
-
+        // On macOS, Webview has .webview, .manager, .ns_window (raw pointers)
+        use objc2::rc::Retained;
+        let view = Retained::from_raw(webview.webview as *mut objc2_web_kit::WKWebView);
+        let window = Retained::from_raw(webview.ns_window as *mut objc2_app_kit::NSWindow);
         view.setPageZoom(4.);
         let bg_color = objc2_app_kit::NSColor::colorWithDeviceRed_green_blue_alpha(0.5, 0.2, 0.4, 1.);
         window.setBackgroundColor(Some(&bg_color));
@@ -1604,9 +1604,8 @@ tauri::Builder::<TauriRuntime>::new()
 
       #[cfg(target_os = "android")]
       {
-        use tauri_runtime_wry::wry::WebViewExtAndroid;
         use jni::objects::JValue;
-        webview.handle().exec(|env, _, webview| {
+        webview.exec(|env, _, webview| {
           env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
         })
       }

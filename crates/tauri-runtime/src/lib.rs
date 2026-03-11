@@ -556,10 +556,17 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Runs a closure with the platform webview object as argument.
   ///
   /// The closure receives the underlying webview as [`Box<dyn Any>`](std::any::Any). You must
-  /// downcast it to the concrete type for your runtime and platform. The concrete type is
-  /// defined by each runtime crate (e.g. `tauri-runtime-wry`, `tauri-runtime-cef`) and varies
-  /// by OS. See the Tauri docs for `Webview::with_webview` for platform-specific types and casting.
+  /// downcast it to the concrete type for your runtime and platform. For the Wry runtime the
+  /// type is `tauri_runtime_wry::Webview`; other runtimes define their own types. See the
+  /// Tauri docs for `Webview::with_webview` for platform-specific shapes and casting.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
+
+  /// Returns the raw pointer to the iOS WKWebView.
+  ///
+  /// Only available on iOS. Runtimes that do not expose a WKWebView (e.g. in tests) may return
+  /// `Ok(std::ptr::null())`.
+  #[cfg(target_os = "ios")]
+  fn ios_webview_ptr(&self) -> Result<*const std::ffi::c_void>;
 
   /// Open the web inspector which is usually called devtools.
   #[cfg(any(debug_assertions, feature = "devtools"))]

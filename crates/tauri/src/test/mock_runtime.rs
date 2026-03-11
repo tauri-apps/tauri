@@ -550,8 +550,13 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     self.context.next_window_event_id()
   }
 
-  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, _f: F) -> Result<()> {
     Ok(())
+  }
+
+  #[cfg(target_os = "ios")]
+  fn ios_webview_ptr(&self) -> Result<*const std::ffi::c_void> {
+    Ok(std::ptr::null())
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]

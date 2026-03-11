@@ -10,25 +10,23 @@ use tauri::{
 
 use crate::models::*;
 
-type TauriRuntime = tauri_runtime_wry::Wry<tauri::EventLoopMessage>;
-
 #[cfg(target_os = "android")]
 const PLUGIN_IDENTIFIER: &str = "com.plugin.sample";
 
 #[cfg(target_os = "ios")]
 tauri::ios_plugin_binding!(init_plugin_sample);
 
-#[cfg(target_os = "ios")]
-use tauri_runtime_wry::PluginApiWryExt;
-
 // initializes the Kotlin or Swift plugin classes
-pub fn init<C: DeserializeOwned>(
-  _app: &AppHandle<TauriRuntime>,
-  api: PluginApi<TauriRuntime, C>,
-) -> crate::Result<Sample<TauriRuntime>> {
+pub fn init<R: Runtime, C: DeserializeOwned>(
+  _app: &AppHandle<R>,
+  api: PluginApi<R, C>,
+) -> crate::Result<Sample<R>> {
   #[cfg(target_os = "android")]
   let handle = api.register_android_plugin(PLUGIN_IDENTIFIER, "ExamplePlugin")?;
+  #[cfg(target_os = "ios")]
   let handle = api.register_ios_plugin(init_plugin_sample)?;
+  #[cfg(not(any(target_os = "android", target_os = "ios")))]
+  let handle = panic!("mobile init called on non-mobile platform");
   Ok(Sample(handle))
 }
 

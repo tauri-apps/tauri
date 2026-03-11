@@ -235,6 +235,39 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       handle: self.handle.clone(),
     })
   }
+
+  /// Registers an iOS plugin.
+  ///
+  /// Uses the runtime's webview handle ([`WebviewDispatch::ios_webview_ptr`]) to register with the Swift side.
+  /// Works with any runtime that implements the iOS webview pointer (e.g. Wry); runtimes that do not
+  /// expose a WKWebView (e.g. in tests) may pass a null pointer.
+  #[cfg(target_os = "ios")]
+  pub fn register_ios_plugin(
+    &self,
+    init_fn: unsafe fn() -> *const std::ffi::c_void,
+  ) -> Result<PluginHandle<R>, PluginInvokeError> {
+    use crate::Manager;
+    use tauri_runtime::WebviewDispatch;
+    let name = self.name();
+    let config_str = serde_json::to_string(self.raw_config().as_ref()).unwrap();
+    let webview_ptr = if let Some(webview) = self.app().webviews().into_values().next() {
+      webview
+        .dispatcher()
+        .ios_webview_ptr()
+        .map_err(|_| PluginInvokeError::UnreachableWebview)?
+    } else {
+      std::ptr::null()
+    };
+    unsafe {
+      crate::ios::register_plugin(
+        &name.into(),
+        init_fn(),
+        &config_str.as_str().into(),
+        webview_ptr,
+      );
+    }
+    Ok(PluginHandle::new(name, self.app().clone()))
+  }
 }
 
 impl<R: Runtime> PluginHandle<R> {

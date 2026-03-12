@@ -357,9 +357,11 @@ pub fn kill_before_dev_process() {
         if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {
           use std::os::unix::fs::PermissionsExt;
           let _ = file.write_all(KILL_CHILDREN_SCRIPT);
-          let mut permissions = file.metadata().unwrap().permissions();
+          // File must be closed before setting permissions on some systems (e.g., macOS)
+          drop(file);
+          let mut permissions = std::fs::metadata(&kill_children_script_path).unwrap().permissions();
           permissions.set_mode(0o770);
-          let _ = file.set_permissions(permissions);
+          let _ = std::fs::set_permissions(&kill_children_script_path, permissions);
         }
       }
       let _ = Command::new(&kill_children_script_path)

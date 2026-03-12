@@ -35,14 +35,18 @@ fn wix_upgrade_code(tauri_dir: &Path) -> Result<()> {
 
   let interface = AppInterface::new(&config, None, tauri_dir)?;
 
-  let product_name = interface.app_settings().get_package_settings().product_name;
+  let package_settings = interface.app_settings().get_package_settings();
+  let product_name = &package_settings.product_name;
+  let bundle_identifier = &config.bundle.identifier;
 
   let upgrade_code = uuid::Uuid::new_v5(
     &uuid::Uuid::NAMESPACE_DNS,
-    format!("{product_name}.exe.app.x64").as_bytes(),
+    format!("{bundle_identifier}.exe.app.x64.{product_name}").as_bytes(),
   );
 
-  log::info!("Default WiX Upgrade Code, derived from {product_name}: {upgrade_code}");
+  log::info!(
+    "Default WiX Upgrade Code, derived from {bundle_identifier} and {product_name}: {upgrade_code}"
+  );
   if let Some(code) = config
     .bundle
     .windows

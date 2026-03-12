@@ -2307,6 +2307,12 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Navigates the webview to the defined url.
+  ///
+  /// # Known issues
+  ///
+  /// On Android, calling this method in the `setup` hook may fail because the webview
+  /// is not yet fully initialized. Consider using `RunEvent::Ready` to ensure the webview
+  /// is ready before navigating, or use a delayed execution pattern.
   pub fn navigate(&self, url: Url) -> crate::Result<()> {
     self.webview.navigate(url)
   }

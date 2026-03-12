@@ -350,7 +350,8 @@ pub fn generate_capability_schema(
   acl: &BTreeMap<String, Manifest>,
   target: Target,
 ) -> crate::Result<()> {
-  let mut schema = schemars::schema_for!(CapabilityFile);
+  let mut schema = schemars::SchemaGenerator::new(schemars::generate::SchemaSettings::draft07())
+    .into_root_schema_for::<CapabilityFile>();
 
   extend_identifier_schema(&mut schema, acl);
   extend_permission_entry_schema(&mut schema, acl);
@@ -427,7 +428,8 @@ pub fn generate_permissions_schema<P: AsRef<Path>>(
   permissions: &[PermissionFile],
   out_dir: P,
 ) -> Result<(), Error> {
-  let mut schema = schemars::schema_for!(PermissionFile);
+  let mut schema = schemars::SchemaGenerator::new(schemars::generate::SchemaSettings::draft07())
+    .into_root_schema_for::<PermissionFile>();
 
   extend_permission_file_schema(&mut schema, permissions);
 

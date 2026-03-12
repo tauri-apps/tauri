@@ -5,7 +5,7 @@ edition = "2024"
 links = "tauri-plugin-sample"
 
 [dependencies]
-tauri = { path = "../../../../crates/tauri" }
+tauri = { path = "../../../../crates/tauri", default-features = false }
 log = "0.4"
 serde = "1"
 thiserror = "2"

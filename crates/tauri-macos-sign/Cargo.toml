@@ -25,3 +25,4 @@ log = { version = "0.4.21", features = ["kv"] }
 apple-codesign = { version = "0.27", default-features = false }
 chrono = "0.4"
 p12 = "0.6"
+base64 = "0.22"

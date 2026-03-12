@@ -96,10 +96,7 @@ fn get_response<R: Runtime>(
     .unwrap_or_default();
 
   let mut builder = HttpResponse::builder()
-    .add_configured_headers(
-      request.uri().path(),
-      manager.config.app.security.headers.as_ref(),
-    )
+    .add_configured_headers(manager.config.app.security.headers.as_ref())
     .header("Access-Control-Allow-Origin", window_origin);
 
   let mut response = if proxy_dev_server {

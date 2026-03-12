@@ -24,7 +24,7 @@
 //! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
 #[cfg(feature = "schema")]
-use schemars::{JsonSchema, Schema};
+use schemars::JsonSchema;
 use semver::Version;
 use serde::{
   Deserialize, Serialize, Serializer,
@@ -42,15 +42,6 @@ use std::{
   path::PathBuf,
   str::FromStr,
 };
-
-#[cfg(feature = "schema")]
-fn add_description(mut schema: Schema, description: impl Into<String>) -> Schema {
-  let value = description.into();
-  if !value.is_empty() {
-    schema.insert("description".to_string(), serde_json::Value::String(value));
-  }
-  schema
-}
 
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
@@ -203,43 +194,21 @@ impl<'de> Deserialize<'de> for BundleType {
 
 /// Targets to bundle. Each value is case insensitive.
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[cfg_attr(
+  feature = "schema",
+  derive(JsonSchema),
+  schemars(rename_all = "lowercase")
+)]
 pub enum BundleTarget {
   /// Bundle all targets.
   #[default]
   All,
+  #[cfg_attr(feature = "schema", schemars(untagged))]
   /// A list of bundle targets.
   List(Vec<BundleType>),
+  #[cfg_attr(feature = "schema", schemars(untagged))]
   /// A single bundle target.
   One(BundleType),
-}
-
-#[cfg(feature = "schema")]
-impl schemars::JsonSchema for BundleTarget {
-  fn schema_name() -> std::borrow::Cow<'static, str> {
-    "BundleTarget".into()
-  }
-
-  fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    let any_of: Vec<serde_json::Value> = vec![
-      serde_json::json!({
-        "const": "all",
-        "description": "Bundle all targets."
-      }),
-      serde_json::Value::from(add_description(
-        generator.subschema_for::<Vec<BundleType>>(),
-        "A list of bundle targets.",
-      )),
-      serde_json::Value::from(add_description(
-        generator.subschema_for::<BundleType>(),
-        "A single bundle target.",
-      )),
-    ];
-
-    schemars::json_schema!({
-      "anyOf": any_of,
-      "description": "Targets to bundle. Each value is case insensitive."
-    })
-  }
 }
 
 impl Serialize for BundleTarget {
@@ -1398,6 +1367,7 @@ pub struct BundleConfig {
 
 /// A tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
 #[derive(Debug, PartialEq, Eq, Serialize, Default, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(JsonSchema), schemars(with = "InnerColor"))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
@@ -1482,7 +1452,13 @@ fn default_alpha() -> u8 {
 #[serde(untagged)]
 enum InnerColor {
   /// Color hex string, for example: #fff, #ffffff, or #ffffffff.
-  String(String),
+  String(
+    #[cfg_attr(
+      feature = "schema",
+      schemars(pattern("^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"))
+    )]
+    String,
+  ),
   /// Array of RGB colors. Each value has minimum of 0 and maximum of 255.
   Rgb((u8, u8, u8)),
   /// Array of RGBA colors. Each value has minimum of 0 and maximum of 255.
@@ -1516,30 +1492,6 @@ impl<'de> Deserialize<'de> for Color {
     };
 
     Ok(color)
-  }
-}
-
-#[cfg(feature = "schema")]
-impl schemars::JsonSchema for Color {
-  fn schema_name() -> std::borrow::Cow<'static, str> {
-    "Color".into()
-  }
-
-  fn json_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-    let mut schema = schemars::schema_for!(InnerColor);
-    schema.remove("title"); // Remove `title: InnerColor` from schema
-
-    // Add hex color pattern validation to the first variant (string)
-    if let Some(serde_json::Value::Array(any_of)) = schema.get_mut("anyOf")
-      && let Some(str_schema) = any_of.first_mut().and_then(|v| v.as_object_mut())
-    {
-      str_schema.insert(
-        "pattern".to_string(),
-        "^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$".into(),
-      );
-    }
-
-    schema
   }
 }
 
@@ -2279,43 +2231,8 @@ pub enum HeaderSource {
   Inline(String),
   /// list version of the header value. Item are joined by "," for the real header value
   List(Vec<String>),
-  /// Header value with a pattern to match against the request path.
-  /// The pattern supports glob patterns (e.g., "*", "?", "**").
-  #[serde(rename_all = "camelCase")]
-  PatternValue {
-    /// The header value (can be any HeaderSource variant)
-    value: Box<HeaderSource>,
-    /// The glob pattern to match against the request path.
-    pattern: String,
-  },
-  /// (Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Items are then joined by ";" for the real header value
+  /// (Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Item are then joined by ";" for the real header value
   Map(HashMap<String, String>),
-}
-
-impl HeaderSource {
-  /// Check if this header source matches the given path pattern
-  pub fn matches_path(&self, path: &str) -> bool {
-    match self {
-      Self::PatternValue { pattern, .. } => {
-        println!("Matching path: {path} against pattern: {pattern}");
-
-        // Use glob pattern matching
-        glob::Pattern::new(pattern)
-          .map(|p| p.matches(path))
-          .unwrap_or(false)
-      }
-      // All other variants match all paths (treated as "*")
-      _ => true,
-    }
-  }
-
-  /// Get the actual header value, unwrapping PatternValue if needed
-  pub fn get_value(&self) -> &HeaderSource {
-    match self {
-      Self::PatternValue { value, .. } => value.get_value(),
-      other => other,
-    }
-  }
 }
 
 impl Display for HeaderSource {
@@ -2335,10 +2252,6 @@ impl Display for HeaderSource {
         }
         Ok(())
       }
-      Self::PatternValue { value, .. } => {
-        // Display the inner value
-        write!(f, "{}", value)
-      }
     }
   }
 }
@@ -2348,118 +2261,78 @@ impl Display for HeaderSource {
 /// Must add headers defined in the tauri configuration file to http responses
 pub trait HeaderAddition {
   /// adds all headers defined on the config file, given the current HeaderConfig
-  fn add_configured_headers(
-    self,
-    path: &str,
-    headers: Option<&HeaderConfig>,
-  ) -> http::response::Builder;
+  fn add_configured_headers(self, headers: Option<&HeaderConfig>) -> http::response::Builder;
 }
 
 impl HeaderAddition for http::response::Builder {
   /// Add the headers defined in the tauri configuration file to http responses
   ///
   /// this is a utility function, which is used in the same way as the `.header(..)` of the rust http library
-  fn add_configured_headers(
-    mut self,
-    path: &str,
-    headers: Option<&HeaderConfig>,
-  ) -> http::response::Builder {
+  fn add_configured_headers(mut self, headers: Option<&HeaderConfig>) -> http::response::Builder {
     if let Some(headers) = headers {
-      if let Some(value) = &headers.access_control_allow_credentials
-        && value.matches_path(path)
-      {
-        self = self.header(
-          "Access-Control-Allow-Credentials",
-          value.get_value().to_string(),
-        );
+      // Add the header Access-Control-Allow-Credentials, if we find a value for it
+      if let Some(value) = &headers.access_control_allow_credentials {
+        self = self.header("Access-Control-Allow-Credentials", value.to_string());
       };
 
-      if let Some(value) = &headers.access_control_allow_headers
-        && value.matches_path(path)
-      {
-        self = self.header(
-          "Access-Control-Allow-Headers",
-          value.get_value().to_string(),
-        );
+      // Add the header Access-Control-Allow-Headers, if we find a value for it
+      if let Some(value) = &headers.access_control_allow_headers {
+        self = self.header("Access-Control-Allow-Headers", value.to_string());
       };
 
-      if let Some(value) = &headers.access_control_allow_methods
-        && value.matches_path(path)
-      {
-        self = self.header(
-          "Access-Control-Allow-Methods",
-          value.get_value().to_string(),
-        );
+      // Add the header Access-Control-Allow-Methods, if we find a value for it
+      if let Some(value) = &headers.access_control_allow_methods {
+        self = self.header("Access-Control-Allow-Methods", value.to_string());
       };
 
-      if let Some(value) = &headers.access_control_expose_headers
-        && value.matches_path(path)
-      {
-        self = self.header(
-          "Access-Control-Expose-Headers",
-          value.get_value().to_string(),
-        );
+      // Add the header Access-Control-Expose-Headers, if we find a value for it
+      if let Some(value) = &headers.access_control_expose_headers {
+        self = self.header("Access-Control-Expose-Headers", value.to_string());
       };
 
-      if let Some(value) = &headers.access_control_max_age
-        && value.matches_path(path)
-      {
-        self = self.header("Access-Control-Max-Age", value.get_value().to_string());
+      // Add the header Access-Control-Max-Age, if we find a value for it
+      if let Some(value) = &headers.access_control_max_age {
+        self = self.header("Access-Control-Max-Age", value.to_string());
       };
 
-      if let Some(value) = &headers.cross_origin_embedder_policy
-        && value.matches_path(path)
-      {
-        self = self.header(
-          "Cross-Origin-Embedder-Policy",
-          value.get_value().to_string(),
-        );
+      // Add the header Cross-Origin-Embedder-Policy, if we find a value for it
+      if let Some(value) = &headers.cross_origin_embedder_policy {
+        self = self.header("Cross-Origin-Embedder-Policy", value.to_string());
       };
 
-      if let Some(value) = &headers.cross_origin_opener_policy
-        && value.matches_path(path)
-      {
-        self = self.header("Cross-Origin-Opener-Policy", value.get_value().to_string());
+      // Add the header Cross-Origin-Opener-Policy, if we find a value for it
+      if let Some(value) = &headers.cross_origin_opener_policy {
+        self = self.header("Cross-Origin-Opener-Policy", value.to_string());
       };
 
-      if let Some(value) = &headers.cross_origin_resource_policy
-        && value.matches_path(path)
-      {
-        self = self.header(
-          "Cross-Origin-Resource-Policy",
-          value.get_value().to_string(),
-        );
+      // Add the header Cross-Origin-Resource-Policy, if we find a value for it
+      if let Some(value) = &headers.cross_origin_resource_policy {
+        self = self.header("Cross-Origin-Resource-Policy", value.to_string());
       };
 
-      if let Some(value) = &headers.permissions_policy
-        && value.matches_path(path)
-      {
-        self = self.header("Permission-Policy", value.get_value().to_string());
+      // Add the header Permission-Policy, if we find a value for it
+      if let Some(value) = &headers.permissions_policy {
+        self = self.header("Permission-Policy", value.to_string());
       };
 
-      if let Some(value) = &headers.service_worker_allowed
-        && value.matches_path(path)
-      {
-        self = self.header("Service-Worker-Allowed", value.get_value().to_string());
+      if let Some(value) = &headers.service_worker_allowed {
+        self = self.header("Service-Worker-Allowed", value.to_string());
       }
 
-      if let Some(value) = &headers.timing_allow_origin
-        && value.matches_path(path)
-      {
-        self = self.header("Timing-Allow-Origin", value.get_value().to_string());
+      // Add the header Timing-Allow-Origin, if we find a value for it
+      if let Some(value) = &headers.timing_allow_origin {
+        self = self.header("Timing-Allow-Origin", value.to_string());
       };
 
-      if let Some(value) = &headers.x_content_type_options
-        && value.matches_path(path)
-      {
-        self = self.header("X-Content-Type-Options", value.get_value().to_string());
+      // Add the header X-Content-Type-Options, if we find a value for it
+      if let Some(value) = &headers.x_content_type_options {
+        self = self.header("X-Content-Type-Options", value.to_string());
       };
 
-      if let Some(value) = &headers.tauri_custom_header
-        && value.matches_path(path)
-      {
+      // Add the header Tauri-Custom-Header, if we find a value for it
+      if let Some(value) = &headers.tauri_custom_header {
         // Keep in mind to correctly set the Access-Control-Expose-Headers
-        self = self.header("Tauri-Custom-Header", value.get_value().to_string());
+        self = self.header("Tauri-Custom-Header", value.to_string());
       };
     }
     self
@@ -2474,9 +2347,9 @@ impl HeaderAddition for http::response::Builder {
 /// ## Example configuration
 /// ```javascript
 /// {
-///  //...
+///  //..
 ///   app:{
-///     //...
+///     //..
 ///     security: {
 ///       headers: {
 ///         "Cross-Origin-Opener-Policy": "same-origin",
@@ -2489,36 +2362,18 @@ impl HeaderAddition for http::response::Builder {
 ///         "Tauri-Custom-Header": {
 ///           "key1": "'value1' 'value2'",
 ///           "key2": "'value3'"
-///         },
-///         // Pattern-based header configuration
-///         "Service-Worker-Allowed": {
-///           "value": "/",
-///           "pattern": "/worker.js"  // Only set this header for requests to /worker.js
 ///         }
 ///       },
 ///       csp: "default-src 'self'; connect-src ipc: http://ipc.localhost",
 ///     }
-///     //...
+///     //..
 ///   }
-///  //...
+///  //..
 /// }
 /// ```
 /// In this example `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` are set to allow for the use of [`SharedArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).
 /// The result is, that those headers are then set on every response sent via the `get_response` function in crates/tauri/src/protocol/tauri.rs.
 /// The Content-Security-Policy header is defined separately, because it is also handled separately.
-///
-/// ## Pattern matching
-///
-/// Headers can be configured with patterns to only apply to specific request paths:
-/// - Use glob patterns like `*`, `?`, `**` for matching
-/// - Pattern matching is case-sensitive
-/// - If no pattern is specified, the header applies to all paths (equivalent to `"*"`)
-///
-/// Examples:
-/// - `"/worker.js"` - matches exactly `/worker.js`
-/// - `"/api/*"` - matches any path under `/api/`
-/// - `"*.js"` - matches any JavaScript file
-/// - `"**/*.json"` - matches any JSON file at any depth
 ///
 /// For the helloworld example, this config translates into those response headers:
 /// ```http
@@ -2533,9 +2388,8 @@ impl HeaderAddition for http::response::Builder {
 /// ```
 /// Since the resulting header values are always 'string-like'. So depending on the what data type the HeaderSource is, they need to be converted.
 ///  - `String`(JS/Rust): stay the same for the resulting header value
-///  - `Array`(JS)/`Vec<String>`(Rust): Item are joined by ", " for the resulting header value
-///  - `Object`(JS)/ `Hashmap<String, String>`(Rust): Items are composed from: key + space + value. Items are then joined by "; " for the resulting header value
-///  - `PatternValue`(JS Object with `value` and `pattern`): The `value` field can be any of the above types, and `pattern` is a glob pattern string
+///  - `Array`(JS)/`Vec\<String\>`(Rust): Item are joined by ", " for the resulting header value
+///  - `Object`(JS)/ `Hashmap\<String,String\>`(Rust): Items are composed from: key + space + value. Item are then joined by "; " for the resulting header value
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(deny_unknown_fields)]
@@ -3927,9 +3781,14 @@ mod build {
           quote!(#prefix::Policy(#policy.into()))
         }
         Self::DirectiveMap(list) => {
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = list.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
             quote! { ::std::collections::HashMap },
-            list,
+            sorted,
             str_lit,
             identity,
           );
@@ -3985,16 +3844,18 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
-          let map = map_lit(quote! { ::std::collections::HashMap }, m, str_lit, str_lit);
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = m.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
+          let map = map_lit(
+            quote! { ::std::collections::HashMap },
+            sorted,
+            str_lit,
+            str_lit,
+          );
           quote!(#prefix::Map(#map))
-        }
-        Self::PatternValue { value, pattern } => {
-          let value_tokens = quote! { #value };
-          let pattern_str = pattern.as_str();
-          quote!(#prefix::PatternValue {
-            value: ::std::boxed::Box::new(#value_tokens),
-            pattern: #pattern_str.into()
-          })
         }
       })
     }
@@ -4140,9 +4001,14 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // Pass a sorted vec so the HashMap constructor is deterministic
+      // see: https://github.com/tauri-apps/tauri/issues/14978
+      // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+      let mut sorted: Vec<_> = self.0.iter().collect();
+      sorted.sort_by_key(|(k, _)| *k);
       let config = map_lit(
         quote! { ::std::collections::HashMap },
-        &self.0,
+        sorted,
         str_lit,
         json_value_lit,
       );

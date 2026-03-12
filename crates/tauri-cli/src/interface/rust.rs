@@ -30,7 +30,7 @@ use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_con
 use super::{AppSettings, DevProcess, ExitReason};
 use crate::{
   ConfigValue,
-  error::{Context, Error, ErrorExt},
+  error::{Context, Error, ErrorExt, bail},
   helpers::{
     app_paths::Dirs,
     config::{BundleResources, Config, ConfigMetadata, nsis_settings, reload_config, wix_settings},
@@ -147,9 +147,10 @@ impl Rust {
         }
       })
       .unwrap();
+      let manifest_path = tauri_dir.join("Cargo.toml");
       watcher
-        .watch(tauri_dir.join("Cargo.toml"), RecursiveMode::NonRecursive)
-        .with_context(|| format!("failed to watch {}", tauri_dir.join("Cargo.toml").display()))?;
+        .watch(&manifest_path, RecursiveMode::NonRecursive)
+        .with_context(|| format!("failed to watch {}", manifest_path.display()))?;
       let (manifest, modified) = rewrite_manifest(config, tauri_dir)?;
       if modified {
         // Wait for the modified event so we don't trigger a re-build later on
@@ -633,43 +634,47 @@ impl Rust {
       }
     }
 
-    loop {
-      if let Ok(events) = rx.recv() {
-        for event in events {
-          if event.kind.is_access() {
-            continue;
-          }
+    while let Ok(events) = rx.recv() {
+      let paths: Vec<PathBuf> = events
+        .into_iter()
+        .filter(|event| !event.kind.is_access())
+        .flat_map(|event| event.event.paths)
+        .filter(|path| !ignore_matcher.is_ignore(path, path.is_dir()))
+        .collect();
 
-          if let Some(event_path) = event.paths.first()
-            && !ignore_matcher.is_ignore(event_path, event_path.is_dir())
-          {
-            if is_configuration_file(self.app_settings.target_platform, event_path)
-              && reload_config(config, merge_configs, dirs.tauri).is_ok()
-            {
-              let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
-              if modified {
-                *self.app_settings.manifest.lock().unwrap() = manifest;
-                // no need to run the watcher logic, the manifest was modified
-                // and it will trigger the watcher again
-                continue;
-              }
-            }
-
-            log::info!(
-              "File {} changed. Rebuilding application...",
-              display_path(event_path.strip_prefix(dirs.frontend).unwrap_or(event_path))
-            );
-
-            child.kill().context("failed to kill app process")?;
-
-            // wait for the process to exit
-            // note that on mobile, kill() already waits for the process to exit (duct implementation)
-            let _ = child.wait();
-            child = run(self, config)?;
-          }
+      let config_file_changed = paths
+        .iter()
+        .any(|path| is_configuration_file(self.app_settings.target_platform, path));
+      if config_file_changed && reload_config(config, merge_configs, dirs.tauri).is_ok() {
+        let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
+        if modified {
+          *self.app_settings.manifest.lock().unwrap() = manifest;
+          // no need to run the watcher logic, the manifest was modified
+          // and it will trigger the watcher again
+          continue;
         }
       }
+
+      let Some(first_changed_path) = paths.first() else {
+        continue;
+      };
+
+      log::info!(
+        "File {} changed. Rebuilding application...",
+        display_path(
+          first_changed_path
+            .strip_prefix(dirs.frontend)
+            .unwrap_or(first_changed_path)
+        )
+      );
+
+      child.kill().context("failed to kill app process")?;
+      // wait for the process to exit
+      // note that on mobile, kill() already waits for the process to exit (duct implementation)
+      let _ = child.wait();
+      child = run(self, config)?;
     }
+    bail!("File watcher exited unexpectedly")
   }
 }
 
@@ -1499,10 +1504,13 @@ pub(crate) fn tauri_config_to_bundle_settings(
       }
     }
 
-    depends_deb.push("libwebkit2gtk-4.1-0".to_string());
-    depends_deb.push("libgtk-3-0".to_string());
+    if !enabled_features.contains(&"cef".into()) && !enabled_features.contains(&"tauri/cef".into())
+    {
+      depends_deb.push("libwebkit2gtk-4.1-0".to_string());
+      libs.push("libwebkit2gtk-4.1.so.0".into());
+    }
 
-    libs.push("libwebkit2gtk-4.1.so.0".into());
+    depends_deb.push("libgtk-3-0".to_string());
     libs.push("libgtk-3.so.0".into());
 
     for lib in libs {

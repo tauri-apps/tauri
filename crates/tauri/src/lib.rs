@@ -227,6 +227,10 @@ use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub use tauri_runtime_wry::webview_version;
 
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub use tauri_runtime_cef::webview_version;
+
 #[cfg(target_os = "macos")]
 #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
 pub use runtime::ActivationPolicy;

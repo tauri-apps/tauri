@@ -51,6 +51,18 @@ mod cef_impl;
 mod cef_webview;
 mod utils;
 
+type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;
+
+pub fn webview_version() -> Result<String> {
+  Ok(format!(
+    "{}.{}.{}.{}",
+    cef_dll_sys::CHROME_VERSION_MAJOR,
+    cef_dll_sys::CHROME_VERSION_MINOR,
+    cef_dll_sys::CHROME_VERSION_PATCH,
+    cef_dll_sys::CHROME_VERSION_BUILD
+  ))
+}
+
 #[macro_export]
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
@@ -242,10 +254,7 @@ pub enum WebviewMessage {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   IsDevToolsOpen(Sender<bool>),
   SendDevToolsMessage(Vec<u8>, Sender<Result<()>>),
-  OnDevToolsProtocol(
-    Arc<dyn Fn(DevToolsProtocol) + Send + Sync>,
-    Sender<Result<()>>,
-  ),
+  OnDevToolsProtocol(Arc<DevToolsProtocolHandler>, Sender<Result<()>>),
 }
 
 /// A DevTools protocol message delivered to [`on_dev_tools_protocol`](CefWebviewDispatcher::on_dev_tools_protocol) callbacks.
@@ -288,7 +297,7 @@ pub(crate) struct AppWebview {
     Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
   #[allow(dead_code)]
   pub initialization_scripts: Arc<Vec<cef_impl::CefInitScript>>,
-  pub devtools_protocol_handlers: Arc<Mutex<Vec<Arc<dyn Fn(DevToolsProtocol) + Send + Sync>>>>,
+  pub devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
   /// Keeps the DevTools message observer registered. Dropping this unregisters the observer.
   #[allow(dead_code)]
   pub devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
@@ -1091,8 +1100,8 @@ impl<T: UserEvent> CefWebviewDispatcher<T> {
     f: F,
   ) -> Result<()> {
     let (tx, rx) = channel();
-    let handler = Arc::new(move |protocol: DevToolsProtocol| f(protocol))
-      as Arc<dyn Fn(DevToolsProtocol) + Send + Sync>;
+    let handler =
+      Arc::new(move |protocol: DevToolsProtocol| f(protocol)) as Arc<DevToolsProtocolHandler>;
     self.context.post_message(Message::Webview {
       window_id: *self.window_id.lock().unwrap(),
       webview_id: self.webview_id,

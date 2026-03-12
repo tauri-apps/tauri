@@ -26,6 +26,7 @@ tauri-plugin-log = "2"
 
 [dependencies.tauri]
 path = "../../../crates/tauri"
+default-features = false
 features = [
   "protocol-asset",
   "image-ico",
@@ -36,8 +37,11 @@ features = [
 
 [dev-dependencies.tauri]
 path = "../../../crates/tauri"
+default-features = false
 features = ["test"]
 
 [features]
+default = ["wry"]
+wry = ["tauri/wry"]
 prod = ["tauri/custom-protocol"]
 cef = ["tauri/cef"]

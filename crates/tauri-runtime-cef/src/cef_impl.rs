@@ -77,7 +77,7 @@ fn color_variant_to_theme(variant: ColorVariant) -> Option<tauri_utils::Theme> {
   }
 }
 
-fn apply_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::Theme>) {
+fn set_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::Theme>) {
   let variant = theme_to_color_variant(theme);
   for webview in &app_window.webviews {
     if let Some(browser) = webview.inner.browser()
@@ -87,7 +87,10 @@ fn apply_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::
       request_context.set_chrome_color_scheme(variant, 0);
     }
   }
+}
 
+fn apply_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::Theme>) {
+  set_window_theme_scheme(app_window, theme);
   if let Some(window) = app_window.window() {
     // Ask CEF Views to refresh themed colors immediately.
     window.theme_changed();
@@ -1166,6 +1169,7 @@ wrap_window_delegate! {
     attributes: Arc<RefCell<crate::CefWindowBuilder>>,
     last_emitted_position: RefCell<PhysicalPosition<i32>>,
     last_emitted_size: RefCell<PhysicalSize<u32>>,
+    suppress_next_theme_changed: RefCell<bool>,
     context: Context<T>
   }
 
@@ -1243,29 +1247,46 @@ wrap_window_delegate! {
     }
 
     fn on_theme_changed(&self, view: Option<&mut View>) {
-      let (theme, follow_system) = {
+      if std::mem::take(&mut *self.suppress_next_theme_changed.borrow_mut()) {
+        return;
+      }
+
+      let (system_theme, explicit_theme) = {
         let windows = self.windows.borrow();
         let Some(app_window) = windows.get(&self.window_id) else {
           return;
         };
 
-        let Some(theme) = native_window_theme(app_window) else {
+        let Some(system_theme) = native_window_theme(app_window) else {
           return;
         };
 
-        let attributes = app_window.attributes.borrow();
-        (theme, attributes.theme.is_none())
+        let explicit_theme = app_window.attributes.borrow().theme;
+        (system_theme, explicit_theme)
       };
 
-      if !follow_system {
-        return;
+      if let Some(explicit_theme) = explicit_theme
+        && let Some(app_window) = self.windows.borrow().get(&self.window_id)
+      {
+        #[cfg(target_os = "macos")]
+        {
+          *self.suppress_next_theme_changed.borrow_mut() = true;
+          send_message_task(
+            &self.context,
+            Message::Window {
+              window_id: self.window_id,
+              message: WindowMessage::SetTheme(Some(explicit_theme)),
+            },
+          );
+        }
+        set_window_theme_scheme(app_window, Some(explicit_theme));
       }
 
       send_window_event(
         self.window_id,
         &self.windows,
         &self.callback,
-        WindowEvent::ThemeChanged(theme),
+        WindowEvent::ThemeChanged(system_theme),
       );
     }
   }
@@ -3036,25 +3057,22 @@ fn handle_window_message<T: UserEvent>(
     }
     WindowMessage::SetTheme(theme) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
-        let previous_theme = native_window_theme(app_window);
         {
           let mut attributes = app_window.attributes.borrow_mut();
           attributes.theme = theme;
         }
         apply_window_theme_scheme(app_window, theme);
         #[cfg(target_os = "macos")]
-        apply_macos_window_theme(app_window.window().as_ref(), theme);
+        {
+          let window = app_window.window();
+          apply_macos_window_theme(window.as_ref(), theme);
 
-        let resolved_theme = native_window_theme(app_window);
-
-        if previous_theme != resolved_theme {
-          send_window_event(
-            window_id,
-            &context.windows,
-            &context.callback,
-            WindowEvent::ThemeChanged(resolved_theme.unwrap_or(tauri_utils::Theme::Light)),
-          );
+          let traffic_light_position = app_window.attributes.borrow().traffic_light_position;
+          if let (Some(window), Some(position)) = (window, traffic_light_position) {
+            apply_traffic_light_position(window.window_handle(), &position);
+          }
         }
+        // theme changed event is sent by the on_theme_changed handler
       }
     }
     WindowMessage::SetBackgroundColor(color) => {
@@ -3365,6 +3383,7 @@ pub(crate) fn create_window<T: UserEvent>(
     attributes.clone(),
     RefCell::new(Default::default()),
     RefCell::new(Default::default()),
+    RefCell::new(false),
     context.clone(),
   );
 

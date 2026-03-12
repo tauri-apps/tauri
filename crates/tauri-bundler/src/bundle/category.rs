@@ -9,7 +9,7 @@ const CONFIDENCE_THRESHOLD: f64 = 0.8;
 
 const MACOS_APP_CATEGORY_PREFIX: &str = "public.app-category.";
 
-// TODO: RIght now, these categories correspond to LSApplicationCategoryType
+// TODO: Right now, these categories correspond to LSApplicationCategoryType
 // values for OS X.  There are also some additional GNOME registered categories
 // that don't fit these; we should add those here too.
 /// The possible app categories.

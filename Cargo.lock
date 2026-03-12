@@ -8823,6 +8823,7 @@ dependencies = [
  "objc2 0.6.0",
  "objc2-app-kit",
  "once_cell",
+ "parking_lot",
  "percent-encoding",
  "raw-window-handle",
  "softbuffer",

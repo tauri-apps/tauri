@@ -411,7 +411,7 @@ impl ActiveTraceSpanStore {
   pub fn remove_window_draw(&self) {
     self
       .0
-      .borrow_mut()
+      .lock().unwrap()
       .retain(|t| !matches!(t, ActiveTracingSpan::WindowDraw { id: _, span: _ }));
   }
 }
@@ -426,15 +426,19 @@ pub enum ActiveTracingSpan {
 }
 
 #[derive(Debug)]
-pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
+pub struct WindowsStore(pub Mutex<BTreeMap<WindowId, WindowWrapper>>);
 
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for WindowsStore {}
+impl WindowsStore {
+  pub fn new() -> Self {
+    Self(Mutex::new(BTreeMap::new()))
+  }
+}
 
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Sync for WindowsStore {}
+impl Default for WindowsStore {
+  fn default() -> Self {
+    Self::new()
+  }
+}
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
@@ -2795,7 +2799,7 @@ impl<T: UserEvent> Wry<T> {
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
-    let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
+    let windows = Arc::new(WindowsStore::new());
     let window_id_map = WindowIdStore::default();
 
     let context = Context {
@@ -2903,7 +2907,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .main_thread
       .windows
       .0
-      .borrow_mut()
+      .lock().unwrap()
       .insert(window_id, window);
 
     let detached_webview = webview_id.map(|id| {
@@ -2941,7 +2945,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .main_thread
       .windows
       .0
-      .borrow()
+      .lock().unwrap()
       .get(&window_id)
       .map(|w| (w.inner.clone(), w.focused_webview.clone()));
     if let Some((Some(window), focused_webview)) = window {
@@ -2965,7 +2969,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         .main_thread
         .windows
         .0
-        .borrow_mut()
+        .lock().unwrap()
         .get_mut(&window_id)
         .map(|w| {
           w.webviews.push(webview);
@@ -3242,7 +3246,7 @@ fn handle_user_message<T: UserEvent>(
       }
     },
     Message::Window(id, window_message) => {
-      let w = windows.0.borrow().get(&id).map(|w| {
+      let w = windows.0.lock().unwrap().get(&id).map(|w| {
         (
           w.inner.clone(),
           w.webviews.clone(),
@@ -3556,7 +3560,7 @@ fn handle_user_message<T: UserEvent>(
         target_os = "openbsd"
       ))]
       if let WebviewMessage::Reparent(new_parent_window_id, tx) = webview_message {
-        let webview_handle = windows.0.borrow_mut().get_mut(&window_id).and_then(|w| {
+        let webview_handle = windows.0.lock().unwrap().get_mut(&window_id).and_then(|w| {
           w.webviews
             .iter()
             .position(|w| w.id == webview_id)
@@ -3566,7 +3570,7 @@ fn handle_user_message<T: UserEvent>(
         if let Some(webview) = webview_handle {
           if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
             .0
-            .borrow_mut()
+            .lock().unwrap()
             .get_mut(&new_parent_window_id)
             .map(|w| (w.inner.clone(), &mut w.webviews))
           {
@@ -3611,7 +3615,7 @@ fn handle_user_message<T: UserEvent>(
         return;
       }
 
-      let webview_handle = windows.0.borrow().get(&window_id).map(|w| {
+      let webview_handle = windows.0.lock().unwrap().get(&window_id).map(|w| {
         (
           w.inner.clone(),
           w.webviews.iter().find(|w| w.id == webview_id).cloned(),
@@ -3669,7 +3673,7 @@ fn handle_user_message<T: UserEvent>(
           }
           WebviewMessage::Close => {
             #[allow(unknown_lints, clippy::manual_inspect)]
-            windows.0.borrow_mut().get_mut(&window_id).map(|window| {
+            windows.0.lock().unwrap().get_mut(&window_id).map(|window| {
               if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
                 window.webviews.remove(i);
               }
@@ -3912,14 +3916,14 @@ fn handle_user_message<T: UserEvent>(
     Message::CreateWebview(window_id, handler) => {
       let window = windows
         .0
-        .borrow()
+        .lock().unwrap()
         .get(&window_id)
         .map(|w| (w.inner.clone(), w.focused_webview.clone()));
       if let Some((Some(window), focused_webview)) = window {
         match handler(&window, CreateWebviewOptions { focused_webview }) {
           Ok(webview) => {
             #[allow(unknown_lints, clippy::manual_inspect)]
-            windows.0.borrow_mut().get_mut(&window_id).map(|w| {
+            windows.0.lock().unwrap().get_mut(&window_id).map(|w| {
               w.webviews.push(webview);
               w.has_children.store(true, Ordering::Relaxed);
               w
@@ -3934,10 +3938,9 @@ fn handle_user_message<T: UserEvent>(
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
       // wait for borrow_mut to be available - on Windows we might poll for the window to be inserted
       Ok(webview) => loop {
-        if let Ok(mut windows) = windows.0.try_borrow_mut() {
-          windows.insert(window_id, webview);
-          break;
-        }
+        let mut windows = windows.0.lock().unwrap();
+        windows.insert(window_id, webview);
+        break;
       },
       Err(e) => {
         log::error!("{e}");
@@ -3972,7 +3975,7 @@ fn handle_user_message<T: UserEvent>(
           None
         };
 
-        windows.0.borrow_mut().insert(
+        windows.0.lock().unwrap().insert(
           window_id,
           WindowWrapper {
             label,
@@ -4050,7 +4053,7 @@ fn handle_event_loop<T: UserEvent>(
     #[cfg(windows)]
     Event::RedrawRequested(id) => {
       if let Some(window_id) = window_id_map.get(&id) {
-        let mut windows_ref = windows.0.borrow_mut();
+        let mut windows_ref = windows.0.lock().unwrap();
         if let Some(window) = windows_ref.get_mut(&window_id) {
           if window.is_window_transparent {
             let background_color = window.background_color;
@@ -4074,7 +4077,7 @@ fn handle_event_loop<T: UserEvent>(
       webview_id,
       WebviewMessage::WebviewEvent(event),
     )) => {
-      let windows_ref = windows.0.borrow();
+      let windows_ref = windows.0.lock().unwrap();
       if let Some(window) = windows_ref.get(&window_id) {
         if let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id) {
           let label = webview.label.clone();
@@ -4101,7 +4104,7 @@ fn handle_event_loop<T: UserEvent>(
       WebviewMessage::SynthesizedWindowEvent(event),
     )) => {
       if let Some(event) = WindowEventWrapper::from(event).0 {
-        let windows_ref = windows.0.borrow();
+        let windows_ref = windows.0.lock().unwrap();
         let window = windows_ref.get(&window_id);
         if let Some(window) = window {
           let label = window.label.clone();
@@ -4128,7 +4131,7 @@ fn handle_event_loop<T: UserEvent>(
     } => {
       if let Some(window_id) = window_id_map.get(&window_id) {
         {
-          let windows_ref = windows.0.borrow();
+          let windows_ref = windows.0.lock().unwrap();
           if let Some(window) = windows_ref.get(&window_id) {
             if let Some(event) = WindowEventWrapper::parse(window, &event).0 {
               let label = window.label.clone();
@@ -4152,7 +4155,7 @@ fn handle_event_loop<T: UserEvent>(
         match event {
           #[cfg(windows)]
           TaoWindowEvent::ThemeChanged(theme) => {
-            if let Some(window) = windows.0.borrow().get(&window_id) {
+            if let Some(window) = windows.0.lock().unwrap().get(&window_id) {
               for webview in &window.webviews {
                 let theme = match theme {
                   TaoTheme::Dark => wry::Theme::Dark,
@@ -4169,9 +4172,9 @@ fn handle_event_loop<T: UserEvent>(
             on_close_requested(callback, window_id, windows);
           }
           TaoWindowEvent::Destroyed => {
-            let removed = windows.0.borrow_mut().remove(&window_id).is_some();
+            let removed = windows.0.lock().unwrap().remove(&window_id).is_some();
             if removed {
-              let is_empty = windows.0.borrow().is_empty();
+              let is_empty = windows.0.lock().unwrap().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
                 callback(RunEvent::ExitRequested { code: None, tx });
@@ -4188,7 +4191,7 @@ fn handle_event_loop<T: UserEvent>(
           TaoWindowEvent::Resized(size) => {
             if let Some((Some(window), webviews)) = windows
               .0
-              .borrow()
+              .lock().unwrap()
               .get(&window_id)
               .map(|w| (w.inner.clone(), w.webviews.clone()))
             {
@@ -4265,7 +4268,7 @@ fn on_close_requested<'a, T: UserEvent>(
   windows: Arc<WindowsStore>,
 ) {
   let (tx, rx) = channel();
-  let windows_ref = windows.0.borrow();
+  let windows_ref = windows.0.lock().unwrap();
   if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
     let window_event_listeners = w.window_event_listeners.clone();
@@ -4291,7 +4294,7 @@ fn on_close_requested<'a, T: UserEvent>(
 }
 
 fn on_window_close(window_id: WindowId, windows: Arc<WindowsStore>) {
-  if let Some(window_wrapper) = windows.0.borrow_mut().get_mut(&window_id) {
+  if let Some(window_wrapper) = windows.0.lock().unwrap().get_mut(&window_id) {
     window_wrapper.inner = None;
     #[cfg(windows)]
     window_wrapper.surface.take();
@@ -4449,7 +4452,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       .main_thread
       .active_tracing_spans
       .0
-      .borrow_mut()
+      .lock().unwrap()
       .push(ActiveTracingSpan::WindowDraw {
         id: window.id(),
         span: window_draw_span,
@@ -4740,7 +4743,7 @@ You may have it installed on another user account, but it is not available for t
             tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
               let windows = &context.main_thread.windows.0;
               let webview = loop {
-                if let Some(webview) = windows.try_borrow().ok().and_then(|windows| {
+                if let Some(webview) = windows.lock().unwrap().ok().and_then(|windows| {
                   windows
                     .get(&window_id)
                     .map(|window| window.webviews.first().unwrap().clone())

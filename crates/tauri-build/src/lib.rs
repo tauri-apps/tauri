@@ -549,9 +549,25 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   match resources {
     BundleResources::List(res) => {
+      // Emit rerun-if-changed for resource directories to ensure new files are picked up
+      for r in &res {
+        let path = Path::new(r);
+        if path.is_dir() {
+          println!("cargo:rerun-if-changed={}", path.display());
+        }
+      }
       copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?
     }
-    BundleResources::Map(map) => copy_resources(ResourcePaths::from_map(&map, true), target_dir)?,
+    BundleResources::Map(map) => {
+      // Emit rerun-if-changed for resource directories to ensure new files are picked up
+      for (src, _dest) in &map {
+        let path = Path::new(src);
+        if path.is_dir() {
+          println!("cargo:rerun-if-changed={}", path.display());
+        }
+      }
+      copy_resources(ResourcePaths::from_map(&map, true), target_dir)?
+    }
   }
 
   if target_triple.contains("darwin") {

@@ -547,6 +547,42 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       resources.push(fixed_webview2_runtime_path.display().to_string());
     }
   }
+
+  // Emit rerun-if-changed for the resource paths BEFORE copying.
+  // This ensures Cargo rebuilds when new files are added to resource directories.
+  // See https://github.com/tauri-apps/tauri/issues/14992
+  match &resources {
+    BundleResources::List(res) => {
+      for pattern in res {
+        let path = std::path::Path::new(pattern);
+        if path.is_dir() {
+          println!("cargo:rerun-if-changed={}", path.display());
+        } else if path.is_file() {
+          println!("cargo:rerun-if-changed={}", path.display());
+        } else if pattern.contains('*') {
+          // For glob patterns, emit the parent directory
+          if let Some(parent) = path.parent() {
+            println!("cargo:rerun-if-changed={}", parent.display());
+          }
+        }
+      }
+    }
+    BundleResources::Map(map) => {
+      for (source, _dest) in map {
+        let path = std::path::Path::new(source);
+        if path.is_dir() {
+          println!("cargo:rerun-if-changed={}", path.display());
+        } else if path.is_file() {
+          println!("cargo:rerun-if-changed={}", path.display());
+        } else if source.contains('*') {
+          if let Some(parent) = path.parent() {
+            println!("cargo:rerun-if-changed={}", parent.display());
+          }
+        }
+      }
+    }
+  }
+
   match resources {
     BundleResources::List(res) => {
       copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?

@@ -57,7 +57,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
   println!();
   println!("Environment variables used to sign:");
-  println!("- `TAURI_SIGNING_PRIVATE_KEY`: String of your private key");
+  println!("- `TAURI_SIGNING_PRIVATE_KEY`: String of your private key or path to your private key file");
   println!("- `TAURI_SIGNING_PRIVATE_KEY_PATH`: Path to your private key file");
   println!("- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`:  Your private key password (optional if key has no password)");
   println!();

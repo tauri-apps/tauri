@@ -442,7 +442,35 @@ tauri::Builder::default()
   }
 
   /// Creates a new window.
-  pub fn build(self) -> crate::Result<WebviewWindow<R>> {
+  pub fn build(mut self) -> crate::Result<WebviewWindow<R>> {
+    // On Windows, if additional_browser_args is set but data_directory is not,
+    // we need to generate a unique data directory to avoid deadlock.
+    // See: https://github.com/tauri-apps/tauri/issues/15014
+    #[cfg(windows)]
+    {
+      use std::time::{SystemTime, UNIX_EPOCH};
+      let has_additional_args = self
+        .webview_builder
+        .webview_attributes
+        .additional_browser_args
+        .is_some();
+      let has_data_directory = self
+        .webview_builder
+        .webview_attributes
+        .data_directory
+        .is_some();
+
+      if has_additional_args && !has_data_directory {
+        // Generate a unique data directory based on label and timestamp
+        let timestamp = SystemTime::now()
+          .duration_since(UNIX_EPOCH)
+          .unwrap()
+          .as_nanos();
+        let unique_dir = PathBuf::from(format!("{}_{}", self.webview_builder.label, timestamp));
+        self.webview_builder = self.webview_builder.data_directory(unique_dir);
+      }
+    }
+
     let (window, webview) = self.window_builder.with_webview(self.webview_builder)?;
     Ok(WebviewWindow { window, webview })
   }

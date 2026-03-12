@@ -1935,7 +1935,7 @@ impl Allowlist for DialogAllowlistConfig {
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
 #[allow(rustdoc::bare_urls)]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-// TODO: in v2, parse into a String or a custom type that perserves the
+// TODO: in v2, parse into a String or a custom type that preserves the
 // glob string because Url type will add a trailing slash
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct HttpAllowlistScope(pub Vec<Url>);

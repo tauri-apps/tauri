@@ -1398,8 +1398,8 @@
   - Renamed `tauri plugin android/ios add` command to `tauri plugin android/ios init` to match the `tauri plugin init` command.
   - Removed the `-n/--name` argument from the `tauri plugin init`, `tauri plugin android/ios init`, and is now parsed from the first positional argument.
   - Added `tauri plugin new` to create a plugin in a new directory.
-  - Changed `tauri plugin init` to initalize a plugin in an existing directory (defaults to current directory) instead of creating a new one.
-  - Changed `tauri plugin init` to NOT generate mobile projects by default, you can opt-in to generate them using `--android` and `--ios` flags or `--mobile` flag or initalize them later using `tauri plugin android/ios init`.
+  - Changed `tauri plugin init` to initialize a plugin in an existing directory (defaults to current directory) instead of creating a new one.
+  - Changed `tauri plugin init` to NOT generate mobile projects by default, you can opt-in to generate them using `--android` and `--ios` flags or `--mobile` flag or initialize them later using `tauri plugin android/ios init`.
 - [`8b166e9b`](https://www.github.com/tauri-apps/tauri/commit/8b166e9bf82e69ddb3200a3a825614980bd8d433)([#7949](https://www.github.com/tauri-apps/tauri/pull/7949)) Removed checking for a new version of the CLI.
 - [`ebcc21e4`](https://www.github.com/tauri-apps/tauri/commit/ebcc21e4b95f4e8c27639fb1bca545b432f52d5e)([#8057](https://www.github.com/tauri-apps/tauri/pull/8057)) Renamed the beforeDevCommand, beforeBuildCommand and beforeBundleCommand hooks environment variables from `TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG` to `TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG` to differentiate the prefix with other CLI environment variables.
 

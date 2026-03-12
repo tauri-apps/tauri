@@ -1643,7 +1643,7 @@
 ### Bug Fixes
 
 - [`95da1a27`](https://www.github.com/tauri-apps/tauri/commit/95da1a27476e01e06f6ce0335df8535b662dd9c4)([#8713](https://www.github.com/tauri-apps/tauri/pull/8713)) Fix calling `set_activation_policy` when the event loop is running.
-- [`e1eb911f`](https://www.github.com/tauri-apps/tauri/commit/e1eb911f5ebe84285aae710e0ebdd945ad389431)([#8582](https://www.github.com/tauri-apps/tauri/pull/8582)) Ensure initalize logic and dropping of menu item is done on the main thread, this fixes the crash when a menu item is dropped on another thread.
+- [`e1eb911f`](https://www.github.com/tauri-apps/tauri/commit/e1eb911f5ebe84285aae710e0ebdd945ad389431)([#8582](https://www.github.com/tauri-apps/tauri/pull/8582)) Ensure initialize logic and dropping of menu item is done on the main thread, this fixes the crash when a menu item is dropped on another thread.
 - [`a093682d`](https://www.github.com/tauri-apps/tauri/commit/a093682d2df7169b024bb4f736c7f1fd2ea8b327)([#8621](https://www.github.com/tauri-apps/tauri/pull/8621)) Fix can not prevent closing a window from another webview.
 - [`7f033f6d`](https://www.github.com/tauri-apps/tauri/commit/7f033f6dcd54c69a4193765a5c1584755ba92c61)([#8537](https://www.github.com/tauri-apps/tauri/pull/8537)) Fix undecorated window resizing on Windows and Linux.
 

@@ -236,7 +236,7 @@ Function PageReinstall
 
   ; Skip showing the page if passive
   ;
-  ; Note that we don't call this earlier at the begining
+  ; Note that we don't call this earlier at the beginning
   ; of this function because we need to populate some variables
   ; related to current installed version if detected and whether
   ; we are downgrading or not.

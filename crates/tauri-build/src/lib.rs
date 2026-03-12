@@ -210,6 +210,16 @@ fn cfg_alias(alias: &str, has_feature: bool) {
   }
 }
 
+fn default_windows_app_manifest() -> &'static str {
+  let runtime = env::var("DEP_TAURI_RUNTIME").expect("missing `cargo:runtime` instruction, please update tauri to latest");
+
+  if runtime == "cef" {
+    include_str!("windows-cef-app-manifest.xml")
+  } else {
+    include_str!("windows-app-manifest.xml")
+  }
+}
+
 /// Attributes used on Windows.
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -255,7 +265,7 @@ impl WindowsAttributes {
   pub fn new() -> Self {
     Self {
       window_icon_path: Default::default(),
-      app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
+      app_manifest: Some(default_windows_app_manifest().into()),
     }
   }
 

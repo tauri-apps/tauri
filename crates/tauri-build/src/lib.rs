@@ -547,6 +547,27 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       resources.push(fixed_webview2_runtime_path.display().to_string());
     }
   }
+  // Add rerun-if-changed for resource directories to detect new files
+  let config_parent = env::current_dir().unwrap();
+  match &resources {
+    BundleResources::List(res) => {
+      for path in res {
+        let resource_path = config_parent.join(path);
+        if resource_path.is_dir() {
+          println!("cargo:rerun-if-changed={}", resource_path.display());
+        }
+      }
+    }
+    BundleResources::Map(map) => {
+      for (src, _target) in map {
+        let resource_path = config_parent.join(src);
+        if resource_path.is_dir() {
+          println!("cargo:rerun-if-changed={}", resource_path.display());
+        }
+      }
+    }
+  }
+
   match resources {
     BundleResources::List(res) => {
       copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?

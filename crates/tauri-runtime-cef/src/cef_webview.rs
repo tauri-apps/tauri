@@ -48,13 +48,6 @@ impl CefWebview {
     }
   }
 
-  pub fn set_background_color(&self, color: cef::Color) {
-    match self {
-      CefWebview::BrowserView(view) => view.set_background_color(color),
-      CefWebview::Browser(_) => {}
-    }
-  }
-
   pub fn scale_factor(&self) -> f64 {
     match self {
       CefWebview::BrowserView(view) => view

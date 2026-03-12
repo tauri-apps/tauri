@@ -4,6 +4,7 @@
 
 use base64::Engine;
 use cef::{rc::*, *};
+use cef_dll_sys::cef_runtime_style_t;
 use dioxus_debug_cell::RefCell;
 use sha2::{Digest, Sha256};
 use std::{
@@ -46,8 +47,6 @@ type CefOsEvent<'a> = *mut u8;
 type CefOsEvent<'a> = Option<&'a mut sys::MSG>;
 type AddressChangedHandler = dyn Fn(&url::Url) + Send + Sync;
 
-/// CEF white color value (ARGB)
-const WHITE: u32 = 0xFFFFFFFF;
 /// CEF transparent color value (ARGB)
 const TRANSPARENT: u32 = 0x00000000;
 
@@ -1032,9 +1031,26 @@ wrap_browser_view_delegate! {
     initialization_scripts: Arc<Vec<CefInitScript>>,
     devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
     devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
+    webview_attributes: Arc<RefCell<WebviewAttributes>>,
   }
 
-  impl ViewDelegate {}
+  impl ViewDelegate {
+    fn on_theme_changed(&self, view: Option<&mut View>) {
+      let Some(view) = view else { return; };
+
+      let webview_attributes = self.webview_attributes.borrow();
+
+      let platform_supports_transparency = cfg!(any(not(target_os = "macos"), feature = "macos-private-api"));
+      let is_transparent = platform_supports_transparency && webview_attributes.transparent;
+
+      if is_transparent {
+        view.set_background_color(TRANSPARENT);
+      } else if let Some(color) = webview_attributes.background_color {
+        let color = color_to_cef_argb(color);
+        view.set_background_color(color);
+      }
+    }
+  }
 
   impl BrowserViewDelegate {
     fn on_browser_created(&self, _browser_view: Option<&mut BrowserView>, browser: Option<&mut Browser>) {
@@ -1160,7 +1176,6 @@ wrap_window_delegate! {
 
     fn on_theme_changed(&self, view: Option<&mut View>) {
       let Some(view) = view else { return; };
-      let Some(window) = view.window() else { return; };
 
       let attrs = self.attributes.borrow();
 
@@ -1169,12 +1184,9 @@ wrap_window_delegate! {
 
       if is_transparent {
         view.set_background_color(TRANSPARENT);
-        window.set_theme_color(ColorId::CEF_ColorPrimaryBackground.get_raw(), TRANSPARENT);
       } else if let Some(color) = attrs.background_color {
         let color = color_to_cef_argb(color);
         view.set_background_color(color);
-      } else {
-        view.set_background_color(WHITE);
       }
     }
   }
@@ -1930,7 +1942,6 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::SetBackgroundColor(color) => {
-      let color_value = color_opt_to_cef_argb(color);
       if let Some(bv) = context
         .windows
         .borrow()
@@ -1942,7 +1953,7 @@ fn handle_webview_message<T: UserEvent>(
             .find(|w| w.webview_id == webview_id)
         })
       {
-        bv.inner.set_background_color(color_value);
+        bv.webview_attributes.borrow_mut().background_color = color;
       }
     }
     WebviewMessage::ClearAllBrowsingData => {
@@ -3204,6 +3215,7 @@ fn create_browser_window<T: UserEvent>(
         initialization_scripts,
         devtools_protocol_handlers,
         devtools_observer_registration,
+        webview_attributes: Arc::new(RefCell::new(webview_attributes)),
       }],
       window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
       webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
@@ -3573,12 +3585,29 @@ pub(crate) fn create_webview<T: UserEvent>(
 
   let window_handle = window.window_handle();
 
+  let runtime_style = platform_specific_attributes
+    .iter()
+    .find_map(|attr| match attr {
+      WebviewAtribute::RuntimeStyle { style } => Some(*style),
+    })
+    .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
+      CefRuntimeStyle::Alloy
+    } else {
+      CefRuntimeStyle::Chrome
+    });
+
+  let cef_runtime_style: RuntimeStyle = match runtime_style {
+    CefRuntimeStyle::Alloy => cef_runtime_style_t::CEF_RUNTIME_STYLE_ALLOY.into(),
+    CefRuntimeStyle::Chrome => cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME.into(),
+  };
+
   if kind == WebviewKind::WindowChild {
     #[cfg(target_os = "macos")]
     let window_handle = ensure_valid_content_view(window_handle);
 
-    let window_info = cef::WindowInfo::default()
+    let mut window_info = cef::WindowInfo::default()
       .set_as_child(window_handle, bounds.as_ref().unwrap_or(&Rect::default()));
+    window_info.runtime_style = cef_runtime_style;
 
     let Some(browser_host) = browser_host_create_browser_sync(
       Some(&window_info),
@@ -3651,6 +3680,7 @@ pub(crate) fn create_webview<T: UserEvent>(
         initialization_scripts,
         devtools_protocol_handlers,
         devtools_observer_registration,
+        webview_attributes: Arc::new(RefCell::new(webview_attributes)),
       });
   } else {
     let browser_id = Arc::new(RefCell::new(0));
@@ -3659,26 +3689,19 @@ pub(crate) fn create_webview<T: UserEvent>(
       Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
     >::new()));
     let devtools_observer_registration = Arc::new(Mutex::new(None));
+    let webview_attributes = Arc::new(RefCell::new(webview_attributes));
 
     #[allow(clippy::unnecessary_find_map)]
     let mut browser_view_delegate = BrowserViewDelegateImpl::new(
       browser_id.clone(),
-      platform_specific_attributes
-        .iter()
-        .find_map(|attr| match attr {
-          WebviewAtribute::RuntimeStyle { style } => Some(*style),
-        })
-        .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
-          CefRuntimeStyle::Alloy
-        } else {
-          CefRuntimeStyle::Chrome
-        }),
+      runtime_style,
       context.scheme_handler_registry.clone(),
       label.clone(),
       uri_scheme_protocols.clone(),
       initialization_scripts.clone(),
       devtools_protocol_handlers.clone(),
       devtools_observer_registration.clone(),
+      webview_attributes.clone(),
     );
 
     let browser_view = browser_view_create(
@@ -3712,6 +3735,7 @@ pub(crate) fn create_webview<T: UserEvent>(
         initialization_scripts,
         devtools_protocol_handlers,
         devtools_observer_registration,
+        webview_attributes,
       });
   }
 }

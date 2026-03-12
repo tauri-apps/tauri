@@ -957,6 +957,12 @@ fn main() {
   ///
   /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
   /// so if you use this method, you also need to disable these components by yourself if you want.
+  ///
+  /// On **Windows**, each webview with different browser arguments must use a separate data
+  /// directory. If you create multiple webviews with different `additional_browser_args`, you
+  /// must set a unique [`data_directory`](Self::data_directory) for each one, otherwise it may
+  /// cause a deadlock. Webviews with identical browser arguments can share the same data
+  /// directory.
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.webview_attributes.additional_browser_args = Some(additional_args.to_string());

@@ -91,18 +91,11 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
     let resource = resource?;
 
     let resource_path = resource.path();
-    
-    // If the resource is a directory, notify Cargo to rerun if any file in the directory changes
-    if resource_path.is_dir() {
-      for entry in walkdir::WalkDir::new(resource_path) {
-        let entry = entry?;
-        if entry.file_type().is_file() {
-          println!("cargo:rerun-if-changed={}", entry.path().display());
-        }
-      }
-    } else {
-      println!("cargo:rerun-if-changed={}", resource_path.display());
-    }
+
+    // Output rerun-if-changed for the resource itself (file or directory).
+    // For directories, this ensures the build script re-runs when new files are added.
+    // For files, this ensures the build script re-runs when the file is modified.
+    println!("cargo:rerun-if-changed={}", resource_path.display());
 
     // avoid copying the resource if target is the same as source
     let src = resource_path.canonicalize()?;

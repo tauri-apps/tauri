@@ -87,10 +87,21 @@ fn copy_binaries(
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   let path = path.canonicalize()?;
+  let mut directories_emitted: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
   for resource in resources.iter() {
     let resource = resource?;
 
+    // Emit rerun-if-changed for the resource itself
     println!("cargo:rerun-if-changed={}", resource.path().display());
+
+    // Also emit rerun-if-changed for the parent directory to detect new files
+    if let Some(parent_dir) = resource.path().parent() {
+      let parent = parent_dir.to_path_buf();
+      if !directories_emitted.contains(&parent) {
+        println!("cargo:rerun-if-changed={}", parent.display());
+        directories_emitted.insert(parent);
+      }
+    }
 
     // avoid copying the resource if target is the same as source
     let src = resource.path().canonicalize()?;

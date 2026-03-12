@@ -3397,6 +3397,14 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::SetMinSize(size) => {
             window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            // On Linux, we need to ensure the size constraints are applied
+            // after setting min size to avoid race conditions with setSize
+            #[cfg(target_os = "linux")]
+            {
+              if let Ok(constraints) = window.inner_size_constraints() {
+                window.set_inner_size_constraints(constraints);
+              }
+            }
           }
           WindowMessage::SetMaxSize(size) => {
             window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));

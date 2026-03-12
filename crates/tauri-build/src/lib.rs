@@ -90,10 +90,22 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   for resource in resources.iter() {
     let resource = resource?;
 
-    println!("cargo:rerun-if-changed={}", resource.path().display());
+    let resource_path = resource.path();
+    
+    // If the resource is a directory, notify Cargo to rerun if any file in the directory changes
+    if resource_path.is_dir() {
+      for entry in walkdir::WalkDir::new(resource_path) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+          println!("cargo:rerun-if-changed={}", entry.path().display());
+        }
+      }
+    } else {
+      println!("cargo:rerun-if-changed={}", resource_path.display());
+    }
 
     // avoid copying the resource if target is the same as source
-    let src = resource.path().canonicalize()?;
+    let src = resource_path.canonicalize()?;
     let target = path.join(resource.target());
     if src != target {
       copy_file(src, target)?;

@@ -8,11 +8,18 @@
   },
   "app": {
     "withGlobalTauri": true,
-    "macOSPrivateApi": true,
-    "windows": [
 
+    "windows": [
+      {
+        "title": "Welcome to Tauri!",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
     ],
     "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
     }
   },
   "bundle": {

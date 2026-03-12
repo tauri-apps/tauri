@@ -4,7 +4,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Manager, window::Color};
+use tauri::Manager;
 
 #[tauri::command]
 fn read_to_string(path: &str) -> String {
@@ -20,79 +20,15 @@ fn main() {
 
   builder
     .setup(move |app| {
-      let window = tauri::WebviewWindowBuilder::new(app, "main", Default::default())
-        .title("normal")
-        .build()?;
-      let window = tauri::WebviewWindowBuilder::new(app, "main1", Default::default())
-        .background_color(Color(0, 255, 0, 255))
-        .title("normal with background color")
-        .build()?;
-      let window = tauri::WebviewWindowBuilder::new(app, "mai2", Default::default())
-        .decorations(false)
-        .title("decorationless")
-        .build()?;
-      let window = tauri::WebviewWindowBuilder::new(app, "main3", Default::default())
-        .decorations(false)
-        .background_color(Color(255, 0, 0, 255))
-        .title("decorationless with background color")
-        .build()?;
-      let window = tauri::WebviewWindowBuilder::new(app, "main4", Default::default())
-        .decorations(false)
-        .transparent(true)
-        .title("decorationless with background color")
-        .build()?;
+      let path = app
+        .path()
+        .resolve("assets/index.js", tauri::path::BaseDirectory::Resource)
+        .unwrap();
 
-      let window = tauri::WindowBuilder::new(app, "main50")
-        .title("multiwebview")
-        .build()?;
+      let content = std::fs::read_to_string(&path).unwrap();
 
-      let wv1 = tauri::WebviewBuilder::new("main60", Default::default())
-        .background_color(Color(255, 0, 0, 255));
-
-      window.add_child(
-        wv1,
-        tauri::LogicalPosition::new(0, 0),
-        tauri::LogicalSize::new(400, 400),
-      )?;
-
-      let window = tauri::WindowBuilder::new(app, "main5")
-        .decorations(false)
-        // .background_color(Color(0, 255, 0, 255))
-        // .transparent(true)
-        .title("multiwebview decorationless")
-        .build()?;
-
-      let wv1 = tauri::WebviewBuilder::new("main6", Default::default());
-
-      window.add_child(
-        wv1,
-        tauri::LogicalPosition::new(0, 0),
-        tauri::LogicalSize::new(400, 400),
-      )?;
-
-      let wv1 = tauri::WebviewBuilder::new("main7", Default::default())
-        .background_color(Color(255, 0, 0, 255));
-      window.add_child(
-        wv1,
-        tauri::LogicalPosition::new(400, 0),
-        tauri::LogicalSize::new(400, 400),
-      )?;
-
-      let wv1 = tauri::WebviewBuilder::new("main8", Default::default()).transparent(true);
-      window.add_child(
-        wv1,
-        tauri::LogicalPosition::new(0, 400),
-        tauri::LogicalSize::new(400, 400),
-      )?;
-
-      let wv1 = tauri::WebviewBuilder::new("main9", Default::default())
-        .background_color(Color(0, 0, 255, 255))
-        .transparent(true);
-      window.add_child(
-        wv1,
-        tauri::LogicalPosition::new(400, 400),
-        tauri::LogicalSize::new(400, 400),
-      )?;
+      println!("Resource `assets/index.js` path: {}", path.display());
+      println!("Resource `assets/index.js` content:\n{content}\n");
 
       Ok(())
     })

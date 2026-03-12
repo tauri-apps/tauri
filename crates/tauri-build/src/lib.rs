@@ -85,8 +85,26 @@ fn copy_binaries(
 }
 
 /// Copies resources to a path.
-fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
+fn copy_resources(resources: ResourcePaths<'_>, path: &Path, resource_patterns: &[String]) -> Result<()> {
   let path = path.canonicalize()?;
+  
+  // Print rerun-if-changed for each resource directory/pattern
+  // This ensures that when new files are added to resource directories,
+  // cargo will re-run the build script
+  for pattern in resource_patterns {
+    // Get the directory part of the pattern (e.g., "resources/" -> "resources")
+    let resource_path = Path::new(pattern);
+    if let Some(parent) = resource_path.parent() {
+      // If the pattern has a parent directory, print rerun-if-changed for it
+      if !parent.as_os_str().is_empty() && parent != Path::new(".") {
+        println!("cargo:rerun-if-changed={}", parent.display());
+      }
+    } else if resource_path.components().next() == Some(std::path::Component::Normal(std::ffi::OsStr::new(pattern))) {
+      // If the pattern is a simple name (like "resources"), treat it as a directory
+      println!("cargo:rerun-if-changed={}", resource_path.display());
+    }
+  }
+  
   for resource in resources.iter() {
     let resource = resource?;
 
@@ -549,9 +567,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   match resources {
     BundleResources::List(res) => {
-      copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?
+      copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir, &res)?
     }
-    BundleResources::Map(map) => copy_resources(ResourcePaths::from_map(&map, true), target_dir)?,
+    BundleResources::Map(map) => {
+      let keys: Vec<String> = map.keys().cloned().collect();
+      copy_resources(ResourcePaths::from_map(&map, true), target_dir, &keys)?
+    }
   }
 
   if target_triple.contains("darwin") {

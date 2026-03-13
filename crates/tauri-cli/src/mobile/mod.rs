@@ -166,7 +166,7 @@ impl Default for DevHost {
   }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub dev: bool,
   pub features: Vec<String>,
@@ -175,20 +175,6 @@ pub struct CliOptions {
   pub vars: HashMap<String, OsString>,
   pub config: Vec<ConfigValue>,
   pub target_device: Option<TargetDevice>,
-}
-
-impl Default for CliOptions {
-  fn default() -> Self {
-    Self {
-      dev: false,
-      features: Vec::new(),
-      args: vec!["--lib".into()],
-      noise_level: Default::default(),
-      vars: Default::default(),
-      config: Vec::new(),
-      target_device: None,
-    }
-  }
 }
 
 fn local_ip_address(force: bool) -> &'static IpAddr {

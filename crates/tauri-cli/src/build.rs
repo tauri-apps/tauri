@@ -39,7 +39,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// Space or comma separated list of features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Space or comma separated list of bundles to package.
   #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
@@ -117,7 +117,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let bin_path = interface.build(interface_options, &dirs)?;
 
-  log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(bin_path));
+  log::info!(action = "Built"; "application at: {}", tauri_utils::display_path(bin_path));
 
   let app_settings = interface.app_settings();
 

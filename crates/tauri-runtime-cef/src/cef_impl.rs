@@ -1439,10 +1439,6 @@ wrap_window_delegate! {
             // TODO: Implement shadow control for CEF
           }
 
-        if let Some(_theme) = a.theme {
-          // TODO: Implement theme for CEF
-        }
-
         if let Some(focusable) = a.focusable {
           window.set_focusable(if focusable { 1 } else { 0 });
         }

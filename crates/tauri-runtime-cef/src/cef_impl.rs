@@ -61,6 +61,98 @@ fn color_opt_to_cef_argb(color: Option<tauri_utils::config::Color>) -> u32 {
   color.map(color_to_cef_argb).unwrap_or(0xFFFFFFFF)
 }
 
+#[inline]
+fn theme_to_color_variant(theme: Option<tauri_utils::Theme>) -> ColorVariant {
+  match theme {
+    Some(tauri_utils::Theme::Dark) => ColorVariant::DARK,
+    Some(tauri_utils::Theme::Light) => ColorVariant::LIGHT,
+    _ => ColorVariant::SYSTEM,
+  }
+}
+
+#[inline]
+fn color_variant_to_theme(variant: ColorVariant) -> Option<tauri_utils::Theme> {
+  if variant == ColorVariant::DARK {
+    Some(tauri_utils::Theme::Dark)
+  } else if variant == ColorVariant::LIGHT {
+    Some(tauri_utils::Theme::Light)
+  } else {
+    None
+  }
+}
+
+fn set_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::Theme>) {
+  let variant = theme_to_color_variant(theme);
+  for webview in &app_window.webviews {
+    if let Some(browser) = webview.inner.browser()
+      && let Some(host) = browser.host()
+      && let Some(request_context) = host.request_context()
+    {
+      request_context.set_chrome_color_scheme(variant, 0);
+    }
+  }
+}
+
+fn apply_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::Theme>) {
+  set_window_theme_scheme(app_window, theme);
+  if let Some(window) = app_window.window() {
+    // Ask CEF Views to refresh themed colors immediately.
+    window.theme_changed();
+  }
+}
+
+fn apply_request_context_theme_scheme(
+  request_context: Option<&RequestContext>,
+  theme: Option<tauri_utils::Theme>,
+) {
+  if let Some(request_context) = request_context {
+    request_context.set_chrome_color_scheme(theme_to_color_variant(theme), 0);
+  }
+}
+
+#[cfg(target_os = "macos")]
+fn apply_macos_window_theme(window: Option<&cef::Window>, theme: Option<tauri_utils::Theme>) {
+  use objc2::rc::Retained;
+  use objc2_app_kit::{
+    NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSView,
+  };
+
+  let Some(window) = window else {
+    return;
+  };
+  let ns_view = unsafe { Retained::<NSView>::retain(window.window_handle() as _) };
+  let Some(ns_view) = ns_view else {
+    return;
+  };
+  let Some(ns_window) = ns_view.window() else {
+    return;
+  };
+  let appearance = match theme {
+    Some(tauri_utils::Theme::Dark) => unsafe {
+      NSAppearance::appearanceNamed(NSAppearanceNameDarkAqua)
+    },
+    Some(tauri_utils::Theme::Light) => unsafe {
+      NSAppearance::appearanceNamed(NSAppearanceNameAqua)
+    },
+    _ => None,
+  };
+  unsafe { ns_window.setAppearance(appearance.as_deref()) };
+}
+
+fn native_window_theme(app_window: &AppWindow) -> Option<tauri_utils::Theme> {
+  app_window.webviews.iter().find_map(|webview| {
+    webview
+      .inner
+      .browser()
+      .and_then(|browser| browser.host())
+      .and_then(|host| host.request_context())
+      .and_then(|request_context| {
+        color_variant_to_theme(request_context.chrome_color_scheme_mode())
+          .or_else(|| color_variant_to_theme(request_context.chrome_color_scheme_variant()))
+      })
+  })
+}
+
 /// Convert a CEF Display to a tauri Monitor
 pub(crate) fn display_to_monitor(display: &cef::Display) -> tauri_runtime::monitor::Monitor {
   let bounds = display.bounds();
@@ -1096,7 +1188,8 @@ wrap_window_delegate! {
     attributes: Arc<RefCell<crate::CefWindowBuilder>>,
     last_emitted_position: RefCell<PhysicalPosition<i32>>,
     last_emitted_size: RefCell<PhysicalSize<u32>>,
-    context: Context<T>,
+    suppress_next_theme_changed: RefCell<bool>,
+    context: Context<T>
   }
 
   impl ViewDelegate {
@@ -1184,6 +1277,48 @@ wrap_window_delegate! {
         let color = color_to_cef_argb(color);
         view.set_background_color(color);
       }
+
+      if std::mem::take(&mut *self.suppress_next_theme_changed.borrow_mut()) {
+        return;
+      }
+
+      let (system_theme, explicit_theme) = {
+        let windows = self.windows.borrow();
+        let Some(app_window) = windows.get(&self.window_id) else {
+          return;
+        };
+
+        let Some(system_theme) = native_window_theme(app_window) else {
+          return;
+        };
+
+        let explicit_theme = app_window.attributes.borrow().theme;
+        (system_theme, explicit_theme)
+      };
+
+      if let Some(explicit_theme) = explicit_theme
+        && let Some(app_window) = self.windows.borrow().get(&self.window_id)
+      {
+        #[cfg(target_os = "macos")]
+        {
+          *self.suppress_next_theme_changed.borrow_mut() = true;
+          send_message_task(
+            &self.context,
+            Message::Window {
+              window_id: self.window_id,
+              message: WindowMessage::SetTheme(Some(explicit_theme)),
+            },
+          );
+        }
+        set_window_theme_scheme(app_window, Some(explicit_theme));
+      }
+
+      send_window_event(
+        self.window_id,
+        &self.windows,
+        &self.callback,
+        WindowEvent::ThemeChanged(system_theme),
+      );
     }
   }
 
@@ -1197,6 +1332,8 @@ wrap_window_delegate! {
         drag_window::windows::subclass_window_for_dragging(window);
 
         let a = self.attributes.borrow();
+        #[cfg(target_os = "macos")]
+        apply_macos_window_theme(Some(window), a.theme);
         if let Some(icon) = a.icon.clone() {
           set_window_icon(window, icon);
         }
@@ -2636,14 +2773,7 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| {
-          Ok(
-            w.attributes
-              .borrow()
-              .theme
-              .unwrap_or(tauri_utils::Theme::Light),
-          )
-        })
+        .map(|w| Ok(native_window_theme(w).unwrap_or(tauri_utils::Theme::Light)))
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
@@ -2961,8 +3091,25 @@ fn handle_window_message<T: UserEvent>(
         }
       }
     }
-    WindowMessage::SetTheme(_theme) => {
-      // TODO: Implement theme
+    WindowMessage::SetTheme(theme) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        {
+          let mut attributes = app_window.attributes.borrow_mut();
+          attributes.theme = theme;
+        }
+        apply_window_theme_scheme(app_window, theme);
+        #[cfg(target_os = "macos")]
+        {
+          let window = app_window.window();
+          apply_macos_window_theme(window.as_ref(), theme);
+
+          let traffic_light_position = app_window.attributes.borrow().traffic_light_position;
+          if let (Some(window), Some(position)) = (window, traffic_light_position) {
+            apply_traffic_light_position(window.window_handle(), &position);
+          }
+        }
+        // theme changed event is sent by the on_theme_changed handler
+      }
     }
     WindowMessage::SetBackgroundColor(color) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -3115,6 +3262,7 @@ fn create_browser_window<T: UserEvent>(
     custom_protocol_scheme,
     &initialization_scripts,
   );
+  apply_request_context_theme_scheme(request_context.as_ref(), window_builder.theme);
 
   let browser_settings = browser_settings_from_webview_attributes(&webview_attributes);
 
@@ -3268,6 +3416,7 @@ pub(crate) fn create_window<T: UserEvent>(
     attributes.clone(),
     RefCell::new(Default::default()),
     RefCell::new(Default::default()),
+    RefCell::new(false),
     context.clone(),
   );
 
@@ -3562,6 +3711,12 @@ pub(crate) fn create_webview<T: UserEvent>(
     custom_protocol_scheme,
     &initialization_scripts,
   );
+  let window_theme = context
+    .windows
+    .borrow()
+    .get(&window_id)
+    .and_then(|w| w.attributes.borrow().theme);
+  apply_request_context_theme_scheme(request_context.as_ref(), window_theme);
 
   let browser_settings = browser_settings_from_webview_attributes(&webview_attributes);
 

@@ -1040,10 +1040,8 @@ wrap_browser_view_delegate! {
 
       let webview_attributes = self.webview_attributes.borrow();
 
-      let platform_supports_transparency = cfg!(any(not(target_os = "macos"), feature = "macos-private-api"));
-      let is_transparent = platform_supports_transparency && webview_attributes.transparent;
-
-      if is_transparent {
+      #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+      if webview_attributes.transparent {
         view.set_background_color(TRANSPARENT);
       } else if let Some(color) = webview_attributes.background_color {
         let color = color_to_cef_argb(color);
@@ -1179,10 +1177,8 @@ wrap_window_delegate! {
 
       let attrs = self.attributes.borrow();
 
-      let platform_supports_transparency = cfg!(any(not(target_os = "macos"), feature = "macos-private-api"));
-      let is_transparent = platform_supports_transparency && attrs.transparent.unwrap_or_default();
-
-      if is_transparent {
+      #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+      if attrs.transparent.unwrap_or_default() {
         view.set_background_color(TRANSPARENT);
       } else if let Some(color) = attrs.background_color {
         let color = color_to_cef_argb(color);
@@ -1206,11 +1202,22 @@ wrap_window_delegate! {
         }
 
         #[cfg(target_os = "macos")]
-        apply_titlebar_style(
-          window,
-          a.title_bar_style.unwrap_or(TitleBarStyle::Visible),
-          a.hidden_title.unwrap_or(false)
-        );
+        {
+          let decorations = a.decorations.unwrap_or(true);
+
+          // default to transparent title bar if decorations are disabled, otherwise use visible title bar
+          let default_style = if decorations {
+            TitleBarStyle::Visible
+          } else {
+            TitleBarStyle::Transparent
+          };
+          let style = a.title_bar_style.unwrap_or(default_style);
+
+          // default to hidden title if decorations are disabled, otherwise show title
+          let hidden_title = a.hidden_title.unwrap_or(!decorations);
+
+          apply_titlebar_style(window, style, hidden_title);
+        }
 
         if let Some(title) = &a.title {
           window.set_title(Some(&CefString::from(title.as_str())));

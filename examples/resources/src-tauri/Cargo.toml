@@ -11,7 +11,11 @@ tauri-build = { path = "../../../crates/tauri-build", features = ["codegen"] }
 [dependencies]
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
-tauri = { path = "../../../crates/tauri", features = [] }
+tauri = { path = "../../../crates/tauri", default-features = false, features = [
+  "macos-private-api",
+  "unstable",
+  "macos-private-api",
+] }
 
 [features]
 cef = ["tauri/cef"]

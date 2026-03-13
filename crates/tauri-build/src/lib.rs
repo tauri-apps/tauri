@@ -211,7 +211,8 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 }
 
 fn default_windows_app_manifest() -> &'static str {
-  let runtime = env::var("DEP_TAURI_RUNTIME").expect("missing `cargo:runtime` instruction, please update tauri to latest");
+  let runtime = env::var("DEP_TAURI_RUNTIME")
+    .expect("missing `cargo:runtime` instruction, please update tauri to latest");
 
   if runtime == "cef" {
     include_str!("windows-cef-app-manifest.xml")

@@ -814,6 +814,31 @@ tauri::Builder::default()
             on_web_content_process_terminate_handler(w);
           }
         }));
+    } else {
+      #[cfg(target_os = "ios")]
+      {
+        let label = pending.label.clone();
+        let manager = manager.manager_owned();
+        pending
+          .on_web_content_process_terminate_handler
+          .replace(Box::new(move || {
+            if let Some(webview) = manager.get_webview(&label) {
+              let app_url = manager.get_app_url(pending.webview_attributes.use_https_scheme);
+              let default_url = app_url.join("/index.html").unwrap();
+              let final_url = match webview.url() {
+                Ok(url) => {
+                  if url.as_str().starts_with(app_url.as_str()) {
+                    url
+                  } else {
+                    default_url
+                  }
+                }
+                Err(_) => default_url,
+              };
+              webview.navigate(final_url).unwrap();
+            }
+          }));
+      }
     }
 
     manager

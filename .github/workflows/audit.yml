@@ -16,6 +16,8 @@ on:
       - '**/package.json'
       - '**/pnpm-lock.yaml'
   push:
+    branches:
+      - dev
     paths:
       - '.github/workflows/audit.yml'
       - '**/Cargo.lock'

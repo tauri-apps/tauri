@@ -34,6 +34,22 @@ impl CefWebview {
     }
   }
 
+  pub fn set_background_color(&self, color: Option<u32>) {
+    match self {
+      CefWebview::BrowserView(view) => {
+        let window = view.window();
+        let color = color.or_else(|| {
+          window.map(|w| w.theme_color(ColorId::CEF_ColorPrimaryBackground.get_raw() as _))
+        });
+
+        if let Some(color) = color {
+          view.set_background_color(color);
+        }
+      }
+      _ => {}
+    }
+  }
+
   pub fn bounds(&self) -> cef::Rect {
     match self {
       CefWebview::BrowserView(view) => view.bounds(),

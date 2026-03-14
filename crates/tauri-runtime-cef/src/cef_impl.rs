@@ -2094,6 +2094,8 @@ fn handle_webview_message<T: UserEvent>(
         })
       {
         bv.webview_attributes.borrow_mut().background_color = color;
+
+        bv.inner.set_background_color(color.map(color_to_cef_argb));
       }
     }
     WebviewMessage::ClearAllBrowsingData => {
@@ -3110,6 +3112,13 @@ fn handle_window_message<T: UserEvent>(
     WindowMessage::SetBackgroundColor(color) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().background_color = color;
+        let Some(window) = app_window.window() else {
+          return;
+        };
+        let color = color.map(color_to_cef_argb).unwrap_or_else(|| {
+          window.theme_color(ColorId::CEF_ColorPrimaryBackground.get_raw() as _)
+        });
+        window.set_background_color(color);
       }
     }
     WindowMessage::StartDragging => {

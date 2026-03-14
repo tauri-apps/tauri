@@ -195,8 +195,6 @@ pub fn normalize_script_for_csp(input: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-  use std::io::Write;
-
   use super::*;
   use crate::{
     assets::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
@@ -218,7 +216,7 @@ mod tests {
       assert_eq!(
         String::from_utf8(serialize_doc(&document)).unwrap(),
         format!(
-          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></head><body></body></html>"#
+          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></meta></head><body></body></html>"#
         )
       );
     }
@@ -317,6 +315,8 @@ mod tests {
   #[test]
   #[cfg(feature = "isolation")]
   fn inline_isolation_replaces_src_with_content() {
+    use std::io::Write;
+
     let temp_dir = tempfile::tempdir().unwrap();
     let mut file = tempfile::NamedTempFile::with_suffix_in(".js", &temp_dir).unwrap();
     file.write_all(b"console.log('test');").unwrap();

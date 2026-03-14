@@ -28,7 +28,7 @@ pub fn serialize_doc(document: &Document) -> Vec<u8> {
 
 /// Parses the given HTML string.
 pub fn parse_doc(html: String) -> Document {
-  Document::from(html.as_str())
+  Document::from(html)
 }
 
 fn ensure_head(document: &Document) -> NodeRef<'_> {
@@ -68,14 +68,14 @@ pub fn inject_nonce_token(
 pub fn inject_csp(document: &Document, csp: &str) {
   let head = ensure_head(document);
   let meta_tag = format!(r#"<meta http-equiv="Content-Security-Policy" content="{csp}">"#);
-  head.prepend_html(meta_tag.as_str());
+  head.prepend_html(meta_tag);
 }
 
 /// Injects a content security policy to the HTML.
 pub fn append_script_to_head(document: &Document, script: &str) {
   let head = ensure_head(document);
   let script_tag = format!(r#"<script>{script}</script>"#);
-  head.prepend_html(script_tag.as_str());
+  head.prepend_html(script_tag);
 }
 
 /// The shape of the JavaScript Pattern config
@@ -125,12 +125,9 @@ pub fn inject_codegen_isolation_script(document: &Document) {
     .expect("unable to render codegen isolation script template")
     .into_string();
 
-  let script_tag = format!(
-    r#"<script nonce="{}">{}</script>"#,
-    SCRIPT_NONCE_TOKEN, script_content
-  );
+  let script_tag = format!(r#"<script nonce="{SCRIPT_NONCE_TOKEN}">{script_content}</script>"#,);
 
-  head.prepend_html(script_tag.as_str());
+  head.prepend_html(script_tag);
 }
 
 /// Temporary workaround for Windows not allowing requests
@@ -156,7 +153,7 @@ pub fn inline_isolation(document: &Document, dir: &Path) {
 
     let file = std::fs::read_to_string(dir.join(path)).expect("unable to find isolation file");
 
-    script.set_html(file.as_str());
+    script.set_html(file);
     script.remove_attr("src");
   }
 }

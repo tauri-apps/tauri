@@ -65,7 +65,7 @@ pub fn inject_csp(document: &Document, csp: &str) {
   let meta_tag = document.tree.new_element("meta");
   meta_tag.set_attr("http-equiv", "Content-Security-Policy");
   meta_tag.set_attr("content", csp);
-  head.prepend_child(&meta_tag);
+  head.append_child(&meta_tag);
 }
 
 /// Injects a content security policy to the HTML.
@@ -141,7 +141,7 @@ pub fn inject_codegen_isolation_script(document: &Document) {
 pub fn inline_isolation(document: &Document, dir: &Path) {
   let scripts = document.select("script[src]");
 
-  for script in scripts.iter() {
+  for script in scripts.nodes() {
     let src = match script.attr("src") {
       Some(s) => s.to_string(),
       None => continue,
@@ -157,7 +157,7 @@ pub fn inline_isolation(document: &Document, dir: &Path) {
 
     let file = std::fs::read_to_string(dir.join(path)).expect("unable to find isolation file");
 
-    script.set_html(file);
+    script.set_text(file);
     script.remove_attr("src");
   }
 }

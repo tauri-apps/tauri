@@ -31,15 +31,13 @@ pub fn parse_doc(html: String) -> Document {
   Document::from(html.as_str())
 }
 
-fn with_head<F: FnOnce(NodeRef<'_>)>(document: &Document, f: F) {
-  let head = document.head().unwrap_or_else(|| {
+fn ensure_head(document: &Document) -> NodeRef<'_> {
+  document.head().unwrap_or_else(|| {
     let html = document.html_root();
     let head = document.tree.new_element("head");
     html.prepend_child(&head);
     head
-  });
-
-  f(head)
+  })
 }
 
 fn inject_nonce(document: &Document, selector: &str, token: &str) {
@@ -68,20 +66,16 @@ pub fn inject_nonce_token(
 
 /// Injects a content security policy to the HTML.
 pub fn inject_csp(document: &Document, csp: &str) {
-  with_head(document, |head| {
-    let meta_tag = format!(r#"<meta http-equiv="Content-Security-Policy" content="{csp}">"#);
-
-    head.prepend_html(meta_tag.as_str());
-  });
+  let head = ensure_head(document);
+  let meta_tag = format!(r#"<meta http-equiv="Content-Security-Policy" content="{csp}">"#);
+  head.prepend_html(meta_tag.as_str());
 }
 
 /// Injects a content security policy to the HTML.
 pub fn append_script_to_head(document: &Document, script: &str) {
-  with_head(document, |head| {
-    let script_tag = format!(r#"<script>{script}</script>"#);
-
-    head.prepend_html(script_tag.as_str());
-  });
+  let head = ensure_head(document);
+  let script_tag = format!(r#"<script>{script}</script>"#);
+  head.prepend_html(script_tag.as_str());
 }
 
 /// The shape of the JavaScript Pattern config
@@ -124,19 +118,19 @@ pub enum IsolationSide {
 /// Note: This function is not considered part of the stable API.
 #[cfg(feature = "isolation")]
 pub fn inject_codegen_isolation_script(document: &Document) {
-  with_head(document, |head| {
-    let script_content = IsolationJavascriptCodegen {}
-      .render_default(&Default::default())
-      .expect("unable to render codegen isolation script template")
-      .into_string();
+  let head = ensure_head(document);
 
-    let script_tag = format!(
-      r#"<script nonce="{}">{}</script>"#,
-      SCRIPT_NONCE_TOKEN, script_content
-    );
+  let script_content = IsolationJavascriptCodegen {}
+    .render_default(&Default::default())
+    .expect("unable to render codegen isolation script template")
+    .into_string();
 
-    head.prepend_html(script_tag.as_str());
-  });
+  let script_tag = format!(
+    r#"<script nonce="{}">{}</script>"#,
+    SCRIPT_NONCE_TOKEN, script_content
+  );
+
+  head.prepend_html(script_tag.as_str());
 }
 
 /// Temporary workaround for Windows not allowing requests

@@ -9,11 +9,6 @@ use std::path::{Path, PathBuf};
 use dom_query::NodeRef;
 use serde::Serialize;
 
-#[cfg(feature = "isolation")]
-use serialize_to_javascript::DefaultTemplate;
-
-#[cfg(feature = "isolation")]
-use crate::pattern::isolation::IsolationJavascriptCodegen;
 use crate::{
   assets::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
   config::{DisabledCspModificationKind, PatternKind},
@@ -121,6 +116,9 @@ pub enum IsolationSide {
 /// Note: This function is not considered part of the stable API.
 #[cfg(feature = "isolation")]
 pub fn inject_codegen_isolation_script(document: &Document) {
+  use crate::pattern::isolation::IsolationJavascriptCodegen;
+  use serialize_to_javascript::DefaultTemplate;
+
   let head = ensure_head(document);
 
   let script_content = IsolationJavascriptCodegen {}
@@ -139,6 +137,7 @@ pub fn inject_codegen_isolation_script(document: &Document) {
 ///
 /// Note: this does not prevent path traversal due to the isolation application expectation that it
 /// is secure.
+#[cfg(feature = "isolation")]
 pub fn inline_isolation(document: &Document, dir: &Path) {
   let scripts = document.select("script[src]");
 

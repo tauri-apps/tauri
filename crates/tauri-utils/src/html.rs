@@ -281,6 +281,7 @@ pub fn inline_isolation(document: &NodeRef, dir: &Path) {
   }
 }
 
+// TODO: Verify this, this is not found in the HTML spec, see https://github.com/tauri-apps/tauri/pull/14265#discussion_r2415396842
 /// Normalize line endings in script content to match what the browser uses for CSP hashing.
 ///
 /// According to the HTML spec, browsers normalize:

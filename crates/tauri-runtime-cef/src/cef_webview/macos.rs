@@ -62,27 +62,6 @@ impl CefBrowserExt for cef::Browser {
     screen.map(|s| s.backingScaleFactor()).unwrap_or(1.0)
   }
 
-  fn set_background_color(&self, color: cef::Color) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
-
-    let red = ((color >> 16) & 0xFF) as f64 / 255.0;
-    let green = ((color >> 8) & 0xFF) as f64 / 255.0;
-    let blue = (color & 0xFF) as f64 / 255.0;
-    let alpha = ((color >> 24) & 0xFF) as f64 / 255.0;
-
-    let color = unsafe { NSColor::colorWithRed_green_blue_alpha(red, green, blue, alpha) };
-    let color = unsafe { color.CGColor() };
-
-    nsview.setWantsLayer(true);
-
-    let Some(layer) = (unsafe { nsview.layer() }) else {
-      return;
-    };
-    let _: () = unsafe { msg_send![&layer, setBackgroundColor: &*color] };
-  }
-
   fn set_visible(&self, visible: i32) {
     let Some(nsview) = self.nsview() else {
       return;

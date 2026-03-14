@@ -72,10 +72,6 @@ impl CefBrowserExt for cef::Browser {
     dpi_to_scale_factor(dpi)
   }
 
-  fn set_background_color(&self, color: cef::Color) {
-    // TODO:
-  }
-
   fn set_visible(&self, visible: i32) {
     let Some(hwnd) = self.hwnd() else {
       return;

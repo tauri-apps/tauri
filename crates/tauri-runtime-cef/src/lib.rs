@@ -12,7 +12,7 @@ use tauri_runtime::{
   WebviewEventId, WindowDispatch, WindowEventId,
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,
-  webview::{DetachedWebview, PendingWebview},
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
   window::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WebviewEvent,
     WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
@@ -301,6 +301,7 @@ pub(crate) struct AppWebview {
   /// Keeps the DevTools message observer registered. Dropping this unregisters the observer.
   #[allow(dead_code)]
   pub devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
+  pub webview_attributes: Arc<RefCell<WebviewAttributes>>,
 }
 
 #[derive(Debug, Clone)]

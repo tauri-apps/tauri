@@ -425,11 +425,13 @@ mod tests {
   #[test]
   fn inline_isolation_replaces_src_with_content() {
     let temp_dir = tempfile::tempdir().unwrap();
-    let mut file = tempfile::tempfile_in(&temp_dir).unwrap();
+    let mut file = tempfile::NamedTempFile::with_suffix_in(".js", &temp_dir).unwrap();
     file.write_all(b"console.log('test');").unwrap();
+    let file_name = file.path().file_name().unwrap().to_str().unwrap();
 
-    let html = r#"<html><head><script src="/test_script.js"></script></head><body></body></html>"#;
-    let document = parse(html.to_string());
+    let html =
+      format!(r#"<html><head><script src="/{file_name}"></script></head><body></body></html>"#);
+    let document = parse(html);
     inline_isolation(&document, temp_dir.path());
 
     assert_eq!(

@@ -67,15 +67,18 @@ pub fn inject_nonce_token(
 /// Injects a content security policy to the HTML.
 pub fn inject_csp(document: &Document, csp: &str) {
   let head = ensure_head(document);
-  let meta_tag = format!(r#"<meta http-equiv="Content-Security-Policy" content="{csp}">"#);
-  head.prepend_html(meta_tag);
+  let meta_tag = document.tree.new_element("meta");
+  meta_tag.set_attr("http-equiv", "Content-Security-Policy");
+  meta_tag.set_attr("content", csp);
+  head.prepend_child(&meta_tag);
 }
 
 /// Injects a content security policy to the HTML.
 pub fn append_script_to_head(document: &Document, script: &str) {
   let head = ensure_head(document);
-  let script_tag = format!(r#"<script>{script}</script>"#);
-  head.prepend_html(script_tag);
+  let script_tag = document.tree.new_element("script");
+  script_tag.set_text(script);
+  head.prepend_child(&script_tag);
 }
 
 /// The shape of the JavaScript Pattern config
@@ -125,9 +128,11 @@ pub fn inject_codegen_isolation_script(document: &Document) {
     .expect("unable to render codegen isolation script template")
     .into_string();
 
-  let script_tag = format!(r#"<script nonce="{SCRIPT_NONCE_TOKEN}">{script_content}</script>"#,);
+  let script_tag = document.tree.new_element("script");
+  script_tag.set_attr("nonce", SCRIPT_NONCE_TOKEN);
+  script_tag.set_text(script_content);
 
-  head.prepend_html(script_tag);
+  head.prepend_child(&script_tag);
 }
 
 /// Temporary workaround for Windows not allowing requests

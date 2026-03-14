@@ -25,9 +25,7 @@ use tauri_utils::{
   },
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
-  html2::{
-    inject_nonce_token, parse_doc as parse_html, serialize_doc as serialize_html_node, Document,
-  },
+  html2::{inject_nonce_token, parse_doc, serialize_doc, Document},
   platform::Target,
   tokens::{map_lit, str_lit},
 };
@@ -77,7 +75,7 @@ fn map_core_assets(
     if path.extension() == Some(OsStr::new("html")) {
       #[allow(clippy::collapsible_if)]
       if csp {
-        let document = parse_html(String::from_utf8_lossy(input).into_owned());
+        let document = parse_doc(String::from_utf8_lossy(input).into_owned());
 
         inject_nonce_token(&document, &dangerous_disable_asset_csp_modification);
 
@@ -85,7 +83,7 @@ fn map_core_assets(
           inject_script_hashes(&document, key, csp_hashes);
         }
 
-        *input = serialize_html_node(&document);
+        *input = serialize_doc(&document);
       }
     }
     Ok(())
@@ -108,7 +106,7 @@ fn map_isolation(
 
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
-      let isolation_html = parse_html(String::from_utf8_lossy(input).into_owned());
+      let isolation_html = parse_doc(String::from_utf8_lossy(input).into_owned());
 
       // this is appended, so no need to reverse order it
       tauri_utils::html2::inject_codegen_isolation_script(&isolation_html);
@@ -125,7 +123,7 @@ fn map_isolation(
 
       csp_hashes.styles.push(iframe_style_csp_hash.clone());
 
-      *input = serialize_html_node(&isolation_html)
+      *input = serialize_doc(&isolation_html)
     }
 
     Ok(())

@@ -60,13 +60,10 @@ pub fn inject_nonce_token(
 /// Injects a content security policy to the HTML.
 pub fn inject_csp(document: &Document, csp: &str) {
   let head = ensure_head(document);
-  // TODO: Switch to this after https://github.com/niklak/dom_query/issues/178 is fixed
-  // let meta_tag = document.tree.new_element("meta");
-  // meta_tag.set_attr("http-equiv", "Content-Security-Policy");
-  // meta_tag.set_attr("content", csp);
-  // head.append_child(&meta_tag);
-  let meta_tag = format!(r#"<meta http-equiv="Content-Security-Policy" content="{csp}">"#);
-  head.append_html(meta_tag);
+  let meta_tag = document.tree.new_element("meta");
+  meta_tag.set_attr("http-equiv", "Content-Security-Policy");
+  meta_tag.set_attr("content", csp);
+  head.append_child(&meta_tag);
 }
 
 /// Injects a content security policy to the HTML.

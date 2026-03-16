@@ -448,7 +448,7 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       header.set_mtime(stat_metadata.mtime() as u64);
       header.set_entry_type(tar::EntryType::Symlink);
       let target_path = fs::read_link(src_path)?;
-      tar_builder.append_link(&mut header, dbg!(dest_path), dbg!(target_path))?;
+      tar_builder.append_link(&mut header, dest_path, target_path)?;
     } else {
       let stat = fs::metadata(src_path)?;
       let mut header = tar::Header::new_gnu();

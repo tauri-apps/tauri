@@ -310,6 +310,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     }
   }
 
+  log::info!(action = "Bundling"; "Creating .rpm file...");
+
   let pkg = if let Ok(raw_secret_key) = env::var("TAURI_SIGNING_RPM_KEY") {
     let mut signer = pgp::Signer::load_from_asc(&raw_secret_key)?;
     if let Ok(passphrase) = env::var("TAURI_SIGNING_RPM_KEY_PASSPHRASE") {

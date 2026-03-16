@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 mod category;
-#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod kmp;
 #[cfg(target_os = "linux")]
 mod linux;
@@ -17,10 +16,8 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
-#[cfg(any(target_os = "linux", target_os = "windows"))]
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
-#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
   log::info!(
     "Patching {} with bundle type information: {}",
@@ -54,6 +51,17 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Windows".to_owned(),
+      ))
+    }
+  };
+  #[cfg(target_os = "macos")]
+  let bundle_type = match package_type {
+    // NSIS installers can be built in macOS using cargo-xwin
+    crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "macOS".to_owned(),
       ))
     }
   };
@@ -135,7 +143,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
     if let Err(e) = patch_binary(&main_binary_path, package_type) {
       log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
     }

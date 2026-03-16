@@ -4181,3 +4181,18 @@ fn apply_traffic_light_position(window: *mut std::ffi::c_void, position: &Positi
     unsafe { button.setFrameOrigin(rect.origin) };
   }
 }
+
+#[cfg(target_os = "macos")]
+pub fn set_application_visibility(visible: bool) {
+  use objc2::MainThreadMarker;
+  use objc2_app_kit::NSApp;
+
+  let mtm = MainThreadMarker::new().expect("not on main thread");
+  let app = NSApp(mtm);
+
+  if visible {
+    unsafe { app.unhide(None) };
+  } else {
+    app.hide(None);
+  }
+}

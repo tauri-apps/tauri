@@ -574,13 +574,17 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Task(Box::new(|| {
+      cef_impl::set_application_visibility(true);
+    })))
   }
 
   /// Hides the application.
   #[cfg(target_os = "macos")]
   fn hide(&self) -> Result<()> {
-    Ok(())
+    self.context.post_message(Message::Task(Box::new(|| {
+      cef_impl::set_application_visibility(false);
+    })))
   }
 
   fn set_device_event_filter(&self, _filter: DeviceEventFilter) {}
@@ -2283,10 +2287,14 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   fn set_dock_visibility(&mut self, _visible: bool) {}
 
   #[cfg(target_os = "macos")]
-  fn show(&self) {}
+  fn show(&self) {
+    cef_impl::set_application_visibility(true);
+  }
 
   #[cfg(target_os = "macos")]
-  fn hide(&self) {}
+  fn hide(&self) {
+    cef_impl::set_application_visibility(false);
+  }
 
   fn set_device_event_filter(&mut self, _filter: DeviceEventFilter) {}
 

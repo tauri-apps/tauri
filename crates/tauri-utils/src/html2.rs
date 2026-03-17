@@ -35,7 +35,7 @@ fn ensure_head(document: &Document) -> NodeRef<'_> {
 
 fn inject_nonce(document: &Document, selector: &str, token: &str) {
   let elements = document.select(selector);
-  for elem in elements.iter() {
+  for elem in elements.nodes() {
     // if the node already has the `nonce` attribute, skip it
     if elem.attr("nonce").is_some() {
       continue;

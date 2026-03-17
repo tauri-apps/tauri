@@ -19,16 +19,6 @@ use tauri_utils::{display_path, platform::Target as TargetPlatform};
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
-  log::info!(
-    "Patching {} with bundle type information: {}",
-    display_path(binary),
-    package_type.short_name()
-  );
-
-  let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
-
-  let bundle_var_index =
-    kmp::index_of(BUNDLE_VAR_TOKEN, &file_data).ok_or(crate::Error::MissingBundleTypeVar)?;
   #[cfg(target_os = "linux")]
   let bundle_type = match package_type {
     crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
@@ -59,13 +49,20 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
     // NSIS installers can be built in macOS using cargo-xwin
     crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
     _ => {
-      return Err(crate::Error::InvalidPackageType(
-        package_type.short_name().to_owned(),
-        "macOS".to_owned(),
-      ))
+      // skip patching for macOS-native bundles
+      return Ok(())
     }
   };
 
+  log::info!(
+    "Patching {} with bundle type information: {}",
+    display_path(binary),
+    package_type.short_name()
+  );
+
+  let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
+  let bundle_var_index =
+    kmp::index_of(BUNDLE_VAR_TOKEN, &file_data).ok_or(crate::Error::MissingBundleTypeVar)?;
   file_data[bundle_var_index..bundle_var_index + BUNDLE_VAR_TOKEN.len()]
     .copy_from_slice(bundle_type);
 

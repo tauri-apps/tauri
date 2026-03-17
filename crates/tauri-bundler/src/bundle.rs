@@ -48,9 +48,15 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
   let bundle_type = match package_type {
     // NSIS installers can be built in macOS using cargo-xwin
     crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
-    _ => {
+    crate::PackageType::MacOsBundle | crate::PackageType::Dmg => {
       // skip patching for macOS-native bundles
       return Ok(())
+    }
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "macOS".to_owned(),
+      ))
     }
   };
 

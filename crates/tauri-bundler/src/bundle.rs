@@ -50,7 +50,7 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
     crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
     crate::PackageType::MacOsBundle | crate::PackageType::Dmg => {
       // skip patching for macOS-native bundles
-      return Ok(())
+      return Ok(());
     }
     _ => {
       return Err(crate::Error::InvalidPackageType(

@@ -188,7 +188,7 @@ impl EmbeddedAssets {
       .assets
       .get(key.as_ref())
       .copied()
-      .map(Cow::Borrowed)
+Some(Cow::Borrowed(self.assets.get(key.as_ref())?))
   }
 
   /// Iterate on the assets.

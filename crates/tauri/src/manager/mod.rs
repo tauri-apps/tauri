@@ -372,6 +372,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
+  // TODO: Change to return `crate::Result` here in v3
   pub fn get_asset(
     &self,
     mut path: String,
@@ -417,49 +418,42 @@ impl<R: Runtime> AppManager<R> {
         asset_path = fallback;
         asset
       })
-      .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
-      .map(Cow::into_owned);
+      .ok_or_else(|| {
+        let error = crate::Error::AssetNotFound(path.clone());
+        log::error!("{error}");
+        Box::new(error)
+      })?;
 
     let mut csp_header = None;
     let is_html = asset_path.as_ref().ends_with(".html");
 
-    match asset_response {
-      Ok(asset) => {
-        let final_data = if is_html {
-          let mut asset = String::from_utf8_lossy(&asset).into_owned();
-          if let Some(csp) = self.csp() {
-            #[allow(unused_mut)]
-            let mut csp_map = set_csp(&mut asset, &self.assets, &asset_path, self, csp);
-            #[cfg(feature = "isolation")]
-            if let Pattern::Isolation { schema, .. } = &*self.pattern {
-              let default_src = csp_map
-                .entry("default-src".into())
-                .or_insert_with(Default::default);
-              default_src.push(crate::pattern::format_real_schema(
-                schema,
-                _use_https_schema,
-              ));
-            }
+    let final_data = if is_html {
+      let mut asset = String::from_utf8_lossy(&asset_response).into_owned();
+      if let Some(csp) = self.csp() {
+        #[allow(unused_mut)]
+        let mut csp_map = set_csp(&mut asset, &self.assets, &asset_path, self, csp);
+        #[cfg(feature = "isolation")]
+        if let Pattern::Isolation { schema, .. } = &*self.pattern {
+          let default_src = csp_map.entry("default-src".to_owned()).or_default();
+          default_src.push(crate::pattern::format_real_schema(
+            schema,
+            _use_https_schema,
+          ));
+        }
 
-            csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
-          }
+        csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
+      }
 
-          asset.into_bytes()
-        } else {
-          asset
-        };
-        let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
-        Ok(Asset {
-          bytes: final_data,
-          mime_type,
-          csp_header,
-        })
-      }
-      Err(e) => {
-        log::error!("{:?}", e);
-        Err(Box::new(e))
-      }
-    }
+      asset.into_bytes()
+    } else {
+      asset_response.into_owned()
+    };
+    let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
+    Ok(Asset {
+      bytes: final_data,
+      mime_type,
+      csp_header,
+    })
   }
 
   pub(crate) fn listeners(&self) -> &Listeners {

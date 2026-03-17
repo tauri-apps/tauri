@@ -1,7 +1,7 @@
 use crate::cef_webview::CefBrowserExt;
 use cef::*;
-use objc2::{msg_send, rc::Retained};
-use objc2_app_kit::{NSColor, NSView};
+use objc2::rc::Retained;
+use objc2_app_kit::NSView;
 use objc2_foundation::{NSPoint, NSRect, NSSize};
 
 impl CefBrowserExt for cef::Browser {

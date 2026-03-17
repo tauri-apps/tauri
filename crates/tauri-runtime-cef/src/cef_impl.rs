@@ -57,11 +57,6 @@ fn color_to_cef_argb(color: tauri_utils::config::Color) -> u32 {
 }
 
 #[inline]
-fn color_opt_to_cef_argb(color: Option<tauri_utils::config::Color>) -> u32 {
-  color.map(color_to_cef_argb).unwrap_or(0xFFFFFFFF)
-}
-
-#[inline]
 fn theme_to_color_variant(theme: Option<tauri_utils::Theme>) -> ColorVariant {
   match theme {
     Some(tauri_utils::Theme::Dark) => ColorVariant::DARK,
@@ -3754,9 +3749,10 @@ pub(crate) fn create_webview<T: UserEvent>(
 
   let runtime_style = platform_specific_attributes
     .iter()
-    .find_map(|attr| match attr {
-      WebviewAtribute::RuntimeStyle { style } => Some(*style),
+    .map(|attr| match attr {
+      WebviewAtribute::RuntimeStyle { style } => *style,
     })
+    .next()
     .unwrap_or(if matches!(kind, WebviewKind::WindowChild) {
       CefRuntimeStyle::Alloy
     } else {
@@ -4179,5 +4175,20 @@ fn apply_traffic_light_position(window: *mut std::ffi::c_void, position: &Positi
     let mut rect = NSView::frame(&button);
     rect.origin.x = x + (i as f64 * space_between);
     unsafe { button.setFrameOrigin(rect.origin) };
+  }
+}
+
+#[cfg(target_os = "macos")]
+pub fn set_application_visibility(visible: bool) {
+  use objc2::MainThreadMarker;
+  use objc2_app_kit::NSApp;
+
+  let mtm = MainThreadMarker::new().expect("not on main thread");
+  let app = NSApp(mtm);
+
+  if visible {
+    unsafe { app.unhide(None) };
+  } else {
+    app.hide(None);
   }
 }

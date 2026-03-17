@@ -1,4 +1,5 @@
 ---
+"tauri-bundler": patch:bug
 "tauri-cli": patch:bug
 "@tauri-apps/cli": patch:bug
 ---

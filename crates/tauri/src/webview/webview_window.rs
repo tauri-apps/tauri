@@ -447,11 +447,18 @@ tauri::Builder::default()
   ///
   /// - **Linux / Windows / Android:** Unsupported.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
-  pub fn on_web_content_process_terminate<F: Fn(Webview<R>) + Send + 'static>(
+  pub fn on_web_content_process_terminate<F: Fn(WebviewWindow<R>) + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
-    self.webview_builder = self.webview_builder.on_web_content_process_terminate(f);
+    self.webview_builder = self.webview_builder.on_web_content_process_terminate(move |webview| {
+      f(
+        WebviewWindow {
+          window: webview.window(),
+          webview,
+        },
+      )
+    });
     self
   }
 

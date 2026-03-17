@@ -72,4 +72,3 @@ schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch =
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
-dom_query = { git = "https://github.com/niklak/dom_query.git" }

@@ -43,7 +43,7 @@ impl ValueEnum for BundleFormat {
   }
 
   fn to_possible_value(&self) -> Option<PossibleValue> {
-    let hide = self.0 == PackageType::Updater;
+    let hide = (!cfg!(windows) && self.0 == PackageType::Nsis) || self.0 == PackageType::Updater;
     Some(PossibleValue::new(self.0.short_name()).hide(hide))
   }
 }

@@ -546,7 +546,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(target_os = "ios")]
-  fn requested_by_scene_identifier(self, _identifier: String) -> Self {
+  fn requested_by_scene_identifier<S: Into<String>>(self, _identifier: S) -> Self {
     self
   }
 }

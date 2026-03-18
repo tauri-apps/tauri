@@ -1,7 +1,7 @@
 ---
-"tauri": "patch:bug"
-"tauri-runtime": "patch:bug"
-"tauri-runtime-wry": "patch:bug"
+"tauri": "minor:feat"
+"tauri-runtime": "minor:feat"
+"tauri-runtime-wry": "minor:feat"
 ---
 
 Add handler for web content process termination on macOS and iOS.

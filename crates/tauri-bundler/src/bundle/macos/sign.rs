@@ -75,20 +75,20 @@ pub fn sign(
 
 pub fn notarize(
   keychain: &tauri_macos_sign::Keychain,
-  app_bundle_path: PathBuf,
+  path: PathBuf,
   credentials: &tauri_macos_sign::AppleNotarizationCredentials,
 ) -> crate::Result<()> {
-  tauri_macos_sign::notarize(keychain, &app_bundle_path, credentials)
+  tauri_macos_sign::notarize(keychain, &path, credentials)
     .map_err(Box::new)
     .map_err(Into::into)
 }
 
 pub fn notarize_without_stapling(
   keychain: &tauri_macos_sign::Keychain,
-  app_bundle_path: PathBuf,
+  path: PathBuf,
   credentials: &tauri_macos_sign::AppleNotarizationCredentials,
 ) -> crate::Result<()> {
-  tauri_macos_sign::notarize_without_stapling(keychain, &app_bundle_path, credentials)
+  tauri_macos_sign::notarize_without_stapling(keychain, &path, credentials)
     .map_err(Box::new)
     .map_err(Into::into)
 }

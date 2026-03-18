@@ -536,12 +536,12 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(target_os = "android")]
-  fn activity_name(self, _class_name: String) -> Self {
+  fn activity_name<S: Into<String>>(self, _class_name: S) -> Self {
     self
   }
 
   #[cfg(target_os = "android")]
-  fn created_by_activity_name(self, _class_name: String) -> Self {
+  fn created_by_activity_name<S: Into<String>>(self, _class_name: S) -> Self {
     self
   }
 

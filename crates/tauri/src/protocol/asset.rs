@@ -70,17 +70,9 @@ fn get_response(
     }
   };
 
-  let (mut file, len, mime_type, read_bytes) = {
-    // get file length
-    let len = {
-      let old_pos = file.stream_position()?;
-      let len = file.seek(SeekFrom::End(0))?;
-      file.seek(SeekFrom::Start(old_pos))?;
-      len
-    };
-
+  let len = file.metadata()?.len();
+  let (mime_type, read_bytes) = {
     // get file mime type
-    let (mime_type, read_bytes) = {
       let nbytes = len.min(8192);
       let mut magic_buf = Vec::with_capacity(nbytes as usize);
       let old_pos = file.stream_position()?;
@@ -92,9 +84,6 @@ fn get_response(
         // to avoid reading it again later if this is not a range request
         if len < 8192 { Some(magic_buf) } else { None },
       )
-    };
-
-    (file, len, mime_type, read_bytes)
   };
 
   resp = resp.header(CONTENT_TYPE, &mime_type);

@@ -33,7 +33,8 @@ aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }
 serialize-to-javascript = { version = "0.1.2", optional = true }
 ctor = "0.2"
-json5 = { version = "0.4", optional = true }
+# Part of public api in error type
+json5 = { version = ">=0.4, <=1", optional = true }
 # Part of public api in error type
 toml = { version = ">=0.9, <=1", features = ["parse"] }
 json-patch = "3.0"

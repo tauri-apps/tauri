@@ -2041,21 +2041,6 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_simple_fullscreen(enable)
   }
 
-  /// Bring the window to front and focus.
-  pub fn set_focus(&self) -> crate::Result<()> {
-    self.window.set_focus()
-  }
-
-  /// Sets whether the window can be focused.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
-  ///   In this case, you might consider calling [`Window::set_focus`] but it will move the window to the back i.e. at the bottom in terms of z-order.
-  pub fn set_focusable(&self, focusable: bool) -> crate::Result<()> {
-    self.window.set_focusable(focusable)
-  }
-
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self.window.set_icon(icon)

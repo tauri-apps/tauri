@@ -75,9 +75,8 @@ fn get_response(
     // get file mime type
       let nbytes = len.min(8192);
       let mut magic_buf = Vec::with_capacity(nbytes as usize);
-      let old_pos = file.stream_position()?;
       (&mut file).take(nbytes).read_to_end(&mut magic_buf)?;
-      file.seek(SeekFrom::Start(old_pos))?;
+      file.rewind()?;
       (
         MimeType::parse(&magic_buf, &path),
         // return the `magic_bytes` if we read the whole file

@@ -73,16 +73,16 @@ fn get_response(
   let len = file.metadata()?.len();
   let (mime_type, read_bytes) = {
     // get file mime type
-      let nbytes = len.min(8192);
-      let mut magic_buf = Vec::with_capacity(nbytes as usize);
-      (&mut file).take(nbytes).read_to_end(&mut magic_buf)?;
-      file.rewind()?;
-      (
-        MimeType::parse(&magic_buf, &path),
-        // return the `magic_bytes` if we read the whole file
-        // to avoid reading it again later if this is not a range request
-        if len < 8192 { Some(magic_buf) } else { None },
-      )
+    let nbytes = len.min(8192);
+    let mut magic_buf = Vec::with_capacity(nbytes as usize);
+    (&mut file).take(nbytes).read_to_end(&mut magic_buf)?;
+    file.rewind()?;
+    (
+      MimeType::parse(&magic_buf, &path),
+      // return the `magic_bytes` if we read the whole file
+      // to avoid reading it again later if this is not a range request
+      if len < 8192 { Some(magic_buf) } else { None },
+    )
   };
 
   resp = resp.header(CONTENT_TYPE, &mime_type);

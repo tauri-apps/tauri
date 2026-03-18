@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.3.3]
+
+### Dependencies
+
+- [`268bb339f`](https://www.github.com/tauri-apps/tauri/commit/268bb339f0c512f021cc94e102573432cf2696d0) ([#14766](https://www.github.com/tauri-apps/tauri/pull/14766) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Remove once-cell-regex from direct dependencies.
+
 ## \[2.3.2]
 
 ### Dependencies

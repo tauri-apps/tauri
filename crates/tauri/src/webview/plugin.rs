@@ -150,8 +150,8 @@ mod desktop_commands {
 
     let x = options.x.context("missing parameter `options.x`")?;
     let y = options.y.context("missing parameter `options.y`")?;
-    let width = options.width.unwrap_or(800.);
-    let height = options.height.unwrap_or(600.);
+    let width = options.width;
+    let height = options.height;
 
     let builder = crate::webview::WebviewBuilder::from_config(&options);
 

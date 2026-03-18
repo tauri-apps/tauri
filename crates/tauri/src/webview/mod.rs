@@ -1209,10 +1209,10 @@ fn main() {
   /// ```xml
   /// <plist>
   /// <dict>
-  /// 	<key>WKAppBoundDomains</key>
-  /// 	<array>
-  /// 		<string>localhost</string>
-  /// 	</array>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///     </array>
   /// </dict>
   /// </plist>
   /// ```
@@ -1226,7 +1226,7 @@ fn main() {
   /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
   ///
   /// ## Platform-specific
-  ///
+  /// - **iOS**: Supported since version 14.0+.
   /// - **Linux / Windows / Android / MacOS:** Unsupported.
   #[must_use]
   pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {

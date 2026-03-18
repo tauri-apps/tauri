@@ -435,7 +435,8 @@ impl From<&WindowConfig> for WebviewAttributes {
         #[cfg(windows)]
         ConfigScrollBarStyle::FluentOverlay => ScrollBarStyle::FluentOverlay,
         _ => ScrollBarStyle::Default,
-      });
+      })
+      .limit_navigations_to_app_bound_domains(config.limit_navigations_to_app_bound_domains);
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
@@ -469,6 +470,8 @@ impl From<&WindowConfig> for WebviewAttributes {
     }
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
+    builder = builder.limit_navigations_to_app_bound_domains(config.allow_link_preview);
+
     #[cfg(target_os = "ios")]
     if config.disable_input_accessory_view {
       builder
@@ -520,10 +523,10 @@ impl WebviewAttributes {
       /// ```xml
       /// <plist>
       /// <dict>
-      /// 	<key>WKAppBoundDomains</key>
-      /// 	<array>
-      /// 		<string>localhost</string>
-      /// 	</array>
+      ///     <key>WKAppBoundDomains</key>
+      ///     <array>
+      ///         <string>localhost</string>
+      ///     </array>
       /// </dict>
       /// </plist>
       /// ```
@@ -537,6 +540,8 @@ impl WebviewAttributes {
       /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
       ///
       /// ## Platform-specific
+      /// - **iOS**: Supported since version 14.0+.
+      /// - **Linux / Windows / Android / MacOS:** Unsupported.
       #[cfg(target_os = "ios")]
       limit_navigations_to_app_bound_domains: false,
       #[cfg(windows)]
@@ -797,10 +802,10 @@ impl WebviewAttributes {
   /// ```xml
   /// <plist>
   /// <dict>
-  /// 	<key>WKAppBoundDomains</key>
-  /// 	<array>
-  /// 		<string>localhost</string>
-  /// 	</array>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///     </array>
   /// </dict>
   /// </plist>
   /// ```
@@ -814,7 +819,7 @@ impl WebviewAttributes {
   /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
   ///
   /// ## Platform-specific
-  ///
+  /// - **iOS**: Supported since version 14.0+.
   /// - **Linux / Windows / Android / MacOS:** Unsupported.
   #[must_use]
   #[allow(unused_variables, unused_mut)]

@@ -267,7 +267,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
             .and_then(|message| {
               let is_raw =
                 message.payload.content_type() == &mime::APPLICATION_OCTET_STREAM.to_string();
-              let payload = crypto_keys.decrypt(message.payload)?;
+              let payload = crypto_keys.decrypt(&message.payload)?;
               Ok(Message {
                 cmd: message.cmd,
                 callback: message.callback,
@@ -466,8 +466,8 @@ fn parse_invoke_request<R: Runtime>(
 
       (body, content_type) = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
         .and_then(|raw| {
-          let content_type = raw.content_type().clone();
-          crypto_keys.decrypt(raw).map(|decrypted| {
+          let content_type = raw.content_type();
+          crypto_keys.decrypt(&raw).map(|decrypted| {
             (
               decrypted,
               content_type

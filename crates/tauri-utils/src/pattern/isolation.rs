@@ -102,7 +102,7 @@ impl Keys {
   }
 
   /// Decrypts a message using the generated keys.
-  pub fn decrypt(&self, raw: RawIsolationPayload<'_>) -> Result<Vec<u8>, Error> {
+  pub fn decrypt(&self, raw: &RawIsolationPayload<'_>) -> Result<Vec<u8>, Error> {
     let RawIsolationPayload { nonce, payload, .. } = raw;
     let nonce: [u8; 12] = nonce.as_ref().try_into()?;
     self

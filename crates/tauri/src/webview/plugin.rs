@@ -28,7 +28,7 @@ mod desktop_commands {
   }
 
   #[command(root = "crate")]
-  pub async fn get_all_webviews<R: Runtime>(app: AppHandle<R>) -> Vec<WebviewRef> {
+  pub fn get_all_webviews<R: Runtime>(app: AppHandle<R>) -> Vec<WebviewRef> {
     app
       .manager()
       .webviews()
@@ -104,10 +104,7 @@ mod desktop_commands {
     };
     ($fn: ident, $cmd: ident, $ret: ty) => {
       #[command(root = "crate")]
-      pub async fn $fn<R: Runtime>(
-        webview: Webview<R>,
-        label: Option<String>,
-      ) -> crate::Result<$ret> {
+      pub fn $fn<R: Runtime>(webview: Webview<R>, label: Option<String>) -> crate::Result<$ret> {
         get_webview(webview, label)?.$cmd().map_err(Into::into)
       }
     };

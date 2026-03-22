@@ -128,6 +128,32 @@ Denies the default_window_icon command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-exit`
+
+</td>
+<td>
+
+Enables the exit command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-exit`
+
+</td>
+<td>
+
+Denies the exit command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-fetch-data-store-identifiers`
 
 </td>

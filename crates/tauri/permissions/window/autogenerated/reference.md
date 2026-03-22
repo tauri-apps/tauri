@@ -1317,6 +1317,32 @@ Denies the set_fullscreen command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-set-fullscreen-on-monitor`
+
+</td>
+<td>
+
+Enables the set_fullscreen_on_monitor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-fullscreen-on-monitor`
+
+</td>
+<td>
+
+Denies the set_fullscreen_on_monitor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-set-icon`
 
 </td>

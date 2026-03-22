@@ -7,7 +7,9 @@
     PhysicalPosition,
     Effect,
     EffectState,
-    ProgressBarStatus
+    ProgressBarStatus,
+    availableMonitors,
+    currentMonitor,
   } from '@tauri-apps/api/window'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 
@@ -18,6 +20,14 @@
   let selectedWebview = $state(webview.label)
   const webviewMap = $state({
     [webview.label]: webview
+  })
+
+  let monitor = $state("")
+  let selectedMonitor = $state("")
+  let monitorMap = $state({})
+
+  availableMonitors().then((response) => {
+    monitorMap = Object.fromEntries(response.map((m) => [m.name, m]))
   })
 
   let focusable = $state(true)
@@ -221,6 +231,11 @@
       outerPosition = response
       x = outerPosition.x
       y = outerPosition.y
+    })
+    currentMonitor().then((response) => {
+      if (response) {
+        monitor = response.name
+      }
     })
   }
 
@@ -501,6 +516,27 @@
       >
         Set focusable to {!focusable}
       </button>
+
+      <div class="gap-2">
+        <form
+          class="flex"
+          onsubmit={(ev) => {
+            if (selectedMonitor) {
+              webviewMap[selectedWebview].setFullscreenOnMonitor(monitorMap[selectedMonitor].position)
+                .then((r) => {fullscreen = true})
+            }
+            ev.preventDefault()
+          }}
+        >
+        <button class="btn" type="submit">Set Fullscreen on Monitor</button>
+        <select class="input" style="padding-top: 0;padding-bottom: 0;" bind:value={selectedMonitor}>
+          <option value="" disabled selected>Choose a monitor...</option>
+          {#each Object.keys(monitorMap) as label}
+            <option value={label}>{label}</option>
+          {/each}
+        </select>
+        </form>
+      </div>
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))]">
       <label>
@@ -680,6 +716,12 @@
         </div>
         <span>x: {outerPosition.toLogical(scaleFactor).x.toFixed(3)}</span>
         <span>y: {outerPosition.toLogical(scaleFactor).y.toFixed(3)}</span>
+      </div>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-1">
+          Current Monitor
+        </div>
+        <span>{monitor}</span>
       </div>
     </div>
     <div class="grid gap-2">

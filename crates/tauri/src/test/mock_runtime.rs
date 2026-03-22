@@ -997,6 +997,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     Ok(())
   }
 
+  fn set_fullscreen_on_monitor(&self, position: PhysicalPosition<f64>) -> Result<()> {
+    Ok(())
+  }
+
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()> {
     Ok(())

@@ -2086,7 +2086,7 @@ dependencies = [
  "foldhash",
  "html5ever 0.38.0",
  "precomputed-hash",
- "selectors 0.36.0",
+ "selectors 0.36.1",
  "tendril 0.5.0",
 ]
 
@@ -5509,7 +5509,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -7358,7 +7358,7 @@ dependencies = [
  "security-framework 3.5.1",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.60.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7643,9 +7643,9 @@ dependencies = [
 
 [[package]]
 name = "selectors"
-version = "0.36.0"
+version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "223b960be86f7d302b7168cdbab137f9bdbf7e04a90c185312fab14dff49dc5f"
+checksum = "c5d9c0c92a92d33f08817311cf3f2c29a3538a8240e94a6a3c622ce652d7e00c"
 dependencies = [
  "bitflags 2.7.0",
  "cssparser 0.36.0",
@@ -8645,8 +8645,8 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.34.6"
-source = "git+https://github.com/tauri-apps/tao?branch=feat/mobile-multi-window#3d0e11657397eb21f260ffbc9822eedb2102a0b9"
+version = "0.34.8"
+source = "git+https://github.com/tauri-apps/tao#58781691571b01f18734722feb254a855d51e34b"
 dependencies = [
  "bitflags 2.7.0",
  "block2 0.6.2",
@@ -8670,8 +8670,9 @@ dependencies = [
  "objc2-ui-kit",
  "once_cell",
  "parking_lot",
+ "percent-encoding",
  "raw-window-handle",
- "tao-macros 0.1.3 (git+https://github.com/tauri-apps/tao?branch=feat/mobile-multi-window)",
+ "tao-macros 0.1.3 (git+https://github.com/tauri-apps/tao)",
  "unicode-segmentation",
  "url",
  "windows 0.61.1",
@@ -8694,7 +8695,7 @@ dependencies = [
 [[package]]
 name = "tao-macros"
 version = "0.1.3"
-source = "git+https://github.com/tauri-apps/tao?branch=feat/mobile-multi-window#3d0e11657397eb21f260ffbc9822eedb2102a0b9"
+source = "git+https://github.com/tauri-apps/tao#58781691571b01f18734722feb254a855d51e34b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -11183,7 +11184,7 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 [[package]]
 name = "wry"
 version = "0.54.4"
-source = "git+https://github.com/tauri-apps/wry?branch=feat/mobile-multi-webview#5c83d7bba62a4fc8ef9d76d829b4961a36d0255d"
+source = "git+https://github.com/tauri-apps/wry#a535fd95025d126dd1d6ad10b101b81ed9ae40fe"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.2",

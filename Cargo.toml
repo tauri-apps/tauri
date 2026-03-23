@@ -72,5 +72,5 @@ schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch =
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
-wry = { git = "https://github.com/tauri-apps/wry", branch = "feat/mobile-multi-webview" }
-tao = { git = "https://github.com/tauri-apps/tao", branch = "feat/mobile-multi-window" }
+wry = { git = "https://github.com/tauri-apps/wry" }
+tao = { git = "https://github.com/tauri-apps/tao" }

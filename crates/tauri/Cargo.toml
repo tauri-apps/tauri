@@ -184,9 +184,17 @@ cargo_toml = "0.22"
 http-range = "0.1.5"
 
 [features]
-default = ["wry", "compression", "common-controls-v6", "dynamic-acl", "x11"]
+default = [
+  "wry",
+  "compression",
+  "common-controls-v6",
+  "dynamic-acl",
+  "x11",
+  "dbus",
+]
 unstable = ["tauri-runtime-wry?/unstable"]
 x11 = ["tauri-runtime-wry?/x11"]
+dbus = ["tauri-runtime-wry?/dbus"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6",

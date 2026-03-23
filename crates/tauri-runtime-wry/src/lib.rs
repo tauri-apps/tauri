@@ -35,6 +35,8 @@ use tauri_runtime::{
 
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
+#[cfg(target_os = "android")]
+use tao::platform::android::{WindowBuilderExtAndroid, WindowExtAndroid};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(any(
@@ -78,7 +80,6 @@ use tao::{
     UserAttentionType as TaoUserAttentionType,
   },
 };
-#[cfg(desktop)]
 use tauri_utils::config::PreventOverflowConfig;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -115,7 +116,7 @@ use wry::{
 use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
 #[cfg(target_os = "ios")]
-pub use tao::platform::ios::WindowExtIOS;
+pub use tao::platform::ios::{WindowBuilderExtIOS, WindowExtIOS};
 #[cfg(target_os = "macos")]
 pub use tao::platform::macos::{
   ActivationPolicy as TaoActivationPolicy, EventLoopExtMacOS, WindowExtMacOS,
@@ -880,68 +881,91 @@ impl WindowBuilder for WindowBuilderWrapper {
       window.inner = window.inner.with_cursor_moved_event(false);
     }
 
-    #[cfg(desktop)]
+    #[cfg(target_os = "android")]
     {
-      window = window
-        .title(config.title.to_string())
-        .inner_size(config.width, config.height)
-        .focused(config.focus)
-        .focusable(config.focusable)
-        .visible(config.visible)
-        .resizable(config.resizable)
-        .fullscreen(config.fullscreen)
-        .decorations(config.decorations)
-        .maximized(config.maximized)
-        .always_on_bottom(config.always_on_bottom)
-        .always_on_top(config.always_on_top)
-        .visible_on_all_workspaces(config.visible_on_all_workspaces)
-        .content_protected(config.content_protected)
-        .skip_taskbar(config.skip_taskbar)
-        .theme(config.theme)
-        .closable(config.closable)
-        .maximizable(config.maximizable)
-        .minimizable(config.minimizable)
-        .shadow(config.shadow);
+      if let Some(activity_name) = &config.activity_name {
+        window.inner = window.inner.with_activity_name(activity_name.clone());
+      }
+      if let Some(activity_name) = &config.created_by_activity_name {
+        window.inner = window
+          .inner
+          .with_created_by_activity_name(activity_name.clone());
+      }
+    }
 
-      let mut constraints = WindowSizeConstraints::default();
+    #[cfg(target_os = "ios")]
+    {
+      if let Some(scene_identifier) = &config.requested_by_scene_identifier {
+        window.inner = window
+          .inner
+          .with_requesting_scene_identifier(scene_identifier.clone());
+      }
+    }
 
-      if let Some(min_width) = config.min_width {
-        constraints.min_width = Some(tao::dpi::LogicalUnit::new(min_width).into());
-      }
-      if let Some(min_height) = config.min_height {
-        constraints.min_height = Some(tao::dpi::LogicalUnit::new(min_height).into());
-      }
-      if let Some(max_width) = config.max_width {
-        constraints.max_width = Some(tao::dpi::LogicalUnit::new(max_width).into());
-      }
-      if let Some(max_height) = config.max_height {
-        constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
-      }
-      if let Some(color) = config.background_color {
-        window = window.background_color(color);
-      }
-      window = window.inner_size_constraints(constraints);
+    // ignore size from config for mobile for backward compatibility
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    {
+      window = window.inner_size(config.width, config.height);
+    }
 
-      if let (Some(x), Some(y)) = (config.x, config.y) {
-        window = window.position(x, y);
-      }
+    window = window
+      .title(config.title.to_string())
+      .focused(config.focus)
+      .focusable(config.focusable)
+      .visible(config.visible)
+      .resizable(config.resizable)
+      .fullscreen(config.fullscreen)
+      .decorations(config.decorations)
+      .maximized(config.maximized)
+      .always_on_bottom(config.always_on_bottom)
+      .always_on_top(config.always_on_top)
+      .visible_on_all_workspaces(config.visible_on_all_workspaces)
+      .content_protected(config.content_protected)
+      .skip_taskbar(config.skip_taskbar)
+      .theme(config.theme)
+      .closable(config.closable)
+      .maximizable(config.maximizable)
+      .minimizable(config.minimizable)
+      .shadow(config.shadow);
 
-      if config.center {
-        window = window.center();
-      }
+    let mut constraints = WindowSizeConstraints::default();
 
-      if let Some(window_classname) = &config.window_classname {
-        window = window.window_classname(window_classname);
-      }
+    if let Some(min_width) = config.min_width {
+      constraints.min_width = Some(tao::dpi::LogicalUnit::new(min_width).into());
+    }
+    if let Some(min_height) = config.min_height {
+      constraints.min_height = Some(tao::dpi::LogicalUnit::new(min_height).into());
+    }
+    if let Some(max_width) = config.max_width {
+      constraints.max_width = Some(tao::dpi::LogicalUnit::new(max_width).into());
+    }
+    if let Some(max_height) = config.max_height {
+      constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
+    }
+    if let Some(color) = config.background_color {
+      window = window.background_color(color);
+    }
+    window = window.inner_size_constraints(constraints);
 
-      if let Some(prevent_overflow) = &config.prevent_overflow {
-        window = match prevent_overflow {
-          PreventOverflowConfig::Enable(true) => window.prevent_overflow(),
-          PreventOverflowConfig::Margin(margin) => window
-            .prevent_overflow_with_margin(TaoPhysicalSize::new(margin.width, margin.height).into()),
-          _ => window,
-        };
-      }
+    if let (Some(x), Some(y)) = (config.x, config.y) {
+      window = window.position(x, y);
+    }
+
+    if config.center {
+      window = window.center();
+    }
+
+    if let Some(window_classname) = &config.window_classname {
+      window = window.window_classname(window_classname);
+    }
+
+    if let Some(prevent_overflow) = &config.prevent_overflow {
+      window = match prevent_overflow {
+        PreventOverflowConfig::Enable(true) => window.prevent_overflow(),
+        PreventOverflowConfig::Margin(margin) => window
+          .prevent_overflow_with_margin(TaoPhysicalSize::new(margin.width, margin.height).into()),
+        _ => window,
+      };
     }
 
     window
@@ -1257,6 +1281,26 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn window_classname<S: Into<String>>(self, _window_classname: S) -> Self {
     self
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.inner = self.inner.with_activity_name(class_name.into());
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.inner = self.inner.with_created_by_activity_name(class_name.into());
+    self
+  }
+
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(mut self, identifier: S) -> Self {
+    self.inner = self
+      .inner
+      .with_requesting_scene_identifier(identifier.into());
+    self
+  }
 }
 
 #[cfg(any(
@@ -1348,6 +1392,10 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkBox(Sender<GtkBox>),
+  #[cfg(target_os = "android")]
+  ActivityName(Sender<String>),
+  #[cfg(target_os = "ios")]
+  SceneIdentifier(Sender<String>),
   RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   IsEnabled(Sender<bool>),
@@ -2007,6 +2055,18 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
     window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
+  }
+
+  /// Returns the name of the Android activity associated with this window.
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::ActivityName)
+  }
+
+  /// Returns the identifier of the UIScene tied to this UIWindow.
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::SceneIdentifier)
   }
 
   fn window_handle(
@@ -3317,6 +3377,14 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::GtkBox(tx) => tx
             .send(GtkBox(window.default_vbox().unwrap().clone()))
             .unwrap(),
+          #[cfg(target_os = "android")]
+          WindowMessage::ActivityName(tx) => {
+            tx.send(window.activity_name()).unwrap();
+          }
+          #[cfg(target_os = "ios")]
+          WindowMessage::SceneIdentifier(tx) => {
+            tx.send(window.scene_identifier()).unwrap();
+          }
           WindowMessage::RawWindowHandle(tx) => tx
             .send(
               window
@@ -4255,6 +4323,10 @@ fn handle_event_loop<T: UserEvent>(
     } => callback(RunEvent::Reopen {
       has_visible_windows,
     }),
+    #[cfg(target_os = "ios")]
+    Event::SceneRequested { scene, options } => {
+      callback(RunEvent::SceneRequested { scene, options });
+    }
     _ => (),
   }
 }
@@ -4439,6 +4511,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let window = window_builder
     .inner
     .build(event_loop)
+    .inspect_err(|e| log::error!("Error creating window: {e:?}"))
     .map_err(|_| Error::CreateWindow)?;
 
   #[cfg(feature = "tracing")]

@@ -3784,6 +3784,24 @@ pub(crate) fn create_webview<T: UserEvent>(
       return;
     };
 
+    #[cfg(windows)]
+    if let Some(host) = browser_host.host() {
+      use windows::Win32::Foundation::HWND;
+      use windows::Win32::UI::WindowsAndMessaging::*;
+      let hwnd = HWND(host.window_handle().0 as _);
+      let _ = unsafe {
+        SetWindowPos(
+          hwnd,
+          Some(HWND_TOP),
+          0,
+          0,
+          0,
+          0,
+          SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        )
+      };
+    }
+
     let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
       Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
     >::new()));

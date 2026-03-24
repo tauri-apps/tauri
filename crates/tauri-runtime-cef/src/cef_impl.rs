@@ -3784,23 +3784,9 @@ pub(crate) fn create_webview<T: UserEvent>(
       return;
     };
 
+    // On Windows, set the browser window to be topmost to esnure correct z-order
     #[cfg(windows)]
-    if let Some(host) = browser_host.host() {
-      use windows::Win32::Foundation::HWND;
-      use windows::Win32::UI::WindowsAndMessaging::*;
-      let hwnd = HWND(host.window_handle().0 as _);
-      let _ = unsafe {
-        SetWindowPos(
-          hwnd,
-          Some(HWND_TOP),
-          0,
-          0,
-          0,
-          0,
-          SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
-        )
-      };
-    }
+    set_browser_on_top(&browser_host);
 
     let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
       Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
@@ -3919,6 +3905,30 @@ pub(crate) fn create_webview<T: UserEvent>(
         webview_attributes,
       });
   }
+}
+
+#[cfg(windows)]
+fn set_browser_on_top(browser: &cef::Browser) {
+  use windows::Win32::Foundation::HWND;
+  use windows::Win32::UI::WindowsAndMessaging::*;
+
+  let Some(host) = browser.host() else {
+    return;
+  };
+
+  let hwnd = HWND(host.window_handle().0 as _);
+
+  let _ = unsafe {
+    SetWindowPos(
+      hwnd,
+      Some(HWND_TOP),
+      0,
+      0,
+      0,
+      0,
+      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+    )
+  };
 }
 
 // there is some race condition on CEF that causes the app loading to fail

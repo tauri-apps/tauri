@@ -218,7 +218,7 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   #[cfg(target_os = "android")]
   #[allow(clippy::type_complexity)]
   pub on_webview_created:
-    Option<Box<dyn Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send>>,
+    Option<Box<dyn Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send + Sync>>,
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 
@@ -274,7 +274,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
 
   #[cfg(target_os = "android")]
   pub fn on_webview_created<
-    F: Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send + 'static,
+    F: Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send + Sync + 'static,
   >(
     mut self,
     f: F,

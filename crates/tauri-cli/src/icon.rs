@@ -94,7 +94,7 @@ pub struct Options {
   output: Option<PathBuf>,
 
   /// Custom PNG icon sizes to generate. When set, the default icons are not generated.
-  #[clap(short, long, use_value_delimiter = true)]
+  #[clap(short, long, value_delimiter = ',')]
   png: Option<Vec<u32>>,
 
   /// The background color of the iOS icon - string as defined in the W3C's CSS Color Module Level 4 <https://www.w3.org/TR/css-color-4/>.

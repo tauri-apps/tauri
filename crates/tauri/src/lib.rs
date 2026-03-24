@@ -13,6 +13,7 @@
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
 //! - **common-controls-v6** *(enabled by default)*: Enables [Common Controls v6](https://learn.microsoft.com/en-us/windows/win32/controls/common-control-versions) support on Windows, mainly for the predefined `about` menu item.
 //! - **x11** *(enabled by default)*: Enables X11 support. Disable this if you only target Wayland.
+//! - **dbus** *(enabled by default)*: Enables dbus dependency for theme support on Linux. Disable this if you do not need theme support or don't want to build the dbus rust crate. The WebView dependencies use dbus either way.
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
@@ -137,14 +138,7 @@ macro_rules! android_binding {
 
     ::tauri::wry::android_binding!($domain, $app_name, $wry);
 
-    ::tauri::tao::android_binding!(
-      $domain,
-      $app_name,
-      WryActivity,
-      android_setup,
-      $main,
-      ::tauri::tao
-    );
+    ::tauri::tao::android_binding!($domain, $app_name, Rust, android_setup, $main, ::tauri::tao);
 
     // be careful when renaming this, the `Java_app_tauri_plugin_PluginManager_handlePluginResponse` symbol is checked by the CLI
     ::tauri::tao::platform::android::prelude::android_fn!(
@@ -1067,6 +1061,10 @@ pub(crate) mod sealed {
     fn manager_owned(&self) -> Arc<AppManager<R>>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
     fn managed_app_handle(&self) -> &AppHandle<R>;
+    #[cfg(target_os = "android")]
+    fn activity_name(&self) -> Option<crate::Result<String>>;
+    #[cfg(target_os = "ios")]
+    fn scene_identifier(&self) -> Option<crate::Result<String>>;
   }
 }
 

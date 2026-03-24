@@ -310,12 +310,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.
-  /// - **Windows**: The closure is executed on a separate thread to prevent a deadlock.
   ///
   /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
-  pub fn on_new_window<
-    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
-  >(
+  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {

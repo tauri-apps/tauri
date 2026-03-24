@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use objc2::MainThreadMarker;
 use objc2_app_kit::{NSBackingStoreType, NSWindow, NSWindowStyleMask};
-use objc2_foundation::MainThreadMarker;
 use tao::platform::macos::WindowExtMacOS;
 
 impl super::WindowExt for tao::window::Window {

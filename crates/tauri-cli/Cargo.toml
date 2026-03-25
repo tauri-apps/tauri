@@ -63,7 +63,7 @@ tauri-utils = { version = "2.8.3", path = "../tauri-utils", features = [
   "schema",
   "config-json5",
   "config-toml",
-  "html-manipulation",
+  "html-manipulation-2",
 ] }
 toml = "1"
 jsonschema = { version = "0.33", default-features = false }
@@ -89,8 +89,6 @@ env_logger = "0.11"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.25", default-features = false, features = ["ico"] }
 axum = { version = "0.8", features = ["ws"] }
-html5ever = "0.29"
-kuchiki = { package = "kuchikiki", version = "=0.8.8-speedreader" }
 tokio = { version = "1", features = ["macros", "sync"] }
 common-path = "1"
 serde-value = "0.7"

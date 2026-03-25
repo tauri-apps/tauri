@@ -3,6 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 //! The module to process HTML in Tauri.
+//!
+//! # Stability
+//!
+//! This is utility used in Tauri internally and not considered part of the stable API.
+//! If you use it, note that it may include breaking changes in the future.
 
 use dom_query::NodeRef;
 use serde::Serialize;
@@ -12,14 +17,25 @@ use crate::{
   config::{DisabledCspModificationKind, PatternKind},
 };
 
+/// # Stability
+///
+/// This dependency might receive updates in minor releases.
 pub use dom_query::Document;
 
 /// Serializes the document to HTML.
+///
+/// # Stability
+///
+/// This dependency [`dom_query`] for [`Document`] might receive updates in minor releases.
 pub fn serialize_doc(document: &Document) -> Vec<u8> {
   document.html().as_bytes().to_vec()
 }
 
 /// Parses the given HTML string.
+///
+/// # Stability
+///
+/// This dependency [`dom_query`] for [`Document`] might receive updates in minor releases.
 pub fn parse_doc(html: String) -> Document {
   Document::from(html)
 }
@@ -45,6 +61,10 @@ fn inject_nonce(document: &Document, selector: &str, token: &str) {
 }
 
 /// Inject nonce tokens to all scripts and styles.
+///
+/// # Stability
+///
+/// This dependency [`dom_query`] for [`Document`] might receive updates in minor releases.
 pub fn inject_nonce_token(
   document: &Document,
   dangerous_disable_asset_csp_modification: &DisabledCspModificationKind,
@@ -58,6 +78,10 @@ pub fn inject_nonce_token(
 }
 
 /// Injects a content security policy to the HTML.
+///
+/// # Stability
+///
+/// This dependency [`dom_query`] for [`Document`] might receive updates in minor releases.
 pub fn inject_csp(document: &Document, csp: &str) {
   let head = ensure_head(document);
   let meta_tag = document.tree.new_element("meta");
@@ -67,6 +91,10 @@ pub fn inject_csp(document: &Document, csp: &str) {
 }
 
 /// Injects a content security policy to the HTML.
+///
+/// # Stability
+///
+/// This dependency [`dom_query`] for [`Document`] might receive updates in minor releases.
 pub fn append_script_to_head(document: &Document, script: &str) {
   let head = ensure_head(document);
   let script_tag = document.tree.new_element("script");
@@ -112,6 +140,10 @@ pub enum IsolationSide {
 /// Injects the Isolation JavaScript to a codegen time document.
 ///
 /// Note: This function is not considered part of the stable API.
+///
+/// # Stability
+///
+/// This dependency [`dom_query`] for [`Document`] might receive updates in minor releases.
 #[cfg(feature = "isolation")]
 pub fn inject_codegen_isolation_script(document: &Document) {
   use crate::pattern::isolation::IsolationJavascriptCodegen;
@@ -135,6 +167,10 @@ pub fn inject_codegen_isolation_script(document: &Document) {
 ///
 /// Note: this does not prevent path traversal due to the isolation application expectation that it
 /// is secure.
+///
+/// # Stability
+///
+/// This dependency [`dom_query`] for [`Document`] might receive updates in minor releases.
 #[cfg(feature = "isolation")]
 pub fn inline_isolation(document: &Document, dir: &std::path::Path) {
   let scripts = document.select("script[src]");

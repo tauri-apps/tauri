@@ -603,6 +603,27 @@
               "$ref": "#/definitions/ScrollBarStyle"
             }
           ]
+        },
+        "activityName": {
+          "description": "The name of the Android activity to create for this window.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdByActivityName": {
+          "description": "The name of the Android activity that is creating this webview window.\n\n This is important to determine which stack the activity will belong to.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requestedBySceneIdentifier": {
+          "description": "Sets the identifier of the scene that is requesting the new scene,\n establishing a relationship between the two scenes.\n\n By default the system uses the foreground scene.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

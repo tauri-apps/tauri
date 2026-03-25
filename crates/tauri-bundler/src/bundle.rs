@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 mod category;
-#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod kmp;
 #[cfg(target_os = "linux")]
 mod linux;
@@ -17,26 +16,16 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
-#[cfg(any(target_os = "linux", target_os = "windows"))]
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
-#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
-  log::info!(
-    "Patching {} with bundle type information: {}",
-    display_path(binary),
-    package_type.short_name()
-  );
-
-  let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
-
-  let bundle_var_index =
-    kmp::index_of(BUNDLE_VAR_TOKEN, &file_data).ok_or(crate::Error::MissingBundleTypeVar)?;
   #[cfg(target_os = "linux")]
   let bundle_type = match package_type {
     crate::PackageType::Deb => b"__TAURI_BUNDLE_TYPE_VAR_DEB",
     crate::PackageType::Rpm => b"__TAURI_BUNDLE_TYPE_VAR_RPM",
     crate::PackageType::AppImage => b"__TAURI_BUNDLE_TYPE_VAR_APP",
+    // NSIS installers can be built in linux using cargo-xwin
+    crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
     _ => {
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
@@ -55,7 +44,31 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       ))
     }
   };
+  #[cfg(target_os = "macos")]
+  let bundle_type = match package_type {
+    // NSIS installers can be built in macOS using cargo-xwin
+    crate::PackageType::Nsis => b"__TAURI_BUNDLE_TYPE_VAR_NSS",
+    crate::PackageType::MacOsBundle | crate::PackageType::Dmg => {
+      // skip patching for macOS-native bundles
+      return Ok(());
+    }
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "macOS".to_owned(),
+      ))
+    }
+  };
 
+  log::info!(
+    "Patching {} with bundle type information: {}",
+    display_path(binary),
+    package_type.short_name()
+  );
+
+  let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
+  let bundle_var_index =
+    kmp::index_of(BUNDLE_VAR_TOKEN, &file_data).ok_or(crate::Error::MissingBundleTypeVar)?;
   file_data[bundle_var_index..bundle_var_index + BUNDLE_VAR_TOKEN.len()]
     .copy_from_slice(bundle_type);
 
@@ -133,7 +146,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
     if let Err(e) = patch_binary(&main_binary_path, package_type) {
       log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
     }
@@ -163,7 +175,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(settings, false)?,
-      // note: don't restrict to windows as NSIS installers can be built in linux using cargo-xwin
+      // don't restrict to windows as NSIS installers can be built in linux+macOS using cargo-xwin
       PackageType::Nsis => windows::nsis::bundle_project(settings, false)?,
 
       #[cfg(target_os = "linux")]

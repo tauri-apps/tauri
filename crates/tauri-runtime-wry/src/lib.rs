@@ -4000,13 +4000,9 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
-      // wait for borrow_mut to be available - on Windows we might poll for the window to be inserted
-      Ok(webview) => loop {
-        if let Ok(mut windows) = windows.0.try_borrow_mut() {
-          windows.insert(window_id, webview);
-          break;
-        }
-      },
+      Ok(webview) => {
+        windows.0.borrow_mut().insert(window_id, webview);
+      }
       Err(e) => {
         log::error!("{e}");
       }
@@ -4789,63 +4785,56 @@ You may have it installed on another user account, but it is not available for t
     #[cfg(desktop)]
     let context = context.clone();
     webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
-      url
-        .parse()
-        .map(|url| {
-          let response = new_window_handler(
-            url,
-            tauri_runtime::webview::NewWindowFeatures::new(
-              features.size,
-              features.position,
-              tauri_runtime::webview::NewWindowOpener {
-                #[cfg(desktop)]
-                webview: features.opener.webview,
-                #[cfg(windows)]
-                environment: features.opener.environment,
-                #[cfg(target_os = "macos")]
-                target_configuration: features.opener.target_configuration,
-              },
-            ),
-          );
-          match response {
-            tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+      let Ok(url) = url.parse() else {
+        return wry::NewWindowResponse::Deny;
+      };
+      let response = new_window_handler(
+        url,
+        tauri_runtime::webview::NewWindowFeatures::new(
+          features.size,
+          features.position,
+          tauri_runtime::webview::NewWindowOpener {
             #[cfg(desktop)]
-            tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
-              let windows = &context.main_thread.windows.0;
-              let webview = loop {
-                if let Some(webview) = windows.try_borrow().ok().and_then(|windows| {
-                  windows
-                    .get(&window_id)
-                    .map(|window| window.webviews.first().unwrap().clone())
-                }) {
-                  break webview;
-                } else {
-                  // on Windows the window is created async so we should wait for it to be available
-                  std::thread::sleep(std::time::Duration::from_millis(50));
-                  continue;
-                };
-              };
+            webview: features.opener.webview,
+            #[cfg(windows)]
+            environment: features.opener.environment,
+            #[cfg(target_os = "macos")]
+            target_configuration: features.opener.target_configuration,
+          },
+        ),
+      );
+      match response {
+        tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+        #[cfg(desktop)]
+        tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+          let windows = &context.main_thread.windows.0;
+          let webview = windows
+            .borrow()
+            .get(&window_id)
+            .unwrap()
+            .webviews
+            .first()
+            .unwrap()
+            .clone();
 
-              #[cfg(desktop)]
-              wry::NewWindowResponse::Create {
-                #[cfg(target_os = "macos")]
-                webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
-                #[cfg(any(
-                  target_os = "linux",
-                  target_os = "dragonfly",
-                  target_os = "freebsd",
-                  target_os = "netbsd",
-                  target_os = "openbsd",
-                ))]
-                webview: webview.webview(),
-                #[cfg(windows)]
-                webview: webview.webview(),
-              }
-            }
-            tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+          #[cfg(desktop)]
+          wry::NewWindowResponse::Create {
+            #[cfg(target_os = "macos")]
+            webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd",
+            ))]
+            webview: webview.webview(),
+            #[cfg(windows)]
+            webview: webview.webview(),
           }
-        })
-        .unwrap_or(wry::NewWindowResponse::Deny)
+        }
+        tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+      }
     });
   }
 

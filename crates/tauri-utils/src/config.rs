@@ -3354,7 +3354,7 @@ pub struct PluginConfig(pub HashMap<String, JsonValue>);
 /// This allows for a build script to output the values in a `Config` to a `TokenStream`, which can
 /// then be consumed by another crate. Useful for passing a config to both the build script and the
 /// application using tauri while only parsing it once (in the build script).
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};

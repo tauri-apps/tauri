@@ -10,11 +10,10 @@
 //! If you use it, note that it may include breaking changes in the future.
 
 use dom_query::NodeRef;
-use serde::Serialize;
 
 use crate::{
   assets::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
-  config::{DisabledCspModificationKind, PatternKind},
+  config::DisabledCspModificationKind,
 };
 
 /// # Stability
@@ -100,41 +99,6 @@ pub fn append_script_to_head(document: &Document, script: &str) {
   let script_tag = document.tree.new_element("script");
   script_tag.set_text(script);
   head.prepend_child(&script_tag);
-}
-
-/// The shape of the JavaScript Pattern config
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase", tag = "pattern")]
-pub enum PatternObject {
-  /// Brownfield pattern.
-  Brownfield,
-  /// Isolation pattern. Recommended for security purposes.
-  Isolation {
-    /// Which `IsolationSide` this `PatternObject` is getting injected into
-    side: IsolationSide,
-  },
-}
-
-impl From<&PatternKind> for PatternObject {
-  fn from(pattern_kind: &PatternKind) -> Self {
-    match pattern_kind {
-      PatternKind::Brownfield => Self::Brownfield,
-      PatternKind::Isolation { .. } => Self::Isolation {
-        side: IsolationSide::default(),
-      },
-    }
-  }
-}
-
-/// Where the JavaScript is injected to
-#[derive(Debug, Serialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum IsolationSide {
-  /// Original frame, the Brownfield application
-  #[default]
-  Original,
-  /// Secure frame, the isolation security application
-  Secure,
 }
 
 /// Injects the Isolation JavaScript to a codegen time document.

@@ -7,8 +7,6 @@ use axum::{
   http::{header, StatusCode, Uri},
   response::{IntoResponse, Response},
 };
-use html5ever::{namespace_url, ns, LocalName, QualName};
-use kuchiki::{traits::TendrilSink, NodeRef};
 use std::{
   net::{IpAddr, SocketAddr},
   path::{Path, PathBuf},
@@ -128,30 +126,14 @@ async fn ws_handler(ws: WebSocketUpgrade, state: State<ServerState>) -> Response
 }
 
 fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
-  fn with_html_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {
-    if let Ok(ref node) = document.select_first("head") {
-      f(node.as_node())
-    } else {
-      let node = NodeRef::new_element(
-        QualName::new(None, ns!(html), LocalName::from("head")),
-        None,
-      );
-      f(&node);
-      document.prepend(node)
-    }
-  }
+  let document = tauri_utils::html2::parse_doc(String::from_utf8_lossy(&html_bytes).into_owned());
 
-  let mut document = kuchiki::parse_html()
-    .one(String::from_utf8_lossy(&html_bytes).into_owned())
-    .document_node;
-  with_html_head(&mut document, |head| {
-    let script = RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli"));
-    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-    script_el.append(NodeRef::new_text(script));
-    head.prepend(script_el);
-  });
+  tauri_utils::html2::append_script_to_head(
+    &document,
+    &RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli")),
+  );
 
-  tauri_utils::html::serialize_node(&document)
+  tauri_utils::html2::serialize_doc(&document)
 }
 
 fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {

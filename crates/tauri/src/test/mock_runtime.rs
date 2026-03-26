@@ -534,6 +534,21 @@ impl WindowBuilder for MockWindowBuilder {
   fn background_color(self, _color: tauri_utils::config::Color) -> Self {
     self
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(self, _identifier: S) -> Self {
+    self
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
@@ -793,6 +808,16 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     target_os = "openbsd"
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String> {
     unimplemented!()
   }
 
@@ -1146,7 +1171,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     Ok(Self::init())
   }
 
-  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
     Ok(Self::init())
   }

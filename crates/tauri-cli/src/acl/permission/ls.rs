@@ -6,7 +6,6 @@ use clap::Parser;
 
 use crate::{
   error::{Context, ErrorExt},
-  helpers::app_paths::tauri_dir,
   Result,
 };
 use colored::Colorize;
@@ -25,9 +24,10 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let acl_manifests_path = tauri_dir()
+  let acl_manifests_path = dirs
+    .tauri
     .join("gen")
     .join("schemas")
     .join("acl-manifests.json");

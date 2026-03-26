@@ -65,7 +65,7 @@ pub fn create_icns_file(out_dir: &Path, settings: &Settings) -> crate::Result<Op
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
 
-    if icon_path.extension().is_some_and(|ext| ext == "car") {
+    if icon_path.extension().map_or(false, |ext| ext == "car") {
       continue;
     }
 
@@ -148,6 +148,29 @@ pub fn create_assets_car_file(
   let Some(icon_composer_icon_path) = icon_composer_icon_path else {
     return Ok(None);
   };
+
+  // Check actool version - must be >= 26
+  if let Some(version) = get_actool_version() {
+    // Parse the major version number (before the dot)
+    let major_version: Option<u32> = version.split('.').next().and_then(|s| s.parse().ok());
+
+    if let Some(major) = major_version {
+      if major < 26 {
+        log::error!(
+          "actool version is less than 26, skipping Assets.car file creation. Please update Xcode to 26 or above and try again."
+        );
+        return Ok(None);
+      }
+    } else {
+      // If we can't parse the version, return None to be safe
+      log::error!("failed to parse actool version, skipping Assets.car file creation");
+      return Ok(None);
+    }
+  } else {
+    log::error!("failed to get actool version, skipping Assets.car file creation");
+    // If we can't get the version, return None to be safe
+    return Ok(None);
+  }
 
   // Create a temporary directory for actool work
   let temp_dir = tempfile::tempdir()
@@ -237,4 +260,67 @@ pub fn app_icon_name_from_assets_car(assets_car_path: &Path) -> Option<String> {
     .iter()
     .find(|info| info.asset_type == "Icon Image")
     .map(|info| info.name.clone())
+}
+
+/// Returns the actool short bundle version by running `actool --version --output-format=human-readable-text`.
+/// Returns `None` if the command fails or the output cannot be parsed.
+pub fn get_actool_version() -> Option<String> {
+  let Ok(output) = Command::new("actool")
+    .arg("--version")
+    .arg("--output-format=human-readable-text")
+    .output_ok()
+    .inspect_err(|e| log::error!("Failed to get actool version: {e}"))
+  else {
+    return None;
+  };
+
+  let output = String::from_utf8(output.stdout).ok()?;
+  parse_actool_version(&output)
+}
+
+fn parse_actool_version(output: &str) -> Option<String> {
+  // The output format is:
+  // /* com.apple.actool.version */
+  // bundle-version: 24411
+  // short-bundle-version: 26.1
+  for line in output.lines() {
+    let line = line.trim();
+    if let Some(version) = line.strip_prefix("short-bundle-version:") {
+      return Some(version.trim().to_string());
+    }
+  }
+
+  None
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_parse_actool_version() {
+    let output = r#"/* com.apple.actool.version */
+some other line
+bundle-version: 24411
+short-bundle-version: 26.1
+another line
+"#;
+
+    let version = parse_actool_version(output).expect("Failed to parse version");
+    assert_eq!(version, "26.1");
+  }
+
+  #[test]
+  fn test_parse_actool_version_missing_fields() {
+    let output = r#"/* com.apple.actool.version */
+bundle-version: 24411
+"#;
+
+    assert!(parse_actool_version(output).is_none());
+  }
+
+  #[test]
+  fn test_parse_actool_version_empty() {
+    assert!(parse_actool_version("").is_none());
+  }
 }

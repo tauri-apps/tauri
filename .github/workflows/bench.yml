@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install Rust ${{ matrix.rust }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
         with:
           toolchain: ${{ matrix.rust }}
           components: rust-src
@@ -62,7 +62,7 @@ jobs:
           sudo dpkg -i hyperfine_1.18.0_amd64.deb
           pip install memory_profiler
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: run benchmarks
         run: |

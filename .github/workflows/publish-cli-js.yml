@@ -116,11 +116,11 @@ jobs:
           cache: 'pnpm'
           architecture: ${{ matrix.settings.architecture }}
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         if: ${{ !matrix.settings.docker }}
         with:
           targets: ${{ matrix.settings.target }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           key: ${{ matrix.settings.target }}
         if: ${{ matrix.settings.docker }}
@@ -132,7 +132,7 @@ jobs:
         run: pnpm i --frozen-lockfile --ignore-scripts
 
       - name: Build in docker
-        uses: addnab/docker-run-action@v3
+        uses: addnab/docker-run-action@4f65fabd2431ebc8d299f8e5a018d79a769ae185 # v3
         if: ${{ matrix.settings.docker }}
         with:
           image: ${{ matrix.settings.docker }}
@@ -342,7 +342,7 @@ jobs:
           name: bindings-armv7-unknown-linux-gnueabihf
           path: 'packages/cli/'
       # TODO: actually run test, blocked by https://github.com/rust-lang/cargo/issues/8719
-      - uses: addnab/docker-run-action@v3
+      - uses: addnab/docker-run-action@4f65fabd2431ebc8d299f8e5a018d79a769ae185 # v3
         with:
           image: ${{ matrix.image }}
           options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'

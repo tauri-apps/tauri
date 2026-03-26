@@ -131,6 +131,7 @@
           "allowDowngrades": true,
           "certificateThumbprint": null,
           "digestAlgorithm": null,
+          "minimumWebview2Version": null,
           "nsis": null,
           "signCommand": null,
           "timestampUrl": null,
@@ -2225,6 +2226,7 @@
             "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "minimumWebview2Version": null,
             "nsis": null,
             "signCommand": null,
             "timestampUrl": null,
@@ -2667,6 +2669,13 @@
           "default": true,
           "type": "boolean"
         },
+        "minimumWebview2Version": {
+          "description": "Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "wix": {
           "description": "Configuration for the MSI generated with WiX.",
           "anyOf": [
@@ -3045,7 +3054,8 @@
           ]
         },
         "minimumWebview2Version": {
-          "description": "Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
+          "description": "Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.\n\n Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
+          "deprecated": true,
           "type": [
             "string",
             "null"

@@ -23,7 +23,7 @@
 // files into the `Contents` directory of the bundle.
 
 use super::{
-  icon::create_icns_file,
+  icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file},
   sign::{notarize, notarize_auth, notarize_without_stapling, sign, SignTarget},
 };
 use crate::{
@@ -76,11 +76,19 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let bin_dir = bundle_directory.join("MacOS");
   let mut sign_paths = Vec::new();
 
-  let bundle_icon_file: Option<PathBuf> =
-    { create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")? };
+  let bundle_icon_file =
+    create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")?;
 
-  create_info_plist(&bundle_directory, bundle_icon_file, settings)
-    .with_context(|| "Failed to create Info.plist")?;
+  let assets_car_file = create_assets_car_file(&resources_dir, settings)
+    .with_context(|| "Failed to create app Assets.car")?;
+
+  create_info_plist(
+    &bundle_directory,
+    bundle_icon_file,
+    assets_car_file,
+    settings,
+  )
+  .with_context(|| "Failed to create Info.plist")?;
 
   let framework_paths = copy_frameworks_to_bundle(&bundle_directory, settings)
     .with_context(|| "Failed to bundle frameworks")?;
@@ -204,6 +212,7 @@ fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> 
 fn create_info_plist(
   bundle_dir: &Path,
   bundle_icon_file: Option<PathBuf>,
+  assets_car_file: Option<PathBuf>,
   settings: &Settings,
 ) -> crate::Result<()> {
   let mut plist = plist::Dictionary::new();
@@ -213,17 +222,6 @@ fn create_info_plist(
     "CFBundleExecutable".into(),
     settings.main_binary_name()?.into(),
   );
-  if let Some(path) = bundle_icon_file {
-    plist.insert(
-      "CFBundleIconFile".into(),
-      path
-        .file_name()
-        .expect("No file name")
-        .to_string_lossy()
-        .into_owned()
-        .into(),
-    );
-  }
   plist.insert(
     "CFBundleIdentifier".into(),
     settings.bundle_identifier().into(),
@@ -360,6 +358,27 @@ fn create_info_plist(
           .collect(),
       ),
     );
+  }
+
+  if let Some(path) = bundle_icon_file {
+    plist.insert(
+      "CFBundleIconFile".into(),
+      path
+        .file_name()
+        .expect("No file name")
+        .to_string_lossy()
+        .into_owned()
+        .into(),
+    );
+  }
+
+  if let Some(assets_car_file) = assets_car_file {
+    if let Some(icon_name) = app_icon_name_from_assets_car(&assets_car_file) {
+      // only set CFBundleIconName for the Assets.car, CFBundleIconFile is the fallback icns file
+      plist.insert("CFBundleIconName".into(), icon_name.clone().into());
+    } else {
+      log::warn!("Failed to get icon name from Assets.car file");
+    }
   }
 
   if let Some(protocols) = settings.deep_link_protocols() {

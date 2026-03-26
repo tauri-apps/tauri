@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
         with:
           toolchain: ${{ matrix.platform.toolchain }}
           targets: ${{ matrix.platform.target }}
@@ -88,7 +88,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libxdo-dev libayatana-appindicator3-dev
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           key: ${{ matrix.platform.target }}
           save-if: ${{ matrix.features.key == 'all' }}

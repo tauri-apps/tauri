@@ -30,7 +30,7 @@ jobs:
           cache: 'pnpm'
 
       - name: install stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
@@ -38,7 +38,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: build CLI
         run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
@@ -79,7 +79,9 @@ jobs:
           node-version: 24
 
       - name: cargo login
-        run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}
+        run: cargo login ${ORG_CRATES_IO_TOKEN}
+        env:
+          ORG_CRATES_IO_TOKEN: ${{ secrets.ORG_CRATES_IO_TOKEN }}
       - name: git config
         run: |
           git config --global user.name "${{ github.event.pusher.name }}"
@@ -91,7 +93,7 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
 
       - name: covector version or publish (publish when no change files present)
-        uses: jbolda/covector/packages/action@covector-v0
+        uses: jbolda/covector/packages/action@f9e6c8d92119b8c94cb7ee73eba1ecc41b8f50fb # covector-v0
         id: covector
         env:
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}

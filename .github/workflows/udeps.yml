@@ -32,7 +32,7 @@ jobs:
       cli: ${{ steps.filter.outputs.cli }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
           filters: |
@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@0f1b44df7e9cbb178d781a242338dfa5e243ad7f # nightly
 
       - name: Install udeps
         run: cargo install cargo-udeps --locked --force
@@ -128,14 +128,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@0f1b44df7e9cbb178d781a242338dfa5e243ad7f # nightly
 
       - name: install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: Download udeps
         uses: actions/download-artifact@v4.1.7

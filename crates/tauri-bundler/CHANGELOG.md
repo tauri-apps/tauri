@@ -1,5 +1,55 @@
 # Changelog
 
+## \[2.8.1]
+
+### Bug Fixes
+
+- [`6252432f0`](https://www.github.com/tauri-apps/tauri/commit/6252432f0757d896d7a61819bbff127efac5a156) ([#14945](https://www.github.com/tauri-apps/tauri/pull/14945) by [@veeceey](https://www.github.com/tauri-apps/tauri/../../veeceey)) Fix WIX installer registry search order so that the named `InstallDir` key takes priority over the NSIS default key, preventing install location from changing on updates.
+
+### What's Changed
+
+- [`7be58a1c6`](https://www.github.com/tauri-apps/tauri/commit/7be58a1c643a7ed6d0f484a7e1134022618eb2b2) ([#14894](https://www.github.com/tauri-apps/tauri/pull/14894) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Log patching bundle type information again
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+
+## \[2.8.0]
+
+### Enhancements
+
+- [`c769f211f`](https://www.github.com/tauri-apps/tauri/commit/c769f211fcaa543884c9d0f87ebd2ee106c01382) ([#14824](https://www.github.com/tauri-apps/tauri/pull/14824) by [@Kf637](https://www.github.com/tauri-apps/tauri/../../Kf637)) feat(nsis): add Norwegian language support for installer.
+
+### Bug Fixes
+
+- [`7fca58230`](https://www.github.com/tauri-apps/tauri/commit/7fca58230f97c3e6834134419514a0c7dbbe784b) ([#14830](https://www.github.com/tauri-apps/tauri/pull/14830) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Updated `nsis_tauri_utils` to 0.5.3:
+
+  - Use an alternative method `CreateProcessWithTokenW` to run programs as user, this fixed a problem that the program launched with the previous method can't query its own handle
+
+### What's Changed
+
+- [`0575dd287`](https://www.github.com/tauri-apps/tauri/commit/0575dd287e021b61d2aedf64d62ae84a2c925fb4) ([#14521](https://www.github.com/tauri-apps/tauri/pull/14521) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Change the way bundle type information is added to binary files. Instead of looking up the value of a variable we simply look for the default value.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- Upgraded to `tauri-macos-sign@2.3.3`
+
+## \[2.7.5]
+
+### Enhancements
+
+- [`4176f93ae`](https://www.github.com/tauri-apps/tauri/commit/4176f93ae43ef66714c4934feb3df19df3a3e28a) ([#14570](https://www.github.com/tauri-apps/tauri/pull/14570) by [@chfaft](https://www.github.com/tauri-apps/tauri/../../chfaft)) Consider extensions that are defined in the wxs template.
+
+### Bug Fixes
+
+- [`018b4db22`](https://www.github.com/tauri-apps/tauri/commit/018b4db22e167fa67b37b0933e192a0f3556d3e5) ([#14625](https://www.github.com/tauri-apps/tauri/pull/14625) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Skip signing for NSIS uninstaller when using `--no-sign` flag
+- [`91becd9e4`](https://www.github.com/tauri-apps/tauri/commit/91becd9e4fa2db089ddc6b21dadc06133e939e08) ([#14627](https://www.github.com/tauri-apps/tauri/pull/14627) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix NSIS plugins not being signed due to wrong path handlings
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.3.2`
+
 ## \[2.7.4]
 
 ### Bug Fixes

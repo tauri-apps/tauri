@@ -40,8 +40,8 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.2/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "D0C502F45DF55C0465C9406088FF016C2E7E6817";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -298,8 +298,12 @@ fn build_nsis_app_installer(
   data.insert("copyright", to_json(settings.copyright_string()));
 
   if settings.windows().can_sign() {
-    let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
-    data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
+    if settings.no_sign() {
+      log::warn!("Skipping signing for NSIS uninstaller due to --no-sign flag.");
+    } else {
+      let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
+      data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
+    }
   }
 
   let version = settings.version_string();
@@ -617,13 +621,16 @@ fn build_nsis_app_installer(
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   if settings.windows().can_sign() {
-    log::info!("Signing NSIS plugins");
-    for dll in NSIS_PLUGIN_FILES {
-      let path = additional_plugins_path.join(dll);
-      if path.exists() {
-        try_sign(&path, settings)?;
-      } else {
-        log::warn!("Could not find {}, skipping signing", path.display());
+    if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+      let plugin_copy_path = plugin_copy_path.join("x86-unicode");
+      log::info!("Signing NSIS plugins");
+      for dll in NSIS_PLUGIN_FILES {
+        let path = plugin_copy_path.join(dll);
+        if path.exists() {
+          try_sign(&path, settings)?;
+        } else {
+          log::warn!("Could not find {}, skipping signing", path.display());
+        }
       }
     }
   }
@@ -860,6 +867,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),
     "ukrainian" => include_bytes!("./languages/Ukrainian.nsh"),
+    "norwegian" => include_bytes!("./languages/Norwegian.nsh"),
     _ => return None,
   };
   Some((path, content))

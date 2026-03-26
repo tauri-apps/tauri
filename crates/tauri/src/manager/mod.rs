@@ -129,14 +129,7 @@ fn replace_csp_nonce(
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
-    #[cfg(target_pointer_width = "64")]
-    let mut raw = [0u8; 8];
-    #[cfg(target_pointer_width = "32")]
-    let mut raw = [0u8; 4];
-    #[cfg(target_pointer_width = "16")]
-    let mut raw = [0u8; 2];
-    getrandom::fill(&mut raw).expect("failed to get random bytes");
-    let nonce = usize::from_ne_bytes(raw);
+    let nonce = getrandom::u64().expect("failed to get random bytes");
     nonces.push(nonce);
     nonce.to_string()
   });
@@ -333,25 +326,9 @@ impl<R: Runtime> AppManager<R> {
     self.state.clone()
   }
 
-  /// Get the base path to serve data from.
-  ///
-  /// * In dev mode, this will be based on the `devUrl` configuration value.
-  /// * Otherwise, this will be based on the `frontendDist` configuration value.
-  #[cfg(not(dev))]
-  fn base_path(&self) -> Option<&Url> {
-    use crate::utils::config::FrontendDist;
-    match self.config.build.frontend_dist.as_ref() {
-      Some(FrontendDist::Url(url)) => Some(url),
-      _ => None,
-    }
-  }
-
-  #[cfg(dev)]
-  fn base_path(&self) -> Option<&Url> {
-    self.config.build.dev_url.as_ref()
-  }
-
-  pub(crate) fn protocol_url(&self, https: bool) -> Cow<'_, Url> {
+  /// The `tauri` custom protocol URL we use to serve the embedded assets.
+  /// Returns `tauri://localhost` or its `wry` workaround URL `http://tauri.localhost`/`https://tauri.localhost`
+  pub(crate) fn tauri_protocol_url(&self, https: bool) -> Cow<'_, Url> {
     if cfg!(windows) || cfg!(target_os = "android") {
       let scheme = if https { "https" } else { "http" };
       Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
@@ -360,13 +337,24 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  /// Get the base URL to use for webview requests.
+  /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
   ///
-  /// In dev mode, this will be based on the `devUrl` configuration value.
-  pub(crate) fn get_url(&self, https: bool) -> Cow<'_, Url> {
-    match self.base_path() {
-      Some(url) => Cow::Borrowed(url),
-      _ => self.protocol_url(https),
+  /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exsits.
+  /// * In production mode, this is the [`frontendDist`](tauri_utils::config::BuildConfig::frontend_dist) configuration value if it's a [`FrontendDist::Url`](tauri_utils::config::FrontendDist::Url).
+  /// * Returns [`Self::tauri_protocol_url`] (e.g. `tauri://localhost`) otherwise.
+  pub(crate) fn get_app_url(&self, https: bool) -> Cow<'_, Url> {
+    #[cfg(dev)]
+    let url = self.config.build.dev_url.as_ref();
+    #[cfg(not(dev))]
+    let url = match self.config.build.frontend_dist.as_ref() {
+      Some(crate::utils::config::FrontendDist::Url(url)) => Some(url),
+      _ => None,
+    };
+
+    if let Some(url) = url {
+      Cow::Borrowed(url)
+    } else {
+      self.tauri_protocol_url(https)
     }
   }
 
@@ -384,6 +372,7 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
+  // TODO: Change to return `crate::Result` here in v3
   pub fn get_asset(
     &self,
     mut path: String,
@@ -429,49 +418,42 @@ impl<R: Runtime> AppManager<R> {
         asset_path = fallback;
         asset
       })
-      .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
-      .map(Cow::into_owned);
+      .ok_or_else(|| {
+        let error = crate::Error::AssetNotFound(path.clone());
+        log::error!("{error}");
+        Box::new(error)
+      })?;
 
     let mut csp_header = None;
     let is_html = asset_path.as_ref().ends_with(".html");
 
-    match asset_response {
-      Ok(asset) => {
-        let final_data = if is_html {
-          let mut asset = String::from_utf8_lossy(&asset).into_owned();
-          if let Some(csp) = self.csp() {
-            #[allow(unused_mut)]
-            let mut csp_map = set_csp(&mut asset, &self.assets, &asset_path, self, csp);
-            #[cfg(feature = "isolation")]
-            if let Pattern::Isolation { schema, .. } = &*self.pattern {
-              let default_src = csp_map
-                .entry("default-src".into())
-                .or_insert_with(Default::default);
-              default_src.push(crate::pattern::format_real_schema(
-                schema,
-                _use_https_schema,
-              ));
-            }
+    let final_data = if is_html {
+      let mut asset = String::from_utf8_lossy(&asset_response).into_owned();
+      if let Some(csp) = self.csp() {
+        #[allow(unused_mut)]
+        let mut csp_map = set_csp(&mut asset, &self.assets, &asset_path, self, csp);
+        #[cfg(feature = "isolation")]
+        if let Pattern::Isolation { schema, .. } = &*self.pattern {
+          let default_src = csp_map.entry("default-src".to_owned()).or_default();
+          default_src.push(crate::pattern::format_real_schema(
+            schema,
+            _use_https_schema,
+          ));
+        }
 
-            csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
-          }
+        csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
+      }
 
-          asset.into_bytes()
-        } else {
-          asset
-        };
-        let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
-        Ok(Asset {
-          bytes: final_data,
-          mime_type,
-          csp_header,
-        })
-      }
-      Err(e) => {
-        log::error!("{:?}", e);
-        Err(Box::new(e))
-      }
-    }
+      asset.into_bytes()
+    } else {
+      asset_response.into_owned()
+    };
+    let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
+    Ok(Asset {
+      bytes: final_data,
+      mime_type,
+      csp_header,
+    })
   }
 
   pub(crate) fn listeners(&self) -> &Listeners {
@@ -790,7 +772,7 @@ mod test {
     #[cfg(custom_protocol)]
     {
       assert_eq!(
-        manager.get_url(false).to_string(),
+        manager.get_app_url(false).to_string(),
         if cfg!(windows) || cfg!(target_os = "android") {
           "http://tauri.localhost/"
         } else {
@@ -798,7 +780,7 @@ mod test {
         }
       );
       assert_eq!(
-        manager.get_url(true).to_string(),
+        manager.get_app_url(true).to_string(),
         if cfg!(windows) || cfg!(target_os = "android") {
           "https://tauri.localhost/"
         } else {
@@ -808,7 +790,10 @@ mod test {
     }
 
     #[cfg(dev)]
-    assert_eq!(manager.get_url(false).to_string(), "http://localhost:4000/");
+    assert_eq!(
+      manager.get_app_url(false).to_string(),
+      "http://localhost:4000/"
+    );
   }
 
   struct EventSetup {

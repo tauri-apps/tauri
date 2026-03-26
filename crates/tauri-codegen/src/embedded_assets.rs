@@ -181,7 +181,7 @@ impl CspHashes {
         let mut hasher = Sha256::new();
         hasher.update(
           &std::fs::read(path)
-            .map(|b| tauri_utils::html::normalize_script_for_csp(&b))
+            .map(|b| tauri_utils::html2::normalize_script_for_csp(&b))
             .map_err(|error| EmbeddedAssetsError::AssetRead {
               path: path.to_path_buf(),
               error,

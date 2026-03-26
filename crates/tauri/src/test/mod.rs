@@ -244,6 +244,7 @@ pub fn assert_ipc_response<
   );
 }
 
+#[allow(clippy::needless_doctest_main)]
 /// Executes the given IPC message and get the return value.
 ///
 /// # Examples

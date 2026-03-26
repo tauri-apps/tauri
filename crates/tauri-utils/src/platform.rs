@@ -369,7 +369,7 @@ pub fn bundle_type() -> Option<BundleType> {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};
@@ -398,6 +398,7 @@ mod tests {
   use crate::{Env, PackageInfo};
 
   #[test]
+  #[cfg(not(target_os = "android"))]
   fn resolve_resource_dir() {
     let package_info = PackageInfo {
       name: "MyApp".into(),

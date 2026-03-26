@@ -126,7 +126,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  #[cfg(target_os = "windows")]
+  // NSIS installers can be built on all platforms but it's hidden in the --help output on macOS/Linux.
   PackageType::Nsis,
   #[cfg(target_os = "macos")]
   PackageType::MacOsBundle,

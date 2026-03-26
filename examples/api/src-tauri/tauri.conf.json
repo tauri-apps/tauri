@@ -81,7 +81,8 @@
       "../../.icons/128x128.png",
       "../../.icons/128x128@2x.png",
       "../../.icons/icon.icns",
-      "../../.icons/icon.ico"
+      "../../.icons/icon.ico",
+      "../../.icons/AppIcon.icon"
     ],
     "windows": {
       "wix": {

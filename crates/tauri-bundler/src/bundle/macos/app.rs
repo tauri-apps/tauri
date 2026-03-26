@@ -374,8 +374,8 @@ fn create_info_plist(
 
   if let Some(assets_car_file) = assets_car_file {
     if let Some(icon_name) = app_icon_name_from_assets_car(&assets_car_file) {
+      // only set CFBundleIconName for the Assets.car, CFBundleIconFile is the fallback icns file
       plist.insert("CFBundleIconName".into(), icon_name.clone().into());
-      plist.insert("CFBundleIconFile".into(), icon_name.into());
     } else {
       log::warn!("Failed to get icon name from Assets.car file");
     }

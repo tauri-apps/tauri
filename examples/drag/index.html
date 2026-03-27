@@ -269,7 +269,82 @@
 
       <div class="qa-test-case">
         <div class="qa-test-label">
-          12. Bare Drag Region with ARIA Role Child (Role Child Should Block
+          12. Clickable Element with Bare Drag Region (Button Should Drag on
+          Direct Click)
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+          <button
+            class="qa-testable border-blue test-btn"
+            data-tauri-drag-region
+          >
+            Button with data-tauri-drag-region (Should Drag)
+          </button>
+          <a
+            href="#"
+            onclick="return false"
+            class="qa-testable border-blue"
+            data-tauri-drag-region
+            style="text-decoration: none; color: inherit; padding: 8px 12px"
+          >
+            Link with data-tauri-drag-region (Should Drag)
+          </a>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          13. Clickable Element with Deep Drag Region (Should Drag from
+          Children)
+        </div>
+        <button
+          class="qa-testable border-green test-btn"
+          data-tauri-drag-region="deep"
+          style="width: 100%"
+        >
+          <span>Button with data-tauri-drag-region="deep"</span>
+          <div class="nested-content" style="margin-top: 10px">
+            Child content - should also drag from here
+          </div>
+        </button>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          14. Clickable Element with False Drag Region (Should NOT Drag)
+        </div>
+        <button
+          class="qa-testable border-red test-btn"
+          data-tauri-drag-region="false"
+        >
+          Button with data-tauri-drag-region="false" (Should NOT Drag)
+        </button>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          15. ARIA Role Element with Drag Region (Should Drag)
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+          <div
+            class="qa-testable border-blue role-box"
+            role="button"
+            data-tauri-drag-region
+          >
+            role="button" with data-tauri-drag-region (Should Drag)
+          </div>
+          <div
+            class="qa-testable border-green role-box"
+            role="tab"
+            data-tauri-drag-region="deep"
+          >
+            <span>role="tab" with deep (Should Drag from children)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          16. Bare Drag Region with ARIA Role Child (Role Child Should Block
           Drag)
         </div>
         <div class="qa-testable border-blue" data-tauri-drag-region>

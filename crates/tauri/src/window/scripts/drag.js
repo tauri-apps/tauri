@@ -42,21 +42,28 @@
   // Walk the composed path from target upward.
   //
   // Supported values for data-tauri-drag-region:
-  //   (bare / no value) -> self: only direct clicks on this element trigger drag
-  //   "deep"            -> deep: clicks anywhere in the subtree trigger drag
-  //   "false"           -> disabled: drag is blocked here (and for ancestors)
+  //   (bare / no value / "true") -> self: only direct clicks on this element trigger drag
+  //   "deep"                   -> deep: clicks anywhere in the subtree trigger drag
+  //   "false"                  -> disabled: drag is blocked here (and for ancestors)
+  //
+  // Clickable elements (buttons, links, etc.) normally block dragging,
+  // but if they themselves carry data-tauri-drag-region they act as drag regions.
   function isDragRegion(composedPath) {
     for (const el of composedPath) {
       if (!(el instanceof HTMLElement)) continue
 
-      if (isClickableElement(el)) return false
-
       const attr = el.getAttribute(TAURI_DRAG_REGION_ATTR)
 
+      // clickable without explicit drag region → blocks drag
+      if (isClickableElement(el) && attr === null) return false
+      // no attr → keep walking up
       if (attr === null) continue
+      // explicitly disabled
       if (attr === 'false') return false
+      // subtree drag — any descendant triggers
       if (attr === 'deep') return true
-      return el === composedPath[0] && attr === ''
+      // bare or "true" attr — only direct clicks on this element
+      if (attr === '' || attr === 'true') return el === composedPath[0]
     }
 
     return false

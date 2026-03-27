@@ -395,6 +395,7 @@ tauri::Builder::<tauri::Wry>::new()
           window.clone(),
           webview.webview,
           webview.use_https_scheme,
+          webview.devtools,
         );
       }
 

@@ -876,6 +876,7 @@ tauri::Builder::<tauri::Wry>::new()
     pending.webview_attributes.bounds = Some(tauri_runtime::dpi::Rect { size, position });
 
     let use_https_scheme = pending.webview_attributes.use_https_scheme;
+    let devtools = pending.webview_attributes.devtools;
 
     let webview = match &mut window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
@@ -884,7 +885,7 @@ tauri::Builder::<tauri::Wry>::new()
     .map(|webview| {
       app_manager
         .webview
-        .attach_webview(window.clone(), webview, use_https_scheme)
+        .attach_webview(window.clone(), webview, use_https_scheme, devtools)
     })?;
 
     Ok(webview)
@@ -1373,6 +1374,8 @@ pub struct Webview<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
   use_https_scheme: bool,
+  /// DevTools preference from webview creation (`Some(false)` means inspector disabled).
+  pub(crate) devtools: Option<bool>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
@@ -1381,6 +1384,7 @@ impl<R: Runtime> std::fmt::Debug for Webview<R> {
       .field("window", &self.window.lock().unwrap())
       .field("webview", &self.webview)
       .field("use_https_scheme", &self.use_https_scheme)
+      .field("devtools", &self.devtools)
       .finish()
   }
 }
@@ -1394,6 +1398,7 @@ impl<R: Runtime> Clone for Webview<R> {
       app_handle: self.app_handle.clone(),
       resources_table: self.resources_table.clone(),
       use_https_scheme: self.use_https_scheme,
+      devtools: self.devtools,
     }
   }
 }
@@ -1420,6 +1425,7 @@ impl<R: Runtime> Webview<R> {
     window: Window<R>,
     webview: DetachedWebview<EventLoopMessage, R>,
     use_https_scheme: bool,
+    devtools: Option<bool>,
   ) -> Self {
     Self {
       manager: window.manager.clone(),
@@ -1428,6 +1434,7 @@ impl<R: Runtime> Webview<R> {
       webview,
       resources_table: Default::default(),
       use_https_scheme,
+      devtools,
     }
   }
 

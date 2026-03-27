@@ -559,6 +559,8 @@ pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
 pub struct DetachedWindowWebview<T: UserEvent, R: Runtime<T>> {
   pub webview: DetachedWebview<T, R>,
   pub use_https_scheme: bool,
+  /// Whether devtools was enabled in [`crate::webview::WebviewAttributes`]. `Some(false)` disables the inspector.
+  pub devtools: Option<bool>,
 }
 
 impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindowWebview<T, R> {
@@ -566,6 +568,7 @@ impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindowWebview<T, R> {
     Self {
       webview: self.webview.clone(),
       use_https_scheme: self.use_https_scheme,
+      devtools: self.devtools,
     }
   }
 }

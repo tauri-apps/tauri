@@ -183,6 +183,9 @@ mod desktop_commands {
     label: Option<String>,
   ) -> crate::Result<()> {
     let webview = get_webview(webview, label)?;
+    if webview.devtools == Some(false) {
+      return Ok(());
+    }
     if webview.is_devtools_open() {
       webview.close_devtools();
     } else {

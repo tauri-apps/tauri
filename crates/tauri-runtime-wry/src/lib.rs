@@ -368,16 +368,17 @@ impl<T: UserEvent> Context<T> {
     let label = pending.label.clone();
     let context = self.clone();
     let window_id = self.next_window_id();
-    let (webview_id, use_https_scheme) = pending
+    let (webview_id, use_https_scheme, devtools) = pending
       .webview
       .as_ref()
       .map(|w| {
         (
           Some(context.next_webview_id()),
           w.webview_attributes.use_https_scheme,
+          w.webview_attributes.devtools,
         )
       })
-      .unwrap_or((None, false));
+      .unwrap_or((None, false, None));
 
     send_user_message(
       self,
@@ -413,6 +414,7 @@ impl<T: UserEvent> Context<T> {
       DetachedWindowWebview {
         webview,
         use_https_scheme,
+        devtools,
       }
     });
 
@@ -2959,16 +2961,17 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = self.context.next_window_id();
-    let (webview_id, use_https_scheme) = pending
+    let (webview_id, use_https_scheme, devtools) = pending
       .webview
       .as_ref()
       .map(|w| {
         (
           Some(self.context.next_webview_id()),
           w.webview_attributes.use_https_scheme,
+          w.webview_attributes.devtools,
         )
       })
-      .unwrap_or((None, false));
+      .unwrap_or((None, false, None));
 
     let window = create_window(
       window_id,
@@ -3004,6 +3007,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       DetachedWindowWebview {
         webview,
         use_https_scheme,
+        devtools,
       }
     });
 

@@ -608,8 +608,9 @@ impl<R: Runtime> WebviewManager<R> {
     window: Window<R>,
     webview: DetachedWebview<EventLoopMessage, R>,
     use_https_scheme: bool,
+    devtools: Option<bool>,
   ) -> Webview<R> {
-    let webview = Webview::new(window, webview, use_https_scheme);
+    let webview = Webview::new(window, webview, use_https_scheme, devtools);
 
     let webview_event_listeners = self.event_listeners.clone();
     let webview_ = webview.clone();

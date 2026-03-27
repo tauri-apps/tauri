@@ -166,17 +166,21 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
       },
     );
 
-    let webview = webview_id.map(|id| DetachedWindowWebview {
-      webview: DetachedWebview {
-        label: pending.label.clone(),
-        dispatcher: MockWebviewDispatcher {
-          id,
-          context: self.context.clone(),
-          url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
-          last_evaluated_script: Default::default(),
+    let webview = webview_id.map(|id| {
+      let w = pending.webview.as_ref().unwrap();
+      DetachedWindowWebview {
+        webview: DetachedWebview {
+          label: pending.label.clone(),
+          dispatcher: MockWebviewDispatcher {
+            id,
+            context: self.context.clone(),
+            url: Arc::new(Mutex::new(w.url.clone())),
+            last_evaluated_script: Default::default(),
+          },
         },
-      },
-      use_https_scheme: false,
+        use_https_scheme: false,
+        devtools: w.webview_attributes.devtools,
+      }
     });
 
     Ok(DetachedWindow {
@@ -870,17 +874,21 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
       },
     );
 
-    let webview = webview_id.map(|id| DetachedWindowWebview {
-      webview: DetachedWebview {
-        label: pending.label.clone(),
-        dispatcher: MockWebviewDispatcher {
-          id,
-          context: self.context.clone(),
-          url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
-          last_evaluated_script: Default::default(),
+    let webview = webview_id.map(|id| {
+      let w = pending.webview.as_ref().unwrap();
+      DetachedWindowWebview {
+        webview: DetachedWebview {
+          label: pending.label.clone(),
+          dispatcher: MockWebviewDispatcher {
+            id,
+            context: self.context.clone(),
+            url: Arc::new(Mutex::new(w.url.clone())),
+            last_evaluated_script: Default::default(),
+          },
         },
-      },
-      use_https_scheme: false,
+        use_https_scheme: false,
+        devtools: w.webview_attributes.devtools,
+      }
     });
 
     Ok(DetachedWindow {
@@ -1208,17 +1216,21 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
       },
     );
 
-    let webview = webview_id.map(|id| DetachedWindowWebview {
-      webview: DetachedWebview {
-        label: pending.label.clone(),
-        dispatcher: MockWebviewDispatcher {
-          id,
-          context: self.context.clone(),
-          url: Arc::new(Mutex::new(pending.webview.unwrap().url)),
-          last_evaluated_script: Default::default(),
+    let webview = webview_id.map(|id| {
+      let w = pending.webview.as_ref().unwrap();
+      DetachedWindowWebview {
+        webview: DetachedWebview {
+          label: pending.label.clone(),
+          dispatcher: MockWebviewDispatcher {
+            id,
+            context: self.context.clone(),
+            url: Arc::new(Mutex::new(w.url.clone())),
+            last_evaluated_script: Default::default(),
+          },
         },
-      },
-      use_https_scheme: false,
+        use_https_scheme: false,
+        devtools: w.webview_attributes.devtools,
+      }
     });
 
     Ok(DetachedWindow {

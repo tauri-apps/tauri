@@ -383,16 +383,17 @@ impl<T: UserEvent> RuntimeContext<T> {
     let label = pending.label.clone();
     let context = self.clone();
     let window_id = self.cef_context.next_window_id();
-    let (webview_id, use_https_scheme) = pending
+    let (webview_id, use_https_scheme, devtools) = pending
       .webview
       .as_ref()
       .map(|w| {
         (
           Some(context.cef_context.next_webview_id()),
           w.webview_attributes.use_https_scheme,
+          w.webview_attributes.devtools,
         )
       })
-      .unwrap_or((None, false));
+      .unwrap_or((None, false, None));
 
     self.post_message(Message::CreateWindow {
       window_id,
@@ -418,6 +419,7 @@ impl<T: UserEvent> RuntimeContext<T> {
       DetachedWindowWebview {
         webview,
         use_https_scheme,
+        devtools,
       }
     });
 
@@ -2195,16 +2197,17 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = self.context.cef_context.next_window_id();
-    let (webview_id, use_https_scheme) = pending
+    let (webview_id, use_https_scheme, devtools) = pending
       .webview
       .as_ref()
       .map(|w| {
         (
           Some(self.context.cef_context.next_webview_id()),
           w.webview_attributes.use_https_scheme,
+          w.webview_attributes.devtools,
         )
       })
-      .unwrap_or((None, false));
+      .unwrap_or((None, false, None));
 
     cef_impl::create_window(
       &self.context.cef_context,
@@ -2230,6 +2233,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       DetachedWindowWebview {
         webview,
         use_https_scheme,
+        devtools,
       }
     });
 

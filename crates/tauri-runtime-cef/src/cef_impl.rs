@@ -1273,6 +1273,12 @@ wrap_window_delegate! {
         view.set_background_color(color);
       }
 
+      // Apply traffic light position after system theme changed
+      #[cfg(target_os = "macos")]
+      if let (Some(window), Some(position)) = (view.window(), attrs.traffic_light_position) {
+        apply_traffic_light_position(window.window_handle(), &position);
+      }
+
       if std::mem::take(&mut *self.suppress_next_theme_changed.borrow_mut()) {
         return;
       }
@@ -3095,11 +3101,6 @@ fn handle_window_message<T: UserEvent>(
         {
           let window = app_window.window();
           apply_macos_window_theme(window.as_ref(), theme);
-
-          let traffic_light_position = app_window.attributes.borrow().traffic_light_position;
-          if let (Some(window), Some(position)) = (window, traffic_light_position) {
-            apply_traffic_light_position(window.window_handle(), &position);
-          }
         }
         // theme changed event is sent by the on_theme_changed handler
       }

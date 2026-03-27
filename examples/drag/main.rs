@@ -4,13 +4,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 fn main() {
-  #[cfg(not(feature = "cef"))]
-  let builder = tauri::Builder::<tauri::Wry>::new();
-  #[cfg(feature = "cef")]
-  let builder = tauri::Builder::<tauri::Cef>::new();
-  builder
+  tauri::Builder::default()
     .run(generate_context())
     .expect("error while running tauri application");
 }

@@ -9,27 +9,37 @@
   // moves after the double click, it should be cancelled (see https://github.com/tauri-apps/tauri/issues/8306)
   //-----------------------//
   const TAURI_DRAG_REGION_ATTR = 'data-tauri-drag-region'
+  const CLICKABLE_TAGS = new Set([
+    'A',
+    'BUTTON',
+    'INPUT',
+    'SELECT',
+    'TEXTAREA',
+    'LABEL',
+    'SUMMARY'
+  ])
+  const INTERACTIVE_ROLES = new Set([
+    'button',
+    'link',
+    'menuitem',
+    'tab',
+    'checkbox',
+    'radio',
+    'switch',
+    'option'
+  ])
 
   function isClickableElement(el) {
-    const tag = el.tagName && el.tagName.toLowerCase()
-
     return (
-      tag === 'a'
-      || tag === 'button'
-      || tag === 'input'
-      || tag === 'select'
-      || tag === 'textarea'
-      || tag === 'label'
-      || tag === 'summary'
+      CLICKABLE_TAGS.has(el.tagName)
       || (el.hasAttribute('contenteditable')
         && el.getAttribute('contenteditable') !== 'false')
       || (el.hasAttribute('tabindex') && el.getAttribute('tabindex') !== '-1')
+      || INTERACTIVE_ROLES.has(el.getAttribute('role'))
     )
   }
 
-  // Walk the composed path from target upward. If a clickable element or a
-  // data-tauri-drag-region="false" element is encountered, return false (don't drag).
-  // Otherwise return true.
+  // Walk the composed path from target upward.
   //
   // Supported values for data-tauri-drag-region:
   //   (bare / no value) -> self: only direct clicks on this element trigger drag
@@ -39,23 +49,14 @@
     for (const el of composedPath) {
       if (!(el instanceof HTMLElement)) continue
 
-      // if we hit a clickable element or a disabled drag region, don't drag
-      if (
-        isClickableElement(el)
-        || el.getAttribute(TAURI_DRAG_REGION_ATTR) === 'false'
-      ) {
-        return false
-      }
+      if (isClickableElement(el)) return false
 
       const attr = el.getAttribute(TAURI_DRAG_REGION_ATTR)
-      if (attr !== null) {
-        // deep: the whole subtree is a drag region
-        if (attr === 'deep') return true
-        // bare (or any unrecognized value): self-only
-        if (el === composedPath[0]) return true
-        // click was on a child of a self-only region - stop walking, don't drag
-        return false
-      }
+
+      if (attr === null) continue
+      if (attr === 'false') return false
+      if (attr === 'deep') return true
+      return el === composedPath[0] && attr === ''
     }
 
     return false

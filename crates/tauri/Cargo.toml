@@ -241,6 +241,10 @@ name = "helloworld"
 path = "../../examples/helloworld/main.rs"
 
 [[example]]
+name = "drag"
+path = "../../examples/drag/main.rs"
+
+[[example]]
 name = "multiwebview"
 path = "../../examples/multiwebview/main.rs"
 required-features = ["unstable"]

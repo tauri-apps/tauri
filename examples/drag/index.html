@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: monospace;
+        padding: 20px;
+        background: #fff;
+      }
+      h1 {
+        color: #333;
+      }
+      h2 {
+        margin-top: 20px;
+        border-bottom: 2px solid #333;
+      }
+      .section {
+        margin-bottom: 30px;
+      }
+      .path-item {
+        background: #f5f5f5;
+        padding: 8px;
+        margin: 5px 0;
+        border-left: 3px solid #333;
+      }
+      pre {
+        background: #f9f9f9;
+        padding: 10px;
+        overflow-x: auto;
+      }
+      .qa-testable {
+        margin: 20px 0;
+        padding: 20px;
+        border-width: 2px;
+        border-style: dashed;
+        border-color: #999;
+        background: #fafafa;
+        -webkit-user-select: none;
+        user-select: none;
+        min-height: 60px;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-align-items: center;
+        align-items: center;
+        -webkit-justify-content: center;
+        justify-content: center;
+        cursor: -webkit-grab;
+        cursor: grab;
+        -webkit-flex-direction: column;
+        flex-direction: column;
+        transition: background 0.2s;
+      }
+      .qa-testable.border-blue {
+        border-color: #0066cc;
+      }
+      .qa-testable.border-green {
+        border-color: #00aa00;
+      }
+      .qa-testable.border-red {
+        border-color: #cc0000;
+      }
+      .qa-testable:active {
+        cursor: -webkit-grabbing;
+        cursor: grabbing;
+      }
+      .qa-testable.dragged {
+        background: #e8f4f8;
+        border-color: #0066cc;
+      }
+      .qa-test-case {
+        margin-bottom: 25px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #fafafa;
+      }
+      .qa-test-label {
+        font-weight: bold;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #ddd;
+      }
+      .nested-content {
+        padding: 10px;
+        margin: 5px 0;
+        background: #f0f0f0;
+      }
+      .role-box {
+        margin: 6px 0;
+        padding: 8px 10px;
+        border: 1px solid #888;
+        background: #fff;
+      }
+      button.test-btn {
+        padding: 8px 12px;
+        margin: 4px;
+        cursor: pointer;
+        border: 1px solid #666;
+        background: #e8e8e8;
+        border-radius: 3px;
+      }
+      button.test-btn:hover {
+        background: #d0d0d0;
+      }
+      input.test-input {
+        padding: 6px;
+        margin: 4px;
+        border: 1px solid #999;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Drag.js Paths & Configuration - QA Test Suite</h1>
+
+    <div class="section">
+      <h2>Configuration Reference</h2>
+      <div class="path-item">
+        Attribute: <strong>data-tauri-drag-region</strong>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Drag Region Values</h2>
+      <div class="path-item">bare / no value → self (direct clicks only)</div>
+      <div class="path-item">"deep" → deep (subtree clicks)</div>
+      <div class="path-item">"false" → disabled (drag blocked)</div>
+    </div>
+
+    <div class="section">
+      <h2>QA Test Cases - Try Dragging Each Section</h2>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          1. No Attribute (Default - Should NOT Drag)
+        </div>
+        <div class="qa-testable">
+          <span>No data-tauri-drag-region attribute</span>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          2. Bare Attribute (Self Only - Should Drag Direct Click)
+        </div>
+        <div class="qa-testable border-blue" data-tauri-drag-region>
+          <span>data-tauri-drag-region (bare)</span>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          3. Deep Attribute (Should Drag from Subtree)
+        </div>
+        <div class="qa-testable border-green" data-tauri-drag-region="deep">
+          <span>data-tauri-drag-region="deep"</span>
+          <div class="nested-content" style="margin-top: 10px">
+            Nested content - should also drag from here
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">4. False Attribute (Drag Disabled)</div>
+        <div class="qa-testable border-red" data-tauri-drag-region="false">
+          <span>data-tauri-drag-region="false" (drag disabled)</span>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          5. Drag Region with Clickable Element (Button Blocks Drag)
+        </div>
+        <div class="qa-testable border-blue" data-tauri-drag-region>
+          <span>data-tauri-drag-region with button inside</span>
+          <button class="test-btn" style="margin-top: 10px">
+            Click Me (Blocks Drag)
+          </button>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          6. Drag Region with Input (Input Blocks Drag)
+        </div>
+        <div class="qa-testable border-blue" data-tauri-drag-region>
+          <span>data-tauri-drag-region with input inside</span>
+          <input
+            class="test-input"
+            type="text"
+            placeholder="Type here (Blocks Drag)"
+            style="margin-top: 10px"
+          />
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          7. Deep Drag Region with Clickable Elements
+        </div>
+        <div class="qa-testable border-green" data-tauri-drag-region="deep">
+          <span>data-tauri-drag-region="deep" with clickables</span>
+          <div class="nested-content" style="margin-top: 10px">
+            <button class="test-btn">Button (Blocks)</button>
+            <a href="#" onclick="return false">Link (Blocks)</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          8. Deep Drag Region with Non-Clickable Text
+        </div>
+        <div class="qa-testable border-green" data-tauri-drag-region="deep">
+          <span>data-tauri-drag-region="deep" with text</span>
+          <div class="nested-content" style="margin-top: 10px">
+            Just plain text - should drag from here
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">9. Nested: False Blocks Parent Drag</div>
+        <div class="qa-testable border-green" data-tauri-drag-region="deep">
+          <span>data-tauri-drag-region="deep" parent</span>
+          <div
+            class="nested-content"
+            data-tauri-drag-region="false"
+            style="margin-top: 10px"
+          >
+            data-tauri-drag-region="false" child (blocks parent drag)
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          10. Double Click to Maximize (Test Platform Behavior)
+        </div>
+        <div class="qa-testable border-blue" data-tauri-drag-region>
+          <span>Double-click to test maximize (platform-dependent)</span>
+        </div>
+        <div style="margin-top: 8px; font-size: 0.9em; color: #666">
+          macOS: Maximize on mouseup if cursor unmoved | Windows/Linux: Maximize
+          on double-click
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          11. Deep Drag Region with ARIA Roles (Role Elements Should Block Drag)
+        </div>
+        <div class="qa-testable border-green" data-tauri-drag-region="deep">
+          <span>data-tauri-drag-region="deep" with role-based elements</span>
+          <div class="nested-content" style="margin-top: 10px; width: 100%">
+            <div class="role-box" role="button">role="button" (Blocks)</div>
+            <div class="role-box" role="link">role="link" (Blocks)</div>
+            <div class="role-box" role="checkbox">role="checkbox" (Blocks)</div>
+            <div>Plain text between role boxes (Drags)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          12. Clickable Element with Bare Drag Region (Button Should Drag on
+          Direct Click)
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+          <button
+            class="qa-testable border-blue test-btn"
+            data-tauri-drag-region
+          >
+            Button with data-tauri-drag-region (Should Drag)
+          </button>
+          <a
+            href="#"
+            onclick="return false"
+            class="qa-testable border-blue"
+            data-tauri-drag-region
+            style="text-decoration: none; color: inherit; padding: 8px 12px"
+          >
+            Link with data-tauri-drag-region (Should Drag)
+          </a>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          13. Clickable Element with Deep Drag Region (Should Drag from
+          Children)
+        </div>
+        <button
+          class="qa-testable border-green test-btn"
+          data-tauri-drag-region="deep"
+          style="width: 100%"
+        >
+          <span>Button with data-tauri-drag-region="deep"</span>
+          <div class="nested-content" style="margin-top: 10px">
+            Child content - should also drag from here
+          </div>
+        </button>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          14. Clickable Element with False Drag Region (Should NOT Drag)
+        </div>
+        <button
+          class="qa-testable border-red test-btn"
+          data-tauri-drag-region="false"
+        >
+          Button with data-tauri-drag-region="false" (Should NOT Drag)
+        </button>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          15. ARIA Role Element with Drag Region (Should Drag)
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+          <div
+            class="qa-testable border-blue role-box"
+            role="button"
+            data-tauri-drag-region
+          >
+            role="button" with data-tauri-drag-region (Should Drag)
+          </div>
+          <div
+            class="qa-testable border-green role-box"
+            role="tab"
+            data-tauri-drag-region="deep"
+          >
+            <span>role="tab" with deep (Should Drag from children)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="qa-test-case">
+        <div class="qa-test-label">
+          16. Bare Drag Region with ARIA Role Child (Role Child Should Block
+          Drag)
+        </div>
+        <div class="qa-testable border-blue" data-tauri-drag-region>
+          <span>data-tauri-drag-region (bare) parent</span>
+          <div class="nested-content" style="margin-top: 10px; width: 100%">
+            <div class="role-box" role="tab">role="tab" (Blocks)</div>
+            <div class="role-box" role="switch">role="switch" (Blocks)</div>
+            <div class="role-box" role="option">role="option" (Blocks)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Clickable Tags (Prevent Drag)</h2>
+      <pre id="clickableTags"></pre>
+    </div>
+
+    <div class="section">
+      <h2>Interactive Roles (Prevent Drag)</h2>
+      <pre id="interactiveRoles"></pre>
+    </div>
+
+    <div class="section">
+      <h2>Window Commands</h2>
+      <div class="path-item">
+        Command: <strong>plugin:window|start_dragging</strong>
+      </div>
+      <div class="path-item">
+        Command: <strong>plugin:window|internal_toggle_maximize</strong>
+      </div>
+    </div>
+
+    <script>
+      // Clickable Tags from drag.js
+      const CLICKABLE_TAGS = [
+        'a',
+        'button',
+        'input',
+        'select',
+        'textarea',
+        'label',
+        'summary'
+      ]
+
+      // Interactive Roles from drag.js
+      const INTERACTIVE_ROLES = [
+        'button',
+        'link',
+        'menuitem',
+        'tab',
+        'checkbox',
+        'radio',
+        'switch',
+        'option'
+      ]
+
+      const clickableTagsEl = document.querySelector('#clickableTags')
+      const interactiveRolesEl = document.querySelector('#interactiveRoles')
+      const pathEl = document.querySelector('#path')
+      const contentEl = document.querySelector('#content')
+
+      clickableTagsEl.textContent = JSON.stringify(CLICKABLE_TAGS, null, 2)
+      interactiveRolesEl.textContent = JSON.stringify(
+        INTERACTIVE_ROLES,
+        null,
+        2
+      )
+    </script>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 LangString addOrReinstall ${LANG_ITALIAN} "Aggiungi/reinstalla componenti"
-LangString alreadyInstalled ${LANG_ITALIAN} "Già installato"
+LangString alreadyInstalled ${LANG_ITALIAN} "Programma già installato"
 LangString alreadyInstalledLong ${LANG_ITALIAN} "${PRODUCTNAME} ${VERSION} è già installato.$\nPer continuare scegli l'operazione da eseguire e seleziona 'Avanti'."
 LangString appRunning ${LANG_ITALIAN} "{{product_name}} è in esecuzione!$\nChiudi {product_name}} e riprova."
 LangString appRunningOkKill ${LANG_ITALIAN} "{{product_name}} è in esecuzione!$\nPer chiudere {product_name} seleziona 'OK'"

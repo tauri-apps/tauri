@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install Rust stable and rustfmt
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           components: rustfmt
 
@@ -41,10 +41,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
       - name: install taplo-cli
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2
         with:
           tool: taplo-cli
 

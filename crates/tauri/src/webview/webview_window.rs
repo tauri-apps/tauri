@@ -2324,12 +2324,10 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.eval(js)
   }
 
-  /// Evaluate JavaScript with callback function on this window.
+  /// Evaluate JavaScript with callback function on this webview.
   /// The evaluation result will be serialized into a JSON string and passed to the callback function.
   ///
-  /// Exception is ignored because of the limitation on windows. You can catch it yourself and return as string as a workaround.
-  ///
-  /// - **Android:** Not implemented yet.
+  /// Exception is ignored because of the limitation on Windows. You can catch it yourself and return as string as a workaround.
   pub fn eval_with_callback(
     &self,
     js: impl Into<String>,

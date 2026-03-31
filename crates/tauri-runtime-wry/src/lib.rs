@@ -4386,6 +4386,50 @@ fn handle_event_loop<T: UserEvent>(
     Event::SceneRequested { scene, options } => {
       callback(RunEvent::SceneRequested { scene, options });
     }
+    #[cfg(mobile)]
+    Event::Resumed => {
+      let event = WindowEvent::Resumed;
+      let windows_ref = windows.0.borrow();
+      if let Some(window) = windows_ref.values().next() {
+        let label = window.label.clone();
+        let window_event_listeners = window.window_event_listeners.clone();
+
+        drop(windows_ref);
+
+        callback(RunEvent::WindowEvent {
+          label,
+          event: event.clone(),
+        });
+
+        let listeners = window_event_listeners.lock().unwrap();
+        let handlers = listeners.values();
+        for handler in handlers {
+          handler(&event);
+        }
+      }
+    }
+    #[cfg(mobile)]
+    Event::Suspended => {
+      let event = WindowEvent::Suspended;
+      let windows_ref = windows.0.borrow();
+      if let Some(window) = windows_ref.values().next() {
+        let label = window.label.clone();
+        let window_event_listeners = window.window_event_listeners.clone();
+
+        drop(windows_ref);
+
+        callback(RunEvent::WindowEvent {
+          label,
+          event: event.clone(),
+        });
+
+        let listeners = window_event_listeners.lock().unwrap();
+        let handlers = listeners.values();
+        for handler in handlers {
+          handler(&event);
+        }
+      }
+    }
     _ => (),
   }
 }

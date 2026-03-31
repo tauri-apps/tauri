@@ -146,6 +146,10 @@ pub enum WindowEvent {
   ///
   /// - **Linux**: Not supported.
   ThemeChanged(Theme),
+  #[cfg(mobile)]
+  Suspended,
+  #[cfg(mobile)]
+  Resumed,
 }
 
 impl From<RuntimeWindowEvent> for WindowEvent {
@@ -167,6 +171,10 @@ impl From<RuntimeWindowEvent> for WindowEvent {
       },
       RuntimeWindowEvent::DragDrop(event) => Self::DragDrop(event),
       RuntimeWindowEvent::ThemeChanged(theme) => Self::ThemeChanged(theme),
+      #[cfg(mobile)]
+      RuntimeWindowEvent::Suspended => Self::Suspended,
+      #[cfg(mobile)]
+      RuntimeWindowEvent::Resumed => Self::Resumed,
     }
   }
 }

@@ -13,7 +13,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-sha2 = "0.10"
+sha2 = "0.11"
 base64 = "0.22"
 proc-macro2 = "1"
 quote = "1"

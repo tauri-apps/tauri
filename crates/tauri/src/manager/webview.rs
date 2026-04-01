@@ -19,6 +19,8 @@ use tauri_runtime::{
 use tauri_utils::config::WebviewUrl;
 use url::Url;
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::webview::OnWebContentProcessTerminateHandler;
 use crate::{
   app::{GlobalWebviewEventListener, OnPageLoad, UriSchemeResponder, WebviewEvent},
   ipc::InvokeHandler,
@@ -70,6 +72,8 @@ pub struct WebviewManager<R: Runtime> {
   pub invoke_handler: Box<InvokeHandler<R>>,
   /// The page load hook, invoked when the webview performs a navigation.
   pub on_page_load: Option<Arc<OnPageLoad<R>>>,
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  pub on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminateHandler<R>>>,
   /// The webview protocols available to all webviews.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
   /// Webview event listeners to all webviews.

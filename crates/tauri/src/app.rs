@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::webview::OnWebContentProcessTerminateHandler;
 use crate::{
   image::Image,
   ipc::{
@@ -1479,6 +1481,8 @@ pub struct Builder<R: Runtime> {
 
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminateHandler<R>>>,
 
   /// All passed plugins
   plugins: PluginStore<R>,
@@ -1566,6 +1570,8 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
@@ -1743,6 +1749,23 @@ tauri::Builder::default()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Defines a closure to be executed when the web content process terminates on any webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[must_use]
+  pub fn on_web_content_process_terminate<F>(mut self, handler: F) -> Self
+  where
+    F: Fn(Webview<R>) + Send + Sync + 'static,
+  {
+    self
+      .on_web_content_process_terminate
+      .replace(Arc::new(handler));
     self
   }
 
@@ -2194,6 +2217,8 @@ tauri::Builder::default()
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
       self.state,
       #[cfg(desktop)]

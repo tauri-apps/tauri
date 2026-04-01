@@ -4991,6 +4991,13 @@ You may have it installed on another user account, but it is not available for t
 
     webview_builder =
       webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview);
+
+    if let Some(on_web_content_process_terminate_handler) =
+      pending.on_web_content_process_terminate_handler
+    {
+      webview_builder = webview_builder
+        .with_on_web_content_process_terminate_handler(on_web_content_process_terminate_handler);
+    }
   }
 
   #[cfg(target_os = "ios")]

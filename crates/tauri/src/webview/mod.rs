@@ -54,6 +54,16 @@ use std::{
   path::{Path, PathBuf},
   sync::{Arc, Mutex, MutexGuard},
 };
+#[cfg(any(test, target_os = "macos", target_os = "ios"))]
+use std::{
+  collections::VecDeque,
+  time::{Duration, Instant},
+};
+
+#[cfg(any(test, target_os = "macos", target_os = "ios"))]
+const WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS: usize = 3;
+#[cfg(any(test, target_os = "macos", target_os = "ios"))]
+const WEB_CONTENT_PROCESS_RELOAD_WINDOW: Duration = Duration::from_secs(10);
 
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
@@ -64,6 +74,33 @@ pub(crate) type UriSchemeProtocolHandler =
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 pub(crate) type OnDocumentTitleChanged<R> = dyn Fn(Webview<R>, String) + Send + 'static;
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub(crate) type OnWebContentProcessTerminateHandler<R> = dyn Fn(Webview<R>) + Send + Sync + 'static;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+type RuntimeOnWebContentProcessTerminateHandler = dyn Fn() + Send + Sync;
+
+#[cfg(any(test, target_os = "macos", target_os = "ios"))]
+fn register_web_content_reload_attempt(
+  attempts: &mut VecDeque<Instant>,
+  now: Instant,
+  max_attempts: usize,
+  window: Duration,
+) -> bool {
+  while let Some(oldest_attempt) = attempts.front() {
+    if now.duration_since(*oldest_attempt) < window {
+      break;
+    }
+
+    attempts.pop_front();
+  }
+
+  if attempts.len() >= max_attempts {
+    return false;
+  }
+
+  attempts.push_back(now);
+  true
+}
 
 #[derive(Clone, Serialize)]
 pub(crate) struct CreatedEvent {
@@ -277,6 +314,9 @@ unstable_struct!(
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
     pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    pub(crate) on_web_content_process_terminate_handler:
+      Option<Box<OnWebContentProcessTerminateHandler<R>>>,
   }
 );
 
@@ -355,6 +395,8 @@ async fn create_window(app: tauri::AppHandle) {
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      on_web_content_process_terminate_handler: None,
     }
   }
 
@@ -434,6 +476,8 @@ async fn create_window(app: tauri::AppHandle) {
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      on_web_content_process_terminate_handler: None,
     }
   }
 
@@ -693,6 +737,24 @@ tauri::Builder::default()
     self
   }
 
+  /// Defines a closure to be executed when the web content process terminates.
+  /// If no handler is set, the webview will automatically attempt to reload,
+  /// with a rate limit to prevent infinite reload loops.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  pub fn on_web_content_process_terminate<F: Fn(Webview<R>) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self
+      .on_web_content_process_terminate_handler
+      .replace(Box::new(f));
+    self
+  }
+
   pub(crate) fn into_pending_webview<M: Manager<R>>(
     mut self,
     manager: &M,
@@ -771,6 +833,16 @@ tauri::Builder::default()
         }
       }));
 
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+      pending.on_web_content_process_terminate_handler = map_web_content_process_terminate_handler(
+        manager,
+        pending.label.clone(),
+        self.on_web_content_process_terminate_handler.take(),
+        cfg!(any(target_os = "macos", target_os = "ios")),
+      );
+    }
+
     manager
       .manager()
       .webview
@@ -805,6 +877,62 @@ tauri::Builder::default()
 
     Ok(webview)
   }
+}
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn map_web_content_process_terminate_handler<R: Runtime, M: Manager<R>>(
+  manager: &M,
+  label: String,
+  handler: Option<Box<OnWebContentProcessTerminateHandler<R>>>,
+  install_default_reload_handler: bool,
+) -> Option<Box<RuntimeOnWebContentProcessTerminateHandler>> {
+  let manager = manager.manager_owned();
+
+  if let Some(handler) = handler {
+    return Some(Box::new(move || {
+      if let Some(webview) = manager.get_webview(&label) {
+        handler(webview);
+      }
+    }));
+  }
+
+  if install_default_reload_handler {
+    let attempts = Arc::new(Mutex::new(VecDeque::new()));
+    return Some(Box::new(move || {
+      let now = Instant::now();
+      let allow_reload = {
+        let mut attempts = attempts.lock().unwrap();
+        register_web_content_reload_attempt(
+          &mut attempts,
+          now,
+          WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS,
+          WEB_CONTENT_PROCESS_RELOAD_WINDOW,
+        )
+      };
+
+      if !allow_reload {
+        log::error!(
+          "stopped reloading webview '{label}' after {WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS} content process terminations within {} seconds",
+          WEB_CONTENT_PROCESS_RELOAD_WINDOW.as_secs(),
+        );
+        return;
+      }
+
+      if let Some(webview) = manager.get_webview(&label) {
+        log::warn!("web content process terminated for webview '{label}'");
+        match webview.reload() {
+          Ok(()) => {
+            log::info!("reloaded webview '{label}' after content process termination");
+          }
+          Err(e) => {
+            log::error!("failed to reload webview after content process termination: {e}");
+          }
+        }
+      }
+    }));
+  }
+
+  None
 }
 
 /// Webview attributes.
@@ -2312,17 +2440,143 @@ impl<T: ScopeObject> ResolvedScope<T> {
 
 #[cfg(test)]
 mod tests {
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+  };
+  use std::{collections::VecDeque, time::Instant};
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  use crate::test::{mock_builder, mock_context, noop_assets};
+
   #[test]
   fn webview_is_send_sync() {
     crate::test_utils::assert_send::<super::Webview>();
     crate::test_utils::assert_sync::<super::Webview>();
   }
 
+  #[test]
+  fn allows_reload_attempts_up_to_the_configured_limit_within_the_window() {
+    let base = Instant::now();
+    let mut attempts = VecDeque::new();
+    let spacing = super::WEB_CONTENT_PROCESS_RELOAD_WINDOW
+      / (super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS as u32 + 1);
+
+    for attempt in 0..super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS {
+      assert!(super::register_web_content_reload_attempt(
+        &mut attempts,
+        base + spacing * attempt as u32,
+        super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS,
+        super::WEB_CONTENT_PROCESS_RELOAD_WINDOW,
+      ));
+    }
+
+    assert_eq!(
+      attempts.len(),
+      super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS
+    );
+  }
+
+  #[test]
+  fn blocks_reload_attempts_after_the_configured_limit_within_the_window() {
+    let base = Instant::now();
+    let mut attempts = VecDeque::new();
+    let spacing = super::WEB_CONTENT_PROCESS_RELOAD_WINDOW
+      / (super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS as u32 + 1);
+
+    for attempt in 0..super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS {
+      assert!(super::register_web_content_reload_attempt(
+        &mut attempts,
+        base + spacing * attempt as u32,
+        super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS,
+        super::WEB_CONTENT_PROCESS_RELOAD_WINDOW,
+      ));
+    }
+
+    assert!(!super::register_web_content_reload_attempt(
+      &mut attempts,
+      base + spacing * super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS as u32,
+      super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS,
+      super::WEB_CONTENT_PROCESS_RELOAD_WINDOW,
+    ));
+  }
+
+  #[test]
+  fn allows_reload_attempts_again_after_the_time_window_expires() {
+    let base = Instant::now();
+    let mut attempts = VecDeque::new();
+    let spacing = super::WEB_CONTENT_PROCESS_RELOAD_WINDOW
+      / (super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS as u32 + 1);
+
+    for attempt in 0..super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS {
+      assert!(super::register_web_content_reload_attempt(
+        &mut attempts,
+        base + spacing * attempt as u32,
+        super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS,
+        super::WEB_CONTENT_PROCESS_RELOAD_WINDOW,
+      ));
+    }
+
+    assert!(super::register_web_content_reload_attempt(
+      &mut attempts,
+      base + super::WEB_CONTENT_PROCESS_RELOAD_WINDOW,
+      super::WEB_CONTENT_PROCESS_RELOAD_MAX_ATTEMPTS,
+      super::WEB_CONTENT_PROCESS_RELOAD_WINDOW,
+    ));
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[test]
+  fn creates_default_termination_handler_when_none_is_provided() {
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+
+    let handler =
+      super::map_web_content_process_terminate_handler(&app, "main".to_string(), None, true);
+
+    assert!(handler.is_some());
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[test]
+  fn returns_none_when_no_handler_and_auto_reload_disabled() {
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+
+    let handler =
+      super::map_web_content_process_terminate_handler(&app, "main".to_string(), None, false);
+
+    assert!(handler.is_none());
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[test]
+  fn prefers_custom_termination_handler_over_default_reload() {
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let webview_window =
+      crate::WebviewWindowBuilder::new(&app, "main", crate::WebviewUrl::default())
+        .build()
+        .unwrap();
+    let called = Arc::new(AtomicBool::new(false));
+    let called_clone = called.clone();
+
+    let handler = super::map_web_content_process_terminate_handler(
+      &app,
+      webview_window.label().to_string(),
+      Some(Box::new(move |_| {
+        called_clone.store(true, Ordering::Relaxed);
+      })),
+      true,
+    )
+    .expect("handler should be present");
+
+    handler();
+
+    assert!(called.load(Ordering::Relaxed));
+  }
+
   #[cfg(target_os = "macos")]
   #[test]
   fn test_webview_window_has_set_simple_fullscreen_method() {
-    use crate::test::{mock_builder, mock_context, noop_assets};
-
     // Create a mock app with proper context
     let app = mock_builder().build(mock_context(noop_assets())).unwrap();
 

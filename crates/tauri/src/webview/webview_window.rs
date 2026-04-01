@@ -434,6 +434,29 @@ tauri::Builder::default()
     self
   }
 
+  /// Defines a closure to be executed when the web content process terminates.
+  /// If no handler is set, the webview will automatically attempt to reload,
+  /// with a rate limit to prevent infinite reload loops.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  pub fn on_web_content_process_terminate<F: Fn(WebviewWindow<R>) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder = self
+      .webview_builder
+      .on_web_content_process_terminate(move |webview| {
+        f(WebviewWindow {
+          window: webview.window(),
+          webview,
+        })
+      });
+    self
+  }
+
   /// Creates a new window.
   pub fn build(self) -> crate::Result<WebviewWindow<R>> {
     let (window, webview) = self.window_builder.with_webview(self.webview_builder)?;

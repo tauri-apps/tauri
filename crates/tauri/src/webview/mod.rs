@@ -65,8 +65,6 @@ pub(crate) type UriSchemeProtocolHandler =
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 pub(crate) type OnDocumentTitleChanged<R> = dyn Fn(Webview<R>, String) + Send + 'static;
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-pub(crate) type OnWebContentProcessTerminateHandler<R> = dyn Fn(Webview<R>) + Send;
 
 #[derive(Clone, Serialize)]
 pub(crate) struct CreatedEvent {
@@ -280,9 +278,6 @@ unstable_struct!(
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
     pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
-    pub(crate) on_web_content_process_terminate_handler:
-      Option<Box<OnWebContentProcessTerminateHandler<R>>>,
   }
 );
 
@@ -361,8 +356,6 @@ async fn create_window(app: tauri::AppHandle) {
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
-      on_web_content_process_terminate_handler: None,
     }
   }
 
@@ -442,8 +435,6 @@ async fn create_window(app: tauri::AppHandle) {
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
-      on_web_content_process_terminate_handler: None,
     }
   }
 
@@ -706,22 +697,6 @@ tauri::Builder::default()
     self
   }
 
-  /// Defines a closure to be executed when the web content process terminates.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux / Windows / Android:** Unsupported.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  pub fn on_web_content_process_terminate<F: Fn(Webview<R>) + Send + 'static>(
-    mut self,
-    f: F,
-  ) -> Self {
-    self
-      .on_web_content_process_terminate_handler
-      .replace(Box::new(f));
-    self
-  }
-
   pub(crate) fn into_pending_webview<M: Manager<R>>(
     mut self,
     manager: &M,
@@ -800,21 +775,6 @@ tauri::Builder::default()
           }
         }
       }));
-
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
-    if let Some(on_web_content_process_terminate_handler) =
-      self.on_web_content_process_terminate_handler.take()
-    {
-      let label = pending.label.clone();
-      let manager = manager.manager_owned();
-      pending
-        .on_web_content_process_terminate_handler
-        .replace(Box::new(move || {
-          if let Some(w) = manager.get_webview(&label) {
-            on_web_content_process_terminate_handler(w);
-          }
-        }));
-    }
 
     manager
       .manager()

@@ -21,7 +21,7 @@ use tauri_utils::{
 use crate::{
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
-    OnPageLoad,
+    OnPageLoad, OnWebContentProcessTerminate,
   },
   event::{EmitArgs, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
@@ -251,6 +251,9 @@ impl<R: Runtime> AppManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
+    #[cfg(any(target_os = "macos", target_os = "ios"))] on_web_content_process_terminate: Option<
+      Arc<OnWebContentProcessTerminate<R>>,
+    >,
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
     #[cfg(desktop)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
@@ -284,6 +287,8 @@ impl<R: Runtime> AppManager<R> {
         webviews: Mutex::default(),
         invoke_handler,
         on_page_load,
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webview_event_listeners),
         invoke_initialization_script,

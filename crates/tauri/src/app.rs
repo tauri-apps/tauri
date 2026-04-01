@@ -67,6 +67,7 @@ pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> std::result::Result<(), Box<dyn std::error::Error>> + Send>;
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
+/// A closure that is run when the web content process terminates.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub type OnWebContentProcessTerminate<R> = dyn Fn(&Webview<R>) + Send + Sync + 'static;
 pub type ChannelInterceptor<R> =

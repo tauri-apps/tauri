@@ -310,6 +310,7 @@ impl<R: Runtime> WebviewManager<R> {
         }
       }));
 
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     if pending.on_web_content_process_terminate_handler.is_none() {
       let app_manager_ = manager.manager_owned();
       if app_manager_

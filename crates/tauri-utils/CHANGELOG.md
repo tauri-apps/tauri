@@ -1,5 +1,14 @@
 # Changelog
 
+## \[2.8.3]
+
+### Bug Fixes
+
+- [`7b16dafb1`](https://www.github.com/tauri-apps/tauri/commit/7b16dafb1dc417536ebb62df8eb66154dd97109d) ([#14986](https://www.github.com/tauri-apps/tauri/pull/14986) by [@montyc1999](https://www.github.com/tauri-apps/tauri/../../montyc1999)) Sort csp/plugin/header configs when generating HashMap constructors so that `generate_context!` is deterministic.
+
+  See: https://github.com/tauri-apps/tauri/issues/14978 for more information
+- [`c3cbff3f7`](https://www.github.com/tauri-apps/tauri/commit/c3cbff3f7430161715f80f82128b345a6f7140c9) ([#14662](https://www.github.com/tauri-apps/tauri/pull/14662) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix resource path handles `./` path differently (e.g. `./some-folder` should be the same as `some-folder`)
+
 ## \[2.8.2]
 
 ### Enhancements

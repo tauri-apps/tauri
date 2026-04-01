@@ -926,9 +926,15 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
+  /// Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.
+  ///
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.10.0",
+    note = "Use `WindowsConfig::minimum_webview2_version` instead."
+  )]
   #[serde(alias = "minimum-webview2-version")]
   pub minimum_webview2_version: Option<String>,
 }
@@ -1043,6 +1049,11 @@ pub struct WindowsConfig {
   /// The default value of this flag is `true`.
   #[serde(default = "default_true", alias = "allow-downgrades")]
   pub allow_downgrades: bool,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  #[serde(alias = "minimum-webview2-version")]
+  pub minimum_webview2_version: Option<String>,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
@@ -1067,6 +1078,7 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       allow_downgrades: true,
+      minimum_webview2_version: None,
       wix: None,
       nsis: None,
       sign_command: None,
@@ -1980,6 +1992,21 @@ pub struct WindowConfig {
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
+  /// The name of the Android activity to create for this window.
+  #[serde(default, alias = "activity-name")]
+  pub activity_name: Option<String>,
+  /// The name of the Android activity that is creating this webview window.
+  ///
+  /// This is important to determine which stack the activity will belong to.
+  #[serde(default, alias = "created-by-activity-name")]
+  pub created_by_activity_name: Option<String>,
+
+  /// Sets the identifier of the scene that is requesting the new scene,
+  /// establishing a relationship between the two scenes.
+  ///
+  /// By default the system uses the foreground scene.
+  #[serde(default, alias = "requested-by-scene-identifier")]
+  pub requested_by_scene_identifier: Option<String>,
 }
 
 impl Default for WindowConfig {
@@ -2042,6 +2069,9 @@ impl Default for WindowConfig {
       data_directory: None,
       data_store_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
+      activity_name: None,
+      created_by_activity_name: None,
+      requested_by_scene_identifier: None,
     }
   }
 }
@@ -2051,11 +2081,11 @@ fn default_window_label() -> String {
 }
 
 fn default_width() -> f64 {
-  800f64
+  800.
 }
 
 fn default_height() -> f64 {
-  600f64
+  600.
 }
 
 fn default_title() -> String {
@@ -3336,7 +3366,7 @@ pub struct PluginConfig(pub HashMap<String, JsonValue>);
 /// This allows for a build script to output the values in a `Config` to a `TokenStream`, which can
 /// then be consumed by another crate. Useful for passing a config to both the build script and the
 /// application using tauri while only parsing it once (in the build script).
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
@@ -3576,6 +3606,9 @@ mod build {
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
+      let activity_name = opt_lit(self.activity_name.as_ref());
+      let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
+      let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
 
       literal_struct!(
         tokens,
@@ -3636,7 +3669,10 @@ mod build {
         disable_input_accessory_view,
         data_directory,
         data_store_identifier,
-        scroll_bar_style
+        scroll_bar_style,
+        activity_name,
+        created_by_activity_name,
+        requested_by_scene_identifier
       );
     }
   }
@@ -3842,9 +3878,14 @@ mod build {
           quote!(#prefix::Policy(#policy.into()))
         }
         Self::DirectiveMap(list) => {
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = list.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
             quote! { ::std::collections::HashMap },
-            list,
+            sorted,
             str_lit,
             identity,
           );
@@ -3900,7 +3941,17 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
-          let map = map_lit(quote! { ::std::collections::HashMap }, m, str_lit, str_lit);
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = m.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
+          let map = map_lit(
+            quote! { ::std::collections::HashMap },
+            sorted,
+            str_lit,
+            str_lit,
+          );
           quote!(#prefix::Map(#map))
         }
       })
@@ -4047,9 +4098,14 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // Pass a sorted vec so the HashMap constructor is deterministic
+      // see: https://github.com/tauri-apps/tauri/issues/14978
+      // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+      let mut sorted: Vec<_> = self.0.iter().collect();
+      sorted.sort_by_key(|(k, _)| *k);
       let config = map_lit(
         quote! { ::std::collections::HashMap },
-        &self.0,
+        sorted,
         str_lit,
         json_value_lit,
       );

@@ -1753,6 +1753,10 @@ tauri::Builder::default()
   }
 
   /// Defines a closure to be executed when the web content process terminates on any webview.
+  /// This handler acts as a global fallback when no per-webview handler is set.
+  /// If neither a per-webview nor a global handler is set, the webview will
+  /// automatically attempt to reload, with a rate limit to prevent infinite
+  /// reload loops.
   ///
   /// ## Platform-specific
   ///

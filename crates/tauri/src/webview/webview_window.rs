@@ -435,8 +435,9 @@ tauri::Builder::default()
   }
 
   /// Defines a closure to be executed when the web content process terminates.
-  /// If no handler is set, the webview will automatically attempt to reload,
-  /// with a rate limit to prevent infinite reload loops.
+  /// If neither a per-webview nor a global handler is set, the webview will
+  /// automatically attempt to reload, with a rate limit to prevent infinite
+  /// reload loops.
   ///
   /// ## Platform-specific
   ///

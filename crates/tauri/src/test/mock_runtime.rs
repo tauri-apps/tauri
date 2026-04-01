@@ -593,6 +593,19 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
+    Ok(())
+  }
+
   fn url(&self) -> Result<String> {
     Ok(self.url.lock().unwrap().clone())
   }

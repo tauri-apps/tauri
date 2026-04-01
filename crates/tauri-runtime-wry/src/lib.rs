@@ -1475,6 +1475,15 @@ pub enum WebviewMessage {
   EvaluateScript(String),
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
   EvaluateScript(String, Sender<()>, tracing::Span),
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+  EvaluateScriptWithCallback(String, Box<dyn Fn(String) + Send + 'static>),
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
+  EvaluateScriptWithCallback(
+    String,
+    Box<dyn Fn(String) + Send + 'static>,
+    Sender<()>,
+    tracing::Span,
+  ),
   CookiesForUrl(Url, Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   Cookies(Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   SetCookie(tauri_runtime::Cookie<'static>),
@@ -1826,6 +1835,46 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    // use a channel so the EvaluateScript task uses the current span as parent
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::EvaluateScriptWithCallback(
+          script.into(),
+          Box::new(callback),
+          tx,
+          tracing::Span::current(),
+        ),
+      )
+    )
+  }
+
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
       ),
     )
   }
@@ -3709,6 +3758,20 @@ fn handle_user_message<T: UserEvent>(
           #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
           WebviewMessage::EvaluateScript(script) => {
             if let Err(e) = webview.evaluate_script(&script) {
+              log::error!("{e}");
+            }
+          }
+          #[cfg(all(feature = "tracing", not(target_os = "android")))]
+          WebviewMessage::EvaluateScriptWithCallback(script, callback, tx, span) => {
+            let _span = span.entered();
+            if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
+              log::error!("{e}");
+            }
+            tx.send(()).unwrap();
+          }
+          #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+          WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
+            if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
               log::error!("{e}");
             }
           }

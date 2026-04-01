@@ -1223,7 +1223,7 @@ dependencies = [
  "num-traits",
  "serde",
  "wasm-bindgen",
- "windows-link",
+ "windows-link 0.1.1",
 ]
 
 [[package]]
@@ -1397,9 +1397,9 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "convert_case"
-version = "0.8.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baaaa0ecca5b51987b9423ccdc971514dd8b0bb7b4060b983d3664dad3f1f89f"
+checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1671,19 +1671,9 @@ dependencies = [
 
 [[package]]
 name = "ctor"
-version = "0.2.9"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32a2785755761f3ddc1492979ce1e48d2c00d09311c39e4466429188f3dd6501"
-dependencies = [
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "ctor"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4735f265ba6a1188052ca32d461028a7d1125868be18e287e756019da7607b5"
+checksum = "352d39c2f7bef1d6ad73db6f5160efcaed66d94ef8c6c573a8410c00bf909a98"
 dependencies = [
  "ctor-proc-macro",
  "dtor",
@@ -1691,9 +1681,9 @@ dependencies = [
 
 [[package]]
 name = "ctor-proc-macro"
-version = "0.0.5"
+version = "0.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f211af61d8efdd104f96e57adf5e426ba1bc3ed7a4ead616e15e5881fd79c4d"
+checksum = "52560adf09603e58c9a7ee1fe1dcb95a16927b17c127f0ac02d6e768a0e25bc1"
 
 [[package]]
 name = "ctr"
@@ -2143,18 +2133,18 @@ dependencies = [
 
 [[package]]
 name = "dtor"
-version = "0.0.6"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97cbdf2ad6846025e8e25df05171abfb30e3ababa12ee0a0e44b9bbe570633a8"
+checksum = "f1057d6c64987086ff8ed0fd3fbf377a6b7d205cc7715868cd401705f715cbe4"
 dependencies = [
  "dtor-proc-macro",
 ]
 
 [[package]]
 name = "dtor-proc-macro"
-version = "0.0.5"
+version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7454e41ff9012c00d53cf7f475c5e3afa3b91b7c90568495495e8d9bf47a1055"
+checksum = "f678cf4a922c215c63e0de95eb1ff08a958a81d47e485cf9da1e27bf6305cfa5"
 
 [[package]]
 name = "duct"
@@ -4418,12 +4408,12 @@ dependencies = [
 
 [[package]]
 name = "libloading"
-version = "0.8.6"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-link 0.2.1",
 ]
 
 [[package]]
@@ -4770,12 +4760,13 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "3.0.0"
+version = "3.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abf3f418eeb94d86f02f3388324017e1e21e36937e4b1d8075ea5843d980f766"
+checksum = "fb7848c221fb7bb789e02f01875287ebb1e078b92a6566a34de01ef8806e7c2b"
 dependencies = [
  "bitflags 2.7.0",
- "ctor 0.4.2",
+ "ctor",
+ "futures",
  "napi-build",
  "napi-sys",
  "nohash-hasher",
@@ -4784,18 +4775,18 @@ dependencies = [
 
 [[package]]
 name = "napi-build"
-version = "2.2.2"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fff539e61c5e3dd4d7d283610662f5d672c2aea0f158df78af694f13dbb3287b"
+checksum = "d376940fd5b723c6893cd1ee3f33abbfd86acb1cd1ec079f3ab04a2a3bc4d3b1"
 
 [[package]]
 name = "napi-derive"
-version = "3.0.0"
+version = "3.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce09c2a155c7c38447a6ff1711899375bdd8f9dd5a50aad700a9c765c9f8a375"
+checksum = "60867ff9a6f76e82350e0c3420cb0736f5866091b61d7d8a024baa54b0ec17dd"
 dependencies = [
- "convert_case 0.8.0",
- "ctor 0.4.2",
+ "convert_case 0.11.0",
+ "ctor",
  "napi-derive-backend",
  "proc-macro2",
  "quote",
@@ -4804,11 +4795,11 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "2.0.0"
+version = "5.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17923387d68ecfe057a04a38ee89aeb41f415c43b4c7a508a3683bf0c1511c5a"
+checksum = "f0864cf6a82e2cfb69067374b64c9253d7e910e5b34db833ed7495dda56ccb18"
 dependencies = [
- "convert_case 0.8.0",
+ "convert_case 0.11.0",
  "proc-macro2",
  "quote",
  "semver",
@@ -4817,11 +4808,11 @@ dependencies = [
 
 [[package]]
 name = "napi-sys"
-version = "3.0.0"
+version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e4e7135a8f97aa0f1509cce21a8a1f9dcec1b50d8dee006b48a5adb69a9d64d"
+checksum = "8eb602b84d7c1edae45e50bbf1374696548f36ae179dfa667f577e384bb90c2b"
 dependencies = [
- "libloading 0.8.6",
+ "libloading 0.9.0",
 ]
 
 [[package]]
@@ -9185,7 +9176,7 @@ dependencies = [
  "anyhow",
  "brotli",
  "cargo_metadata",
- "ctor 0.2.9",
+ "ctor",
  "dom_query",
  "dunce",
  "getrandom 0.3.3",
@@ -10652,7 +10643,7 @@ dependencies = [
  "windows-collections",
  "windows-core 0.61.0",
  "windows-future",
- "windows-link",
+ "windows-link 0.1.1",
  "windows-numerics",
 ]
 
@@ -10682,7 +10673,7 @@ checksum = "4763c1de310c86d75a878046489e2e5ba02c649d185f21c67d4cf8a56d098980"
 dependencies = [
  "windows-implement",
  "windows-interface",
- "windows-link",
+ "windows-link 0.1.1",
  "windows-result",
  "windows-strings 0.4.0",
 ]
@@ -10694,7 +10685,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a1d6bbefcb7b60acd19828e1bc965da6fcf18a7e39490c5f8be71e54a19ba32"
 dependencies = [
  "windows-core 0.61.0",
- "windows-link",
+ "windows-link 0.1.1",
 ]
 
 [[package]]
@@ -10726,13 +10717,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76840935b766e1b0a05c0066835fb9ec80071d4c09a16f6bd5f7e655e3c14c38"
 
 [[package]]
+name = "windows-link"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
+
+[[package]]
 name = "windows-numerics"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
 dependencies = [
  "windows-core 0.61.0",
- "windows-link",
+ "windows-link 0.1.1",
 ]
 
 [[package]]
@@ -10741,7 +10738,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c44a98275e31bfd112bb06ba96c8ab13c03383a3753fdddd715406a1824c7e0"
 dependencies = [
- "windows-link",
+ "windows-link 0.1.1",
  "windows-result",
  "windows-strings 0.3.1",
 ]
@@ -10752,7 +10749,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c64fd11a4fd95df68efcfee5f44a294fe71b8bc6a91993e2791938abcc712252"
 dependencies = [
- "windows-link",
+ "windows-link 0.1.1",
 ]
 
 [[package]]
@@ -10761,7 +10758,7 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87fa48cc5d406560701792be122a10132491cff9d0aeb23583cc2dcafc847319"
 dependencies = [
- "windows-link",
+ "windows-link 0.1.1",
 ]
 
 [[package]]
@@ -10770,7 +10767,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2ba9642430ee452d5a7aa78d72907ebe8cfda358e8cb7918a2050581322f97"
 dependencies = [
- "windows-link",
+ "windows-link 0.1.1",
 ]
 
 [[package]]

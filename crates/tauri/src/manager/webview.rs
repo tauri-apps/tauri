@@ -311,19 +311,25 @@ impl<R: Runtime> WebviewManager<R> {
       }));
 
     if pending.on_web_content_process_terminate_handler.is_none() {
-      let label_ = pending.label.clone();
       let app_manager_ = manager.manager_owned();
-      pending
-        .on_web_content_process_terminate_handler
-        .replace(Box::new(move || {
-          if let Some(w) = app_manager_.get_webview(&label_) {
-            if let Some(on_web_content_process_terminate) =
-              &app_manager_.webview.on_web_content_process_terminate
-            {
-              on_web_content_process_terminate(&w);
+      if app_manager_
+        .webview
+        .on_web_content_process_terminate
+        .is_some()
+      {
+        let label_ = pending.label.clone();
+        pending
+          .on_web_content_process_terminate_handler
+          .replace(Box::new(move || {
+            if let Some(w) = app_manager_.get_webview(&label_) {
+              if let Some(on_web_content_process_terminate) =
+                &app_manager_.webview.on_web_content_process_terminate
+              {
+                on_web_content_process_terminate(&w);
+              }
             }
-          }
-        }));
+          }));
+      }
     }
 
     #[cfg(feature = "protocol-asset")]

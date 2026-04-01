@@ -20,16 +20,16 @@ use tauri_utils::config::WebviewUrl;
 use url::Url;
 
 use crate::{
-  app::{
-    GlobalWebviewEventListener, OnPageLoad, OnWebContentProcessTerminate, UriSchemeResponder,
-    WebviewEvent,
-  },
+  app::{GlobalWebviewEventListener, OnPageLoad, UriSchemeResponder, WebviewEvent},
   ipc::InvokeHandler,
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
   EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview, Window,
 };
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::app::OnWebContentProcessTerminate;
 
 use super::{
   window::{DragDropPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT},

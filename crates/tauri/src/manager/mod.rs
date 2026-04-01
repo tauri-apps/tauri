@@ -21,7 +21,7 @@ use tauri_utils::{
 use crate::{
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
-    OnPageLoad, OnWebContentProcessTerminate,
+    OnPageLoad,
   },
   event::{EmitArgs, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
@@ -30,6 +30,9 @@ use crate::{
   utils::{config::Config, PackageInfo},
   Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
 };
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::app::OnWebContentProcessTerminate;
 
 #[cfg(desktop)]
 mod menu;

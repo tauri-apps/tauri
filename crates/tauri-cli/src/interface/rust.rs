@@ -33,9 +33,11 @@ use crate::{
   error::{Context, Error, ErrorExt, bail},
   helpers::{
     app_paths::Dirs,
+    cargo_manifest::{cargo_manifest_and_lock, crate_version},
     config::{BundleResources, Config, ConfigMetadata, nsis_settings, reload_config, wix_settings},
   },
 };
+use download_cef::OsAndArch;
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 mod cargo_config;
@@ -185,12 +187,7 @@ impl Rust {
     self.app_settings.clone()
   }
 
-  pub fn on_before_bundle(&self, options: &Options, dirs: &Dirs) -> crate::Result<()> {
-    self.prepare(options, dirs)
-  }
-
   pub fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
-    self.prepare(&options, dirs)?;
     desktop::build(
       options,
       &self.app_settings,
@@ -208,7 +205,6 @@ impl Rust {
     on_exit: F,
     dirs: &Dirs,
   ) -> crate::Result<()> {
-    self.prepare(&options, dirs)?;
     let on_exit = Arc::new(on_exit);
 
     let mut run_args = Vec::new();
@@ -498,63 +494,7 @@ fn get_watch_folders(
   Ok(watch_folders)
 }
 
-fn ensure_cef_directory_if_needed(
-  app_settings: &RustAppSettings,
-  options: &Options,
-  config_features: Vec<String>,
-  target: Option<&str>,
-  features: &[String],
-  #[allow(unused_variables)] tauri_dir: &Path,
-) -> crate::Result<()> {
-  let mut merged_features = config_features;
-  merged_features.extend(features.to_owned());
-  let no_default_features = options.args.contains(&"--no-default-features".into());
-  if !no_default_features {
-    merged_features.push("default".into());
-  }
-  let enabled_features = app_settings
-    .manifest
-    .lock()
-    .unwrap()
-    .all_enabled_features(&merged_features);
-  let target_triple = target.or_else(|| app_settings.cargo_config.build().target());
-  match crate::cef::exporter::ensure_cef_directory(
-    target_triple,
-    &enabled_features,
-    &app_settings.workspace_dir,
-  ) {
-    // cef not enabled
-    Ok(None) => {}
-    #[cfg(not(windows))]
-    Ok(Some(_cef_dir)) => {
-      let _options = options;
-    }
-    // on Windows we must copy the cef files next to the executable.
-    // We also do this for builds since we can't codesign the global cache.
-    #[cfg(windows)]
-    Ok(Some(cef_dir)) => {
-      let out_dir = app_settings.out_dir(options, tauri_dir)?;
-      crate::helpers::fs::copy_dir_all(&cef_dir, &out_dir)?;
-    }
-    Err(e) => {
-      log::warn!(action = "CEF"; "Failed to ensure CEF directory: {}. Continuing anyway.", e);
-    }
-  }
-  Ok(())
-}
-
 impl Rust {
-  fn prepare(&self, options: &Options, dirs: &Dirs) -> crate::Result<()> {
-    ensure_cef_directory_if_needed(
-      &self.app_settings,
-      options,
-      self.config_features.clone(),
-      options.target.as_deref(),
-      &options.features,
-      dirs.tauri,
-    )
-  }
-
   pub fn build_options(&self, args: &mut Vec<String>, features: &mut Vec<String>, mobile: bool) {
     features.push("tauri/custom-protocol".into());
     if mobile {
@@ -1424,6 +1364,35 @@ pub fn get_profile_dir(options: &Options) -> &str {
   }
 }
 
+fn default_cef_version(workspace_dir: &Path) -> Option<String> {
+  let (_, lock) = cargo_manifest_and_lock(workspace_dir);
+  let crate_version = crate_version(workspace_dir, None, lock.as_ref(), "cef");
+  crate_version
+    .version
+    .as_deref()
+    .map(download_cef::default_version)
+}
+
+fn resolve_cef_path_for_bundle(
+  cef_path: PathBuf,
+  target: &str,
+  workspace_dir: &Path,
+) -> crate::Result<PathBuf> {
+  let Some(cef_version) = default_cef_version(workspace_dir) else {
+    return Ok(cef_path);
+  };
+
+  let os_arch = OsAndArch::try_from(target)
+    .map_err(|e| Error::GenericError(format!("invalid CEF target {target}: {e}")))?;
+
+  let versioned_download_cef = cef_path.join(&cef_version).join(os_arch.to_string());
+  if versioned_download_cef.exists() {
+    return Ok(versioned_download_cef);
+  }
+
+  Ok(cef_path)
+}
+
 #[allow(unused_variables, deprecated)]
 pub(crate) fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
@@ -1726,7 +1695,10 @@ pub(crate) fn tauri_config_to_bundle_settings(
     cef_path: if enabled_features.contains(&"cef".into())
       || enabled_features.contains(&"tauri/cef".into())
     {
-      std::env::var_os("CEF_PATH").map(PathBuf::from)
+      std::env::var_os("CEF_PATH")
+        .map(PathBuf::from)
+        .map(|path| resolve_cef_path_for_bundle(path, &settings.target_triple, &settings.workspace_dir))
+        .transpose()?
     } else {
       None
     },

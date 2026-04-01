@@ -147,8 +147,6 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
 
   let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
 
-  interface.on_before_bundle(&interface_options, &dirs)?;
-
   bundle(
     &options,
     verbosity,

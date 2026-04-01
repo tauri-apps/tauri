@@ -38,7 +38,7 @@ impl CefWebview {
     if let CefWebview::BrowserView(view) = self {
       let window = view.window();
       let color = color.or_else(|| {
-        window.map(|w| w.theme_color(ColorId::CEF_ColorPrimaryBackground.get_raw() as _))
+        window.map(|w| w.theme_color(ColorId::COLOR_PRIMARY_BACKGROUND.get_raw() as _))
       });
 
       if let Some(color) = color {

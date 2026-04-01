@@ -1123,16 +1123,18 @@ wrap_browser_view_delegate! {
 
   impl ViewDelegate {
     fn on_theme_changed(&self, view: Option<&mut View>) {
-      let Some(view) = view else { return; };
-
-      let webview_attributes = self.webview_attributes.borrow();
-
       #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-      if webview_attributes.transparent {
-        view.set_background_color(TRANSPARENT);
-      } else if let Some(color) = webview_attributes.background_color {
-        let color = color_to_cef_argb(color);
-        view.set_background_color(color);
+      {
+        let Some(view) = view else { return; };
+
+        let webview_attributes = self.webview_attributes.borrow();
+
+        if webview_attributes.transparent {
+          view.set_background_color(TRANSPARENT);
+        } else if let Some(color) = webview_attributes.background_color {
+          let color = color_to_cef_argb(color);
+          view.set_background_color(color);
+        }
       }
     }
   }
@@ -3111,9 +3113,9 @@ fn handle_window_message<T: UserEvent>(
         let Some(window) = app_window.window() else {
           return;
         };
-        let color = color.map(color_to_cef_argb).unwrap_or_else(|| {
-          window.theme_color(ColorId::CEF_ColorPrimaryBackground.get_raw() as _)
-        });
+        let color = color
+          .map(color_to_cef_argb)
+          .unwrap_or_else(|| window.theme_color(ColorId::COLOR_PRIMARY_BACKGROUND.get_raw() as _));
         window.set_background_color(color);
       }
     }

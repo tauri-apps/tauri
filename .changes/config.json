@@ -168,8 +168,7 @@
     "tauri-runtime-cef": {
       "path": "./crates/tauri-runtime-cef",
       "manager": "rust",
-      "dependencies": ["tauri-utils", "tauri-runtime"],
-      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "dependencies": ["tauri-utils", "tauri-runtime"]
     },
     "tauri-codegen": {
       "path": "./crates/tauri-codegen",

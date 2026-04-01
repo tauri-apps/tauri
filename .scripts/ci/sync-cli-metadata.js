@@ -59,43 +59,12 @@ const inc = (version) => {
 // read file into js object
 const metadata = JSON.parse(readFileSync(filePath, 'utf-8'))
 
-// Extract CEF version from tauri-runtime-cef/Cargo.toml if it exists
-// This runs whenever tauri-runtime-cef version is bumped
-if (packageNickname === 'tauri-runtime-cef') {
-  try {
-    const cargoLockPath = resolve(__dirname, '../../Cargo.lock')
-    const cargoLock = readFileSync(cargoLockPath, 'utf-8')
-    // Find the [package] section for "cef"
-    // e.g.:
-    // [[package]]
-    // name = "cef"
-    // version = "141.6.0+141.0.11"
-    const pkgRegex =
-      /\[\[package\]\][^\[]+?name\s*=\s*"cef"[^\[]+?version\s*=\s*"([^"]+)"/m
-    const match = cargoLock.match(pkgRegex)
-    if (match && match[1]) {
-      const cefVersion = match[1]
-      metadata.cef = cefVersion
-      console.log(`Extracted CEF version ${cefVersion} from Cargo.lock`)
-    } else {
-      throw new Error('Could not find cef package and version in Cargo.lock')
-    }
-  } catch (error) {
-    throw new Error(
-      `Failed to extract CEF version from Cargo.lock: ${error.message}`
-    )
-  }
-}
-
 // set field version
 let version
 if (packageNickname === '@tauri-apps/cli') {
   version = inc(metadata['cli.js'].version)
   metadata['cli.js'].version = version
-} else if (
-  packageNickname
-  !== 'tauri-runtime-cef' /* for cef we only update the cef version */
-) {
+} else {
   version = inc(metadata[packageNickname])
   metadata[packageNickname] = version
 }

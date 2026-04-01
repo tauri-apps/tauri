@@ -6,9 +6,9 @@ license = "Apache-2.0 OR MIT"
 publish = false
 
 [dependencies]
-cef = { version = "=145.6.1+145.0.28", default-features = false }
+cef = { version = "=146.3.0", default-features = false }
 # Not actually used directly, just locking it.
-cef-dll-sys = { version = "=145.6.1+145.0.28", default-features = false }
+cef-dll-sys = { version = "=146.3.0", default-features = false }
 
 [features]
 default = ["sandbox"]

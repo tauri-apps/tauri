@@ -1697,7 +1697,9 @@ pub(crate) fn tauri_config_to_bundle_settings(
     {
       std::env::var_os("CEF_PATH")
         .map(PathBuf::from)
-        .map(|path| resolve_cef_path_for_bundle(path, &settings.target_triple, &settings.workspace_dir))
+        .map(|path| {
+          resolve_cef_path_for_bundle(path, &settings.target_triple, &settings.workspace_dir)
+        })
         .transpose()?
     } else {
       None

@@ -21,10 +21,6 @@ use std::{
 };
 use tauri_utils::platform::Target as TargetPlatform;
 
-#[cfg(any(target_os = "macos", windows))]
-const DEFAULT_CEF_DOWNLOAD_URL: &str =
-  "https://cdn.crabnebula.app/download/crabnebula/cef-patched/latest";
-
 pub struct DevChild {
   pub manually_killed_app: Arc<AtomicBool>,
   pub dev_child: Arc<SharedChild>,
@@ -308,11 +304,6 @@ pub fn cargo_command(
   if let Some(target) = options.target {
     build_cmd.arg("--target");
     build_cmd.arg(target);
-  }
-
-  #[cfg(any(target_os = "macos", windows))]
-  if std::env::var_os("CEF_DOWNLOAD_URL").is_none() {
-    build_cmd.env("CEF_DOWNLOAD_URL", DEFAULT_CEF_DOWNLOAD_URL);
   }
 
   Ok(build_cmd)

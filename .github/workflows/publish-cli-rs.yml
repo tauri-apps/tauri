@@ -22,7 +22,7 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             ext: ''
             args: ''
-          - os: macos-latest
+          - os: macos-13
             rust_target: x86_64-apple-darwin
             ext: ''
             args: ''

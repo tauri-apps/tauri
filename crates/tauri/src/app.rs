@@ -1666,6 +1666,10 @@ tauri::Builder::default()
   }
 
   /// Defines the web content process termination hook.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   #[must_use]
   pub fn on_web_content_process_terminate<F>(mut self, on_web_content_process_terminate: F) -> Self

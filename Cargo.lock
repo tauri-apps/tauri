@@ -1173,7 +1173,9 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "146.2.0+146.0.9"
+version = "146.4.0+146.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17c44f0dc3c369a2692b533d447ecb66ea3167170e1a1785f19fea5938afdff1"
 dependencies = [
  "cef-dll-sys",
  "libloading 0.9.0",
@@ -1183,11 +1185,13 @@ dependencies = [
 
 [[package]]
 name = "cef-dll-sys"
-version = "146.2.0+146.0.9"
+version = "146.4.0+146.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "499f151a1e3347716467771ca23f1b1846348c6aa4bbca76e3b6220ee8a26c48"
 dependencies = [
  "anyhow",
  "cmake",
- "download-cef 2.3.1",
+ "download-cef",
  "serde_json",
 ]
 
@@ -2105,23 +2109,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95249b50c6c185bee49034bcb378a49dc2b5dff0be90ff6616d31d64febab05d"
 dependencies = [
  "litrs",
-]
-
-[[package]]
-name = "download-cef"
-version = "2.3.1"
-dependencies = [
- "bzip2 0.6.0",
- "clap",
- "indicatif",
- "regex",
- "semver",
- "serde",
- "serde_json",
- "sha1_smol",
- "tar",
- "thiserror 2.0.12",
- "ureq",
 ]
 
 [[package]]
@@ -8803,7 +8790,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "dirs 6.0.0",
- "download-cef 2.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "download-cef",
  "duct",
  "dunce",
  "elf",

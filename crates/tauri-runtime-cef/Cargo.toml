@@ -19,9 +19,9 @@ html5ever = "0.29"
 raw-window-handle = "0.6"
 url = "2"
 http = "1"
-cef = { version = "=146.3.0", default-features = false }
+cef = { version = "=146.4.0", default-features = false }
 # Not actually used directly, just locking it.
-cef-dll-sys = "=146.3.0"
+cef-dll-sys = "=146.4.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader" }

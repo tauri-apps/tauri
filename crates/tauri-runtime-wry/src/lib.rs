@@ -4941,7 +4941,7 @@ You may have it installed on another user account, but it is not available for t
       webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
         if let Ok(windows) = &context_.main_thread.windows.0.try_borrow() {
           if let Some(window) = windows.get(&*window_id_.clone().lock().unwrap()) {
-            for webview in &window.webviews {
+            if let Some(webview) = window.webviews.iter().find(|w| w.id == id) {
               let _ = webview.reload();
             }
           }

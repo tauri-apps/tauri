@@ -4939,17 +4939,13 @@ You may have it installed on another user account, but it is not available for t
       let context_ = context.clone();
       let window_id_ = window_id.clone();
       webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
-        let windows = &context_.main_thread.windows.0;
-        let webview = loop {
-          if let Some(webview) = windows.try_borrow().ok().and_then(|windows| {
-            windows
-              .get(&*window_id_.clone().lock().unwrap())
-              .map(|window| window.webviews.first().unwrap().clone())
-          }) {
-            break webview;
-          };
-        };
-        let _ = webview.reload();
+        if let Ok(windows) = &context_.main_thread.windows.0.try_borrow() {
+          if let Some(window) = windows.get(&*window_id_.clone().lock().unwrap()) {
+            for webview in &window.webviews {
+              let _ = webview.reload();
+            }
+          }
+        }
       });
     }
   }

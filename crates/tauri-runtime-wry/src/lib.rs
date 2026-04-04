@@ -4936,15 +4936,25 @@ You may have it installed on another user account, but it is not available for t
       webview_builder = webview_builder
         .with_on_web_content_process_terminate_handler(on_web_content_process_terminate_handler);
     } else {
+      log::debug!("web content process terminated");
       let context_ = context.clone();
       let window_id_ = window_id.clone();
       webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
         if let Ok(windows) = &context_.main_thread.windows.0.try_borrow() {
           if let Some(window) = windows.get(&*window_id_.lock().unwrap()) {
             if let Some(webview) = window.webviews.iter().find(|w| w.id == id) {
-              let _ = webview.reload();
+              match webview.reload() {
+                Ok(_) => log::debug!("webview reloaded"),
+                Err(e) => log::error!("failed to reload webview: {}", e),
+              }
+            } else {
+              log::error!("failed to find webview")
             }
+          } else {
+            log::error!("failed to get window")
           }
+        } else {
+          log::error!("failed to borrow windows")
         }
       });
     }

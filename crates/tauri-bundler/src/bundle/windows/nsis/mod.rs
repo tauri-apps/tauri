@@ -811,10 +811,16 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
       "en-US_NEUTER.pak",
     ];
 
+    let locales_out = dunce::simplified(&project_out.join("locales")).to_path_buf();
+    fs::create_dir_all(&locales_out).fs_context(
+      "failed to create locales directory for CEF",
+      locales_out.clone(),
+    )?;
+
     for f in &locales {
       let target_file = PathBuf::from("locales").join(f);
-      let from = cef_path.join(&target_file);
-      let src_path = dunce::simplified(&project_out.join(&target_file)).to_path_buf();
+      let from = cef_path.join("locales").join(f);
+      let src_path = dunce::simplified(&locales_out.join(f)).to_path_buf();
       fs::copy(&from, &src_path).fs_context("failed to copy CEF locale for NSIS bundle", from)?;
       added_resources.push(src_path.clone());
       resources.insert(src_path, (PathBuf::from("locales"), target_file));

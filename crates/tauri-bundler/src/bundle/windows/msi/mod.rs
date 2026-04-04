@@ -14,7 +14,7 @@ use crate::{
       },
     },
   },
-  error::Context,
+  error::{Context, ErrorExt},
   utils::{
     CommandExt,
     fs_utils::copy_file,
@@ -1091,8 +1091,9 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
   // Handle CEF support if cef_path is set,
   // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/win/README.redistrib.txt as a reference
-  if settings.bundle_settings().cef_path.is_some() {
-    let mut cef_files = [
+  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+    let project_out = settings.project_out_directory();
+    let cef_filenames = [
       // required
       "libcef.dll",
       "chrome_elf.dll",
@@ -1119,19 +1120,24 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       // sandbox - may need to be behind a setting?
       "bootstrap.exe",
       "bootstrapc.exe",
-    ]
-    .map(|f| ResourceFile {
-      id: format!("I{}", Uuid::new_v4().as_simple()),
-      guid: Uuid::new_v4().to_string(),
-      // We don't want to sign the cached files directly so we use the copied ones.
-      path: dunce::simplified(&settings.project_out_directory().join(f)).to_path_buf(),
-    })
-    .to_vec();
+    ];
+
+    let mut cef_files = Vec::with_capacity(cef_filenames.len());
+    for f in cef_filenames {
+      let from = cef_path.join(f);
+      let path = dunce::simplified(&project_out.join(f)).to_path_buf();
+      fs::copy(&from, &path).fs_context("failed to copy CEF file for MSI bundle", from)?;
+      if settings.windows().can_sign() && should_sign(&path)? {
+        try_sign(&path, settings)?;
+      }
+      cef_files.push(ResourceFile {
+        id: format!("I{}", Uuid::new_v4().as_simple()),
+        guid: Uuid::new_v4().to_string(),
+        path,
+      });
+    }
 
     for f in &cef_files {
-      if settings.windows().can_sign() && should_sign(&f.path)? {
-        try_sign(&f.path, settings)?;
-      }
       added_resources.push(f.path.clone());
     }
 
@@ -1147,20 +1153,24 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
     // TODO: locales?
     // crash without at least en
-    let mut locales = [
+    let locale_names = [
       "en-US.pak",
       "en-US_FEMININE.pak",
       "en-US_MASCULINE.pak",
       "en-US_NEUTER.pak",
-    ]
-    .map(|f| ResourceFile {
-      id: format!("I{}", Uuid::new_v4().as_simple()),
-      guid: Uuid::new_v4().to_string(),
-      // We don't want to sign the cached files directly so we use the copied ones.
-      path: dunce::simplified(&settings.project_out_directory().join("locales").join(f))
-        .to_path_buf(),
-    })
-    .to_vec();
+    ];
+    let mut locales = Vec::with_capacity(locale_names.len());
+    for f in locale_names {
+      let target_file = PathBuf::from("locales").join(f);
+      let from = cef_path.join(&target_file);
+      let path = dunce::simplified(&project_out.join(&target_file)).to_path_buf();
+      fs::copy(&from, &path).fs_context("failed to copy CEF locale for MSI bundle", from)?;
+      locales.push(ResourceFile {
+        id: format!("I{}", Uuid::new_v4().as_simple()),
+        guid: Uuid::new_v4().to_string(),
+        path,
+      });
+    }
 
     for f in &locales {
       added_resources.push(f.path.clone());

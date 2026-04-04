@@ -760,7 +760,8 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
 
   // Handle CEF support if cef_path is set,
   // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/win/README.redistrib.txt as a reference
-  if settings.bundle_settings().cef_path.is_some() {
+  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+    let project_out = settings.project_out_directory();
     let cef_files = [
       // required
       "libcef.dll",
@@ -791,7 +792,9 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     ];
 
     for f in &cef_files {
-      let src_path = dunce::simplified(&settings.project_out_directory().join(f)).to_path_buf();
+      let from = cef_path.join(f);
+      let src_path = dunce::simplified(&project_out.join(f)).to_path_buf();
+      fs::copy(&from, &src_path).fs_context("failed to copy CEF file for NSIS bundle", from)?;
       if settings.windows().can_sign() && should_sign(&src_path)? {
         try_sign(&src_path, settings)?;
       }
@@ -810,8 +813,9 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
 
     for f in &locales {
       let target_file = PathBuf::from("locales").join(f);
-      let src_path =
-        dunce::simplified(&settings.project_out_directory().join(&target_file)).to_path_buf();
+      let from = cef_path.join(&target_file);
+      let src_path = dunce::simplified(&project_out.join(&target_file)).to_path_buf();
+      fs::copy(&from, &src_path).fs_context("failed to copy CEF locale for NSIS bundle", from)?;
       added_resources.push(src_path.clone());
       resources.insert(src_path, (PathBuf::from("locales"), target_file));
     }

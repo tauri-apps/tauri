@@ -4387,48 +4387,29 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::SceneRequested { scene, options });
     }
     #[cfg(mobile)]
-    Event::Resumed => {
-      let event = WindowEvent::Resumed;
+    e @ Event::Resumed | e @ Event::Suspended => {
+      let event = match e {
+        Event::Resumed => WindowEvent::Resumed,
+        Event::Suspended => WindowEvent::Suspended,
+        _ => unreachable!(),
+      };
+
       let windows_ref = windows.0.borrow();
-      if let Some(window) = windows_ref.values().next() {
+      windows_ref.values().for_each(|window| {
         let label = window.label.clone();
         let window_event_listeners = window.window_event_listeners.clone();
-
-        drop(windows_ref);
+        let listeners = window_event_listeners.lock().unwrap();
+        for handler in listeners.values() {
+          handler(&event);
+        }
 
         callback(RunEvent::WindowEvent {
           label,
           event: event.clone(),
         });
+      });
 
-        let listeners = window_event_listeners.lock().unwrap();
-        let handlers = listeners.values();
-        for handler in handlers {
-          handler(&event);
-        }
-      }
-    }
-    #[cfg(mobile)]
-    Event::Suspended => {
-      let event = WindowEvent::Suspended;
-      let windows_ref = windows.0.borrow();
-      if let Some(window) = windows_ref.values().next() {
-        let label = window.label.clone();
-        let window_event_listeners = window.window_event_listeners.clone();
-
-        drop(windows_ref);
-
-        callback(RunEvent::WindowEvent {
-          label,
-          event: event.clone(),
-        });
-
-        let listeners = window_event_listeners.lock().unwrap();
-        let handlers = listeners.values();
-        for handler in handlers {
-          handler(&event);
-        }
-      }
+      drop(windows_ref);
     }
     _ => (),
   }

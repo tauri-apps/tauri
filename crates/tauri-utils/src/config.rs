@@ -866,12 +866,12 @@ pub struct NsisConfig {
   /// The path to a unbitmap file to display on the header of uninstallers pages.
   ///
   /// The recommended dimensions are 150px x 57px.
-  #[serde(alias = "uninstaller-header-image")]
+  #[serde(alias = "uninstall-header-image")]
   pub uninstaller_header_image: Option<PathBuf>,
   /// The path to a unbitmap file for the Welcome page and the Finish page.
   ///
   /// The recommended dimensions are 164px x 314px.
-  #[serde(alias = "uninstaller-sidebar-image")]
+  #[serde(alias = "uninstall-sidebar-image")]
   pub uninstaller_sidebar_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   #[serde(default, alias = "install-mode")]

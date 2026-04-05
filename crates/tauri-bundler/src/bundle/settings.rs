@@ -472,12 +472,12 @@ pub struct NsisSettings {
   pub installer_icon: Option<PathBuf>,
   /// The path to an icon file used as the uninstaller icon.
   pub uninstaller_icon: Option<PathBuf>,
-  /// The path to a unbitmap file to display on the header of uninstaller pages.
+  /// The path to a unbitmap file for the Welcome page and the Finish page.
   ///
   /// The recommended dimensions are 164px x 314px.
   pub uninstaller_sidebar_image: Option<PathBuf>,
-  /// The path to a unbitmap file for the Welcome page and the Finish page of the uninstaller.
-  ///   
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  ///
   /// The recommended dimensions are 150px x 57px.
   pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.

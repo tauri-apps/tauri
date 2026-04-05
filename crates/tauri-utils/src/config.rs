@@ -860,6 +860,19 @@ pub struct NsisConfig {
   /// The path to an icon file used as the installer icon.
   #[serde(alias = "install-icon")]
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  #[serde(alias = "uninstall-icon")]
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a unbitmap file to display on the header of uninstallers pages.
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  #[serde(alias = "uninstall-header-image")]
+  pub uninstaller_header_image: Option<PathBuf>
+  /// The path to a unbitmap file for the Welcome page and the Finish page.
+  ///
+  /// The recommended dimensions are 164px x 314px.
+  #[serde(alias = "uninstall-sidebar-image")]
+  pub uninstall_sidebar_image: Option<PathBuf>
   /// Whether the installation will be for all users or just the current user.
   #[serde(default, alias = "install-mode")]
   pub install_mode: NSISInstallerMode,

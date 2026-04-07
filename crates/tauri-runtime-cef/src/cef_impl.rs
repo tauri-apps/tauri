@@ -73,12 +73,12 @@ fn position_to_cef(position: Position, scale_factor: f64) -> cef::Point {
 #[inline]
 fn size_to_cef(size: Size, scale_factor: f64) -> cef::Size {
   #[cfg(windows)]
-  let s = size.to_physical::<u32>(scale_factor);
+  let s = size.to_physical::<i32>(scale_factor);
   #[cfg(not(windows))]
-  let s = size.to_logical::<u32>(scale_factor);
+  let s = size.to_logical::<i32>(scale_factor);
   cef::Size {
-    width: s.width as i32,
-    height: s.height as i32,
+    width: s.width,
+    height: s.height,
   }
 }
 

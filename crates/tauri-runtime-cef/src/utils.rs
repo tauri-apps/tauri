@@ -17,7 +17,7 @@ pub mod windows {
 
   /// Adjusts the given size to account for window borders, so that the resulting inner size matches the requested size.
   ///
-  /// Expects a size in physical pixels, and returns a size in physical pixels.
+  /// Expects and returns a size in physical pixels.
   pub fn adjust_size(hwnd: cef::sys::HWND, size: cef::Size) -> cef::Size {
     let hwnd = HWND(hwnd.0 as _);
 
@@ -35,8 +35,8 @@ pub mod windows {
     let height_diff = window_height - client_height;
 
     cef::Size {
-      width: size.width + width_diff as i32,
-      height: size.height + height_diff as i32,
+      width: size.width + width_diff,
+      height: size.height + height_diff,
     }
   }
 }

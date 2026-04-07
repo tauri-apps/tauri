@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install Rust stable
-        uses: dtolnay/rust-toolchain@1.71
+        uses: dtolnay/rust-toolchain@1.85
 
       - name: setup node
         uses: actions/setup-node@v4

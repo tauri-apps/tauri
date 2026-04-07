@@ -23,23 +23,23 @@ jobs:
             flags: "--manifest-path=./Cargo.toml --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test"
           - name: bundler
             flags: "--manifest-path=./tooling/bundler/Cargo.toml"
-            toolchain: "1.71.0"
+            toolchain: "1.85.0"
           - name: cli
             flags: "--manifest-path=./tooling/cli/Cargo.toml"
-            toolchain: "1.71.0"
+            toolchain: "1.85.0"
 
         platform:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: "1.71.0",
+              toolchain: "1.85.0",
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-22.04,
-              toolchain: "1.71.0",
+              toolchain: "1.85.0",
             }
-          - { target: x86_64-apple-darwin, os: macos-13, toolchain: "1.71.0" }
+          - { target: x86_64-apple-darwin, os: macos-13, toolchain: "1.85.0" }
     steps:
       - uses: actions/checkout@v4
 
@@ -74,32 +74,7 @@ jobs:
         # The --precise flag can only be used once per invocation.
         # at least h2 and syn don't need the precise flag here with cargo 1.84
         run: |
-          cargo update -p backtrace --precise 0.3.68
-          cargo update -p hyper --precise 0.14.27
-          cargo update -p h2 --precise 0.3.20
-          cargo update -p serde_json --precise 1.0.97
-          cargo update -p arboard --precise 3.2.1
-          cargo update -p tempfile --precise 3.6.0
-          cargo update -p regex --precise 1.9.6
-          cargo update -p tar --precise 0.4.39
-          cargo update -p serde --precise 1.0.210
-          cargo update -p syn:2 --precise 2.0.67
-          cargo update -p globset --precise 0.4.13
-          cargo update -p xml-rs --precise 0.8.20
-          cargo update -p derive_more --precise 0.99.17
-          cargo update -p thread_local --precise 1.1.7
-          cargo update -p mac-notification-sys --precise 0.6.1
-          cargo update -p ignore --precise 0.4.18
-          cargo update -p tree_magic_mini --precise 3.0.3
-          cargo update -p native-tls --precise 0.2.11
-          cargo update -p string_cache --precise 0.8.7
-          cargo update -p string_cache_codegen --precise 0.5.2
-          cargo update -p openssl --precise 0.10.66
-          cargo update -p openssl-sys --precise 0.9.103
-          cargo update -p cargo_toml --precise 0.15.2
-          cargo update -p shared_child --precise 1.0.0
-          cargo update -p libc:0.2 --precise 0.2.163
-          cargo update -p os_pipe --precise 1.1.5
+          cd .
 
       - name: Downgrade crates with MSRV conflict (bundler)
         if: ${{ matrix.project.name != 'core' }}
@@ -107,11 +82,7 @@ jobs:
           CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
         run: |
           cd tooling/bundler
-          cargo update -p avif-serialize --precise 0.8.3
-          cargo update -p zune-jpeg --precise 0.4.14
           cd ../cli
-          cargo update -p avif-serialize --precise 0.8.3
-          cargo update -p zune-jpeg --precise 0.4.14
 
       - name: install rust ${{ matrix.project.toolchain || matrix.platform.toolchain }}
         uses: dtolnay/rust-toolchain@master

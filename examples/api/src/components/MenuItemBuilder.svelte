@@ -32,7 +32,8 @@
     'ShowAll',
     'CloseWindow',
     'Quit',
-    'Services'
+    'Services',
+    'BringAllToFront'
   ]
 
   function onKindChange(event) {

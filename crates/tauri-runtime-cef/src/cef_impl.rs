@@ -18,7 +18,8 @@ use std::{
 use tauri_runtime::{
   ExitRequestedEventAction, RunEvent, UserEvent,
   dpi::{
-    LogicalPosition, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Size,
+    LogicalPosition, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Rect,
+    Size,
   },
   webview::{InitializationScript, PendingWebview, UriSchemeProtocolHandler, WebviewAttributes},
   window::{PendingWindow, WindowEvent, WindowId},
@@ -54,6 +55,45 @@ const TRANSPARENT: u32 = 0x00000000;
 fn color_to_cef_argb(color: tauri_utils::config::Color) -> u32 {
   let (r, g, b, a) = color.into();
   ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
+}
+
+/// Convert position to the coordinate space expected by CEF.
+/// On Windows, CEF uses physical coordinates; on other platforms, logical.
+#[inline]
+fn position_to_cef(position: Position, scale_factor: f64) -> cef::Point {
+  #[cfg(windows)]
+  let p = position.to_physical::<i32>(scale_factor);
+  #[cfg(not(windows))]
+  let p = position.to_logical::<i32>(scale_factor);
+  cef::Point { x: p.x, y: p.y }
+}
+
+/// Convert size to the coordinate space expected by CEF.
+/// On Windows, CEF uses physical coordinates; on other platforms, logical.
+#[inline]
+fn size_to_cef(size: Size, scale_factor: f64) -> cef::Size {
+  #[cfg(windows)]
+  let s = size.to_physical::<i32>(scale_factor);
+  #[cfg(not(windows))]
+  let s = size.to_logical::<i32>(scale_factor);
+  cef::Size {
+    width: s.width,
+    height: s.height,
+  }
+}
+
+/// Convert rect to the coordinate space expected by CEF.
+/// On Windows, CEF uses physical coordinates; on other platforms, logical.
+#[inline]
+fn rect_to_cef(rect: Rect, scale_factor: f64) -> cef::Rect {
+  let p = position_to_cef(rect.position, scale_factor);
+  let s = size_to_cef(rect.size, scale_factor);
+  cef::Rect {
+    x: p.x,
+    y: p.y,
+    width: s.width,
+    height: s.height,
+  }
 }
 
 #[inline]
@@ -1367,31 +1407,21 @@ wrap_window_delegate! {
 
           && let Some(display) = window.display() {
             let scale = display.device_scale_factor() as f64;
+            let size = size_to_cef(inner_size, scale);
 
             // On Windows, the size set via CEF APIs is the outer size (including borders),
             // so we need to adjust it to set the correct inner size.
             #[cfg(windows)]
-            let inner_size: tauri_runtime::dpi::Size = {
-              let size = inner_size.to_physical::<u32>(scale);
-              crate::utils::windows::adjust_size(window.window_handle(), size).into()
-            };
+            let size = crate::utils::windows::adjust_size(window.window_handle(), size);
 
-            let logical_size = inner_size.to_logical::<f32>(scale);
-
-            window.set_size(Some(&cef::Size {
-              width: logical_size.width as i32,
-              height: logical_size.height as i32,
-            }));
+            window.set_size(Some(&size));
           }
 
         if let Some(position) = &a.position
           && let Some(display) = window.display() {
             let device_scale_factor = display.device_scale_factor() as f64;
-            let logical_position = position.to_logical::<i32>(device_scale_factor);
-            window.set_position(Some(&cef::Point {
-              x: logical_position.x,
-              y: logical_position.y,
-            }));
+            let position = position_to_cef(*position, device_scale_factor);
+            window.set_position(Some(&position));
           }
 
         if a.center {
@@ -1808,7 +1838,9 @@ fn handle_webview_message<T: UserEvent>(
             .and_then(|window| window.display())
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
-          let logical_position = position.to_logical::<i32>(device_scale_factor);
+
+          let position = position_to_cef(position, device_scale_factor);
+
           app_window
             .webviews
             .iter()
@@ -1816,8 +1848,8 @@ fn handle_webview_message<T: UserEvent>(
             .map(|wrapper| {
               let current_bounds = wrapper.inner.bounds();
               let new_bounds = cef::Rect {
-                x: logical_position.x,
-                y: logical_position.y,
+                x: position.x,
+                y: position.y,
                 width: current_bounds.width,
                 height: current_bounds.height,
               };
@@ -1829,28 +1861,19 @@ fn handle_webview_message<T: UserEvent>(
               } else {
                 None
               };
-              (
-                inner,
-                new_bounds,
-                is_browser,
-                bounds_arc,
-                logical_position,
-                window_bounds,
-              )
+              (inner, new_bounds, is_browser, bounds_arc, window_bounds)
             })
         });
 
-      if let Some((inner, new_bounds, is_browser, bounds_arc, logical_position, window_bounds)) =
-        data
-      {
+      if let Some((inner, new_bounds, is_browser, bounds_arc, window_bounds)) = data {
         inner.set_bounds(Some(&new_bounds));
         if is_browser
           && let Some(b) = &mut *bounds_arc.lock().unwrap()
           && let Some(wb) = window_bounds
         {
           let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
-          b.x_rate = logical_position.x as f32 / window_size.width as f32;
-          b.y_rate = logical_position.y as f32 / window_size.height as f32;
+          b.x_rate = new_bounds.x as f32 / window_size.width as f32;
+          b.y_rate = new_bounds.y as f32 / window_size.height as f32;
         }
       }
     }
@@ -1865,7 +1888,9 @@ fn handle_webview_message<T: UserEvent>(
             .and_then(|window| window.display())
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
-          let logical_size = size.to_logical::<u32>(device_scale_factor);
+
+          let size = size_to_cef(size, device_scale_factor);
+
           app_window
             .webviews
             .iter()
@@ -1875,8 +1900,8 @@ fn handle_webview_message<T: UserEvent>(
               let new_bounds = cef::Rect {
                 x: current_bounds.x,
                 y: current_bounds.y,
-                width: logical_size.width as i32,
-                height: logical_size.height as i32,
+                width: size.width,
+                height: size.height,
               };
               let inner = wrapper.inner.clone();
               let bounds_arc = wrapper.bounds.clone();
@@ -1886,26 +1911,19 @@ fn handle_webview_message<T: UserEvent>(
               } else {
                 None
               };
-              (
-                inner,
-                new_bounds,
-                is_browser,
-                bounds_arc,
-                logical_size,
-                window_bounds,
-              )
+              (inner, new_bounds, is_browser, bounds_arc, window_bounds)
             })
         });
 
-      if let Some((inner, new_bounds, is_browser, bounds_arc, logical_size, window_bounds)) = data {
+      if let Some((inner, new_bounds, is_browser, bounds_arc, window_bounds)) = data {
         inner.set_bounds(Some(&new_bounds));
         if is_browser
           && let Some(b) = &mut *bounds_arc.lock().unwrap()
           && let Some(wb) = window_bounds
         {
           let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
-          b.width_rate = logical_size.width as f32 / window_size.width as f32;
-          b.height_rate = logical_size.height as f32 / window_size.height as f32;
+          b.width_rate = new_bounds.width as f32 / window_size.width as f32;
+          b.height_rate = new_bounds.height as f32 / window_size.height as f32;
         }
       }
     }
@@ -1920,19 +1938,13 @@ fn handle_webview_message<T: UserEvent>(
             .and_then(|window| window.display())
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
-          let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
-          let logical_size = bounds.size.to_logical::<u32>(device_scale_factor);
+
+          let new_bounds = rect_to_cef(bounds, device_scale_factor);
           app_window
             .webviews
             .iter()
             .find(|w| w.webview_id == webview_id)
             .map(|wrapper| {
-              let new_bounds = cef::Rect {
-                x: logical_position.x,
-                y: logical_position.y,
-                width: logical_size.width as i32,
-                height: logical_size.height as i32,
-              };
               let inner = wrapper.inner.clone();
               let bounds_arc = wrapper.bounds.clone();
               let is_browser = wrapper.inner.is_browser();
@@ -1941,38 +1953,21 @@ fn handle_webview_message<T: UserEvent>(
               } else {
                 None
               };
-              (
-                inner,
-                new_bounds,
-                is_browser,
-                bounds_arc,
-                logical_position,
-                logical_size,
-                window_bounds,
-              )
+              (inner, new_bounds, is_browser, bounds_arc, window_bounds)
             })
         });
 
-      if let Some((
-        inner,
-        new_bounds,
-        is_browser,
-        bounds_arc,
-        logical_position,
-        logical_size,
-        window_bounds,
-      )) = data
-      {
+      if let Some((inner, new_bounds, is_browser, bounds_arc, window_bounds)) = data {
         inner.set_bounds(Some(&new_bounds));
         if is_browser
           && let Some(b) = &mut *bounds_arc.lock().unwrap()
           && let Some(wb) = window_bounds
         {
           let window_size = LogicalSize::new(wb.width as u32, wb.height as u32);
-          b.x_rate = logical_position.x as f32 / window_size.width as f32;
-          b.y_rate = logical_position.y as f32 / window_size.height as f32;
-          b.width_rate = logical_size.width as f32 / window_size.width as f32;
-          b.height_rate = logical_size.height as f32 / window_size.height as f32;
+          b.x_rate = new_bounds.x as f32 / window_size.width as f32;
+          b.y_rate = new_bounds.y as f32 / window_size.height as f32;
+          b.width_rate = new_bounds.width as f32 / window_size.width as f32;
+          b.height_rate = new_bounds.height as f32 / window_size.height as f32;
         }
       }
     }
@@ -2971,19 +2966,14 @@ fn handle_window_message<T: UserEvent>(
       {
         let device_scale_factor = display.device_scale_factor() as f64;
 
+        let size = size_to_cef(size, device_scale_factor);
+
         // On Windows, the size set via CEF APIs is the outer size (including borders),
         // so we need to adjust it to set the correct inner size.
         #[cfg(windows)]
-        {
-          let inner_size = size.to_physical::<u32>(device_scale_factor);
-          size = crate::utils::windows::adjust_size(window.window_handle(), inner_size).into();
-        }
+        let size = crate::utils::windows::adjust_size(window.window_handle(), size);
 
-        let logical_size = size.to_logical::<f32>(device_scale_factor);
-        window.set_size(Some(&cef::Size {
-          width: logical_size.width as i32,
-          height: logical_size.height as i32,
-        }));
+        window.set_size(Some(&size));
       }
     }
     WindowMessage::SetMinSize(size) => {
@@ -3007,11 +2997,8 @@ fn handle_window_message<T: UserEvent>(
         && let Some(display) = window.display()
       {
         let device_scale_factor = display.device_scale_factor() as f64;
-        let logical_position = position.to_logical::<i32>(device_scale_factor);
-        window.set_position(Some(&cef::Point {
-          x: logical_position.x,
-          y: logical_position.y,
-        }));
+        let position = position_to_cef(position, device_scale_factor);
+        window.set_position(Some(&position));
       }
     }
     WindowMessage::SetFullscreen(fullscreen) => {
@@ -3303,12 +3290,12 @@ fn create_browser_window<T: UserEvent>(
     .map(|d| d.device_scale_factor() as f64)
     .unwrap_or(1.);
   if let Some(size) = attributes.borrow().inner_size {
-    let size = size.to_logical::<i32>(device_scale_factor);
+    let size = size_to_cef(size, device_scale_factor);
     bounds.width = size.width;
     bounds.height = size.height;
   }
   if let Some(position) = attributes.borrow().position {
-    let position = position.to_logical::<i32>(device_scale_factor);
+    let position = position_to_cef(position, device_scale_factor);
     bounds.x = position.x;
     bounds.y = position.y;
   }
@@ -3729,23 +3716,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       .map(|d| d.device_scale_factor() as f64)
       .unwrap_or(1.0);
 
-    // On Windows, CEF expects physical coordinates for child windows.
-    #[cfg(windows)]
-    let logical_position = bounds.position.to_physical::<i32>(device_scale_factor);
-    #[cfg(windows)]
-    let logical_size = bounds.size.to_physical::<u32>(device_scale_factor);
-
-    #[cfg(not(windows))]
-    let logical_position = bounds.position.to_logical::<i32>(device_scale_factor);
-    #[cfg(not(windows))]
-    let logical_size = bounds.size.to_logical::<u32>(device_scale_factor);
-
-    cef::Rect {
-      x: logical_position.x,
-      y: logical_position.y,
-      width: logical_size.width as i32,
-      height: logical_size.height as i32,
-    }
+    rect_to_cef(bounds, device_scale_factor)
   });
 
   let window_handle = window.window_handle();
@@ -3771,8 +3742,10 @@ pub(crate) fn create_webview<T: UserEvent>(
     #[cfg(target_os = "macos")]
     let window_handle = ensure_valid_content_view(window_handle);
 
-    let mut window_info = cef::WindowInfo::default()
-      .set_as_child(window_handle, bounds.as_ref().unwrap_or(&Rect::default()));
+    let mut window_info = cef::WindowInfo::default().set_as_child(
+      window_handle,
+      bounds.as_ref().unwrap_or(&cef::Rect::default()),
+    );
     window_info.runtime_style = cef_runtime_style;
 
     let Some(browser_host) = browser_host_create_browser_sync(

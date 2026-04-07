@@ -132,16 +132,14 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !define MUI_WELCOMEFINISHPAGE_BITMAP "${SIDEBARIMAGE}"
 !endif
 
-; Enable header images for installer and uninstaller pages when either image is configured.
 !if "${HEADERIMAGE}" != ""
+  ; Installer header image
   !define MUI_HEADERIMAGE
-!else if "${UNINSTALLERHEADERIMAGE}" != ""
-  !define MUI_HEADERIMAGE
-!endif
-
-; Installer header image
-!if "${HEADERIMAGE}" != ""
   !define MUI_HEADERIMAGE_BITMAP "${HEADERIMAGE}"
+!else if "${UNINSTALLERHEADERIMAGE}" != ""
+  ; Uninstaller header image
+  !define MUI_HEADERIMAGE
+  !define MUI_HEADERIMAGE_UNBITMAP "${UNINSTALLERHEADERIMAGE}"
 !endif
 
 ; Uninstaller icon
@@ -152,11 +150,6 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; Uninstaller sidebar image
 !if "${UNINSTALLERSIDEBARIMAGE}" != ""
   !define MUI_UNWELCOMEFINISHPAGE_BITMAP "${UNINSTALLERSIDEBARIMAGE}"
-!endif
-
-; Uninstaller header image
-!if "${UNINSTALLERHEADERIMAGE}" != ""
-  !define MUI_HEADERIMAGE_UNBITMAP "${UNINSTALLERHEADERIMAGE}"
 !endif
 
 ; Define registry key to store installer language

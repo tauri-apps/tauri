@@ -3004,7 +3004,7 @@
           ]
         },
         "uninstallerHeaderImage": {
-          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n Defaults to header_image. If set but header_image is missing, uses the NSIS default.\n\n The recommended dimensions are 150px x 57px.",
+          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`\n\n The recommended dimensions are 150px x 57px.",
           "type": [
             "string",
             "null"

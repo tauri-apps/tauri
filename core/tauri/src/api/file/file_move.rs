@@ -41,19 +41,15 @@ impl<'a> Move<'a> {
   /// Move source file to specified destination (replace whole directory)
   pub fn to_dest(&self, dest: &path::Path) -> crate::api::Result<()> {
     match self.temp {
-      None => {
-        fs::rename(self.source, dest)?;
-      }
-      Some(temp) => {
-        if dest.exists() {
-          fs::rename(dest, temp)?;
-          if let Err(e) = fs::rename(self.source, dest) {
-            fs::rename(temp, dest)?;
-            return Err(e.into());
-          }
-        } else {
-          fs::rename(self.source, dest)?;
+      Some(temp) if dest.exists() => {
+        fs::rename(dest, temp)?;
+        if let Err(e) = fs::rename(self.source, dest) {
+          fs::rename(temp, dest)?;
+          return Err(e.into());
         }
+      }
+      None | Some(_) => {
+        fs::rename(self.source, dest)?;
       }
     };
     Ok(())

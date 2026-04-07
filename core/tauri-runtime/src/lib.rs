@@ -201,19 +201,15 @@ pub enum UserAttentionType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "type")]
+#[derive(Default)]
 pub enum DeviceEventFilter {
   /// Always filter out device events.
   Always,
   /// Filter out device events while the window is not focused.
+  #[default]
   Unfocused,
   /// Report all device events regardless of window focus.
   Never,
-}
-
-impl Default for DeviceEventFilter {
-  fn default() -> Self {
-    Self::Unfocused
-  }
 }
 
 #[derive(Debug, thiserror::Error)]

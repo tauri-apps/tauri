@@ -313,9 +313,9 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
     let system_tray_icon_path = config_parent.join(&tray.icon_path);
     let ext = system_tray_icon_path.extension();
-    if ext.map_or(false, |e| e == "ico") {
+    if ext.is_some_and(|e| e == "ico") {
       ico_icon(&root, &out_dir, system_tray_icon_path)?
-    } else if ext.map_or(false, |e| e == "png") {
+    } else if ext.is_some_and(|e| e == "png") {
       png_icon(&root, &out_dir, system_tray_icon_path)?
     } else {
       quote!(compile_error!(

@@ -867,7 +867,7 @@ pub struct NsisConfig {
   /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
   ///
   /// The recommended dimensions are 150px x 57px.
-  #[serde(alias = "uninstall-header-image")]
+  #[serde(alias = "uninstaller-header-image")]
   pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   #[serde(default, alias = "install-mode")]

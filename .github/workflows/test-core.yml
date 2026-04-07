@@ -42,7 +42,7 @@ jobs:
               os: ubuntu-22.04,
               toolchain: "1.85.0",
             }
-          - { target: x86_64-apple-darwin, os: macos-13, toolchain: "1.85.0" }
+          - { target: x86_64-apple-darwin, os: macos-14, toolchain: "1.85.0" }
         features:
           - { args: --no-default-features, key: no-default }
           - { args: --features api-all, key: api-all }

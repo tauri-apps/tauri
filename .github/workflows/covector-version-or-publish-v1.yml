@@ -39,7 +39,7 @@ jobs:
               os: ubuntu-22.04,
               toolchain: "1.85.0",
             }
-          - { target: x86_64-apple-darwin, os: macos-13, toolchain: "1.85.0" }
+          - { target: x86_64-apple-darwin, os: macos-14, toolchain: "1.85.0" }
     steps:
       - uses: actions/checkout@v4
 
@@ -101,7 +101,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-22.04, macos-13, windows-latest]
+        platform: [ubuntu-22.04, macos-14, windows-latest]
 
     steps:
       - uses: actions/checkout@v4

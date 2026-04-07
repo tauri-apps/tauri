@@ -2,7 +2,7 @@
 "tauri-bundler": minor:feat
 "tauri-cli": minor:feat
 "tauri-schema-generator": minor:feat
-"tauri-utils": minor-feat
+"tauri-utils": minor:feat
 ---
 
 Added uninstaller icon and uninstaller header image support for NSIS installer.

@@ -7,6 +7,8 @@ name: covector version or publish v1
 on:
   push:
     branches:
+      - 1.x
+      - v1/msrv-check
       - 1.x-edition2024
       - v1-edition2024/msrv-check
 

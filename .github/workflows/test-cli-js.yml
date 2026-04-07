@@ -9,6 +9,7 @@ on:
     branches:
       - dev
       - 1.x
+      - 1.x-edition2024
   pull_request:
     paths:
       - ".github/workflows/test-cli-js.yml"

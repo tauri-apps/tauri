@@ -9,6 +9,7 @@ on:
     branches:
       - dev
       - 1.x
+      - 1.x-edition2024
   workflow_dispatch:
 
 env:

@@ -7,8 +7,8 @@ name: covector version or publish v1
 on:
   push:
     branches:
-      - 1.x
-      - v1/msrv-check
+      - 1.x-edition2024
+      - v1-edition2024/msrv-check
 
 jobs:
   msrv-list:
@@ -30,14 +30,14 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: "1.61.0",
+              toolchain: "1.71.0",
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-22.04,
-              toolchain: "1.60.0",
+              toolchain: "1.71.0",
             }
-          - { target: x86_64-apple-darwin, os: macos-13, toolchain: "1.60.0" }
+          - { target: x86_64-apple-darwin, os: macos-13, toolchain: "1.71.0" }
     steps:
       - uses: actions/checkout@v4
 
@@ -123,7 +123,7 @@ jobs:
   run-integration-tests:
     runs-on: ${{ matrix.platform }}
     needs: msrv-list
-    if: github.ref == 'refs/heads/1.x'
+    if: github.ref == 'refs/heads/1.x-edition2024'
 
     strategy:
       fail-fast: false
@@ -232,7 +232,7 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        run: gh workflow run 31554138 -r 1.x -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
+        run: gh workflow run 31554138 -r 1.x-edition2024 -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -240,6 +240,6 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
-        run: gh workflow run 31554139 -r 1.x
+        run: gh workflow run 31554139 -r 1.x-edition2024
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -214,7 +214,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     }
 
     // if we have a package to bundle, let's run the `before_bundle_command`.
-    if package_types.as_ref().map_or(true, |p| !p.is_empty()) {
+    if package_types.as_ref().is_none_or(|p| !p.is_empty()) {
       if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
         run_hook(
           "beforeBundleCommand",

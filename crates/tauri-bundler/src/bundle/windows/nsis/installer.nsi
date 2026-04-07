@@ -42,7 +42,6 @@ ${StrLoc}
 !define SIDEBARIMAGE "{{sidebar_image}}"
 !define HEADERIMAGE "{{header_image}}"
 !define UNINSTALLERICON "{{uninstaller_icon}}"
-!define UNINSTALLERSIDEBARIMAGE "{{uninstaller_sidebar_image}}"
 !define UNINSTALLERHEADERIMAGE "{{uninstaller_header_image}}"
 !define MAINBINARYNAME "{{main_binary_name}}"
 !define MAINBINARYSRCPATH "{{main_binary_path}}"
@@ -145,11 +144,6 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; Uninstaller icon
 !if "${UNINSTALLERICON}" != ""
   !define MUI_UNICON "${UNINSTALLERICON}"
-!endif
-
-; Uninstaller sidebar image
-!if "${UNINSTALLERSIDEBARIMAGE}" != ""
-  !define MUI_UNWELCOMEFINISHPAGE_BITMAP "${UNINSTALLERSIDEBARIMAGE}"
 !endif
 
 ; Define registry key to store installer language

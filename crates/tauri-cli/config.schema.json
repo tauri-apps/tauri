@@ -3004,14 +3004,7 @@
           ]
         },
         "uninstallerHeaderImage": {
-          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n\n The recommended dimensions are 150px x 57px.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "uninstallerSidebarImage": {
-          "description": "The path to a bitmap file for the Welcome page and the Finish page of uninstaller.\n\n The recommended dimensions are 164px x 314px.",
+          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n Defaults to header_image. If set but header_image is missing, uses the NSIS default.\n\n The recommended dimensions are 150px x 57px.",
           "type": [
             "string",
             "null"

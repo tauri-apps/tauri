@@ -368,13 +368,6 @@ fn build_nsis_app_installer(
       );
     }
 
-    if let Some(uninstaller_sidebar_image) = &nsis.uninstaller_sidebar_image {
-      data.insert(
-        "uninstaller_sidebar_image",
-        to_json(dunce::canonicalize(uninstaller_sidebar_image)?),
-      );
-    }
-
     if let Some(installer_hooks) = &nsis.installer_hooks {
       let installer_hooks = dunce::canonicalize(installer_hooks)?;
       data.insert("installer_hooks", to_json(installer_hooks));

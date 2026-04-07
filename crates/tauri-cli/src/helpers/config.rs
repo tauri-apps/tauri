@@ -111,7 +111,6 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     sidebar_image: config.sidebar_image,
     installer_icon: config.installer_icon,
     uninstaller_icon: config.uninstaller_icon,
-    uninstaller_sidebar_image: config.uninstaller_sidebar_image,
     uninstaller_header_image: config.uninstaller_header_image,
     install_mode: config.install_mode,
     languages: config.languages,

@@ -861,7 +861,7 @@ pub struct NsisConfig {
   #[serde(alias = "install-icon")]
   pub installer_icon: Option<PathBuf>,
   /// The path to an icon file used as the uninstaller icon.
-  #[serde(alias = "uninstall-icon")]
+  #[serde(alias = "uninstaller-icon")]
   pub uninstaller_icon: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of uninstallers pages.
   /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`

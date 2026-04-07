@@ -413,13 +413,6 @@ Function RunMainBinary
   nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" ""
 FunctionEnd
 
-; Uninstaller Pages
-!if "${UNINSTALLERSIDEBARIMAGE}" != ""
-  ; Show a welcome page when a custom uninstaller sidebar image is configured.
-  !define MUI_PAGE_CUSTOMFUNCTION_PRE un.SkipIfPassive
-  !insertmacro MUI_UNPAGE_WELCOME
-!endif
-
 ; 1. Confirm uninstall page
 Var DeleteAppDataCheckbox
 Var DeleteAppDataCheckboxState
@@ -463,12 +456,6 @@ FunctionEnd
 
 ; 2. Uninstalling Page
 !insertmacro MUI_UNPAGE_INSTFILES
-
-!if "${UNINSTALLERSIDEBARIMAGE}" != ""
-  ; Show a finish page when a custom uninstaller sidebar image is configured.
-  !define MUI_PAGE_CUSTOMFUNCTION_PRE un.SkipIfPassive
-  !insertmacro MUI_UNPAGE_FINISH
-!endif
 
 ;Languages
 {{#each languages}}

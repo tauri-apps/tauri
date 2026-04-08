@@ -219,6 +219,11 @@
     "tauri-driver": {
       "path": "./crates/tauri-driver",
       "manager": "rust"
+    },
+    "tauri-schema-generator": {
+      "path": "./crates/tauri-schema-generator",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"]
     }
   }
 }

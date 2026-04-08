@@ -131,12 +131,14 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !define MUI_WELCOMEFINISHPAGE_BITMAP "${SIDEBARIMAGE}"
 !endif
 
+; Installer header image
 !if "${HEADERIMAGE}" != ""
-  ; Installer header image
   !define MUI_HEADERIMAGE
   !define MUI_HEADERIMAGE_BITMAP "${HEADERIMAGE}"
-!else if "${UNINSTALLERHEADERIMAGE}" != ""
-  ; Uninstaller header image
+!endif
+
+; Uninstaller header image
+!if "${UNINSTALLERHEADERIMAGE}" != ""
   !define MUI_HEADERIMAGE
   !define MUI_HEADERIMAGE_UNBITMAP "${UNINSTALLERHEADERIMAGE}"
 !endif

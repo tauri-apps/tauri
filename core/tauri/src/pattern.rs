@@ -85,6 +85,7 @@ impl From<&Pattern> for PatternObject {
 }
 
 /// Where the JavaScript is injected to
+#[cfg(feature = "isolation")]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]

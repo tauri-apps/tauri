@@ -921,7 +921,7 @@ fn copy_files_and_run(
     },
   };
 
-  let temp_dir = tempfile::Builder::new().tempdir()?.into_path();
+  let temp_dir = tempfile::Builder::new().tempdir()?.keep();
 
   let updater_type = if infer::archive::is_zip(bytes) {
     let archive = Cursor::new(bytes);

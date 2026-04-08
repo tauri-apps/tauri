@@ -354,6 +354,20 @@ fn build_nsis_app_installer(
       );
     }
 
+    if let Some(uninstaller_icon) = &nsis.uninstaller_icon {
+      data.insert(
+        "uninstaller_icon",
+        to_json(dunce::canonicalize(uninstaller_icon)?),
+      );
+    }
+
+    if let Some(uninstaller_header_image) = &nsis.uninstaller_header_image {
+      data.insert(
+        "uninstaller_header_image",
+        to_json(dunce::canonicalize(uninstaller_header_image)?),
+      );
+    }
+
     if let Some(installer_hooks) = &nsis.installer_hooks {
       let installer_hooks = dunce::canonicalize(installer_hooks)?;
       data.insert("installer_hooks", to_json(installer_hooks));

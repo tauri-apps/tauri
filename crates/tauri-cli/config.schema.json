@@ -2996,6 +2996,20 @@
             "null"
           ]
         },
+        "uninstallerIcon": {
+          "description": "The path to an icon file used as the uninstaller icon.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uninstallerHeaderImage": {
+          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`\n\n The recommended dimensions are 150px x 57px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "installMode": {
           "description": "Whether the installation will be for all users or just the current user.",
           "default": "currentUser",

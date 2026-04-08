@@ -101,9 +101,10 @@ fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
 
 /// Describes the appearance of the mouse cursor.
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
 pub enum CursorIcon {
   /// The platform-dependent default cursor.
+  #[default]
   Default,
   /// A simple crosshair.
   Crosshair,
@@ -202,12 +203,6 @@ impl<'de> Deserialize<'de> for CursorIcon {
       "rowresize" => CursorIcon::RowResize,
       _ => CursorIcon::Default,
     })
-  }
-}
-
-impl Default for CursorIcon {
-  fn default() -> Self {
-    CursorIcon::Default
   }
 }
 

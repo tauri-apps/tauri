@@ -1,25 +1,25 @@
 [package]
 name = "tauri-runtime"
 version = "0.14.6"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "web-programming" ]
+authors = ["Tauri Programme within The Commons Conservancy"]
+categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Runtime for Tauri applications"
 edition = "2021"
-rust-version = "1.60"
-exclude = [ "CHANGELOG.md", "/target" ]
+rust-version = "1.85"
+exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [ "--cfg", "doc_cfg" ]
+rustdoc-args = ["--cfg", "doc_cfg"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
-  "x86_64-apple-darwin"
+  "x86_64-apple-darwin",
 ]
 
 [lints.rust]
@@ -27,11 +27,11 @@ targets = [
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
 
 [dependencies]
-serde = { version = "1", features = [ "derive" ] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
 tauri-utils = { version = "1.6.2", path = "../tauri-utils" }
-uuid = { version = "1", features = [ "v4" ] }
+uuid = { version = "1", features = ["v4"] }
 http = "0.2"
 http-range = "0.1"
 raw-window-handle = "0.5"
@@ -41,16 +41,16 @@ url = { version = "2" }
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"
 
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.39.0"
-  features = [ "Win32_Foundation" ]
+[target."cfg(windows)".dependencies.windows]
+version = "0.39.0"
+features = ["Win32_Foundation"]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.15", features = [ "v3_20" ] }
+gtk = { version = "0.15", features = ["v3_20"] }
 
 [features]
-devtools = [ ]
-system-tray = [ ]
-macos-private-api = [ ]
-global-shortcut = [ ]
-clipboard = [ ]
+devtools = []
+system-tray = []
+macos-private-api = []
+global-shortcut = []
+clipboard = []

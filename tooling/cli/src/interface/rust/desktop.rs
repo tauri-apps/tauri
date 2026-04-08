@@ -423,7 +423,7 @@ mod terminal {
       // INVALID_HANDLE_VALUE. Use an alternate method which works
       // in that case as well.
       let h = CreateFileA(
-        "CONOUT$\0".as_ptr() as *const CHAR,
+        c"CONOUT$".as_ptr() as *const CHAR,
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         ptr::null_mut(),

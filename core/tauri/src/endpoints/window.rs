@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(unused_imports)]
+// i can't find the correct line
+#![allow(clippy::useless_conversion)]
 
 use super::{InvokeContext, InvokeResponse};
 #[cfg(window_create)]

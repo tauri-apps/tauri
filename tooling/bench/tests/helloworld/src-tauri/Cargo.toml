@@ -3,15 +3,17 @@ name = "bench_helloworld"
 version = "0.1.0"
 description = "A very simple Tauri Application"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.85"
 
 [build-dependencies]
-tauri-build = { path = "../../../../../core/tauri-build", features = [ "codegen" ] }
+tauri-build = { path = "../../../../../core/tauri-build", features = [
+    "codegen",
+] }
 
 [dependencies]
 serde_json = "1.0"
-serde = { version = "1.0", features = [ "derive" ] }
+serde = { version = "1.0", features = ["derive"] }
 tauri = { path = "../../../../../core/tauri", features = [] }
 
 [features]
-custom-protocol = [ "tauri/custom-protocol" ]
+custom-protocol = ["tauri/custom-protocol"]

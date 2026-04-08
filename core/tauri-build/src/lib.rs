@@ -412,18 +412,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   cfg_alias("dev", !has_feature("custom-protocol"));
 
   let ws_path = get_workspace_dir()?;
-  let mut manifest =
-    Manifest::<cargo_toml::Value>::from_slice_with_metadata(&std::fs::read("Cargo.toml")?)?;
-
-  if let Ok(ws_manifest) = Manifest::from_path(ws_path.join("Cargo.toml")) {
-    Manifest::complete_from_path_and_workspace(
-      &mut manifest,
-      Path::new("Cargo.toml"),
-      Some((&ws_manifest, ws_path.as_path())),
-    )?;
-  } else {
-    Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
-  }
+  let cargo_toml_path = Path::new("Cargo.toml").canonicalize()?;
+  let mut manifest = Manifest::<cargo_toml::Value>::from_path_with_metadata(cargo_toml_path)?;
 
   allowlist::check(&config, &mut manifest)?;
 
@@ -587,10 +577,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           }
         }
       }
-      "msvc" => {
-        if std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "true") {
-          static_vcruntime::build();
-        }
+      "msvc" if std::env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "true") => {
+        static_vcruntime::build();
       }
       _ => (),
     }

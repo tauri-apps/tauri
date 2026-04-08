@@ -378,7 +378,7 @@ fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
         }
         Err(err) => {
           // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
-          error!("Error watching {}: {}", p.display(), err.to_string());
+          error!("Error watching {}: {}", p.display(), err);
           watch_folders.push(p);
         }
       };

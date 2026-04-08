@@ -143,9 +143,10 @@ impl<'de> Deserialize<'de> for BundleType {
 }
 
 /// Targets to bundle. Each value is case insensitive.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub enum BundleTarget {
   /// Bundle all targets.
+  #[default]
   All,
   /// A list of bundle targets.
   List(Vec<BundleType>),
@@ -192,12 +193,6 @@ impl schemars::JsonSchema for BundleTarget {
       ..Default::default()
     }
     .into()
-  }
-}
-
-impl Default for BundleTarget {
-  fn default() -> Self {
-    Self::All
   }
 }
 
@@ -652,12 +647,14 @@ pub struct NsisConfig {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[derive(Default)]
 pub enum NSISInstallerMode {
   /// Default mode for the installer.
   ///
   /// Install the app by default in a directory that doesn't require Administrator access.
   ///
   /// Installer metadata will be saved under the `HKCU` registry path.
+  #[default]
   CurrentUser,
   /// Install the app by default in the `Program Files` folder directory requires Administrator
   /// access for the installation.
@@ -670,12 +667,6 @@ pub enum NSISInstallerMode {
   ///
   /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
   Both,
-}
-
-impl Default for NSISInstallerMode {
-  fn default() -> Self {
-    Self::CurrentUser
-  }
 }
 
 /// Install modes for the Webview2 runtime.
@@ -2607,20 +2598,16 @@ impl Allowlist for AllowlistConfig {
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase", tag = "use", content = "options")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[derive(Default)]
 pub enum PatternKind {
   /// Brownfield pattern.
+  #[default]
   Brownfield,
   /// Isolation pattern. Recommended for security purposes.
   Isolation {
     /// The dir containing the index.html file that contains the secure isolation application.
     dir: PathBuf,
   },
-}
-
-impl Default for PatternKind {
-  fn default() -> Self {
-    Self::Brownfield
-  }
 }
 
 /// The Tauri configuration object.
@@ -2732,6 +2719,7 @@ impl<'de> Deserialize<'de> for UpdaterEndpoint {
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[cfg_attr(feature = "schema", schemars(rename_all = "camelCase"))]
+#[derive(Default)]
 pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
@@ -2739,6 +2727,7 @@ pub enum WindowsUpdateInstallMode {
   /// Requires admin privileges if the installer does.
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
+  #[default]
   Passive,
   // to add more modes, we need to check if the updater relaunch makes sense
   // i.e. for a full UI mode, the user can also mark the installer to start the app
@@ -2778,12 +2767,6 @@ impl Display for WindowsUpdateInstallMode {
         Self::Passive => "passive",
       }
     )
-  }
-}
-
-impl Default for WindowsUpdateInstallMode {
-  fn default() -> Self {
-    Self::Passive
   }
 }
 

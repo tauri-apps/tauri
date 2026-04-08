@@ -1,31 +1,33 @@
 [package]
 name = "tauri-utils"
 version = "1.6.2"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
+authors = ["Tauri Programme within The Commons Conservancy"]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2021"
-rust-version = "1.60"
-exclude = [ "CHANGELOG.md", "/target" ]
+rust-version = "1.85"
+exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
 
 [dependencies]
-serde = { version = "1", features = [ "derive" ] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
-phf = { version = "0.11", features = [ "macros" ] }
+phf = { version = "0.11", features = ["macros"] }
 brotli = { version = "8", optional = true }
-url = { version = "2", features = [ "serde" ] }
+url = { version = "2", features = ["serde"] }
 html5ever = "0.26" # kuchikiki requires 0.26 still
 kuchiki = { package = "kuchikiki", version = "0.8" }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
-schemars = { version = "0.8.18", features = [ "url" ], optional = true } # Forcing 0.8.18 as minimum due to breaking changes
+schemars = { version = "0.8.18", features = [
+    "url",
+], optional = true } # Forcing 0.8.18 as minimum due to breaking changes
 serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
-getrandom = { version = "0.2", optional = true, features = [ "std" ] }
+getrandom = { version = "0.2", optional = true, features = ["std"] }
 serialize-to-javascript = { version = "=0.1.2", optional = true }
 ctor = "0.2"
 json5 = { version = "0.4", optional = true }
@@ -46,11 +48,11 @@ heck = "0.5"
 windows-version = "0.1"
 
 [features]
-build = [ "proc-macro2", "quote" ]
-compression = [ "brotli" ]
-schema = [ "schemars" ]
-isolation = [ "aes-gcm", "getrandom", "serialize-to-javascript" ]
-process-relaunch-dangerous-allow-symlink-macos = [ ]
-config-json5 = [ "json5" ]
-config-toml = [ "toml" ]
-resources = [ "glob", "walkdir" ]
+build = ["proc-macro2", "quote"]
+compression = ["brotli"]
+schema = ["schemars"]
+isolation = ["aes-gcm", "getrandom", "serialize-to-javascript"]
+process-relaunch-dangerous-allow-symlink-macos = []
+config-json5 = ["json5"]
+config-toml = ["toml"]
+resources = ["glob", "walkdir"]

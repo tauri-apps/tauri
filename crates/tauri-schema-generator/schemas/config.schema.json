@@ -119,7 +119,8 @@
             "windowSize": {
               "height": 400,
               "width": 660
-            }
+            },
+            "detachRetries": 3
           },
           "files": {},
           "hardenedRuntime": true,
@@ -2280,7 +2281,8 @@
               "windowSize": {
                 "height": 400,
                 "width": 660
-              }
+              },
+              "detachRetries": 3
             },
             "files": {},
             "hardenedRuntime": true,
@@ -3685,7 +3687,8 @@
             "windowSize": {
               "height": 400,
               "width": 660
-            }
+            },
+            "detachRetries": 3
           },
           "allOf": [
             {
@@ -3753,6 +3756,13 @@
               "$ref": "#/definitions/Position"
             }
           ]
+        },
+        "detachRetries": {
+          "description": "Maximum number of attempts to detach (unmount) the disk image during DMG creation. Increase this value if you see hdiutil detach timeout errors in CI with large apps.",
+          "default": 3,
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
         }
       },
       "additionalProperties": false

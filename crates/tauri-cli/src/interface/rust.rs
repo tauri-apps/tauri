@@ -1611,6 +1611,7 @@ fn tauri_config_to_bundle_settings(
         x: config.macos.dmg.application_folder_position.x,
         y: config.macos.dmg.application_folder_position.y,
       },
+      detach_retries: Some(config.macos.dmg.detach_retries),
     },
     ios: IosSettings {
       bundle_version: config.ios.bundle_version,

@@ -596,10 +596,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     );
   }
 
-  if !is_dev() && target_triple.contains("unknown-linux-gnu") {
-    // TODO: Only needed for CEF.
+  #[cfg(feature = "cef")]
+  if target_triple.contains("unknown-linux-gnu") {
     println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
   }
+
+  #[cfg(feature = "cef")]
+  copy_cef_runtime_files(&target_triple, target_dir)?;
 
   if target_triple.contains("windows") {
     use semver::Version;
@@ -712,6 +715,39 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   if let Some(codegen) = attributes.codegen {
     codegen.try_build()?;
   }
+
+  Ok(())
+}
+
+#[cfg(feature = "cef")]
+fn copy_directory(src: &Path, dest: &Path) -> Result<()> {
+  fs::create_dir_all(dest)?;
+  for entry in fs::read_dir(src)? {
+    let entry = entry?;
+    if entry.path().is_file() {
+      fs::copy(entry.path(), dest.join(entry.file_name()))?;
+    }
+  }
+  Ok(())
+}
+
+#[cfg(feature = "cef")]
+fn copy_cef_runtime_files(target_triple: &str, target_dir: &Path) -> Result<()> {
+  // macOS: handled by tauri-cli's bundle flow
+  if target_triple.contains("darwin") {
+    return Ok(());
+  }
+
+  let Some(cef_dir) = cef_dll_sys::get_cef_dir() else {
+    anyhow::bail!("CEF directory not found");
+  };
+
+  println!("cargo:rerun-if-changed={}", cef_dir.display());
+
+  copy_directory(&cef_dir, target_dir)?;
+
+  const LOCALES_DIR: &str = "locales";
+  copy_directory(&cef_dir.join(LOCALES_DIR), &target_dir.join(LOCALES_DIR))?;
 
   Ok(())
 }

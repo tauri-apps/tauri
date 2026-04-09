@@ -36,7 +36,7 @@ log = { version = "0.4.21", features = [
 ] } # Force min version due to breaking changes
 dirs = "5"
 os_pipe = "1"
-ureq = { version = "2", default-features = false, features = ["socks-proxy"] }
+ureq = { version = "3", default-features = false, features = ["socks-proxy"] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
@@ -73,7 +73,8 @@ name = "tauri_bundler"
 path = "src/lib.rs"
 
 [features]
-default = ["rustls"]
+default = ["rustls", "platform-certs"]
 native-tls = ["ureq/native-tls"]
 native-tls-vendored = ["native-tls", "native-tls/vendored"]
-rustls = ["ureq/tls"]
+rustls = ["ureq/rustls"]
+platform-certs = ["ureq/platform-verifier"]

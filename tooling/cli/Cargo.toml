@@ -64,7 +64,7 @@ handlebars = "4.4"
 include_dir = "0.7"
 minisign = "=0.7.3"
 base64 = "0.22.0"
-ureq = { version = "2.12.1", default-features = false, features = ["gzip"] }
+ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"
 semver = "1.0"
 regex = "1.11.1"
@@ -107,7 +107,8 @@ libc = "0.2"
 lto = true
 
 [features]
-default = ["rustls"]
+default = ["rustls", "platform-certs"]
 native-tls = ["tauri-bundler/native-tls", "ureq/native-tls"]
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
-rustls = ["tauri-bundler/rustls", "ureq/tls"]
+rustls = ["tauri-bundler/rustls", "ureq/rustls"]
+platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]

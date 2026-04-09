@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -12,17 +12,18 @@ rust binaries.
 */
 
 const { readFileSync, writeFileSync } = require('fs')
+const { resolve } = require('path')
 
 const packageNickname = process.argv[2]
-const filePath =
-  packageNickname === '@tauri-apps/cli'
+const filePath = resolve(__dirname, packageNickname === '@tauri-apps/cli'
     ? `../../../tooling/cli/metadata.json`
-    : `../../tooling/cli/metadata.json`
+    : `../../tooling/cli/metadata.json`)
 const bump = process.argv[3]
 let index = null
 
 switch (bump) {
   case 'major':
+  case 'premajor':
     index = 0
     break
   case 'minor':
@@ -30,6 +31,10 @@ switch (bump) {
     break
   case 'patch':
     index = 2
+    break
+  case 'prerelease':
+  case 'prepatch':
+    index = 3
     break
   default:
     throw new Error('unexpected bump ' + bump)
@@ -43,6 +48,12 @@ const inc = (version) => {
     } else if (i > index) {
       v[i] = 0
     }
+  }
+  if (bump === 'premajor') {
+    const pre = JSON.parse(
+      readFileSync(resolve(__dirname, '../../.changes/pre.json'), 'utf-8')
+    )
+    return `${v.join('.')}-${pre.tag}.0`
   }
   return v.join('.')
 }

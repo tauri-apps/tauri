@@ -1299,6 +1299,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_activate_ignoring_other_apps(&mut self, active: bool) {}
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn show(&self) {}
 
   #[cfg(target_os = "macos")]

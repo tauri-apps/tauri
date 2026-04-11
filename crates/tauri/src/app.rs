@@ -1255,6 +1255,29 @@ impl<R: Runtime> App<R> {
     }
   }
 
+  /// Brings the application to the foreground.
+  ///
+  /// The API is PRE-RUN-ONLY.
+  ///
+  /// If `ignore` is set to `true`, the application will activate regardless of other active applications.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.set_activate_ignoring_other_apps(true);
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .set_activate_ignoring_other_apps(ignore);
+  }
+
   /// Sets the dock visibility for the application.
   ///
   /// # Examples

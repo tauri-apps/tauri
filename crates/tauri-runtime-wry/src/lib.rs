@@ -3145,6 +3145,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_activate_ignoring_other_apps(&mut self, active: bool) {
+    self.event_loop.set_activate_ignoring_other_apps(active);
+  }
+
+  #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool) {
     self.event_loop.set_dock_visibility(visible);
   }

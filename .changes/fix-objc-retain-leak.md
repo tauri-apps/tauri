@@ -1,0 +1,1 @@
+patch tauri-runtime-wry

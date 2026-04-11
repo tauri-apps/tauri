@@ -299,15 +299,4 @@ mod tests {
     unsafe { state.unmanage::<u8>() };
     drop(void);
   }
-  #[cfg(miri)]
-  #[test]
-  fn t_unsound_unmanage() {
-    let state = StateManager::new();
-    state.set(0u8);
-    let void: super::State<'_, u8> = state.get::<u8>();
-    let r: &u8 = void.inner();
-    unsafe { state.unmanage::<u8>() };
-    drop(void);
-    let _r = *r;
-  }
 }

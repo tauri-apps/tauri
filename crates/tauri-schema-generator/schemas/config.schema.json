@@ -2517,6 +2517,16 @@
               "type": "null"
             }
           ]
+        },
+        "androidIntentActionFilters": {
+          "description": "Intent action filters for this file association.\n\n By default all filters are used.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/AndroidIntentAction"
+          }
         }
       },
       "additionalProperties": false
@@ -2621,6 +2631,32 @@
         }
       },
       "additionalProperties": false
+    },
+    "AndroidIntentAction": {
+      "description": "Android intent action.",
+      "oneOf": [
+        {
+          "description": "ACTION_SEND.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>",
+          "type": "string",
+          "enum": [
+            "send"
+          ]
+        },
+        {
+          "description": "ACTION_SEND_MULTIPLE.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND_MULTIPLE>",
+          "type": "string",
+          "enum": [
+            "sendMultiple"
+          ]
+        },
+        {
+          "description": "ACTION_VIEW.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>",
+          "type": "string",
+          "enum": [
+            "view"
+          ]
+        }
+      ]
     },
     "WindowsConfig": {
       "description": "Windows bundler configuration.\n\n See more: <https://v2.tauri.app/reference/config/#windowsconfig>",

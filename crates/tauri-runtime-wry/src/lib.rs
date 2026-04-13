@@ -4371,7 +4371,7 @@ fn handle_event_loop<T: UserEvent>(
         );
       }
     },
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
     Event::Opened { urls } => {
       callback(RunEvent::Opened { urls });
     }

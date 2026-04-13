@@ -231,9 +231,6 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
   {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config = tauri_config_guard.as_ref().unwrap();
-
     if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
       src_plists.push(info_plist.clone().into());
     }

@@ -13,13 +13,14 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wry = { version = "0.55.0", default-features = false, features = [
+wry = { git = "https://github.com/richerfu/wry", default-features = false, features = [
+  "drag-drop",
   "protocol",
   "os-webview",
   "linux-body",
 ] }
-tao = { version = "0.35.0", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.10.1", path = "../tauri-runtime" }
+tao = { git = "https://github.com/richerfu/tao", branch= "feat-ohos-webview",  default-features = false, features = ["rwh_06"] }
+tauri-runtime = { version = "2.10.0", path = "../tauri-runtime" }
 tauri-utils = { version = "2.8.3", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1"

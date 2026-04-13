@@ -7,7 +7,7 @@ LangString chooseMaintenanceOption ${LANG_ITALIAN} "Scegli l'operazione di manut
 LangString choowHowToInstall ${LANG_ITALIAN} "Scegli come vuoi installare ${PRODUCTNAME}."
 LangString createDesktop ${LANG_ITALIAN} "Crea collegamento sul desktop"
 LangString dontUninstall ${LANG_ITALIAN} "Non disinstallare"
-LangString dontUninstallDowngrade ${LANG_ITALIAN} "Non disinstallare (per questo installer il downgrade senza la disinstallazione è disabilitato )"
+LangString dontUninstallDowngrade ${LANG_ITALIAN} "Non disinstallare (per questo installer il downgrade senza la disinstallazione è disabilitato)"
 LangString failedToKillApp ${LANG_ITALIAN} "Impossibile chiudere {{product_name}}.$\nChiudi {product_name} e poi riprova"
 LangString installingWebview2 ${LANG_ITALIAN} "Installazione WebView2..."
 LangString newerVersionInstalled ${LANG_ITALIAN} "È già installata una versione più recente di ${PRODUCTNAME}!$\nNon è consigliato installare una versione più vecchia.$\nSe vuoi comunque procedere, è meglio prima disinstallare la versione attuale.$\nPer continuare scegli l'operazione da eseguire e seleziona 'Avanti'."

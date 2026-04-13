@@ -1,4 +1,5 @@
 ---
+tauri: patch:enhance
 "@tauri-apps/api": patch:enhance
 ---
 

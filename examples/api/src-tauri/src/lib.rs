@@ -183,9 +183,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   #[cfg(target_os = "ios")]
   let mut counter = 0;
-  app.run(move |_app_handle, event| {
+  app.run(move |_app_handle, _event| {
     #[cfg(not(test))]
-    match &event {
+    match &_event {
+      #[cfg(desktop)]
       RunEvent::ExitRequested { api, code, .. } => {
         // Keep the event loop running even if all windows are closed
         // This allow us to catch tray icon events when there is no window

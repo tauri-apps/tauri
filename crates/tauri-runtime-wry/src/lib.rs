@@ -39,7 +39,13 @@ use objc2::rc::Retained;
 use tao::platform::android::{WindowBuilderExtAndroid, WindowExtAndroid};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
-#[cfg(target_os = "linux")]
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
@@ -863,7 +869,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       ");
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     {
       // Mouse event is disabled on Linux since sudden event bursts could block event loop.
       window.inner = window.inner.with_cursor_moved_event(false);
@@ -1218,7 +1230,14 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   fn skip_taskbar(mut self, skip: bool) -> Self {
     self.inner = self.inner.with_skip_taskbar(skip);
     self
@@ -1456,6 +1475,15 @@ pub enum WebviewMessage {
   EvaluateScript(String),
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
   EvaluateScript(String, Sender<()>, tracing::Span),
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+  EvaluateScriptWithCallback(String, Box<dyn Fn(String) + Send + 'static>),
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
+  EvaluateScriptWithCallback(
+    String,
+    Box<dyn Fn(String) + Send + 'static>,
+    Sender<()>,
+    tracing::Span,
+  ),
   CookiesForUrl(Url, Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   Cookies(Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   SetCookie(tauri_runtime::Cookie<'static>),
@@ -1807,6 +1835,46 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    // use a channel so the EvaluateScript task uses the current span as parent
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::EvaluateScriptWithCallback(
+          script.into(),
+          Box::new(callback),
+          tx,
+          tracing::Span::current(),
+        ),
+      )
+    )
+  }
+
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
       ),
     )
   }
@@ -3485,7 +3553,14 @@ fn handle_user_message<T: UserEvent>(
           }
           #[allow(unused_variables)]
           WindowMessage::SetSkipTaskbar(skip) => {
-            #[cfg(any(windows, target_os = "linux"))]
+            #[cfg(any(
+              windows,
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
             let _ = window.set_skip_taskbar(skip);
           }
           WindowMessage::SetCursorGrab(grab) => {
@@ -3683,6 +3758,20 @@ fn handle_user_message<T: UserEvent>(
           #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
           WebviewMessage::EvaluateScript(script) => {
             if let Err(e) = webview.evaluate_script(&script) {
+              log::error!("{e}");
+            }
+          }
+          #[cfg(all(feature = "tracing", not(target_os = "android")))]
+          WebviewMessage::EvaluateScriptWithCallback(script, callback, tx, span) => {
+            let _span = span.entered();
+            if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
+              log::error!("{e}");
+            }
+            tx.send(()).unwrap();
+          }
+          #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+          WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
+            if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
               log::error!("{e}");
             }
           }
@@ -3974,13 +4063,9 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
-      // wait for borrow_mut to be available - on Windows we might poll for the window to be inserted
-      Ok(webview) => loop {
-        if let Ok(mut windows) = windows.0.try_borrow_mut() {
-          windows.insert(window_id, webview);
-          break;
-        }
-      },
+      Ok(webview) => {
+        windows.0.borrow_mut().insert(window_id, webview);
+      }
       Err(e) => {
         log::error!("{e}");
       }
@@ -4763,63 +4848,56 @@ You may have it installed on another user account, but it is not available for t
     #[cfg(desktop)]
     let context = context.clone();
     webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
-      url
-        .parse()
-        .map(|url| {
-          let response = new_window_handler(
-            url,
-            tauri_runtime::webview::NewWindowFeatures::new(
-              features.size,
-              features.position,
-              tauri_runtime::webview::NewWindowOpener {
-                #[cfg(desktop)]
-                webview: features.opener.webview,
-                #[cfg(windows)]
-                environment: features.opener.environment,
-                #[cfg(target_os = "macos")]
-                target_configuration: features.opener.target_configuration,
-              },
-            ),
-          );
-          match response {
-            tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+      let Ok(url) = url.parse() else {
+        return wry::NewWindowResponse::Deny;
+      };
+      let response = new_window_handler(
+        url,
+        tauri_runtime::webview::NewWindowFeatures::new(
+          features.size,
+          features.position,
+          tauri_runtime::webview::NewWindowOpener {
             #[cfg(desktop)]
-            tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
-              let windows = &context.main_thread.windows.0;
-              let webview = loop {
-                if let Some(webview) = windows.try_borrow().ok().and_then(|windows| {
-                  windows
-                    .get(&window_id)
-                    .map(|window| window.webviews.first().unwrap().clone())
-                }) {
-                  break webview;
-                } else {
-                  // on Windows the window is created async so we should wait for it to be available
-                  std::thread::sleep(std::time::Duration::from_millis(50));
-                  continue;
-                };
-              };
+            webview: features.opener.webview,
+            #[cfg(windows)]
+            environment: features.opener.environment,
+            #[cfg(target_os = "macos")]
+            target_configuration: features.opener.target_configuration,
+          },
+        ),
+      );
+      match response {
+        tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+        #[cfg(desktop)]
+        tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+          let windows = &context.main_thread.windows.0;
+          let webview = windows
+            .borrow()
+            .get(&window_id)
+            .unwrap()
+            .webviews
+            .first()
+            .unwrap()
+            .clone();
 
-              #[cfg(desktop)]
-              wry::NewWindowResponse::Create {
-                #[cfg(target_os = "macos")]
-                webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
-                #[cfg(any(
-                  target_os = "linux",
-                  target_os = "dragonfly",
-                  target_os = "freebsd",
-                  target_os = "netbsd",
-                  target_os = "openbsd",
-                ))]
-                webview: webview.webview(),
-                #[cfg(windows)]
-                webview: webview.webview(),
-              }
-            }
-            tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+          #[cfg(desktop)]
+          wry::NewWindowResponse::Create {
+            #[cfg(target_os = "macos")]
+            webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd",
+            ))]
+            webview: webview.webview(),
+            #[cfg(windows)]
+            webview: webview.webview(),
           }
-        })
-        .unwrap_or(wry::NewWindowResponse::Deny)
+        }
+        tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+      }
     });
   }
 

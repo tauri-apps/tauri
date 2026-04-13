@@ -57,7 +57,7 @@ fn copy_binaries(
   binaries: ResourcePaths,
   target_triple: &str,
   path: &Path,
-  package_name: Option<&String>,
+  package_name: Option<&str>,
 ) -> Result<()> {
   for src in binaries {
     let src = src?;
@@ -411,7 +411,8 @@ impl Attributes {
 }
 
 pub fn is_dev() -> bool {
-  env::var("DEP_TAURI_DEV").expect("missing `cargo:dev` instruction, please update tauri to latest")
+  env::var_os("DEP_TAURI_DEV")
+    .expect("missing `cargo:dev` instruction, please update tauri to latest")
     == "true"
 }
 
@@ -458,7 +459,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
-  let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
@@ -508,7 +509,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let cargo_toml_path = Path::new("Cargo.toml").canonicalize()?;
   let mut manifest = Manifest::<cargo_toml::Value>::from_path_with_metadata(cargo_toml_path)?;
 
-  let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+  let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
   manifest::check(&config, &mut manifest)?;
 
@@ -534,7 +535,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
       &target_triple,
       target_dir,
-      manifest.package.as_ref().map(|p| &p.name),
+      manifest.package.as_ref().map(|p| p.name.as_ref()),
     )?;
   }
 
@@ -543,7 +544,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .bundle
     .resources
     .clone()
-    .unwrap_or_else(|| BundleResources::List(Vec::new()));
+    .unwrap_or(BundleResources::List(Vec::new()));
   if target_triple.contains("windows") {
     if let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
       WebviewInstallMode::FixedRuntime { path } => Some(path),
@@ -592,21 +593,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};
 
-    fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
-      let icon_path = config
-        .bundle
-        .icon
-        .iter()
-        .find(|i| predicate(i))
-        .cloned()
-        .unwrap_or_else(|| default.to_string());
-      icon_path.into()
-    }
-
     let window_icon_path = attributes
       .windows_attributes
       .window_icon_path
-      .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
+      .unwrap_or_else(|| {
+        config
+          .bundle
+          .icon
+          .iter()
+          .find(|i| i.ends_with(".ico"))
+          .map(AsRef::as_ref)
+          .unwrap_or("icons/icon.ico")
+          .into()
+      });
 
     let mut res = WindowsResource::new();
 
@@ -689,7 +688,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         }
       }
       "msvc" => {
-        if env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "true") {
+        if env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "true") {
           static_vcruntime::build();
         }
       }

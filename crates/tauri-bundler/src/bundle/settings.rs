@@ -126,7 +126,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  #[cfg(target_os = "windows")]
+  // NSIS installers can be built on all platforms but it's hidden in the --help output on macOS/Linux.
   PackageType::Nsis,
   #[cfg(target_os = "macos")]
   PackageType::MacOsBundle,
@@ -231,7 +231,7 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
-  /// the list of of RPM dependencies your application recommends.
+  /// the list of RPM dependencies your application recommends.
   pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
@@ -470,6 +470,13 @@ pub struct NsisSettings {
   pub sidebar_image: Option<PathBuf>,
   /// The path to an icon file used as the installer icon.
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   pub install_mode: NSISInstallerMode,
   /// A list of installer languages.
@@ -532,6 +539,10 @@ pub struct NsisSettings {
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.8.0",
+    note = "Use `WindowsSettings::minimum_webview2_version` instead."
+  )]
   pub minimum_webview2_version: Option<String>,
 }
 
@@ -587,6 +598,10 @@ pub struct WindowsSettings {
   /// if you are on another platform and want to cross-compile and sign you will
   /// need to use another tool like `osslsigncode`.
   pub sign_command: Option<CustomSignCommandSettings>,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  pub minimum_webview2_version: Option<String>,
 }
 
 impl WindowsSettings {
@@ -612,6 +627,7 @@ mod _default {
         webview_install_mode: Default::default(),
         allow_downgrades: true,
         sign_command: None,
+        minimum_webview2_version: None,
       }
     }
   }
@@ -795,6 +811,8 @@ pub struct Settings {
   local_tools_directory: Option<PathBuf>,
   /// the bundle settings.
   bundle_settings: BundleSettings,
+  /// Same as `bundle_settings.icon`, but without the .icon directory.
+  icon_files: Option<Vec<String>>,
   /// the binaries to bundle.
   binaries: Vec<BundleBinary>,
   /// The target platform.
@@ -906,6 +924,14 @@ impl SettingsBuilder {
     };
     let target_platform = TargetPlatform::from_triple(&target);
 
+    let icon_files = self.bundle_settings.icon.as_ref().map(|paths| {
+      paths
+        .iter()
+        .filter(|p| !p.ends_with(".icon"))
+        .cloned()
+        .collect()
+    });
+
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
       package: self
@@ -925,6 +951,7 @@ impl SettingsBuilder {
           .map(|bins| external_binaries(bins, &target, &target_platform)),
         ..self.bundle_settings
       },
+      icon_files,
       target_platform,
       target,
       no_sign: self.no_sign,
@@ -956,6 +983,11 @@ impl Settings {
   /// Returns the [`TargetPlatform`].
   pub fn target_platform(&self) -> &TargetPlatform {
     &self.target_platform
+  }
+
+  /// Raw list of icons.
+  pub fn icons(&self) -> Option<&Vec<String>> {
+    self.bundle_settings.icon.as_ref()
   }
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
@@ -1092,7 +1124,7 @@ impl Settings {
 
   /// Returns an iterator over the icon files to be used for this bundle.
   pub fn icon_files(&self) -> ResourcePaths<'_> {
-    match self.bundle_settings.icon {
+    match self.icon_files {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), false),
       None => ResourcePaths::new(&[], false),
     }

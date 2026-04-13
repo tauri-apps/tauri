@@ -310,12 +310,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.
-  /// - **Windows**: The closure is executed on a separate thread to prevent a deadlock.
   ///
   /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
-  pub fn on_new_window<
-    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
-  >(
+  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -1229,7 +1226,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
-  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
   /// The closure parameter is the webview instance.
@@ -1247,7 +1244,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///       #[cfg(target_os = "ios")]
   ///       {
   ///         window_builder = window_builder.with_input_accessory_view_builder(|_webview| unsafe {
-  ///           let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+  ///           let mtm = objc2::MainThreadMarker::new_unchecked();
   ///           let button = objc2_ui_kit::UIButton::buttonWithType(objc2_ui_kit::UIButtonType(1), mtm);
   ///           button.setTitle_forState(
   ///             Some(&objc2_foundation::NSString::from_str("Tauri")),
@@ -2027,6 +2024,20 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_fullscreen(fullscreen)
   }
 
+  /// Toggles a fullscreen mode that doesn't require a new macOS space.
+  /// Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
+  ///
+  /// This is how fullscreen used to work on macOS in versions before Lion.
+  /// And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Uses native simple fullscreen mode.
+  /// - **Other platforms:** Falls back to [`Self::set_fullscreen`].
+  pub fn set_simple_fullscreen(&self, enable: bool) -> crate::Result<()> {
+    self.window.set_simple_fullscreen(enable)
+  }
+
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self.window.set_icon(icon)
@@ -2350,6 +2361,18 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Evaluates JavaScript on this window.
   pub fn eval(&self, js: impl Into<String>) -> crate::Result<()> {
     self.webview.eval(js)
+  }
+
+  /// Evaluate JavaScript with callback function on this webview.
+  /// The evaluation result will be serialized into a JSON string and passed to the callback function.
+  ///
+  /// Exception is ignored because of the limitation on Windows. You can catch it yourself and return as string as a workaround.
+  pub fn eval_with_callback(
+    &self,
+    js: impl Into<String>,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> crate::Result<()> {
+    self.webview.eval_with_callback(js, callback)
   }
 
   /// Opens the developer tools window (Web Inspector).

@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.10.1]
+
+### Bug Fixes
+
+- Re-release of `2.10.0` with working assets.
+
+## \[2.10.0]
+
+### Dependencies
+
+- [`517b81e97`](https://www.github.com/tauri-apps/tauri/commit/517b81e97005d087ca5fc4538d954982fce0f4ac) ([#14876](https://www.github.com/tauri-apps/tauri/pull/14876)) Upgraded to `tauri@2.10`
+
+## \[2.9.1]
+
+### Bug Fixes
+
+- [`ad1dec2e2`](https://www.github.com/tauri-apps/tauri/commit/ad1dec2e2488fe5c0a004b69f1bd290dfc593bf8) ([#14464](https://www.github.com/tauri-apps/tauri/pull/14464) by [@funnydino](https://www.github.com/tauri-apps/tauri/../../funnydino)) Fix `addPluginListener` fallback added in https://github.com/tauri-apps/tauri/pull/14132 didn't work properly
+
 ## \[2.9.0]
 
 ### New Features

@@ -1,5 +1,35 @@
 # Changelog
 
+## \[2.5.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+
+## \[2.5.4]
+
+### Bug Fixes
+
+- [`eb5d88427`](https://www.github.com/tauri-apps/tauri/commit/eb5d88427a7dcb347fb0feae9e816db05b101844) ([#14883](https://www.github.com/tauri-apps/tauri/pull/14883) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `tauri::Context` code generation failing with `can't capture dynamic environment in a fn item` when custom assets are provided.
+
+## \[2.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+
+## \[2.5.1]
+
+### Performance Improvements
+
+- [`8e3bd63db`](https://www.github.com/tauri-apps/tauri/commit/8e3bd63db919a4cf72bb3d28028033d8654deb34) ([#14457](https://www.github.com/tauri-apps/tauri/pull/14457) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Wrap the generated context code in a function to make rust analyzer faster
+
 ## \[2.5.0]
 
 ### Bug Fixes

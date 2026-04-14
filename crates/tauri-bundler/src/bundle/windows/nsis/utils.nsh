@@ -48,6 +48,7 @@
         Pop $R0
         Sleep 500
         ${If} $R0 = 0
+        ${OrIf} $R0 = 2
           Goto app_check_done_${UniqueID}
         ${Else}
           IfSilent silent_${UniqueID} ui_${UniqueID}

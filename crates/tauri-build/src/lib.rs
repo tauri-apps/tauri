@@ -57,7 +57,7 @@ fn copy_binaries(
   binaries: ResourcePaths,
   target_triple: &str,
   path: &Path,
-  package_name: Option<&String>,
+  package_name: Option<&str>,
 ) -> Result<()> {
   for src in binaries {
     let src = src?;
@@ -165,21 +165,21 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
     .with_context(|| format!("Failed to create frameworks output directory at {dest_dir:?}"))?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
-      let src_path = PathBuf::from(framework);
+      let src_path = Path::new(framework);
       let src_name = src_path
         .file_name()
         .expect("Couldn't get framework filename");
       let dest_path = dest_dir.join(src_name);
-      copy_dir(&src_path, &dest_path)?;
+      copy_dir(src_path, &dest_path)?;
       continue;
     } else if framework.ends_with(".dylib") {
-      let src_path = PathBuf::from(framework);
+      let src_path = Path::new(framework);
       if !src_path.exists() {
         return Err(anyhow::anyhow!("Library not found: {}", framework));
       }
       let src_name = src_path.file_name().expect("Couldn't get library filename");
       let dest_path = dest_dir.join(src_name);
-      copy_file(&src_path, &dest_path)?;
+      copy_file(src_path, &dest_path)?;
       continue;
     } else if framework.contains('/') {
       return Err(anyhow::anyhow!(
@@ -192,12 +192,8 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
         continue;
       }
     }
-    if copy_framework_from(&PathBuf::from("/Library/Frameworks/"), framework, dest_dir)?
-      || copy_framework_from(
-        &PathBuf::from("/Network/Library/Frameworks/"),
-        framework,
-        dest_dir,
-      )?
+    if copy_framework_from("/Library/Frameworks/".as_ref(), framework, dest_dir)?
+      || copy_framework_from("/Network/Library/Frameworks/".as_ref(), framework, dest_dir)?
     {
       continue;
     }
@@ -415,7 +411,8 @@ impl Attributes {
 }
 
 pub fn is_dev() -> bool {
-  env::var("DEP_TAURI_DEV").expect("missing `cargo:dev` instruction, please update tauri to latest")
+  env::var_os("DEP_TAURI_DEV")
+    .expect("missing `cargo:dev` instruction, please update tauri to latest")
     == "true"
 }
 
@@ -462,7 +459,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
-  let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
@@ -500,6 +497,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
     mobile::generate_gradle_files(project_dir)?;
+
+    // Update Android manifest with file associations
+    if let Some(associations) = config.bundle.file_associations.as_ref() {
+      mobile::update_android_manifest_file_associations(associations)?;
+    }
   }
 
   cfg_alias("dev", is_dev());
@@ -507,7 +509,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let cargo_toml_path = Path::new("Cargo.toml").canonicalize()?;
   let mut manifest = Manifest::<cargo_toml::Value>::from_path_with_metadata(cargo_toml_path)?;
 
-  let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+  let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
   manifest::check(&config, &mut manifest)?;
 
@@ -533,7 +535,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
       &target_triple,
       target_dir,
-      manifest.package.as_ref().map(|p| &p.name),
+      manifest.package.as_ref().map(|p| p.name.as_ref()),
     )?;
   }
 
@@ -542,7 +544,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .bundle
     .resources
     .clone()
-    .unwrap_or_else(|| BundleResources::List(Vec::new()));
+    .unwrap_or(BundleResources::List(Vec::new()));
   if target_triple.contains("windows") {
     if let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
       WebviewInstallMode::FixedRuntime { path } => Some(path),
@@ -591,21 +593,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};
 
-    fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
-      let icon_path = config
-        .bundle
-        .icon
-        .iter()
-        .find(|i| predicate(i))
-        .cloned()
-        .unwrap_or_else(|| default.to_string());
-      icon_path.into()
-    }
-
     let window_icon_path = attributes
       .windows_attributes
       .window_icon_path
-      .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
+      .unwrap_or_else(|| {
+        config
+          .bundle
+          .icon
+          .iter()
+          .find(|i| i.ends_with(".ico"))
+          .map(AsRef::as_ref)
+          .unwrap_or("icons/icon.ico")
+          .into()
+      });
 
     let mut res = WindowsResource::new();
 
@@ -688,7 +688,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         }
       }
       "msvc" => {
-        if env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "true") {
+        if env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "true") {
           static_vcruntime::build();
         }
       }

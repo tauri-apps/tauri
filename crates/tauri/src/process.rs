@@ -116,7 +116,7 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
           .and_then(|v| v.as_string())
         {
           if let Err(e) = Command::new(macos_directory.join(binary_name))
-            .args(env.args_os.iter().skip(1).collect::<Vec<_>>())
+            .args(env.args_os.iter().skip(1))
             .spawn()
           {
             log::error!("failed to restart app: {e}");

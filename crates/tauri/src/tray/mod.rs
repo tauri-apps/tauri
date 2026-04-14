@@ -19,18 +19,13 @@ use std::path::Path;
 pub use tray_icon::TrayIconId;
 
 /// Describes the mouse button state.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Serialize)]
 pub enum MouseButtonState {
   /// Mouse button pressed.
+  #[default]
   Up,
   /// Mouse button released.
   Down,
-}
-
-impl Default for MouseButtonState {
-  fn default() -> Self {
-    Self::Up
-  }
 }
 
 impl From<tray_icon::MouseButtonState> for MouseButtonState {
@@ -43,20 +38,15 @@ impl From<tray_icon::MouseButtonState> for MouseButtonState {
 }
 
 /// Describes which mouse button triggered the event..
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Default)]
 pub enum MouseButton {
   /// Left mouse button.
+  #[default]
   Left,
   /// Right mouse button.
   Right,
   /// Middle mouse button.
   Middle,
-}
-
-impl Default for MouseButton {
-  fn default() -> Self {
-    Self::Left
-  }
 }
 
 impl From<tray_icon::MouseButton> for MouseButton {

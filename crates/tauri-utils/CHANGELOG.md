@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.8.3]
+
+### Bug Fixes
+
+- [`7b16dafb1`](https://www.github.com/tauri-apps/tauri/commit/7b16dafb1dc417536ebb62df8eb66154dd97109d) ([#14986](https://www.github.com/tauri-apps/tauri/pull/14986) by [@montyc1999](https://www.github.com/tauri-apps/tauri/../../montyc1999)) Sort csp/plugin/header configs when generating HashMap constructors so that `generate_context!` is deterministic.
+
+  See: https://github.com/tauri-apps/tauri/issues/14978 for more information
+- [`c3cbff3f7`](https://www.github.com/tauri-apps/tauri/commit/c3cbff3f7430161715f80f82128b345a6f7140c9) ([#14662](https://www.github.com/tauri-apps/tauri/pull/14662) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix resource path handles `./` path differently (e.g. `./some-folder` should be the same as `some-folder`)
+
+## \[2.8.2]
+
+### Enhancements
+
+- [`2d28e3143`](https://www.github.com/tauri-apps/tauri/commit/2d28e3143ee3d97d7570ea03877aa00a0d6e47d0) ([#14632](https://www.github.com/tauri-apps/tauri/pull/14632) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Small code refactors for improved code readability. No user facing changes.
+
+## \[2.8.1]
+
+### Bug Fixes
+
+- [`1573c7240`](https://www.github.com/tauri-apps/tauri/commit/1573c72402352949d1fd3ca5c6fdbee46fe69fbb) ([#14561](https://www.github.com/tauri-apps/tauri/pull/14561) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused schema files to have `\r` characters on Windows.
+
 ## \[2.8.0]
 
 ### New Features

@@ -1,8 +1,8 @@
 [[permission]]
 identifier = "allow-app"
-description = "Allows accessing the $APP path."
+description = "Allows accessing the $APPDATA path."
 [[permission.scope.allow]]
-path = "$APP"
+path = "$APPDATA"
 
 [[permission]]
 identifier = "allow-download-dir"

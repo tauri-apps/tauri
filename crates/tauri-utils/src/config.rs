@@ -39,7 +39,7 @@ use serde_with::skip_serializing_none;
 use url::Url;
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
@@ -208,9 +208,10 @@ impl<'de> Deserialize<'de> for BundleType {
 }
 
 /// Targets to bundle. Each value is case insensitive.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub enum BundleTarget {
   /// Bundle all targets.
+  #[default]
   All,
   /// A list of bundle targets.
   List(Vec<BundleType>),
@@ -254,12 +255,6 @@ impl schemars::JsonSchema for BundleTarget {
       ..Default::default()
     }
     .into()
-  }
-}
-
-impl Default for BundleTarget {
-  fn default() -> Self {
-    Self::All
   }
 }
 
@@ -744,7 +739,7 @@ pub struct WixConfig {
   /// Because a valid version is required for MSI installer, it will be derived from [`Config::version`] if this field is not set.
   ///
   /// The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.
-  /// The third and foruth fields have a maximum value of 65,535.
+  /// The third and fourth fields have a maximum value of 65,535.
   ///
   /// See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.
   pub version: Option<String>,
@@ -805,7 +800,7 @@ pub struct WixConfig {
 /// Compression algorithms used in the NSIS installer.
 ///
 /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum NsisCompression {
@@ -814,19 +809,14 @@ pub enum NsisCompression {
   /// BZIP2 usually gives better compression ratios than ZLIB, but it is a bit slower and uses more memory. With the default compression level it uses about 4 MB of memory.
   Bzip2,
   /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
+  #[default]
   Lzma,
   /// Disable compression
   None,
 }
 
-impl Default for NsisCompression {
-  fn default() -> Self {
-    Self::Lzma
-  }
-}
-
 /// Install Modes for the NSIS installer.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum NSISInstallerMode {
@@ -835,6 +825,7 @@ pub enum NSISInstallerMode {
   /// Install the app by default in a directory that doesn't require Administrator access.
   ///
   /// Installer metadata will be saved under the `HKCU` registry path.
+  #[default]
   CurrentUser,
   /// Install the app by default in the `Program Files` folder directory requires Administrator
   /// access for the installation.
@@ -847,12 +838,6 @@ pub enum NSISInstallerMode {
   ///
   /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
   Both,
-}
-
-impl Default for NSISInstallerMode {
-  fn default() -> Self {
-    Self::CurrentUser
-  }
 }
 
 /// Configuration for the Installer bundle using NSIS.
@@ -872,9 +857,19 @@ pub struct NsisConfig {
   /// The recommended dimensions are 164px x 314px.
   #[serde(alias = "sidebar-image")]
   pub sidebar_image: Option<PathBuf>,
+  // TODO: Change the alias to installer-icon in v3
   /// The path to an icon file used as the installer icon.
   #[serde(alias = "install-icon")]
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  #[serde(alias = "uninstaller-icon")]
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  #[serde(alias = "uninstaller-header-image")]
+  pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   #[serde(default, alias = "install-mode")]
   pub install_mode: NSISInstallerMode,
@@ -941,9 +936,15 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
+  /// Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.
+  ///
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.10.0",
+    note = "Use `WindowsConfig::minimum_webview2_version` instead."
+  )]
   #[serde(alias = "minimum-webview2-version")]
   pub minimum_webview2_version: Option<String>,
 }
@@ -1011,7 +1012,7 @@ pub enum CustomSignCommandConfig {
   /// This is a simpler notation for the command.
   /// Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.
   ///
-  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].
+  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::CommandWithOptions`].
   Command(String),
   /// An object notation of the command.
   ///
@@ -1058,6 +1059,11 @@ pub struct WindowsConfig {
   /// The default value of this flag is `true`.
   #[serde(default = "default_true", alias = "allow-downgrades")]
   pub allow_downgrades: bool,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  #[serde(alias = "minimum-webview2-version")]
+  pub minimum_webview2_version: Option<String>,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
@@ -1082,6 +1088,7 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       allow_downgrades: true,
+      minimum_webview2_version: None,
       wix: None,
       nsis: None,
       sign_command: None,
@@ -1200,6 +1207,31 @@ pub struct FileAssociation {
   ///
   /// You should define this if the associated file is a custom file type defined by your application.
   pub exported_type: Option<ExportedFileAssociation>,
+  /// Intent action filters for this file association.
+  ///
+  /// By default all filters are used.
+  #[serde(alias = "android-intent-action-filters")]
+  pub android_intent_action_filters: Option<Vec<AndroidIntentAction>>,
+}
+
+/// Android intent action.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Hash)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub enum AndroidIntentAction {
+  /// ACTION_SEND.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>
+  Send,
+  /// ACTION_SEND_MULTIPLE.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND_MULTIPLE>
+  SendMultiple,
+  /// ACTION_VIEW.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>
+  View,
 }
 
 /// The exported type definition. Maps to a `UTExportedTypeDeclarations` entry on macOS.
@@ -1214,6 +1246,227 @@ pub struct ExportedFileAssociation {
   /// Examples are `public.data`, `public.image`, `public.json` and `public.database`.
   #[serde(alias = "conforms-to")]
   pub conforms_to: Option<Vec<String>>,
+}
+
+impl FileAssociation {
+  /// Infers UTIs (Uniform Type Identifiers) from file extensions and mime types.
+  /// This is useful for macOS and iOS to automatically populate `LSItemContentTypes`
+  /// in the Info.plist for share sheet and file association support.
+  ///
+  /// Returns a vector of UTIs that should be included in `LSItemContentTypes`.
+  /// Explicitly provided content types are included first, followed by inferred types.
+  pub fn infer_content_types(&self) -> HashSet<String> {
+    let mut content_types = HashSet::new();
+
+    // when we have an exported type, we only reference it
+    if let Some(exported_type) = &self.exported_type {
+      content_types.insert(exported_type.identifier.clone());
+      return content_types;
+    }
+
+    // Start with explicitly provided content types
+    if let Some(explicit_types) = &self.content_types {
+      content_types.extend(explicit_types.iter().cloned());
+    }
+
+    // Infer from extensions and add to content_types (avoiding duplicates)
+    for ext in &self.ext {
+      if let Some(uti) = extension_to_uti(&ext.0) {
+        content_types.insert(uti.to_string());
+      }
+    }
+
+    // Also infer from mime type if available (avoiding duplicates)
+    if let Some(mime_type) = &self.mime_type {
+      if let Some(uti) = mime_type_to_uti(mime_type) {
+        content_types.insert(uti.to_string());
+      }
+    }
+
+    content_types
+  }
+}
+
+/// Generates plist dictionary entries for file associations.
+/// This is used by both macOS and iOS bundlers to populate Info.plist.
+///
+/// Returns a plist dictionary containing `UTExportedTypeDeclarations` and `CFBundleDocumentTypes`
+/// if there are any file associations configured.
+pub fn file_associations_plist(associations: &[FileAssociation]) -> Option<plist::Value> {
+  use plist::{Dictionary, Value};
+
+  if associations.is_empty() {
+    return None;
+  }
+
+  let exported_associations = associations
+    .iter()
+    .filter_map(|association| {
+      association.exported_type.as_ref().map(|exported_type| {
+        let mut dict = Dictionary::new();
+
+        dict.insert(
+          "UTTypeIdentifier".into(),
+          exported_type.identifier.clone().into(),
+        );
+        if let Some(description) = &association.description {
+          dict.insert("UTTypeDescription".into(), description.clone().into());
+        }
+        if let Some(conforms_to) = &exported_type.conforms_to {
+          dict.insert(
+            "UTTypeConformsTo".into(),
+            Value::Array(conforms_to.iter().map(|s| s.clone().into()).collect()),
+          );
+        }
+
+        let mut specification = Dictionary::new();
+        specification.insert(
+          "public.filename-extension".into(),
+          Value::Array(
+            association
+              .ext
+              .iter()
+              .map(|s| s.to_string().into())
+              .collect(),
+          ),
+        );
+        if let Some(mime_type) = &association.mime_type {
+          specification.insert("public.mime-type".into(), mime_type.clone().into());
+        }
+
+        dict.insert("UTTypeTagSpecification".into(), specification.into());
+
+        Value::Dictionary(dict)
+      })
+    })
+    .collect::<Vec<_>>();
+
+  let document_types = associations
+    .iter()
+    .map(|association| {
+      let mut dict = Dictionary::new();
+
+      if !association.ext.is_empty() {
+        dict.insert(
+          "CFBundleTypeExtensions".into(),
+          Value::Array(
+            association
+              .ext
+              .iter()
+              .map(|ext| ext.to_string().into())
+              .collect(),
+          ),
+        );
+      }
+
+      // For macOS/iOS share sheet, we need LSItemContentTypes with standard UTIs
+      let content_types = association.infer_content_types();
+
+      // Add LSItemContentTypes if we have any content types
+      if !content_types.is_empty() {
+        dict.insert(
+          "LSItemContentTypes".into(),
+          Value::Array(content_types.iter().map(|s| s.clone().into()).collect()),
+        );
+      }
+
+      let type_name = association
+        .name
+        .clone()
+        .or_else(|| association.ext.first().map(|ext| ext.0.clone()))
+        .unwrap_or_default();
+      dict.insert("CFBundleTypeName".into(), type_name.into());
+      dict.insert(
+        "CFBundleTypeRole".into(),
+        association.role.to_string().into(),
+      );
+      dict.insert("LSHandlerRank".into(), association.rank.to_string().into());
+
+      Value::Dictionary(dict)
+    })
+    .collect::<Vec<_>>();
+
+  if exported_associations.is_empty() && document_types.is_empty() {
+    return None;
+  }
+
+  let mut plist = Dictionary::new();
+  if !exported_associations.is_empty() {
+    plist.insert(
+      "UTExportedTypeDeclarations".into(),
+      Value::Array(exported_associations),
+    );
+  }
+  if !document_types.is_empty() {
+    plist.insert("CFBundleDocumentTypes".into(), Value::Array(document_types));
+  }
+
+  Some(Value::Dictionary(plist))
+}
+
+/// Maps file extensions to their standard UTIs for macOS/iOS share sheet support
+fn extension_to_uti(ext: &str) -> Option<&'static str> {
+  match ext.to_lowercase().as_str() {
+    // Images
+    "png" => Some("public.png"),
+    "jpg" | "jpeg" => Some("public.jpeg"),
+    "gif" => Some("com.compuserve.gif"),
+    "bmp" => Some("com.microsoft.bmp"),
+    "tiff" | "tif" => Some("public.tiff"),
+    "ico" => Some("com.microsoft.ico"),
+    "heic" | "heif" => Some("public.heif-standard-image"),
+    "webp" => Some("org.webmproject.webp"),
+    "svg" => Some("public.svg-image"),
+    // Videos
+    "mp4" => Some("public.mpeg-4"),
+    "mov" => Some("com.apple.quicktime-movie"),
+    "avi" => Some("public.avi"),
+    "mkv" => Some("public.mpeg-4"),
+    // Audio
+    "mp3" => Some("public.mp3"),
+    "wav" => Some("com.microsoft.waveform-audio"),
+    "aac" => Some("public.aac-audio"),
+    "m4a" => Some("public.mpeg-4-audio"),
+    // Documents
+    "pdf" => Some("com.adobe.pdf"),
+    "txt" => Some("public.plain-text"),
+    "rtf" => Some("public.rtf"),
+    "html" | "htm" => Some("public.html"),
+    "json" => Some("public.json"),
+    "xml" => Some("public.xml"),
+    _ => None,
+  }
+}
+
+/// Infers UTIs from mime type
+fn mime_type_to_uti(mime_type: &str) -> Option<&'static str> {
+  match mime_type {
+    "image/png" => Some("public.png"),
+    "image/jpeg" | "image/jpg" => Some("public.jpeg"),
+    "image/gif" => Some("com.compuserve.gif"),
+    "image/bmp" => Some("com.microsoft.bmp"),
+    "image/tiff" => Some("public.tiff"),
+    "image/heic" | "image/heif" => Some("public.heif-standard-image"),
+    "image/webp" => Some("org.webmproject.webp"),
+    "image/svg+xml" => Some("public.svg-image"),
+    mime if mime.starts_with("image/") => Some("public.image"),
+    "video/mp4" => Some("public.mpeg-4"),
+    "video/quicktime" => Some("com.apple.quicktime-movie"),
+    "video/x-msvideo" => Some("public.avi"),
+    mime if mime.starts_with("video/") => Some("public.movie"),
+    "audio/mpeg" | "audio/mp3" => Some("public.mp3"),
+    "audio/wav" | "audio/wave" => Some("com.microsoft.waveform-audio"),
+    "audio/aac" => Some("public.aac-audio"),
+    "audio/mp4" => Some("public.mpeg-4-audio"),
+    mime if mime.starts_with("audio/") => Some("public.audio"),
+    "application/pdf" => Some("com.adobe.pdf"),
+    "text/plain" => Some("public.plain-text"),
+    "text/rtf" => Some("public.rtf"),
+    "text/html" => Some("public.html"),
+    "application/json" => Some("public.json"),
+    "application/xml" | "text/xml" => Some("public.xml"),
+    _ => None,
+  }
 }
 
 /// Deep link protocol configuration.
@@ -1608,9 +1861,9 @@ pub struct WindowEffectsConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PreventOverflowMargin {
-  /// Horizontal margin in physical unit
+  /// Horizontal margin in physical pixels
   pub width: u32,
-  /// Vertical margin in physical unit
+  /// Vertical margin in physical pixels
   pub height: u32,
 }
 
@@ -1668,7 +1921,7 @@ pub struct WindowConfig {
   /// ```rust
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
   ///   });
   /// ```
@@ -1688,26 +1941,26 @@ pub struct WindowConfig {
   /// Whether or not the window starts centered or not.
   #[serde(default)]
   pub center: bool,
-  /// The horizontal position of the window's top left corner
+  /// The horizontal position of the window's top left corner in logical pixels
   pub x: Option<f64>,
-  /// The vertical position of the window's top left corner
+  /// The vertical position of the window's top left corner in logical pixels
   pub y: Option<f64>,
-  /// The window width.
+  /// The window width in logical pixels.
   #[serde(default = "default_width")]
   pub width: f64,
-  /// The window height.
+  /// The window height in logical pixels.
   #[serde(default = "default_height")]
   pub height: f64,
-  /// The min window width.
+  /// The min window width in logical pixels.
   #[serde(alias = "min-width")]
   pub min_width: Option<f64>,
-  /// The min window height.
+  /// The min window height in logical pixels.
   #[serde(alias = "min-height")]
   pub min_height: Option<f64>,
-  /// The max window width.
+  /// The max window width in logical pixels.
   #[serde(alias = "max-width")]
   pub max_width: Option<f64>,
-  /// The max window height.
+  /// The max window height in logical pixels.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
   /// Whether or not to prevent the window from overflowing the workarea
@@ -1995,6 +2248,21 @@ pub struct WindowConfig {
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
+  /// The name of the Android activity to create for this window.
+  #[serde(default, alias = "activity-name")]
+  pub activity_name: Option<String>,
+  /// The name of the Android activity that is creating this webview window.
+  ///
+  /// This is important to determine which stack the activity will belong to.
+  #[serde(default, alias = "created-by-activity-name")]
+  pub created_by_activity_name: Option<String>,
+
+  /// Sets the identifier of the scene that is requesting the new scene,
+  /// establishing a relationship between the two scenes.
+  ///
+  /// By default the system uses the foreground scene.
+  #[serde(default, alias = "requested-by-scene-identifier")]
+  pub requested_by_scene_identifier: Option<String>,
 }
 
 impl Default for WindowConfig {
@@ -2021,7 +2289,7 @@ impl Default for WindowConfig {
       closable: true,
       title: default_title(),
       fullscreen: false,
-      focus: false,
+      focus: true,
       focusable: true,
       transparent: false,
       maximized: false,
@@ -2057,6 +2325,9 @@ impl Default for WindowConfig {
       data_directory: None,
       data_store_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
+      activity_name: None,
+      created_by_activity_name: None,
+      requested_by_scene_identifier: None,
     }
   }
 }
@@ -2066,11 +2337,11 @@ fn default_window_label() -> String {
 }
 
 fn default_width() -> f64 {
-  800f64
+  800.
 }
 
 fn default_height() -> f64 {
-  600f64
+  600.
 }
 
 fn default_title() -> String {
@@ -2226,8 +2497,8 @@ impl Default for DisabledCspModificationKind {
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
-/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$TEMP`,
+/// `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2685,23 +2956,18 @@ impl<'de> Deserialize<'de> for CapabilityEntry {
 
 /// The application pattern.
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase", tag = "use", content = "options")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum PatternKind {
   /// Brownfield pattern.
+  #[default]
   Brownfield,
   /// Isolation pattern. Recommended for security purposes.
   Isolation {
     /// The dir containing the index.html file that contains the secure isolation application.
     dir: PathBuf,
   },
-}
-
-impl Default for PatternKind {
-  fn default() -> Self {
-    Self::Brownfield
-  }
 }
 
 /// The App configuration object.
@@ -2762,7 +3028,7 @@ pub struct AppConfig {
   /// ```rust
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
   ///   });
   /// ```
@@ -2961,11 +3227,11 @@ fn default_min_sdk_version() -> u32 {
 #[serde(untagged, deny_unknown_fields)]
 #[non_exhaustive]
 pub enum FrontendDist {
-  /// An external URL that should be used as the default application URL.
+  /// An external URL that should be used as the default application URL. No assets are embedded in the app in this case.
   Url(Url),
   /// Path to a directory containing the frontend dist assets.
   Directory(PathBuf),
-  /// An array of files to embed on the app.
+  /// An array of files to embed in the app.
   Files(Vec<PathBuf>),
 }
 
@@ -3184,18 +3450,20 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
               })?;
             Ok(PackageVersion(
               Version::from_str(version)
-                .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+                .map_err(|_| {
+                  DeError::custom("`tauri.conf.json > version` must be a semver string")
+                })?
                 .to_string(),
             ))
           } else {
             Err(DeError::custom(
-              "`package > version` value is not a path to a JSON object",
+              "`tauri.conf.json > version` value is not a path to a JSON object",
             ))
           }
         } else {
           Ok(PackageVersion(
             Version::from_str(value)
-              .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+              .map_err(|_| DeError::custom("`tauri.conf.json > version` must be a semver string"))?
               .to_string(),
           ))
         }
@@ -3354,7 +3622,7 @@ pub struct PluginConfig(pub HashMap<String, JsonValue>);
 /// This allows for a build script to output the values in a `Config` to a `TokenStream`, which can
 /// then be consumed by another crate. Useful for passing a config to both the build script and the
 /// application using tauri while only parsing it once (in the build script).
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
@@ -3594,6 +3862,9 @@ mod build {
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
+      let activity_name = opt_lit(self.activity_name.as_ref());
+      let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
+      let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
 
       literal_struct!(
         tokens,
@@ -3654,7 +3925,10 @@ mod build {
         disable_input_accessory_view,
         data_directory,
         data_store_identifier,
-        scroll_bar_style
+        scroll_bar_style,
+        activity_name,
+        created_by_activity_name,
+        requested_by_scene_identifier
       );
     }
   }
@@ -3860,9 +4134,14 @@ mod build {
           quote!(#prefix::Policy(#policy.into()))
         }
         Self::DirectiveMap(list) => {
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = list.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
           let map = map_lit(
             quote! { ::std::collections::HashMap },
-            list,
+            sorted,
             str_lit,
             identity,
           );
@@ -3918,7 +4197,17 @@ mod build {
           quote!(#prefix::List(#list))
         }
         Self::Map(m) => {
-          let map = map_lit(quote! { ::std::collections::HashMap }, m, str_lit, str_lit);
+          // Pass a sorted vec so the HashMap constructor is deterministic
+          // see: https://github.com/tauri-apps/tauri/issues/14978
+          // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+          let mut sorted: Vec<_> = m.iter().collect();
+          sorted.sort_by_key(|(k, _)| *k);
+          let map = map_lit(
+            quote! { ::std::collections::HashMap },
+            sorted,
+            str_lit,
+            str_lit,
+          );
           quote!(#prefix::Map(#map))
         }
       })
@@ -4065,9 +4354,14 @@ mod build {
 
   impl ToTokens for PluginConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // Pass a sorted vec so the HashMap constructor is deterministic
+      // see: https://github.com/tauri-apps/tauri/issues/14978
+      // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+      let mut sorted: Vec<_> = self.0.iter().collect();
+      sorted.sort_by_key(|(k, _)| *k);
       let config = map_lit(
         quote! { ::std::collections::HashMap },
-        &self.0,
+        sorted,
         str_lit,
         json_value_lit,
       );
@@ -4403,5 +4697,13 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
+  }
+
+  #[test]
+  fn window_config_default_same_as_deserialize() {
+    let config_from_deserialization: WindowConfig = serde_json::from_str("{}").unwrap();
+    let config_from_default: WindowConfig = WindowConfig::default();
+
+    assert_eq!(config_from_deserialization, config_from_default);
   }
 }

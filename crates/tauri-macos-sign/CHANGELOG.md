@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.3.3]
+
+### Dependencies
+
+- [`268bb339f`](https://www.github.com/tauri-apps/tauri/commit/268bb339f0c512f021cc94e102573432cf2696d0) ([#14766](https://www.github.com/tauri-apps/tauri/pull/14766) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Remove once-cell-regex from direct dependencies.
+
+## \[2.3.2]
+
+### Dependencies
+
+- [`514cf21e1`](https://www.github.com/tauri-apps/tauri/commit/514cf21e1417c7a78a0db494f891ba79d948b73d) ([#14591](https://www.github.com/tauri-apps/tauri/pull/14591) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) Update num-bigint-dig from 0.8.4 to 0.8.6
+
+## \[2.3.1]
+
+### Performance Improvements
+
+- [`ee3cc4a91`](https://www.github.com/tauri-apps/tauri/commit/ee3cc4a91bf1315ecaefe90f423ffd55ef6c40db) ([#14475](https://www.github.com/tauri-apps/tauri/pull/14475) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) perf: remove needless clones in various files for improved performance. No user facing changes.
+
 ## \[2.3.0]
 
 ### Enhancements

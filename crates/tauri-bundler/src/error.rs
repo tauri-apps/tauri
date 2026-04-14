@@ -105,6 +105,7 @@ pub enum Error {
   #[error("Failed to write binary file changes: `{0}`")]
   BinaryWriteError(String),
   /// Invalid offset while patching binary file
+  #[deprecated]
   #[error("Invalid offset while patching binary file")]
   BinaryOffsetOutOfRange,
   /// Unsupported architecture.

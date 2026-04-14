@@ -106,16 +106,13 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => {
-      crate::helpers::app_paths::resolve();
-      init_command(
-        MobileTarget::Android,
-        options.ci,
-        false,
-        options.skip_targets_install,
-        options.config,
-      )?
-    }
+    Commands::Init(options) => init_command(
+      MobileTarget::Android,
+      options.ci,
+      false,
+      options.skip_targets_install,
+      options.config,
+    )?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
     Commands::Run(options) => run::command(options, noise_level)?,
@@ -128,19 +125,14 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   config: &TauriConfig,
-  features: Option<&Vec<String>>,
+  features: &[String],
   cli_options: &CliOptions,
 ) -> (AndroidConfig, AndroidMetadata) {
   let mut android_options = cli_options.clone();
-  if let Some(features) = features {
-    android_options
-      .features
-      .get_or_insert(Vec::new())
-      .extend_from_slice(features);
-  }
+  android_options.features.extend_from_slice(features);
 
   let raw = RawAndroidConfig {
-    features: android_options.features.clone(),
+    features: Some(android_options.features.clone()),
     logcat_filter_specs: vec![
       "RustStdoutStderr".into(),
       format!(
@@ -161,7 +153,7 @@ pub fn get_config(
   let metadata = AndroidMetadata {
     supported: true,
     cargo_args: Some(android_options.args),
-    features: android_options.features,
+    features: Some(android_options.features),
     ..Default::default()
   };
 
@@ -257,8 +249,8 @@ fn ensure_java() -> Result<()> {
 
 fn ensure_sdk(non_interactive: bool) -> Result<()> {
   let android_home = std::env::var_os("ANDROID_HOME")
-    .map(PathBuf::from)
-    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT").map(PathBuf::from));
+    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT"))
+    .map(PathBuf::from);
   if !android_home.as_ref().is_some_and(|v| v.exists()) {
     log::info!(
       "ANDROID_HOME {}, trying to locate Android SDK...",
@@ -354,8 +346,8 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
 fn ensure_ndk(non_interactive: bool) -> Result<()> {
   // re-evaluate ANDROID_HOME
   let android_home = std::env::var_os("ANDROID_HOME")
+    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT"))
     .map(PathBuf::from)
-    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT").map(PathBuf::from))
     .context("Failed to locate Android SDK")?;
   let mut installed_ndks = read_dir(android_home.join("ndk"))
     .map(|dir| {

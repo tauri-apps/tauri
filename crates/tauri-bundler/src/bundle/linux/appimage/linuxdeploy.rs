@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::debian;
+use super::{super::debian, write_and_make_executable};
 use crate::{
   bundle::settings::Arch,
   error::{Context, ErrorExt},
@@ -232,7 +232,7 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     write_and_make_executable(&apprun, data)?;
   }
 
-  let linuxdeploy_arch = if arch == "i686" { "i383" } else { arch };
+  let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
   let linuxdeploy = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}.AppImage"));
   if !linuxdeploy.exists() {
     let data = download(&format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"))?;
@@ -279,13 +279,4 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     .output();
 
   Ok(linuxdeploy)
-}
-
-fn write_and_make_executable(path: &Path, data: Vec<u8>) -> std::io::Result<()> {
-  use std::os::unix::fs::PermissionsExt;
-
-  fs::write(path, data)?;
-  fs::set_permissions(path, fs::Permissions::from_mode(0o770))?;
-
-  Ok(())
 }

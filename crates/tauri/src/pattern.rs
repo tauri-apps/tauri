@@ -64,21 +64,15 @@ impl From<&Pattern> for PatternObject {
 
 /// Where the JavaScript is injected to
 #[cfg(feature = "isolation")]
-#[derive(Debug, Serialize)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum IsolationSide {
   /// Original frame, the Brownfield application
+  #[default]
   Original,
   /// Secure frame, the isolation security application
   #[allow(dead_code)]
   Secure,
-}
-
-#[cfg(feature = "isolation")]
-impl Default for IsolationSide {
-  fn default() -> Self {
-    Self::Original
-  }
 }
 
 #[derive(Template)]

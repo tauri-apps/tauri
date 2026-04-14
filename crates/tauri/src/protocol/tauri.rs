@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Handler for the `tauri://` custom protocol, serving bundled app assets
+//! in production and proxying to the dev server on mobile during development.
+
 use std::borrow::Cow;
 
 use http::{Request, Response as HttpResponse, StatusCode, header::CONTENT_TYPE};
@@ -24,6 +27,10 @@ struct CachedResponse {
   body: bytes::Bytes,
 }
 
+/// Creates a URI scheme protocol handler for the `tauri://` custom protocol.
+///
+/// This handler serves your app's bundled assets (HTML, JS, CSS, etc.) in production,
+/// and proxies requests to the dev server on mobile during development.
 pub fn get<M: Manager<R> + Send + Sync + 'static, R: Runtime>(
   #[allow(unused_variables)] manager: M,
   window_origin: &str,

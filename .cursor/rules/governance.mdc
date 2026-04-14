@@ -1,0 +1,53 @@
+---
+description: Governance rules for tauri-workspace — quality gates, security, conventions
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.js"
+  - "**/*.jsx"
+  - "**/*.rs"
+alwaysApply: true
+---
+
+# Governance — tauri-workspace
+
+> Generated from governance.md by crag. Regenerate: `crag compile --target cursor`
+
+**Stack:** node, rust, typescript
+
+## Quality Gates
+
+Run these checks in order before committing:
+### Lint
+- `npm run format:check`
+- `cargo clippy -- -D warnings`
+- `cargo fmt --check`
+
+### Test
+- `npm run test`
+- `cargo test`
+
+### Build
+- `npm run build`
+
+### Ci (inferred from workflow)
+- `pnpm build`
+- `cargo build --manifest-path ./crates/tauri-schema-generator/Cargo.toml`
+- `cargo build --manifest-path ./crates/tauri-cli/Cargo.toml`
+- `cargo test --test '*' -- --ignored`
+- `pnpm test`
+- `cargo fmt --all -- --check`
+- `pnpm eslint:check`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+### Contributor docs (advisory — confirm before enforcing)
+- `cargo clippy  # from .github/PULL_REQUEST_TEMPLATE.md`
+## Security
+
+- No hardcoded secrets — grep for sk_live, AKIA, password= before commit
+
+## Conventions
+
+- Conventional commits (feat:, fix:, docs:, etc.)
+- Commit trailer: Co-Authored-By: Claude <noreply@anthropic.com>
+- Runtimes: node, rust

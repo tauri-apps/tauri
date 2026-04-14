@@ -1,0 +1,59 @@
+<!-- crag:auto-start -->
+# Cline Rules — tauri-workspace
+
+Generated from governance.md by crag. Regenerate with: `crag compile --target cline`
+
+## About this project
+
+(No description)
+
+Stack: node, rust, typescript
+Runtimes: node, rust
+
+## Mandatory behavior
+
+1. Read this file at the start of every session. Read `governance.md` for full context.
+2. Run all mandatory quality gates before proposing a commit.
+3. If a gate fails, attempt an automatic fix (lint/format) with bounded retry (max 2 attempts). If it still fails, escalate to the user.
+4. Never modify files outside this repository.
+5. Never run destructive system commands (rm -rf /, DROP TABLE, force-push to main, curl|bash).
+6. Use conventional commits.
+
+## Quality gates
+
+Run these in order, stop on first MANDATORY failure:
+
+- npm run format:check
+- cargo clippy -- -D warnings
+- cargo fmt --check
+- npm run test
+- cargo test
+- npm run build
+- pnpm build
+- cargo build --manifest-path ./crates/tauri-schema-generator/Cargo.toml
+- cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
+- cargo test --test '*' -- --ignored
+- pnpm test
+- cargo fmt --all -- --check
+- pnpm eslint:check
+- cargo clippy --all-targets --all-features -- -D warnings
+- cargo clippy  # from .github/PULL_REQUEST_TEMPLATE.md
+
+## Security
+
+- No hardcoded secrets — grep for sk_live, AKIA, password= before commit
+
+## Workflow
+
+For every task:
+1. Read the governance.md file first
+2. Understand which files need to change
+3. Make minimal, focused changes
+4. Run all mandatory gates
+5. Commit with a conventional commit message
+
+## Tool context
+
+This project uses **crag** — the governance engine for AI coding agents. https://www.npmjs.com/package/@whitehatd/crag
+
+<!-- crag:auto-end -->

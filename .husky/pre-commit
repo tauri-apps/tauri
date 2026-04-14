@@ -1,0 +1,32 @@
+#!/bin/sh
+# crag:auto-start
+# Generated from governance.md by crag
+# Regenerate: crag compile --target husky
+set -e
+
+# lint
+npm run format:check || exit 1
+cargo clippy -- -D warnings || exit 1
+cargo fmt --check || exit 1
+
+# test
+npm run test || exit 1
+cargo test || exit 1
+
+# build
+npm run build || exit 1
+
+# ci (inferred from workflow)
+pnpm build || exit 1
+cargo build --manifest-path ./crates/tauri-schema-generator/Cargo.toml || exit 1
+cargo build --manifest-path ./crates/tauri-cli/Cargo.toml || exit 1
+cargo test --test '*' -- --ignored || exit 1
+pnpm test || exit 1
+cargo fmt --all -- --check || exit 1
+pnpm eslint:check || exit 1
+cargo clippy --all-targets --all-features -- -D warnings || exit 1
+
+# contributor docs (advisory — confirm before enforcing)
+cargo clippy  # from .github/PULL_REQUEST_TEMPLATE.md || exit 1
+
+# crag:auto-end

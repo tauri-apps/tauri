@@ -1,0 +1,71 @@
+# crag:auto-start
+# Generated from governance.md by crag
+# Regenerate: crag compile --target github
+name: Governance Gates
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  gates:
+    name: Governance Gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: "lint: npm run format:check"
+        run: |
+          npm run format:check
+      - name: "lint: cargo clippy -- -D warnings"
+        run: |
+          cargo clippy -- -D warnings
+      - name: "lint: cargo fmt --check"
+        run: |
+          cargo fmt --check
+      - name: "test: npm run test"
+        run: |
+          npm run test
+      - name: "test: cargo test"
+        run: |
+          cargo test
+      - name: "build: npm run build"
+        run: |
+          npm run build
+      - name: "ci (inferred from workflow): pnpm build"
+        run: |
+          pnpm build
+      - name: "ci (inferred from workflow): cargo build --manifest-path ./crates/tauri-schema-generat..."
+        run: |
+          cargo build --manifest-path ./crates/tauri-schema-generator/Cargo.toml
+      - name: "ci (inferred from workflow): cargo build --manifest-path ./crates/tauri-cli/Cargo.toml"
+        run: |
+          cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
+      - name: "ci (inferred from workflow): cargo test --test '*' -- --ignored"
+        run: |
+          cargo test --test '*' -- --ignored
+      - name: "ci (inferred from workflow): pnpm test"
+        run: |
+          pnpm test
+      - name: "ci (inferred from workflow): cargo fmt --all -- --check"
+        run: |
+          cargo fmt --all -- --check
+      - name: "ci (inferred from workflow): pnpm eslint:check"
+        run: |
+          pnpm eslint:check
+      - name: "ci (inferred from workflow): cargo clippy --all-targets --all-features -- -D warnings"
+        run: |
+          cargo clippy --all-targets --all-features -- -D warnings
+      - name: "contributor docs (advisory — confirm before enforcing): cargo clippy  # from .github/PULL_REQUEST_TEMPLATE.md"
+        run: |
+          cargo clippy  # from .github/PULL_REQUEST_TEMPLATE.md
+
+# crag:auto-end

@@ -1,0 +1,58 @@
+<!-- crag:auto-start -->
+# Continue Rules — tauri-workspace
+
+> Generated from governance.md by crag. Regenerate: `crag compile --target continue`
+
+
+
+## Project Context
+
+- **Stack:** node, rust, typescript
+- **Runtimes:** node, rust
+- **Governance source:** `.claude/governance.md` (single source of truth)
+
+## Coding Rules
+
+Always follow these when generating or modifying code:
+
+1. **Run gates before committing.** Every change must pass the mandatory gates below.
+2. **Classifications matter:**
+   - `MANDATORY` — must pass (default)
+   - `OPTIONAL` — should pass, warn on failure
+   - `ADVISORY` — informational only
+3. **Path-scoped gates** run from their declared directory.
+4. **Conditional gates** only run when their referenced file exists.
+5. **No secrets.** - No hardcoded secrets — grep for sk_live, AKIA, password= before commit
+6. **Conventional commits.** Format: `<type>(<scope>): <description>`
+   Trailer: `Co-Authored-By: Claude <noreply@anthropic.com>`
+
+## Quality Gates
+
+  - npm run format:check
+  - cargo clippy -- -D warnings
+  - cargo fmt --check
+  - npm run test
+  - cargo test
+  - npm run build
+  - pnpm build
+  - cargo build --manifest-path ./crates/tauri-schema-generator/Cargo.toml
+  - cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
+  - cargo test --test '*' -- --ignored
+  - pnpm test
+  - cargo fmt --all -- --check
+  - pnpm eslint:check
+  - cargo clippy --all-targets --all-features -- -D warnings
+  - cargo clippy  # from .github/PULL_REQUEST_TEMPLATE.md
+
+## Boundaries
+
+- All file operations stay within this repository
+- No destructive shell commands
+- No new dependencies without justification
+- Prefer editing existing files over creating new ones
+
+## Powered by crag
+
+This rule file is auto-generated from a single `governance.md` via **crag** (https://www.npmjs.com/package/@whitehatd/crag). To update, edit governance.md and re-run `crag compile --target continue`.
+
+<!-- crag:auto-end -->

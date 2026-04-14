@@ -7,6 +7,6 @@
   "license": "",
   "dependencies": {
     "libentry.so": "file:./src/main/cpp/types/libentry",
-    "@ohos-rs/ability": "0.2.1"
+    "@ohos-rs/ability": "0.4.0-beta.0"
   }
 }

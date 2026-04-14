@@ -189,6 +189,7 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
 #[cfg(test)]
 mod tests {
   use super::generate_github_mirror_url_from_template;
+  use serial_test::serial;
   use std::env;
 
   const GITHUB_ASSET_URL: &str =
@@ -196,6 +197,7 @@ mod tests {
   const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
 
   #[test]
+  #[serial]
   fn test_generate_mirror_url_no_env_var() {
     env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE");
 
@@ -203,6 +205,7 @@ mod tests {
   }
 
   #[test]
+  #[serial]
   fn test_generate_mirror_url_non_github_url() {
     env::set_var(
       "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
@@ -218,6 +221,7 @@ mod tests {
   }
 
   #[test]
+  #[serial]
   fn test_generate_mirror_url_correctly() {
     let test_cases = vec![
             TestCase {

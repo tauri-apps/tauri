@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
 
-use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
+use http::{Request, Response as HttpResponse, StatusCode, header::CONTENT_TYPE};
 use tauri_utils::config::HeaderAddition;
 
 use crate::{
-  manager::{webview::PROXY_DEV_SERVER, AppManager},
+  Manager, Runtime,
+  manager::webview::PROXY_DEV_SERVER,
   webview::{UriSchemeProtocolHandler, WebResourceRequestHandler},
-  Runtime,
 };
 
 #[cfg(all(dev, mobile))]
@@ -24,8 +24,8 @@ struct CachedResponse {
   body: bytes::Bytes,
 }
 
-pub fn get<R: Runtime>(
-  #[allow(unused_variables)] manager: Arc<AppManager<R>>,
+pub fn get<M: Manager<R> + Send + Sync + 'static, R: Runtime>(
+  #[allow(unused_variables)] manager: M,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
@@ -68,9 +68,9 @@ pub fn get<R: Runtime>(
   })
 }
 
-fn get_response<R: Runtime>(
+fn get_response<M: Manager<R> + Send + Sync + 'static, R: Runtime>(
   #[allow(unused_mut)] mut request: Request<Vec<u8>>,
-  #[allow(unused_variables)] manager: &AppManager<R>,
+  #[allow(unused_variables)] manager: &M,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   #[cfg(all(dev, mobile))] (url, response_cache): (
@@ -100,7 +100,7 @@ fn get_response<R: Runtime>(
     .unwrap_or_default();
 
   let mut builder = HttpResponse::builder()
-    .add_configured_headers(manager.config.app.security.headers.as_ref())
+    .add_configured_headers(manager.config().app.security.headers.as_ref())
     .header("Access-Control-Allow-Origin", window_origin);
 
   #[cfg(all(dev, mobile))]
@@ -212,7 +212,7 @@ fn get_response<R: Runtime>(
   #[cfg(not(all(dev, mobile)))]
   let mut response = {
     let use_https_scheme = request.uri().scheme() == Some(&http::uri::Scheme::HTTPS);
-    let asset = manager.get_asset(path, use_https_scheme)?;
+    let asset = manager.manager().get_asset(path, use_https_scheme)?;
     builder = builder.header(CONTENT_TYPE, &asset.mime_type);
     if let Some(csp) = &asset.csp_header {
       builder = builder.header("Content-Security-Policy", csp);

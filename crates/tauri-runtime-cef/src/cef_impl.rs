@@ -1315,10 +1315,18 @@ wrap_window_delegate! {
         view.set_background_color(color);
       }
 
-      // Apply traffic light position after system theme changed
+      // macOS resets traffic light button positions during the layout pass
+      // that follows an appearance change, so we must defer the reapply
+      // to run after that layout completes.
       #[cfg(target_os = "macos")]
-      if let (Some(window), Some(position)) = (view.window(), attrs.traffic_light_position) {
-        apply_traffic_light_position(window.window_handle(), &position);
+      if let Some(position) = attrs.traffic_light_position {
+        send_message_task(
+          &self.context,
+          Message::Window {
+            window_id: self.window_id,
+            message: WindowMessage::SetTrafficLightPosition(position),
+          },
+        );
       }
 
       if std::mem::take(&mut *self.suppress_next_theme_changed.borrow_mut()) {

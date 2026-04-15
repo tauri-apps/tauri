@@ -2553,7 +2553,7 @@ interface WindowOptions {
    * - **Linux / Android / iOS / macOS**:
    *   Unsupported and performs no operation.
    *
-   * @since 2.x.x
+   * @since 2.11.0
    */
   disableAutofill?: boolean
 }

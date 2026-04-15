@@ -4567,11 +4567,19 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   };
 
+  #[cfg(target_os = "macos")]
+  let initial_outer_position = window_builder.inner.window.position;
+
   let window = window_builder
     .inner
     .build(event_loop)
     .inspect_err(|e| log::error!("Error creating window: {e:?}"))
     .map_err(|_| Error::CreateWindow)?;
+
+  #[cfg(target_os = "macos")]
+  if let Some(position) = initial_outer_position {
+    window.set_outer_position(position);
+  }
 
   #[cfg(feature = "tracing")]
   {

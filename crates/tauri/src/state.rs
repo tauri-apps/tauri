@@ -17,9 +17,9 @@ use crate::{
 /// A guard for a state value.
 ///
 /// See [`Manager::manage`](`crate::Manager::manage`) for usage examples.
-pub struct State<'r, T: Send + Sync + 'static>(&'r T);
+pub struct State<'r, T>(&'r T);
 
-impl<'r, T: Send + Sync + 'static> State<'r, T> {
+impl<'r, T> State<'r, T> {
   /// Retrieve a borrow to the underlying value with a lifetime of `'r`.
   /// Using this method is typically unnecessary as `State` implements
   /// [`std::ops::Deref`] with a [`std::ops::Deref::Target`] of `T`.
@@ -29,7 +29,7 @@ impl<'r, T: Send + Sync + 'static> State<'r, T> {
   }
 }
 
-impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
+impl<T> std::ops::Deref for State<'_, T> {
   type Target = T;
 
   #[inline(always)]
@@ -38,25 +38,25 @@ impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
   }
 }
 
-impl<T: Send + Sync + 'static> Clone for State<'_, T> {
+impl<T> Clone for State<'_, T> {
   fn clone(&self) -> Self {
     State(self.0)
   }
 }
 
-impl<T: Send + Sync + 'static + PartialEq> PartialEq for State<'_, T> {
+impl<T: PartialEq> PartialEq for State<'_, T> {
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0
   }
 }
 
-impl<T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'_, T> {
+impl<T: std::fmt::Debug> std::fmt::Debug for State<'_, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_tuple("State").field(&self.0).finish()
   }
 }
 
-impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
+impl<'r, 'de: 'r, T: 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     command.message.state_ref().try_get().ok_or_else(|| {
@@ -138,14 +138,14 @@ impl StateManager {
   }
 
   /// Gets the state associated with the specified type.
-  pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
+  pub fn get<T: 'static>(&self) -> State<'_, T> {
     self
       .try_get()
       .unwrap_or_else(|| panic!("state not found for type {}", std::any::type_name::<T>()))
   }
 
   /// Gets the state associated with the specified type.
-  pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
+  pub fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
     let state = map.get(&type_id)?;

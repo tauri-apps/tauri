@@ -1,17 +1,15 @@
+use crate::helpers::app_paths::Dirs;
 use crate::interface::{
-  AppSettings, ExitReason, Options,
+  AppInterface, AppSettings, ExitReason, Options,
   rust::{DevChild, RustAppSettings, RustupTarget, tauri_config_to_bundle_settings},
 };
 use crate::{CommandExt, error::Context};
 
 use shared_child::SharedChild;
+use std::io::{BufReader, Write};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::{
-  io::{BufReader, Write},
-  path::Path,
-};
 
 pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   app_settings: &RustAppSettings,
@@ -20,7 +18,8 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
-  tauri_dir: &Path,
+  interface: &AppInterface,
+  dirs: &Dirs,
 ) -> crate::Result<DevChild> {
   // Build the app
   let mut build_cmd = crate::interface::rust::cargo_command(
@@ -48,8 +47,8 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
   }
 
   // Bundle the .app using the bundler
-  let out_dir = app_settings.out_dir(&options, tauri_dir)?;
-  let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
+  let out_dir = app_settings.out_dir(&options, dirs.tauri)?;
+  let bin_path = app_settings.app_binary_path(&options, dirs.tauri)?;
   let exec_name = bin_path
     .file_name()
     .and_then(|s| s.to_str())
@@ -70,8 +69,18 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
   let config = crate::helpers::config::get_config(
     tauri_utils::platform::Target::MacOS,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
-    tauri_dir,
+    dirs.tauri,
   )?;
+
+  if let Some(before_bundle) = config.build.before_bundle_command.clone() {
+    crate::helpers::run_hook(
+      "beforeBundleCommand",
+      before_bundle,
+      interface,
+      options.debug,
+      dirs.frontend,
+    )?;
+  }
 
   // Get bundle settings using the shared helper
   let arch64bits =
@@ -81,7 +90,7 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
     app_settings,
     &merged_features,
     &config,
-    tauri_dir,
+    dirs.tauri,
     config.bundle.clone(),
     None, // No updater in dev mode
     arch64bits,
@@ -89,7 +98,7 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
   let mut settings = tauri_bundler::bundle::SettingsBuilder::new()
     .package_settings(app_settings.get_package_settings())
     .bundle_settings(bundle_settings)
-    .binaries(app_settings.get_binaries(&options, tauri_dir)?)
+    .binaries(app_settings.get_binaries(&options, dirs.tauri)?)
     .project_out_directory(out_dir.clone())
     .target(target)
     .package_types(vec![tauri_bundler::bundle::PackageType::MacOsBundle])

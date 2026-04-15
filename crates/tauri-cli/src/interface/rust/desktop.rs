@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
+use super::{AppSettings, DevProcess, ExitReason, Options, Rust, RustAppSettings, RustupTarget};
+use crate::helpers::app_paths::Dirs;
 use crate::{
   CommandExt, Error,
   error::{Context, ErrorExt},
@@ -43,18 +44,19 @@ impl DevProcess for DevChild {
 }
 
 pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
-  app_settings: &RustAppSettings,
+  interface: &Rust,
   options: Options,
   run_args: &[String],
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   on_exit: F,
-  #[allow(unused_variables)] tauri_dir: &Path,
+  #[allow(unused_variables)] dirs: &Dirs,
 ) -> crate::Result<DevChild> {
   #[cfg(not(target_os = "macos"))]
-  let _app_settings = app_settings;
+  let _interface = interface;
   #[cfg(target_os = "macos")]
   {
+    let app_settings = interface.app_settings_ref();
     // compute enabled features by merging config_features and options.features, then asking the manifest
     let mut merged_features = config_features.clone();
     merged_features.extend(options.features.clone());
@@ -77,7 +79,8 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
         available_targets,
         config_features.clone(),
         on_exit,
-        tauri_dir,
+        interface,
+        dirs,
       );
     }
   }

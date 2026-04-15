@@ -187,6 +187,10 @@ impl Rust {
     self.app_settings.clone()
   }
 
+  pub(crate) fn app_settings_ref(&self) -> &RustAppSettings {
+    self.app_settings.as_ref()
+  }
+
   pub fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
     desktop::build(
       options,
@@ -225,7 +229,7 @@ impl Rust {
           on_exit(status, reason);
           tx.send(()).unwrap();
         },
-        dirs.tauri,
+        dirs,
       )?;
 
       rx.recv().unwrap();
@@ -243,7 +247,7 @@ impl Rust {
               options.clone(),
               &run_args,
               move |status, reason| on_exit(status, reason),
-              dirs.tauri,
+              dirs,
             )
             .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
         },
@@ -305,12 +309,10 @@ impl Rust {
 
   pub fn env(&self) -> HashMap<&str, String> {
     let mut env = HashMap::new();
-    env.insert(
-      "TAURI_ENV_TARGET_TRIPLE",
-      self.app_settings.target_triple.clone(),
-    );
-
     let target_triple = &self.app_settings.target_triple;
+
+    env.insert("TAURI_ENV_TARGET_TRIPLE", target_triple.to_string());
+
     let target_components: Vec<&str> = target_triple.split('-').collect();
     let (arch, host, _host_env) = match target_components.as_slice() {
       // 3 components like aarch64-apple-darwin
@@ -511,17 +513,21 @@ impl Rust {
     options: Options,
     run_args: &[String],
     on_exit: F,
-    tauri_dir: &Path,
+    dirs: &Dirs,
   ) -> crate::Result<desktop::DevChild> {
-    desktop::run_dev(
-      &self.app_settings,
+    let mut targets = self.available_targets.take();
+    let config_features = self.config_features.clone();
+    let result = desktop::run_dev(
+      &*self,
       options,
       run_args,
-      &mut self.available_targets,
-      self.config_features.clone(),
+      &mut targets,
+      config_features,
       on_exit,
-      tauri_dir,
-    )
+      dirs,
+    );
+    self.available_targets = targets;
+    result
   }
 
   fn run_dev_watcher<

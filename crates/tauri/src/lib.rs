@@ -663,7 +663,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// #[tauri::command]
   /// fn string_command<'r>(state: State<'r, MyString>) {
-  ///     println!("state: {}", state.inner().0);
+  ///     println!("state: {}", state.0);
   /// }
   ///
   /// tauri::Builder::default()

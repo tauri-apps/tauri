@@ -70,7 +70,7 @@ Var NoShortcutMode
 Var WixMode
 Var OldMainBinaryName
 
-Name "${PRODUCTNAME}"
+Name "${PRODUCTNAME} ${VERSION}"
 BrandingText "${COPYRIGHT}"
 OutFile "${OUTFILE}"
 
@@ -82,7 +82,7 @@ InstallDir "${PLACEHOLDER_INSTALL_DIR}"
 
 VIProductVersion "${VERSIONWITHBUILD}"
 VIAddVersionKey "ProductName" "${PRODUCTNAME}"
-VIAddVersionKey "FileDescription" "${PRODUCTNAME}"
+VIAddVersionKey "FileDescription" "${PRODUCTNAME} installer"
 VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "ProductVersion" "${VERSION}"

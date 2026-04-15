@@ -77,8 +77,12 @@ impl CefBrowserExt for cef::Browser {
       return;
     };
 
-    let cmd = if visible != 0 { SW_SHOW } else { SW_HIDE };
-    let _ = unsafe { ShowWindow(hwnd, cmd) };
+    if visible != 0 {
+      let _ = unsafe { ShowWindow(hwnd, SW_SHOW) };
+      unsafe { ensure_render_target(hwnd) };
+    } else {
+      let _ = unsafe { ShowWindow(hwnd, SW_HIDE) };
+    }
   }
 
   fn close(&self) {
@@ -96,6 +100,25 @@ impl CefBrowserExt for cef::Browser {
 
     let parent_hwnd = HWND(parent.window_handle().0 as _);
     let _ = unsafe { SetParent(hwnd, Some(parent_hwnd)) };
+  }
+}
+
+/// Toggle visibility on Chrome_WidgetWin_1 children that may have lost their
+/// Chrome_RenderWidgetHostHWND render target (probably destroyed by CDP freeze).
+unsafe fn ensure_render_target(hwnd: HWND) {
+  use windows::core::PCWSTR;
+
+  const CHROME_WIDGET: PCWSTR = windows::core::w!("Chrome_WidgetWin_1");
+  const RENDER_TARGET: PCWSTR = windows::core::w!("Chrome_RenderWidgetHostHWND");
+
+  let mut child = unsafe { FindWindowExW(Some(hwnd), None, CHROME_WIDGET, PCWSTR::null()) };
+  while let Ok(child_hwnd) = child {
+    if unsafe { FindWindowExW(Some(child_hwnd), None, RENDER_TARGET, PCWSTR::null()).is_err() } {
+      // Hide and show the child to force CEF to recreate the render target
+      let _ = unsafe { ShowWindow(child_hwnd, SW_HIDE) };
+      let _ = unsafe { ShowWindow(child_hwnd, SW_SHOW) };
+    }
+    child = unsafe { FindWindowExW(Some(hwnd), Some(child_hwnd), CHROME_WIDGET, PCWSTR::null()) };
   }
 }
 

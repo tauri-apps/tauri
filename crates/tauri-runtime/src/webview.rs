@@ -371,11 +371,24 @@ pub struct WebviewAttributes {
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
   pub allow_link_preview: bool,
   pub scroll_bar_style: ScrollBarStyle,
-  /// Disable webview autofill and form suggestions.
+  /// Controls the WebView's browser-level general autofill behavior.
   ///
-  /// On Windows, WebView2 may show autofill UI even when
-  /// `autocomplete="off"` is specified on input elements.
-  /// This flag disables that behavior.
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `true`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// If not specified, this is `false` by default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases. When this option is `true`, that general
+  ///   autofill behavior is disabled.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
   pub disable_autofill: bool,
   /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
@@ -817,18 +830,24 @@ impl WebviewAttributes {
     self
   }
 
-  /// Disable webview autofill and form suggestions.
+  /// Controls the WebView's browser-level general autofill behavior.
   ///
-  /// This prevents browser-like autofill UI from appearing inside the webview.
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `true`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// By default, this is `false`.
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows**:
-  ///   Disables WebView2 autofill and form suggestions.
-  ///   WebView2 may show autofill UI even when `autocomplete="off"` is specified
-  ///   on input elements.
-  /// - **Linux / Android / iOS / macOS**:
-  ///   Unsupported and performs no operation.
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases. When this option is `true`, that general
+  ///   autofill behavior is disabled.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
   #[must_use]
   pub fn disable_autofill(mut self, disable: bool) -> Self {
     self.disable_autofill = disable;

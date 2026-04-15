@@ -898,17 +898,21 @@ interface WebviewOptions {
    */
   scrollBarStyle?: ScrollBarStyle
   /**
-   * Disable webview autofill and form suggestions.
+   * Controls the WebView's browser-level general autofill behavior.
    *
-   * This prevents browser-like autofill UI from appearing inside the webview.
+   * **This option does not disable password or credit card autofill.**
+   *
+   * When set to `true`, the WebView will not automatically populate general form
+   * fields using previously stored data such as addresses or contact information.
+   *
+   * If not specified, this is `false` by default.
    *
    * ## Platform-specific
    *
-   * - **Windows**:
-   *   Disables WebView2 autofill and form suggestions. WebView2 may show autofill
-   *   UI even when `autocomplete="off"` is specified on input elements.
-   * - **Linux / Android / iOS / macOS**:
-   *   Unsupported and performs no operation.
+   * - **Windows**: Supported. WebView2's autofill feature (called "Suggestions")
+   *   may not honor `autocomplete="off"` on input elements in some cases. When
+   *   this option is `true`, that general autofill behavior is disabled.
+   * - **Linux / Android / iOS / macOS**: Unsupported and performs no operation.
    *
    * @since 2.11.0
    */

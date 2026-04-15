@@ -39,6 +39,7 @@ pub fn get<M: Manager<R> + Send + Sync + 'static, R: Runtime>(
   #[cfg(all(dev, mobile))]
   let url = {
     let mut url = manager
+      .manager()
       .get_app_url(window_origin.starts_with("https"))
       .as_str()
       .to_string();
@@ -51,7 +52,7 @@ pub fn get<M: Manager<R> + Send + Sync + 'static, R: Runtime>(
   let window_origin = window_origin.to_string();
 
   #[cfg(all(dev, mobile))]
-  let response_cache = Arc::new(Mutex::new(HashMap::new()));
+  let response_cache = std::sync::Arc::new(Mutex::new(HashMap::new()));
 
   Box::new(move |_, request, responder| {
     match get_response(
@@ -82,7 +83,7 @@ fn get_response<M: Manager<R> + Send + Sync + 'static, R: Runtime>(
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   #[cfg(all(dev, mobile))] (url, response_cache): (
     &str,
-    &Arc<Mutex<HashMap<String, CachedResponse>>>,
+    &std::sync::Arc<Mutex<HashMap<String, CachedResponse>>>,
   ),
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   // use the entire URI as we are going to proxy the request

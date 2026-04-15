@@ -1186,12 +1186,11 @@ dependencies = [
 [[package]]
 name = "cef-dll-sys"
 version = "146.4.1+146.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6616217417da12da57bb7650acc3c8be0fc26e7120892ab926d2ba8d84c8c9c2"
+source = "git+https://github.com/tauri-apps/cef-rs?branch=fix%2F146-location-windows#7fc79c7aa4f1d691ed9996d440f13eb34a151f2d"
 dependencies = [
  "anyhow",
  "cmake",
- "download-cef",
+ "download-cef 2.3.1 (git+https://github.com/tauri-apps/cef-rs?branch=fix%2F146-location-windows)",
  "serde_json",
 ]
 
@@ -2116,6 +2115,24 @@ name = "download-cef"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7471a7d5d3bd8df1b3b75871f0317d8a6dd73270ab861cc97ae7907ee63e554"
+dependencies = [
+ "bzip2 0.6.0",
+ "clap",
+ "indicatif",
+ "regex",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha1_smol",
+ "tar",
+ "thiserror 2.0.12",
+ "ureq",
+]
+
+[[package]]
+name = "download-cef"
+version = "2.3.1"
+source = "git+https://github.com/tauri-apps/cef-rs?branch=fix%2F146-location-windows#7fc79c7aa4f1d691ed9996d440f13eb34a151f2d"
 dependencies = [
  "bzip2 0.6.0",
  "clap",
@@ -8712,7 +8729,6 @@ version = "2.5.6"
 dependencies = [
  "anyhow",
  "cargo_toml",
- "cef-dll-sys",
  "dirs 6.0.0",
  "glob",
  "heck 0.5.0",
@@ -8791,7 +8807,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "dirs 6.0.0",
- "download-cef",
+ "download-cef 2.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "duct",
  "dunce",
  "elf",

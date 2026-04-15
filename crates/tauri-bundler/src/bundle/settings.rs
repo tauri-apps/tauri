@@ -470,6 +470,13 @@ pub struct NsisSettings {
   pub sidebar_image: Option<PathBuf>,
   /// The path to an icon file used as the installer icon.
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   pub install_mode: NSISInstallerMode,
   /// A list of installer languages.

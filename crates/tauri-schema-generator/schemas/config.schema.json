@@ -2517,6 +2517,16 @@
               "type": "null"
             }
           ]
+        },
+        "androidIntentActionFilters": {
+          "description": "Intent action filters for this file association.\n\n By default all filters are used.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/AndroidIntentAction"
+          }
         }
       },
       "additionalProperties": false
@@ -2621,6 +2631,32 @@
         }
       },
       "additionalProperties": false
+    },
+    "AndroidIntentAction": {
+      "description": "Android intent action.",
+      "oneOf": [
+        {
+          "description": "ACTION_SEND.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>",
+          "type": "string",
+          "enum": [
+            "send"
+          ]
+        },
+        {
+          "description": "ACTION_SEND_MULTIPLE.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND_MULTIPLE>",
+          "type": "string",
+          "enum": [
+            "sendMultiple"
+          ]
+        },
+        {
+          "description": "ACTION_VIEW.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>",
+          "type": "string",
+          "enum": [
+            "view"
+          ]
+        }
+      ]
     },
     "WindowsConfig": {
       "description": "Windows bundler configuration.\n\n See more: <https://v2.tauri.app/reference/config/#windowsconfig>",
@@ -2991,6 +3027,20 @@
         },
         "installerIcon": {
           "description": "The path to an icon file used as the installer icon.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uninstallerIcon": {
+          "description": "The path to an icon file used as the uninstaller icon.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uninstallerHeaderImage": {
+          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`\n\n The recommended dimensions are 150px x 57px.",
           "type": [
             "string",
             "null"

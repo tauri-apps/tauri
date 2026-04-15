@@ -29,6 +29,7 @@ impl<'r, T: 'static> State<'r, T> {
   /// Retrieve a borrow to the underlying value with a lifetime of `'r`.
   /// Using this method is typically unnecessary as `State` implements
   /// [`std::ops::Deref`] with a [`std::ops::Deref::Target`] of `T`.
+  #[doc(hidden)]
   #[inline(always)]
   pub fn inner(&self) -> &'r T {
     let x: &(dyn Any + Send + Sync) = &*self.t;

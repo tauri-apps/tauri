@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: MIT
 
 use crate::bundle::Settings;
-use crate::utils::{self, fs_utils};
+use crate::utils::{self, fs_utils, CommandExt};
 use std::{
   cmp::min,
   ffi::OsStr,
   fs::{self, File},
   io::{self, BufWriter},
   path::{Path, PathBuf},
+  process::Command,
 };
 
 use image::GenericImageView;
@@ -63,6 +64,11 @@ pub fn create_icns_file(out_dir: &Path, settings: &Settings) -> crate::Result<Op
   let mut images_to_resize: Vec<(image::DynamicImage, u32, u32)> = vec![];
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
+
+    if icon_path.extension().map_or(false, |ext| ext == "car") {
+      continue;
+    }
+
     let icon = image::open(&icon_path)?;
     let density = if utils::is_retina(&icon_path) { 2 } else { 1 };
     let (w, h) = icon.dimensions();
@@ -112,4 +118,207 @@ fn make_icns_image(img: image::DynamicImage) -> io::Result<icns::Image> {
     }
   };
   icns::Image::from_data(pixel_format, img.width(), img.height(), img.into_bytes())
+}
+
+/// Creates an Assets.car file from a .icon file if there are any in the settings.
+/// Uses an existing Assets.car file if it exists in the settings.
+/// Returns the path to the Assets.car file.
+pub fn create_assets_car_file(
+  out_dir: &Path,
+  settings: &Settings,
+) -> crate::Result<Option<PathBuf>> {
+  let Some(icons) = settings.icons() else {
+    return Ok(None);
+  };
+  // If one of the icon files is already a CAR file, just use that.
+  let mut icon_composer_icon_path = None;
+  for icon in icons {
+    let icon_path = Path::new(&icon).to_path_buf();
+    if icon_path.extension() == Some(OsStr::new("car")) {
+      let dest_path = out_dir.join("Assets.car");
+      fs_utils::copy_file(&icon_path, &dest_path)?;
+      return Ok(Some(dest_path));
+    }
+
+    if icon_path.extension() == Some(OsStr::new("icon")) {
+      icon_composer_icon_path.replace(icon_path);
+    }
+  }
+
+  let Some(icon_composer_icon_path) = icon_composer_icon_path else {
+    return Ok(None);
+  };
+
+  // Check actool version - must be >= 26
+  if let Some(version) = get_actool_version() {
+    // Parse the major version number (before the dot)
+    let major_version: Option<u32> = version.split('.').next().and_then(|s| s.parse().ok());
+
+    if let Some(major) = major_version {
+      if major < 26 {
+        log::error!("actool version is less than 26, skipping Assets.car file creation. Please update Xcode to 26 or above and try again.");
+        return Ok(None);
+      }
+    } else {
+      // If we can't parse the version, return None to be safe
+      log::error!("failed to parse actool version, skipping Assets.car file creation");
+      return Ok(None);
+    }
+  } else {
+    log::error!("failed to get actool version, skipping Assets.car file creation");
+    // If we can't get the version, return None to be safe
+    return Ok(None);
+  }
+
+  // Create a temporary directory for actool work
+  let temp_dir = tempfile::tempdir()
+    .map_err(|e| crate::Error::GenericError(format!("failed to create temp dir: {e}")))?;
+
+  let icon_dest_path = temp_dir.path().join("Icon.icon");
+  let output_path = temp_dir.path().join("out");
+
+  // Copy the input .icon directory to the temp directory
+  if icon_composer_icon_path.is_dir() {
+    fs_utils::copy_dir(&icon_composer_icon_path, &icon_dest_path)?;
+  } else {
+    return Err(crate::Error::GenericError(format!(
+      "{} must be a directory",
+      icon_composer_icon_path.display()
+    )));
+  }
+
+  // Create the output directory
+  fs::create_dir_all(&output_path)?;
+
+  // Run actool command
+  let mut cmd = Command::new("actool");
+  cmd.arg(&icon_dest_path);
+  cmd.arg("--compile");
+  cmd.arg(&output_path);
+  cmd.arg("--output-format");
+  cmd.arg("human-readable-text");
+  cmd.arg("--notices");
+  cmd.arg("--warnings");
+  cmd.arg("--output-partial-info-plist");
+  cmd.arg(output_path.join("assetcatalog_generated_info.plist"));
+  cmd.arg("--app-icon");
+  cmd.arg("Icon");
+  cmd.arg("--include-all-app-icons");
+  cmd.arg("--accent-color");
+  cmd.arg("AccentColor");
+  cmd.arg("--enable-on-demand-resources");
+  cmd.arg("NO");
+  cmd.arg("--development-region");
+  cmd.arg("en");
+  cmd.arg("--target-device");
+  cmd.arg("mac");
+  cmd.arg("--minimum-deployment-target");
+  cmd.arg("26.0");
+  cmd.arg("--platform");
+  cmd.arg("macosx");
+
+  cmd.output_ok()?;
+
+  let assets_car_path = output_path.join("Assets.car");
+  if !assets_car_path.exists() {
+    return Err(crate::Error::GenericError(
+      "actool did not generate Assets.car file".to_owned(),
+    ));
+  }
+
+  // copy to out_dir
+  fs_utils::copy_file(&assets_car_path, &out_dir.join("Assets.car"))?;
+
+  Ok(Some(out_dir.join("Assets.car")))
+}
+
+#[derive(serde::Deserialize)]
+struct AssetsCarInfo {
+  #[serde(rename = "AssetType", default)]
+  asset_type: String,
+  #[serde(rename = "Name", default)]
+  name: String,
+}
+
+pub fn app_icon_name_from_assets_car(assets_car_path: &Path) -> Option<String> {
+  let Ok(output) = Command::new("assetutil")
+    .arg("--info")
+    .arg(assets_car_path)
+    .output_ok()
+    .inspect_err(|e| log::error!("Failed to get app icon name from Assets.car file: {e}"))
+  else {
+    return None;
+  };
+
+  let output = String::from_utf8(output.stdout).ok()?;
+  let assets_car_info: Vec<AssetsCarInfo> = serde_json::from_str(&output)
+    .inspect_err(|e| log::error!("Failed to parse Assets.car file info: {e}"))
+    .ok()?;
+  assets_car_info
+    .iter()
+    .find(|info| info.asset_type == "Icon Image")
+    .map(|info| info.name.clone())
+}
+
+/// Returns the actool short bundle version by running `actool --version --output-format=human-readable-text`.
+/// Returns `None` if the command fails or the output cannot be parsed.
+pub fn get_actool_version() -> Option<String> {
+  let Ok(output) = Command::new("actool")
+    .arg("--version")
+    .arg("--output-format=human-readable-text")
+    .output_ok()
+    .inspect_err(|e| log::error!("Failed to get actool version: {e}"))
+  else {
+    return None;
+  };
+
+  let output = String::from_utf8(output.stdout).ok()?;
+  parse_actool_version(&output)
+}
+
+fn parse_actool_version(output: &str) -> Option<String> {
+  // The output format is:
+  // /* com.apple.actool.version */
+  // bundle-version: 24411
+  // short-bundle-version: 26.1
+  for line in output.lines() {
+    let line = line.trim();
+    if let Some(version) = line.strip_prefix("short-bundle-version:") {
+      return Some(version.trim().to_string());
+    }
+  }
+
+  None
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_parse_actool_version() {
+    let output = r#"/* com.apple.actool.version */
+some other line
+bundle-version: 24411
+short-bundle-version: 26.1
+another line
+"#;
+
+    let version = parse_actool_version(output).expect("Failed to parse version");
+    assert_eq!(version, "26.1");
+  }
+
+  #[test]
+  fn test_parse_actool_version_missing_fields() {
+    let output = r#"/* com.apple.actool.version */
+bundle-version: 24411
+"#;
+
+    assert!(parse_actool_version(output).is_none());
+  }
+
+  #[test]
+  fn test_parse_actool_version_empty() {
+    assert!(parse_actool_version("").is_none());
+  }
 }

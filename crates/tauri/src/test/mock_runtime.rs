@@ -534,6 +534,21 @@ impl WindowBuilder for MockWindowBuilder {
   fn background_color(self, _color: tauri_utils::config::Color) -> Self {
     self
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(self, _identifier: S) -> Self {
+    self
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
@@ -570,6 +585,19 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
+    Ok(())
+  }
+
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
     self
       .last_evaluated_script
       .lock()
@@ -793,6 +821,16 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     target_os = "openbsd"
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String> {
     unimplemented!()
   }
 

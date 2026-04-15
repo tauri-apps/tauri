@@ -411,7 +411,8 @@ impl Attributes {
 }
 
 pub fn is_dev() -> bool {
-  env::var("DEP_TAURI_DEV").expect("missing `cargo:dev` instruction, please update tauri to latest")
+  env::var_os("DEP_TAURI_DEV")
+    .expect("missing `cargo:dev` instruction, please update tauri to latest")
     == "true"
 }
 
@@ -458,7 +459,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
-  let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
@@ -496,6 +497,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
     mobile::generate_gradle_files(project_dir)?;
+
+    // Update Android manifest with file associations
+    if let Some(associations) = config.bundle.file_associations.as_ref() {
+      mobile::update_android_manifest_file_associations(associations)?;
+    }
   }
 
   cfg_alias("dev", is_dev());
@@ -503,7 +509,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let cargo_toml_path = Path::new("Cargo.toml").canonicalize()?;
   let mut manifest = Manifest::<cargo_toml::Value>::from_path_with_metadata(cargo_toml_path)?;
 
-  let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+  let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
   manifest::check(&config, &mut manifest)?;
 
@@ -538,7 +544,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .bundle
     .resources
     .clone()
-    .unwrap_or_else(|| BundleResources::List(Vec::new()));
+    .unwrap_or(BundleResources::List(Vec::new()));
   if target_triple.contains("windows") {
     if let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
       WebviewInstallMode::FixedRuntime { path } => Some(path),
@@ -682,7 +688,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         }
       }
       "msvc" => {
-        if env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "true") {
+        if env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "true") {
           static_vcruntime::build();
         }
       }

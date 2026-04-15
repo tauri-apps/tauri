@@ -39,7 +39,7 @@ use serde_with::skip_serializing_none;
 use url::Url;
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
@@ -857,9 +857,19 @@ pub struct NsisConfig {
   /// The recommended dimensions are 164px x 314px.
   #[serde(alias = "sidebar-image")]
   pub sidebar_image: Option<PathBuf>,
+  // TODO: Change the alias to installer-icon in v3
   /// The path to an icon file used as the installer icon.
   #[serde(alias = "install-icon")]
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  #[serde(alias = "uninstaller-icon")]
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  #[serde(alias = "uninstaller-header-image")]
+  pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   #[serde(default, alias = "install-mode")]
   pub install_mode: NSISInstallerMode,
@@ -926,9 +936,15 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
+  /// Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.
+  ///
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.10.0",
+    note = "Use `WindowsConfig::minimum_webview2_version` instead."
+  )]
   #[serde(alias = "minimum-webview2-version")]
   pub minimum_webview2_version: Option<String>,
 }
@@ -1043,6 +1059,11 @@ pub struct WindowsConfig {
   /// The default value of this flag is `true`.
   #[serde(default = "default_true", alias = "allow-downgrades")]
   pub allow_downgrades: bool,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  #[serde(alias = "minimum-webview2-version")]
+  pub minimum_webview2_version: Option<String>,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
@@ -1067,6 +1088,7 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       allow_downgrades: true,
+      minimum_webview2_version: None,
       wix: None,
       nsis: None,
       sign_command: None,
@@ -1185,6 +1207,31 @@ pub struct FileAssociation {
   ///
   /// You should define this if the associated file is a custom file type defined by your application.
   pub exported_type: Option<ExportedFileAssociation>,
+  /// Intent action filters for this file association.
+  ///
+  /// By default all filters are used.
+  #[serde(alias = "android-intent-action-filters")]
+  pub android_intent_action_filters: Option<Vec<AndroidIntentAction>>,
+}
+
+/// Android intent action.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Hash)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub enum AndroidIntentAction {
+  /// ACTION_SEND.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>
+  Send,
+  /// ACTION_SEND_MULTIPLE.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND_MULTIPLE>
+  SendMultiple,
+  /// ACTION_VIEW.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>
+  View,
 }
 
 /// The exported type definition. Maps to a `UTExportedTypeDeclarations` entry on macOS.
@@ -1199,6 +1246,227 @@ pub struct ExportedFileAssociation {
   /// Examples are `public.data`, `public.image`, `public.json` and `public.database`.
   #[serde(alias = "conforms-to")]
   pub conforms_to: Option<Vec<String>>,
+}
+
+impl FileAssociation {
+  /// Infers UTIs (Uniform Type Identifiers) from file extensions and mime types.
+  /// This is useful for macOS and iOS to automatically populate `LSItemContentTypes`
+  /// in the Info.plist for share sheet and file association support.
+  ///
+  /// Returns a vector of UTIs that should be included in `LSItemContentTypes`.
+  /// Explicitly provided content types are included first, followed by inferred types.
+  pub fn infer_content_types(&self) -> HashSet<String> {
+    let mut content_types = HashSet::new();
+
+    // when we have an exported type, we only reference it
+    if let Some(exported_type) = &self.exported_type {
+      content_types.insert(exported_type.identifier.clone());
+      return content_types;
+    }
+
+    // Start with explicitly provided content types
+    if let Some(explicit_types) = &self.content_types {
+      content_types.extend(explicit_types.iter().cloned());
+    }
+
+    // Infer from extensions and add to content_types (avoiding duplicates)
+    for ext in &self.ext {
+      if let Some(uti) = extension_to_uti(&ext.0) {
+        content_types.insert(uti.to_string());
+      }
+    }
+
+    // Also infer from mime type if available (avoiding duplicates)
+    if let Some(mime_type) = &self.mime_type {
+      if let Some(uti) = mime_type_to_uti(mime_type) {
+        content_types.insert(uti.to_string());
+      }
+    }
+
+    content_types
+  }
+}
+
+/// Generates plist dictionary entries for file associations.
+/// This is used by both macOS and iOS bundlers to populate Info.plist.
+///
+/// Returns a plist dictionary containing `UTExportedTypeDeclarations` and `CFBundleDocumentTypes`
+/// if there are any file associations configured.
+pub fn file_associations_plist(associations: &[FileAssociation]) -> Option<plist::Value> {
+  use plist::{Dictionary, Value};
+
+  if associations.is_empty() {
+    return None;
+  }
+
+  let exported_associations = associations
+    .iter()
+    .filter_map(|association| {
+      association.exported_type.as_ref().map(|exported_type| {
+        let mut dict = Dictionary::new();
+
+        dict.insert(
+          "UTTypeIdentifier".into(),
+          exported_type.identifier.clone().into(),
+        );
+        if let Some(description) = &association.description {
+          dict.insert("UTTypeDescription".into(), description.clone().into());
+        }
+        if let Some(conforms_to) = &exported_type.conforms_to {
+          dict.insert(
+            "UTTypeConformsTo".into(),
+            Value::Array(conforms_to.iter().map(|s| s.clone().into()).collect()),
+          );
+        }
+
+        let mut specification = Dictionary::new();
+        specification.insert(
+          "public.filename-extension".into(),
+          Value::Array(
+            association
+              .ext
+              .iter()
+              .map(|s| s.to_string().into())
+              .collect(),
+          ),
+        );
+        if let Some(mime_type) = &association.mime_type {
+          specification.insert("public.mime-type".into(), mime_type.clone().into());
+        }
+
+        dict.insert("UTTypeTagSpecification".into(), specification.into());
+
+        Value::Dictionary(dict)
+      })
+    })
+    .collect::<Vec<_>>();
+
+  let document_types = associations
+    .iter()
+    .map(|association| {
+      let mut dict = Dictionary::new();
+
+      if !association.ext.is_empty() {
+        dict.insert(
+          "CFBundleTypeExtensions".into(),
+          Value::Array(
+            association
+              .ext
+              .iter()
+              .map(|ext| ext.to_string().into())
+              .collect(),
+          ),
+        );
+      }
+
+      // For macOS/iOS share sheet, we need LSItemContentTypes with standard UTIs
+      let content_types = association.infer_content_types();
+
+      // Add LSItemContentTypes if we have any content types
+      if !content_types.is_empty() {
+        dict.insert(
+          "LSItemContentTypes".into(),
+          Value::Array(content_types.iter().map(|s| s.clone().into()).collect()),
+        );
+      }
+
+      let type_name = association
+        .name
+        .clone()
+        .or_else(|| association.ext.first().map(|ext| ext.0.clone()))
+        .unwrap_or_default();
+      dict.insert("CFBundleTypeName".into(), type_name.into());
+      dict.insert(
+        "CFBundleTypeRole".into(),
+        association.role.to_string().into(),
+      );
+      dict.insert("LSHandlerRank".into(), association.rank.to_string().into());
+
+      Value::Dictionary(dict)
+    })
+    .collect::<Vec<_>>();
+
+  if exported_associations.is_empty() && document_types.is_empty() {
+    return None;
+  }
+
+  let mut plist = Dictionary::new();
+  if !exported_associations.is_empty() {
+    plist.insert(
+      "UTExportedTypeDeclarations".into(),
+      Value::Array(exported_associations),
+    );
+  }
+  if !document_types.is_empty() {
+    plist.insert("CFBundleDocumentTypes".into(), Value::Array(document_types));
+  }
+
+  Some(Value::Dictionary(plist))
+}
+
+/// Maps file extensions to their standard UTIs for macOS/iOS share sheet support
+fn extension_to_uti(ext: &str) -> Option<&'static str> {
+  match ext.to_lowercase().as_str() {
+    // Images
+    "png" => Some("public.png"),
+    "jpg" | "jpeg" => Some("public.jpeg"),
+    "gif" => Some("com.compuserve.gif"),
+    "bmp" => Some("com.microsoft.bmp"),
+    "tiff" | "tif" => Some("public.tiff"),
+    "ico" => Some("com.microsoft.ico"),
+    "heic" | "heif" => Some("public.heif-standard-image"),
+    "webp" => Some("org.webmproject.webp"),
+    "svg" => Some("public.svg-image"),
+    // Videos
+    "mp4" => Some("public.mpeg-4"),
+    "mov" => Some("com.apple.quicktime-movie"),
+    "avi" => Some("public.avi"),
+    "mkv" => Some("public.mpeg-4"),
+    // Audio
+    "mp3" => Some("public.mp3"),
+    "wav" => Some("com.microsoft.waveform-audio"),
+    "aac" => Some("public.aac-audio"),
+    "m4a" => Some("public.mpeg-4-audio"),
+    // Documents
+    "pdf" => Some("com.adobe.pdf"),
+    "txt" => Some("public.plain-text"),
+    "rtf" => Some("public.rtf"),
+    "html" | "htm" => Some("public.html"),
+    "json" => Some("public.json"),
+    "xml" => Some("public.xml"),
+    _ => None,
+  }
+}
+
+/// Infers UTIs from mime type
+fn mime_type_to_uti(mime_type: &str) -> Option<&'static str> {
+  match mime_type {
+    "image/png" => Some("public.png"),
+    "image/jpeg" | "image/jpg" => Some("public.jpeg"),
+    "image/gif" => Some("com.compuserve.gif"),
+    "image/bmp" => Some("com.microsoft.bmp"),
+    "image/tiff" => Some("public.tiff"),
+    "image/heic" | "image/heif" => Some("public.heif-standard-image"),
+    "image/webp" => Some("org.webmproject.webp"),
+    "image/svg+xml" => Some("public.svg-image"),
+    mime if mime.starts_with("image/") => Some("public.image"),
+    "video/mp4" => Some("public.mpeg-4"),
+    "video/quicktime" => Some("com.apple.quicktime-movie"),
+    "video/x-msvideo" => Some("public.avi"),
+    mime if mime.starts_with("video/") => Some("public.movie"),
+    "audio/mpeg" | "audio/mp3" => Some("public.mp3"),
+    "audio/wav" | "audio/wave" => Some("com.microsoft.waveform-audio"),
+    "audio/aac" => Some("public.aac-audio"),
+    "audio/mp4" => Some("public.mpeg-4-audio"),
+    mime if mime.starts_with("audio/") => Some("public.audio"),
+    "application/pdf" => Some("com.adobe.pdf"),
+    "text/plain" => Some("public.plain-text"),
+    "text/rtf" => Some("public.rtf"),
+    "text/html" => Some("public.html"),
+    "application/json" => Some("public.json"),
+    "application/xml" | "text/xml" => Some("public.xml"),
+    _ => None,
+  }
 }
 
 /// Deep link protocol configuration.
@@ -1980,6 +2248,21 @@ pub struct WindowConfig {
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
+  /// The name of the Android activity to create for this window.
+  #[serde(default, alias = "activity-name")]
+  pub activity_name: Option<String>,
+  /// The name of the Android activity that is creating this webview window.
+  ///
+  /// This is important to determine which stack the activity will belong to.
+  #[serde(default, alias = "created-by-activity-name")]
+  pub created_by_activity_name: Option<String>,
+
+  /// Sets the identifier of the scene that is requesting the new scene,
+  /// establishing a relationship between the two scenes.
+  ///
+  /// By default the system uses the foreground scene.
+  #[serde(default, alias = "requested-by-scene-identifier")]
+  pub requested_by_scene_identifier: Option<String>,
   /// Disable webview autofill and form suggestions.
   ///
   /// This option prevents browser-like autofill UI from appearing inside
@@ -2057,6 +2340,9 @@ impl Default for WindowConfig {
       data_directory: None,
       data_store_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
+      activity_name: None,
+      created_by_activity_name: None,
+      requested_by_scene_identifier: None,
       disable_autofill: false,
     }
   }
@@ -2067,11 +2353,11 @@ fn default_window_label() -> String {
 }
 
 fn default_width() -> f64 {
-  800f64
+  800.
 }
 
 fn default_height() -> f64 {
-  600f64
+  600.
 }
 
 fn default_title() -> String {
@@ -3352,7 +3638,7 @@ pub struct PluginConfig(pub HashMap<String, JsonValue>);
 /// This allows for a build script to output the values in a `Config` to a `TokenStream`, which can
 /// then be consumed by another crate. Useful for passing a config to both the build script and the
 /// application using tauri while only parsing it once (in the build script).
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
@@ -3592,6 +3878,9 @@ mod build {
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
+      let activity_name = opt_lit(self.activity_name.as_ref());
+      let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
+      let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
       let disable_autofill = self.disable_autofill;
 
       literal_struct!(
@@ -3654,6 +3943,9 @@ mod build {
         data_directory,
         data_store_identifier,
         scroll_bar_style,
+        activity_name,
+        created_by_activity_name,
+        requested_by_scene_identifier,
         disable_autofill
       );
     }

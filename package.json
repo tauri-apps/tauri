@@ -25,20 +25,8 @@
     "example:api:dev": "pnpm run --filter \"api\" tauri dev"
   },
   "devDependencies": {
-    "prettier": "^3.6.2"
+    "prettier": "^3.8.1"
   },
   "minimumReleaseAge": 4320,
-  "packageManager": "pnpm@10.16.0",
-  "pnpm": {
-    "overrides": {
-      "brace-expansion@<4.0.1": ">=4.0.1",
-      "cross-spawn@>=7.0.0 <7.0.5": ">=7.0.5",
-      "cookie@<0.7.0": ">=0.7.0",
-      "tmp@<=0.2.3": ">=0.2.4"
-    },
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "workerd"
-    ]
-  }
+  "packageManager": "pnpm@10.30.3"
 }

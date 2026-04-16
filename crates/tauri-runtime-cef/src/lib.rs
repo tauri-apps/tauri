@@ -1988,7 +1988,6 @@ impl<T: UserEvent> CefRuntime<T> {
 
             tx.send(objc2_app_kit::NSApplicationTerminateReply::TerminateCancel)
               .unwrap();
-            cef_impl::close_all_windows(&windows_);
             event_tx_.send(RunEvent::Exit).unwrap();
           }
           AppDelegateEvent::OpenURLs { urls } => {
@@ -2376,10 +2375,8 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       (self.context.cef_context.callback.borrow())(RunEvent::MainEventsCleared);
     }
 
-    // Safety net for when some browsers may still be alive but in the process of closing.
-    cef_impl::close_all_windows(&self.context.cef_context.windows);
-
     // We need to run the message loop until all windows are closed. Otherwise, we run into use after free crashes.
+    cef_impl::close_all_windows(&self.context.cef_context.windows);
     while !self.context.cef_context.windows.borrow().is_empty() {
       cef::do_message_loop_work();
     }

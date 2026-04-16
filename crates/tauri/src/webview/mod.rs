@@ -1752,6 +1752,30 @@ tauri::Builder::<tauri::Wry>::new()
       .map_err(Into::into)
   }
 
+  /// CEF flavour of [`Webview::with_webview`]. Hands the closure the
+  /// runtime's raw browser handle as `Box<dyn Any>`; downcast to
+  /// [`cef::Browser`] inside.
+  ///
+  /// Mirrors the wry version (which receives a typed [`PlatformWebview`])
+  /// but stays generic over `R` so it remains callable from runtime-generic
+  /// command handlers — the wry method's typed signature is wry-specific
+  /// and there's no equivalent `PlatformWebview` for CEF in this tree.
+  ///
+  /// Like the wry version, the closure runs on the runtime's main thread
+  /// asynchronously — keep work inside it short and non-blocking.
+  #[cfg(feature = "cef")]
+  #[cfg_attr(docsrs, doc(feature = "cef"))]
+  pub fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .with_webview(f)
+      .map_err(Into::into)
+  }
+
   /// Returns the current url of the webview.
   pub fn url(&self) -> crate::Result<Url> {
     self

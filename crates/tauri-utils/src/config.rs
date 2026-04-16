@@ -1549,7 +1549,7 @@ pub enum V1Compatible {
 ///
 /// See more: <https://v2.tauri.app/reference/config/#bundleconfig>
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BundleConfig {
@@ -3176,9 +3176,179 @@ impl Default for IosConfig {
   }
 }
 
+/// Configuration for Android Activity Embedding, which splits activities
+/// side by side on large screens.
+///
+/// See <https://developer.android.com/guide/topics/large-screens/activity-embedding>
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ActivityEmbeddingConfig {
+  /// When `false`, Tauri does not generate embedding Gradle entries, manifest updates, or `TauriSplitInitializer`.
+  #[serde(default = "default_true")]
+  pub enabled: bool,
+  /// Split pair rules defining how activities are laid out side by side.
+  #[serde(alias = "split-rules", default)]
+  pub split_rules: Vec<SplitPairRule>,
+}
+
+/// A split pair rule for Android Activity Embedding.
+///
+/// Defines how a primary and secondary activity are displayed side by side
+/// on screens that satisfy the configured minimum dimensions.
+///
+/// Mirrors the fields of [`androidx.window.embedding.SplitPairRule.Builder`] and
+/// the [`SplitPairFilter`] it accepts. Only [`primary`](Self::primary) and
+/// [`secondary`](Self::secondary) are required; all other fields fall back to
+/// the Android SDK defaults when omitted.
+///
+/// [`androidx.window.embedding.SplitPairRule.Builder`]: https://developer.android.com/reference/androidx/window/embedding/SplitPairRule.Builder
+/// [`SplitPairFilter`]: https://developer.android.com/reference/androidx/window/embedding/SplitPairFilter
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SplitPairRule {
+  /// The primary activity class name, relative to the application package
+  /// (e.g. `"MainActivity"` or a fully-qualified name like
+  /// `"com.example.MainActivity"`).
+  pub primary: String,
+  /// The secondary activity class name, relative to the application package
+  /// (e.g. `"DetailActivity"` or a fully-qualified name).
+  pub secondary: String,
+  /// Optional intent action used to match the secondary activity when it is
+  /// started via an implicit intent.
+  #[serde(alias = "secondary-intent-action")]
+  pub secondary_intent_action: Option<String>,
+
+  /// How the parent window is split. When omitted, the SDK uses an equal
+  /// 50/50 ratio.
+  #[serde(alias = "split-type")]
+  pub split_type: Option<SplitType>,
+  /// The layout direction of the primary/secondary containers. Defaults to
+  /// the system locale direction.
+  #[serde(alias = "layout-direction")]
+  pub layout_direction: Option<SplitLayoutDirection>,
+
+  /// Minimum parent window width in dp for the split to apply. Defaults to the
+  /// SDK value (`600`).
+  #[serde(alias = "min-width-dp")]
+  pub min_width_dp: Option<u32>,
+  /// Minimum parent window height in dp for the split to apply. Defaults to the
+  /// SDK value (`600`).
+  #[serde(alias = "min-height-dp")]
+  pub min_height_dp: Option<u32>,
+  /// Minimum smallest width of the parent window in dp for the split to apply.
+  /// Defaults to the SDK value (`600`).
+  #[serde(alias = "min-smallest-width-dp")]
+  pub min_smallest_width_dp: Option<u32>,
+
+  /// Maximum height/width aspect ratio (portrait) for which the split applies.
+  #[serde(alias = "max-aspect-ratio-in-portrait")]
+  pub max_aspect_ratio_in_portrait: Option<EmbeddingAspectRatio>,
+  /// Maximum height/width aspect ratio (landscape) for which the split applies.
+  #[serde(alias = "max-aspect-ratio-in-landscape")]
+  pub max_aspect_ratio_in_landscape: Option<EmbeddingAspectRatio>,
+
+  /// Behavior of the primary container when all activities in the secondary
+  /// container finish. Defaults to [`SplitFinishBehavior::Never`].
+  #[serde(alias = "finish-primary-with-secondary")]
+  pub finish_primary_with_secondary: Option<SplitFinishBehavior>,
+  /// Behavior of the secondary container when all activities in the primary
+  /// container finish. Defaults to [`SplitFinishBehavior::Always`].
+  #[serde(alias = "finish-secondary-with-primary")]
+  pub finish_secondary_with_primary: Option<SplitFinishBehavior>,
+
+  /// Whether the existing secondary container and all activities in it should
+  /// be destroyed when a new split is created using this rule.
+  #[serde(alias = "clear-top")]
+  pub clear_top: Option<bool>,
+
+  /// Optional tag used to identify this rule at runtime.
+  pub tag: Option<String>,
+}
+
+/// How the parent window is split between primary and secondary containers.
+///
+/// Mirrors [`androidx.window.embedding.SplitAttributes.SplitType`].
+///
+/// [`androidx.window.embedding.SplitAttributes.SplitType`]: https://developer.android.com/reference/androidx/window/embedding/SplitAttributes.SplitType
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum SplitType {
+  /// Splits the parent into two containers with the given weight
+  /// for the primary container (0.0 exclusive to 1.0 exclusive).
+  Ratio(f64),
+  /// The secondary container expands to cover the entire parent window.
+  Expand,
+  /// The split aligns with the device hinge/fold. Cannot be used as a
+  /// default split type without hinge-aware devices.
+  Hinge,
+}
+
+/// A layout direction for an activity embedding split.
+///
+/// Mirrors [`androidx.window.embedding.SplitAttributes.LayoutDirection`].
+///
+/// [`androidx.window.embedding.SplitAttributes.LayoutDirection`]: https://developer.android.com/reference/androidx/window/embedding/SplitAttributes.LayoutDirection
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum SplitLayoutDirection {
+  /// Use the system locale's layout direction.
+  Locale,
+  /// Primary on the left, secondary on the right.
+  LeftToRight,
+  /// Primary on the right, secondary on the left.
+  RightToLeft,
+  /// Primary on top, secondary on the bottom.
+  TopToBottom,
+  /// Primary on the bottom, secondary on top.
+  BottomToTop,
+}
+
+/// Describes how an activity container should finish when the linked
+/// container finishes.
+///
+/// Mirrors [`androidx.window.embedding.SplitRule.FinishBehavior`].
+///
+/// [`androidx.window.embedding.SplitRule.FinishBehavior`]: https://developer.android.com/reference/androidx/window/embedding/SplitRule.FinishBehavior
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum SplitFinishBehavior {
+  /// Never finish the container when the linked container finishes.
+  Never,
+  /// Always finish the container when the linked container finishes.
+  Always,
+  /// Finish the container only when the linked container finishes
+  /// while they are displayed side-by-side.
+  Adjacent,
+}
+
+/// Maximum aspect ratio (height / width) of the parent window for which
+/// activity embedding should apply.
+///
+/// Mirrors [`androidx.window.embedding.EmbeddingAspectRatio`].
+///
+/// [`androidx.window.embedding.EmbeddingAspectRatio`]: https://developer.android.com/reference/androidx/window/embedding/EmbeddingAspectRatio
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum EmbeddingAspectRatio {
+  /// Embedding always applies regardless of aspect ratio.
+  AlwaysAllow,
+  /// Embedding never applies in this orientation.
+  AlwaysDisallow,
+  /// Embedding applies when the parent window aspect ratio is less than or
+  /// equal to this value. Must be greater than `1.0`.
+  Ratio(f64),
+}
+
 /// General configuration for the Android target.
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AndroidConfig {
@@ -3205,6 +3375,13 @@ pub struct AndroidConfig {
   /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]
   pub auto_increment_version_code: bool,
+
+  /// Activity embedding for large screens (tablets, foldables).
+  ///
+  /// When set and enabled, Tauri generates the Gradle dependencies, Android manifest entries,
+  /// and a `TauriSplitInitializer` Kotlin class for split-screen activity layouts.
+  #[serde(alias = "activity-embedding")]
+  pub activity_embedding: Option<ActivityEmbeddingConfig>,
 }
 
 impl Default for AndroidConfig {
@@ -3213,6 +3390,7 @@ impl Default for AndroidConfig {
       min_sdk_version: default_min_sdk_version(),
       version_code: None,
       auto_increment_version_code: false,
+      activity_embedding: None,
     }
   }
 }

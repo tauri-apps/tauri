@@ -274,6 +274,12 @@ pub fn cargo_command(
   let mut build_cmd = Command::new(runner_config.cmd());
   build_cmd.arg(if dev { "run" } else { "build" });
 
+  // Ensure CEF_PATH is set for the cargo subprocess so the cef-dll-sys build
+  // script can locate (or download) the CEF binary distribution.
+  if std::env::var_os("CEF_PATH").is_none() {
+    build_cmd.env("CEF_PATH", super::default_cef_path());
+  }
+
   // Set working directory if specified
   if let Some(cwd) = runner_config.cwd() {
     build_cmd.current_dir(cwd);

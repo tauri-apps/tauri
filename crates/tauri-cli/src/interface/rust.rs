@@ -1379,24 +1379,56 @@ fn default_cef_version(workspace_dir: &Path) -> Option<String> {
     .map(download_cef::default_version)
 }
 
+pub(crate) fn default_cef_path() -> std::path::PathBuf {
+  dirs::cache_dir()
+    .unwrap_or_else(|| std::path::PathBuf::from(".cache"))
+    .join("tauri-cef")
+}
+
+fn cef_marker_file(target: &str) -> crate::Result<&'static str> {
+  if target.contains("darwin") {
+    Ok("Chromium Embedded Framework.framework")
+  } else if target.contains("windows") {
+    Ok("libcef.dll")
+  } else if target.contains("linux") {
+    Ok("libcef.so")
+  } else {
+    Err(Error::GenericError(format!(
+      "CEF bundling is not supported for target `{target}`"
+    )))
+  }
+}
+
 fn resolve_cef_path_for_bundle(
   cef_path: PathBuf,
   target: &str,
   workspace_dir: &Path,
 ) -> crate::Result<PathBuf> {
-  let Some(cef_version) = default_cef_version(workspace_dir) else {
-    return Ok(cef_path);
+  let resolved = if let Some(cef_version) = default_cef_version(workspace_dir) {
+    let os_arch = OsAndArch::try_from(target)
+      .map_err(|e| Error::GenericError(format!("invalid CEF target {target}: {e}")))?;
+
+    let versioned = cef_path.join(&cef_version).join(os_arch.to_string());
+    if versioned.exists() {
+      versioned
+    } else {
+      cef_path
+    }
+  } else {
+    cef_path
   };
 
-  let os_arch = OsAndArch::try_from(target)
-    .map_err(|e| Error::GenericError(format!("invalid CEF target {target}: {e}")))?;
-
-  let versioned_download_cef = cef_path.join(&cef_version).join(os_arch.to_string());
-  if versioned_download_cef.exists() {
-    return Ok(versioned_download_cef);
+  let marker = cef_marker_file(target)?;
+  if !resolved.join(marker).exists() {
+    bail!(
+      "CEF binary distribution not found at {} (missing `{marker}`). \
+       Run `cargo tauri build` (or `cargo build`) so the build script downloads CEF, \
+       or point CEF_PATH to an extracted CEF binary distribution.",
+      resolved.display(),
+    );
   }
 
-  Ok(cef_path)
+  Ok(resolved)
 }
 
 #[allow(unused_variables, deprecated)]
@@ -1701,12 +1733,14 @@ pub(crate) fn tauri_config_to_bundle_settings(
     cef_path: if enabled_features.contains(&"cef".into())
       || enabled_features.contains(&"tauri/cef".into())
     {
-      std::env::var_os("CEF_PATH")
+      let cef_path = std::env::var_os("CEF_PATH")
         .map(PathBuf::from)
-        .map(|path| {
-          resolve_cef_path_for_bundle(path, &settings.target_triple, &settings.workspace_dir)
-        })
-        .transpose()?
+        .unwrap_or_else(default_cef_path);
+      Some(resolve_cef_path_for_bundle(
+        cef_path,
+        &settings.target_triple,
+        &settings.workspace_dir,
+      )?)
     } else {
       None
     },

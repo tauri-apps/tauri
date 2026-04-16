@@ -49,6 +49,7 @@ use crate::cef_webview::CefWebview;
 
 mod cef_impl;
 mod cef_webview;
+pub mod notification;
 mod utils;
 
 type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;

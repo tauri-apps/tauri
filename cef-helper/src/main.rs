@@ -1,5 +1,7 @@
 use cef::{args::Args, *};
 
+mod notification;
+
 fn main() {
   let args = Args::new();
 
@@ -17,11 +19,10 @@ fn main() {
     loader
   };
 
+  let mut app = notification::NotifyApp::new();
   execute_process(
     Some(args.as_main_args()),
-    None::<&mut App>,
+    Some(&mut app),
     std::ptr::null_mut(),
   );
 }
-
-

@@ -1145,6 +1145,63 @@ wrap_client! {
     fn permission_handler(&self) -> Option<PermissionHandler> {
       Some(BrowserPermissionHandler::new())
     }
+
+    fn on_process_message_received(
+      &self,
+      browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _source_process: ProcessId,
+      message: Option<&mut ProcessMessage>,
+    ) -> ::std::os::raw::c_int {
+      let (Some(browser), Some(message)) = (browser, message) else {
+        return 0;
+      };
+      let name = CefString::from(&message.name()).to_string();
+      if name != crate::notification::IPC_MESSAGE_NAME {
+        return 0;
+      }
+
+      let Some(args) = message.argument_list() else {
+        return 0;
+      };
+
+      let read_str = |i: usize| CefString::from(&args.string(i)).to_string();
+      let read_int = |i: usize| args.int(i);
+
+      let source = match read_int(0) {
+        1 => crate::notification::NotificationSource::ServiceWorker,
+        _ => crate::notification::NotificationSource::Window,
+      };
+      let title = read_str(1);
+      let body = {
+        let s = read_str(2);
+        if s.is_empty() { None } else { Some(s) }
+      };
+      let icon = {
+        let s = read_str(3);
+        if s.is_empty() { None } else { Some(s) }
+      };
+      let tag = {
+        let s = read_str(4);
+        if s.is_empty() { None } else { Some(s) }
+      };
+      let silent = read_int(5) != 0;
+      let origin = read_str(6);
+
+      crate::notification::dispatch(
+        browser.identifier(),
+        crate::notification::NotificationPayload {
+          source,
+          title,
+          body,
+          icon,
+          tag,
+          silent,
+          origin,
+        },
+      );
+      1
+    }
   }
 }
 

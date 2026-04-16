@@ -34,21 +34,21 @@ fn main() {
     .expect("failed to compute cef-helper path");
 
   let helper_manifest = helper_root.join("Cargo.toml");
-  let helper_main = helper_root.join("src").join("main.rs");
+  let helper_src = helper_root.join("src");
 
-  // Rebuild if the helper crate changes.
+  // Rebuild whenever the helper crate's manifest or any source file changes.
   println!("cargo:rerun-if-changed={}", helper_manifest.display());
-  println!("cargo:rerun-if-changed={}", helper_main.display());
+  println!("cargo:rerun-if-changed={}", helper_src.display());
 
-  // Copy the helper crate sources into OUT_DIR so any generated files (Cargo.lock, target dir)
-  // stay out of the repo checkout.
+  // Copy the helper crate sources into OUT_DIR so generated files (Cargo.lock,
+  // target dir) stay out of the repo checkout. Walk `src/` so additional
+  // modules (e.g. cef-helper/src/notification.rs) ride along with main.rs.
   let helper_src_dir = out_dir.join("cef-helper-src");
   let helper_src_manifest = helper_src_dir.join("Cargo.toml");
-  let helper_src_main = helper_src_dir.join("src").join("main.rs");
-  fs::create_dir_all(helper_src_main.parent().unwrap())
-    .expect("failed to create cef-helper-src directory");
+  let helper_src_src = helper_src_dir.join("src");
+  fs::create_dir_all(&helper_src_src).expect("failed to create cef-helper-src directory");
   fs::copy(&helper_manifest, &helper_src_manifest).expect("failed to copy cef-helper Cargo.toml");
-  fs::copy(&helper_main, &helper_src_main).expect("failed to copy cef-helper main.rs");
+  copy_src_tree(&helper_src, &helper_src_src);
 
   let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".into());
 
@@ -77,6 +77,33 @@ pub const CEF_HELPER_X86_64: &[u8] = include_bytes!(r#\"{}\"#);\n",
     x86_64.display()
   );
   fs::write(&shim_path, shim).expect("failed to write cef_helpers.rs");
+}
+
+/// Recursively copy every regular file under `src` into `dst`, mirroring
+/// the directory layout. Used to materialise the cef-helper crate sources
+/// into OUT_DIR so we can shell out to `cargo build` against a copy that
+/// won't pollute the repo checkout with target/Cargo.lock artifacts.
+fn copy_src_tree(src: &Path, dst: &Path) {
+  for entry in fs::read_dir(src)
+    .unwrap_or_else(|e| panic!("failed to read cef-helper src dir {}: {e}", src.display()))
+  {
+    let entry = entry.expect("failed to read cef-helper src entry");
+    let from = entry.path();
+    let to = dst.join(entry.file_name());
+    let kind = entry.file_type().expect("failed to stat cef-helper src entry");
+    if kind.is_dir() {
+      fs::create_dir_all(&to).expect("failed to mkdir for cef-helper src copy");
+      copy_src_tree(&from, &to);
+    } else if kind.is_file() {
+      fs::copy(&from, &to).unwrap_or_else(|e| {
+        panic!(
+          "failed to copy cef-helper src {} -> {}: {e}",
+          from.display(),
+          to.display()
+        )
+      });
+    }
+  }
 }
 
 fn build_helper(

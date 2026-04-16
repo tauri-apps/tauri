@@ -687,10 +687,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           }
         }
       }
-      "msvc" => {
-        if env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "true") {
-          static_vcruntime::build();
-        }
+      "msvc" if env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "true") => {
+        static_vcruntime::build();
       }
       _ => (),
     }

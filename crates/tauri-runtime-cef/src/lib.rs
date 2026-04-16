@@ -1951,6 +1951,7 @@ impl<T: UserEvent> CefRuntime<T> {
     let args = cef::args::Args::new();
 
     let (event_tx, event_rx) = channel();
+    let windows: Arc<RefCell<HashMap<WindowId, AppWindow>>> = Default::default();
 
     #[cfg(target_os = "macos")]
     let (_sandbox, _loader) = {
@@ -1973,10 +1974,21 @@ impl<T: UserEvent> CefRuntime<T> {
 
       if !is_helper {
         let event_tx_ = event_tx.clone();
+        let windows_ = windows.clone();
         init_ns_app(Box::new(move |event| match event {
           AppDelegateEvent::ShouldTerminate { tx } => {
+            // Cancel macOS termination — we handle shutdown ourselves.
+            //
+            // Start closing all browsers (including devtools). The actual
+            // destruction is async and completes via the CEF message loop.
+            //
+            // Signal the main loop to exit. The post-loop safety net will
+            // pump the message loop until all browsers are fully destroyed
+            // before calling cef::shutdown().
+
             tx.send(objc2_app_kit::NSApplicationTerminateReply::TerminateCancel)
               .unwrap();
+            cef_impl::close_all_windows(&windows_);
             event_tx_.send(RunEvent::Exit).unwrap();
           }
           AppDelegateEvent::OpenURLs { urls } => {
@@ -1998,7 +2010,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let event_tx_ = event_tx.clone();
     let cef_context = cef_impl::Context {
-      windows: Default::default(),
+      windows: windows.clone(),
       callback: Arc::new(RefCell::new(Box::new(move |event| {
         event_tx_.send(event).unwrap();
       }))),
@@ -2362,6 +2374,14 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
       // Emit MainEventsCleared event
       (self.context.cef_context.callback.borrow())(RunEvent::MainEventsCleared);
+    }
+
+    // Safety net for when some browsers may still be alive but in the process of closing.
+    cef_impl::close_all_windows(&self.context.cef_context.windows);
+
+    // We need to run the message loop until all windows are closed. Otherwise, we run into use after free crashes.
+    while !self.context.cef_context.windows.borrow().is_empty() {
+      cef::do_message_loop_work();
     }
 
     cef::shutdown();

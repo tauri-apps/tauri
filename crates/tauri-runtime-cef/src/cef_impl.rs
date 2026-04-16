@@ -3529,30 +3529,47 @@ fn on_close_requested<T: UserEvent>(
   }
 }
 
-// returns a bool indicating if all browsers were closed
+// Collects the browser hosts from the webviews.
+fn collect_hosts(webviews: &[AppWebview]) -> Vec<BrowserHost> {
+  webviews
+    .iter()
+    .filter_map(|webview| webview.inner.browser().and_then(|b| b.host()))
+    .collect()
+}
+
+/// Force-close all windows, triggering the normal CEF lifecycle:
+/// force_close → can_close → close_window_browsers → on_before_close → on_window_destroyed.
+pub fn close_all_windows(windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>) {
+  let window_ids: Vec<_> = windows.borrow().keys().copied().collect();
+  for window_id in window_ids {
+    on_window_close(window_id, windows);
+  }
+}
+
+/// Close all browsers for a specific window.
+///
+/// Returns true if all browsers were closed.
 fn close_window_browsers(
   window_id: WindowId,
   windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
 ) -> bool {
-  let hosts: Vec<_> = {
+  let hosts = {
     let windows_ref = windows.borrow();
     let Some(app_window) = windows_ref.get(&window_id) else {
       return true;
     };
-    app_window
-      .webviews
-      .iter()
-      .filter_map(|webview| webview.inner.browser().and_then(|b| b.host()))
-      .collect()
+    collect_hosts(&app_window.webviews)
   };
 
   let mut all_closed = true;
   for host in hosts {
-    let closed = host.try_close_browser() == 1;
-    if !closed {
+    if host.try_close_browser() == 1 {
+      host.close_dev_tools();
+    } else {
       all_closed = false;
     }
   }
+
   all_closed
 }
 

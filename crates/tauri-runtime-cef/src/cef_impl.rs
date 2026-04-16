@@ -3563,9 +3563,8 @@ fn close_window_browsers(
 
   let mut all_closed = true;
   for host in hosts {
-    if host.try_close_browser() == 1 {
-      host.close_dev_tools();
-    } else {
+    host.close_dev_tools();
+    if host.try_close_browser() != 1 {
       all_closed = false;
     }
   }

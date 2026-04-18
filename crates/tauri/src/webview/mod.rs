@@ -1769,11 +1769,7 @@ tauri::Builder::<tauri::Wry>::new()
     &self,
     f: F,
   ) -> crate::Result<()> {
-    self
-      .webview
-      .dispatcher
-      .with_webview(f)
-      .map_err(Into::into)
+    self.webview.dispatcher.with_webview(f).map_err(Into::into)
   }
 
   /// Returns the current url of the webview.

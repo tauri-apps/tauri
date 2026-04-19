@@ -341,6 +341,8 @@ impl WindowsAttributes {
     self
   }
 
+  /// Append additional .rc content to the generated resource file on Windows.
+  /// This can be called multiple times to append multiple contents.
   #[must_use]
   pub fn append_rc_content<S: AsRef<str>>(mut self, content: S) -> Self {
     self.append_rc_content = Some(content.as_ref().to_string());

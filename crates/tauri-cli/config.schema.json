@@ -3056,7 +3056,7 @@
           ]
         },
         "languages": {
-          "description": "A list of installer languages.\n By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.\n To allow the user to select the language, set `display_language_selector` to `true`.\n\n See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.",
+          "description": "A list of installer languages. Default to `[\"English\"]` if not set\n\n By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.\n To allow the user to select the language, set `display_language_selector` to `true`.\n\n See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.",
           "type": [
             "array",
             "null"

@@ -242,9 +242,7 @@ pub struct WindowsAttributes {
   ///
   /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
   app_manifest: Option<String>,
-  /// A string containing additional .rc content to be appended to the generated resource file on Windows.
-  ///
-  /// Defaults to `None`.
+  /// A series of strings containing additional .rc content to be appended to the generated resource file on Windows.
   append_rc_content: Vec<String>,
 }
 

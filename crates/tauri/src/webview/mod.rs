@@ -1793,8 +1793,11 @@ tauri::Builder::default()
       (plugin, command)
     });
 
-    // we only check ACL on plugin commands or if the app defined its ACL manifest
-    if (plugin_command.is_some() || has_app_acl_manifest)
+    // Check ACL on plugin commands, when the app defined its ACL manifest,
+    // or when the request comes from a non-local (remote) origin.  This
+    // ensures remote content can never reach custom commands unless an
+    // explicit `remote` capability has been configured for them.
+    if (plugin_command.is_some() || has_app_acl_manifest || !is_local)
       // TODO: Remove this special check in v3
       && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
       && invoke.acl.is_none()
@@ -2332,6 +2335,66 @@ mod tests {
   fn webview_is_send_sync() {
     crate::test_utils::assert_send::<super::Webview>();
     crate::test_utils::assert_sync::<super::Webview>();
+  }
+
+  /// Custom (non-plugin) commands must be rejected when the IPC request
+  /// originates from a remote URL, even when no `AppManifest` has been
+  /// configured.  Only local (bundled) origins should be able to reach
+  /// custom commands.
+  #[test]
+  fn remote_origin_blocked_for_custom_commands_without_app_manifest() {
+    use crate::test::{mock_builder, mock_context, noop_assets, INVOKE_KEY};
+    use crate::webview::InvokeRequest;
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    // Request from a remote origin for a custom (non-plugin) command
+    // – should be rejected even without an AppManifest.
+    let remote_result = crate::test::get_ipc_response(
+      &webview,
+      InvokeRequest {
+        cmd: "any_custom_command".into(),
+        callback: crate::ipc::CallbackFn(0),
+        error: crate::ipc::CallbackFn(1),
+        url: "https://evil.com".parse().unwrap(),
+        body: crate::ipc::InvokeBody::default(),
+        headers: Default::default(),
+        invoke_key: INVOKE_KEY.to_string(),
+      },
+    );
+    assert!(
+      remote_result.is_err(),
+      "custom command should be rejected from a remote origin"
+    );
+
+    // Same command from the local origin – should NOT be rejected by the
+    // remote-origin guard (it may still fail because the command doesn't
+    // exist, but the error message will be different).
+    let local_result = crate::test::get_ipc_response(
+      &webview,
+      InvokeRequest {
+        cmd: "any_custom_command".into(),
+        callback: crate::ipc::CallbackFn(0),
+        error: crate::ipc::CallbackFn(1),
+        url: "tauri://localhost".parse().unwrap(),
+        body: crate::ipc::InvokeBody::default(),
+        headers: Default::default(),
+        invoke_key: INVOKE_KEY.to_string(),
+      },
+    );
+    // The local request should either succeed or fail for a reason OTHER
+    // than "not allowed from remote context".
+    if let Err(e) = &local_result {
+      let msg = e.to_string();
+      assert!(
+        !msg.contains("not allowed from remote context"),
+        "local origin should not be blocked by the remote-origin guard, got: {msg}"
+      );
+    }
   }
 
   #[cfg(target_os = "macos")]

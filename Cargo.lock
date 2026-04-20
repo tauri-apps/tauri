@@ -5395,6 +5395,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "object"
+version = "0.39.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63944c133d03f44e75866bbd160b95af0ec3f6a13d936d69d31c81078cbc5baf"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "ocb3"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8899,7 +8908,7 @@ dependencies = [
  "minisign",
  "notify",
  "notify-debouncer-full",
- "object 0.36.7",
+ "object 0.39.0",
  "os_info",
  "os_pipe",
  "oxc_allocator",

@@ -242,6 +242,8 @@ pub struct WindowsAttributes {
   ///
   /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
   app_manifest: Option<String>,
+  /// A series of strings containing additional .rc content to be appended to the generated resource file on Windows.
+  append_rc_content: Vec<String>,
 }
 
 impl Default for WindowsAttributes {
@@ -256,6 +258,7 @@ impl WindowsAttributes {
     Self {
       window_icon_path: Default::default(),
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
+      append_rc_content: Vec::new(),
     }
   }
 
@@ -265,6 +268,7 @@ impl WindowsAttributes {
     Self {
       app_manifest: None,
       window_icon_path: Default::default(),
+      append_rc_content: Vec::new(),
     }
   }
 
@@ -332,6 +336,14 @@ impl WindowsAttributes {
   #[must_use]
   pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
     self.app_manifest = Some(manifest.as_ref().to_string());
+    self
+  }
+
+  /// Append additional .rc content to the generated resource file on Windows.
+  /// This can be called multiple times to append multiple contents.
+  #[must_use]
+  pub fn append_rc_content<S: Into<String>>(mut self, content: S) -> Self {
+    self.append_rc_content.push(content.into());
     self
   }
 }
@@ -611,6 +623,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if let Some(manifest) = attributes.windows_attributes.app_manifest {
       res.set_manifest(&manifest);
+    }
+
+    for content in attributes.windows_attributes.append_rc_content {
+      res.append_rc_content(&content);
     }
 
     if let Some(version_str) = &config.version {

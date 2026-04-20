@@ -110,6 +110,8 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     header_image: config.header_image,
     sidebar_image: config.sidebar_image,
     installer_icon: config.installer_icon,
+    uninstaller_icon: config.uninstaller_icon,
+    uninstaller_header_image: config.uninstaller_header_image,
     install_mode: config.install_mode,
     languages: config.languages,
     custom_language_files: config.custom_language_files,
@@ -117,6 +119,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     compression: config.compression,
     start_menu_folder: config.start_menu_folder,
     installer_hooks: config.installer_hooks,
+    #[allow(deprecated)]
     minimum_webview2_version: config.minimum_webview2_version,
   }
 }

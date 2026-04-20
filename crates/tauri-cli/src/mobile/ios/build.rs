@@ -243,8 +243,15 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
   if dirs.tauri.join("Info.ios.plist").exists() {
     src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
-    src_plists.push(info_plist.clone().into());
+  {
+    if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
+      src_plists.push(info_plist.clone().into());
+    }
+    if let Some(associations) = tauri_config.bundle.file_associations.as_ref() {
+      if let Some(file_associations) = tauri_utils::config::file_associations_plist(associations) {
+        src_plists.push(file_associations.into());
+      }
+    }
   }
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist

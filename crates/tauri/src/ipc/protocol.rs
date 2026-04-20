@@ -571,6 +571,8 @@ mod tests {
       PluginStore::default(),
       Box::new(|_| false),
       None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      None,
       Default::default(),
       StateManager::new(),
       Default::default(),
@@ -686,6 +688,8 @@ mod tests {
       context,
       PluginStore::default(),
       Box::new(|_| false),
+      None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
       Default::default(),
       StateManager::new(),

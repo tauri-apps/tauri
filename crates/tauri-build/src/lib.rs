@@ -245,7 +245,7 @@ pub struct WindowsAttributes {
   /// A string containing additional .rc content to be appended to the generated resource file on Windows.
   ///
   /// Defaults to `None`.
-  append_rc_content: Option<String>,
+  append_rc_content: Vec<String>,
 }
 
 impl Default for WindowsAttributes {
@@ -260,7 +260,7 @@ impl WindowsAttributes {
     Self {
       window_icon_path: Default::default(),
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
-      append_rc_content: None,
+      append_rc_content: Vec::new(),
     }
   }
 
@@ -270,7 +270,7 @@ impl WindowsAttributes {
     Self {
       app_manifest: None,
       window_icon_path: Default::default(),
-      append_rc_content: None,
+      append_rc_content: Vec::new(),
     }
   }
 
@@ -345,7 +345,7 @@ impl WindowsAttributes {
   /// This can be called multiple times to append multiple contents.
   #[must_use]
   pub fn append_rc_content<S: Into<String>>(mut self, content: S) -> Self {
-    self.append_rc_content = Some(content.into());
+    self.append_rc_content.push(content.into());
     self
   }
 }
@@ -627,8 +627,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       res.set_manifest(&manifest);
     }
 
-    if let Some(append_rc_content) = attributes.windows_attributes.append_rc_content {
-      res.append_rc_content(&append_rc_content);
+    for content in attributes.windows_attributes.append_rc_content {
+      res.append_rc_content(&content);
     }
 
     if let Some(version_str) = &config.version {

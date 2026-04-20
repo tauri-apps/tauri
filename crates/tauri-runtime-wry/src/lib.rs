@@ -48,7 +48,7 @@ use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS}
 ))]
 use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
-use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+use tao::platform::windows::{IconExtWindows, WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
 use webview2_com::{ContainsFullScreenElementChangedEventHandler, FocusChangedEventHandler};
 #[cfg(windows)]
@@ -1238,6 +1238,19 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn icon(mut self, icon: Icon) -> Result<Self> {
+    #[cfg(windows)]
+    {
+      let small = TaoWindowIcon::from_resource(32512, Some(TaoPhysicalSize::new(16, 16)));
+      let big = TaoWindowIcon::from_resource(32512, None);
+      if let (Ok(small_icon), Ok(big_icon)) = (small, big) {
+        self.inner = self
+          .inner
+          .with_window_icon(Some(small_icon))
+          .with_taskbar_icon(Some(big_icon));
+        return Ok(self);
+      }
+    }
+
     self.inner = self
       .inner
       .with_window_icon(Some(TaoIcon::try_from(icon)?.0));

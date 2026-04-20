@@ -2492,7 +2492,7 @@
           ]
         },
         "mimeType": {
-          "description": "The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.",
+          "description": "The mime-type of the association, e.g. `'image/png'` or `'text/plain'`.\n\n - **Linux**: written as `MimeType=` in the `.desktop` file.\n - **macOS / iOS**: added as `public.mime-type` in the `UTTypeTagSpecification` dictionary of\n   the `UTExportedTypeDeclarations` entry in `Info.plist`.\n - **Android**: used as `android:mimeType` in the `<data>` element of an `<intent-filter>`\n   in `AndroidManifest.xml`.",
           "type": [
             "string",
             "null"

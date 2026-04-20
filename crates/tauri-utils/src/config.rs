@@ -1198,7 +1198,13 @@ pub struct FileAssociation {
   /// The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
-  /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
+  /// The mime-type of the association, e.g. `'image/png'` or `'text/plain'`.
+  ///
+  /// - **Linux**: written as `MimeType=` in the `.desktop` file.
+  /// - **macOS / iOS**: added as `public.mime-type` in the `UTTypeTagSpecification` dictionary of
+  ///   the `UTExportedTypeDeclarations` entry in `Info.plist`.
+  /// - **Android**: used as `android:mimeType` in the `<data>` element of an `<intent-filter>`
+  ///   in `AndroidManifest.xml`.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<String>,
   /// The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.

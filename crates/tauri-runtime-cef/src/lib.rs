@@ -366,8 +366,7 @@ impl<T: UserEvent> RuntimeContext<T> {
       cef_impl::handle_message(&self.cef_context, message);
     } else {
       // Off main thread, or inside a user callback where synchronous execution
-      // could pump Win32 messages and cause re-entrancy. Defer through the CEF
-      // task runner so it executes in the next do_message_loop_work() iteration.
+      // could cause re-entrancy and deadlocks. Defer through the CEF TaskRunner.
       self
         .main_thread_task_runner
         .post_task(Some(&mut cef_impl::SendMessageTask::new(

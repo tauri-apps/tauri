@@ -68,7 +68,7 @@ wrap_render_process_handler! {
       // Notification.permission = "granted" shim above. Patch query() to
       // return "granted" for notifications while delegating everything else
       // to the original.
-      install_permissions_query_shim(context);
+      install_permissions_query_shim(&global);
     }
   }
 }
@@ -257,34 +257,86 @@ wrap_v8_handler! {
 }
 
 // ---------------------------------------------------------------------------
+// V8Handler — navigator.permissions.query → "granted" for notifications.
+// ---------------------------------------------------------------------------
+
+wrap_v8_handler! {
+  struct PermissionsQueryV8Handler;
+
+  impl V8Handler {
+    fn execute(
+      &self,
+      _name: Option<&CefString>,
+      _object: Option<&mut V8Value>,
+      arguments: Option<&[Option<V8Value>]>,
+      retval: Option<&mut Option<V8Value>>,
+      _exception: Option<&mut CefString>,
+    ) -> ::std::os::raw::c_int {
+      let args = arguments.unwrap_or(&[]);
+      let descriptor =
+        args.first().and_then(|v| v.as_ref()).filter(|v| v.is_object() != 0);
+      let name = read_opt_str(descriptor, "name").unwrap_or_default();
+
+      let state = if name == "notifications" { "granted" } else { "prompt" };
+
+      if let Some(retval) = retval {
+        if let Some(promise) = v8_value_create_promise() {
+          if let Some(mut status) = v8_value_create_object(None, None) {
+            if let Some(mut state_val) =
+              v8_value_create_string(Some(&CefString::from(state)))
+            {
+              status.set_value_bykey(
+                Some(&CefString::from("state")),
+                Some(&mut state_val),
+                V8Propertyattribute::default(),
+              );
+            }
+            if let Some(mut null_val) = v8_value_create_null() {
+              status.set_value_bykey(
+                Some(&CefString::from("onchange")),
+                Some(&mut null_val),
+                V8Propertyattribute::default(),
+              );
+            }
+            promise.resolve_promise(Some(&mut status));
+          }
+          *retval = Some(promise);
+        }
+      }
+      1
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // navigator.permissions.query shim — returns "granted" for notifications.
 // ---------------------------------------------------------------------------
 
-fn install_permissions_query_shim(context: &V8Context) {
-  // Runs as a self-executing function so `_orig` is captured in closure scope
-  // and non-notification queries are transparently forwarded.
-  let js = r#"(function() {
-    try {
-      var perms = navigator && navigator.permissions;
-      if (!perms || typeof perms.query !== 'function') return;
-      var _orig = perms.query.bind(perms);
-      perms.query = function(descriptor) {
-        if (descriptor && descriptor.name === 'notifications') {
-          return Promise.resolve({ state: 'granted', onchange: null });
-        }
-        return _orig(descriptor);
-      };
-    } catch (_) {}
-  })();"#;
+fn install_permissions_query_shim(global: &V8Value) {
+  let Some(navigator) = global.value_bykey(Some(&CefString::from("navigator"))) else {
+    return;
+  };
+  if navigator.is_object() == 0 {
+    return;
+  }
+  let Some(permissions) = navigator.value_bykey(Some(&CefString::from("permissions"))) else {
+    return;
+  };
+  if permissions.is_object() == 0 {
+    return;
+  }
 
-  let mut retval: Option<V8Value> = None;
-  let mut exception: Option<V8Exception> = None;
-  context.eval(
-    Some(&CefString::from(js)),
-    Some(&CefString::from("openhuman://notification-shim")),
-    0,
-    Some(&mut retval),
-    Some(&mut exception),
+  let mut handler = PermissionsQueryV8Handler::new();
+  let Some(mut shim) =
+    v8_value_create_function(Some(&CefString::from("query")), Some(&mut handler))
+  else {
+    return;
+  };
+
+  permissions.set_value_bykey(
+    Some(&CefString::from("query")),
+    Some(&mut shim),
+    V8Propertyattribute::default(),
   );
 }
 

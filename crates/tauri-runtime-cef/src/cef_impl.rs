@@ -34,6 +34,35 @@ use crate::{
   cef_webview::CefWebview,
 };
 
+use std::cell::Cell;
+
+/// Tracks whether we're inside a user event callback. When set, `post_message`
+/// defers through the CEF task runner instead of executing synchronously, to
+/// avoid Win32 message-pump re-entrancy from APIs like ShowWindow/SetFocus
+/// or locking a mutex while already locked on the same thread.
+thread_local! {
+  static IN_EVENT_CALLBACK: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Returns true if we're currently inside a user event callback.
+pub fn is_in_event_callback() -> bool {
+  IN_EVENT_CALLBACK.get()
+}
+
+/// Run a function within the context of an event callback, ensuring that [`is_in_event_callback`] returns true for the duration of the callback.
+fn in_callback<R>(f: impl FnOnce() -> R) -> R {
+  struct Guard;
+  impl Drop for Guard {
+    fn drop(&mut self) {
+      IN_EVENT_CALLBACK.set(false);
+    }
+  }
+
+  IN_EVENT_CALLBACK.set(true);
+  let _guard = Guard;
+  f()
+}
+
 mod cookie;
 mod drag_window;
 pub mod request_handler;
@@ -2160,7 +2189,9 @@ fn handle_webview_message<T: UserEvent>(
     // Devtools
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::OpenDevTools => {
-      if let Some(host) = get_browser(context, window_id, webview_id).and_then(|b| b.host()) {
+      if let Some(host) =
+        get_browser(context, window_id, webview_id).and_then(|b| b.host())
+      {
         let window_info = cef::WindowInfo::default();
         let settings = cef::BrowserSettings::default();
         let inspect_at = cef::Point { x: 0, y: 0 };
@@ -3156,21 +3187,23 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
     } => handle_webview_message(context, window_id, webview_id, message),
     Message::RequestExit(code) => {
       let (tx, rx) = channel();
-      (context.callback.borrow())(RunEvent::ExitRequested {
-        code: Some(code),
-        tx,
+      in_callback(|| {
+        (context.callback.borrow())(RunEvent::ExitRequested {
+          code: Some(code),
+          tx,
+        });
       });
 
       let recv = rx.try_recv();
       let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
       if !should_prevent {
-        (context.callback.borrow())(RunEvent::Exit);
+        in_callback(|| (context.callback.borrow())(RunEvent::Exit));
       }
     }
     Message::Task(t) => t(),
     Message::UserEvent(evt) => {
-      (context.callback.borrow())(RunEvent::UserEvent(evt));
+      in_callback(|| (context.callback.borrow())(RunEvent::UserEvent(evt)));
     }
     Message::Noop => {}
   }
@@ -3500,15 +3533,15 @@ fn send_window_event<T: UserEvent>(
 
     drop(windows_ref);
 
-    {
+    in_callback(|| {
       let listeners = window_event_listeners.lock().unwrap();
       let handlers: Vec<_> = listeners.values().collect();
       for handler in handlers.iter() {
         handler(&event);
       }
-    }
+    });
 
-    (callback.borrow())(RunEvent::WindowEvent { label, event });
+    in_callback(|| (callback.borrow())(RunEvent::WindowEvent { label, event }));
   }
 }
 

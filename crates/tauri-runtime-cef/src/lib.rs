@@ -359,9 +359,7 @@ unsafe impl<T: UserEvent> Sync for RuntimeContext<T> {}
 
 impl<T: UserEvent> RuntimeContext<T> {
   fn post_message(&self, message: Message<T>) -> Result<()> {
-    if thread::current().id() == self.main_thread_id
-      && !cef_impl::is_in_event_callback()
-    {
+    if thread::current().id() == self.main_thread_id && !cef_impl::is_in_event_callback() {
       // On main thread and not inside a user callback, execute directly.
       cef_impl::handle_message(&self.cef_context, message);
     } else {

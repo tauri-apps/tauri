@@ -2189,9 +2189,7 @@ fn handle_webview_message<T: UserEvent>(
     // Devtools
     #[cfg(any(debug_assertions, feature = "devtools"))]
     WebviewMessage::OpenDevTools => {
-      if let Some(host) =
-        get_browser(context, window_id, webview_id).and_then(|b| b.host())
-      {
+      if let Some(host) = get_browser(context, window_id, webview_id).and_then(|b| b.host()) {
         let window_info = cef::WindowInfo::default();
         let settings = cef::BrowserSettings::default();
         let inspect_at = cef::Point { x: 0, y: 0 };

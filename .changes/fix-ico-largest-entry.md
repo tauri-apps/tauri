@@ -3,4 +3,4 @@
 "tauri-runtime-wry": patch:bug
 ---
 
-On Windows, load the window icon from the exe-embedded resource so both the titlebar (`ICON_SMALL`) and taskbar (`ICON_BIG`) use the multi-size ICO instead of a single RGBA buffer. Also select the largest ICO entry in codegen as a fallback.
+On Windows, set `ICON_BIG` from the exe-embedded ICO resource via `IconExtWindows::from_resource` for crisp taskbar and alt-tab icons. Cap the codegen ICO entry at 32x32 for `ICON_SMALL` to reduce binary size.

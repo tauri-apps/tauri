@@ -1238,22 +1238,17 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn icon(mut self, icon: Icon) -> Result<Self> {
-    #[cfg(windows)]
-    {
-      let small = TaoWindowIcon::from_resource(32512, Some(TaoPhysicalSize::new(16, 16)));
-      let big = TaoWindowIcon::from_resource(32512, None);
-      if let (Ok(small_icon), Ok(big_icon)) = (small, big) {
-        self.inner = self
-          .inner
-          .with_window_icon(Some(small_icon))
-          .with_taskbar_icon(Some(big_icon));
-        return Ok(self);
-      }
-    }
-
     self.inner = self
       .inner
       .with_window_icon(Some(TaoIcon::try_from(icon)?.0));
+
+    #[cfg(windows)]
+    {
+      if let Ok(resource_icon) = TaoWindowIcon::from_resource(32512, None) {
+        self.inner = self.inner.with_taskbar_icon(Some(resource_icon));
+      }
+    }
+
     Ok(self)
   }
 

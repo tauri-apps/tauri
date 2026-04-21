@@ -59,6 +59,16 @@ wrap_render_process_handler! {
       // This global may not exist in every frame (e.g. normal page contexts
       // don't expose SWRegistration directly). Silently skip if absent.
       install_sw_shim(&global, &origin);
+
+      // --- navigator.permissions.query shim ---
+      // Slack (and other apps) check navigator.permissions.query({ name:
+      // 'notifications' }) before calling Notification.requestPermission().
+      // CEF's built-in Permissions API returns "prompt" until the native
+      // permission dialog is accepted, so the check disagrees with our
+      // Notification.permission = "granted" shim above. Patch query() to
+      // return "granted" for notifications while delegating everything else
+      // to the original.
+      install_permissions_query_shim(context);
     }
   }
 }
@@ -244,6 +254,38 @@ wrap_v8_handler! {
       1
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// navigator.permissions.query shim — returns "granted" for notifications.
+// ---------------------------------------------------------------------------
+
+fn install_permissions_query_shim(context: &V8Context) {
+  // Runs as a self-executing function so `_orig` is captured in closure scope
+  // and non-notification queries are transparently forwarded.
+  let js = r#"(function() {
+    try {
+      var perms = navigator && navigator.permissions;
+      if (!perms || typeof perms.query !== 'function') return;
+      var _orig = perms.query.bind(perms);
+      perms.query = function(descriptor) {
+        if (descriptor && descriptor.name === 'notifications') {
+          return Promise.resolve({ state: 'granted', onchange: null });
+        }
+        return _orig(descriptor);
+      };
+    } catch (_) {}
+  })();"#;
+
+  let mut retval: Option<V8Value> = None;
+  let mut exception: Option<V8Exception> = None;
+  context.eval(
+    Some(&CefString::from(js)),
+    Some(&CefString::from("openhuman://notification-shim")),
+    0,
+    Some(&mut retval),
+    Some(&mut exception),
+  );
 }
 
 // ---------------------------------------------------------------------------

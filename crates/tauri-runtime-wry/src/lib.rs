@@ -114,6 +114,13 @@ use wry::{
   target_os = "android"
 )))]
 use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
+#[cfg(not(any(
+  target_os = "windows",
+  target_os = "macos",
+  target_os = "ios",
+  target_os = "android"
+)))]
+use webkit2gtk::{glib::ObjectExt, PermissionRequestExt, UserMediaPermissionRequest, WebViewExt};
 
 #[cfg(target_os = "ios")]
 pub use tao::platform::ios::{WindowBuilderExtIOS, WindowExtIOS};
@@ -5205,6 +5212,24 @@ You may have it installed on another user account, but it is not available for t
     }
   }
   .map_err(|e| Error::CreateWebview(Box::new(e)))?;
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  {
+    webview.webview().connect_permission_request(|_, request| {
+      if request.is::<UserMediaPermissionRequest>() {
+        request.allow();
+        true
+      } else {
+        false
+      }
+    });
+  }
 
   if kind == WebviewKind::WindowContent {
     #[cfg(any(

@@ -130,7 +130,11 @@ impl<'a> Image<'a> {
     let hicon = unsafe {
       Owned::new(HICON(
         LoadImageW(
-          GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
+          Some(
+            GetModuleHandleW(PCWSTR::null())
+              .map_err(crate::Error::ImageFromResource)?
+              .into(),
+          ),
           resource_id,
           IMAGE_ICON,
           width_i32,

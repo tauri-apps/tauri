@@ -126,7 +126,9 @@ impl<'a> Image<'a> {
   ///
   /// The `resource_id` can be an `u16` wrapped as `PCWSTR(1 as _)` or a wide string like `w!("icon")`
   ///
-  /// ```no_run
+  /// ```
+  /// # use tauri::image::Image;
+  /// # use windows::core::{w, PCWSTR};
   /// Image::from_resource(PCWSTR(1 as _), 32, 32);
   /// Image::from_resource(w!("icon"), 32, 32);
   /// ```

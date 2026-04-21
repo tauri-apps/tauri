@@ -114,13 +114,13 @@ impl<'a> Image<'a> {
     Self::from_bytes(&bytes)
   }
 
-  /// test
+  /// Creates a new image from the application icon embedded in this executable or library.
   #[cfg(windows)]
   pub fn from_app_icon() -> Self {
     Image::from_resource(IDI_APPLICATION, 64, 64)
   }
 
-  /// test
+  /// Create a new image from a resource embedded in this executable or library.
   #[cfg(windows)]
   pub fn from_resource(resource_id: PCWSTR, width: u32, height: u32) -> Self {
     let width = width as i32;

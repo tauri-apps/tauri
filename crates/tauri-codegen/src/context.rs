@@ -211,7 +211,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let default_window_icon = {
     if target == Target::Windows {
       // handle default window icons for Windows targets
-      quote!(#root::image::Image::from_app_icon().ok())
+      quote!(#root::image::Image::from_app_icon(64).ok())
     } else {
       // handle default window icons for Unix targets
       let icon_path = find_icon(

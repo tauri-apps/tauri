@@ -116,8 +116,8 @@ impl<'a> Image<'a> {
 
   /// Creates a new image from the application icon embedded in this executable or library.
   #[cfg(windows)]
-  pub fn from_app_icon() -> crate::Result<Self> {
-    Image::from_resource(IDI_APPLICATION, 64, 64)
+  pub fn from_app_icon(size: u32) -> crate::Result<Self> {
+    Image::from_resource(IDI_APPLICATION, size, size)
   }
 
   /// Create a new image from a resource embedded in this executable or library.

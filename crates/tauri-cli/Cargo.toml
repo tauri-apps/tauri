@@ -133,7 +133,7 @@ libc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
-tauri-macos-sign = { version = "2.3.4", path = "../tauri-macos-sign" }
+tauri-macos-sign = { workspace = true }
 object = { version = "0.36", default-features = false, features = [
   "macho",
   "read_core",

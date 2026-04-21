@@ -45,6 +45,18 @@ license = "Apache-2.0 OR MIT"
 edition = "2021"
 rust-version = "1.77.2"
 
+[workspace.dependencies]
+tauri = { version = "2.11", path = "./crates/tauri", default-features = false }
+tauri-build = { version = "2.5", path = "./crates/tauri-build" }
+tauri-bundler = { version = "2.8", path = "./crates/tauri-bundler", default-features = false }
+tauri-utils = { version = "2.9", path = "./crates/tauri-utils" }
+tauri-codegen = { version = "2.6", path = "./crates/tauri-codegen", default-features = false }
+tauri-macros = { version = "2.6", path = "./crates/tauri-macros" }
+tauri-macos-sign = { version = "2.3", path = "./crates/tauri-macos-sign" }
+tauri-runtime = { version = "2.11", path = "./crates/tauri-runtime" }
+tauri-runtime-wry = { version = "2.11", path = "./crates/tauri-runtime-wry", default-features = false }
+tauri-plugin = { version = "2.6", path = "./crates/tauri-plugin", default-features = false }
+
 # default to small, optimized workspace release binaries
 [profile.release]
 panic = "abort"
@@ -71,4 +83,3 @@ opt-level = "s"
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
-tauri-utils = { path = "./crates/tauri-utils" }

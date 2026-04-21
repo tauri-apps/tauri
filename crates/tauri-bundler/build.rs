@@ -90,7 +90,9 @@ fn copy_src_tree(src: &Path, dst: &Path) {
     let entry = entry.expect("failed to read cef-helper src entry");
     let from = entry.path();
     let to = dst.join(entry.file_name());
-    let kind = entry.file_type().expect("failed to stat cef-helper src entry");
+    let kind = entry
+      .file_type()
+      .expect("failed to stat cef-helper src entry");
     if kind.is_dir() {
       fs::create_dir_all(&to).expect("failed to mkdir for cef-helper src copy");
       copy_src_tree(&from, &to);

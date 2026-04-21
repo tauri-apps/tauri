@@ -61,14 +61,14 @@ wrap_render_process_handler! {
       install_sw_shim(&global, &origin);
 
       // --- navigator.permissions.query shim ---
-      // Slack (and other apps) check navigator.permissions.query({ name:
-      // 'notifications' }) before calling Notification.requestPermission().
-      // CEF's built-in Permissions API returns "prompt" until the native
-      // permission dialog is accepted, so the check disagrees with our
-      // Notification.permission = "granted" shim above. Patch query() to
-      // return "granted" for notifications while delegating everything else
-      // to the original.
-      install_permissions_query_shim(&global);
+      // Slack checks navigator.permissions.query({ name: 'notifications' })
+      // before showing its "needs permission" banner. CEF's Permissions API
+      // returns "prompt" because no native browser grant exists. We can't
+      // patch the Blink platform object directly (set_value_bykey is silently
+      // ignored on platform objects), but Object.defineProperty on navigator
+      // itself works — it replaces the getter on the JS-visible navigator
+      // wrapper, which is the same mechanism ua_spoof.js uses for userAgent.
+      install_permissions_query_shim(context);
     }
   }
 }
@@ -257,86 +257,40 @@ wrap_v8_handler! {
 }
 
 // ---------------------------------------------------------------------------
-// V8Handler — navigator.permissions.query → "granted" for notifications.
+// navigator.permissions.query shim — Object.defineProperty on navigator.
+//
+// Blink platform objects (Permissions, Navigator internals) silently discard
+// set_value_bykey calls, so we can't replace permissions.query directly.
+// What DOES work is redefining the `permissions` getter on the navigator
+// wrapper object itself — the same technique ua_spoof.js uses for userAgent.
+// We do it here in on_context_created so it runs before any page JS.
 // ---------------------------------------------------------------------------
 
-wrap_v8_handler! {
-  struct PermissionsQueryV8Handler;
-
-  impl V8Handler {
-    fn execute(
-      &self,
-      _name: Option<&CefString>,
-      _object: Option<&mut V8Value>,
-      arguments: Option<&[Option<V8Value>]>,
-      retval: Option<&mut Option<V8Value>>,
-      _exception: Option<&mut CefString>,
-    ) -> ::std::os::raw::c_int {
-      let args = arguments.unwrap_or(&[]);
-      let descriptor =
-        args.first().and_then(|v| v.as_ref()).filter(|v| v.is_object() != 0);
-      let name = read_opt_str(descriptor, "name").unwrap_or_default();
-
-      let state = if name == "notifications" { "granted" } else { "prompt" };
-
-      if let Some(retval) = retval {
-        if let Some(promise) = v8_value_create_promise() {
-          if let Some(mut status) = v8_value_create_object(None, None) {
-            if let Some(mut state_val) =
-              v8_value_create_string(Some(&CefString::from(state)))
-            {
-              status.set_value_bykey(
-                Some(&CefString::from("state")),
-                Some(&mut state_val),
-                V8Propertyattribute::default(),
-              );
-            }
-            if let Some(mut null_val) = v8_value_create_null() {
-              status.set_value_bykey(
-                Some(&CefString::from("onchange")),
-                Some(&mut null_val),
-                V8Propertyattribute::default(),
-              );
-            }
-            promise.resolve_promise(Some(&mut status));
-          }
-          *retval = Some(promise);
-        }
-      }
-      1
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// navigator.permissions.query shim — returns "granted" for notifications.
-// ---------------------------------------------------------------------------
-
-fn install_permissions_query_shim(global: &V8Value) {
-  let Some(navigator) = global.value_bykey(Some(&CefString::from("navigator"))) else {
-    return;
-  };
-  if navigator.is_object() == 0 {
-    return;
-  }
-  let Some(permissions) = navigator.value_bykey(Some(&CefString::from("permissions"))) else {
-    return;
-  };
-  if permissions.is_object() == 0 {
-    return;
-  }
-
-  let mut handler = PermissionsQueryV8Handler::new();
-  let Some(mut shim) =
-    v8_value_create_function(Some(&CefString::from("query")), Some(&mut handler))
-  else {
-    return;
-  };
-
-  permissions.set_value_bykey(
-    Some(&CefString::from("query")),
-    Some(&mut shim),
-    V8Propertyattribute::default(),
+fn install_permissions_query_shim(context: &V8Context) {
+  let js = concat!(
+    "(function(){",
+    "try{",
+    "var p=navigator&&navigator.permissions;",
+    "if(!p||typeof p.query!=='function')return;",
+    "var q=p.query.bind(p);",
+    "var f={query:function(d){",
+    "if(d&&d.name==='notifications')",
+    "return Promise.resolve({state:'granted',onchange:null});",
+    "return q(d);",
+    "}};",
+    "Object.defineProperty(navigator,'permissions',",
+    "{get:function(){return f;},configurable:true});",
+    "}catch(_){}",
+    "})();"
+  );
+  let mut retval: Option<V8Value> = None;
+  let mut exception: Option<V8Exception> = None;
+  context.eval(
+    Some(&CefString::from(js)),
+    Some(&CefString::from("openhuman://notification-perm-shim")),
+    0,
+    Some(&mut retval),
+    Some(&mut exception),
   );
 }
 

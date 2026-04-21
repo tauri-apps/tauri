@@ -116,6 +116,7 @@ impl<'a> Image<'a> {
   /// Creates a new image from the application icon embedded in this executable or library.
   #[cfg(windows)]
   pub fn from_app_icon(size: u32) -> crate::Result<Self> {
+    // Make sure we keep this `resource_id` in sync with the one in `tauri-build`
     Image::from_resource(PCWSTR(32512 as _), size, size)
   }
 

@@ -664,6 +664,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
 
     if window_icon_path.exists() {
+      // Keep this `name_id` in sync with the one in `tauri::image::Image::from_app_icon`
+      //
+      // `32512` has no special meaning here,
+      // it was used because we misunderstood `IDI_APPLICATION` (`MAKEINTRESOURCE(32512)`)
+      // should be used for the application icon, which is not true.
+      // See https://devblogs.microsoft.com/oldnewthing/20250423-00/?p=111106
       res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
     } else {
       return Err(anyhow!(format!(

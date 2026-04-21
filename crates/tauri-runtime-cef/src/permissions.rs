@@ -19,10 +19,17 @@ pub const ALLOWED_MEDIA_MASK: u32 =
     | cef_media_access_permission_types_t::CEF_MEDIA_PERMISSION_DESKTOP_VIDEO_CAPTURE as u32;
 
 /// Mask of prompt-permission bits auto-accepted without user interaction.
-/// Kept deliberately narrow — privacy- or fingerprint-sensitive types
-/// (geolocation, midi-sysex, protected-media-identifier, idle-detection,
-/// file-system-access, local-network, window-management, AR/VR) fall through
-/// to a deny so the embedder stays honest about what it silently allows.
+/// Covers the set an embedded SaaS app (Slack, Meet, Discord, Notion, etc.)
+/// realistically needs: mic/camera streams + their PTZ/captured-surface
+/// siblings, clipboard, notifications, storage access, and the Chromium
+/// Private Network Access family (loopback / local-network) that WebRTC
+/// call flows like Slack Huddles use for STUN/TURN candidate gathering on
+/// the host machine.
+///
+/// Still deliberately excluded: geolocation, midi-sysex,
+/// protected-media-identifier, idle-detection, file-system-access,
+/// window-management, AR/VR, hand-tracking — privacy- or fingerprint-
+/// sensitive surfaces that should never be granted silently.
 pub const ALLOWED_PROMPT_MASK: u32 =
   cef_permission_request_types_t::CEF_PERMISSION_TYPE_CAMERA_STREAM as u32
     | cef_permission_request_types_t::CEF_PERMISSION_TYPE_CAMERA_PAN_TILT_ZOOM as u32
@@ -31,7 +38,10 @@ pub const ALLOWED_PROMPT_MASK: u32 =
     | cef_permission_request_types_t::CEF_PERMISSION_TYPE_CLIPBOARD as u32
     | cef_permission_request_types_t::CEF_PERMISSION_TYPE_NOTIFICATIONS as u32
     | cef_permission_request_types_t::CEF_PERMISSION_TYPE_STORAGE_ACCESS as u32
-    | cef_permission_request_types_t::CEF_PERMISSION_TYPE_TOP_LEVEL_STORAGE_ACCESS as u32;
+    | cef_permission_request_types_t::CEF_PERMISSION_TYPE_TOP_LEVEL_STORAGE_ACCESS as u32
+    | cef_permission_request_types_t::CEF_PERMISSION_TYPE_LOOPBACK_NETWORK as u32
+    | cef_permission_request_types_t::CEF_PERMISSION_TYPE_LOCAL_NETWORK as u32
+    | cef_permission_request_types_t::CEF_PERMISSION_TYPE_LOCAL_NETWORK_ACCESS as u32;
 
 /// Returns the subset of `requested` permissions the embedder will forward to
 /// Chromium for a `getUserMedia` / `getDisplayMedia` request. Zero means

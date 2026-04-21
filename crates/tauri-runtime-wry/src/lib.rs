@@ -5012,7 +5012,7 @@ You may have it installed on another user account, but it is not available for t
         _ => unreachable!(),
       });
 
-    if webview_attributes.disable_autofill {
+    if !webview_attributes.general_autofill_enabled {
       webview_builder = webview_builder.with_general_autofill_enabled(false);
     }
   }

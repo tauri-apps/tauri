@@ -375,21 +375,20 @@ pub struct WebviewAttributes {
   ///
   /// **This option does not disable password or credit card autofill.**
   ///
-  /// When set to `true`, the WebView will not automatically populate
+  /// When set to `false`, the WebView will not automatically populate
   /// general form fields using previously stored data such as addresses
   /// or contact information.
   ///
-  /// If not specified, this is `false` by default.
+  /// If not specified, this is `true` by default.
   ///
   /// ## Platform-specific
   ///
   /// - **Windows**: Supported. WebView2's autofill feature (called
   ///   "Suggestions") may not honor `autocomplete="off"` on input
-  ///   elements in some cases. When this option is `true`, that general
-  ///   autofill behavior is disabled.
+  ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
-  pub disable_autofill: bool,
+  pub general_autofill_enabled: bool,
   /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
@@ -461,7 +460,7 @@ impl From<&WindowConfig> for WebviewAttributes {
         ConfigScrollBarStyle::FluentOverlay => ScrollBarStyle::FluentOverlay,
         _ => ScrollBarStyle::Default,
       })
-      .disable_autofill(config.disable_autofill);
+      .general_autofill_enabled(config.general_autofill_enabled);
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
@@ -495,7 +494,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     }
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
-    builder.disable_autofill = config.disable_autofill;
+    builder.general_autofill_enabled = config.general_autofill_enabled;
     #[cfg(target_os = "ios")]
     if config.disable_input_accessory_view {
       builder
@@ -537,7 +536,7 @@ impl WebviewAttributes {
       javascript_disabled: false,
       allow_link_preview: true,
       scroll_bar_style: ScrollBarStyle::Default,
-      disable_autofill: false,
+      general_autofill_enabled: false,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
       #[cfg(windows)]
@@ -834,23 +833,22 @@ impl WebviewAttributes {
   ///
   /// **This option does not disable password or credit card autofill.**
   ///
-  /// When set to `true`, the WebView will not automatically populate
+  /// When set to `false`, the WebView will not automatically populate
   /// general form fields using previously stored data such as addresses
   /// or contact information.
   ///
-  /// By default, this is `false`.
+  /// By default, this is `true`.
   ///
   /// ## Platform-specific
   ///
   /// - **Windows**: Supported. WebView2's autofill feature (called
   ///   "Suggestions") may not honor `autocomplete="off"` on input
-  ///   elements in some cases. When this option is `true`, that general
-  ///   autofill behavior is disabled.
+  ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
   #[must_use]
-  pub fn disable_autofill(mut self, disable: bool) -> Self {
-    self.disable_autofill = disable;
+  pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
+    self.general_autofill_enabled = enabled;
     self
   }
 }

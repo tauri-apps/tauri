@@ -2267,22 +2267,21 @@ pub struct WindowConfig {
   ///
   /// **This option does not disable password or credit card autofill.**
   ///
-  /// When set to `true`, the WebView will not automatically populate
+  /// When set to `false`, the WebView will not automatically populate
   /// general form fields using previously stored data such as addresses
   /// or contact information.
   ///
-  /// If not specified, this is `false` by default.
+  /// If not specified, this is `true` by default.
   ///
   /// ## Platform-specific
   ///
   /// - **Windows**: Supported. WebView2's autofill feature (called
   ///   "Suggestions") may not honor `autocomplete="off"` on input
-  ///   elements in some cases. When this option is `true`, that general
-  ///   autofill behavior is disabled.
+  ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
   #[serde(default, alias = "disable-autofill")]
-  pub disable_autofill: bool,
+  pub general_autofill_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -2348,7 +2347,7 @@ impl Default for WindowConfig {
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
-      disable_autofill: false,
+      general_autofill_enabled: false,
     }
   }
 }
@@ -3886,7 +3885,7 @@ mod build {
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
-      let disable_autofill = self.disable_autofill;
+      let general_autofill_enabled = self.general_autofill_enabled;
 
       literal_struct!(
         tokens,
@@ -3951,7 +3950,7 @@ mod build {
         activity_name,
         created_by_activity_name,
         requested_by_scene_identifier,
-        disable_autofill
+        general_autofill_enabled
       );
     }
   }

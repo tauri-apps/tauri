@@ -116,13 +116,14 @@ impl<'a> Image<'a> {
 
   /// Creates a new image from the application icon embedded in this executable or library.
   #[cfg(windows)]
-  pub fn from_app_icon() -> Self {
+  pub fn from_app_icon() -> crate::Result<Self> {
     Image::from_resource(IDI_APPLICATION, 64, 64)
   }
 
+  // TODO: Release memory even if we failed half ways
   /// Create a new image from a resource embedded in this executable or library.
   #[cfg(windows)]
-  pub fn from_resource(resource_id: PCWSTR, width: u32, height: u32) -> Self {
+  pub fn from_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
     let width = width as i32;
     let height = height as i32;
     let color_depth_bytes = 4;
@@ -135,7 +136,7 @@ impl<'a> Image<'a> {
         height,
         LR_DEFAULTSIZE | LR_SHARED,
       )
-      .unwrap()
+      .map_err(crate::Error::ImageFromResource)?
     };
 
     let hdc = unsafe { CreateCompatibleDC(None) };
@@ -162,7 +163,7 @@ impl<'a> Image<'a> {
         None,
         0,
       )
-      .unwrap()
+      .map_err(crate::Error::ImageFromResource)?
     };
 
     unsafe { ReleaseDC(None, h_dc_bitmap) };
@@ -182,7 +183,7 @@ impl<'a> Image<'a> {
         // We use `DI_NORMAL` instead of `DI_NORMAL` here so it doesn't apply premultiplied alpha values
         DI_IMAGE,
       )
-      .unwrap()
+      .map_err(crate::Error::ImageFromResource)?
     };
 
     let mut bgra = unsafe {
@@ -208,7 +209,7 @@ impl<'a> Image<'a> {
       DeleteDC(hdc).unwrap();
     }
 
-    image
+    Ok(image)
   }
 
   /// Returns the RGBA data for this image, in row-major order from top to bottom.

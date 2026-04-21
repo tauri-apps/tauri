@@ -166,6 +166,10 @@ pub enum Error {
   /// tokio oneshot channel failed to receive message
   #[error(transparent)]
   TokioOneshotRecv(#[from] tokio::sync::oneshot::error::RecvError),
+  #[cfg(windows)]
+  /// [`crate::image::Image::from_resource`] failed
+  #[error("Can not load Image from resources: {0}")]
+  ImageFromResource(windows::core::Error),
 }
 
 impl From<getrandom::Error> for Error {

@@ -787,17 +787,29 @@ wrap_permission_handler! {
       &self,
       _browser: Option<&mut Browser>,
       _frame: Option<&mut Frame>,
-      _requesting_origin: Option<&CefString>,
+      requesting_origin: Option<&CefString>,
       requested_permissions: u32,
       callback: Option<&mut MediaAccessCallback>,
     ) -> ::std::os::raw::c_int {
       let Some(callback) = callback else {
         return 0;
       };
-      // Allow microphone and camera when requested
-      let allowed = requested_permissions & (sys::cef_media_access_permission_types_t::CEF_MEDIA_PERMISSION_DEVICE_AUDIO_CAPTURE as u32 | sys::cef_media_access_permission_types_t::CEF_MEDIA_PERMISSION_DEVICE_VIDEO_CAPTURE as u32);
+      // Forward every media bit we know about — mic/camera (getUserMedia) plus
+      // desktop audio/video (getDisplayMedia / screen share). Unknown bits are
+      // dropped so we never widen what Chromium asked for.
+      let allowed = crate::permissions::allowed_media_permissions(requested_permissions);
+      let origin = requesting_origin
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "<unknown>".to_string());
+      eprintln!(
+        "[cef-perm] media_access origin={origin} requested={req} ({req_names}) allowed={allow} ({allow_names})",
+        req = requested_permissions,
+        req_names = crate::permissions::format_media_bits(requested_permissions),
+        allow = allowed,
+        allow_names = crate::permissions::format_media_bits(allowed),
+      );
       if allowed != 0 {
-        callback.cont(requested_permissions);
+        callback.cont(allowed);
         return 1;
       }
       0
@@ -807,17 +819,33 @@ wrap_permission_handler! {
       &self,
       _browser: Option<&mut Browser>,
       _prompt_id: u64,
-      _requesting_origin: Option<&CefString>,
+      requesting_origin: Option<&CefString>,
       requested_permissions: u32,
       callback: Option<&mut PermissionPromptCallback>,
     ) -> ::std::os::raw::c_int {
       let Some(callback) = callback else {
         return 0;
       };
-      // Allow permission prompt (e.g. microphone/camera)
-      callback.cont(PermissionRequestResult::from(
-        cef::sys::cef_permission_request_result_t::CEF_PERMISSION_RESULT_ACCEPT,
-      ));
+      // Auto-accept a narrow allowlist (mic/camera/notifications/clipboard/
+      // storage). Privacy- or fingerprint-sensitive types (geolocation,
+      // midi-sysex, protected-media, idle-detection, file-system-access,
+      // local-network, window-management, AR/VR) fall through to DENY.
+      let accept = crate::permissions::should_accept_permission_prompt(requested_permissions);
+      let origin = requesting_origin
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "<unknown>".to_string());
+      eprintln!(
+        "[cef-perm] prompt origin={origin} requested={req} ({req_names}) -> {decision}",
+        req = requested_permissions,
+        req_names = crate::permissions::format_permission_types(requested_permissions),
+        decision = if accept { "accept" } else { "deny" },
+      );
+      let result = if accept {
+        cef::sys::cef_permission_request_result_t::CEF_PERMISSION_RESULT_ACCEPT
+      } else {
+        cef::sys::cef_permission_request_result_t::CEF_PERMISSION_RESULT_DENY
+      };
+      callback.cont(PermissionRequestResult::from(result));
       1
     }
   }

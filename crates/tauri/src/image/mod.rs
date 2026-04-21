@@ -11,11 +11,11 @@ use std::sync::Arc;
 
 #[cfg(windows)]
 use windows::{
-  core::PCWSTR,
+  core::{Owned, PCWSTR},
   Win32::{
     Graphics::Gdi::{
       CreateCompatibleDC, CreateDIBSection, DeleteDC, GetDC, ReleaseDC, SelectObject, BITMAPINFO,
-      BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+      BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ,
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
@@ -120,80 +120,73 @@ impl<'a> Image<'a> {
     Image::from_resource(IDI_APPLICATION, 64, 64)
   }
 
-  // TODO: Release memory even if we failed half ways
   /// Create a new image from a resource embedded in this executable or library.
   #[cfg(windows)]
   pub fn from_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
-    let width = width as i32;
-    let height = height as i32;
+    let width_i32 = width as i32;
+    let height_i32 = height as i32;
     let color_depth_bytes = 4;
-    let handle = unsafe {
-      LoadImageW(
-        GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
-        resource_id,
-        IMAGE_ICON,
-        width,
-        height,
-        LR_DEFAULTSIZE | LR_SHARED,
-      )
-      .map_err(crate::Error::ImageFromResource)?
-    };
 
-    let hdc = unsafe { CreateCompatibleDC(None) };
+    let hicon = unsafe {
+      Owned::new(HICON(
+        LoadImageW(
+          GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
+          resource_id,
+          IMAGE_ICON,
+          width_i32,
+          height_i32,
+          LR_DEFAULTSIZE | LR_SHARED,
+        )
+        .map_err(crate::Error::ImageFromResource)?
+        .0,
+      ))
+    };
 
     let mut bitmap_info = BITMAPINFO::default();
     bitmap_info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
-    bitmap_info.bmiHeader.biWidth = width;
+    bitmap_info.bmiHeader.biWidth = width_i32;
     // nagative value for top-down
-    bitmap_info.bmiHeader.biHeight = -height;
+    bitmap_info.bmiHeader.biHeight = -height_i32;
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = color_depth_bytes * 8;
     bitmap_info.bmiHeader.biCompression = BI_RGB.0;
 
-    let h_dc_bitmap = unsafe { GetDC(None) };
-
     let mut pv_image_bits = std::ptr::null_mut();
 
-    let hbitmap = unsafe {
-      CreateDIBSection(
+    let hbitmap: Owned<HGDIOBJ> = unsafe {
+      let h_dc_bitmap = GetDC(None);
+      let hbitmap = CreateDIBSection(
         Some(h_dc_bitmap),
         &bitmap_info,
         DIB_RGB_COLORS,
         &mut pv_image_bits,
         None,
         0,
-      )
-      .map_err(crate::Error::ImageFromResource)?
+      );
+      ReleaseDC(None, h_dc_bitmap);
+      Owned::new(hbitmap.map_err(crate::Error::ImageFromResource)?.into())
     };
 
-    unsafe { ReleaseDC(None, h_dc_bitmap) };
-
-    let h_bitmap_old = unsafe { SelectObject(hdc, hbitmap.into()) };
+    let hdc = unsafe { CreateCompatibleDC(None) };
+    let _h_bitmap_old = unsafe { Owned::new(SelectObject(hdc, *hbitmap)) };
 
     unsafe {
-      DrawIconEx(
-        hdc,
-        0,
-        0,
-        HICON(handle.0),
-        width,
-        height,
-        0,
-        None,
+      let result = DrawIconEx(
+        hdc, 0, 0, *hicon, width_i32, height_i32, 0, None,
         // We use `DI_NORMAL` instead of `DI_NORMAL` here so it doesn't apply premultiplied alpha values
         DI_IMAGE,
-      )
-      .map_err(crate::Error::ImageFromResource)?
+      );
+      let _ = DeleteDC(hdc);
+      result.map_err(crate::Error::ImageFromResource)?;
     };
 
     let mut bgra = unsafe {
       std::slice::from_raw_parts(
         pv_image_bits as *mut u8,
-        (width * height * color_depth_bytes as i32) as usize,
+        (width_i32 * height_i32 * color_depth_bytes as i32) as usize,
       )
       .to_owned()
     };
-
     let rgba = {
       for px in bgra.chunks_exact_mut(color_depth_bytes as usize) {
         // Swap Blue and Red channels
@@ -202,14 +195,7 @@ impl<'a> Image<'a> {
       bgra
     };
 
-    let image = Image::new_owned(rgba, width as u32, height as u32);
-
-    unsafe {
-      SelectObject(hdc, h_bitmap_old);
-      DeleteDC(hdc).unwrap();
-    }
-
-    Ok(image)
+    Ok(Image::new_owned(rgba, width, height))
   }
 
   /// Returns the RGBA data for this image, in row-major order from top to bottom.

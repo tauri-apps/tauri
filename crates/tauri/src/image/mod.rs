@@ -19,8 +19,7 @@ use windows::{
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
-      DrawIconEx, LoadImageW, DI_IMAGE, HICON, IDI_APPLICATION, IMAGE_ICON, LR_DEFAULTSIZE,
-      LR_SHARED,
+      DrawIconEx, LoadImageW, DI_IMAGE, HICON, IMAGE_ICON, LR_DEFAULTSIZE, LR_SHARED,
     },
   },
 };
@@ -117,10 +116,19 @@ impl<'a> Image<'a> {
   /// Creates a new image from the application icon embedded in this executable or library.
   #[cfg(windows)]
   pub fn from_app_icon(size: u32) -> crate::Result<Self> {
-    Image::from_resource(IDI_APPLICATION, size, size)
+    Image::from_resource(PCWSTR(32512 as _), size, size)
   }
 
   /// Create a new image from a resource embedded in this executable or library.
+  ///
+  /// ## Examples
+  ///
+  /// The `resource_id` can be an `u16` wrapped as `PCWSTR(1 as _)` or a wide string like `w!("icon")`
+  ///
+  /// ```no_run
+  /// Image::from_resource(PCWSTR(1 as _), 32, 32);
+  /// Image::from_resource(w!("icon"), 32, 32);
+  /// ```
   #[cfg(windows)]
   pub fn from_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
     let width_i32 = width as i32;

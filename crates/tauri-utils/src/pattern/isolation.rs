@@ -104,7 +104,7 @@ impl Keys {
   /// Decrypts a message using the generated keys.
   pub fn decrypt(&self, raw: RawIsolationPayload<'_>) -> Result<Vec<u8>, Error> {
     let RawIsolationPayload { nonce, payload, .. } = raw;
-    let nonce: [u8; 12] = nonce.as_ref().try_into()?;
+    let nonce: [u8; 12] = nonce.try_into()?;
     self
       .aes_gcm
       .key
@@ -117,8 +117,8 @@ impl Keys {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawIsolationPayload<'a> {
-  nonce: Cow<'a, [u8]>,
-  payload: Cow<'a, [u8]>,
+  nonce: &'a [u8],
+  payload: &'a [u8],
   content_type: Cow<'a, str>,
 }
 

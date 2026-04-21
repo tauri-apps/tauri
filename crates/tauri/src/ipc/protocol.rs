@@ -251,6 +251,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
         cmd: String,
         callback: CallbackFn,
         error: CallbackFn,
+        #[serde(borrow)]
         payload: crate::utils::pattern::isolation::RawIsolationPayload<'a>,
         options: Option<RequestOptions>,
         #[serde(rename = "__TAURI_INVOKE_KEY__")]

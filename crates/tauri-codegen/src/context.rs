@@ -211,25 +211,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let default_window_icon = {
     if target == Target::Windows {
       // handle default window icons for Windows targets
-      let icon_path = find_icon(
-        &config,
-        &config_parent,
-        |i| i.ends_with(".ico"),
-        "icons/icon.ico",
-      );
-      if icon_path.exists() {
-        let icon = CachedIcon::new(&root, &icon_path)?;
-        quote!(::std::option::Option::Some(#icon))
-      } else {
-        let icon_path = find_icon(
-          &config,
-          &config_parent,
-          |i| i.ends_with(".png"),
-          "icons/icon.png",
-        );
-        let icon = CachedIcon::new(&root, &icon_path)?;
-        quote!(::std::option::Option::Some(#icon))
-      }
+      quote!(::std::option::Option::Some(#root::image::Image::from_app_icon()))
     } else {
       // handle default window icons for Unix targets
       let icon_path = find_icon(

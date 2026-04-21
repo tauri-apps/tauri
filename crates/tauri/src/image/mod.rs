@@ -9,6 +9,22 @@ pub(crate) mod plugin;
 use std::borrow::Cow;
 use std::sync::Arc;
 
+#[cfg(windows)]
+use windows::{
+  core::PCWSTR,
+  Win32::{
+    Graphics::Gdi::{
+      CreateCompatibleDC, CreateDIBSection, DeleteDC, GetDC, ReleaseDC, SelectObject, BITMAPINFO,
+      BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+    },
+    System::LibraryLoader::GetModuleHandleW,
+    UI::WindowsAndMessaging::{
+      DrawIconEx, LoadImageW, DI_IMAGE, HICON, IDI_APPLICATION, IMAGE_ICON, LR_DEFAULTSIZE,
+      LR_SHARED,
+    },
+  },
+};
+
 use crate::{Resource, ResourceId, ResourceTable};
 
 /// An RGBA Image in row-major order from top to bottom.
@@ -96,6 +112,103 @@ impl<'a> Image<'a> {
   pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> crate::Result<Self> {
     let bytes = std::fs::read(path)?;
     Self::from_bytes(&bytes)
+  }
+
+  /// test
+  #[cfg(windows)]
+  pub fn from_app_icon() -> Self {
+    Image::from_resource(IDI_APPLICATION, 64, 64)
+  }
+
+  /// test
+  #[cfg(windows)]
+  pub fn from_resource(resource_id: PCWSTR, width: u32, height: u32) -> Self {
+    let width = width as i32;
+    let height = height as i32;
+    let color_depth_bytes = 4;
+    let handle = unsafe {
+      LoadImageW(
+        GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
+        resource_id,
+        IMAGE_ICON,
+        width,
+        height,
+        LR_DEFAULTSIZE | LR_SHARED,
+      )
+      .unwrap()
+    };
+
+    let hdc = unsafe { CreateCompatibleDC(None) };
+
+    let mut bitmap_info = BITMAPINFO::default();
+    bitmap_info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
+    bitmap_info.bmiHeader.biWidth = width;
+    // nagative value for top-down
+    bitmap_info.bmiHeader.biHeight = -height;
+    bitmap_info.bmiHeader.biPlanes = 1;
+    bitmap_info.bmiHeader.biBitCount = color_depth_bytes * 8;
+    bitmap_info.bmiHeader.biCompression = BI_RGB.0;
+
+    let h_dc_bitmap = unsafe { GetDC(None) };
+
+    let mut pv_image_bits = std::ptr::null_mut();
+
+    let hbitmap = unsafe {
+      CreateDIBSection(
+        Some(h_dc_bitmap),
+        &bitmap_info,
+        DIB_RGB_COLORS,
+        &mut pv_image_bits,
+        None,
+        0,
+      )
+      .unwrap()
+    };
+
+    unsafe { ReleaseDC(None, h_dc_bitmap) };
+
+    let h_bitmap_old = unsafe { SelectObject(hdc, hbitmap.into()) };
+
+    unsafe {
+      DrawIconEx(
+        hdc,
+        0,
+        0,
+        HICON(handle.0),
+        width,
+        height,
+        0,
+        None,
+        // We use `DI_NORMAL` instead of `DI_NORMAL` here so it doesn't apply premultiplied alpha values
+        DI_IMAGE,
+      )
+      .unwrap()
+    };
+
+    let mut bgra = unsafe {
+      std::slice::from_raw_parts(
+        pv_image_bits as *mut u8,
+        (width * height * color_depth_bytes as i32) as usize,
+      )
+      .to_owned()
+    };
+
+    let rgba = {
+      for px in bgra.chunks_exact_mut(color_depth_bytes as usize) {
+        // Swap Blue and Red channels
+        px.swap(0, 2);
+      }
+      bgra
+    };
+
+    let image = Image::new_owned(rgba, width as u32, height as u32);
+
+    unsafe {
+      SelectObject(hdc, h_bitmap_old);
+      DeleteDC(hdc).unwrap();
+    }
+
+    image
   }
 
   /// Returns the RGBA data for this image, in row-major order from top to bottom.

@@ -384,6 +384,29 @@ impl<R: Runtime> PredefinedMenuItem<R> {
     Ok(Self(Arc::new(item)))
   }
 
+  /// Bring All to Front menu item
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux:** Unsupported.
+  pub fn bring_all_to_front<M: Manager<R>>(manager: &M, text: Option<&str>) -> crate::Result<Self> {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.map(|t| t.to_owned());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::PredefinedMenuItem::bring_all_to_front(text.as_deref());
+      PredefinedMenuItemInner {
+        id: item.id().clone(),
+        inner: Some(item),
+        app_handle,
+      }
+    })?;
+
+    Ok(Self(Arc::new(item)))
+  }
+
   /// Returns a unique identifier associated with this menu item.
   pub fn id(&self) -> &MenuId {
     &self.0.id

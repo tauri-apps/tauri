@@ -283,7 +283,7 @@ mod tests {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use proc_macro2::TokenStream;
   use quote::{quote, ToTokens, TokenStreamExt};

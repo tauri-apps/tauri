@@ -1896,6 +1896,22 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
+  /// Evaluate JavaScript with callback function on this webview.
+  /// The evaluation result will be serialized into a JSON string and passed to the callback function.
+  ///
+  /// Exception is ignored because of the limitation on Windows. You can catch it yourself and return as string as a workaround.
+  pub fn eval_with_callback(
+    &self,
+    js: impl Into<String>,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .eval_script_with_callback(js.into(), callback)
+      .map_err(Into::into)
+  }
+
   /// Register a JS event listener and return its identifier.
   pub(crate) fn listen_js(
     &self,
@@ -2272,6 +2288,16 @@ impl<R: Runtime> ManagerBase<R> for Webview<R> {
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     &self.app_handle
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    Some(self.window().activity_name())
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    Some(self.window().scene_identifier())
   }
 }
 

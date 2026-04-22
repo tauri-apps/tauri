@@ -902,21 +902,20 @@ interface WebviewOptions {
    *
    * **This option does not disable password or credit card autofill.**
    *
-   * When set to `true`, the WebView will not automatically populate general form
+   * When set to `false`, the WebView will not automatically populate general form
    * fields using previously stored data such as addresses or contact information.
    *
-   * If not specified, this is `false` by default.
+   * If not specified, this is `true` by default.
    *
    * ## Platform-specific
    *
    * - **Windows**: Supported. WebView2's autofill feature (called "Suggestions")
-   *   may not honor `autocomplete="off"` on input elements in some cases. When
-   *   this option is `true`, that general autofill behavior is disabled.
+   *   may not honor `autocomplete="off"` on input elements in some cases.
    * - **Linux / Android / iOS / macOS**: Unsupported and performs no operation.
    *
    * @since 2.11.0
    */
-  disableAutofill?: boolean
+  generalAutofillEnabled?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

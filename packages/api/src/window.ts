@@ -2540,26 +2540,6 @@ interface WindowOptions {
    * By default the system uses the foreground scene.
    */
   requestedBySceneIdentifier?: string
-  /**
-   * Controls the WebView's browser-level general autofill behavior.
-   *
-   * **This option does not disable password or credit card autofill.**
-   *
-   * When set to `true`, the WebView will not automatically populate general form
-   * fields using previously stored data such as addresses or contact information.
-   *
-   * If not specified, this is `false` by default.
-   *
-   * ## Platform-specific
-   *
-   * - **Windows**: Supported. WebView2's autofill feature (called "Suggestions")
-   *   may not honor `autocomplete="off"` on input elements in some cases. When
-   *   this option is `true`, that general autofill behavior is disabled.
-   * - **Linux / Android / iOS / macOS**: Unsupported and performs no operation.
-   *
-   * @since 2.11.0
-   */
-  disableAutofill?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

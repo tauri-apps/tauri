@@ -2280,7 +2280,7 @@ pub struct WindowConfig {
   ///   elements in some cases.
   /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
   ///   operation.
-  #[serde(default, alias = "disable-autofill")]
+  #[serde(default, alias = "general-autofill-enabled")]
   pub general_autofill_enabled: bool,
 }
 

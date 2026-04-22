@@ -413,6 +413,10 @@ wrap_app! {
       ))
     }
 
+    fn render_process_handler(&self) -> Option<RenderProcessHandler> {
+      Some(crate::notification::NotifyRenderProcessHandler::new())
+    }
+
     fn on_before_command_line_processing(
       &self,
       _process_type: Option<&CefString>,

@@ -2105,9 +2105,13 @@ pub fn run_cef_helper_process() {
     loader
   };
 
+  let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
+
+  let mut app = crate::notification::NotifyApp::new();
+
   cef::execute_process(
     Some(args.as_main_args()),
-    None::<&mut cef::App>,
+    Some(&mut app),
     std::ptr::null_mut(),
   );
 }

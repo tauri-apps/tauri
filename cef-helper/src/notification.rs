@@ -59,6 +59,16 @@ wrap_render_process_handler! {
       // This global may not exist in every frame (e.g. normal page contexts
       // don't expose SWRegistration directly). Silently skip if absent.
       install_sw_shim(&global, &origin);
+
+      // --- navigator.permissions.query shim ---
+      // Slack checks navigator.permissions.query({ name: 'notifications' })
+      // before showing its "needs permission" banner. CEF's Permissions API
+      // returns "prompt" because no native browser grant exists. We can't
+      // patch the Blink platform object directly (set_value_bykey is silently
+      // ignored on platform objects), but Object.defineProperty on navigator
+      // itself works — it replaces the getter on the JS-visible navigator
+      // wrapper, which is the same mechanism ua_spoof.js uses for userAgent.
+      install_permissions_query_shim(context);
     }
   }
 }
@@ -244,6 +254,44 @@ wrap_v8_handler! {
       1
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// navigator.permissions.query shim — Object.defineProperty on navigator.
+//
+// Blink platform objects (Permissions, Navigator internals) silently discard
+// set_value_bykey calls, so we can't replace permissions.query directly.
+// What DOES work is redefining the `permissions` getter on the navigator
+// wrapper object itself — the same technique ua_spoof.js uses for userAgent.
+// We do it here in on_context_created so it runs before any page JS.
+// ---------------------------------------------------------------------------
+
+fn install_permissions_query_shim(context: &V8Context) {
+  let js = concat!(
+    "(function(){",
+    "try{",
+    "var p=navigator&&navigator.permissions;",
+    "if(!p||typeof p.query!=='function')return;",
+    "var q=p.query.bind(p);",
+    "var f={query:function(d){",
+    "if(d&&d.name==='notifications')",
+    "return Promise.resolve({state:'granted',onchange:null});",
+    "return q(d);",
+    "}};",
+    "Object.defineProperty(navigator,'permissions',",
+    "{get:function(){return f;},configurable:true});",
+    "}catch(_){}",
+    "})();"
+  );
+  let mut retval: Option<V8Value> = None;
+  let mut exception: Option<V8Exception> = None;
+  context.eval(
+    Some(&CefString::from(js)),
+    Some(&CefString::from("openhuman://notification-perm-shim")),
+    0,
+    Some(&mut retval),
+    Some(&mut exception),
+  );
 }
 
 // ---------------------------------------------------------------------------

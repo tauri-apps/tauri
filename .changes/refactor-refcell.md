@@ -3,5 +3,6 @@
 "tauri-runtime-wry": patch:bug
 ---
 
-Refactor RefCell usage for `tauri-runtime-wry` internal `WindowsStore` to prevent panics
-on previously unchecked borrows.
+Harden `tauri-runtime-wry` window storage with a `WindowsStore` newtype that routes all
+access through fallible borrow methods, preventing recurrence of the panic class narrowly
+fixed in #14862.

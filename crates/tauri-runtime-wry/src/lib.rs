@@ -4929,56 +4929,6 @@ You may have it installed on another user account, but it is not available for t
         tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
         #[cfg(desktop)]
         tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
-          let windows = &context.main_thread.windows.0;
-          let webview = windows
-            .borrow()
-            .get(&window_id)
-            .unwrap()
-            .webviews
-            .first()
-            .unwrap()
-            .clone();
-
-          #[cfg(desktop)]
-          wry::NewWindowResponse::Create {
-            #[cfg(target_os = "macos")]
-            webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
-            #[cfg(any(
-              target_os = "linux",
-              target_os = "dragonfly",
-              target_os = "freebsd",
-              target_os = "netbsd",
-              target_os = "openbsd",
-            ))]
-            webview: webview.webview(),
-            #[cfg(windows)]
-            webview: webview.webview(),
-          }
-        }
-        tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
-      }
-      let Ok(url) = url.parse() else {
-        return wry::NewWindowResponse::Deny;
-      };
-      let response = new_window_handler(
-        url,
-        tauri_runtime::webview::NewWindowFeatures::new(
-          features.size,
-          features.position,
-          tauri_runtime::webview::NewWindowOpener {
-            #[cfg(desktop)]
-            webview: features.opener.webview,
-            #[cfg(windows)]
-            environment: features.opener.environment,
-            #[cfg(target_os = "macos")]
-            target_configuration: features.opener.target_configuration,
-          },
-        ),
-      );
-      match response {
-        tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
-        #[cfg(desktop)]
-        tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
           match context
             .main_thread
             .windows
@@ -5177,21 +5127,19 @@ You may have it installed on another user account, but it is not available for t
       let context_ = context.clone();
       let window_id_ = window_id.clone();
       webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
-        if let Ok(windows) = &context_.main_thread.windows.0.try_borrow() {
-          if let Some(window) = windows.get(&*window_id_.lock().unwrap()) {
-            if let Some(webview) = window.webviews.iter().find(|w| w.id == id) {
-              match webview.reload() {
-                Ok(_) => log::debug!("webview reloaded"),
-                Err(e) => log::error!("failed to reload webview: {}", e),
-              }
-            } else {
-              log::error!("failed to find webview")
+        let window_id = *window_id_.lock().unwrap();
+        let result = context_.main_thread.windows.window(window_id, |window| {
+          if let Some(webview) = window.webviews.iter().find(|w| w.id == id) {
+            match webview.reload() {
+              Ok(_) => log::debug!("webview reloaded"),
+              Err(e) => log::error!("failed to reload webview: {e}"),
             }
           } else {
-            log::error!("failed to get window")
+            log::error!("failed to find webview");
           }
-        } else {
-          log::error!("failed to borrow windows")
+        });
+        if let Err(e) = result {
+          log::error!("on_web_content_process_terminate: {e}");
         }
       });
     }

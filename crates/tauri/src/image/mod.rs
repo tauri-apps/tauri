@@ -13,13 +13,13 @@ use std::sync::Arc;
 use windows::{
   core::{Owned, PCWSTR},
   Win32::{
+    Foundation::GetLastError,
     Graphics::Gdi::{
-      CreateCompatibleDC, CreateDIBSection, DeleteDC, GetDC, ReleaseDC, SelectObject, BITMAPINFO,
-      BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ,
+      CreateCompatibleDC, DeleteDC, GetDIBits, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
-      DrawIconEx, LoadImageW, DI_IMAGE, HICON, IMAGE_ICON, LR_DEFAULTSIZE, LR_SHARED,
+      GetIconInfo, LoadImageW, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTSIZE, LR_SHARED,
     },
   },
 };
@@ -162,46 +162,33 @@ impl<'a> Image<'a> {
     bitmap_info.bmiHeader.biWidth = width_i32;
     // nagative value for top-down
     bitmap_info.bmiHeader.biHeight = -height_i32;
-    bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biBitCount = color_depth_bytes * 8;
+    bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biCompression = BI_RGB.0;
 
-    let mut pv_image_bits = std::ptr::null_mut();
+    let mut icon_info = ICONINFO::default();
+    unsafe { GetIconInfo(*hicon, &mut icon_info).map_err(crate::Error::ImageFromResource)? };
 
-    let hbitmap: Owned<HGDIOBJ> = unsafe {
-      let h_dc_bitmap = GetDC(None);
-      let hbitmap = CreateDIBSection(
-        Some(h_dc_bitmap),
-        &bitmap_info,
-        DIB_RGB_COLORS,
-        &mut pv_image_bits,
-        None,
-        0,
-      );
-      ReleaseDC(None, h_dc_bitmap);
-      Owned::new(hbitmap.map_err(crate::Error::ImageFromResource)?.into())
-    };
-
-    let hdc = unsafe { CreateCompatibleDC(None) };
-    let _h_bitmap_old = unsafe { Owned::new(SelectObject(hdc, *hbitmap)) };
-
+    let image_bytes = (width_i32 * height_i32 * color_depth_bytes as i32) as usize;
+    let mut bgra: Vec<u8> = Vec::with_capacity(image_bytes);
     unsafe {
-      let result = DrawIconEx(
-        hdc, 0, 0, *hicon, width_i32, height_i32, 0, None,
-        // We use `DI_NORMAL` instead of `DI_NORMAL` here so it doesn't apply premultiplied alpha values
-        DI_IMAGE,
+      let hdc = CreateCompatibleDC(None);
+      let result = GetDIBits(
+        hdc,
+        icon_info.hbmColor,
+        0,
+        height,
+        Some(bgra.as_mut_ptr() as _),
+        &mut bitmap_info,
+        DIB_RGB_COLORS,
       );
       let _ = DeleteDC(hdc);
-      result.map_err(crate::Error::ImageFromResource)?;
-    };
+      if result == 0 {
+        return Err(crate::Error::ImageFromResource(GetLastError().into()));
+      }
+      bgra.set_len(image_bytes);
+    }
 
-    let mut bgra = unsafe {
-      std::slice::from_raw_parts(
-        pv_image_bits as *mut u8,
-        (width_i32 * height_i32 * color_depth_bytes as i32) as usize,
-      )
-      .to_owned()
-    };
     let rgba = {
       for px in bgra.chunks_exact_mut(color_depth_bytes as usize) {
         // Swap Blue and Red channels

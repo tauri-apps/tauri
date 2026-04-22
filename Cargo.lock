@@ -7483,9 +7483,9 @@ dependencies = [
 
 [[package]]
 name = "scc"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28e1c91382686d21b5ac7959341fcb9780fa7c03773646995a87c950fa7be640"
+checksum = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc"
 dependencies = [
  "sdd",
 ]
@@ -7574,9 +7574,9 @@ dependencies = [
 
 [[package]]
 name = "sdd"
-version = "3.0.5"
+version = "3.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "478f121bb72bbf63c52c93011ea1791dca40140dfe13f8336c4c5ac952c33aa9"
+checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
 
 [[package]]
 name = "seahash"

@@ -20,5 +20,5 @@ ignore = [
   # rustls, fixed when updating to apple-codesign 0.28.0
   "RUSTSEC-2026-0099",
   # rustls, fixed when updating to apple-codesign 0.28.0
-  "RUSTSEC-2026-0104"
+  "RUSTSEC-2026-0104",
 ]

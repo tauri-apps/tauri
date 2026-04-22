@@ -6569,9 +6569,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.9.3"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ec095654a25171c2124e9e3393a930bddbffdc939556c914957a4c3e0a87166"
+checksum = "44c5af06bb1b7d3216d91932aed5265164bf384dc89cd6ba05cf59a35f5f76ea"
 dependencies = [
  "rand_chacha 0.9.0",
  "rand_core 0.9.3",
@@ -8909,7 +8909,7 @@ dependencies = [
  "phf 0.11.3",
  "plist",
  "pretty_assertions",
- "rand 0.9.3",
+ "rand 0.9.4",
  "rayon",
  "regex",
  "resvg",
@@ -9027,7 +9027,7 @@ dependencies = [
  "os_pipe",
  "p12",
  "plist",
- "rand 0.9.3",
+ "rand 0.9.4",
  "regex",
  "serde",
  "serde_json",
@@ -9843,7 +9843,7 @@ dependencies = [
  "http 1.3.1",
  "httparse",
  "log",
- "rand 0.9.3",
+ "rand 0.9.4",
  "sha1",
  "thiserror 2.0.12",
  "utf-8",

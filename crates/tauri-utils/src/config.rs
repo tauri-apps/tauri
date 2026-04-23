@@ -2270,6 +2270,25 @@ pub struct WindowConfig {
   /// By default the system uses the foreground scene.
   #[serde(default, alias = "requested-by-scene-identifier")]
   pub requested_by_scene_identifier: Option<String>,
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// If not specified, this is `true` by default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[serde(default = "default_true", alias = "general-autofill-enabled")]
+  pub general_autofill_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -2335,6 +2354,7 @@ impl Default for WindowConfig {
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
+      general_autofill_enabled: true,
     }
   }
 }
@@ -3872,6 +3892,7 @@ mod build {
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
+      let general_autofill_enabled = self.general_autofill_enabled;
 
       literal_struct!(
         tokens,
@@ -3935,7 +3956,8 @@ mod build {
         scroll_bar_style,
         activity_name,
         created_by_activity_name,
-        requested_by_scene_identifier
+        requested_by_scene_identifier,
+        general_autofill_enabled
       );
     }
   }

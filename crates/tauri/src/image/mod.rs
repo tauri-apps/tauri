@@ -125,7 +125,7 @@ impl<'a> Image<'a> {
 
   /// Create a new image from an icon resource embedded in this executable or library.
   ///
-  /// **Note**: This might take ~2ms for [`LoadImageW`] to load the image.
+  /// **Note**: This might take ~2ms for [`LoadImageW`] to load the image for the first time.
   ///
   /// ## Examples
   ///

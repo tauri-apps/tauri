@@ -167,8 +167,8 @@ pub enum Error {
   #[error(transparent)]
   TokioOneshotRecv(#[from] tokio::sync::oneshot::error::RecvError),
   #[cfg(windows)]
-  /// [`crate::image::Image::from_resource`] failed
-  #[error("Can not load Image from resources: {0}")]
+  /// [`crate::image::Image::from_icon_resource`] failed
+  #[error("Can not load Image from icon resources: {0}")]
   ImageFromResource(windows::core::Error),
 }
 

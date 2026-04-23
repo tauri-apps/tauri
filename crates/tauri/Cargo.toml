@@ -86,7 +86,7 @@ cookie = "0.18"
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.17", default-features = false, features = [
+muda = { version = "0.18", default-features = false, features = [
   "serde",
   "gtk",
 ] }

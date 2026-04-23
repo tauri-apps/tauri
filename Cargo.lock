@@ -4759,6 +4759,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "muda"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b20e2339ef964849496bd6dab1bcd8ceb7a3a5a268dc64c8b84c833e75d66dab"
+dependencies = [
+ "crossbeam-channel",
+ "dpi",
+ "gtk",
+ "keyboard-types",
+ "libxdo",
+ "objc2 0.6.4",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.0",
+ "once_cell",
+ "png",
+ "serde",
+ "thiserror 2.0.12",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
 name = "napi"
 version = "3.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8751,7 +8773,7 @@ dependencies = [
  "libc",
  "log",
  "mime",
- "muda",
+ "muda 0.18.0",
  "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",
@@ -9782,7 +9804,7 @@ dependencies = [
  "crossbeam-channel",
  "dirs 6.0.0",
  "libappindicator",
- "muda",
+ "muda 0.17.1",
  "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-core-foundation",

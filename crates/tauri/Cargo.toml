@@ -90,7 +90,7 @@ muda = { version = "0.17", default-features = false, features = [
   "serde",
   "gtk",
 ] }
-tray-icon = { version = "0.21", default-features = false, features = [
+tray-icon = { version = "0.22", default-features = false, features = [
   "serde",
 ], optional = true }
 

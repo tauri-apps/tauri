@@ -3561,7 +3561,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e795dff5605e0f04bff85ca41b51a96b83e80b281e96231bcaaf1ac35103371"
 dependencies = [
  "byteorder",
- "png",
+ "png 0.17.16",
 ]
 
 [[package]]
@@ -3747,7 +3747,7 @@ dependencies = [
  "gif",
  "image-webp",
  "num-traits",
- "png",
+ "png 0.17.16",
  "qoi",
  "ravif",
  "rayon",
@@ -4752,7 +4752,7 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",
  "once_cell",
- "png",
+ "png 0.17.16",
  "serde",
  "thiserror 2.0.12",
  "windows-sys 0.60.2",
@@ -6272,6 +6272,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82151a2fc869e011c153adc57cf2789ccb8d9906ce52c0b39a6b5697749d7526"
 dependencies = [
  "bitflags 1.3.2",
+ "crc32fast",
+ "fdeflate",
+ "flate2",
+ "miniz_oxide",
+]
+
+[[package]]
+name = "png"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61"
+dependencies = [
+ "bitflags 2.7.0",
  "crc32fast",
  "fdeflate",
  "flate2",
@@ -8957,7 +8970,7 @@ dependencies = [
  "ico",
  "json-patch",
  "plist",
- "png",
+ "png 0.17.16",
  "proc-macro2",
  "quote",
  "semver",
@@ -9011,7 +9024,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03b7eb4d0d43724ba9ba6a6717420ee68aee377816a3edbb45db8c18862b1431"
 dependencies = [
  "byteorder",
- "png",
+ "png 0.17.16",
 ]
 
 [[package]]
@@ -9396,7 +9409,7 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "log",
- "png",
+ "png 0.17.16",
  "tiny-skia-path",
 ]
 
@@ -9775,9 +9788,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2da75ec677957aa21f6e0b361df0daab972f13a5bee3606de0638fd4ee1c666a"
+checksum = "93e1484378c343c5a9b291188fa58917c7184967683f8cfe4a05461986970553"
 dependencies = [
  "crossbeam-channel",
  "dirs 6.0.0",
@@ -9789,10 +9802,10 @@ dependencies = [
  "objc2-core-graphics",
  "objc2-foundation 0.3.0",
  "once_cell",
- "png",
+ "png 0.18.1",
  "serde",
  "thiserror 2.0.12",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

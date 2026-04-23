@@ -634,6 +634,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         let version = (v.major << 48) | (v.minor << 32) | (v.patch << 16);
         res.set_version_info(VersionInfo::FILEVERSION, version);
         res.set_version_info(VersionInfo::PRODUCTVERSION, version);
+        res.set("FileVersion", version_str);
+        res.set("ProductVersion", version_str);
       }
     }
 

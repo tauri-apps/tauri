@@ -2072,6 +2072,13 @@ impl<T: UserEvent> CefRuntime<T> {
       1
     );
 
+    // Initialize GTK for system tray support on Linux.
+    // The muda crate (used by TrayIconBuilder) requires GTK to be initialized.
+    #[cfg(target_os = "linux")]
+    {
+      gtk::init().ok();
+    }
+
     let main_thread_id = thread::current().id();
     let context = RuntimeContext {
       main_thread_task_runner: cef::task_runner_get_for_current_thread().expect("null task runner"),

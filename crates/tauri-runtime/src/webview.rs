@@ -851,6 +851,7 @@ impl WebviewAttributes {
     self
   }
 }
+
 /// IPC handler.
 pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;
 

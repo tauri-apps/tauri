@@ -256,8 +256,8 @@ impl WindowsAttributes {
   /// Creates the default attribute set.
   pub fn new() -> Self {
     Self {
-      window_icon_path: Default::default(),
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
+      window_icon_path: None,
       append_rc_content: Vec::new(),
     }
   }
@@ -267,13 +267,15 @@ impl WindowsAttributes {
   pub fn new_without_app_manifest() -> Self {
     Self {
       app_manifest: None,
-      window_icon_path: Default::default(),
+      window_icon_path: None,
       append_rc_content: Vec::new(),
     }
   }
 
-  /// Sets the icon to use on the window. Currently only used on Windows.
-  /// It must be in `ico` format. Defaults to `icons/icon.ico`.
+  /// Sets the icon to use as the application icon and default window icon.
+  /// It must be in `ico` format.
+  ///
+  /// If not set, we will search for a `.ico` from the `bundle > icon` in your tauri config file, then `icons/icon.ico`.
   #[must_use]
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
     self
@@ -664,7 +666,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
 
     if window_icon_path.exists() {
-      // Keep this `name_id` in sync with the one in `tauri::image::Image::from_app_icon`
+      // Keep this `name_id` in sync with the one in `tauri::image::Image::from_app_icon_resource`
       //
       // `32512` has no special meaning here,
       // it was used because we misunderstood `IDI_APPLICATION` (`MAKEINTRESOURCE(32512)`)

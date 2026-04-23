@@ -114,13 +114,18 @@ impl<'a> Image<'a> {
   }
 
   /// Creates a new image from the application icon embedded in this executable or library.
+  ///
+  /// The application icon is currently the icon with `nameID 32512` we embedded through `tauri-build`,
+  /// this could change in the future.
   #[cfg(windows)]
-  pub fn from_app_icon(size: u32) -> crate::Result<Self> {
+  pub fn from_app_icon_resource(size: u32) -> crate::Result<Self> {
     // Make sure we keep this `resource_id` in sync with the one in `tauri-build`
-    Image::from_resource(PCWSTR(32512 as _), size, size)
+    Image::from_icon_resource(PCWSTR(32512 as _), size, size)
   }
 
-  /// Create a new image from a resource embedded in this executable or library.
+  /// Create a new image from an icon resource embedded in this executable or library.
+  ///
+  /// **Note**: This might take ~2ms for [`LoadImageW`] to load the image.
   ///
   /// ## Examples
   ///
@@ -133,7 +138,7 @@ impl<'a> Image<'a> {
   /// Image::from_resource(w!("icon"), 32, 32);
   /// ```
   #[cfg(windows)]
-  pub fn from_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
+  pub fn from_icon_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
     let width_i32 = width as i32;
     let height_i32 = height as i32;
     let color_depth_bytes = 4;

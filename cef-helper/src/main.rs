@@ -3,6 +3,7 @@ use cef::{args::Args, *};
 mod notification;
 
 fn main() {
+  eprintln!("[cef-helper-main] starting helper main");
   let args = Args::new();
 
   #[cfg(all(target_os = "macos", feature = "sandbox"))]
@@ -27,6 +28,7 @@ fn main() {
   let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
 
   let mut app = notification::NotifyApp::new();
+  eprintln!("[cef-helper-main] executing subprocess with NotifyApp");
   execute_process(
     Some(args.as_main_args()),
     Some(&mut app),

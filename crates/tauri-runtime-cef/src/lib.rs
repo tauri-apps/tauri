@@ -2089,6 +2089,7 @@ impl<T: UserEvent> CefRuntime<T> {
 /// Helper function for non-browser CEF processes (renderer, GPU, plugin, etc.).
 /// This should be called from the entry point macro when the process is not the browser process.
 pub fn run_cef_helper_process() {
+  log::info!("[cef-helper-bootstrap] run_cef_helper_process starting");
   let args = cef::args::Args::new();
 
   #[cfg(all(target_os = "macos", feature = "sandbox"))]
@@ -2108,6 +2109,7 @@ pub fn run_cef_helper_process() {
   let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
 
   let mut app = crate::notification::NotifyApp::new();
+  log::info!("[cef-helper-bootstrap] executing helper subprocess with NotifyApp");
 
   cef::execute_process(
     Some(args.as_main_args()),

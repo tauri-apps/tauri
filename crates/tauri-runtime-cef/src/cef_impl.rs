@@ -987,6 +987,7 @@ wrap_life_span_handler! {
             return;
           };
           let browser_id = browser.identifier();
+          crate::notification::unregister(browser_id);
 
           let (webview, is_last_in_window) = {
             let mut windows = self.context.windows.borrow_mut();
@@ -1219,6 +1220,15 @@ wrap_client! {
       };
       let silent = read_int(5) != 0;
       let origin = read_str(6);
+
+      log::info!(
+        "[cef-notify] ipc browser_id={} source={} title={:?} origin={} silent={}",
+        browser.identifier(),
+        read_int(0),
+        title,
+        origin,
+        silent
+      );
 
       crate::notification::dispatch(
         browser.identifier(),

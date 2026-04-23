@@ -2347,7 +2347,7 @@ impl Default for WindowConfig {
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
-      general_autofill_enabled: false,
+      general_autofill_enabled: true,
     }
   }
 }

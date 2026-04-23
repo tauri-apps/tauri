@@ -536,7 +536,7 @@ impl WebviewAttributes {
       javascript_disabled: false,
       allow_link_preview: true,
       scroll_bar_style: ScrollBarStyle::Default,
-      general_autofill_enabled: false,
+      general_autofill_enabled: true,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
       #[cfg(windows)]

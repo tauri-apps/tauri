@@ -5012,7 +5012,8 @@ You may have it installed on another user account, but it is not available for t
         _ => unreachable!(),
       });
 
-    webview_builder = webview_builder.with_general_autofill_enabled(webview_attributes.general_autofill_enabled);
+    webview_builder =
+      webview_builder.with_general_autofill_enabled(webview_attributes.general_autofill_enabled);
   }
 
   #[cfg(windows)]

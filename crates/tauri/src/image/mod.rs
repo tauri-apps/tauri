@@ -19,7 +19,7 @@ use windows::{
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
-      GetIconInfo, LoadImageW, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTSIZE, LR_SHARED,
+      GetIconInfo, LoadImageW, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR,
     },
   },
 };
@@ -155,12 +155,18 @@ impl<'a> Image<'a> {
           IMAGE_ICON,
           width_i32,
           height_i32,
-          LR_DEFAULTSIZE | LR_SHARED,
+          LR_DEFAULTCOLOR,
         )
         .map_err(crate::Error::ImageFromResource)?
         .0,
       ))
     };
+
+    let mut icon_info = ICONINFO::default();
+    unsafe { GetIconInfo(*hicon, &mut icon_info).map_err(crate::Error::ImageFromResource)? };
+
+    let image_bytes = (width_i32 * height_i32 * color_depth_bytes as i32) as usize;
+    let mut bgra: Vec<u8> = Vec::with_capacity(image_bytes);
 
     let mut bitmap_info = BITMAPINFO::default();
     bitmap_info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
@@ -171,11 +177,6 @@ impl<'a> Image<'a> {
     bitmap_info.bmiHeader.biPlanes = 1;
     bitmap_info.bmiHeader.biCompression = BI_RGB.0;
 
-    let mut icon_info = ICONINFO::default();
-    unsafe { GetIconInfo(*hicon, &mut icon_info).map_err(crate::Error::ImageFromResource)? };
-
-    let image_bytes = (width_i32 * height_i32 * color_depth_bytes as i32) as usize;
-    let mut bgra: Vec<u8> = Vec::with_capacity(image_bytes);
     unsafe {
       let hdc = CreateCompatibleDC(None);
       let result = GetDIBits(

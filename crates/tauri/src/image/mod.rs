@@ -134,8 +134,8 @@ impl<'a> Image<'a> {
   /// ```
   /// # use tauri::image::Image;
   /// # use windows::core::{w, PCWSTR};
-  /// Image::from_resource(PCWSTR(1 as _), 32, 32);
-  /// Image::from_resource(w!("icon"), 32, 32);
+  /// Image::from_icon_resource(PCWSTR(1 as _), 32, 32);
+  /// Image::from_icon_resource(w!("icon"), 32, 32);
   /// ```
   #[cfg(windows)]
   pub fn from_icon_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {

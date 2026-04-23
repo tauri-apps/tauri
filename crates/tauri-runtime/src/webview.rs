@@ -494,7 +494,6 @@ impl From<&WindowConfig> for WebviewAttributes {
     }
     builder.javascript_disabled = config.javascript_disabled;
     builder.allow_link_preview = config.allow_link_preview;
-    builder.general_autofill_enabled = config.general_autofill_enabled;
     #[cfg(target_os = "ios")]
     if config.disable_input_accessory_view {
       builder

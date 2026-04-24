@@ -322,7 +322,7 @@ impl FromStr for CapabilityFile {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use std::convert::identity;
 

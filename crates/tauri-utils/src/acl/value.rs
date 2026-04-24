@@ -145,7 +145,7 @@ impl From<toml::Value> for Value {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build {
   use std::convert::identity;
 

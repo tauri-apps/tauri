@@ -106,7 +106,10 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
     // Fall back to non-PNG files for any missing sizes.
     for icon_path in settings.icon_files() {
       let icon_path = icon_path?;
-      if icon_path.extension() == Some(OsStr::new("png")) {
+      if icon_path
+        .extension()
+        .map_or(false, |ext| ext == "png" || ext == "car")
+      {
         continue;
       } else if icon_path.extension() == Some(OsStr::new("icns")) {
         let icon_family = icns::IconFamily::read(File::open(&icon_path)?)?;

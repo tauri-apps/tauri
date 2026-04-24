@@ -59,7 +59,7 @@ pub struct Options {
   )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
@@ -195,14 +195,22 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     dirs.tauri,
   )?;
   let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
-  interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
   let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
   let (mut config, _) = get_config(
     &app,
     &tauri_config,
     &build_options.features,
-    &Default::default(),
+    &CliOptions {
+      dev: false,
+      features: build_options.features.clone(),
+      args: build_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: build_options.config.clone(),
+      target_device: None,
+    },
     dirs.tauri,
   )?;
 
@@ -235,8 +243,15 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
   if dirs.tauri.join("Info.ios.plist").exists() {
     src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
-    src_plists.push(info_plist.clone().into());
+  {
+    if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
+      src_plists.push(info_plist.clone().into());
+    }
+    if let Some(associations) = tauri_config.bundle.file_associations.as_ref() {
+      if let Some(file_associations) = tauri_utils::config::file_associations_plist(associations) {
+        src_plists.push(file_associations.into());
+      }
+    }
   }
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist
@@ -328,7 +343,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     &mut config,
     &mut env,
     noise_level,
-    &dirs,
+    dirs,
   )?;
 
   if open {

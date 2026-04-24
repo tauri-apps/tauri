@@ -58,8 +58,7 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-pub(crate) type NewWindowHandler<R> =
-  dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync;
+pub(crate) type NewWindowHandler<R> = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
@@ -581,12 +580,9 @@ tauri::Builder::default()
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.
-  /// - **Windows**: The closure is executed on a separate thread to prevent a deadlock.
   ///
   /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
-  pub fn on_new_window<
-    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
-  >(
+  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -724,7 +720,6 @@ tauri::Builder::default()
         as Box<
           dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
             + Send
-            + Sync
             + 'static,
         >
     });
@@ -1181,6 +1176,29 @@ fn main() {
   #[must_use]
   pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
     self.webview_attributes = self.webview_attributes.scroll_bar_style(style);
+    self
+  }
+
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// By default, this is `true`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[must_use]
+  pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
+    self.webview_attributes = self.webview_attributes.general_autofill_enabled(enabled);
     self
   }
 
@@ -1901,6 +1919,22 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
+  /// Evaluate JavaScript with callback function on this webview.
+  /// The evaluation result will be serialized into a JSON string and passed to the callback function.
+  ///
+  /// Exception is ignored because of the limitation on Windows. You can catch it yourself and return as string as a workaround.
+  pub fn eval_with_callback(
+    &self,
+    js: impl Into<String>,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .eval_script_with_callback(js.into(), callback)
+      .map_err(Into::into)
+  }
+
   /// Register a JS event listener and return its identifier.
   pub(crate) fn listen_js(
     &self,
@@ -2277,6 +2311,16 @@ impl<R: Runtime> ManagerBase<R> for Webview<R> {
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     &self.app_handle
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    Some(self.window().activity_name())
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    Some(self.window().scene_identifier())
   }
 }
 

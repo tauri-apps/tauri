@@ -168,27 +168,18 @@ impl EmbeddedAssets {
   /// Get an asset by key.
   #[cfg(feature = "compression")]
   pub fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
-    self
-      .assets
-      .get(key.as_ref())
-      .map(|&(mut asdf)| {
-        // with the exception of extremely small files, output should usually be
-        // at least as large as the compressed version.
-        let mut buf = Vec::with_capacity(asdf.len());
-        brotli::BrotliDecompress(&mut asdf, &mut buf).map(|()| buf)
-      })
-      .and_then(Result::ok)
-      .map(Cow::Owned)
+    let &(mut asdf) = self.assets.get(key.as_ref())?;
+    // with the exception of extremely small files, output should usually be
+    // at least as large as the compressed version.
+    let mut buf = Vec::with_capacity(asdf.len());
+    brotli::BrotliDecompress(&mut asdf, &mut buf).ok()?;
+    Some(Cow::Owned(buf))
   }
 
   /// Get an asset by key.
   #[cfg(not(feature = "compression"))]
   pub fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
-    self
-      .assets
-      .get(key.as_ref())
-      .copied()
-      .map(|a| Cow::Owned(a.to_vec()))
+    Some(Cow::Borrowed(self.assets.get(key.as_ref())?))
   }
 
   /// Iterate on the assets.

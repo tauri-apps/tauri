@@ -464,7 +464,7 @@ pub fn build() {
   }
 }
 
-fn version_u64(v: &semver::Version) -> u64 {
+fn to_winres_version(v: &semver::Version) -> u64 {
   let build = v
     .build
     .parse::<u16>()
@@ -641,7 +641,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if let Some(version_str) = &config.version {
       if let Ok(v) = Version::parse(version_str) {
-        let version = version_u64(&v);
+        let version = to_winres_version(&v);
         res.set_version_info(VersionInfo::FILEVERSION, version);
         res.set_version_info(VersionInfo::PRODUCTVERSION, version);
         res.set("FileVersion", version_str);
@@ -739,7 +739,7 @@ mod tests {
     let version = Version::parse("1.2.3+42").unwrap();
 
     assert_eq!(
-      crate::version_u64(&version),
+      crate::to_winres_version(&version),
       (1 << 48) | (2 << 32) | (3 << 16) | 42
     );
   }
@@ -748,20 +748,20 @@ mod tests {
   fn version_ignores_non_numeric_composite_build_metadata() {
     let version = Version::parse("1.2.3+42.sha").unwrap();
 
-    assert_eq!(crate::version_u64(&version), (1 << 48) | (2 << 32) | (3 << 16));
+    assert_eq!(crate::to_winres_version(&version), (1 << 48) | (2 << 32) | (3 << 16));
   }
 
   #[test]
   fn version_ignores_non_numeric_build_metadata() {
     let version = Version::parse("1.2.3+abc").unwrap();
 
-    assert_eq!(crate::version_u64(&version), (1 << 48) | (2 << 32) | (3 << 16));
+    assert_eq!(crate::to_winres_version(&version), (1 << 48) | (2 << 32) | (3 << 16));
   }
 
   #[test]
   fn version_ignores_build_metadata_that_does_not_fit_in_u16() {
     let version = Version::parse("1.2.3+70000").unwrap();
 
-    assert_eq!(crate::version_u64(&version), (1 << 48) | (2 << 32) | (3 << 16));
+    assert_eq!(crate::to_winres_version(&version), (1 << 48) | (2 << 32) | (3 << 16));
   }
 }

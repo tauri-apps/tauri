@@ -464,18 +464,14 @@ pub fn build() {
   }
 }
 
-fn product_version_u64(v: &semver::Version) -> u64 {
-  (v.major << 48) | (v.minor << 32) | (v.patch << 16)
-}
-
-fn file_version_u64(v: &semver::Version) -> u64 {
+fn version_u64(v: &semver::Version) -> u64 {
   let build = v
     .build
     .parse::<u16>()
     .map(u64::from)
     .unwrap_or(0);
 
-  product_version_u64(v) | build
+  (v.major << 48) | (v.minor << 32) | (v.patch << 16) | build
 }
 
 /// Same as [`build()`], but takes an extra configuration argument, and does not panic.
@@ -645,9 +641,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if let Some(version_str) = &config.version {
       if let Ok(v) = Version::parse(version_str) {
-        let product_version = product_version_u64(&v);
-        res.set_version_info(VersionInfo::FILEVERSION, file_version_u64(&v));
-        res.set_version_info(VersionInfo::PRODUCTVERSION, product_version);
+        let version = version_u64(&v);
+        res.set_version_info(VersionInfo::FILEVERSION, version);
+        res.set_version_info(VersionInfo::PRODUCTVERSION, version);
         res.set("FileVersion", version_str);
         res.set("ProductVersion", version_str);
       }
@@ -739,42 +735,33 @@ mod tests {
   use semver::Version;
 
   #[test]
-  fn file_version_uses_numeric_build_metadata() {
+  fn version_uses_numeric_build_metadata() {
     let version = Version::parse("1.2.3+42").unwrap();
 
     assert_eq!(
-      crate::file_version_u64(&version),
+      crate::version_u64(&version),
       (1 << 48) | (2 << 32) | (3 << 16) | 42
     );
   }
 
   #[test]
-  fn file_version_ignores_non_numeric_composite_build_metadata() {
+  fn version_ignores_non_numeric_composite_build_metadata() {
     let version = Version::parse("1.2.3+42.sha").unwrap();
 
-    assert_eq!(
-      crate::file_version_u64(&version),
-      crate::product_version_u64(&version)
-    );
+    assert_eq!(crate::version_u64(&version), (1 << 48) | (2 << 32) | (3 << 16));
   }
 
   #[test]
-  fn file_version_ignores_non_numeric_build_metadata() {
+  fn version_ignores_non_numeric_build_metadata() {
     let version = Version::parse("1.2.3+abc").unwrap();
 
-    assert_eq!(
-      crate::file_version_u64(&version),
-      crate::product_version_u64(&version)
-    );
+    assert_eq!(crate::version_u64(&version), (1 << 48) | (2 << 32) | (3 << 16));
   }
 
   #[test]
-  fn file_version_ignores_build_metadata_that_does_not_fit_in_u16() {
+  fn version_ignores_build_metadata_that_does_not_fit_in_u16() {
     let version = Version::parse("1.2.3+70000").unwrap();
 
-    assert_eq!(
-      crate::file_version_u64(&version),
-      crate::product_version_u64(&version)
-    );
+    assert_eq!(crate::version_u64(&version), (1 << 48) | (2 << 32) | (3 << 16));
   }
 }

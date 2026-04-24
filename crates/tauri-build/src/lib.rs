@@ -464,6 +464,20 @@ pub fn build() {
   }
 }
 
+fn version_u64(v: &semver::Version) -> u64 {
+  (v.major << 48) | (v.minor << 32) | (v.patch << 16)
+}
+
+fn file_version_u64(v: &semver::Version) -> u64 {
+  let build = v
+    .build
+    .parse::<u16>()
+    .map(u64::from)
+    .unwrap_or(0);
+
+  version_u64(v) | build
+}
+
 /// Same as [`build()`], but takes an extra configuration argument, and does not panic.
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
@@ -631,8 +645,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if let Some(version_str) = &config.version {
       if let Ok(v) = Version::parse(version_str) {
-        let version = (v.major << 48) | (v.minor << 32) | (v.patch << 16);
-        res.set_version_info(VersionInfo::FILEVERSION, version);
+        let version = version_u64(&v);
+        res.set_version_info(VersionInfo::FILEVERSION, file_version_u64(&v));
         res.set_version_info(VersionInfo::PRODUCTVERSION, version);
         res.set("FileVersion", version_str);
         res.set("ProductVersion", version_str);
@@ -718,4 +732,49 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use semver::Version;
+
+  #[test]
+  fn file_version_uses_numeric_build_metadata() {
+    let version = Version::parse("1.2.3+42").unwrap();
+
+    assert_eq!(
+      crate::file_version_u64(&version),
+      (1 << 48) | (2 << 32) | (3 << 16) | 42
+    );
+  }
+
+  #[test]
+  fn file_version_ignores_non_numeric_composite_build_metadata() {
+    let version = Version::parse("1.2.3+42.sha").unwrap();
+
+    assert_eq!(
+      crate::file_version_u64(&version),
+      crate::version_u64(&version)
+    );
+  }
+
+  #[test]
+  fn file_version_ignores_non_numeric_build_metadata() {
+    let version = Version::parse("1.2.3+abc").unwrap();
+
+    assert_eq!(
+      crate::file_version_u64(&version),
+      crate::version_u64(&version)
+    );
+  }
+
+  #[test]
+  fn file_version_ignores_build_metadata_that_does_not_fit_in_u16() {
+    let version = Version::parse("1.2.3+70000").unwrap();
+
+    assert_eq!(
+      crate::file_version_u64(&version),
+      crate::version_u64(&version)
+    );
+  }
 }

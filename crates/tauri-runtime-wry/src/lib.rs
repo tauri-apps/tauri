@@ -542,9 +542,11 @@ impl WindowEventWrapper {
 
           // reset focused_webview on blur, or set to a dummy value on focus
           // (to prevent double focus event when we click a webview after focusing a window)
-          if *focused {
-            *focused_webview = Some(FOCUSED_WEBVIEW_MARKER.to_owned());
-          }
+          *focused_webview = if *focused {
+            Some(FOCUSED_WEBVIEW_MARKER.to_owned())
+          } else {
+            None
+          };
 
           WindowEvent::Focused(*focused)
         } else {

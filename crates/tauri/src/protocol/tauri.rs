@@ -26,7 +26,7 @@ struct CachedResponse {
 
 pub fn get<R: Runtime>(
   #[allow(unused_variables)] manager: Arc<AppManager<R>>,
-  window_origin: &str,
+  window_origin: String,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
   #[cfg(all(dev, mobile))]
@@ -40,8 +40,6 @@ pub fn get<R: Runtime>(
     }
     url
   };
-
-  let window_origin = window_origin.to_string();
 
   #[cfg(all(dev, mobile))]
   let response_cache = Arc::new(Mutex::new(HashMap::new()));
@@ -86,7 +84,7 @@ fn get_response<R: Runtime>(
     request
       .uri()
       .to_string()
-      .split(&['?', '#'][..])
+      .split(&['?', '#'])
       .next()
       .unwrap()
       .into()

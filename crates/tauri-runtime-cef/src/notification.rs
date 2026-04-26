@@ -64,7 +64,22 @@ pub fn unregister(browser_id: i32) {
 pub(crate) fn dispatch(browser_id: i32, payload: NotificationPayload) {
   let handler = registry().lock().unwrap().get(&browser_id).cloned();
   if let Some(h) = handler {
+    log::info!(
+      "[cef-notify] dispatch browser_id={} source={:?} title={:?} origin={}",
+      browser_id,
+      payload.source,
+      payload.title,
+      payload.origin
+    );
     h(payload);
+  } else {
+    log::warn!(
+      "[cef-notify] dropped browser_id={} source={:?} title={:?} origin={} (no handler)",
+      browser_id,
+      payload.source,
+      payload.title,
+      payload.origin
+    );
   }
 }
 
@@ -88,18 +103,29 @@ wrap_render_process_handler! {
   impl RenderProcessHandler {
     fn on_context_created(
       &self,
-      _browser: Option<&mut Browser>,
+      browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
       context: Option<&mut V8Context>,
     ) {
       let (Some(frame), Some(context)) = (frame, context) else { return; };
 
       let origin = CefString::from(&frame.url()).to_string();
+      let browser_id = browser.map(|b| b.identifier()).unwrap_or(-1);
+      log::info!(
+        "[cef-render-notify] on_context_created browser_id={} origin={}",
+        browser_id,
+        origin
+      );
       let Some(global) = context.global() else { return; };
 
       install_notification_shim(&global, &origin, NotificationSource::Window);
       install_sw_shim(&global, &origin);
       install_permissions_query_shim(context);
+      log::info!(
+        "[cef-render-notify] installed shims browser_id={} origin={}",
+        browser_id,
+        origin
+      );
     }
   }
 }
@@ -132,11 +158,35 @@ fn install_notification_shim(global: &V8Value, origin: &str, source: Notificatio
     );
   }
 
+  if let Some(mut marker) = v8_value_create_bool(1) {
+    shim.set_value_bykey(
+      Some(&CefString::from("__openhuman_cef")),
+      Some(&mut marker),
+      V8Propertyattribute::default(),
+    );
+  }
+
   global.set_value_bykey(
     Some(&CefString::from("Notification")),
     Some(&mut shim),
     V8Propertyattribute::default(),
   );
+
+  if let Some(mut marker) = v8_value_create_bool(1) {
+    global.set_value_bykey(
+      Some(&CefString::from("__OPENHUMAN_CEF_NOTIFICATION_SHIM")),
+      Some(&mut marker),
+      V8Propertyattribute::default(),
+    );
+  }
+
+  if let Some(mut origin_value) = v8_value_create_string(Some(&CefString::from(origin))) {
+    global.set_value_bykey(
+      Some(&CefString::from("__OPENHUMAN_CEF_NOTIFICATION_ORIGIN")),
+      Some(&mut origin_value),
+      V8Propertyattribute::default(),
+    );
+  }
 }
 
 fn install_sw_shim(global: &V8Value, origin: &str) {

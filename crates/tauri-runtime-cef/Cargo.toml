@@ -28,6 +28,7 @@ kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader" }
 sha2 = "0.10"
 base64 = "0.22"
 dirs = "6"
+log = "0.4"
 
 [target."cfg(windows)".dependencies]
 windows = { version = "0.61", features = [

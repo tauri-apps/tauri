@@ -41,7 +41,7 @@ wrap_render_process_handler! {
   impl RenderProcessHandler {
     fn on_context_created(
       &self,
-      _browser: Option<&mut Browser>,
+      browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
       context: Option<&mut V8Context>,
     ) {
@@ -49,6 +49,11 @@ wrap_render_process_handler! {
 
       // Capture the frame URL early as the origin string.
       let origin = CefString::from(&frame.url()).to_string();
+      let browser_id = browser.map(|b| b.identifier()).unwrap_or(-1);
+      eprintln!(
+        "[cef-helper-notify] on_context_created browser_id={} origin={}",
+        browser_id, origin
+      );
 
       let Some(global) = context.global() else { return; };
 
@@ -69,6 +74,10 @@ wrap_render_process_handler! {
       // itself works — it replaces the getter on the JS-visible navigator
       // wrapper, which is the same mechanism ua_spoof.js uses for userAgent.
       install_permissions_query_shim(context);
+      eprintln!(
+        "[cef-helper-notify] installed shims browser_id={} origin={}",
+        browser_id, origin
+      );
     }
   }
 }
@@ -104,11 +113,54 @@ fn install_notification_shim(global: &V8Value, origin: &str, source: Notificatio
     );
   }
 
+  if let Some(mut marker) = v8_value_create_bool(1) {
+    shim.set_value_bykey(
+      Some(&CefString::from("__openhuman_cef")),
+      Some(&mut marker),
+      V8Propertyattribute::default(),
+    );
+  }
+
   global.set_value_bykey(
     Some(&CefString::from("Notification")),
     Some(&mut shim),
     V8Propertyattribute::default(),
   );
+
+  // Preserve a stable debug hook so DevTools can force the helper path even if
+  // the page later overwrites `window.Notification`.
+  global.set_value_bykey(
+    Some(&CefString::from("__OPENHUMAN_CEF_NOTIFICATION_CONSTRUCTOR")),
+    Some(&mut shim),
+    V8Propertyattribute::default(),
+  );
+
+  if let Some(mut fire_fn) = v8_value_create_function(
+    Some(&CefString::from("__openhumanFireNotification")),
+    Some(&mut handler),
+  ) {
+    global.set_value_bykey(
+      Some(&CefString::from("__openhumanFireNotification")),
+      Some(&mut fire_fn),
+      V8Propertyattribute::default(),
+    );
+  }
+
+  if let Some(mut marker) = v8_value_create_bool(1) {
+    global.set_value_bykey(
+      Some(&CefString::from("__OPENHUMAN_CEF_NOTIFICATION_SHIM")),
+      Some(&mut marker),
+      V8Propertyattribute::default(),
+    );
+  }
+
+  if let Some(mut origin_value) = v8_value_create_string(Some(&CefString::from(origin))) {
+    global.set_value_bykey(
+      Some(&CefString::from("__OPENHUMAN_CEF_NOTIFICATION_ORIGIN")),
+      Some(&mut origin_value),
+      V8Propertyattribute::default(),
+    );
+  }
 }
 
 /// Replace `ServiceWorkerRegistration.prototype.showNotification` if available.
@@ -181,6 +233,16 @@ wrap_v8_handler! {
         .and_then(|o| o.value_bykey(Some(&CefString::from("silent"))))
         .map(|v| v.bool_value() != 0)
         .unwrap_or(false);
+
+      eprintln!(
+        "[cef-helper-notify] execute source={} title={:?} body={:?} tag={:?} origin={} silent={}",
+        self.source as i32,
+        title,
+        body,
+        tag,
+        self.origin,
+        silent
+      );
 
       // Build and send the IPC.
       if let Some(mut msg) = process_message_create(Some(&CefString::from(IPC_NAME))) {

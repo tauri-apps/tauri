@@ -2003,8 +2003,13 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
 
-    let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
-    let cache_path = cache_base.join(&runtime_args.identifier).join("cef");
+    let cache_path = std::env::var_os("OPENHUMAN_CEF_CACHE_PATH")
+      .map(std::path::PathBuf::from)
+      .filter(|path| !path.as_os_str().is_empty())
+      .unwrap_or_else(|| {
+        let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
+        cache_base.join(&runtime_args.identifier).join("cef")
+      });
 
     // Ensure the cache directory exists
     let _ = create_dir_all(&cache_path);
@@ -2096,6 +2101,7 @@ impl<T: UserEvent> CefRuntime<T> {
 /// Helper function for non-browser CEF processes (renderer, GPU, plugin, etc.).
 /// This should be called from the entry point macro when the process is not the browser process.
 pub fn run_cef_helper_process() {
+  log::info!("[cef-helper-bootstrap] run_cef_helper_process starting");
   let args = cef::args::Args::new();
 
   #[cfg(all(target_os = "macos", feature = "sandbox"))]
@@ -2115,6 +2121,7 @@ pub fn run_cef_helper_process() {
   let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
 
   let mut app = crate::notification::NotifyApp::new();
+  log::info!("[cef-helper-bootstrap] executing helper subprocess with NotifyApp");
 
   cef::execute_process(
     Some(args.as_main_args()),

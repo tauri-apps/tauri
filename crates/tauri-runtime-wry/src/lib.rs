@@ -4670,9 +4670,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 /// the kind of the webview
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 enum WebviewKind {
-  // webview is the entire window content
+  /// webview is the entire window content
   WindowContent,
-  // webview is a child of the window, which can contain other webviews too
+  /// webview is a child of the window, which can contain other webviews too
   WindowChild,
 }
 

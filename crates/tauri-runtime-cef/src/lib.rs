@@ -2003,8 +2003,13 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
 
-    let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
-    let cache_path = cache_base.join(&runtime_args.identifier).join("cef");
+    let cache_path = std::env::var_os("OPENHUMAN_CEF_CACHE_PATH")
+      .map(std::path::PathBuf::from)
+      .filter(|path| !path.as_os_str().is_empty())
+      .unwrap_or_else(|| {
+        let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
+        cache_base.join(&runtime_args.identifier).join("cef")
+      });
 
     // Ensure the cache directory exists
     let _ = create_dir_all(&cache_path);

@@ -5101,7 +5101,6 @@ You may have it installed on another user account, but it is not available for t
   }
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-    kind,
     window_id.clone(),
     id,
     context.clone(),
@@ -5323,7 +5322,6 @@ You may have it installed on another user account, but it is not available for t
 
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
-  _kind: WebviewKind,
   window_id: Arc<Mutex<WindowId>>,
   webview_id: WebviewId,
   context: Context<T>,

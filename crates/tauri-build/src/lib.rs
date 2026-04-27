@@ -464,16 +464,6 @@ pub fn build() {
   }
 }
 
-fn to_winres_version(v: &semver::Version) -> u64 {
-  let build = v
-    .build
-    .parse::<u16>()
-    .map(u64::from)
-    .unwrap_or(0);
-
-  (v.major << 48) | (v.minor << 32) | (v.patch << 16) | build
-}
-
 /// Same as [`build()`], but takes an extra configuration argument, and does not panic.
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
@@ -730,6 +720,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   Ok(())
 }
 
+fn to_winres_version(v: &semver::Version) -> u64 {
+  let build = v.build.parse::<u16>().map(u64::from).unwrap_or(0);
+
+  (v.major << 48) | (v.minor << 32) | (v.patch << 16) | build
+}
+
 #[cfg(test)]
 mod tests {
   use semver::Version;
@@ -748,20 +744,29 @@ mod tests {
   fn version_ignores_non_numeric_composite_build_metadata() {
     let version = Version::parse("1.2.3+42.sha").unwrap();
 
-    assert_eq!(crate::to_winres_version(&version), (1 << 48) | (2 << 32) | (3 << 16));
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
   }
 
   #[test]
   fn version_ignores_non_numeric_build_metadata() {
     let version = Version::parse("1.2.3+abc").unwrap();
 
-    assert_eq!(crate::to_winres_version(&version), (1 << 48) | (2 << 32) | (3 << 16));
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
   }
 
   #[test]
   fn version_ignores_build_metadata_that_does_not_fit_in_u16() {
     let version = Version::parse("1.2.3+70000").unwrap();
 
-    assert_eq!(crate::to_winres_version(&version), (1 << 48) | (2 << 32) | (3 << 16));
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
   }
 }

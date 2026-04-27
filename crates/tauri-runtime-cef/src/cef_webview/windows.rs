@@ -103,21 +103,26 @@ impl CefBrowserExt for cef::Browser {
   }
 }
 
-/// Toggle visibility on Chrome_WidgetWin_1 children that may have lost their
-/// Chrome_RenderWidgetHostHWND render target (probably destroyed by CDP freeze).
+/// Toggle visibility on Chrome_WidgetWin_1 children to force CEF to rebind
+/// the compositor surface and emit a fresh paint after the child webview has
+/// been hidden.
+///
+/// Required when the child has been hidden, particularly when paired with CDP
+/// `Page.setWebLifecycleState: frozen`, which pauses the renderer's compositor.
+/// The Chrome_RenderWidgetHostHWND host window survives the freeze, but its
+/// compositor surface is stale and won't repaint on its own when the parent is
+/// shown again — leaving the widget visible with blank content. The hide+show
+/// dance on Chrome_WidgetWin_1 forces Chromium to rebind the surface and
+/// schedule a paint.
 unsafe fn ensure_render_target(hwnd: HWND) {
   use windows::core::PCWSTR;
 
   const CHROME_WIDGET: PCWSTR = windows::core::w!("Chrome_WidgetWin_1");
-  const RENDER_TARGET: PCWSTR = windows::core::w!("Chrome_RenderWidgetHostHWND");
 
   let mut child = unsafe { FindWindowExW(Some(hwnd), None, CHROME_WIDGET, PCWSTR::null()) };
   while let Ok(child_hwnd) = child {
-    if unsafe { FindWindowExW(Some(child_hwnd), None, RENDER_TARGET, PCWSTR::null()).is_err() } {
-      // Hide and show the child to force CEF to recreate the render target
-      let _ = unsafe { ShowWindow(child_hwnd, SW_HIDE) };
-      let _ = unsafe { ShowWindow(child_hwnd, SW_SHOW) };
-    }
+    let _ = unsafe { ShowWindow(child_hwnd, SW_HIDE) };
+    let _ = unsafe { ShowWindow(child_hwnd, SW_SHOW) };
     child = unsafe { FindWindowExW(Some(hwnd), Some(child_hwnd), CHROME_WIDGET, PCWSTR::null()) };
   }
 }

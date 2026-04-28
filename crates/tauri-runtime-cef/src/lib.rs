@@ -359,20 +359,20 @@ unsafe impl<T: UserEvent> Sync for RuntimeContext<T> {}
 
 impl<T: UserEvent> RuntimeContext<T> {
   fn post_message(&self, message: Message<T>) -> Result<()> {
-    if thread::current().id() == self.main_thread_id {
-      // Already on main thread, execute directly
+    if thread::current().id() == self.main_thread_id && !cef_impl::is_in_event_callback() {
+      // On main thread and not inside a user callback, execute directly.
       cef_impl::handle_message(&self.cef_context, message);
-      Ok(())
     } else {
-      // Post to main thread via TaskRunner
+      // Off main thread, or inside a user callback where synchronous execution
+      // could cause re-entrancy and deadlocks. Defer through the CEF TaskRunner.
       self
         .main_thread_task_runner
         .post_task(Some(&mut cef_impl::SendMessageTask::new(
           self.cef_context.clone(),
           Arc::new(RefCell::new(message)),
         )));
-      Ok(())
     }
+    Ok(())
   }
 
   fn create_window<F: Fn(RawWindow) + Send + 'static>(

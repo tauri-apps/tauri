@@ -26,6 +26,7 @@ features = [
   "test",
   "specta",
   "dynamic-acl",
+  "isolation",
 ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

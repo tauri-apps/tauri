@@ -104,7 +104,7 @@ pub struct NewWindowOpener {
   pub webview: webkit2gtk::WebView,
   /// The instance of the webview that initiated the new window request.
   ///
-  /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::environment`].
+  /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::with_environment`].
   #[cfg(windows)]
   pub webview: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2,
   #[cfg(windows)]
@@ -167,7 +167,7 @@ pub enum NewWindowResponse {
   /// ## Platform-specific:
   ///
   /// **Linux**: The webview must be related to the caller webview. See [`WebviewAttributes::related_view`].
-  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewAttributes::environment`].
+  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewAttributes::with_environment`].
   #[cfg(not(any(target_os = "android", target_os = "ios")))]
   Create { window_id: WindowId },
   /// Deny the window from being opened.
@@ -190,7 +190,7 @@ pub enum ScrollBarStyle {
   /// Fluent UI style overlay scrollbars. **Windows Only**
   ///
   /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
-  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  /// see <https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541>
   FluentOverlay,
 }
 
@@ -802,7 +802,7 @@ impl WebviewAttributes {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
   pub fn background_throttling(mut self, policy: Option<BackgroundThrottlingPolicy>) -> Self {
     self.background_throttling = policy;

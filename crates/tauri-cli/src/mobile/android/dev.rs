@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_resources, open_and_wait, MobileTarget,
+  inject_resources, open_and_wait, sync_debug_application_id_suffix, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -274,6 +274,7 @@ fn run_dev(
   configure_cargo(&mut env, config)?;
 
   generate_tauri_properties(config, &tauri_config, true)?;
+  sync_debug_application_id_suffix(config, &tauri_config)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();
@@ -346,7 +347,7 @@ fn run_dev(
           &env,
           metadata,
           noise_level,
-          &*tauri_config,
+          tauri_config,
         ) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
           Err(e) => {

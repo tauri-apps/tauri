@@ -207,7 +207,7 @@ pub fn bundle<A: AppSettings>(
       package_types,
       dirs.tauri,
     )
-    .with_context(|| "failed to build bundler settings")?;
+    .context("failed to build bundler settings")?;
   settings.set_no_sign(options.no_sign);
 
   settings.set_log_level(match verbosity {
@@ -216,7 +216,7 @@ pub fn bundle<A: AppSettings>(
     _ => log::Level::Trace,
   });
 
-  let bundles = tauri_bundler::bundle_project(&settings).map_err(Box::new)?;
+  let bundles = tauri_bundler::bundle_project(&settings)?;
 
   sign_updaters(settings, bundles, ci)?;
 

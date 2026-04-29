@@ -285,7 +285,7 @@ impl From<EventLoopMessage> for RunEvent {
   }
 }
 
-/// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
+/// The asset resolver is a helper to access the [`crate::Assets`] interface.
 #[derive(Debug, Clone)]
 pub struct AssetResolver<R: Runtime> {
   manager: Arc<AppManager<R>>,

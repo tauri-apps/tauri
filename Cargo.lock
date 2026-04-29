@@ -9176,6 +9176,7 @@ dependencies = [
  "console_error_panic_hook",
  "semver",
  "serde",
+ "serde_json",
  "tower-service",
  "worker",
  "worker-macros",

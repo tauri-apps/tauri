@@ -3101,15 +3101,12 @@
           "maximum": 2100000000.0,
           "minimum": 1.0
         },
-        "applicationIdSuffix": {
-          "description": "Application ID suffixes to append for Android build types.\n This allows installing build variants side-by-side on the same device.\n Example: `{ \"debug\": \".debug\" }` will make debug builds use \"com.example.app.debug\" as the application ID.",
-          "default": {
-            "debug": ".debug"
-          },
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+        "debugApplicationIdSuffix": {
+          "description": "Application ID suffix to append for debug builds.\n This allows installing debug and release versions side-by-side on the same device.\n Example: \".debug\" will make debug builds use \"com.example.app.debug\" as the application ID.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

@@ -140,6 +140,13 @@ fn exec(
       let (config, metadata) =
         super::android::get_config(&app, &tauri_config, &[], &Default::default());
       map.insert("android", &config);
+
+      // Add application_id_suffix to the map for template access
+      // The template will access it via a helper or we'll modify template to use root context
+      if let Some(suffix) = &tauri_config.bundle.android.debug_application_id_suffix {
+        map.insert("android-debug-application-id-suffix", suffix);
+      }
+
       super::android::project::gen(
         &config,
         &metadata,
@@ -147,7 +154,6 @@ fn exec(
         wrapper,
         skip_targets_install,
       )?;
-      super::android::sync_application_id_suffix(&config, &tauri_config)?;
       app
     }
     #[cfg(target_os = "macos")]

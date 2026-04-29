@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_resources,
-  log_finished, open_and_wait, sync_application_id_suffix, MobileTarget, OptionsHandle,
+  log_finished, open_and_wait, sync_debug_application_id_suffix, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -192,7 +192,7 @@ pub fn run(
   configure_cargo(&mut env, &config)?;
 
   generate_tauri_properties(&config, tauri_config, false)?;
-  sync_application_id_suffix(&config, tauri_config)?;
+  sync_debug_application_id_suffix(&config, tauri_config)?;
 
   crate::build::setup(&interface, &mut build_options, tauri_config, dirs, true)?;
 
@@ -278,7 +278,6 @@ fn run_build(
   };
   let handle = write_options(tauri_config, cli_options)?;
 
-  sync_application_id_suffix(config, tauri_config)?;
   inject_resources(config, tauri_config)?;
 
   let apk_outputs = if options.apk {

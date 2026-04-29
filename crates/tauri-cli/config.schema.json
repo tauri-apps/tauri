@@ -85,7 +85,6 @@
         "active": false,
         "android": {
           "autoIncrementVersionCode": false,
-          "debugApplicationIdSuffix": ".debug",
           "minSdkVersion": 24
         },
         "createUpdaterArtifacts": false,
@@ -2313,7 +2312,6 @@
           "description": "Android configuration.",
           "default": {
             "autoIncrementVersionCode": false,
-            "debugApplicationIdSuffix": ".debug",
             "minSdkVersion": 24
           },
           "allOf": [
@@ -3924,7 +3922,6 @@
         },
         "debugApplicationIdSuffix": {
           "description": "Application ID suffix to append for debug builds.\n This allows installing debug and release versions side-by-side on the same device.\n Example: \".debug\" will make debug builds use \"com.example.app.debug\" as the application ID.",
-          "default": ".debug",
           "type": [
             "string",
             "null"

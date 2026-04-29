@@ -3236,10 +3236,7 @@ pub struct AndroidConfig {
   /// Application ID suffix to append for debug builds.
   /// This allows installing debug and release versions side-by-side on the same device.
   /// Example: ".debug" will make debug builds use "com.example.app.debug" as the application ID.
-  #[serde(
-    alias = "debug-application-id-suffix",
-    default = "default_debug_application_id_suffix"
-  )]
+  #[serde(alias = "debug-application-id-suffix")]
   pub debug_application_id_suffix: Option<String>,
 }
 
@@ -3249,17 +3246,13 @@ impl Default for AndroidConfig {
       min_sdk_version: default_min_sdk_version(),
       version_code: None,
       auto_increment_version_code: false,
-      debug_application_id_suffix: default_debug_application_id_suffix(),
+      debug_application_id_suffix: None,
     }
   }
 }
 
 fn default_min_sdk_version() -> u32 {
   24
-}
-
-fn default_debug_application_id_suffix() -> Option<String> {
-  Some(".debug".to_string())
 }
 
 /// Defines the URL or assets to embed in the application.

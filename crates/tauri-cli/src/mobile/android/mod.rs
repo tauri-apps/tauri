@@ -321,6 +321,7 @@ fn find_matching_brace(content: &str, opening_brace: usize) -> Option<usize> {
   let mut in_line_comment = false;
   let mut in_block_comment = false;
   let mut in_string = false;
+  let mut in_raw_string = false;
   let mut string_quote = '\0';
   let mut escaped = false;
   let mut previous = '\0';
@@ -340,6 +341,17 @@ fn find_matching_brace(content: &str, opening_brace: usize) -> Option<usize> {
     if in_block_comment {
       if previous == '*' && character == '/' {
         in_block_comment = false;
+      }
+      previous = character;
+      continue;
+    }
+
+    if in_raw_string {
+      if content[index..].starts_with("\"\"\"") {
+        // Consume the remaining two quotes in the Kotlin raw string delimiter.
+        let _ = chars.next();
+        let _ = chars.next();
+        in_raw_string = false;
       }
       previous = character;
       continue;
@@ -365,6 +377,15 @@ fn find_matching_brace(content: &str, opening_brace: usize) -> Option<usize> {
 
     if character == '/' && chars.peek().is_some_and(|(_, next)| *next == '*') {
       in_block_comment = true;
+      previous = character;
+      continue;
+    }
+
+    if content[index..].starts_with("\"\"\"") {
+      // Consume the remaining two quotes in the Kotlin raw string delimiter.
+      let _ = chars.next();
+      let _ = chars.next();
+      in_raw_string = true;
       previous = character;
       continue;
     }
@@ -900,7 +921,7 @@ fn generate_tauri_properties(
 
 #[cfg(test)]
 mod tests {
-  use super::set_debug_application_id_suffix;
+  use super::{find_matching_brace, set_debug_application_id_suffix};
 
   #[test]
   fn writes_debug_application_id_suffix() {
@@ -983,6 +1004,41 @@ android {
       r#"        debug {
             applicationIdSuffix = ".internal"
             packaging {"#
+    ));
+  }
+
+  #[test]
+  fn ignores_braces_inside_kotlin_raw_strings() {
+    let build_gradle = r#"
+android {
+    buildTypes {
+        debug {
+            val proguardRules = """
+                -if class ** {
+                  public *;
+                }
+            """
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
+    }
+}
+"#;
+
+    let opening_brace = build_gradle
+      .find("debug {")
+      .and_then(|index| build_gradle[index..].find('{').map(|brace| index + brace))
+      .unwrap();
+    let closing_brace = find_matching_brace(build_gradle, opening_brace).unwrap();
+
+    assert!(build_gradle[opening_brace..closing_brace]
+      .contains(r#"manifestPlaceholders["usesCleartextTraffic"] = "true""#));
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
+
+    assert!(updated.contains(
+      r#"        debug {
+            applicationIdSuffix = ".debug"
+            val proguardRules = """"#
     ));
   }
 }

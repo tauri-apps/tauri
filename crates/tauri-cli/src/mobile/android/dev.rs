@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_resources, open_and_wait, sync_debug_application_id_suffix, MobileTarget,
+  inject_resources, open_and_wait, sync_application_id_suffix, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -274,7 +274,7 @@ fn run_dev(
   configure_cargo(&mut env, config)?;
 
   generate_tauri_properties(config, &tauri_config, true)?;
-  sync_debug_application_id_suffix(config, &tauri_config)?;
+  sync_application_id_suffix(config, &tauri_config)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();
@@ -335,6 +335,7 @@ fn run_dev(
 
       let _handle = write_options(tauri_config, cli_options)?;
 
+      sync_application_id_suffix(config, tauri_config)?;
       inject_resources(config, tauri_config)?;
 
       if open {
@@ -380,15 +381,14 @@ fn run(
 
   let build_app_bundle = metadata.asset_packs().is_some();
 
-  let application_id_suffix = if profile == Profile::Debug {
-    tauri_config
-      .bundle
-      .android
-      .debug_application_id_suffix
-      .clone()
-  } else {
-    None
-  };
+  let application_id_suffix = super::application_id_suffix_for_build_type(
+    tauri_config,
+    if profile == Profile::Debug {
+      "debug"
+    } else {
+      "release"
+    },
+  );
 
   device
     .run_with_application_id_suffix(

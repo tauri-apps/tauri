@@ -20,6 +20,7 @@ use cargo_mobile2::{
 use clap::{Parser, Subcommand};
 use semver::Version;
 use std::{
+  collections::{BTreeMap, BTreeSet},
   env::set_var,
   fs::{create_dir, create_dir_all, read_dir, write},
   io::Cursor,
@@ -189,7 +190,7 @@ pub fn get_config(
   (config, metadata)
 }
 
-fn sync_debug_application_id_suffix(
+pub(super) fn sync_application_id_suffix(
   config: &AndroidConfig,
   tauri_config: &TauriConfig,
 ) -> Result<()> {
@@ -198,18 +199,23 @@ fn sync_debug_application_id_suffix(
     "failed to read Android Gradle build file",
     build_gradle_path.clone(),
   )?;
-  let Some(updated_build_gradle) = set_debug_application_id_suffix(
+  let updated_build_gradle = match set_application_id_suffixes(
     &build_gradle,
-    tauri_config
-      .bundle
-      .android
-      .debug_application_id_suffix
-      .as_deref(),
-  ) else {
-    crate::error::bail!(
-      "Could not find the Android debug build type in {}. Add a `getByName(\"debug\")` build type or run `tauri android init` to regenerate the Android project.",
-      build_gradle_path.display()
-    );
+    &tauri_config.bundle.android.application_id_suffix,
+  ) {
+    Ok(Some(updated_build_gradle)) => updated_build_gradle,
+    Ok(None) => {
+      crate::error::bail!(
+        "Could not find the Android buildTypes block in {}. Run `tauri android init` to regenerate the Android project.",
+        build_gradle_path.display()
+      );
+    }
+    Err(build_type) => {
+      crate::error::bail!(
+        "Could not find the Android `{build_type}` build type in {}. Add the build type or remove it from `bundle > android > applicationIdSuffix`.",
+        build_gradle_path.display()
+      );
+    }
   };
 
   if updated_build_gradle != build_gradle {
@@ -222,36 +228,140 @@ fn sync_debug_application_id_suffix(
   Ok(())
 }
 
-fn set_debug_application_id_suffix(build_gradle: &str, suffix: Option<&str>) -> Option<String> {
-  static DEBUG_BUILD_TYPE_RE: OnceLock<regex::Regex> = OnceLock::new();
+pub(super) fn application_id_suffix_for_build_type(
+  tauri_config: &TauriConfig,
+  build_type: &str,
+) -> Option<String> {
+  tauri_config
+    .bundle
+    .android
+    .application_id_suffix
+    .get(build_type)
+    .cloned()
+}
 
-  let debug_build_type_re = DEBUG_BUILD_TYPE_RE.get_or_init(|| {
-    regex::Regex::new(r#"(?m)(?:\bgetByName\(\s*"debug"\s*\)|\bdebug\b)\s*\{"#)
-      .expect("valid debug build type regex")
-  });
+fn set_application_id_suffixes(
+  build_gradle: &str,
+  suffixes: &BTreeMap<String, String>,
+) -> std::result::Result<Option<String>, String> {
+  static BUILD_TYPES_RE: OnceLock<regex::Regex> = OnceLock::new();
 
-  for build_type_match in debug_build_type_re.find_iter(build_gradle) {
-    let Some(opening_brace) = build_gradle[build_type_match.start()..]
-      .find('{')
-      .map(|index| build_type_match.start() + index)
-    else {
-      continue;
-    };
-    let Some(closing_brace) = find_matching_brace(build_gradle, opening_brace) else {
-      continue;
-    };
+  let build_types_re = BUILD_TYPES_RE
+    .get_or_init(|| regex::Regex::new(r#"(?m)\bbuildTypes\s*\{"#).expect("valid buildTypes regex"));
 
-    let debug_block = &build_gradle[opening_brace..closing_brace];
-    let updated_debug_block = set_application_id_suffix_in_block(debug_block, suffix);
-    let mut updated_build_gradle =
-      String::with_capacity(build_gradle.len() + updated_debug_block.len());
-    updated_build_gradle.push_str(&build_gradle[..opening_brace]);
-    updated_build_gradle.push_str(&updated_debug_block);
-    updated_build_gradle.push_str(&build_gradle[closing_brace..]);
-    return Some(updated_build_gradle);
+  let Some(build_types_match) = build_types_re.find(build_gradle) else {
+    return Ok(None);
+  };
+  let Some(build_types_opening_brace) = build_gradle[build_types_match.start()..]
+    .find('{')
+    .map(|index| build_types_match.start() + index)
+  else {
+    return Ok(None);
+  };
+  let Some(build_types_closing_brace) =
+    find_matching_brace(build_gradle, build_types_opening_brace)
+  else {
+    return Ok(None);
+  };
+
+  let mut found_build_types = BTreeSet::new();
+  let mut updates = Vec::new();
+  for build_type in build_type_blocks(
+    build_gradle,
+    build_types_opening_brace + 1,
+    build_types_closing_brace,
+  ) {
+    found_build_types.insert(build_type.name.clone());
+    let suffix = suffixes.get(&build_type.name).map(String::as_str);
+    let block = &build_gradle[build_type.opening_brace..build_type.closing_brace];
+    let updated_block = set_application_id_suffix_in_block(block, suffix);
+    if updated_block != block {
+      updates.push((
+        build_type.opening_brace,
+        build_type.closing_brace,
+        updated_block,
+      ));
+    }
   }
 
-  None
+  if let Some(missing_build_type) = suffixes
+    .keys()
+    .find(|build_type| !found_build_types.contains(*build_type))
+  {
+    return Err(missing_build_type.clone());
+  }
+
+  if updates.is_empty() {
+    return Ok(Some(build_gradle.to_string()));
+  }
+
+  let mut updated_build_gradle = build_gradle.to_string();
+  for (start, end, replacement) in updates.into_iter().rev() {
+    updated_build_gradle.replace_range(start..end, &replacement);
+  }
+
+  Ok(Some(updated_build_gradle))
+}
+
+#[derive(Debug)]
+struct BuildTypeBlock {
+  name: String,
+  opening_brace: usize,
+  closing_brace: usize,
+}
+
+fn build_type_blocks(build_gradle: &str, start: usize, end: usize) -> Vec<BuildTypeBlock> {
+  static BUILD_TYPE_RE: OnceLock<regex::Regex> = OnceLock::new();
+
+  let build_type_re = BUILD_TYPE_RE.get_or_init(|| {
+    regex::Regex::new(
+      r#"(?m)(?:\bgetByName\(\s*"([^"]+)"\s*\)|\b([A-Za-z_][A-Za-z0-9_-]*)\b)\s*\{"#,
+    )
+    .expect("valid build type regex")
+  });
+
+  let mut blocks = Vec::new();
+  let mut offset = start;
+
+  while offset < end {
+    let Some(build_type_match) = build_type_re.find(&build_gradle[offset..end]) else {
+      break;
+    };
+    let match_start = offset + build_type_match.start();
+    let match_end = offset + build_type_match.end();
+    let Some(opening_brace) = build_gradle[match_start..match_end]
+      .find('{')
+      .map(|index| match_start + index)
+    else {
+      break;
+    };
+    let Some(closing_brace) = find_matching_brace(build_gradle, opening_brace) else {
+      break;
+    };
+
+    if closing_brace > end {
+      break;
+    }
+
+    let captures = build_type_re
+      .captures(&build_gradle[match_start..match_end])
+      .expect("build type regex should match");
+    let name = captures
+      .get(1)
+      .or_else(|| captures.get(2))
+      .expect("build type name capture")
+      .as_str()
+      .to_string();
+
+    blocks.push(BuildTypeBlock {
+      name,
+      opening_brace,
+      closing_brace,
+    });
+    offset = closing_brace + 1;
+  }
+
+  blocks
 }
 
 fn set_application_id_suffix_in_block(debug_block: &str, suffix: Option<&str>) -> String {
@@ -284,7 +394,7 @@ fn set_application_id_suffix_in_block(debug_block: &str, suffix: Option<&str>) -
     return debug_block.to_string();
   };
 
-  let indentation = debug_block_indentation(debug_block);
+  let indentation = build_type_block_indentation(debug_block);
   let application_id_suffix = format!(
     "{indentation}applicationIdSuffix = \"{}\"\n",
     escape_kotlin_string(suffix)
@@ -302,7 +412,7 @@ fn set_application_id_suffix_in_block(debug_block: &str, suffix: Option<&str>) -
   }
 }
 
-fn debug_block_indentation(debug_block: &str) -> &str {
+fn build_type_block_indentation(debug_block: &str) -> &str {
   debug_block
     .lines()
     .skip(1)
@@ -900,31 +1010,48 @@ fn generate_tauri_properties(
 
 #[cfg(test)]
 mod tests {
-  use super::set_debug_application_id_suffix;
+  use super::set_application_id_suffixes;
+  use std::collections::BTreeMap;
 
   #[test]
-  fn writes_debug_application_id_suffix() {
+  fn writes_application_id_suffixes() {
     let build_gradle = r#"
 android {
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
+        getByName("release") {
+            isMinifyEnabled = true
+        }
     }
 }
 "#;
 
-    let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
+    let updated = set_application_id_suffixes(
+      build_gradle,
+      &BTreeMap::from([
+        ("debug".into(), ".debug".into()),
+        ("release".into(), ".release".into()),
+      ]),
+    )
+    .unwrap()
+    .unwrap();
 
     assert!(updated.contains(
       r#"        getByName("debug") {
             applicationIdSuffix = ".debug"
             manifestPlaceholders["usesCleartextTraffic"] = "true""#
     ));
+    assert!(updated.contains(
+      r#"        getByName("release") {
+            applicationIdSuffix = ".release"
+            isMinifyEnabled = true"#
+    ));
   }
 
   #[test]
-  fn replaces_debug_application_id_suffix() {
+  fn replaces_application_id_suffix() {
     let build_gradle = r#"
 android {
     buildTypes {
@@ -936,14 +1063,19 @@ android {
 }
 "#;
 
-    let updated = set_debug_application_id_suffix(build_gradle, Some(".internal")).unwrap();
+    let updated = set_application_id_suffixes(
+      build_gradle,
+      &BTreeMap::from([("debug".into(), ".internal".into())]),
+    )
+    .unwrap()
+    .unwrap();
 
     assert!(updated.contains(r#"            applicationIdSuffix = ".internal""#));
     assert!(!updated.contains(r#".old"#));
   }
 
   #[test]
-  fn removes_debug_application_id_suffix() {
+  fn removes_unconfigured_application_id_suffixes() {
     let build_gradle = r#"
 android {
     buildTypes {
@@ -957,14 +1089,16 @@ android {
 }
 "#;
 
-    let updated = set_debug_application_id_suffix(build_gradle, None).unwrap();
+    let updated = set_application_id_suffixes(build_gradle, &BTreeMap::new())
+      .unwrap()
+      .unwrap();
 
     assert!(!updated.contains(r#"applicationIdSuffix = ".debug""#));
-    assert!(updated.contains(r#"applicationIdSuffix = ".release""#));
+    assert!(!updated.contains(r#"applicationIdSuffix = ".release""#));
   }
 
   #[test]
-  fn writes_debug_suffix_before_nested_blocks() {
+  fn writes_suffix_before_nested_blocks() {
     let build_gradle = r#"
 android {
     buildTypes {
@@ -977,12 +1111,37 @@ android {
 }
 "#;
 
-    let updated = set_debug_application_id_suffix(build_gradle, Some(".internal")).unwrap();
+    let updated = set_application_id_suffixes(
+      build_gradle,
+      &BTreeMap::from([("debug".into(), ".internal".into())]),
+    )
+    .unwrap()
+    .unwrap();
 
     assert!(updated.contains(
       r#"        debug {
             applicationIdSuffix = ".internal"
             packaging {"#
     ));
+  }
+
+  #[test]
+  fn errors_when_configured_build_type_is_missing() {
+    let build_gradle = r#"
+android {
+    buildTypes {
+        getByName("debug") {
+        }
+    }
+}
+"#;
+
+    assert_eq!(
+      set_application_id_suffixes(
+        build_gradle,
+        &BTreeMap::from([("staging".into(), ".staging".into())])
+      ),
+      Err("staging".into())
+    );
   }
 }

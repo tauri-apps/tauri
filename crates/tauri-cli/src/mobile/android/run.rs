@@ -10,7 +10,7 @@ use cargo_mobile2::{
 use clap::{ArgAction, Parser};
 use std::path::PathBuf;
 
-use super::{configure_cargo, device_prompt, env, sync_debug_application_id_suffix};
+use super::{configure_cargo, device_prompt, env, sync_application_id_suffix};
 use crate::{
   error::Context,
   helpers::config::ConfigMetadata,
@@ -127,17 +127,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let release = options.release;
 
     let runner = move |tauri_config: &ConfigMetadata| {
-      sync_debug_application_id_suffix(&config, tauri_config)?;
+      sync_application_id_suffix(&config, tauri_config)?;
 
-      let application_id_suffix = if !release {
-        tauri_config
-          .bundle
-          .android
-          .debug_application_id_suffix
-          .clone()
-      } else {
-        None
-      };
+      let application_id_suffix = super::application_id_suffix_for_build_type(
+        tauri_config,
+        if !release { "debug" } else { "release" },
+      );
 
       device
         .run_with_application_id_suffix(

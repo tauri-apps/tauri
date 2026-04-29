@@ -39,7 +39,7 @@ use serde_with::skip_serializing_none;
 use url::Url;
 
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
@@ -3233,14 +3233,14 @@ pub struct AndroidConfig {
   #[serde(alias = "auto-increment-version-code", default)]
   pub auto_increment_version_code: bool,
 
-  /// Application ID suffix to append for debug builds.
-  /// This allows installing debug and release versions side-by-side on the same device.
-  /// Example: ".debug" will make debug builds use "com.example.app.debug" as the application ID.
+  /// Application ID suffixes to append for Android build types.
+  /// This allows installing build variants side-by-side on the same device.
+  /// Example: `{ "debug": ".debug" }` will make debug builds use "com.example.app.debug" as the application ID.
   #[serde(
-    alias = "debug-application-id-suffix",
-    default = "default_debug_application_id_suffix"
+    alias = "application-id-suffix",
+    default = "default_application_id_suffix"
   )]
-  pub debug_application_id_suffix: Option<String>,
+  pub application_id_suffix: BTreeMap<String, String>,
 }
 
 impl Default for AndroidConfig {
@@ -3249,7 +3249,7 @@ impl Default for AndroidConfig {
       min_sdk_version: default_min_sdk_version(),
       version_code: None,
       auto_increment_version_code: false,
-      debug_application_id_suffix: default_debug_application_id_suffix(),
+      application_id_suffix: default_application_id_suffix(),
     }
   }
 }
@@ -3258,8 +3258,8 @@ fn default_min_sdk_version() -> u32 {
   24
 }
 
-fn default_debug_application_id_suffix() -> Option<String> {
-  Some(".debug".to_string())
+fn default_application_id_suffix() -> BTreeMap<String, String> {
+  BTreeMap::from([("debug".to_string(), ".debug".to_string())])
 }
 
 /// Defines the URL or assets to embed in the application.

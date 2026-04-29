@@ -84,8 +84,10 @@
       "default": {
         "active": false,
         "android": {
+          "applicationIdSuffix": {
+            "debug": ".debug"
+          },
           "autoIncrementVersionCode": false,
-          "debugApplicationIdSuffix": ".debug",
           "minSdkVersion": 24
         },
         "createUpdaterArtifacts": false,
@@ -2312,8 +2314,10 @@
         "android": {
           "description": "Android configuration.",
           "default": {
+            "applicationIdSuffix": {
+              "debug": ".debug"
+            },
             "autoIncrementVersionCode": false,
-            "debugApplicationIdSuffix": ".debug",
             "minSdkVersion": 24
           },
           "allOf": [
@@ -3922,13 +3926,15 @@
           "default": false,
           "type": "boolean"
         },
-        "debugApplicationIdSuffix": {
-          "description": "Application ID suffix to append for debug builds.\n This allows installing debug and release versions side-by-side on the same device.\n Example: \".debug\" will make debug builds use \"com.example.app.debug\" as the application ID.",
-          "default": ".debug",
-          "type": [
-            "string",
-            "null"
-          ]
+        "applicationIdSuffix": {
+          "description": "Application ID suffixes to append for Android build types.\n This allows installing build variants side-by-side on the same device.\n Example: `{ \"debug\": \".debug\" }` will make debug builds use \"com.example.app.debug\" as the application ID.",
+          "default": {
+            "debug": ".debug"
+          },
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

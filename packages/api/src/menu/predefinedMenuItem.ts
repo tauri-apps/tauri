@@ -102,6 +102,7 @@ export interface PredefinedMenuItemOptions {
     | 'CloseWindow'
     | 'Quit'
     | 'Services'
+    | 'BringAllToFront'
     | {
         About: AboutMetadata | null
       }

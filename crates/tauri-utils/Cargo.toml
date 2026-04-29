@@ -33,7 +33,10 @@ serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }
 serialize-to-javascript = { version = "0.1.2", optional = true }
-ctor = "0.2"
+ctor = { version = "0.8", default-features = false, features = [
+  "std",
+  "proc_macro",
+] }
 json5 = { version = "0.4", optional = true }
 # Part of public api in error type
 toml = { version = ">=0.9, <=1", features = ["parse"] }
@@ -52,6 +55,7 @@ cargo_metadata = { version = "0.19", optional = true }
 serde-untagged = "0.1"
 uuid = { version = "1", features = ["serde"] }
 http = "1"
+plist = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 swift-rs = { version = "1", optional = true, features = ["build"] }

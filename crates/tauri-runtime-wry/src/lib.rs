@@ -818,7 +818,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     #[cfg(target_os = "macos")]
     {
       // TODO: find a proper way to prevent webview being pushed out of the window.
-      // Workround for issue: https://github.com/tauri-apps/tauri/issues/10225
+      // Workaround for issue: https://github.com/tauri-apps/tauri/issues/10225
       // The window requires `NSFullSizeContentViewWindowMask` flag to prevent devtools
       // pushing the content view out of the window.
       // By setting the default style to `TitleBarStyle::Visible` should fix the issue for most of the users.
@@ -1475,6 +1475,15 @@ pub enum WebviewMessage {
   EvaluateScript(String),
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
   EvaluateScript(String, Sender<()>, tracing::Span),
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+  EvaluateScriptWithCallback(String, Box<dyn Fn(String) + Send + 'static>),
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
+  EvaluateScriptWithCallback(
+    String,
+    Box<dyn Fn(String) + Send + 'static>,
+    Sender<()>,
+    tracing::Span,
+  ),
   CookiesForUrl(Url, Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   Cookies(Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   SetCookie(tauri_runtime::Cookie<'static>),
@@ -1826,6 +1835,46 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    // use a channel so the EvaluateScript task uses the current span as parent
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::EvaluateScriptWithCallback(
+          script.into(),
+          Box::new(callback),
+          tx,
+          tracing::Span::current(),
+        ),
+      )
+    )
+  }
+
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
       ),
     )
   }
@@ -3712,6 +3761,20 @@ fn handle_user_message<T: UserEvent>(
               log::error!("{e}");
             }
           }
+          #[cfg(all(feature = "tracing", not(target_os = "android")))]
+          WebviewMessage::EvaluateScriptWithCallback(script, callback, tx, span) => {
+            let _span = span.entered();
+            if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
+              log::error!("{e}");
+            }
+            tx.send(()).unwrap();
+          }
+          #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+          WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
+            if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
+              log::error!("{e}");
+            }
+          }
           WebviewMessage::Navigate(url) => {
             if let Err(e) = webview.load_url(url.as_str()) {
               log::error!("failed to navigate to url {}: {}", url, e);
@@ -4308,7 +4371,7 @@ fn handle_event_loop<T: UserEvent>(
         );
       }
     },
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
     Event::Opened { urls } => {
       callback(RunEvent::Opened { urls });
     }
@@ -4697,7 +4760,8 @@ You may have it installed on another user account, but it is not available for t
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_incognito(webview_attributes.incognito)
     .with_clipboard(webview_attributes.clipboard)
-    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
+    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled)
+    .with_general_autofill_enabled(webview_attributes.general_autofill_enabled);
 
   if url != "about:blank" {
     webview_builder = webview_builder.with_url(&url);
@@ -4991,6 +5055,35 @@ You may have it installed on another user account, but it is not available for t
 
     webview_builder =
       webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview);
+
+    if let Some(on_web_content_process_terminate_handler) =
+      pending.on_web_content_process_terminate_handler
+    {
+      webview_builder = webview_builder
+        .with_on_web_content_process_terminate_handler(on_web_content_process_terminate_handler);
+    } else {
+      log::debug!("web content process terminated");
+      let context_ = context.clone();
+      let window_id_ = window_id.clone();
+      webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
+        if let Ok(windows) = &context_.main_thread.windows.0.try_borrow() {
+          if let Some(window) = windows.get(&*window_id_.lock().unwrap()) {
+            if let Some(webview) = window.webviews.iter().find(|w| w.id == id) {
+              match webview.reload() {
+                Ok(_) => log::debug!("webview reloaded"),
+                Err(e) => log::error!("failed to reload webview: {}", e),
+              }
+            } else {
+              log::error!("failed to find webview")
+            }
+          } else {
+            log::error!("failed to get window")
+          }
+        } else {
+          log::error!("failed to borrow windows")
+        }
+      });
+    }
   }
 
   #[cfg(target_os = "ios")]

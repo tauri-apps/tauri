@@ -77,7 +77,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
   pattern: P,
   f: F,
 ) -> crate::Result<()> {
-  // Reconstruct pattern path components with appropraite separator
+  // Reconstruct pattern path components with appropriate separator
   // so `some\path/to/dir/**\*` would be `some/path/to/dir/**/*` on Unix
   // and  `some\path\to\dir\**\*` on Windows.
   let path: PathBuf = pattern.as_ref().components().collect();

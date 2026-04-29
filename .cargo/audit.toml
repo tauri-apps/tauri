@@ -8,4 +8,17 @@ ignore = [
   "RUSTSEC-2024-0370",
   # time crate can't be updated in the repo because of MSRV, users are unaffected
   "RUSTSEC-2026-0009",
+  # rand unsoundness, fixed when we remove kuchikiki from deps in v3, currently
+  # remains for semver reasons but is not built in default configuration
+  "RUSTSEC-2026-0097",
+  # glib 0.18.5 unsoundness, fixed by updating to gtk4
+  "RUSTSEC-2024-0429",
+  # rustls, fixed when updating to apple-codesign 0.28.0
+  "RUSTSEC-2026-0049",
+  # rustls, fixed when updating to apple-codesign 0.28.0
+  "RUSTSEC-2026-0098",
+  # rustls, fixed when updating to apple-codesign 0.28.0
+  "RUSTSEC-2026-0099",
+  # rustls, fixed when updating to apple-codesign 0.28.0
+  "RUSTSEC-2026-0104",
 ]

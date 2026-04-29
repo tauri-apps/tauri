@@ -1,5 +1,7 @@
 ---
-'tauri-bundler': 'patch:enhance'
+"tauri-bundler": patch:enhance
+"@tauri-apps/cli": patch:enhance
+"tauri-cli": patch:enhance
 ---
 
-feat(nsis): add Vietnamese language support for installer.
+Added Vietnamese translations for the NSIS installer

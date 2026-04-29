@@ -8,7 +8,7 @@ use axum::{
   http::{header, StatusCode},
   response::Result,
   routing::get,
-  Json, Router,
+  Router,
 };
 use semver::{Version, VersionReq};
 use serde::Deserialize;
@@ -48,21 +48,21 @@ pub fn router() -> Router {
     .route("/config/{version}", get(schema_for_version))
 }
 
-async fn schema_for_version(Path(version): Path<String>) -> Result<Json<serde_json::Value>> {
+async fn schema_for_version(Path(version): Path<String>) -> Result<String> {
   try_schema_for_version(version)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     .map_err(Into::into)
 }
 
-async fn stable_schema() -> Result<Json<serde_json::Value>> {
+async fn stable_schema() -> Result<String> {
   try_stable_schema()
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     .map_err(Into::into)
 }
 
-async fn next_schema() -> Result<Json<serde_json::Value>> {
+async fn next_schema() -> Result<String> {
   try_next_schema()
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
@@ -70,7 +70,7 @@ async fn next_schema() -> Result<Json<serde_json::Value>> {
 }
 
 #[worker::send]
-async fn try_schema_for_version(version: String) -> anyhow::Result<Json<serde_json::Value>> {
+async fn try_schema_for_version(version: String) -> anyhow::Result<String> {
   let version = version.parse::<VersionReq>()?;
 
   let releases = crate_releases("tauri").await?;
@@ -87,13 +87,13 @@ async fn try_schema_for_version(version: String) -> anyhow::Result<Json<serde_js
 }
 
 #[worker::send]
-async fn try_stable_schema() -> anyhow::Result<Json<serde_json::Value>> {
+async fn try_stable_schema() -> anyhow::Result<String> {
   let max = stable_version("tauri").await?;
   schema_file_for_version(max).await
 }
 
 #[worker::send]
-async fn try_next_schema() -> anyhow::Result<Json<serde_json::Value>> {
+async fn try_next_schema() -> anyhow::Result<String> {
   let releases = crate_releases("tauri").await?;
   let version = releases
     .into_iter()
@@ -104,12 +104,12 @@ async fn try_next_schema() -> anyhow::Result<Json<serde_json::Value>> {
   schema_file_for_version(version).await
 }
 
-async fn schema_file_for_version(version: Version) -> anyhow::Result<Json<serde_json::Value>> {
+async fn schema_file_for_version(version: Version) -> anyhow::Result<String> {
   let cache = Cache::open("schema".to_string()).await;
   let cache_key = format!("https://schema.tauri.app/config/{version}");
   if let Some(mut cached) = cache.get(cache_key.clone(), true).await? {
     console_log!("Serving schema for {version} from cache");
-    return Ok(Json(cached.json().await?));
+    return cached.text().await.map_err(Into::into);
   }
 
   console_log!("Fetching schema for {version} from remote");
@@ -124,7 +124,7 @@ async fn schema_file_for_version(version: Version) -> anyhow::Result<Json<serde_
 
   cache.put(cache_key, res.cloned()?).await?;
 
-  Ok(Json(res.json().await?))
+  res.text().await.map_err(Into::into)
 }
 
 async fn crate_releases(crate_: &str) -> anyhow::Result<Vec<CrateRelease>> {

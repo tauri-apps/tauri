@@ -11,11 +11,10 @@ crate-type = ["cdylib"]
 worker = { version = "0.7", features = ['http', 'axum'] }
 worker-macros = { version = "0.7", features = ['http'] }
 console_error_panic_hook = { version = "0.1" }
-axum = { version = "0.8", default-features = false, features = ['json'] }
+axum = { version = "0.8", default-features = false }
 tower-service = "0.3"
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 anyhow = "1"
 
 [lints.rust]

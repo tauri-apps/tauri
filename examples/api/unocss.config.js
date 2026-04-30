@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { defineConfig, presetIcons, presetUno, presetWebFonts } from 'unocss'
+import { defineConfig, presetIcons, presetWind3, presetWebFonts } from 'unocss'
 import extractorSvelte from '@unocss/extractor-svelte'
 
 export default defineConfig({
@@ -88,7 +88,7 @@ export default defineConfig({
     checkbox: 'accent-accent'
   },
   presets: [
-    presetUno(),
+    presetWind3(),
     presetIcons(),
     presetWebFonts({
       fonts: {

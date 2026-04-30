@@ -244,14 +244,14 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$APP/**",
+                            "$APPDATA/**",
                         ),
                     },
                 ),
                 Map(
                     {
                         "path": String(
-                            "$APP",
+                            "$APPDATA",
                         ),
                     },
                 ),
@@ -281,7 +281,7 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$APP/*.db",
+                            "$APPDATA/*.db",
                         ),
                     },
                 ),

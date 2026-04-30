@@ -4,11 +4,11 @@
 
 use crate::{
   error::{Context, Error, ErrorExt},
-  helpers::app_paths::tauri_dir,
   Result,
 };
 
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fs::{create_dir_all, File},
   io::{BufWriter, Write},
@@ -25,8 +25,9 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Rgba,
+  open, DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgba,
 };
+use rayon::iter::ParallelIterator;
 use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
 
@@ -93,7 +94,7 @@ pub struct Options {
   output: Option<PathBuf>,
 
   /// Custom PNG icon sizes to generate. When set, the default icons are not generated.
-  #[clap(short, long, use_value_delimiter = true)]
+  #[clap(short, long, value_delimiter = ',')]
   png: Option<Vec<u32>>,
 
   /// The background color of the iOS icon - string as defined in the W3C's CSS Color Module Level 4 <https://www.w3.org/TR/css-color-4/>.
@@ -123,7 +124,7 @@ impl Source {
     }
   }
 
-  fn resize_exact(&self, size: u32) -> Result<DynamicImage> {
+  fn resize_exact(&self, size: u32) -> DynamicImage {
     match self {
       Self::Svg(svg) => {
         let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
@@ -133,12 +134,47 @@ impl Source {
           tiny_skia::Transform::from_scale(scale, scale),
           &mut pixmap.as_mut(),
         );
-        let img_buffer = ImageBuffer::from_raw(size, size, pixmap.take()).unwrap();
-        Ok(DynamicImage::ImageRgba8(img_buffer))
+        // Switch to use `Pixmap::take_demultiplied` in the future when it's published
+        // https://github.com/linebender/tiny-skia/blob/624257c0feb394bf6c4d0d688f8ea8030aae320f/src/pixmap.rs#L266
+        let img_buffer = ImageBuffer::from_par_fn(size, size, |x, y| {
+          let pixel = pixmap.pixel(x, y).unwrap().demultiply();
+          Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])
+        });
+        DynamicImage::ImageRgba8(img_buffer)
       }
-      Self::DynamicImage(i) => Ok(i.resize_exact(size, size, FilterType::Lanczos3)),
+      Self::DynamicImage(image) => {
+        // image.resize_exact(size, size, FilterType::Lanczos3)
+        resize_image(image, size, size)
+      }
     }
   }
+}
+
+// `image` does not use premultiplied alpha in resize, so we do it manually here,
+// see https://github.com/image-rs/image/issues/1655
+fn resize_image(image: &DynamicImage, new_width: u32, new_height: u32) -> DynamicImage {
+  // Premultiply alpha
+  let premultiplied_image = ImageBuffer::from_par_fn(image.width(), image.height(), |x, y| {
+    let mut pixel = image.get_pixel(x, y);
+    let alpha = pixel.0[3] as f32 / u8::MAX as f32;
+    pixel.apply_without_alpha(|channel_value| (channel_value as f32 * alpha) as u8);
+    pixel
+  });
+
+  let mut resized = image::imageops::resize(
+    &premultiplied_image,
+    new_width,
+    new_height,
+    FilterType::Lanczos3,
+  );
+
+  // Demultiply alpha
+  resized.par_pixels_mut().for_each(|pixel| {
+    let alpha = pixel.0[3] as f32 / u8::MAX as f32;
+    pixel.apply_without_alpha(|channel_value| (channel_value as f32 / alpha) as u8);
+  });
+
+  DynamicImage::ImageRgba8(resized)
 }
 
 fn read_source(path: PathBuf) -> Result<Source> {
@@ -157,7 +193,7 @@ fn read_source(path: PathBuf) -> Result<Source> {
           ..Default::default()
         };
 
-        let svg_data = std::fs::read(&path).unwrap();
+        let svg_data = std::fs::read(&path).fs_context("Failed to read source icon", &path)?;
         usvg::Tree::from_data(&svg_data, &opt).unwrap()
       };
 
@@ -200,8 +236,8 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| {
-    crate::helpers::app_paths::resolve();
-    tauri_dir().join("icons")
+    let dirs = crate::helpers::app_paths::resolve_dirs();
+    dirs.tauri.join("icons")
   });
   let png_icon_sizes = options.png.unwrap_or_default();
 
@@ -243,19 +279,15 @@ pub fn command(options: Options) -> Result<()> {
     android(&source, &input, manifest, &bg_color_string, &out_dir)
       .context("Failed to generate android icons")?;
   } else {
-    for target in png_icon_sizes
-      .into_iter()
-      .map(|size| {
-        let name = format!("{size}x{size}.png");
-        let out_path = out_dir.join(&name);
-        PngEntry {
-          name,
-          out_path,
-          size,
-        }
-      })
-      .collect::<Vec<PngEntry>>()
-    {
+    for target in png_icon_sizes.into_iter().map(|size| {
+      let name = format!("{size}x{size}.png");
+      let out_path = out_dir.join(&name);
+      PngEntry {
+        name,
+        out_path,
+        size,
+      }
+    }) {
       log::info!(action = "PNG"; "Creating {}", target.name);
       resize_and_save_png(&source, target.size, &target.out_path, None, None)?;
     }
@@ -303,7 +335,7 @@ fn icns(source: &Source, out_dir: &Path) -> Result<()> {
     let size = entry.size;
     let mut buf = Vec::new();
 
-    let image = source.resize_exact(size)?;
+    let image = source.resize_exact(size);
 
     write_png(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
 
@@ -338,7 +370,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   let mut frames = Vec::new();
 
   for size in [32, 16, 24, 48, 64, 256] {
-    let image = source.resize_exact(size)?;
+    let image = source.resize_exact(size);
 
     // Only the 256px layer can be compressed according to the ico specs.
     if size == 256 {
@@ -769,7 +801,7 @@ fn resize_png(
   bg: Option<Background>,
   scale_percent: Option<f32>,
 ) -> Result<DynamicImage> {
-  let mut image = source.resize_exact(size)?;
+  let mut image = source.resize_exact(size);
 
   match bg {
     Some(Background::Color(bg_color)) => {
@@ -783,7 +815,7 @@ fn resize_png(
       image = bg_img.into();
     }
     Some(Background::Image(bg_source)) => {
-      let mut bg = bg_source.resize_exact(size)?;
+      let mut bg = bg_source.resize_exact(size);
 
       let fg = scale_percent
         .map(|scale| resize_asset(&image, size, scale))
@@ -863,9 +895,10 @@ fn content_bounds(img: &DynamicImage) -> Option<(u32, u32, u32, u32)> {
 
 fn resize_asset(img: &DynamicImage, target_size: u32, scale_percent: f32) -> DynamicImage {
   let cropped = if let Some((x, y, cw, ch)) = content_bounds(img) {
-    img.crop_imm(x, y, cw, ch)
+    // TODO: Use `&` here instead when we raise MSRV to above 1.79
+    Cow::Owned(img.crop_imm(x, y, cw, ch))
   } else {
-    img.clone()
+    Cow::Borrowed(img)
   };
 
   let (cw, ch) = cropped.dimensions();
@@ -875,7 +908,7 @@ fn resize_asset(img: &DynamicImage, target_size: u32, scale_percent: f32) -> Dyn
   let new_w = (cw as f32 * scale).round() as u32;
   let new_h = (ch as f32 * scale).round() as u32;
 
-  let resized = image::imageops::resize(&cropped, new_w, new_h, image::imageops::Lanczos3);
+  let resized = resize_image(&cropped, new_w, new_h);
 
   // Place on transparent square canvas
   let mut canvas = ImageBuffer::from_pixel(target_size, target_size, Rgba([0, 0, 0, 0]));

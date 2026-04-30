@@ -57,7 +57,7 @@ function checkChangeFiles(changeFiles) {
     for (const [file, packages] of unknownTagsEntries) {
       for (const { package, tag } of packages) {
         console.error(
-          `Package \`${package}\` has an uknown change tag ${tag} in ${file} `
+          `Package \`${package}\` has an unknown change tag ${tag} in ${file} `
         )
       }
     }

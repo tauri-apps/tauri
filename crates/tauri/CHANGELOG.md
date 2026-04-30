@@ -1,5 +1,134 @@
 # Changelog
 
+## \[2.10.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+- Upgraded to `tauri-runtime@2.10.1`
+- Upgraded to `tauri-runtime-wry@2.10.1`
+- Upgraded to `tauri-macros@2.5.5`
+- Upgraded to `tauri-build@2.5.6`
+
+## \[2.10.2]
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.5.4`
+- Upgraded to `tauri-build@2.5.5`
+
+## \[2.10.1]
+
+### Dependencies
+
+- [`ce8fddb46`](https://www.github.com/tauri-apps/tauri/commit/ce8fddb4648d6421579d43c7dd44959bc57a74e0) ([#14873](https://www.github.com/tauri-apps/tauri/pull/14873)) Unlocked version range for webkit2gtk-rs dependency.
+
+## \[2.10.0]
+
+### New Features
+
+- [`e919a760e`](https://www.github.com/tauri-apps/tauri/commit/e919a760edfc115f9e4b5d841e29cc38d5535ed1) ([#14619](https://www.github.com/tauri-apps/tauri/pull/14619) by [@NaamuKim](https://www.github.com/tauri-apps/tauri/../../NaamuKim)) Add `set_simple_fullscreen` method to `WebviewWindow`.
+
+  This method was already available on the `Window` type and is now also available on `WebviewWindow` for consistency. On macOS, it toggles fullscreen mode without creating a new macOS Space. On other platforms, it falls back to regular fullscreen.
+
+### Bug Fixes
+
+- [`853ed4642`](https://www.github.com/tauri-apps/tauri/commit/853ed4642ff77154ccd380dd9289d90815d42691) ([#14442](https://www.github.com/tauri-apps/tauri/pull/14442) by [@ish1416](https://www.github.com/tauri-apps/tauri/../../ish1416)) Fixed 500 error when accessing local video files in Android external storage directory via `convertFileSrc`. Added better error handling and logging for Android external storage access to help diagnose permission and accessibility issues.
+- [`4d5d78daf`](https://www.github.com/tauri-apps/tauri/commit/4d5d78daf636feaac20c5bc48a6071491c4291ee) ([#14812](https://www.github.com/tauri-apps/tauri/pull/14812) by [@oscartbeaumont](https://www.github.com/tauri-apps/tauri/../../oscartbeaumont)) fix(specta): don't use `#[specta(rename = ...)]` with `tauri::ipc::Channel`
+- [`ff5d76ca2`](https://www.github.com/tauri-apps/tauri/commit/ff5d76ca214b94a7b6e88aa4f0f797bbf747824d) ([#14653](https://www.github.com/tauri-apps/tauri/pull/14653) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `WindowConfig::focus` is set to `false` in `WindowConfig::default()`
+
+### What's Changed
+
+- [`0575dd287`](https://www.github.com/tauri-apps/tauri/commit/0575dd287e021b61d2aedf64d62ae84a2c925fb4) ([#14521](https://www.github.com/tauri-apps/tauri/pull/14521) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Change the way bundle type information is added to binary files. Instead of looking up the value of a variable we simply look for the default value.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- Upgraded to `tauri-build@2.5.4`
+- Upgraded to `tauri-runtime-wry@2.10.0`
+- Upgraded to `tauri-runtime@2.10.0`
+- Upgraded to `tauri-macros@2.5.3`
+- [`75057c7c0`](https://www.github.com/tauri-apps/tauri/commit/75057c7c08f0d4d3dd8d10cea4e2217e5d61fe1a) ([#14778](https://www.github.com/tauri-apps/tauri/pull/14778) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) **Breaking Change** for `with_webview` users: Updated webkit2gtk-rs crates to `v2.0.2`.
+- [`75057c7c0`](https://www.github.com/tauri-apps/tauri/commit/75057c7c08f0d4d3dd8d10cea4e2217e5d61fe1a) ([#14778](https://www.github.com/tauri-apps/tauri/pull/14778) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Update wry to `v0.54`.
+
+## \[2.9.5]
+
+### Bug Fixes
+
+- [`251203b89`](https://www.github.com/tauri-apps/tauri/commit/251203b8963419cb3b40741767393e8f3c909ef9) ([#14637](https://www.github.com/tauri-apps/tauri/pull/14637) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Monitor::work_area` returns logical position and size inside the `PhysicalRect` on Linux
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.9.3`
+
+## \[2.9.4]
+
+### Performance Improvements
+
+- [`ce98d87ce`](https://www.github.com/tauri-apps/tauri/commit/ce98d87ce0aaa907285852eb80691197424e03c3) ([#14474](https://www.github.com/tauri-apps/tauri/pull/14474) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) refactor: remove needless collect. No user facing changes.
+- [`ee3cc4a91`](https://www.github.com/tauri-apps/tauri/commit/ee3cc4a91bf1315ecaefe90f423ffd55ef6c40db) ([#14475](https://www.github.com/tauri-apps/tauri/pull/14475) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) perf: remove needless clones in various files for improved performance. No user facing changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+- Upgraded to `tauri-runtime@2.9.2`
+- Upgraded to `tauri-runtime-wry@2.9.2`
+- Upgraded to `tauri-macros@2.5.2`
+- Upgraded to `tauri-build@2.5.3`
+
+## \[2.9.3]
+
+### Bug Fixes
+
+- [`4b00130b8`](https://www.github.com/tauri-apps/tauri/commit/4b00130b86a27b6f121bf57897b5e92d83bcc0fc) ([#14385](https://www.github.com/tauri-apps/tauri/pull/14385) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix iOS deadlock when running on the simulator from Xcode by properly piping stdout/stderr messages through the Xcode console and OSLog.
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.5.1`
+- Upgraded to `tauri-build@2.5.2`
+
+## \[2.9.2]
+
+### Bug Fixes
+
+- [`28b9e7c7b`](https://www.github.com/tauri-apps/tauri/commit/28b9e7c7b83845c35fe46c37e8ed8e9022b4634e) ([#14377](https://www.github.com/tauri-apps/tauri/pull/14377) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `undefined is not an object (evaluating '[callbackId, data]')` error on custom protocol IPC fails
+
+## \[2.9.1]
+
+### Bug Fixes
+
+- [`4b6b8690a`](https://www.github.com/tauri-apps/tauri/commit/4b6b8690ab886ebdf1307951cffbe03e31280baa) ([#14347](https://www.github.com/tauri-apps/tauri/pull/14347) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused docs.rs builds to fail. No user facing changes.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.5.1`
+- Upgraded to `tauri-runtime@2.9.1`
+- Upgraded to `tauri-runtime-wry@2.9.1`
+
+## \[2.9.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scroll_bar_style` option to the Webview and WebviewWindow builders.
+  The possible values for this option are gated behind conditional compilation
+  flags, and will need to be applied using conditional compilation if customised.
+- [`3397fd9bf`](https://www.github.com/tauri-apps/tauri/commit/3397fd9bfe5f6b1337110149f6c34731b8a44bb3) ([#14133](https://www.github.com/tauri-apps/tauri/pull/14133)) Added mobile app plugin to support exit and back button press event.
+- [`68cb31897`](https://www.github.com/tauri-apps/tauri/commit/68cb318979317c09f401825150e007d60377e75e) ([#14328](https://www.github.com/tauri-apps/tauri/pull/14328)) Added `onStop`, `onDestroy`, `onRestart`, `onConfigurationChanged` Android plugin hooks.
+- [`2e089f6ac`](https://www.github.com/tauri-apps/tauri/commit/2e089f6acb854e4d7f8eafb9b2f8242b1c9fa491) ([#14148](https://www.github.com/tauri-apps/tauri/pull/14148)) Support async Swift plugin methods (`completionHandler:`) in PluginManager
+
+### Bug Fixes
+
+- [`006d59283`](https://www.github.com/tauri-apps/tauri/commit/006d592837259cac87f15cf3ffc99e7fce97685e) ([#14260](https://www.github.com/tauri-apps/tauri/pull/14260)) Properly deserialize Android plugin args with key starting with `is` (previously treated as a getter instead of a field name).
+- [`69476d8e2`](https://www.github.com/tauri-apps/tauri/commit/69476d8e2314b85bf46046140bc5495fe29b7d29) ([#14170](https://www.github.com/tauri-apps/tauri/pull/14170)) Fix the stack overflow when having too many commands in a single invoke handler in release build
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- Upgraded to `tauri-runtime-wry@2.9.0`
+- Upgraded to `tauri-runtime@2.9.0`
+- Upgraded to `tauri-build@2.5.0`
+- Upgraded to `tauri-macros@2.5.0`
+
 ## \[2.8.5]
 
 ### Enhancements
@@ -59,7 +188,7 @@
 - [`f1232671a`](https://www.github.com/tauri-apps/tauri/commit/f1232671abc15f03118a35da1883ce9aca88ff2a) ([#13959](https://www.github.com/tauri-apps/tauri/pull/13959) by [@petersamokhin](https://www.github.com/tauri-apps/tauri/../../petersamokhin)) Introduce `with_inner_tray_icon` for Tauri `TrayIcon` to access the inner platform-specific tray icon.
 
   Note that `tray-icon` crate may be updated in minor releases of Tauri.
-  Therefore, it’s recommended to pin Tauri to at least a minor version when you’re using `with_inner_tray_icon`.
+  Therefore, it's recommended to pin Tauri to at least a minor version when you're using `with_inner_tray_icon`.
 - [`72b4226ee`](https://www.github.com/tauri-apps/tauri/commit/72b4226ee9932b4dafa4837a49420b2c02d14bb7) ([#13809](https://www.github.com/tauri-apps/tauri/pull/13809) by [@Beanow](https://www.github.com/tauri-apps/tauri/../../Beanow)) Reduced `Debug` format size for binary buffers.
 - [`21ebc6e82`](https://www.github.com/tauri-apps/tauri/commit/21ebc6e82062b55a12f3a360d9a979daf5ae7e66) ([#14007](https://www.github.com/tauri-apps/tauri/pull/14007) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Changed the parameter type of `AppHandle::remove_plugin` from `&'static str` to `&str`.
 - [`5ba1c3faa`](https://www.github.com/tauri-apps/tauri/commit/5ba1c3faa468073512bdb5035a01f7f99720fcf0) ([#13722](https://www.github.com/tauri-apps/tauri/pull/13722) by [@s00d](https://www.github.com/tauri-apps/tauri/../../s00d)) Added icon (icon and nativeIcon) support for Submenu:

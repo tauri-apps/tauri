@@ -297,6 +297,31 @@ export class TrayIcon extends Resource {
   }
 
   /**
+   * Sets a new tray icon and template status atomically. **macOS only**.
+   *
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
+   */
+  async setIconWithAsTemplate(
+    icon: string | Image | Uint8Array | ArrayBuffer | number[] | null,
+    asTemplate: boolean
+  ): Promise<void> {
+    let trayIcon = null
+    if (icon) {
+      trayIcon = transformImage(icon)
+    }
+    return invoke('plugin:tray|set_icon_with_as_template', {
+      rid: this.rid,
+      icon: trayIcon,
+      asTemplate
+    })
+  }
+
+  /**
    *  Disable or enable showing the tray menu on left click.
    *
    * #### Platform-specific:

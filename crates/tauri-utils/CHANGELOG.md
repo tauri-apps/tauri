@@ -1,5 +1,41 @@
 # Changelog
 
+## \[2.8.3]
+
+### Bug Fixes
+
+- [`7b16dafb1`](https://www.github.com/tauri-apps/tauri/commit/7b16dafb1dc417536ebb62df8eb66154dd97109d) ([#14986](https://www.github.com/tauri-apps/tauri/pull/14986) by [@montyc1999](https://www.github.com/tauri-apps/tauri/../../montyc1999)) Sort csp/plugin/header configs when generating HashMap constructors so that `generate_context!` is deterministic.
+
+  See: https://github.com/tauri-apps/tauri/issues/14978 for more information
+- [`c3cbff3f7`](https://www.github.com/tauri-apps/tauri/commit/c3cbff3f7430161715f80f82128b345a6f7140c9) ([#14662](https://www.github.com/tauri-apps/tauri/pull/14662) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix resource path handles `./` path differently (e.g. `./some-folder` should be the same as `some-folder`)
+
+## \[2.8.2]
+
+### Enhancements
+
+- [`2d28e3143`](https://www.github.com/tauri-apps/tauri/commit/2d28e3143ee3d97d7570ea03877aa00a0d6e47d0) ([#14632](https://www.github.com/tauri-apps/tauri/pull/14632) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Small code refactors for improved code readability. No user facing changes.
+
+## \[2.8.1]
+
+### Bug Fixes
+
+- [`1573c7240`](https://www.github.com/tauri-apps/tauri/commit/1573c72402352949d1fd3ca5c6fdbee46fe69fbb) ([#14561](https://www.github.com/tauri-apps/tauri/pull/14561) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused schema files to have `\r` characters on Windows.
+
+## \[2.8.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scrollBarStyle` option to the window configuration.
+- [`3b4fac201`](https://www.github.com/tauri-apps/tauri/commit/3b4fac2017832d426dd07c5e24e26684eda57f7b) ([#14194](https://www.github.com/tauri-apps/tauri/pull/14194)) Add `tauri.conf.json > bundle > android > autoIncrementVersionCode` config option to automatically increment the Android version code.
+- [`3d6868d09`](https://www.github.com/tauri-apps/tauri/commit/3d6868d09c323d68a152f3c3f8c7256311bd020a) ([#14128](https://www.github.com/tauri-apps/tauri/pull/14128)) Added `FileAssociation::exported_type` and `FileAssociation::content_types` for better support to defining custom types on macOS.
+- [`ed7c9a410`](https://www.github.com/tauri-apps/tauri/commit/ed7c9a4100e08c002212265549d12130d021ad1e) ([#14108](https://www.github.com/tauri-apps/tauri/pull/14108)) Added `bundle > macOS > infoPlist` and `bundle > iOS > infoPlist` configurations to allow defining custom Info.plist extensions.
+- [`7b0d4e732`](https://www.github.com/tauri-apps/tauri/commit/7b0d4e73227e42d88732b6d9fe643499dd78ec4e) ([#14265](https://www.github.com/tauri-apps/tauri/pull/14265)) Added `html::normalize_script_for_csp`.
+- [`cc8c0b531`](https://www.github.com/tauri-apps/tauri/commit/cc8c0b53171173dbd1d01781a50de1a3ea159031) ([#14031](https://www.github.com/tauri-apps/tauri/pull/14031)) Added support to universal app links on macOS with the `plugins > deep-link > desktop > domains` configuration.
+
+### Enhancements
+
+- [`59089723f`](https://www.github.com/tauri-apps/tauri/commit/59089723fc20d66f3f305f2008adeb279bf87462) ([#14091](https://www.github.com/tauri-apps/tauri/pull/14091)) Added a config to set a data_directory relative to the app-specific data dir in JavaScript and `tauri.conf.json`.
+
 ## \[2.7.0]
 
 ### New Features

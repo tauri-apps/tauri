@@ -19,18 +19,13 @@ use std::path::Path;
 pub use tray_icon::TrayIconId;
 
 /// Describes the mouse button state.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Serialize)]
 pub enum MouseButtonState {
   /// Mouse button pressed.
+  #[default]
   Up,
   /// Mouse button released.
   Down,
-}
-
-impl Default for MouseButtonState {
-  fn default() -> Self {
-    Self::Up
-  }
 }
 
 impl From<tray_icon::MouseButtonState> for MouseButtonState {
@@ -43,20 +38,15 @@ impl From<tray_icon::MouseButtonState> for MouseButtonState {
 }
 
 /// Describes which mouse button triggered the event..
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Default)]
 pub enum MouseButton {
   /// Left mouse button.
+  #[default]
   Left,
   /// Right mouse button.
   Right,
   /// Middle mouse button.
   Middle,
-}
-
-impl Default for MouseButton {
-  fn default() -> Self {
-    Self::Left
-  }
 }
 
 impl From<tray_icon::MouseButton> for MouseButton {
@@ -73,7 +63,7 @@ impl From<tray_icon::MouseButton> for MouseButton {
 ///
 /// ## Platform-specific:
 ///
-/// - **Linux**: Unsupported. The event is not emmited even though the icon is shown
+/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown
 ///   and will still show a context menu on right click.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
@@ -314,7 +304,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// - **Linux:** Unsupported.
   #[deprecated(
     since = "2.2.0",
-    note = "Use `TrayIconBuiler::show_menu_on_left_click` instead."
+    note = "Use `TrayIconBuilder::show_menu_on_left_click` instead."
   )]
   pub fn menu_on_left_click(mut self, enable: bool) -> Self {
     self.inner = self.inner.with_menu_on_left_click(enable);
@@ -573,6 +563,38 @@ impl<R: Runtime> TrayIcon<R> {
     run_item_main_thread!(self, |self_: Self| {
       self_.inner.set_icon_as_template(is_template)
     })?;
+    Ok(())
+  }
+
+  /// Sets the tray icon and template status atomically. **macOS only**.
+  ///
+  /// On macOS, calling `set_icon` followed by `set_icon_as_template` causes a visible
+  /// flicker as the icon is rendered twice. This method sets both atomically to prevent that.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux / Windows:** Falls back to calling `set_icon`.
+  pub fn set_icon_with_as_template(
+    &self,
+    icon: Option<Image<'_>>,
+    #[allow(unused)] is_template: bool,
+  ) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+      let tray_icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| {
+        self_
+          .inner
+          .set_icon_with_as_template(tray_icon, is_template)
+      })??;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+      self.set_icon(icon)?;
+    }
     Ok(())
   }
 

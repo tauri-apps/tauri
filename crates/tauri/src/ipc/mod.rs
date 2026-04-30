@@ -345,7 +345,7 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
   {
     // Dynamic dispatch the call in dev for a faster compile time
-    // TODO: Revisit this and see if we can do this for the release build as well if the performace hit is not a problem
+    // TODO: Revisit this and see if we can do this for the release build as well if the performance hit is not a problem
     #[cfg(debug_assertions)]
     {
       self.respond_async_serialized_dyn(Box::pin(task))

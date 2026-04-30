@@ -36,12 +36,12 @@ use std::{
 // URLS for the NSIS toolchain.
 #[cfg(target_os = "windows")]
 const NSIS_URL: &str =
-  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3/nsis-3.zip";
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip";
 #[cfg(target_os = "windows")]
-const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
+const NSIS_SHA1: &str = "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.1/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "B053B2E5FDB97257954C8F935D80964F056520AE";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "75197FEE3C6A814FE035788D1C34EAD39349B860";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -55,6 +55,9 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/x64.nsh",
   "Include/nsDialogs.nsh",
   "Include/WinMessages.nsh",
+  "Include/Win/COM.nsh",
+  "Include/Win/Propkey.nsh",
+  "Include/Win/RestartManager.nsh",
 ];
 const NSIS_PLUGIN_FILES: &[&str] = &[
   "NSISdl.dll",
@@ -125,7 +128,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
     crate::utils::http_utils::extract_zip(&data, _tauri_tools_path)?;
-    fs::rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
+    fs::rename(_tauri_tools_path.join("nsis-3.11"), nsis_toolset_path)?;
   }
 
   // download additional plugins
@@ -295,8 +298,12 @@ fn build_nsis_app_installer(
   data.insert("copyright", to_json(settings.copyright_string()));
 
   if settings.windows().can_sign() {
-    let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
-    data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
+    if settings.no_sign() {
+      log::warn!("Skipping signing for NSIS uninstaller due to --no-sign flag.");
+    } else {
+      let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
+      data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
+    }
   }
 
   let version = settings.version_string();
@@ -347,6 +354,20 @@ fn build_nsis_app_installer(
       );
     }
 
+    if let Some(uninstaller_icon) = &nsis.uninstaller_icon {
+      data.insert(
+        "uninstaller_icon",
+        to_json(dunce::canonicalize(uninstaller_icon)?),
+      );
+    }
+
+    if let Some(uninstaller_header_image) = &nsis.uninstaller_header_image {
+      data.insert(
+        "uninstaller_header_image",
+        to_json(dunce::canonicalize(uninstaller_header_image)?),
+      );
+    }
+
     if let Some(installer_hooks) = &nsis.installer_hooks {
       let installer_hooks = dunce::canonicalize(installer_hooks)?;
       data.insert("installer_hooks", to_json(installer_hooks));
@@ -355,7 +376,12 @@ fn build_nsis_app_installer(
     if let Some(start_menu_folder) = &nsis.start_menu_folder {
       data.insert("start_menu_folder", to_json(start_menu_folder));
     }
-    if let Some(minimum_webview2_version) = &nsis.minimum_webview2_version {
+    #[allow(deprecated)]
+    if let Some(minimum_webview2_version) = nsis
+      .minimum_webview2_version
+      .as_ref()
+      .or(settings.windows().minimum_webview2_version.as_ref())
+    {
       data.insert(
         "minimum_webview2_version",
         to_json(minimum_webview2_version),
@@ -614,13 +640,16 @@ fn build_nsis_app_installer(
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   if settings.windows().can_sign() {
-    log::info!("Signing NSIS plugins");
-    for dll in NSIS_PLUGIN_FILES {
-      let path = additional_plugins_path.join(dll);
-      if path.exists() {
-        try_sign(&path, settings)?;
-      } else {
-        log::warn!("Could not find {}, skipping signing", path.display());
+    if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+      let plugin_copy_path = plugin_copy_path.join("x86-unicode");
+      log::info!("Signing NSIS plugins");
+      for dll in NSIS_PLUGIN_FILES {
+        let path = plugin_copy_path.join(dll);
+        if path.exists() {
+          try_sign(&path, settings)?;
+        } else {
+          log::warn!("Could not find {}, skipping signing", path.display());
+        }
       }
     }
   }
@@ -857,6 +886,8 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),
     "ukrainian" => include_bytes!("./languages/Ukrainian.nsh"),
+    "norwegian" => include_bytes!("./languages/Norwegian.nsh"),
+    "vietnamese" => include_bytes!("./languages/Vietnamese.nsh"),
     _ => return None,
   };
   Some((path, content))

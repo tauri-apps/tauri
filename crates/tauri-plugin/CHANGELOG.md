@@ -1,5 +1,36 @@
 # Changelog
 
+## \[2.5.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+
+## \[2.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+
+## \[2.5.1]
+
+### Bug Fixes
+
+- [`4b6b8690a`](https://www.github.com/tauri-apps/tauri/commit/4b6b8690ab886ebdf1307951cffbe03e31280baa) ([#14347](https://www.github.com/tauri-apps/tauri/pull/14347) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused docs.rs builds to fail. No user facing changes.
+
+## \[2.5.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- [`6aa7f2d85`](https://www.github.com/tauri-apps/tauri/commit/6aa7f2d852870aeba1d4dd0e07f8be2bc9b66286) Upgraded to `tauri-utils@2.8.0`
+
 ## \[2.4.0]
 
 ### New Features

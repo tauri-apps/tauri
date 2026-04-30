@@ -1,5 +1,66 @@
 # Changelog
 
+## \[2.10.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+- Upgraded to `tauri-runtime@2.10.1`
+
+## \[2.10.0]
+
+### Bug Fixes
+
+- [`c1d82eb3a`](https://www.github.com/tauri-apps/tauri/commit/c1d82eb3a3fa4b555745ba699edf1cc532030117) ([#14628](https://www.github.com/tauri-apps/tauri/pull/14628) by [@KushalMeghani1644](https://www.github.com/tauri-apps/tauri/../../KushalMeghani1644)) On Linux, keep the WebContext alive to prevent zombie WebKit processes after repeatedly closing all windows and re-opening them.
+- [`9b242e40c`](https://www.github.com/tauri-apps/tauri/commit/9b242e40c844189c877a91e513ae6196202d5ae9) ([#14700](https://www.github.com/tauri-apps/tauri/pull/14700) by [@mewi99](https://www.github.com/tauri-apps/tauri/../../mewi99)) Fix compilation errors when targeting BSD.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- Upgraded to `tauri-runtime@2.10.0`
+- [`75057c7c0`](https://www.github.com/tauri-apps/tauri/commit/75057c7c08f0d4d3dd8d10cea4e2217e5d61fe1a) ([#14778](https://www.github.com/tauri-apps/tauri/pull/14778) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) **Breaking Change** for `with_webview` users: Updated webkit2gtk-rs crates to `v2.0.2`.
+- [`75057c7c0`](https://www.github.com/tauri-apps/tauri/commit/75057c7c08f0d4d3dd8d10cea4e2217e5d61fe1a) ([#14778](https://www.github.com/tauri-apps/tauri/pull/14778) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Update wry to `v0.54`.
+
+## \[2.9.3]
+
+### Bug Fixes
+
+- [`251203b89`](https://www.github.com/tauri-apps/tauri/commit/251203b8963419cb3b40741767393e8f3c909ef9) ([#14637](https://www.github.com/tauri-apps/tauri/pull/14637) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Monitor::work_area` returns logical position and size inside the `PhysicalRect` on Linux
+
+## \[2.9.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+- Upgraded to `tauri-runtime@2.9.2`
+
+## \[2.9.1]
+
+### Bug Fixes
+
+- [`4b6b8690a`](https://www.github.com/tauri-apps/tauri/commit/4b6b8690ab886ebdf1307951cffbe03e31280baa) ([#14347](https://www.github.com/tauri-apps/tauri/pull/14347) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused docs.rs builds to fail. No user facing changes.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.9.1`
+
+## \[2.9.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scroll_bar_style` option to the Webview and WebviewWindow builders.
+  The possible values for this option are gated behind conditional compilation
+  flags, and will need to be applied using conditional compilation if customised.
+
+### Bug Fixes
+
+- [`684791efa`](https://www.github.com/tauri-apps/tauri/commit/684791efa6f3c671a0435d456ac208bca871d8c1) ([#14276](https://www.github.com/tauri-apps/tauri/pull/14276)) Always try to create macOS WebKit webview, even if webkit runtime doesn't get detected correctly
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- Upgraded to `tauri-runtime@2.9.0`
+
 ## \[2.8.1]
 
 ### Bug Fixes

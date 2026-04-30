@@ -58,8 +58,7 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-pub(crate) type NewWindowHandler<R> =
-  dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync;
+pub(crate) type NewWindowHandler<R> = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
@@ -244,8 +243,8 @@ pub enum NewWindowResponse<R: Runtime> {
   ///
   /// ## Platform-specific:
   ///
-  /// **Linux**: The webview must be related to the caller webview. See [`WebviewBuilder::related_view`].
-  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewBuilder::environment`].
+  /// **Linux**: The webview must be related to the caller webview. See [`WebviewBuilder::with_related_view`].
+  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewBuilder::with_environment`].
   /// **macOS**: The webview must use the same webview configuration as the caller webview. See [`WebviewBuilder::with_webview_configuration`] and [`NewWindowFeatures::webview_configuration`].
   Create {
     /// Window that was created.
@@ -581,12 +580,9 @@ tauri::Builder::default()
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.
-  /// - **Windows**: The closure is executed on a separate thread to prevent a deadlock.
   ///
   /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
-  pub fn on_new_window<
-    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
-  >(
+  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -724,7 +720,6 @@ tauri::Builder::default()
         as Box<
           dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
             + Send
-            + Sync
             + 'static,
         >
     });
@@ -1151,7 +1146,7 @@ fn main() {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
   pub fn background_throttling(mut self, policy: BackgroundThrottlingPolicy) -> Self {
     self.webview_attributes.background_throttling = Some(policy);
@@ -1184,6 +1179,29 @@ fn main() {
     self
   }
 
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// By default, this is `true`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[must_use]
+  pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
+    self.webview_attributes = self.webview_attributes.general_autofill_enabled(enabled);
+    self
+  }
+
   /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
   ///
   /// Default is true.
@@ -1202,7 +1220,7 @@ fn main() {
     self
   }
 
-  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
   /// The closure parameter is the webview instance.
@@ -1646,7 +1664,7 @@ tauri::Builder::default()
   "####
   )]
   #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(feature = "wry"))]
+  #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -1682,7 +1700,7 @@ tauri::Builder::default()
 
     // if from `tauri://` custom protocol
     ({
-      let protocol_url = self.manager().protocol_url(uses_https);
+      let protocol_url = self.manager().tauri_protocol_url(uses_https);
       current_url.scheme() == protocol_url.scheme()
       && current_url.domain() == protocol_url.domain()
     }) ||
@@ -1690,7 +1708,7 @@ tauri::Builder::default()
     // or if relative to `devUrl` or `frontendDist`
       self
           .manager()
-          .get_url(uses_https)
+          .get_app_url(uses_https)
           .make_relative(current_url)
           .is_some()
 
@@ -1706,7 +1724,7 @@ tauri::Builder::default()
         // so we check using the first part of the domain
         #[cfg(any(windows, target_os = "android"))]
         let local = {
-          let protocol_url = self.manager().protocol_url(uses_https);
+          let protocol_url = self.manager().tauri_protocol_url(uses_https);
           let maybe_protocol = current_url
             .domain()
             .and_then(|d| d .split_once('.'))
@@ -1901,6 +1919,22 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
+  /// Evaluate JavaScript with callback function on this webview.
+  /// The evaluation result will be serialized into a JSON string and passed to the callback function.
+  ///
+  /// Exception is ignored because of the limitation on Windows. You can catch it yourself and return as string as a workaround.
+  pub fn eval_with_callback(
+    &self,
+    js: impl Into<String>,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .eval_script_with_callback(js.into(), callback)
+      .map_err(Into::into)
+  }
+
   /// Register a JS event listener and return its identifier.
   pub(crate) fn listen_js(
     &self,
@@ -2068,7 +2102,7 @@ tauri::Builder::default()
 
   /// Specify the webview background color.
   ///
-  /// ## Platfrom-specific:
+  /// ## Platform-specific:
   ///
   /// - **macOS / iOS**: Not implemented.
   /// - **Windows**:
@@ -2278,6 +2312,16 @@ impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn managed_app_handle(&self) -> &AppHandle<R> {
     &self.app_handle
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    Some(self.window().activity_name())
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    Some(self.window().scene_identifier())
+  }
 }
 
 impl<'de, R: Runtime> CommandArg<'de, R> for Webview<R> {
@@ -2311,5 +2355,26 @@ mod tests {
   fn webview_is_send_sync() {
     crate::test_utils::assert_send::<super::Webview>();
     crate::test_utils::assert_sync::<super::Webview>();
+  }
+
+  #[cfg(target_os = "macos")]
+  #[test]
+  fn test_webview_window_has_set_simple_fullscreen_method() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    // Create a mock app with proper context
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+
+    // Get or create a webview window
+    let webview_window =
+      crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
+        .build()
+        .unwrap();
+
+    // This should compile if set_simple_fullscreen exists
+    let result = webview_window.set_simple_fullscreen(true);
+
+    // We expect this to work without panicking
+    assert!(result.is_ok(), "set_simple_fullscreen should succeed");
   }
 }

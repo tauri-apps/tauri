@@ -3919,6 +3919,13 @@
           "description": "Whether to automatically increment the `versionCode` on each build.\n\n - If `true`, the generator will try to read the last `versionCode` from\n   `tauri.properties` and increment it by 1 for every build.\n - If `false` or not set, it falls back to `version_code` or semver-derived logic.\n\n Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.",
           "default": false,
           "type": "boolean"
+        },
+        "debugApplicationIdSuffix": {
+          "description": "Application ID suffix to append for debug builds.\n This allows installing debug and release versions side-by-side on the same device.\n Example: \".debug\" will make debug builds use \"com.example.app.debug\" as the application ID.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

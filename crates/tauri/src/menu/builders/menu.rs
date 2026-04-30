@@ -642,6 +642,31 @@ macro_rules! shared_menu_builder {
           .push(PredefinedMenuItem::services(self.manager, Some(text.as_ref())).map(|i| i.kind()));
         self
       }
+
+      /// Add Bring All to Front menu item to the menu.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **Windows / Linux:** Unsupported.
+      pub fn bring_all_to_front(mut self) -> Self {
+        self
+          .items
+          .push(PredefinedMenuItem::bring_all_to_front(self.manager, None).map(|i| i.kind()));
+        self
+      }
+
+      /// Add Bring All to Front menu item with specified text to the menu.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **Windows / Linux:** Unsupported.
+      pub fn bring_all_to_front_with_text<S: AsRef<str>>(mut self, text: S) -> Self {
+        self.items.push(
+          PredefinedMenuItem::bring_all_to_front(self.manager, Some(text.as_ref()))
+            .map(|i| i.kind()),
+        );
+        self
+      }
     }
   };
 }

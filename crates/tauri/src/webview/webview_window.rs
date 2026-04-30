@@ -13,7 +13,7 @@ use std::{
 use crate::{
   event::EventTarget,
   ipc::ScopeObject,
-  runtime::dpi::{PhysicalPosition, PhysicalSize},
+  runtime::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   webview::{NewWindowResponse, ScrollBarStyle},
   window::Monitor,
   Emitter, EventName, Listener, ResourceTable, Window,
@@ -22,11 +22,7 @@ use crate::{
 use crate::{
   image::Image,
   menu::{ContextMenu, Menu},
-  runtime::{
-    dpi::{Position, Size},
-    window::CursorIcon,
-    UserAttentionType,
-  },
+  runtime::{window::CursorIcon, UserAttentionType},
 };
 use tauri_runtime::webview::NewWindowFeatures;
 use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
@@ -314,12 +310,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.
-  /// - **Windows**: The closure is executed on a separate thread to prevent a deadlock.
   ///
   /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
-  pub fn on_new_window<
-    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
-  >(
+  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -465,44 +458,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// The initial position of the window in logical pixels.
-  #[must_use]
-  pub fn position(mut self, x: f64, y: f64) -> Self {
-    self.window_builder = self.window_builder.position(x, y);
-    self
-  }
-
-  /// Window size in logical pixels.
-  #[must_use]
-  pub fn inner_size(mut self, width: f64, height: f64) -> Self {
-    self.window_builder = self.window_builder.inner_size(width, height);
-    self
-  }
-
-  /// Window min inner size in logical pixels.
-  #[must_use]
-  pub fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
-    self.window_builder = self.window_builder.min_inner_size(min_width, min_height);
-    self
-  }
-
-  /// Window max inner size in logical pixels.
-  #[must_use]
-  pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
-    self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
-    self
-  }
-
-  /// Window inner size constraints.
-  #[must_use]
-  pub fn inner_size_constraints(
-    mut self,
-    constraints: tauri_runtime::window::WindowSizeConstraints,
-  ) -> Self {
-    self.window_builder = self.window_builder.inner_size_constraints(constraints);
-    self
-  }
-
   /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
   /// on creation, which means the window size will be limited to `monitor size - taskbar size`
   ///
@@ -528,14 +483,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   #[must_use]
   pub fn prevent_overflow_with_margin(mut self, margin: impl Into<Size>) -> Self {
     self.window_builder = self.window_builder.prevent_overflow_with_margin(margin);
-    self
-  }
-
-  /// Whether the window is resizable or not.
-  /// When resizable is set to false, native window's maximize button is automatically disabled.
-  #[must_use]
-  pub fn resizable(mut self, resizable: bool) -> Self {
-    self.window_builder = self.window_builder.resizable(resizable);
     self
   }
 
@@ -576,36 +523,10 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// The title of the window in the title bar.
-  #[must_use]
-  pub fn title<S: Into<String>>(mut self, title: S) -> Self {
-    self.window_builder = self.window_builder.title(title);
-    self
-  }
-
   /// Whether to start the window in fullscreen or not.
   #[must_use]
   pub fn fullscreen(mut self, fullscreen: bool) -> Self {
     self.window_builder = self.window_builder.fullscreen(fullscreen);
-    self
-  }
-
-  /// Sets the window to be initially focused.
-  #[must_use]
-  #[deprecated(
-    since = "1.2.0",
-    note = "The window is automatically focused by default. This function Will be removed in 3.0.0. Use `focused` instead."
-  )]
-  pub fn focus(mut self) -> Self {
-    self.window_builder = self.window_builder.focused(true);
-    self.webview_builder = self.webview_builder.focused(true);
-    self
-  }
-
-  /// Whether the window will be focusable or not.
-  #[must_use]
-  pub fn focusable(mut self, focusable: bool) -> Self {
-    self.window_builder = self.window_builder.focusable(focusable);
     self
   }
 
@@ -621,24 +542,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   #[must_use]
   pub fn maximized(mut self, maximized: bool) -> Self {
     self.window_builder = self.window_builder.maximized(maximized);
-    self
-  }
-
-  /// Whether the window should be immediately visible upon creation.
-  #[must_use]
-  pub fn visible(mut self, visible: bool) -> Self {
-    self.window_builder = self.window_builder.visible(visible);
-    self
-  }
-
-  /// Forces a theme or uses the system settings if None was provided.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS**: Only supported on macOS 10.14+.
-  #[must_use]
-  pub fn theme(mut self, theme: Option<crate::Theme>) -> Self {
-    self.window_builder = self.window_builder.theme(theme);
     self
   }
 
@@ -669,13 +572,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self.window_builder = self
       .window_builder
       .visible_on_all_workspaces(visible_on_all_workspaces);
-    self
-  }
-
-  /// Prevents the window contents from being captured by other apps.
-  #[must_use]
-  pub fn content_protected(mut self, protected: bool) -> Self {
-    self.window_builder = self.window_builder.content_protected(protected);
     self
   }
 
@@ -896,6 +792,106 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   }
 }
 
+/// Window APIs.
+impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
+  /// The initial position of the window in logical pixels.
+  #[must_use]
+  pub fn position(mut self, x: f64, y: f64) -> Self {
+    self.window_builder = self.window_builder.position(x, y);
+    self
+  }
+
+  /// Window size in logical pixels.
+  #[must_use]
+  pub fn inner_size(mut self, width: f64, height: f64) -> Self {
+    self.window_builder = self.window_builder.inner_size(width, height);
+    self
+  }
+
+  /// Window min inner size in logical pixels.
+  #[must_use]
+  pub fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
+    self.window_builder = self.window_builder.min_inner_size(min_width, min_height);
+    self
+  }
+
+  /// Window max inner size in logical pixels.
+  #[must_use]
+  pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
+    self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
+    self
+  }
+
+  /// Window inner size constraints.
+  #[must_use]
+  pub fn inner_size_constraints(
+    mut self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
+    self.window_builder = self.window_builder.inner_size_constraints(constraints);
+    self
+  }
+
+  /// Whether the window is resizable or not.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
+  #[must_use]
+  pub fn resizable(mut self, resizable: bool) -> Self {
+    self.window_builder = self.window_builder.resizable(resizable);
+    self
+  }
+
+  /// The title of the window in the title bar.
+  #[must_use]
+  pub fn title<S: Into<String>>(mut self, title: S) -> Self {
+    self.window_builder = self.window_builder.title(title);
+    self
+  }
+
+  /// Sets the window to be initially focused.
+  #[must_use]
+  #[deprecated(
+    since = "1.2.0",
+    note = "The window is automatically focused by default. This function Will be removed in 3.0.0. Use `focused` instead."
+  )]
+  pub fn focus(mut self) -> Self {
+    self.window_builder = self.window_builder.focused(true);
+    self.webview_builder = self.webview_builder.focused(true);
+    self
+  }
+
+  /// Whether the window will be focusable or not.
+  #[must_use]
+  pub fn focusable(mut self, focusable: bool) -> Self {
+    self.window_builder = self.window_builder.focusable(focusable);
+    self
+  }
+
+  /// Whether the window should be immediately visible upon creation.
+  #[must_use]
+  pub fn visible(mut self, visible: bool) -> Self {
+    self.window_builder = self.window_builder.visible(visible);
+    self
+  }
+
+  /// Forces a theme or uses the system settings if None was provided.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Only supported on macOS 10.14+.
+  #[must_use]
+  pub fn theme(mut self, theme: Option<crate::Theme>) -> Self {
+    self.window_builder = self.window_builder.theme(theme);
+    self
+  }
+
+  /// Prevents the window contents from being captured by other apps.
+  #[must_use]
+  pub fn content_protected(mut self, protected: bool) -> Self {
+    self.window_builder = self.window_builder.content_protected(protected);
+    self
+  }
+}
+
 /// Webview attributes.
 impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// Sets whether clicking an inactive window also clicks through to the webview.
@@ -942,6 +938,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///     });
   /// }
   /// ```
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
   pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self.webview_builder.initialization_script(script);
@@ -984,6 +983,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///     });
   /// }
   /// ```
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
   pub fn initialization_script_for_all_frames(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self
@@ -1197,7 +1199,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
   pub fn background_throttling(mut self, policy: BackgroundThrottlingPolicy) -> Self {
     self.webview_builder = self.webview_builder.background_throttling(policy);
@@ -1227,6 +1229,29 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   #[must_use]
   pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
     self.webview_builder = self.webview_builder.scroll_bar_style(style);
+    self
+  }
+
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// By default, this is `true`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[must_use]
+  pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.general_autofill_enabled(enabled);
     self
   }
 
@@ -1372,6 +1397,40 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
         .webview_builder
         .with_related_view(features.opener().webview.clone());
     }
+    self
+  }
+}
+
+// Android specific APIs
+#[cfg(target_os = "android")]
+impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
+  /// The name of the activity to create for this webview window.
+  pub fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.window_builder = self.window_builder.activity_name(class_name);
+    self
+  }
+
+  /// Sets the name of the activity that is creating this webview window.
+  ///
+  /// This is important to determine which stack the activity will belong to.
+  pub fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.window_builder = self.window_builder.created_by_activity_name(class_name);
+    self
+  }
+}
+
+/// iOS specific APIs
+#[cfg(target_os = "ios")]
+impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
+  /// Sets the identifier of the scene that is requesting the new scene,
+  /// establishing a relationship between the two scenes.
+  ///
+  /// By default the system uses the foreground scene.
+  #[cfg(target_os = "ios")]
+  pub fn requested_by_scene_identifier(mut self, identifier: String) -> Self {
+    self.window_builder = self
+      .window_builder
+      .requested_by_scene_identifier(identifier);
     self
   }
 }
@@ -1805,6 +1864,12 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.default_vbox()
   }
 
+  /// Returns the name of the Android activity associated with this window.
+  #[cfg(target_os = "android")]
+  pub fn activity_name(&self) -> crate::Result<String> {
+    self.window.activity_name()
+  }
+
   /// Returns the current window theme.
   ///
   /// ## Platform-specific
@@ -1857,17 +1922,6 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.request_user_attention(request_type)
   }
 
-  /// Determines if this window should be resizable.
-  /// When resizable is set to false, native window's maximize button is automatically disabled.
-  pub fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
-    self.window.set_resizable(resizable)
-  }
-
-  /// Enable or disable the window.
-  pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
-    self.webview.window().set_enabled(enabled)
-  }
-
   /// Determines if this window's native maximize button should be enabled.
   /// If resizable is set to false, this setting is ignored.
   ///
@@ -1899,11 +1953,6 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_closable(closable)
   }
 
-  /// Set this window's title.
-  pub fn set_title(&self, title: &str) -> crate::Result<()> {
-    self.window.set_title(title)
-  }
-
   /// Maximizes this window.
   pub fn maximize(&self) -> crate::Result<()> {
     self.window.maximize()
@@ -1922,26 +1971,6 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Un-minimizes this window.
   pub fn unminimize(&self) -> crate::Result<()> {
     self.window.unminimize()
-  }
-
-  /// Show this window.
-  pub fn show(&self) -> crate::Result<()> {
-    self.window.show()
-  }
-
-  /// Hide this window.
-  pub fn hide(&self) -> crate::Result<()> {
-    self.window.hide()
-  }
-
-  /// Closes this window. It emits [`crate::RunEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
-  pub fn close(&self) -> crate::Result<()> {
-    self.window.close()
-  }
-
-  /// Destroys this window. Similar to [`Self::close`] but does not emit any events and force close the window instead.
-  pub fn destroy(&self) -> crate::Result<()> {
-    self.window.destroy()
   }
 
   /// Determines if this window should be [decorated].
@@ -2019,39 +2048,6 @@ impl<R: Runtime> WebviewWindow<R> {
       .set_visible_on_all_workspaces(visible_on_all_workspaces)
   }
 
-  /// Prevents the window contents from being captured by other apps.
-  pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {
-    self.window.set_content_protected(protected)
-  }
-
-  /// Resizes this window.
-  pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
-    self.window.set_size(size.into())
-  }
-
-  /// Sets this window's minimum inner size.
-  pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
-    self.window.set_min_size(size.map(|s| s.into()))
-  }
-
-  /// Sets this window's maximum inner size.
-  pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
-    self.window.set_max_size(size.map(|s| s.into()))
-  }
-
-  /// Sets this window's minimum inner width.
-  pub fn set_size_constraints(
-    &self,
-    constraints: tauri_runtime::window::WindowSizeConstraints,
-  ) -> crate::Result<()> {
-    self.window.set_size_constraints(constraints)
-  }
-
-  /// Sets this window's position.
-  pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
-    self.window.set_position(position)
-  }
-
   /// Determines if this window should be fullscreen.
   pub fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()> {
     self.window.set_fullscreen(fullscreen)
@@ -2071,39 +2067,9 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_simple_fullscreen(enable)
   }
 
-  /// Bring the window to front and focus.
-  pub fn set_focus(&self) -> crate::Result<()> {
-    self.window.set_focus()
-  }
-
-  /// Sets whether the window can be focused.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
-  ///   In this case, you might consider calling [`Window::set_focus`] but it will move the window to the back i.e. at the bottom in terms of z-order.
-  pub fn set_focusable(&self, focusable: bool) -> crate::Result<()> {
-    self.window.set_focusable(focusable)
-  }
-
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self.window.set_icon(icon)
-  }
-
-  /// Sets the window background color.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **iOS / Android:** Unsupported.
-  /// - **macOS**: Not implemented for the webview layer..
-  /// - **Windows**:
-  ///   - alpha channel is ignored for the window layer.
-  ///   - On Windows 7, transparency is not supported and the alpha value will be ignored for the webview layer..
-  ///   - On Windows 8 and newer: translucent colors are not supported so any alpha value other than `0` will be replaced by `255` for the webview layer.
-  pub fn set_background_color(&self, color: Option<Color>) -> crate::Result<()> {
-    self.window.set_background_color(color)?;
-    self.webview.set_background_color(color)
   }
 
   /// Whether to hide the window icon from the taskbar or not.
@@ -2205,6 +2171,108 @@ impl<R: Runtime> WebviewWindow<R> {
   pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
     self.window.set_title_bar_style(style)
   }
+}
+
+/// Desktop window setters and actions.
+impl<R: Runtime> WebviewWindow<R> {
+  /// Determines if this window should be resizable.
+  /// When resizable is set to false, native window's maximize button is automatically disabled.
+  pub fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
+    self.window.set_resizable(resizable)
+  }
+
+  /// Enable or disable the window.
+  pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
+    self.webview.window().set_enabled(enabled)
+  }
+
+  /// Set this window's title.
+  pub fn set_title(&self, title: &str) -> crate::Result<()> {
+    self.window.set_title(title)
+  }
+
+  /// Show this window.
+  pub fn show(&self) -> crate::Result<()> {
+    self.window.show()
+  }
+
+  /// Hide this window.
+  pub fn hide(&self) -> crate::Result<()> {
+    self.window.hide()
+  }
+
+  /// Closes this window. It emits [`crate::WindowEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
+  pub fn close(&self) -> crate::Result<()> {
+    self.window.close()
+  }
+
+  /// Destroys this window. Similar to [`Self::close`] but does not emit any events and force close the window instead.
+  pub fn destroy(&self) -> crate::Result<()> {
+    self.window.destroy()
+  }
+
+  /// Prevents the window contents from being captured by other apps.
+  pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {
+    self.window.set_content_protected(protected)
+  }
+
+  /// Resizes this window.
+  pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
+    self.window.set_size(size.into())
+  }
+
+  /// Sets this window's minimum inner size.
+  pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
+    self.window.set_min_size(size.map(|s| s.into()))
+  }
+
+  /// Sets this window's maximum inner size.
+  pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
+    self.window.set_max_size(size.map(|s| s.into()))
+  }
+
+  /// Sets this window's minimum inner width.
+  pub fn set_size_constraints(
+    &self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> crate::Result<()> {
+    self.window.set_size_constraints(constraints)
+  }
+
+  /// Sets this window's position.
+  pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
+    self.window.set_position(position)
+  }
+
+  /// Bring the window to front and focus.
+  pub fn set_focus(&self) -> crate::Result<()> {
+    self.window.set_focus()
+  }
+
+  /// Sets whether the window can be focused.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
+  ///   In this case, you might consider calling [`Window::set_focus`] but it will move the window to the back i.e. at the bottom in terms of z-order.
+  pub fn set_focusable(&self, focusable: bool) -> crate::Result<()> {
+    self.window.set_focusable(focusable)
+  }
+
+  /// Sets the window background color.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **iOS / Android:** Unsupported.
+  /// - **macOS**: Not implemented for the webview layer..
+  /// - **Windows**:
+  ///   - alpha channel is ignored for the window layer.
+  ///   - On Windows 7, transparency is not supported and the alpha value will be ignored for the webview layer..
+  ///   - On Windows 8 and newer: translucent colors are not supported so any alpha value other than `0` will be replaced by `255` for the webview layer.
+  pub fn set_background_color(&self, color: Option<Color>) -> crate::Result<()> {
+    self.window.set_background_color(color)?;
+    self.webview.set_background_color(color)
+  }
 
   /// Sets the theme for this window.
   ///
@@ -2217,7 +2285,7 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 }
 
-/// Desktop webview setters and actions.
+/// Desktop webview APIs.
 #[cfg(desktop)]
 impl<R: Runtime> WebviewWindow<R> {
   /// Opens the dialog to prints the contents of the webview.
@@ -2287,7 +2355,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// ```
   #[allow(clippy::needless_doctest_main)] // To avoid a large diff
   #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(feature = "wry"))]
+  #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
   pub fn with_webview<F: FnOnce(crate::webview::PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -2322,6 +2390,18 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Evaluates JavaScript on this window.
   pub fn eval(&self, js: impl Into<String>) -> crate::Result<()> {
     self.webview.eval(js)
+  }
+
+  /// Evaluate JavaScript with callback function on this webview.
+  /// The evaluation result will be serialized into a JSON string and passed to the callback function.
+  ///
+  /// Exception is ignored because of the limitation on Windows. You can catch it yourself and return as string as a workaround.
+  pub fn eval_with_callback(
+    &self,
+    js: impl Into<String>,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> crate::Result<()> {
+    self.webview.eval_with_callback(js, callback)
   }
 
   /// Opens the developer tools window (Web Inspector).
@@ -2590,10 +2670,20 @@ impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    self.webview.runtime()
+    self.window.runtime()
   }
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self.webview.managed_app_handle()
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    Some(self.window.activity_name())
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    Some(self.window.scene_identifier())
   }
 }

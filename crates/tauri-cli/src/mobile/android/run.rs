@@ -10,7 +10,7 @@ use cargo_mobile2::{
 use clap::{ArgAction, Parser};
 use std::path::PathBuf;
 
-use super::{configure_cargo, device_prompt, env};
+use super::{configure_cargo, device_prompt, env, sync_debug_application_id_suffix};
 use crate::{
   error::Context,
   helpers::config::ConfigMetadata,
@@ -125,9 +125,22 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(device) = device {
     let config = built_application.config.clone();
     let release = options.release;
-    let runner = move |_tauri_config: &ConfigMetadata| {
+
+    let runner = move |tauri_config: &ConfigMetadata| {
+      sync_debug_application_id_suffix(&config, tauri_config)?;
+
+      let application_id_suffix = if !release {
+        tauri_config
+          .bundle
+          .android
+          .debug_application_id_suffix
+          .clone()
+      } else {
+        None
+      };
+
       device
-        .run(
+        .run_with_application_id_suffix(
           &config,
           &env,
           noise_level,
@@ -143,7 +156,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
           }),
           false,
           false,
-          ".MainActivity".into(),
+          format!("{}.MainActivity", config.app().identifier()),
+          application_id_suffix,
         )
         .map(|c| Box::new(DevChild::new(c)) as Box<dyn DevProcess + Send>)
         .context("failed to run Android app")

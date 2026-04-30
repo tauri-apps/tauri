@@ -5,85 +5,50 @@
 //! The tauri plugin to create and manipulate windows from JS.
 
 use crate::{
+  command,
   plugin::{Builder, TauriPlugin},
-  Runtime,
+  sealed::ManagerBase,
+  utils::config::WindowConfig,
+  AppHandle, Runtime, WebviewWindowBuilder,
 };
+
+#[derive(serde::Serialize)]
+struct WebviewRef {
+  window_label: String,
+  label: String,
+}
+
+#[command(root = "crate")]
+async fn get_all_webviews<R: Runtime>(app: AppHandle<R>) -> Vec<WebviewRef> {
+  app
+    .manager()
+    .webviews()
+    .values()
+    .map(|webview| WebviewRef {
+      window_label: webview.window_ref().label().into(),
+      label: webview.label().into(),
+    })
+    .collect()
+}
+
+#[command(root = "crate")]
+async fn create_webview_window<R: Runtime>(
+  app: AppHandle<R>,
+  options: WindowConfig,
+) -> crate::Result<()> {
+  WebviewWindowBuilder::from_config(&app, &options)?.build()?;
+  Ok(())
+}
 
 #[cfg(desktop)]
 mod desktop_commands {
-
-  use serde::Serialize;
-  use tauri_runtime::dpi::{Position, Size};
-  use tauri_utils::config::WindowConfig;
-
   use super::*;
   use crate::{
-    command, sealed::ManagerBase, webview::Color, AppHandle, Webview, WebviewWindowBuilder,
+    command,
+    runtime::dpi::{Position, Size},
+    utils::config::Color,
+    Webview,
   };
-
-  #[derive(Serialize)]
-  pub struct WebviewRef {
-    window_label: String,
-    label: String,
-  }
-
-  #[command(root = "crate")]
-  pub async fn get_all_webviews<R: Runtime>(app: AppHandle<R>) -> Vec<WebviewRef> {
-    app
-      .manager()
-      .webviews()
-      .values()
-      .map(|webview| WebviewRef {
-        window_label: webview.window_ref().label().into(),
-        label: webview.label().into(),
-      })
-      .collect()
-  }
-
-  #[command(root = "crate")]
-  pub async fn create_webview_window<R: Runtime>(
-    app: AppHandle<R>,
-    options: WindowConfig,
-  ) -> crate::Result<()> {
-    WebviewWindowBuilder::from_config(&app, &options)?.build()?;
-    Ok(())
-  }
-
-  #[cfg(not(feature = "unstable"))]
-  #[command(root = "crate")]
-  pub async fn create_webview() -> crate::Result<()> {
-    Err(crate::Error::UnstableFeatureNotSupported)
-  }
-
-  #[cfg(feature = "unstable")]
-  #[command(root = "crate")]
-  pub async fn create_webview<R: Runtime>(
-    app: AppHandle<R>,
-    window_label: String,
-    options: WindowConfig,
-  ) -> crate::Result<()> {
-    use anyhow::Context;
-
-    let window = app
-      .manager()
-      .get_window(&window_label)
-      .ok_or(crate::Error::WindowNotFound)?;
-
-    let x = options.x.context("missing parameter `options.x`")?;
-    let y = options.y.context("missing parameter `options.y`")?;
-    let width = options.width;
-    let height = options.height;
-
-    let builder = crate::webview::WebviewBuilder::from_config(&options);
-
-    window.add_child(
-      builder,
-      tauri_runtime::dpi::LogicalPosition::new(x, y),
-      tauri_runtime::dpi::LogicalSize::new(width, height),
-    )?;
-
-    Ok(())
-  }
 
   fn get_webview<R: Runtime>(
     webview: Webview<R>,
@@ -163,6 +128,42 @@ mod desktop_commands {
   );
   setter!(clear_all_browsing_data, clear_all_browsing_data);
 
+  #[cfg(not(feature = "unstable"))]
+  #[command(root = "crate")]
+  pub async fn create_webview() -> crate::Result<()> {
+    Err(crate::Error::UnstableFeatureNotSupported)
+  }
+
+  #[cfg(feature = "unstable")]
+  #[command(root = "crate")]
+  pub async fn create_webview<R: Runtime>(
+    app: crate::AppHandle<R>,
+    window_label: String,
+    options: WindowConfig,
+  ) -> crate::Result<()> {
+    use anyhow::Context;
+
+    let window = app
+      .manager()
+      .get_window(&window_label)
+      .ok_or(crate::Error::WindowNotFound)?;
+
+    let x = options.x.context("missing parameter `options.x`")?;
+    let y = options.y.context("missing parameter `options.y`")?;
+    let width = options.width;
+    let height = options.height;
+
+    let builder = crate::webview::WebviewBuilder::from_config(&options);
+
+    window.add_child(
+      builder,
+      tauri_runtime::dpi::LogicalPosition::new(x, y),
+      tauri_runtime::dpi::LogicalSize::new(width, height),
+    )?;
+
+    Ok(())
+  }
+
   #[command(root = "crate")]
   pub async fn reparent<R: Runtime>(
     webview: crate::Webview<R>,
@@ -228,39 +229,29 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   }
 
   builder
-    .invoke_handler(
-      #[cfg(desktop)]
-      crate::generate_handler![
-        #![plugin(webview)]
-        desktop_commands::create_webview,
-        desktop_commands::create_webview_window,
-        // getters
-        desktop_commands::get_all_webviews,
-        desktop_commands::webview_position,
-        desktop_commands::webview_size,
-        // setters
-        desktop_commands::webview_close,
-        desktop_commands::set_webview_size,
-        desktop_commands::set_webview_position,
-        desktop_commands::set_webview_focus,
-        desktop_commands::set_webview_auto_resize,
-        desktop_commands::set_webview_background_color,
-        desktop_commands::set_webview_zoom,
-        desktop_commands::webview_hide,
-        desktop_commands::webview_show,
-        desktop_commands::print,
-        desktop_commands::reparent,
-        desktop_commands::clear_all_browsing_data,
-        #[cfg(any(debug_assertions, feature = "devtools"))]
-        desktop_commands::internal_toggle_devtools,
-      ],
-      #[cfg(mobile)]
-      |invoke| {
-        invoke
-          .resolver
-          .reject("Webview API not available on mobile");
-        true
-      },
-    )
+    .invoke_handler(crate::generate_handler![
+      #![plugin(webview)]
+      create_webview_window,
+      get_all_webviews,
+      #[cfg(desktop)] desktop_commands::create_webview,
+      // getters
+      #[cfg(desktop)] desktop_commands::webview_position,
+      #[cfg(desktop)] desktop_commands::webview_size,
+      // setters
+      #[cfg(desktop)] desktop_commands::webview_close,
+      #[cfg(desktop)] desktop_commands::set_webview_size,
+      #[cfg(desktop)] desktop_commands::set_webview_position,
+      #[cfg(desktop)] desktop_commands::set_webview_focus,
+      #[cfg(desktop)] desktop_commands::set_webview_auto_resize,
+      #[cfg(desktop)] desktop_commands::set_webview_background_color,
+      #[cfg(desktop)] desktop_commands::set_webview_zoom,
+      #[cfg(desktop)] desktop_commands::webview_hide,
+      #[cfg(desktop)] desktop_commands::webview_show,
+      #[cfg(desktop)] desktop_commands::print,
+      #[cfg(desktop)] desktop_commands::clear_all_browsing_data,
+      #[cfg(desktop)] desktop_commands::reparent,
+      #[cfg(all(desktop, any(debug_assertions, feature = "devtools")))]
+      desktop_commands::internal_toggle_devtools,
+    ])
     .build()
 }

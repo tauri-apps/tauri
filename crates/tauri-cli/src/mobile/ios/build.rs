@@ -36,7 +36,7 @@ use rand::distr::{Alphanumeric, SampleString};
 use std::{
   env::{set_current_dir, var, var_os},
   fs,
-  path::PathBuf,
+  path::{Path, PathBuf},
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -502,48 +502,10 @@ fn run_build(
           .join(config.app().stylized_name())
           .with_extension("app");
 
-        let ipa_path = out_dir.join(config.app().stylized_name()).with_extension("ipa");
-        let ipa_file = fs::File::create(&ipa_path).fs_context("failed to create IPA file", ipa_path.clone())?;
-        let mut zip = zip::ZipWriter::new(ipa_file);
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated)
-            .unix_permissions(0o755);
-
-        zip.add_directory("Payload/", options).context("failed to add Payload directory to zip")?;
-
-        let mut app_files = Vec::new();
-        let mut stack = vec![app_path.clone()];
-        while let Some(path) = stack.pop() {
-          if path.is_dir() {
-            app_files.push(path.clone());
-            for entry in fs::read_dir(&path).fs_context("failed to read directory", path.clone())? {
-                stack.push(entry.fs_context("failed to read directory entry", path.clone())?.path());
-            }
-          } else {
-            app_files.push(path);
-          }
-        }
-
-        for file_path in app_files {
-          let name = file_path.strip_prefix(app_path.parent().unwrap()).unwrap();
-          let mut name_str = name.to_string_lossy().to_string();
-          // zip expects forward slashes
-          if std::path::MAIN_SEPARATOR == '\\' {
-            name_str = name_str.replace('\\', "/");
-          }
-          let mut name_in_zip = format!("Payload/{}", name_str);
-          
-          if file_path.is_dir() {
-            name_in_zip.push('/');
-            zip.add_directory(name_in_zip, options).context("failed to add directory to zip")?;
-          } else {
-            zip.start_file(name_in_zip, options).context("failed to start file in zip")?;
-            let mut f = fs::File::open(&file_path).fs_context("failed to open file", file_path)?;
-            std::io::copy(&mut f, &mut zip).context("failed to copy file to zip")?;
-          }
-        }
-
-        zip.finish().context("failed to finish zip")?;
+        let ipa_path = out_dir
+          .join(config.app().stylized_name())
+          .with_extension("ipa");
+        create_ipa(&app_path, &ipa_path)?;
         out_files.push(ipa_path);
       } else {
         // if we skipped code signing, we do not have the entitlements applied to our exported IPA
@@ -619,6 +581,62 @@ fn run_build(
   }
 
   Ok(handle)
+}
+
+fn create_ipa(app_path: &Path, ipa_path: &Path) -> Result<()> {
+  let ipa_file =
+    fs::File::create(ipa_path).fs_context("failed to create IPA file", ipa_path.to_path_buf())?;
+  let mut zip = zip::ZipWriter::new(ipa_file);
+  let options = zip::write::SimpleFileOptions::default()
+    .compression_method(zip::CompressionMethod::Deflated)
+    .unix_permissions(0o755);
+
+  zip
+    .add_directory("Payload/", options)
+    .context("failed to add Payload directory to zip")?;
+
+  let mut app_files = Vec::new();
+  let mut stack = vec![app_path.to_path_buf()];
+  while let Some(path) = stack.pop() {
+    if path.is_dir() {
+      app_files.push(path.clone());
+      for entry in fs::read_dir(&path).fs_context("failed to read directory", path.clone())? {
+        stack.push(
+          entry
+            .fs_context("failed to read directory entry", path.clone())?
+            .path(),
+        );
+      }
+    } else {
+      app_files.push(path);
+    }
+  }
+
+  for file_path in app_files {
+    let name = file_path.strip_prefix(app_path.parent().unwrap()).unwrap();
+    let mut name_str = name.to_string_lossy().to_string();
+    // zip expects forward slashes
+    if std::path::MAIN_SEPARATOR == '\\' {
+      name_str = name_str.replace('\\', "/");
+    }
+    let mut name_in_zip = format!("Payload/{}", name_str);
+
+    if file_path.is_dir() {
+      name_in_zip.push('/');
+      zip
+        .add_directory(name_in_zip, options)
+        .context("failed to add directory to zip")?;
+    } else {
+      zip
+        .start_file(name_in_zip, options)
+        .context("failed to start file in zip")?;
+      let mut f = fs::File::open(&file_path).fs_context("failed to open file", file_path)?;
+      std::io::copy(&mut f, &mut zip).context("failed to copy file to zip")?;
+    }
+  }
+
+  zip.finish().context("failed to finish zip")?;
+  Ok(())
 }
 
 fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCredentials>> {

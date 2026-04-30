@@ -566,6 +566,38 @@ impl<R: Runtime> TrayIcon<R> {
     Ok(())
   }
 
+  /// Sets the tray icon and template status atomically. **macOS only**.
+  ///
+  /// On macOS, calling `set_icon` followed by `set_icon_as_template` causes a visible
+  /// flicker as the icon is rendered twice. This method sets both atomically to prevent that.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux / Windows:** Falls back to calling `set_icon`.
+  pub fn set_icon_with_as_template(
+    &self,
+    icon: Option<Image<'_>>,
+    #[allow(unused)] is_template: bool,
+  ) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+      let tray_icon = match icon {
+        Some(i) => Some(i.try_into()?),
+        None => None,
+      };
+      run_item_main_thread!(self, |self_: Self| {
+        self_
+          .inner
+          .set_icon_with_as_template(tray_icon, is_template)
+      })??;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+      self.set_icon(icon)?;
+    }
+    Ok(())
+  }
+
   /// Disable or enable showing the tray menu on left click.
   ///
   ///

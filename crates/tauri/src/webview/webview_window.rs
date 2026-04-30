@@ -938,6 +938,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///     });
   /// }
   /// ```
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
   pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self.webview_builder.initialization_script(script);
@@ -980,6 +983,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///     });
   /// }
   /// ```
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
   pub fn initialization_script_for_all_frames(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self
@@ -1193,7 +1199,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
   pub fn background_throttling(mut self, policy: BackgroundThrottlingPolicy) -> Self {
     self.webview_builder = self.webview_builder.background_throttling(policy);
@@ -1223,6 +1229,29 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   #[must_use]
   pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
     self.webview_builder = self.webview_builder.scroll_bar_style(style);
+    self
+  }
+
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// By default, this is `true`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[must_use]
+  pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.general_autofill_enabled(enabled);
     self
   }
 
@@ -2172,7 +2201,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.hide()
   }
 
-  /// Closes this window. It emits [`crate::RunEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
+  /// Closes this window. It emits [`crate::WindowEvent::CloseRequested`] first like a user-initiated close request so you can intercept it.
   pub fn close(&self) -> crate::Result<()> {
     self.window.close()
   }
@@ -2326,7 +2355,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// ```
   #[allow(clippy::needless_doctest_main)] // To avoid a large diff
   #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(feature = "wry"))]
+  #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
   pub fn with_webview<F: FnOnce(crate::webview::PlatformWebview) + Send + 'static>(
     &self,
     f: F,

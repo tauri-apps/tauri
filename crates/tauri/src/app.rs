@@ -67,6 +67,9 @@ pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> std::result::Result<(), Box<dyn std::error::Error>> + Send>;
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
+/// A closure that is run when the web content process terminates.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub type OnWebContentProcessTerminate<R> = dyn Fn(&Webview<R>) + Send + Sync + 'static;
 pub type ChannelInterceptor<R> =
   Box<dyn Fn(&Webview<R>, CallbackFn, usize, &InvokeResponseBody) -> bool + Send + Sync + 'static>;
 
@@ -252,8 +255,11 @@ pub enum RunEvent {
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", feature = "ios"))))]
+  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(target_os = "macos", target_os = "ios", target_os = "android")))
+  )]
   Opened {
     /// The URL of the resources that is being open.
     urls: Vec<url::Url>,
@@ -301,7 +307,7 @@ impl From<EventLoopMessage> for RunEvent {
   }
 }
 
-/// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
+/// The asset resolver is a helper to access the [`crate::Assets`] interface.
 #[derive(Debug, Clone)]
 pub struct AssetResolver<R: Runtime> {
   manager: Arc<AppManager<R>>,
@@ -1502,6 +1508,10 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
+  /// Web content process termination hook.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
+
   /// All passed plugins
   plugins: PluginStore<R>,
 
@@ -1588,6 +1598,8 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
@@ -1765,6 +1777,23 @@ tauri::Builder::default()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Defines the web content process termination hook.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[must_use]
+  pub fn on_web_content_process_terminate<F>(mut self, on_web_content_process_terminate: F) -> Self
+  where
+    F: Fn(&Webview<R>) + Send + Sync + 'static,
+  {
+    self
+      .on_web_content_process_terminate
+      .replace(Arc::new(on_web_content_process_terminate));
     self
   }
 
@@ -2216,6 +2245,8 @@ tauri::Builder::default()
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
       self.state,
       #[cfg(desktop)]
@@ -2587,7 +2618,7 @@ fn on_event_loop_event<R: Runtime>(
       #[allow(unreachable_code)]
       t.into()
     }
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
     RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
     #[cfg(target_os = "macos")]
     RuntimeRunEvent::Reopen {

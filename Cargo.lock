@@ -8325,20 +8325,20 @@ dependencies = [
 
 [[package]]
 name = "specta"
-version = "2.0.0-rc.24"
+version = "2.0.0-rc.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f320c7dd82008b6958f43f6257c95319c407d1c17ade43686e50ea520c28bb26"
+checksum = "4ccbb212565d2dc177bc15ecb7b039d66c4490da892436a4eee5b394d620c9bc"
 dependencies = [
  "paste",
- "rustc_version",
  "specta-macros",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "specta-macros"
-version = "2.0.0-rc.24"
+version = "2.0.0-rc.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "153f185d0051a64d81977bab5012809d5c9d9db8792406a0997352e05494f711"
+checksum = "68999d29816965eb9e5201f60aec02a76512139811661a7e8e653abc810b8f72"
 dependencies = [
  "Inflector",
  "proc-macro2",

@@ -818,7 +818,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     #[cfg(target_os = "macos")]
     {
       // TODO: find a proper way to prevent webview being pushed out of the window.
-      // Workround for issue: https://github.com/tauri-apps/tauri/issues/10225
+      // Workaround for issue: https://github.com/tauri-apps/tauri/issues/10225
       // The window requires `NSFullSizeContentViewWindowMask` flag to prevent devtools
       // pushing the content view out of the window.
       // By setting the default style to `TitleBarStyle::Visible` should fix the issue for most of the users.
@@ -4371,7 +4371,7 @@ fn handle_event_loop<T: UserEvent>(
         );
       }
     },
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
     Event::Opened { urls } => {
       callback(RunEvent::Opened { urls });
     }
@@ -4760,7 +4760,8 @@ You may have it installed on another user account, but it is not available for t
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_incognito(webview_attributes.incognito)
     .with_clipboard(webview_attributes.clipboard)
-    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
+    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled)
+    .with_general_autofill_enabled(webview_attributes.general_autofill_enabled);
 
   if url != "about:blank" {
     webview_builder = webview_builder.with_url(&url);
@@ -5054,6 +5055,35 @@ You may have it installed on another user account, but it is not available for t
 
     webview_builder =
       webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview);
+
+    if let Some(on_web_content_process_terminate_handler) =
+      pending.on_web_content_process_terminate_handler
+    {
+      webview_builder = webview_builder
+        .with_on_web_content_process_terminate_handler(on_web_content_process_terminate_handler);
+    } else {
+      log::debug!("web content process terminated");
+      let context_ = context.clone();
+      let window_id_ = window_id.clone();
+      webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
+        if let Ok(windows) = &context_.main_thread.windows.0.try_borrow() {
+          if let Some(window) = windows.get(&*window_id_.lock().unwrap()) {
+            if let Some(webview) = window.webviews.iter().find(|w| w.id == id) {
+              match webview.reload() {
+                Ok(_) => log::debug!("webview reloaded"),
+                Err(e) => log::error!("failed to reload webview: {}", e),
+              }
+            } else {
+              log::error!("failed to find webview")
+            }
+          } else {
+            log::error!("failed to get window")
+          }
+        } else {
+          log::error!("failed to borrow windows")
+        }
+      });
+    }
   }
 
   #[cfg(target_os = "ios")]

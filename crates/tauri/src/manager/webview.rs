@@ -28,6 +28,9 @@ use crate::{
   EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview, Window,
 };
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::app::OnWebContentProcessTerminate;
+
 use super::{
   window::{DragDropPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT},
   {AppManager, EmitPayload},
@@ -70,6 +73,9 @@ pub struct WebviewManager<R: Runtime> {
   pub invoke_handler: Box<InvokeHandler<R>>,
   /// The page load hook, invoked when the webview performs a navigation.
   pub on_page_load: Option<Arc<OnPageLoad<R>>>,
+  /// The web content process termination hook.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  pub on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
   /// The webview protocols available to all webviews.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
   /// Webview event listeners to all webviews.
@@ -303,6 +309,29 @@ impl<R: Runtime> WebviewManager<R> {
           handler(url, event);
         }
       }));
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    if pending.on_web_content_process_terminate_handler.is_none() {
+      let app_manager_ = manager.manager_owned();
+      if app_manager_
+        .webview
+        .on_web_content_process_terminate
+        .is_some()
+      {
+        let label_ = pending.label.clone();
+        pending
+          .on_web_content_process_terminate_handler
+          .replace(Box::new(move || {
+            if let Some(w) = app_manager_.get_webview(&label_) {
+              if let Some(on_web_content_process_terminate) =
+                &app_manager_.webview.on_web_content_process_terminate
+              {
+                on_web_content_process_terminate(&w);
+              }
+            }
+          }));
+      }
+    }
 
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {

@@ -9,26 +9,6 @@ package {{package}}
 import android.content.Intent
 import android.content.res.Configuration
 import app.tauri.plugin.PluginManager
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ProcessLifecycleOwner
-
-object TauriLifecycleObserver : DefaultLifecycleObserver {
-    override fun onResume(owner: LifecycleOwner) {
-      super.onResume(owner)
-      PluginManager.onResume()
-    }
-
-    override fun onPause(owner: LifecycleOwner) {
-      super.onPause(owner)
-      PluginManager.onPause()
-    }
-
-    override fun onStop(owner: LifecycleOwner) {
-      super.onStop(owner)
-      PluginManager.onStop()
-    }
-}
 
 abstract class TauriActivity : WryActivity() {
   override val handleBackNavigation: Boolean = false
@@ -45,6 +25,21 @@ abstract class TauriActivity : WryActivity() {
   override fun onRestart() {
     super.onRestart()
     PluginManager.onRestart(this)
+  }
+
+  override fun onResume() {
+    super.onResume()
+    PluginManager.onResume(this)
+  }
+
+  override fun onPause() {
+    super.onPause()
+    PluginManager.onPause(this)
+  }
+
+  override fun onStop() {
+    super.onStop()
+    PluginManager.onStop(this)
   }
 
   override fun onDestroy() {

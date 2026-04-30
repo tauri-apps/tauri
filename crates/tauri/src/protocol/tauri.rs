@@ -7,13 +7,13 @@
 
 use std::borrow::Cow;
 
-use http::{Request, Response as HttpResponse, StatusCode, header::CONTENT_TYPE};
+use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
 use tauri_utils::config::HeaderAddition;
 
 use crate::{
-  Manager, Runtime,
   manager::webview::PROXY_DEV_SERVER,
   webview::{UriSchemeProtocolHandler, WebResourceRequestHandler},
+  Manager, Runtime,
 };
 
 #[cfg(all(dev, mobile))]

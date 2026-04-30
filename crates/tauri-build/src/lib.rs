@@ -508,11 +508,21 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={android_package_prefix}");
 
   if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-    mobile::generate_gradle_files(project_dir)?;
+    let activity_embedding = config
+      .bundle
+      .android
+      .activity_embedding
+      .as_ref()
+      .filter(|c| c.enabled && !c.split_rules.is_empty());
 
-    // Update Android manifest with file associations
+    mobile::generate_gradle_files(project_dir.clone(), activity_embedding)?;
+
     if let Some(associations) = config.bundle.file_associations.as_ref() {
       mobile::update_android_manifest_file_associations(associations)?;
+    }
+
+    if let Some(embedding) = activity_embedding {
+      mobile::setup_activity_embedding(&project_dir, embedding, &config.identifier)?;
     }
   }
 

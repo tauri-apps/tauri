@@ -127,6 +127,19 @@
       "nsis": {
         "compression": "none"
       }
+    },
+    "android": {
+      "activityEmbedding": {
+        "enabled": true,
+        "splitRules": [
+          {
+            "primary": "MainActivity",
+            "secondary": "DetailActivity",
+            "splitType": { "ratio": 0.33 },
+            "minWidthDp": 840
+          }
+        ]
+      }
     }
   }
 }

@@ -3919,9 +3919,305 @@
           "description": "Whether to automatically increment the `versionCode` on each build.\n\n - If `true`, the generator will try to read the last `versionCode` from\n   `tauri.properties` and increment it by 1 for every build.\n - If `false` or not set, it falls back to `version_code` or semver-derived logic.\n\n Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.",
           "default": false,
           "type": "boolean"
+        },
+        "activityEmbedding": {
+          "description": "Activity embedding for large screens (tablets, foldables).\n\n When set and enabled, Tauri generates the Gradle dependencies, Android manifest entries,\n and a `TauriSplitInitializer` Kotlin class for split-screen activity layouts.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ActivityEmbeddingConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
+    },
+    "ActivityEmbeddingConfig": {
+      "description": "Configuration for Android Activity Embedding, which splits activities\n side by side on large screens.\n\n See <https://developer.android.com/guide/topics/large-screens/activity-embedding>",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "When `false`, Tauri does not generate embedding Gradle entries, manifest updates, or `TauriSplitInitializer`.",
+          "default": true,
+          "type": "boolean"
+        },
+        "splitRules": {
+          "description": "Split pair rules defining how activities are laid out side by side.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SplitPairRule"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "SplitPairRule": {
+      "description": "A split pair rule for Android Activity Embedding.\n\n Defines how a primary and secondary activity are displayed side by side\n on screens that satisfy the configured minimum dimensions.\n\n Mirrors the fields of [`androidx.window.embedding.SplitPairRule.Builder`] and\n the [`SplitPairFilter`] it accepts. Only [`primary`](Self::primary) and\n [`secondary`](Self::secondary) are required; all other fields fall back to\n the Android SDK defaults when omitted.\n\n [`androidx.window.embedding.SplitPairRule.Builder`]: https://developer.android.com/reference/androidx/window/embedding/SplitPairRule.Builder\n [`SplitPairFilter`]: https://developer.android.com/reference/androidx/window/embedding/SplitPairFilter",
+      "type": "object",
+      "required": [
+        "primary",
+        "secondary"
+      ],
+      "properties": {
+        "primary": {
+          "description": "The primary activity class name, relative to the application package\n (e.g. `\"MainActivity\"` or a fully-qualified name like\n `\"com.example.MainActivity\"`).",
+          "type": "string"
+        },
+        "secondary": {
+          "description": "The secondary activity class name, relative to the application package\n (e.g. `\"DetailActivity\"` or a fully-qualified name).",
+          "type": "string"
+        },
+        "secondaryIntentAction": {
+          "description": "Optional intent action used to match the secondary activity when it is\n started via an implicit intent.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "splitType": {
+          "description": "How the parent window is split. When omitted, the SDK uses an equal\n 50/50 ratio.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SplitType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "layoutDirection": {
+          "description": "The layout direction of the primary/secondary containers. Defaults to\n the system locale direction.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SplitLayoutDirection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minWidthDp": {
+          "description": "Minimum parent window width in dp for the split to apply. Defaults to the\n SDK value (`600`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "minHeightDp": {
+          "description": "Minimum parent window height in dp for the split to apply. Defaults to the\n SDK value (`600`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "minSmallestWidthDp": {
+          "description": "Minimum smallest width of the parent window in dp for the split to apply.\n Defaults to the SDK value (`600`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "maxAspectRatioInPortrait": {
+          "description": "Maximum height/width aspect ratio (portrait) for which the split applies.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EmbeddingAspectRatio"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maxAspectRatioInLandscape": {
+          "description": "Maximum height/width aspect ratio (landscape) for which the split applies.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EmbeddingAspectRatio"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "finishPrimaryWithSecondary": {
+          "description": "Behavior of the primary container when all activities in the secondary\n container finish. Defaults to [`SplitFinishBehavior::Never`].",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SplitFinishBehavior"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "finishSecondaryWithPrimary": {
+          "description": "Behavior of the secondary container when all activities in the primary\n container finish. Defaults to [`SplitFinishBehavior::Always`].",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SplitFinishBehavior"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "clearTop": {
+          "description": "Whether the existing secondary container and all activities in it should\n be destroyed when a new split is created using this rule.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "tag": {
+          "description": "Optional tag used to identify this rule at runtime.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SplitType": {
+      "description": "How the parent window is split between primary and secondary containers.\n\n Mirrors [`androidx.window.embedding.SplitAttributes.SplitType`].\n\n [`androidx.window.embedding.SplitAttributes.SplitType`]: https://developer.android.com/reference/androidx/window/embedding/SplitAttributes.SplitType",
+      "oneOf": [
+        {
+          "description": "Splits the parent into two containers with the given weight\n for the primary container (0.0 exclusive to 1.0 exclusive).",
+          "type": "object",
+          "required": [
+            "ratio"
+          ],
+          "properties": {
+            "ratio": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The secondary container expands to cover the entire parent window.",
+          "type": "string",
+          "enum": [
+            "expand"
+          ]
+        },
+        {
+          "description": "The split aligns with the device hinge/fold. Cannot be used as a\n default split type without hinge-aware devices.",
+          "type": "string",
+          "enum": [
+            "hinge"
+          ]
+        }
+      ]
+    },
+    "SplitLayoutDirection": {
+      "description": "A layout direction for an activity embedding split.\n\n Mirrors [`androidx.window.embedding.SplitAttributes.LayoutDirection`].\n\n [`androidx.window.embedding.SplitAttributes.LayoutDirection`]: https://developer.android.com/reference/androidx/window/embedding/SplitAttributes.LayoutDirection",
+      "oneOf": [
+        {
+          "description": "Use the system locale's layout direction.",
+          "type": "string",
+          "enum": [
+            "locale"
+          ]
+        },
+        {
+          "description": "Primary on the left, secondary on the right.",
+          "type": "string",
+          "enum": [
+            "leftToRight"
+          ]
+        },
+        {
+          "description": "Primary on the right, secondary on the left.",
+          "type": "string",
+          "enum": [
+            "rightToLeft"
+          ]
+        },
+        {
+          "description": "Primary on top, secondary on the bottom.",
+          "type": "string",
+          "enum": [
+            "topToBottom"
+          ]
+        },
+        {
+          "description": "Primary on the bottom, secondary on top.",
+          "type": "string",
+          "enum": [
+            "bottomToTop"
+          ]
+        }
+      ]
+    },
+    "EmbeddingAspectRatio": {
+      "description": "Maximum aspect ratio (height / width) of the parent window for which\n activity embedding should apply.\n\n Mirrors [`androidx.window.embedding.EmbeddingAspectRatio`].\n\n [`androidx.window.embedding.EmbeddingAspectRatio`]: https://developer.android.com/reference/androidx/window/embedding/EmbeddingAspectRatio",
+      "oneOf": [
+        {
+          "description": "Embedding always applies regardless of aspect ratio.",
+          "type": "string",
+          "enum": [
+            "alwaysAllow"
+          ]
+        },
+        {
+          "description": "Embedding never applies in this orientation.",
+          "type": "string",
+          "enum": [
+            "alwaysDisallow"
+          ]
+        },
+        {
+          "description": "Embedding applies when the parent window aspect ratio is less than or\n equal to this value. Must be greater than `1.0`.",
+          "type": "object",
+          "required": [
+            "ratio"
+          ],
+          "properties": {
+            "ratio": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SplitFinishBehavior": {
+      "description": "Describes how an activity container should finish when the linked\n container finishes.\n\n Mirrors [`androidx.window.embedding.SplitRule.FinishBehavior`].\n\n [`androidx.window.embedding.SplitRule.FinishBehavior`]: https://developer.android.com/reference/androidx/window/embedding/SplitRule.FinishBehavior",
+      "oneOf": [
+        {
+          "description": "Never finish the container when the linked container finishes.",
+          "type": "string",
+          "enum": [
+            "never"
+          ]
+        },
+        {
+          "description": "Always finish the container when the linked container finishes.",
+          "type": "string",
+          "enum": [
+            "always"
+          ]
+        },
+        {
+          "description": "Finish the container only when the linked container finishes\n while they are displayed side-by-side.",
+          "type": "string",
+          "enum": [
+            "adjacent"
+          ]
+        }
+      ]
     },
     "PluginConfig": {
       "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.\n\n See more: <https://v2.tauri.app/reference/config/#pluginconfig>",

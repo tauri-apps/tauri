@@ -619,7 +619,7 @@ fn create_ipa(app_path: &Path, ipa_path: &Path) -> Result<()> {
     if std::path::MAIN_SEPARATOR == '\\' {
       name_str = name_str.replace('\\', "/");
     }
-    let mut name_in_zip = format!("Payload/{}", name_str);
+    let mut name_in_zip = format!("Payload/{name_str}");
 
     if file_path.is_dir() {
       name_in_zip.push('/');

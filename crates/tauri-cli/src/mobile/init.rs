@@ -4,8 +4,9 @@
 
 use super::{get_app, Target};
 use crate::{
-  helpers::{config::get as get_tauri_config, template::JsonMap},
-  interface::{AppInterface, Interface},
+  helpers::app_paths::Dirs,
+  helpers::{config::get_config as get_tauri_config, template::JsonMap},
+  interface::AppInterface,
   ConfigValue, Result,
 };
 use cargo_mobile2::{
@@ -29,6 +30,7 @@ pub fn command(
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
 ) -> Result<()> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
   let wrapper = TextWrapper::default();
 
   exec(
@@ -38,30 +40,31 @@ pub fn command(
     reinstall_deps,
     skip_targets_install,
     config,
+    dirs,
   )?;
   Ok(())
 }
 
-pub fn exec(
+fn exec(
   target: Target,
   wrapper: &TextWrapper,
   #[allow(unused_variables)] non_interactive: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
   config: Vec<ConfigValue>,
+  dirs: Dirs,
 ) -> Result<App> {
   let tauri_config = get_tauri_config(
     target.platform_target(),
     &config.iter().map(|conf| &conf.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
-
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
   let app = get_app(
     target,
-    tauri_config_,
-    &AppInterface::new(tauri_config_, None)?,
+    &tauri_config,
+    &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+    dirs.tauri,
   );
 
   let (handlebars, mut map) = handlebars(&app);
@@ -135,8 +138,15 @@ pub fn exec(
     Target::Android => {
       let _env = super::android::env(non_interactive)?;
       let (config, metadata) =
-        super::android::get_config(&app, tauri_config_, &[], &Default::default());
+        super::android::get_config(&app, &tauri_config, &[], &Default::default());
       map.insert("android", &config);
+
+      // Add application_id_suffix to the map for template access
+      // The template will access it via a helper or we'll modify template to use root context
+      if let Some(suffix) = &tauri_config.bundle.android.debug_application_id_suffix {
+        map.insert("android-debug-application-id-suffix", suffix);
+      }
+
       super::android::project::gen(
         &config,
         &metadata,
@@ -150,10 +160,10 @@ pub fn exec(
     // Generate Xcode project
     Target::Ios => {
       let (config, metadata) =
-        super::ios::get_config(&app, tauri_config_, &[], &Default::default())?;
+        super::ios::get_config(&app, &tauri_config, &[], &Default::default(), dirs.tauri)?;
       map.insert("apple", &config);
       super::ios::project::gen(
-        tauri_config_,
+        &tauri_config,
         &config,
         &metadata,
         (handlebars, map),

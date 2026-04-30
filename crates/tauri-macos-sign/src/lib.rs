@@ -64,6 +64,8 @@ pub enum Error {
   },
   #[error("failed to encode DER: {error}")]
   FailedToEncodeDER { error: std::io::Error },
+  #[error("failed to decode base64 certificate: {0}")]
+  Base64Decode(base64::DecodeError),
   #[error("certificate missing common name")]
   CertificateMissingCommonName,
   #[error("certificate missing organization unit for common name {common_name}")]
@@ -329,36 +331,23 @@ impl NotarytoolCmdExt for Command {
   }
 }
 
-fn decode_base64(base64: &OsStr, out_path: &Path) -> Result<()> {
-  let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
+fn decode_base64(base64_input: &OsStr, out_path: &Path) -> Result<()> {
+  use base64::Engine;
 
-  let src_path = tmp_dir.path().join("src");
-  let base64 = base64
+  let input = base64_input
     .to_str()
-    .expect("failed to convert base64 to string")
-    .as_bytes();
+    .expect("failed to convert base64 to string");
 
-  // as base64 contain whitespace decoding may be broken
-  // https://github.com/marshallpierce/rust-base64/issues/105
-  // we'll use builtin base64 command from the OS
-  std::fs::write(&src_path, base64).map_err(|error| Error::Fs {
-    context: "failed to write base64 to temp file",
-    path: src_path.clone(),
-    error,
-  })?;
+  // strip whitespace before decoding
+  let cleaned: String = input.chars().filter(|c| !c.is_ascii_whitespace()).collect();
 
-  assert_command(
-    std::process::Command::new("base64")
-      .arg("--decode")
-      .arg("-i")
-      .arg(&src_path)
-      .arg("-o")
-      .arg(out_path)
-      .piped(),
-    "failed to decode certificate",
-  )
-  .map_err(|error| Error::CommandFailed {
-    command: "base64 --decode".to_string(),
+  let decoded = base64::engine::general_purpose::STANDARD
+    .decode(&cleaned)
+    .map_err(Error::Base64Decode)?;
+
+  std::fs::write(out_path, &decoded).map_err(|error| Error::Fs {
+    context: "failed to write decoded certificate",
+    path: out_path.to_path_buf(),
     error,
   })?;
 

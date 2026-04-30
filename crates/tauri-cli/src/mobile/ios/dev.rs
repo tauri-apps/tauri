@@ -10,12 +10,12 @@ use crate::{
   dev::Options as DevOptions,
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_tauri_config, ConfigHandle},
+    app_paths::Dirs,
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
     plist::merge_plist,
   },
-  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
     ios::ensure_ios_runtime_installed, use_network_address_for_dev_url, write_options, CliOptions,
     DevChild, DevHost, DevProcess,
@@ -53,7 +53,7 @@ environment variable to determine whether the public network should be used or n
 )]
 pub struct Options {
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
@@ -138,16 +138,16 @@ impl From<Options> for DevOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let result = run_command(options, noise_level);
+  let result = run_command(options, noise_level, dirs);
   if result.is_err() {
     crate::dev::kill_before_dev_process();
   }
   result
 }
 
-fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
@@ -182,30 +182,33 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| "aarch64-apple-ios".into());
   dev_options.target = Some(target_triple.clone());
+  dev_options.args.push("--lib".into());
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
-  let (interface, config) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+  let interface = AppInterface::new(&tauri_config, Some(target_triple), dirs.tauri)?;
 
-    let interface = AppInterface::new(tauri_config_, Some(target_triple))?;
+  let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
+  let (config, _) = get_config(
+    &app,
+    &tauri_config,
+    &dev_options.features,
+    &CliOptions {
+      dev: true,
+      features: dev_options.features.clone(),
+      args: dev_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: dev_options.config.clone(),
+      target_device: None,
+    },
+    dirs.tauri,
+  )?;
 
-    let app = get_app(MobileTarget::Ios, tauri_config_, &interface);
-    let (config, _metadata) = get_config(
-      &app,
-      tauri_config_,
-      &dev_options.features,
-      &Default::default(),
-    )?;
-
-    (interface, config)
-  };
-
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
@@ -214,29 +217,28 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     MobileTarget::Ios,
     false,
   )?;
-  inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+  inject_resources(&config, &tauri_config)?;
 
   let info_plist_path = config
     .project_dir()
     .join(config.scheme())
     .join("Info.plist");
   let mut src_plists = vec![info_plist_path.clone().into()];
-  if tauri_path.join("Info.plist").exists() {
-    src_plists.push(tauri_path.join("Info.plist").into());
+  if dirs.tauri.join("Info.plist").exists() {
+    src_plists.push(dirs.tauri.join("Info.plist").into());
   }
-  if tauri_path.join("Info.ios.plist").exists() {
-    src_plists.push(tauri_path.join("Info.ios.plist").into());
+  if dirs.tauri.join("Info.ios.plist").exists() {
+    src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .bundle
-    .ios
-    .info_plist
   {
-    src_plists.push(info_plist.clone().into());
+    if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
+      src_plists.push(info_plist.clone().into());
+    }
+    if let Some(associations) = tauri_config.bundle.file_associations.as_ref() {
+      if let Some(file_associations) = tauri_utils::config::file_associations_plist(associations) {
+        src_plists.push(file_associations.into());
+      }
+    }
   }
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist
@@ -274,6 +276,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     env,
     &config,
     noise_level,
+    &dirs,
   )
 }
 
@@ -282,11 +285,12 @@ fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
-  tauri_config: ConfigHandle,
+  mut tauri_config: ConfigMetadata,
   device: Option<Device>,
   env: Env,
   config: &AppleConfig,
   noise_level: NoiseLevel,
+  dirs: &Dirs,
 ) -> Result<()> {
   // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
@@ -294,38 +298,39 @@ fn run_dev(
       .as_ref()
       .map(|device| !matches!(device.kind(), DeviceKind::Simulator))
       .unwrap_or(false)
-    || tauri_config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_url
-      .as_ref()
-      .is_some_and(|url| {
-        matches!(
+    || tauri_config.build.dev_url.as_ref().is_some_and(|url| {
+      matches!(
           url.host(),
           Some(Host::Ipv4(i)) if i == Ipv4Addr::UNSPECIFIED
-        )
-      })
+      )
+    })
   {
-    use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
+    use_network_address_for_dev_url(
+      &mut tauri_config,
+      &mut dev_options,
+      options.force_ip_prompt,
+      dirs.tauri,
+    )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs)?;
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&InterfaceOptions {
-    debug: !dev_options.release_mode,
-    target: dev_options.target.clone(),
-    ..Default::default()
-  })?;
+  let out_dir = app_settings.out_dir(
+    &InterfaceOptions {
+      debug: !dev_options.release_mode,
+      target: dev_options.target.clone(),
+      ..Default::default()
+    },
+    dirs.tauri,
+  )?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let set_host = options.host.0.is_some();
 
   let open = options.open;
   interface.mobile_dev(
+    &mut tauri_config,
     MobileOptions {
       debug: true,
       features: options.features,
@@ -334,7 +339,7 @@ fn run_dev(
       no_watch: options.no_watch,
       additional_watch_folders: options.additional_watch_folders,
     },
-    |options| {
+    |options, tauri_config| {
       let cli_options = CliOptions {
         dev: true,
         features: options.features.clone(),
@@ -344,7 +349,7 @@ fn run_dev(
         config: dev_options.config.clone(),
         target_device: None,
       };
-      let _handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+      let _handle = write_options(tauri_config, cli_options)?;
 
       let open_xcode = || {
         if !set_host {
@@ -371,6 +376,7 @@ fn run_dev(
         open_xcode()
       }
     },
+    dirs,
   )
 }
 

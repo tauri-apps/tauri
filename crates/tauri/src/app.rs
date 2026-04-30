@@ -664,6 +664,12 @@ impl<R: Runtime> AppHandle<R> {
     });
     rx.recv().unwrap()
   }
+
+  /// Whether the application supports multiple windows.
+  #[cfg(target_env = "ohos")]
+  pub fn supports_multiple_windows(&self) -> bool {
+    false
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {

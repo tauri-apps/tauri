@@ -62,6 +62,7 @@ impl WindowExt for tao::window::Window {
   }
 }
 
+#[allow(dead_code)]
 pub fn calculate_window_center_position(
   window_size: tao::dpi::PhysicalSize<u32>,
   target_monitor: tao::monitor::MonitorHandle,

@@ -12,7 +12,10 @@ use crate::{
 };
 
 #[cfg(mobile)]
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::AtomicI32;
+#[cfg(mobile)]
+#[allow(unused_imports)]
+use std::sync::atomic::Ordering;
 #[cfg(mobile)]
 use tokio::sync::oneshot;
 
@@ -26,10 +29,13 @@ use std::{
 
 type PluginResponse = Result<serde_json::Value, serde_json::Value>;
 
+#[allow(dead_code)]
 type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>;
 
 #[cfg(mobile)]
+#[allow(dead_code)]
 static PENDING_PLUGIN_CALLS_ID: AtomicI32 = AtomicI32::new(0);
+#[allow(dead_code)]
 static PENDING_PLUGIN_CALLS: OnceLock<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceLock::new();
 static CHANNELS: OnceLock<Mutex<HashMap<u32, Channel<serde_json::Value>>>> = OnceLock::new();

@@ -1244,11 +1244,16 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(any(
     windows,
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
+    all(
+      any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ),
+      not(target_env = "ohos")
+    )
   ))]
   fn skip_taskbar(mut self, skip: bool) -> Self {
     self.inner = self.inner.with_skip_taskbar(skip);
@@ -3018,7 +3023,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_env = "ohos")]
-  fn new_any_thread(args: RuntimeInitArgs) -> Result<Self> {
+  fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
     unimplemented!()
   }
 
@@ -4050,7 +4055,7 @@ fn handle_user_message<T: UserEvent>(
               log::error!("failed to get webview bounds: {e}");
             }
           },
-          WebviewMessage::WithWebview(f) => {
+          WebviewMessage::WithWebview(_f) => {
             #[cfg(all(
               any(
                 target_os = "linux",
@@ -4100,6 +4105,10 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(target_os = "android")]
             {
               f(webview.handle())
+            }
+            #[cfg(target_env = "ohos")]
+            {
+              log::warn!("WithWebview is not implemented for OpenHarmony yet");
             }
           }
           #[cfg(any(debug_assertions, feature = "devtools"))]

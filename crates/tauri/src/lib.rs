@@ -1071,9 +1071,12 @@ pub(crate) mod sealed {
   }
 }
 
+#[allow(dead_code)]
 struct UnsafeSend<T>(T);
+#[allow(dead_code)]
 unsafe impl<T> Send for UnsafeSend<T> {}
 
+#[allow(dead_code)]
 impl<T> UnsafeSend<T> {
   fn take(self) -> T {
     self.0

@@ -6,9 +6,10 @@ use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   fmt,
-  fs::create_dir_all,
   sync::{Arc, Mutex, MutexGuard},
 };
+#[allow(unused_imports)]
+use std::fs::create_dir_all;
 
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};

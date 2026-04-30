@@ -25,6 +25,7 @@ use std::{
   io::Cursor,
   path::{Path, PathBuf},
   process::{exit, Command},
+  sync::OnceLock,
   thread::sleep,
   time::Duration,
 };
@@ -186,6 +187,247 @@ pub fn get_config(
   );
 
   (config, metadata)
+}
+
+fn sync_debug_application_id_suffix(
+  config: &AndroidConfig,
+  tauri_config: &TauriConfig,
+) -> Result<()> {
+  let build_gradle_path = config.project_dir().join("app").join("build.gradle.kts");
+  let build_gradle = std::fs::read_to_string(&build_gradle_path).fs_context(
+    "failed to read Android Gradle build file",
+    build_gradle_path.clone(),
+  )?;
+  let Some(updated_build_gradle) = set_debug_application_id_suffix(
+    &build_gradle,
+    tauri_config
+      .bundle
+      .android
+      .debug_application_id_suffix
+      .as_deref(),
+  ) else {
+    crate::error::bail!(
+      "Could not find the Android debug build type in {}. Add a `getByName(\"debug\")` build type or run `tauri android init` to regenerate the Android project.",
+      build_gradle_path.display()
+    );
+  };
+
+  if updated_build_gradle != build_gradle {
+    write(&build_gradle_path, updated_build_gradle).fs_context(
+      "failed to write Android Gradle build file",
+      build_gradle_path,
+    )?;
+  }
+
+  Ok(())
+}
+
+fn set_debug_application_id_suffix(build_gradle: &str, suffix: Option<&str>) -> Option<String> {
+  static DEBUG_BUILD_TYPE_RE: OnceLock<regex::Regex> = OnceLock::new();
+
+  let debug_build_type_re = DEBUG_BUILD_TYPE_RE.get_or_init(|| {
+    regex::Regex::new(r#"(?m)(?:\bgetByName\(\s*"debug"\s*\)|\bdebug\b)\s*\{"#)
+      .expect("valid debug build type regex")
+  });
+
+  for build_type_match in debug_build_type_re.find_iter(build_gradle) {
+    let Some(opening_brace) = build_gradle[build_type_match.start()..]
+      .find('{')
+      .map(|index| build_type_match.start() + index)
+    else {
+      continue;
+    };
+    let Some(closing_brace) = find_matching_brace(build_gradle, opening_brace) else {
+      continue;
+    };
+
+    let debug_block = &build_gradle[opening_brace..closing_brace];
+    let updated_debug_block = set_application_id_suffix_in_block(debug_block, suffix);
+    let mut updated_build_gradle =
+      String::with_capacity(build_gradle.len() + updated_debug_block.len());
+    updated_build_gradle.push_str(&build_gradle[..opening_brace]);
+    updated_build_gradle.push_str(&updated_debug_block);
+    updated_build_gradle.push_str(&build_gradle[closing_brace..]);
+    return Some(updated_build_gradle);
+  }
+
+  None
+}
+
+fn set_application_id_suffix_in_block(debug_block: &str, suffix: Option<&str>) -> String {
+  static APPLICATION_ID_SUFFIX_RE: OnceLock<regex::Regex> = OnceLock::new();
+
+  let application_id_suffix_re = APPLICATION_ID_SUFFIX_RE.get_or_init(|| {
+    regex::Regex::new(r#"(?m)^[ \t]*applicationIdSuffix\s*=.*(?:\r?\n)?"#)
+      .expect("valid applicationIdSuffix regex")
+  });
+
+  if let Some(application_id_suffix_match) = application_id_suffix_re.find(debug_block) {
+    let mut updated_debug_block = String::with_capacity(debug_block.len());
+    updated_debug_block.push_str(&debug_block[..application_id_suffix_match.start()]);
+    if let Some(suffix) = suffix {
+      let indentation = debug_block
+        [application_id_suffix_match.start()..application_id_suffix_match.end()]
+        .chars()
+        .take_while(|character| *character == ' ' || *character == '\t')
+        .collect::<String>();
+      updated_debug_block.push_str(&format!(
+        "{indentation}applicationIdSuffix = \"{}\"\n",
+        escape_kotlin_string(suffix)
+      ));
+    }
+    updated_debug_block.push_str(&debug_block[application_id_suffix_match.end()..]);
+    return updated_debug_block;
+  }
+
+  let Some(suffix) = suffix else {
+    return debug_block.to_string();
+  };
+
+  let indentation = debug_block_indentation(debug_block);
+  let application_id_suffix = format!(
+    "{indentation}applicationIdSuffix = \"{}\"\n",
+    escape_kotlin_string(suffix)
+  );
+
+  if let Some(first_newline) = debug_block.find('\n') {
+    let mut updated_debug_block =
+      String::with_capacity(debug_block.len() + application_id_suffix.len());
+    updated_debug_block.push_str(&debug_block[..=first_newline]);
+    updated_debug_block.push_str(&application_id_suffix);
+    updated_debug_block.push_str(&debug_block[first_newline + 1..]);
+    updated_debug_block
+  } else {
+    format!("{{\n{application_id_suffix}")
+  }
+}
+
+fn debug_block_indentation(debug_block: &str) -> &str {
+  debug_block
+    .lines()
+    .skip(1)
+    .find_map(|line| {
+      if line.trim().is_empty() {
+        None
+      } else {
+        Some(line.trim_end().trim_end_matches(line.trim_start()))
+      }
+    })
+    .unwrap_or("            ")
+}
+
+fn find_matching_brace(content: &str, opening_brace: usize) -> Option<usize> {
+  let mut depth = 0u32;
+  let mut in_line_comment = false;
+  let mut in_block_comment = false;
+  let mut in_string = false;
+  let mut in_raw_string = false;
+  let mut string_quote = '\0';
+  let mut escaped = false;
+  let mut previous = '\0';
+  let mut chars = content[opening_brace..].char_indices().peekable();
+
+  while let Some((relative_index, character)) = chars.next() {
+    let index = opening_brace + relative_index;
+
+    if in_line_comment {
+      if character == '\n' {
+        in_line_comment = false;
+      }
+      previous = character;
+      continue;
+    }
+
+    if in_block_comment {
+      if previous == '*' && character == '/' {
+        in_block_comment = false;
+      }
+      previous = character;
+      continue;
+    }
+
+    if in_raw_string {
+      if content[index..].starts_with("\"\"\"") {
+        // Consume the remaining two quotes in the Kotlin raw string delimiter.
+        let _ = chars.next();
+        let _ = chars.next();
+        in_raw_string = false;
+      }
+      previous = character;
+      continue;
+    }
+
+    if in_string {
+      if escaped {
+        escaped = false;
+      } else if character == '\\' {
+        escaped = true;
+      } else if character == string_quote {
+        in_string = false;
+      }
+      previous = character;
+      continue;
+    }
+
+    if character == '/' && chars.peek().is_some_and(|(_, next)| *next == '/') {
+      in_line_comment = true;
+      previous = character;
+      continue;
+    }
+
+    if character == '/' && chars.peek().is_some_and(|(_, next)| *next == '*') {
+      in_block_comment = true;
+      previous = character;
+      continue;
+    }
+
+    if content[index..].starts_with("\"\"\"") {
+      // Consume the remaining two quotes in the Kotlin raw string delimiter.
+      let _ = chars.next();
+      let _ = chars.next();
+      in_raw_string = true;
+      previous = character;
+      continue;
+    }
+
+    if character == '"' || character == '\'' {
+      in_string = true;
+      string_quote = character;
+      previous = character;
+      continue;
+    }
+
+    if character == '{' {
+      depth = depth.saturating_add(1);
+    } else if character == '}' {
+      depth = depth.saturating_sub(1);
+      if depth == 0 {
+        return Some(index);
+      }
+    }
+
+    previous = character;
+  }
+
+  None
+}
+
+fn escape_kotlin_string(value: &str) -> String {
+  let mut output = String::with_capacity(value.len());
+
+  for character in value.chars() {
+    match character {
+      '"' => output.push_str("\\\""),
+      '\\' => output.push_str("\\\\"),
+      '$' => output.push_str("\\$"),
+      '\n' => output.push_str("\\n"),
+      '\r' => output.push_str("\\r"),
+      '\t' => output.push_str("\\t"),
+      other => output.push(other),
+    }
+  }
+
+  output
 }
 
 pub fn env(non_interactive: bool) -> Result<Env> {
@@ -675,4 +917,128 @@ fn generate_tauri_properties(
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{find_matching_brace, set_debug_application_id_suffix};
+
+  #[test]
+  fn writes_debug_application_id_suffix() {
+    let build_gradle = r#"
+android {
+    buildTypes {
+        getByName("debug") {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
+    }
+}
+"#;
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
+
+    assert!(updated.contains(
+      r#"        getByName("debug") {
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["usesCleartextTraffic"] = "true""#
+    ));
+  }
+
+  #[test]
+  fn replaces_debug_application_id_suffix() {
+    let build_gradle = r#"
+android {
+    buildTypes {
+        getByName("debug") {
+            applicationIdSuffix = ".old"
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
+    }
+}
+"#;
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".internal")).unwrap();
+
+    assert!(updated.contains(r#"            applicationIdSuffix = ".internal""#));
+    assert!(!updated.contains(r#".old"#));
+  }
+
+  #[test]
+  fn removes_debug_application_id_suffix() {
+    let build_gradle = r#"
+android {
+    buildTypes {
+        getByName("debug") {
+            applicationIdSuffix = ".debug"
+        }
+        getByName("release") {
+            applicationIdSuffix = ".release"
+        }
+    }
+}
+"#;
+
+    let updated = set_debug_application_id_suffix(build_gradle, None).unwrap();
+
+    assert!(!updated.contains(r#"applicationIdSuffix = ".debug""#));
+    assert!(updated.contains(r#"applicationIdSuffix = ".release""#));
+  }
+
+  #[test]
+  fn writes_debug_suffix_before_nested_blocks() {
+    let build_gradle = r#"
+android {
+    buildTypes {
+        debug {
+            packaging {
+                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
+            }
+        }
+    }
+}
+"#;
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".internal")).unwrap();
+
+    assert!(updated.contains(
+      r#"        debug {
+            applicationIdSuffix = ".internal"
+            packaging {"#
+    ));
+  }
+
+  #[test]
+  fn ignores_braces_inside_kotlin_raw_strings() {
+    let build_gradle = r#"
+android {
+    buildTypes {
+        debug {
+            val proguardRules = """
+                -if class ** {
+                  public *;
+                }
+            """
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
+    }
+}
+"#;
+
+    let opening_brace = build_gradle
+      .find("debug {")
+      .and_then(|index| build_gradle[index..].find('{').map(|brace| index + brace))
+      .unwrap();
+    let closing_brace = find_matching_brace(build_gradle, opening_brace).unwrap();
+
+    assert!(build_gradle[opening_brace..closing_brace]
+      .contains(r#"manifestPlaceholders["usesCleartextTraffic"] = "true""#));
+
+    let updated = set_debug_application_id_suffix(build_gradle, Some(".debug")).unwrap();
+
+    assert!(updated.contains(
+      r#"        debug {
+            applicationIdSuffix = ".debug"
+            val proguardRules = """"#
+    ));
+  }
 }

@@ -9,6 +9,3 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - workerd
-
-overrides:
-  serialize-javascript@<=7.0.2: '>=7.0.3'

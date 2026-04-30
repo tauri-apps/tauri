@@ -131,6 +131,7 @@
           "allowDowngrades": true,
           "certificateThumbprint": null,
           "digestAlgorithm": null,
+          "minimumWebview2Version": null,
           "nsis": null,
           "signCommand": null,
           "timestampUrl": null,
@@ -549,7 +550,7 @@
           ]
         },
         "backgroundThrottling": {
-          "description": "Change the default background throttling behaviour.\n\n By default, browsers use a suspend policy that will throttle timers and even unload\n the whole tab (view) to free resources after roughly 5 minutes when a view became\n minimized or hidden. This will pause all tasks until the documents visibility state\n changes back from hidden to visible by bringing the view back to the foreground.\n\n ## Platform-specific\n\n - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.\n - **iOS**: Supported since version 17.0+.\n - **macOS**: Supported since version 14.0+.\n\n see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578",
+          "description": "Change the default background throttling behaviour.\n\n By default, browsers use a suspend policy that will throttle timers and even unload\n the whole tab (view) to free resources after roughly 5 minutes when a view became\n minimized or hidden. This will pause all tasks until the documents visibility state\n changes back from hidden to visible by bringing the view back to the foreground.\n\n ## Platform-specific\n\n - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.\n - **iOS**: Supported since version 17.0+.\n - **macOS**: Supported since version 14.0+.\n\n see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>",
           "anyOf": [
             {
               "$ref": "#/definitions/BackgroundThrottlingPolicy"
@@ -603,6 +604,32 @@
               "$ref": "#/definitions/ScrollBarStyle"
             }
           ]
+        },
+        "activityName": {
+          "description": "The name of the Android activity to create for this window.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdByActivityName": {
+          "description": "The name of the Android activity that is creating this webview window.\n\n This is important to determine which stack the activity will belong to.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requestedBySceneIdentifier": {
+          "description": "Sets the identifier of the scene that is requesting the new scene,\n establishing a relationship between the two scenes.\n\n By default the system uses the foreground scene.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "generalAutofillEnabled": {
+          "description": "Controls the WebView's browser-level general autofill behavior.\n\n **This option does not disable password or credit card autofill.**\n\n When set to `false`, the WebView will not automatically populate\n general form fields using previously stored data such as addresses\n or contact information.\n\n If not specified, this is `true` by default.\n\n ## Platform-specific\n\n - **Windows**: Supported. WebView2's autofill feature (called\n   \"Suggestions\") may not honor `autocomplete=\"off\"` on input\n   elements in some cases.\n - **Linux / Android / iOS / macOS**: Unsupported and performs no\n   operation.",
+          "default": true,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1133,7 +1160,7 @@
           ]
         },
         {
-          "description": "Fluent UI style overlay scrollbars. **Windows Only**\n\n Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,\n see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541",
+          "description": "Fluent UI style overlay scrollbars. **Windows Only**\n\n Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,\n see <https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541>",
           "type": "string",
           "enum": [
             "fluentOverlay"
@@ -2204,6 +2231,7 @@
             "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "minimumWebview2Version": null,
             "nsis": null,
             "signCommand": null,
             "timestampUrl": null,
@@ -2469,7 +2497,7 @@
           ]
         },
         "mimeType": {
-          "description": "The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.",
+          "description": "The mime-type of the association, e.g. `'image/png'` or `'text/plain'`.\n\n - **Linux**: written as `MimeType=` in the `.desktop` file.\n - **macOS / iOS**: added as `public.mime-type` in the `UTTypeTagSpecification` dictionary of\n   the `UTExportedTypeDeclarations` entry in `Info.plist`.\n - **Android**: used as `android:mimeType` in the `<data>` element of an `<intent-filter>`\n   in `AndroidManifest.xml`.",
           "type": [
             "string",
             "null"
@@ -2494,6 +2522,16 @@
               "type": "null"
             }
           ]
+        },
+        "androidIntentActionFilters": {
+          "description": "Intent action filters for this file association.\n\n By default all filters are used.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/AndroidIntentAction"
+          }
         }
       },
       "additionalProperties": false
@@ -2599,6 +2637,32 @@
       },
       "additionalProperties": false
     },
+    "AndroidIntentAction": {
+      "description": "Android intent action.",
+      "oneOf": [
+        {
+          "description": "ACTION_SEND.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>",
+          "type": "string",
+          "enum": [
+            "send"
+          ]
+        },
+        {
+          "description": "ACTION_SEND_MULTIPLE.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND_MULTIPLE>",
+          "type": "string",
+          "enum": [
+            "sendMultiple"
+          ]
+        },
+        {
+          "description": "ACTION_VIEW.\n\n <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>",
+          "type": "string",
+          "enum": [
+            "view"
+          ]
+        }
+      ]
+    },
     "WindowsConfig": {
       "description": "Windows bundler configuration.\n\n See more: <https://v2.tauri.app/reference/config/#windowsconfig>",
       "type": "object",
@@ -2645,6 +2709,13 @@
           "description": "Validates a second app installation, blocking the user from installing an older version if set to `false`.\n\n For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.\n\n The default value of this flag is `true`.",
           "default": true,
           "type": "boolean"
+        },
+        "minimumWebview2Version": {
+          "description": "Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "wix": {
           "description": "Configuration for the MSI generated with WiX.",
@@ -2966,6 +3037,20 @@
             "null"
           ]
         },
+        "uninstallerIcon": {
+          "description": "The path to an icon file used as the uninstaller icon.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uninstallerHeaderImage": {
+          "description": "The path to a bitmap file to display on the header of uninstallers pages.\n Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`\n\n The recommended dimensions are 150px x 57px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "installMode": {
           "description": "Whether the installation will be for all users or just the current user.",
           "default": "currentUser",
@@ -2976,7 +3061,7 @@
           ]
         },
         "languages": {
-          "description": "A list of installer languages.\n By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.\n To allow the user to select the language, set `display_language_selector` to `true`.\n\n See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.",
+          "description": "A list of installer languages. Default to `[\"English\"]` if not set.\n\n By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.\n To allow the user to select the language, set `display_language_selector` to `true`.\n\n See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.",
           "type": [
             "array",
             "null"
@@ -2986,7 +3071,7 @@
           }
         },
         "customLanguageFiles": {
-          "description": "A key-value pair where the key is the language and the\n value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.\n\n See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsh` file.\n\n **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,",
+          "description": "A key-value pair where the key is the language and the\n value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.\n\n See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsh` file.\n\n **Note**: the key must be a valid NSIS language and it must be added to the [`Self::languages`] array,",
           "type": [
             "object",
             "null"
@@ -3024,7 +3109,8 @@
           ]
         },
         "minimumWebview2Version": {
-          "description": "Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
+          "description": "Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.\n\n Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
+          "deprecated": true,
           "type": [
             "string",
             "null"

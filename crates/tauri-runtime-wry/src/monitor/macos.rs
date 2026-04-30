@@ -19,10 +19,8 @@ impl super::MonitorExt for tao::monitor::MonitorHandle {
 
       position.x += visible_frame.origin.x - screen_frame.origin.x;
 
-      // visible_frame.origin is using a bottom-up coordinate system, so this needs to be converted
-      // to a top-down coordinate system. origin.y will typically represent the top of the dock.
-      position.y += screen_frame.size.height - visible_frame.origin.y - visible_frame.size.height;
-
+position.y += (screen_frame.origin.y + screen_frame.size.height)
+        - (visible_frame.origin.y + visible_frame.size.height);
       PhysicalRect {
         size: LogicalSize::new(visible_frame.size.width, visible_frame.size.height)
           .to_physical(scale_factor),

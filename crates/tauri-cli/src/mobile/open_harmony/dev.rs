@@ -9,11 +9,11 @@ use super::{
 use crate::{
   dev::Options as DevOptions,
   helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_tauri_config, ConfigHandle},
+    app_paths::resolve_tauri_dir,
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
-  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
     use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
     TargetDevice,
@@ -22,7 +22,7 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
+use crate::error::Context;
 use cargo_mobile2::{
   open_harmony::{
     config::{Config as OpenHarmonyConfig, Metadata as OpenHarmonyMetadata},
@@ -35,6 +35,7 @@ use cargo_mobile2::{
 };
 
 use std::{env::set_current_dir, path::PathBuf};
+use crate::helpers::app_paths::Dirs;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -114,7 +115,7 @@ impl From<Options> for DevOptions {
     Self {
       runner: None,
       target: None,
-      features: options.features,
+      features: options.features.unwrap_or_default(),
       exit_on_panic: options.exit_on_panic,
       config: options.config,
       args: options.args,
@@ -130,16 +131,16 @@ impl From<Options> for DevOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let result = run_command(options, noise_level);
+  let result = run_command(options, noise_level, dirs);
   if result.is_err() {
     crate::dev::kill_before_dev_process();
   }
   result
 }
 
-fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
@@ -156,6 +157,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .iter()
       .map(|conf| &conf.0)
       .collect::<Vec<_>>(),
+    dirs.tauri
   )?;
 
   let env = env()?;
@@ -179,22 +181,20 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   dev_options.target = Some(target_triple);
 
   let (interface, config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-    let interface = AppInterface::new(tauri_config_, dev_options.target.clone())?;
+    let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
 
-    let app = get_app(MobileTarget::OpenHarmony, tauri_config_, &interface);
+    let app = get_app(MobileTarget::OpenHarmony, &tauri_config, &interface, dirs.tauri);
     let (config, metadata) = get_config(
       &app,
-      tauri_config_,
-      dev_options.features.as_ref(),
+      &tauri_config,
+      Some(&dev_options.features),
       &Default::default(),
     );
     (interface, config, metadata)
   };
 
-  let tauri_path = tauri_dir();
+  let tauri_path = resolve_tauri_dir().unwrap();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(
@@ -202,6 +202,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     config.app(),
     config.project_dir(),
     MobileTarget::OpenHarmony,
+    false
   )?;
   run_dev(
     interface,
@@ -213,6 +214,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &config,
     &metadata,
     noise_level,
+    &dirs
   )
 }
 
@@ -221,12 +223,13 @@ fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
-  tauri_config: ConfigHandle,
+  mut tauri_config: ConfigMetadata,
   device: Option<Device>,
   env: Env,
   config: &OpenHarmonyConfig,
   metadata: &OpenHarmonyMetadata,
   noise_level: NoiseLevel,
+  dirs: &Dirs,
 ) -> Result<()> {
   // when running on an actual device we must use the network IP
   if options.host.0.is_some()
@@ -235,10 +238,10 @@ fn run_dev(
       .map(|device| !device.model().starts_with("emulator"))
       .unwrap_or(false)
   {
-    use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
+    use_network_address_for_dev_url(&mut tauri_config, &mut dev_options, options.force_ip_prompt, dirs.tauri)?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, &dirs)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -247,7 +250,7 @@ fn run_dev(
   };
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ohos"), "OpenHarmony")?;
 
   // run an initial build to initialize plugins
@@ -267,19 +270,20 @@ fn run_dev(
     } else {
       Profile::Debug
     },
-  )?;
+  ).context("failed to build OpenHarmony app")?;
 
   let open = options.open;
   interface.mobile_dev(
+    &mut tauri_config,
     MobileOptions {
       debug: !options.release_mode,
-      features: options.features,
+      features: options.features.unwrap_or_default(),
       args: options.args,
       config: dev_options.config.clone(),
       no_watch: options.no_watch,
       additional_watch_folders: options.additional_watch_folders,
     },
-    |options| {
+    |options, tauri_config| {
       let cli_options = CliOptions {
         dev: true,
         features: options.features.clone(),
@@ -293,9 +297,9 @@ fn run_dev(
         }),
       };
 
-      let _handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+      let _handle = write_options(&tauri_config, cli_options)?;
 
-      inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+      inject_resources(config, &tauri_config)?;
 
       if open {
         open_and_wait(config, &env)
@@ -311,6 +315,7 @@ fn run_dev(
         open_and_wait(config, &env)
       }
     },
+    dirs
   )
 }
 
@@ -329,7 +334,7 @@ fn run(
   };
 
   device
-    .run(config, env, noise_level, profile)
-    .map(DevChild::new)
-    .map_err(Into::into)
+      .run(config, env, noise_level, profile)
+      .map(DevChild::new)
+      .context("failed to run OpenHarmony app")
 }

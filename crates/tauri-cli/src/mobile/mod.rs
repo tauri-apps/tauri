@@ -582,8 +582,8 @@ fn ensure_init(
       let app_json = json5::from_str::<open_harmony::AppConfig>(
         &read_to_string(project_dir.join("AppScope").join("app.json5"))
           .context("missing app.json5 file in the OpenHarmony project directory")?,
-      )?;
-      if app_json.app.bundle_name != tauri_config_.identifier.replace('-', "_") {
+      ).context("failed to parse app.json5")?;
+      if app_json.app.bundle_name != tauri_config.identifier.replace('-', "_") {
         project_outdated_reasons
           .push("you have modified your \"identifier\" in the Tauri configuration");
       }

@@ -30,6 +30,7 @@ mod remove;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
+use std::fmt::Display;
 use env_logger::fmt::style::{AnsiColor, Style};
 use env_logger::Builder;
 pub use error::{Error, ErrorExt, Result};
@@ -88,7 +89,7 @@ impl FromStr for ConfigValue {
   }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
 pub enum RunMode {
   Desktop,
   #[cfg(target_os = "macos")]

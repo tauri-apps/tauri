@@ -9,17 +9,17 @@ use super::{
 use crate::{
   build::Options as BuildOptions,
   helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_tauri_config, ConfigHandle},
+    app_paths::resolve_tauri_dir,
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
+use crate::error::Context;
 use cargo_mobile2::{
   open_harmony::{config::Config as OpenHarmonyConfig, env::Env, hap, target::Target},
   opts::{NoiseLevel, Profile},
@@ -27,6 +27,7 @@ use cargo_mobile2::{
 };
 
 use std::env::set_current_dir;
+use crate::helpers::app_paths::Dirs;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -82,7 +83,7 @@ impl From<Options> for BuildOptions {
       runner: None,
       debug: options.debug,
       target: None,
-      features: options.features,
+      features: options.features.unwrap_or_default(),
       bundles: None,
       no_bundle: false,
       config: options.config,
@@ -96,7 +97,7 @@ impl From<Options> for BuildOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   delete_codegen_vars();
 
@@ -120,19 +121,18 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .iter()
       .map(|conf| &conf.0)
       .collect::<Vec<_>>(),
+    dirs.tauri
   )?;
   let (interface, config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-    let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
+    let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(MobileTarget::OpenHarmony, tauri_config_, &interface);
+    let app = get_app(MobileTarget::OpenHarmony, &tauri_config, &interface, dirs.tauri);
     let (config, metadata) = get_config(
       &app,
-      tauri_config_,
-      build_options.features.as_ref(),
+      &tauri_config,
+      Some(&build_options.features),
       &Default::default(),
     );
     (interface, config, metadata)
@@ -144,7 +144,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     Profile::Release
   };
 
-  let tauri_path = tauri_dir();
+  let tauri_path = resolve_tauri_dir().unwrap();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(
@@ -152,14 +152,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     config.app(),
     config.project_dir(),
     MobileTarget::OpenHarmony,
+    false
   )?;
 
   let mut env = env()?;
 
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+  crate::build::setup(&interface, &mut build_options, &tauri_config, &dirs, true)?;
 
   // run an initial build to initialize plugins
-  first_target.build(&config, &metadata, &env, noise_level, true, profile)?;
+  first_target.build(&config, &metadata, &env, noise_level, true, profile).context("failed to build OpenHarmony app")?;
 
   let open = options.open;
   let _handle = run_build(
@@ -171,6 +172,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &config,
     &mut env,
     noise_level,
+    dirs
   )?;
 
   if open {
@@ -185,11 +187,12 @@ fn run_build(
   interface: AppInterface,
   _options: Options,
   build_options: BuildOptions,
-  tauri_config: ConfigHandle,
+  tauri_config: ConfigMetadata,
   profile: Profile,
   config: &OpenHarmonyConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
+  dirs: Dirs
 ) -> Result<OptionsHandle> {
   let interface_options = InterfaceOptions {
     debug: build_options.debug,
@@ -199,7 +202,7 @@ fn run_build(
   };
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ohos"), "OpenHarmony")?;
 
   let cli_options = CliOptions {
@@ -211,11 +214,11 @@ fn run_build(
     config: build_options.config,
     target_device: None,
   };
-  let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+  let handle = write_options(&tauri_config, cli_options)?;
 
-  inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+  inject_resources(config, &*tauri_config)?;
 
-  let hap_outputs = hap::build(config, env, noise_level, profile)?;
+  let hap_outputs = hap::build(config, env, noise_level, profile).context("failed to build hap")?;
 
   log_finished(hap_outputs, "HAP");
 

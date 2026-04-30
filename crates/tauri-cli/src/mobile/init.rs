@@ -133,8 +133,8 @@ fn exec(
   map.insert(
     "tauri-binary",
     dunce::simplified(std::path::Path::new(&binary))
-      
-      .replace('\\', "/"),
+        .to_string_lossy()
+        .replace('\\', "/"),
   );
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));
@@ -175,7 +175,7 @@ fn exec(
     }
     Target::OpenHarmony => {
       let (config, _metadata) =
-        super::open_harmony::get_config(&app, tauri_config_, None, &Default::default());
+        super::open_harmony::get_config(&app, &tauri_config, None, &Default::default());
       super::open_harmony::project::gen(&app, &config, (handlebars, map), skip_targets_install)?;
       app
     }

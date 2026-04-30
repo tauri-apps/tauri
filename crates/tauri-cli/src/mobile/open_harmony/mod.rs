@@ -34,10 +34,8 @@ use super::{
   ensure_init, get_app, init::command as init_command, log_finished, read_options, CliOptions,
   OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
-use crate::{
-  helpers::config::{BundleResources, Config as TauriConfig},
-  ConfigValue, Result,
-};
+use crate::{helpers::config::{BundleResources, Config as TauriConfig}, ConfigValue, ErrorExt, Result};
+use crate::error::Context;
 
 mod build;
 mod dev;
@@ -104,7 +102,7 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
     Commands::Init(options) => {
-      crate::helpers::app_paths::resolve();
+      crate::helpers::app_paths::resolve_dirs();
       init_command(
         MobileTarget::OpenHarmony,
         options.ci,
@@ -131,12 +129,11 @@ pub fn get_config(
   if let Some(features) = features {
     open_harmony_options
       .features
-      .get_or_insert(Vec::new())
       .extend_from_slice(features);
   }
 
   let raw = RawOpenHarmonyConfig {
-    features: open_harmony_options.features.clone(),
+    features: Some(open_harmony_options.features.clone()),
     logcat_filter_specs: vec![
       "RustStdoutStderr".into(),
       format!(
@@ -156,7 +153,7 @@ pub fn get_config(
   let metadata = OpenHarmonyMetadata {
     supported: true,
     cargo_args: Some(open_harmony_options.args),
-    features: open_harmony_options.features,
+    features: Some(open_harmony_options.features),
     ..Default::default()
   };
 
@@ -172,8 +169,8 @@ pub fn get_config(
 }
 
 fn env() -> Result<Env> {
-  let env = super::env()?;
-  cargo_mobile2::open_harmony::env::Env::from_env(env).map_err(Into::into)
+  let env = super::env().context("failed to setup OpenHarmony environment")?;
+  cargo_mobile2::open_harmony::env::Env::from_env(env).context("failed to OpenHarmony load env")
 }
 
 fn delete_codegen_vars() {
@@ -185,8 +182,7 @@ fn delete_codegen_vars() {
 }
 
 fn hdc_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  let device_list = hdc::device_list(env)
-    .map_err(|cause| anyhow::anyhow!("Failed to detect connected OpenHarmony devices: {cause}"))?;
+  let device_list = hdc::device_list(env).context("failed to detect connected OpenHarmony devices")?;
   if !device_list.is_empty() {
     let device = if let Some(t) = target {
       let (device, score) = device_list
@@ -202,7 +198,7 @@ fn hdc_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
       if score > MIN_DEVICE_MATCH_SCORE {
         device
       } else {
-        anyhow::bail!("Could not find an OpenHarmony device matching {t}")
+        crate::error::bail!("Could not find an OpenHarmony device matching {t}")
       }
     } else if device_list.len() > 1 {
       let index = prompt::list(
@@ -212,7 +208,7 @@ fn hdc_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
         None,
         "Device",
       )
-      .map_err(|cause| anyhow::anyhow!("Failed to prompt for OpenHarmony device: {cause}"))?;
+      .context("Failed to prompt for OpenHarmony devices")?;
       device_list.into_iter().nth(index).unwrap()
     } else {
       device_list.into_iter().next().unwrap()
@@ -225,7 +221,7 @@ fn hdc_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
     );
     Ok(device)
   } else {
-    Err(anyhow::anyhow!("No connected OpenHarmony devices detected"))
+    Err(crate::Error::GenericError("No connected OpenHarmony devices detected".to_string()))
   }
 }
 
@@ -246,7 +242,7 @@ fn emulator_prompt(_env: &'_ Env, target: Option<&str>) -> Result<emulator::Emul
       if score > MIN_DEVICE_MATCH_SCORE {
         device
       } else {
-        anyhow::bail!("Could not find an OpenHarmony Emulator matching {t}")
+        crate::error::bail!("Could not find an OpenHarmony Emulator matching {t}")
       }
     } else if emulator_list.len() > 1 {
       let index = prompt::list(
@@ -256,9 +252,7 @@ fn emulator_prompt(_env: &'_ Env, target: Option<&str>) -> Result<emulator::Emul
         None,
         "Emulator",
       )
-      .map_err(|cause| {
-        anyhow::anyhow!("Failed to prompt for OpenHarmony Emulator device: {cause}")
-      })?;
+      .context("Failed to prompt for OpenHarmony Emulator device")?;
       emulator_list.into_iter().nth(index).unwrap()
     } else {
       emulator_list.into_iter().next().unwrap()
@@ -266,8 +260,8 @@ fn emulator_prompt(_env: &'_ Env, target: Option<&str>) -> Result<emulator::Emul
 
     Ok(emulator)
   } else {
-    Err(anyhow::anyhow!(
-      "No available OpenHarmony Emulator detected"
+    Err(crate::Error::GenericError(
+      "No available OpenHarmony Emulator detected".to_string(),
     ))
   }
 }
@@ -278,7 +272,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   } else {
     let emulator = emulator_prompt(env, target)?;
     log::info!("Starting emulator {}", emulator.name());
-    emulator.start_detached(env)?;
+    emulator.start_detached(env).context("failed to start emulator")?;
     let mut tries = 0;
     loop {
       sleep(Duration::from_secs(2));
@@ -311,11 +305,14 @@ fn open_and_wait(config: &OpenHarmonyConfig, env: &Env) -> ! {
 
 fn inject_resources(config: &OpenHarmonyConfig, tauri_config: &TauriConfig) -> Result<()> {
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
-  create_dir_all(&asset_dir)?;
+  create_dir_all(&asset_dir).fs_context("failed to create asset directory", asset_dir.clone())?;
 
   write(
     asset_dir.join("tauri.conf.json"),
-    serde_json::to_string(&tauri_config)?,
+    serde_json::to_string(&tauri_config).with_context(|| "failed to serialize tauri config")?,
+  ).fs_context(
+    "failed to write tauri config",
+    asset_dir.join("tauri.conf.json"),
   )?;
 
   let resources = match &tauri_config.bundle.resources {
@@ -325,7 +322,7 @@ fn inject_resources(config: &OpenHarmonyConfig, tauri_config: &TauriConfig) -> R
   };
   if let Some(resources) = resources {
     for resource in resources.iter() {
-      let resource = resource?;
+      let resource = resource.context("failed to get resource")?;
       let dest = asset_dir.join(resource.target());
       crate::helpers::fs::copy_file(resource.path(), dest)?;
     }

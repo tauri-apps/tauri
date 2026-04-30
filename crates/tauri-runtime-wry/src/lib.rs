@@ -1242,15 +1242,13 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[cfg(all(
-    any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ),
-    not(target_env = "ohos")
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
   ))]
   fn skip_taskbar(mut self, skip: bool) -> Self {
     self.inner = self.inner.with_skip_taskbar(skip);
@@ -4988,8 +4986,6 @@ You may have it installed on another user account, but it is not available for t
             }
             tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
           }
-        })
-        .unwrap_or(wry::NewWindowResponse::Deny)
     });
   }
 

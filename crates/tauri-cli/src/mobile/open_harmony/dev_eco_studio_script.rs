@@ -3,15 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
-use crate::{
-  helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
-  interface::{AppInterface, Interface},
-  mobile::CliOptions,
-  Result,
-};
+use crate::{helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config}, interface::{AppInterface}, mobile::CliOptions, Error, ErrorExt, Result};
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
+use crate::error::Context;
 use cargo_mobile2::{
   open_harmony::{hdc, target::Target},
   opts::Profile,
@@ -38,7 +33,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let profile = if options.release {
     Profile::Release
@@ -46,12 +41,10 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let (tauri_config, cli_options) = {
-    let tauri_config = get_tauri_config(tauri_utils::platform::Target::OpenHarmony, &[])?;
+  let (mut tauri_config, cli_options) = {
+    let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::OpenHarmony, &[], dirs.tauri)?;
     let cli_options = {
-      let tauri_config_guard = tauri_config.lock().unwrap();
-      let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-      read_options(tauri_config_)
+      read_options(&tauri_config)
     };
 
     let tauri_config = if cli_options.config.is_empty() {
@@ -59,27 +52,29 @@ pub fn command(options: Options) -> Result<()> {
     } else {
       // reload config with merges from the ohos dev|build script
       reload_tauri_config(
+        &mut tauri_config,
         &cli_options
           .config
           .iter()
           .map(|conf| &conf.0)
           .collect::<Vec<_>>(),
-      )?
+        dirs.tauri
+      )?;
+      tauri_config
     };
 
     (tauri_config, cli_options)
   };
 
   let (config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     let (config, metadata) = get_config(
       &get_app(
         MobileTarget::OpenHarmony,
-        tauri_config_,
-        &AppInterface::new(tauri_config_, None)?,
+        &tauri_config,
+        &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+        dirs.tauri
       ),
-      tauri_config_,
+      &tauri_config,
       None,
       &cli_options,
     );
@@ -91,10 +86,12 @@ pub fn command(options: Options) -> Result<()> {
     config.app(),
     config.project_dir(),
     MobileTarget::OpenHarmony,
+    false
   )?;
 
   if !cli_options.config.is_empty() {
-    crate::helpers::config::merge_with(
+    crate::helpers::config::merge_config_with(
+      &mut tauri_config,
       &cli_options
         .config
         .iter()
@@ -107,10 +104,6 @@ pub fn command(options: Options) -> Result<()> {
 
   if cli_options.dev {
     let dev_url = tauri_config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
       .build
       .dev_url
       .clone();
@@ -144,7 +137,7 @@ pub fn command(options: Options) -> Result<()> {
         cli_options.noise_level,
         true,
         profile,
-      )?;
+      ).context("Failed to build")?;
 
       if !validated_lib {
         validated_lib = true;
@@ -159,12 +152,11 @@ pub fn command(options: Options) -> Result<()> {
 
       Ok(())
     },
-  )
-  .map_err(|e| anyhow::anyhow!(e.to_string()))?
+  ).map_err(|e| Error::GenericError(e.to_string()))?
 }
 
 fn validate_lib(path: &Path) -> Result<()> {
-  let so_bytes = std::fs::read(path)?;
+  let so_bytes = std::fs::read(path).fs_context("failed to read library", path.to_path_buf())?;
   let elf = elf::ElfBytes::<elf::endian::AnyEndian>::minimal_parse(&so_bytes)
     .context("failed to parse ELF")?;
   let (symbol_table, string_table) = elf
@@ -181,7 +173,7 @@ fn validate_lib(path: &Path) -> Result<()> {
 
   // TODO: implement check
   if false {
-    anyhow::bail!(
+    crate::error::bail!(
       "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
       path.display()
     );
@@ -228,7 +220,7 @@ fn hdc_forward_port(
     let device = devices.first().unwrap();
     Some((device.id().to_string(), device.name().to_string()))
   } else if devices.len() > 1 {
-    anyhow::bail!("Multiple OpenHarmony devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
+    crate::error::bail!("Multiple OpenHarmony devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
       devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
   } else {
     // when building the app without running to a device, we might have an empty devices list
@@ -240,7 +232,7 @@ fn hdc_forward_port(
 
     // clear port forwarding for all devices
     for device in &devices {
-      let reverse_list_output = hdc_reverse_list(env, device.id())?;
+      let reverse_list_output = hdc_reverse_list(env, device.id()).context("hdc list failed")?;
 
       // check if the device has the port forwarded
       if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
@@ -266,7 +258,7 @@ fn hdc_forward_port(
           format!("failed to forward port with hdc, is the {target_device_name} device connected?",)
         })?;
 
-        let reverse_list_output = hdc_reverse_list(env, &target_device_serial_no)?;
+        let reverse_list_output = hdc_reverse_list(env, &target_device_serial_no).context("hdc list failed")?;
         // wait and retry until the port has actually been forwarded
         if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
           break;

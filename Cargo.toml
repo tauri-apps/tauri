@@ -72,6 +72,7 @@ schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch =
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
-cargo-mobile2 = { git = "https://github.com/tauri-apps/cargo-mobile2", branch = "feat/ohos" }
+cargo-mobile2 = { git = "https://github.com/tauri-apps/cargo-mobile2", branch = "feat/ohos", default-features = false }
 wry = { git = "https://github.com/richerfu/wry" }
-tao = { git = "https://github.com/richerfu/tao", branch = "feat-ohos-webview" }
+#tao = { git = "https://github.com/richerfu/tao", branch = "feat-ohos-webview" }
+tao = { path = "../tao" }

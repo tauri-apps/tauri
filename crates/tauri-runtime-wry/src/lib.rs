@@ -837,7 +837,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     #[cfg(target_os = "macos")]
     {
       // TODO: find a proper way to prevent webview being pushed out of the window.
-      // Workround for issue: https://github.com/tauri-apps/tauri/issues/10225
+      // Workaround for issue: https://github.com/tauri-apps/tauri/issues/10225
       // The window requires `NSFullSizeContentViewWindowMask` flag to prevent devtools
       // pushing the content view out of the window.
       // By setting the default style to `TitleBarStyle::Visible` should fix the issue for most of the users.
@@ -4794,7 +4794,8 @@ You may have it installed on another user account, but it is not available for t
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_incognito(webview_attributes.incognito)
     .with_clipboard(webview_attributes.clipboard)
-    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
+    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled)
+    .with_general_autofill_enabled(webview_attributes.general_autofill_enabled);
 
   if url != "about:blank" {
     webview_builder = webview_builder.with_url(&url);

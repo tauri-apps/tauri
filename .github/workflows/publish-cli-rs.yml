@@ -72,22 +72,21 @@ jobs:
 
       - name: Build CLI
         if: ${{ !matrix.config.cross }}
-        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml --profile release-size-optimized ${{ matrix.config.args }}
+        run: |
+          cargo build --manifest-path ./crates/tauri-cli/Cargo.toml \
+            --target ${{ matrix.config.rust_target }} \
+            --profile release-size-optimized \
+            ${{ matrix.config.args }}
 
       - name: Build CLI (cross)
         if: ${{ matrix.config.cross }}
-        run: cross build --manifest-path ./crates/tauri-cli/Cargo.toml --target ${{ matrix.config.rust_target }} --profile release-size-optimized ${{ matrix.config.args }}
+        run: |
+          cross build --manifest-path ./crates/tauri-cli/Cargo.toml \
+            --target ${{ matrix.config.rust_target }} \
+            --profile release-size-optimized \
+            ${{ matrix.config.args }}
 
       - name: Upload CLI
-        if: ${{ !matrix.config.cross }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
-          path: target/release-size-optimized/cargo-tauri${{ matrix.config.ext }}
-          if-no-files-found: error
-
-      - name: Upload CLI (cross)
-        if: ${{ matrix.config.cross }}
         uses: actions/upload-artifact@v4
         with:
           name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}

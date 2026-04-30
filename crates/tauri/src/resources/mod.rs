@@ -140,7 +140,7 @@ impl ResourceTable {
   }
 
   /// Returns a reference counted pointer to the resource of the given `rid`.
-  /// If `rid` is not present, this function returns [`Error::BadResourceId`].
+  /// If `rid` is not present, this function returns [`crate::Error::BadResourceId`].
   pub fn get_any(&self, rid: ResourceId) -> crate::Result<Arc<dyn Resource>> {
     self
       .index

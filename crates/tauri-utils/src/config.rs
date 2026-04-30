@@ -873,7 +873,8 @@ pub struct NsisConfig {
   /// Whether the installation will be for all users or just the current user.
   #[serde(default, alias = "install-mode")]
   pub install_mode: NSISInstallerMode,
-  /// A list of installer languages.
+  /// A list of installer languages. Default to `["English"]` if not set.
+  ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
   /// To allow the user to select the language, set `display_language_selector` to `true`.
   ///
@@ -884,7 +885,7 @@ pub struct NsisConfig {
   ///
   /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsh` file.
   ///
-  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
+  /// **Note**: the key must be a valid NSIS language and it must be added to the [`Self::languages`] array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
@@ -1197,7 +1198,13 @@ pub struct FileAssociation {
   /// The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
-  /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
+  /// The mime-type of the association, e.g. `'image/png'` or `'text/plain'`.
+  ///
+  /// - **Linux**: written as `MimeType=` in the `.desktop` file.
+  /// - **macOS / iOS**: added as `public.mime-type` in the `UTTypeTagSpecification` dictionary of
+  ///   the `UTExportedTypeDeclarations` entry in `Info.plist`.
+  /// - **Android**: used as `android:mimeType` in the `<data>` element of an `<intent-filter>`
+  ///   in `AndroidManifest.xml`.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<String>,
   /// The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.
@@ -1896,7 +1903,7 @@ pub enum ScrollBarStyle {
   /// Fluent UI style overlay scrollbars. **Windows Only**
   ///
   /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
-  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  /// see <https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541>
   FluentOverlay,
 }
 
@@ -2188,7 +2195,7 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[serde(default, alias = "background-throttling")]
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
   /// Whether we should disable JavaScript code execution on the webview or not.
@@ -2263,6 +2270,25 @@ pub struct WindowConfig {
   /// By default the system uses the foreground scene.
   #[serde(default, alias = "requested-by-scene-identifier")]
   pub requested_by_scene_identifier: Option<String>,
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// If not specified, this is `true` by default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[serde(default = "default_true", alias = "general-autofill-enabled")]
+  pub general_autofill_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -2328,6 +2354,7 @@ impl Default for WindowConfig {
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
+      general_autofill_enabled: true,
     }
   }
 }
@@ -3205,6 +3232,12 @@ pub struct AndroidConfig {
   /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]
   pub auto_increment_version_code: bool,
+
+  /// Application ID suffix to append for debug builds.
+  /// This allows installing debug and release versions side-by-side on the same device.
+  /// Example: ".debug" will make debug builds use "com.example.app.debug" as the application ID.
+  #[serde(alias = "debug-application-id-suffix")]
+  pub debug_application_id_suffix: Option<String>,
 }
 
 impl Default for AndroidConfig {
@@ -3213,6 +3246,7 @@ impl Default for AndroidConfig {
       min_sdk_version: default_min_sdk_version(),
       version_code: None,
       auto_increment_version_code: false,
+      debug_application_id_suffix: None,
     }
   }
 }
@@ -3865,6 +3899,7 @@ mod build {
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
+      let general_autofill_enabled = self.general_autofill_enabled;
 
       literal_struct!(
         tokens,
@@ -3928,7 +3963,8 @@ mod build {
         scroll_bar_style,
         activity_name,
         created_by_activity_name,
-        requested_by_scene_identifier
+        requested_by_scene_identifier,
+        general_autofill_enabled
       );
     }
   }

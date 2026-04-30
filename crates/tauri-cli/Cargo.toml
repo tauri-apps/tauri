@@ -104,7 +104,7 @@ oxc_span = "0.36"
 oxc_allocator = "0.36"
 oxc_ast = "0.36"
 magic_string = "0.3"
-phf = { version = "0.11", features = ["macros"] }
+phf = { version = "0.13", features = ["macros"] }
 walkdir = "2"
 elf = "0.7"
 memchr = "2"

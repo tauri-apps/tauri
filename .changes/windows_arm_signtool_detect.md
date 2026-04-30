@@ -13,4 +13,5 @@ Previously only the following were supported:
 
 The following were added:
 
+- PROCESSOR_ARCHITECTURE_ARM
 - PROCESSOR_ARCHITECTURE_ARM64

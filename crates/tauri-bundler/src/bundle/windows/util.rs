@@ -64,10 +64,10 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
 }
 
 #[cfg(target_os = "windows")]
-pub fn os_bitness<'a>() -> Option<&'a str> {
+pub fn processor_architecture<'a>() -> Option<&'a str> {
   use windows_sys::Win32::System::SystemInformation::{
-    GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
-    PROCESSOR_ARCHITECTURE_ARM, PROCESSOR_ARCHITECTURE_ARM64, 
+    GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM,
+    PROCESSOR_ARCHITECTURE_ARM64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
   };
 
   let mut system_info: SYSTEM_INFO = unsafe { std::mem::zeroed() };

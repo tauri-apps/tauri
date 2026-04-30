@@ -17,7 +17,7 @@ use tauri_utils::config::FrontendDist;
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {
-  config_path: PathBuf,
+  pub(crate) config_path: PathBuf,
   out_file: PathBuf,
   capabilities: Option<Vec<PathBuf>>,
 }

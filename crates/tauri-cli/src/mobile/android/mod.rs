@@ -827,7 +827,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
       Some(EmulatorStatus::Offline { serial_no }) => {
         // emulator is available but not connected to adb, we must restart it
         log::info!("Emulator is not connected, we need to restart it");
-        restart_emulator(&env, &serial_no, &emulator)?;
+        restart_emulator(env, &serial_no, &emulator)?;
       }
       Some(EmulatorStatus::Connected) => {
         // emulator is already connected to adb
@@ -872,7 +872,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
         ) => {
           if emulator_already_running && error.kind() == std::io::ErrorKind::TimedOut {
             log::info!("Emulator is not responding, we need to restart it");
-            restart_emulator(&env, &serial_no, &emulator)?;
+            restart_emulator(env, &serial_no, &emulator)?;
             tries = 0;
           } else {
             log::error!("failed to get properties for device {serial_no}: {error}");
@@ -897,7 +897,7 @@ fn restart_emulator(env: &Env, serial_no: &str, emulator: &emulator::Emulator) -
     );
   }
 
-  adb::adb(env, &["-s", &serial_no, "emu", "kill"])
+  adb::adb(env, &["-s", serial_no, "emu", "kill"])
     .run()
     .context("failed to reboot emulator")?;
 

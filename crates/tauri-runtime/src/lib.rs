@@ -480,7 +480,13 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   ///
   /// The API is PRE-RUN-ONLY.
   ///
-  /// If `ignore` is set to `true`, the application will activate regardless of other active applications.
+  /// If `false`, the app activates only if no other app is currently active.
+  /// If `true`, the app activates regardless.
+  ///
+  /// # Platform-specific
+  ///
+  /// - **macOS**: Supported.
+  /// - **iOS / Android / Windows / Linux**: Unsupported.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activate_ignoring_other_apps(&mut self, active: bool);

@@ -3571,6 +3571,82 @@ wrap_task! {
   }
 }
 
+wrap_task! {
+  struct ReloadIfBlankTask {
+    browser: cef::Browser,
+    initial_url: String,
+    remaining_checks: u32,
+    check_interval_ms: i64,
+  }
+
+  impl Task {
+    fn execute(&self) {
+      let Some(frame) = self.browser.main_frame() else {
+        if self.remaining_checks > 0 {
+          log::debug!(
+            "[cef] check_and_reload_if_blank: main frame unavailable, retrying (remaining_checks={})",
+            self.remaining_checks
+          );
+          schedule_reload_if_blank_check(
+            self.browser.clone(),
+            self.initial_url.clone(),
+            self.remaining_checks - 1,
+            self.check_interval_ms,
+          );
+        } else {
+          log::debug!(
+            "[cef] check_and_reload_if_blank: main frame unavailable after retries, giving up"
+          );
+        }
+        return;
+      };
+
+      let url = frame.url();
+      let current_url = cef::CefString::from(&url).to_string();
+      if current_url.is_empty() || current_url == "about:blank" {
+        log::debug!(
+          "[cef] check_and_reload_if_blank: blank main frame detected, reloading initial URL (remaining_checks={})",
+          self.remaining_checks
+        );
+        frame.load_url(Some(&cef::CefString::from(self.initial_url.as_str())));
+
+        if self.remaining_checks > 0 {
+          schedule_reload_if_blank_check(
+            self.browser.clone(),
+            self.initial_url.clone(),
+            self.remaining_checks - 1,
+            self.check_interval_ms,
+          );
+        } else {
+          log::debug!(
+            "[cef] check_and_reload_if_blank: reached retry limit after reloading {}",
+            self.initial_url
+          );
+        }
+      } else {
+        log::debug!(
+          "[cef] check_and_reload_if_blank: main frame recovered with URL {}",
+          current_url
+        );
+      }
+    }
+  }
+}
+
+fn schedule_reload_if_blank_check(
+  browser: cef::Browser,
+  initial_url: String,
+  remaining_checks: u32,
+  check_interval_ms: i64,
+) {
+  let mut task = ReloadIfBlankTask::new(browser, initial_url, remaining_checks, check_interval_ms);
+  cef::post_delayed_task(
+    sys::cef_thread_id_t::TID_UI.into(),
+    Some(&mut task),
+    check_interval_ms,
+  );
+}
+
 #[cfg(target_os = "macos")]
 fn send_message_task<T: UserEvent>(context: &Context<T>, message: Message<T>) {
   let mut task = SendMessageTask::new(context.clone(), Arc::new(RefCell::new(message)));
@@ -4039,28 +4115,27 @@ fn check_and_reload_if_blank(browser: cef::Browser, initial_url: String) {
     return;
   }
 
-  std::thread::spawn(move || {
-    std::thread::sleep(std::time::Duration::from_secs(1));
+  let initial_delay_ms = 1_000;
+  let check_interval_ms = 100;
+  let timeout_ms = 5_000;
+  let remaining_checks = timeout_ms / check_interval_ms;
 
-    let start_time = std::time::Instant::now();
-    let timeout = std::time::Duration::from_secs(5);
-    let check_interval = std::time::Duration::from_millis(100);
+  log::debug!(
+    "[cef] check_and_reload_if_blank: scheduling UI-thread blank-page guard for {}",
+    initial_url
+  );
 
-    while start_time.elapsed() < timeout {
-      if let Some(frame) = browser.main_frame() {
-        let url = frame.url();
-        let current_url = cef::CefString::from(&url).to_string();
-        if current_url.is_empty() || current_url == "about:blank" {
-          frame.load_url(Some(&cef::CefString::from(initial_url.as_str())));
-          // Continue checking in case it loads about:blank again
-        } else {
-          // URL has changed to something else (not about:blank), we can stop checking
-          return;
-        }
-      }
-      std::thread::sleep(check_interval);
-    }
-  });
+  let mut task = ReloadIfBlankTask::new(
+    browser,
+    initial_url,
+    remaining_checks as u32,
+    check_interval_ms,
+  );
+  cef::post_delayed_task(
+    sys::cef_thread_id_t::TID_UI.into(),
+    Some(&mut task),
+    initial_delay_ms,
+  );
 }
 
 fn webview_bounds_ratio(

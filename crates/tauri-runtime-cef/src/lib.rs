@@ -2162,6 +2162,10 @@ impl InitAttribute for RuntimeInitAttribute {
 /// Webview attributes.
 pub enum WebviewAtribute {
   /// Sets the browser runtime style.
+  ///
+  /// External file drag and drop events require [`RuntimeStyle::Alloy`].
+  /// CEF's Chrome runtime does not currently route those events through
+  /// `CefDragHandler`, so Tauri drag/drop events will not be emitted there.
   RuntimeStyle { style: RuntimeStyle },
 }
 
@@ -2171,10 +2175,15 @@ pub enum RuntimeStyle {
   /// Alloy runtime.
   ///
   /// Used by default on multiwebview mode.
+  ///
+  /// Required for Tauri drag/drop events because CEF routes external file
+  /// drags through `CefDragHandler` only for Alloy-style webviews.
   Alloy,
   /// Chrome runtime.
   ///
   /// Used by default on webview window mode.
+  ///
+  /// Does not currently support Tauri drag/drop events for external files.
   ///
   /// Only a single browser view can use the Chrome runtime in a given window.
   Chrome,

@@ -9,6 +9,7 @@ use dioxus_debug_cell::RefCell;
 use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
+  path::PathBuf,
   sync::{
     Arc, Mutex,
     atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering},
@@ -22,7 +23,7 @@ use tauri_runtime::{
     Size,
   },
   webview::{InitializationScript, PendingWebview, UriSchemeProtocolHandler, WebviewAttributes},
-  window::{PendingWindow, WindowEvent, WindowId},
+  window::{DragDropEvent, PendingWindow, WebviewEvent, WindowEvent, WindowId},
 };
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -76,6 +77,96 @@ type CefOsEvent<'a> = *mut u8;
 #[cfg(windows)]
 type CefOsEvent<'a> = Option<&'a mut sys::MSG>;
 type AddressChangedHandler = dyn Fn(&url::Url) + Send + Sync;
+
+const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
+const DRAG_DROP_INIT_SCRIPT: &str = r#"
+(() => {
+  if (window.__TAURI_CEF_DRAG_DROP__) {
+    return;
+  }
+
+  Object.defineProperty(window, "__TAURI_CEF_DRAG_DROP__", {
+    value: true,
+    configurable: false,
+  });
+
+  const PATH = "/__tauri_cef_drag_drop__";
+  let entered = false;
+
+  const position = (event) => ({
+    x: event.clientX * window.devicePixelRatio,
+    y: event.clientY * window.devicePixelRatio,
+  });
+
+  const send = (type, event) => {
+    const pos = position(event);
+    const url = new URL(PATH, window.location.href);
+    url.searchParams.set("payload", JSON.stringify({ type, x: pos.x, y: pos.y }));
+    fetch(url.href, {
+      method: "GET",
+      cache: "no-store",
+      credentials: "omit",
+    }).catch(() => {});
+  };
+
+  const listen = (eventName, handler) => {
+    window.addEventListener(eventName, handler, { capture: true });
+  };
+
+  listen("dragenter", (event) => {
+    if (!entered) {
+      entered = true;
+      send("enter", event);
+    }
+  });
+
+  listen("dragover", (event) => {
+    if (!entered) {
+      entered = true;
+      send("enter", event);
+    }
+    send("over", event);
+  });
+
+  listen("drop", (event) => {
+    if (!entered) {
+      send("enter", event);
+    }
+    entered = false;
+    send("drop", event);
+  });
+
+  listen("dragleave", (event) => {
+    const x = event.clientX;
+    const y = event.clientY;
+    if (entered && (x <= 0 || y <= 0 || x >= window.innerWidth || y >= window.innerHeight)) {
+      entered = false;
+      send("leave", event);
+    }
+  });
+})();
+"#;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DragDropEventTarget {
+  Window,
+  Webview,
+}
+
+#[derive(Default)]
+struct DragDropState {
+  paths: Option<Vec<PathBuf>>,
+  native_entered: bool,
+  entered: bool,
+}
+
+#[derive(Clone, serde::Deserialize)]
+struct DragDropScriptEvent {
+  #[serde(rename = "type")]
+  kind: String,
+  x: f64,
+  y: f64,
+}
 
 /// CEF transparent color value (ARGB)
 const TRANSPARENT: u32 = 0x00000000;
@@ -382,6 +473,49 @@ fn hash_script(script: &str) -> String {
   )
 }
 
+fn initialization_scripts_from_webview_attributes(
+  webview_attributes: &mut WebviewAttributes,
+) -> Arc<Vec<CefInitScript>> {
+  let mut initialization_scripts = Vec::new();
+
+  if webview_attributes.drag_drop_handler_enabled {
+    initialization_scripts.push(CefInitScript::new(InitializationScript {
+      script: DRAG_DROP_INIT_SCRIPT.to_string(),
+      for_main_frame_only: false,
+    }));
+  }
+
+  initialization_scripts.extend(
+    std::mem::take(&mut webview_attributes.initialization_scripts)
+      .into_iter()
+      .map(CefInitScript::new),
+  );
+
+  Arc::new(initialization_scripts)
+}
+
+fn collect_drag_data_paths(drag_data: &mut DragData) -> Vec<PathBuf> {
+  let mut paths = CefStringList::new();
+  if drag_data.file_paths(Some(&mut paths)) != 0 {
+    let paths = paths
+      .into_iter()
+      .filter(|path| !path.is_empty())
+      .map(PathBuf::from)
+      .collect::<Vec<_>>();
+
+    if !paths.is_empty() {
+      return paths;
+    }
+  }
+
+  let file_name = CefStringUtf16::from(&drag_data.file_name()).to_string();
+  if file_name.is_empty() {
+    Vec::new()
+  } else {
+    vec![PathBuf::from(file_name)]
+  }
+}
+
 pub type SchemeHandlerRegistry = Arc<
   Mutex<
     HashMap<
@@ -596,6 +730,32 @@ wrap_load_handler! {
           0,
         );
       }
+    }
+  }
+}
+
+wrap_drag_handler! {
+  struct BrowserDragHandler {
+    drag_drop_state: Arc<Mutex<DragDropState>>,
+  }
+
+  impl DragHandler {
+    fn on_drag_enter(
+      &self,
+      _browser: Option<&mut Browser>,
+      drag_data: Option<&mut DragData>,
+      _mask: DragOperationsMask,
+    ) -> ::std::os::raw::c_int {
+      let mut state = self.drag_drop_state.lock().unwrap();
+      state.entered = false;
+      state.paths = drag_data
+        .map(collect_drag_data_paths)
+        .filter(|paths| !paths.is_empty());
+      state.native_entered = state.paths.is_some();
+
+      // Let Chromium continue with the drag operation so the injected script can
+      // report over/drop/leave with accurate viewport positions.
+      0
     }
   }
 }
@@ -1165,6 +1325,10 @@ wrap_client! {
   struct BrowserClient<T: UserEvent> {
     window_kind: WindowKind,
     window_id: WindowId,
+    webview_id: u32,
+    drag_drop_event_target: DragDropEventTarget,
+    drag_drop_handler_enabled: bool,
+    drag_drop_state: Arc<Mutex<DragDropState>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
@@ -1180,10 +1344,22 @@ wrap_client! {
   }
 
   impl Client {
+    fn drag_handler(&self) -> Option<DragHandler> {
+      self
+        .drag_drop_handler_enabled
+        .then(|| BrowserDragHandler::new(self.drag_drop_state.clone()))
+    }
+
     fn request_handler(&self) -> Option<RequestHandler> {
       Some(request_handler::WebRequestHandler::new(
         self.initialization_scripts.clone(),
         self.navigation_handler.clone(),
+        self.context.clone(),
+        self.window_id,
+        self.webview_id,
+        self.drag_drop_event_target,
+        self.drag_drop_handler_enabled,
+        self.drag_drop_state.clone(),
       ))
     }
 
@@ -3337,17 +3513,15 @@ fn create_browser_window<T: UserEvent>(
     mut on_page_load_handler,
     download_handler,
     // TODO
-    on_web_content_process_terminate_handler,
+    on_web_content_process_terminate_handler: _,
   } = webview;
 
   let address_changed_handler = address_changed_handler
     .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<AddressChangedHandler>);
 
-  let initialization_scripts = std::mem::take(&mut webview_attributes.initialization_scripts)
-    .into_iter()
-    .map(CefInitScript::new)
-    .collect::<Vec<_>>();
-  let initialization_scripts = Arc::new(initialization_scripts);
+  let drag_drop_handler_enabled = webview_attributes.drag_drop_handler_enabled;
+  let initialization_scripts =
+    initialization_scripts_from_webview_attributes(&mut webview_attributes);
 
   let on_page_load_handler = on_page_load_handler.take().map(Arc::from);
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
@@ -3396,10 +3570,15 @@ fn create_browser_window<T: UserEvent>(
 
   let initial_url = url.clone();
   let url = CefString::from(url.as_str());
+  let drag_drop_state = Arc::new(Mutex::new(DragDropState::default()));
 
   let mut client = BrowserClient::new(
     WindowKind::Browser,
     window_id,
+    webview_id,
+    DragDropEventTarget::Window,
+    drag_drop_handler_enabled,
+    drag_drop_state,
     initialization_scripts.clone(),
     on_page_load_handler,
     document_title_changed_handler,
@@ -3598,9 +3777,72 @@ wrap_task! {
   }
 }
 
+wrap_task! {
+  struct WebviewEventTask<T: UserEvent> {
+    context: Context<T>,
+    window_id: WindowId,
+    webview_id: u32,
+    event: WebviewEvent,
+  }
+
+  impl Task {
+    fn execute(&self) {
+      send_webview_event(
+        &self.context,
+        self.window_id,
+        self.webview_id,
+        self.event.clone(),
+      );
+    }
+  }
+}
+
+wrap_task! {
+  struct DragDropScriptEventTask<T: UserEvent> {
+    context: Context<T>,
+    window_id: WindowId,
+    webview_id: u32,
+    target: DragDropEventTarget,
+    drag_drop_state: Arc<Mutex<DragDropState>>,
+    event: DragDropScriptEvent,
+  }
+
+  impl Task {
+    fn execute(&self) {
+      handle_drag_drop_script_event(
+        &self.context,
+        self.window_id,
+        self.webview_id,
+        self.target,
+        self.drag_drop_state.clone(),
+        self.event.clone(),
+      );
+    }
+  }
+}
+
 #[cfg(target_os = "macos")]
 fn send_message_task<T: UserEvent>(context: &Context<T>, message: Message<T>) {
   let mut task = SendMessageTask::new(context.clone(), Arc::new(RefCell::new(message)));
+  cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+}
+
+fn post_drag_drop_script_event<T: UserEvent>(
+  context: Context<T>,
+  window_id: WindowId,
+  webview_id: u32,
+  target: DragDropEventTarget,
+  drag_drop_state: Arc<Mutex<DragDropState>>,
+  event: DragDropScriptEvent,
+) {
+  let mut task = DragDropScriptEventTask::new(
+    context,
+    window_id,
+    webview_id,
+    target,
+    drag_drop_state,
+    event,
+  );
   cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
 }
 
@@ -3635,6 +3877,121 @@ fn send_window_event<T: UserEvent>(
     });
 
     in_callback(|| (callback.borrow())(RunEvent::WindowEvent { label, event }));
+  }
+}
+
+fn send_webview_event<T: UserEvent>(
+  context: &Context<T>,
+  window_id: WindowId,
+  webview_id: u32,
+  event: WebviewEvent,
+) {
+  let Ok(windows_ref) = context.windows.try_borrow() else {
+    let mut task = WebviewEventTask::new(context.clone(), window_id, webview_id, event.clone());
+    cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+    return;
+  };
+
+  let Some(w) = windows_ref.get(&window_id) else {
+    return;
+  };
+
+  let listeners = w.webview_event_listeners.clone();
+  drop(windows_ref);
+
+  let Some(webview_listeners) = listeners.lock().unwrap().get(&webview_id).cloned() else {
+    return;
+  };
+
+  in_callback(|| {
+    let listeners = webview_listeners.lock().unwrap();
+    let handlers: Vec<_> = listeners.values().collect();
+    for handler in handlers.iter() {
+      handler(&event);
+    }
+  });
+}
+
+fn send_drag_drop_event<T: UserEvent>(
+  context: &Context<T>,
+  window_id: WindowId,
+  webview_id: u32,
+  target: DragDropEventTarget,
+  event: DragDropEvent,
+) {
+  match target {
+    DragDropEventTarget::Window => send_window_event(
+      window_id,
+      &context.windows,
+      &context.callback,
+      WindowEvent::DragDrop(event),
+    ),
+    DragDropEventTarget::Webview => send_webview_event(
+      context,
+      window_id,
+      webview_id,
+      WebviewEvent::DragDrop(event),
+    ),
+  }
+}
+
+fn handle_drag_drop_script_event<T: UserEvent>(
+  context: &Context<T>,
+  window_id: WindowId,
+  webview_id: u32,
+  target: DragDropEventTarget,
+  drag_drop_state: Arc<Mutex<DragDropState>>,
+  script_event: DragDropScriptEvent,
+) {
+  let position = PhysicalPosition::new(script_event.x, script_event.y);
+  let event = {
+    let mut state = drag_drop_state.lock().unwrap();
+    if !state.native_entered {
+      return;
+    }
+
+    match script_event.kind.as_str() {
+      "enter" => {
+        if state.entered {
+          return;
+        }
+
+        let Some(paths) = state.paths.clone() else {
+          return;
+        };
+        state.entered = true;
+        Some(DragDropEvent::Enter { paths, position })
+      }
+      "over" => {
+        if state.entered {
+          Some(DragDropEvent::Over { position })
+        } else {
+          None
+        }
+      }
+      "drop" => {
+        let paths = state.entered.then(|| state.paths.take()).flatten();
+        state.entered = false;
+        state.native_entered = false;
+        paths.map(|paths| DragDropEvent::Drop { paths, position })
+      }
+      "leave" => {
+        state.native_entered = false;
+        state.paths = None;
+
+        if state.entered {
+          state.entered = false;
+          Some(DragDropEvent::Leave)
+        } else {
+          None
+        }
+      }
+      _ => None,
+    }
+  };
+
+  if let Some(event) = event {
+    send_drag_drop_event(context, window_id, webview_id, target, event);
   }
 }
 
@@ -3775,7 +4132,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     mut on_page_load_handler,
     download_handler,
     // TODO
-    on_web_content_process_terminate_handler,
+    on_web_content_process_terminate_handler: _,
   } = pending;
 
   let address_changed_handler = address_changed_handler
@@ -3794,11 +4151,9 @@ pub(crate) fn create_webview<T: UserEvent>(
     }
   };
 
-  let initialization_scripts = std::mem::take(&mut webview_attributes.initialization_scripts)
-    .into_iter()
-    .map(CefInitScript::new)
-    .collect::<Vec<_>>();
-  let initialization_scripts = Arc::new(initialization_scripts);
+  let drag_drop_handler_enabled = webview_attributes.drag_drop_handler_enabled;
+  let initialization_scripts =
+    initialization_scripts_from_webview_attributes(&mut webview_attributes);
 
   let on_page_load_handler = on_page_load_handler.take().map(Arc::from);
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
@@ -3822,10 +4177,20 @@ pub(crate) fn create_webview<T: UserEvent>(
 
   let initial_url = url.clone();
   let url = CefString::from(url.as_str());
+  let drag_drop_state = Arc::new(Mutex::new(DragDropState::default()));
+  let drag_drop_event_target = if kind == WebviewKind::WindowContent {
+    DragDropEventTarget::Window
+  } else {
+    DragDropEventTarget::Webview
+  };
 
   let mut client = BrowserClient::new(
     WindowKind::Tauri,
     window_id,
+    webview_id,
+    drag_drop_event_target,
+    drag_drop_handler_enabled,
+    drag_drop_state,
     initialization_scripts.clone(),
     on_page_load_handler,
     document_title_changed_handler,
@@ -3884,7 +4249,6 @@ pub(crate) fn create_webview<T: UserEvent>(
     } else {
       CefRuntimeStyle::Chrome
     });
-
   let cef_runtime_style: RuntimeStyle = match runtime_style {
     CefRuntimeStyle::Alloy => cef_runtime_style_t::CEF_RUNTIME_STYLE_ALLOY.into(),
     CefRuntimeStyle::Chrome => cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME.into(),

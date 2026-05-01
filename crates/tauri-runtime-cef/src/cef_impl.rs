@@ -1389,11 +1389,14 @@ wrap_window_delegate! {
       let attrs = self.attributes.borrow();
 
       #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-      if attrs.transparent.unwrap_or_default() {
-        view.set_background_color(TRANSPARENT);
-      } else if let Some(color) = attrs.background_color {
-        let color = color_to_cef_argb(color);
-        view.set_background_color(color);
+      {
+        let Some(view) = view else { return; };
+          if attrs.transparent.unwrap_or_default() {
+          view.set_background_color(TRANSPARENT);
+        } else if let Some(color) = attrs.background_color {
+          let color = color_to_cef_argb(color);
+          view.set_background_color(color);
+        }
       }
 
       // macOS resets traffic light button positions during the layout pass

@@ -268,7 +268,6 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
         .build()
         .unwrap();
       }
-      #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
       RunEvent::Opened { urls } => {
         println!("opened urls: {:?}", urls);
       }

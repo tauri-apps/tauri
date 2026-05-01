@@ -164,6 +164,8 @@ impl<'a> Image<'a> {
 
     let mut icon_info = ICONINFO::default();
     unsafe { GetIconInfo(*hicon, &mut icon_info).map_err(crate::Error::ImageFromResource)? };
+    let _hbm_mask = unsafe { Owned::new(icon_info.hbmMask) };
+    let hbm_color = unsafe { Owned::new(icon_info.hbmColor) };
 
     let image_bytes = (width_i32 * height_i32 * color_depth_bytes as i32) as usize;
     let mut bgra: Vec<u8> = Vec::with_capacity(image_bytes);
@@ -181,7 +183,7 @@ impl<'a> Image<'a> {
       let hdc = CreateCompatibleDC(None);
       let result = GetDIBits(
         hdc,
-        icon_info.hbmColor,
+        *hbm_color,
         0,
         height,
         Some(bgra.as_mut_ptr() as _),

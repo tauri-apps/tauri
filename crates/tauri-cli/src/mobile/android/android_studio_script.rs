@@ -13,7 +13,7 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use cargo_mobile2::{
-  android::{adb, target::Target},
+  android::{adb, device::ConnectionStatus, target::Target},
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
 };
@@ -194,7 +194,11 @@ fn adb_forward_port(
   let forward = format!("tcp:{port}");
   log::info!("Forwarding port {port} with adb");
 
-  let mut devices = adb::device_list(env).unwrap_or_default();
+  let mut devices = adb::device_list(env)
+    .unwrap_or_default()
+    .into_iter()
+    .filter(|d| d.status() == ConnectionStatus::Connected)
+    .collect::<Vec<_>>();
   // if we could not detect any running device, let's wait a few seconds, it might be booting up
   if devices.is_empty() {
     log::warn!(
@@ -206,7 +210,11 @@ fn adb_forward_port(
     loop {
       std::thread::sleep(std::time::Duration::from_secs(1));
 
-      devices = adb::device_list(env).unwrap_or_default();
+      devices = adb::device_list(env)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|d| d.status() == ConnectionStatus::Connected)
+        .collect::<Vec<_>>();
       if !devices.is_empty() {
         break;
       }

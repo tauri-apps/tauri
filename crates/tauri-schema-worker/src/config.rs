@@ -5,8 +5,8 @@
 use anyhow::Context;
 use axum::{
   extract::Path,
-  http::{header, StatusCode},
-  response::Result,
+  http::{header, HeaderValue, StatusCode},
+  response::{IntoResponse, Result},
   routing::get,
   Router,
 };
@@ -48,23 +48,26 @@ pub fn router() -> Router {
     .route("/config/{version}", get(schema_for_version))
 }
 
-async fn schema_for_version(Path(version): Path<String>) -> Result<String> {
+async fn schema_for_version(Path(version): Path<String>) -> Result<JsonResponse> {
   try_schema_for_version(version)
     .await
+    .map(JsonResponse)
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     .map_err(Into::into)
 }
 
-async fn stable_schema() -> Result<String> {
+async fn stable_schema() -> Result<JsonResponse> {
   try_stable_schema()
     .await
+    .map(JsonResponse)
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     .map_err(Into::into)
 }
 
-async fn next_schema() -> Result<String> {
+async fn next_schema() -> Result<JsonResponse> {
   try_next_schema()
     .await
+    .map(JsonResponse)
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     .map_err(Into::into)
 }
@@ -171,4 +174,19 @@ fn fetch_req(url: &str) -> anyhow::Result<worker::Request> {
     },
   )
   .map_err(Into::into)
+}
+
+struct JsonResponse(String);
+
+impl IntoResponse for JsonResponse {
+  fn into_response(self) -> axum::response::Response {
+    (
+      [(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+      )],
+      self.0,
+    )
+      .into_response()
+  }
 }

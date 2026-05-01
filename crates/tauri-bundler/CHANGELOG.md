@@ -1,5 +1,56 @@
 # Changelog
 
+## \[2.9.0]
+
+### New Features
+
+- [`926a57bb0`](https://www.github.com/tauri-apps/tauri/commit/926a57bb0851e45d47ad1ee68fc96a9c25754c7c) ([#15201](https://www.github.com/tauri-apps/tauri/pull/15201)) Added uninstaller icon and uninstaller header image support for NSIS installer.
+
+  Notes:
+
+  - For `tauri-bundler` lib users, the `NsisSettings` now has 2 new fields `uninstaller_icon` and `uninstaller_header_image` which can be a breaking change
+  - When bundling with NSIS, users can add `uninstallerIcon` and `uninstallerHeaderImage` under `bundle > windows > nsis` to configure them.
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Implement file association for Android and iOS.
+- [`5a0ca7edb`](https://www.github.com/tauri-apps/tauri/commit/5a0ca7edbbc707199615a91845146e98b6f5e8ca) ([#14671](https://www.github.com/tauri-apps/tauri/pull/14671)) Added support to Liquid Glass icons.
+- [`5dc2cee60`](https://www.github.com/tauri-apps/tauri/commit/5dc2cee60370665af88c185684432e425b1c987d) ([#14793](https://www.github.com/tauri-apps/tauri/pull/14793)) Added support for `minimumWebview2Version` option support for the MSI (Wix) installer, the old `bundle > windows > nsis > minimumWebview2Version` is now deprecated in favor of `bundle > windows > minimumWebview2Version`
+
+  Notes:
+
+  - For anyone relying on the `WVRTINSTALLED` `Property` tag in `main.wxs`, it is now renamed to `INSTALLED_WEBVIEW2_VERSION`
+  - For `tauri-bundler` lib users, the `WindowsSettings` now has a new field `minimum_webview2_version` which can be a breaking change
+
+### Enhancements
+
+- [`be0e4bd2d`](https://www.github.com/tauri-apps/tauri/commit/be0e4bd2da02eb6cc75a8dc7c81663277e64c590) ([#15218](https://www.github.com/tauri-apps/tauri/pull/15218)) Added Vietnamese translations for the NSIS installer
+- [`1035f12ee`](https://www.github.com/tauri-apps/tauri/commit/1035f12eeb8b23d9780881606d442d11c786e39e) ([#14923](https://www.github.com/tauri-apps/tauri/pull/14923)) Signtool path for windows arm systems was not being properly returned which caused failure in signing of windows binaries.
+
+  This patch addresses it.
+
+  Previously only the following were supported:
+
+  - PROCESSOR_ARCHITECTURE_INTEL
+  - PROCESSOR_ARCHITECTURE_AMD64
+
+  The following were added:
+
+  - PROCESSOR_ARCHITECTURE_ARM
+  - PROCESSOR_ARCHITECTURE_ARM64
+
+### Bug Fixes
+
+- [`fcb702ec4`](https://www.github.com/tauri-apps/tauri/commit/fcb702ec4d924e81943efaeebea8d3edb7289c33) ([#14954](https://www.github.com/tauri-apps/tauri/pull/14954)) Fix `build --bundles` to allow `nsis` arg in linux+macOS
+- [`c8d7003b2`](https://www.github.com/tauri-apps/tauri/commit/c8d7003b23657019a547fd7cdf3164834a28849a) ([#15102](https://www.github.com/tauri-apps/tauri/pull/15102)) Correct GitHub Release URL path for Linux i686 tooling.
+
+### What's Changed
+
+- [`9979cde1c`](https://www.github.com/tauri-apps/tauri/commit/9979cde1c5534dafb1a07cc4dc2bc280d15d2f66) ([#15175](https://www.github.com/tauri-apps/tauri/pull/15175)) Update NSIS installer Italian translations
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@2.3.4`
+- Upgraded to `tauri-utils@2.9.0`
+- [`373b7e677`](https://www.github.com/tauri-apps/tauri/commit/373b7e677ec498899759de9fcd35941fe792b58b) ([#15177](https://www.github.com/tauri-apps/tauri/pull/15177)) Update Specta in lockfile and upgrade dependencies using the removed `doc_auto_cfg` attribute to fix errors building documentation
+
 ## \[2.8.1]
 
 ### Bug Fixes

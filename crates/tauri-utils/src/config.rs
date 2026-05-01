@@ -1237,10 +1237,10 @@ impl FileAssociation {
     }
 
     // Also infer from mime type if available (avoiding duplicates)
-    if let Some(mime_type) = &self.mime_type {
-      if let Some(uti) = mime_type_to_uti(mime_type) {
-        content_types.insert(uti.to_string());
-      }
+    if let Some(mime_type) = &self.mime_type
+      && let Some(uti) = mime_type_to_uti(mime_type)
+    {
+      content_types.insert(uti.to_string());
     }
 
     content_types

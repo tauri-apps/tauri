@@ -868,10 +868,10 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
       // we do not filter for connected devices to detect emulators that are not connected to our adb anymore
       match adb::device_list(env) {
         Ok(devices) => {
-          if let Some(device) = devices.into_iter().find(|d| d.name() == emulator.name()) {
-            if device.status() == ConnectionStatus::Connected {
-              return Ok(device);
-            }
+          if let Some(device) = devices.into_iter().find(|d| d.name() == emulator.name())
+            && device.status() == ConnectionStatus::Connected
+          {
+            return Ok(device);
           }
 
           if tries >= 3 {

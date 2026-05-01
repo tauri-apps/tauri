@@ -297,15 +297,13 @@ fn create_info_plist(
     plist.insert("LSMinimumSystemVersion".into(), version.into());
   }
 
-  if let Some(associations) = settings.file_associations() {
-    if let Some(file_associations_plist) =
+  if let Some(associations) = settings.file_associations()
+    && let Some(file_associations_plist) =
       tauri_utils::config::file_associations_plist(associations)
-    {
-      if let Some(plist_dict) = file_associations_plist.as_dictionary() {
-        for (key, value) in plist_dict {
-          plist.insert(key.clone(), value.clone());
-        }
-      }
+    && let Some(plist_dict) = file_associations_plist.as_dictionary()
+  {
+    for (key, value) in plist_dict {
+      plist.insert(key.clone(), value.clone());
     }
   }
 

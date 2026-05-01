@@ -4712,12 +4712,11 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   // If fullscreen is requested with an explicit position, resolve the target
   // monitor up front so the window is created fullscreen on that display.
   #[cfg(any(target_os = "macos", target_os = "linux"))]
-  if let (true, Some(position)) = (is_fullscreen, initial_position) {
-    if let Some(target_monitor) =
+  if let (true, Some(position)) = (is_fullscreen, initial_position)
+    && let Some(target_monitor) =
       find_monitor_for_position(event_loop.available_monitors(), position)
-    {
-      window_builder.inner.window.fullscreen = Some(Fullscreen::Borderless(Some(target_monitor)));
-    }
+  {
+    window_builder.inner.window.fullscreen = Some(Fullscreen::Borderless(Some(target_monitor)));
   }
 
   let window = window_builder
@@ -4729,10 +4728,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   // On macOS, `with_position` uses the content origin; the title bar is added
   // above it. `set_outer_position` is needed for precise window placement.
   #[cfg(target_os = "macos")]
-  if !is_fullscreen {
-    if let Some(position) = initial_position {
-      window.set_outer_position(position);
-    }
+  if !is_fullscreen && let Some(position) = initial_position {
+    window.set_outer_position(position);
   }
 
   #[cfg(feature = "tracing")]

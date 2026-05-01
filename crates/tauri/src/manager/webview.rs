@@ -317,12 +317,11 @@ impl<R: Runtime> WebviewManager<R> {
         pending
           .on_web_content_process_terminate_handler
           .replace(Box::new(move || {
-            if let Some(w) = app_manager_.get_webview(&label_) {
-              if let Some(on_web_content_process_terminate) =
+            if let Some(w) = app_manager_.get_webview(&label_)
+              && let Some(on_web_content_process_terminate) =
                 &app_manager_.webview.on_web_content_process_terminate
-              {
-                on_web_content_process_terminate(&w);
-              }
+            {
+              on_web_content_process_terminate(&w);
             }
           }));
       }

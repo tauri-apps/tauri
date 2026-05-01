@@ -12,6 +12,8 @@ on:
     paths:
       - '.github/workflows/test-core.yml'
       - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - '!crates/tauri/scripts/**'
       - '!crates/tauri-cli/**'
       - '!crates/tauri-bundler/**'

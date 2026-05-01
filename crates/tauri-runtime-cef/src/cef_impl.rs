@@ -11,7 +11,7 @@ use std::{
   collections::HashMap,
   sync::{
     Arc, Mutex,
-    atomic::{AtomicBool, AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering},
     mpsc::channel,
   },
 };
@@ -36,10 +36,10 @@ use crate::{
 
 use std::cell::Cell;
 
-/// Tracks whether we're inside a user event callback. When set, `post_message`
-/// defers through the CEF task runner instead of executing synchronously, to
-/// avoid Win32 message-pump re-entrancy from APIs like ShowWindow/SetFocus
-/// or locking a mutex while already locked on the same thread.
+// Tracks whether we're inside a user event callback. When set, `post_message`
+// defers through the CEF task runner instead of executing synchronously, to
+// avoid Win32 message-pump re-entrancy from APIs like ShowWindow/SetFocus
+// or locking a mutex while already locked on the same thread.
 thread_local! {
   static IN_EVENT_CALLBACK: Cell<bool> = const { Cell::new(false) };
 }
@@ -721,6 +721,60 @@ cef::wrap_dev_tools_message_observer! {
   }
 }
 
+fn runtime_evaluate_result_to_json(result: Option<&[u8]>) -> String {
+  let Some(result) = result else {
+    return String::new();
+  };
+  let Ok(result) = serde_json::from_slice::<serde_json::Value>(result) else {
+    return String::new();
+  };
+
+  if result.get("exceptionDetails").is_some() {
+    return String::new();
+  }
+
+  let remote_object = result.get("result").unwrap_or(&result);
+  remote_object
+    .get("value")
+    .and_then(|value| serde_json::to_string(value).ok())
+    .unwrap_or_default()
+}
+
+cef::wrap_dev_tools_message_observer! {
+  struct EvalScriptWithCallbackDevToolsObserver {
+    message_id: Arc<AtomicI32>,
+    callback: Arc<Mutex<Option<Box<dyn Fn(String) + Send + 'static>>>>,
+    registration: Arc<Mutex<Option<cef::Registration>>>,
+  }
+
+  impl DevToolsMessageObserver {
+    fn on_dev_tools_method_result(
+      &self,
+      _browser: Option<&mut Browser>,
+      message_id: std::os::raw::c_int,
+      success: std::os::raw::c_int,
+      result: Option<&[u8]>,
+    ) {
+      if message_id != self.message_id.load(Ordering::Relaxed) {
+        return;
+      }
+
+      let Some(callback) = self.callback.lock().unwrap().take() else {
+        return;
+      };
+
+      let result = if success != 0 {
+        runtime_evaluate_result_to_json(result)
+      } else {
+        String::new()
+      };
+      callback(result);
+
+      let _ = self.registration.lock().unwrap().take();
+    }
+  }
+}
+
 /// Registers a DevTools protocol observer. Returns the [`cef::Registration`] which must be
 /// kept alive for the observer to stay registered. The observer is unregistered when
 /// the Registration is dropped.
@@ -1332,8 +1386,6 @@ wrap_window_delegate! {
     }
 
     fn on_theme_changed(&self, view: Option<&mut View>) {
-      let Some(view) = view else { return; };
-
       let attrs = self.attributes.borrow();
 
       #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -1777,6 +1829,44 @@ fn handle_webview_message<T: UserEvent>(
           Some(&cef::CefString::from("")),
           0,
         );
+      }
+    }
+    WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
+      if let Some(host) = get_browser(context, window_id, webview_id).and_then(|b| b.host()) {
+        let message_id = context.next_webview_event_id() as i32 + 1;
+        let message_id = Arc::new(AtomicI32::new(message_id));
+        let callback = Arc::new(Mutex::new(Some(callback)));
+        let registration = Arc::new(Mutex::new(None));
+        let mut observer = EvalScriptWithCallbackDevToolsObserver::new(
+          message_id.clone(),
+          callback.clone(),
+          registration.clone(),
+        );
+
+        if let Some(observer_registration) =
+          host.add_dev_tools_message_observer(Some(&mut observer))
+        {
+          *registration.lock().unwrap() = Some(observer_registration);
+
+          let message = serde_json::json!({
+            "id": message_id.load(Ordering::Relaxed),
+            "method": "Runtime.evaluate",
+            "params": {
+              "expression": script,
+              "returnByValue": true,
+            }
+          })
+          .to_string();
+
+          if host.send_dev_tools_message(Some(message.as_bytes())) != 1 {
+            let _ = registration.lock().unwrap().take();
+            if let Some(callback) = callback.lock().unwrap().take() {
+              callback(String::new());
+            }
+          }
+        } else if let Some(callback) = callback.lock().unwrap().take() {
+          callback(String::new());
+        }
       }
     }
     WebviewMessage::Navigate(url) => {
@@ -3243,6 +3333,8 @@ fn create_browser_window<T: UserEvent>(
     web_resource_request_handler: _,
     mut on_page_load_handler,
     download_handler,
+    // TODO
+    on_web_content_process_terminate_handler,
   } = webview;
 
   let address_changed_handler = address_changed_handler
@@ -3679,6 +3771,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     web_resource_request_handler: _,
     mut on_page_load_handler,
     download_handler,
+    // TODO
+    on_web_content_process_terminate_handler,
   } = pending;
 
   let address_changed_handler = address_changed_handler

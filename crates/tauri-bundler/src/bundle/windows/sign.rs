@@ -97,7 +97,7 @@ fn signtool() -> Option<PathBuf> {
       kit_bin_paths.push(kits_root_10_bin_path);
 
       // Choose which version of SignTool to use based on OS bitness
-      let arch_dir = util::os_bitness().ok_or(crate::Error::UnsupportedBitness)?;
+      let arch_dir = util::processor_architecture().ok_or(crate::Error::UnsupportedBitness)?;
 
       /* Iterate through all bin paths, checking for existence of a SignTool executable. */
       for kit_bin_path in &kit_bin_paths {

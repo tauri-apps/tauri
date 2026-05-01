@@ -353,6 +353,20 @@ fn build_nsis_app_installer(
       );
     }
 
+    if let Some(uninstaller_icon) = &nsis.uninstaller_icon {
+      data.insert(
+        "uninstaller_icon",
+        to_json(dunce::canonicalize(uninstaller_icon)?),
+      );
+    }
+
+    if let Some(uninstaller_header_image) = &nsis.uninstaller_header_image {
+      data.insert(
+        "uninstaller_header_image",
+        to_json(dunce::canonicalize(uninstaller_header_image)?),
+      );
+    }
+
     if let Some(installer_hooks) = &nsis.installer_hooks {
       let installer_hooks = dunce::canonicalize(installer_hooks)?;
       data.insert("installer_hooks", to_json(installer_hooks));
@@ -361,7 +375,12 @@ fn build_nsis_app_installer(
     if let Some(start_menu_folder) = &nsis.start_menu_folder {
       data.insert("start_menu_folder", to_json(start_menu_folder));
     }
-    if let Some(minimum_webview2_version) = &nsis.minimum_webview2_version {
+    #[allow(deprecated)]
+    if let Some(minimum_webview2_version) = nsis
+      .minimum_webview2_version
+      .as_ref()
+      .or(settings.windows().minimum_webview2_version.as_ref())
+    {
       data.insert(
         "minimum_webview2_version",
         to_json(minimum_webview2_version),
@@ -940,6 +959,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),
     "ukrainian" => include_bytes!("./languages/Ukrainian.nsh"),
     "norwegian" => include_bytes!("./languages/Norwegian.nsh"),
+    "vietnamese" => include_bytes!("./languages/Vietnamese.nsh"),
     _ => return None,
   };
   Some((path, content))

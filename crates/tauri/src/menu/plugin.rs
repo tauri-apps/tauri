@@ -90,6 +90,7 @@ enum Predefined {
   Quit,
   About(Option<AboutMetadata>),
   Services,
+  BringAllToFront,
 }
 
 #[derive(Deserialize)]
@@ -302,6 +303,9 @@ impl PredefinedMenuItemPayload {
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
       }
       Predefined::Services => PredefinedMenuItem::services(webview, self.text.as_deref()),
+      Predefined::BringAllToFront => {
+        PredefinedMenuItem::bring_all_to_front(webview, self.text.as_deref())
+      }
     }
   }
 }

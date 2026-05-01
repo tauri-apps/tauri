@@ -253,6 +253,8 @@ pub struct WindowsAttributes {
   ///
   /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
   app_manifest: Option<String>,
+  /// A series of strings containing additional .rc content to be appended to the generated resource file on Windows.
+  append_rc_content: Vec<String>,
 }
 
 impl Default for WindowsAttributes {
@@ -267,6 +269,7 @@ impl WindowsAttributes {
     Self {
       window_icon_path: Default::default(),
       app_manifest: Some(default_windows_app_manifest().into()),
+      append_rc_content: Vec::new(),
     }
   }
 
@@ -276,6 +279,7 @@ impl WindowsAttributes {
     Self {
       app_manifest: None,
       window_icon_path: Default::default(),
+      append_rc_content: Vec::new(),
     }
   }
 
@@ -343,6 +347,14 @@ impl WindowsAttributes {
   #[must_use]
   pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
     self.app_manifest = Some(manifest.as_ref().to_string());
+    self
+  }
+
+  /// Append additional .rc content to the generated resource file on Windows.
+  /// This can be called multiple times to append multiple contents.
+  #[must_use]
+  pub fn append_rc_content<S: Into<String>>(mut self, content: S) -> Self {
+    self.append_rc_content.push(content.into());
     self
   }
 }
@@ -422,7 +434,8 @@ impl Attributes {
 }
 
 pub fn is_dev() -> bool {
-  env::var("DEP_TAURI_DEV").expect("missing `cargo:dev` instruction, please update tauri to latest")
+  env::var_os("DEP_TAURI_DEV")
+    .expect("missing `cargo:dev` instruction, please update tauri to latest")
     == "true"
 }
 
@@ -471,7 +484,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
-  let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
@@ -509,6 +522,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
     mobile::generate_gradle_files(project_dir)?;
+
+    // Update Android manifest with file associations
+    if let Some(associations) = config.bundle.file_associations.as_ref() {
+      mobile::update_android_manifest_file_associations(associations)?;
+    }
   }
 
   cfg_alias("dev", is_dev());
@@ -516,7 +534,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let cargo_toml_path = Path::new("Cargo.toml").canonicalize()?;
   let mut manifest = Manifest::<cargo_toml::Value>::from_path_with_metadata(cargo_toml_path)?;
 
-  let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+  let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
   manifest::check(&config, &mut manifest)?;
 
@@ -625,12 +643,18 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       res.set_manifest(&manifest);
     }
 
+    for content in attributes.windows_attributes.append_rc_content {
+      res.append_rc_content(&content);
+    }
+
     if let Some(version_str) = &config.version
       && let Ok(v) = Version::parse(version_str)
     {
       let version = (v.major << 48) | (v.minor << 32) | (v.patch << 16);
       res.set_version_info(VersionInfo::FILEVERSION, version);
       res.set_version_info(VersionInfo::PRODUCTVERSION, version);
+      res.set("FileVersion", version_str);
+      res.set("ProductVersion", version_str);
     }
 
     if let Some(product_name) = &config.product_name {
@@ -699,10 +723,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           }
         }
       }
-      "msvc" => {
-        if env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "true") {
-          static_vcruntime::build();
-        }
+      "msvc" if env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "true") => {
+        static_vcruntime::build();
       }
       _ => (),
     }
@@ -714,4 +736,55 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   Ok(())
+}
+
+fn to_winres_version(v: &semver::Version) -> u64 {
+  let build = v.build.parse::<u16>().map(u64::from).unwrap_or(0);
+
+  (v.major << 48) | (v.minor << 32) | (v.patch << 16) | build
+}
+
+#[cfg(test)]
+mod tests {
+  use semver::Version;
+
+  #[test]
+  fn version_uses_numeric_build_metadata() {
+    let version = Version::parse("1.2.3+42").unwrap();
+
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16) | 42
+    );
+  }
+
+  #[test]
+  fn version_ignores_non_numeric_composite_build_metadata() {
+    let version = Version::parse("1.2.3+42.sha").unwrap();
+
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
+  }
+
+  #[test]
+  fn version_ignores_non_numeric_build_metadata() {
+    let version = Version::parse("1.2.3+abc").unwrap();
+
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
+  }
+
+  #[test]
+  fn version_ignores_build_metadata_that_does_not_fit_in_u16() {
+    let version = Version::parse("1.2.3+70000").unwrap();
+
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
+  }
 }

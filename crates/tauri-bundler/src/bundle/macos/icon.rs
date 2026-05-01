@@ -65,7 +65,7 @@ pub fn create_icns_file(out_dir: &Path, settings: &Settings) -> crate::Result<Op
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
 
-    if icon_path.extension().map_or(false, |ext| ext == "car") {
+    if icon_path.extension().is_some_and(|ext| ext == "car") {
       continue;
     }
 

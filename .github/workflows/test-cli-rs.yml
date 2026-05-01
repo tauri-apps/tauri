@@ -14,6 +14,8 @@ on:
       - 'crates/tauri-utils/**'
       - 'crates/tauri-bundler/**'
       - 'crates/tauri-cli/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 env:
   RUST_BACKTRACE: 1

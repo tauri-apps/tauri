@@ -1,5 +1,48 @@
 # Changelog
 
+## \[2.11.0]
+
+### New Features
+
+- [`074299c08`](https://www.github.com/tauri-apps/tauri/commit/074299c08dd99d2e1c57796f55ab24bc1d3976cc) ([#14307](https://www.github.com/tauri-apps/tauri/pull/14307)) Add Bring All to Front predefined menu item type
+- [`c00a3dbff`](https://www.github.com/tauri-apps/tauri/commit/c00a3dbffccd6e051d3b7332f706b6c63759865d) ([#14473](https://www.github.com/tauri-apps/tauri/pull/14473)) Add support for the `rename` attribute in the `tauri::command` macro to allow renaming the command to something other than the function name.
+- [`a12142a48`](https://www.github.com/tauri-apps/tauri/commit/a12142a481f7a19b69e88ee36a438b1db71b36f5) ([#14357](https://www.github.com/tauri-apps/tauri/pull/14357)) Add macos support for setting the icon and icon template state in the same step of the main thread, to prevent flickering.
+- [`2dd9b15a2`](https://www.github.com/tauri-apps/tauri/commit/2dd9b15a2bcab8e52c87b03a919b4a75567ad3ce) ([#15062](https://www.github.com/tauri-apps/tauri/pull/15062)) Add `data-tauri-drag-region="deep"` so clicks on non-clickable children will drag as well. Can still opt out of drag on some regions using `data-tauri-drag-region="false"`
+- [`001c8fe3d`](https://www.github.com/tauri-apps/tauri/commit/001c8fe3d288802de9a8c29cfd2f46f9220d97c5) ([#14722](https://www.github.com/tauri-apps/tauri/pull/14722)) Add a WebView option to control browser-level general autofill behavior. This option does not disable password or credit card autofill. On Windows (WebView2), setting it to true disables the general autofill "Suggestions" UI, which may appear even when `autocomplete="off"` is specified on input elements. On Linux, macOS, iOS, and Android, this option is currently unsupported and performs no operation.
+- [`b27be063f`](https://www.github.com/tauri-apps/tauri/commit/b27be063ff3052cb1071ac3ec719cfa104460fa4) ([#14925](https://www.github.com/tauri-apps/tauri/pull/14925)) Add `eval_with_callback` to the Tauri webview APIs and runtime dispatch layers.
+- [`d83d2d92b`](https://www.github.com/tauri-apps/tauri/commit/d83d2d92b4327da3dbac60f83cada36c8ec194dc) ([#14905](https://www.github.com/tauri-apps/tauri/pull/14905)) Enable track_caller attribute for async_runtime to provide better location information in logs and panics.
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Implement file association for Android and iOS.
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Trigger `RunEvent::Opened` on Android.
+- [`eb0312ea9`](https://www.github.com/tauri-apps/tauri/commit/eb0312ea9e493954298ac0b3fdaae7eafb52750e) ([#15199](https://www.github.com/tauri-apps/tauri/pull/15199)) Propagates the `Event::Suspended` and `Event::Resumed` events from `tao` when they are emitted on mobile targets.
+- [`093e2b47c`](https://www.github.com/tauri-apps/tauri/commit/093e2b47c01361c18783e9ff18750388e41650c5) ([#14484](https://www.github.com/tauri-apps/tauri/pull/14484)) Support creating multiple windows on Android (activity embedding) and iOS (scenes).
+- [`093e2b47c`](https://www.github.com/tauri-apps/tauri/commit/093e2b47c01361c18783e9ff18750388e41650c5) ([#14484](https://www.github.com/tauri-apps/tauri/pull/14484)) Added `dbus` feature flag (enabled by default) which is required for theme detection on Linux.
+- [`1063c48c5`](https://www.github.com/tauri-apps/tauri/commit/1063c48c5e7d099ad74d28a937edf42e3f5c9f03) ([#14523](https://www.github.com/tauri-apps/tauri/pull/14523)) Add handler for web content process termination on macOS and iOS.
+
+### Enhancements
+
+- [`d730770bb`](https://www.github.com/tauri-apps/tauri/commit/d730770bb93d77358cfc6f1286f10187cef37362) ([#15117](https://www.github.com/tauri-apps/tauri/pull/15117)) Simplify async-sync code boundaries, no externally visible changes
+- [`c69d5ca4b`](https://www.github.com/tauri-apps/tauri/commit/c69d5ca4b1a646843c3f250a0d1b13414c5e8223) ([#15262](https://www.github.com/tauri-apps/tauri/pull/15262)) Remove a clone, no user-facing changes.
+- [`4017a7ed7`](https://www.github.com/tauri-apps/tauri/commit/4017a7ed7313cebf912ef3af1e3b280855b6f100) ([#14908](https://www.github.com/tauri-apps/tauri/pull/14908)) Implement retrieving inner PathBuf from SafePathBuf to ease using APIs that require an owned PathBuf
+
+### Bug Fixes
+
+- [`110336c88`](https://www.github.com/tauri-apps/tauri/commit/110336c88a8c0a04476619db0a5c8f7694d969a5) ([#15250](https://www.github.com/tauri-apps/tauri/pull/15250)) Fix initial window position when positioning it to another monitor.
+- [`9808236eb`](https://www.github.com/tauri-apps/tauri/commit/9808236ebf7755d498d674b614f3fc75eeac1ec4) ([#14655](https://www.github.com/tauri-apps/tauri/pull/14655)) Fix monitor work area Y position on macOS.
+
+### What's Changed
+
+- [`d34497ef1`](https://www.github.com/tauri-apps/tauri/commit/d34497ef154eddcc36327a30dda06dc4748f6b20) ([#14862](https://www.github.com/tauri-apps/tauri/pull/14862)) The new window handler passed to `on_new_window` no longer requires `Sync`, and runs on main thread on Windows, aligning with other platforms
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.6.0`
+- Upgraded to `tauri-build@2.6.0`
+- Upgraded to `tauri-runtime@2.11.0`
+- Upgraded to `tauri-runtime-wry@2.11.0`
+- Upgraded to `tauri-utils@2.9.0`
+- [`373b7e677`](https://www.github.com/tauri-apps/tauri/commit/373b7e677ec498899759de9fcd35941fe792b58b) ([#15177](https://www.github.com/tauri-apps/tauri/pull/15177)) Update Specta in lockfile and upgrade dependencies using the removed `doc_auto_cfg` attribute to fix errors building documentation
+- [`a219ede00`](https://www.github.com/tauri-apps/tauri/commit/a219ede0003bb8073d8002be42bcf343538c42f8) ([#15203](https://www.github.com/tauri-apps/tauri/pull/15203)) Updated `tray-icon` to v0.22
+
 ## \[2.10.3]
 
 ### Dependencies

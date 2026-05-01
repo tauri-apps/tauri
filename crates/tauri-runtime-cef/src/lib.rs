@@ -217,6 +217,7 @@ enum WindowMessage {
 pub enum WebviewMessage {
   AddEventListener(WebviewEventId, Box<dyn Fn(&WebviewEvent) + Send>),
   EvaluateScript(String),
+  EvaluateScriptWithCallback(String, Box<dyn Fn(String) + Send + 'static>),
   CookiesForUrl(Url, Sender<Result<Vec<Cookie<'static>>>>),
   Cookies(Sender<Result<Vec<Cookie<'static>>>>),
   SetCookie(Cookie<'static>),
@@ -1186,6 +1187,18 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     })
   }
 
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    self.context.post_message(Message::Webview {
+      window_id: *self.window_id.lock().unwrap(),
+      webview_id: self.webview_id,
+      message: WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
+    })
+  }
+
   fn url(&self) -> Result<String> {
     webview_getter!(self, WebviewMessage::Url)?
   }
@@ -1974,7 +1987,6 @@ impl<T: UserEvent> CefRuntime<T> {
 
       if !is_helper {
         let event_tx_ = event_tx.clone();
-        let windows_ = windows.clone();
         init_ns_app(Box::new(move |event| match event {
           AppDelegateEvent::ShouldTerminate { tx } => {
             // Cancel macOS termination — we handle shutdown ourselves.

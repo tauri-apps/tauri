@@ -373,12 +373,12 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
         CStr::from_ptr(payload)
       };
 
-      if let Some(handler) = PENDING_PLUGIN_CALLS
+      let handler = PENDING_PLUGIN_CALLS
         .get_or_init(Default::default)
         .lock()
         .unwrap()
-        .remove(&id)
-      {
+        .remove(&id);
+      if let Some(handler) = handler {
         let json = payload.to_str().unwrap();
         match serde_json::from_str(json) {
           Ok(payload) => {

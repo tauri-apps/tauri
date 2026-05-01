@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.6.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+- [`df05c0056`](https://www.github.com/tauri-apps/tauri/commit/df05c00563a91fc936bd15c6b10dd2825472f96b) Upgraded to `tauri-utils@2.9.0`
+
 ## \[2.5.5]
 
 ### Dependencies

@@ -73,6 +73,12 @@ impl FromStr for SafePathBuf {
   }
 }
 
+impl From<SafePathBuf> for PathBuf {
+  fn from(path: SafePathBuf) -> Self {
+    path.0
+  }
+}
+
 impl<'de> Deserialize<'de> for SafePathBuf {
   fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
   where

@@ -95,7 +95,7 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
 
             let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-            let builder = tauri::WebviewWindowBuilder::new(
+            let builder = WebviewWindowBuilder::new(
               &app_,
               format!("new-{number}"),
               tauri::WebviewUrl::External(if cfg!(feature = "cef") {
@@ -229,18 +229,19 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
+  #[cfg(target_os = "ios")]
+  let mut counter = 0;
   app.run(move |_app_handle, _event| {
-    #[cfg(all(desktop, not(test)))]
+    #[cfg(not(test))]
     match &_event {
       #[cfg(not(feature = "cef"))]
-      RunEvent::ExitRequested { api, code, .. } => {
+      RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
         // Keep the event loop running even if all windows are closed
         // This allow us to catch tray icon events when there is no window
         // if we manually requested an exit (code is Some(_)) we will let it go through
-        if code.is_none() {
-          api.prevent_exit();
-        }
+        api.prevent_exit();
       }
+      #[cfg(desktop)]
       RunEvent::WindowEvent {
         event: tauri::WindowEvent::CloseRequested { api, .. },
         label,
@@ -255,6 +256,21 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
           .unwrap()
           .destroy()
           .unwrap();
+      }
+      #[cfg(target_os = "ios")]
+      RunEvent::SceneRequested { .. } => {
+        counter += 1;
+        WebviewWindowBuilder::new(
+          _app_handle,
+          format!("main-from-scene-{counter}"),
+          WebviewUrl::default(),
+        )
+        .build()
+        .unwrap();
+      }
+      #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+      RunEvent::Opened { urls } => {
+        println!("opened urls: {:?}", urls);
       }
       _ => (),
     }

@@ -23,7 +23,7 @@ struct AllowlistedDependency {
   name: String,
   alias: Option<String>,
   kind: DependencyKind,
-  all_cli_managed_features: Option<Vec<&'static str>>,
+  all_cli_managed_features: Vec<&'static str>,
   expected_features: Vec<String>,
 }
 
@@ -33,7 +33,7 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
       name: "tauri-build".into(),
       alias: None,
       kind: DependencyKind::Build,
-      all_cli_managed_features: Some(vec!["isolation"]),
+      all_cli_managed_features: vec!["isolation"],
       expected_features: match config.app.security.pattern {
         PatternKind::Isolation { .. } => vec!["isolation".to_string()],
         _ => vec![],
@@ -43,12 +43,10 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
       name: "tauri".into(),
       alias: None,
       kind: DependencyKind::Normal,
-      all_cli_managed_features: Some(
-        AppConfig::all_features()
-          .into_iter()
-          .filter(|f| f != &"tray-icon")
-          .collect(),
-      ),
+      all_cli_managed_features: AppConfig::all_features()
+        .into_iter()
+        .filter(|f| f != &"tray-icon")
+        .collect(),
       expected_features: config
         .app
         .features()
@@ -129,23 +127,13 @@ fn check_features(dependency: Dependency, metadata: &AllowlistedDependency) -> R
     Dependency::Inherited(dep) => dep.features,
   };
 
-  let diff = if let Some(all_cli_managed_features) = &metadata.all_cli_managed_features {
-    features_diff(
-      &features
-        .into_iter()
-        .filter(|f| all_cli_managed_features.contains(&f.as_str()))
-        .collect::<Vec<String>>(),
-      &metadata.expected_features,
-    )
-  } else {
-    features_diff(
-      &features
-        .into_iter()
-        .filter(|f| f.starts_with("allow-"))
-        .collect::<Vec<String>>(),
-      &metadata.expected_features,
-    )
-  };
+  let diff = features_diff(
+    &features
+      .into_iter()
+      .filter(|f| metadata.all_cli_managed_features.contains(&f.as_str()))
+      .collect::<Vec<String>>(),
+    &metadata.expected_features,
+  );
 
   let mut error_message = String::new();
   if !diff.remove.is_empty() {

@@ -69,6 +69,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("cursor_position", true),
       ("theme", true),
       ("is_always_on_top", true),
+      ("activity_name", true),
+      ("scene_identifier", true),
       // setters
       ("center", false),
       ("request_user_attention", false),
@@ -166,6 +168,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("bundle_type", true),
       ("register_listener", true),
       ("remove_listener", true),
+      ("supports_multiple_windows", true),
     ],
   ),
   (
@@ -219,6 +222,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_visible", true),
       ("set_temp_dir_path", true),
       ("set_icon_as_template", true),
+      ("set_icon_with_as_template", true),
       ("set_show_menu_on_left_click", true),
     ],
   ),

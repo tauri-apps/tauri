@@ -42,6 +42,7 @@ impl GlobalRuntime {
     }
   }
 
+  #[track_caller]
   fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
     F: Future + Send + 'static,
@@ -54,6 +55,7 @@ impl GlobalRuntime {
     }
   }
 
+  #[track_caller]
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
     F: FnOnce() -> R + Send + 'static,
@@ -66,6 +68,7 @@ impl GlobalRuntime {
     }
   }
 
+  #[track_caller]
   fn block_on<F: Future>(&self, task: F) -> F::Output {
     if let Some(r) = &self.runtime {
       r.block_on(task)
@@ -95,6 +98,7 @@ impl Runtime {
     }
   }
 
+  #[track_caller]
   /// Spawns a future onto the runtime.
   pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
@@ -109,6 +113,7 @@ impl Runtime {
     }
   }
 
+  #[track_caller]
   /// Runs the provided function on an executor dedicated to blocking operations.
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
@@ -120,6 +125,7 @@ impl Runtime {
     }
   }
 
+  #[track_caller]
   /// Runs a future to completion on runtime.
   pub fn block_on<F: Future>(&self, task: F) -> F::Output {
     match self {
@@ -177,6 +183,7 @@ impl RuntimeHandle {
     h
   }
 
+  #[track_caller]
   /// Runs the provided function on an executor dedicated to blocking operations.
   pub fn spawn_blocking<F, R>(&self, func: F) -> JoinHandle<R>
   where
@@ -188,6 +195,7 @@ impl RuntimeHandle {
     }
   }
 
+  #[track_caller]
   /// Spawns a future onto the runtime.
   pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
@@ -202,6 +210,7 @@ impl RuntimeHandle {
     }
   }
 
+  #[track_caller]
   /// Runs a future to completion on runtime.
   pub fn block_on<F: Future>(&self, task: F) -> F::Output {
     match self {
@@ -258,12 +267,14 @@ pub fn handle() -> RuntimeHandle {
   runtime.handle()
 }
 
+#[track_caller]
 /// Runs a future to completion on runtime.
 pub fn block_on<F: Future>(task: F) -> F::Output {
   let runtime = RUNTIME.get_or_init(default_runtime);
   runtime.block_on(task)
 }
 
+#[track_caller]
 /// Spawns a future onto the runtime.
 pub fn spawn<F>(task: F) -> JoinHandle<F::Output>
 where
@@ -274,6 +285,7 @@ where
   runtime.spawn(task)
 }
 
+#[track_caller]
 /// Runs the provided function on an executor dedicated to blocking operations.
 pub fn spawn_blocking<F, R>(func: F) -> JoinHandle<R>
 where
@@ -284,6 +296,7 @@ where
   runtime.spawn_blocking(func)
 }
 
+#[track_caller]
 #[allow(dead_code)]
 pub(crate) fn safe_block_on<F>(task: F) -> F::Output
 where

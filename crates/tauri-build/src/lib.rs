@@ -354,6 +354,7 @@ pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
   capabilities_path_pattern: Option<&'static str>,
+  config_path: Option<PathBuf>,
   #[cfg(feature = "codegen")]
   codegen: Option<codegen::context::CodegenContext>,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
@@ -402,6 +403,12 @@ impl Attributes {
     I: IntoIterator<Item = (&'static str, InlinedPlugin)>,
   {
     self.inlined_plugins.extend(plugins);
+    self
+  }
+
+  /// Sets the customized config path.
+  pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
+    self.config_path = Some(config_path.into());
     self
   }
 
@@ -479,20 +486,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  // In try_build(), replace lines 470-471 with:
-
-  #[cfg(feature = "codegen")]
   let config_root = attributes
-    .codegen
-    .as_ref()
-    .map(|c| {
-      let p = env::current_dir().unwrap().join(&c.config_path);
-      p.parent().unwrap().to_path_buf()
-    })
+    .config_path
+    .as_deref()
+    .and_then(|p| p.parent())
+    .map(|p| p.to_path_buf())
     .unwrap_or_else(|| env::current_dir().unwrap());
-
-  #[cfg(not(feature = "codegen"))]
-  let config_root = env::current_dir().unwrap();
 
   let (mut config, config_paths) = tauri_utils::config::parse::read_from(target, &config_root)?;
 
@@ -729,7 +728,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   #[cfg(feature = "codegen")]
   if let Some(codegen) = attributes.codegen {
-    codegen.try_build()?;
+    codegen.try_build(attributes.config_path)?;
   }
 
   Ok(())

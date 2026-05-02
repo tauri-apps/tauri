@@ -17,7 +17,7 @@ use tauri_utils::config::FrontendDist;
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {
-  config_path: Option<PathBuf>,
+  config_path: PathBuf,
   out_file: PathBuf,
   capabilities: Option<Vec<PathBuf>>,
 }
@@ -25,7 +25,7 @@ pub struct CodegenContext {
 impl Default for CodegenContext {
   fn default() -> Self {
     Self {
-      config_path: None,
+      config_path: PathBuf::from("tauri.conf.json"),
       out_file: PathBuf::from("tauri-build-context.rs"),
       capabilities: None,
     }
@@ -46,7 +46,7 @@ impl CodegenContext {
   #[must_use]
   #[deprecated(since = "2.11.0", note = "Use `Attributes::config_path()` instead")]
   pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
-    self.config_path = Some(config_path.into());
+    self.config_path = config_path.into();
     self
   }
 

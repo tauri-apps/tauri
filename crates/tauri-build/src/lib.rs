@@ -406,7 +406,11 @@ impl Attributes {
     self
   }
 
-  /// Sets the customized config path.
+  /// Set the path to the `tauri.conf.json` (relative to the package's directory).
+  ///
+  /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
+  /// the package compiling; does not need to be set manually if that config file is in the same
+  /// directory as your `Cargo.toml`.
   pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
     self.config_path = Some(config_path.into());
     self

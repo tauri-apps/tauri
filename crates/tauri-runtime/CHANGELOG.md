@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.11.0]
+
+### New Features
+
+- [`001c8fe3d`](https://www.github.com/tauri-apps/tauri/commit/001c8fe3d288802de9a8c29cfd2f46f9220d97c5) ([#14722](https://www.github.com/tauri-apps/tauri/pull/14722)) Add a WebView option to control browser-level general autofill behavior. This option does not disable password or credit card autofill. On Windows (WebView2), setting it to true disables the general autofill "Suggestions" UI, which may appear even when `autocomplete="off"` is specified on input elements. On Linux, macOS, iOS, and Android, this option is currently unsupported and performs no operation.
+- [`b27be063f`](https://www.github.com/tauri-apps/tauri/commit/b27be063ff3052cb1071ac3ec719cfa104460fa4) ([#14925](https://www.github.com/tauri-apps/tauri/pull/14925)) Add `eval_with_callback` to the Tauri webview APIs and runtime dispatch layers.
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Trigger `RunEvent::Opened` on Android.
+- [`eb0312ea9`](https://www.github.com/tauri-apps/tauri/commit/eb0312ea9e493954298ac0b3fdaae7eafb52750e) ([#15199](https://www.github.com/tauri-apps/tauri/pull/15199)) Propagates the `Event::Suspended` and `Event::Resumed` events from `tao` when they are emitted on mobile targets.
+- [`093e2b47c`](https://www.github.com/tauri-apps/tauri/commit/093e2b47c01361c18783e9ff18750388e41650c5) ([#14484](https://www.github.com/tauri-apps/tauri/pull/14484)) Support creating multiple windows on Android (activity embedding) and iOS (scenes).
+- [`1063c48c5`](https://www.github.com/tauri-apps/tauri/commit/1063c48c5e7d099ad74d28a937edf42e3f5c9f03) ([#14523](https://www.github.com/tauri-apps/tauri/pull/14523)) Add handler for web content process termination on macOS and iOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+
 ## \[2.10.1]
 
 ### Dependencies

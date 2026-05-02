@@ -6,7 +6,7 @@ use cargo_mobile2::{
   android::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata, Raw as RawAndroidConfig},
-    device::Device,
+    device::{ConnectionStatus, Device},
     emulator,
     env::Env,
     target::Target,
@@ -678,7 +678,11 @@ fn delete_codegen_vars() {
 }
 
 fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  let device_list = adb::device_list(env).context("failed to detect connected Android devices")?;
+  let device_list = adb::device_list(env)
+    .context("failed to detect connected Android devices")?
+    .into_iter()
+    .filter(|d| d.status() == ConnectionStatus::Connected)
+    .collect::<Vec<_>>();
   if !device_list.is_empty() {
     let device = if let Some(t) = target {
       let (device, score) = device_list
@@ -764,29 +768,172 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
   }
 }
 
+enum EmulatorStatus {
+  Offline { serial_no: String },
+  Connected,
+}
+
 fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   if let Ok(device) = adb_device_prompt(env, target) {
     Ok(device)
   } else {
     let emulator = emulator_prompt(env, target)?;
-    log::info!("Starting emulator {}", emulator.name());
-    emulator
-      .start_detached(env)
-      .context("failed to start emulator")?;
+    let emulator_status = match adb::device_list(env) {
+      Ok(devices) => {
+        // emulator might be running but disconnected from adb
+        devices
+          .iter()
+          .find(|d| d.name() == emulator.name())
+          .and_then(|d| match d.status() {
+            ConnectionStatus::Offline | ConnectionStatus::Unauthorized => {
+              Some(EmulatorStatus::Offline {
+                serial_no: d.serial_no().to_string(),
+              })
+            }
+            ConnectionStatus::Connected => Some(EmulatorStatus::Connected),
+            _ => None,
+          })
+      }
+      // failed to get device information, check if the device name matches the emulator name
+      Err(
+        adb::device_list::Error::ModelFailed {
+          serial_no,
+          error: adb::get_prop::Error::CommandFailed { command: _, error },
+        }
+        | adb::device_list::Error::AbiFailed {
+          serial_no,
+          error: adb::get_prop::Error::CommandFailed { command: _, error },
+        },
+      ) => {
+        if error.kind() == std::io::ErrorKind::TimedOut {
+          // if the device name matches the emulator name, the emulator is already running and marked as connected
+          // but we cannot connect to it
+          adb::device_name(env, &serial_no).map_or(None, |device_name| {
+            if device_name == emulator.name() {
+              Some(EmulatorStatus::Offline { serial_no })
+            } else {
+              None
+            }
+          })
+        } else {
+          None
+        }
+      }
+      Err(_) => None,
+    };
+
+    let emulator_already_running = emulator_status.is_some();
+    match emulator_status {
+      Some(EmulatorStatus::Offline { serial_no }) => {
+        // emulator is available but not connected to adb, we must restart it
+        log::info!("Emulator is not connected, we need to restart it");
+        restart_emulator(env, &serial_no, &emulator)?;
+      }
+      Some(EmulatorStatus::Connected) => {
+        // emulator is already connected to adb
+        // this is technically unreachable because we queried the device list with adb_device_prompt
+      }
+      None => {
+        log::info!("Starting emulator {}", emulator.name());
+        emulator
+          .start_detached(env)
+          .context("failed to start emulator")?;
+      }
+    }
+
     let mut tries = 0;
     loop {
       sleep(Duration::from_secs(2));
-      if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
-        return Ok(device);
+      // we do not filter for connected devices to detect emulators that are not connected to our adb anymore
+      match adb::device_list(env) {
+        Ok(devices) => {
+          if let Some(device) = devices.into_iter().find(|d| d.name() == emulator.name()) {
+            if device.status() == ConnectionStatus::Connected {
+              return Ok(device);
+            }
+          }
+
+          if tries >= 3 {
+            log::info!("Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)");
+          } else {
+            log::info!("Waiting for emulator to start...");
+          }
+          tries += 1;
+        }
+        Err(
+          adb::device_list::Error::ModelFailed {
+            serial_no,
+            error: adb::get_prop::Error::CommandFailed { command: _, error },
+          }
+          | adb::device_list::Error::AbiFailed {
+            serial_no,
+            error: adb::get_prop::Error::CommandFailed { command: _, error },
+          },
+        ) => {
+          if emulator_already_running && error.kind() == std::io::ErrorKind::TimedOut {
+            log::info!("Emulator is not responding, we need to restart it");
+            restart_emulator(env, &serial_no, &emulator)?;
+            tries = 0;
+          } else {
+            log::error!("failed to get properties for device {serial_no}: {error}");
+          }
+        }
+        Err(e) => {
+          log::error!("failed to list devices with adb: {e}");
+          tries += 1;
+        }
       }
-      if tries >= 3 {
-        log::info!("Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)");
-      } else {
-        log::info!("Waiting for emulator to start...");
-      }
-      tries += 1;
     }
   }
+}
+
+fn restart_emulator(env: &Env, serial_no: &str, emulator: &emulator::Emulator) -> Result<()> {
+  let granted_permission_to_restart =
+    crate::helpers::prompts::confirm("Do you want to restart the emulator?", Some(true))
+      .unwrap_or_default();
+  if !granted_permission_to_restart {
+    crate::error::bail!(
+      "Cannot connect to the emulator, please restart it manually (a full boot might be required)"
+    );
+  }
+
+  adb::adb(env, &["-s", serial_no, "emu", "kill"])
+    .run()
+    .context("failed to reboot emulator")?;
+
+  log::info!("Waiting for emulator to exit...");
+  loop {
+    let devices = adb::device_list(env).unwrap_or_default();
+    if devices
+      .into_iter()
+      .find(|d| d.serial_no() == serial_no)
+      .is_none()
+    {
+      break;
+    }
+    sleep(Duration::from_secs(1));
+  }
+
+  log::info!("Restarting emulator with full boot");
+  let mut tries = 0;
+  loop {
+    // wait a bit to make sure we can restart the emulator
+    sleep(Duration::from_secs(2));
+
+    match emulator.start_detached_with_options(env, emulator::StartOptions::new().full_boot()) {
+      Ok(_) => break,
+      Err(e) => {
+        tries += 1;
+        if tries >= 3 {
+          return Err(e).context("failed to start emulator");
+        } else {
+          log::error!("failed to start emulator, retrying...");
+        }
+      }
+    }
+  }
+
+  Ok(())
 }
 
 fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {

@@ -31,6 +31,9 @@ use crate::{
   Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
 };
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::app::OnWebContentProcessTerminate;
+
 #[cfg(desktop)]
 mod menu;
 #[cfg(all(desktop, feature = "tray-icon"))]
@@ -251,6 +254,9 @@ impl<R: Runtime> AppManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
+    #[cfg(any(target_os = "macos", target_os = "ios"))] on_web_content_process_terminate: Option<
+      Arc<OnWebContentProcessTerminate<R>>,
+    >,
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
     #[cfg(desktop)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
@@ -284,6 +290,8 @@ impl<R: Runtime> AppManager<R> {
         webviews: Mutex::default(),
         invoke_handler,
         on_page_load,
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webview_event_listeners),
         invoke_initialization_script,
@@ -755,6 +763,8 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
+      None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
       Default::default(),
       StateManager::new(),

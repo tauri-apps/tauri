@@ -44,6 +44,7 @@ impl CodegenContext {
   /// the package compiling; does not need to be set manually if that config file is in the same
   /// directory as your `Cargo.toml`.
   #[must_use]
+  #[deprecated(since = "2.11.0", note = "Use `Attributes::config_path()` instead")]
   pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
     self.config_path = Some(config_path.into());
     self
@@ -80,12 +81,8 @@ impl CodegenContext {
   ///
   /// Unless you are doing something special with this builder, you don't need to do anything with
   /// the returned output path.
-  pub(crate) fn try_build(self, fallback_config_path: Option<PathBuf>) -> Result<PathBuf> {
-    let config_path = self
-      // Try to use the config path specified in the CodegenContext.
-      .config_path
-      // If no config path specified in CodegenContext, try to apply the fallback path.
-      .or(fallback_config_path)
+  pub(crate) fn try_build(self, attributes_config_path: Option<PathBuf>) -> Result<PathBuf> {
+    let config_path = attributes_config_path
       // If no fallback path, default to `tauri.conf.json` in the current working directory.
       .unwrap_or_else(|| PathBuf::from("tauri.conf.json"));
 

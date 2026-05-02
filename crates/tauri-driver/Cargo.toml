@@ -24,7 +24,7 @@ hyper-util = { version = "0.1", features = [
   "server",
   "tokio",
 ] }
-pico-args = "0.5"
+pico-args = { version = "0.5", features = ["eq-separator"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros"] }

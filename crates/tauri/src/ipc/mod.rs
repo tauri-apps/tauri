@@ -589,7 +589,6 @@ pub struct CallbackFn(pub u32);
 ///
 /// This can be used by frameworks built on Tauri to introspect the registered commands.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-#[non_exhaustive]
 pub struct CommandMetadata {
   /// The name of the command including the prefix if it's defined within a plugin.
   /// This can be directly passed to `invoke`.
@@ -604,7 +603,6 @@ pub struct CommandMetadata {
 
 /// Represents the Rust `#[deprecated]` attribute on a command.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-#[non_exhaustive]
 pub struct CommandMetadataDeprecated {
   /// Deprecation note for the developer.
   pub note: Option<&'static str>,

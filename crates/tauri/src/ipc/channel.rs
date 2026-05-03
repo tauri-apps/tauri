@@ -165,7 +165,7 @@ impl JavaScriptChannelId {
           }
           // use the fetch API to speed up larger response payloads
           _ => {
-            let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let data_id = next_channel_data_id();
 
             webview
               .state::<ChannelDataIpcQueue>()
@@ -190,6 +190,18 @@ impl JavaScriptChannelId {
         ));
       })),
     )
+  }
+
+  pub(crate) fn from_callback(callback: CallbackFn) -> Self {
+    Self(callback)
+  }
+
+  pub(crate) fn callback(&self) -> CallbackFn {
+    self.0
+  }
+
+  pub(crate) fn callback_id(&self) -> u32 {
+    self.0 .0
   }
 }
 

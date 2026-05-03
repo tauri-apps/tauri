@@ -6,19 +6,18 @@ use std::{
   collections::HashMap,
   sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
   },
 };
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri_macros::default_runtime;
 use tokio::sync::Mutex;
 
 use crate::{
   command,
-  ipc::{ChannelEvent, ChannelMessageType, JavaScriptChannelId, PersistentChannel},
+  ipc::{CallbackFn, ChannelEvent, ChannelMessageType, JavaScriptChannelId, PersistentChannel},
   plugin::{Builder as PluginBuilder, TauriPlugin},
-  AppHandle, Manager, Runtime, State, Webview,
+  AppHandle, Runtime, State, Webview,
 };
 
 use super::PersistentChannelManager;
@@ -27,7 +26,7 @@ pub const PERSISTENT_CHANNEL_PLUGIN_NAME: &str = "__TAURI_PERSISTENT_CHANNEL__";
 
 static CHANNEL_MANAGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ChannelInfo {
   pub id: u64,
   pub connected: bool,
@@ -92,7 +91,7 @@ async fn connect<R: Runtime>(
   let manager = app.state::<PersistentChannelManager<R>>();
   let registry = app.state::<ConnectionRegistry<R>>();
 
-  let callback_channel_id = JavaScriptChannelId(crate::ipc::CallbackFn(callback_id));
+  let callback_channel_id = JavaScriptChannelId::from_callback(CallbackFn(callback_id));
 
   let channel = manager.create_channel(&webview, callback_channel_id).await;
 

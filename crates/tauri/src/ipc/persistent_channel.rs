@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::{
-  channel::{next_channel_data_id, send_channel_response, ChannelDataIpcQueue},
+  channel::send_channel_response,
   format_callback::format_raw_js,
   JavaScriptChannelId,
 };
@@ -299,7 +299,7 @@ impl<R: Runtime> PersistentChannelManager<R> {
     webview: &Webview<R>,
     callback_channel_id: JavaScriptChannelId,
   ) -> PersistentChannel<R> {
-    let callback_fn = callback_channel_id.0 .0;
+    let callback_fn = callback_channel_id.callback_id();
     let channel = PersistentChannel::new(webview, callback_fn);
     self.store.register(&channel).await;
 

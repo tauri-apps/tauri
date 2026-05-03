@@ -29,6 +29,8 @@ mod capability_builder;
 pub(crate) mod channel;
 mod command;
 pub(crate) mod format_callback;
+pub(crate) mod persistent_channel;
+pub(crate) mod persistent_channel_plugin;
 pub(crate) mod protocol;
 
 pub use authority::{
@@ -38,6 +40,12 @@ pub use authority::{
 pub use capability_builder::{CapabilityBuilder, RuntimeCapability};
 pub use channel::{Channel, JavaScriptChannelId};
 pub use command::{private, CommandArg, CommandItem};
+pub use persistent_channel::{
+  async_channel, ChannelEvent, ChannelMessage, ChannelMessageType, MessageReceiver,
+  MessageSender, PersistentChannel, PersistentChannelId, PersistentChannelManager,
+  PersistentChannelStore, StreamSender,
+};
+pub use persistent_channel_plugin::{builder, init, PersistentChannelPluginBuilder};
 
 /// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) -> bool + Send + Sync + 'static;

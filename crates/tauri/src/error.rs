@@ -166,6 +166,12 @@ pub enum Error {
   /// tokio oneshot channel failed to receive message
   #[error(transparent)]
   TokioOneshotRecv(#[from] tokio::sync::oneshot::error::RecvError),
+  /// Persistent channel is closed
+  #[error("persistent channel is closed")]
+  ChannelClosed,
+  /// Persistent channel not found
+  #[error("persistent channel not found: {0}")]
+  ChannelNotFound(u64),
 }
 
 impl From<getrandom::Error> for Error {

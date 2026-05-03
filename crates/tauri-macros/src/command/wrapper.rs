@@ -14,7 +14,7 @@ use syn::{
   parse_macro_input,
   punctuated::Punctuated,
   spanned::Spanned,
-  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
+  Attribute, Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
 };
 use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 
@@ -239,9 +239,12 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     }
   }
 
-  let plugin_name = var("CARGO_PKG_NAME")
+  let plugin_name_value = var("CARGO_PKG_NAME")
     .expect("missing `CARGO_PKG_NAME` environment variable")
     .strip_prefix("tauri-plugin-")
+    .map(String::from);
+  let plugin_name = plugin_name_value
+    .as_deref()
     .map(|name| quote!(::core::option::Option::Some(#name)))
     .unwrap_or_else(|| quote!(::core::option::Option::None));
 
@@ -257,8 +260,6 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     resolver,
     acl,
   } = invoke;
-
-  let root = attrs.root;
 
   let kind = match attrs.execution_context {
     ExecutionContext::Async if function.sig.asyncness.is_none() => "sync_threadpool",
@@ -304,6 +305,29 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     quote!(stringify!(#ident))
   };
 
+  let command_definition_name = if let Some(plugin_name) = plugin_name_value.as_deref() {
+    quote!(concat!("plugin:", #plugin_name, "|", #command_name_value))
+  } else {
+    command_name_value.clone()
+  };
+  let mut command_definition_arguments = Vec::new();
+  if let Err(error) = parse_args(
+    &plugin_name,
+    &function,
+    &message,
+    &acl,
+    &attrs,
+    Some(&mut command_definition_arguments),
+  ) {
+    return error.into_compile_error().into();
+  }
+  let command_definition_docs = parse_docs(&function.attrs);
+  let root = attrs.root;
+  let command_definition_deprecated = match parse_deprecated(&function.attrs, &root) {
+    Ok(deprecated) => deprecated,
+    Err(error) => return error.into_compile_error().into(),
+  };
+
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
     #async_command_check
@@ -326,6 +350,15 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #maybe_macro_export
     #[doc(hidden)]
     macro_rules! #wrapper {
+      (@definition) => {
+        #root::ipc::CommandDefinition {
+          name: #command_definition_name,
+          docs: #command_definition_docs,
+          deprecated: #command_definition_deprecated,
+          arguments: &[#(#command_definition_arguments),*],
+        }
+      };
+
       // double braces because the item is expected to be a block expression
       ($path:path, $invoke:ident) => {
         // The IIFE here is for preventing stack overflow on Windows,
@@ -369,7 +402,7 @@ fn body_async(
     resolver,
     acl,
   } = invoke;
-  parse_args(plugin_name, function, message, acl, attributes).map(|args| {
+  parse_args(plugin_name, function, message, acl, attributes, None).map(|args| {
     #[cfg(feature = "tracing")]
     quote! {
       use tracing::Instrument;
@@ -412,7 +445,7 @@ fn body_blocking(
     resolver,
     acl,
   } = invoke;
-  let args = parse_args(plugin_name, function, message, acl, attributes)?;
+  let args = parse_args(plugin_name, function, message, acl, attributes, None)?;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
@@ -442,22 +475,23 @@ fn parse_args(
   message: &Ident,
   acl: &Ident,
   attributes: &WrapperAttributes,
+  mut key_collector: Option<&mut Vec<String>>,
 ) -> syn::Result<Vec<TokenStream2>> {
-  function
-    .sig
-    .inputs
-    .iter()
-    .map(|arg| {
-      parse_arg(
-        plugin_name,
-        &function.sig.ident,
-        arg,
-        message,
-        acl,
-        attributes,
-      )
-    })
-    .collect()
+  let mut args = Vec::new();
+
+  for arg in &function.sig.inputs {
+    args.push(parse_arg(
+      plugin_name,
+      &function.sig.ident,
+      arg,
+      message,
+      acl,
+      attributes,
+      key_collector.as_deref_mut(),
+    )?);
+  }
+
+  Ok(args)
 }
 
 /// Transform a [`FnArg`] into a command argument.
@@ -468,6 +502,7 @@ fn parse_arg(
   message: &Ident,
   acl: &Ident,
   attributes: &WrapperAttributes,
+  key_collector: Option<&mut Vec<String>>,
 ) -> syn::Result<TokenStream2> {
   // we have no use for self arguments
   let mut arg = match arg {
@@ -511,6 +546,10 @@ fn parse_arg(
     }
   }
 
+  if let Some(keys) = key_collector {
+    keys.push(key.clone());
+  }
+
   let root = &attributes.root;
   let command_name = if let RenamePolicy::Rename(r) = &attributes.rename {
     quote!(stringify!(#r))
@@ -527,6 +566,80 @@ fn parse_arg(
       acl: &#acl,
     }
   )))
+}
+
+fn parse_docs(attrs: &[Attribute]) -> String {
+  attrs
+    .iter()
+    .filter(|attr| attr.path().is_ident("doc"))
+    .filter_map(|attr| match &attr.meta {
+      Meta::NameValue(value) => match &value.value {
+        Expr::Lit(ExprLit {
+          lit: Lit::Str(doc), ..
+        }) => Some(doc.value()),
+        _ => None,
+      },
+      _ => None,
+    })
+    .map(|doc| doc.strip_prefix(' ').unwrap_or(&doc).to_string())
+    .collect::<Vec<_>>()
+    .join("\n")
+}
+
+fn parse_deprecated(attrs: &[Attribute], root: &TokenStream2) -> syn::Result<TokenStream2> {
+  let Some(attr) = attrs.iter().find(|attr| attr.path().is_ident("deprecated")) else {
+    return Ok(quote!(::core::option::Option::None));
+  };
+
+  let mut note = None;
+  let mut since = None;
+
+  match &attr.meta {
+    Meta::Path(_) => {}
+    Meta::NameValue(value) => match &value.value {
+      Expr::Lit(ExprLit {
+        lit: Lit::Str(value),
+        ..
+      }) => note = Some(value.value()),
+      _ => {
+        return Err(syn::Error::new(
+          value.value.span(),
+          "expected string literal for deprecated note",
+        ))
+      }
+    },
+    Meta::List(_) => {
+      attr.parse_nested_meta(|meta| {
+        if meta.path.is_ident("note") {
+          let value = meta.value()?;
+          let value = value.parse::<syn::LitStr>()?;
+          note = Some(value.value());
+          Ok(())
+        } else if meta.path.is_ident("since") {
+          let value = meta.value()?;
+          let value = value.parse::<syn::LitStr>()?;
+          since = Some(value.value());
+          Ok(())
+        } else {
+          Err(meta.error("expected `note` or `since`"))
+        }
+      })?;
+    }
+  }
+
+  let note = note
+    .map(|note| quote!(::core::option::Option::Some(#note)))
+    .unwrap_or_else(|| quote!(::core::option::Option::None));
+  let since = since
+    .map(|since| quote!(::core::option::Option::Some(#since)))
+    .unwrap_or_else(|| quote!(::core::option::Option::None));
+
+  Ok(quote! {
+    ::core::option::Option::Some(#root::ipc::CommandDefinitionDeprecated {
+      note: #note,
+      since: #since,
+    })
+  })
 }
 
 fn is_rustc_at_least(major: u32, minor: u32) -> bool {

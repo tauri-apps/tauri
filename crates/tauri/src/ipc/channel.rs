@@ -26,20 +26,19 @@ use super::{
 };
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
-// TODO: Change this to `channel` in v3
 pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
-// TODO: Change this to `plugin:channel|fetch` in v3
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
-const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
+pub const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
 
-/// Maximum size a JSON we should send directly without going through the fetch process
-// 8192 byte JSON payload runs roughly 2x faster through eval than through fetch on WebView2 v135
-const MAX_JSON_DIRECT_EXECUTE_THRESHOLD: usize = 8192;
-// 1024 byte payload runs  roughly 30% faster through eval than through fetch on macOS
-const MAX_RAW_DIRECT_EXECUTE_THRESHOLD: usize = 1024;
+pub(crate) const MAX_JSON_DIRECT_EXECUTE_THRESHOLD: usize = 8192;
+pub(crate) const MAX_RAW_DIRECT_EXECUTE_THRESHOLD: usize = 1024;
 
 static CHANNEL_COUNTER: AtomicU32 = AtomicU32::new(0);
 static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+pub(crate) fn next_channel_data_id() -> u32 {
+  CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
 
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default, Clone)]
@@ -343,4 +342,69 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
       fetch
     ])
     .build()
+}
+
+pub(crate) fn send_channel_response<R: Runtime>(
+  webview: &Webview<R>,
+  callback_id: u32,
+  body: InvokeResponseBody,
+  extra_js: Option<&str>,
+) -> crate::Result<()> {
+  match body {
+    InvokeResponseBody::Json(json_string)
+      if json_string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD =>
+    {
+      let js = if let Some(extra) = extra_js {
+        if extra.is_empty() {
+          json_string
+        } else {
+          format!(
+            "{{ message: {json_string}, {extra} }}"
+          )
+        }
+      } else {
+        json_string
+      };
+      webview.eval(format_raw_js(callback_id, js))?;
+    }
+    InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
+      let bytes_as_json_array = serde_json::to_string(&bytes)?;
+      let js = if let Some(extra) = extra_js {
+        if extra.is_empty() {
+          format!("new Uint8Array({bytes_as_json_array}).buffer")
+        } else {
+          format!(
+            "{{ message: new Uint8Array({bytes_as_json_array}).buffer, {extra} }}"
+          )
+        }
+      } else {
+        format!("new Uint8Array({bytes_as_json_array}).buffer")
+      };
+      webview.eval(format_raw_js(callback_id, js))?;
+    }
+    _ => {
+      let data_id = next_channel_data_id();
+
+      webview
+        .state::<ChannelDataIpcQueue>()
+        .0
+        .lock()
+        .unwrap()
+        .insert(data_id, body);
+
+      let extra = extra_js.unwrap_or("");
+      let fetch_and_run = if extra.is_empty() {
+        format!(
+          "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, response)).catch(console.error)"
+        )
+      } else {
+        format!(
+          "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, {{ message: response, {extra} }})).catch(console.error)"
+        )
+      };
+      webview.eval(fetch_and_run)?;
+    }
+  }
+
+  Ok(())
 }

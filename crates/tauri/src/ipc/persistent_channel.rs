@@ -12,6 +12,7 @@ use std::{
 
 use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
+use tauri_macros::default_runtime;
 use tokio::sync::{mpsc, Mutex, RwLock};
 
 use crate::{
@@ -20,8 +21,9 @@ use crate::{
 };
 
 use super::{
-  format_callback::format_raw_js, ChannelDataIpcQueue, JavaScriptChannelId,
-  MAX_JSON_DIRECT_EXECUTE_THRESHOLD, MAX_RAW_DIRECT_EXECUTE_THRESHOLD,
+  channel::{next_channel_data_id, send_channel_response, ChannelDataIpcQueue},
+  format_callback::format_raw_js,
+  JavaScriptChannelId,
 };
 
 static PERSISTENT_CHANNEL_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -69,7 +71,8 @@ struct PersistentChannelInner<R: Runtime> {
   is_closed: AtomicU64,
 }
 
-pub struct PersistentChannel<R: Runtime = crate::Wry> {
+#[default_runtime(crate::Wry, wry)]
+pub struct PersistentChannel<R: Runtime> {
   inner: Arc<PersistentChannelInner<R>>,
 }
 
@@ -94,7 +97,8 @@ pub struct PersistentChannelStore<R: Runtime> {
   channels: RwLock<HashMap<PersistentChannelId, Weak<PersistentChannelInner<R>>>>,
 }
 
-pub struct PersistentChannelManager<R: Runtime = crate::Wry> {
+#[default_runtime(crate::Wry, wry)]
+pub struct PersistentChannelManager<R: Runtime> {
   store: Arc<PersistentChannelStore<R>>,
   on_connect: Option<Box<dyn Fn(PersistentChannel<R>) + Send + Sync + 'static>>,
 }
@@ -175,52 +179,9 @@ impl<R: Runtime> PersistentChannel<R> {
     let webview = self.get_webview()?;
 
     let index = self.inner.message_index.fetch_add(1, Ordering::Relaxed);
+    let extra_js = format!("index: {index}, channelId: {}", self.inner.id);
 
-    match body {
-      InvokeResponseBody::Json(json_string)
-        if json_string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD =>
-      {
-        webview.eval(format_raw_js(
-          self.inner.callback_fn,
-          format!(
-            "{{ message: {json_string}, index: {index}, channelId: {} }}",
-            self.inner.id
-          ),
-        ))?;
-      }
-      InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
-        let bytes_as_json_array = serde_json::to_string(&bytes)?;
-        webview.eval(format_raw_js(
-          self.inner.callback_fn,
-          format!(
-            "{{ message: new Uint8Array({bytes_as_json_array}).buffer, index: {index}, channelId: {} }}",
-            self.inner.id
-          ),
-        ))?;
-      }
-      _ => {
-        use super::CHANNEL_DATA_COUNTER;
-        let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
-
-        use super::FETCH_CHANNEL_DATA_COMMAND;
-        use super::CHANNEL_ID_HEADER_NAME;
-
-        webview
-          .state::<ChannelDataIpcQueue>()
-          .0
-          .lock()
-          .unwrap()
-          .insert(data_id, body);
-
-        webview.eval(format!(
-          "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({}, {{ message: response, index: {index}, channelId: {} }})).catch(console.error)",
-          self.inner.callback_fn,
-          self.inner.id
-        ))?;
-      }
-    }
-
-    Ok(())
+    send_channel_response(&webview, self.inner.callback_fn, body, Some(&extra_js))
   }
 
   pub fn send_error(&self, error: String) -> crate::Result<()> {
@@ -353,16 +314,21 @@ impl<R: Runtime> PersistentChannelManager<R> {
     self.store.get(channel_id).await
   }
 
-  pub async fn handle_incoming_message(&self, message: ChannelMessage) -> crate::Result<()> {
+  pub async fn handle_incoming_message(
+    &self,
+    channel_id: PersistentChannelId,
+    message_type: ChannelMessageType,
+    payload: Option<serde_json::Value>,
+  ) -> crate::Result<()> {
     let channel = self
       .store
-      .get(message.channel_id)
+      .get(channel_id)
       .await
-      .ok_or_else(|| crate::Error::ChannelNotFound(message.channel_id))?;
+      .ok_or_else(|| crate::Error::ChannelNotFound(channel_id))?;
 
-    match message.message_type {
+    match message_type {
       ChannelMessageType::Data => {
-        if let Some(payload) = message.payload {
+        if let Some(payload) = payload {
           channel
             .incoming_tx()
             .send(ChannelEvent::Message(payload))
@@ -370,7 +336,7 @@ impl<R: Runtime> PersistentChannelManager<R> {
         }
       }
       ChannelMessageType::Error => {
-        if let Some(payload) = message.payload {
+        if let Some(payload) = payload {
           let error_msg = payload
             .as_str()
             .map(|s| s.to_string())
@@ -383,7 +349,7 @@ impl<R: Runtime> PersistentChannelManager<R> {
       }
       ChannelMessageType::Close => {
         channel.close()?;
-        self.store.unregister(message.channel_id).await;
+        self.store.unregister(channel_id).await;
       }
       ChannelMessageType::Ping => {
         channel.send(serde_json::json!({ "type": "pong" }))?;
@@ -413,7 +379,8 @@ impl<R: Runtime> Default for PersistentChannelManager<R> {
   }
 }
 
-pub struct StreamSender<T: IpcResponse, R: Runtime = crate::Wry> {
+#[default_runtime(crate::Wry, wry)]
+pub struct StreamSender<T: IpcResponse, R: Runtime> {
   channel: PersistentChannel<R>,
   _phantom: std::marker::PhantomData<T>,
 }
@@ -450,5 +417,44 @@ impl<R: Runtime> IpcResponse for ChannelMessage {
     serde_json::to_string(&self)
       .map(InvokeResponseBody::Json)
       .map_err(Into::into)
+  }
+}
+
+pub mod async_channel {
+  use super::*;
+
+  #[default_runtime(crate::Wry, wry)]
+  pub struct AsyncChannel<R: Runtime> {
+    channel: PersistentChannel<R>,
+  }
+
+  impl<R: Runtime> AsyncChannel<R> {
+    pub fn new(channel: PersistentChannel<R>) -> Self {
+      Self { channel }
+    }
+
+    pub async fn send<T: Serialize>(&self, data: T) -> crate::Result<()> {
+      self.channel.send(data)
+    }
+
+    pub async fn send_bytes(&self, bytes: Vec<u8>) -> crate::Result<()> {
+      self.channel.send_bytes(bytes)
+    }
+
+    pub async fn recv(&self) -> Option<ChannelEvent> {
+      self.channel.recv().await
+    }
+
+    pub fn close(&self) -> crate::Result<()> {
+      self.channel.close()
+    }
+
+    pub fn id(&self) -> PersistentChannelId {
+      self.channel.id()
+    }
+
+    pub fn into_inner(self) -> PersistentChannel<R> {
+      self.channel
+    }
   }
 }

@@ -11,39 +11,21 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use tauri_macros::default_runtime;
 use tokio::sync::Mutex;
 
 use crate::{
   command,
-  ipc::{
-    ChannelEvent, ChannelMessage, ChannelMessageType, JavaScriptChannelId, PersistentChannel,
-    PersistentChannelManager,
-  },
+  ipc::{ChannelEvent, ChannelMessageType, JavaScriptChannelId, PersistentChannel},
   plugin::{Builder as PluginBuilder, TauriPlugin},
   AppHandle, Manager, Runtime, State, Webview,
 };
 
+use super::PersistentChannelManager;
+
 pub const PERSISTENT_CHANNEL_PLUGIN_NAME: &str = "__TAURI_PERSISTENT_CHANNEL__";
 
 static CHANNEL_MANAGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConnectRequest {
-  pub channel_id: String,
-  pub callback_id: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SendMessageRequest {
-  pub channel_id: String,
-  pub message: serde_json::Value,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SendBinaryRequest {
-  pub channel_id: String,
-  pub data: Vec<u8>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelInfo {
@@ -104,17 +86,18 @@ impl<R: Runtime> ConnectionRegistry<R> {
 async fn connect<R: Runtime>(
   app: AppHandle<R>,
   webview: Webview<R>,
-  request: ConnectRequest,
+  user_channel_id: String,
+  callback_id: u32,
 ) -> crate::Result<ChannelInfo> {
   let manager = app.state::<PersistentChannelManager<R>>();
   let registry = app.state::<ConnectionRegistry<R>>();
 
-  let callback_channel_id = JavaScriptChannelId(crate::ipc::CallbackFn(request.callback_id));
+  let callback_channel_id = JavaScriptChannelId(crate::ipc::CallbackFn(callback_id));
 
   let channel = manager.create_channel(&webview, callback_channel_id).await;
 
   registry
-    .register(request.channel_id.clone(), channel.clone())
+    .register(user_channel_id.clone(), channel.clone())
     .await;
 
   Ok(ChannelInfo {
@@ -126,58 +109,42 @@ async fn connect<R: Runtime>(
 #[command(root = "crate")]
 async fn send_message<R: Runtime>(
   app: AppHandle<R>,
-  request: SendMessageRequest,
+  user_channel_id: String,
+  message_type: String,
+  payload: Option<serde_json::Value>,
+  index: Option<u64>,
 ) -> crate::Result<()> {
+  let manager = app.state::<PersistentChannelManager<R>>();
   let registry = app.state::<ConnectionRegistry<R>>();
 
   let channel = registry
-    .get(&request.channel_id)
+    .get(&user_channel_id)
     .await
     .ok_or_else(|| crate::Error::ChannelNotFound(0))?;
 
-  let msg = request.message;
+  let channel_id = channel.id();
 
-  if let Some(msg_type) = msg.get("type").and_then(|t| t.as_str()) {
-    match msg_type {
-      "close" => {
-        registry.unregister(&request.channel_id).await;
-        return Ok(());
-      }
-      "ping" => {
-        let manager = app.state::<PersistentChannelManager<R>>();
-        let channel_msg = ChannelMessage {
-          channel_id: channel.id(),
-          message_type: ChannelMessageType::Ping,
-          payload: None,
-          index: None,
-        };
-        return manager.handle_incoming_message(channel_msg).await;
-      }
-      _ => {}
+  let msg_type = match message_type.as_str() {
+    "data" => ChannelMessageType::Data,
+    "error" => ChannelMessageType::Error,
+    "close" => {
+      registry.unregister(&user_channel_id).await;
+      return Ok(());
     }
-  }
+    "ping" => ChannelMessageType::Ping,
+    "pong" => ChannelMessageType::Pong,
+    _ => ChannelMessageType::Data,
+  };
 
-  if let Some(payload) = msg.get("payload") {
-    let index = msg.get("index").and_then(|i| i.as_u64());
+  manager
+    .handle_incoming_message(channel_id, msg_type, payload)
+    .await?;
 
-    let message = ChannelEvent::Message(payload.clone());
-    channel
-      .incoming_tx()
-      .send(message)
-      .map_err(|_| crate::Error::ChannelClosed)?;
-
-    if let Some(idx) = index {
-      let _ = channel.send(serde_json::json!({
-        "type": "ack",
-        "index": idx
-      }));
-    }
-  } else {
-    let message = ChannelEvent::Message(msg);
-    channel
-      .incoming_tx()
-      .send(message)
-      .map_err(|_| crate::Error::ChannelClosed)?;
+  if let Some(idx) = index {
+    let _ = channel.send(serde_json::json!({
+      "type": "ack",
+      "index": idx
+    }));
   }
 
   Ok(())
@@ -186,16 +153,17 @@ async fn send_message<R: Runtime>(
 #[command(root = "crate")]
 async fn send_binary<R: Runtime>(
   app: AppHandle<R>,
-  request: SendBinaryRequest,
+  user_channel_id: String,
+  data: Vec<u8>,
 ) -> crate::Result<()> {
   let registry = app.state::<ConnectionRegistry<R>>();
 
   let channel = registry
-    .get(&request.channel_id)
+    .get(&user_channel_id)
     .await
     .ok_or_else(|| crate::Error::ChannelNotFound(0))?;
 
-  let message = ChannelEvent::Binary(request.data);
+  let message = ChannelEvent::Binary(data);
   channel
     .incoming_tx()
     .send(message)
@@ -229,6 +197,7 @@ async fn list_channels<R: Runtime>(app: AppHandle<R>) -> crate::Result<Vec<Chann
   )
 }
 
+#[default_runtime(crate::Wry, wry)]
 pub struct PersistentChannelPluginBuilder<R: Runtime> {
   on_connect: Option<Box<dyn Fn(AppHandle<R>, PersistentChannel<R>) + Send + Sync + 'static>>,
 }
@@ -297,7 +266,8 @@ pub mod async_channel {
   use super::*;
   use futures::Stream;
 
-  pub struct AsyncChannel<R: Runtime = crate::Wry> {
+  #[default_runtime(crate::Wry, wry)]
+  pub struct AsyncChannel<R: Runtime> {
     inner: PersistentChannel<R>,
   }
 

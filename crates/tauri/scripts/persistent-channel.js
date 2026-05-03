@@ -7,7 +7,6 @@
   const PERSISTENT_CHANNEL_ID_PREFIX = '__PERSISTENT_CHANNEL__:'
 
   const channels = Object.create(null)
-  const pendingConnects = Object.create(null)
 
   const invoke = window.__TAURI_INTERNALS__.invoke
   const transformCallback = window.__TAURI_INTERNALS__.transformCallback
@@ -39,7 +38,6 @@
       this._isClosed = false
       this._messageIndex = 0
       this._pendingAcks = Object.create(null)
-      this._messageQueue = []
       this._isConnected = false
 
       this._callbackId = transformCallback((response) => {
@@ -91,14 +89,16 @@
       }
     }
 
-    async _sendInternal(message) {
+    async _sendInternal(messageType, payload, index) {
       if (this._isClosed) {
         throw new ChannelClosedError()
       }
 
       return invoke('plugin:' + PERSISTENT_CHANNEL_PLUGIN_NAME + '|send_message', {
-        channelId: this._id,
-        message: message
+        userChannelId: this._id,
+        messageType: messageType,
+        payload: payload,
+        index: index
       })
     }
 
@@ -107,35 +107,30 @@
         throw new ChannelClosedError()
       }
 
-      const message = {
-        type: 'data',
-        payload: data,
-        index: this._messageIndex++
-      }
+      const index = this._messageIndex++
 
       if (options.timeout) {
-        return this._sendWithTimeout(message, options.timeout)
+        return this._sendWithTimeout('data', data, index, options.timeout)
       }
 
       if (options.requireAck) {
-        return this._sendWithAck(message, options.timeout || 30000)
+        return this._sendWithAck('data', data, index, options.timeout || 30000)
       }
 
-      return this._sendInternal(message)
+      return this._sendInternal('data', data, index)
     }
 
-    async _sendWithTimeout(message, timeout) {
+    async _sendWithTimeout(messageType, payload, index, timeout) {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           reject(new ChannelTimeoutError('Send operation timed out'))
         }, timeout)
       })
 
-      return Promise.race([this._sendInternal(message), timeoutPromise])
+      return Promise.race([this._sendInternal(messageType, payload, index), timeoutPromise])
     }
 
-    async _sendWithAck(message, timeout) {
-      const index = message.index
+    async _sendWithAck(messageType, payload, index, timeout) {
       const ackPromise = new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           delete this._pendingAcks[index]
@@ -156,7 +151,7 @@
         }
       })
 
-      await this._sendInternal(message)
+      await this._sendInternal(messageType, payload, index)
       return ackPromise
     }
 
@@ -184,7 +179,7 @@
       }
 
       return invoke('plugin:' + PERSISTENT_CHANNEL_PLUGIN_NAME + '|send_binary', {
-        channelId: this._id,
+        userChannelId: this._id,
         data: Array.from(bytes)
       })
     }
@@ -207,7 +202,7 @@
         }
       })
 
-      await this._sendInternal({ type: 'ping' })
+      await this._sendInternal('ping', null, null)
       return pongPromise
     }
 
@@ -223,7 +218,7 @@
       }
 
       try {
-        await this._sendInternal({ type: 'close' })
+        await this._sendInternal('close', null, null)
       } catch (e) {
         // Ignore errors during close
       }
@@ -313,7 +308,7 @@
 
       try {
         const response = await invoke('plugin:' + PERSISTENT_CHANNEL_PLUGIN_NAME + '|connect', {
-          channelId: channelId,
+          userChannelId: channelId,
           callbackId: channel._callbackId
         })
 

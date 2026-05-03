@@ -30,9 +30,9 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{
-  AppWebview, AppWindow, CefRuntime, CefWindowBuilder, DevToolsProtocolHandler, Message,
-  RuntimeStyle as CefRuntimeStyle, WebviewAtribute, WebviewMessage, WindowMessage,
-  cef_webview::CefWebview,
+  AppWebview, AppWindow, CefRuntime, CefWebviewDispatcher, CefWindowBuilder,
+  DevToolsProtocolHandler, Message, RuntimeContext, RuntimeStyle as CefRuntimeStyle,
+  WebviewAtribute, WebviewMessage, WindowMessage, cef_webview::CefWebview,
 };
 
 use std::cell::Cell;
@@ -77,8 +77,12 @@ type CefOsEvent<'a> = *mut u8;
 #[cfg(windows)]
 type CefOsEvent<'a> = Option<&'a mut sys::MSG>;
 type AddressChangedHandler = dyn Fn(&url::Url) + Send + Sync;
+type IpcHandler<T> =
+  dyn Fn(tauri_runtime::webview::DetachedWebview<T, CefRuntime<T>>, http::Request<String>) + Send;
 
 const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
+const IPC_MESSAGE_NAME: &str = "tauri:ipc";
+const IPC_POST_MESSAGE_FUNCTION: &str = "postMessage";
 const DRAG_DROP_INIT_SCRIPT: &str = r#"
 (() => {
   if (window.__TAURI_CEF_DRAG_DROP__) {
@@ -560,6 +564,14 @@ impl<T: UserEvent> Context<T> {
   }
 }
 
+fn runtime_context<T: UserEvent>(context: &Context<T>) -> RuntimeContext<T> {
+  RuntimeContext {
+    main_thread_task_runner: cef::task_runner_get_for_current_thread().expect("null task runner"),
+    main_thread_id: std::thread::current().id(),
+    cef_context: context.clone(),
+  }
+}
+
 wrap_app! {
   pub struct TauriApp<T: UserEvent> {
     context: Context<T>,
@@ -574,6 +586,10 @@ wrap_app! {
         self.context.clone(),
         self.deep_link_schemes.clone(),
       ))
+    }
+
+    fn render_process_handler(&self) -> Option<RenderProcessHandler> {
+      Some(TauriRenderProcessHandler::new())
     }
 
     fn on_before_command_line_processing(
@@ -633,6 +649,120 @@ wrap_browser_process_handler! {
         }
       // TODO: add event
       1
+    }
+  }
+}
+
+wrap_v8_handler! {
+  struct IpcPostMessageV8Handler;
+
+  impl V8Handler {
+    fn execute(
+      &self,
+      name: Option<&CefString>,
+      _object: Option<&mut V8Value>,
+      arguments: Option<&[Option<V8Value>]>,
+      retval: Option<&mut Option<V8Value>>,
+      exception: Option<&mut CefString>,
+    ) -> std::os::raw::c_int {
+      let Some(name) = name else {
+        return 0;
+      };
+      if name.to_string() != IPC_POST_MESSAGE_FUNCTION {
+        return 0;
+      }
+
+      let Some(message) = arguments
+        .filter(|arguments| arguments.len() == 1)
+        .and_then(|arguments| arguments[0].as_ref())
+        .filter(|argument| argument.is_string() != 0)
+      else {
+        if let Some(exception) = exception {
+          *exception = CefString::from("window.ipc.postMessage expects a string argument");
+        }
+        return 1;
+      };
+
+      let Some(context) = v8_context_get_current_context() else {
+        return 1;
+      };
+      let Some(frame) = context.frame() else {
+        return 1;
+      };
+
+      let body = CefString::from(&message.string_value()).to_string();
+      let url = CefString::from(&frame.url()).to_string();
+      let mut process_message = process_message_create(Some(&CefString::from(IPC_MESSAGE_NAME)));
+      if let Some(args) = process_message.as_ref().and_then(ProcessMessage::argument_list) {
+        args.set_string(0, Some(&CefString::from(url.as_str())));
+        args.set_string(1, Some(&CefString::from(body.as_str())));
+        frame.send_process_message(ProcessId::BROWSER, process_message.as_mut());
+      }
+
+      if let Some(retval) = retval {
+        *retval = v8_value_create_undefined();
+      }
+      1
+    }
+  }
+}
+
+fn install_ipc_post_message(context: Option<&mut V8Context>) {
+  let Some(window) = context.and_then(|context| context.global()) else {
+    return;
+  };
+
+  let attributes = sys::cef_v8_propertyattribute_t(
+    [
+      sys::cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_READONLY,
+      sys::cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTENUM,
+      sys::cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTDELETE,
+    ]
+    .into_iter()
+    .fold(0, |acc, attr| acc | attr.0),
+  )
+  .into();
+
+  let Some(mut ipc) = v8_value_create_object(None, None) else {
+    return;
+  };
+  let mut handler = IpcPostMessageV8Handler::new();
+  let post_message_name = CefString::from(IPC_POST_MESSAGE_FUNCTION);
+  let Some(mut post_message) =
+    v8_value_create_function(Some(&post_message_name), Some(&mut handler))
+  else {
+    return;
+  };
+
+  ipc.set_value_bykey(
+    Some(&post_message_name),
+    Some(&mut post_message),
+    attributes,
+  );
+  window.set_value_bykey(Some(&CefString::from("ipc")), Some(&mut ipc), attributes);
+}
+
+wrap_render_process_handler! {
+  struct TauriRenderProcessHandler;
+
+  impl RenderProcessHandler {
+    fn on_context_created(
+      &self,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      context: Option<&mut V8Context>,
+    ) {
+      install_ipc_post_message(context);
+    }
+  }
+}
+
+wrap_app! {
+  pub struct TauriRenderApp;
+
+  impl App {
+    fn render_process_handler(&self) -> Option<RenderProcessHandler> {
+      Some(TauriRenderProcessHandler::new())
     }
   }
 }
@@ -1326,10 +1456,12 @@ wrap_client! {
     window_kind: WindowKind,
     window_id: WindowId,
     webview_id: u32,
+    label: String,
     drag_drop_event_target: DragDropEventTarget,
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
+    ipc_handler: Option<Arc<IpcHandler<T>>>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
@@ -1340,6 +1472,7 @@ wrap_client! {
     custom_scheme_domain_names: Vec<String>,
     custom_protocol_scheme: String,
     context: Context<T>,
+    runtime_context: RuntimeContext<T>,
     initial_url: Option<String>,
   }
 
@@ -1403,6 +1536,55 @@ wrap_client! {
 
     fn permission_handler(&self) -> Option<PermissionHandler> {
       Some(BrowserPermissionHandler::new())
+    }
+
+    fn on_process_message_received(
+      &self,
+      _browser: Option<&mut Browser>,
+      frame: Option<&mut Frame>,
+      source_process: ProcessId,
+      message: Option<&mut ProcessMessage>,
+    ) -> std::os::raw::c_int {
+      if source_process != ProcessId::RENDERER {
+        return 0;
+      }
+
+      let Some(message) = message else {
+        return 0;
+      };
+      if CefString::from(&message.name()).to_string() != IPC_MESSAGE_NAME {
+        return 0;
+      }
+
+      let Some(handler) = &self.ipc_handler else {
+        return 1;
+      };
+      let Some(args) = message.argument_list() else {
+        return 1;
+      };
+
+      let mut url = CefString::from(&args.string(0)).to_string();
+      if url.is_empty()
+        && let Some(frame) = frame {
+          url = CefString::from(&frame.url()).to_string();
+        }
+      let body = CefString::from(&args.string(1)).to_string();
+
+      if let Ok(request) = http::Request::builder().uri(url).body(body) {
+        handler(
+          tauri_runtime::webview::DetachedWebview {
+            label: self.label.clone(),
+            dispatcher: CefWebviewDispatcher {
+              window_id: Arc::new(Mutex::new(self.window_id)),
+              webview_id: self.webview_id,
+              context: self.runtime_context.clone(),
+            },
+          },
+          request,
+        );
+      }
+
+      1
     }
   }
 }
@@ -3503,7 +3685,7 @@ fn create_browser_window<T: UserEvent>(
     mut webview_attributes,
     platform_specific_attributes: _,
     uri_scheme_protocols,
-    ipc_handler: _,
+    ipc_handler,
     navigation_handler,
     new_window_handler,
     document_title_changed_handler,
@@ -3527,6 +3709,7 @@ fn create_browser_window<T: UserEvent>(
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
   let new_window_handler = new_window_handler.map(Arc::from);
+  let ipc_handler: Option<Arc<IpcHandler<T>>> = ipc_handler.map(Arc::from);
 
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
     && webview_attributes.devtools.unwrap_or(true);
@@ -3576,10 +3759,12 @@ fn create_browser_window<T: UserEvent>(
     WindowKind::Browser,
     window_id,
     webview_id,
+    webview_label.clone(),
     DragDropEventTarget::Window,
     drag_drop_handler_enabled,
     drag_drop_state,
     initialization_scripts.clone(),
+    ipc_handler,
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
@@ -3590,6 +3775,7 @@ fn create_browser_window<T: UserEvent>(
     custom_scheme_domain_names.clone(),
     custom_protocol_scheme.to_string(),
     context.clone(),
+    runtime_context(context),
     Some(initial_url),
   );
 
@@ -4122,7 +4308,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     mut webview_attributes,
     platform_specific_attributes,
     uri_scheme_protocols,
-    ipc_handler: _,
+    ipc_handler,
     navigation_handler,
     new_window_handler,
     document_title_changed_handler,
@@ -4159,6 +4345,7 @@ pub(crate) fn create_webview<T: UserEvent>(
   let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
   let navigation_handler = navigation_handler.map(Arc::from);
   let new_window_handler = new_window_handler.map(Arc::from);
+  let ipc_handler: Option<Arc<IpcHandler<T>>> = ipc_handler.map(Arc::from);
 
   let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
     && webview_attributes.devtools.unwrap_or(true);
@@ -4188,10 +4375,12 @@ pub(crate) fn create_webview<T: UserEvent>(
     WindowKind::Tauri,
     window_id,
     webview_id,
+    label.clone(),
     drag_drop_event_target,
     drag_drop_handler_enabled,
     drag_drop_state,
     initialization_scripts.clone(),
+    ipc_handler,
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
@@ -4202,6 +4391,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     custom_scheme_domain_names.clone(),
     custom_protocol_scheme.to_string(),
     context.clone(),
+    runtime_context(context),
     Some(initial_url.clone()),
   );
 

@@ -590,14 +590,14 @@ pub struct CallbackFn(pub u32);
 /// This can be used by frameworks built on Tauri to introspect the registered commands.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[non_exhaustive]
-pub struct CommandDefinition {
+pub struct CommandMetadata {
   /// The name of the command including the prefix if it's defined within a plugin.
   /// This can be directly passed to `invoke`.
   pub name: &'static str,
   /// The Rust-doc comments for the command.
   pub docs: &'static str,
   /// Whether the command has a deprecated attribute.
-  pub deprecated: Option<CommandDefinitionDeprecated>,
+  pub deprecated: Option<CommandMetadataDeprecated>,
   /// The name of the arguments for this command.
   pub arguments: &'static [&'static str],
 }
@@ -605,7 +605,7 @@ pub struct CommandDefinition {
 /// Represents the Rust `#[deprecated]` attribute on a command.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[non_exhaustive]
-pub struct CommandDefinitionDeprecated {
+pub struct CommandMetadataDeprecated {
   /// Deprecation note for the developer.
   pub note: Option<&'static str>,
   /// Rust version where the item became deprecated.

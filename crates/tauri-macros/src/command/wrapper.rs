@@ -305,25 +305,25 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     quote!(stringify!(#ident))
   };
 
-  let command_definition_name = if let Some(plugin_name) = plugin_name_value.as_deref() {
+  let command_metadata_name = if let Some(plugin_name) = plugin_name_value.as_deref() {
     quote!(concat!("plugin:", #plugin_name, "|", #command_name_value))
   } else {
     command_name_value.clone()
   };
-  let mut command_definition_arguments = Vec::new();
+  let mut command_metadata_arguments = Vec::new();
   if let Err(error) = parse_args(
     &plugin_name,
     &function,
     &message,
     &acl,
     &attrs,
-    Some(&mut command_definition_arguments),
+    Some(&mut command_metadata_arguments),
   ) {
     return error.into_compile_error().into();
   }
-  let command_definition_docs = parse_docs(&function.attrs);
+  let command_metadata_docs = parse_docs(&function.attrs);
   let root = attrs.root;
-  let command_definition_deprecated = match parse_deprecated(&function.attrs, &root) {
+  let command_metadata_deprecated = match parse_deprecated(&function.attrs, &root) {
     Ok(deprecated) => deprecated,
     Err(error) => return error.into_compile_error().into(),
   };
@@ -350,12 +350,12 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #maybe_macro_export
     #[doc(hidden)]
     macro_rules! #wrapper {
-      (@definition) => {
-        #root::ipc::CommandDefinition {
-          name: #command_definition_name,
-          docs: #command_definition_docs,
-          deprecated: #command_definition_deprecated,
-          arguments: &[#(#command_definition_arguments),*],
+      (@metadata) => {
+        #root::ipc::CommandMetadata {
+          name: #command_metadata_name,
+          docs: #command_metadata_docs,
+          deprecated: #command_metadata_deprecated,
+          arguments: &[#(#command_metadata_arguments),*],
         }
       };
 
@@ -635,7 +635,7 @@ fn parse_deprecated(attrs: &[Attribute], root: &TokenStream2) -> syn::Result<Tok
     .unwrap_or_else(|| quote!(::core::option::Option::None));
 
   Ok(quote! {
-    ::core::option::Option::Some(#root::ipc::CommandDefinitionDeprecated {
+    ::core::option::Option::Some(#root::ipc::CommandMetadataDeprecated {
       note: #note,
       since: #since,
     })

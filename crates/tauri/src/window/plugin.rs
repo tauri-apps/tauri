@@ -54,8 +54,8 @@ mod commands {
   use super::*;
   use crate::{
     command, sealed::ManagerBase, utils::config::WindowConfig, window::Color,
-    window::WindowBuilder, AppHandle, PhysicalPosition, PhysicalSize, Position, Size, Theme,
-    Window,
+    window::WindowBuilder, AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
+    Theme, Window,
   };
 
   #[command(root = "crate")]
@@ -102,6 +102,21 @@ mod commands {
   setter!(set_size_constraints, WindowSizeConstraints);
   setter!(set_theme, Option<Theme>);
   setter!(set_enabled, bool);
+
+  getter!(current_monitor, Option<Monitor>);
+  getter!(primary_monitor, Option<Monitor>);
+  getter!(available_monitors, Vec<Monitor>);
+
+  #[command(root = "crate")]
+  pub async fn monitor_from_point<R: Runtime>(
+    window: Window<R>,
+    label: Option<String>,
+    x: f64,
+    y: f64,
+  ) -> crate::Result<Option<Monitor>> {
+    let window = get_window(window, label)?;
+    window.monitor_from_point(x, y)
+  }
 }
 
 #[cfg(desktop)]
@@ -112,7 +127,7 @@ mod desktop_commands {
   use super::*;
   use crate::{
     command, utils::config::WindowEffectsConfig, window::ProgressBarState, CursorIcon, Manager,
-    Monitor, PhysicalPosition, Position, UserAttentionType, Webview,
+    PhysicalPosition, Position, UserAttentionType, Webview,
   };
 
   getter!(is_fullscreen, bool);
@@ -122,9 +137,6 @@ mod desktop_commands {
   getter!(is_maximizable, bool);
   getter!(is_minimizable, bool);
   getter!(is_closable, bool);
-  getter!(current_monitor, Option<Monitor>);
-  getter!(primary_monitor, Option<Monitor>);
-  getter!(available_monitors, Vec<Monitor>);
   getter!(cursor_position, PhysicalPosition<f64>);
   getter!(is_always_on_top, bool);
 
@@ -217,17 +229,6 @@ mod desktop_commands {
     }
     Ok(())
   }
-
-  #[command(root = "crate")]
-  pub async fn monitor_from_point<R: Runtime>(
-    window: Window<R>,
-    label: Option<String>,
-    x: f64,
-    y: f64,
-  ) -> crate::Result<Option<Monitor>> {
-    let window = get_window(window, label)?;
-    window.monitor_from_point(x, y)
-  }
 }
 
 /// Initializes the plugin.
@@ -291,6 +292,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::set_enabled,
       commands::set_background_color,
       commands::set_theme,
+      commands::current_monitor,
+      commands::primary_monitor,
+      commands::monitor_from_point,
+      commands::available_monitors,
 
       #[cfg(desktop)] desktop_commands::is_fullscreen,
       #[cfg(desktop)] desktop_commands::is_minimized,
@@ -299,10 +304,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #[cfg(desktop)] desktop_commands::is_maximizable,
       #[cfg(desktop)] desktop_commands::is_minimizable,
       #[cfg(desktop)] desktop_commands::is_closable,
-      #[cfg(desktop)] desktop_commands::current_monitor,
-      #[cfg(desktop)] desktop_commands::primary_monitor,
-      #[cfg(desktop)] desktop_commands::monitor_from_point,
-      #[cfg(desktop)] desktop_commands::available_monitors,
+
       #[cfg(desktop)] desktop_commands::cursor_position,
       #[cfg(desktop)] desktop_commands::is_always_on_top,
       // setters

@@ -66,11 +66,11 @@ open class RustPlugin : Plugin<Project> {
                     val targetBuildTask = project.tasks.register(
                         "rustBuild$targetArchCapitalized$profileCapitalized",
                         BuildTask::class.java
-                    ).apply {
+                    ) {
                         group = TASK_GROUP
                         description = "Build dynamic library in $profile mode for $targetArch"
                         rootDirRel = config.rootDirRel
-                        projectDir = conprojectDirproject.projectDir.path
+                        projectDir = project.projectDir.path
                         target = targetName
                         release = profile == "release"
                     }

@@ -237,6 +237,14 @@ fn rect_to_cef(rect: Rect, scale_factor: f64) -> cef::Rect {
 }
 
 #[inline]
+fn window_scale_factor(window: &Window) -> f64 {
+  window
+    .display()
+    .map(|d| d.device_scale_factor() as f64)
+    .unwrap_or(1.0)
+}
+
+#[inline]
 fn theme_to_color_variant(theme: Option<tauri_utils::Theme>) -> ColorVariant {
   match theme {
     Some(tauri_utils::Theme::Dark) => ColorVariant::DARK,
@@ -1807,6 +1815,7 @@ wrap_window_delegate! {
     attributes: Arc<RefCell<crate::CefWindowBuilder>>,
     last_emitted_position: RefCell<PhysicalPosition<i32>>,
     last_emitted_size: RefCell<PhysicalSize<u32>>,
+    last_emitted_scale_factor: RefCell<f64>,
     suppress_next_theme_changed: RefCell<bool>,
     context: Context<T>
   }
@@ -1961,6 +1970,8 @@ wrap_window_delegate! {
   impl WindowDelegate {
     fn on_window_created(&self, window: Option<&mut Window>) {
       if let Some(window) = window {
+        *self.last_emitted_scale_factor.borrow_mut() = window_scale_factor(window);
+
         // Setup necessary handling for `start_window_dragging` to work on Windows
         #[cfg(windows)]
         drag_window::windows::subclass_window_for_dragging(window);
@@ -2210,10 +2221,33 @@ wrap_window_delegate! {
         inner.set_bounds(Some(&rect));
       }
 
-      let scale = window
-          .display()
-          .map(|d| d.device_scale_factor() as f64)
-          .unwrap_or(1.0);
+      let scale = window_scale_factor(window);
+
+      #[cfg(not(windows))]
+      let physical_size = size.to_physical::<u32>(scale);
+
+      #[cfg(windows)]
+      let physical_size = size;
+
+      let scale_factor_changed = {
+        let mut emitted_scale_factor = self.last_emitted_scale_factor.borrow_mut();
+        let changed = *emitted_scale_factor != scale;
+        if changed {
+          *emitted_scale_factor = scale;
+        }
+        changed
+      };
+      if scale_factor_changed {
+        send_window_event(
+          self.window_id,
+          &self.windows,
+          &self.callback,
+          WindowEvent::ScaleFactorChanged {
+            scale_factor: scale,
+            new_inner_size: physical_size,
+          },
+        );
+      }
 
       let physical_position = LogicalPosition::new(bounds.x, bounds.y)
         .to_physical::<i32>(scale);
@@ -2234,10 +2268,6 @@ wrap_window_delegate! {
         );
       }
 
-      let physical_size = LogicalSize::new(
-        bounds.width as u32,
-        bounds.height as u32,
-      ).to_physical::<u32>(scale);
       let size_changed = {
         let mut emitted_size = self.last_emitted_size.borrow_mut();
         let changed = *emitted_size != physical_size;
@@ -4053,6 +4083,7 @@ pub(crate) fn create_window<T: UserEvent>(
     attributes.clone(),
     RefCell::new(Default::default()),
     RefCell::new(Default::default()),
+    RefCell::new(1.0),
     RefCell::new(false),
     context.clone(),
   );

@@ -79,6 +79,7 @@ jobs:
               npm i -g --force corepack
               rustup install 1.88.0
               rustup default 1.88.0
+              rustup target add aarch64-unknown-linux-gnu
               cd packages/cli
               pnpm build --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
@@ -98,8 +99,8 @@ jobs:
             build: |
               rustup install 1.88.0
               rustup default 1.88.0
-              cd packages/cli
               rustup target add aarch64-unknown-linux-musl
+              cd packages/cli
               pnpm build --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
           - host: ubuntu-22.04

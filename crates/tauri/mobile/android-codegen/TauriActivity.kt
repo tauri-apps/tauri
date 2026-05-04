@@ -35,8 +35,8 @@ abstract class TauriActivity : WryActivity() {
   override val handleBackNavigation: Boolean = false
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    PluginManager.onActivityCreate(this)
     super.onCreate(savedInstanceState)
+    PluginManager.onActivityCreate(this)
   }
 
   fun getPluginManager(): PluginManager {

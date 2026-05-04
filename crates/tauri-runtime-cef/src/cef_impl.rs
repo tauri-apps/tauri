@@ -3836,6 +3836,7 @@ fn create_browser_window<T: UserEvent>(
     mut on_page_load_handler,
     download_handler,
     // TODO
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     on_web_content_process_terminate_handler: _,
   } = webview;
 
@@ -4465,6 +4466,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     mut on_page_load_handler,
     download_handler,
     // TODO
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     on_web_content_process_terminate_handler: _,
   } = pending;
 

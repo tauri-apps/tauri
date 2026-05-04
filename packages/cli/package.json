@@ -58,8 +58,9 @@
     "postbuild": "node append-headers.js",
     "build:debug": "cross-env TARGET=node napi build --platform",
     "postbuild:debug": "node append-headers.js",
-    "prepublishOnly": "napi prepublish -t npm --gh-release-id $RELEASE_ID",
+    "prepublishOnly": "napi prepublish -t npm --gh-release-id $RELEASE_ID --skip-optional-publish",
     "prepack": "cp ../../crates/tauri-schema-generator/schemas/config.schema.json .",
+    "postpublish": "node ./postpublish.js",
     "version": "napi version",
     "test": "vitest run",
     "tauri": "node ./tauri.js"

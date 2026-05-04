@@ -70,6 +70,7 @@ jobs:
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
+              rustup target add x86_64-apple-darwin
               pnpm build --features native-tls-vendored --target=aarch64-apple-darwin
               strip -x *.node
           - host: ubuntu-22.04

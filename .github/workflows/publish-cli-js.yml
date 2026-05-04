@@ -53,6 +53,8 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
               npm i -g --force corepack
+              rustup install 1.88.0
+              rustup default 1.88.0
               cd packages/cli
               pnpm build --target x86_64-unknown-linux-gnu
               strip *.node
@@ -60,12 +62,15 @@ jobs:
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
+              rustup install 1.88.0
+              rustup default 1.88.0
               cd packages/cli
               pnpm build
               strip *.node
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
+              rustup target add x86_64-apple-darwin
               pnpm build --features native-tls-vendored --target=aarch64-apple-darwin
               strip -x *.node
           - host: ubuntu-22.04
@@ -73,6 +78,9 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
               npm i -g --force corepack
+              rustup install 1.88.0
+              rustup default 1.88.0
+              rustup target add aarch64-unknown-linux-gnu
               cd packages/cli
               pnpm build --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
@@ -90,8 +98,10 @@ jobs:
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
-              cd packages/cli
+              rustup install 1.88.0
+              rustup default 1.88.0
               rustup target add aarch64-unknown-linux-musl
+              cd packages/cli
               pnpm build --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
           - host: ubuntu-22.04
@@ -107,6 +117,8 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare CEF package metadata and versions
+        run: node ../../.scripts/ci/prepare-cli-cef-publish.js
       - run: npm i -g --force corepack
       - name: Setup node
         uses: actions/setup-node@v4
@@ -136,7 +148,12 @@ jobs:
         if: ${{ matrix.settings.docker }}
         with:
           image: ${{ matrix.settings.docker }}
-          options: --user 0:0 -v ${{ github.workspace }}/.cargo-cache/git/db:/root/.cargo/git/db -v ${{ github.workspace }}/.cargo/registry/cache:/root/.cargo/registry/cache -v ${{ github.workspace }}/.cargo/registry/index:/root/.cargo/registry/index -v ${{ github.workspace }}:/build -w /build
+          options: --user 0:0 -v ${{ github.workspace
+            }}/.cargo-cache/git/db:/root/.cargo/git/db -v ${{ github.workspace
+            }}/.cargo/registry/cache:/root/.cargo/registry/cache -v ${{
+            github.workspace
+            }}/.cargo/registry/index:/root/.cargo/registry/index -v ${{
+            github.workspace }}:/build -w /build
           run: ${{ matrix.settings.build }}
 
       - name: Build
@@ -345,7 +362,8 @@ jobs:
       - uses: addnab/docker-run-action@v3
         with:
           image: ${{ matrix.image }}
-          options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
+          options: '-v ${{ github.workspace }}:/build -w /build -e
+            RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
           shell: bash
           run: |
             set -e
@@ -386,12 +404,14 @@ jobs:
           path: packages/cli/artifacts
       - name: Move artifacts
         run: pnpm artifacts
+      - name: Rewrite package names for CEF publish
+        run: node ../../.scripts/ci/prepare-cli-cef-publish.js
       - name: List packages
         run: ls -R ./npm
         shell: bash
       - name: Publish
         run: |
-          npm publish
+          npm publish --tag latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ''

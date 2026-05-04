@@ -53,9 +53,8 @@ mod commands {
 
   use super::*;
   use crate::{
-    command, sealed::ManagerBase, utils::config::WindowConfig, window::Color,
-    window::WindowBuilder, AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
-    Theme, Window,
+    AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme, Window, command,
+    sealed::ManagerBase, utils::config::WindowConfig, window::Color, window::WindowBuilder,
   };
 
   #[command(root = "crate")]
@@ -126,8 +125,8 @@ mod desktop_commands {
 
   use super::*;
   use crate::{
-    command, utils::config::WindowEffectsConfig, window::ProgressBarState, CursorIcon, Manager,
-    PhysicalPosition, Position, UserAttentionType, Webview,
+    CursorIcon, Manager, PhysicalPosition, Position, UserAttentionType, Webview, command,
+    utils::config::WindowEffectsConfig, window::ProgressBarState,
   };
 
   getter!(is_fullscreen, bool);

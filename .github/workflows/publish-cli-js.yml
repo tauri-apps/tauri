@@ -411,7 +411,7 @@ jobs:
         shell: bash
       - name: Publish
         run: |
-          npm publish
+          npm publish --tag latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ''

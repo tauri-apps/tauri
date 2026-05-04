@@ -53,6 +53,8 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
               npm i -g --force corepack
+              rustup install 1.88.0
+              rustup default 1.88.0
               cd packages/cli
               pnpm build --target x86_64-unknown-linux-gnu
               strip *.node
@@ -60,6 +62,8 @@ jobs:
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
+              rustup install 1.88.0
+              rustup default 1.88.0
               cd packages/cli
               pnpm build
               strip *.node
@@ -73,6 +77,8 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
               npm i -g --force corepack
+              rustup install 1.88.0
+              rustup default 1.88.0
               cd packages/cli
               pnpm build --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
@@ -90,6 +96,8 @@ jobs:
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
+              rustup install 1.88.0
+              rustup default 1.88.0
               cd packages/cli
               rustup target add aarch64-unknown-linux-musl
               pnpm build --target aarch64-unknown-linux-musl
@@ -138,7 +146,12 @@ jobs:
         if: ${{ matrix.settings.docker }}
         with:
           image: ${{ matrix.settings.docker }}
-          options: --user 0:0 -v ${{ github.workspace }}/.cargo-cache/git/db:/root/.cargo/git/db -v ${{ github.workspace }}/.cargo/registry/cache:/root/.cargo/registry/cache -v ${{ github.workspace }}/.cargo/registry/index:/root/.cargo/registry/index -v ${{ github.workspace }}:/build -w /build
+          options: --user 0:0 -v ${{ github.workspace
+            }}/.cargo-cache/git/db:/root/.cargo/git/db -v ${{ github.workspace
+            }}/.cargo/registry/cache:/root/.cargo/registry/cache -v ${{
+            github.workspace
+            }}/.cargo/registry/index:/root/.cargo/registry/index -v ${{
+            github.workspace }}:/build -w /build
           run: ${{ matrix.settings.build }}
 
       - name: Build
@@ -347,7 +360,8 @@ jobs:
       - uses: addnab/docker-run-action@v3
         with:
           image: ${{ matrix.image }}
-          options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
+          options: '-v ${{ github.workspace }}:/build -w /build -e
+            RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
           shell: bash
           run: |
             set -e

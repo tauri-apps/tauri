@@ -27,6 +27,7 @@ impl CefWebview {
     }
   }
 
+  #[allow(dead_code)]
   pub fn browser_id(&self) -> i32 {
     match self {
       CefWebview::BrowserView(view) => view.browser().map_or(-1, |b| b.identifier()),

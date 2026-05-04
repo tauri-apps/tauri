@@ -83,6 +83,21 @@ type IpcHandler<T> =
 const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
 const IPC_MESSAGE_NAME: &str = "tauri:ipc";
 const IPC_POST_MESSAGE_FUNCTION: &str = "postMessage";
+const ABOUT_BLANK: &str = "about:blank";
+const INITIAL_LOAD_URL: &str = concat!(
+  "data:text/html;charset=utf-8,",
+  "%3C!doctype%20html%3E",
+  "%3Chtml%20data-tauri-cef-internal%3D%22initial-load%22%3E",
+  "%3Chead%3E",
+  "%3Cmeta%20charset%3D%22utf-8%22%3E",
+  "%3Ctitle%3ETauri%20CEF%20Initial%20Load%3C%2Ftitle%3E",
+  "%3C%2Fhead%3E",
+  "%3Cbody%20data-tauri-cef-internal%3D%22initial-load%22%3E",
+  "%3C!--%20Tauri%20CEF%20internal%20initial%20load%20placeholder%20--%3E",
+  "%3C%2Fbody%3E",
+  "%3C%2Fhtml%3E",
+);
+static NEXT_INIT_SCRIPT_DEVTOOLS_MESSAGE_ID: AtomicI32 = AtomicI32::new(1_000_000);
 const DRAG_DROP_INIT_SCRIPT: &str = r#"
 (() => {
   if (window.__TAURI_CEF_DRAG_DROP__) {
@@ -173,6 +188,7 @@ struct DragDropScriptEvent {
 }
 
 /// CEF transparent color value (ARGB)
+#[allow(dead_code)]
 const TRANSPARENT: u32 = 0x00000000;
 
 #[inline]
@@ -769,10 +785,7 @@ wrap_app! {
 
 wrap_load_handler! {
   struct BrowserLoadHandler {
-    initialization_scripts: Arc<Vec<CefInitScript>>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
-    custom_scheme_domain_names: Vec<String>,
-    custom_protocol_scheme: String,
   }
 
   impl LoadHandler {
@@ -801,7 +814,7 @@ wrap_load_handler! {
       &self,
       _browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
-      http_status_code: ::std::os::raw::c_int,
+      _http_status_code: ::std::os::raw::c_int,
     ) {
       let Some(frame) = frame else { return };
 
@@ -813,53 +826,6 @@ wrap_load_handler! {
             handler(url, tauri_runtime::webview::PageLoadEvent::Finished);
           }
         }
-
-      // run init scripts for http/https pages that are not custom schemes
-      // custom schemes are handled by the request handler
-      // where we inject scripts directly in the html
-
-      if !(200..300).contains(&http_status_code) {
-        return;
-      }
-
-      let url = frame.url();
-      let url_str = cef::CefString::from(&url).to_string();
-      let url_obj = url::Url::parse(&url_str).ok();
-
-      let is_custom_scheme_url = url_obj
-        .as_ref()
-        .map(|u| {
-          let scheme = u.scheme();
-          if scheme == self.custom_protocol_scheme {
-            let host_str = u.host_str().unwrap_or("").to_string();
-            scheme == self.custom_protocol_scheme && self.custom_scheme_domain_names.contains(&host_str)
-          } else {
-            false
-          }
-        });
-      // if we can't parse the URL, also return
-      if is_custom_scheme_url.unwrap_or(true) { return; }
-
-      let is_main_frame = frame.is_main() == 1;
-
-      let scripts_to_execute = if is_main_frame {
-       Box::new(self.initialization_scripts.iter().map(|s| &s.script.script)) as Box<dyn std::iter::Iterator<Item = &String>>
-      } else {
-        Box::new(self.initialization_scripts
-          .iter()
-          .filter(|s| !s.script.for_main_frame_only)
-          .map(|s| &s.script.script)) as Box<dyn std::iter::Iterator<Item = &String>>
-      };
-
-      for script in scripts_to_execute {
-        let script_url = format!("{}://__tauri_init_script__", url_obj.as_ref().map(|u| u.scheme()).unwrap_or("http"));
-
-        frame.execute_java_script(
-          Some(&cef::CefString::from(script.as_str())),
-          Some(&cef::CefString::from(script_url.as_str())),
-          0,
-        );
-      }
     }
   }
 }
@@ -894,6 +860,7 @@ wrap_display_handler! {
   struct BrowserDisplayHandler {
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     address_changed_handler: Option<Arc<AddressChangedHandler>>,
+    suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
   }
 
   impl DisplayHandler {
@@ -923,6 +890,13 @@ wrap_display_handler! {
       let Some(url) = url else { return };
       let url_str = url.to_string();
       let Ok(parsed) = url::Url::parse(&url_str) else { return };
+      {
+        let mut suppressed_navigations = self.suppressed_navigations.lock().unwrap();
+        if let Some(index) = suppressed_navigations.iter().position(|suppressed| suppressed == &parsed) {
+          suppressed_navigations.remove(index);
+          return;
+        }
+      }
       handler(&parsed);
     }
   }
@@ -1076,6 +1050,164 @@ fn add_dev_tools_observer(
     let mut observer = TauriDevToolsProtocolObserver::new(handlers);
     host.add_dev_tools_message_observer(Some(&mut observer))
   })
+}
+
+fn devtools_initialization_script_source(
+  initialization_scripts: &[CefInitScript],
+  custom_protocol_scheme: &str,
+  custom_scheme_domain_names: &[String],
+) -> Option<String> {
+  if initialization_scripts.is_empty() {
+    return None;
+  }
+
+  let custom_protocol = serde_json::to_string(&format!("{custom_protocol_scheme}:")).ok()?;
+  let custom_domains = serde_json::to_string(custom_scheme_domain_names).ok()?;
+  let mut source = format!(
+    r#"{{
+  const __TAURI_CEF_INIT_CUSTOM_PROTOCOL__ = {custom_protocol};
+  const __TAURI_CEF_INIT_CUSTOM_DOMAINS__ = new Set({custom_domains});
+  const __TAURI_CEF_INIT_IS_CUSTOM_PROTOCOL__ =
+    location.protocol === __TAURI_CEF_INIT_CUSTOM_PROTOCOL__
+    && __TAURI_CEF_INIT_CUSTOM_DOMAINS__.has(location.hostname);
+  const __TAURI_CEF_INIT_IS_MAIN_FRAME__ = (() => {{
+    try {{
+      return window.top === window;
+    }} catch (_) {{
+      return false;
+    }}
+  }})();
+"#
+  );
+
+  for init_script in initialization_scripts {
+    source.push_str("  if (!__TAURI_CEF_INIT_IS_CUSTOM_PROTOCOL__");
+    if init_script.script.for_main_frame_only {
+      source.push_str(" && __TAURI_CEF_INIT_IS_MAIN_FRAME__");
+    }
+    source.push_str(") {\n");
+    source.push_str(init_script.script.script.as_str());
+    source.push_str("\n  }\n");
+  }
+
+  source.push_str("}\n");
+  Some(source)
+}
+
+fn register_initialization_scripts(
+  browser: &Browser,
+  initialization_scripts: &[CefInitScript],
+  custom_protocol_scheme: &str,
+  custom_scheme_domain_names: &[String],
+) {
+  let Some(source) = devtools_initialization_script_source(
+    initialization_scripts,
+    custom_protocol_scheme,
+    custom_scheme_domain_names,
+  ) else {
+    return;
+  };
+  let Some(host) = browser.host() else {
+    return;
+  };
+
+  let message_id = NEXT_INIT_SCRIPT_DEVTOOLS_MESSAGE_ID.fetch_add(1, Ordering::Relaxed);
+  let message = serde_json::json!({
+    "id": message_id,
+    "method": "Page.addScriptToEvaluateOnNewDocument",
+    "params": {
+      "source": source,
+    }
+  })
+  .to_string();
+
+  let _ = host.send_dev_tools_message(Some(message.as_bytes()));
+}
+
+wrap_task! {
+  struct LoadInitialUrlTask {
+    browser: Browser,
+    initial_url: String,
+    suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
+  }
+
+  impl Task {
+    fn execute(&self) {
+      load_initial_url(&self.browser, &self.initial_url, &self.suppressed_navigations);
+    }
+  }
+}
+
+// Browsers are created with an inert internal document so the BrowserHost exists
+// before the app's real first navigation starts. That gives us a chance to
+// register the CDP document-start script for remote/cross-site navigations; the
+// custom-protocol path still injects into HTML because CEF does not apply this
+// CDP hook to those documents reliably.
+//
+// The real load is posted as a CEF UI task instead of performed inline. This
+// keeps the browser creation/CDP setup stack from re-entering navigation and
+// also lets the one-shot navigation/address suppression observe the internal
+// placeholder before the app URL is loaded.
+fn load_initial_url_after_registering_initialization_scripts(
+  browser: &Browser,
+  initialization_scripts: &[CefInitScript],
+  custom_protocol_scheme: &str,
+  custom_scheme_domain_names: &[String],
+  initial_url: &str,
+  suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>,
+) {
+  let browser_for_callback = browser.clone();
+  let initial_url = initial_url.to_string();
+  let suppressed_navigations = suppressed_navigations.clone();
+  register_initialization_scripts(
+    browser,
+    initialization_scripts,
+    custom_protocol_scheme,
+    custom_scheme_domain_names,
+  );
+
+  let mut task = LoadInitialUrlTask::new(browser_for_callback, initial_url, suppressed_navigations);
+  cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+}
+
+fn clear_suppressed_initial_load_urls(suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>) {
+  let initial_urls = [INITIAL_LOAD_URL, ABOUT_BLANK]
+    .into_iter()
+    .filter_map(|url| url::Url::parse(url).ok())
+    .collect::<Vec<_>>();
+  if !initial_urls.is_empty() {
+    suppressed_navigations
+      .lock()
+      .unwrap()
+      .retain(|url| !initial_urls.iter().any(|initial_url| initial_url == url));
+  }
+}
+
+fn suppress_navigation(initial_url: &str, suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>) {
+  let Ok(url) = url::Url::parse(initial_url) else {
+    return;
+  };
+
+  let mut suppressed_navigations = suppressed_navigations.lock().unwrap();
+  if !suppressed_navigations
+    .iter()
+    .any(|suppressed| suppressed == &url)
+  {
+    suppressed_navigations.push(url);
+  }
+}
+
+fn load_initial_url(
+  browser: &Browser,
+  initial_url: &str,
+  suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>,
+) {
+  clear_suppressed_initial_load_urls(suppressed_navigations);
+  suppress_navigation(initial_url, suppressed_navigations);
+
+  if let Some(frame) = browser.main_frame() {
+    frame.load_url(Some(&CefString::from(initial_url)));
+  }
 }
 
 wrap_keyboard_handler! {
@@ -1460,17 +1592,15 @@ wrap_client! {
     drag_drop_event_target: DragDropEventTarget,
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
-    initialization_scripts: Arc<Vec<CefInitScript>>,
     ipc_handler: Option<Arc<IpcHandler<T>>>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
+    suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
     address_changed_handler: Option<Arc<AddressChangedHandler>>,
     new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
     devtools_enabled: bool,
-    custom_scheme_domain_names: Vec<String>,
-    custom_protocol_scheme: String,
     context: Context<T>,
     runtime_context: RuntimeContext<T>,
     initial_url: Option<String>,
@@ -1485,8 +1615,8 @@ wrap_client! {
 
     fn request_handler(&self) -> Option<RequestHandler> {
       Some(request_handler::WebRequestHandler::new(
-        self.initialization_scripts.clone(),
         self.navigation_handler.clone(),
+        self.suppressed_navigations.clone(),
         self.context.clone(),
         self.window_id,
         self.webview_id,
@@ -1507,18 +1637,14 @@ wrap_client! {
     }
 
     fn load_handler(&self) -> Option<LoadHandler> {
-      Some(BrowserLoadHandler::new(
-        self.initialization_scripts.clone(),
-        self.on_page_load_handler.clone(),
-        self.custom_scheme_domain_names.clone(),
-        self.custom_protocol_scheme.clone(),
-      ))
+      Some(BrowserLoadHandler::new(self.on_page_load_handler.clone()))
     }
 
     fn display_handler(&self) -> Option<DisplayHandler> {
       Some(BrowserDisplayHandler::new(
         self.document_title_changed_handler.clone(),
         self.address_changed_handler.clone(),
+        self.suppressed_navigations.clone(),
       ))
     }
 
@@ -1597,6 +1723,10 @@ wrap_browser_view_delegate! {
     webview_label: String,
     uri_scheme_protocols: Arc<HashMap<String, Arc<Box<tauri_runtime::webview::UriSchemeProtocolHandler>>>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
+    custom_protocol_scheme: String,
+    custom_scheme_domain_names: Vec<String>,
+    initial_url: String,
+    suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
     devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
     devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
     webview_attributes: Arc<RefCell<WebviewAttributes>>,
@@ -1626,12 +1756,6 @@ wrap_browser_view_delegate! {
         let real_id = browser.identifier();
         let _ = std::mem::replace(&mut *self.browser_id.borrow_mut(), real_id);
 
-        // Only add the observer when at least one listener is registered
-        if !self.devtools_protocol_handlers.lock().unwrap().is_empty()
-          && let Some(registration) = add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone()) {
-            self.devtools_observer_registration.lock().unwrap().replace(registration);
-          }
-
         let mut registry = self.scheme_handler_registry.lock().unwrap();
         for (scheme, handler) in self.uri_scheme_protocols.iter() {
           registry.insert(
@@ -1643,6 +1767,23 @@ wrap_browser_view_delegate! {
             ),
           );
         }
+        drop(registry);
+
+        load_initial_url_after_registering_initialization_scripts(
+          browser,
+          &self.initialization_scripts,
+          &self.custom_protocol_scheme,
+          &self.custom_scheme_domain_names,
+          &self.initial_url,
+          &self.suppressed_navigations,
+        );
+
+        // Only add the observer when at least one listener is registered
+        if !self.devtools_protocol_handlers.lock().unwrap().is_empty()
+          && let Some(registration) = add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone()) {
+            self.devtools_observer_registration.lock().unwrap().replace(registration);
+          }
+
       }
     }
 
@@ -3720,14 +3861,6 @@ fn create_browser_window<T: UserEvent>(
     "http"
   };
 
-  // Build cached domain names for custom schemes and clone protocols for storage
-  // before uri_scheme_protocols is moved
-  let scheme_keys: Vec<String> = uri_scheme_protocols.keys().cloned().collect();
-  let custom_scheme_domain_names: Vec<String> = scheme_keys
-    .iter()
-    .map(|scheme| format!("{scheme}.localhost"))
-    .collect();
-
   let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocolHandler>>> =
     uri_scheme_protocols
       .into_iter()
@@ -3735,6 +3868,10 @@ fn create_browser_window<T: UserEvent>(
       .collect();
 
   let custom_schemes = uri_scheme_protocols.keys().cloned().collect::<Vec<_>>();
+  let custom_scheme_domain_names = custom_schemes
+    .iter()
+    .map(|scheme| format!("{scheme}.localhost"))
+    .collect::<Vec<_>>();
 
   let mut request_context = request_context_from_webview_attributes(
     context,
@@ -3752,7 +3889,11 @@ fn create_browser_window<T: UserEvent>(
   let attributes = Arc::new(RefCell::new(window_builder));
 
   let initial_url = url.clone();
-  let url = CefString::from(url.as_str());
+  let url = CefString::from(INITIAL_LOAD_URL);
+  let suppressed_navigations = Arc::new(Mutex::new(vec![
+    url::Url::parse(INITIAL_LOAD_URL).expect("initial load data URL is valid"),
+    url::Url::parse(ABOUT_BLANK).expect("about:blank is a valid URL"),
+  ]));
   let drag_drop_state = Arc::new(Mutex::new(DragDropState::default()));
 
   let mut client = BrowserClient::new(
@@ -3763,20 +3904,18 @@ fn create_browser_window<T: UserEvent>(
     DragDropEventTarget::Window,
     drag_drop_handler_enabled,
     drag_drop_state,
-    initialization_scripts.clone(),
     ipc_handler,
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
+    suppressed_navigations.clone(),
     address_changed_handler,
     new_window_handler,
     download_handler,
     devtools_enabled,
-    custom_scheme_domain_names.clone(),
-    custom_protocol_scheme.to_string(),
     context.clone(),
     runtime_context(context),
-    Some(initial_url),
+    None,
   );
 
   let mut bounds = cef::Rect {
@@ -3815,17 +3954,7 @@ fn create_browser_window<T: UserEvent>(
     eprintln!("Failed to create browser");
     return;
   };
-
-  let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
-    Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
-  >::new()));
-  let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
-    &browser,
-    devtools_protocol_handlers.clone(),
-  )));
-
-  let browser = CefWebview::Browser(browser);
-  let browser_id_val = browser.browser_id();
+  let browser_id_val = browser.identifier();
 
   {
     let mut registry = context.scheme_handler_registry.lock().unwrap();
@@ -3840,6 +3969,24 @@ fn create_browser_window<T: UserEvent>(
       );
     }
   }
+  load_initial_url_after_registering_initialization_scripts(
+    &browser,
+    &initialization_scripts,
+    custom_protocol_scheme,
+    &custom_scheme_domain_names,
+    &initial_url,
+    &suppressed_navigations,
+  );
+
+  let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+    Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+  >::new()));
+  let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
+    &browser,
+    devtools_protocol_handlers.clone(),
+  )));
+
+  let browser = CefWebview::Browser(browser);
 
   context.windows.borrow_mut().insert(
     window_id,
@@ -4357,13 +4504,17 @@ pub(crate) fn create_webview<T: UserEvent>(
   };
 
   let custom_schemes = uri_scheme_protocols.keys().cloned().collect::<Vec<_>>();
-  let custom_scheme_domain_names: Vec<String> = custom_schemes
+  let custom_scheme_domain_names = custom_schemes
     .iter()
     .map(|scheme| format!("{scheme}.localhost"))
-    .collect();
+    .collect::<Vec<_>>();
 
   let initial_url = url.clone();
-  let url = CefString::from(url.as_str());
+  let url = CefString::from(INITIAL_LOAD_URL);
+  let suppressed_navigations = Arc::new(Mutex::new(vec![
+    url::Url::parse(INITIAL_LOAD_URL).expect("initial load data URL is valid"),
+    url::Url::parse(ABOUT_BLANK).expect("about:blank is a valid URL"),
+  ]));
   let drag_drop_state = Arc::new(Mutex::new(DragDropState::default()));
   let drag_drop_event_target = if kind == WebviewKind::WindowContent {
     DragDropEventTarget::Window
@@ -4379,20 +4530,18 @@ pub(crate) fn create_webview<T: UserEvent>(
     drag_drop_event_target,
     drag_drop_handler_enabled,
     drag_drop_state,
-    initialization_scripts.clone(),
     ipc_handler,
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
+    suppressed_navigations.clone(),
     address_changed_handler,
     new_window_handler,
     download_handler,
     devtools_enabled,
-    custom_scheme_domain_names.clone(),
-    custom_protocol_scheme.to_string(),
     context.clone(),
     runtime_context(context),
-    Some(initial_url.clone()),
+    None,
   );
 
   let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocolHandler>>> =
@@ -4465,6 +4614,29 @@ pub(crate) fn create_webview<T: UserEvent>(
       eprintln!("Failed to create browser");
       return;
     };
+    let browser_id_val = browser_host.identifier();
+    {
+      let mut registry = context.scheme_handler_registry.lock().unwrap();
+      for (scheme, handler) in &uri_scheme_protocols {
+        registry.insert(
+          (browser_id_val, scheme.clone()),
+          (
+            label.clone(),
+            handler.clone(),
+            initialization_scripts.clone(),
+          ),
+        );
+      }
+    }
+
+    load_initial_url_after_registering_initialization_scripts(
+      &browser_host,
+      &initialization_scripts,
+      custom_protocol_scheme,
+      &custom_scheme_domain_names,
+      &initial_url,
+      &suppressed_navigations,
+    );
 
     // On Windows, set the browser window to be topmost to esnure correct z-order
     #[cfg(windows)]
@@ -4496,21 +4668,6 @@ pub(crate) fn create_webview<T: UserEvent>(
     } else {
       None
     };
-
-    let browser_id_val = browser.browser_id();
-    {
-      let mut registry = context.scheme_handler_registry.lock().unwrap();
-      for (scheme, handler) in &uri_scheme_protocols {
-        registry.insert(
-          (browser_id_val, scheme.clone()),
-          (
-            label.clone(),
-            handler.clone(),
-            initialization_scripts.clone(),
-          ),
-        );
-      }
-    }
 
     context
       .windows
@@ -4548,6 +4705,10 @@ pub(crate) fn create_webview<T: UserEvent>(
       label.clone(),
       uri_scheme_protocols.clone(),
       initialization_scripts.clone(),
+      custom_protocol_scheme.to_string(),
+      custom_scheme_domain_names.clone(),
+      initial_url.clone(),
+      suppressed_navigations.clone(),
       devtools_protocol_handlers.clone(),
       devtools_observer_registration.clone(),
       webview_attributes.clone(),

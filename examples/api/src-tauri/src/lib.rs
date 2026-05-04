@@ -18,9 +18,11 @@ use tauri::{
 use tauri::{Manager, RunEvent};
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
-#[cfg(feature = "cef")]
+#[cfg(test)]
+type TauriRuntime = tauri::test::MockRuntime;
+#[cfg(all(not(test), feature = "cef"))]
 type TauriRuntime = tauri::Cef;
-#[cfg(not(feature = "cef"))]
+#[cfg(all(not(test), not(feature = "cef")))]
 type TauriRuntime = tauri::Wry;
 
 #[derive(Clone, Serialize)]
@@ -37,7 +39,7 @@ pub struct PopupMenu<R: Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[cfg_attr(feature = "cef", tauri::cef_entry_point)]
 pub fn run() {
-  run_app(tauri::Builder::<TauriRuntime>::default(), |_app| {});
+  run_app(tauri::Builder::<TauriRuntime>::new(), |_app| {});
 }
 
 pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(

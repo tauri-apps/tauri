@@ -972,9 +972,24 @@ wrap_life_span_handler! {
   impl LifeSpanHandler {
     fn on_after_created(&self, browser: Option<&mut Browser>) {
       if let Some(browser) = browser
-        && let Some(initial_url) = &self.initial_url {
-          check_and_reload_if_blank(browser.clone(), initial_url.clone());
+        && let Some(initial_url) = &self.initial_url
+      {
+        // Popups inherit the opener's life-span handler (CEF leaves `client`
+        // pointing at the parent's CefClient unless on_before_popup overwrites
+        // it). The blank-page guard below uses `self.initial_url`, which is the
+        // OPENER's initial URL — never the popup's. For same-document popups
+        // (e.g. Slack huddles, where the opener does
+        // `popup.document.write(html)` into `about:blank` instead of navigating
+        // via `popup.location = url`), the popup's main frame URL legitimately
+        // stays at `about:blank`, so the guard would clobber the
+        // document-written content by navigating the popup to the opener's
+        // URL after 1s. Skip the guard for popup browsers — the opener never
+        // wanted its blank-recovery semantics applied to children.
+        if browser.is_popup() != 0 {
+          return;
         }
+        check_and_reload_if_blank(browser.clone(), initial_url.clone());
+      }
     }
 
     fn on_before_close(&self, browser: Option<&mut Browser>) {

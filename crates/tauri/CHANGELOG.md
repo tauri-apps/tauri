@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.11.1]
+
+### Bug Fixes
+
+- [`5f479c0c3`](https://www.github.com/tauri-apps/tauri/commit/5f479c0c364d7f5d89a83eaff66fbb7ef5045ce9) ([#15336](https://www.github.com/tauri-apps/tauri/pull/15336)) Fix crash when using the requestPermission API on Android.
+
+### Security fixes
+
+- [`1b26769f9`](https://www.github.com/tauri-apps/tauri/commit/1b26769f92b54b158777a35a7f548f870f4e7901) ([#15266](https://www.github.com/tauri-apps/tauri/pull/15266)) Enforce ACL checks for IPC requests from remote origins even when no `AppManifest` is configured. Previously, custom (non-plugin) commands bypassed ACL entirely without an `AppManifest`, allowing any origin to invoke them. Now, remote origins are always subject to ACL resolution, and can only reach custom commands if an explicit `remote` capability has been granted.
+- [`ba025588f`](https://www.github.com/tauri-apps/tauri/commit/ba025588f3559858f43547e8c04424c47a3c445b) Correctly handle .localhost suffix in local origins on Windows and Android to fix a security issue that made tauri think remote websites that started with a registered scheme were local websites.
+  For example, when registering an `app` custom protocol, Tauri would think `http://app.evil.com/` would be a local URL on Windows/Android.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+- Upgraded to `tauri-runtime@2.11.1`
+- Upgraded to `tauri-runtime-wry@2.11.1`
+- Upgraded to `tauri-macros@2.6.1`
+- Upgraded to `tauri-build@2.6.1`
+
 ## \[2.11.0]
 
 ### New Features

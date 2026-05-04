@@ -40,7 +40,7 @@ use super::{
 // and we do not get a secure context without the custom protocol that proxies to the dev server
 // additionally, we need the custom protocol to inject the initialization scripts on Android
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
-pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, any(mobile, feature = "cef")));
+pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, any(mobile)));
 
 pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
   include_str!("../../scripts/process-ipc-message-fn.js");
@@ -391,7 +391,6 @@ impl<R: Runtime> WebviewManager<R> {
     struct CoreJavascript<'a> {
       os_name: &'a str,
       protocol_scheme: &'a str,
-      cef: bool,
     }
 
     let freeze_prototype = if app_manager.config.app.security.freeze_prototype {
@@ -406,7 +405,6 @@ impl<R: Runtime> WebviewManager<R> {
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
         protocol_scheme: if use_https_scheme { "https" } else { "http" },
-        cef: cfg!(feature = "cef"),
       }
       .render_default(&Default::default())?
       .into_string(),

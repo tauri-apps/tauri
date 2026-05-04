@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.9.0]
+
+### New Features
+
+- [`001c8fe3d`](https://www.github.com/tauri-apps/tauri/commit/001c8fe3d288802de9a8c29cfd2f46f9220d97c5) ([#14722](https://www.github.com/tauri-apps/tauri/pull/14722)) Add a WebView option to control browser-level general autofill behavior. This option does not disable password or credit card autofill. On Windows (WebView2), setting it to true disables the general autofill "Suggestions" UI, which may appear even when `autocomplete="off"` is specified on input elements. On Linux, macOS, iOS, and Android, this option is currently unsupported and performs no operation.
+- [`926a57bb0`](https://www.github.com/tauri-apps/tauri/commit/926a57bb0851e45d47ad1ee68fc96a9c25754c7c) ([#15201](https://www.github.com/tauri-apps/tauri/pull/15201)) Added uninstaller icon and uninstaller header image support for NSIS installer.
+
+  Notes:
+
+  - For `tauri-bundler` lib users, the `NsisSettings` now has 2 new fields `uninstaller_icon` and `uninstaller_header_image` which can be a breaking change
+  - When bundling with NSIS, users can add `uninstallerIcon` and `uninstallerHeaderImage` under `bundle > windows > nsis` to configure them.
+- [`093e2b47c`](https://www.github.com/tauri-apps/tauri/commit/093e2b47c01361c18783e9ff18750388e41650c5) ([#14484](https://www.github.com/tauri-apps/tauri/pull/14484)) Support creating multiple windows on Android (activity embedding) and iOS (scenes).
+
+### Dependencies
+
+- [`e032c3b34`](https://www.github.com/tauri-apps/tauri/commit/e032c3b3421f53bca7b869ffee2be105c5c06ad9) ([#14959](https://www.github.com/tauri-apps/tauri/pull/14959)) Add new `html-manipulation-2` and `build-2` feature flags that use `dom_query` instead of `kuchikiki` for HTML parsing / manipulation.
+  This allows downstream users to remove `kuchikiki` and its dependencies from their dependency tree.
+- [`1ef6a119b`](https://www.github.com/tauri-apps/tauri/commit/1ef6a119b1571d1da0acc08bdb7fd5521a4c6d52) ([#15115](https://www.github.com/tauri-apps/tauri/pull/15115)) Changed `toml` crate version from `0.9` to `">=0.9, <=1"`
+
 ## \[2.8.3]
 
 ### Bug Fixes

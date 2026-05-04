@@ -194,7 +194,7 @@ impl JsImage {
   /// This will retrieve the image from the passed [`ResourceTable`] if it is [`JsImage::Resource`]
   /// and will return an error if it doesn't exist in the passed [`ResourceTable`] so make sure
   /// the passed [`ResourceTable`] is the same one used to store the image, usually this should be
-  /// the webview [resources table](crate::webview::Webview::resources_table).
+  /// the webview resources table.
   pub fn into_img(self, resources_table: &ResourceTable) -> crate::Result<Arc<Image<'_>>> {
     match self {
       Self::Resource(rid) => resources_table.get::<Image<'static>>(rid),

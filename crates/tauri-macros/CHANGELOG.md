@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.6.0]
+
+### New Features
+
+- [`c00a3dbff`](https://www.github.com/tauri-apps/tauri/commit/c00a3dbffccd6e051d3b7332f706b6c63759865d) ([#14473](https://www.github.com/tauri-apps/tauri/pull/14473)) Add support for the `rename` attribute in the `tauri::command` macro to allow renaming the command to something other than the function name.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+- Upgraded to `tauri-codegen@2.6.0`
+
 ## \[2.5.5]
 
 ### Dependencies

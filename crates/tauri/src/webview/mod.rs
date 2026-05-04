@@ -243,8 +243,8 @@ pub enum NewWindowResponse<R: Runtime> {
   ///
   /// ## Platform-specific:
   ///
-  /// **Linux**: The webview must be related to the caller webview. See [`WebviewBuilder::related_view`].
-  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewBuilder::environment`].
+  /// **Linux**: The webview must be related to the caller webview. See [`WebviewBuilder::with_related_view`].
+  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewBuilder::with_environment`].
   /// **macOS**: The webview must use the same webview configuration as the caller webview. See [`WebviewBuilder::with_webview_configuration`] and [`NewWindowFeatures::webview_configuration`].
   Create {
     /// Window that was created.
@@ -1146,7 +1146,7 @@ fn main() {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
   pub fn background_throttling(mut self, policy: BackgroundThrottlingPolicy) -> Self {
     self.webview_attributes.background_throttling = Some(policy);
@@ -1664,7 +1664,7 @@ tauri::Builder::default()
   "####
   )]
   #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(feature = "wry"))]
+  #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,

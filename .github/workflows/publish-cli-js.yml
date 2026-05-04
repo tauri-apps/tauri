@@ -107,6 +107,8 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare CEF package metadata and versions
+        run: node ../../.scripts/ci/prepare-cli-cef-publish.js
       - run: npm i -g --force corepack
       - name: Setup node
         uses: actions/setup-node@v4
@@ -386,6 +388,8 @@ jobs:
           path: packages/cli/artifacts
       - name: Move artifacts
         run: pnpm artifacts
+      - name: Rewrite package names for CEF publish
+        run: node ../../.scripts/ci/prepare-cli-cef-publish.js
       - name: List packages
         run: ls -R ./npm
         shell: bash

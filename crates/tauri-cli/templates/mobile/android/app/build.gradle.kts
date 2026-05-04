@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("rust")
     {{~#each android-app-plugins}}
     id("{{this}}"){{/each}}
@@ -49,9 +48,6 @@ android {
                     .toList().toTypedArray()
             )
         }
-    }
-    kotlinOptions {
-        jvmTarget = "1.8"
     }
     buildFeatures {
         buildConfig = true

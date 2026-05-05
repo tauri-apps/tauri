@@ -663,16 +663,15 @@ wrap_browser_process_handler! {
       let mut list = CefStringList::new();
       command_line.arguments(Some(&mut list));
       let args: Vec<String> = list.into_iter().collect();
-      if args.len() == 1
-        && let Ok(url) = url::Url::parse(&args[0]) {
-          let scheme = url.scheme().to_string();
-          if self.deep_link_schemes.iter().any(|s| s == &scheme) {
-            (self.context.callback.borrow())(RunEvent::Opened {
-              urls: vec![url],
-            });
-            return 1;
-          }
+      if let Ok(url) = url::Url::parse(&args[0]) {
+        let scheme = url.scheme().to_string();
+        if self.deep_link_schemes.iter().any(|s| s == &scheme) {
+          (self.context.callback.borrow())(RunEvent::Opened {
+            urls: vec![url],
+          });
+          return 1;
         }
+      }
       // TODO: add event
       1
     }

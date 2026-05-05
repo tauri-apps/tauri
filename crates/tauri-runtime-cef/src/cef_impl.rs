@@ -79,6 +79,8 @@ type CefOsEvent<'a> = Option<&'a mut sys::MSG>;
 type AddressChangedHandler = dyn Fn(&url::Url) + Send + Sync;
 type IpcHandler<T> =
   dyn Fn(tauri_runtime::webview::DetachedWebview<T, CefRuntime<T>>, http::Request<String>) + Send;
+type PendingInitialLoad = (Browser, String, Arc<Mutex<Vec<url::Url>>>);
+type PendingInitialLoads = Arc<Mutex<HashMap<i32, PendingInitialLoad>>>;
 
 const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
 const IPC_MESSAGE_NAME: &str = "tauri:ipc";
@@ -934,6 +936,7 @@ wrap_context_menu_handler! {
 cef::wrap_dev_tools_message_observer! {
   struct TauriDevToolsProtocolObserver {
     handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
+    pending_initial_loads: PendingInitialLoads,
   }
 
   impl DevToolsMessageObserver {
@@ -960,6 +963,12 @@ cef::wrap_dev_tools_message_observer! {
       success: std::os::raw::c_int,
       result: Option<&[u8]>,
     ) {
+      if let Some((browser, initial_url, suppressed_navigations)) =
+        self.pending_initial_loads.lock().unwrap().remove(&message_id)
+      {
+        post_load_initial_url(browser, initial_url, suppressed_navigations);
+      }
+
       let protocol = crate::DevToolsProtocol::MethodResult {
         message_id,
         success: success != 0,
@@ -1053,9 +1062,10 @@ cef::wrap_dev_tools_message_observer! {
 fn add_dev_tools_observer(
   browser: &cef::Browser,
   handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
+  pending_initial_loads: PendingInitialLoads,
 ) -> Option<cef::Registration> {
   browser.host().and_then(|host| {
-    let mut observer = TauriDevToolsProtocolObserver::new(handlers);
+    let mut observer = TauriDevToolsProtocolObserver::new(handlers, pending_initial_loads);
     host.add_dev_tools_message_observer(Some(&mut observer))
   })
 }
@@ -1107,17 +1117,29 @@ fn register_initialization_scripts(
   initialization_scripts: &[CefInitScript],
   custom_protocol_scheme: &str,
   custom_scheme_domain_names: &[String],
-) {
+  initial_url: String,
+  suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
+  pending_initial_loads: &PendingInitialLoads,
+) -> bool {
   let Some(source) = devtools_initialization_script_source(
     initialization_scripts,
     custom_protocol_scheme,
     custom_scheme_domain_names,
   ) else {
-    return;
+    return false;
   };
   let Some(host) = browser.host() else {
-    return;
+    return false;
   };
+
+  let page_enable_message_id = NEXT_INIT_SCRIPT_DEVTOOLS_MESSAGE_ID.fetch_add(1, Ordering::Relaxed);
+  let page_enable_message = serde_json::json!({
+    "id": page_enable_message_id,
+    "method": "Page.enable",
+    "params": {}
+  })
+  .to_string();
+  let _ = host.send_dev_tools_message(Some(page_enable_message.as_bytes()));
 
   let message_id = NEXT_INIT_SCRIPT_DEVTOOLS_MESSAGE_ID.fetch_add(1, Ordering::Relaxed);
   let message = serde_json::json!({
@@ -1129,7 +1151,16 @@ fn register_initialization_scripts(
   })
   .to_string();
 
-  let _ = host.send_dev_tools_message(Some(message.as_bytes()));
+  pending_initial_loads.lock().unwrap().insert(
+    message_id,
+    (browser.clone(), initial_url, suppressed_navigations),
+  );
+  if host.send_dev_tools_message(Some(message.as_bytes())) == 1 {
+    true
+  } else {
+    pending_initial_loads.lock().unwrap().remove(&message_id);
+    false
+  }
 }
 
 wrap_task! {
@@ -1144,6 +1175,15 @@ wrap_task! {
       load_initial_url(&self.browser, &self.initial_url, &self.suppressed_navigations);
     }
   }
+}
+
+fn post_load_initial_url(
+  browser: Browser,
+  initial_url: String,
+  suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
+) {
+  let mut task = LoadInitialUrlTask::new(browser, initial_url, suppressed_navigations);
+  cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
 }
 
 // Browsers are created with an inert internal document so the BrowserHost exists
@@ -1163,19 +1203,24 @@ fn load_initial_url_after_registering_initialization_scripts(
   custom_scheme_domain_names: &[String],
   initial_url: &str,
   suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>,
+  pending_initial_loads: &PendingInitialLoads,
 ) {
   let browser_for_callback = browser.clone();
   let initial_url = initial_url.to_string();
   let suppressed_navigations = suppressed_navigations.clone();
-  register_initialization_scripts(
+  let is_waiting_for_initialization_scripts = register_initialization_scripts(
     browser,
     initialization_scripts,
     custom_protocol_scheme,
     custom_scheme_domain_names,
+    initial_url.clone(),
+    suppressed_navigations.clone(),
+    pending_initial_loads,
   );
 
-  let mut task = LoadInitialUrlTask::new(browser_for_callback, initial_url, suppressed_navigations);
-  cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+  if !is_waiting_for_initialization_scripts {
+    post_load_initial_url(browser_for_callback, initial_url, suppressed_navigations);
+  }
 }
 
 fn clear_suppressed_initial_load_urls(suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>) {
@@ -1735,6 +1780,7 @@ wrap_browser_view_delegate! {
     custom_scheme_domain_names: Vec<String>,
     initial_url: String,
     suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
+    pending_initial_loads: PendingInitialLoads,
     devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
     devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
     webview_attributes: Arc<RefCell<WebviewAttributes>>,
@@ -1777,6 +1823,16 @@ wrap_browser_view_delegate! {
         }
         drop(registry);
 
+        {
+          let mut devtools_observer_registration = self.devtools_observer_registration.lock().unwrap();
+          if devtools_observer_registration.is_none()
+            && let Some(registration) =
+              add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone(), self.pending_initial_loads.clone())
+          {
+            devtools_observer_registration.replace(registration);
+          }
+        }
+
         load_initial_url_after_registering_initialization_scripts(
           browser,
           &self.initialization_scripts,
@@ -1784,13 +1840,8 @@ wrap_browser_view_delegate! {
           &self.custom_scheme_domain_names,
           &self.initial_url,
           &self.suppressed_navigations,
+          &self.pending_initial_loads,
         );
-
-        // Only add the observer when at least one listener is registered
-        if !self.devtools_protocol_handlers.lock().unwrap().is_empty()
-          && let Some(registration) = add_dev_tools_observer(browser, self.devtools_protocol_handlers.clone()) {
-            self.devtools_observer_registration.lock().unwrap().replace(registration);
-          }
 
       }
     }
@@ -2854,13 +2905,24 @@ fn handle_webview_message<T: UserEvent>(
     WebviewMessage::OnDevToolsProtocol(handler, tx) => {
       let result = match get_webview(context, window_id, webview_id) {
         Some(webview) => {
-          let mut handlers = webview.devtools_protocol_handlers.lock().unwrap();
-          handlers.push(handler);
-          // Add the observer when the first listener is registered
-          if handlers.len() == 1
+          webview
+            .devtools_protocol_handlers
+            .lock()
+            .unwrap()
+            .push(handler);
+
+          let needs_devtools_observer = webview
+            .devtools_observer_registration
+            .lock()
+            .unwrap()
+            .is_none();
+          if needs_devtools_observer
             && let Some(browser) = get_browser(context, window_id, webview_id)
-            && let Some(registration) =
-              add_dev_tools_observer(&browser, webview.devtools_protocol_handlers.clone())
+            && let Some(registration) = add_dev_tools_observer(
+              &browser,
+              webview.devtools_protocol_handlers.clone(),
+              Arc::new(Mutex::new(HashMap::new())),
+            )
           {
             *webview.devtools_observer_registration.lock().unwrap() = Some(registration);
           }
@@ -4000,6 +4062,16 @@ fn create_browser_window<T: UserEvent>(
       );
     }
   }
+  let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+    Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+  >::new()));
+  let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
+  let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
+    &browser,
+    devtools_protocol_handlers.clone(),
+    pending_initial_loads.clone(),
+  )));
+
   load_initial_url_after_registering_initialization_scripts(
     &browser,
     &initialization_scripts,
@@ -4007,15 +4079,8 @@ fn create_browser_window<T: UserEvent>(
     &custom_scheme_domain_names,
     &initial_url,
     &suppressed_navigations,
+    &pending_initial_loads,
   );
-
-  let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
-    Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
-  >::new()));
-  let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
-    &browser,
-    devtools_protocol_handlers.clone(),
-  )));
 
   let browser = CefWebview::Browser(browser);
 
@@ -4662,6 +4727,16 @@ pub(crate) fn create_webview<T: UserEvent>(
       }
     }
 
+    let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+      Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+    >::new()));
+    let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
+    let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
+      &browser_host,
+      devtools_protocol_handlers.clone(),
+      pending_initial_loads.clone(),
+    )));
+
     load_initial_url_after_registering_initialization_scripts(
       &browser_host,
       &initialization_scripts,
@@ -4669,16 +4744,12 @@ pub(crate) fn create_webview<T: UserEvent>(
       &custom_scheme_domain_names,
       &initial_url,
       &suppressed_navigations,
+      &pending_initial_loads,
     );
 
     // On Windows, set the browser window to be topmost to esnure correct z-order
     #[cfg(windows)]
     set_browser_on_top(&browser_host);
-
-    let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
-      Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
-    >::new()));
-    let devtools_observer_registration = Arc::new(Mutex::new(None));
 
     let browser = CefWebview::Browser(browser_host);
 
@@ -4728,6 +4799,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
     >::new()));
     let devtools_observer_registration = Arc::new(Mutex::new(None));
+    let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
     let webview_attributes = Arc::new(RefCell::new(webview_attributes));
 
     #[allow(clippy::unnecessary_find_map)]
@@ -4742,6 +4814,7 @@ pub(crate) fn create_webview<T: UserEvent>(
       custom_scheme_domain_names.clone(),
       initial_url.clone(),
       suppressed_navigations.clone(),
+      pending_initial_loads,
       devtools_protocol_handlers.clone(),
       devtools_observer_registration.clone(),
       webview_attributes.clone(),

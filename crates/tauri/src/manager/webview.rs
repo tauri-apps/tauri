@@ -391,6 +391,7 @@ impl<R: Runtime> WebviewManager<R> {
     struct CoreJavascript<'a> {
       os_name: &'a str,
       protocol_scheme: &'a str,
+      cef: bool,
     }
 
     let freeze_prototype = if app_manager.config.app.security.freeze_prototype {
@@ -405,6 +406,7 @@ impl<R: Runtime> WebviewManager<R> {
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
         protocol_scheme: if use_https_scheme { "https" } else { "http" },
+        cef: cfg!(feature = "cef"),
       }
       .render_default(&Default::default())?
       .into_string(),

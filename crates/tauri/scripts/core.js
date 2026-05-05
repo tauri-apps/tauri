@@ -9,11 +9,12 @@
 
   const osName = __TEMPLATE_os_name__
   const protocolScheme = __TEMPLATE_protocol_scheme__
+  const cef = __TEMPLATE_cef__
 
   Object.defineProperty(window.__TAURI_INTERNALS__, 'convertFileSrc', {
     value: function (filePath, protocol = 'asset') {
       const path = encodeURIComponent(filePath)
-      return osName === 'windows' || osName === 'android'
+      return osName === 'windows' || osName === 'android' || cef
         ? `${protocolScheme}://${protocol}.localhost/${path}`
         : `${protocol}://localhost/${path}`
     }

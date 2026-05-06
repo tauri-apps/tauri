@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.11.2]
+
+### Enhancements
+
+- [`5e3126ff7`](https://www.github.com/tauri-apps/tauri/commit/5e3126ff7045aec54811b227cb4d33d78b3957b5) ([#15338](https://www.github.com/tauri-apps/tauri/pull/15338) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Expose the monitor (display) APIs on mobile.
+
 ## \[2.11.1]
 
 ### Bug Fixes

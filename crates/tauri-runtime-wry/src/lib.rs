@@ -4067,12 +4067,12 @@ fn handle_user_message<T: UserEvent>(
               not(target_env = "ohos")
             ))]
             {
-              f(webview.webview());
+              _f(webview.webview());
             }
             #[cfg(target_os = "macos")]
             {
               use wry::WebViewExtMacOS;
-              f(Webview {
+              _f(Webview {
                 webview: Retained::into_raw(webview.webview()) as *mut objc2::runtime::AnyObject
                   as *mut std::ffi::c_void,
                 manager: Retained::into_raw(webview.manager()) as *mut objc2::runtime::AnyObject
@@ -4085,7 +4085,7 @@ fn handle_user_message<T: UserEvent>(
             {
               use wry::WebViewExtIOS;
 
-              f(Webview {
+              _f(Webview {
                 webview: Retained::into_raw(webview.inner.webview())
                   as *mut objc2::runtime::AnyObject
                   as *mut std::ffi::c_void,
@@ -4097,14 +4097,14 @@ fn handle_user_message<T: UserEvent>(
             }
             #[cfg(windows)]
             {
-              f(Webview {
+              _f(Webview {
                 controller: webview.controller(),
                 environment: webview.environment(),
               });
             }
             #[cfg(target_os = "android")]
             {
-              f(webview.handle())
+              _f(webview.handle())
             }
             #[cfg(target_env = "ohos")]
             {

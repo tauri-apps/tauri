@@ -8,7 +8,7 @@ mod windows;
 #[allow(dead_code)]
 pub fn error<S: AsRef<str>>(_err: S) {
   #[cfg(windows)]
-  windows::error(err);
+  windows::error(_err);
 
   #[cfg(not(windows))]
   {

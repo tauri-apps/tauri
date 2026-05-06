@@ -217,14 +217,6 @@ use std::{
 };
 use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-pub use tauri_runtime_wry::webview_version;
-
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub use tauri_runtime_cef::webview_version;
-
 #[cfg(target_os = "macos")]
 #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
 pub use runtime::ActivationPolicy;
@@ -333,6 +325,22 @@ pub use pattern::Pattern;
 /// Whether we are running in development mode or not.
 pub const fn is_dev() -> bool {
   !cfg!(feature = "custom-protocol")
+}
+
+// TODO: Fix the error types
+/// Get WebView/Webkit version on current platform.
+pub fn webview_version() -> Result<String> {
+  #[cfg(feature = "cef")]
+  if let Ok(v) = tauri_runtime_cef::webview_version() {
+    return Ok(v)
+  }
+
+  #[cfg(feature = "wry")]
+  if let Ok(v) = tauri_runtime_wry::webview_version() {
+    return Ok(v)
+  }
+
+  Ok("0.0.0".to_string())
 }
 
 /// Represents a container of file assets that are retrievable during runtime.

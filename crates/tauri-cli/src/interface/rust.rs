@@ -740,6 +740,23 @@ impl CargoSettings {
   }
 }
 
+fn manifest_bin_required_features_match(bin: &BinarySettings, options: &Options) -> bool {
+  bin.required_features.as_ref().map_or(true, |req_features| {
+    req_features
+      .iter()
+      .all(|feat| options.features.contains(feat))
+  })
+}
+
+fn manifest_bin_matches_discovered_path(bin: &BinarySettings, name: &str, path: &Path) -> bool {
+  bin.name == name
+    || bin.file_name() == name
+    || bin
+      .path
+      .as_deref()
+      .is_some_and(|bin_path| path.ends_with(bin_path))
+}
+
 pub struct RustAppSettings {
   manifest: Mutex<Manifest>,
   cargo_settings: CargoSettings,
@@ -941,14 +958,8 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        if let Some(req_features) = &bin.required_features {
-          // Check if all required features are enabled.
-          if !req_features
-            .iter()
-            .all(|feat| options.features.contains(feat))
-          {
-            continue;
-          }
+        if !manifest_bin_required_features_match(bin, options) {
+          continue;
         }
         let file_name = bin.file_name();
         let is_main = file_name == self.cargo_package_settings.name || file_name == default_run;
@@ -992,6 +1003,15 @@ impl AppSettings for RustAppSettings {
     }
 
     for (name, path) in binaries_paths {
+      if self.cargo_settings.bin.as_ref().is_some_and(|bins| {
+        bins.iter().any(|bin| {
+          manifest_bin_matches_discovered_path(bin, &name, &path)
+            && !manifest_bin_required_features_match(bin, options)
+        })
+      }) {
+        continue;
+      }
+
       // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
       let bin_exists = binaries
         .iter()
@@ -1730,6 +1750,7 @@ mod pkgconfig_utils {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::fs;
 
   #[test]
   fn parse_cargo_option() {
@@ -1890,5 +1911,49 @@ mod tests {
         PathBuf::from("/path/to/env/dir/x86_64-pc-windows-msvc/release")
       );
     }
+  }
+
+  #[test]
+  fn get_binaries_skips_feature_gated_src_bin_fallback() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let tauri_dir = temp_dir.path();
+
+    fs::create_dir_all(tauri_dir.join("src/bin")).unwrap();
+    fs::write(
+      tauri_dir.join("Cargo.toml"),
+      r#"[package]
+name = "fixture-app"
+version = "1.0.0"
+
+[[bin]]
+name = "fixture-app"
+path = "src/main.rs"
+
+[[bin]]
+name = "generate-bindings"
+path = "src/bin/generate-bindings.rs"
+required-features = ["dev-tools"]
+"#,
+    )
+    .unwrap();
+    fs::write(tauri_dir.join("src/main.rs"), "fn main() {}").unwrap();
+    fs::write(
+      tauri_dir.join("src/bin/generate-bindings.rs"),
+      "fn main() {}",
+    )
+    .unwrap();
+
+    let config = Config {
+      identifier: "com.example.fixture".into(),
+      ..Default::default()
+    };
+
+    let settings = RustAppSettings::new(&config, Manifest::default(), None, tauri_dir).unwrap();
+    let binaries = settings
+      .get_binaries(&Options::default(), tauri_dir)
+      .unwrap();
+
+    assert!(binaries.iter().any(|bin| bin.name() == "fixture-app"));
+    assert!(!binaries.iter().any(|bin| bin.name() == "generate-bindings"));
   }
 }

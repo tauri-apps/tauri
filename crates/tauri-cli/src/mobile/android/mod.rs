@@ -904,11 +904,7 @@ fn restart_emulator(env: &Env, serial_no: &str, emulator: &emulator::Emulator) -
   log::info!("Waiting for emulator to exit...");
   loop {
     let devices = adb::device_list(env).unwrap_or_default();
-    if devices
-      .into_iter()
-      .find(|d| d.serial_no() == serial_no)
-      .is_none()
-    {
+    if !devices.into_iter().any(|d| d.serial_no() == serial_no) {
       break;
     }
     sleep(Duration::from_secs(1));

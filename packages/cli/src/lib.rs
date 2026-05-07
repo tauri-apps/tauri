@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(any(target_os = "macos", target_os = "linux", windows))]
-
 use std::sync::Arc;
 
-use napi::{
-  threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
-  Error, Result, Status,
-};
+#[cfg(not(target_family = "wasm"))]
+use napi::threadsafe_function::ThreadsafeFunctionCallMode;
+use napi::{threadsafe_function::ThreadsafeFunction, Error, Result, Status};
 
+#[cfg(not(target_family = "wasm"))]
 #[napi_derive::napi]
 pub fn run(
   args: Vec<String>,
@@ -45,6 +43,19 @@ pub fn run(
   });
 
   Ok(())
+}
+
+#[cfg(target_family = "wasm")]
+#[napi_derive::napi]
+pub fn run(
+  _args: Vec<String>,
+  _bin_name: Option<String>,
+  _callback: Arc<ThreadsafeFunction<bool>>,
+) -> Result<()> {
+  Err(Error::new(
+    Status::GenericFailure,
+    "The Tauri CLI WebAssembly binding can be loaded in web/WASI environments, but running Tauri commands requires native toolchains and process spawning.",
+  ))
 }
 
 #[napi_derive::napi]

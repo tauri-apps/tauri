@@ -96,6 +96,10 @@ importers:
         version: 8.58.2(eslint@10.0.2(jiti@2.6.1))(typescript@6.0.2)
 
   packages/cli:
+    dependencies:
+      '@napi-rs/wasm-runtime':
+        specifier: ^1.1.0
+        version: 1.1.2(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)
     devDependencies:
       '@napi-rs/cli':
         specifier: 3.4.1
@@ -2809,17 +2813,14 @@ snapshots:
     dependencies:
       '@emnapi/wasi-threads': 1.1.0
       tslib: 2.8.1
-    optional: true
 
   '@emnapi/runtime@1.8.1':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@emnapi/wasi-threads@1.1.0':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@epic-web/invariant@1.0.0': {}
 
@@ -3413,7 +3414,6 @@ snapshots:
       '@emnapi/core': 1.8.1
       '@emnapi/runtime': 1.8.1
       '@tybys/wasm-util': 0.10.1
-    optional: true
 
   '@napi-rs/wasm-tools-android-arm-eabi@1.0.1':
     optional: true
@@ -3814,7 +3814,6 @@ snapshots:
   '@tybys/wasm-util@0.10.1':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@types/chai@5.2.3':
     dependencies:

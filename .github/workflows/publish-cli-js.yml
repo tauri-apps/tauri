@@ -150,6 +150,38 @@ jobs:
           name: bindings-${{ matrix.settings.target }}
           path: packages/cli/${{ env.APP_NAME }}.*.node
           if-no-files-found: error
+  build-web:
+    name: stable - wasm32-wasip1-threads - web
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g --force corepack
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1-threads
+      - name: Install dependencies
+        run: pnpm i --frozen-lockfile --ignore-scripts
+      - name: Build WebAssembly binding
+        run: pnpm build:web
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-wasm32-wasip1-threads
+          path: |
+            packages/cli/cli.wasi-browser.js
+            packages/cli/cli.wasi.cjs
+            packages/cli/cli.wasi.d.ts
+            packages/cli/cli.wasm32-wasi.debug.wasm
+            packages/cli/cli.wasm32-wasi.wasm
+            packages/cli/wasi-worker-browser.mjs
+            packages/cli/wasi-worker.mjs
+          if-no-files-found: error
   #  build-freebsd:
   #    runs-on: macos-10.15
   #    name: Build FreeBSD
@@ -366,6 +398,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       #- build-freebsd
+      - build-web
       - test-macOS-windows-binding
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding

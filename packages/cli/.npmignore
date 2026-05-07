@@ -9,6 +9,9 @@ test
 rustfmt.toml
 *.node
 __tests__
+artifacts
 src
 Cargo.toml
 build.rs
+build-web.js
+collect-artifacts.js

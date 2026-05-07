@@ -1,0 +1,41 @@
+{
+  "name": "@tauri-apps/cli-wasm32-wasi",
+  "version": "0.0.0",
+  "cpu": [
+    "wasm32"
+  ],
+  "main": "cli.wasi.cjs",
+  "browser": "cli.wasi-browser.js",
+  "types": "cli.wasi.d.ts",
+  "files": [
+    "cli.wasi.cjs",
+    "cli.wasi-browser.js",
+    "cli.wasi.d.ts",
+    "cli.wasm32-wasi.wasm",
+    "cli.wasm32-wasi.debug.wasm",
+    "wasi-worker.mjs",
+    "wasi-worker-browser.mjs"
+  ],
+  "description": "Command line interface for building Tauri apps",
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "contributors": [
+    "Tauri Programme within The Commons Conservancy"
+  ],
+  "license": "Apache-2.0 OR MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "dependencies": {
+    "@napi-rs/wasm-runtime": "^1.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

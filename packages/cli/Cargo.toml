@@ -11,13 +11,18 @@ napi = "=3.4"
 napi-sys = "=3.0"
 napi-derive-backend = "=3.0.0"
 napi-derive = "=3.3.0"
-tauri-cli = { path = "../../crates/tauri-cli", default-features = false }
 log = "0.4.21"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+tauri-cli = { path = "../../crates/tauri-cli", default-features = false, optional = true }
 
 [build-dependencies]
 napi-build = "=2.2"
 
 [features]
-default = ["tauri-cli/default"]
-native-tls = ["tauri-cli/native-tls"]
-native-tls-vendored = ["tauri-cli/native-tls-vendored"]
+default = ["native-cli", "rustls", "platform-certs"]
+native-cli = ["dep:tauri-cli"]
+native-tls = ["native-cli", "tauri-cli?/native-tls"]
+native-tls-vendored = ["native-cli", "tauri-cli?/native-tls-vendored"]
+rustls = ["native-cli", "tauri-cli?/rustls"]
+platform-certs = ["native-cli", "tauri-cli?/platform-certs"]

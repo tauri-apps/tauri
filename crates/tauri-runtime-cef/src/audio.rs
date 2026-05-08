@@ -95,7 +95,10 @@ fn registry() -> &'static AudioHandlerRegistry {
 /// match in registration order is taken — callers that want strict
 /// uniqueness should pick prefixes that don't overlap (the meet-audio
 /// path uses the per-call URL which is unique by construction).
-pub fn register_audio_handler<F>(url_prefix: impl Into<String>, handler: F) -> AudioHandlerRegistration
+pub fn register_audio_handler<F>(
+  url_prefix: impl Into<String>,
+  handler: F,
+) -> AudioHandlerRegistration
 where
   F: Fn(AudioStreamEvent) + Send + Sync + 'static,
 {

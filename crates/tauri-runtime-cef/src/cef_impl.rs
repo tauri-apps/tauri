@@ -634,6 +634,111 @@ wrap_context_menu_handler! {
   }
 }
 
+// OpenHuman extension: per-browser audio capture. See `crate::audio` for
+// the public registration API. The wrap-struct is constructed with the
+// resolved user callback (so the runtime never installs an audio handler
+// for a browser whose initial URL doesn't match a registered prefix —
+// CEF's audio path stays inert for every other window).
+//
+// `channels` is tracked in a Mutex<i32> seeded from `on_audio_stream_started`
+// because `on_audio_stream_packet` doesn't carry the count itself; we
+// need it to slice the `*const f32` planar pointer array safely.
+wrap_audio_handler! {
+  struct BrowserAudioHandler {
+    handler: Arc<crate::audio::AudioStreamHandler>,
+    channels: Arc<Mutex<i32>>,
+  }
+
+  impl AudioHandler {
+    fn audio_parameters(
+      &self,
+      _browser: Option<&mut Browser>,
+      _params: Option<&mut cef::AudioParameters>,
+    ) -> ::std::os::raw::c_int {
+      // Returning non-zero accepts the default parameters Chromium has
+      // already populated into `_params` (typically 48kHz / channel layout
+      // matching the renderer pipeline). Capture downstream resamples to
+      // 16kHz for STT.
+      1
+    }
+
+    fn on_audio_stream_started(
+      &self,
+      _browser: Option<&mut Browser>,
+      params: Option<&cef::AudioParameters>,
+      channels: ::std::os::raw::c_int,
+    ) {
+      if let Ok(mut guard) = self.channels.lock() {
+        *guard = channels;
+      }
+      let (sample_rate_hz, frames_per_buffer) = match params {
+        Some(p) => (p.sample_rate, p.frames_per_buffer),
+        None => (0, 0),
+      };
+      (self.handler)(crate::audio::AudioStreamEvent::Started {
+        sample_rate_hz,
+        channels,
+        frames_per_buffer,
+      });
+    }
+
+    fn on_audio_stream_packet(
+      &self,
+      _browser: Option<&mut Browser>,
+      data: *mut *const f32,
+      frames: ::std::os::raw::c_int,
+      pts: i64,
+    ) {
+      // CEF hands us a planar float32 layout: an array of `channels`
+      // pointers, each pointing to `frames` consecutive samples. Copy
+      // out of CEF's transient buffer immediately — the pointer is
+      // invalidated when this function returns.
+      let channels = match self.channels.lock() {
+        Ok(g) => *g,
+        Err(_) => 0,
+      };
+      if data.is_null() || frames <= 0 || channels <= 0 {
+        return;
+      }
+      let frames = frames as usize;
+      let channels = channels as usize;
+      let mut planes: Vec<Vec<f32>> = Vec::with_capacity(channels);
+      // Safety: `data` is a CEF-owned `channels`-long array of `*const f32`,
+      // each pointing to `frames` valid samples. We treat both as readonly
+      // for the lifetime of this call only and never store the pointers.
+      unsafe {
+        for ch in 0..channels {
+          let plane_ptr = *data.add(ch);
+          if plane_ptr.is_null() {
+            planes.push(vec![0.0; frames]);
+            continue;
+          }
+          let slice = std::slice::from_raw_parts(plane_ptr, frames);
+          planes.push(slice.to_vec());
+        }
+      }
+      (self.handler)(crate::audio::AudioStreamEvent::Packet {
+        channels: planes,
+        pts_ms: pts,
+      });
+    }
+
+    fn on_audio_stream_stopped(&self, _browser: Option<&mut Browser>) {
+      (self.handler)(crate::audio::AudioStreamEvent::Stopped);
+    }
+
+    fn on_audio_stream_error(
+      &self,
+      _browser: Option<&mut Browser>,
+      message: Option<&CefString>,
+    ) {
+      let msg = message.map(|m| format!("{m}")).unwrap_or_default();
+      log::warn!("[cef-audio] stream error: {msg}");
+      (self.handler)(crate::audio::AudioStreamEvent::Error(msg));
+    }
+  }
+}
+
 cef::wrap_dev_tools_message_observer! {
   struct TauriDevToolsProtocolObserver {
     handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
@@ -1177,6 +1282,21 @@ wrap_client! {
 
     fn permission_handler(&self) -> Option<PermissionHandler> {
       Some(BrowserPermissionHandler::new())
+    }
+
+    // OpenHuman extension: install a CEF audio handler for browsers whose
+    // initial URL matches a prefix registered via `crate::audio::
+    // register_audio_handler`. Returns `None` for every other browser so
+    // CEF's audio plumbing stays inert for non-meet windows. Without
+    // `Some(handler)` here, CEF never starts streaming PCM to us, so
+    // there's no perf cost on browsers that don't opt in.
+    fn audio_handler(&self) -> Option<AudioHandler> {
+      let url = self.initial_url.as_deref()?;
+      let handler = crate::audio::handler_for_url(url)?;
+      Some(BrowserAudioHandler::new(
+        handler,
+        Arc::new(Mutex::new(0)),
+      ))
     }
 
     fn on_process_message_received(

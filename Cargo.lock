@@ -9373,6 +9373,7 @@ dependencies = [
  "html5ever 0.29.1",
  "http 1.3.1",
  "kuchikiki",
+ "log",
  "objc2 0.6.4",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",

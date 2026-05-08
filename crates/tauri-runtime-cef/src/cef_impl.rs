@@ -9,7 +9,7 @@ use dioxus_debug_cell::RefCell;
 use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
-  path::PathBuf,
+  path::{Component, Path, PathBuf},
   sync::{
     Arc, Mutex,
     atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering},
@@ -85,7 +85,6 @@ type PendingInitialLoads = Arc<Mutex<HashMap<i32, PendingInitialLoad>>>;
 const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
 const IPC_MESSAGE_NAME: &str = "tauri:ipc";
 const IPC_POST_MESSAGE_FUNCTION: &str = "postMessage";
-const ABOUT_BLANK: &str = "about:blank";
 const INITIAL_LOAD_URL: &str = concat!(
   "data:text/html;charset=utf-8,",
   "%3C!doctype%20html%3E",
@@ -570,6 +569,10 @@ pub struct Context<T: UserEvent> {
   pub next_window_event_id: Arc<AtomicU32>,
   pub next_webview_event_id: Arc<AtomicU32>,
   pub scheme_handler_registry: SchemeHandlerRegistry,
+  /// Root cache path passed to [`cef::Settings::cache_path`] during
+  /// [`cef::initialize`]. Per-webview request context cache paths must be
+  /// equal to or a child of this directory.
+  pub cache_path: Arc<PathBuf>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -3898,7 +3901,8 @@ fn create_browser_window<T: UserEvent>(
     "https"
   } else {
     "http"
-  };
+  }
+  .to_string();
 
   let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocolHandler>>> =
     uri_scheme_protocols
@@ -3912,17 +3916,6 @@ fn create_browser_window<T: UserEvent>(
     .map(|scheme| format!("{scheme}.localhost"))
     .collect::<Vec<_>>();
 
-  let mut request_context = request_context_from_webview_attributes(
-    context,
-    &webview_attributes,
-    &custom_schemes,
-    custom_protocol_scheme,
-    &initialization_scripts,
-  );
-  apply_request_context_theme_scheme(request_context.as_ref(), window_builder.theme);
-
-  let browser_settings = browser_settings_from_webview_attributes(&webview_attributes);
-
   // Create the AppWindow with BrowserWindow variant before creating the browser
   let force_close = Arc::new(AtomicBool::new(false));
   let attributes = Arc::new(RefCell::new(window_builder));
@@ -3931,7 +3924,7 @@ fn create_browser_window<T: UserEvent>(
   let url = CefString::from(INITIAL_LOAD_URL);
   let drag_drop_state = Arc::new(Mutex::new(DragDropState::default()));
 
-  let mut client = BrowserClient::new(
+  let client = BrowserClient::new(
     WindowKind::Browser,
     window_id,
     webview_id,
@@ -3952,102 +3945,133 @@ fn create_browser_window<T: UserEvent>(
     None,
   );
 
-  let mut bounds = cef::Rect {
-    x: 0,
-    y: 0,
-    width: 800,
-    height: 600,
-  };
-  let device_scale_factor = display_get_primary()
-    .map(|d| d.device_scale_factor() as f64)
-    .unwrap_or(1.);
-  if let Some(size) = attributes.borrow().inner_size {
-    let size = size_to_cef(size, device_scale_factor);
-    bounds.width = size.width;
-    bounds.height = size.height;
-  }
-  if let Some(position) = attributes.borrow().position {
-    let position = position_to_cef(position, device_scale_factor);
-    bounds.x = position.x;
-    bounds.y = position.y;
-  }
+  let webview_attributes = Arc::new(RefCell::new(webview_attributes));
 
-  let window_info = cef::WindowInfo {
-    bounds,
-    ..Default::default()
-  };
+  // See `create_webview` for why browser creation is deferred to the
+  // request context's `on_request_context_initialized` callback, and why we
+  // synchronously pump the message loop afterwards.
+  let (init_done, on_initialized) = deferred_init_continuation({
+    let context = context.clone();
+    let webview_attributes = webview_attributes.clone();
+    let initialization_scripts = initialization_scripts.clone();
+    let custom_protocol_scheme = custom_protocol_scheme.clone();
+    let attributes = attributes.clone();
+    let force_close = force_close.clone();
+    let mut client = client;
+    move |mut request_context| {
+      let theme = attributes.borrow().theme;
+      apply_request_context_theme_scheme(request_context.as_ref(), theme);
 
-  let Some(browser) = browser_host_create_browser_sync(
-    Some(&window_info),
-    Some(&mut client),
-    Some(&url),
-    Some(&browser_settings),
-    None,
-    request_context.as_mut(),
-  ) else {
-    eprintln!("Failed to create browser");
-    return;
-  };
-  let browser_id_val = browser.identifier();
+      let browser_settings = browser_settings_from_webview_attributes(&webview_attributes.borrow());
 
-  {
-    let mut registry = context.scheme_handler_registry.lock().unwrap();
-    for (scheme, handler) in &uri_scheme_protocols {
-      registry.insert(
-        (browser_id_val, scheme.clone()),
-        (
-          webview_label.clone(),
-          handler.clone(),
-          initialization_scripts.clone(),
-        ),
+      let mut bounds = cef::Rect {
+        x: 0,
+        y: 0,
+        width: 800,
+        height: 600,
+      };
+      let device_scale_factor = display_get_primary()
+        .map(|d| d.device_scale_factor() as f64)
+        .unwrap_or(1.);
+      if let Some(size) = attributes.borrow().inner_size {
+        let size = size_to_cef(size, device_scale_factor);
+        bounds.width = size.width;
+        bounds.height = size.height;
+      }
+      if let Some(position) = attributes.borrow().position {
+        let position = position_to_cef(position, device_scale_factor);
+        bounds.x = position.x;
+        bounds.y = position.y;
+      }
+
+      let window_info = cef::WindowInfo {
+        bounds,
+        ..Default::default()
+      };
+
+      let Some(browser) = browser_host_create_browser_sync(
+        Some(&window_info),
+        Some(&mut client),
+        Some(&url),
+        Some(&browser_settings),
+        None,
+        request_context.as_mut(),
+      ) else {
+        eprintln!("Failed to create browser");
+        return;
+      };
+      let browser_id_val = browser.identifier();
+
+      {
+        let mut registry = context.scheme_handler_registry.lock().unwrap();
+        for (scheme, handler) in &uri_scheme_protocols {
+          registry.insert(
+            (browser_id_val, scheme.clone()),
+            (
+              webview_label.clone(),
+              handler.clone(),
+              initialization_scripts.clone(),
+            ),
+          );
+        }
+      }
+      let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+        Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+      >::new()));
+      let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
+      let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
+        &browser,
+        devtools_protocol_handlers.clone(),
+        pending_initial_loads.clone(),
+      )));
+
+      load_initial_url_after_registering_initialization_scripts(
+        &browser,
+        &initialization_scripts,
+        &custom_protocol_scheme,
+        &custom_scheme_domain_names,
+        &initial_url,
+        &pending_initial_loads,
+      );
+
+      let browser = CefWebview::Browser(browser);
+
+      context.windows.borrow_mut().insert(
+        window_id,
+        AppWindow {
+          label,
+          window: crate::AppWindowKind::BrowserWindow,
+          force_close,
+          attributes,
+          webviews: vec![AppWebview {
+            webview_id,
+            browser_id: Arc::new(RefCell::new(browser_id_val)),
+            label: webview_label,
+            inner: browser,
+            bounds: Arc::new(Mutex::new(None)),
+            devtools_enabled,
+            uri_scheme_protocols: Arc::new(uri_scheme_protocols),
+            initialization_scripts,
+            devtools_protocol_handlers,
+            devtools_observer_registration,
+            webview_attributes,
+          }],
+          window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
+          webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
+        },
       );
     }
-  }
-  let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
-    Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
-  >::new()));
-  let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
-  let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
-    &browser,
-    devtools_protocol_handlers.clone(),
-    pending_initial_loads.clone(),
-  )));
+  });
 
-  load_initial_url_after_registering_initialization_scripts(
-    &browser,
-    &initialization_scripts,
-    custom_protocol_scheme,
-    &custom_scheme_domain_names,
-    &initial_url,
-    &pending_initial_loads,
+  request_context_from_webview_attributes(
+    context,
+    &webview_attributes.borrow(),
+    &custom_schemes,
+    &custom_protocol_scheme,
+    on_initialized,
   );
 
-  let browser = CefWebview::Browser(browser);
-
-  context.windows.borrow_mut().insert(
-    window_id,
-    AppWindow {
-      label,
-      window: crate::AppWindowKind::BrowserWindow,
-      force_close: force_close.clone(),
-      attributes: attributes.clone(),
-      webviews: vec![AppWebview {
-        webview_id,
-        browser_id: Arc::new(RefCell::new(browser_id_val)),
-        label: webview_label,
-        inner: browser,
-        bounds: Arc::new(Mutex::new(None)),
-        devtools_enabled,
-        uri_scheme_protocols: Arc::new(uri_scheme_protocols),
-        initialization_scripts,
-        devtools_protocol_handlers,
-        devtools_observer_registration,
-        webview_attributes: Arc::new(RefCell::new(webview_attributes)),
-      }],
-      window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
-      webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
-    },
-  );
+  wait_for_deferred_init(&init_done);
 }
 
 pub(crate) fn create_window<T: UserEvent>(
@@ -4539,7 +4563,8 @@ pub(crate) fn create_webview<T: UserEvent>(
     "https"
   } else {
     "http"
-  };
+  }
+  .to_string();
 
   let custom_schemes = uri_scheme_protocols.keys().cloned().collect::<Vec<_>>();
   let custom_scheme_domain_names = custom_schemes
@@ -4556,7 +4581,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     DragDropEventTarget::Webview
   };
 
-  let mut client = BrowserClient::new(
+  let client = BrowserClient::new(
     WindowKind::Tauri,
     window_id,
     webview_id,
@@ -4583,33 +4608,6 @@ pub(crate) fn create_webview<T: UserEvent>(
       .map(|(k, v)| (k, Arc::new(v)))
       .collect();
 
-  let mut request_context = request_context_from_webview_attributes(
-    context,
-    &webview_attributes,
-    &custom_schemes,
-    custom_protocol_scheme,
-    &initialization_scripts,
-  );
-  let window_theme = context
-    .windows
-    .borrow()
-    .get(&window_id)
-    .and_then(|w| w.attributes.borrow().theme);
-  apply_request_context_theme_scheme(request_context.as_ref(), window_theme);
-
-  let browser_settings = browser_settings_from_webview_attributes(&webview_attributes);
-
-  let bounds = webview_attributes.bounds.map(|bounds| {
-    let device_scale_factor = window
-      .display()
-      .map(|d| d.device_scale_factor() as f64)
-      .unwrap_or(1.0);
-
-    rect_to_cef(bounds, device_scale_factor)
-  });
-
-  let window_handle = window.window_handle();
-
   let runtime_style = platform_specific_attributes
     .iter()
     .map(|attr| match attr {
@@ -4626,167 +4624,221 @@ pub(crate) fn create_webview<T: UserEvent>(
     CefRuntimeStyle::Chrome => cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME.into(),
   };
 
-  if kind == WebviewKind::WindowChild {
-    #[cfg(target_os = "macos")]
-    let window_handle = ensure_valid_content_view(window_handle);
+  let window_theme = context
+    .windows
+    .borrow()
+    .get(&window_id)
+    .and_then(|w| w.attributes.borrow().theme);
 
-    let mut window_info = cef::WindowInfo::default().set_as_child(
-      window_handle,
-      bounds.as_ref().unwrap_or(&cef::Rect::default()),
-    );
-    window_info.runtime_style = cef_runtime_style;
+  let webview_attributes = Arc::new(RefCell::new(webview_attributes));
 
-    let Some(browser_host) = browser_host_create_browser_sync(
-      Some(&window_info),
-      Some(&mut client),
-      Some(&url),
-      Some(&browser_settings),
-      Option::<&mut DictionaryValue>::None,
-      request_context.as_mut(),
-    ) else {
-      eprintln!("Failed to create browser");
-      return;
-    };
-    let browser_id_val = browser_host.identifier();
-    {
-      let mut registry = context.scheme_handler_registry.lock().unwrap();
-      for (scheme, handler) in &uri_scheme_protocols {
-        registry.insert(
-          (browser_id_val, scheme.clone()),
-          (
-            label.clone(),
-            handler.clone(),
-            initialization_scripts.clone(),
-          ),
+  // Browser creation is deferred to this continuation, which runs on the CEF
+  // UI thread once the request context's underlying Chromium `Profile` is
+  // initialized. Calling `browser_view_create` /
+  // `browser_host_create_browser_sync` synchronously after
+  // `request_context_create_context` would fail
+  // `CefRequestContextImpl::VerifyBrowserContext()` whenever the per-webview
+  // cache_path triggers `ChromeBrowserContext`'s asynchronous
+  // `CreateProfileAsync` branch (i.e., any non-default `data_directory`).
+  //
+  // We then pump the message loop after returning from the call below until
+  // the continuation has finished, so that the function appears synchronous
+  // to the runtime: any operation the caller queues against the new webview
+  // (`open_devtools`, `on_dev_tools_protocol`, ...) is guaranteed to find it.
+  let (init_done, on_initialized) = deferred_init_continuation({
+    let context = context.clone();
+    let webview_attributes = webview_attributes.clone();
+    let initialization_scripts = initialization_scripts.clone();
+    let custom_protocol_scheme = custom_protocol_scheme.clone();
+    let mut client = client;
+    move |mut request_context| {
+      apply_request_context_theme_scheme(request_context.as_ref(), window_theme);
+
+      let browser_settings = browser_settings_from_webview_attributes(&webview_attributes.borrow());
+
+      let bounds = webview_attributes.borrow().bounds.map(|b| {
+        let device_scale_factor = window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+        rect_to_cef(b, device_scale_factor)
+      });
+
+      let window_handle = window.window_handle();
+
+      if kind == WebviewKind::WindowChild {
+        #[cfg(target_os = "macos")]
+        let window_handle = ensure_valid_content_view(window_handle);
+
+        let mut window_info = cef::WindowInfo::default().set_as_child(
+          window_handle,
+          bounds.as_ref().unwrap_or(&cef::Rect::default()),
         );
+        window_info.runtime_style = cef_runtime_style;
+
+        let Some(browser_host) = browser_host_create_browser_sync(
+          Some(&window_info),
+          Some(&mut client),
+          Some(&url),
+          Some(&browser_settings),
+          Option::<&mut DictionaryValue>::None,
+          request_context.as_mut(),
+        ) else {
+          eprintln!("Failed to create browser");
+          return;
+        };
+        let browser_id_val = browser_host.identifier();
+        {
+          let mut registry = context.scheme_handler_registry.lock().unwrap();
+          for (scheme, handler) in &uri_scheme_protocols {
+            registry.insert(
+              (browser_id_val, scheme.clone()),
+              (
+                label.clone(),
+                handler.clone(),
+                initialization_scripts.clone(),
+              ),
+            );
+          }
+        }
+
+        let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+          Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+        >::new()));
+        let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
+        let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
+          &browser_host,
+          devtools_protocol_handlers.clone(),
+          pending_initial_loads.clone(),
+        )));
+
+        load_initial_url_after_registering_initialization_scripts(
+          &browser_host,
+          &initialization_scripts,
+          &custom_protocol_scheme,
+          &custom_scheme_domain_names,
+          &initial_url,
+          &pending_initial_loads,
+        );
+
+        // On Windows, set the browser window to be topmost to esnure correct z-order
+        #[cfg(windows)]
+        set_browser_on_top(&browser_host);
+
+        let browser = CefWebview::Browser(browser_host);
+
+        browser.set_bounds(bounds.as_ref());
+
+        // On Linux, explicitly set parent after creation as set_as_child may not work correctly
+        #[cfg(target_os = "linux")]
+        {
+          // Try to set parent - if window handle isn't available yet, this will be a no-op
+          // but the browser should become visible once the handle is available
+          browser.set_parent(&window);
+          // Ensure browser is visible after setting parent
+          browser.set_visible(1);
+          // Set bounds again after reparenting to ensure correct size
+          browser.set_bounds(bounds.as_ref());
+        }
+
+        let auto_resize = webview_attributes.borrow().auto_resize;
+        let initial_bounds_ratio = if auto_resize {
+          Some(webview_bounds_ratio(&window, bounds.clone(), &browser))
+        } else {
+          None
+        };
+
+        context
+          .windows
+          .borrow_mut()
+          .get_mut(&window_id)
+          .unwrap()
+          .webviews
+          .push(AppWebview {
+            label,
+            webview_id,
+            browser_id: Arc::new(RefCell::new(browser_id_val)),
+            bounds: Arc::new(Mutex::new(initial_bounds_ratio)),
+            inner: browser,
+            devtools_enabled,
+            uri_scheme_protocols: Arc::new(uri_scheme_protocols),
+            initialization_scripts,
+            devtools_protocol_handlers,
+            devtools_observer_registration,
+            webview_attributes,
+          });
+      } else {
+        let browser_id = Arc::new(RefCell::new(0));
+        let uri_scheme_protocols = Arc::new(uri_scheme_protocols);
+        let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
+          Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
+        >::new()));
+        let devtools_observer_registration = Arc::new(Mutex::new(None));
+        let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
+
+        #[allow(clippy::unnecessary_find_map)]
+        let mut browser_view_delegate = BrowserViewDelegateImpl::new(
+          browser_id.clone(),
+          runtime_style,
+          context.scheme_handler_registry.clone(),
+          label.clone(),
+          uri_scheme_protocols.clone(),
+          initialization_scripts.clone(),
+          custom_protocol_scheme.clone(),
+          custom_scheme_domain_names.clone(),
+          initial_url.clone(),
+          pending_initial_loads,
+          devtools_protocol_handlers.clone(),
+          devtools_observer_registration.clone(),
+          webview_attributes.clone(),
+        );
+
+        let browser_view = browser_view_create(
+          Some(&mut client),
+          Some(&url),
+          Some(&browser_settings),
+          Option::<&mut DictionaryValue>::None,
+          request_context.as_mut(),
+          Some(&mut browser_view_delegate),
+        )
+        .expect("Failed to create browser view");
+
+        let browser_webview = CefWebview::BrowserView(browser_view.clone());
+
+        window.add_child_view(Some(&mut View::from(&browser_view)));
+
+        context
+          .windows
+          .borrow_mut()
+          .get_mut(&window_id)
+          .unwrap()
+          .webviews
+          .push(AppWebview {
+            inner: browser_webview,
+            label,
+            webview_id,
+            browser_id,
+            bounds: Arc::new(Mutex::new(None)),
+            devtools_enabled,
+            uri_scheme_protocols,
+            initialization_scripts,
+            devtools_protocol_handlers,
+            devtools_observer_registration,
+            webview_attributes,
+          });
       }
     }
+  });
 
-    let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
-      Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
-    >::new()));
-    let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
-    let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
-      &browser_host,
-      devtools_protocol_handlers.clone(),
-      pending_initial_loads.clone(),
-    )));
+  request_context_from_webview_attributes(
+    context,
+    &webview_attributes.borrow(),
+    &custom_schemes,
+    &custom_protocol_scheme,
+    on_initialized,
+  );
 
-    load_initial_url_after_registering_initialization_scripts(
-      &browser_host,
-      &initialization_scripts,
-      custom_protocol_scheme,
-      &custom_scheme_domain_names,
-      &initial_url,
-      &pending_initial_loads,
-    );
-
-    // On Windows, set the browser window to be topmost to esnure correct z-order
-    #[cfg(windows)]
-    set_browser_on_top(&browser_host);
-
-    let browser = CefWebview::Browser(browser_host);
-
-    browser.set_bounds(bounds.as_ref());
-
-    // On Linux, explicitly set parent after creation as set_as_child may not work correctly
-    #[cfg(target_os = "linux")]
-    {
-      // Try to set parent - if window handle isn't available yet, this will be a no-op
-      // but the browser should become visible once the handle is available
-      browser.set_parent(&window);
-      // Ensure browser is visible after setting parent
-      browser.set_visible(1);
-      // Set bounds again after reparenting to ensure correct size
-      browser.set_bounds(bounds.as_ref());
-    }
-
-    let initial_bounds_ratio = if webview_attributes.auto_resize {
-      Some(webview_bounds_ratio(&window, bounds.clone(), &browser))
-    } else {
-      None
-    };
-
-    context
-      .windows
-      .borrow_mut()
-      .get_mut(&window_id)
-      .unwrap()
-      .webviews
-      .push(AppWebview {
-        label,
-        webview_id,
-        browser_id: Arc::new(RefCell::new(browser_id_val)),
-        bounds: Arc::new(Mutex::new(initial_bounds_ratio)),
-        inner: browser,
-        devtools_enabled,
-        uri_scheme_protocols: Arc::new(uri_scheme_protocols),
-        initialization_scripts,
-        devtools_protocol_handlers,
-        devtools_observer_registration,
-        webview_attributes: Arc::new(RefCell::new(webview_attributes)),
-      });
-  } else {
-    let browser_id = Arc::new(RefCell::new(0));
-    let uri_scheme_protocols = Arc::new(uri_scheme_protocols);
-    let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
-      Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
-    >::new()));
-    let devtools_observer_registration = Arc::new(Mutex::new(None));
-    let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
-    let webview_attributes = Arc::new(RefCell::new(webview_attributes));
-
-    #[allow(clippy::unnecessary_find_map)]
-    let mut browser_view_delegate = BrowserViewDelegateImpl::new(
-      browser_id.clone(),
-      runtime_style,
-      context.scheme_handler_registry.clone(),
-      label.clone(),
-      uri_scheme_protocols.clone(),
-      initialization_scripts.clone(),
-      custom_protocol_scheme.to_string(),
-      custom_scheme_domain_names.clone(),
-      initial_url.clone(),
-      pending_initial_loads,
-      devtools_protocol_handlers.clone(),
-      devtools_observer_registration.clone(),
-      webview_attributes.clone(),
-    );
-
-    let browser_view = browser_view_create(
-      Some(&mut client),
-      Some(&url),
-      Some(&browser_settings),
-      Option::<&mut DictionaryValue>::None,
-      request_context.as_mut(),
-      Some(&mut browser_view_delegate),
-    )
-    .expect("Failed to create browser view");
-
-    let browser_webview = CefWebview::BrowserView(browser_view.clone());
-
-    window.add_child_view(Some(&mut View::from(&browser_view)));
-
-    context
-      .windows
-      .borrow_mut()
-      .get_mut(&window_id)
-      .unwrap()
-      .webviews
-      .push(AppWebview {
-        inner: browser_webview,
-        label,
-        webview_id,
-        browser_id,
-        bounds: Arc::new(Mutex::new(None)),
-        devtools_enabled,
-        uri_scheme_protocols,
-        initialization_scripts,
-        devtools_protocol_handlers,
-        devtools_observer_registration,
-        webview_attributes,
-      });
-  }
+  wait_for_deferred_init(&init_done);
 }
 
 #[cfg(windows)]
@@ -4893,24 +4945,172 @@ fn browser_settings_from_webview_attributes(
   }
 }
 
+/// Resolves a CEF-compatible cache path for a per-webview request context.
+///
+/// CEF requires `RequestContextSettings.cache_path` to be either empty (which
+/// puts the context in incognito mode) or an absolute path that is equal to,
+/// or a child directory of, `Settings.root_cache_path` (which defaults to
+/// `Settings.cache_path` when not set explicitly). Any value outside of that
+/// root makes `request_context_create_context` (and downstream browser
+/// creation) fail.
+///
+/// To support an arbitrary [`WebviewAttributes::data_directory`] while
+/// honoring this constraint we:
+///
+/// * use the requested path directly when it already lives under the global
+///   cache root, so callers that opt in to a path under the app cache get the
+///   exact location they asked for;
+/// * join relative paths without parent (`..`) components onto the root cache
+///   path (typical short labels); and
+/// * otherwise derive a stable direct child folder under `<root>/<hash>` from
+///   the requested path, preserving isolation between webviews. Distinct
+///   `data_directory` values produce distinct profiles, and the same value
+///   maps to the same on-disk profile across runs.
+fn resolve_request_context_cache_path(global_cache_path: &Path, data_directory: &Path) -> PathBuf {
+  if data_directory.is_absolute() {
+    if data_directory.starts_with(global_cache_path) {
+      return data_directory.to_path_buf();
+    } else {
+      log::warn!(
+        "data directory is not a child of the global cache path, we will derive a profile hash from it"
+      );
+    }
+  } else if !data_directory
+    .components()
+    .any(|c| matches!(c, Component::ParentDir))
+  {
+    return global_cache_path.join(data_directory);
+  } else {
+    log::warn!(
+      "data directory is a relative path with parent components, we will derive a profile hash from it"
+    );
+  }
+
+  let mut hasher = Sha256::new();
+  hasher.update(data_directory.as_os_str().as_encoded_bytes());
+  let hash = hasher.finalize();
+  let suffix = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&hash[..16]);
+  let path = global_cache_path.join(format!("Profile-{suffix}"));
+  log::info!(
+    "derived profile hash from data directory: {suffix}, cache path: {}",
+    path.display()
+  );
+  path
+}
+
+/// Continuation invoked on the CEF UI thread once the request context's
+/// underlying browser context has finished asynchronous initialization.
+///
+/// Receives a fresh handle to the same [`RequestContext`] that was created in
+/// [`request_context_from_webview_attributes`], so the continuation can pass
+/// it to `browser_view_create` / `browser_host_create_browser_sync` knowing
+/// that `VerifyBrowserContext()` will succeed.
+type RequestContextInitContinuation = Box<dyn FnOnce(Option<RequestContext>) + 'static>;
+
+/// Wraps a deferred-init continuation so that it always flips a shared
+/// completion flag when it exits, regardless of how it exits (normal return,
+/// early `return` on browser-create failure, or panic).
+///
+/// Returns the completion flag plus the wrapped continuation.
+fn deferred_init_continuation<F>(work: F) -> (Arc<AtomicBool>, RequestContextInitContinuation)
+where
+  F: FnOnce(Option<RequestContext>) + 'static,
+{
+  struct Guard(Arc<AtomicBool>);
+  impl Drop for Guard {
+    fn drop(&mut self) {
+      self.0.store(true, Ordering::SeqCst);
+    }
+  }
+
+  let flag = Arc::new(AtomicBool::new(false));
+  let guard = Guard(flag.clone());
+  let wrapped: RequestContextInitContinuation = Box::new(move |request_context| {
+    let _guard = guard;
+    work(request_context);
+  });
+  (flag, wrapped)
+}
+
+/// Pump the CEF UI-thread message loop until `flag` is `true`.
+///
+/// Browser creation goes through `RequestContextHandler::on_request_context_initialized`,
+/// which CEF always dispatches via `CEF_POST_TASK(CEF_UIT, ...)`. Tauri runs
+/// CEF with an external message pump (see `cef::do_message_loop_work` in the
+/// runtime's main loop), so the only way for that posted task to actually
+/// execute is for someone on this thread to call `do_message_loop_work()`.
+///
+/// Spinning here keeps `create_webview` / `create_browser_window` synchronous
+/// from the caller's perspective: the function does not return until the
+/// browser exists in `context.windows`, so any subsequent dispatcher call
+/// (e.g. `webview.open_devtools()`, `webview.on_dev_tools_protocol(...)`)
+/// can find the webview.
+fn wait_for_deferred_init(flag: &Arc<AtomicBool>) {
+  while !flag.load(Ordering::SeqCst) {
+    cef::do_message_loop_work();
+  }
+}
+
+wrap_request_context_handler! {
+  struct WebviewRequestContextHandler {
+    on_initialized: Arc<Mutex<Option<RequestContextInitContinuation>>>,
+  }
+
+  impl RequestContextHandler {
+    fn on_request_context_initialized(&self, request_context: Option<&mut RequestContext>) {
+      let Some(callback) = self.on_initialized.lock().unwrap().take() else {
+        return;
+      };
+      let request_context = request_context.map(|rc| rc.clone());
+      callback(request_context);
+    }
+  }
+}
+
+/// Creates a per-webview [`RequestContext`], registers Tauri's custom URI
+/// scheme handler factories on it, and arranges for `on_initialized` to fire
+/// once the underlying Chromium `Profile` is fully created.
+///
+/// CEF only synchronously initializes the request context when its `cache_path`
+/// equals `Settings.root_cache_path` (it then reuses the global "Default"
+/// profile via `GetPrimaryUserProfile()`) or when the cache_path is empty
+/// (off-the-record profile). Any other path (notably the per-`data_directory`
+/// case used by Tauri) takes `ChromeBrowserContext::InitializeAsync`'s
+/// `CreateProfileAsync` branch which finishes asynchronously. Calling
+/// `browser_view_create` / `browser_host_create_browser_sync` synchronously
+/// after `request_context_create_context` would then fail
+/// `CefRequestContextImpl::VerifyBrowserContext()` and return a null browser.
+///
+/// Routing browser creation through `on_initialized` keeps a single code path
+/// for every cache_path layout: CEF always dispatches the callback through
+/// `CEF_POST_TASK(CEF_UIT, ...)`, so even the synchronous-init cases are
+/// handled by the same continuation.
+///
+/// Scheme handler factories are registered here, synchronously after
+/// `request_context_create_context` returns, and *before* the
+/// `OnRequestContextInitialized` task that drives browser creation is
+/// dispatched. `RegisterSchemeHandlerFactory` internally queues its work
+/// behind the request context's initialization (`StoreOrTriggerInitCallback`
+/// when the browser context is not yet initialized, or an immediate UI -> IO
+/// hop otherwise), so by the time the browser finally issues its first
+/// navigation against any of these schemes the factories have been wired up
+/// on the IO thread.
 fn request_context_from_webview_attributes<T: UserEvent>(
   context: &Context<T>,
   webview_attributes: &WebviewAttributes,
   custom_schemes: &[String],
   custom_protocol_scheme: &str,
-  _initialization_scripts: &[CefInitScript],
+  on_initialized: RequestContextInitContinuation,
 ) -> Option<RequestContext> {
-  let global_context =
-    request_context_get_global_context().expect("Failed to get global request context");
-
   let cache_path: CefStringUtf16 = if webview_attributes.incognito {
     CefStringUtf16::from("")
-  } else if let Some(_data_directory) = &webview_attributes.data_directory {
-    // TODO: setting a custom data directory must be a child of the root data directory, but it returns None on browser_view_create
-    eprintln!("data directory is not yet implemented");
-    (&global_context.cache_path()).into()
-    // CefStringUtf16::from(data_directory.to_string_lossy().as_ref())
+  } else if let Some(data_directory) = &webview_attributes.data_directory {
+    let resolved = resolve_request_context_cache_path(&context.cache_path, data_directory);
+    CefStringUtf16::from(resolved.to_string_lossy().as_ref())
   } else {
+    let global_context =
+    request_context_get_global_context().expect("Failed to get global request context");
+    // context.cache_path does not work here - global_context.cache_path() returns the proper profile path
     (&global_context.cache_path()).into()
   };
 
@@ -4919,13 +5119,28 @@ fn request_context_from_webview_attributes<T: UserEvent>(
     ..Default::default()
   };
 
-  let request_context = request_context_create_context(
-    Some(&request_context_settings),
-    Option::<&mut RequestContextHandler>::None,
-  );
-  if let Some(request_context) = &request_context {
+  // Holds a strong reference to the `RequestContext` until the
+  // `on_request_context_initialized` callback fires. CEF keeps the underlying
+  // C++ `CefRequestContextImpl` alive during async profile creation through
+  // its own bound callbacks, but holding an explicit reference here guarantees
+  // we don't race with reference-count releases on shutdown paths.
+  let rc_holder: Arc<Mutex<Option<RequestContext>>> = Arc::new(Mutex::new(None));
+  let wrapped_callback: RequestContextInitContinuation = Box::new({
+    let rc_holder = rc_holder.clone();
+    move |rc| {
+      on_initialized(rc);
+      let _released = rc_holder.lock().unwrap().take();
+    }
+  });
+
+  let mut handler = WebviewRequestContextHandler::new(Arc::new(Mutex::new(Some(wrapped_callback))));
+  let request_context =
+    request_context_create_context(Some(&request_context_settings), Some(&mut handler));
+  *rc_holder.lock().unwrap() = request_context.clone();
+
+  if let Some(rc) = request_context.as_ref() {
     for custom_scheme in custom_schemes {
-      request_context.register_scheme_handler_factory(
+      rc.register_scheme_handler_factory(
         Some(&custom_protocol_scheme.into()),
         Some(&format!("{custom_scheme}.localhost").as_str().into()),
         Some(&mut request_handler::UriSchemeHandlerFactory::new(

@@ -2030,6 +2030,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_id: Default::default(),
       next_window_event_id: Default::default(),
       scheme_handler_registry: Default::default(),
+      cache_path: Arc::new(cache_path.clone()),
     };
 
     let mut command_line_args = Vec::new();

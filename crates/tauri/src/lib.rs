@@ -332,12 +332,12 @@ pub const fn is_dev() -> bool {
 pub fn webview_version() -> Result<String> {
   #[cfg(feature = "cef")]
   if let Ok(v) = tauri_runtime_cef::webview_version() {
-    return Ok(v)
+    return Ok(v);
   }
 
   #[cfg(feature = "wry")]
   if let Ok(v) = tauri_runtime_wry::webview_version() {
-    return Ok(v)
+    return Ok(v);
   }
 
   Ok("0.0.0".to_string())

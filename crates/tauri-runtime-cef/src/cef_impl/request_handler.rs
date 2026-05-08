@@ -23,6 +23,8 @@ use tauri_utils::{
 };
 use url::Url;
 
+use crate::cef_impl::INITIAL_LOAD_URL;
+
 use super::{
   CefInitScript, Context, DRAG_DROP_BRIDGE_PATH, DragDropEventTarget, DragDropScriptEvent,
   DragDropState, post_drag_drop_script_event,
@@ -143,7 +145,6 @@ wrap_resource_request_handler! {
 wrap_request_handler! {
   pub struct WebRequestHandler<T: UserEvent> {
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
-    suppressed_navigations: Arc<Mutex<Vec<Url>>>,
     context: Context<T>,
     window_id: WindowId,
     webview_id: u32,
@@ -173,17 +174,14 @@ wrap_request_handler! {
       };
 
       let url_str = CefString::from(&request.url()).to_string();
+
+      if url_str == INITIAL_LOAD_URL {
+        return 0;
+      }
+
       let Ok(url) = url::Url::parse(&url_str) else {
         return 0;
       };
-
-      {
-        let mut suppressed_navigations = self.suppressed_navigations.lock().unwrap();
-        if let Some(index) = suppressed_navigations.iter().position(|suppressed| suppressed == &url) {
-          suppressed_navigations.remove(index);
-          return 0;
-        }
-      }
 
       let Some(handler) = &self.navigation_handler else {
         return 0;

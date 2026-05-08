@@ -79,7 +79,7 @@ type CefOsEvent<'a> = Option<&'a mut sys::MSG>;
 type AddressChangedHandler = dyn Fn(&url::Url) + Send + Sync;
 type IpcHandler<T> =
   dyn Fn(tauri_runtime::webview::DetachedWebview<T, CefRuntime<T>>, http::Request<String>) + Send;
-type PendingInitialLoad = (Browser, String, Arc<Mutex<Vec<url::Url>>>);
+type PendingInitialLoad = (Browser, String);
 type PendingInitialLoads = Arc<Mutex<HashMap<i32, PendingInitialLoad>>>;
 
 const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
@@ -869,7 +869,6 @@ wrap_display_handler! {
   struct BrowserDisplayHandler {
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     address_changed_handler: Option<Arc<AddressChangedHandler>>,
-    suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
   }
 
   impl DisplayHandler {
@@ -898,14 +897,12 @@ wrap_display_handler! {
       let Some(handler) = &self.address_changed_handler else { return };
       let Some(url) = url else { return };
       let url_str = url.to_string();
-      let Ok(parsed) = url::Url::parse(&url_str) else { return };
-      {
-        let mut suppressed_navigations = self.suppressed_navigations.lock().unwrap();
-        if let Some(index) = suppressed_navigations.iter().position(|suppressed| suppressed == &parsed) {
-          suppressed_navigations.remove(index);
-          return;
-        }
+
+      if url_str == INITIAL_LOAD_URL {
+        return;
       }
+
+      let Ok(parsed) = url::Url::parse(&url_str) else { return };
       handler(&parsed);
     }
   }
@@ -962,10 +959,10 @@ cef::wrap_dev_tools_message_observer! {
       success: std::os::raw::c_int,
       result: Option<&[u8]>,
     ) {
-      if let Some((browser, initial_url, suppressed_navigations)) =
+      if let Some((browser, initial_url)) =
         self.pending_initial_loads.lock().unwrap().remove(&message_id)
       {
-        post_load_initial_url(browser, initial_url, suppressed_navigations);
+        post_load_initial_url(browser, initial_url);
       }
 
       let protocol = crate::DevToolsProtocol::MethodResult {
@@ -1117,7 +1114,6 @@ fn register_initialization_scripts(
   custom_protocol_scheme: &str,
   custom_scheme_domain_names: &[String],
   initial_url: String,
-  suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
   pending_initial_loads: &PendingInitialLoads,
 ) -> bool {
   let Some(source) = devtools_initialization_script_source(
@@ -1150,10 +1146,10 @@ fn register_initialization_scripts(
   })
   .to_string();
 
-  pending_initial_loads.lock().unwrap().insert(
-    message_id,
-    (browser.clone(), initial_url, suppressed_navigations),
-  );
+  pending_initial_loads
+    .lock()
+    .unwrap()
+    .insert(message_id, (browser.clone(), initial_url));
   if host.send_dev_tools_message(Some(message.as_bytes())) == 1 {
     true
   } else {
@@ -1166,22 +1162,17 @@ wrap_task! {
   struct LoadInitialUrlTask {
     browser: Browser,
     initial_url: String,
-    suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
   }
 
   impl Task {
     fn execute(&self) {
-      load_initial_url(&self.browser, &self.initial_url, &self.suppressed_navigations);
+      load_initial_url(&self.browser, &self.initial_url);
     }
   }
 }
 
-fn post_load_initial_url(
-  browser: Browser,
-  initial_url: String,
-  suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
-) {
-  let mut task = LoadInitialUrlTask::new(browser, initial_url, suppressed_navigations);
+fn post_load_initial_url(browser: Browser, initial_url: String) {
+  let mut task = LoadInitialUrlTask::new(browser, initial_url);
   cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
 }
 
@@ -1192,71 +1183,32 @@ fn post_load_initial_url(
 // CDP hook to those documents reliably.
 //
 // The real load is posted as a CEF UI task instead of performed inline. This
-// keeps the browser creation/CDP setup stack from re-entering navigation and
-// also lets the one-shot navigation/address suppression observe the internal
-// placeholder before the app URL is loaded.
+// keeps the browser creation/CDP setup stack from re-entering navigation.
 fn load_initial_url_after_registering_initialization_scripts(
   browser: &Browser,
   initialization_scripts: &[CefInitScript],
   custom_protocol_scheme: &str,
   custom_scheme_domain_names: &[String],
   initial_url: &str,
-  suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>,
   pending_initial_loads: &PendingInitialLoads,
 ) {
   let browser_for_callback = browser.clone();
   let initial_url = initial_url.to_string();
-  let suppressed_navigations = suppressed_navigations.clone();
   let is_waiting_for_initialization_scripts = register_initialization_scripts(
     browser,
     initialization_scripts,
     custom_protocol_scheme,
     custom_scheme_domain_names,
     initial_url.clone(),
-    suppressed_navigations.clone(),
     pending_initial_loads,
   );
 
   if !is_waiting_for_initialization_scripts {
-    post_load_initial_url(browser_for_callback, initial_url, suppressed_navigations);
+    post_load_initial_url(browser_for_callback, initial_url);
   }
 }
 
-fn clear_suppressed_initial_load_urls(suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>) {
-  let initial_urls = [INITIAL_LOAD_URL, ABOUT_BLANK]
-    .into_iter()
-    .filter_map(|url| url::Url::parse(url).ok())
-    .collect::<Vec<_>>();
-  if !initial_urls.is_empty() {
-    suppressed_navigations
-      .lock()
-      .unwrap()
-      .retain(|url| !initial_urls.iter().any(|initial_url| initial_url == url));
-  }
-}
-
-fn suppress_navigation(initial_url: &str, suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>) {
-  let Ok(url) = url::Url::parse(initial_url) else {
-    return;
-  };
-
-  let mut suppressed_navigations = suppressed_navigations.lock().unwrap();
-  if !suppressed_navigations
-    .iter()
-    .any(|suppressed| suppressed == &url)
-  {
-    suppressed_navigations.push(url);
-  }
-}
-
-fn load_initial_url(
-  browser: &Browser,
-  initial_url: &str,
-  suppressed_navigations: &Arc<Mutex<Vec<url::Url>>>,
-) {
-  clear_suppressed_initial_load_urls(suppressed_navigations);
-  suppress_navigation(initial_url, suppressed_navigations);
-
+fn load_initial_url(browser: &Browser, initial_url: &str) {
   if let Some(frame) = browser.main_frame() {
     frame.load_url(Some(&CefString::from(initial_url)));
   }
@@ -1648,7 +1600,6 @@ wrap_client! {
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
-    suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
     address_changed_handler: Option<Arc<AddressChangedHandler>>,
     new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
@@ -1668,7 +1619,6 @@ wrap_client! {
     fn request_handler(&self) -> Option<RequestHandler> {
       Some(request_handler::WebRequestHandler::new(
         self.navigation_handler.clone(),
-        self.suppressed_navigations.clone(),
         self.context.clone(),
         self.window_id,
         self.webview_id,
@@ -1696,7 +1646,6 @@ wrap_client! {
       Some(BrowserDisplayHandler::new(
         self.document_title_changed_handler.clone(),
         self.address_changed_handler.clone(),
-        self.suppressed_navigations.clone(),
       ))
     }
 
@@ -1778,7 +1727,6 @@ wrap_browser_view_delegate! {
     custom_protocol_scheme: String,
     custom_scheme_domain_names: Vec<String>,
     initial_url: String,
-    suppressed_navigations: Arc<Mutex<Vec<url::Url>>>,
     pending_initial_loads: PendingInitialLoads,
     devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
     devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
@@ -1838,7 +1786,6 @@ wrap_browser_view_delegate! {
           &self.custom_protocol_scheme,
           &self.custom_scheme_domain_names,
           &self.initial_url,
-          &self.suppressed_navigations,
           &self.pending_initial_loads,
         );
 
@@ -3982,10 +3929,6 @@ fn create_browser_window<T: UserEvent>(
 
   let initial_url = url.clone();
   let url = CefString::from(INITIAL_LOAD_URL);
-  let suppressed_navigations = Arc::new(Mutex::new(vec![
-    url::Url::parse(INITIAL_LOAD_URL).expect("initial load data URL is valid"),
-    url::Url::parse(ABOUT_BLANK).expect("about:blank is a valid URL"),
-  ]));
   let drag_drop_state = Arc::new(Mutex::new(DragDropState::default()));
 
   let mut client = BrowserClient::new(
@@ -4000,7 +3943,6 @@ fn create_browser_window<T: UserEvent>(
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
-    suppressed_navigations.clone(),
     address_changed_handler,
     new_window_handler,
     download_handler,
@@ -4077,7 +4019,6 @@ fn create_browser_window<T: UserEvent>(
     custom_protocol_scheme,
     &custom_scheme_domain_names,
     &initial_url,
-    &suppressed_navigations,
     &pending_initial_loads,
   );
 
@@ -4608,10 +4549,6 @@ pub(crate) fn create_webview<T: UserEvent>(
 
   let initial_url = url.clone();
   let url = CefString::from(INITIAL_LOAD_URL);
-  let suppressed_navigations = Arc::new(Mutex::new(vec![
-    url::Url::parse(INITIAL_LOAD_URL).expect("initial load data URL is valid"),
-    url::Url::parse(ABOUT_BLANK).expect("about:blank is a valid URL"),
-  ]));
   let drag_drop_state = Arc::new(Mutex::new(DragDropState::default()));
   let drag_drop_event_target = if kind == WebviewKind::WindowContent {
     DragDropEventTarget::Window
@@ -4631,7 +4568,6 @@ pub(crate) fn create_webview<T: UserEvent>(
     on_page_load_handler,
     document_title_changed_handler,
     navigation_handler,
-    suppressed_navigations.clone(),
     address_changed_handler,
     new_window_handler,
     download_handler,
@@ -4742,7 +4678,6 @@ pub(crate) fn create_webview<T: UserEvent>(
       custom_protocol_scheme,
       &custom_scheme_domain_names,
       &initial_url,
-      &suppressed_navigations,
       &pending_initial_loads,
     );
 
@@ -4812,7 +4747,6 @@ pub(crate) fn create_webview<T: UserEvent>(
       custom_protocol_scheme.to_string(),
       custom_scheme_domain_names.clone(),
       initial_url.clone(),
-      suppressed_navigations.clone(),
       pending_initial_loads,
       devtools_protocol_handlers.clone(),
       devtools_observer_registration.clone(),

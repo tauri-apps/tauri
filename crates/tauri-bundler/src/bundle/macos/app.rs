@@ -115,20 +115,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   settings.copy_resources(&resources_dir)?;
 
-  let bin_paths = settings
-    .copy_binaries(&bin_dir)
-    .with_context(|| "Failed to copy external binaries")?;
-  sign_paths.extend(bin_paths.into_iter().map(|path| SignTarget {
-    path,
-    is_an_executable: true,
-  }));
-
-  let bin_paths = copy_binaries_to_bundle(&bundle_directory, settings)?;
-  sign_paths.extend(bin_paths.into_iter().map(|path| SignTarget {
-    path,
-    is_an_executable: true,
-  }));
-
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
   // Handle CEF support if cef_path is set
@@ -147,6 +133,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       &mut sign_paths,
     );
   }
+
+  // Sign CEF nested code first (helper apps/framework internals), then top-level binaries.
+  // Signing the main executable before CEF helpers causes codesign to fail with:
+  // "code object is not signed at all ... In subcomponent: ... Helper (Renderer).app".
+  let bin_paths = settings
+    .copy_binaries(&bin_dir)
+    .with_context(|| "Failed to copy external binaries")?;
+  sign_paths.extend(bin_paths.into_iter().map(|path| SignTarget {
+    path,
+    is_an_executable: true,
+  }));
+
+  let bin_paths = copy_binaries_to_bundle(&bundle_directory, settings)?;
+  sign_paths.extend(bin_paths.into_iter().map(|path| SignTarget {
+    path,
+    is_an_executable: true,
+  }));
 
   if settings.no_sign() {
     log::warn!("Skipping signing due to --no-sign flag.",);

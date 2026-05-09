@@ -16,6 +16,7 @@ pub struct IconMenuItemBuilder<'a> {
   icon: Option<Image<'a>>,
   native_icon: Option<NativeIcon>,
   accelerator: Option<String>,
+  sf_symbol: Option<String>,
 }
 
 impl<'a> IconMenuItemBuilder<'a> {
@@ -31,6 +32,7 @@ impl<'a> IconMenuItemBuilder<'a> {
       icon: None,
       native_icon: None,
       accelerator: None,
+      sf_symbol: None,
     }
   }
 
@@ -46,6 +48,7 @@ impl<'a> IconMenuItemBuilder<'a> {
       icon: None,
       native_icon: None,
       accelerator: None,
+      sf_symbol: None,
     }
   }
 
@@ -87,9 +90,24 @@ impl<'a> IconMenuItemBuilder<'a> {
     self
   }
 
+  /// Set this menu item's icon to an SF Symbol by name (macOS 11+).
+  ///
+  /// SF Symbols are template images that automatically adapt to the system
+  /// light/dark appearance. When set, this overrides any [`Self::icon`] or
+  /// [`Self::native_icon`] previously configured on this builder for the
+  /// macOS render path.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux**: Unsupported (no-op).
+  pub fn sf_symbol<S: AsRef<str>>(mut self, symbol: S) -> Self {
+    self.sf_symbol.replace(symbol.as_ref().to_string());
+    self
+  }
+
   /// Build the menu item
   pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<IconMenuItem<R>> {
-    if self.icon.is_some() {
+    let item = if self.icon.is_some() {
       if let Some(id) = self.id {
         IconMenuItem::with_id(
           manager,
@@ -98,7 +116,7 @@ impl<'a> IconMenuItemBuilder<'a> {
           self.enabled,
           self.icon,
           self.accelerator,
-        )
+        )?
       } else {
         IconMenuItem::new(
           manager,
@@ -106,7 +124,7 @@ impl<'a> IconMenuItemBuilder<'a> {
           self.enabled,
           self.icon,
           self.accelerator,
-        )
+        )?
       }
     } else if let Some(id) = self.id {
       IconMenuItem::with_id_and_native_icon(
@@ -116,7 +134,7 @@ impl<'a> IconMenuItemBuilder<'a> {
         self.enabled,
         self.native_icon,
         self.accelerator,
-      )
+      )?
     } else {
       IconMenuItem::with_native_icon(
         manager,
@@ -124,7 +142,11 @@ impl<'a> IconMenuItemBuilder<'a> {
         self.enabled,
         self.native_icon,
         self.accelerator,
-      )
+      )?
+    };
+    if let Some(symbol) = self.sf_symbol {
+      item.set_sf_symbol(Some(symbol))?;
     }
+    Ok(item)
   }
 }

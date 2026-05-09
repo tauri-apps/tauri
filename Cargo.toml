@@ -34,6 +34,9 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
 ]
+exclude = [
+  "vendor/muda",
+]
 resolver = "2"
 
 [workspace.package]
@@ -72,3 +75,4 @@ schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch =
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
+muda = { path = "./vendor/muda" }

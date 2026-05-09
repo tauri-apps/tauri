@@ -234,4 +234,18 @@ impl<R: Runtime> IconMenuItem<R> {
     #[allow(unreachable_code)]
     Ok(())
   }
+
+  /// Set this menu item's icon to an SF Symbol by name (macOS 11+).
+  ///
+  /// SF Symbols are template images that automatically adapt to the system
+  /// light/dark appearance. This overrides any previously set [`Self::set_icon`]
+  /// or [`Self::set_native_icon`]. Pass `None` to remove the image.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux**: Unsupported (no-op).
+  pub fn set_sf_symbol<S: AsRef<str>>(&self, symbol: Option<S>) -> crate::Result<()> {
+    let symbol = symbol.map(|s| s.as_ref().to_string());
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_sf_symbol(symbol))
+  }
 }

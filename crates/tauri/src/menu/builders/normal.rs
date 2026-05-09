@@ -10,6 +10,7 @@ pub struct MenuItemBuilder {
   text: String,
   enabled: bool,
   accelerator: Option<String>,
+  sf_symbol: Option<String>,
 }
 
 impl MenuItemBuilder {
@@ -23,6 +24,7 @@ impl MenuItemBuilder {
       text: text.as_ref().to_string(),
       enabled: true,
       accelerator: None,
+      sf_symbol: None,
     }
   }
 
@@ -36,6 +38,7 @@ impl MenuItemBuilder {
       text: text.as_ref().to_string(),
       enabled: true,
       accelerator: None,
+      sf_symbol: None,
     }
   }
 
@@ -57,12 +60,29 @@ impl MenuItemBuilder {
     self
   }
 
+  /// Set this menu item's icon to an SF Symbol by name (macOS 11+).
+  ///
+  /// SF Symbols are template images that automatically adapt to the system
+  /// light/dark appearance.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux**: Unsupported (no-op).
+  pub fn sf_symbol<S: AsRef<str>>(mut self, symbol: S) -> Self {
+    self.sf_symbol.replace(symbol.as_ref().to_string());
+    self
+  }
+
   /// Build the menu item
   pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<MenuItem<R>> {
-    if let Some(id) = self.id {
-      MenuItem::with_id(manager, id, self.text, self.enabled, self.accelerator)
+    let item = if let Some(id) = self.id {
+      MenuItem::with_id(manager, id, self.text, self.enabled, self.accelerator)?
     } else {
-      MenuItem::new(manager, self.text, self.enabled, self.accelerator)
+      MenuItem::new(manager, self.text, self.enabled, self.accelerator)?
+    };
+    if let Some(symbol) = self.sf_symbol {
+      item.set_sf_symbol(Some(symbol))?;
     }
+    Ok(item)
   }
 }

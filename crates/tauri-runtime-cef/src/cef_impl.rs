@@ -5032,13 +5032,34 @@ where
   (flag, wrapped)
 }
 
-/// Pump the CEF UI-thread message loop until `flag` is `true`.
+/// Block the calling thread until `flag` is `true`.
 ///
 /// Browser creation goes through `RequestContextHandler::on_request_context_initialized`,
 /// which CEF always dispatches via `CEF_POST_TASK(CEF_UIT, ...)`. Tauri runs
 /// CEF with an external message pump (see `cef::do_message_loop_work` in the
 /// runtime's main loop), so the only way for that posted task to actually
-/// execute is for someone on this thread to call `do_message_loop_work()`.
+/// execute is for someone on the CEF UI thread to keep pumping the loop.
+///
+/// Two cases:
+///
+/// 1. We're on the CEF UI thread (typical: app setup, [`SendMessageTask`]
+///    dispatched messages, or inside a CEF callback like
+///    `LifeSpanHandler::on_after_created` /
+///    `RequestHandler::on_open_url_from_tab`). Pump the message loop ourselves
+///    so the `OnRequestContextInitialized` task can run.
+///
+///    We must enable nestable tasks for the duration of the pump because we
+///    may already be running inside another CEF task; without
+///    `CefSetNestableTasksAllowed(true)` Chromium's `RunLoop::RunUntilIdle`
+///    refuses to dispatch any task to the UI thread, the deferred init never
+///    fires, and we'd spin here forever.
+///
+/// 2. We're on some other thread (e.g. a tokio IPC handler that called the
+///    Tauri API directly without going through [`RuntimeContext::post_message`]).
+///    The CEF UI thread is running its own pump and will pick up our queued
+///    init task on its own; we just block here on a sleep loop until the flag
+///    flips. We can't call `do_message_loop_work` from this thread - it
+///    asserts on the init thread.
 ///
 /// Spinning here keeps `create_webview` / `create_browser_window` synchronous
 /// from the caller's perspective: the function does not return until the
@@ -5046,9 +5067,58 @@ where
 /// (e.g. `webview.open_devtools()`, `webview.on_dev_tools_protocol(...)`)
 /// can find the webview.
 fn wait_for_deferred_init(flag: &Arc<AtomicBool>) {
-  while !flag.load(Ordering::SeqCst) {
-    cef::do_message_loop_work();
+  let on_ui_thread = cef::currently_on(cef::sys::cef_thread_id_t::TID_UI.into()) != 0;
+
+  if on_ui_thread {
+    let _allow = AllowNestableTasks::enter();
+    while !flag.load(Ordering::SeqCst) {
+      cef::do_message_loop_work();
+    }
+  } else {
+    while !flag.load(Ordering::SeqCst) {
+      std::thread::sleep(std::time::Duration::from_millis(1));
+    }
   }
+}
+
+/// RAII guard that scopes `CefSetNestableTasksAllowed(true)` for the current
+/// CEF UI-thread call.
+///
+/// CEF requires balanced enable/disable calls and explicitly forbids
+/// reentrancy at the C++ level (`CHECK(allowed != has_value())`). The guard
+/// uses a thread-local depth counter so only the outermost
+/// [`wait_for_deferred_init`] on this thread toggles the flag, which makes
+/// nesting (e.g. an `on_initialized` continuation that creates another
+/// webview) safe.
+struct AllowNestableTasks;
+
+impl AllowNestableTasks {
+  fn enter() -> Self {
+    NESTABLE_TASKS_DEPTH.with(|depth| {
+      let current = depth.get();
+      if current == 0 {
+        cef::set_nestable_tasks_allowed(1);
+      }
+      depth.set(current + 1);
+    });
+    Self
+  }
+}
+
+impl Drop for AllowNestableTasks {
+  fn drop(&mut self) {
+    NESTABLE_TASKS_DEPTH.with(|depth| {
+      let current = depth.get();
+      depth.set(current - 1);
+      if current == 1 {
+        cef::set_nestable_tasks_allowed(0);
+      }
+    });
+  }
+}
+
+thread_local! {
+  static NESTABLE_TASKS_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 wrap_request_context_handler! {

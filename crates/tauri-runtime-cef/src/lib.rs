@@ -35,6 +35,7 @@ use std::{
   collections::HashMap,
   fmt,
   fs::create_dir_all,
+  path::PathBuf,
   sync::{
     Arc, Mutex,
     atomic::AtomicBool,
@@ -2013,8 +2014,21 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let _ = cef::api_hash(cef::sys::CEF_API_VERSION_LAST, 0);
 
-    let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
-    let cache_path = cache_base.join(&runtime_args.identifier).join("cef");
+    let mut command_line_args = Vec::new();
+    let mut deep_link_schemes = Vec::new();
+    let mut cache_path_override = None::<PathBuf>;
+    for arg in runtime_args.platform_specific_attributes {
+      match arg {
+        RuntimeInitAttribute::CommandLineArgs { args } => command_line_args.extend(args),
+        RuntimeInitAttribute::DeepLinkSchemes { schemes } => deep_link_schemes.extend(schemes),
+        RuntimeInitAttribute::CachePath { path } => cache_path_override = Some(path),
+      }
+    }
+
+    let cache_path = cache_path_override.unwrap_or_else(|| {
+      let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
+      cache_base.join(&runtime_args.identifier).join("cef")
+    });
 
     // Ensure the cache directory exists
     let _ = create_dir_all(&cache_path);
@@ -2032,15 +2046,6 @@ impl<T: UserEvent> CefRuntime<T> {
       scheme_handler_registry: Default::default(),
       cache_path: Arc::new(cache_path.clone()),
     };
-
-    let mut command_line_args = Vec::new();
-    let mut deep_link_schemes = Vec::new();
-    for arg in runtime_args.platform_specific_attributes {
-      match arg {
-        RuntimeInitAttribute::CommandLineArgs { args } => command_line_args.extend(args),
-        RuntimeInitAttribute::DeepLinkSchemes { schemes } => deep_link_schemes.extend(schemes),
-      }
-    }
     command_line_args.push(("--enable-media-stream".to_string(), None));
 
     let mut app = cef_impl::TauriApp::new(
@@ -2131,6 +2136,10 @@ pub enum RuntimeInitAttribute {
   CommandLineArgs { args: Vec<(String, Option<String>)> },
   /// Deep link schemes.
   DeepLinkSchemes { schemes: Vec<String> },
+  /// Directory used for CEF disk cache (`Settings::cache_path`).
+  ///
+  /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
+  CachePath { path: PathBuf },
 }
 
 impl InitAttribute for RuntimeInitAttribute {

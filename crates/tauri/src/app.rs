@@ -42,6 +42,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
+  path::Path,
   sync::{Arc, Mutex, MutexGuard, atomic, mpsc::Sender},
   thread::ThreadId,
   time::Duration,
@@ -1661,6 +1662,20 @@ impl Builder<crate::Cef> {
           .collect::<Vec<_>>(),
       },
     );
+    self
+  }
+
+  /// Sets the disk cache directory for CEF (`Settings::cache_path`).
+  ///
+  /// Calling this more than once keeps the path from the last call.
+  /// If omitted, the cache defaults to `{user cache directory}/{identifier}/cef`.
+  #[cfg(feature = "cef")]
+  pub fn root_cache_path<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self
+      .platform_specific_attributes
+      .push(tauri_runtime_cef::RuntimeInitAttribute::CachePath {
+        path: path.as_ref().to_path_buf(),
+      });
     self
   }
 }

@@ -5109,7 +5109,7 @@ fn request_context_from_webview_attributes<T: UserEvent>(
     CefStringUtf16::from(resolved.to_string_lossy().as_ref())
   } else {
     let global_context =
-    request_context_get_global_context().expect("Failed to get global request context");
+      request_context_get_global_context().expect("Failed to get global request context");
     // context.cache_path does not work here - global_context.cache_path() returns the proper profile path
     (&global_context.cache_path()).into()
   };

@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.11.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+- Upgraded to `tauri-bundler@2.9.1`
+
 ## \[2.11.0]
 
 ### New Features

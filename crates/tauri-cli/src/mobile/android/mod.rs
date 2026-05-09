@@ -603,7 +603,10 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 
   if let Some(ndk) = installed_ndks.last() {
     log::info!("Using installed NDK: {}", ndk.display());
-    std::env::set_var("NDK_HOME", ndk);
+    // Normalize path to use forward slashes on Windows to avoid mixed separators
+    // when the path is later used in shell commands or concatenated with other paths
+    let ndk_str = ndk.to_string_lossy().replace('\\', "/");
+    std::env::set_var("NDK_HOME", ndk_str);
   } else if non_interactive {
     crate::error::bail!("Android NDK not found. Make sure the NDK is installed and the NDK_HOME environment variable is set.");
   } else {
@@ -663,7 +666,9 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
 
     let ndk_path = android_home.join("ndk").join(NDK_VERSION);
     log::info!("Installed NDK: {}", ndk_path.display());
-    std::env::set_var("NDK_HOME", ndk_path);
+    // Normalize path to use forward slashes on Windows to avoid mixed separators
+    let ndk_str = ndk_path.to_string_lossy().replace('\\', "/");
+    std::env::set_var("NDK_HOME", ndk_str);
   }
 
   Ok(())

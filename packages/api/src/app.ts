@@ -274,6 +274,10 @@ async function onBackButtonPress(
   )
 }
 
+async function supportsMultipleWindows(): Promise<boolean> {
+  return invoke('plugin:app|supports_multiple_windows')
+}
+
 export {
   getName,
   getVersion,
@@ -288,5 +292,6 @@ export {
   setDockVisibility,
   getBundleType,
   type OnBackButtonPressPayload,
-  onBackButtonPress
+  onBackButtonPress,
+  supportsMultipleWindows
 }

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.10.1"
+version = "2.11.1"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -13,15 +13,14 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wry = { version = "0.54.0", default-features = false, features = [
-  "drag-drop",
+wry = { version = "0.55.0", default-features = false, features = [
   "protocol",
   "os-webview",
   "linux-body",
 ] }
-tao = { version = "0.34.5", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.10.1", path = "../tauri-runtime" }
-tauri-utils = { version = "2.8.3", path = "../tauri-utils" }
+tao = { version = "0.35.0", default-features = false, features = ["rwh_06"] }
+tauri-runtime = { version = "2.11.1", path = "../tauri-runtime" }
+tauri-utils = { version = "2.9.1", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1"
 url = "2"
@@ -60,7 +59,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 jni = "0.21"
 
 [features]
-default = ["x11"]
+default = ["x11", "dbus"]
 devtools = ["wry/devtools", "tauri-runtime/devtools"]
 x11 = ["tao/x11", "wry/x11"]
 macos-private-api = [
@@ -74,3 +73,4 @@ tracing = ["dep:tracing", "wry/tracing"]
 macos-proxy = ["wry/mac-proxy"]
 unstable = []
 common-controls-v6 = []
+dbus = ["tao/dbus"]

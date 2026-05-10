@@ -5,10 +5,10 @@
 use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
 use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
+use std::fs::File;
+use std::io::{Read, Seek, Write};
 use std::{borrow::Cow, io::SeekFrom};
 use tauri_utils::mime_type::MimeType;
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
   Box::new(
@@ -49,7 +49,7 @@ fn get_response(
   }
 
   // Separate block for easier error handling
-  let mut file = match crate::async_runtime::safe_block_on(File::open(path.clone())) {
+  let mut file = match File::open(path.clone()) {
     Ok(file) => file,
     Err(e) => {
       #[cfg(target_os = "android")]
@@ -70,32 +70,20 @@ fn get_response(
     }
   };
 
-  let (mut file, len, mime_type, read_bytes) = crate::async_runtime::safe_block_on(async move {
-    // get file length
-    let len = {
-      let old_pos = file.stream_position().await?;
-      let len = file.seek(SeekFrom::End(0)).await?;
-      file.seek(SeekFrom::Start(old_pos)).await?;
-      len
-    };
-
+  let len = file.metadata()?.len();
+  let (mime_type, read_bytes) = {
     // get file mime type
-    let (mime_type, read_bytes) = {
-      let nbytes = len.min(8192);
-      let mut magic_buf = Vec::with_capacity(nbytes as usize);
-      let old_pos = file.stream_position().await?;
-      (&mut file).take(nbytes).read_to_end(&mut magic_buf).await?;
-      file.seek(SeekFrom::Start(old_pos)).await?;
-      (
-        MimeType::parse(&magic_buf, &path),
-        // return the `magic_bytes` if we read the whole file
-        // to avoid reading it again later if this is not a range request
-        if len < 8192 { Some(magic_buf) } else { None },
-      )
-    };
-
-    Ok::<(File, u64, String, Option<Vec<u8>>), anyhow::Error>((file, len, mime_type, read_bytes))
-  })?;
+    let nbytes = len.min(8192);
+    let mut magic_buf = Vec::with_capacity(nbytes as usize);
+    (&mut file).take(nbytes).read_to_end(&mut magic_buf)?;
+    file.rewind()?;
+    (
+      MimeType::parse(&magic_buf, &path),
+      // return the `magic_bytes` if we read the whole file
+      // to avoid reading it again later if this is not a range request
+      if len < 8192 { Some(magic_buf) } else { None },
+    )
+  };
 
   resp = resp.header(CONTENT_TYPE, &mime_type);
 
@@ -148,12 +136,12 @@ fn get_response(
       // calculate number of bytes needed to be read
       let nbytes = end + 1 - start;
 
-      let buf = crate::async_runtime::safe_block_on(async move {
+      let buf = {
         let mut buf = Vec::with_capacity(nbytes as usize);
-        file.seek(SeekFrom::Start(start)).await?;
-        file.take(nbytes).read_to_end(&mut buf).await?;
-        Ok::<Vec<u8>, anyhow::Error>(buf)
-      })?;
+        file.seek(SeekFrom::Start(start))?;
+        file.take(nbytes).read_to_end(&mut buf)?;
+        buf
+      };
 
       resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
       resp = resp.header(CONTENT_LENGTH, end + 1 - start);
@@ -186,38 +174,34 @@ fn get_response(
         format!("multipart/byteranges; boundary={boundary}"),
       );
 
-      let buf = crate::async_runtime::safe_block_on(async move {
+      let buf = {
         // multi-part range header
         let mut buf = Vec::new();
 
         for (start, end) in ranges {
           // a new range is being written, write the range boundary
-          buf.write_all(boundary_sep.as_bytes()).await?;
+          buf.write_all(boundary_sep.as_bytes())?;
 
           // write the needed headers `Content-Type` and `Content-Range`
-          buf
-            .write_all(format!("{CONTENT_TYPE}: {mime_type}\r\n").as_bytes())
-            .await?;
-          buf
-            .write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())
-            .await?;
+          buf.write_all(format!("{CONTENT_TYPE}: {mime_type}\r\n").as_bytes())?;
+          buf.write_all(format!("{CONTENT_RANGE}: bytes {start}-{end}/{len}\r\n").as_bytes())?;
 
           // write the separator to indicate the start of the range body
-          buf.write_all("\r\n".as_bytes()).await?;
+          buf.write_all("\r\n".as_bytes())?;
 
           // calculate number of bytes needed to be read
           let nbytes = end + 1 - start;
 
           let mut local_buf = Vec::with_capacity(nbytes as usize);
-          file.seek(SeekFrom::Start(start)).await?;
-          (&mut file).take(nbytes).read_to_end(&mut local_buf).await?;
+          file.seek(SeekFrom::Start(start))?;
+          (&mut file).take(nbytes).read_to_end(&mut local_buf)?;
           buf.extend_from_slice(&local_buf);
         }
         // all ranges have been written, write the closing boundary
-        buf.write_all(boundary_closer.as_bytes()).await?;
+        buf.write_all(boundary_closer.as_bytes())?;
 
-        Ok::<Vec<u8>, anyhow::Error>(buf)
-      })?;
+        buf
+      };
       resp.body(buf.into())
     }
   } else if request.method() == http::Method::HEAD {
@@ -230,11 +214,9 @@ fn get_response(
     let buf = if let Some(b) = read_bytes {
       b
     } else {
-      crate::async_runtime::safe_block_on(async move {
-        let mut local_buf = Vec::with_capacity(len as usize);
-        file.read_to_end(&mut local_buf).await?;
-        Ok::<Vec<u8>, anyhow::Error>(local_buf)
-      })?
+      let mut local_buf = Vec::with_capacity(len as usize);
+      file.read_to_end(&mut local_buf)?;
+      local_buf
     };
     resp = resp.header(CONTENT_LENGTH, len);
     resp.body(buf.into())

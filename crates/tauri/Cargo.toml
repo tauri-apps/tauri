@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.10.3"
+version = "2.11.1"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -26,6 +26,7 @@ features = [
   "test",
   "specta",
   "dynamic-acl",
+  "isolation",
 ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
@@ -55,12 +56,12 @@ uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1"
 thiserror = "2"
-tauri-runtime = { version = "2.10.1", path = "../tauri-runtime" }
-tauri-macros = { version = "2.5.5", path = "../tauri-macros" }
-tauri-utils = { version = "2.8.3", features = [
+tauri-runtime = { version = "2.11.1", path = "../tauri-runtime" }
+tauri-macros = { version = "2.6.1", path = "../tauri-macros" }
+tauri-utils = { version = "2.9.1", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.10.1", path = "../tauri-runtime-wry", default-features = false, optional = true }
+tauri-runtime-wry = { version = "2.11.1", path = "../tauri-runtime-wry", default-features = false, optional = true }
 getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"
@@ -86,11 +87,11 @@ cookie = "0.18"
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.17", default-features = false, features = [
+muda = { version = "0.19", default-features = false, features = [
   "serde",
   "gtk",
 ] }
-tray-icon = { version = "0.21", default-features = false, features = [
+tray-icon = { version = "0.23", default-features = false, features = [
   "serde",
 ], optional = true }
 
@@ -159,15 +160,17 @@ jni = "0.21"
 libc = "0.2"
 swift-rs = "1"
 objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+  "UIApplication",
+  "UIResponder",
   "UIView",
 ] }
 
 [build-dependencies]
 glob = "0.3"
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.5.6" }
-tauri-utils = { path = "../tauri-utils/", version = "2.8.3", features = [
-  "build",
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.6.1" }
+tauri-utils = { path = "../tauri-utils/", version = "2.9.1", features = [
+  "build-2",
 ] }
 
 [dev-dependencies]
@@ -182,9 +185,17 @@ cargo_toml = "0.22"
 http-range = "0.1.5"
 
 [features]
-default = ["wry", "compression", "common-controls-v6", "dynamic-acl", "x11"]
+default = [
+  "wry",
+  "compression",
+  "common-controls-v6",
+  "dynamic-acl",
+  "x11",
+  "dbus",
+]
 unstable = ["tauri-runtime-wry?/unstable"]
 x11 = ["tauri-runtime-wry?/x11"]
+dbus = ["tauri-runtime-wry?/dbus"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6",
@@ -212,7 +223,7 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry?/macos-private-api",
 ]
-webview-data-url = ["data-url", "tauri-utils/html-manipulation"]
+webview-data-url = ["data-url", "tauri-utils/html-manipulation-2"]
 protocol-asset = ["http-range"]
 config-json5 = ["tauri-macros/config-json5"]
 config-toml = ["tauri-macros/config-toml"]
@@ -229,6 +240,10 @@ path = "../../examples/commands/main.rs"
 [[example]]
 name = "helloworld"
 path = "../../examples/helloworld/main.rs"
+
+[[example]]
+name = "drag"
+path = "../../examples/drag/main.rs"
 
 [[example]]
 name = "multiwebview"

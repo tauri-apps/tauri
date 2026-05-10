@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.8.3"
+version = "2.9.1"
 description = "Utilities for Tauri"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -17,13 +17,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
 thiserror = "2"
-phf = { version = "0.11", features = ["macros"] }
+phf = { version = "0.13", features = ["macros"] }
 brotli = { version = "8", optional = true, default-features = false, features = [
   "std",
 ] }
 url = { version = "2", features = ["serde"] }
 html5ever = { version = "0.29", optional = true }
 kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader", optional = true }
+dom_query = { version = "0.27", optional = true, default-features = false }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
 # Our code requires at least 0.8.21 so don't change this to 0.8
@@ -32,9 +33,13 @@ serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }
 serialize-to-javascript = { version = "0.1.2", optional = true }
-ctor = "0.2"
+ctor = { version = "0.8", default-features = false, features = [
+  "std",
+  "proc_macro",
+] }
 json5 = { version = "0.4", optional = true }
-toml = { version = "0.9", features = ["parse"] }
+# Part of public api in error type
+toml = { version = ">=0.9, <=1", features = ["parse"] }
 json-patch = "3.0"
 # Our code requires at least 0.3.1
 glob = "0.3.1"
@@ -50,6 +55,7 @@ cargo_metadata = { version = "0.19", optional = true }
 serde-untagged = "0.1"
 uuid = { version = "1", features = ["serde"] }
 http = "1"
+plist = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 swift-rs = { version = "1", optional = true, features = ["build"] }
@@ -58,6 +64,7 @@ swift-rs = { version = "1", optional = true, features = ["build"] }
 getrandom = { version = "0.3", features = ["std"] }
 serial_test = "3"
 tauri = { path = "../tauri" }
+tempfile = "3.15.0"
 
 [features]
 build = [
@@ -68,6 +75,15 @@ build = [
   "swift-rs",
   "html-manipulation",
 ]
+# Same as `build` but uses `html-manipulation-2` to avoid the `kuchikiki` dependency.
+build-2 = [
+  "proc-macro2",
+  "quote",
+  "cargo_metadata",
+  "schema",
+  "swift-rs",
+  "html-manipulation-2",
+]
 compression = ["brotli"]
 schema = ["schemars"]
 isolation = ["aes-gcm", "getrandom", "serialize-to-javascript"]
@@ -76,3 +92,4 @@ config-json5 = ["json5"]
 config-toml = []
 resources = ["walkdir"]
 html-manipulation = ["dep:html5ever", "dep:kuchiki"]
+html-manipulation-2 = ["dep:dom_query"]

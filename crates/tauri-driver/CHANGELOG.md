@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.6]
+
+### What's Changed
+
+- [`3057eda06`](https://www.github.com/tauri-apps/tauri/commit/3057eda067b87761644209adeec077f232585c5d) ([#15324](https://www.github.com/tauri-apps/tauri/pull/15324)) Support `eq-separator` for `tauri-driver`.
+
 ## \[2.0.5]
 
 ### Bug Fixes

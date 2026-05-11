@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.9.1]
+
+### Dependencies
+
+- [`4f548e739`](https://www.github.com/tauri-apps/tauri/commit/4f548e73947b3b06bf2073c822564aed3dd5f948) ([#15308](https://www.github.com/tauri-apps/tauri/pull/15308)) Updated `phf` to 0.13
+
 ## \[2.9.0]
 
 ### New Features

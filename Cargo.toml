@@ -73,6 +73,10 @@ tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
 cargo-mobile2 = { git = "https://github.com/tauri-apps/cargo-mobile2", branch = "feat/ohos", default-features = false }
-wry = { git = "https://github.com/richerfu/wry" }
+wry = { path = "../wry" }
 #tao = { git = "https://github.com/richerfu/tao", branch = "feat-ohos-webview" }
 tao = { path = "../tao" }
+
+[patch."https://github.com/harmony-contrib/openharmony-ability.git"]
+openharmony-ability = { path = "../openharmony-ability/crates/ability" }
+openharmony-ability-derive = { path = "../openharmony-ability/crates/derive" }

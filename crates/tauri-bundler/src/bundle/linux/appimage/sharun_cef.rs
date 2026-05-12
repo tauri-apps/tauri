@@ -45,14 +45,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::create_dir_all(&tools_path)?;
 
-  // TODO: mirror
   let quick_sharun = tools_path.join("quick-sharun.sh");
-  if !quick_sharun.exists() {
+  // TODO: offline build support
+  // github doesn't send a Last-Modified header
+  // if !quick_sharun.exists() {}
     let data = download(
       "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
     )?;
     write_and_make_executable(&quick_sharun, data)?;
-  }
 
   let package_dir = settings
     .project_out_directory()
@@ -167,6 +167,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .map(|b| format!(" \"{}\"", b.to_string_lossy()))
     .collect::<String>();
 
+  // quick-sharun checks the main binary with ldd so even though we manually add the cef files,
+  // we'll add them to LD_LIBRARY_PATH to pass the pre-bundle checks
+  let mut ld_lib_path = data_dir.join("usr/lib/").to_string_lossy().to_string();
+  if let Ok(ld_env) = std::env::var("LD_LIBRARY_PATH") {
+      ld_lib_path = format!("{}:{}", ld_lib_path, ld_env);
+  }
+
   // TODO: Consider to not rely on quick-sharun when we have more time
   Command::new("/bin/sh")
     .current_dir(&output_path)
@@ -178,9 +185,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     )
     .env("ICON", &larger_icon.path)
     .env("OUTPUT_APPIMAGE", "1")
-    .env("URUNTIME2APPIMAGE_SOURCE", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/uruntime2appimage.sh")
+    .env("HOOKSRC", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/hooks")
     .env("DEPLOY_CHROMIUM", "1")
     .env("ADD_HOOKS", "fix-namespaces.hook")
+    .env("LD_LIBRARY_PATH", ld_lib_path)
     .args([
       "-c",
       &format!(

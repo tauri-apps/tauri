@@ -5,7 +5,7 @@
 #[cfg(windows)]
 mod windows;
 
-pub fn error<S: AsRef<str>>(err: S) {
+pub fn error(err: &'static str) {
   #[cfg(windows)]
   windows::error(err);
 

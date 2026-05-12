@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-write-test-report"
+description = "Enables the write_test_report command without any pre-configured scope."
+commands.allow = ["write_test_report"]
+
+[[permission]]
+identifier = "deny-write-test-report"
+description = "Denies the write_test_report command without any pre-configured scope."
+commands.deny = ["write_test_report"]

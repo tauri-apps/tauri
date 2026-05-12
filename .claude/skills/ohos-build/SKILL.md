@@ -1,97 +1,129 @@
 # ohos-build
 
-编译 Tauri OpenHarmony 项目（examples/api），生成 HAP 包并签名安装到设备。
-
-## 工作流程
-
-整个流程分三步，依次执行：
-
-### Step 0: 环境配置（首次执行，已有 `.env.local` 则跳过）
-
-检查 `scripts/.env.local` 是否存在。如果不存在：
-1. 询问用户 DevEco Studio 的安装路径
-2. 将路径转换为 Unix 格式（如 `D:\app\DevEco-Studio` → `/d/app/DevEco-Studio`）
-3. 写入 `scripts/.env.local`：
-   ```bash
-   DEVECO_HOME="/d/app/DevEco-Studio"
-   ```
-
-后续脚本通过 `env.sh` 加载此配置，自动导出 OHOS_HOME、JAVA_HOME、PATH 等环境变量。
-
-### Step 1: 编译（生成未签名 HAP）
-
-```bash
-bash .claude/skills/ohos-build/scripts/build-ohos.sh
-```
-
-该脚本完成以下工作：
-1. 检测并配置 DevEco Studio 环境（首次运行时自动检测或询问路径）
-2. 安装前端依赖（`pnpm install`，仅 node_modules 不存在时）
-3. 构建 `@tauri-apps/api`（仅 dist 不存在时）
-4. 执行 `cargo tauri ohos build`，生成未签名 HAP
-
-产物路径：`examples/api/src-tauri/gen/ohos/entry/build/default/outputs/default/entry-default-unsigned.hap`
-
-### Step 2: 签名 + 安装 + 启动
-
-```bash
-# 自动检测设备
-bash .claude/skills/ohos-build/scripts/sign-and-install.sh
-
-# 或指定设备序列号
-bash .claude/skills/ohos-build/scripts/sign-and-install.sh <DEVICE_SN>
-```
-
-该脚本完成以下工作：
-1. 自动检测连接的设备（多设备时交互选择）
-2. 获取设备 UDID
-3. 生成 debug profile JSON（包含设备 UDID 和 bundle name）
-4. 使用 hap-sign-tool.jar 签名 profile
-5. 生成 app 调试证书链（end-entity + sub-CA + root-CA）
-6. 签名 HAP 包
-7. 卸载设备上的旧版本（`hdc shell bm uninstall`）
-8. 安装已签名 HAP 到设备（`hdc install`）
-9. 启动应用（`hdc shell aa start`）
-
-产物路径：`examples/api/src-tauri/gen/ohos/.sign/entry-default-signed.hap`
-
-## 首次使用
-
-脚本依赖 `scripts/.env.local` 中的 DevEco Studio 路径。如果该文件不存在且自动检测失败，脚本会报错退出。按 Step 0 配置即可解决。
-
-如需重新配置，删除 `.env.local` 即可：
-```bash
-rm .claude/skills/ohos-build/scripts/.env.local
-```
+编译 Tauri OpenHarmony 项目（examples/api），生成 HAP 包并签名安装到设备。支持自动化前端测试。
 
 ## 环境要求
 
+- **运行环境**: 使用 **Git Bash** 运行脚本（路径格式 `/d/app/...`）
+  - Git Bash 位于: `C:\Program Files (x86)\Git\bin\bash.exe`
 - DevEco Studio（含 OpenHarmony SDK、ohpm、hvigor、JBR）
 - pnpm
 - Rust + `aarch64-unknown-linux-ohos` target
-- tauri-cli（OpenHarmony 分支）：`cargo install tauri-cli --git https://github.com/tauri-apps/tauri --branch feat/open-harmony`
+- hdc（设备连接工具，SDK 自带）
+
+## 一键测试流程
+
+最简方式（需要先手动禁用 tauriPlugin）：
+
+```bash
+# 1. 禁用 hvigorfile.ts 中的 tauriPlugin（见下方说明）
+# 2. 运行一键测试
+bash D:/workspace/tauri/tauri/.claude/skills/ohos-build/scripts/run-tests.sh
+# 3. 恢复 hvigorfile.ts
+```
+
+## 分步手动流程
+
+### 步骤 1: 禁用 hvigorfile.ts 中的 tauriPlugin
+
+编辑 `examples/api/src-tauri/gen/ohos/entry/hvigorfile.ts`，将：
+```typescript
+plugins:[tauriPlugin()]
+```
+改为：
+```typescript
+plugins:[]
+```
+
+原因：tauriPlugin 需要 TCP 回调 tauri CLI 进程，Windows 上连接会失败。
+
+### 步骤 2: 构建
+
+```bash
+export VITE_AUTOTEST=true
+bash D:/workspace/tauri/tauri/.claude/skills/ohos-build/scripts/build-ohos.sh
+```
+
+### 步骤 3: 签名安装
+
+```bash
+bash D:/workspace/tauri/tauri/.claude/skills/ohos-build/scripts/sign-and-install.sh
+```
+
+### 步骤 4: 拉取报告
+
+测试启动后约 10-15 秒即可完成。使用 cmd.exe 调用 hdc 避免 Git Bash 路径转义：
+
+```bash
+cmd.exe /c "hdc -t DEVICE_SN file recv /data/app/el2/100/base/com.tauri.api/cache/test-report.json D:\workspace\tauri\tauri\examples\api\test-report.json"
+```
+
+### 步骤 5: 恢复 hvigorfile.ts
+
+将 `plugins:[]` 改回 `plugins:[tauriPlugin()]`。
 
 ## 脚本说明
 
 | 脚本 | 功能 |
 |------|------|
-| `env.sh` | 共享环境配置，自动检测 DevEco Studio 并导出环境变量 |
-| `build-ohos.sh` | 安装前端依赖 → 构建 @tauri-apps/api → cargo tauri ohos build |
-| `sign-and-install.sh` | 签名 → 卸载旧版 → 安装 → 启动 |
+| `env.sh` | 共享环境配置，自动检测 DevEco Studio，导出 CC/linker/JAVA_HOME 等 |
+| `build-ohos.sh` | 前端构建 → Rust 编译(--features prod) → 拷贝 .so → hvigorw 打包 |
+| `sign-and-install.sh` | 生成 debug profile → 签名 → 卸载旧版 → 安装 → 启动 |
+| `run-tests.sh` | 一键流程：build(autotest) → sign+install → 等待 → 拉取报告 → 分析 |
+
+## 关键注意事项
+
+### 1. 必须启用 prod feature
+
+Rust 编译必须加 `--features prod`，否则 app 会尝试连接 `http://localhost:1420`（devUrl）而不是加载打包好的前端文件。
+
+原因：Tauri 通过 `custom-protocol` feature 控制 `#[cfg(dev)]`，不启用时即使 release 构建也走 dev 路径。
+
+`build-ohos.sh` 已包含此 flag。
+
+### 2. hdc 路径转义问题
+
+Git Bash 会把 `/data/...` 开头的路径转换为 `C:/Program Files (x86)/Git/data/...`。所有涉及设备路径的 hdc 命令必须通过 `cmd.exe /c "hdc ..."` 调用。
+
+### 3. hvigorw 需要 java 在 PATH 中
+
+cmd.exe 调用 hvigorw 时必须把 `JAVA_HOME/bin` 加入 PATH，否则报 `spawn java ENOENT`。`build-ohos.sh` 已处理。
+
+### 4. 每次安装前必须卸载旧版本
+
+签名证书每次生成不同，与设备上已安装版本冲突。`sign-and-install.sh` 会自动处理。
+
+### 5. ohos 文件系统路径
+
+| 视角 | 路径 | 用途 |
+|------|------|------|
+| App 内部（Rust 写入） | `/data/storage/el2/base/cache/` | `write_test_report` command |
+| 外部（hdc 拉取） | `/data/app/el2/100/base/com.tauri.api/cache/` | `hdc file recv` |
 
 ## 自动检测项
 
-- DevEco Studio 路径：搜索 `/d/app/DevEco-Studio`、`/c/Program Files/Huawei/DevEco Studio` 等
-- 设备：通过 `hdc list targets` 获取，多设备时交互选择
+- DevEco Studio 路径：自动检测 `/d/app/DevEco-Studio` 等常见位置
+- 设备：通过 `hdc list targets` 获取
 - 设备 UDID：通过 `hdc shell bm get --udid` 获取
 - Bundle Name：从 `gen/ohos/AppScope/app.json5` 解析
 
-## Cargo.toml patch
+## 首次使用
 
-workspace 根目录 `Cargo.toml` 需包含本地 openharmony-ability patch：
+脚本依赖 `scripts/.env.local` 中的 DevEco Studio 路径。如果自动检测失败，手动创建：
 
-```toml
-[patch."https://github.com/harmony-contrib/openharmony-ability.git"]
-openharmony-ability = { path = "../openharmony-ability/crates/ability" }
-openharmony-ability-derive = { path = "../openharmony-ability/crates/derive" }
+```bash
+echo 'DEVECO_HOME="/d/app/DevEco-Studio"' > .claude/skills/ohos-build/scripts/.env.local
+```
+
+## 测试报告格式
+
+```json
+{
+  "timestamp": "2026-05-12T05:20:47.253Z",
+  "total": 25, "passed": 18, "failed": 7, "skipped": 0,
+  "results": [
+    {"name": "@tauri-apps/api/core.invoke", "category": "auto", "status": "pass", "duration": 10},
+    {"name": "@tauri-apps/plugin-fs.mkdir+...", "category": "side-effect", "status": "fail", "error": "Operation not permitted"}
+  ]
+}
 ```

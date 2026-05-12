@@ -14,6 +14,13 @@ KEYSTORE="$SIGN_LIB/OpenHarmony.p12"
 PROFILE_CERT="$SIGN_LIB/OpenHarmonyProfileDebug.pem"
 STORE_PWD="123456"
 
+# 转换为 Windows 格式路径（供 java 使用）
+WIN_TOOLCHAINS=$(echo "$TOOLCHAINS" | sed 's|^/\(.\)/|\U\1:\\|; s|/|\\|g')
+WIN_SIGN_LIB=$(echo "$SIGN_LIB" | sed 's|^/\(.\)/|\U\1:\\|; s|/|\\|g')
+WIN_HAP_SIGN_TOOL="$WIN_SIGN_LIB\\hap-sign-tool.jar"
+WIN_KEYSTORE="$WIN_SIGN_LIB\\OpenHarmony.p12"
+WIN_PROFILE_CERT="$WIN_SIGN_LIB\\OpenHarmonyProfileDebug.pem"
+
 OHOS_PROJECT="$PROJECT_ROOT/examples/api/src-tauri/gen/ohos"
 UNSIGNED_HAP="$OHOS_PROJECT/entry/build/default/outputs/default/entry-default-unsigned.hap"
 WORK_DIR="$OHOS_PROJECT/.sign"
@@ -125,27 +132,28 @@ EOF
 
 # ─── Step 2: 签名 profile ───
 echo ">>> Step 2: Signing profile..."
-java -jar "$HAP_SIGN_TOOL" sign-profile \
+java -jar "$WIN_HAP_SIGN_TOOL" sign-profile \
     -mode localSign \
     -keyAlias "openharmony application profile debug" \
     -keyPwd "$STORE_PWD" \
-    -profileCertFile "$PROFILE_CERT" \
+    -profileCertFile "$WIN_PROFILE_CERT" \
     -inFile "$WORK_DIR/debug-profile.json" \
     -signAlg SHA256withECDSA \
-    -keystoreFile "$KEYSTORE" \
+    -keystoreFile "$WIN_KEYSTORE" \
     -keystorePwd "$STORE_PWD" \
     -outFile "$WORK_DIR/signed-profile.p7b"
 
 # ─── Step 3: 生成 app 证书链 ───
 echo ">>> Step 3: Generating app certificate..."
-keytool -exportcert -keystore "$KEYSTORE" -storetype PKCS12 \
+WIN_KEYSTORE_ESC=$(echo "$WIN_KEYSTORE" | sed 's/\\/\\\\/g')
+keytool -exportcert -keystore "$WIN_KEYSTORE" -storetype PKCS12 \
     -storepass "$STORE_PWD" -alias "openharmony application ca" \
     -rfc > "$WORK_DIR/sub-ca.cer" 2>/dev/null
-keytool -exportcert -keystore "$KEYSTORE" -storetype PKCS12 \
+keytool -exportcert -keystore "$WIN_KEYSTORE" -storetype PKCS12 \
     -storepass "$STORE_PWD" -alias "openharmony application root ca" \
     -rfc > "$WORK_DIR/root-ca.cer" 2>/dev/null
 
-java -jar "$HAP_SIGN_TOOL" generate-app-cert \
+java -jar "$WIN_HAP_SIGN_TOOL" generate-app-cert \
     -keyAlias "openharmony application release" \
     -keyPwd "$STORE_PWD" \
     -issuer "C=CN,O=OpenHarmony,OU=OpenHarmony Team,CN=OpenHarmony Application CA" \
@@ -155,7 +163,7 @@ java -jar "$HAP_SIGN_TOOL" generate-app-cert \
     -signAlg SHA256withECDSA \
     -subCaCertFile "$WORK_DIR/sub-ca.cer" \
     -rootCaCertFile "$WORK_DIR/root-ca.cer" \
-    -keystoreFile "$KEYSTORE" \
+    -keystoreFile "$WIN_KEYSTORE" \
     -keystorePwd "$STORE_PWD" \
     -outFile "$WORK_DIR/app-debug-cert.cer" \
     -validity 365
@@ -163,7 +171,7 @@ java -jar "$HAP_SIGN_TOOL" generate-app-cert \
 # ─── Step 4: 签名 HAP ───
 echo ">>> Step 4: Signing HAP..."
 SIGNED_HAP="$WORK_DIR/entry-default-signed.hap"
-java -jar "$HAP_SIGN_TOOL" sign-app \
+java -jar "$WIN_HAP_SIGN_TOOL" sign-app \
     -mode localSign \
     -keyAlias "openharmony application release" \
     -keyPwd "$STORE_PWD" \
@@ -171,7 +179,7 @@ java -jar "$HAP_SIGN_TOOL" sign-app \
     -profileFile "$WORK_DIR/signed-profile.p7b" \
     -inFile "$UNSIGNED_HAP" \
     -signAlg SHA256withECDSA \
-    -keystoreFile "$KEYSTORE" \
+    -keystoreFile "$WIN_KEYSTORE" \
     -keystorePwd "$STORE_PWD" \
     -outFile "$SIGNED_HAP" \
     -signCode "1"

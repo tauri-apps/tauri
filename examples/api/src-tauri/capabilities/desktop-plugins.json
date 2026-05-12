@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-plugins",
+  "description": "permissions for desktop-only plugins (not available on ohos)",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["main", "main-*"],
+  "permissions": [
+    "notification:default",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-confirm",
+    "dialog:allow-message"
+  ]
+}

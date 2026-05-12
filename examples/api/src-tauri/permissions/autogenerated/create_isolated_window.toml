@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-isolated-window"
+description = "Enables the create_isolated_window command without any pre-configured scope."
+commands.allow = ["create_isolated_window"]
+
+[[permission]]
+identifier = "deny-create-isolated-window"
+description = "Denies the create_isolated_window command without any pre-configured scope."
+commands.deny = ["create_isolated_window"]

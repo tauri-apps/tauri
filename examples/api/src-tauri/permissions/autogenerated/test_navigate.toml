@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-test-navigate"
+description = "Enables the test_navigate command without any pre-configured scope."
+commands.allow = ["test_navigate"]
+
+[[permission]]
+identifier = "deny-test-navigate"
+description = "Denies the test_navigate command without any pre-configured scope."
+commands.deny = ["test_navigate"]

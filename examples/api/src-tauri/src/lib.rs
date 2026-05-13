@@ -204,6 +204,9 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       cmd::echo,
       cmd::spam,
       cmd::write_test_report,
+      cmd::console_log,
+      cmd::flush_console_log,
+      cmd::clear_console_log,
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");

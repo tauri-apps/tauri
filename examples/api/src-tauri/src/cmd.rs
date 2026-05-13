@@ -81,3 +81,84 @@ pub fn write_test_report<R: Runtime>(
   std::fs::write(&path, &report).map_err(|e| e.to_string())?;
   Ok(())
 }
+
+static CONSOLE_LOG_BUFFER: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+#[command]
+pub fn console_log<R: Runtime>(
+  #[allow(unused_variables)] app: tauri::AppHandle<R>,
+  level: String,
+  message: String,
+) -> Result<(), String> {
+  let ts = chrono::Local::now().format("%H:%M:%S%.3f");
+  let entry = format!("[{}] {} {}", ts, level, message);
+  
+  let mut buffer = CONSOLE_LOG_BUFFER.lock().map_err(|e| e.to_string())?;
+  buffer.push(entry);
+  
+  if buffer.len() > 1000 {
+    buffer.remove(0);
+  }
+  Ok(())
+}
+
+#[command]
+pub fn flush_console_log<R: Runtime>(
+  #[allow(unused_variables)] app: tauri::AppHandle<R>,
+) -> Result<String, String> {
+  #[cfg(target_env = "ohos")]
+  let dir = std::path::PathBuf::from("/data/storage/el2/base/cache");
+  #[cfg(not(target_env = "ohos"))]
+  let dir = {
+    use tauri::Manager;
+    app.path().app_cache_dir().map_err(|e| e.to_string())?
+  };
+
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = dir.join("console-log.txt");
+
+  let mut buffer = CONSOLE_LOG_BUFFER.lock().map_err(|e| e.to_string())?;
+  if buffer.is_empty() {
+    return Ok(path.to_string_lossy().to_string());
+  }
+  let new_content = buffer.join("\n");
+  buffer.clear();
+  
+  let existing = if path.exists() {
+    std::fs::read_to_string(&path).unwrap_or_default()
+  } else {
+    String::new()
+  };
+  
+  let full_content = if existing.is_empty() {
+    new_content
+  } else {
+    format!("{}\n{}", existing, new_content)
+  };
+  
+  std::fs::write(&path, &full_content).map_err(|e| e.to_string())?;
+  
+  Ok(path.to_string_lossy().to_string())
+}
+
+#[command]
+pub fn clear_console_log<R: Runtime>(
+  #[allow(unused_variables)] app: tauri::AppHandle<R>,
+) -> Result<String, String> {
+  #[cfg(target_env = "ohos")]
+  let dir = std::path::PathBuf::from("/data/storage/el2/base/cache");
+  #[cfg(not(target_env = "ohos"))]
+  let dir = {
+    use tauri::Manager;
+    app.path().app_cache_dir().map_err(|e| e.to_string())?
+  };
+
+  let mut buffer = CONSOLE_LOG_BUFFER.lock().map_err(|e| e.to_string())?;
+  buffer.clear();
+
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = dir.join("console-log.txt");
+  std::fs::write(&path, "").map_err(|e| e.to_string())?;
+
+  Ok(path.to_string_lossy().to_string())
+}

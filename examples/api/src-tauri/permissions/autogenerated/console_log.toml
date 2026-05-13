@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-console-log"
+description = "Enables the console_log command without any pre-configured scope."
+commands.allow = ["console_log"]
+
+[[permission]]
+identifier = "deny-console-log"
+description = "Denies the console_log command without any pre-configured scope."
+commands.deny = ["console_log"]

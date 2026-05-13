@@ -240,7 +240,12 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
         app.manage(PathResolver(handle));
       }
 
-      #[cfg(not(target_os = "android"))]
+      #[cfg(target_env = "ohos")]
+      {
+        app.manage(PathResolver(app.clone()));
+      }
+
+      #[cfg(all(not(target_os = "android"), not(target_env = "ohos")))]
       {
         app.manage(PathResolver(app.clone()));
       }
@@ -250,7 +255,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     .build()
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "ohos")))]
 mod tests {
   use crate::test::mock_app;
 

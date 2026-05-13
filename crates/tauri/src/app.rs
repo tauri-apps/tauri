@@ -2296,11 +2296,16 @@ tauri::Builder::default()
       },
 
       #[cfg(target_env = "ohos")]
-      app: crate::ohos::APP
-        .lock()
-        .unwrap()
-        .take()
-        .expect("OpenHarmony app instance not initialized"),
+      app: {
+        let ohos_app = crate::ohos::APP
+          .lock()
+          .unwrap()
+          .take()
+          .expect("OpenHarmony app instance not initialized");
+        crate::ohos::BASE_PATH.set(ohos_app.base_path()).ok();
+        crate::ohos::MODULE_NAME.set(ohos_app.module_name()).ok();
+        ohos_app
+      },
     };
 
     // The env var must be set before the Runtime is created so that GetAvailableBrowserVersionString picks it up.

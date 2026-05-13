@@ -79,7 +79,7 @@
     }
   ]
 
-  let selected = $state.raw(views[0])
+  let selected = $state.raw(views.find((v) => v.label === 'Tests') ?? views[0])
   function select(view) {
     selected = view
   }

@@ -1101,7 +1101,7 @@ macro_rules! run_main_thread {
 #[allow(unused)]
 pub(crate) use run_main_thread;
 
-#[cfg(any(test, feature = "test"))]
+#[cfg(all(any(test, feature = "test"), not(target_env = "ohos")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "test")))]
 pub mod test;
 

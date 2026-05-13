@@ -104,8 +104,18 @@ mod commands {
   setter!(set_enabled, bool);
 }
 
-#[cfg(desktop)]
+#[cfg(any(desktop, target_env = "ohos"))]
 mod desktop_commands {
+  use super::*;
+  use crate::{command, Monitor};
+
+  getter!(current_monitor, Option<Monitor>);
+  getter!(primary_monitor, Option<Monitor>);
+  getter!(available_monitors, Vec<Monitor>);
+}
+
+#[cfg(desktop)]
+mod desktop_only_commands {
   use tauri_runtime::ResizeDirection;
   use tauri_utils::TitleBarStyle;
 
@@ -122,9 +132,6 @@ mod desktop_commands {
   getter!(is_maximizable, bool);
   getter!(is_minimizable, bool);
   getter!(is_closable, bool);
-  getter!(current_monitor, Option<Monitor>);
-  getter!(primary_monitor, Option<Monitor>);
-  getter!(available_monitors, Vec<Monitor>);
   getter!(cursor_position, PhysicalPosition<f64>);
   getter!(is_always_on_top, bool);
 
@@ -292,55 +299,55 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::set_background_color,
       commands::set_theme,
 
-      #[cfg(desktop)] desktop_commands::is_fullscreen,
-      #[cfg(desktop)] desktop_commands::is_minimized,
-      #[cfg(desktop)] desktop_commands::is_maximized,
-      #[cfg(desktop)] desktop_commands::is_decorated,
-      #[cfg(desktop)] desktop_commands::is_maximizable,
-      #[cfg(desktop)] desktop_commands::is_minimizable,
-      #[cfg(desktop)] desktop_commands::is_closable,
-      #[cfg(desktop)] desktop_commands::current_monitor,
-      #[cfg(desktop)] desktop_commands::primary_monitor,
-      #[cfg(desktop)] desktop_commands::monitor_from_point,
-      #[cfg(desktop)] desktop_commands::available_monitors,
-      #[cfg(desktop)] desktop_commands::cursor_position,
-      #[cfg(desktop)] desktop_commands::is_always_on_top,
-      // setters
-      #[cfg(desktop)] desktop_commands::center,
-      #[cfg(desktop)] desktop_commands::request_user_attention,
-      #[cfg(desktop)] desktop_commands::set_maximizable,
-      #[cfg(desktop)] desktop_commands::set_minimizable,
-      #[cfg(desktop)] desktop_commands::set_closable,
-      #[cfg(desktop)] desktop_commands::maximize,
-      #[cfg(desktop)] desktop_commands::unmaximize,
-      #[cfg(desktop)] desktop_commands::minimize,
-      #[cfg(desktop)] desktop_commands::unminimize,
-      #[cfg(desktop)] desktop_commands::set_decorations,
-      #[cfg(desktop)] desktop_commands::set_shadow,
-      #[cfg(desktop)] desktop_commands::set_effects,
-      #[cfg(desktop)] desktop_commands::set_always_on_top,
-      #[cfg(desktop)] desktop_commands::set_always_on_bottom,
-      #[cfg(desktop)] desktop_commands::set_fullscreen,
-      #[cfg(desktop)] desktop_commands::set_simple_fullscreen,
-      #[cfg(desktop)] desktop_commands::set_skip_taskbar,
-      #[cfg(desktop)] desktop_commands::set_cursor_grab,
-      #[cfg(desktop)] desktop_commands::set_cursor_visible,
-      #[cfg(desktop)] desktop_commands::set_cursor_icon,
-      #[cfg(desktop)] desktop_commands::set_cursor_position,
-      #[cfg(desktop)] desktop_commands::set_ignore_cursor_events,
-      #[cfg(desktop)] desktop_commands::start_dragging,
-      #[cfg(desktop)] desktop_commands::start_resize_dragging,
-      #[cfg(desktop)] desktop_commands::set_badge_count,
+      #[cfg(any(desktop, target_env = "ohos"))] desktop_commands::current_monitor,
+      #[cfg(any(desktop, target_env = "ohos"))] desktop_commands::primary_monitor,
+      #[cfg(any(desktop, target_env = "ohos"))] desktop_commands::available_monitors,
+
+      #[cfg(desktop)] desktop_only_commands::is_fullscreen,
+      #[cfg(desktop)] desktop_only_commands::is_minimized,
+      #[cfg(desktop)] desktop_only_commands::is_maximized,
+      #[cfg(desktop)] desktop_only_commands::is_decorated,
+      #[cfg(desktop)] desktop_only_commands::is_maximizable,
+      #[cfg(desktop)] desktop_only_commands::is_minimizable,
+      #[cfg(desktop)] desktop_only_commands::is_closable,
+      #[cfg(desktop)] desktop_only_commands::monitor_from_point,
+      #[cfg(desktop)] desktop_only_commands::cursor_position,
+      #[cfg(desktop)] desktop_only_commands::is_always_on_top,
+      #[cfg(desktop)] desktop_only_commands::center,
+      #[cfg(desktop)] desktop_only_commands::request_user_attention,
+      #[cfg(desktop)] desktop_only_commands::set_maximizable,
+      #[cfg(desktop)] desktop_only_commands::set_minimizable,
+      #[cfg(desktop)] desktop_only_commands::set_closable,
+      #[cfg(desktop)] desktop_only_commands::maximize,
+      #[cfg(desktop)] desktop_only_commands::unmaximize,
+      #[cfg(desktop)] desktop_only_commands::minimize,
+      #[cfg(desktop)] desktop_only_commands::unminimize,
+      #[cfg(desktop)] desktop_only_commands::set_decorations,
+      #[cfg(desktop)] desktop_only_commands::set_shadow,
+      #[cfg(desktop)] desktop_only_commands::set_effects,
+      #[cfg(desktop)] desktop_only_commands::set_always_on_top,
+      #[cfg(desktop)] desktop_only_commands::set_always_on_bottom,
+      #[cfg(desktop)] desktop_only_commands::set_fullscreen,
+      #[cfg(desktop)] desktop_only_commands::set_simple_fullscreen,
+      #[cfg(desktop)] desktop_only_commands::set_skip_taskbar,
+      #[cfg(desktop)] desktop_only_commands::set_cursor_grab,
+      #[cfg(desktop)] desktop_only_commands::set_cursor_visible,
+      #[cfg(desktop)] desktop_only_commands::set_cursor_icon,
+      #[cfg(desktop)] desktop_only_commands::set_cursor_position,
+      #[cfg(desktop)] desktop_only_commands::set_ignore_cursor_events,
+      #[cfg(desktop)] desktop_only_commands::start_dragging,
+      #[cfg(desktop)] desktop_only_commands::start_resize_dragging,
+      #[cfg(desktop)] desktop_only_commands::set_badge_count,
       #[cfg(target_os = "macos")]
-      #[cfg(desktop)] desktop_commands::set_badge_label,
-      #[cfg(desktop)] desktop_commands::set_progress_bar,
+      #[cfg(desktop)] desktop_only_commands::set_badge_label,
+      #[cfg(desktop)] desktop_only_commands::set_progress_bar,
       #[cfg(target_os = "windows")]
-      #[cfg(desktop)] desktop_commands::set_overlay_icon,
-      #[cfg(desktop)] desktop_commands::set_icon,
-      #[cfg(desktop)] desktop_commands::set_visible_on_all_workspaces,
-      #[cfg(desktop)] desktop_commands::set_title_bar_style,
-      #[cfg(desktop)] desktop_commands::toggle_maximize,
-      #[cfg(desktop)] desktop_commands::internal_toggle_maximize,
+      #[cfg(desktop)] desktop_only_commands::set_overlay_icon,
+      #[cfg(desktop)] desktop_only_commands::set_icon,
+      #[cfg(desktop)] desktop_only_commands::set_visible_on_all_workspaces,
+      #[cfg(desktop)] desktop_only_commands::set_title_bar_style,
+      #[cfg(desktop)] desktop_only_commands::toggle_maximize,
+      #[cfg(desktop)] desktop_only_commands::internal_toggle_maximize,
     ])
     .build()
 }

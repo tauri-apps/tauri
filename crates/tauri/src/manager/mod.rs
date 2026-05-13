@@ -726,7 +726,7 @@ mod tests {
   }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "ohos")))]
 mod test {
   use std::{
     sync::mpsc::{channel, Receiver, Sender},

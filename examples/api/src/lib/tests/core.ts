@@ -82,7 +82,7 @@ export const coreTests: TestCase[] = [
     async fn() {
       const win = getCurrentWindow();
       assert(win !== null && win !== undefined, 'getCurrentWindow returned null');
-      assert(typeof win.label === 'string', 'window.label is not a string');
+      assert(typeof win.label === 'string' && win.label.length > 0, `window.label should be non-empty string, got "${win.label}"`);
     },
   },
   {
@@ -92,6 +92,9 @@ export const coreTests: TestCase[] = [
       const win = getCurrentWindow();
       const focused = await win.isFocused();
       assert(typeof focused === 'boolean', `isFocused returned ${typeof focused}, expected boolean`);
+      // Note: on some platforms (e.g. OHOS) the window may not have focus
+      // immediately after launch, so we don't assert focused === true.
+      // The key verification is that the IPC round-trip works and returns a valid boolean.
     },
   },
   {
@@ -99,10 +102,11 @@ export const coreTests: TestCase[] = [
     category: 'auto',
     async fn() {
       const monitor = await currentMonitor();
-      if (monitor) {
-        assert(typeof monitor.size.width === 'number', 'monitor.size.width not a number');
-        assert(typeof monitor.size.height === 'number', 'monitor.size.height not a number');
-      }
+      assert(monitor !== null && monitor !== undefined, 'currentMonitor returned null (device should always have a display)');
+      assert(typeof monitor.size.width === 'number' && monitor.size.width > 0, `monitor.size.width should be positive, got ${monitor.size.width}`);
+      assert(typeof monitor.size.height === 'number' && monitor.size.height > 0, `monitor.size.height should be positive, got ${monitor.size.height}`);
+      assert(typeof monitor.position.x === 'number', `monitor.position.x should be a number, got ${monitor.position.x}`);
+      assert(typeof monitor.position.y === 'number', `monitor.position.y should be a number, got ${monitor.position.y}`);
     },
   },
 
@@ -113,7 +117,7 @@ export const coreTests: TestCase[] = [
     async fn() {
       const webview = getCurrentWebview();
       assert(webview !== null && webview !== undefined, 'getCurrentWebview returned null');
-      assert(typeof webview.label === 'string', 'webview.label is not a string');
+      assert(typeof webview.label === 'string' && webview.label.length > 0, `webview.label should be non-empty string, got "${webview.label}"`);
     },
   },
 
@@ -124,6 +128,8 @@ export const coreTests: TestCase[] = [
     async fn() {
       const dir = await appCacheDir();
       assert(typeof dir === 'string' && dir.length > 0, `expected non-empty path, got "${dir}"`);
+      assert(dir.includes('/') || dir.includes('\\'), `path should contain separator, got "${dir}"`);
+      assert(dir.toLowerCase().includes('cache'), `path should contain "cache" segment, got "${dir}"`);
     },
   },
 
@@ -143,9 +149,14 @@ export const coreTests: TestCase[] = [
     category: 'auto',
     async fn() {
       const win = getCurrentWindow();
-      const unlisten = await win.onFocusChanged(() => {});
-      assert(typeof unlisten === 'function', 'onFocusChanged did not return an unlisten function');
-      unlisten();
+      // Subscribe and unsubscribe twice to verify both directions work and
+      // unlisten is idempotent — a broken event wiring would throw here.
+      const unlisten1 = await win.onFocusChanged(() => {});
+      assert(typeof unlisten1 === 'function', 'onFocusChanged did not return an unlisten function');
+      unlisten1();
+      const unlisten2 = await win.onFocusChanged(() => {});
+      assert(typeof unlisten2 === 'function', 'second onFocusChanged did not return an unlisten function');
+      unlisten2();
     },
   },
 

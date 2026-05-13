@@ -81,14 +81,14 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   {
     ohos_log::init();
     // 这些日志会通过 hilog crate 输出到 OHOS hilog 系统
-    log::info!("ttt Test log after hilog init");
+    log::info!("Test log after hilog init");
   };
 
   #[allow(unused_mut)]
   let mut builder = builder
     // 1. Test custom URI scheme protocol
     .register_uri_scheme_protocol("myapp", |_ctx, request| {
-      log::info!("ttt Custom scheme request: {:?}", request.uri());
+      log::info!("Custom scheme request: {:?}", request.uri());
 
       // Return a simple response
       let body = r#"
@@ -132,38 +132,37 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         .initialization_script("document.addEventListener('DOMContentLoaded', () => { document.title = '✅ INIT SCRIPT WORKED!'; });")
         .on_document_title_changed(|_window, title| {
           log::info!("document title changed: {title}");
-          log::info!("ttt document title changed: {title}");
         })
         // 2. Test navigation intercept (shouldOverrideUrlLoading)
         .on_navigation(|url| {
-          log::info!("ttt Navigation intercepted: {url}");
+          log::info!("Navigation intercepted: {url}");
           // Don't block navigation for our test
           true
         })
         // 3. Test web resource request intercept (onLoadIntercept)
         .on_web_resource_request(|request, response| {
-          log::info!("ttt Resource request: {:?}", request.uri());
+          log::info!("Resource request: {:?}", request.uri());
           // Add a custom header to test
           response.headers_mut().insert("X-Tauri-Test", tauri::http::HeaderValue::from_static("intercepted"));
         })
         // 4. Test download intercept
         .on_download(|_webview, event| {
-          log::info!("ttt on_download event received");
+          log::info!("on_download event received");
           match event {
             tauri::webview::DownloadEvent::Requested { url, destination } => {
-              log::info!("ttt Download requested: {}", url);
+              log::info!("Download requested: {}", url);
 
               // 打印默认保存路径
-              log::info!("ttt Default destination: {:?}", destination);
+              log::info!("Default destination: {:?}", destination);
 
               // 可以在这里修改保存路径
               // *destination = "/custom/path".into();
             }
             tauri::webview::DownloadEvent::Finished { url, path, success } => {
-              log::info!("ttt Download finished: {}, success: {}, path: {:?}", url, success, path);
+              log::info!("Download finished: {}, success: {}, path: {:?}", url, success, path);
             }
             _ => {
-              log::info!("ttt Other download event");
+              log::info!("Other download event");
             }
           }
           true // 允许下载
@@ -206,10 +205,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       webview.open_devtools();
 
       // Test eval functionality
-      log::info!("ttt Testing eval functionality...");
+      log::info!("Testing eval functionality...");
       webview.eval("document.title = '✅ Rust eval works!'")?;
       webview.eval_with_callback("document.title", |title| {
-        log::info!("ttt Window title from JS: {}", title);
+        log::info!("Window title from JS: {}", title);
       })?;
       webview.eval(r#"
         const div = document.createElement('div');
@@ -238,7 +237,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       #[cfg(target_env = "ohos")]
       {
-        log::info!("ttt OHOS platform initialized successfully"); // No logger initialized on OHOS yet
+        log::info!("OHOS platform initialized successfully"); // No logger initialized on OHOS yet
       }
 
       #[cfg(desktop)]
@@ -273,10 +272,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     .on_page_load(|webview, payload| {
       match payload.event() {
         PageLoadEvent::Started => {
-          log::info!("ttt Page Begin: {}", payload.url());
+          log::info!("Page Begin: {}", payload.url());
         }
         PageLoadEvent::Finished => {
-          log::info!("ttt Page End: {}", payload.url());
+          log::info!("Page End: {}", payload.url());
         }
       }
 

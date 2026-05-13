@@ -2217,14 +2217,12 @@ tauri::Builder::default()
     tracing::instrument(name = "app::build", skip_all)
   )]
   pub fn build(mut self, context: Context<R>) -> crate::Result<App<R>> {
-    log::info!("ttt build1");
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
       self.menu = Some(Box::new(|app_handle| {
         crate::menu::Menu::default(app_handle)
       }));
     }
-    log::info!("ttt build2");
     let manager = Arc::new(AppManager::with_handlers(
       context,
       self.plugins,
@@ -2262,7 +2260,6 @@ tauri::Builder::default()
     } else {
       None
     };
-    log::info!("ttt build3");
     let runtime_args = RuntimeInitArgs {
       #[cfg(all(
         any(
@@ -2308,7 +2305,6 @@ tauri::Builder::default()
         ohos_app
       },
     };
-    log::info!("ttt build4");
 
     // The env var must be set before the Runtime is created so that GetAvailableBrowserVersionString picks it up.
     #[cfg(windows)]
@@ -2356,7 +2352,6 @@ tauri::Builder::default()
         }));
       }
     }
-    log::info!("ttt build5");
     runtime.set_device_event_filter(self.device_event_filter);
 
     let runtime_handle = runtime.handle();
@@ -2375,7 +2370,6 @@ tauri::Builder::default()
       },
       ran_setup: false,
     };
-    log::info!("ttt build6");
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
       let menu = menu(&app.handle)?;
@@ -2390,7 +2384,6 @@ tauri::Builder::default()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-    log::info!("ttt build7");
     app.register_core_plugins()?;
 
     let env = Env::default();
@@ -2408,7 +2401,6 @@ tauri::Builder::default()
     app.handle.plugin(crate::ipc::channel::plugin())?;
 
     let handle = app.handle();
-    log::info!("ttt build8");
     // initialize default tray icon if defined
     #[cfg(all(desktop, feature = "tray-icon"))]
     {
@@ -2432,9 +2424,7 @@ tauri::Builder::default()
         tray.build(handle)?;
       }
     }
-    log::info!("ttt build9");
     app.manager.initialize_plugins(handle)?;
-    log::info!("ttt build10");
     Ok(app)
   }
 

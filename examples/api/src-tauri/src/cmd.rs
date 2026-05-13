@@ -28,7 +28,7 @@ pub fn log_operation(
   payload: Option<String>,
   command_scope: CommandScope<LogScope>,
 ) -> Result<(), &'static str> {
-  log::info!("ttt log_operation");
+  log::info!("log_operation");
 
   if command_scope.denies().iter().any(|s| s.event == event) {
     Err("denied")
@@ -86,7 +86,7 @@ pub fn write_test_report<R: Runtime>(
 
 #[command]
 pub fn test_eval<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<()> {
-  log::info!("ttt test_eval called");
+  log::info!("test_eval called");
 
   if let Some(window) = app.get_webview_window("main") {
 
@@ -97,7 +97,7 @@ pub fn test_eval<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<(
     window.eval_with_callback(
       r#"new Date().toLocaleString()"#,
       move |time_str| {
-        log::info!("ttt Current time from JS: {}", time_str);
+        log::info!("Current time from JS: {}", time_str);
       }
     )?;
 
@@ -116,13 +116,13 @@ pub fn test_eval<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<(
 
 #[command]
 pub fn test_navigate<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, url: String) -> tauri::Result<()> {
-  log::info!("ttt test_navigate called with url: {}", url);
+  log::info!("test_navigate called with url: {}", url);
   match url.parse() {
     Ok(parsed_url) => {
       window.navigate(parsed_url)?;
     }
     Err(e) => {
-      log::error!("ttt Failed to parse URL: {}", e);
+      log::error!("Failed to parse URL: {}", e);
     }
   }
   Ok(())
@@ -130,7 +130,7 @@ pub fn test_navigate<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, url: St
 
 #[command]
 pub fn test_reload<R: tauri::Runtime>(window: tauri::WebviewWindow<R>) -> tauri::Result<()> {
-  log::info!("ttt test_reload called");
+  log::info!("test_reload called");
   window.reload()?;
   Ok(())
 }
@@ -141,13 +141,13 @@ pub fn create_isolated_window<R: tauri::Runtime>(
   window_id: String,
   data_suffix: String,
 ) -> tauri::Result<()> {
-  log::info!("ttt Creating isolated window: {}", window_id);
+  log::info!("Creating isolated window: {}", window_id);
 
   // 创建独立的数据目录
   let mut data_dir = app.path().app_data_dir()?;
   data_dir.push(format!("webview_data_{}", data_suffix));
 
-  log::info!("ttt Data directory: {:?}", data_dir);
+  log::info!("Data directory: {:?}", data_dir);
 
   // 创建带有独立数据目录的窗口
   tauri::WebviewWindowBuilder::new(&app, window_id, WebviewUrl::default())
@@ -170,7 +170,7 @@ pub fn create_window_with_custom_ua<R: tauri::Runtime>(
   window_id: String,
   user_agent: String,
 ) -> tauri::Result<()> {
-  log::info!("ttt Creating window with custom User-Agent: {}", user_agent);
+  log::info!("Creating window with custom User-Agent: {}", user_agent);
 
   let window = tauri::WebviewWindowBuilder::new(&app, window_id, WebviewUrl::default())
     .title("Window with Custom User-Agent")
@@ -180,7 +180,7 @@ pub fn create_window_with_custom_ua<R: tauri::Runtime>(
 
   // 通过 Rust 端的 eval 获取 User-Agent 并打印日志
   window.eval_with_callback("navigator.userAgent", move |ua| {
-    log::info!("ttt Window User-Agent (from Rust): {}", ua);
+    log::info!("Window User-Agent (from Rust): {}", ua);
   })?;
 
   Ok(())
@@ -191,7 +191,7 @@ pub fn create_window_no_throttle<R: tauri::Runtime>(
   app: tauri::AppHandle<R>,
   window_id: String,
 ) -> tauri::Result<()> {
-  log::info!("ttt Creating window with background throttling disabled");
+  log::info!("Creating window with background throttling disabled");
 
   use tauri::utils::config::BackgroundThrottlingPolicy;
 
@@ -233,7 +233,7 @@ pub fn create_transparent_window<R: tauri::Runtime>(
   app: tauri::AppHandle<R>,
   window_id: String,
 ) -> tauri::Result<()> {
-  log::info!("ttt Creating transparent borderless window: {}", window_id);
+  log::info!("Creating transparent borderless window: {}", window_id);
 
   let _window = tauri::WebviewWindowBuilder::new(&app, window_id, WebviewUrl::default())
     .title("Transparent Window")

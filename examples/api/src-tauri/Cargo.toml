@@ -22,9 +22,18 @@ serde = { version = "1", features = ["derive"] }
 tiny_http = "0.11"
 log = "0.4.21"
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
+tauri-plugin-http = { path = "../../../../plugins-workspace/plugins/http" }
+tauri-plugin-os = { path = "../../../../plugins-workspace/plugins/os" }
+tauri-plugin-fs = { path = "../../../../plugins-workspace/plugins/fs" }
+tauri-plugin-shell = { path = "../../../../plugins-workspace/plugins/shell" }
+tauri-plugin-clipboard-manager = { path = "../../../../plugins-workspace/plugins/clipboard-manager" }
+tauri-plugin-process = { path = "../../../../plugins-workspace/plugins/process" }
+tauri-plugin-autostart = { path = "../../../../plugins-workspace/plugins/autostart" }
+tauri-plugin-log = { path = "../../../../plugins-workspace/plugins/log" }
 
 [target.'cfg(not(target_env = "ohos"))'.dependencies]
-tauri-plugin-log = "2"
+tauri-plugin-notification = { path = "../../../../plugins-workspace/plugins/notification" }
+tauri-plugin-dialog = { path = "../../../../plugins-workspace/plugins/dialog" }
 
 [target.'cfg(target_env = "ohos")'.dependencies]
 napi-ohos = { version = "1.1" }

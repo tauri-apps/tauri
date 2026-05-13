@@ -12,6 +12,11 @@
   import App from './views/App.svelte'
   import Menu from './views/Menu.svelte'
   import Tray from './views/Tray.svelte'
+  import TestRunner from './views/TestRunner.svelte'
+
+  import { runTests } from './lib/test-runner'
+  import { coreTests } from './lib/tests/core'
+  import { pluginTests } from './lib/tests/plugins'
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
@@ -66,12 +71,52 @@
       label: 'WebRTC',
       component: WebRTC,
       icon: 'i-ph-broadcast'
+    },
+    {
+      label: 'Tests',
+      component: TestRunner,
+      icon: 'i-ph-check-circle'
     }
   ]
 
   let selected = $state.raw(views[0])
   function select(view) {
     selected = view
+  }
+
+  // autotest mode: ?autotest=true or VITE_AUTOTEST=true triggers automatic test run
+  const urlParams = new URLSearchParams(window.location.search)
+  const isAutotest = urlParams.get('autotest') === 'true' || import.meta.env.VITE_AUTOTEST === 'true'
+  console.log('[AUTOTEST] isAutotest=', isAutotest, ' VITE_AUTOTEST=', import.meta.env.VITE_AUTOTEST)
+  if (isAutotest) {
+    console.log('[AUTOTEST] Starting autotest mode...')
+    const testsView = views.find((v) => v.label === 'Tests')
+    if (testsView) selected = testsView
+    setTimeout(async () => {
+      try {
+        console.log('[AUTOTEST] Running tests...')
+        const allTests = [...coreTests, ...pluginTests].filter((t) => t.category !== 'manual')
+        console.log('[AUTOTEST] Total tests to run:', allTests.length)
+        const report = await runTests(allTests, (result) => {
+          const icon = result.status === 'pass' ? '[PASS]' : '[FAIL]'
+          console.log(`[AUTOTEST] ${icon} ${result.name}${result.error ? ' - ' + result.error : ''}`)
+          onMessage(`${icon} ${result.name}${result.error ? ' - ' + result.error : ''}`)
+        })
+        console.log(`[AUTOTEST] Done: ${report.passed} passed, ${report.failed} failed, ${report.skipped} skipped`)
+        onMessage(`--- Done: ${report.passed} passed, ${report.failed} failed, ${report.skipped} skipped ---`)
+        console.log('[AUTOTEST] Saving report...')
+        try {
+          await invoke('write_test_report', { report: JSON.stringify(report) })
+          console.log('[AUTOTEST] Report saved successfully')
+          onMessage('Report saved.')
+        } catch (e) {
+          console.error('[AUTOTEST] Failed to save report:', e)
+          onMessage(`Failed to save report: ${e}`)
+        }
+      } catch (e) {
+        console.error('[AUTOTEST] Error during test execution:', e)
+      }
+    }, 1000)
   }
 
   // dark/light

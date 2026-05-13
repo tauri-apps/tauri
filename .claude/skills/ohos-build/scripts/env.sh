@@ -10,7 +10,7 @@ if [ -f "$ENV_LOCAL" ]; then
     source "$ENV_LOCAL"
 fi
 
-# ─── 自动检测 DevEco Studio ───
+# ─── 自动检测 DevEco Studio (Git Bash 路径格式) ───
 detect_deveco_home() {
     local candidates=(
         "/d/app/DevEco-Studio"
@@ -52,9 +52,21 @@ fi
 export DEVECO_HOME
 export OHOS_HOME="$DEVECO_HOME/sdk/default/openharmony"
 export JAVA_HOME="$DEVECO_HOME/jbr"
-# Windows 格式路径，供 cargo-mobile2 使用
+# Windows 格式路径，供 cargo-mobile2、clang.exe 等使用
 export DEV_ECO_STUDIO_INSTALL_PATH=$(echo "$DEVECO_HOME" | sed 's|^/\(.\)/|\U\1:\\|; s|/|\\|g')
 export PATH="$DEVECO_HOME/jbr/bin:$PATH:$DEVECO_HOME/tools/hvigor/bin:$DEVECO_HOME/tools/ohpm/bin:$OHOS_HOME/toolchains"
+
+# ─── 设置 ohos clang 编译器 (供 ring 等 native crate 使用) ───
+OHOS_CLANG=$(echo "$OHOS_HOME/native/llvm/bin/clang.exe" | sed 's|^/\(.\)/|\U\1:\\|; s|/|\\|g')
+OHOS_SYSROOT=$(echo "$OHOS_HOME/native/sysroot" | sed 's|^/\(.\)/|\U\1:\\|; s|/|\\|g')
+OHOS_AR=$(echo "$OHOS_HOME/native/llvm/bin/llvm-ar.exe" | sed 's|^/\(.\)/|\U\1:\\|; s|/|\\|g')
+export CC_aarch64_unknown_linux_ohos="$OHOS_CLANG"
+export CFLAGS_aarch64_unknown_linux_ohos="--target=aarch64-linux-ohos --sysroot=$OHOS_SYSROOT -D__MUSL__"
+export AR_aarch64_unknown_linux_ohos="$OHOS_AR"
+
+# ─── Rust linker 配置 ───
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER="$OHOS_CLANG"
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_RUSTFLAGS="-C link-arg=--target=aarch64-linux-ohos -C link-arg=--sysroot=$OHOS_SYSROOT -C link-arg=-D__MUSL__"
 
 # ─── 推导项目根目录（skill 在 .claude/skills/ohos-build/scripts/ 下）───
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"

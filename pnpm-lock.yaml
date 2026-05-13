@@ -23,6 +23,36 @@ importers:
       '@tauri-apps/api':
         specifier: ../../packages/api/dist
         version: link:../../packages/api/dist
+      '@tauri-apps/plugin-autostart':
+        specifier: file:../../../plugins-workspace/plugins/autostart
+        version: file:../plugins-workspace/plugins/autostart
+      '@tauri-apps/plugin-clipboard-manager':
+        specifier: file:../../../plugins-workspace/plugins/clipboard-manager
+        version: file:../plugins-workspace/plugins/clipboard-manager
+      '@tauri-apps/plugin-dialog':
+        specifier: file:../../../plugins-workspace/plugins/dialog
+        version: file:../plugins-workspace/plugins/dialog
+      '@tauri-apps/plugin-fs':
+        specifier: file:../../../plugins-workspace/plugins/fs
+        version: file:../plugins-workspace/plugins/fs
+      '@tauri-apps/plugin-http':
+        specifier: file:../../../plugins-workspace/plugins/http
+        version: file:../plugins-workspace/plugins/http
+      '@tauri-apps/plugin-log':
+        specifier: file:../../../plugins-workspace/plugins/log
+        version: file:../plugins-workspace/plugins/log
+      '@tauri-apps/plugin-notification':
+        specifier: file:../../../plugins-workspace/plugins/notification
+        version: file:../plugins-workspace/plugins/notification
+      '@tauri-apps/plugin-os':
+        specifier: file:../../../plugins-workspace/plugins/os
+        version: file:../plugins-workspace/plugins/os
+      '@tauri-apps/plugin-process':
+        specifier: file:../../../plugins-workspace/plugins/process
+        version: file:../plugins-workspace/plugins/process
+      '@tauri-apps/plugin-shell':
+        specifier: file:../../../plugins-workspace/plugins/shell
+        version: file:../plugins-workspace/plugins/shell
     devDependencies:
       '@iconify-json/codicon':
         specifier: ^1.2.49
@@ -1559,6 +1589,39 @@ packages:
     peerDependencies:
       svelte: ^5.46.4
       vite: ^8.0.0-beta.7 || ^8.0.0
+
+  '@tauri-apps/api@2.11.0':
+    resolution: {integrity: sha512-7CinYODhky9lmO23xHnUFv0Xt43fbtWMyxZcLcRBlFkcgXKuEirBvHpmtJ89YMhyeGcq20Wuc47Fa4XjyniywA==}
+
+  '@tauri-apps/plugin-autostart@file:../plugins-workspace/plugins/autostart':
+    resolution: {directory: ../plugins-workspace/plugins/autostart, type: directory}
+
+  '@tauri-apps/plugin-clipboard-manager@file:../plugins-workspace/plugins/clipboard-manager':
+    resolution: {directory: ../plugins-workspace/plugins/clipboard-manager, type: directory}
+
+  '@tauri-apps/plugin-dialog@file:../plugins-workspace/plugins/dialog':
+    resolution: {directory: ../plugins-workspace/plugins/dialog, type: directory}
+
+  '@tauri-apps/plugin-fs@file:../plugins-workspace/plugins/fs':
+    resolution: {directory: ../plugins-workspace/plugins/fs, type: directory}
+
+  '@tauri-apps/plugin-http@file:../plugins-workspace/plugins/http':
+    resolution: {directory: ../plugins-workspace/plugins/http, type: directory}
+
+  '@tauri-apps/plugin-log@file:../plugins-workspace/plugins/log':
+    resolution: {directory: ../plugins-workspace/plugins/log, type: directory}
+
+  '@tauri-apps/plugin-notification@file:../plugins-workspace/plugins/notification':
+    resolution: {directory: ../plugins-workspace/plugins/notification, type: directory}
+
+  '@tauri-apps/plugin-os@file:../plugins-workspace/plugins/os':
+    resolution: {directory: ../plugins-workspace/plugins/os, type: directory}
+
+  '@tauri-apps/plugin-process@file:../plugins-workspace/plugins/process':
+    resolution: {directory: ../plugins-workspace/plugins/process, type: directory}
+
+  '@tauri-apps/plugin-shell@file:../plugins-workspace/plugins/shell':
+    resolution: {directory: ../plugins-workspace/plugins/shell, type: directory}
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -3775,6 +3838,48 @@ snapshots:
       svelte: 5.53.11
       vite: 8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
       vitefu: 1.1.2(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
+
+  '@tauri-apps/api@2.11.0': {}
+
+  '@tauri-apps/plugin-autostart@file:../plugins-workspace/plugins/autostart':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-clipboard-manager@file:../plugins-workspace/plugins/clipboard-manager':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-dialog@file:../plugins-workspace/plugins/dialog':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-fs@file:../plugins-workspace/plugins/fs':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-http@file:../plugins-workspace/plugins/http':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-log@file:../plugins-workspace/plugins/log':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-notification@file:../plugins-workspace/plugins/notification':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-os@file:../plugins-workspace/plugins/os':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-process@file:../plugins-workspace/plugins/process':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
+
+  '@tauri-apps/plugin-shell@file:../plugins-workspace/plugins/shell':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
 
   '@tybys/wasm-util@0.10.1':
     dependencies:

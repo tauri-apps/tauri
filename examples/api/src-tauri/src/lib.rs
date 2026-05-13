@@ -31,6 +31,13 @@ pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  #[cfg(target_env = "ohos")]
+  std::panic::set_hook(Box::new(|info| {
+    let msg = format!("PANIC: {info}\n");
+    let _ = std::fs::write("/data/storage/el2/base/cache/panic.log", &msg);
+    eprintln!("{msg}");
+  }));
+
   run_app(tauri::Builder::default(), |_app| {})
 }
 
@@ -40,12 +47,28 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 ) {
   #[cfg(not(target_env = "ohos"))]
   let builder = builder
+    .plugin(tauri_plugin_sample::init())
+    .plugin(tauri_plugin_notification::init())
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_http::init())
+    .plugin(tauri_plugin_clipboard_manager::init())
+    .plugin(tauri_plugin_autostart::init(
+      tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+      None,
+    ));
+
+  let builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
         .level(log::LevelFilter::Info)
+        .clear_targets()
+        .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout))
         .build(),
     )
-    .plugin(tauri_plugin_sample::init());
+    .plugin(tauri_plugin_fs::init())
+    .plugin(tauri_plugin_os::init())
+    .plugin(tauri_plugin_shell::init())
+    .plugin(tauri_plugin_process::init());
 
   #[allow(unused_mut)]
   let mut builder = builder
@@ -180,6 +203,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       cmd::perform_request,
       cmd::echo,
       cmd::spam,
+      cmd::write_test_report,
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");

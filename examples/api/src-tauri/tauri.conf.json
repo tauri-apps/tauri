@@ -8,7 +8,7 @@
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
-    "removeUnusedCommands": true
+    "removeUnusedCommands": false
   },
   "app": {
     "withGlobalTauri": true,

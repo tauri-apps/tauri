@@ -24,6 +24,9 @@ bun.lockb
 # rust compiled folders
 target/
 
+# rust lock file
+Cargo.lock
+
 # test video for streaming example
 streaming_example_test_video.mp4
 
@@ -53,3 +56,6 @@ pids
 debug.log
 TODO.md
 .aider*
+
+# ai data
+.omc

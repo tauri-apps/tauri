@@ -165,6 +165,11 @@ pub fn get_config(
   set_var("WRY_OHOS_LIBRARY", app.lib_name());
   set_var("TAURI_OHOS_PROJECT_PATH", config.project_dir());
 
+  // Also set device type from cli_options.vars if present
+  if let Some(device_type) = cli_options.vars.get("TAURI_OHOS_DEVICE_TYPE") {
+    set_var("TAURI_OHOS_DEVICE_TYPE", device_type);
+  }
+
   (config, metadata)
 }
 

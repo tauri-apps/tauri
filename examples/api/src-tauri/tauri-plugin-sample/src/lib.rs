@@ -56,8 +56,8 @@ fn ping<R: tauri::Runtime>(
   scope: tauri::ipc::CommandScope<PingScope>,
   global_scope: tauri::ipc::GlobalScope<SampleScope>,
 ) -> std::result::Result<PingResponse, String> {
-  println!("local scope {scope:?}");
-  println!("global scope {global_scope:?}");
+  log::info!("local scope {scope:?}");
+  log::info!("global scope {global_scope:?}");
   app
     .sample()
     .ping(PingRequest {
@@ -80,7 +80,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     })
     .invoke_handler(tauri::generate_handler![ping])
     .on_navigation(|window, url| {
-      println!("navigation {} {url}", window.label());
+      log::info!("navigation {} {url}", window.label());
       true
     })
     .build()

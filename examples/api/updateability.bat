@@ -1,0 +1,1 @@
+rmdir /s /q src-tauri\gen\ohos\entry\oh_modules

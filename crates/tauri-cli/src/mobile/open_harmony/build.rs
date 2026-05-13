@@ -26,7 +26,9 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::set_current_dir;
+use std::collections::HashMap;
+use std::env::{set_current_dir, set_var};
+use std::ffi::OsString;
 use crate::helpers::app_paths::Dirs;
 
 #[derive(Debug, Clone, Parser)]
@@ -65,6 +67,9 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Device type to build for (mobile or desktop)
+  #[clap(long, default_value = "mobile", value_parser(["mobile", "desktop"]))]
+  pub device_type: String,
   /// Command line arguments passed to the runner.
   /// Use `--` to explicitly mark the start of the arguments.
   /// e.g. `tauri ohos build -- [runnerArgs]`.
@@ -99,6 +104,9 @@ impl From<Options> for BuildOptions {
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
+  // Set device type environment variable
+  set_var("TAURI_OHOS_DEVICE_TYPE", &options.device_type);
+
   delete_codegen_vars();
 
   let mut build_options: BuildOptions = options.clone().into();
@@ -129,11 +137,19 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
     let app = get_app(MobileTarget::OpenHarmony, &tauri_config, &interface, dirs.tauri);
+
+    let mut vars = HashMap::new();
+    vars.insert("TAURI_OHOS_DEVICE_TYPE".into(), OsString::from(&options.device_type));
+    let cli_options = CliOptions {
+      vars,
+      ..Default::default()
+    };
+
     let (config, metadata) = get_config(
       &app,
       &tauri_config,
       Some(&build_options.features),
-      &Default::default(),
+      &cli_options,
     );
     (interface, config, metadata)
   };
@@ -185,7 +201,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 #[allow(clippy::too_many_arguments)]
 fn run_build(
   interface: AppInterface,
-  _options: Options,
+  options: Options,
   build_options: BuildOptions,
   tauri_config: ConfigMetadata,
   profile: Profile,
@@ -205,12 +221,15 @@ fn run_build(
   let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ohos"), "OpenHarmony")?;
 
+  let mut vars = HashMap::new();
+  vars.insert("TAURI_OHOS_DEVICE_TYPE".into(), OsString::from(&options.device_type));
+
   let cli_options = CliOptions {
     dev: false,
     features: build_options.features.clone(),
     args: build_options.args.clone(),
     noise_level,
-    vars: Default::default(),
+    vars,
     config: build_options.config,
     target_device: None,
   };

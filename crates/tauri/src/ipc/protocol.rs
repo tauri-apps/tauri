@@ -557,7 +557,7 @@ fn parse_invoke_request<R: Runtime>(
   Ok(payload)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "ohos")))]
 mod tests {
   use std::str::FromStr;
 

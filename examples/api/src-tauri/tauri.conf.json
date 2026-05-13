@@ -93,18 +93,10 @@
         "rank": "Owner"
       },
       {
-        "ext": ["taurijson"],
-        "exportedType": {
-          "identifier": "com.tauri.dev-file-associations-demo.taurijson",
-          "conformsTo": ["public.json"]
-        }
+        "ext": ["taurijson"]
       },
       {
-        "ext": ["taurid"],
-        "exportedType": {
-          "identifier": "com.tauri.dev-file-associations-demo.tauridata",
-          "conformsTo": ["public.data"]
-        }
+        "ext": ["taurid"]
       }
     ],
     "icon": [

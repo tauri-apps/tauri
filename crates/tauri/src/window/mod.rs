@@ -1133,7 +1133,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Adds a new webview as a child of this window.
-  #[cfg(any(test, all(desktop, feature = "unstable")))]
+  #[cfg(all(any(test, all(desktop, feature = "unstable")), not(target_env = "ohos")))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
   pub fn add_child<P: Into<Position>, S: Into<Size>>(
     &self,

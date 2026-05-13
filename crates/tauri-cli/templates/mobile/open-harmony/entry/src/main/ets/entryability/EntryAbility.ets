@@ -1,9 +1,9 @@
-import { RustAbility } from '@ohos-rs/ability'
+import { NativeAbility } from '@ohos-rs/ability'
 import Want from '@ohos.app.ability.Want'
 import { AbilityConstant } from '@kit.AbilityKit';
 import window from '@ohos.window';
 
-export default class EntryAbility extends RustAbility {
+export default class EntryAbility extends NativeAbility {
   // change to dynamic library name
   public moduleName: string = "{{app.lib-name}}"
   public defaultPage: boolean = true;

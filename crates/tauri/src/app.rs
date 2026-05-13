@@ -2223,7 +2223,6 @@ tauri::Builder::default()
         crate::menu::Menu::default(app_handle)
       }));
     }
-
     let manager = Arc::new(AppManager::with_handlers(
       context,
       self.plugins,
@@ -2261,7 +2260,6 @@ tauri::Builder::default()
     } else {
       None
     };
-
     let runtime_args = RuntimeInitArgs {
       #[cfg(all(
         any(
@@ -2354,7 +2352,6 @@ tauri::Builder::default()
         }));
       }
     }
-
     runtime.set_device_event_filter(self.device_event_filter);
 
     let runtime_handle = runtime.handle();
@@ -2373,7 +2370,6 @@ tauri::Builder::default()
       },
       ran_setup: false,
     };
-
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
       let menu = menu(&app.handle)?;
@@ -2388,7 +2384,6 @@ tauri::Builder::default()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
     app.register_core_plugins()?;
 
     let env = Env::default();
@@ -2406,7 +2401,6 @@ tauri::Builder::default()
     app.handle.plugin(crate::ipc::channel::plugin())?;
 
     let handle = app.handle();
-
     // initialize default tray icon if defined
     #[cfg(all(desktop, feature = "tray-icon"))]
     {
@@ -2430,9 +2424,7 @@ tauri::Builder::default()
         tray.build(handle)?;
       }
     }
-
     app.manager.initialize_plugins(handle)?;
-
     Ok(app)
   }
 

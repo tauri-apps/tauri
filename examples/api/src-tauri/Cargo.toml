@@ -31,13 +31,10 @@ tauri-plugin-process = { path = "../../../../plugins-workspace/plugins/process" 
 tauri-plugin-autostart = { path = "../../../../plugins-workspace/plugins/autostart" }
 tauri-plugin-log = { path = "../../../../plugins-workspace/plugins/log" }
 
-[target.'cfg(not(target_env = "ohos"))'.dependencies]
-tauri-plugin-notification = { path = "../../../../plugins-workspace/plugins/notification" }
-tauri-plugin-dialog = { path = "../../../../plugins-workspace/plugins/dialog" }
-
 [target.'cfg(target_env = "ohos")'.dependencies]
 napi-ohos = { version = "1.1" }
 napi-derive-ohos = { version = "1.1" }
+hilog = "*"
 
 [dependencies.tauri]
 path = "../../../crates/tauri"
@@ -56,3 +53,11 @@ features = ["test"]
 
 [features]
 prod = ["tauri/custom-protocol"]
+
+[profile.release]
+# 开启调试信息（最重要）
+debug = true
+
+# 可选：保留行号、变量名等更完整的调试信息（gdb、lldb、日志回溯都能用）
+strip = false
+opt-level = 0  # 关闭优化，调试最清晰

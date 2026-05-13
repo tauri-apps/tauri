@@ -151,8 +151,8 @@ rustls = { version = "0.23", default-features = false, features = [
 ], optional = true }
 
 [target.'cfg(target_env = "ohos")'.dependencies]
-openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
-openharmony-ability-derive = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
+openharmony-ability = { path = "../../../openharmony-ability/crates/ability", features = ["webview"] }
+openharmony-ability-derive = { path = "../../../openharmony-ability/crates/derive" }
 
 # android
 [target.'cfg(target_os = "android")'.dependencies]

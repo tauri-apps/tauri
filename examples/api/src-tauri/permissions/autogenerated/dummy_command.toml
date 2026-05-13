@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dummy-command"
+description = "Enables the dummy_command command without any pre-configured scope."
+commands.allow = ["dummy_command"]
+
+[[permission]]
+identifier = "deny-dummy-command"
+description = "Denies the dummy_command command without any pre-configured scope."
+commands.deny = ["dummy_command"]

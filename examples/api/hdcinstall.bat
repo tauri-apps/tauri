@@ -1,0 +1,1 @@
+hdc install -r .\src-tauri\gen\ohos\entry\build\default\outputs\default\entry-default-signed.hap

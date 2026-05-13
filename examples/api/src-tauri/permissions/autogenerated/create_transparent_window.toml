@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-transparent-window"
+description = "Enables the create_transparent_window command without any pre-configured scope."
+commands.allow = ["create_transparent_window"]
+
+[[permission]]
+identifier = "deny-create-transparent-window"
+description = "Denies the create_transparent_window command without any pre-configured scope."
+commands.deny = ["create_transparent_window"]

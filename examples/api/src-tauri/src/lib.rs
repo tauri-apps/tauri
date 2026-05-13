@@ -13,6 +13,7 @@ mod ohos_log {
     pub fn init() {
         // 直接使用 hilog crate 初始化
         hilog::Builder::new()
+            .set_tag("tauritest")
             .filter_level(log::LevelFilter::Trace)
             .init();
     }
@@ -83,7 +84,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     log::info!("ttt Test log after hilog init");
   };
 
-#[allow(unused_mut)]
+  #[allow(unused_mut)]
   let mut builder = builder
     // 1. Test custom URI scheme protocol
     .register_uri_scheme_protocol("myapp", |_ctx, request| {
@@ -293,7 +294,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         });
       }
     });
-  log::info!("ttt2");
 
   #[allow(unused_mut)]
   let mut app = builder
@@ -314,10 +314,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");
-  log::info!("ttt2.1");
+
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
-  log::info!("ttt2.2");
+
   #[cfg(target_os = "ios")]
   let mut counter = 0;
   app.run(move |_app_handle, _event| {
@@ -364,7 +364,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       _ => (),
     }
   });
-  log::info!("ttt3");
 }
 
 #[cfg(test)]

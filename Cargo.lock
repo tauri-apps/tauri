@@ -12325,7 +12325,6 @@ dependencies = [
  "javascriptcore-rs",
  "jni",
  "libc",
- "log",
  "ndk",
  "objc2 0.6.4",
  "objc2-app-kit",

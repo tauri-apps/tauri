@@ -53,3 +53,6 @@ pids
 debug.log
 TODO.md
 .aider*
+
+# ai data
+.omc

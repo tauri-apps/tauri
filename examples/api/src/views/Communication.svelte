@@ -1,6 +1,7 @@
 <script>
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { Channel, invoke } from '@tauri-apps/api/core'
+  import { getVersion } from '@tauri-apps/api/app'
   import { onMount, onDestroy } from 'svelte'
 
   let { onMessage } = $props()
@@ -234,6 +235,21 @@
         onMessage(msg)
       })
   }
+
+  function getAppVersion() {
+    console.log('Getting app version...')
+    getVersion()
+      .then((v) => {
+        const msg = '📦 App version: ' + v
+        console.log(msg)
+        onMessage(msg)
+      })
+      .catch((e) => {
+        const msg = '❌ Get version error: ' + e
+        console.error(msg)
+        onMessage(msg)
+      })
+  }
 </script>
 
 <div>
@@ -264,4 +280,6 @@
   <br><br>
   <button class="btn" id="test-download" onclick={testDownload}> 📥 Test Download Intercept </button>
   <button class="btn" id="transparent-window" onclick={createTransparentWindow}> 🪟 Create Transparent Borderless Window </button>
+  <br><br>
+  <button class="btn" id="get-version" onclick={getAppVersion}> 📦 Get App Version </button>
 </div>

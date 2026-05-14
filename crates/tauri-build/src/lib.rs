@@ -272,6 +272,7 @@ impl WindowsAttributes {
       window_icon_path: Default::default(),
       static_vc_runtime: None,
       append_rc_content: Vec::new(),
+      app_manifest: Some(default_windows_app_manifest().into()),
     }
   }
 
@@ -823,18 +824,18 @@ mod tests {
     assert!(crate::should_static_link_vc_runtime(&config, &attributes));
 
     // 2. Set to anything but "false" in env, should be true
-    std::env::set_var("STATIC_VCRUNTIME", "qweqe");
+    unsafe { std::env::set_var("STATIC_VCRUNTIME", "qweqe") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new();
     assert!(crate::should_static_link_vc_runtime(&config, &attributes));
-    std::env::remove_var("STATIC_VCRUNTIME");
+    unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
 
     // 3. Set to "false" in env, should be false
-    std::env::set_var("STATIC_VCRUNTIME", "false");
+    unsafe { std::env::set_var("STATIC_VCRUNTIME", "false") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new();
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
-    std::env::remove_var("STATIC_VCRUNTIME");
+    unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
 
     // 4. Set to true in attributes, should be true
     let config = tauri_utils::config::Config::default();
@@ -889,11 +890,11 @@ mod tests {
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
 
     // 9. Set to false in env and true in attributes, should be false because env takes precedence over attributes
-    std::env::set_var("STATIC_VCRUNTIME", "false");
+    unsafe { std::env::set_var("STATIC_VCRUNTIME", "false") };
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new()
       .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(true));
     assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
-    std::env::remove_var("STATIC_VCRUNTIME");
+    unsafe { std::env::remove_var("STATIC_VCRUNTIME") };
   }
 }

@@ -836,7 +836,6 @@ mod tests {
       build: tauri_utils::config::BuildConfig {
         windows: tauri_utils::config::WindowsBuildConfig {
           static_vc_runtime: true,
-          ..Default::default()
         },
         ..Default::default()
       },
@@ -850,7 +849,6 @@ mod tests {
       build: tauri_utils::config::BuildConfig {
         windows: tauri_utils::config::WindowsBuildConfig {
           static_vc_runtime: false,
-          ..Default::default()
         },
         ..Default::default()
       },
@@ -864,7 +862,6 @@ mod tests {
       build: tauri_utils::config::BuildConfig {
         windows: tauri_utils::config::WindowsBuildConfig {
           static_vc_runtime: true,
-          ..Default::default()
         },
         ..Default::default()
       },

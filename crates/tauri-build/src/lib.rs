@@ -215,6 +215,8 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 #[derive(Debug)]
 pub struct WindowsAttributes {
   window_icon_path: Option<PathBuf>,
+  /// Whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets
+  static_vc_runtime: Option<bool>,
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
@@ -257,6 +259,7 @@ impl WindowsAttributes {
   pub fn new() -> Self {
     Self {
       window_icon_path: Default::default(),
+      static_vc_runtime: None,
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
       append_rc_content: Vec::new(),
     }
@@ -268,6 +271,7 @@ impl WindowsAttributes {
     Self {
       app_manifest: None,
       window_icon_path: Default::default(),
+      static_vc_runtime: None,
       append_rc_content: Vec::new(),
     }
   }
@@ -279,6 +283,15 @@ impl WindowsAttributes {
     self
       .window_icon_path
       .replace(window_icon_path.as_ref().into());
+    self
+  }
+
+  /// Sets whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets.
+  ///
+  /// If unset, this is read from `build > windows > staticVCRuntime` in the Tauri configuration.
+  #[must_use]
+  pub fn static_vc_runtime(mut self, static_vc_runtime: bool) -> Self {
+    self.static_vc_runtime.replace(static_vc_runtime);
     self
   }
 
@@ -489,6 +502,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     json_patch::merge(&mut config, &merge_config);
   }
   let config: Config = serde_json::from_value(config)?;
+  let static_vc_runtime = if let Some(value) = env::var_os("STATIC_VCRUNTIME") {
+    println!(
+      "cargo:warning=STATIC_VCRUNTIME is deprecated; use build.windows.staticVCRuntime in tauri.conf.json or tauri_build::WindowsAttributes::static_vc_runtime instead."
+    );
+    value == "true"
+  } else {
+    attributes
+      .windows_attributes
+      .static_vc_runtime
+      .unwrap_or(config.build.windows.static_vc_runtime)
+  };
 
   let s = config.identifier.split('.');
   let last = s.clone().count() - 1;
@@ -705,7 +729,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           }
         }
       }
-      "msvc" if env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "true") => {
+      "msvc" if static_vc_runtime => {
         static_vcruntime::build();
       }
       _ => (),

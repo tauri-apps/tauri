@@ -1080,7 +1080,10 @@ pub struct WindowsConfig {
   pub sign_command: Option<CustomSignCommandConfig>,
   /// Whether to bundle the Visual C++ runtime DLLs alongside the application.
   ///
-  /// This is only useful when `build > windows > staticVCRuntime` is set to `false`.
+  /// This can be particularly useful when your application includes sidecars or DLLs that do
+  /// not statically link the Visual C++ runtime and require the runtime DLLs at runtime, and
+  /// you do not want to require users to install the Visual C++ Redistributable. This can also
+  /// be useful when `build > windows > staticVCRuntime` is set to `false`.
   #[serde(
     default,
     rename = "bundleVCRuntime",

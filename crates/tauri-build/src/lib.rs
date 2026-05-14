@@ -506,7 +506,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     println!(
       "cargo:warning=STATIC_VCRUNTIME is deprecated; use build.windows.staticVCRuntime in tauri.conf.json or tauri_build::WindowsAttributes::static_vc_runtime instead."
     );
-    value == "true"
+    value != "false"
   } else {
     attributes
       .windows_attributes

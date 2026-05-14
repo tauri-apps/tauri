@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(windows)]
+use std::process::Command;
 use std::{
   fs,
   io::Write,
   path::{Path, PathBuf},
-  process::Command,
 };
 use ureq::ResponseExt;
 
@@ -27,6 +28,7 @@ pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 const VSWHERE: &[u8] = include_bytes!("vswhere.exe");
 const VCTOOLS_REDIST_DIR_ENV_VAR: &str = "VCTOOLS_REDIST_DIR";
+#[cfg(windows)]
 const VC_REDIST_COMPONENT: &str = "Microsoft.VisualStudio.Component.VC.Redist.14.Latest";
 
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
@@ -100,6 +102,7 @@ fn vc_runtime_arch(arch: Arch) -> crate::Result<&'static str> {
   }
 }
 
+#[cfg(windows)]
 fn visual_studio_dir() -> crate::Result<PathBuf> {
   let Some(vswhere) = vswhere_path() else {
     return Err(crate::Error::GenericError(
@@ -140,12 +143,22 @@ fn visual_studio_dir() -> crate::Result<PathBuf> {
 }
 
 fn vc_redist_dir() -> crate::Result<PathBuf> {
-  std::env::var(VCTOOLS_REDIST_DIR_ENV_VAR)
-    .map(PathBuf::from)
-    .or_else(|_| {
-      let vs_dir = visual_studio_dir()?;
-      Ok(vs_dir.join("VC/Redist/MSVC"))
-    })
+  if let Ok(redist_dir) = std::env::var(VCTOOLS_REDIST_DIR_ENV_VAR) {
+    return Ok(PathBuf::from(redist_dir));
+  }
+
+  #[cfg(windows)]
+  {
+    let vs_dir = visual_studio_dir()?;
+    Ok(vs_dir.join("VC/Redist/MSVC"))
+  }
+
+  #[cfg(not(windows))]
+  {
+    Err(crate::Error::GenericError(format!(
+      "failed to find Visual C++ runtime redist directory; set {VCTOOLS_REDIST_DIR_ENV_VAR} when bundling the Visual C++ runtime from non-Windows hosts"
+    )))
+  }
 }
 
 fn vc_runtime_dir(redist_dir: &Path, arch: &str) -> crate::Result<PathBuf> {

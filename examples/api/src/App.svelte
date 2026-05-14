@@ -17,6 +17,12 @@
   import { runTests } from './lib/test-runner'
   import { coreTests } from './lib/tests/core'
   import { pluginTests } from './lib/tests/plugins'
+  import { dpiTests } from './lib/tests/dpi'
+  import { windowDpiTests } from './lib/tests/window-dpi'
+  import { imageTests } from './lib/tests/image'
+  import { enableConsoleCapture } from './lib/console-capture'
+
+  enableConsoleCapture()
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
@@ -95,7 +101,7 @@
     setTimeout(async () => {
       try {
         console.log('[AUTOTEST] Running tests...')
-        const allTests = [...coreTests, ...pluginTests].filter((t) => t.category !== 'manual')
+        const allTests = [...coreTests, ...pluginTests, ...dpiTests, ...windowDpiTests, ...imageTests].filter((t) => t.category !== 'manual')
         console.log('[AUTOTEST] Total tests to run:', allTests.length)
         const report = await runTests(allTests, (result) => {
           const icon = result.status === 'pass' ? '[PASS]' : '[FAIL]'

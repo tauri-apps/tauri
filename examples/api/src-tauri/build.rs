@@ -18,6 +18,17 @@ fn main() {
         "perform_request",
         "echo",
         "spam",
+        "write_test_report",
+        "console_log",
+        "flush_console_log",
+        "clear_console_log",
+        "test_eval",
+        "test_navigate",
+        "test_reload",
+        "create_isolated_window",
+        "create_window_with_custom_ua",
+        "create_window_no_throttle",
+        "create_transparent_window",
       ])),
   )
   .expect("failed to run tauri-build");

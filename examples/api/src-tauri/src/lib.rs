@@ -10,24 +10,24 @@ mod tray;
 
 #[cfg(target_env = "ohos")]
 mod ohos_log {
-    pub fn init() {
-        // 直接使用 hilog crate 初始化
-        hilog::Builder::new()
-            .set_tag("tauritest")
-            .filter_level(log::LevelFilter::Trace)
-            .init();
-    }
+  pub fn init() {
+    // 直接使用 hilog crate 初始化
+    hilog::Builder::new()
+      .set_tag("tauritest")
+      .filter_level(log::LevelFilter::Trace)
+      .init();
+  }
 }
 
 use serde::Serialize;
+#[cfg(not(target_env = "ohos"))]
+use tauri::ipc::Channel;
 use tauri::{
   webview::{PageLoadEvent, WebviewWindowBuilder},
   App, Emitter, Listener, Runtime, WebviewUrl,
 };
 #[allow(unused)]
 use tauri::{Manager, RunEvent};
-#[cfg(not(target_env = "ohos"))]
-use tauri::{ipc::Channel};
 #[cfg(not(target_env = "ohos"))]
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
@@ -72,6 +72,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   #[cfg(target_env = "ohos")]
   let builder = builder
+    .plugin(
+      tauri_plugin_log::Builder::default()
+        .level(log::LevelFilter::Info)
+        .clear_targets()
+        .target(tauri_plugin_log::Target::new(
+          tauri_plugin_log::TargetKind::Stdout,
+        ))
+        .build(),
+    )
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_shell::init())
@@ -79,9 +88,8 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   #[cfg(target_env = "ohos")]
   {
-    ohos_log::init();
-    // 这些日志会通过 hilog crate 输出到 OHOS hilog 系统
-    log::info!("Test log after hilog init");
+    // tauri_plugin_log 已初始化 log facade，不再手动调用 ohos_log::init()
+    log::info!("OHOS log initialized via tauri_plugin_log");
   };
 
   #[allow(unused_mut)]
@@ -302,6 +310,9 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       cmd::echo,
       cmd::spam,
       cmd::write_test_report,
+      cmd::console_log,
+      cmd::flush_console_log,
+      cmd::clear_console_log,
       cmd::test_eval,
       cmd::test_navigate,
       cmd::test_reload,

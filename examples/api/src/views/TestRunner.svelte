@@ -3,10 +3,13 @@
   import { runTests } from '../lib/test-runner';
   import { coreTests } from '../lib/tests/core';
   import { pluginTests } from '../lib/tests/plugins';
+  import { dpiTests } from '../lib/tests/dpi';
+  import { windowDpiTests } from '../lib/tests/window-dpi';
+  import { imageTests } from '../lib/tests/image';
   import { invoke } from '@tauri-apps/api/core';
   import { getCurrentWindow, currentMonitor } from '@tauri-apps/api/window';
-  import { getCurrentWebview } from '@tauri-apps/api/webview';
   import { appCacheDir } from '@tauri-apps/api/path';
+  import { flushConsoleLog, clearConsoleLog } from '../lib/console-capture';
 
   let { onMessage } = $props();
 
@@ -20,7 +23,7 @@
   let focusWatchUnlisten = null;
   let focusEvents = $state([]);
 
-  const allTests = [...coreTests, ...pluginTests];
+  const allTests = [...coreTests, ...pluginTests, ...dpiTests, ...windowDpiTests, ...imageTests];
 
   async function runAll() {
     running = true;
@@ -70,12 +73,34 @@
     runAll();
   });
 
+  async function wrapManual(name, fn) {
+    const start = Date.now();
+    console.log('[ManualTest] Starting:', name);
+    try {
+      await fn();
+      if (manualResult) {
+        console.log('[ManualTest]', manualResult);
+      }
+      console.log('[ManualTest] Completed:', name, 'in', Date.now() - start, 'ms');
+    } catch (e) {
+      console.error('[ManualTest] Failed:', name, e);
+    }
+    try {
+      const path = await flushConsoleLog();
+      onMessage(`Console log saved: ${path}`);
+    } catch (e) {
+      onMessage(`Failed to save console log: ${e}`);
+    }
+  }
+
   // ─── Manual Tests ───
   async function manualIsFocused() {
-    const focused = await getCurrentWindow().isFocused();
-    const ok = focused === true;
-    manualResult = `isFocused() → ${focused} ${ok ? '[OK: app in foreground]' : '[UNEXPECTED: should be true since you clicked the button]'}`;
-    onMessage(manualResult);
+    await wrapManual('isFocused', async () => {
+      const focused = await getCurrentWindow().isFocused();
+      const ok = focused === true;
+      manualResult = `isFocused() → ${focused} ${ok ? '[OK: app in foreground]' : '[UNEXPECTED: should be true since you clicked the button]'}`;
+      onMessage(manualResult);
+    });
   }
 
   async function toggleFocusWatch() {
@@ -85,40 +110,65 @@
       focusWatchActive = false;
       manualResult = `Stopped watching focus changes. Total events: ${focusEvents.length}`;
       onMessage(manualResult);
-      return;
+    } else {
+      focusEvents = [];
+      focusWatchUnlisten = await getCurrentWindow().onFocusChanged(({ payload }) => {
+        const ts = new Date().toLocaleTimeString();
+        focusEvents = [...focusEvents, `${ts}: focused=${payload}`];
+        onMessage(`[onFocusChanged] focused=${payload}`);
+      });
+      focusWatchActive = true;
+      manualResult = 'Watching focus changes. Send the app to background and back to trigger events.';
+      onMessage(manualResult);
     }
-    focusEvents = [];
-    focusWatchUnlisten = await getCurrentWindow().onFocusChanged(({ payload }) => {
-      const ts = new Date().toLocaleTimeString();
-      focusEvents = [...focusEvents, `${ts}: focused=${payload}`];
-      onMessage(`[onFocusChanged] focused=${payload}`);
-    });
-    focusWatchActive = true;
-    manualResult = 'Watching focus changes. Send the app to background and back to trigger events.';
-    onMessage(manualResult);
-  }
-
-  async function manualWindowInfo() {
-    const win = getCurrentWindow();
-    const wv = getCurrentWebview();
-    manualResult = `Window label: "${win.label}" | Webview label: "${wv.label}"`;
-    onMessage(manualResult);
+    try {
+      const path = await flushConsoleLog();
+      onMessage(`Console log saved: ${path}`);
+    } catch (e) {}
   }
 
   async function manualMonitor() {
-    const m = await currentMonitor();
-    if (!m) {
-      manualResult = 'currentMonitor() → null';
-    } else {
-      manualResult = `Monitor: ${m.size.width}×${m.size.height} @ scale ${m.scaleFactor} | position (${m.position.x}, ${m.position.y}) | name "${m.name ?? ''}"`;
-    }
-    onMessage(manualResult);
+    await wrapManual('currentMonitor', async () => {
+      const m = await currentMonitor();
+      if (!m) {
+        manualResult = 'currentMonitor() → null';
+      } else {
+        manualResult = `Monitor: ${m.size.width}×${m.size.height} @ scale ${m.scaleFactor} | position (${m.position.x}, ${m.position.y}) | name "${m.name ?? ''}"`;
+      }
+      onMessage(manualResult);
+    });
   }
 
   async function manualAppCacheDir() {
-    const dir = await appCacheDir();
-    manualResult = `appCacheDir() → ${dir}`;
-    onMessage(manualResult);
+    await wrapManual('appCacheDir', async () => {
+      const dir = await appCacheDir();
+      manualResult = `appCacheDir() → ${dir}`;
+      onMessage(manualResult);
+    });
+  }
+
+  async function manualWindowDpi() {
+    await wrapManual('windowDpi', async () => {
+      const win = getCurrentWindow();
+      const inner = await win.innerSize();
+      const outer = await win.outerSize();
+      const innerPos = await win.innerPosition();
+      const outerPos = await win.outerPosition();
+      const scale = await win.scaleFactor();
+
+      manualResult = `innerSize: ${inner.width}×${inner.height}
+outerSize: ${outer.width}×${outer.height}
+innerPosition: (${innerPos.x}, ${innerPos.y})
+outerPosition: (${outerPos.x}, ${outerPos.y})
+scaleFactor: ${scale}
+
+Expected behavior:
+• Resize window → innerSize/outerSize should change
+• Drag window → positions should change
+• outerSize >= innerSize (includes window decorations)
+• scaleFactor typically 1.0-3.0 (depends on display DPI)`;
+      onMessage(manualResult);
+    });
   }
 </script>
 
@@ -132,6 +182,16 @@
     </button>
     <button class="btn" onclick={() => runCategory('side-effect')} disabled={running}>
       Run Side-Effect
+    </button>
+    <button class="btn" onclick={async () => {
+      try {
+        await clearConsoleLog();
+        onMessage('Console log cleared');
+      } catch (e) {
+        onMessage(`Failed to clear: ${e}`);
+      }
+    }}>
+      Clear Console
     </button>
   </div>
 
@@ -165,9 +225,9 @@
       <button class="btn" onclick={toggleFocusWatch}>
         {focusWatchActive ? 'Stop watching focus' : 'Watch onFocusChanged'}
       </button>
-      <button class="btn" onclick={manualWindowInfo}>Window/Webview labels</button>
       <button class="btn" onclick={manualMonitor}>currentMonitor</button>
       <button class="btn" onclick={manualAppCacheDir}>appCacheDir</button>
+      <button class="btn" onclick={manualWindowDpi}>Window DPI (resize/drag to verify)</button>
     </div>
     {#if manualResult}
       <div class="mt-2 p-2 rd-1 bg-black/10 dark:bg-white/10 text-xs font-mono break-all">

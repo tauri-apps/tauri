@@ -98,21 +98,29 @@ import { currentMonitor } from '@tauri-apps/api/window';
 - 需要人工观察（UI 弹窗、通知）
 - autotest 只能验证类型/非空，无法验证语义
 
-步骤：
+### Console Log 自动捕获
 
-1. 在 `TestRunner.svelte` 中添加 `$state` 变量保存结果
-2. 编写 `async function manualXxx()` handler
+手动测试结果会自动保存到 `console-log.txt`（与 `test-report.json` 同目录），供 agent 自动拉取分析。
+
+**拉取命令：**
+```powershell
+cmd.exe /c "hdc file recv /data/app/el2/100/base/com.tauri.api/cache/console-log.txt D:\workspace\tauri\tauri\examples\api\console-log.txt"
+```
+
+### 添加步骤
+
+1. 在 `TestRunner.svelte` 中添加 handler，使用 `wrapManual()` 包装
+2. 将结果赋值给 `manualResult`
 3. 在 Manual Tests 区域添加 `<button>` 绑定 handler
-4. 结果自动显示在按钮下方 + Console
 
 ```typescript
-let myResult = $state('');
-
 async function manualMyApi() {
-  const value = await someApi();
-  const ok = value === expectedValue;
-  myResult = `someApi() → ${value} ${ok ? '[OK]' : '[UNEXPECTED]'}`;
-  onMessage(myResult);
+  await wrapManual('myApi', async () => {
+    const value = await someApi();
+    const ok = value === expectedValue;
+    manualResult = `someApi() → ${value} ${ok ? '[OK]' : '[UNEXPECTED]'}`;
+    onMessage(manualResult);
+  });
 }
 ```
 
@@ -120,7 +128,10 @@ async function manualMyApi() {
 <button class="btn" onclick={manualMyApi}>My API (should be X)</button>
 ```
 
-按钮文案建议包含预期结果（如 `isFocused (should be true)`），方便测试人员判断。
+**关键点：**
+- 必须使用 `wrapManual('名称', fn)` 包装，它会自动记录 console log
+- 将测试结果赋值给 `manualResult`，`wrapManual` 会自动捕获
+- 按钮文案建议包含预期结果（如 `isFocused (should be true)`）
 
 ## 接入新 plugin
 

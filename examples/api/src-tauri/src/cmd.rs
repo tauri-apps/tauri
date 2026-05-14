@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{
   command,
   ipc::{Channel, CommandScope},
-  Runtime,
-  Manager, WebviewUrl,
+  Manager, Runtime, WebviewUrl,
 };
 
 #[derive(Debug, Deserialize)]
@@ -28,8 +27,6 @@ pub fn log_operation(
   payload: Option<String>,
   command_scope: CommandScope<LogScope>,
 ) -> Result<(), &'static str> {
-  log::info!("log_operation");
-
   if command_scope.denies().iter().any(|s| s.event == event) {
     Err("denied")
   } else if !command_scope.allows().iter().any(|s| s.event == event) {
@@ -46,7 +43,8 @@ pub struct ApiResponse {
 }
 
 #[command]
-pub fn perform_request(_endpoint: String, _body: RequestBody) -> ApiResponse {
+pub fn perform_request(endpoint: String, body: RequestBody) -> ApiResponse {
+  println!("{endpoint} {body:?}");
   ApiResponse {
     message: "message response".into(),
   }
@@ -84,24 +82,96 @@ pub fn write_test_report<R: Runtime>(
   Ok(())
 }
 
+static CONSOLE_LOG_BUFFER: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+#[command]
+pub fn console_log<R: Runtime>(
+  #[allow(unused_variables)] app: tauri::AppHandle<R>,
+  level: String,
+  message: String,
+) -> Result<(), String> {
+  let ts = chrono::Local::now().format("%H:%M:%S%.3f");
+  let entry = format!("[{}] {} {}", ts, level, message);
+
+  let mut buffer = CONSOLE_LOG_BUFFER.lock().map_err(|e| e.to_string())?;
+  buffer.push(entry);
+
+  if buffer.len() > 1000 {
+    buffer.remove(0);
+  }
+  Ok(())
+}
+
+#[command]
+pub fn flush_console_log<R: Runtime>(
+  #[allow(unused_variables)] app: tauri::AppHandle<R>,
+) -> Result<String, String> {
+  #[cfg(target_env = "ohos")]
+  let dir = std::path::PathBuf::from("/data/storage/el2/base/cache");
+  #[cfg(not(target_env = "ohos"))]
+  let dir = {
+    use tauri::Manager;
+    app.path().app_cache_dir().map_err(|e| e.to_string())?
+  };
+
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = dir.join("console-log.txt");
+
+  let mut buffer = CONSOLE_LOG_BUFFER.lock().map_err(|e| e.to_string())?;
+  if buffer.is_empty() {
+    return Ok(path.to_string_lossy().to_string());
+  }
+  let new_content = buffer.join("\n");
+  buffer.clear();
+
+  let existing = if path.exists() {
+    std::fs::read_to_string(&path).unwrap_or_default()
+  } else {
+    String::new()
+  };
+
+  let full_content = if existing.is_empty() {
+    new_content
+  } else {
+    format!("{}\n{}", existing, new_content)
+  };
+
+  std::fs::write(&path, &full_content).map_err(|e| e.to_string())?;
+
+  Ok(path.to_string_lossy().to_string())
+}
+
+#[command]
+pub fn clear_console_log<R: Runtime>(
+  #[allow(unused_variables)] app: tauri::AppHandle<R>,
+) -> Result<String, String> {
+  #[cfg(target_env = "ohos")]
+  let dir = std::path::PathBuf::from("/data/storage/el2/base/cache");
+  #[cfg(not(target_env = "ohos"))]
+  let dir = {
+    use tauri::Manager;
+    app.path().app_cache_dir().map_err(|e| e.to_string())?
+  };
+
+  let mut buffer = CONSOLE_LOG_BUFFER.lock().map_err(|e| e.to_string())?;
+  buffer.clear();
+
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = dir.join("console-log.txt");
+  std::fs::write(&path, "").map_err(|e| e.to_string())?;
+
+  Ok(path.to_string_lossy().to_string())
+}
+
 #[command]
 pub fn test_eval<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<()> {
   log::info!("test_eval called");
 
   if let Some(window) = app.get_webview_window("main") {
-
-    // 执行一个最简单的脚本：修改页面标题
     window.eval(r#"document.title = "✅ Eval Success! (From Rust)""#)?;
-
-    // 执行带回调的脚本，获取当前时间
-    window.eval_with_callback(
-      r#"new Date().toLocaleString()"#,
-      move |time_str| {
-        log::info!("Current time from JS: {}", time_str);
-      }
-    )?;
-
-    // 在页面上显示一个提示
+    window.eval_with_callback(r#"new Date().toLocaleString()"#, move |time_str| {
+      log::info!("Current time from JS: {}", time_str);
+    })?;
     window.eval(r#"
       const div = document.createElement('div');
       div.style.cssText = 'position:fixed;top:50px;right:20px;background:green;color:white;padding:15px;border-radius:5px;z-index:9999;';
@@ -115,7 +185,10 @@ pub fn test_eval<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<(
 }
 
 #[command]
-pub fn test_navigate<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, url: String) -> tauri::Result<()> {
+pub fn test_navigate<R: tauri::Runtime>(
+  window: tauri::WebviewWindow<R>,
+  url: String,
+) -> tauri::Result<()> {
   log::info!("test_navigate called with url: {}", url);
   match url.parse() {
     Ok(parsed_url) => {
@@ -143,13 +216,11 @@ pub fn create_isolated_window<R: tauri::Runtime>(
 ) -> tauri::Result<()> {
   log::info!("Creating isolated window: {}", window_id);
 
-  // 创建独立的数据目录
   let mut data_dir = app.path().app_data_dir()?;
   data_dir.push(format!("webview_data_{}", data_suffix));
 
   log::info!("Data directory: {:?}", data_dir);
 
-  // 创建带有独立数据目录的窗口
   tauri::WebviewWindowBuilder::new(&app, window_id, WebviewUrl::default())
     .title(format!("Isolated Window: {}", data_suffix))
     .data_directory(data_dir)
@@ -178,7 +249,6 @@ pub fn create_window_with_custom_ua<R: tauri::Runtime>(
     .inner_size(800.0, 600.0)
     .build()?;
 
-  // 通过 Rust 端的 eval 获取 User-Agent 并打印日志
   window.eval_with_callback("navigator.userAgent", move |ua| {
     log::info!("Window User-Agent (from Rust): {}", ua);
   })?;
@@ -207,7 +277,6 @@ pub fn create_window_no_throttle<R: tauri::Runtime>(
           div.innerHTML = '<h2>No Background Throttling Test</h2><p>Background timers should continue running even when window is hidden/minimized.</p><p><strong>Note:</strong> Only supported on macOS 14.0+ and iOS 17.0+</p>';
           document.body.appendChild(div);
 
-          // Start a counter to test
           let count = 0;
           const counterDiv = document.createElement('div');
           counterDiv.style.padding = '20px';
@@ -238,7 +307,6 @@ pub fn create_transparent_window<R: tauri::Runtime>(
   let _window = tauri::WebviewWindowBuilder::new(&app, window_id, WebviewUrl::default())
     .title("Transparent Window")
     .transparent(true)
-    //.decorations(false) // only desktop
     .inner_size(600.0, 400.0)
     .initialization_script(
       r#"

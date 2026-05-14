@@ -780,9 +780,6 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
       if added_resources.contains(&dll) {
         continue;
       }
-      if settings.windows().can_sign() {
-        try_sign(&dll, settings)?;
-      }
       let target = PathBuf::from(
         dll
           .file_name()

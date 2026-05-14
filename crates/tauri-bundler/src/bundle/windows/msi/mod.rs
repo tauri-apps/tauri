@@ -1072,9 +1072,6 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       if added_resources.contains(&resource_path.to_path_buf()) {
         continue;
       }
-      if settings.windows().can_sign() {
-        try_sign(resource_path, settings)?;
-      }
       added_resources.push(resource_path.to_path_buf());
       dlls.push(ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),

@@ -604,6 +604,11 @@ pub struct WindowsSettings {
   /// the installer will try to trigger a WebView2 update.
   pub minimum_webview2_version: Option<String>,
   /// Whether to bundle the Visual C++ runtime DLLs alongside the application.
+  ///
+  /// This can be particularly useful when the application includes sidecars or DLLs that do not
+  /// statically link the Visual C++ runtime and require the runtime DLLs at runtime, and users
+  /// should not be required to install the Visual C++ Redistributable. This can also be useful
+  /// when `static_vc_runtime` is set to `false`.
   pub bundle_vc_runtime: bool,
 }
 

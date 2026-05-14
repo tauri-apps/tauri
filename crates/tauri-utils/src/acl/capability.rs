@@ -272,10 +272,15 @@ impl CapabilityFile {
       std::fs::read_to_string(path).map_err(|e| super::Error::ReadFile(e, path.into()))?;
     let ext = path.extension().unwrap().to_string_lossy().to_string();
     let file: Self = match ext.as_str() {
-      "toml" => toml::from_str(&capability_file)?,
-      "json" => serde_json::from_str(&capability_file)?,
+      "toml" => {
+        toml::from_str(&capability_file).map_err(|e| super::Error::TomlFile(e, path.into()))?
+      }
+      "json" => serde_json::from_str(&capability_file)
+        .map_err(|e| super::Error::JsonFile(e, path.into()))?,
       #[cfg(feature = "config-json5")]
-      "json5" => json5::from_str(&capability_file)?,
+      "json5" => {
+        json5::from_str(&capability_file).map_err(|e| super::Error::Json5File(e, path.into()))?
+      }
       _ => return Err(super::Error::UnknownCapabilityFormat(ext)),
     };
     Ok(file)

@@ -130,8 +130,8 @@ pub enum ParseIdentifierError {
   Humongous(usize),
 
   /// Identifier is not in a valid format.
-  #[error("identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix")]
-  InvalidFormat,
+  #[error("invalid plugin or permission identifier '{0}': identifiers can only include lowercase ASCII letters, digits, hyphens (not leading or trailing), and a single colon when using a prefix")]
+  InvalidFormat(String),
 
   /// Identifier has multiple separators.
   #[error(
@@ -173,14 +173,14 @@ impl TryFrom<String> for Identifier {
     let mut prev = bytes
       .next()
       .and_then(ValidByte::alpha_numeric)
-      .ok_or(Self::Error::InvalidFormat)?;
+      .ok_or_else(|| Self::Error::InvalidFormat(value.clone()))?;
 
     let mut idx = 0;
     let mut separator = None;
     for byte in bytes {
       idx += 1; // we already consumed first item
       match prev.next(byte) {
-        None => return Err(Self::Error::InvalidFormat),
+        None => return Err(Self::Error::InvalidFormat(value.clone())),
         Some(next @ ValidByte::Byte(_)) => prev = next,
         Some(ValidByte::Separator) => {
           if separator.is_none() || is_core_identifier {

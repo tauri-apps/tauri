@@ -55,10 +55,11 @@ fn parse_permissions(paths: Vec<PathBuf>) -> Result<Vec<PermissionFile>, Error> 
   let mut permissions = Vec::new();
   for path in paths {
     let ext = path.extension().unwrap().to_string_lossy().to_string();
-    let permission_file = fs::read_to_string(&path).map_err(|e| Error::ReadFile(e, path))?;
+    let permission_file =
+      fs::read_to_string(&path).map_err(|e| Error::ReadFile(e, path.clone()))?;
     let permission: PermissionFile = match ext.as_str() {
-      "toml" => toml::from_str(&permission_file)?,
-      "json" => serde_json::from_str(&permission_file)?,
+      "toml" => toml::from_str(&permission_file).map_err(|e| Error::TomlFile(e, path.clone()))?,
+      "json" => serde_json::from_str(&permission_file).map_err(|e| Error::JsonFile(e, path))?,
       _ => return Err(Error::UnknownPermissionFormat(ext)),
     };
     permissions.push(permission);
@@ -127,9 +128,10 @@ pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error>
       })
     {
       let permissions_path = PathBuf::from(value);
-      let permissions_str =
-        fs::read_to_string(&permissions_path).map_err(|e| Error::ReadFile(e, permissions_path))?;
-      let permissions: Vec<PathBuf> = serde_json::from_str(&permissions_str)?;
+      let permissions_str = fs::read_to_string(&permissions_path)
+        .map_err(|e| Error::ReadFile(e, permissions_path.clone()))?;
+      let permissions: Vec<PathBuf> =
+        serde_json::from_str(&permissions_str).map_err(|e| Error::JsonFile(e, permissions_path))?;
       let permissions = parse_permissions(permissions)?;
 
       let plugin_crate_name = plugin_crate_name_var.to_lowercase().replace('_', "-");
@@ -184,8 +186,9 @@ pub fn read_global_scope_schemas() -> Result<HashMap<String, serde_json::Value>,
       })
     {
       let path = PathBuf::from(value);
-      let json = fs::read_to_string(&path).map_err(|e| Error::ReadFile(e, path))?;
-      let schema: serde_json::Value = serde_json::from_str(&json)?;
+      let json = fs::read_to_string(&path).map_err(|e| Error::ReadFile(e, path.clone()))?;
+      let schema: serde_json::Value =
+        serde_json::from_str(&json).map_err(|e| Error::JsonFile(e, path))?;
 
       let plugin_crate_name = plugin_crate_name_var.to_lowercase().replace('_', "-");
       let plugin_crate_name = plugin_crate_name

@@ -10,7 +10,7 @@ use crate::{
       sign::{should_sign, sign_command, try_sign},
       util::{
         NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
-        download_webview2_offline_installer,
+        download_webview2_offline_installer, vc_runtime_dlls,
       },
     },
   },
@@ -774,6 +774,22 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
         loader_path,
         (PathBuf::new(), PathBuf::from("WebView2Loader.dll")),
       );
+    }
+  }
+
+  if settings.windows().bundle_vc_runtime {
+    for dll in vc_runtime_dlls(settings.binary_arch())? {
+      let dll = dunce::simplified(&dll).to_path_buf();
+      if added_resources.contains(&dll) {
+        continue;
+      }
+      let target = PathBuf::from(
+        dll
+          .file_name()
+          .expect("failed to extract Visual C++ runtime DLL filename"),
+      );
+      added_resources.push(dll.clone());
+      resources.insert(dll, (PathBuf::new(), target));
     }
   }
 

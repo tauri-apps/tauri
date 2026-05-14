@@ -68,7 +68,10 @@
       "description": "The build configuration.",
       "default": {
         "removeUnusedCommands": false,
-        "additionalWatchFolders": []
+        "additionalWatchFolders": [],
+        "windows": {
+          "staticVCRuntime": true
+        }
       },
       "allOf": [
         {
@@ -97,7 +100,8 @@
           "minimumWebview2Version": null,
           "wix": null,
           "nsis": null,
-          "signCommand": null
+          "signCommand": null,
+          "bundleVCRuntime": false
         },
         "linux": {
           "appimage": {
@@ -1890,6 +1894,17 @@
             "type": "string"
           },
           "default": []
+        },
+        "windows": {
+          "description": "Windows-specific build configuration.",
+          "default": {
+            "staticVCRuntime": true
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WindowsBuildConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -2016,6 +2031,18 @@
           ]
         }
       ]
+    },
+    "WindowsBuildConfig": {
+      "description": "Windows-specific build configuration.",
+      "type": "object",
+      "properties": {
+        "staticVCRuntime": {
+          "description": "Whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets.",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
     },
     "BundleConfig": {
       "description": "Configuration for tauri-bundler.\n\nSee more: <https://v2.tauri.app/reference/config/#bundleconfig>",
@@ -2159,7 +2186,8 @@
             "minimumWebview2Version": null,
             "wix": null,
             "nsis": null,
-            "signCommand": null
+            "signCommand": null,
+            "bundleVCRuntime": false
           },
           "allOf": [
             {
@@ -2629,6 +2657,11 @@
               "type": "null"
             }
           ]
+        },
+        "bundleVCRuntime": {
+          "description": "Whether to bundle the Visual C++ runtime DLLs alongside the application.\n\nThis can be particularly useful when your application includes sidecars or DLLs that do\nnot statically link the Visual C++ runtime and require the runtime DLLs at runtime, and\nyou do not want to require users to install the Visual C++ Redistributable. This can also\nbe useful when `build > windows > staticVCRuntime` is set to `false`.",
+          "type": "boolean",
+          "default": false
         }
       },
       "additionalProperties": false

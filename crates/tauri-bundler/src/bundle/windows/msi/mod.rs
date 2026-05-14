@@ -10,7 +10,7 @@ use crate::{
       sign::{should_sign, try_sign},
       util::{
         WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME, download_webview2_bootstrapper,
-        download_webview2_offline_installer,
+        download_webview2_offline_installer, vc_runtime_dlls,
       },
     },
   },
@@ -1094,6 +1094,35 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
           files: vec![loader_resource],
         });
     }
+  }
+
+  let mut dlls = Vec::new();
+
+  if settings.windows().bundle_vc_runtime {
+    for dll in vc_runtime_dlls(settings.binary_arch())? {
+      let resource_path = dunce::simplified(&dll).to_path_buf();
+      if added_resources.contains(&resource_path) {
+        continue;
+      }
+      added_resources.push(resource_path.clone());
+      dlls.push(ResourceFile {
+        id: format!("I{}", Uuid::new_v4().as_simple()),
+        guid: Uuid::new_v4().to_string(),
+        path: resource_path,
+      });
+    }
+  }
+
+  if !dlls.is_empty() {
+    resources
+      .entry("".to_string())
+      .and_modify(|r| r.files.append(&mut dlls))
+      .or_insert(ResourceDirectory {
+        path: "".to_string(),
+        name: "".to_string(),
+        directories: vec![],
+        files: dlls,
+      });
   }
 
   // Handle CEF support if cef_path is set,

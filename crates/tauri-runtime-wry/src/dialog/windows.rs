@@ -12,8 +12,8 @@ enum Level {
   Info,
 }
 
-pub fn error<S: AsRef<str>>(err: S) {
-  dialog_inner(err.as_ref(), Level::Error);
+pub fn error(err: &'static str) {
+  dialog_inner(err, Level::Error);
 }
 
 fn dialog_inner(err: &str, level: Level) {

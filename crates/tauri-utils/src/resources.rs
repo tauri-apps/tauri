@@ -209,7 +209,21 @@ impl ResourcePathsIter<'_> {
             // preserving the file name as it is
             ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
           },
-          None => dest.clone(),
+          None => {
+            if dest.components().count() == 0 {
+              // if current_dest is empty while processing a file pattern
+              // we preserve the file name as it is
+              //
+              // e.g. `{ "README.md": "" }` is `README.md` -> `$RESOURCE/README.md`
+              //
+              // TODO: This behavior is a confusing special case,
+              // remove this in v3 or make other cases like this work
+              // > `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md` (this gives `$RESOURCE/folder` today)
+              PathBuf::from(path.file_name().unwrap())
+            } else {
+              dest.clone()
+            }
+          }
         }
       } else {
         // If [`ResourcePathsIter::pattern_iter`] is a [`PatternIter::Slice`]

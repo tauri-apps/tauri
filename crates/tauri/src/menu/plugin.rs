@@ -815,7 +815,7 @@ fn set_as_windows_menu_for_nsapp<R: Runtime>(
   {
     let resources_table = webview.resources_table();
     let submenu = resources_table.get::<Submenu<R>>(rid)?;
-    submenu.set_as_help_menu_for_nsapp()?;
+    submenu.set_as_windows_menu_for_nsapp()?;
   }
 
   let _ = rid;

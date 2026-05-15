@@ -573,6 +573,12 @@ pub struct Context<T: UserEvent> {
   /// [`cef::initialize`]. Per-webview request context cache paths must be
   /// equal to or a child of this directory.
   pub cache_path: Arc<PathBuf>,
+  /// Set once an `ExitRequested` has been approved and the runtime is in the
+  /// asynchronous tear-down phase. While set, per-window close events
+  /// (`CloseRequested`, `Destroyed`) and any further `ExitRequested`/`Exit`
+  /// emissions are suppressed so the public event sequence stays at
+  /// `ExitRequested -> Exit` for direct exits.
+  pub is_shutting_down: Arc<AtomicBool>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -2140,7 +2146,12 @@ wrap_window_delegate! {
     }
 
     fn can_close(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
-      if self.force_close.load(Ordering::SeqCst) {
+      // Direct-exit tear-down: behave like cefclient with `force_close = true`
+      // — skip the embedder dialog and just drive the cooperative browser
+      // close so `OnBeforeClose` fires.
+      if self.context.is_shutting_down.load(Ordering::SeqCst)
+        || self.force_close.load(Ordering::SeqCst)
+      {
         close_window_browsers(self.window_id, &self.windows);
         return 1;
       }
@@ -3151,7 +3162,7 @@ fn handle_window_message<T: UserEvent>(
 ) {
   match message {
     WindowMessage::Close => {
-      on_close_requested(window_id, &context.windows, &context.callback);
+      on_close_requested(window_id, context);
     }
     WindowMessage::Destroy => {
       on_window_close(window_id, &context.windows);
@@ -3817,6 +3828,14 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       message,
     } => handle_webview_message(context, window_id, webview_id, message),
     Message::RequestExit(code) => {
+      // Direct-exit path (e.g. `request_exit`, macOS `-terminate:`): emit
+      // only `ExitRequested -> Exit`, matching the cefclient terminate flow
+      // where `CloseAllWindows` is initiated only after the embedder agrees
+      // to quit. Skip if we're already shutting down to avoid re-prompting.
+      if context.is_shutting_down.load(Ordering::SeqCst) {
+        return;
+      }
+
       let (tx, rx) = channel();
       in_callback(|| {
         (context.callback.borrow())(RunEvent::ExitRequested {
@@ -3829,6 +3848,7 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
       if !should_prevent {
+        context.is_shutting_down.store(true, Ordering::SeqCst);
         in_callback(|| (context.callback.borrow())(RunEvent::Exit));
       }
     }
@@ -4391,18 +4411,25 @@ fn handle_drag_drop_script_event<T: UserEvent>(
 
 fn on_close_requested<T: UserEvent>(
   window_id: WindowId,
-  windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
-  callback: &RunEventCallback<T>,
+  context: &Context<T>,
 ) {
+  // Skip `CloseRequested` while tearing down — the embedder has already been
+  // told `ExitRequested -> Exit`. We still need to drive the close so that
+  // CEF can run its `OnBeforeClose` lifecycle.
+  if context.is_shutting_down.load(Ordering::SeqCst) {
+    on_window_close(window_id, &context.windows);
+    return;
+  }
+
   let (tx, rx) = channel();
   let event = WindowEvent::CloseRequested { signal_tx: tx };
 
-  send_window_event(window_id, windows, callback, event.clone());
+  send_window_event(window_id, &context.windows, &context.callback, event.clone());
 
   let prevent = rx.try_recv().unwrap_or_default();
 
   if !prevent {
-    on_window_close(window_id, windows);
+    on_window_close(window_id, &context.windows);
   }
 }
 
@@ -4414,8 +4441,15 @@ fn collect_hosts(webviews: &[AppWebview]) -> Vec<BrowserHost> {
     .collect()
 }
 
-/// Force-close all windows, triggering the normal CEF lifecycle:
-/// force_close → can_close → close_window_browsers → on_before_close → on_window_destroyed.
+/// Tear-down equivalent of cefclient's `RootWindowManager::CloseAllWindows`:
+/// drives every remaining window through the normal CEF lifecycle so each
+/// browser sees `OnBeforeClose`.
+///
+/// Each call goes `force_close → can_close → close_window_browsers →
+/// on_before_close → on_window_destroyed`. While `Context::is_shutting_down`
+/// is set, those callbacks suppress their public events so the embedder only
+/// sees the `ExitRequested -> Exit` pair we already emitted for the direct
+/// exit.
 pub fn close_all_windows(windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>) {
   let window_ids: Vec<_> = windows.borrow().keys().copied().collect();
   for window_id in window_ids {
@@ -4469,8 +4503,17 @@ fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) 
     return;
   }
 
-  let event = WindowEvent::Destroyed;
-  send_window_event(window_id, &context.windows, &context.callback, event);
+  // During tear-down (initiated by a direct exit), the public event sequence
+  // is `ExitRequested -> Exit` only — the cefclient-style cooperative close
+  // is still driving `OnBeforeClose` / window destruction underneath, but we
+  // must not surface those as `Destroyed` events or re-prompt `ExitRequested`
+  // for the last window.
+  let is_shutting_down = context.is_shutting_down.load(Ordering::SeqCst);
+
+  if !is_shutting_down {
+    let event = WindowEvent::Destroyed;
+    send_window_event(window_id, &context.windows, &context.callback, event);
+  }
 
   let removed_window = {
     let mut guard = context.windows.borrow_mut();
@@ -4490,7 +4533,11 @@ fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) 
   drop(removed_window);
 
   let is_empty = context.windows.borrow().is_empty();
-  if is_empty {
+  // Window-close exit path: only emit the terminal `ExitRequested -> Exit`
+  // pair when this is the last window being destroyed naturally. If we're
+  // already shutting down (direct-exit tear-down or a previously approved
+  // exit) the events have already been delivered.
+  if is_empty && !is_shutting_down {
     let (tx, rx) = channel();
     (context.callback.borrow())(RunEvent::ExitRequested { code: None, tx });
 
@@ -4498,6 +4545,7 @@ fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) 
     let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
     if !should_prevent {
+      context.is_shutting_down.store(true, Ordering::SeqCst);
       (context.callback.borrow())(RunEvent::Exit);
     }
   }

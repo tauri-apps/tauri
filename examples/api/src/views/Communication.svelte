@@ -1,11 +1,59 @@
-<script>
+<script lang="ts">
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-  import { Channel, invoke } from '@tauri-apps/api/core'
+  import { Channel, invoke, Resource } from '@tauri-apps/api/core'
   import { getVersion } from '@tauri-apps/api/app'
   import { onMount, onDestroy } from 'svelte'
 
   let { onMessage } = $props()
   let unlisten
+
+  // CounterHandle extends Resource to manage our Rust counter
+  class CounterHandle extends Resource {
+    static async create(): Promise<CounterHandle> {
+      const rid: number = await invoke('create_counter')
+      return new CounterHandle(rid)
+    }
+
+    async increment(): Promise<number> {
+      return await invoke('increment_counter', { rid: this.rid })
+    }
+
+    async getValue(): Promise<number> {
+      return await invoke('get_counter_value', { rid: this.rid })
+    }
+  }
+
+  let counter: CounterHandle | null = null
+
+  async function testResource() {
+    try {
+      if (!counter) {
+        counter = await CounterHandle.create()
+        onMessage(`✅ Counter created with rid: ${counter.rid}`)
+      }
+
+      const value1 = await counter.increment()
+      onMessage(`📊 Incremented to: ${value1}`)
+
+      const value2 = await counter.increment()
+      onMessage(`📊 Incremented to: ${value2}`)
+
+      const current = await counter.getValue()
+      onMessage(`🔢 Current value: ${current}`)
+
+      // Close and clear
+      await counter.close()
+      onMessage(`🗑️ Counter closed (rid: ${counter.rid})`)
+      counter = null
+    } catch (e) {
+      onMessage(`❌ Error: ${e}`)
+      // Cleanup on error
+      if (counter) {
+        await counter.close()
+        counter = null
+      }
+    }
+  }
 
   const webviewWindow = getCurrentWebviewWindow()
 
@@ -91,6 +139,75 @@
   function testCustomScheme() {
     console.log('Testing custom scheme: myapp://test')
     window.location.href = 'myapp://test/path?param=123'
+  }
+
+  // Test 1a: Custom URI scheme via iframe (sync)
+  function testCustomSchemeFetch() {
+    console.log('Testing sync custom scheme via iframe: myapp://localhost/test/fetch')
+    testProtocolWithIframe('myapp://localhost/test/fetch', 'sync')
+  }
+
+  // Test 1b: Custom URI scheme via iframe (async)
+  function testAsyncSchemeFetch() {
+    console.log('Testing async custom scheme via iframe: myapp-async://localhost/test/async')
+    testProtocolWithIframe('myapp-async://localhost/test/async', 'async')
+  }
+
+  // Helper to test protocol with iframe + postMessage
+  function testProtocolWithIframe(url: string, type: string) {
+    const iframe = document.createElement('iframe')
+    iframe.style.display = 'none'
+    iframe.src = url
+
+    let timeoutId: number | null = null
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.status === 'ok') {
+        if (timeoutId) clearTimeout(timeoutId)
+        document.body.removeChild(iframe)
+        window.removeEventListener('message', handleMessage)
+        const msg = `✅ ${type} scheme response: ${JSON.stringify(event.data)}`
+        console.log(msg)
+        onMessage(msg)
+      }
+    }
+
+    timeoutId = window.setTimeout(() => {
+      document.body.removeChild(iframe)
+      window.removeEventListener('message', handleMessage)
+      const msg = `❌ ${type} scheme timeout`
+      console.error(msg)
+      onMessage(msg)
+    }, 5000)
+
+    window.addEventListener('message', handleMessage)
+    document.body.appendChild(iframe)
+  }
+
+  // Test append_invoke_initialization_script
+  function testInitializationScript() {
+    const initScriptRan = (window as any).__TAURI_TEST_INIT_SCRIPT_RAN
+    const msg = `✅ Initialization script: ran=${initScriptRan}`
+    console.log(msg)
+    onMessage(msg)
+  }
+
+  // Test window events
+  async function testWindowEvents() {
+    try {
+      await invoke('clear_tracked_events')
+      const window = getCurrentWindow()
+      await window.setTitle('Test - ' + Date.now())
+      await new Promise(r => setTimeout(r, 200))
+      const events = await invoke('get_tracked_window_events') as string[]
+      const msg = `✅ Window events tracked: ${events.length} events`
+      console.log(msg, events)
+      onMessage(msg)
+    } catch (e) {
+      const msg = `❌ Window events test failed: ${e}`
+      console.error(msg)
+      onMessage(msg)
+    }
   }
 
   // Test 2: Navigation intercept (we'll just navigate somewhere)
@@ -263,10 +380,15 @@
   <button class="btn" id="request" onclick={echo}> Echo </button>
   <button class="btn" id="request" onclick={spam}> Spam </button>
   <button class="btn" id="test-eval" onclick={testEval}> Test Eval </button>
+  <button class="btn" id="test-resource" onclick={testResource}> Test Resource </button>
   <button class="btn" id="test-navigate" onclick={testNavigate}> Test Navigate </button>
   <button class="btn" id="test-reload" onclick={testReload}> Test Reload </button>
   <br><br>
   <button class="btn" id="test-custom-scheme" onclick={testCustomScheme}> 📡 Test Custom Scheme (myapp://) </button>
+  <button class="btn" id="test-scheme-fetch" onclick={testCustomSchemeFetch}> 📡 Test Sync Scheme (fetch) </button>
+  <button class="btn" id="test-async-scheme-fetch" onclick={testAsyncSchemeFetch}> 📡 Test Async Scheme (fetch) </button>
+  <button class="btn" id="test-init-script" onclick={testInitializationScript}> 📜 Test Initialization Script </button>
+  <button class="btn" id="test-window-events" onclick={testWindowEvents}> 👂 Test Window Events </button>
   <button class="btn" id="test-nav-intercept" onclick={testNavigationIntercept}> 🔗 Test Navigation Intercept </button>
   <button class="btn" id="test-resource-intercept" onclick={testResourceIntercept}> 📄 Test Resource Intercept </button>
   <br><br>

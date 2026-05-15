@@ -29,7 +29,17 @@ fn main() {
         "create_window_with_custom_ua",
         "create_window_no_throttle",
         "create_transparent_window",
+        "create_counter",
+        "increment_counter",
+        "get_counter_value",
+        "get_tracked_window_events",
+        "get_tracked_menu_events",
+        "clear_tracked_events",
+        "emit_test_event",
+        "setup_app_listener",
+        "test_async_spawn",
       ])),
+
   )
   .expect("failed to run tauri-build");
 

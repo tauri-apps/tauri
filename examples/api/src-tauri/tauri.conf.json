@@ -21,10 +21,10 @@
         }
       },
       "csp": {
-        "default-src": "'self' customprotocol: asset:",
-        "connect-src": "ipc: http://ipc.localhost",
+        "default-src": "'self' customprotocol: asset: myapp: myapp-async:",
+        "connect-src": "ipc: http://ipc.localhost myapp: myapp-async:",
         "font-src": ["https://fonts.gstatic.com"],
-        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "img-src": "'self' asset: http://asset.localhost blob: data: myapp: myapp-async:",
         "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
       },
       "freezePrototype": true,

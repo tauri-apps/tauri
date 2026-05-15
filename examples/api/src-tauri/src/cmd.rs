@@ -3,11 +3,75 @@
 // SPDX-License-Identifier: MIT
 
 use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 use tauri::{
   command,
   ipc::{Channel, CommandScope},
-  Manager, Runtime, WebviewUrl,
+  Resource, ResourceId,
+  Manager, Runtime, WebviewUrl, Emitter, Listener,
 };
+
+// A simple Counter resource that lives in Rust
+struct Counter {
+  value: AtomicU32,
+}
+
+impl Resource for Counter {
+  fn name(&self) -> std::borrow::Cow<'_, str> {
+    "Counter".into()
+  }
+}
+
+#[command]
+pub fn create_counter<R: Runtime>(app: tauri::AppHandle<R>) -> ResourceId {
+  let counter = Counter {
+    value: AtomicU32::new(0),
+  };
+  app.resources_table().add(counter)
+}
+
+#[command]
+pub fn increment_counter<R: Runtime>(app: tauri::AppHandle<R>, rid: ResourceId) -> tauri::Result<u32> {
+  let counter = app.resources_table().get::<Counter>(rid)?;
+  let new_value = counter.value.fetch_add(1, Ordering::SeqCst) + 1;
+  Ok(new_value)
+}
+
+#[command]
+pub fn get_counter_value<R: Runtime>(app: tauri::AppHandle<R>, rid: ResourceId) -> tauri::Result<u32> {
+  let counter = app.resources_table().get::<Counter>(rid)?;
+  Ok(counter.value.load(Ordering::SeqCst))
+}
+
+// Event tracking for testing
+#[derive(Default)]
+pub struct EventTracker {
+  pub window_events: Mutex<Vec<String>>,
+  pub menu_events: Mutex<Vec<String>>,
+}
+
+#[command]
+pub fn get_tracked_window_events<R: Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<Vec<String>> {
+  let tracker = app.state::<EventTracker>();
+  let events = tracker.window_events.lock().unwrap().clone();
+  Ok(events)
+}
+
+#[command]
+pub fn get_tracked_menu_events<R: Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<Vec<String>> {
+  let tracker = app.state::<EventTracker>();
+  let events = tracker.menu_events.lock().unwrap().clone();
+  Ok(events)
+}
+
+#[command]
+pub fn clear_tracked_events<R: Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<()> {
+  let tracker = app.state::<EventTracker>();
+  tracker.window_events.lock().unwrap().clear();
+  tracker.menu_events.lock().unwrap().clear();
+  Ok(())
+}
 
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
@@ -334,5 +398,32 @@ pub fn create_transparent_window<R: tauri::Runtime>(
     )
     .build()?;
 
+  Ok(())
+}
+
+/// Test command for app_handle.emit
+#[command]
+pub fn emit_test_event<R: Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<()> {
+  app.emit("test-emit-event", "hello from rust")
+}
+
+/// Test command for app_handle.listen
+#[command]
+pub fn setup_app_listener<R: Runtime + 'static>(app: tauri::AppHandle<R>) -> tauri::Result<()> {
+  let app_clone = app.clone();
+  app.listen("app-listen-test", move |_event| {
+    log::info!("Received app-listen-test via app.listen");
+    let _ = app_clone.emit("app-listen-response", "heard you");
+  });
+  Ok(())
+}
+
+/// Test command for tauri::async_runtime::spawn
+#[command]
+pub fn test_async_spawn<R: Runtime>(app: tauri::AppHandle<R>) -> tauri::Result<()> {
+  tauri::async_runtime::spawn(async move {
+    // Simulate some async work
+    let _ = app.emit("spawn-completed", "async done");
+  });
   Ok(())
 }

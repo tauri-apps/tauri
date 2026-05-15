@@ -8,6 +8,8 @@ mod menu_plugin;
 #[cfg(desktop)]
 mod tray;
 
+use cmd::EventTracker;
+
 #[cfg(target_env = "ohos")]
 mod ohos_log {
   pub fn init() {
@@ -94,27 +96,73 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   #[allow(unused_mut)]
   let mut builder = builder
-    // 1. Test custom URI scheme protocol
+    // Test append_invoke_initialization_script
+    .append_invoke_initialization_script(r#"
+      window.__TAURI_TEST_INIT_SCRIPT_RAN = true;
+      window.__TAURI_INTERNALS__.__TEST_INVOKE_INIT_SCRIPT__ = 'executed';
+    "#)
+    // 1. Test custom URI scheme protocol (sync)
     .register_uri_scheme_protocol("myapp", |_ctx, request| {
       log::info!("Custom scheme request: {:?}", request.uri());
 
-      // Return a simple response
-      let body = r#"
+      // Return HTML that posts message to parent
+      let path = request.uri().path().to_string();
+      let body = format!(r#"
         <!DOCTYPE html>
         <html>
         <body>
-          <h1>✅ Custom Scheme Works!</h1>
-          <p>Requested: <span id="url"></span></p>
-          <script>document.getElementById('url').textContent = location.href;</script>
+          <script>
+            window.parent.postMessage({{
+              status: 'ok',
+              path: '{}',
+              protocol: 'myapp'
+            }}, '*');
+          </script>
         </body>
         </html>
-      "#.as_bytes().to_vec();
+      "#, path).into_bytes();
 
       tauri::http::Response::builder()
         .header("Content-Type", "text/html")
         .status(200)
         .body(body)
         .unwrap()
+    })
+    // 2. Test custom URI scheme protocol (async)
+    .register_asynchronous_uri_scheme_protocol("myapp-async", |_ctx, request, responder| {
+      log::info!("Async scheme request: {:?}", request.uri());
+
+      // Spawn a thread to simulate async work
+      std::thread::spawn(move || {
+        // Simulate some async work
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        // Return HTML that posts message to parent
+        let path = request.uri().path().to_string();
+        let body = format!(r#"
+          <!DOCTYPE html>
+          <html>
+          <body>
+            <script>
+              window.parent.postMessage({{
+                status: 'ok',
+                path: '{}',
+                protocol: 'myapp-async',
+                async: true
+              }}, '*');
+            </script>
+          </body>
+          </html>
+        "#, path).into_bytes();
+
+        responder.respond(
+          tauri::http::Response::builder()
+            .header("Content-Type", "text/html")
+            .status(200)
+            .body(body)
+            .unwrap()
+        );
+      });
     })
     .setup(move |app| {
       #[cfg(all(desktop, not(test)))]
@@ -126,6 +174,9 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       #[cfg(target_os = "macos")]
       app.manage(AppMenu::<R>(Default::default()));
+
+      // Manage event tracker for testing
+      app.manage(EventTracker::default());
 
       #[cfg(all(desktop, not(test)))]
       app.manage(PopupMenu(
@@ -208,6 +259,14 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       }
 
       let webview = window_builder.build()?;
+
+      // Setup window event tracking
+      let app_handle = app.handle().clone();
+      webview.on_window_event(move |event| {
+        log::info!("on_window_event");
+        let tracker = app_handle.state::<EventTracker>();
+        tracker.window_events.lock().unwrap().push(format!("{:?}", event));
+      });
 
       #[cfg(debug_assertions)]
       webview.open_devtools();
@@ -321,6 +380,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       cmd::create_window_with_custom_ua,
       cmd::create_window_no_throttle,
       cmd::create_transparent_window,
+      cmd::create_counter,
+      cmd::increment_counter,
+      cmd::get_counter_value,
+      cmd::emit_test_event,
+      cmd::setup_app_listener,
+      cmd::test_async_spawn,
+      cmd::get_tracked_window_events,
+      cmd::get_tracked_menu_events,
+      cmd::clear_tracked_events,
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");

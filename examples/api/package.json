@@ -11,16 +11,16 @@
   },
   "dependencies": {
     "@tauri-apps/api": "../../packages/api/dist",
+    "@tauri-apps/plugin-autostart": "file:../../../plugins-workspace/plugins/autostart",
+    "@tauri-apps/plugin-clipboard-manager": "file:../../../plugins-workspace/plugins/clipboard-manager",
+    "@tauri-apps/plugin-dialog": "file:../../../plugins-workspace/plugins/dialog",
     "@tauri-apps/plugin-fs": "file:../../../plugins-workspace/plugins/fs",
     "@tauri-apps/plugin-http": "file:../../../plugins-workspace/plugins/http",
-    "@tauri-apps/plugin-dialog": "file:../../../plugins-workspace/plugins/dialog",
-    "@tauri-apps/plugin-os": "file:../../../plugins-workspace/plugins/os",
-    "@tauri-apps/plugin-shell": "file:../../../plugins-workspace/plugins/shell",
-    "@tauri-apps/plugin-clipboard-manager": "file:../../../plugins-workspace/plugins/clipboard-manager",
     "@tauri-apps/plugin-log": "file:../../../plugins-workspace/plugins/log",
     "@tauri-apps/plugin-notification": "file:../../../plugins-workspace/plugins/notification",
+    "@tauri-apps/plugin-os": "file:../../../plugins-workspace/plugins/os",
     "@tauri-apps/plugin-process": "file:../../../plugins-workspace/plugins/process",
-    "@tauri-apps/plugin-autostart": "file:../../../plugins-workspace/plugins/autostart"
+    "@tauri-apps/plugin-shell": "file:../../../plugins-workspace/plugins/shell"
   },
   "devDependencies": {
     "@iconify-json/codicon": "^1.2.49",

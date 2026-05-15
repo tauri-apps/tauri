@@ -20,6 +20,7 @@ node_modules/
 package-lock.json
 yarn.lock
 bun.lockb
+Cargo.lock
 
 # rust compiled folders
 target/

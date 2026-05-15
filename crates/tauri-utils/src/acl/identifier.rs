@@ -130,8 +130,8 @@ pub enum ParseIdentifierError {
   Humongous(usize),
 
   /// Identifier is not in a valid format.
-  #[error("invalid plugin or permission identifier '{0}': identifiers can only include lowercase ASCII letters, digits, hyphens (not leading or trailing), and a single colon when using a prefix")]
-  InvalidFormat(String),
+  #[error("identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix")]
+  InvalidFormat,
 
   /// Identifier has multiple separators.
   #[error(
@@ -173,14 +173,14 @@ impl TryFrom<String> for Identifier {
     let mut prev = bytes
       .next()
       .and_then(ValidByte::alpha_numeric)
-      .ok_or_else(|| Self::Error::InvalidFormat(value.clone()))?;
+      .ok_or(Self::Error::InvalidFormat)?;
 
     let mut idx = 0;
     let mut separator = None;
     for byte in bytes {
       idx += 1; // we already consumed first item
       match prev.next(byte) {
-        None => return Err(Self::Error::InvalidFormat(value.clone())),
+        None => return Err(Self::Error::InvalidFormat),
         Some(next @ ValidByte::Byte(_)) => prev = next,
         Some(ValidByte::Separator) => {
           if separator.is_none() || is_core_identifier {
@@ -216,7 +216,12 @@ impl<'de> Deserialize<'de> for Identifier {
   where
     D: Deserializer<'de>,
   {
-    Self::try_from(String::deserialize(deserializer)?).map_err(serde::de::Error::custom)
+    let raw = String::deserialize(deserializer)?;
+    Self::try_from(raw.clone()).map_err(|e| {
+      serde::de::Error::custom(format!(
+        "invalid plugin or permission identifier '{raw}': {e}"
+      ))
+    })
   }
 }
 

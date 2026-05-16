@@ -2576,7 +2576,9 @@ mod application {
         _sender: &NSApplication,
         has_visible_windows: bool,
       ) -> bool {
-        (self.ivars().on_event)(AppDelegateEvent::Reopen { has_visible_windows });
+        (self.ivars().on_event)(AppDelegateEvent::Reopen {
+          has_visible_windows,
+        });
         false
       }
 

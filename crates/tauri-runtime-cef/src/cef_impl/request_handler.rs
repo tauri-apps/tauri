@@ -13,7 +13,7 @@ use dioxus_debug_cell::RefCell;
 use html5ever::{LocalName, interface::QualName, namespace_url, ns};
 use http::{
   HeaderMap, HeaderName, HeaderValue,
-  header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE},
+  header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE, ORIGIN},
 };
 use kuchiki::NodeRef;
 use tauri_runtime::{UserEvent, webview::UriSchemeProtocolHandler, window::WindowId};
@@ -222,6 +222,14 @@ wrap_resource_handler! {
     webview_label: String,
     handler: Arc<Box<UriSchemeProtocolHandler>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
+    // Serialized origin of the main frame that initiated this request, captured
+    // browser-side in the scheme handler factory. The renderer can issue an IPC
+    // request before its execution context is fully wired to the loader; in
+    // that window Chromium tags the request with `Origin: null` even though the
+    // document already has a proper origin. We use this to repair the `Origin`
+    // header in that case. `None` when the initiator is not the (non-opaque)
+    // main frame, so sandboxed/subframe `Origin: null` requests are left as-is.
+    initiator_origin: Option<String>,
     // we clone response to send it to the handler thread
     response: HttpResponse,
   }
@@ -279,7 +287,27 @@ wrap_resource_handler! {
         let handler = self.handler.clone();
 
         let data = read_request_body(request);
-        let headers = get_request_headers(request);
+        let mut headers = get_request_headers(request);
+
+        // The renderer can issue an IPC request before its execution context is
+        // fully wired to the loader; in that window Chromium sends the request
+        // with `Origin: null` even though the document already has a real
+        // origin. Repair it from the initiating main frame's URL, which the
+        // browser process tracks reliably. Only done when the renderer sent no
+        // origin or a literal `null`, so a correct renderer-sent origin always
+        // wins.
+        if let Some(initiator_origin) = &self.initiator_origin {
+          let origin_missing_or_null = headers
+            .get(ORIGIN)
+            .map(|value| value.as_bytes() == b"null")
+            .unwrap_or(true);
+          if origin_missing_or_null
+            && let Ok(value) = HeaderValue::from_str(initiator_origin)
+          {
+            headers.insert(ORIGIN, value);
+          }
+        }
+
         let method_str = CefString::from(&request.method()).to_string();
         let method = http::Method::from_bytes(method_str.as_bytes())
           .unwrap_or(http::Method::GET);
@@ -374,7 +402,7 @@ wrap_scheme_handler_factory! {
     fn create(
       &self,
       browser: Option<&mut Browser>,
-      _frame: Option<&mut Frame>,
+      frame: Option<&mut Frame>,
       _scheme_name: Option<&CefString>,
       _request: Option<&mut Request>,
     ) -> Option<ResourceHandler> {
@@ -389,10 +417,22 @@ wrap_scheme_handler_factory! {
         .get(&(id, self.scheme.clone()))
         .cloned()?;
 
+      // Capture the initiating main frame's origin so `process_request` can
+      // repair a racy `Origin: null` header. Restricted to the main frame: it
+      // is never an opaque-origin (sandboxed) document in a Tauri webview, so
+      // upgrading its origin is safe; subframes are intentionally left alone.
+      let initiator_origin = frame
+        .filter(|frame| frame.is_main() == 1)
+        .map(|frame| CefString::from(&frame.url()).to_string())
+        .and_then(|url| Url::parse(&url).ok())
+        .map(|url| url.origin().ascii_serialization())
+        .filter(|origin| origin != "null");
+
       Some(WebResourceHandler::new(
         webview_label,
         handler,
         initialization_scripts,
+        initiator_origin,
         Arc::new(RefCell::new(None)),
       ))
     }

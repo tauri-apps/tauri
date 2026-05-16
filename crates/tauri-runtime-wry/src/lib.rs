@@ -4991,8 +4991,19 @@ You may have it installed on another user account, but it is not available for t
   } else {
     #[cfg(feature = "unstable")]
     {
+      #[cfg(target_os = "macos")]
+      let y_offset = webview_attributes
+        .traffic_light_position
+        .map(|p| match p {
+          dpi::Position::Physical(p) => p.y as f64 / window.scale_factor(),
+          dpi::Position::Logical(p) => p.y,
+        })
+        .unwrap_or(0.0);
+      #[cfg(not(target_os = "macos"))]
+      let y_offset = 0.0;
+
       webview_builder = webview_builder.with_bounds(wry::Rect {
-        position: LogicalPosition::new(0, 0).into(),
+        position: LogicalPosition::new(0.0, y_offset).into(),
         size: window.inner_size().into(),
       });
       Some(WebviewBounds {

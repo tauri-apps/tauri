@@ -4443,6 +4443,23 @@ fn collect_hosts(webviews: &[AppWebview]) -> Vec<BrowserHost> {
     .collect()
 }
 
+/// Apply the assistive-technology accessibility state to every live browser
+/// host — the runtime-wide equivalent of cefclient's `enableAccessibility:`,
+/// which only toggled the active browser.
+#[cfg(target_os = "macos")]
+pub fn set_browsers_accessibility_state<T: UserEvent>(context: &Context<T>, enabled: bool) {
+  let state = if enabled {
+    State::ENABLED
+  } else {
+    State::DISABLED
+  };
+  for app_window in context.windows.borrow().values() {
+    for host in collect_hosts(&app_window.webviews) {
+      host.set_accessibility_state(state);
+    }
+  }
+}
+
 /// Tear-down equivalent of cefclient's `RootWindowManager::CloseAllWindows`:
 /// drives every remaining window through the normal CEF lifecycle so each
 /// browser sees `OnBeforeClose`.

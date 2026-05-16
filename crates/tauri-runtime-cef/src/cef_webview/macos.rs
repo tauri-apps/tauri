@@ -75,11 +75,17 @@ impl CefBrowserExt for cef::Browser {
   }
 
   fn close(&self) {
-    let Some(nsview) = self.nsview() else {
+    // Equivalent of Linux's `XDestroyWindow` / Windows's `DestroyWindow`:
+    // drive CEF's normal close lifecycle (DoClose → OnBeforeClose) so the
+    // browser and its renderer process are fully torn down. Detaching the
+    // NSView via `removeFromSuperview` (the previous behavior) does not
+    // trigger CEF's close on macOS, so the CEF browser remained alive after
+    // `webview.close()` — that leaked the renderer helper and hung
+    // `cef::shutdown` (and therefore the main process) on app exit.
+    let Some(host) = self.host() else {
       return;
     };
-
-    unsafe { nsview.removeFromSuperview() };
+    let _ = host.try_close_browser();
   }
 
   fn set_parent(&self, parent: &cef::Window) {

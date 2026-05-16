@@ -1968,9 +1968,10 @@ impl<T: UserEvent> CefRuntime<T> {
     let windows: Arc<RefCell<HashMap<WindowId, AppWindow>>> = Default::default();
 
     #[cfg(target_os = "macos")]
-    let (_sandbox, _loader) = {
-      let is_helper = is_cef_helper_process();
+    let is_helper = is_cef_helper_process();
 
+    #[cfg(target_os = "macos")]
+    let (_sandbox, _loader) = {
       #[cfg(feature = "sandbox")]
       let sandbox = if is_helper {
         let mut sandbox = cef::sandbox::Sandbox::new();
@@ -1985,29 +1986,6 @@ impl<T: UserEvent> CefRuntime<T> {
       let loader =
         cef::library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), is_helper);
       assert!(loader.load());
-
-      if !is_helper {
-        let event_tx_ = event_tx.clone();
-        init_ns_app(Box::new(move |event| match event {
-          AppDelegateEvent::ShouldTerminate { tx } => {
-            // Cancel macOS termination — we handle shutdown ourselves.
-            //
-            // Start closing all browsers (including devtools). The actual
-            // destruction is async and completes via the CEF message loop.
-            //
-            // Signal the main loop to exit. The post-loop safety net will
-            // pump the message loop until all browsers are fully destroyed
-            // before calling cef::shutdown().
-
-            tx.send(objc2_app_kit::NSApplicationTerminateReply::TerminateCancel)
-              .unwrap();
-            event_tx_.send(RunEvent::Exit).unwrap();
-          }
-          AppDelegateEvent::OpenURLs { urls } => {
-            event_tx_.send(RunEvent::Opened { urls }).unwrap();
-          }
-        }));
-      }
 
       (sandbox, loader)
     };
@@ -2045,7 +2023,36 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
       scheme_handler_registry: Default::default(),
       cache_path: Arc::new(cache_path.clone()),
+      is_shutting_down: Default::default(),
     };
+
+    #[cfg(target_os = "macos")]
+    if !is_helper {
+      // Match cefclient's `-terminate:` flow: cancel the OS termination
+      // (so Chromium can leave the run loop cleanly) and drive the same
+      // `ExitRequested -> Exit` sequence as a programmatic `request_exit`.
+      // The Tauri runtime owns shutdown — we never let AppKit `exit()`
+      // out from under us.
+      let event_tx_ = event_tx.clone();
+      let cef_context_ = cef_context.clone();
+      init_ns_app(Box::new(move |event| match event {
+        AppDelegateEvent::ShouldTerminate { tx } => {
+          tx.send(objc2_app_kit::NSApplicationTerminateReply::TerminateCancel)
+            .unwrap();
+          // Equivalent to cefclient's `tryToTerminateApplication:` ->
+          // `CloseAllWindows(false)`: hand the request off to the runtime so
+          // the embedder sees `ExitRequested` (and may veto). If approved,
+          // the runtime sets `is_shutting_down` and the post-loop tear-down
+          // pumps the CEF message loop until every browser/window has gone
+          // through `OnBeforeClose`, then calls `cef::shutdown`.
+          cef_impl::handle_message(&cef_context_, Message::RequestExit(0));
+        }
+        AppDelegateEvent::OpenURLs { urls } => {
+          event_tx_.send(RunEvent::Opened { urls }).unwrap();
+        }
+      }));
+    }
+
     command_line_args.push(("--enable-media-stream".to_string(), None));
 
     let mut app = cef_impl::TauriApp::new(
@@ -2408,7 +2415,26 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       (self.context.cef_context.callback.borrow())(RunEvent::MainEventsCleared);
     }
 
-    // We need to run the message loop until all windows are closed. Otherwise, we run into use after free crashes.
+    // Tear-down phase — mirrors the tail of cefclient's `RunMain`:
+    // `message_loop->Run()` returns, then `context->Shutdown()` runs and
+    // objects are released. cefclient is able to call `Shutdown()` directly
+    // because `RootWindowManager::CleanupOnUIThread` had already waited for
+    // every `OnBeforeClose`; our embedder-driven main loop breaks earlier on
+    // the `Exit` signal, so we have to drive the equivalent wait ourselves:
+    // close any still-open windows cooperatively (CEF's normal
+    // `can_close -> close_window_browsers -> OnBeforeClose -> on_window_destroyed`
+    // chain) and pump until the windows map is empty before calling
+    // `cef::shutdown`. Skipping this step trips use-after-free in CEF.
+    //
+    // Mark shut-down state defensively in case we got here via a path that
+    // didn't set it (e.g. an embedder-emitted Exit). With it set, the
+    // per-window callbacks during the drain stay silent.
+    self
+      .context
+      .cef_context
+      .is_shutting_down
+      .store(true, std::sync::atomic::Ordering::SeqCst);
+
     cef_impl::close_all_windows(&self.context.cef_context.windows);
     while !self.context.cef_context.windows.borrow().is_empty() {
       cef::do_message_loop_work();
@@ -2416,8 +2442,11 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
     cef::shutdown();
 
-    // Final Exit event
-    // use callback_ directly because cef_context.callback posts Exit events to the event loop rx
+    // Deliver the terminal `Exit` to the embedder. The wrapper above routes
+    // every `Exit` to the channel (so the main loop can break) and never
+    // forwards it to the user callback, so this final call is what the
+    // embedder actually observes — matching cefclient where the process
+    // returns from `main()` once shutdown completes.
     (callback_.borrow_mut())(RunEvent::Exit);
   }
 

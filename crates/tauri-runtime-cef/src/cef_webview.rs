@@ -81,7 +81,16 @@ impl CefWebview {
 
   pub fn close(&self) {
     match self {
-      CefWebview::BrowserView(_) => {}
+      CefWebview::BrowserView(view) => {
+        // Alloy `BrowserView` (used for child webviews after the first): no
+        // platform window to destroy, so we must drive CEF's normal close
+        // lifecycle directly. Without this, dropping the `BrowserView`
+        // refptr leaves the browser alive in CEF's internal state, which
+        // hangs `cef::shutdown` and prevents the main process from exiting.
+        if let Some(host) = view.browser().and_then(|b| b.host()) {
+          let _ = host.try_close_browser();
+        }
+      }
       CefWebview::Browser(browser) => browser.close(),
     }
   }

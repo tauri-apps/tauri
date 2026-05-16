@@ -15,4 +15,4 @@ Fix a regression in tauri-utils 2.8.3 that made an empty directory makes it skip
 }
 ```
 
-ff `empty-directory` is empty, the `README.md` will not be copied to the resource directory (skipped)
+if `empty-directory` is empty, the `README.md` will not be copied to the resource directory (skipped)

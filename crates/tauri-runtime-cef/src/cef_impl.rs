@@ -4409,10 +4409,7 @@ fn handle_drag_drop_script_event<T: UserEvent>(
   }
 }
 
-fn on_close_requested<T: UserEvent>(
-  window_id: WindowId,
-  context: &Context<T>,
-) {
+fn on_close_requested<T: UserEvent>(window_id: WindowId, context: &Context<T>) {
   // Skip `CloseRequested` while tearing down — the embedder has already been
   // told `ExitRequested -> Exit`. We still need to drive the close so that
   // CEF can run its `OnBeforeClose` lifecycle.
@@ -4424,7 +4421,12 @@ fn on_close_requested<T: UserEvent>(
   let (tx, rx) = channel();
   let event = WindowEvent::CloseRequested { signal_tx: tx };
 
-  send_window_event(window_id, &context.windows, &context.callback, event.clone());
+  send_window_event(
+    window_id,
+    &context.windows,
+    &context.callback,
+    event.clone(),
+  );
 
   let prevent = rx.try_recv().unwrap_or_default();
 
@@ -4520,17 +4522,10 @@ fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) 
     return;
   }
 
-  // During tear-down (initiated by a direct exit), the public event sequence
-  // is `ExitRequested -> Exit` only — the cefclient-style cooperative close
-  // is still driving `OnBeforeClose` / window destruction underneath, but we
-  // must not surface those as `Destroyed` events or re-prompt `ExitRequested`
-  // for the last window.
   let is_shutting_down = context.is_shutting_down.load(Ordering::SeqCst);
 
-  if !is_shutting_down {
-    let event = WindowEvent::Destroyed;
-    send_window_event(window_id, &context.windows, &context.callback, event);
-  }
+  let event = WindowEvent::Destroyed;
+  send_window_event(window_id, &context.windows, &context.callback, event);
 
   let removed_window = {
     let mut guard = context.windows.borrow_mut();

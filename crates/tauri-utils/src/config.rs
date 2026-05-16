@@ -1641,6 +1641,11 @@ pub struct BundleConfig {
   ///
   /// See more: <https://v2.tauri.app/develop/resources/>
   pub resources: Option<BundleResources>,
+  /// Resource paths that should be excluded from `cargo:rerun-if-changed` in build scripts,
+  /// as they might contain too many files and slow down the compilation.
+  /// Glob patterns are supported.
+  #[serde(default)]
+  pub unwatched_resources: Option<Vec<String>>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
   /// The package's license identifier to be included in the appropriate bundles.
@@ -4548,6 +4553,7 @@ mod test {
       homepage: None,
       icon: Vec::new(),
       resources: None,
+      unwatched_resources: None,
       copyright: None,
       category: None,
       file_associations: None,

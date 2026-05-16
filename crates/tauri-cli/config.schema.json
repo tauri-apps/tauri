@@ -2185,6 +2185,16 @@
             }
           ]
         },
+        "unwatchedResources": {
+          "description": "Resource paths that should be excluded from `cargo:rerun-if-changed` in build scripts,\n as they might contain too many files and slow down the compilation.\n Glob patterns are supported.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "copyright": {
           "description": "A copyright string associated with your application.",
           "type": [

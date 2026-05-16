@@ -16,11 +16,11 @@ use cargo_toml::Manifest;
 
 use tauri_utils::{
   config::{BundleResources, Config, WebviewInstallMode},
-  resources::{external_binaries, ResourcePaths},
+  resources::{external_binaries, parse_unwatched_resource_paths, ResourcePaths},
 };
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   env, fs,
   path::{Path, PathBuf},
 };
@@ -58,10 +58,13 @@ fn copy_binaries(
   target_triple: &str,
   path: &Path,
   package_name: Option<&str>,
+  unwatched_resources: &HashSet<PathBuf>,
 ) -> Result<()> {
   for src in binaries {
     let src = src?;
-    println!("cargo:rerun-if-changed={}", src.display());
+    if !unwatched_resources.contains(&src) {
+      println!("cargo:rerun-if-changed={}", src.display());
+    }
     let file_name = src
       .file_name()
       .expect("failed to extract external binary filename")
@@ -85,15 +88,22 @@ fn copy_binaries(
 }
 
 /// Copies resources to a path.
-fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
+fn copy_resources(
+  resources: ResourcePaths<'_>,
+  path: &Path,
+  unwatched_resources: &HashSet<PathBuf>,
+) -> Result<()> {
   let path = path.canonicalize()?;
   for resource in resources.iter() {
     let resource = resource?;
 
-    println!("cargo:rerun-if-changed={}", resource.path().display());
+    let src = resource.path().canonicalize()?;
+
+    if !unwatched_resources.contains(&src) {
+      println!("cargo:rerun-if-changed={}", resource.path().display());
+    }
 
     // avoid copying the resource if target is the same as source
-    let src = resource.path().canonicalize()?;
     let target = path.join(resource.target());
     if src != target {
       copy_file(src, target)?;
@@ -537,6 +547,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
+  let unwatched_resources = parse_unwatched_resource_paths(
+    config
+      .bundle
+      .unwatched_resources
+      .as_deref()
+      .unwrap_or_default(),
+  )?;
+
   manifest::check(&config, &mut manifest)?;
 
   acl::build(&out_dir, target, &attributes)?;
@@ -562,6 +580,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       &target_triple,
       target_dir,
       manifest.package.as_ref().map(|p| p.name.as_ref()),
+      &unwatched_resources,
     )?;
   }
 
@@ -580,10 +599,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
   }
   match resources {
-    BundleResources::List(res) => {
-      copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?
-    }
-    BundleResources::Map(map) => copy_resources(ResourcePaths::from_map(&map, true), target_dir)?,
+    BundleResources::List(res) => copy_resources(
+      ResourcePaths::new(res.as_slice(), true),
+      target_dir,
+      &unwatched_resources,
+    )?,
+    BundleResources::Map(map) => copy_resources(
+      ResourcePaths::from_map(&map, true),
+      target_dir,
+      &unwatched_resources,
+    )?,
   }
 
   if target_triple.contains("darwin") {

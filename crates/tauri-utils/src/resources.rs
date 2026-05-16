@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   path::{Component, Path, PathBuf},
 };
 
@@ -40,6 +40,19 @@ fn normalize(path: &Path) -> PathBuf {
     }
   }
   dest
+}
+
+/// Evaluates a list of glob patterns into a set of paths.
+pub fn parse_unwatched_resource_paths(
+  unwatched_resources: &[String],
+) -> crate::Result<HashSet<PathBuf>> {
+  let mut paths = HashSet::new();
+  for pattern in unwatched_resources {
+    for entry in glob::glob(pattern)? {
+      paths.insert(normalize(&entry?));
+    }
+  }
+  Ok(paths)
 }
 
 /// Parses the external binaries to bundle, adding the target triple suffix to each of them.

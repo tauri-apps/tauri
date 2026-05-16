@@ -221,6 +221,7 @@ impl ResourcePathsIter<'_> {
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
     self.current_dest = None;
+    self.current_iter = None;
 
     let pattern = match &mut self.pattern_iter {
       PatternIter::Slice(iter) => iter.next()?,
@@ -237,10 +238,10 @@ impl ResourcePathsIter<'_> {
         Err(error) => return Some(Err(error.into())),
       };
       match self.next_current_iter() {
-        Some(r) => return Some(r),
+        Some(r) => Some(r),
         None => {
           self.current_iter = None;
-          return Some(Err(crate::Error::GlobPathNotFound(pattern.clone())));
+          Some(Err(crate::Error::GlobPathNotFound(pattern.clone())))
         }
       }
     } else {
@@ -257,12 +258,12 @@ impl ResourcePathsIter<'_> {
             None
           },
         });
+        // If the directory is empty, skip and continue to the next pattern
+        self.next_current_iter().or_else(|| self.next_pattern())
       } else {
-        return Some(self.resource_from_path(path));
+        Some(self.resource_from_path(path))
       }
     }
-
-    self.next_current_iter()
   }
 }
 

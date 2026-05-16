@@ -2026,40 +2026,12 @@ impl<T: UserEvent> CefRuntime<T> {
       is_shutting_down: Default::default(),
     };
 
+    // Promote `NSApp` to our `SimpleApplication` subclass *before* CEF (or
+    // anything else) touches `NSApp`, so it carries the `CefAppProtocol`
+    // conformance CEF requires. The delegate is installed later — see below.
     #[cfg(target_os = "macos")]
     if !is_helper {
-      // Wire the macOS `NSApplication` / delegate hooks to the runtime.
-      // `SimpleApplication` overrides `-terminate:` so AppKit can never call
-      // `exit()` out from under us — Chromium must leave the run loop to
-      // shut down cleanly.
-      let event_tx_ = event_tx.clone();
-      let cef_context_ = cef_context.clone();
-      init_ns_app(Box::new(move |event| match event {
-        AppDelegateEvent::TryTerminate => {
-          // cefsimple/cefclient's `tryToTerminateApplication:` ->
-          // `CloseAllBrowsers(false)`: hand the request off to the runtime
-          // so the embedder sees `ExitRequested` (and may veto). If
-          // approved, the runtime sets `is_shutting_down` and the post-loop
-          // tear-down pumps the CEF message loop until every browser/window
-          // has gone through `OnBeforeClose`, then calls `cef::shutdown`.
-          cef_impl::handle_message(&cef_context_, Message::RequestExit(0));
-        }
-        AppDelegateEvent::Reopen {
-          has_visible_windows,
-        } => {
-          event_tx_
-            .send(RunEvent::Reopen {
-              has_visible_windows,
-            })
-            .unwrap();
-        }
-        AppDelegateEvent::AccessibilityChanged { enabled } => {
-          cef_impl::set_browsers_accessibility_state(&cef_context_, enabled);
-        }
-        AppDelegateEvent::OpenURLs { urls } => {
-          event_tx_.send(RunEvent::Opened { urls }).unwrap();
-        }
-      }));
+      init_ns_app();
     }
 
     command_line_args.push(("--enable-media-stream".to_string(), None));
@@ -2103,6 +2075,45 @@ impl<T: UserEvent> CefRuntime<T> {
       ),
       1
     );
+
+    // Install our `NSApplication` delegate *after* `cef::initialize`: CEF's
+    // Chrome runtime installs its own `AppController` as `NSApp.delegate`
+    // during initialization, so a delegate set earlier would be overwritten.
+    // cefsimple does the same — it assigns `NSApp.delegate` only once
+    // `CefInitialize` has returned. `SimpleApplication` also overrides
+    // `-terminate:` so AppKit can never `exit()` out from under us; Chromium
+    // must leave the run loop to shut down cleanly.
+    #[cfg(target_os = "macos")]
+    if !is_helper {
+      let event_tx_ = event_tx.clone();
+      let cef_context_ = cef_context.clone();
+      init_ns_app_delegate(Box::new(move |event| match event {
+        AppDelegateEvent::TryTerminate => {
+          // cefsimple/cefclient's `tryToTerminateApplication:` ->
+          // `CloseAllBrowsers(false)`: hand the request off to the runtime
+          // so the embedder sees `ExitRequested` (and may veto). If
+          // approved, the runtime sets `is_shutting_down` and the post-loop
+          // tear-down pumps the CEF message loop until every browser/window
+          // has gone through `OnBeforeClose`, then calls `cef::shutdown`.
+          cef_impl::handle_message(&cef_context_, Message::RequestExit(0));
+        }
+        AppDelegateEvent::Reopen {
+          has_visible_windows,
+        } => {
+          event_tx_
+            .send(RunEvent::Reopen {
+              has_visible_windows,
+            })
+            .unwrap();
+        }
+        AppDelegateEvent::AccessibilityChanged { enabled } => {
+          cef_impl::set_browsers_accessibility_state(&cef_context_, enabled);
+        }
+        AppDelegateEvent::OpenURLs { urls } => {
+          event_tx_.send(RunEvent::Opened { urls }).unwrap();
+        }
+      }));
+    }
 
     let main_thread_id = thread::current().id();
     let context = RuntimeContext {
@@ -2464,26 +2475,25 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 }
 
+/// Promotes the process's `NSApplication` to our `SimpleApplication` subclass.
+///
+/// Must run before CEF (or anything else) touches `NSApp`: the first call to
+/// `+[NSApplication sharedApplication]` fixes the concrete class of `NSApp`,
+/// and CEF requires it to be a `CefAppProtocol` conformer. The delegate is
+/// installed separately, *after* `cef::initialize` — see [`init_ns_app_delegate`].
 #[cfg(target_os = "macos")]
-fn init_ns_app(on_event: Box<dyn Fn(AppDelegateEvent)>) {
+fn init_ns_app() {
   use objc2::{ClassType, MainThreadMarker, msg_send, rc::Retained, runtime::NSObjectProtocol};
   use objc2_app_kit::{NSApp, NSApplication};
 
-  use application::{AppDelegate, SimpleApplication};
+  use application::SimpleApplication;
 
   let mtm = MainThreadMarker::new().unwrap();
 
-  unsafe {
-    // Initialize the SimpleApplication instance.
-    // SAFETY: mtm ensures that here is the main thread.
-
-    use objc2::runtime::ProtocolObject;
-
-    let app: Retained<NSApplication> = msg_send![SimpleApplication::class(), sharedApplication];
-    let delegate = AppDelegate::new(mtm, on_event);
-    let proto_delegate = ProtocolObject::from_ref(&*delegate);
-    app.setDelegate(Some(proto_delegate));
-  }
+  // Initialize the SimpleApplication instance.
+  // SAFETY: mtm ensures that here is the main thread.
+  let _: Retained<NSApplication> =
+    unsafe { msg_send![SimpleApplication::class(), sharedApplication] };
 
   // If there was an invocation to NSApp prior to here,
   // then the NSApp will not be a SimpleApplication.
@@ -2491,9 +2501,36 @@ fn init_ns_app(on_event: Box<dyn Fn(AppDelegateEvent)>) {
   assert!(NSApp(mtm).isKindOfClass(SimpleApplication::class()));
 }
 
+/// Installs our `AppDelegate` as the `NSApplication` delegate.
+///
+/// Must run *after* `cef::initialize`: CEF's Chrome runtime installs its own
+/// `AppController` as `NSApp.delegate` during initialization, so a delegate
+/// set earlier is silently overwritten. This mirrors cefsimple, which assigns
+/// `NSApp.delegate` only once `CefInitialize` has returned.
+#[cfg(target_os = "macos")]
+fn init_ns_app_delegate(on_event: Box<dyn Fn(AppDelegateEvent)>) {
+  use objc2::{MainThreadMarker, rc::Retained, runtime::ProtocolObject};
+  use objc2_app_kit::{NSApp, NSApplication};
+
+  use application::AppDelegate;
+
+  let mtm = MainThreadMarker::new().unwrap();
+
+  let delegate = AppDelegate::new(mtm, on_event);
+
+  // `init_ns_app` has already promoted `NSApp` to `SimpleApplication`.
+  let app: Retained<NSApplication> = NSApp(mtm);
+  app.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
+
+  // `NSApp.delegate` is only a weak reference and AppKit/CEF may repoint it,
+  // so hand the delegate to `APP_DELEGATE` — that owns it and is where
+  // `-terminate:` / `-accessibilitySetValue:` read it back.
+  application::set_app_delegate(delegate);
+}
+
 #[cfg(target_os = "macos")]
 mod application {
-  use std::cell::Cell;
+  use std::cell::{Cell, RefCell};
 
   use cef::application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol};
   use objc2::{
@@ -2596,6 +2633,9 @@ mod application {
     // subclass can `msg_send!` them on its delegate.
     #[allow(non_snake_case)]
     impl AppDelegate {
+      // Declared to return `BOOL` to match the signature CEF's Chrome-runtime
+      // `AppController` exposes for this selector, keeping the ObjC method
+      // encoding consistent with the platform convention.
       #[unsafe(method(tryToTerminateApplication:))]
       fn tryToTerminateApplication(&self, _app: &NSApplication) {
         (self.ivars().on_event)(AppDelegateEvent::TryTerminate);
@@ -2621,6 +2661,28 @@ mod application {
   /// Instance variables of `SimpleApplication`.
   pub struct SimpleApplicationIvars {
     handling_send_event: Cell<Bool>,
+  }
+
+  thread_local! {
+    /// The runtime's `CefAppDelegate`, owned for the lifetime of the process.
+    ///
+    /// `SimpleApplication`'s `-terminate:` and `-accessibilitySetValue:`
+    /// route here directly instead of through `NSApp.delegate`: CEF's Chrome
+    /// runtime can repoint `NSApp.delegate` at its own `AppController`, and
+    /// forwarding there would bypass the runtime's orderly-exit flow. This
+    /// also keeps the delegate alive — `NSApp.delegate` is only a weak
+    /// reference. Main-thread-only, like `NSApp` itself.
+    ///
+    /// It cannot live in a `SimpleApplication` ivar: `NSApp` is created by
+    /// `+[NSApplication sharedApplication]`, not through objc2, so non-trivial
+    /// ivars are never initialized and accessing them panics.
+    static APP_DELEGATE: RefCell<Option<Retained<AppDelegate>>> = const { RefCell::new(None) };
+  }
+
+  /// Records the application delegate. Call once, from the main thread, after
+  /// `cef::initialize`.
+  pub(super) fn set_app_delegate(delegate: Retained<AppDelegate>) {
+    APP_DELEGATE.with_borrow_mut(|slot| *slot = Some(delegate));
   }
 
   define_class!(
@@ -2666,12 +2728,17 @@ mod application {
       // `-terminate:` is the entry point for every orderly macOS quit. The
       // default implementation calls `exit()` and never returns, which is
       // incompatible with Chromium — it depends on leaving the run loop to
-      // shut down cleanly. Hand off to the delegate's
+      // shut down cleanly. Hand off to our delegate's
       // `tryToTerminateApplication:` and return without exiting; the runtime
       // exits on its own once shutdown completes.
       #[unsafe(method(terminate:))]
       unsafe fn terminate(&self, _sender: Option<&AnyObject>) {
-        if let Some(delegate) = unsafe { self.delegate() } {
+        // Route to *our* `CefAppDelegate` (`APP_DELEGATE`), not
+        // `NSApp.delegate`: CEF's Chrome runtime can swap the public delegate
+        // for its own `AppController`, and forwarding there would bypass the
+        // runtime's `TryTerminate` -> `RequestExit` orderly-exit flow.
+        let delegate = APP_DELEGATE.with_borrow(|slot| slot.clone());
+        if let Some(delegate) = delegate {
           let _: () = unsafe { msg_send![&*delegate, tryToTerminateApplication: self] };
         }
       }
@@ -2688,7 +2755,10 @@ mod application {
         if let (Some(value), Some(attribute)) = (value, attribute) {
           if attribute.to_string() == "AXEnhancedUserInterface" {
             let int_value: std::os::raw::c_int = unsafe { msg_send![value, intValue] };
-            if let Some(delegate) = unsafe { self.delegate() } {
+            // Route to our own delegate — see `terminate:` above for why
+            // `NSApp.delegate` cannot be trusted once CEF has initialized.
+            let delegate = APP_DELEGATE.with_borrow(|slot| slot.clone());
+            if let Some(delegate) = delegate {
               let _: () =
                 unsafe { msg_send![&*delegate, enableAccessibility: Bool::new(int_value == 1)] };
             }

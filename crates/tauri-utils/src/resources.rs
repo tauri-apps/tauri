@@ -359,6 +359,7 @@ mod tests {
       fs::create_dir_all(path.parent().unwrap()).unwrap();
       fs::write(path, "").unwrap();
     }
+    fs::create_dir_all("empty-directory").unwrap();
   }
 
   fn resources_map(literal: &[(&str, &str)]) -> HashMap<String, String> {
@@ -378,6 +379,8 @@ mod tests {
 
     let resources = ResourcePaths::new(
       &[
+        // `empty-directory` should not affect anything
+        "../empty-directory".into(),
         "../src/script.js".into(),
         "../src/assets".into(),
         "../src/index.html".into(),

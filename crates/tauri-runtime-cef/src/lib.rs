@@ -2659,7 +2659,7 @@ mod application {
       unsafe fn sendEvent(&self, event: &NSEvent) {
         let was_handling = self.ivars().handling_send_event.get();
         self.ivars().handling_send_event.set(Bool::YES);
-        unsafe { msg_send![super(self), sendEvent: event] };
+        let _: () = unsafe { msg_send![super(self), sendEvent: event] };
         self.ivars().handling_send_event.set(was_handling);
       }
 
@@ -2671,7 +2671,7 @@ mod application {
       // exits on its own once shutdown completes.
       #[unsafe(method(terminate:))]
       unsafe fn terminate(&self, _sender: Option<&AnyObject>) {
-        if let Some(delegate) = self.delegate() {
+        if let Some(delegate) = unsafe { self.delegate() } {
           let _: () = unsafe { msg_send![&*delegate, tryToTerminateApplication: self] };
         }
       }
@@ -2688,7 +2688,7 @@ mod application {
         if let (Some(value), Some(attribute)) = (value, attribute) {
           if attribute.to_string() == "AXEnhancedUserInterface" {
             let int_value: std::os::raw::c_int = unsafe { msg_send![value, intValue] };
-            if let Some(delegate) = self.delegate() {
+            if let Some(delegate) = unsafe { self.delegate() } {
               let _: () =
                 unsafe { msg_send![&*delegate, enableAccessibility: Bool::new(int_value == 1)] };
             }

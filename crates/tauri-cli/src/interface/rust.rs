@@ -1658,7 +1658,6 @@ fn tauri_config_to_bundle_settings(
       allow_downgrades: config.windows.allow_downgrades,
       sign_command: config.windows.sign_command.map(custom_sign_settings),
       minimum_webview2_version: config.windows.minimum_webview2_version,
-      bundle_vc_runtime: config.windows.bundle_vc_runtime,
     },
     license: config.license.or_else(|| {
       settings

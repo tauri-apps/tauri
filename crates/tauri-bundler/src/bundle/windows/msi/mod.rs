@@ -9,7 +9,7 @@ use crate::{
     windows::{
       sign::{should_sign, try_sign},
       util::{
-        download_webview2_bootstrapper, download_webview2_offline_installer, vc_runtime_dlls,
+        download_webview2_bootstrapper, download_webview2_offline_installer,
         WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
       },
     },
@@ -1065,21 +1065,6 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   }
 
   let mut dlls = Vec::new();
-
-  if settings.windows().bundle_vc_runtime {
-    for dll in vc_runtime_dlls(settings.binary_arch())? {
-      let resource_path = dunce::simplified(&dll);
-      if added_resources.contains(&resource_path.to_path_buf()) {
-        continue;
-      }
-      added_resources.push(resource_path.to_path_buf());
-      dlls.push(ResourceFile {
-        id: format!("I{}", Uuid::new_v4().as_simple()),
-        guid: Uuid::new_v4().to_string(),
-        path: resource_path.to_path_buf(),
-      });
-    }
-  }
 
   // TODO: The bundler should not include all DLLs it finds. Instead it should only include WebView2Loader.dll if present and leave the rest to the resources config.
   let out_dir = settings.project_out_directory();

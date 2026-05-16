@@ -2028,24 +2028,33 @@ impl<T: UserEvent> CefRuntime<T> {
 
     #[cfg(target_os = "macos")]
     if !is_helper {
-      // Match cefclient's `-terminate:` flow: cancel the OS termination
-      // (so Chromium can leave the run loop cleanly) and drive the same
-      // `ExitRequested -> Exit` sequence as a programmatic `request_exit`.
-      // The Tauri runtime owns shutdown — we never let AppKit `exit()`
-      // out from under us.
+      // Wire the macOS `NSApplication` / delegate hooks to the runtime.
+      // `SimpleApplication` overrides `-terminate:` so AppKit can never call
+      // `exit()` out from under us — Chromium must leave the run loop to
+      // shut down cleanly.
       let event_tx_ = event_tx.clone();
       let cef_context_ = cef_context.clone();
       init_ns_app(Box::new(move |event| match event {
-        AppDelegateEvent::ShouldTerminate { tx } => {
-          tx.send(objc2_app_kit::NSApplicationTerminateReply::TerminateCancel)
-            .unwrap();
-          // Equivalent to cefclient's `tryToTerminateApplication:` ->
-          // `CloseAllWindows(false)`: hand the request off to the runtime so
-          // the embedder sees `ExitRequested` (and may veto). If approved,
-          // the runtime sets `is_shutting_down` and the post-loop tear-down
-          // pumps the CEF message loop until every browser/window has gone
-          // through `OnBeforeClose`, then calls `cef::shutdown`.
+        AppDelegateEvent::TryTerminate => {
+          // cefsimple/cefclient's `tryToTerminateApplication:` ->
+          // `CloseAllBrowsers(false)`: hand the request off to the runtime
+          // so the embedder sees `ExitRequested` (and may veto). If
+          // approved, the runtime sets `is_shutting_down` and the post-loop
+          // tear-down pumps the CEF message loop until every browser/window
+          // has gone through `OnBeforeClose`, then calls `cef::shutdown`.
           cef_impl::handle_message(&cef_context_, Message::RequestExit(0));
+        }
+        AppDelegateEvent::Reopen {
+          has_visible_windows,
+        } => {
+          event_tx_
+            .send(RunEvent::Reopen {
+              has_visible_windows,
+            })
+            .unwrap();
+        }
+        AppDelegateEvent::AccessibilityChanged { enabled } => {
+          cef_impl::set_browsers_accessibility_state(&cef_context_, enabled);
         }
         AppDelegateEvent::OpenURLs { urls } => {
           event_tx_.send(RunEvent::Opened { urls }).unwrap();
@@ -2484,24 +2493,36 @@ fn init_ns_app(on_event: Box<dyn Fn(AppDelegateEvent)>) {
 
 #[cfg(target_os = "macos")]
 mod application {
-  use std::{cell::Cell, sync::mpsc::channel};
+  use std::cell::Cell;
 
   use cef::application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol};
   use objc2::{
     DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send,
     rc::Retained,
-    runtime::{Bool, NSObject, NSObjectProtocol},
+    runtime::{AnyObject, Bool, NSObject, NSObjectProtocol},
   };
-  use objc2_app_kit::{NSApplication, NSApplicationDelegate, NSApplicationTerminateReply};
-  use objc2_foundation::{NSArray, NSURL};
+  use objc2_app_kit::{NSApplication, NSApplicationDelegate, NSApplicationTerminateReply, NSEvent};
+  use objc2_foundation::{NSArray, NSString, NSURL};
 
+  /// Application-level events surfaced from the macOS `NSApplication` /
+  /// delegate plumbing to the CEF runtime.
   pub enum AppDelegateEvent {
-    ShouldTerminate {
-      tx: std::sync::mpsc::Sender<NSApplicationTerminateReply>,
-    },
-    OpenURLs {
-      urls: Vec<url::Url>,
-    },
+    /// macOS requested an orderly quit (Cmd+Q, dock "Quit", Apple-menu
+    /// "Quit", Activity Monitor "Quit", logout, restart, shutdown).
+    ///
+    /// Delivered via the overridden `-terminate:` →
+    /// `tryToTerminateApplication:` rather than `-applicationShouldTerminate:`,
+    /// matching cefsimple/cefclient. The default `-terminate:` calls `exit()`
+    /// and never returns, which is incompatible with Chromium's need to leave
+    /// the run loop for an orderly shutdown.
+    TryTerminate,
+    /// The dock icon was clicked while the app was already running.
+    Reopen { has_visible_windows: bool },
+    /// Assistive technology (e.g. VoiceOver) was enabled or disabled,
+    /// detected via the undocumented `AXEnhancedUserInterface` attribute.
+    AccessibilityChanged { enabled: bool },
+    /// The OS asked the app to open URLs (deep links / file associations).
+    OpenURLs { urls: Vec<url::Url> },
   }
 
   pub struct CefAppDelegateIvars {
@@ -2530,22 +2551,59 @@ mod application {
           })
           .collect();
 
-        let handler = &self.ivars().on_event;
-        handler(AppDelegateEvent::OpenURLs {
+        (self.ivars().on_event)(AppDelegateEvent::OpenURLs {
           urls: converted_urls,
         });
       }
 
+      // Not the termination entry point: `SimpleApplication`'s `-terminate:`
+      // override routes through `tryToTerminateApplication:` instead (the
+      // cefsimple/cefclient pattern). Kept as a defensive default for any
+      // code path that reaches `-applicationShouldTerminate:` directly.
       #[unsafe(method(applicationShouldTerminate:))]
       unsafe fn applicationShouldTerminate(
         &self,
         _sender: &NSApplication,
       ) -> NSApplicationTerminateReply {
-        let (tx, rx) = channel();
-        let handler = &self.ivars().on_event;
-        handler(AppDelegateEvent::ShouldTerminate { tx });
-        rx.try_recv()
-          .unwrap_or(NSApplicationTerminateReply::TerminateNow)
+        NSApplicationTerminateReply::TerminateNow
+      }
+
+      // Called when the user clicks the dock icon while the app is running.
+      // Returning `false` leaves window management to the embedder.
+      #[unsafe(method(applicationShouldHandleReopen:hasVisibleWindows:))]
+      unsafe fn applicationShouldHandleReopen_hasVisibleWindows(
+        &self,
+        _sender: &NSApplication,
+        has_visible_windows: bool,
+      ) -> bool {
+        (self.ivars().on_event)(AppDelegateEvent::Reopen { has_visible_windows });
+        false
+      }
+
+      // Opt into secure state restoration (macOS 12+). Matches
+      // cefsimple/cefclient: silences the AppKit warning and avoids macOS
+      // incorrectly restoring windows after a hard reset (power-button hold).
+      #[unsafe(method(applicationSupportsSecureRestorableState:))]
+      unsafe fn applicationSupportsSecureRestorableState(&self, _app: &NSApplication) -> bool {
+        true
+      }
+    }
+
+    // Selectors invoked directly by `SimpleApplication` (not part of any
+    // protocol). They are registered as ObjC methods so the application
+    // subclass can `msg_send!` them on its delegate.
+    #[allow(non_snake_case)]
+    impl AppDelegate {
+      #[unsafe(method(tryToTerminateApplication:))]
+      fn tryToTerminateApplication(&self, _app: &NSApplication) {
+        (self.ivars().on_event)(AppDelegateEvent::TryTerminate);
+      }
+
+      #[unsafe(method(enableAccessibility:))]
+      fn enableAccessibility(&self, enabled: Bool) {
+        (self.ivars().on_event)(AppDelegateEvent::AccessibilityChanged {
+          enabled: enabled.as_bool(),
+        });
       }
     }
   );
@@ -2564,7 +2622,8 @@ mod application {
   }
 
   define_class!(
-    /// A `NSApplication` subclass that implements the required CEF protocols.
+    /// A `NSApplication` subclass that implements the required CEF protocols
+    /// and the AppKit hooks a CEF embedder needs on macOS.
     ///
     /// This class provides the necessary `CefAppProtocol` conformance to
     /// ensure that events are handled correctly by the Chromium framework on macOS.
@@ -2587,5 +2646,55 @@ mod application {
     }
 
     unsafe impl CefAppProtocol for SimpleApplication {}
+
+    #[allow(non_snake_case)]
+    impl SimpleApplication {
+      // CEF requires `isHandlingSendEvent` to be true while AppKit dispatches
+      // an event — the `CefScopedSendingEvent` RAII guard from
+      // cefsimple/cefclient. Save and restore the previous value so nested
+      // `-sendEvent:` calls (modal loops, event tracking) stay correct.
+      #[unsafe(method(sendEvent:))]
+      unsafe fn sendEvent(&self, event: &NSEvent) {
+        let was_handling = self.ivars().handling_send_event.get();
+        self.ivars().handling_send_event.set(Bool::YES);
+        unsafe { msg_send![super(self), sendEvent: event] };
+        self.ivars().handling_send_event.set(was_handling);
+      }
+
+      // `-terminate:` is the entry point for every orderly macOS quit. The
+      // default implementation calls `exit()` and never returns, which is
+      // incompatible with Chromium — it depends on leaving the run loop to
+      // shut down cleanly. Hand off to the delegate's
+      // `tryToTerminateApplication:` and return without exiting; the runtime
+      // exits on its own once shutdown completes.
+      #[unsafe(method(terminate:))]
+      unsafe fn terminate(&self, _sender: Option<&AnyObject>) {
+        if let Some(delegate) = self.delegate() {
+          let _: () = unsafe { msg_send![&*delegate, tryToTerminateApplication: self] };
+        }
+      }
+
+      // Detect VoiceOver dynamically the same way Chromium does: the
+      // undocumented `AXEnhancedUserInterface` accessibility attribute is set
+      // to 1 when VoiceOver starts and 0 when it stops.
+      #[unsafe(method(accessibilitySetValue:forAttribute:))]
+      unsafe fn accessibilitySetValue_forAttribute(
+        &self,
+        value: Option<&AnyObject>,
+        attribute: Option<&NSString>,
+      ) {
+        if let (Some(value), Some(attribute)) = (value, attribute) {
+          if attribute.to_string() == "AXEnhancedUserInterface" {
+            let int_value: std::os::raw::c_int = unsafe { msg_send![value, intValue] };
+            if let Some(delegate) = self.delegate() {
+              let _: () =
+                unsafe { msg_send![&*delegate, enableAccessibility: Bool::new(int_value == 1)] };
+            }
+          }
+        }
+
+        unsafe { msg_send![super(self), accessibilitySetValue: value, forAttribute: attribute] }
+      }
+    }
   );
 }

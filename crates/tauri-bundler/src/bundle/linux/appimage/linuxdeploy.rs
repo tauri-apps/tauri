@@ -16,6 +16,14 @@ use std::{
   process::Command,
 };
 
+fn root_icon_link_target(product_name: &str) -> PathBuf {
+  PathBuf::from(format!("{product_name}.png"))
+}
+
+fn root_desktop_link_target(product_name: &str) -> PathBuf {
+  PathBuf::from("usr/share/applications").join(format!("{product_name}.desktop"))
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the AppImage was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -172,11 +180,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     app_dir_path.join(format!("{product_name}.png")),
   )?;
   std::os::unix::fs::symlink(
-    app_dir_path.join(format!("{product_name}.png")),
+    root_icon_link_target(product_name),
     app_dir_path.join(".DirIcon"),
   )?;
   std::os::unix::fs::symlink(
-    app_dir_path.join(format!("usr/share/applications/{product_name}.desktop")),
+    root_desktop_link_target(product_name),
     app_dir_path.join(format!("{product_name}.desktop")),
   )?;
 
@@ -279,4 +287,24 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     .output();
 
   Ok(linuxdeploy)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn appimage_root_symlink_targets_are_relative() {
+    let icon_target = root_icon_link_target("My App");
+    let desktop_target = root_desktop_link_target("My App");
+
+    assert!(!icon_target.is_absolute());
+    assert_eq!(icon_target, PathBuf::from("My App.png"));
+
+    assert!(!desktop_target.is_absolute());
+    assert_eq!(
+      desktop_target,
+      PathBuf::from("usr/share/applications/My App.desktop")
+    );
+  }
 }

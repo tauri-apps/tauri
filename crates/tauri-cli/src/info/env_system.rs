@@ -18,9 +18,19 @@ struct VsInstanceInfo {
 }
 
 #[cfg(windows)]
+const VSWHERE: &[u8] = include_bytes!("../../scripts/vswhere.exe");
+
+#[cfg(windows)]
 fn build_tools_version() -> crate::Result<Vec<String>> {
-  let vswhere =
-    tauri_bundler::bundle::vswhere_path().context("failed to find or prepare vswhere.exe")?;
+  let mut vswhere = std::env::temp_dir();
+  vswhere.push("vswhere.exe");
+
+  if !vswhere.exists() {
+    if let Ok(mut file) = std::fs::File::create(&vswhere) {
+      use std::io::Write;
+      let _ = file.write_all(VSWHERE);
+    }
+  }
 
   // Check if there are Visual Studio installations that have the "MSVC - C++ Buildtools" and "Windows SDK" components.
   // Both the Windows 10 and Windows 11 SDKs work so we need to query it twice.

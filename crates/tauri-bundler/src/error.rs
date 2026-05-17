@@ -79,11 +79,11 @@ pub enum Error {
   #[error("`{0}`")]
   HttpError(#[from] Box<ureq::Error>),
   /// Invalid glob pattern.
-  #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+  #[cfg(windows)]
   #[error("{0}")]
   GlobPattern(#[from] glob::PatternError),
   /// Failed to use glob pattern.
-  #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+  #[cfg(windows)]
   #[error("`{0}`")]
   Glob(#[from] glob::GlobError),
   /// Failed to parse the URL

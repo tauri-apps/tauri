@@ -76,6 +76,39 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
   HashAlgorithm::Sha1,
 )];
 
+fn canonicalize_nsis_config_path(path: &Path, config_key: &'static str) -> crate::Result<PathBuf> {
+  dunce::canonicalize(path).fs_context(config_key, path.to_path_buf())
+}
+
+#[cfg(test)]
+mod tests {
+  use std::time::{SystemTime, UNIX_EPOCH};
+
+  use super::*;
+
+  #[test]
+  fn nsis_config_path_errors_include_the_config_key_and_path() {
+    let nonce = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .expect("system time should be after unix epoch")
+      .as_nanos();
+    let missing_path = std::env::temp_dir().join(format!(
+      "tauri-missing-installer-icon-{}-{nonce}.ico",
+      std::process::id()
+    ));
+
+    let error = canonicalize_nsis_config_path(
+      &missing_path,
+      "failed to resolve `bundle > windows > nsis > installerIcon`",
+    )
+    .expect_err("missing path should fail");
+    let message = error.to_string();
+
+    assert!(message.contains("bundle > windows > nsis > installerIcon"));
+    assert!(message.contains(&missing_path.display().to_string()));
+  }
+}
+
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
@@ -339,32 +372,50 @@ fn build_nsis_app_installer(
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
         "installer_icon",
-        to_json(dunce::canonicalize(installer_icon)?),
+        to_json(canonicalize_nsis_config_path(
+          installer_icon,
+          "failed to resolve `bundle > windows > nsis > installerIcon`",
+        )?),
       );
     }
 
     if let Some(header_image) = &nsis.header_image {
-      data.insert("header_image", to_json(dunce::canonicalize(header_image)?));
+      data.insert(
+        "header_image",
+        to_json(canonicalize_nsis_config_path(
+          header_image,
+          "failed to resolve `bundle > windows > nsis > headerImage`",
+        )?),
+      );
     }
 
     if let Some(sidebar_image) = &nsis.sidebar_image {
       data.insert(
         "sidebar_image",
-        to_json(dunce::canonicalize(sidebar_image)?),
+        to_json(canonicalize_nsis_config_path(
+          sidebar_image,
+          "failed to resolve `bundle > windows > nsis > sidebarImage`",
+        )?),
       );
     }
 
     if let Some(uninstaller_icon) = &nsis.uninstaller_icon {
       data.insert(
         "uninstaller_icon",
-        to_json(dunce::canonicalize(uninstaller_icon)?),
+        to_json(canonicalize_nsis_config_path(
+          uninstaller_icon,
+          "failed to resolve `bundle > windows > nsis > uninstallerIcon`",
+        )?),
       );
     }
 
     if let Some(uninstaller_header_image) = &nsis.uninstaller_header_image {
       data.insert(
         "uninstaller_header_image",
-        to_json(dunce::canonicalize(uninstaller_header_image)?),
+        to_json(canonicalize_nsis_config_path(
+          uninstaller_header_image,
+          "failed to resolve `bundle > windows > nsis > uninstallerHeaderImage`",
+        )?),
       );
     }
 

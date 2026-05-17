@@ -76,36 +76,6 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
   HashAlgorithm::Sha1,
 )];
 
-#[cfg(test)]
-mod tests {
-  use std::time::{SystemTime, UNIX_EPOCH};
-
-  use super::*;
-
-  #[test]
-  fn nsis_config_path_errors_include_the_config_key_and_path() {
-    let nonce = SystemTime::now()
-      .duration_since(UNIX_EPOCH)
-      .expect("system time should be after unix epoch")
-      .as_nanos();
-    let missing_path = std::env::temp_dir().join(format!(
-      "tauri-missing-installer-icon-{}-{nonce}.ico",
-      std::process::id()
-    ));
-
-    let error = dunce::canonicalize(&missing_path)
-      .fs_context(
-        "failed to resolve `bundle > windows > nsis > installerIcon`",
-        missing_path.clone(),
-      )
-      .expect_err("missing path should fail");
-    let message = error.to_string();
-
-    assert!(message.contains("bundle > windows > nsis > installerIcon"));
-    assert!(message.contains(&missing_path.display().to_string()));
-  }
-}
-
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
@@ -950,4 +920,34 @@ fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> c
   output.write_all(&[0xEF, 0xBB, 0xBF])?; // UTF-8 BOM
   output.write_all(content.as_ref())?;
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use std::time::{SystemTime, UNIX_EPOCH};
+
+  use super::*;
+
+  #[test]
+  fn nsis_config_path_errors_include_the_config_key_and_path() {
+    let nonce = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .expect("system time should be after unix epoch")
+      .as_nanos();
+    let missing_path = std::env::temp_dir().join(format!(
+      "tauri-missing-installer-icon-{}-{nonce}.ico",
+      std::process::id()
+    ));
+
+    let error = dunce::canonicalize(&missing_path)
+      .fs_context(
+        "failed to resolve `bundle > windows > nsis > installerIcon`",
+        missing_path.clone(),
+      )
+      .expect_err("missing path should fail");
+    let message = error.to_string();
+
+    assert!(message.contains("bundle > windows > nsis > installerIcon"));
+    assert!(message.contains(&missing_path.display().to_string()));
+  }
 }

@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_resources, open_and_wait, sync_debug_application_id_suffix, MobileTarget,
+  configure_cargo, delete_codegen_vars, device_prompt, ensure_gradle_java_compatibility,
+  ensure_init, env, get_app, get_config, inject_resources, open_and_wait,
+  sync_debug_application_id_suffix, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -211,6 +212,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     MobileTarget::Android,
     false,
   )?;
+  ensure_gradle_java_compatibility(&config.project_dir())?;
   run_dev(
     interface,
     options,

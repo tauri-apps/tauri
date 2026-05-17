@@ -139,6 +139,7 @@ fn exec(
       let _env = super::android::env(non_interactive)?;
       let (config, metadata) =
         super::android::get_config(&app, &tauri_config, &[], &Default::default());
+      super::android::ensure_gradle_java_compatibility(&config.project_dir())?;
       map.insert("android", &config);
 
       // Add application_id_suffix to the map for template access

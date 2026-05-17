@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_resources,
-  log_finished, open_and_wait, sync_debug_application_id_suffix, MobileTarget, OptionsHandle,
+  configure_cargo, delete_codegen_vars, ensure_gradle_java_compatibility, ensure_init, env,
+  get_app, get_config, inject_resources, log_finished, open_and_wait,
+  sync_debug_application_id_suffix, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -189,6 +190,7 @@ pub fn run(
   )?;
 
   let mut env = env(options.ci)?;
+  ensure_gradle_java_compatibility(&config.project_dir())?;
   configure_cargo(&mut env, &config)?;
 
   generate_tauri_properties(&config, tauri_config, false)?;

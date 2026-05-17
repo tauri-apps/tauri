@@ -177,7 +177,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       data_dir.join(format!("usr/share/applications/{product_name}.desktop")),
     )
     .env("ICON", &larger_icon.path)
-    .env("OUTPUT_APPIMAGE", "1")
+    .env("OUTPUT_APPIMAGE", "0")
     .env("URUNTIME2APPIMAGE_SOURCE", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/uruntime2appimage.sh")
     .env("DEPLOY_CHROMIUM", "1")
     .env("ADD_HOOKS", "fix-namespaces.hook")
@@ -196,6 +196,52 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     ])
     .output_ok()
     .context("quick-sharun command failed to run.")?;
+
+  // Exclude glibc-related libraries to prevent version conflicts on newer hosts
+  let exclude_prefixes = [
+    "libc.so",
+    "libm.so",
+    "libpthread.so",
+    "librt.so",
+    "libdl.so",
+    "libresolv.so",
+    "libutil.so",
+    "ld-linux",
+  ];
+
+  for dir_name in &["shared/lib", "shared/lib32", "lib", "lib32"] {
+    let dir_path = app_dir_path.join(dir_name);
+    if dir_path.exists() {
+      for entry in fs::read_dir(&dir_path)
+        .with_context(|| format!("Failed to inspect {}", dir_path.display()))?
+      {
+        let entry =
+          entry.with_context(|| format!("Failed to inspect entry in {}", dir_path.display()))?;
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        if exclude_prefixes
+          .iter()
+          .any(|prefix| file_name.starts_with(prefix))
+        {
+          let path = entry.path();
+          fs::remove_file(&path).with_context(|| format!("Failed to remove {}", path.display()))?;
+        }
+      }
+    }
+  }
+
+  // Package the clean AppDir into the final AppImage file
+  Command::new("/bin/sh")
+    .current_dir(&output_path)
+    .env("APPDIR", &app_dir_path)
+    .env("OUTNAME", &appimage_filename)
+    .env(
+      "DESKTOP",
+      data_dir.join(format!("usr/share/applications/{product_name}.desktop")),
+    )
+    .env("ICON", &larger_icon.path)
+    .args([quick_sharun.to_str().unwrap(), "--make-appimage"])
+    .output_ok()
+    .context("quick-sharun --make-appimage command failed to run.")?;
 
   {
     use std::os::unix::fs::PermissionsExt;

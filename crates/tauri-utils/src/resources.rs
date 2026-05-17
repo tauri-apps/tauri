@@ -209,7 +209,21 @@ impl ResourcePathsIter<'_> {
             // preserving the file name as it is
             ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
           },
-          None => dest.clone(),
+          None => {
+            if dest.components().count() == 0 {
+              // if current_dest is empty while processing a file pattern
+              // we preserve the file name as it is
+              //
+              // e.g. `{ "README.md": "" }` is `README.md` -> `$RESOURCE/README.md`
+              //
+              // TODO: This behavior is a confusing special case,
+              // remove this in v3 or make other cases like this work
+              // > `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md` (this gives `$RESOURCE/folder` today)
+              PathBuf::from(path.file_name().unwrap())
+            } else {
+              dest.clone()
+            }
+          }
         }
       } else {
         // If [`ResourcePathsIter::pattern_iter`] is a [`PatternIter::Slice`]
@@ -221,6 +235,7 @@ impl ResourcePathsIter<'_> {
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
     self.current_dest = None;
+    self.current_iter = None;
 
     let pattern = match &mut self.pattern_iter {
       PatternIter::Slice(iter) => iter.next()?,
@@ -237,10 +252,10 @@ impl ResourcePathsIter<'_> {
         Err(error) => return Some(Err(error.into())),
       };
       match self.next_current_iter() {
-        Some(r) => return Some(r),
+        Some(r) => Some(r),
         None => {
           self.current_iter = None;
-          return Some(Err(crate::Error::GlobPathNotFound(pattern.clone())));
+          Some(Err(crate::Error::GlobPathNotFound(pattern.clone())))
         }
       }
     } else {
@@ -257,12 +272,12 @@ impl ResourcePathsIter<'_> {
             None
           },
         });
+        // If the directory is empty, skip and continue to the next pattern
+        self.next_current_iter().or_else(|| self.next_pattern())
       } else {
-        return Some(self.resource_from_path(path));
+        Some(self.resource_from_path(path))
       }
     }
-
-    self.next_current_iter()
   }
 }
 
@@ -358,6 +373,7 @@ mod tests {
       fs::create_dir_all(path.parent().unwrap()).unwrap();
       fs::write(path, "").unwrap();
     }
+    fs::create_dir_all("empty-directory").unwrap();
   }
 
   fn resources_map(literal: &[(&str, &str)]) -> HashMap<String, String> {
@@ -377,6 +393,8 @@ mod tests {
 
     let resources = ResourcePaths::new(
       &[
+        // `empty-directory` should not affect anything
+        "../empty-directory".into(),
         "../src/script.js".into(),
         "../src/assets".into(),
         "../src/index.html".into(),

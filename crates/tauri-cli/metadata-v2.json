@@ -1,9 +1,9 @@
 {
   "cli.js": {
-    "version": "2.11.1",
+    "version": "2.11.2",
     "node": ">= 10.0.0"
   },
-  "tauri": "2.11.1",
-  "tauri-build": "2.6.1",
-  "tauri-plugin": "2.6.1"
+  "tauri": "2.11.2",
+  "tauri-build": "2.6.2",
+  "tauri-plugin": "2.6.2"
 }

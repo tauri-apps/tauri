@@ -47,6 +47,7 @@ use std::{
 use crate::application::AppDelegateEvent;
 use crate::cef_webview::CefWebview;
 
+pub mod audio;
 mod cef_impl;
 mod cef_webview;
 pub mod notification;

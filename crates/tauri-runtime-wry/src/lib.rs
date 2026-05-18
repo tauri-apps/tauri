@@ -16,7 +16,7 @@ use self::monitor::MonitorExt;
 use http::Request;
 #[cfg(target_os = "macos")]
 use objc2::ClassType;
-use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
+use raw_window_handle::{DisplayHandle, HasWindowHandle};
 
 #[cfg(windows)]
 use tauri_runtime::webview::ScrollBarStyle;
@@ -237,8 +237,13 @@ pub(crate) fn send_user_message<T: UserEvent>(
   message: Message<T>,
 ) -> Result<()> {
   if current_thread().id() == context.main_thread_id {
+    let event_loop = context
+      .main_thread
+      .window_target
+      .upgrade()
+      .ok_or(Error::EventLoopClosed)?;
     handle_user_message(
-      &context.main_thread.window_target,
+      &event_loop,
       message,
       UserMessageContext {
         window_id_map: context.window_id_map.clone(),
@@ -439,7 +444,7 @@ unsafe impl Sync for WindowsStore {}
 
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
-  pub window_target: EventLoopWindowTarget<Message<T>>,
+  pub window_target: Weak<EventLoopWindowTarget<Message<T>>>,
   pub web_context: WebContextStore,
   // changing this to an Rc will cause frequent app crashes.
   pub windows: Arc<WindowsStore>,
@@ -2658,6 +2663,7 @@ pub trait Plugin<T: UserEvent> {
 pub struct Wry<T: UserEvent> {
   context: Context<T>,
   event_loop: EventLoop<Message<T>>,
+  _window_target: Arc<EventLoopWindowTarget<Message<T>>>,
 }
 
 impl<T: UserEvent> fmt::Debug for Wry<T> {
@@ -2784,7 +2790,8 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   fn display_handle(
     &self,
   ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
-    self.context.main_thread.window_target.display_handle()
+    todo!();
+    // self.context.main_thread.window_target.display_handle()
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
@@ -2792,6 +2799,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .context
       .main_thread
       .window_target
+      .upgrade()?
       .primary_monitor()
       .map(|m| MonitorHandleWrapper(m).into())
   }
@@ -2801,18 +2809,20 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .context
       .main_thread
       .window_target
+      .upgrade()?
       .monitor_from_point(x, y)
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
-    self
-      .context
-      .main_thread
-      .window_target
-      .available_monitors()
-      .map(|m| MonitorHandleWrapper(m).into())
-      .collect()
+    if let Some(window_target) = self.context.main_thread.window_target.upgrade() {
+      window_target
+        .available_monitors()
+        .map(|m| MonitorHandleWrapper(m).into())
+        .collect()
+    } else {
+      Vec::new()
+    }
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
@@ -2926,12 +2936,14 @@ impl<T: UserEvent> Wry<T> {
     let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
     let window_id_map = WindowIdStore::default();
 
+    let window_target = Arc::new(event_loop.deref().clone());
+
     let context = Context {
       window_id_map,
       main_thread_id,
       proxy: event_loop.create_proxy(),
       main_thread: DispatcherMainThreadContext {
-        window_target: event_loop.deref().clone(),
+        window_target: Arc::downgrade(&window_target),
         web_context,
         windows,
         #[cfg(feature = "tracing")]
@@ -2948,6 +2960,7 @@ impl<T: UserEvent> Wry<T> {
     Ok(Self {
       context,
       event_loop,
+      _window_target: window_target,
     })
   }
 }
@@ -3115,27 +3128,21 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn primary_monitor(&self) -> Option<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .primary_monitor()
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .monitor_from_point(x, y)
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .available_monitors()
       .map(|m| MonitorHandleWrapper(m).into())
       .collect()
@@ -3143,9 +3150,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     self
-      .context
-      .main_thread
-      .window_target
+      .event_loop
       .cursor_position()
       .map(PhysicalPositionWrapper)
       .map(Into::into)

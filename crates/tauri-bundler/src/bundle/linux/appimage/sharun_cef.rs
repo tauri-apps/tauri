@@ -197,8 +197,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .output_ok()
     .context("quick-sharun command failed to run.")?;
 
-  // Exclude glibc-related libraries to prevent version conflicts on newer hosts
+  // Exclude bundled core system libraries that conflict with the host's
+  // versions on rolling / newer distros.
+  //
+  // glibc family: a bundled libc.so older than the host's will fail to
+  // resolve newer GLIBC_* symbols required by host libraries the AppImage
+  // dlopen()s at runtime.
+  //
+  // NSS/NSPR family: the bundled libnssutil3.so etc. are typically older
+  // than the host's libsoftokn3.so / libfreebl3.so, which Chromium/CEF
+  // dlopens from /usr/lib for PKCS#11. The host softokn requires NSSUTIL_*
+  // symbols only present in the host's (newer) libnssutil3, so leaving the
+  // older bundled copy in $APPDIR/shared/lib produces:
+  //   `NSSUTIL_3.108' not found (required by /usr/lib/libsoftokn3.so)
+  // and a fatal crypto/nss_util.cc init crash on launch (Arch, Fedora
+  // rolling, etc.).
   let exclude_prefixes = [
+    // glibc family
     "libc.so",
     "libm.so",
     "libpthread.so",
@@ -207,6 +222,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "libresolv.so",
     "libutil.so",
     "ld-linux",
+    // NSS / NSPR family — must defer to the host's versions because
+    // Chromium/CEF loads the host's libsoftokn3.so at runtime.
+    "libnss3.so",
+    "libnssutil3.so",
+    "libsmime3.so",
+    "libssl3.so",
+    "libsoftokn3.so",
+    "libfreebl3.so",
+    "libfreeblpriv3.so",
+    "libnspr4.so",
+    "libplc4.so",
+    "libplds4.so",
   ];
 
   for dir_name in &["shared/lib", "shared/lib32", "lib", "lib32"] {

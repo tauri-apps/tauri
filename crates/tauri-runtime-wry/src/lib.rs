@@ -241,8 +241,8 @@ pub(crate) fn send_user_message<T: UserEvent>(
       &context.main_thread.window_target,
       message,
       UserMessageContext {
-        window_id_map: context.window_id_map.clone(),
-        windows: context.main_thread.windows.clone(),
+        window_id_map: &context.window_id_map,
+        windows: &context.main_thread.windows,
       },
     );
     Ok(())
@@ -2976,10 +2976,10 @@ impl<T: UserEvent> Wry<T> {
           control_flow,
           EventLoopIterationContext {
             callback: &mut callback,
-            window_id_map: window_id_map.clone(),
-            windows: windows.clone(),
+            window_id_map: &window_id_map,
+            windows: &windows,
             #[cfg(feature = "tracing")]
-            active_tracing_spans: active_tracing_spans.clone(),
+            active_tracing_spans: &active_tracing_spans,
           },
           &web_context,
         );
@@ -2993,10 +2993,10 @@ impl<T: UserEvent> Wry<T> {
         control_flow,
         EventLoopIterationContext {
           callback: &mut callback,
-          window_id_map: window_id_map.clone(),
-          windows: windows.clone(),
+          window_id_map: &window_id_map,
+          windows: &windows,
           #[cfg(feature = "tracing")]
-          active_tracing_spans: active_tracing_spans.clone(),
+          active_tracing_spans: &active_tracing_spans,
         },
       );
     })
@@ -3264,10 +3264,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             control_flow,
             EventLoopIterationContext {
               callback: &mut callback,
-              window_id_map: window_id_map.clone(),
-              windows: windows.clone(),
+              window_id_map: &window_id_map,
+              windows: &windows,
               #[cfg(feature = "tracing")]
-              active_tracing_spans: active_tracing_spans.clone(),
+              active_tracing_spans: &active_tracing_spans,
             },
             web_context,
           );
@@ -3282,10 +3282,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           control_flow,
           EventLoopIterationContext {
             callback: &mut callback,
-            windows: windows.clone(),
-            window_id_map: window_id_map.clone(),
+            windows: &windows,
+            window_id_map: &window_id_map,
             #[cfg(feature = "tracing")]
-            active_tracing_spans: active_tracing_spans.clone(),
+            active_tracing_spans: &active_tracing_spans,
           },
         );
       });
@@ -3313,15 +3313,15 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
-  pub window_id_map: WindowIdStore,
-  pub windows: Arc<WindowsStore>,
+  pub window_id_map: &'a WindowIdStore,
+  pub windows: &'a WindowsStore,
   #[cfg(feature = "tracing")]
-  pub active_tracing_spans: ActiveTraceSpanStore,
+  pub active_tracing_spans: &'a ActiveTraceSpanStore,
 }
 
-struct UserMessageContext {
-  windows: Arc<WindowsStore>,
-  window_id_map: WindowIdStore,
+struct UserMessageContext<'a> {
+  windows: &'a WindowsStore,
+  window_id_map: &'a WindowIdStore,
 }
 
 fn handle_user_message<T: UserEvent>(
@@ -4434,7 +4434,7 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WindowId,
-  windows: Arc<WindowsStore>,
+  windows: &WindowsStore,
 ) {
   let (tx, rx) = channel();
   let windows_ref = windows.0.borrow();
@@ -4462,7 +4462,7 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WindowId, windows: Arc<WindowsStore>) {
+fn on_window_close(window_id: WindowId, windows: &WindowsStore) {
   if let Some(window_wrapper) = windows.0.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
     #[cfg(windows)]

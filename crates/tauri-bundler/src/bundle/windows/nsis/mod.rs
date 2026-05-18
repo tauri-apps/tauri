@@ -319,7 +319,8 @@ fn build_nsis_app_installer(
   );
 
   if let Some(license_file) = settings.license_file() {
-    let license_file = dunce::canonicalize(license_file)?;
+    let license_file = dunce::canonicalize(&license_file)
+      .fs_context("failed to resolve `bundle > licenseFile`", license_file)?;
     let license_file_with_bom = output_path.join("license_file");
     let content = std::fs::read(license_file)?;
     write_utf8_with_bom(&license_file_with_bom, content)?;
@@ -339,37 +340,58 @@ fn build_nsis_app_installer(
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
         "installer_icon",
-        to_json(dunce::canonicalize(installer_icon)?),
+        to_json(dunce::canonicalize(installer_icon).fs_context(
+          "failed to resolve `bundle > windows > nsis > installerIcon`",
+          installer_icon.to_owned(),
+        )?),
       );
     }
 
     if let Some(header_image) = &nsis.header_image {
-      data.insert("header_image", to_json(dunce::canonicalize(header_image)?));
+      data.insert(
+        "header_image",
+        to_json(dunce::canonicalize(header_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > headerImage`",
+          header_image.to_owned(),
+        )?),
+      );
     }
 
     if let Some(sidebar_image) = &nsis.sidebar_image {
       data.insert(
         "sidebar_image",
-        to_json(dunce::canonicalize(sidebar_image)?),
+        to_json(dunce::canonicalize(sidebar_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > sidebarImage`",
+          sidebar_image.to_owned(),
+        )?),
       );
     }
 
     if let Some(uninstaller_icon) = &nsis.uninstaller_icon {
       data.insert(
         "uninstaller_icon",
-        to_json(dunce::canonicalize(uninstaller_icon)?),
+        to_json(dunce::canonicalize(uninstaller_icon).fs_context(
+          "failed to resolve `bundle > windows > nsis > uninstallerIcon`",
+          uninstaller_icon.to_owned(),
+        )?),
       );
     }
 
     if let Some(uninstaller_header_image) = &nsis.uninstaller_header_image {
       data.insert(
         "uninstaller_header_image",
-        to_json(dunce::canonicalize(uninstaller_header_image)?),
+        to_json(dunce::canonicalize(uninstaller_header_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > uninstallerHeaderImage`",
+          uninstaller_header_image.to_owned(),
+        )?),
       );
     }
 
     if let Some(installer_hooks) = &nsis.installer_hooks {
-      let installer_hooks = dunce::canonicalize(installer_hooks)?;
+      let installer_hooks = dunce::canonicalize(installer_hooks).fs_context(
+        "failed to resolve `bundle > windows > nsis > installerHooks`",
+        installer_hooks.to_owned(),
+      )?;
       data.insert("installer_hooks", to_json(installer_hooks));
     }
 

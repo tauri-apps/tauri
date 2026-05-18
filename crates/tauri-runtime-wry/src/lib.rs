@@ -2950,57 +2950,6 @@ impl<T: UserEvent> Wry<T> {
       event_loop,
     })
   }
-
-  fn into_event_loop_and_handler<F: FnMut(RunEvent<T>) + 'static>(
-    self,
-    mut callback: F,
-  ) -> (
-    EventLoop<Message<T>>,
-    impl FnMut(Event<'_, Message<T>>, &EventLoopWindowTarget<Message<T>>, &mut ControlFlow),
-  ) {
-    let windows = self.context.main_thread.windows;
-    let window_id_map = self.context.window_id_map;
-    let web_context = self.context.main_thread.web_context;
-    let plugins = self.context.plugins;
-
-    #[cfg(feature = "tracing")]
-    let active_tracing_spans = self.context.main_thread.active_tracing_spans;
-    let proxy = self.event_loop.create_proxy();
-
-    (self.event_loop, move |event, event_loop, control_flow| {
-      for p in plugins.lock().unwrap().iter_mut() {
-        let prevent_default = p.on_event(
-          &event,
-          event_loop,
-          &proxy,
-          control_flow,
-          EventLoopIterationContext {
-            callback: &mut callback,
-            window_id_map: &window_id_map,
-            windows: &windows,
-            #[cfg(feature = "tracing")]
-            active_tracing_spans: &active_tracing_spans,
-          },
-          &web_context,
-        );
-        if prevent_default {
-          return;
-        }
-      }
-      handle_event_loop(
-        event,
-        event_loop,
-        control_flow,
-        EventLoopIterationContext {
-          callback: &mut callback,
-          window_id_map: &window_id_map,
-          windows: &windows,
-          #[cfg(feature = "tracing")]
-          active_tracing_spans: &active_tracing_spans,
-        },
-      );
-    })
-  }
 }
 
 impl<T: UserEvent> Runtime<T> for Wry<T> {
@@ -3264,10 +3213,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             control_flow,
             EventLoopIterationContext {
               callback: &mut callback,
-              window_id_map: &window_id_map,
-              windows: &windows,
+              window_id_map,
+              windows,
               #[cfg(feature = "tracing")]
-              active_tracing_spans: &active_tracing_spans,
+              active_tracing_spans,
             },
             web_context,
           );
@@ -3282,32 +3231,80 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           control_flow,
           EventLoopIterationContext {
             callback: &mut callback,
-            windows: &windows,
-            window_id_map: &window_id_map,
+            windows,
+            window_id_map,
             #[cfg(feature = "tracing")]
-            active_tracing_spans: &active_tracing_spans,
+            active_tracing_spans,
           },
         );
       });
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
-    let (event_loop, event_handler) = self.into_event_loop_and_handler(callback);
-    event_loop.run(event_handler)
+    let event_handler = make_event_handler(self.context, callback);
+    self.event_loop.run(event_handler)
   }
 
   #[cfg(not(target_os = "ios"))]
-  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(mut self, callback: F) -> i32 {
     use tao::platform::run_return::EventLoopExtRunReturn;
 
-    let (mut event_loop, event_handler) = self.into_event_loop_and_handler(callback);
-    event_loop.run_return(event_handler)
+    let event_handler = make_event_handler(self.context, callback);
+    self.event_loop.run_return(event_handler)
   }
 
   #[cfg(target_os = "ios")]
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
     self.run(callback);
     0
+  }
+}
+
+fn make_event_handler<T: UserEvent, F: FnMut(RunEvent<T>) + 'static>(
+  context: Context<T>,
+  mut callback: F,
+) -> impl FnMut(Event<'_, Message<T>>, &EventLoopWindowTarget<Message<T>>, &mut ControlFlow) {
+  let windows = context.main_thread.windows;
+  let window_id_map = context.window_id_map;
+  let web_context = context.main_thread.web_context;
+  let plugins = context.plugins;
+
+  #[cfg(feature = "tracing")]
+  let active_tracing_spans = context.main_thread.active_tracing_spans;
+  let proxy = context.proxy;
+
+  move |event, event_loop, control_flow| {
+    for p in plugins.lock().unwrap().iter_mut() {
+      let prevent_default = p.on_event(
+        &event,
+        event_loop,
+        &proxy,
+        control_flow,
+        EventLoopIterationContext {
+          callback: &mut callback,
+          window_id_map: &window_id_map,
+          windows: &windows,
+          #[cfg(feature = "tracing")]
+          active_tracing_spans: &active_tracing_spans,
+        },
+        &web_context,
+      );
+      if prevent_default {
+        return;
+      }
+    }
+    handle_event_loop(
+      event,
+      event_loop,
+      control_flow,
+      EventLoopIterationContext {
+        callback: &mut callback,
+        window_id_map: &window_id_map,
+        windows: &windows,
+        #[cfg(feature = "tracing")]
+        active_tracing_spans: &active_tracing_spans,
+      },
+    );
   }
 }
 

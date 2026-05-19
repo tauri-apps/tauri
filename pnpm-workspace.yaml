@@ -9,3 +9,6 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - workerd
+
+overrides:
+  ws@>=8.0.0 <8.20.1: '>=8.20.1'

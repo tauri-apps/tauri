@@ -282,6 +282,13 @@ fn build_nsis_app_installer(
     to_json(&additional_plugins_path),
   );
 
+  if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+    data.insert(
+      "signed_plugins_path",
+      to_json(plugin_copy_path.join("x86-unicode")),
+    );
+  }
+
   data.insert("arch", to_json(arch));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
@@ -682,10 +689,6 @@ fn build_nsis_app_installer(
   let mut nsis_cmd = Command::new(nsis_toolset_path.join("makensis.exe"));
   #[cfg(not(target_os = "windows"))]
   let mut nsis_cmd = Command::new("makensis");
-
-  if let Some(plugins_path) = &maybe_plugin_copy_path {
-    nsis_cmd.env("NSISPLUGINS", plugins_path);
-  }
 
   nsis_cmd
     .args(["-INPUTCHARSET", "UTF8", "-OUTPUTCHARSET", "UTF8"])

@@ -213,7 +213,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // and a fatal crypto/nss_util.cc init crash on launch (Arch, Fedora
   // rolling, etc.).
   let exclude_prefixes = [
-    // glibc family
+    // glibc family — defer to the host's libc so we don't ship a libc.so older
+    // than what host libraries the AppImage will dlopen at runtime were built
+    // against.
+    //
+    // NOTE: `ld-linux` is deliberately NOT excluded. sharun needs the loader
+    // present in `shared/lib/` to bootstrap the dynamic binary; stripping it
+    // leaves sharun with "Interpreter not found!" before any chromium code
+    // runs. The loader is ABI-stable enough across glibc versions for the
+    // host-vs-bundle mix here to remain safe.
     "libc.so",
     "libm.so",
     "libpthread.so",
@@ -221,7 +229,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "libdl.so",
     "libresolv.so",
     "libutil.so",
-    "ld-linux",
     // NSS / NSPR family — must defer to the host's versions because
     // Chromium/CEF loads the host's libsoftokn3.so at runtime.
     "libnss3.so",
@@ -238,20 +245,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   for dir_name in &["shared/lib", "shared/lib32", "lib", "lib32"] {
     let dir_path = app_dir_path.join(dir_name);
-    if dir_path.exists() {
-      for entry in fs::read_dir(&dir_path)
-        .with_context(|| format!("Failed to inspect {}", dir_path.display()))?
+    if !dir_path.exists() {
+      continue;
+    }
+    // Walk the entire subtree, not just top-level entries. lib4bin mirrors
+    // source paths (e.g. `shared/lib/snap/core20/<rev>/usr/lib/x86_64-linux-gnu/libc.so.6`)
+    // when libraries are pulled in from a snap-managed location on the build
+    // host. A shallow `read_dir` here misses those nested copies, leaving an
+    // older glibc inside the bundle that breaks GLIBC_2.x symbol lookups on
+    // rolling/newer distros even after this exclusion pass.
+    for entry in walkdir::WalkDir::new(&dir_path).follow_links(false) {
+      let entry = entry.with_context(|| format!("Failed to walk {}", dir_path.display()))?;
+      if !entry.file_type().is_file() && !entry.file_type().is_symlink() {
+        continue;
+      }
+      let file_name = entry.file_name().to_string_lossy().to_string();
+      if exclude_prefixes
+        .iter()
+        .any(|prefix| file_name.starts_with(prefix))
       {
-        let entry =
-          entry.with_context(|| format!("Failed to inspect entry in {}", dir_path.display()))?;
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        if exclude_prefixes
-          .iter()
-          .any(|prefix| file_name.starts_with(prefix))
-        {
-          let path = entry.path();
-          fs::remove_file(&path).with_context(|| format!("Failed to remove {}", path.display()))?;
-        }
+        let path = entry.path();
+        fs::remove_file(path).with_context(|| format!("Failed to remove {}", path.display()))?;
       }
     }
   }

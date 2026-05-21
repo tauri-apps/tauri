@@ -116,27 +116,14 @@ pub enum Error {
   #[error("failed to parse TOML: {0}")]
   Toml(#[from] toml::de::Error),
 
-  /// Invalid TOML encountered while parsing a known file.
-  #[error("failed to parse TOML file '{}': {}", _1.display(), _0)]
-  TomlFile(toml::de::Error, PathBuf),
-
   /// Invalid JSON encountered
   #[error("failed to parse JSON: {0}")]
   Json(#[from] serde_json::Error),
-
-  /// Invalid JSON encountered while parsing a known file.
-  #[error("failed to parse JSON file '{}': {}", _1.display(), _0)]
-  JsonFile(serde_json::Error, PathBuf),
 
   /// Invalid JSON5 encountered
   #[cfg(feature = "config-json5")]
   #[error("failed to parse JSON5: {0}")]
   Json5(#[from] json5::Error),
-
-  /// Invalid JSON5 encountered while parsing a known file.
-  #[cfg(feature = "config-json5")]
-  #[error("failed to parse JSON5 file '{}': {}", _1.display(), _0)]
-  Json5File(json5::Error, PathBuf),
 
   /// Invalid permissions file format
   #[error("unknown permission format {0}")]

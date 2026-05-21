@@ -52,6 +52,9 @@ mod cef_impl;
 mod cef_webview;
 mod utils;
 
+/// The `cef` crate used by this runtime, re-exported for convenience.
+pub use cef;
+
 type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;
 
 pub fn webview_version() -> Result<String> {

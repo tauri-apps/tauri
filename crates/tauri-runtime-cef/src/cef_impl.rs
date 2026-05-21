@@ -2815,8 +2815,8 @@ fn handle_webview_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WebviewMessage::WithWebview(f) => {
-      if let Some(browser_view) = get_browser(context, window_id, webview_id) {
-        f(Box::new(browser_view));
+      if let Some(browser) = get_browser(context, window_id, webview_id) {
+        f(Box::new(browser));
       }
     }
     // Devtools

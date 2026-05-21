@@ -165,19 +165,62 @@ pub struct InvokeRequest {
 }
 
 /// The platform webview handle. Accessed with [`Webview#method.with_webview`];
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-pub struct PlatformWebview(tauri_runtime_wry::Webview);
+#[cfg(any(feature = "wry", feature = "cef"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "wry", feature = "cef"))))]
+pub struct PlatformWebview(PlatformWebviewInner);
 
-#[cfg(feature = "wry")]
+#[cfg(any(feature = "wry", feature = "cef"))]
+enum PlatformWebviewInner {
+  #[cfg(feature = "wry")]
+  Wry(tauri_runtime_wry::Webview),
+  #[cfg(feature = "cef")]
+  Cef(tauri_runtime_cef::cef::Browser),
+}
+
+#[cfg(any(feature = "wry", feature = "cef"))]
 impl PlatformWebview {
+  /// Builds the platform webview from the type-erased handle the runtime passes
+  /// to the [`Webview::with_webview`] callback.
+  ///
+  /// The active runtime decides which concrete type is boxed, so we try each
+  /// enabled runtime in turn.
+  fn from_any(webview: Box<dyn std::any::Any>) -> Self {
+    #[cfg(feature = "wry")]
+    let webview = match webview.downcast::<tauri_runtime_wry::Webview>() {
+      Ok(webview) => return Self(PlatformWebviewInner::Wry(*webview)),
+      Err(webview) => webview,
+    };
+
+    #[cfg(feature = "cef")]
+    let webview = match webview.downcast::<tauri_runtime_cef::cef::Browser>() {
+      Ok(browser) => return Self(PlatformWebviewInner::Cef(*browser)),
+      Err(webview) => webview,
+    };
+
+    drop(webview);
+    unreachable!("the runtime provided an unknown platform webview handle")
+  }
+
+  #[cfg(feature = "wry")]
+  fn wry(&self) -> &tauri_runtime_wry::Webview {
+    #[allow(irrefutable_let_patterns)]
+    let PlatformWebviewInner::Wry(webview) = &self.0
+    else {
+      unreachable!("the webview is not backed by the wry runtime")
+    };
+    webview
+  }
+
   /// Returns [`webkit2gtk::WebView`] handle.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
+  #[cfg(all(
+    feature = "wry",
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )
   ))]
   #[cfg_attr(
     docsrs,
@@ -190,7 +233,7 @@ impl PlatformWebview {
     )))
   )]
   pub fn inner(&self) -> webkit2gtk::WebView {
-    self.0.clone()
+    self.wry().clone()
   }
 
   /// Returns the WebView2 controller.
@@ -199,7 +242,7 @@ impl PlatformWebview {
   pub fn controller(
     &self,
   ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller {
-    self.0.controller.clone()
+    self.wry().controller.clone()
   }
 
   /// Returns the WebView2 environment.
@@ -208,49 +251,66 @@ impl PlatformWebview {
   pub fn environment(
     &self,
   ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment {
-    self.0.environment.clone()
+    self.wry().environment.clone()
   }
 
   /// Returns the [WKWebView] handle.
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg(all(feature = "wry", any(target_os = "macos", target_os = "ios")))]
   #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn inner(&self) -> *mut std::ffi::c_void {
-    self.0.webview
+    self.wry().webview
   }
 
   /// Returns WKWebView [controller] handle.
   ///
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg(all(feature = "wry", any(target_os = "macos", target_os = "ios")))]
   #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn controller(&self) -> *mut std::ffi::c_void {
-    self.0.manager
+    self.wry().manager
   }
 
   /// Returns [NSWindow] associated with the WKWebView webview.
   ///
   /// [NSWindow]: https://developer.apple.com/documentation/appkit/nswindow
-  #[cfg(target_os = "macos")]
+  #[cfg(all(feature = "wry", target_os = "macos"))]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   pub fn ns_window(&self) -> *mut std::ffi::c_void {
-    self.0.ns_window
+    self.wry().ns_window
   }
 
   /// Returns [UIViewController] used by the WKWebView webview NSWindow.
   ///
   /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
-  #[cfg(target_os = "ios")]
+  #[cfg(all(feature = "wry", target_os = "ios"))]
   #[cfg_attr(docsrs, doc(cfg(target_os = "ios")))]
   pub fn view_controller(&self) -> *mut std::ffi::c_void {
-    self.0.view_controller
+    self.wry().view_controller
   }
 
   /// Returns handle for JNI execution.
-  #[cfg(target_os = "android")]
+  #[cfg(all(feature = "wry", target_os = "android"))]
   pub fn jni_handle(&self) -> tauri_runtime_wry::wry::JniHandle {
-    self.0
+    *self.wry()
+  }
+
+  /// Returns the [`cef::Browser`] backing this webview.
+  ///
+  /// From the browser you can reach the rest of the CEF API, such as the
+  /// browser host, the main frame or the native window handle.
+  ///
+  /// [`cef::Browser`]: tauri_runtime_cef::cef::Browser
+  #[cfg(feature = "cef")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+  pub fn browser(&self) -> tauri_runtime_cef::cef::Browser {
+    #[allow(irrefutable_let_patterns)]
+    let PlatformWebviewInner::Cef(browser) = &self.0
+    else {
+      unreachable!("the webview is not backed by the cef runtime")
+    };
+    browser.clone()
   }
 }
 
@@ -1718,10 +1778,15 @@ impl<R: Runtime> Webview<R> {
   /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
   ///
+  #[cfg_attr(
+    feature = "cef",
+    doc = "When the CEF runtime is in use, the closure receives a `PlatformWebview` wrapping the underlying CEF browser, accessible via the `PlatformWebview::browser` method."
+  )]
+  ///
   /// # Examples
   ///
   #[cfg_attr(
-    feature = "unstable",
+    all(feature = "unstable", feature = "wry"),
     doc = r####"
 ```rust,no_run
 use tauri::Manager;
@@ -1769,8 +1834,8 @@ tauri::Builder::<tauri::Wry>::new()
 ```
   "####
   )]
-  #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
+  #[cfg(any(feature = "wry", feature = "cef"))]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "wry", feature = "cef"))))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -1778,7 +1843,7 @@ tauri::Builder::<tauri::Wry>::new()
     self
       .webview
       .dispatcher
-      .with_webview(|w| f(PlatformWebview(*w.downcast().unwrap())))
+      .with_webview(|w| f(PlatformWebview::from_any(w)))
       .map_err(Into::into)
   }
 

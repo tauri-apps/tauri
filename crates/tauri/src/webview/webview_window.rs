@@ -2335,7 +2335,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// The closure is executed on the main thread.
   ///
-  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
+  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit`, `cef` (in case of CEF runtime) and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
   ///
   /// # Examples
@@ -2387,8 +2387,8 @@ impl<R: Runtime> WebviewWindow<R> {
   /// }
   /// ```
   #[allow(clippy::needless_doctest_main)] // To avoid a large diff
-  #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
+  #[cfg(any(feature = "wry", feature = "cef"))]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "wry", feature = "cef"))))]
   pub fn with_webview<F: FnOnce(crate::webview::PlatformWebview) + Send + 'static>(
     &self,
     f: F,

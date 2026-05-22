@@ -17,7 +17,10 @@ const MAX_LEN_PREFIX: usize = 64 - PLUGIN_PREFIX.len();
 const MAX_LEN_BASE: usize = 64;
 const MAX_LEN_IDENTIFIER: usize = MAX_LEN_PREFIX + 1 + MAX_LEN_BASE;
 
-/// Plugin identifier.
+/// Permission identifier.
+///
+/// Typically used in the [`permissions`](crate::acl::Capability::permissions) field of a capability file.
+/// (e.g. `core:default`, `sample:allow-ping-scoped`)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identifier {
   inner: String,

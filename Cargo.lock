@@ -8784,7 +8784,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.11.0"
+version = "2.11.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8845,7 +8845,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.6.0"
+version = "2.6.2"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -8866,7 +8866,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.9.0"
+version = "2.9.2"
 dependencies = [
  "anyhow",
  "ar",
@@ -8912,7 +8912,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.11.0"
+version = "2.11.2"
 dependencies = [
  "ar",
  "axum",
@@ -9006,7 +9006,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.6.0"
+version = "2.6.2"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -9031,7 +9031,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-driver"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "anyhow",
  "futures",
@@ -9094,7 +9094,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.6.0"
+version = "2.6.2"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -9106,7 +9106,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.6.0"
+version = "2.6.2"
 dependencies = [
  "anyhow",
  "glob",
@@ -9153,7 +9153,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.11.0"
+version = "2.11.2"
 dependencies = [
  "cookie",
  "dpi",
@@ -9176,7 +9176,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.11.0"
+version = "2.11.2"
 dependencies = [
  "gtk",
  "http 1.3.1",
@@ -9226,7 +9226,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.9.0"
+version = "2.9.2"
 dependencies = [
  "aes-gcm",
  "anyhow",

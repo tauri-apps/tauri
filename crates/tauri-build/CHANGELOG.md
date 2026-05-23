@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+- Upgraded to `tauri-codegen@2.6.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+- Upgraded to `tauri-codegen@2.6.1`
+
 ## \[2.6.0]
 
 ### New Features

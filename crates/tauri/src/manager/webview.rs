@@ -6,7 +6,6 @@ use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   fmt,
-  fs::create_dir_all,
   sync::{Arc, Mutex, MutexGuard},
 };
 
@@ -553,13 +552,6 @@ impl<R: Runtime> WebviewManager<R> {
       if let Ok(user_data_dir) = local_app_data {
         pending.webview_attributes.data_directory = Some(user_data_dir);
       }
-    }
-
-    // make sure the directory is created and available to prevent a panic
-    if let Some(user_data_dir) = &pending.webview_attributes.data_directory
-      && !user_data_dir.exists()
-    {
-      create_dir_all(user_data_dir)?;
     }
 
     #[cfg(all(desktop, not(target_os = "windows")))]

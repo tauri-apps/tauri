@@ -5236,6 +5236,12 @@ fn request_context_from_webview_attributes<T: UserEvent>(
     CefStringUtf16::from("")
   } else if let Some(data_directory) = &webview_attributes.data_directory {
     let resolved = resolve_request_context_cache_path(&context.cache_path, data_directory);
+    if let Err(error) = std::fs::create_dir_all(&resolved) {
+      log::error!(
+        "failed to create request context cache directory {}: {error}",
+        resolved.display()
+      );
+    }
     CefStringUtf16::from(resolved.to_string_lossy().as_ref())
   } else {
     let global_context =

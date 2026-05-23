@@ -4893,6 +4893,16 @@ You may have it installed on another user account, but it is not available for t
   let is_first_context = web_context.is_empty();
   // the context must be stored on the HashMap because it must outlive the WebView on macOS
   let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
+  // Make sure the data directory exists before handing it to the web context,
+  // or WebView2 / WebKitGTK can panic while initializing the user data folder.
+  if let Some(user_data_dir) = webview_attributes
+    .data_directory
+    .as_ref()
+    .filter(|dir| !dir.exists())
+  {
+    std::fs::create_dir_all(user_data_dir).map_err(|e| Error::CreateWebview(Box::new(e)))?;
+  }
+
   let web_context_key = webview_attributes.data_directory;
   let entry = web_context.entry(web_context_key.clone());
   let web_context = match entry {

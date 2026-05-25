@@ -464,6 +464,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn no_redirection_bitmap(self, enable: bool) -> Self {
+    self
+  }
+
   fn shadow(self, enable: bool) -> Self {
     self
   }

@@ -942,6 +942,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       .content_protected(config.content_protected)
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme)
+      .no_redirection_bitmap(config.no_redirection_bitmap)
       .closable(config.closable)
       .maximizable(config.maximizable)
       .minimizable(config.minimizable)
@@ -1298,6 +1299,14 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
   #[cfg(not(windows))]
   fn window_classname<S: Into<String>>(self, _window_classname: S) -> Self {
+    self
+  }
+
+  fn no_redirection_bitmap(#[allow(unused_mut)] mut self, _enable: bool) -> Self {
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_no_redirection_bitmap(_enable);
+    }
     self
   }
 

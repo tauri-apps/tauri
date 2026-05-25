@@ -1,0 +1,7 @@
+[[permission]]
+identifier = "allow-pkg-freebsd"
+platforms = ["freeBsd"]
+description = "Allows spawning the pkg command on FreeBSD"
+commands.allow = ["spawn"]
+[[permission.scope.allow]]
+command = "pkg"

@@ -64,6 +64,12 @@ pub fn get_target() -> &'static str {
   #[cfg(target_os = "linux")]
   return "x86_64-unknown-linux-gnu";
 
+  #[cfg(all(target_os = "freebsd", target_arch = "x86_64"))]
+  return "x86_64-unknown-freebsd";
+
+  #[cfg(all(target_os = "freebsd", target_arch = "aarch64"))]
+  return "aarch64-unknown-freebsd";
+
   #[cfg(target_os = "windows")]
   unimplemented!("Windows target not implemented yet");
 }
@@ -84,7 +90,12 @@ pub fn bench_root_path() -> PathBuf {
 
 /// Get the home directory of the current user.
 pub fn home_path() -> PathBuf {
-  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "linux"))]
+  #[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "linux",
+    target_os = "freebsd"
+  ))]
   {
     PathBuf::from(std::env::var("HOME").unwrap_or_default())
   }

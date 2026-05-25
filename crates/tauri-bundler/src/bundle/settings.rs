@@ -38,6 +38,8 @@ pub enum PackageType {
   Rpm,
   /// The Linux AppImage bundle (.AppImage).
   AppImage,
+  /// The FreeBSD package bundle (.pkg).
+  Pkg,
   /// The macOS DMG bundle (.dmg).
   Dmg,
   /// The Updater bundle.
@@ -50,6 +52,7 @@ impl From<BundleType> for PackageType {
       BundleType::Deb => Self::Deb,
       BundleType::Rpm => Self::Rpm,
       BundleType::AppImage => Self::AppImage,
+      BundleType::Pkg => Self::Pkg,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
@@ -71,6 +74,7 @@ impl PackageType {
       "app" => Some(PackageType::MacOsBundle),
       "rpm" => Some(PackageType::Rpm),
       "appimage" => Some(PackageType::AppImage),
+      "pkg" => Some(PackageType::Pkg),
       "dmg" => Some(PackageType::Dmg),
       "updater" => Some(PackageType::Updater),
       _ => None,
@@ -88,6 +92,7 @@ impl PackageType {
       PackageType::MacOsBundle => "app",
       PackageType::Rpm => "rpm",
       PackageType::AppImage => "appimage",
+      PackageType::Pkg => "pkg",
       PackageType::Dmg => "dmg",
       PackageType::Updater => "updater",
     }
@@ -113,6 +118,7 @@ impl PackageType {
       PackageType::Deb => 0,
       PackageType::Rpm => 0,
       PackageType::AppImage => 0,
+      PackageType::Pkg => 0,
       PackageType::Dmg => 1,
       PackageType::Updater => 2,
     }
@@ -136,6 +142,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::Dmg,
   #[cfg(target_os = "linux")]
   PackageType::AppImage,
+  #[cfg(target_os = "freebsd")]
+  PackageType::Pkg,
   PackageType::Updater,
 ];
 
@@ -1082,6 +1090,7 @@ impl Settings {
       TargetPlatform::MacOS => vec![PackageType::MacOsBundle, PackageType::Dmg],
       TargetPlatform::Ios => vec![PackageType::IosBundle],
       TargetPlatform::Linux => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
+      TargetPlatform::FreeBsd => vec![PackageType::Pkg],
       TargetPlatform::Windows => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(

@@ -204,6 +204,10 @@ fn build_nsis_app_installer(
     let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
       .map(PathBuf::from)
       .unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
+    #[cfg(target_os = "freebsd")]
+    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
+      .map(PathBuf::from)
+      .unwrap_or_else(|| PathBuf::from("/usr/local/share/nsis"));
     #[cfg(target_os = "macos")]
     let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
       .map(PathBuf::from)

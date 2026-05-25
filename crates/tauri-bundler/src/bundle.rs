@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 
 mod category;
+#[cfg(target_os = "freebsd")]
+mod freebsd;
 mod kmp;
 #[cfg(target_os = "linux")]
 mod linux;
@@ -30,6 +32,16 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Linux".to_owned(),
+      ))
+    }
+  };
+  #[cfg(target_os = "freebsd")]
+  let bundle_type = match package_type {
+    crate::PackageType::Pkg => b"__TAURI_BUNDLE_TYPE_VAR_PKG",
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "FreeBSD".to_owned(),
       ))
     }
   };
@@ -184,6 +196,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::Rpm => linux::rpm::bundle_project(settings)?,
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(settings)?,
+      #[cfg(target_os = "freebsd")]
+      PackageType::Pkg => freebsd::pkg::bundle_project(settings)?,
       _ => {
         log::warn!("ignoring {}", package_type.short_name());
         continue;

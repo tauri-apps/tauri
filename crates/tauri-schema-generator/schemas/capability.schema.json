@@ -215,6 +215,13 @@
           ]
         },
         {
+          "description": "FreeBSD.",
+          "type": "string",
+          "enum": [
+            "freeBsd"
+          ]
+        },
+        {
           "description": "Android.",
           "type": "string",
           "enum": [

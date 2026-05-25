@@ -32,6 +32,8 @@ pub enum Target {
   Windows,
   /// Linux.
   Linux,
+  /// FreeBSD.
+  FreeBsd,
   /// Android.
   Android,
   /// iOS.
@@ -48,6 +50,7 @@ impl Display for Target {
         Self::MacOS => "macOS",
         Self::Windows => "windows",
         Self::Linux => "linux",
+        Self::FreeBsd => "freebsd",
         Self::Android => "android",
         Self::Ios => "iOS",
       }
@@ -62,6 +65,8 @@ impl Target {
       Self::MacOS
     } else if target.contains("windows") {
       Self::Windows
+    } else if target.contains("freebsd") {
+      Self::FreeBsd
     } else if target.contains("android") {
       Self::Android
     } else if target.contains("ios") {
@@ -77,6 +82,8 @@ impl Target {
       Self::MacOS
     } else if cfg!(target_os = "windows") {
       Self::Windows
+    } else if cfg!(target_os = "freebsd") {
+      Self::FreeBsd
     } else if cfg!(target_os = "ios") {
       Self::Ios
     } else if cfg!(target_os = "android") {
@@ -325,6 +332,21 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
     };
   }
 
+  #[cfg(target_os = "freebsd")]
+  {
+    res = if let Ok(bundle_dir) = exe_dir
+      .join(format!("../lib/{}", package_info.name))
+      .canonicalize()
+    {
+      Ok(bundle_dir)
+    } else {
+      Ok(PathBuf::from(format!(
+        "/usr/local/lib/{}",
+        package_info.name
+      )))
+    };
+  }
+
   #[cfg(target_os = "macos")]
   {
     res = exe_dir
@@ -356,6 +378,7 @@ pub fn bundle_type() -> Option<BundleType> {
       "__TAURI_BUNDLE_TYPE_VAR_DEB" => Some(BundleType::Deb),
       "__TAURI_BUNDLE_TYPE_VAR_RPM" => Some(BundleType::Rpm),
       "__TAURI_BUNDLE_TYPE_VAR_APP" => Some(BundleType::AppImage),
+      "__TAURI_BUNDLE_TYPE_VAR_PKG" => Some(BundleType::Pkg),
       "__TAURI_BUNDLE_TYPE_VAR_MSI" => Some(BundleType::Msi),
       "__TAURI_BUNDLE_TYPE_VAR_NSS" => Some(BundleType::Nsis),
       _ => {
@@ -383,6 +406,7 @@ mod build {
       tokens.append_all(match self {
         Self::MacOS => quote! { #prefix::MacOS },
         Self::Linux => quote! { #prefix::Linux },
+        Self::FreeBsd => quote! { #prefix::FreeBsd },
         Self::Windows => quote! { #prefix::Windows },
         Self::Android => quote! { #prefix::Android },
         Self::Ios => quote! { #prefix::Ios },

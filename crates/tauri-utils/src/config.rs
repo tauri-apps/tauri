@@ -136,6 +136,8 @@ pub enum BundleType {
   Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The FreeBSD package bundle (.pkg).
+  Pkg,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -153,6 +155,7 @@ impl BundleType {
       BundleType::Deb,
       BundleType::Rpm,
       BundleType::AppImage,
+      BundleType::Pkg,
       BundleType::Msi,
       BundleType::Nsis,
       BundleType::App,
@@ -170,6 +173,7 @@ impl Display for BundleType {
         Self::Deb => "deb",
         Self::Rpm => "rpm",
         Self::AppImage => "appimage",
+        Self::Pkg => "pkg",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",
@@ -198,6 +202,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "deb" => Ok(Self::Deb),
       "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
+      "pkg" => Ok(Self::Pkg),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
@@ -3537,8 +3542,8 @@ where
 ///
 /// In addition to the default configuration file, Tauri can
 /// read a platform-specific configuration from `tauri.linux.conf.json`,
-/// `tauri.windows.conf.json`, `tauri.macos.conf.json`, `tauri.android.conf.json` and `tauri.ios.conf.json`
-/// (or `Tauri.linux.toml`, `Tauri.windows.toml`, `Tauri.macos.toml`, `Tauri.android.toml` and `Tauri.ios.toml` if the `Tauri.toml` format is used),
+/// `tauri.freebsd.conf.json`, `tauri.windows.conf.json`, `tauri.macos.conf.json`, `tauri.android.conf.json` and `tauri.ios.conf.json`
+/// (or `Tauri.linux.toml`, `Tauri.freebsd.toml`, `Tauri.windows.toml`, `Tauri.macos.toml`, `Tauri.android.toml` and `Tauri.ios.toml` if the `Tauri.toml` format is used),
 /// which gets merged with the main configuration object.
 ///
 /// ## Configuration Structure

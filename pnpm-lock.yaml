@@ -7,6 +7,11 @@ settings:
 overrides:
   ws@>=8.0.0 <8.20.1: '>=8.20.1'
 
+patchedDependencies:
+  vite@8.0.5:
+    hash: add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f
+    path: patches/vite@8.0.5.patch
+
 importers:
 
   .:
@@ -16,7 +21,7 @@ importers:
         version: 3.8.1
 
   crates/tauri-schema-worker:
-    devDependencies:
+    optionalDependencies:
       wrangler:
         specifier: ^4.75.0
         version: 4.75.0
@@ -35,7 +40,7 @@ importers:
         version: 1.2.2
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.0.0
-        version: 7.0.0(svelte@5.55.7(@typescript-eslint/types@8.58.2))(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
+        version: 7.0.0(svelte@5.55.7(@typescript-eslint/types@8.58.2))(vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
       '@unocss/extractor-svelte':
         specifier: ^66.6.6
         version: 66.6.6
@@ -44,10 +49,10 @@ importers:
         version: 5.55.7(@typescript-eslint/types@8.58.2)
       unocss:
         specifier: ^66.6.6
-        version: 66.6.6(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
+        version: 66.6.6(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
       vite:
         specifier: ^8.0.5
-        version: 8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
+        version: 8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
 
   examples/file-associations: {}
 
@@ -2789,13 +2794,15 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.0.2
 
-  '@cloudflare/kv-asset-handler@0.4.2': {}
+  '@cloudflare/kv-asset-handler@0.4.2':
+    optional: true
 
   '@cloudflare/unenv-preset@2.15.0(unenv@2.0.0-rc.24)(workerd@1.20260317.1)':
     dependencies:
       unenv: 2.0.0-rc.24
     optionalDependencies:
       workerd: 1.20260317.1
+    optional: true
 
   '@cloudflare/workerd-darwin-64@1.20260317.1':
     optional: true
@@ -2815,6 +2822,7 @@ snapshots:
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
+    optional: true
 
   '@emnapi/core@1.8.1':
     dependencies:
@@ -2973,7 +2981,8 @@ snapshots:
       '@iconify/types': 2.0.0
       mlly: 1.8.0
 
-  '@img/colour@1.1.0': {}
+  '@img/colour@1.1.0':
+    optional: true
 
   '@img/sharp-darwin-arm64@0.34.5':
     optionalDependencies:
@@ -3222,6 +3231,7 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+    optional: true
 
   '@napi-rs/cli@3.4.1(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)':
     dependencies:
@@ -3638,14 +3648,17 @@ snapshots:
   '@poppinss/colors@4.1.6':
     dependencies:
       kleur: 4.1.5
+    optional: true
 
   '@poppinss/dumper@0.6.5':
     dependencies:
       '@poppinss/colors': 4.1.6
       '@sindresorhus/is': 7.2.0
       supports-color: 10.2.2
+    optional: true
 
-  '@poppinss/exception@1.2.3': {}
+  '@poppinss/exception@1.2.3':
+    optional: true
 
   '@quansync/fs@1.0.0':
     dependencies:
@@ -3803,9 +3816,11 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.3':
     optional: true
 
-  '@sindresorhus/is@7.2.0': {}
+  '@sindresorhus/is@7.2.0':
+    optional: true
 
-  '@speed-highlight/core@1.2.14': {}
+  '@speed-highlight/core@1.2.14':
+    optional: true
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -3813,14 +3828,14 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/vite-plugin-svelte@7.0.0(svelte@5.55.7(@typescript-eslint/types@8.58.2))(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))':
+  '@sveltejs/vite-plugin-svelte@7.0.0(svelte@5.55.7(@typescript-eslint/types@8.58.2))(vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))':
     dependencies:
       deepmerge: 4.3.1
       magic-string: 0.30.21
       obug: 2.1.1
       svelte: 5.55.7(@typescript-eslint/types@8.58.2)
-      vite: 8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
-      vitefu: 1.1.2(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
+      vite: 8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
+      vitefu: 1.1.2(vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
 
   '@tybys/wasm-util@0.10.1':
     dependencies:
@@ -4065,7 +4080,7 @@ snapshots:
     dependencies:
       '@unocss/core': 66.6.6
 
-  '@unocss/vite@66.6.6(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))':
+  '@unocss/vite@66.6.6(vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))':
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@unocss/config': 66.6.6
@@ -4076,7 +4091,7 @@ snapshots:
       pathe: 2.0.3
       tinyglobby: 0.2.16
       unplugin-utils: 0.3.1
-      vite: 8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
+      vite: 8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
 
   '@vitest/expect@4.0.18':
     dependencies:
@@ -4148,7 +4163,8 @@ snapshots:
 
   before-after-hook@4.0.0: {}
 
-  blake3-wasm@2.1.5: {}
+  blake3-wasm@2.1.5:
+    optional: true
 
   brace-expansion@5.0.6:
     dependencies:
@@ -4192,7 +4208,8 @@ snapshots:
 
   consola@3.4.2: {}
 
-  cookie@1.1.1: {}
+  cookie@1.1.1:
+    optional: true
 
   cross-env@10.1.0:
     dependencies:
@@ -4232,7 +4249,8 @@ snapshots:
 
   emoji-regex@8.0.0: {}
 
-  error-stack-parser-es@1.0.5: {}
+  error-stack-parser-es@1.0.5:
+    optional: true
 
   es-module-lexer@1.7.0: {}
 
@@ -4474,7 +4492,8 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  kleur@4.1.5: {}
+  kleur@4.1.5:
+    optional: true
 
   levn@0.4.1:
     dependencies:
@@ -4570,6 +4589,7 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    optional: true
 
   minimatch@10.2.5:
     dependencies:
@@ -4660,7 +4680,8 @@ snapshots:
 
   path-parse@1.0.7: {}
 
-  path-to-regexp@6.3.0: {}
+  path-to-regexp@6.3.0:
+    optional: true
 
   pathe@2.0.3: {}
 
@@ -4805,6 +4826,7 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
+    optional: true
 
   shebang-command@2.0.0:
     dependencies:
@@ -4847,7 +4869,8 @@ snapshots:
     dependencies:
       ansi-regex: 5.0.1
 
-  supports-color@10.2.2: {}
+  supports-color@10.2.2:
+    optional: true
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
@@ -4940,15 +4963,17 @@ snapshots:
 
   undici-types@7.16.0: {}
 
-  undici@7.24.4: {}
+  undici@7.24.4:
+    optional: true
 
   unenv@2.0.0-rc.24:
     dependencies:
       pathe: 2.0.3
+    optional: true
 
   universal-user-agent@7.0.3: {}
 
-  unocss@66.6.6(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)):
+  unocss@66.6.6(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)):
     dependencies:
       '@unocss/cli': 66.6.6
       '@unocss/core': 66.6.6
@@ -4966,7 +4991,7 @@ snapshots:
       '@unocss/transformer-compile-class': 66.6.6
       '@unocss/transformer-directives': 66.6.6
       '@unocss/transformer-variant-group': 66.6.6
-      '@unocss/vite': 66.6.6(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
+      '@unocss/vite': 66.6.6(vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0))
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -5003,7 +5028,7 @@ snapshots:
       lightningcss: 1.32.0
       terser: 5.46.0
 
-  vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0):
+  vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -5020,9 +5045,9 @@ snapshots:
       - '@emnapi/core'
       - '@emnapi/runtime'
 
-  vitefu@1.1.2(vite@8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)):
+  vitefu@1.1.2(vite@8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)):
     optionalDependencies:
-      vite: 8.0.5(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
+      vite: 8.0.5(patch_hash=add3089dc8954b18ed0913d9bf1e88c21d3ad5fe5bfbdf956f9f96809c76f06f)(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)(@types/node@24.11.0)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)
 
   vitest@4.0.18(@types/node@24.11.0)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0):
     dependencies:
@@ -5081,6 +5106,7 @@ snapshots:
       '@cloudflare/workerd-linux-64': 1.20260317.1
       '@cloudflare/workerd-linux-arm64': 1.20260317.1
       '@cloudflare/workerd-windows-64': 1.20260317.1
+    optional: true
 
   wrangler@4.75.0:
     dependencies:
@@ -5097,6 +5123,7 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    optional: true
 
   wrap-ansi@6.2.0:
     dependencies:
@@ -5104,7 +5131,8 @@ snapshots:
       string-width: 4.2.3
       strip-ansi: 6.0.1
 
-  ws@8.20.1: {}
+  ws@8.20.1:
+    optional: true
 
   yocto-queue@0.1.0: {}
 
@@ -5114,6 +5142,7 @@ snapshots:
     dependencies:
       '@poppinss/exception': 1.2.3
       error-stack-parser-es: 1.0.5
+    optional: true
 
   youch@4.1.0-beta.10:
     dependencies:
@@ -5122,5 +5151,6 @@ snapshots:
       '@speed-highlight/core': 1.2.14
       cookie: 1.1.1
       youch-core: 0.3.3
+    optional: true
 
   zimmerframe@1.1.4: {}

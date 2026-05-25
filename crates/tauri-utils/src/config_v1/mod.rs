@@ -72,6 +72,8 @@ pub enum BundleType {
   Deb,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The FreeBSD package bundle (.pkg).
+  Pkg,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -92,6 +94,7 @@ impl Display for BundleType {
       match self {
         Self::Deb => "deb",
         Self::AppImage => "appimage",
+        Self::Pkg => "pkg",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",
@@ -120,6 +123,7 @@ impl<'de> Deserialize<'de> for BundleType {
     match s.to_lowercase().as_str() {
       "deb" => Ok(Self::Deb),
       "appimage" => Ok(Self::AppImage),
+      "pkg" => Ok(Self::Pkg),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
@@ -706,7 +710,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "appimage", "pkg", "nsis", "msi", "app", "dmg", "updater"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).

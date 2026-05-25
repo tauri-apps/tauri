@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! This Rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
+//! This Rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, Linux and FreeBSD.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
-#![cfg(any(target_os = "macos", target_os = "linux", windows))]
+#![cfg(any(
+  target_os = "macos",
+  target_os = "linux",
+  target_os = "freebsd",
+  windows
+))]
 
 mod acl;
 mod add;
@@ -24,6 +29,7 @@ mod init;
 mod inspect;
 mod interface;
 mod migrate;
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 mod mobile;
 mod plugin;
 mod remove;
@@ -94,6 +100,7 @@ pub enum RunMode {
   Desktop,
   #[cfg(target_os = "macos")]
   Ios,
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   Android,
 }
 
@@ -106,6 +113,7 @@ impl Display for RunMode {
         Self::Desktop => "desktop",
         #[cfg(target_os = "macos")]
         Self::Ios => "iOS",
+        #[cfg(any(target_os = "macos", target_os = "linux", windows))]
         Self::Android => "android",
       }
     )
@@ -153,6 +161,7 @@ enum Commands {
   Dev(dev::Options),
   Build(build::Options),
   Bundle(bundle::Options),
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   Android(mobile::android::Cli),
   #[cfg(target_os = "macos")]
   Ios(mobile::ios::Cli),
@@ -287,6 +296,7 @@ where
     Commands::Completions(options) => completions::command(options, cli_)?,
     Commands::Permission(options) => acl::permission::command(options)?,
     Commands::Capability(options) => acl::capability::command(options)?,
+    #[cfg(any(target_os = "macos", target_os = "linux", windows))]
     Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
     #[cfg(target_os = "macos")]
     Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,

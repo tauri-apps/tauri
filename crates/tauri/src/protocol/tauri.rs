@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{borrow::Cow, sync::Arc};
+//! Handler for the `tauri://` custom protocol, serving bundled app assets
+//! in production and proxying to the dev server on mobile during development.
+
+use std::borrow::Cow;
 
 use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
 use tauri_utils::config::HeaderAddition;
 
 use crate::{
-  manager::{webview::PROXY_DEV_SERVER, AppManager},
+  manager::webview::PROXY_DEV_SERVER,
   webview::{UriSchemeProtocolHandler, WebResourceRequestHandler},
-  Runtime,
+  Manager, Runtime,
 };
 
 #[cfg(all(dev, mobile))]
@@ -24,14 +27,19 @@ struct CachedResponse {
   body: bytes::Bytes,
 }
 
-pub fn get<R: Runtime>(
-  #[allow(unused_variables)] manager: Arc<AppManager<R>>,
+/// Creates a URI scheme protocol handler for the `tauri://` custom protocol.
+///
+/// This handler serves your app's bundled assets (HTML, JS, CSS, etc.) in production,
+/// and proxies requests to the dev server on mobile during development.
+pub fn get<M: Manager<R> + Send + Sync + 'static, R: Runtime>(
+  #[allow(unused_variables)] manager: M,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
   #[cfg(all(dev, mobile))]
   let url = {
     let mut url = manager
+      .manager()
       .get_app_url(window_origin.starts_with("https"))
       .as_str()
       .to_string();
@@ -44,7 +52,7 @@ pub fn get<R: Runtime>(
   let window_origin = window_origin.to_string();
 
   #[cfg(all(dev, mobile))]
-  let response_cache = Arc::new(Mutex::new(HashMap::new()));
+  let response_cache = std::sync::Arc::new(Mutex::new(HashMap::new()));
 
   Box::new(move |_, request, responder| {
     match get_response(
@@ -68,14 +76,14 @@ pub fn get<R: Runtime>(
   })
 }
 
-fn get_response<R: Runtime>(
+fn get_response<M: Manager<R> + Send + Sync + 'static, R: Runtime>(
   #[allow(unused_mut)] mut request: Request<Vec<u8>>,
-  #[allow(unused_variables)] manager: &AppManager<R>,
+  #[allow(unused_variables)] manager: &M,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   #[cfg(all(dev, mobile))] (url, response_cache): (
     &str,
-    &Arc<Mutex<HashMap<String, CachedResponse>>>,
+    &std::sync::Arc<Mutex<HashMap<String, CachedResponse>>>,
   ),
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
   // use the entire URI as we are going to proxy the request
@@ -100,7 +108,7 @@ fn get_response<R: Runtime>(
     .unwrap_or_default();
 
   let mut builder = HttpResponse::builder()
-    .add_configured_headers(manager.config.app.security.headers.as_ref())
+    .add_configured_headers(manager.config().app.security.headers.as_ref())
     .header("Access-Control-Allow-Origin", window_origin);
 
   #[cfg(all(dev, mobile))]
@@ -212,7 +220,7 @@ fn get_response<R: Runtime>(
   #[cfg(not(all(dev, mobile)))]
   let mut response = {
     let use_https_scheme = request.uri().scheme() == Some(&http::uri::Scheme::HTTPS);
-    let asset = manager.get_asset(path, use_https_scheme)?;
+    let asset = manager.manager().get_asset(path, use_https_scheme)?;
     builder = builder.header(CONTENT_TYPE, &asset.mime_type);
     if let Some(csp) = &asset.csp_header {
       builder = builder.header("Content-Security-Policy", csp);

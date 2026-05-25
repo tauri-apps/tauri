@@ -90,7 +90,7 @@ pub mod ipc;
 mod manager;
 mod pattern;
 pub mod plugin;
-pub(crate) mod protocol;
+pub mod protocol;
 mod resources;
 mod vibrancy;
 pub mod webview;

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Handler for the isolation pattern protocol, serving the isolation iframe
+//! content with CSP enforcement and AES-GCM encrypted IPC.
+
 use crate::Assets;
 use http::header::CONTENT_TYPE;
 use serialize_to_javascript::Template;
@@ -18,6 +21,10 @@ use crate::{
   Runtime,
 };
 
+/// Creates a URI scheme protocol handler for the isolation pattern protocol.
+///
+/// This handler serves the isolation iframe content, applying CSP and encrypting
+/// IPC messages with AES-GCM to enforce the isolation security pattern.
 pub fn get<R: Runtime>(
   manager: Arc<AppManager<R>>,
   schema: &str,

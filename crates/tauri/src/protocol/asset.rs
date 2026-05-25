@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Handler for the `asset://` custom protocol, serving local filesystem files
+//! scoped to allowed paths. Supports HTTP range requests for streaming media.
+
 use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
 use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
@@ -10,6 +13,11 @@ use std::io::{Read, Seek, Write};
 use std::{borrow::Cow, io::SeekFrom};
 use tauri_utils::mime_type::MimeType;
 
+/// Creates a URI scheme protocol handler for the `asset://` custom protocol.
+///
+/// This handler serves files from the local filesystem, scoped to the paths
+/// allowed by the provided [`scope`](scope::fs::Scope). Supports range requests
+/// for streaming media.
 pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
   Box::new(
     move |_, request, responder| match get_response(request, &scope, &window_origin) {

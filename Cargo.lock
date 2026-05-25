@@ -8890,6 +8890,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "serial_test",
  "sha1",
  "sha2",
  "strsim",

@@ -74,6 +74,9 @@ which = "8"
 name = "tauri_bundler"
 path = "src/lib.rs"
 
+[dev-dependencies]
+serial_test = "3"
+
 [features]
 default = ["rustls", "platform-certs"]
 native-tls = ["ureq/native-tls"]

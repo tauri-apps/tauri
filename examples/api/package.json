@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/vite-build.mjs",
     "preview": "vite preview",
     "tauri": "node ../../packages/cli/tauri.js"
   },

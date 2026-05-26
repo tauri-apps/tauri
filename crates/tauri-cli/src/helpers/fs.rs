@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::error::Context;
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 use crate::{
-  error::{Context, ErrorExt},
+  error::ErrorExt,
   Error,
 };
 use std::path::{Path, PathBuf};
 
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<()> {
   let from = from.as_ref();
   let to = to.as_ref();

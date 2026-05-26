@@ -26,6 +26,7 @@ pub struct ConfigMetadata {
   /// The current target.
   target: Target,
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   original_identifier: Option<String>,
   /// The actual configuration, merged with any extension.
   inner: Config,
@@ -46,6 +47,7 @@ impl std::ops::Deref for ConfigMetadata {
 impl ConfigMetadata {
   /// The original bundle identifier from the config file.
   /// This does not take any extensions into account.
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   pub fn original_identifier(&self) -> Option<&str> {
     self.original_identifier.as_deref()
   }
@@ -163,6 +165,7 @@ fn load_config(
   let config_file_name = config_path.file_name().unwrap();
   let mut extensions = HashMap::new();
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   let original_identifier = config
     .as_object()
     .and_then(|config| config.get("identifier")?.as_str())
@@ -231,6 +234,7 @@ fn load_config(
 
   Ok(ConfigMetadata {
     target,
+    #[cfg(any(target_os = "macos", target_os = "linux", windows))]
     original_identifier,
     inner: config,
     extensions,
@@ -256,6 +260,7 @@ pub fn reload_config(
 }
 
 /// merges the loaded config with the given value
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 pub fn merge_config_with(
   config: &mut ConfigMetadata,
   merge_configs: &[&serde_json::Value],

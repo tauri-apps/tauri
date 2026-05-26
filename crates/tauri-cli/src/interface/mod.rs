@@ -12,7 +12,9 @@ use std::{
 use crate::{error::Context, helpers::config::Config};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
-pub use rust::{MobileOptions, Options, Rust as AppInterface, WatcherOptions};
+pub use rust::{Options, Rust as AppInterface};
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
+pub use rust::{MobileOptions, WatcherOptions};
 
 pub trait DevProcess {
   fn kill(&self) -> std::io::Result<()>;
@@ -37,7 +39,9 @@ pub trait AppSettings {
     options: &Options,
     tauri_dir: &Path,
   ) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   fn app_name(&self) -> Option<String>;
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   fn lib_name(&self) -> Option<String>;
 
   fn get_bundler_settings(

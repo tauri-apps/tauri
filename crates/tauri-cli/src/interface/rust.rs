@@ -105,6 +105,7 @@ impl From<crate::dev::Options> for Options {
   }
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 #[derive(Debug, Clone)]
 pub struct MobileOptions {
   pub debug: bool,
@@ -115,6 +116,7 @@ pub struct MobileOptions {
   pub additional_watch_folders: Vec<PathBuf>,
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 #[derive(Debug, Clone)]
 pub struct WatcherOptions {
   pub config: Vec<ConfigValue>,
@@ -237,6 +239,7 @@ impl Rust {
     }
   }
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   pub fn mobile_dev<
     R: Fn(MobileOptions, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
   >(
@@ -271,6 +274,7 @@ impl Rust {
     }
   }
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   pub fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: &mut ConfigMetadata,
@@ -1021,6 +1025,7 @@ impl AppSettings for RustAppSettings {
     Ok(binaries)
   }
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   fn app_name(&self) -> Option<String> {
     self
       .manifest
@@ -1035,6 +1040,7 @@ impl AppSettings for RustAppSettings {
       .map(|n| n.to_string())
   }
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   fn lib_name(&self) -> Option<String> {
     self
       .manifest

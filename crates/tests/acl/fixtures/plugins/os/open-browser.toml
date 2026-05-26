@@ -16,7 +16,7 @@ command = "edge"
 
 [[permission]]
 identifier = "allow-firefox-freebsd"
-platforms = ["freeBsd"]
+platforms = ["freebsd"]
 description = "Allows starting firefox on FreeBSD"
 commands.allow = ["spawn"]
 [[permission.scope.allow]]

@@ -279,7 +279,7 @@
           "description": "FreeBSD.",
           "type": "string",
           "enum": [
-            "freeBsd"
+            "freebsd"
           ]
         },
         {

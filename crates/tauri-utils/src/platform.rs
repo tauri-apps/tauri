@@ -33,7 +33,8 @@ pub enum Target {
   /// Linux.
   Linux,
   /// FreeBSD.
-  FreeBsd,
+  #[serde(rename = "freebsd")]
+  FreeBSD,
   /// Android.
   Android,
   /// iOS.
@@ -50,7 +51,7 @@ impl Display for Target {
         Self::MacOS => "macOS",
         Self::Windows => "windows",
         Self::Linux => "linux",
-        Self::FreeBsd => "freebsd",
+        Self::FreeBSD => "freebsd",
         Self::Android => "android",
         Self::Ios => "iOS",
       }
@@ -66,7 +67,7 @@ impl Target {
     } else if target.contains("windows") {
       Self::Windows
     } else if target.contains("freebsd") {
-      Self::FreeBsd
+      Self::FreeBSD
     } else if target.contains("android") {
       Self::Android
     } else if target.contains("ios") {
@@ -83,7 +84,7 @@ impl Target {
     } else if cfg!(target_os = "windows") {
       Self::Windows
     } else if cfg!(target_os = "freebsd") {
-      Self::FreeBsd
+      Self::FreeBSD
     } else if cfg!(target_os = "ios") {
       Self::Ios
     } else if cfg!(target_os = "android") {
@@ -406,7 +407,7 @@ mod build {
       tokens.append_all(match self {
         Self::MacOS => quote! { #prefix::MacOS },
         Self::Linux => quote! { #prefix::Linux },
-        Self::FreeBsd => quote! { #prefix::FreeBsd },
+        Self::FreeBSD => quote! { #prefix::FreeBSD },
         Self::Windows => quote! { #prefix::Windows },
         Self::Android => quote! { #prefix::Android },
         Self::Ios => quote! { #prefix::Ios },

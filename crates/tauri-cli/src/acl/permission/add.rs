@@ -176,7 +176,7 @@ pub fn command(options: Options) -> Result<()> {
         tauri_utils::platform::Target::MacOS.to_string(),
         tauri_utils::platform::Target::Windows.to_string(),
         tauri_utils::platform::Target::Linux.to_string(),
-        tauri_utils::platform::Target::FreeBsd.to_string(),
+        tauri_utils::platform::Target::FreeBSD.to_string(),
       ],
       "desktop",
     ))

@@ -1090,7 +1090,7 @@ impl Settings {
       TargetPlatform::MacOS => vec![PackageType::MacOsBundle, PackageType::Dmg],
       TargetPlatform::Ios => vec![PackageType::IosBundle],
       TargetPlatform::Linux => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
-      TargetPlatform::FreeBsd => vec![PackageType::Pkg],
+      TargetPlatform::FreeBSD => vec![PackageType::Pkg],
       TargetPlatform::Windows => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(

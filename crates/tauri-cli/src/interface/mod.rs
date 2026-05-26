@@ -12,9 +12,9 @@ use std::{
 use crate::{error::Context, helpers::config::Config};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
-pub use rust::{Options, Rust as AppInterface};
 #[cfg(any(target_os = "macos", target_os = "linux", windows))]
 pub use rust::{MobileOptions, WatcherOptions};
+pub use rust::{Options, Rust as AppInterface};
 
 pub trait DevProcess {
   fn kill(&self) -> std::io::Result<()>;

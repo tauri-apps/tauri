@@ -741,6 +741,16 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// Whether the window prefers compact control size metrics on macOS.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn prefers_compact_control_size_metrics(mut self, enabled: bool) -> Self {
+    self.window_builder = self
+      .window_builder
+      .prefers_compact_control_size_metrics(enabled);
+    self
+  }
+
   /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
   ///
   /// Default is true.

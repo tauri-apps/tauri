@@ -770,6 +770,16 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Whether the window prefers compact control size metrics on macOS.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn prefers_compact_control_size_metrics(mut self, enabled: bool) -> Self {
+    self.window_builder = self
+      .window_builder
+      .prefers_compact_control_size_metrics(enabled);
+    self
+  }
+
   /// Hide the window title.
   #[cfg(target_os = "macos")]
   #[must_use]

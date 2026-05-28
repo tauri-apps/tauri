@@ -29,22 +29,59 @@ pub fn get<R: Runtime>(
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
-  #[cfg(all(dev, mobile))]
-  let url = {
-    let mut url = manager
-      .get_app_url(window_origin.starts_with("https"))
-      .as_str()
-      .to_string();
-    if url.ends_with('/') {
-      url.pop();
-    }
-    url
-  };
-
   let window_origin = window_origin.to_string();
 
   #[cfg(all(dev, mobile))]
-  let response_cache = Arc::new(Mutex::new(HashMap::new()));
+  let (url, client, response_cache) = {
+    let use_https = window_origin.starts_with("https");
+    let mut url = manager.get_app_url(use_https).as_str().to_string();
+    if url.ends_with('/') {
+      url.pop();
+    }
+
+    let mut client_builder = reqwest::ClientBuilder::new();
+    if use_https {
+      #[cfg(feature = "rustls-tls")]
+      if rustls::crypto::CryptoProvider::get_default().is_none() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+      }
+
+      // we can't load env vars at runtime, gotta embed them in the lib
+      if let Some(cert_pem) = option_env!("TAURI_DEV_ROOT_CERTIFICATE") {
+        #[cfg(any(
+          feature = "native-tls",
+          feature = "native-tls-vendored",
+          feature = "rustls-tls"
+        ))]
+        {
+          log::info!("adding dev server root certificate");
+          let certificate = reqwest::Certificate::from_pem(cert_pem.as_bytes())
+            .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE");
+          client_builder = client_builder.tls_certs_merge([certificate]);
+        }
+
+        #[cfg(not(any(
+          feature = "native-tls",
+          feature = "native-tls-vendored",
+          feature = "rustls-tls"
+        )))]
+        {
+          log::warn!(
+            "the dev root-certificate-path option was provided, but you must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
+          );
+        }
+      } else {
+        log::warn!(
+          "loading HTTPS URL; you might need to provide a certificate via the `dev --root-certificate-path` option. You must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
+        );
+      }
+    }
+    let client = client_builder.build().unwrap();
+
+    let response_cache = Arc::new(Mutex::new(HashMap::new()));
+
+    (url, client, response_cache)
+  };
 
   Box::new(move |_, request, responder| {
     match get_response(
@@ -53,7 +90,7 @@ pub fn get<R: Runtime>(
       &window_origin,
       web_resource_request_handler.as_deref(),
       #[cfg(all(dev, mobile))]
-      (&url, &response_cache),
+      (&url, &client, &response_cache),
     ) {
       Ok(response) => responder.respond(response),
       Err(e) => responder.respond(
@@ -73,8 +110,9 @@ fn get_response<R: Runtime>(
   #[allow(unused_variables)] manager: &AppManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
-  #[cfg(all(dev, mobile))] (url, response_cache): (
+  #[cfg(all(dev, mobile))] (url, client, response_cache): (
     &str,
+    &reqwest::Client,
     &Arc<Mutex<HashMap<String, CachedResponse>>>,
   ),
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
@@ -114,50 +152,7 @@ fn get_response<R: Runtime>(
       decoded_path.trim_start_matches('/')
     );
 
-    #[cfg(feature = "rustls-tls")]
-    if rustls::crypto::CryptoProvider::get_default().is_none() {
-      let _ = rustls::crypto::ring::default_provider().install_default();
-    }
-
-    let mut client = reqwest::ClientBuilder::new();
-
-    if url.starts_with("https://") {
-      // we can't load env vars at runtime, gotta embed them in the lib
-      if let Some(cert_pem) = option_env!("TAURI_DEV_ROOT_CERTIFICATE") {
-        #[cfg(any(
-          feature = "native-tls",
-          feature = "native-tls-vendored",
-          feature = "rustls-tls"
-        ))]
-        {
-          log::info!("adding dev server root certificate");
-          let certificate = reqwest::Certificate::from_pem(cert_pem.as_bytes())
-            .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE");
-          client = client.tls_certs_merge([certificate]);
-        }
-
-        #[cfg(not(any(
-          feature = "native-tls",
-          feature = "native-tls-vendored",
-          feature = "rustls-tls"
-        )))]
-        {
-          log::warn!(
-            "the dev root-certificate-path option was provided, but you must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
-          );
-        }
-      } else {
-        log::warn!(
-          "loading HTTPS URL; you might need to provide a certificate via the `dev --root-certificate-path` option. You must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
-        );
-      }
-    }
-
-    let mut proxy_builder = client
-      .build()
-      .unwrap()
-      .request(request.method().clone(), &url);
-    proxy_builder = proxy_builder.body(std::mem::take(request.body_mut()));
+    let mut proxy_builder = client.request(request.method().clone(), &url);
     for (name, value) in request.headers() {
       proxy_builder = proxy_builder.header(name, value);
     }

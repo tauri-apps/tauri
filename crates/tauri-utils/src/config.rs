@@ -404,6 +404,59 @@ pub struct LinuxConfig {
   pub rpm: RpmConfig,
 }
 
+/// Configuration for FreeBSD bundles.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FreeBSDConfig {
+  /// Configuration for the FreeBSD pkg bundle.
+  #[serde(default)]
+  pub pkg: PkgConfig,
+}
+
+/// Configuration for FreeBSD pkg bundles.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PkgConfig {
+  /// The list of FreeBSD pkg dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of FreeBSD pkg conflict package names or pkg query patterns.
+  ///
+  /// Only conflicts that resolve in the installed package database or configured repositories
+  /// are emitted into the package manifest.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of package replaces.
+  pub replaces: Option<Vec<String>>,
+  /// The FreeBSD port origin category.
+  pub category: Option<String>,
+  /// The files to include on the package.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon`, `name`, `mime_type`
+  /// and `long_description`.
+  #[serde(alias = "desktop-template")]
+  pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is installed.
+  #[serde(alias = "pre-install-script")]
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is installed.
+  #[serde(alias = "post-install-script")]
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed.
+  #[serde(alias = "pre-remove-script")]
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed.
+  #[serde(alias = "post-remove-script")]
+  pub post_remove_script: Option<PathBuf>,
+}
+
 /// Compression algorithms used when bundling RPM packages.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1681,6 +1734,9 @@ pub struct BundleConfig {
   /// Configuration for the Linux bundles.
   #[serde(default)]
   pub linux: LinuxConfig,
+  /// Configuration for the FreeBSD bundles.
+  #[serde(default)]
+  pub freebsd: FreeBSDConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", alias = "macos", default)]
   pub macos: MacConfig,
@@ -4044,6 +4100,7 @@ mod build {
       let license = opt_str_lit(self.license.as_ref());
       let license_file = opt_lit(self.license_file.as_ref().map(path_buf_lit).as_ref());
       let linux = quote!(Default::default());
+      let freebsd = quote!(Default::default());
       let macos = quote!(Default::default());
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
@@ -4069,6 +4126,7 @@ mod build {
         external_bin,
         windows,
         linux,
+        freebsd,
         macos,
         ios,
         android
@@ -4507,6 +4565,7 @@ mod test {
       license: None,
       license_file: None,
       linux: Default::default(),
+      freebsd: Default::default(),
       macos: Default::default(),
       external_bin: None,
       windows: Default::default(),

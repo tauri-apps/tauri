@@ -281,6 +281,45 @@ pub struct RpmSettings {
   pub compression: Option<RpmCompression>,
 }
 
+/// The FreeBSD pkg bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct PkgSettings {
+  /// The list of FreeBSD pkg dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of FreeBSD pkg conflict package names or pkg query patterns.
+  ///
+  /// Only conflicts that resolve in the installed package database or configured repositories
+  /// are emitted into the package manifest.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of package replaces.
+  pub replaces: Option<Vec<String>>,
+  /// The FreeBSD port origin category.
+  pub category: Option<String>,
+  /// List of custom files to add to the pkg package.
+  /// Maps the path on the pkg package to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon`, `name`, `mime_type`
+  /// and `long_description`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./freebsd/freedesktop/main.desktop")]
+  /// ```
+  pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is installed.
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is installed.
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed.
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed.
+  pub post_remove_script: Option<PathBuf>,
+}
+
 /// Position coordinates struct.
 #[derive(Clone, Debug, Default)]
 pub struct Position {
@@ -712,6 +751,8 @@ pub struct BundleSettings {
   pub appimage: AppImageSettings,
   /// Rpm-specific settings.
   pub rpm: RpmSettings,
+  /// FreeBSD pkg-specific settings.
+  pub pkg: PkgSettings,
   /// DMG-specific settings.
   pub dmg: DmgSettings,
   /// iOS-specific settings.
@@ -1289,6 +1330,11 @@ impl Settings {
   /// Returns the RPM settings.
   pub fn rpm(&self) -> &RpmSettings {
     &self.bundle_settings.rpm
+  }
+
+  /// Returns the FreeBSD pkg settings.
+  pub fn pkg(&self) -> &PkgSettings {
+    &self.bundle_settings.pkg
   }
 
   /// Returns the DMG settings.

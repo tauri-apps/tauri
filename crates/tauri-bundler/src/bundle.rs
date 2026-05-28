@@ -93,8 +93,9 @@ pub use self::{
   category::AppCategory,
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, Entitlements, IosSettings, MacOsSettings, PackageSettings, PackageType, PlistKind,
-    Position, RpmSettings, Settings, SettingsBuilder, Size, UpdaterSettings,
+    DmgSettings, Entitlements, IosSettings, MacOsSettings, PackageSettings, PackageType,
+    PkgSettings, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    UpdaterSettings,
   },
 };
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};

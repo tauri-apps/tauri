@@ -88,6 +88,11 @@
           "minSdkVersion": 24
         },
         "createUpdaterArtifacts": false,
+        "freebsd": {
+          "pkg": {
+            "files": {}
+          }
+        },
         "iOS": {
           "minimumSystemVersion": "14.0"
         },
@@ -2277,6 +2282,19 @@
             }
           ]
         },
+        "freebsd": {
+          "description": "Configuration for the FreeBSD bundles.",
+          "default": {
+            "pkg": {
+              "files": {}
+            }
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/FreeBSDConfig"
+            }
+          ]
+        },
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
@@ -3641,6 +3659,121 @@
           "additionalProperties": false
         }
       ]
+    },
+    "FreeBSDConfig": {
+      "description": "Configuration for FreeBSD bundles.",
+      "type": "object",
+      "properties": {
+        "pkg": {
+          "description": "Configuration for the FreeBSD pkg bundle.",
+          "default": {
+            "files": {}
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/PkgConfig"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PkgConfig": {
+      "description": "Configuration for FreeBSD pkg bundles.",
+      "type": "object",
+      "properties": {
+        "depends": {
+          "description": "The list of FreeBSD pkg dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "provides": {
+          "description": "The list of dependencies the package provides.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "The list of FreeBSD pkg conflict package names or pkg query patterns.\n\n Only conflicts that resolve in the installed package database or configured repositories\n are emitted into the package manifest.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "replaces": {
+          "description": "The list of package replaces.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "category": {
+          "description": "The FreeBSD port origin category.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "files": {
+          "description": "The files to include on the package.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\n Available variables: `categories`, `comment` (optional), `exec`, `icon`, `name`, `mime_type`\n and `long_description`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is installed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is installed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "MacConfig": {
       "description": "Configuration for the macOS bundles.\n\n See more: <https://v2.tauri.app/reference/config/#macconfig>",

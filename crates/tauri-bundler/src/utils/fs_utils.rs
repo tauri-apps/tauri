@@ -143,6 +143,7 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
 /// and also a path of a directory. The files will be stored with respect to this directory.
 #[cfg(any(
   target_os = "linux",
+  target_os = "freebsd",
   target_os = "dragonfly",
   target_os = "netbsd",
   target_os = "openbsd"

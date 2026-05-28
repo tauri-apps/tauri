@@ -2,4 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+pub mod freedesktop;
 pub mod pkg;

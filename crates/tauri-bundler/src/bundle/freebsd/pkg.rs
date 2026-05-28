@@ -2,18 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+// The structure of a FreeBSD pkg package looks something like this:
+//
+// foobar-1.2.3.pkg             # txz archive produced by `pkg create`
+//     +MANIFEST                    # UCL package metadata
+//     +PRE_INSTALL                 # Pre-installation script (optional)
+//     +POST_INSTALL                # Post-installation script (optional)
+//     +PRE_DEINSTALL               # Pre-uninstallation script (optional)
+//     +POST_DEINSTALL              # Post-uninstallation script (optional)
+//     usr/local/bin/foobar                         # Binary executable file
+//     usr/local/share/applications/foobar.desktop  # Desktop file (for apps)
+//     usr/local/share/icons/hicolor/...            # Icon files (for apps)
+//     usr/local/lib/foobar/...                     # Other resource files
+//
+// `pkg create` takes a staged root directory, a plist describing installed
+// files, and a metadata directory. We stage application files under the FreeBSD
+// local prefix (/usr/local), generate freedesktop metadata from the bundle
+// configuration, write +MANIFEST in UCL format, copy lifecycle scripts into the
+// metadata directory, then let `pkg create` assemble the final .pkg archive.
+
+use super::freedesktop;
 use crate::{
   bundle::settings::Arch,
   error::{Context, ErrorExt},
   utils::{fs_utils, CommandExt},
   Settings,
 };
-use image::{codecs::png::PngDecoder, ImageDecoder};
 use std::{
-  ffi::OsStr,
-  fs::{self, File},
-  io::{BufReader, Write},
-  os::unix::fs::PermissionsExt,
+  fs::{self, File, OpenOptions},
+  io::Write,
+  os::unix::fs::{OpenOptionsExt, PermissionsExt},
   path::{Path, PathBuf},
   process::Command,
 };
@@ -35,16 +53,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let prefix_dir = root_dir.join(PREFIX.trim_start_matches('/'));
   let metadata_dir = package_dir.join("metadata");
   let plist_path = package_dir.join("pkg-plist");
-  let origin = format!("{DEFAULT_PORT_CATEGORY}/{port_name}");
+  let origin = format!(
+    "{}/{}",
+    settings
+      .pkg()
+      .category
+      .as_deref()
+      .unwrap_or(DEFAULT_PORT_CATEGORY),
+    port_name
+  );
 
   log::info!(action = "Bundling"; "{} as FreeBSD pkg", settings.product_name());
 
   generate_stage(settings, &prefix_dir).context("Failed to generate FreeBSD pkg stage")?;
+  fs_utils::copy_custom_files(&settings.pkg().files, &prefix_dir)
+    .context("Failed to copy custom files")?;
   normalize_pkgroot_permissions(&root_dir)
     .context("Failed to normalize FreeBSD pkg file permissions")?;
   generate_pkg_plist(&plist_path, &prefix_dir).context("Failed to generate pkg plist")?;
   generate_pkg_metadata(settings, &port_name, &origin, &metadata_dir)
     .context("Failed to generate pkg metadata")?;
+  generate_scripts(settings, &metadata_dir).context("Failed to create pkg scripts")?;
 
   fs::create_dir_all(&base_dir).fs_context("failed to create pkg output directory", &base_dir)?;
   let output_path = base_dir.join(format!("{port_name}-{}.pkg", settings.version_string()));
@@ -86,10 +115,11 @@ fn normalize_pkgroot_permissions(root_dir: &Path) -> crate::Result<()> {
     if entry.file_type().is_dir() {
       fs::set_permissions(path, fs::Permissions::from_mode(0o755))?;
     } else if entry.file_type().is_file() {
-      let mode = if path
-        .components()
-        .any(|component| component.as_os_str() == OsStr::new("bin"))
-      {
+      let mode = if path.strip_prefix(root_dir).is_ok_and(|path| {
+        path
+          .components()
+          .any(|component| component.as_os_str() == "bin")
+      }) {
         0o755
       } else {
         0o644
@@ -118,8 +148,9 @@ fn generate_stage(settings: &Settings, stage_dir: &Path) -> crate::Result<()> {
     .copy_resources(&resource_dir)
     .context("Failed to copy resource files")?;
 
-  copy_icon_files(settings, stage_dir).context("Failed to copy icon files")?;
-  generate_desktop_file(settings, stage_dir).context("Failed to create desktop file")?;
+  freedesktop::copy_icon_files(settings, stage_dir).context("Failed to copy icon files")?;
+  freedesktop::generate_desktop_file(settings, &settings.pkg().desktop_template, stage_dir)
+    .context("Failed to create desktop file")?;
 
   Ok(())
 }
@@ -183,18 +214,33 @@ fn generate_pkg_metadata(
     writeln!(manifest, "]")?;
   }
   writeln!(manifest, "deps: {{")?;
-  for dependency in runtime_dependencies()? {
+  for dependency in package_dependencies(settings)? {
     let PackageDependency {
       name,
       origin,
       version,
     } = dependency;
-    writeln!(manifest, "    {name}: {{")?;
+    writeln!(manifest, "    \"{}\": {{", ucl_escape(&name))?;
     writeln!(manifest, "        origin: \"{origin}\"")?;
     writeln!(manifest, "        version: \"{}\"", ucl_escape(&version))?;
     writeln!(manifest, "    }}")?;
   }
   writeln!(manifest, "}}")?;
+  write_string_array(
+    &mut manifest,
+    "provides",
+    settings.pkg().provides.as_deref(),
+  )?;
+  write_string_array(
+    &mut manifest,
+    "conflicts",
+    Some(package_conflicts(settings)?),
+  )?;
+  write_string_array(
+    &mut manifest,
+    "replaces",
+    settings.pkg().replaces.as_deref(),
+  )?;
 
   Ok(())
 }
@@ -214,80 +260,6 @@ fn generate_pkg_plist(path: &Path, stage_dir: &Path) -> crate::Result<()> {
     writeln!(file, "{entry}")?;
   }
   Ok(())
-}
-
-fn generate_desktop_file(settings: &Settings, stage_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.main_binary_name()?;
-  let desktop_path = stage_dir
-    .join("share/applications")
-    .join(format!("{}.desktop", settings.product_name()));
-  let mut file = fs_utils::create_file(&desktop_path)?;
-
-  writeln!(file, "[Desktop Entry]")?;
-  writeln!(
-    file,
-    "Categories={}",
-    settings
-      .app_category()
-      .map(|c| c.freedesktop_categories())
-      .unwrap_or("")
-  )?;
-  if !settings.short_description().is_empty() {
-    writeln!(file, "Comment={}", settings.short_description())?;
-  }
-  writeln!(file, "Exec={}", shell_word(bin_name))?;
-  writeln!(file, "Icon={bin_name}")?;
-  writeln!(file, "Name={}", settings.product_name())?;
-  writeln!(file, "Terminal=false")?;
-  writeln!(file, "Type=Application")?;
-  if let Some(mime_type) = mime_types(settings) {
-    writeln!(file, "MimeType={mime_type}")?;
-  }
-
-  Ok(())
-}
-
-fn copy_icon_files(settings: &Settings, stage_dir: &Path) -> crate::Result<()> {
-  let main_binary_name = settings.main_binary_name()?;
-  let base_dir = stage_dir.join("share/icons/hicolor");
-  for icon_path in settings.icon_files() {
-    let icon_path = icon_path?;
-    if icon_path.extension() != Some(OsStr::new("png")) {
-      continue;
-    }
-    let decoder = PngDecoder::new(BufReader::new(File::open(&icon_path)?))?;
-    let (width, height) = decoder.dimensions();
-    let scale = if crate::utils::is_retina(&icon_path) {
-      "@2"
-    } else {
-      ""
-    };
-    let dest = base_dir.join(format!(
-      "{width}x{height}{scale}/apps/{main_binary_name}.png"
-    ));
-    fs_utils::copy_file(&icon_path, &dest)?;
-  }
-  Ok(())
-}
-
-fn mime_types(settings: &Settings) -> Option<String> {
-  let mut mime_types = Vec::new();
-  if let Some(associations) = settings.file_associations() {
-    mime_types.extend(
-      associations
-        .iter()
-        .filter_map(|association| association.mime_type.clone()),
-    );
-  }
-  if let Some(protocols) = settings.deep_link_protocols() {
-    mime_types.extend(
-      protocols
-        .iter()
-        .flat_map(|protocol| &protocol.schemes)
-        .map(|scheme| format!("x-scheme-handler/{scheme}")),
-    );
-  }
-  (!mime_types.is_empty()).then(|| mime_types.join(";"))
 }
 
 fn freebsd_arch(arch: Arch) -> crate::Result<&'static str> {
@@ -315,14 +287,6 @@ fn sanitize_port_name(name: &str) -> String {
   sanitized.trim_matches('-').to_string()
 }
 
-fn shell_word(word: &str) -> String {
-  if word.contains(' ') {
-    format!("\"{}\"", word.replace('"', "\\\""))
-  } else {
-    word.to_string()
-  }
-}
-
 fn pkg_abi() -> crate::Result<(String, String)> {
   let abi = pkg_config("ABI")?;
   let altabi = pkg_config("ALTABI")?;
@@ -344,31 +308,31 @@ fn pkg_config(key: &str) -> crate::Result<String> {
 }
 
 struct PackageDependency {
-  name: &'static str,
-  origin: &'static str,
+  name: String,
+  origin: String,
   version: String,
 }
 
-fn runtime_dependencies() -> crate::Result<Vec<PackageDependency>> {
-  [
-    ("dbus", "devel/dbus"),
-    ("gtk3", "x11-toolkits/gtk30"),
-    ("webkit2-gtk_41", "www/webkit2-gtk"),
-  ]
-  .into_iter()
-  .map(|(name, origin)| {
-    Ok(PackageDependency {
-      name,
-      origin,
-      version: package_version(name)?,
-    })
-  })
-  .collect()
+fn package_dependencies(settings: &Settings) -> crate::Result<Vec<PackageDependency>> {
+  let mut names = vec![
+    "dbus".to_string(),
+    "gtk3".to_string(),
+    "webkit2-gtk_41".to_string(),
+  ];
+  if let Some(depends) = &settings.pkg().depends {
+    names.extend(depends.iter().cloned());
+  }
+  names.sort();
+  names.dedup();
+  names
+    .into_iter()
+    .map(|name| package_dependency(&name))
+    .collect()
 }
 
-fn package_version(name: &str) -> crate::Result<String> {
+fn package_dependency(name: &str) -> crate::Result<PackageDependency> {
   let output = Command::new("pkg")
-    .args(["query", "%v", name])
+    .args(["query", "%n\t%o\t%v", name])
     .output()
     .map_err(crate::Error::IoError)
     .with_context(|| format!("failed to query FreeBSD package {name}"))?;
@@ -379,7 +343,121 @@ fn package_version(name: &str) -> crate::Result<String> {
     )));
   }
 
-  Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+  let stdout = String::from_utf8_lossy(&output.stdout);
+  let (name, origin, version) = stdout
+    .trim()
+    .split_once('\t')
+    .and_then(|(name, rest)| {
+      rest
+        .split_once('\t')
+        .map(|(origin, version)| (name, origin, version))
+    })
+    .ok_or_else(|| {
+      crate::Error::GenericError(format!("failed to parse pkg query output for {name}"))
+    })?;
+
+  Ok(PackageDependency {
+    name: name.to_string(),
+    origin: origin.to_string(),
+    version: version.to_string(),
+  })
+}
+
+fn package_conflicts(settings: &Settings) -> crate::Result<Vec<String>> {
+  let Some(conflicts) = &settings.pkg().conflicts else {
+    return Ok(Vec::new());
+  };
+
+  let mut package_names = Vec::new();
+  for conflict in conflicts {
+    let resolved_names = resolve_package_names(conflict);
+    if resolved_names.is_empty() {
+      log::warn!(
+        "Skipping FreeBSD pkg conflict `{conflict}` because it is not present in the installed package database or configured repositories"
+      );
+    } else {
+      package_names.extend(resolved_names);
+    }
+  }
+
+  package_names.sort();
+  package_names.dedup();
+  Ok(package_names)
+}
+
+fn resolve_package_names(pattern: &str) -> Vec<String> {
+  let mut package_names = Vec::new();
+  for query_command in ["query", "rquery"] {
+    let Ok(output) = Command::new("pkg")
+      .args([query_command, "%n", pattern])
+      .output()
+    else {
+      continue;
+    };
+
+    if !output.status.success() {
+      continue;
+    }
+
+    package_names.extend(
+      String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(ToString::to_string),
+    );
+  }
+  package_names
+}
+
+fn generate_scripts(settings: &Settings, metadata_dir: &Path) -> crate::Result<()> {
+  if let Some(script_path) = &settings.pkg().pre_install_script {
+    create_script_file_from_path(script_path, &metadata_dir.join("+PRE_INSTALL"))?;
+  }
+  if let Some(script_path) = &settings.pkg().post_install_script {
+    create_script_file_from_path(script_path, &metadata_dir.join("+POST_INSTALL"))?;
+  }
+  if let Some(script_path) = &settings.pkg().pre_remove_script {
+    create_script_file_from_path(script_path, &metadata_dir.join("+PRE_DEINSTALL"))?;
+  }
+  if let Some(script_path) = &settings.pkg().post_remove_script {
+    create_script_file_from_path(script_path, &metadata_dir.join("+POST_DEINSTALL"))?;
+  }
+  Ok(())
+}
+
+fn create_script_file_from_path(from: &Path, to: &Path) -> crate::Result<()> {
+  let mut from = File::open(from)?;
+  let mut file = OpenOptions::new()
+    .create(true)
+    .truncate(true)
+    .write(true)
+    .mode(0o755)
+    .open(to)?;
+  std::io::copy(&mut from, &mut file)?;
+  Ok(())
+}
+
+fn write_string_array(
+  manifest: &mut impl Write,
+  key: &str,
+  values: Option<impl IntoIterator<Item = impl AsRef<str>>>,
+) -> crate::Result<()> {
+  let Some(values) = values else {
+    return Ok(());
+  };
+
+  let values = values.into_iter().collect::<Vec<_>>();
+  if values.is_empty() {
+    return Ok(());
+  }
+
+  writeln!(manifest, "{key}: [")?;
+  for value in values {
+    writeln!(manifest, "    \"{}\"", ucl_escape(value.as_ref()))?;
+  }
+  writeln!(manifest, "]")?;
+  Ok(())
 }
 
 fn freebsd_licenses(license: &str) -> Option<(Vec<String>, &'static str)> {

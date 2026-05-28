@@ -22,8 +22,8 @@ use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
-  WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, PkgSettings, Position, RpmSettings, Size,
+  UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
@@ -1594,6 +1594,19 @@ fn tauri_config_to_bundle_settings(
       pre_remove_script: config.linux.rpm.pre_remove_script,
       post_remove_script: config.linux.rpm.post_remove_script,
       compression: config.linux.rpm.compression,
+    },
+    pkg: PkgSettings {
+      depends: config.freebsd.pkg.depends,
+      provides: config.freebsd.pkg.provides,
+      conflicts: config.freebsd.pkg.conflicts,
+      replaces: config.freebsd.pkg.replaces,
+      category: config.freebsd.pkg.category,
+      files: config.freebsd.pkg.files,
+      desktop_template: config.freebsd.pkg.desktop_template,
+      pre_install_script: config.freebsd.pkg.pre_install_script,
+      post_install_script: config.freebsd.pkg.post_install_script,
+      pre_remove_script: config.freebsd.pkg.pre_remove_script,
+      post_remove_script: config.freebsd.pkg.post_remove_script,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

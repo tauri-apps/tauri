@@ -245,12 +245,18 @@ fn generate_pkg_metadata(
   write_string_array(
     &mut manifest,
     "conflicts",
-    Some(package_conflicts(settings)?),
+    Some(package_relationships(
+      settings.pkg().conflicts.as_deref(),
+      "conflict",
+    )?),
   )?;
   write_string_array(
     &mut manifest,
     "replaces",
-    settings.pkg().replaces.as_deref(),
+    Some(package_relationships(
+      settings.pkg().replaces.as_deref(),
+      "replacement",
+    )?),
   )?;
 
   Ok(())
@@ -375,18 +381,21 @@ fn package_dependency(name: &str) -> crate::Result<PackageDependency> {
   })
 }
 
-fn package_conflicts(settings: &Settings) -> crate::Result<Vec<String>> {
-  let Some(conflicts) = &settings.pkg().conflicts else {
+fn package_relationships(
+  patterns: Option<&[String]>,
+  relationship: &str,
+) -> crate::Result<Vec<String>> {
+  let Some(patterns) = patterns else {
     return Ok(Vec::new());
   };
 
   let mut package_names = Vec::new();
-  for conflict in conflicts {
-    let resolved_names = resolve_package_names(conflict);
+  for pattern in patterns {
+    let resolved_names = resolve_package_names(pattern);
     if resolved_names.is_empty() {
-      log::warn!(
-        "Skipping FreeBSD pkg conflict `{conflict}` because it is not present in the installed package database or configured repositories"
-      );
+      return Err(crate::Error::GenericError(format!(
+        "FreeBSD pkg {relationship} `{pattern}` does not match an installed package or a package in the configured repositories. Use a real package name or a pkg query pattern that resolves on the build host."
+      )));
     } else {
       package_names.extend(resolved_names);
     }

@@ -427,10 +427,11 @@ pub struct PkgConfig {
   pub provides: Option<Vec<String>>,
   /// The list of FreeBSD pkg conflict package names or pkg query patterns.
   ///
-  /// Only conflicts that resolve in the installed package database or configured repositories
-  /// are emitted into the package manifest.
+  /// Each entry must resolve in the installed package database or configured repositories.
   pub conflicts: Option<Vec<String>>,
-  /// The list of package replaces.
+  /// The list of FreeBSD pkg replacement package names or pkg query patterns.
+  ///
+  /// Each entry must resolve in the installed package database or configured repositories.
   pub replaces: Option<Vec<String>>,
   /// The FreeBSD port origin category.
   pub category: Option<String>,

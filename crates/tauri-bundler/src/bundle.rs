@@ -244,11 +244,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         // Self contained updater, no need to zip
         matches!(
           package_type,
-          PackageType::AppImage | PackageType::Nsis | PackageType::WindowsMsi | PackageType::Deb
+          PackageType::AppImage
+            | PackageType::Nsis
+            | PackageType::WindowsMsi
+            | PackageType::Deb
+            | PackageType::Pkg
         )
       })
     {
-      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
+      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, deb, msi, nsis, pkg");
     }
     if updater.v1_compatible {
       log::warn!("Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin");

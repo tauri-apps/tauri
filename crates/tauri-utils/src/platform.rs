@@ -453,6 +453,8 @@ mod tests {
     assert!(resource_dir.is_err());
     #[cfg(target_os = "linux")]
     assert_eq!(resource_dir.unwrap(), PathBuf::from("/usr/lib/MyApp"));
+    #[cfg(target_os = "freebsd")]
+    assert_eq!(resource_dir.unwrap(), PathBuf::from("/usr/local/lib/MyApp"));
     #[cfg(windows)]
     assert_eq!(resource_dir.unwrap(), path.parent().unwrap());
   }

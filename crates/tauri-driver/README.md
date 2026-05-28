@@ -15,7 +15,7 @@ You can configure the ports used with arguments when starting the binary:
 
 Supported platforms:
 
-- Linux via `WebKitWebDriver`
+- Linux and FreeBSD via `WebKitWebDriver`
 - Windows via [Microsoft Edge Driver]
 - **[Todo]** macOS via [Appium Mac2 Driver] (probably)
 

@@ -9,7 +9,7 @@ use std::{
 };
 
 // the name of the binary to find in $PATH
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 const DRIVER_BINARY: &str = "WebKitWebDriver";
 
 #[cfg(target_os = "windows")]

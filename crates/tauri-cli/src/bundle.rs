@@ -244,6 +244,7 @@ fn sign_updaters(
           | PackageType::AppImage
           | PackageType::Deb
           | PackageType::Rpm
+          | PackageType::Pkg
       )
     })
     .collect();

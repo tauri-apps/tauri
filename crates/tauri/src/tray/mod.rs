@@ -552,7 +552,7 @@ impl<R: Runtime> TrayIcon<R> {
   pub fn set_temp_dir_path<P: AsRef<Path>>(&self, path: Option<P>) -> crate::Result<()> {
     #[allow(unused)]
     let p = path.map(|p| p.as_ref().to_path_buf());
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     run_item_main_thread!(self, |self_: Self| self_.inner.set_temp_dir_path(p))?;
     Ok(())
   }

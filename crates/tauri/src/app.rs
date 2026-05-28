@@ -1491,7 +1491,7 @@ impl<R: Runtime> App<R> {
 #[allow(clippy::type_complexity)]
 pub struct Builder<R: Runtime> {
   /// A flag indicating that the runtime must be started on an environment that supports the event loop not on the main thread.
-  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg(any(windows, target_os = "linux", target_os = "freebsd"))]
   runtime_any_thread: bool,
 
   /// The JS message handler.
@@ -1583,7 +1583,7 @@ impl<R: Runtime> Builder<R> {
     let invoke_key = crate::generate_invoke_key().unwrap();
 
     Self {
-      #[cfg(any(windows, target_os = "linux"))]
+      #[cfg(any(windows, target_os = "linux", target_os = "freebsd"))]
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| false),
@@ -1624,8 +1624,11 @@ impl<R: Runtime> Builder<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** on macOS the application *must* be executed on the main thread, so this function is not exposed.
-  #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(docsrs, doc(cfg(any(windows, target_os = "linux"))))]
+  #[cfg(any(windows, target_os = "linux", target_os = "freebsd"))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(windows, target_os = "linux", target_os = "freebsd")))
+  )]
   #[must_use]
   pub fn any_thread(mut self) -> Self {
     self.runtime_any_thread = true;
@@ -2326,13 +2329,13 @@ tauri::Builder::default()
       }
     }
 
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "freebsd"))]
     let mut runtime = if self.runtime_any_thread {
       R::new_any_thread(runtime_args)?
     } else {
       R::new(runtime_args)?
     };
-    #[cfg(not(any(windows, target_os = "linux")))]
+    #[cfg(not(any(windows, target_os = "linux", target_os = "freebsd")))]
     let mut runtime = R::new(runtime_args)?;
 
     #[cfg(desktop)]

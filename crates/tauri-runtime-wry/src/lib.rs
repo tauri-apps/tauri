@@ -4600,7 +4600,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   };
 
-  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  #[cfg(any(target_os = "macos", target_os = "linux", target_os = "freebsd"))]
   let (initial_position, is_fullscreen) = (
     window_builder.inner.window.position,
     window_builder.inner.window.fullscreen.is_some(),
@@ -4608,7 +4608,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   // If fullscreen is requested with an explicit position, resolve the target
   // monitor up front so the window is created fullscreen on that display.
-  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  #[cfg(any(target_os = "macos", target_os = "linux", target_os = "freebsd"))]
   if let (true, Some(position)) = (is_fullscreen, initial_position) {
     if let Some(target_monitor) =
       find_monitor_for_position(event_loop.available_monitors(), position)

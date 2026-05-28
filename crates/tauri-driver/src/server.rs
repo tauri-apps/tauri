@@ -38,7 +38,7 @@ struct TauriOptions {
 }
 
 impl TauriOptions {
-  #[cfg(target_os = "linux")]
+  #[cfg(any(target_os = "linux", target_os = "freebsd"))]
   fn into_native_object(self) -> Map<String, Value> {
     let mut map = Map::new();
     map.insert(

@@ -44,6 +44,8 @@ export enum BundleType {
   Rpm = 'rpm',
   /** Linux AppImage */
   AppImage = 'appimage',
+  /** FreeBSD pkg */
+  Pkg = 'pkg',
   /** macOS app bundle */
   App = 'app'
 }

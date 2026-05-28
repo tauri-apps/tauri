@@ -3703,7 +3703,7 @@
           }
         },
         "conflicts": {
-          "description": "The list of FreeBSD pkg conflict package names or pkg query patterns.\n\n Only conflicts that resolve in the installed package database or configured repositories\n are emitted into the package manifest.",
+          "description": "The list of FreeBSD pkg conflict package names or pkg query patterns.\n\n Each entry must resolve in the installed package database or configured repositories.",
           "type": [
             "array",
             "null"
@@ -3713,7 +3713,7 @@
           }
         },
         "replaces": {
-          "description": "The list of package replaces.",
+          "description": "The list of FreeBSD pkg replacement package names or pkg query patterns.\n\n Each entry must resolve in the installed package database or configured repositories.",
           "type": [
             "array",
             "null"

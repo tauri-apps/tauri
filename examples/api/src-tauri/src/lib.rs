@@ -26,7 +26,7 @@ struct Reply {
 #[cfg(target_os = "macos")]
 pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test)))]
 pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -46,7 +46,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     )
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       {
         let handle = app.handle();
         tray::create_tray(handle)?;
@@ -56,7 +56,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(target_os = "macos")]
       app.manage(AppMenu::<R>(Default::default()));
 
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       app.manage(PopupMenu(
         tauri::menu::MenuBuilder::new(app)
           .check("check", "Tauri is awesome!")
@@ -65,15 +65,18 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
+      #[allow(unused_mut)]
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
         });
 
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       {
+        use std::sync::atomic::{AtomicU64, Ordering};
+
         let app_ = app.handle().clone();
-        let created_window_count = std::sync::atomic::AtomicUsize::new(0);
+        let created_window_count = AtomicU64::new(0);
 
         window_builder = window_builder
           .title("Tauri API Validation")
@@ -83,7 +86,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .on_new_window(move |url, features| {
             println!("new window requested: {url:?} {features:?}");
 
-            let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let number = created_window_count.fetch_add(1, Ordering::Relaxed);
 
             let builder = WebviewWindowBuilder::new(
               &app_,

@@ -26,7 +26,7 @@ struct Reply {
 #[cfg(target_os = "macos")]
 pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
-#[cfg(all(desktop, not(test)))]
+#[cfg(desktop)]
 pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,8 +38,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   builder: tauri::Builder<R>,
   setup: F,
 ) {
-  #[allow(unused_mut)]
-  let mut builder = builder
+  let builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
         .level(log::LevelFilter::Info)
@@ -47,7 +46,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     )
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
-      #[cfg(all(desktop, not(test)))]
+      #[cfg(desktop)]
       {
         let handle = app.handle();
         tray::create_tray(handle)?;
@@ -57,7 +56,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(target_os = "macos")]
       app.manage(AppMenu::<R>(Default::default()));
 
-      #[cfg(all(desktop, not(test)))]
+      #[cfg(desktop)]
       app.manage(PopupMenu(
         tauri::menu::MenuBuilder::new(app)
           .check("check", "Tauri is awesome!")
@@ -71,10 +70,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           println!("document title changed: {title}");
         });
 
-      #[cfg(all(desktop, not(test)))]
+      #[cfg(desktop)]
       {
         let app_ = app.handle().clone();
-        let mut created_window_count = std::sync::atomic::AtomicUsize::new(0);
+        let created_window_count = std::sync::atomic::AtomicUsize::new(0);
 
         window_builder = window_builder
           .title("Tauri API Validation")
@@ -115,7 +114,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           Ok(())
         }),
       });
-      log::info!("got response: {:?}", response);
+      log::info!("got response: {response:?}");
       // when #[cfg(desktop)], Rust will detect pattern as irrefutable
       #[allow(irrefutable_let_patterns)]
       if let Ok(res) = response {

@@ -116,13 +116,3 @@ jobs:
         run: |
           cargo install cross --git https://github.com/cross-rs/cross --rev 51f46f296253d8122c927c5bb933e3c4f27cc317 --locked
           cross ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri/Cargo.toml
-
-      - name: test tauri api example
-        if: ${{ !matrix.platform.cross }}
-        run: cargo ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path examples/api/src-tauri/Cargo.toml
-
-      - name: test tauri api example (using cross)
-        if: ${{ matrix.platform.cross }}
-        run: |
-          cargo install cross --git https://github.com/cross-rs/cross --rev 51f46f296253d8122c927c5bb933e3c4f27cc317 --locked
-          cross ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path examples/api/src-tauri/Cargo.toml

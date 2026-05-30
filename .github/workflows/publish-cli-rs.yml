@@ -49,11 +49,11 @@ jobs:
 
       - name: 'Setup Rust'
         if: ${{ !matrix.config.cross }}
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           targets: ${{ matrix.config.rust_target }}
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         if: ${{ !matrix.config.cross }}
         with:
           key: ${{ matrix.config.rust_target }}
@@ -66,7 +66,7 @@ jobs:
 
       - name: Install cross
         if: ${{ matrix.config.cross }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2
         with:
           tool: cross@0.2.5
 

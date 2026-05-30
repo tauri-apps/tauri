@@ -258,14 +258,27 @@ fn sign_updaters(
   }
 
   // get the public key
-  let pubkey = &update_settings.pubkey;
-  // check if pubkey points to a file...
-  let maybe_path = Path::new(pubkey);
-  let pubkey = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path)
-      .fs_context("failed to read pubkey from file", maybe_path.to_path_buf())?
-  } else {
-    pubkey.to_string()
+  let pubkey = match &update_settings.pubkey {
+    // pubkey set in config
+    Some(pubkey) => {
+      // check if pubkey points to a file...
+      let maybe_path = Path::new(pubkey);
+      if maybe_path.exists() {
+        Some(
+          std::fs::read_to_string(maybe_path)
+            .fs_context("failed to read pubkey from file", maybe_path.to_path_buf())?,
+        )
+      } else {
+        Some(pubkey.to_string())
+      }
+    }
+    // pubket not set in config
+    None => {
+      log::warn!(
+        "Updater pubkey not set in tauri config, ensure it's set in the config or at runtime"
+      );
+      None
+    }
   };
 
   // if no password provided we use an empty string
@@ -292,7 +305,11 @@ fn sign_updaters(
   }
   let secret_key =
     updater_signature::secret_key(private_key, password).context("failed to decode secret key")?;
-  let public_key = updater_signature::pub_key(pubkey).context("failed to decode pubkey")?;
+  
+  let public_key = match pubkey {
+    Some(pk) => Some(updater_signature::pub_key(pk).context("failed to decode pubkey")?),
+    None => None,
+  };
 
   let mut signed_paths = Vec::new();
   for bundle in update_enabled_bundles {
@@ -301,8 +318,10 @@ fn sign_updaters(
     for path in &bundle.bundle_paths {
       // sign our path from environment variables
       let (signature_path, signature) = updater_signature::sign_file(&secret_key, path)?;
-      if signature.keynum() != public_key.keynum() {
-        log::warn!("The updater secret key from `TAURI_SIGNING_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update.");
+      if let Some(public_key) = &public_key {
+        if signature.keynum() != public_key.keynum() {
+          log::warn!("The updater secret key from `TAURI_SIGNING_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update.");
+        }
       }
       signed_paths.push(signature_path);
     }

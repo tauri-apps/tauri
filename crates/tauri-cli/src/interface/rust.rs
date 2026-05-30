@@ -22,8 +22,8 @@ use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
-  WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterPubkey,
+  UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
@@ -762,7 +762,7 @@ enum DesktopDeepLinks {
 #[derive(Deserialize)]
 pub struct UpdaterConfig {
   /// Signature public key.
-  pub pubkey: String,
+  pub pubkey: UpdaterPubkey,
   /// The Windows configuration for the updater.
   #[serde(default)]
   pub windows: UpdaterWindowsConfig,

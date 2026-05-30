@@ -156,13 +156,16 @@ pub struct PackageSettings {
   pub default_run: Option<String>,
 }
 
+/// Shared type for updater pubkey
+pub type UpdaterPubkey = Option<String>;
+
 /// The updater settings.
 #[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
   /// Should generate v1 compatible zipped updater
   pub v1_compatible: bool,
   /// Signature public key.
-  pub pubkey: String,
+  pub pubkey: UpdaterPubkey,
   /// Args to pass to `msiexec.exe` to run the updater on Windows.
   pub msiexec_args: &'static [&'static str],
 }

@@ -82,7 +82,7 @@ pub use self::{
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
     DmgSettings, Entitlements, IosSettings, MacOsSettings, PackageSettings, PackageType, PlistKind,
-    Position, RpmSettings, Settings, SettingsBuilder, Size, UpdaterSettings,
+    Position, RpmSettings, Settings, SettingsBuilder, Size, UpdaterPubkey, UpdaterSettings,
   },
 };
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};

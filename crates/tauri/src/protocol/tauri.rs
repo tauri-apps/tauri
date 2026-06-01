@@ -25,12 +25,11 @@ struct CachedResponse {
 }
 
 pub fn get<R: Runtime>(
-  #[allow(unused_variables)] manager: Arc<AppManager<R>>,
+  manager: Arc<AppManager<R>>,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
   let window_origin = window_origin.to_string();
-  let web_resource_request_handler = web_resource_request_handler.map(Arc::new);
 
   #[cfg(all(dev, mobile))]
   let (url, client, response_cache) = {
@@ -86,31 +85,28 @@ pub fn get<R: Runtime>(
     (url, client, response_cache)
   };
 
-  Box::new(move |_, request, responder| {
-    let manager = manager.clone();
-    let window_origin = window_origin.clone();
-    let web_resource_request_handler = web_resource_request_handler.clone();
-
+  let context = Arc::new(Context {
+    manager,
+    web_resource_request_handler,
+    window_origin,
     #[cfg(all(dev, mobile))]
-    let (url, client, response_cache) = (url.clone(), client.clone(), response_cache.clone());
+    client,
+    #[cfg(all(dev, mobile))]
+    url,
+    #[cfg(all(dev, mobile))]
+    response_cache,
+  });
 
+  Box::new(move |_, request, responder| {
+    let context = context.clone();
     crate::async_runtime::spawn(async move {
-      match get_response(
-        request,
-        &manager,
-        &window_origin,
-        web_resource_request_handler.as_deref().map(|h| &**h),
-        #[cfg(all(dev, mobile))]
-        (&url, &client, &response_cache),
-      )
-      .await
-      {
+      match get_response(&context, request).await {
         Ok(response) => responder.respond(response),
         Err(e) => responder.respond(
           HttpResponse::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-            .header("Access-Control-Allow-Origin", &window_origin)
+            .header("Access-Control-Allow-Origin", &context.window_origin)
             .body(e.to_string().into_bytes())
             .unwrap(),
         ),
@@ -119,17 +115,35 @@ pub fn get<R: Runtime>(
   })
 }
 
+struct Context<R: Runtime> {
+  manager: Arc<AppManager<R>>,
+  window_origin: String,
+  web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+
+  #[cfg(all(dev, mobile))]
+  url: String,
+  #[cfg(all(dev, mobile))]
+  client: reqwest::Client,
+  #[cfg(all(dev, mobile))]
+  response_cache: Arc<Mutex<HashMap<String, CachedResponse>>>,
+}
+
 async fn get_response<R: Runtime>(
+  context: &Context<R>,
   request: Request<Vec<u8>>,
-  #[allow(unused_variables)] manager: &AppManager<R>,
-  window_origin: &str,
-  web_resource_request_handler: Option<&WebResourceRequestHandler>,
-  #[cfg(all(dev, mobile))] (url, client, response_cache): (
-    &str,
-    &reqwest::Client,
-    &Arc<Mutex<HashMap<String, CachedResponse>>>,
-  ),
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
+  let Context {
+    manager,
+    web_resource_request_handler,
+    window_origin,
+    #[cfg(all(dev, mobile))]
+    client,
+    #[cfg(all(dev, mobile))]
+    url,
+    #[cfg(all(dev, mobile))]
+    response_cache,
+  } = context;
+
   // use the entire URI as we are going to proxy the request
   let path = if PROXY_DEV_SERVER {
     request.uri().to_string()

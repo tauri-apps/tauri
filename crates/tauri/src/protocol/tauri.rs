@@ -165,95 +165,14 @@ async fn get_response<R: Runtime>(
     // where `$P` is not `localhost/*`
     .unwrap_or_default();
 
+  #[allow(unused_mut)]
   let mut builder = HttpResponse::builder()
     .add_configured_headers(manager.config.app.security.headers.as_ref())
     .header("Access-Control-Allow-Origin", window_origin);
 
   #[cfg(all(dev, mobile))]
-  let mut response = {
-    let decoded_path = percent_encoding::percent_decode(path.as_bytes())
-      .decode_utf8_lossy()
-      .to_string();
-    let url = format!(
-      "{}/{}",
-      url.trim_end_matches('/'),
-      decoded_path.trim_start_matches('/')
-    );
-
-    let mut proxy_builder = client.request(request.method().clone(), &url);
-    for (name, value) in request.headers() {
-      proxy_builder = proxy_builder.header(name, value);
-    }
-    proxy_builder = proxy_builder.body(request.body().clone());
-
-    match async {
-      let r = proxy_builder.send().await?;
-      let status = r.status();
-      let headers = r.headers().clone();
-
-      Ok::<_, reqwest::Error>(if status == http::StatusCode::NOT_MODIFIED {
-        if let Some(response) = response_cache.lock().unwrap().get(&url).cloned() {
-          for (name, value) in &response.headers {
-            builder = builder.header(name, value);
-          }
-
-          builder
-            .status(response.status)
-            .body(response.body.to_vec().into())
-            .unwrap()
-        } else {
-          for (name, value) in &headers {
-            builder = builder.header(name, value);
-          }
-
-          builder.status(status).body(Vec::new().into()).unwrap()
-        }
-      } else {
-        let body = r.bytes().await?;
-        let response = CachedResponse {
-          status,
-          headers,
-          body,
-        };
-
-        {
-          response_cache
-            .lock()
-            .unwrap()
-            .insert(url.clone(), response.clone());
-        }
-
-        for (name, value) in &response.headers {
-          builder = builder.header(name, value);
-        }
-
-        builder
-          .status(response.status)
-          .body(response.body.to_vec().into())
-          .unwrap()
-      })
-    }
-    .await
-    {
-      Ok(response) => response,
-      Err(e) => {
-        let error_message = format!(
-          "Failed to request {}: {}{}",
-          url.as_str(),
-          e,
-          if let Some(s) = e.status() {
-            format!("status code: {}", s.as_u16())
-          } else if cfg!(target_os = "ios") {
-            ", did you grant local network permissions? That is required to reach the development server. Please grant the permission via the prompt or in `Settings > Privacy & Security > Local Network` and restart the app. See https://support.apple.com/en-us/102229 for more information.".to_string()
-          } else {
-            "".to_string()
-          }
-        );
-        log::error!("{error_message}");
-        return Err(error_message.into());
-      }
-    }
-  };
+  let mut response =
+    proxy_dev_request(client, url, response_cache, path, builder, &request).await?;
 
   #[cfg(not(all(dev, mobile)))]
   let mut response = {
@@ -273,4 +192,92 @@ async fn get_response<R: Runtime>(
   }
 
   Ok(response)
+}
+
+#[cfg(all(dev, mobile))]
+async fn proxy_dev_request(
+  client: &reqwest::Client,
+  url: &String,
+  response_cache: &Arc<Mutex<HashMap<String, CachedResponse>>>,
+  path: String,
+  mut builder: http::response::Builder,
+  request: &Request<Vec<u8>>,
+) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
+  let decoded_path = percent_encoding::percent_decode(path.as_bytes())
+    .decode_utf8_lossy()
+    .to_string();
+  let url = format!(
+    "{}/{}",
+    url.trim_end_matches('/'),
+    decoded_path.trim_start_matches('/')
+  );
+
+  let mut proxy_builder = client.request(request.method().clone(), &url);
+  for (name, value) in request.headers() {
+    proxy_builder = proxy_builder.header(name, value);
+  }
+  proxy_builder = proxy_builder.body(request.body().clone());
+
+  let r = proxy_builder.send().await.map_err(|e|{
+    let error_message = format!(
+      "Failed to request {url}: {e}{}",
+      if let Some(s) = e.status() {
+        format!("status code: {}", s.as_u16())
+      } else if cfg!(target_os = "ios") {
+        ", did you grant local network permissions? That is required to reach the development server. Please grant the permission via the prompt or in `Settings > Privacy & Security > Local Network` and restart the app. See https://support.apple.com/en-us/102229 for more information.".to_string()
+      } else {
+        "".to_string()
+      }
+    );
+    log::error!("{error_message}");
+    error_message
+  })?;
+
+  let status = r.status();
+  let headers = r.headers().clone();
+
+  if status == http::StatusCode::NOT_MODIFIED {
+    if let Some(response) = response_cache.lock().unwrap().get(&url).cloned() {
+      for (name, value) in &response.headers {
+        builder = builder.header(name, value);
+      }
+
+      builder
+        .status(response.status)
+        .body(response.body.to_vec().into())
+        .map_err(Into::into)
+    } else {
+      for (name, value) in &headers {
+        builder = builder.header(name, value);
+      }
+
+      builder
+        .status(status)
+        .body(Vec::new().into())
+        .map_err(Into::into)
+    }
+  } else {
+    let body = r.bytes().await?;
+    let response = CachedResponse {
+      status,
+      headers,
+      body,
+    };
+
+    {
+      response_cache
+        .lock()
+        .unwrap()
+        .insert(url.clone(), response.clone());
+    }
+
+    for (name, value) in &response.headers {
+      builder = builder.header(name, value);
+    }
+
+    builder
+      .status(response.status)
+      .body(response.body.to_vec().into())
+      .map_err(Into::into)
+  }
 }

@@ -1,5 +1,6 @@
 ---
 "tauri-cli": "patch:bug"
+"@tauri-apps/cli": "patch:bug"
 ---
 
 Fix `tauri migrate` generating invalid namespace imports for aliased pluginified imports from `@tauri-apps/api`.

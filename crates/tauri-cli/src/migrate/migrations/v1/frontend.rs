@@ -245,7 +245,7 @@ fn migrate_imports<'a>(
               // to:
               // ```
               // import * as dialog from "@tauri-apps/plugin-dialog"
-              // import * as cli as superCli from "@tauri-apps/plugin-cli"
+              // import * as superCli from "@tauri-apps/plugin-cli"
               // ```
               import if PLUGINIFIED_MODULES.contains(&import) && module == "@tauri-apps/api" => {
                 let js_plugin: &str = MODULES_MAP[&format!("@tauri-apps/api/{import}")];
@@ -255,9 +255,7 @@ fn migrate_imports<'a>(
 
                 if specifier.local.name.as_str() != import {
                   let local = &specifier.local.name;
-                  imports_to_add.push(format!(
-                    "\nimport * as {import} as {local} from \"{js_plugin}\""
-                  ));
+                  imports_to_add.push(format!("\nimport * as {local} from \"{js_plugin}\""));
                 } else {
                   imports_to_add.push(format!("\nimport * as {import} from \"{js_plugin}\""));
                 };
@@ -359,6 +357,39 @@ mod tests {
   use super::*;
   use pretty_assertions::assert_eq;
 
+  fn assert_migrated_output_parses(path: &Path, source: &str) {
+    let has_partial_js = path
+      .extension()
+      .is_some_and(|ext| ext == "vue" || ext == "svelte");
+
+    let sources = if !has_partial_js {
+      vec![(SourceType::from_path(path).unwrap(), source.to_string())]
+    } else {
+      partial_loader::PartialLoader::parse(
+        path
+          .extension()
+          .unwrap_or_default()
+          .to_str()
+          .unwrap_or_default(),
+        source,
+      )
+      .unwrap()
+      .into_iter()
+      .map(|s| (s.source_type, s.source_text.to_string()))
+      .collect()
+    };
+
+    for (source_type, script_source) in sources {
+      let allocator = Allocator::default();
+      let ret = Parser::new(&allocator, &script_source, source_type).parse();
+      assert!(
+        ret.errors.is_empty(),
+        "migrated output did not parse: {:?}",
+        ret.errors
+      );
+    }
+  }
+
   #[test]
   fn migrates_vue() {
     let input = r#"
@@ -404,7 +435,7 @@ mod tests {
   import * as fs from "@tauri-apps/plugin-fs";
   import "./App.css";
 import * as dialog from "@tauri-apps/plugin-dialog"
-import * as cli as superCli from "@tauri-apps/plugin-cli"
+import * as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 </script>
 
@@ -428,6 +459,7 @@ const appWindow = getCurrentWebviewWindow()
     .unwrap();
 
     assert_eq!(migrated, expected);
+    assert_migrated_output_parses(Path::new("file.vue"), &migrated);
 
     assert_eq!(
       new_plugins,
@@ -479,7 +511,7 @@ const appWindow = getCurrentWebviewWindow()
   import * as fs from "@tauri-apps/plugin-fs";
   import "./App.css";
 import * as dialog from "@tauri-apps/plugin-dialog"
-import * as cli as superCli from "@tauri-apps/plugin-cli"
+import * as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 </script>
 "#;
@@ -496,6 +528,7 @@ const appWindow = getCurrentWebviewWindow()
     .unwrap();
 
     assert_eq!(migrated, expected);
+    assert_migrated_output_parses(Path::new("file.svelte"), &migrated);
 
     assert_eq!(
       new_plugins,
@@ -598,7 +631,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import Database from "@tauri-apps/plugin-sql";
 import "./App.css";
 import * as dialog from "@tauri-apps/plugin-dialog"
-import * as cli as superCli from "@tauri-apps/plugin-cli"
+import * as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 
 function App() {
@@ -670,6 +703,7 @@ export default App;
     .unwrap();
 
     assert_eq!(migrated, expected);
+    assert_migrated_output_parses(Path::new("file.js"), &migrated);
 
     assert_eq!(
       new_plugins,

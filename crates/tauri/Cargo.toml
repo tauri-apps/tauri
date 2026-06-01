@@ -93,6 +93,7 @@ muda = { version = "0.19", default-features = false, features = [
 ] }
 tray-icon = { version = "0.24", default-features = false, features = [
   "serde",
+  "gtk",
 ], optional = true }
 
 # linux

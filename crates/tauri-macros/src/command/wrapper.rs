@@ -40,6 +40,7 @@ struct WrapperAttributes {
   root: TokenStream2,
   execution_context: ExecutionContext,
   argument_case: ArgumentCase,
+  rename: RenamePolicy,
 }
 
 impl Parse for WrapperAttributes {
@@ -48,6 +49,7 @@ impl Parse for WrapperAttributes {
       root: quote!(::tauri),
       execution_context: ExecutionContext::Blocking,
       argument_case: ArgumentCase::Camel,
+      rename: RenamePolicy::Keep,
     };
 
     let attrs = Punctuated::<WrapperAttributeKind, Token![,]>::parse_terminated(input)?;
@@ -74,6 +76,19 @@ impl Parse for WrapperAttributes {
                 }
               };
             }
+          } else if v.path.is_ident("rename") {
+            if let Expr::Lit(ExprLit {
+              lit: Lit::Str(s), ..
+            }) = v.value
+            {
+              let lit = s.value();
+              wrapper_attributes.rename = RenamePolicy::Rename(quote!(#lit));
+            } else {
+              return Err(syn::Error::new(
+                v.span(),
+                "expected string literal for rename",
+              ));
+            }
           } else if v.path.is_ident("root") {
             if let Expr::Lit(ExprLit {
               lit: Lit::Str(s),
@@ -94,7 +109,7 @@ impl Parse for WrapperAttributes {
         WrapperAttributeKind::Meta(Meta::Path(_)) => {
           return Err(syn::Error::new(
             input.span(),
-            "unexpected input, expected one of `rename_all`, `root`, `async`",
+            "unexpected input, expected one of `rename_all`, `rename`, `root`, `async`",
           ));
         }
         WrapperAttributeKind::Async => {
@@ -120,6 +135,12 @@ enum ArgumentCase {
   Camel,
 }
 
+/// The rename policy for the command.
+enum RenamePolicy {
+  Keep,
+  Rename(TokenStream2),
+}
+
 /// The bindings we attach to `tauri::Invoke`.
 struct Invoke {
   message: Ident,
@@ -138,9 +159,11 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     attrs.execution_context = ExecutionContext::Async;
   }
 
-  // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`
+  // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`.
   let maybe_macro_export = match &function.vis {
-    Visibility::Public(_) | Visibility::Restricted(_) => quote!(#[macro_export]),
+    Visibility::Public(_) | Visibility::Restricted(_) => {
+      quote!(#[macro_export])
+    }
     _ => TokenStream2::default(),
   };
 
@@ -270,12 +293,34 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream2::default()
   };
 
+  // Always define a hidden macro that returns the externally invoked command name.
+  // This lets the handler match on the renamed string while the original function
+  // identifier remains usable in `generate_handler![original_fn_name]`.
+  let command_name_macro_ident = format_ident!("__tauri_command_name_{}", function.sig.ident);
+  let command_name_value = if let RenamePolicy::Rename(ref rename) = attrs.rename {
+    quote!(#rename)
+  } else {
+    let ident = &function.sig.ident;
+    quote!(stringify!(#ident))
+  };
+
   // Rely on rust 2018 edition to allow importing a macro from a path.
   quote!(
     #async_command_check
 
     #maybe_allow_unused
     #function
+
+    // Command name macro used by the handler for pattern matching.
+    // This macro returns the command name string literal (renamed or original).
+    #maybe_allow_unused
+    #maybe_macro_export
+    #[doc(hidden)]
+    macro_rules! #command_name_macro_ident {
+      () => {
+        #command_name_value
+      };
+    }
 
     #maybe_allow_unused
     #maybe_macro_export
@@ -303,7 +348,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
     // allow the macro to be resolved with the same path as the command function
     #[allow(unused_imports)]
-    #visibility use #wrapper;
+    #visibility use {#wrapper, #command_name_macro_ident};
   )
   .into()
 }
@@ -467,11 +512,16 @@ fn parse_arg(
   }
 
   let root = &attributes.root;
+  let command_name = if let RenamePolicy::Rename(r) = &attributes.rename {
+    quote!(stringify!(#r))
+  } else {
+    quote!(stringify!(#command))
+  };
 
   Ok(quote!(#root::ipc::CommandArg::from_command(
     #root::ipc::CommandItem {
       plugin: #plugin_name,
-      name: stringify!(#command),
+      name: #command_name,
       key: #key,
       message: &#message,
       acl: &#acl,

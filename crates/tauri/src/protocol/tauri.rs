@@ -21,7 +21,7 @@ use std::{collections::HashMap, sync::Mutex};
 struct CachedResponse {
   status: http::StatusCode,
   headers: http::HeaderMap,
-  body: bytes::Bytes,
+  body: Vec<u8>,
 }
 
 pub fn get<R: Runtime>(
@@ -80,7 +80,7 @@ pub fn get<R: Runtime>(
     }
     let client = client_builder.build().unwrap();
 
-    let response_cache = Arc::new(Mutex::new(HashMap::new()));
+    let response_cache = Mutex::new(HashMap::new());
 
     (url, client, response_cache)
   };
@@ -125,7 +125,7 @@ struct Context<R: Runtime> {
   #[cfg(all(dev, mobile))]
   client: reqwest::Client,
   #[cfg(all(dev, mobile))]
-  response_cache: Arc<Mutex<HashMap<String, CachedResponse>>>,
+  response_cache: Mutex<HashMap<String, CachedResponse>>,
 }
 
 async fn get_response<R: Runtime>(
@@ -198,7 +198,7 @@ async fn get_response<R: Runtime>(
 async fn proxy_dev_request(
   client: &reqwest::Client,
   url: &String,
-  response_cache: &Arc<Mutex<HashMap<String, CachedResponse>>>,
+  response_cache: &Mutex<HashMap<String, CachedResponse>>,
   path: String,
   mut builder: http::response::Builder,
   request: &Request<Vec<u8>>,
@@ -218,7 +218,7 @@ async fn proxy_dev_request(
   }
   proxy_builder = proxy_builder.body(request.body().clone());
 
-  let r = proxy_builder.send().await.map_err(|e|{
+  let response = proxy_builder.send().await.map_err(|e|{
     let error_message = format!(
       "Failed to request {url}: {e}{}",
       if let Some(s) = e.status() {
@@ -233,8 +233,7 @@ async fn proxy_dev_request(
     error_message
   })?;
 
-  let status = r.status();
-  let headers = r.headers().clone();
+  let status = response.status();
 
   if status == http::StatusCode::NOT_MODIFIED {
     if let Some(response) = response_cache.lock().unwrap().get(&url).cloned() {
@@ -242,42 +241,29 @@ async fn proxy_dev_request(
         builder = builder.header(name, value);
       }
 
-      builder
-        .status(response.status)
-        .body(response.body.to_vec().into())
-        .map_err(Into::into)
-    } else {
-      for (name, value) in &headers {
-        builder = builder.header(name, value);
-      }
-
-      builder
-        .status(status)
-        .body(Vec::new().into())
-        .map_err(Into::into)
+      return Ok(builder.status(response.status).body(response.body.into())?);
     }
-  } else {
-    let body = r.bytes().await?;
-    let response = CachedResponse {
-      status,
-      headers,
-      body,
-    };
-
-    {
-      response_cache
-        .lock()
-        .unwrap()
-        .insert(url.clone(), response.clone());
-    }
-
-    for (name, value) in &response.headers {
-      builder = builder.header(name, value);
-    }
-
-    builder
-      .status(response.status)
-      .body(response.body.to_vec().into())
-      .map_err(Into::into)
   }
+
+  let headers = response.headers().clone();
+  let body = response.bytes().await?.to_vec();
+  let response = CachedResponse {
+    status,
+    headers,
+    body,
+  };
+
+  response_cache
+    .lock()
+    .unwrap()
+    .insert(url.clone(), response.clone());
+
+  for (name, value) in &response.headers {
+    builder = builder.header(name, value);
+  }
+
+  builder
+    .status(response.status)
+    .body(response.body.into())
+    .map_err(Into::into)
 }

@@ -664,7 +664,9 @@ impl<R: Runtime> WebviewManager<R> {
     {
       webview
         .with_webview(|w| {
-          unsafe { crate::ios::on_webview_created(w.inner() as _, w.view_controller() as _) };
+          if let Some(w) = w.as_any().downcast_ref::<tauri_runtime_wry::Webview>() {
+            unsafe { crate::ios::on_webview_created(w.inner() as _, w.view_controller() as _) };
+          }
         })
         .expect("failed to run on_webview_created hook");
     }

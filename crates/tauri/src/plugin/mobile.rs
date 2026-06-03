@@ -165,12 +165,17 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       let config = self.raw_config.clone();
       webview
         .with_webview(move |w| {
+          let webview_ptr = w
+            .as_any()
+            .downcast_ref::<tauri_runtime_wry::Webview>()
+            .map(|w| w.inner())
+            .unwrap_or(std::ptr::null_mut());
           unsafe {
             crate::ios::register_plugin(
               &name.into(),
               init_fn(),
               &serde_json::to_string(&config).unwrap().as_str().into(),
-              w.inner() as _,
+              webview_ptr as _,
             )
           };
           tx.send(()).unwrap();

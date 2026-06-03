@@ -27,7 +27,7 @@ pub enum Event {
   PathForbidden(PathBuf),
 }
 
-type EventListener = Box<dyn Fn(&Event) + Send>;
+type EventListener = Arc<dyn Fn(&Event) + Send>;
 
 /// Scope for filesystem access.
 #[derive(Clone)]
@@ -240,7 +240,7 @@ impl Scope {
   }
 
   fn listen_with_id<F: Fn(&Event) + Send + 'static>(&self, id: ScopeEventId, f: F) {
-    self.event_listeners.lock().unwrap().insert(id, Box::new(f));
+    self.event_listeners.lock().unwrap().insert(id, Arc::new(f));
   }
 
   /// Listen to an event on this scope and immediately unlisten.
@@ -264,10 +264,12 @@ impl Scope {
   }
 
   fn emit(&self, event: Event) {
-    let listeners = self.event_listeners.lock().unwrap();
-    let handlers = listeners.values();
-    for listener in handlers {
-      listener(&event);
+    let handlers: Vec<_> = {
+      let listeners = self.event_listeners.lock().unwrap();
+      listeners.values().cloned().collect()
+    };
+    for handler in handlers {
+      handler(&event);
     }
   }
 

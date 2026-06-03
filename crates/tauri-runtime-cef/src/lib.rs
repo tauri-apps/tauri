@@ -333,6 +333,10 @@ pub(crate) struct AppWindow {
   pub webviews: Vec<AppWebview>,
   pub window_event_listeners: WindowEventListeners,
   pub webview_event_listeners: WebviewEventListeners,
+  /// Id of the webview that currently holds focus in this window, if any.
+  /// Used to emit `WebviewEvent::Focused(false)` to the previously focused
+  /// webview when focus moves or the window loses focus.
+  pub focused_webview_id: std::cell::Cell<Option<u32>>,
 }
 
 impl AppWindow {

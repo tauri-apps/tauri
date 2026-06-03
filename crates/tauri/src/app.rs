@@ -211,8 +211,6 @@ pub enum WebviewEvent {
   /// ## Platform-specific
   ///
   /// - **Wry runtime**: not implemented yet; this event is never emitted.
-  /// - **CEF runtime**: only `Focused(true)` is emitted. CEF does not expose
-  ///   a reliable focus-loss callback so `Focused(false)` is never fired.
   Focused(bool),
 }
 

@@ -932,6 +932,9 @@ cef::wrap_focus_handler! {
         self.webview_id,
         WebviewEvent::Focused(true),
       );
+
+      // a webview gaining focus means the previously focused webview lost it
+      update_focused_webview(&self.context, self.window_id, Some(self.webview_id));
     }
   }
 }
@@ -2329,12 +2332,19 @@ wrap_window_delegate! {
       _window: Option<&mut Window>,
       active: ::std::os::raw::c_int,
     ) {
+      let focused = active == 1;
       send_window_event(
         self.window_id,
         &self.windows,
         &self.callback,
-        WindowEvent::Focused(active == 1),
+        WindowEvent::Focused(focused),
       );
+
+      // when the window loses focus its focused webview loses focus too;
+      // when it regains focus CEF fires `on_got_focus` for the active webview.
+      if !focused {
+        update_focused_webview(&self.context, self.window_id, None);
+      }
     }
   }
 }
@@ -4105,6 +4115,7 @@ fn create_browser_window<T: UserEvent>(
           }],
           window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
           webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
+          focused_webview_id: std::cell::Cell::new(None),
         },
       );
     }
@@ -4176,6 +4187,7 @@ pub(crate) fn create_window<T: UserEvent>(
       webviews: Vec::new(),
       window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
       webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
+      focused_webview_id: std::cell::Cell::new(None),
     },
   );
 
@@ -4234,6 +4246,20 @@ wrap_task! {
         self.webview_id,
         self.event.clone(),
       );
+    }
+  }
+}
+
+wrap_task! {
+  struct UpdateFocusedWebviewTask<T: UserEvent> {
+    context: Context<T>,
+    window_id: WindowId,
+    focused: Option<u32>,
+  }
+
+  impl Task {
+    fn execute(&self) {
+      update_focused_webview(&self.context, self.window_id, self.focused);
     }
   }
 }
@@ -4351,6 +4377,45 @@ fn send_webview_event<T: UserEvent>(
       handler(&event);
     }
   });
+}
+
+/// Record `focused` as the webview that now holds focus in the window and emit
+/// [`WebviewEvent::Focused(false)`] to the previously focused webview, if any.
+///
+/// Pass `Some(id)` when a webview gains focus, or `None` when the window itself
+/// loses focus (so the active webview is notified it is no longer focused).
+fn update_focused_webview<T: UserEvent>(
+  context: &Context<T>,
+  window_id: WindowId,
+  focused: Option<u32>,
+) {
+  let previously_focused = {
+    let Ok(windows_ref) = context.windows.try_borrow() else {
+      // windows currently mutably borrowed (e.g. reparent/destroy) - retry later
+      let mut task = UpdateFocusedWebviewTask::new(context.clone(), window_id, focused);
+      cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+      return;
+    };
+
+    let Some(w) = windows_ref.get(&window_id) else {
+      return;
+    };
+
+    w.focused_webview_id.replace(focused)
+  };
+
+  // notify the previously focused webview it lost focus, unless it is the one
+  // that just gained focus (re-focusing the same webview is a no-op)
+  if let Some(previously_focused) = previously_focused
+    && Some(previously_focused) != focused
+  {
+    send_webview_event(
+      context,
+      window_id,
+      previously_focused,
+      WebviewEvent::Focused(false),
+    );
+  }
 }
 
 fn send_drag_drop_event<T: UserEvent>(

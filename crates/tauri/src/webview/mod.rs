@@ -204,8 +204,7 @@ impl PlatformWebview {
   #[cfg(feature = "wry")]
   fn wry(&self) -> &tauri_runtime_wry::Webview {
     #[allow(irrefutable_let_patterns)]
-    let PlatformWebviewInner::Wry(webview) = &self.0
-    else {
+    let PlatformWebviewInner::Wry(webview) = &self.0 else {
       unreachable!("the webview is not backed by the wry runtime")
     };
     webview
@@ -306,8 +305,7 @@ impl PlatformWebview {
   #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
   pub fn browser(&self) -> tauri_runtime_cef::cef::Browser {
     #[allow(irrefutable_let_patterns)]
-    let PlatformWebviewInner::Cef(browser) = &self.0
-    else {
+    let PlatformWebviewInner::Cef(browser) = &self.0 else {
       unreachable!("the webview is not backed by the cef runtime")
     };
     browser.clone()
@@ -1775,7 +1773,7 @@ impl<R: Runtime> Webview<R> {
   ///
   /// The closure is executed on the main thread.
   ///
-  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
+  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit`, `cef` (in case of CEF runtime) and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
   ///
   #[cfg_attr(

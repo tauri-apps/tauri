@@ -53,6 +53,11 @@ mod cef_webview;
 mod utils;
 
 /// The `cef` crate used by this runtime, re-exported for convenience.
+///
+/// # Stability
+///
+/// The cef crate follows the Chromium Embedded Framework interface and there is no API stability guarantees.
+/// The crate will be updated frequently, usually in minor releases when a known breaking change is discovered.
 pub use cef;
 
 type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;

@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 mod cmd;
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test)))]
 mod menu_plugin;
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test)))]
 mod tray;
 
 use serde::Serialize;

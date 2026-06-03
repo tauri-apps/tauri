@@ -61,7 +61,7 @@ jobs:
               target: aarch64-apple-ios,
               os: macos-latest,
               toolchain: '1.77.2',
-              cargo: cross,
+              cargo: cargo,
               command: 'build'
             }
           - {

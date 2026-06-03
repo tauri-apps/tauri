@@ -917,6 +917,25 @@ wrap_display_handler! {
   }
 }
 
+cef::wrap_focus_handler! {
+  struct BrowserFocusHandler<T: UserEvent> {
+    context: Context<T>,
+    window_id: WindowId,
+    webview_id: u32,
+  }
+
+  impl FocusHandler {
+    fn on_got_focus(&self, _browser: Option<&mut Browser>) {
+      send_webview_event(
+        &self.context,
+        self.window_id,
+        self.webview_id,
+        WebviewEvent::Focused(true),
+      );
+    }
+  }
+}
+
 wrap_context_menu_handler! {
   struct BrowserContextMenuHandler {
     devtools_enabled: bool,
@@ -1664,6 +1683,14 @@ wrap_client! {
 
     fn context_menu_handler(&self) -> Option<ContextMenuHandler> {
       Some(BrowserContextMenuHandler::new(self.devtools_enabled))
+    }
+
+    fn focus_handler(&self) -> Option<FocusHandler> {
+      Some(BrowserFocusHandler::new(
+        self.context.clone(),
+        self.window_id,
+        self.webview_id,
+      ))
     }
 
     fn keyboard_handler(&self) -> Option<KeyboardHandler> {

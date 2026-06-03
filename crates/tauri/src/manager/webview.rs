@@ -749,6 +749,11 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
       DragDropEvent::Leave => webview.emit_to_webview(DRAG_LEAVE_EVENT, &())?,
       _ => unimplemented!(),
     },
+    // Focus changes are already observable from the web side via the native
+    // `focus` / `blur` DOM events, so we don't re-emit them as a Tauri event.
+    // Rust-side listeners receive the variant directly through
+    // `on_webview_event`. We could re-emit in the future if needed.
+    WebviewEvent::Focused(_) => {}
   }
 
   Ok(())

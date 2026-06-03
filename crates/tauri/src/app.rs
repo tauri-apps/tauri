@@ -203,12 +203,24 @@ impl From<RuntimeWindowEvent> for WindowEvent {
 pub enum WebviewEvent {
   /// An event associated with the drag and drop action.
   DragDrop(DragDropEvent),
+  /// The webview gained or lost keyboard focus.
+  ///
+  /// The parameter is `true` when the webview gained focus, `false` when it
+  /// lost focus.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Wry runtime**: not implemented yet; this event is never emitted.
+  /// - **CEF runtime**: only `Focused(true)` is emitted. CEF does not expose
+  ///   a reliable focus-loss callback so `Focused(false)` is never fired.
+  Focused(bool),
 }
 
 impl From<RuntimeWebviewEvent> for WebviewEvent {
   fn from(event: RuntimeWebviewEvent) -> Self {
     match event {
       RuntimeWebviewEvent::DragDrop(e) => Self::DragDrop(e),
+      RuntimeWebviewEvent::Focused(focused) => Self::Focused(focused),
     }
   }
 }

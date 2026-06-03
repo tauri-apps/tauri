@@ -89,6 +89,11 @@ pub enum WindowEvent {
 pub enum WebviewEvent {
   /// An event associated with the drag and drop action.
   DragDrop(DragDropEvent),
+  /// The webview gained or lost keyboard focus.
+  ///
+  /// The parameter is `true` when the webview gained focus, `false` when it
+  /// lost focus.
+  Focused(bool),
 }
 
 /// The drag drop event payload.

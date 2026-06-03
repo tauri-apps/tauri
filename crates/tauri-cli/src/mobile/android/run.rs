@@ -101,7 +101,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       features: options.features,
       config: options.config.clone(),
       split_per_abi: true,
-      apk: false,
+      apk: true,
       aab: false,
       skip_bundle: false,
       open: options.open,

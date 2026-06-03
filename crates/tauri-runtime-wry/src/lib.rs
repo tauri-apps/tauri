@@ -5232,9 +5232,12 @@ You may have it installed on another user account, but it is not available for t
       target_os = "android"
     )))]
     WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
-      let vbox = window.default_vbox().unwrap();
-      webview_builder.build_gtk(vbox)
+      // Build child webviews into the window's `gtk::Fixed` overlay layer (not the
+      // default vertical `gtk::Box`) so wry honors their bounds and they overlay
+      // the window instead of stacking. Fixes multi-webview positioning on Linux
+      // (tauri-apps/tauri#10420). Requires tao's `WindowExtUnix::content_fixed`.
+      let fixed = window.content_fixed().unwrap();
+      webview_builder.build_gtk(fixed)
     }
     #[cfg(any(
       target_os = "windows",

@@ -1934,11 +1934,28 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
   }
 }
 
+/// Message delivered to the runtime's main loop ([`CefRuntime::run`]).
+///
+/// The loop multiplexes two sources over a single `mpsc` channel — embedder
+/// `RunEvent`s and CEF external-message-pump scheduling requests — because a
+/// `std::sync::mpsc::Receiver` can only be blocked on one at a time. Folding
+/// both into one channel lets the loop park on a single `recv()`/`recv_timeout`
+/// and wake promptly for either.
+pub(crate) enum MainLoopMessage<T: UserEvent> {
+  /// An embedder-facing runtime event to dispatch to the run callback.
+  Event(RunEvent<T>),
+  /// CEF requested (via [`ImplBrowserProcessHandler::on_schedule_message_pump_work`])
+  /// a `cef::do_message_loop_work()` pass `delay_ms` from now. `delay_ms <= 0`
+  /// means "as soon as possible". Only delivered when
+  /// `CefSettings.external_message_pump` is enabled.
+  ScheduleWork { delay_ms: i64 },
+}
+
 #[derive(Debug)]
 pub struct CefRuntime<T: UserEvent> {
   pub context: RuntimeContext<T>,
-  event_tx: std::sync::mpsc::Sender<RunEvent<T>>,
-  event_rx: std::sync::mpsc::Receiver<RunEvent<T>>,
+  event_tx: std::sync::mpsc::Sender<MainLoopMessage<T>>,
+  event_rx: std::sync::mpsc::Receiver<MainLoopMessage<T>>,
 }
 
 #[cfg(target_os = "macos")]
@@ -2015,8 +2032,12 @@ impl<T: UserEvent> CefRuntime<T> {
     let cef_context = cef_impl::Context {
       windows: windows.clone(),
       callback: Arc::new(RefCell::new(Box::new(move |event| {
-        event_tx_.send(event).unwrap();
+        event_tx_.send(MainLoopMessage::Event(event)).unwrap();
       }))),
+      // Lets `AppBrowserProcessHandler::on_schedule_message_pump_work` wake the
+      // main loop to pump CEF, without going through `callback` (a `RefCell`
+      // that is not safe to touch off the UI thread).
+      schedule_tx: event_tx.clone(),
       next_webview_event_id: Default::default(),
       next_webview_id: Default::default(),
       next_window_id: Default::default(),

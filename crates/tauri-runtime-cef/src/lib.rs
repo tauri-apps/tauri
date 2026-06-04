@@ -1937,6 +1937,10 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 #[derive(Debug)]
 pub struct CefRuntime<T: UserEvent> {
   pub context: RuntimeContext<T>,
+  // Bootstrap channel for events emitted before `run()` installs the embedder
+  // callback (drained once at the top of `run()`). During the run loop, CEF
+  // owns the message loop (`cef::run_message_loop`) and events are delivered
+  // directly on the UI thread, so this channel is only used pre-loop.
   event_tx: std::sync::mpsc::Sender<RunEvent<T>>,
   event_rx: std::sync::mpsc::Receiver<RunEvent<T>>,
 }
@@ -2085,7 +2089,6 @@ impl<T: UserEvent> CefRuntime<T> {
     // must leave the run loop to shut down cleanly.
     #[cfg(target_os = "macos")]
     if !is_helper {
-      let event_tx_ = event_tx.clone();
       let cef_context_ = cef_context.clone();
       init_ns_app_delegate(Box::new(move |event| match event {
         AppDelegateEvent::TryTerminate => {
@@ -2100,17 +2103,17 @@ impl<T: UserEvent> CefRuntime<T> {
         AppDelegateEvent::Reopen {
           has_visible_windows,
         } => {
-          event_tx_
-            .send(RunEvent::Reopen {
-              has_visible_windows,
-            })
-            .unwrap();
+          // Delivered straight to the embedder callback on the UI thread; CEF
+          // owns the loop now, so there is no channel drain to route through.
+          (cef_context_.callback.borrow())(RunEvent::Reopen {
+            has_visible_windows,
+          });
         }
         AppDelegateEvent::AccessibilityChanged { enabled } => {
           cef_impl::set_browsers_accessibility_state(&cef_context_, enabled);
         }
         AppDelegateEvent::OpenURLs { urls } => {
-          event_tx_.send(RunEvent::Opened { urls }).unwrap();
+          (cef_context_.callback.borrow())(RunEvent::Opened { urls });
         }
       }));
     }
@@ -2399,40 +2402,62 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     let callback = Arc::new(RefCell::new(callback));
     let callback_ = callback.clone();
-    let event_tx_ = self.event_tx.clone();
+
+    // Re-entrancy queue. If an embedder event is emitted *while* the run
+    // callback is already executing (e.g. a window-event handler that requests
+    // another action), we cannot borrow the callback again; stash it here and
+    // flush as soon as the outer call returns. Everything runs on the CEF UI
+    // thread, so `Rc<RefCell<…>>` is sufficient (no cross-thread sharing).
+    let pending: std::rc::Rc<RefCell<std::collections::VecDeque<RunEvent<T>>>> =
+      std::rc::Rc::new(RefCell::new(std::collections::VecDeque::new()));
+
+    // Install the embedder callback. With CEF owning the message loop
+    // (`cef::run_message_loop` below), embedder events are delivered directly
+    // on the CEF UI thread from CEF callbacks / posted tasks; `Exit` unwinds
+    // the loop via `quit_message_loop`.
     let _ = std::mem::replace(
       &mut *self.context.cef_context.callback.borrow_mut(),
       Box::new(move |event| {
         if let RunEvent::Exit = event {
-          // notify the event loop to exit
-          let _ = event_tx_.send(RunEvent::Exit);
-        } else {
-          // Try to call callback directly, if busy queue to channel
-          if let Ok(mut cb) = callback.try_borrow_mut() {
+          cef::quit_message_loop();
+          return;
+        }
+        match callback.try_borrow_mut() {
+          Ok(mut cb) => {
             cb(event);
-          } else {
-            let _ = event_tx_.send(event);
+            // Flush events emitted re-entrantly while `cb` was running.
+            while let Some(deferred) = pending.borrow_mut().pop_front() {
+              cb(deferred);
+            }
           }
+          Err(_) => pending.borrow_mut().push_back(event),
         }
       }),
     );
 
-    'main_loop: loop {
-      while let Ok(event) = self.event_rx.try_recv() {
-        if matches!(&event, RunEvent::Exit) {
-          // Exit event is triggered when we break out of the loop
-          break 'main_loop;
-        }
-
-        (self.context.cef_context.callback.borrow())(event);
+    // Drain anything emitted onto the bootstrap channel before the callback was
+    // installed (init-phase events). An `Exit` here means quit before we ever
+    // start the loop — skip straight to tear-down.
+    let mut exit_before_loop = false;
+    while let Ok(event) = self.event_rx.try_recv() {
+      if let RunEvent::Exit = event {
+        exit_before_loop = true;
+        break;
       }
+      (callback_.borrow_mut())(event);
+    }
 
-      // Do CEF message loop work
-      // This processes one iteration of the message loop
-      cef::do_message_loop_work();
-
-      // Emit MainEventsCleared event
-      (self.context.cef_context.callback.borrow())(RunEvent::MainEventsCleared);
+    // Hand the main thread to CEF/Chromium and let it own the native message
+    // loop — exactly what cefsimple/Electron do. On macOS this runs `[NSApp
+    // run]`, which (a) drives the full native app lifecycle (launch +
+    // activation) that `do_message_loop_work`/`external_message_pump` could not,
+    // and (b) blocks correctly in the kernel when idle, so an idle browser
+    // costs ~0% CPU with no manual pumping, no spin, and no polling. User/
+    // embedder work reaches the UI thread through the CEF callbacks and the
+    // `cef::post_task(TID_UI, …)` paths already used throughout this runtime.
+    // Returns when `quit_message_loop` is called (the `Exit` branch above).
+    if !exit_before_loop {
+      cef::run_message_loop();
     }
 
     // Tear-down phase — mirrors the tail of cefclient's `RunMain`:

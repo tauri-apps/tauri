@@ -564,6 +564,12 @@ pub type RunEventCallback<T> = Arc<RefCell<Box<dyn Fn(RunEvent<T>)>>>;
 pub struct Context<T: UserEvent> {
   pub windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
   pub callback: RunEventCallback<T>,
+  /// Sender for the runtime main loop's channel. Used by
+  /// [`AppBrowserProcessHandler::on_schedule_message_pump_work`] to wake the
+  /// loop and request a `cef::do_message_loop_work()` pass under the external
+  /// message pump — `callback` can't be used for this because it is a
+  /// `RefCell` and the schedule callback may arrive off the UI thread.
+  pub schedule_tx: std::sync::mpsc::Sender<crate::MainLoopMessage<T>>,
   pub next_window_id: Arc<AtomicU32>,
   pub next_webview_id: Arc<AtomicU32>,
   pub next_window_event_id: Arc<AtomicU32>,
@@ -659,6 +665,18 @@ wrap_browser_process_handler! {
   impl BrowserProcessHandler {
     fn on_context_initialized(&self) {
       (self.context.callback.borrow())(RunEvent::Ready);
+    }
+
+    fn on_schedule_message_pump_work(&self, delay_ms: i64) {
+      // External message pump (`CefSettings.external_message_pump`): CEF asks
+      // us to run `do_message_loop_work()` `delay_ms` from now. Forward to the
+      // runtime main loop, which owns the pump and parks on this channel when
+      // idle. Best-effort: once the loop exits the receiver is gone and there
+      // is nothing left to pump.
+      let _ = self
+        .context
+        .schedule_tx
+        .send(crate::MainLoopMessage::ScheduleWork { delay_ms });
     }
 
     fn on_already_running_app_relaunch(

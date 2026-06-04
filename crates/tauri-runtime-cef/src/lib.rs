@@ -1934,11 +1934,28 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
   }
 }
 
+/// Message delivered to the runtime's main loop ([`CefRuntime::run`]).
+///
+/// The loop multiplexes two sources over a single `mpsc` channel — embedder
+/// `RunEvent`s and CEF external-message-pump scheduling requests — because a
+/// `std::sync::mpsc::Receiver` can only be blocked on one at a time. Folding
+/// both into one channel lets the loop park on a single `recv()`/`recv_timeout`
+/// and wake promptly for either.
+pub(crate) enum MainLoopMessage<T: UserEvent> {
+  /// An embedder-facing runtime event to dispatch to the run callback.
+  Event(RunEvent<T>),
+  /// CEF requested (via [`ImplBrowserProcessHandler::on_schedule_message_pump_work`])
+  /// a `cef::do_message_loop_work()` pass `delay_ms` from now. `delay_ms <= 0`
+  /// means "as soon as possible". Only delivered when
+  /// `CefSettings.external_message_pump` is enabled.
+  ScheduleWork { delay_ms: i64 },
+}
+
 #[derive(Debug)]
 pub struct CefRuntime<T: UserEvent> {
   pub context: RuntimeContext<T>,
-  event_tx: std::sync::mpsc::Sender<RunEvent<T>>,
-  event_rx: std::sync::mpsc::Receiver<RunEvent<T>>,
+  event_tx: std::sync::mpsc::Sender<MainLoopMessage<T>>,
+  event_rx: std::sync::mpsc::Receiver<MainLoopMessage<T>>,
 }
 
 #[cfg(target_os = "macos")]
@@ -2015,8 +2032,12 @@ impl<T: UserEvent> CefRuntime<T> {
     let cef_context = cef_impl::Context {
       windows: windows.clone(),
       callback: Arc::new(RefCell::new(Box::new(move |event| {
-        event_tx_.send(event).unwrap();
+        event_tx_.send(MainLoopMessage::Event(event)).unwrap();
       }))),
+      // Lets `AppBrowserProcessHandler::on_schedule_message_pump_work` wake the
+      // main loop to pump CEF, without going through `callback` (a `RefCell`
+      // that is not safe to touch off the UI thread).
+      schedule_tx: event_tx.clone(),
       next_webview_event_id: Default::default(),
       next_webview_id: Default::default(),
       next_window_id: Default::default(),
@@ -2063,6 +2084,11 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
+      // Drive CEF from our own loop via `on_schedule_message_pump_work` +
+      // `do_message_loop_work()` instead of letting CEF own the loop or
+      // tight-looping the pump. This is what lets the loop park on idle: see
+      // `MainLoopMessage` and the run loop in `CefRuntime::run`.
+      external_message_pump: 1,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       ..Default::default()
     };
@@ -2101,16 +2127,18 @@ impl<T: UserEvent> CefRuntime<T> {
           has_visible_windows,
         } => {
           event_tx_
-            .send(RunEvent::Reopen {
+            .send(MainLoopMessage::Event(RunEvent::Reopen {
               has_visible_windows,
-            })
+            }))
             .unwrap();
         }
         AppDelegateEvent::AccessibilityChanged { enabled } => {
           cef_impl::set_browsers_accessibility_state(&cef_context_, enabled);
         }
         AppDelegateEvent::OpenURLs { urls } => {
-          event_tx_.send(RunEvent::Opened { urls }).unwrap();
+          event_tx_
+            .send(MainLoopMessage::Event(RunEvent::Opened { urls }))
+            .unwrap();
         }
       }));
     }
@@ -2405,34 +2433,80 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       Box::new(move |event| {
         if let RunEvent::Exit = event {
           // notify the event loop to exit
-          let _ = event_tx_.send(RunEvent::Exit);
+          let _ = event_tx_.send(MainLoopMessage::Event(RunEvent::Exit));
         } else {
           // Try to call callback directly, if busy queue to channel
           if let Ok(mut cb) = callback.try_borrow_mut() {
             cb(event);
           } else {
-            let _ = event_tx_.send(event);
+            let _ = event_tx_.send(MainLoopMessage::Event(event));
           }
         }
       }),
     );
 
-    'main_loop: loop {
-      while let Ok(event) = self.event_rx.try_recv() {
-        if matches!(&event, RunEvent::Exit) {
-          // Exit event is triggered when we break out of the loop
-          break 'main_loop;
-        }
+    // External-message-pump loop (`CefSettings.external_message_pump = true`).
+    //
+    // CEF tells us when it needs a `do_message_loop_work()` pass via
+    // `on_schedule_message_pump_work`, which posts `ScheduleWork { delay_ms }`
+    // onto our channel. We pump only when a pass is due and otherwise block on
+    // the channel — so an idle browser parks this thread at ~0% CPU.
+    //
+    // This replaces the old tight loop that called `do_message_loop_work()`
+    // every iteration. That only stayed cheap because the call was *expected*
+    // to block on the OS event source when idle; in signed/hardened-runtime
+    // release builds on macOS it returns immediately instead, so the old loop
+    // spun at thousands of iterations/sec and pegged a core (a CoreAnimation
+    // commit every turn). Blocking on our own channel makes idle cost zero
+    // regardless of whether the OS wait happens to block.
+    //
+    // `next_pump` is the earliest instant CEF wants a pump, or `None` when
+    // nothing is scheduled (block indefinitely). `recv_timeout` doubles as the
+    // pump timer. `delay_ms` is clamped to a day to keep `Instant + Duration`
+    // from overflowing on absurd values.
+    let mut next_pump: Option<std::time::Instant> = Some(std::time::Instant::now());
 
-        (self.context.cef_context.callback.borrow())(event);
+    'main_loop: loop {
+      let now = std::time::Instant::now();
+
+      // A pump is due: run one CEF iteration, then re-evaluate.
+      if next_pump.is_some_and(|deadline| deadline <= now) {
+        next_pump = None;
+        cef::do_message_loop_work();
+        (self.context.cef_context.callback.borrow())(RunEvent::MainEventsCleared);
+        continue;
       }
 
-      // Do CEF message loop work
-      // This processes one iteration of the message loop
-      cef::do_message_loop_work();
+      // Otherwise wait for the next scheduled pump or an embedder message;
+      // with nothing scheduled, block until a message arrives.
+      let message = match next_pump {
+        Some(deadline) => self
+          .event_rx
+          .recv_timeout(deadline.saturating_duration_since(now)),
+        None => self
+          .event_rx
+          .recv()
+          .map_err(|_| std::sync::mpsc::RecvTimeoutError::Disconnected),
+      };
 
-      // Emit MainEventsCleared event
-      (self.context.cef_context.callback.borrow())(RunEvent::MainEventsCleared);
+      match message {
+        Ok(MainLoopMessage::Event(RunEvent::Exit)) => break 'main_loop,
+        Ok(MainLoopMessage::Event(event)) => {
+          (self.context.cef_context.callback.borrow())(event);
+        }
+        Ok(MainLoopMessage::ScheduleWork { delay_ms }) => {
+          // Pump no later than CEF asked. An early pump is harmless (it finds
+          // no work and reschedules); a late one would stall browser work, so
+          // keep the soonest pending deadline.
+          let requested =
+            now + std::time::Duration::from_millis(delay_ms.clamp(0, 86_400_000) as u64);
+          next_pump = Some(next_pump.map_or(requested, |existing| existing.min(requested)));
+        }
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+          // Deadline elapsed; next iteration sees the pump as due.
+        }
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break 'main_loop,
+      }
     }
 
     // Tear-down phase — mirrors the tail of cefclient's `RunMain`:

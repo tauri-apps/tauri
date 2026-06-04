@@ -286,11 +286,11 @@ impl Scope {
     self.listen_with_id(
       id,
       Box::new(move |event| {
+        self_.unlisten(id);
         let handler = handler
           .take()
           .expect("attempted to call handler more than once");
         handler(event);
-        self_.unlisten(id);
       }),
     );
     id
@@ -726,5 +726,16 @@ mod tests {
       assert_pattern!(patterns, "\\\\?\\C:\\path\\to\\dir");
       assert_pattern!(patterns, "\\\\?\\C:\\path\\to\\dir\\**");
     }
+  }
+
+  #[test]
+  fn event_no_deadlocks() {
+    let scope = new_scope();
+    let scope_clone = scope.clone();
+    scope.once(move |event| {
+      assert!(matches!(event, super::Event::PathAllowed(_)));
+      scope_clone.allow_file("/another-test-path").unwrap();
+    });
+    scope.allow_file("/test-path").unwrap();
   }
 }

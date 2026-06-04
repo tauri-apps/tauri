@@ -52,6 +52,33 @@ mod cef_impl;
 mod cef_webview;
 mod utils;
 
+/// The `cef` crate used by this runtime, re-exported for convenience.
+///
+/// # Stability
+///
+/// The cef crate follows the Chromium Embedded Framework interface and there is no API stability guarantees.
+/// The crate will be updated frequently, usually in minor releases when a known breaking change is discovered.
+pub use cef;
+
+/// The platform webview handle backed by the CEF runtime.
+pub struct Webview {
+  browser: cef::Browser,
+}
+
+impl Webview {
+  pub(crate) fn new(browser: cef::Browser) -> Self {
+    Self { browser }
+  }
+
+  /// Returns the [`cef::Browser`] backing this webview.
+  ///
+  /// From the browser you can reach the rest of the CEF API, such as the
+  /// browser host, the main frame or the native window handle.
+  pub fn browser(&self) -> cef::Browser {
+    self.browser.clone()
+  }
+}
+
 type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;
 
 pub fn webview_version() -> Result<String> {
@@ -247,7 +274,7 @@ pub enum WebviewMessage {
   Bounds(Sender<Result<Rect>>),
   Position(Sender<Result<PhysicalPosition<i32>>>),
   Size(Sender<Result<PhysicalSize<u32>>>),
-  WithWebview(Box<dyn FnOnce(Box<dyn std::any::Any>) + Send>),
+  WithWebview(Box<dyn FnOnce(Webview) + Send>),
   // Devtools
   #[cfg(any(debug_assertions, feature = "devtools"))]
   OpenDevTools,
@@ -1141,7 +1168,7 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     id
   }
 
-  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
+  fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.post_message(Message::Webview {
       window_id: *self.window_id.lock().unwrap(),
       webview_id: self.webview_id,
@@ -2239,6 +2266,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type PlatformSpecificWebviewAttribute = WebviewAtribute;
   type PlatformSpecificInitAttribute = RuntimeInitAttribute;
   type WindowOpener = NewWindowOpener;
+  type Webview = Webview;
 
   fn new(args: RuntimeInitArgs<RuntimeInitAttribute>) -> Result<Self> {
     Ok(Self::init(args))

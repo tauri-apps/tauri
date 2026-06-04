@@ -2335,8 +2335,20 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// The closure is executed on the main thread.
   ///
-  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
+  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit`, `cef` (in case of CEF runtime) and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
+  ///
+  /// The closure receives a [`PlatformWebview`](crate::webview::PlatformWebview), which dereferences
+  /// to the webview type defined by the active runtime:
+  ///
+  #[cfg_attr(
+    feature = "wry",
+    doc = "- With the wry runtime: [`tauri_runtime_wry::Webview`]."
+  )]
+  #[cfg_attr(
+    feature = "cef",
+    doc = "- With the CEF runtime: [`tauri_runtime_cef::Webview`], whose underlying CEF browser is accessible via [`browser`](tauri_runtime_cef::Webview::browser)."
+  )]
   ///
   /// # Examples
   ///
@@ -2387,9 +2399,9 @@ impl<R: Runtime> WebviewWindow<R> {
   /// }
   /// ```
   #[allow(clippy::needless_doctest_main)] // To avoid a large diff
-  #[cfg(feature = "wry")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-  pub fn with_webview<F: FnOnce(crate::webview::PlatformWebview) + Send + 'static>(
+  #[cfg(any(feature = "wry", feature = "cef"))]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "wry", feature = "cef"))))]
+  pub fn with_webview<F: FnOnce(crate::webview::PlatformWebview<R>) + Send + 'static>(
     &self,
     f: F,
   ) -> crate::Result<()> {

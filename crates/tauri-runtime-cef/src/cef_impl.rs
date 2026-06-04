@@ -31,7 +31,7 @@ use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{
   AppWebview, AppWindow, CefRuntime, CefWebviewDispatcher, CefWindowBuilder,
-  DevToolsProtocolHandler, Message, RuntimeContext, RuntimeStyle as CefRuntimeStyle,
+  DevToolsProtocolHandler, Message, RuntimeContext, RuntimeStyle as CefRuntimeStyle, Webview,
   WebviewAtribute, WebviewMessage, WindowMessage, cef_webview::CefWebview,
 };
 
@@ -2815,8 +2815,8 @@ fn handle_webview_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WebviewMessage::WithWebview(f) => {
-      if let Some(browser_view) = get_browser(context, window_id, webview_id) {
-        f(Box::new(browser_view));
+      if let Some(browser) = get_browser(context, window_id, webview_id) {
+        f(Webview::new(browser));
       }
     }
     // Devtools

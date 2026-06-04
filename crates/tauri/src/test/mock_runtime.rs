@@ -569,7 +569,7 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     self.context.next_window_event_id()
   }
 
-  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
+  fn with_webview<F: FnOnce(()) + Send + 'static>(&self, _f: F) -> Result<()> {
     Ok(())
   }
 
@@ -1206,6 +1206,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type PlatformSpecificWebviewAttribute = ();
   type PlatformSpecificInitAttribute = ();
   type WindowOpener = ();
+  type Webview = ();
 
   fn new(_args: RuntimeInitArgs<()>) -> Result<Self> {
     Ok(Self::init())

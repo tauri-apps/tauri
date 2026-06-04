@@ -438,6 +438,11 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type EventLoopProxy: EventLoopProxy<T>;
   /// The platform specific webview attributes.
   type PlatformSpecificWebviewAttribute: Send + Sync + 'static;
+  /// The platform webview handle exposed through [`WebviewDispatch::with_webview`].
+  ///
+  /// This is the runtime-specific type the user interacts with to reach the
+  /// underlying platform webview APIs.
+  type Webview: 'static;
   /// The platform specific runtime init arguments. Must implement [`InitAttribute`].
   type PlatformSpecificInitAttribute: InitAttribute + Send + Sync + 'static;
   /// Data about the window that requested the new window for [`PendingWebview::new_window_handler`].
@@ -564,7 +569,10 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId;
 
   /// Runs a closure with the platform webview object as argument.
-  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
+  fn with_webview<F: FnOnce(<Self::Runtime as Runtime<T>>::Webview) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> Result<()>;
 
   /// Open the web inspector which is usually called devtools.
   #[cfg(any(debug_assertions, feature = "devtools"))]

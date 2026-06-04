@@ -667,12 +667,10 @@ wrap_browser_process_handler! {
       (self.context.callback.borrow())(RunEvent::Ready);
     }
 
+    // NOTE: unused while CEF owns the message loop (`cef::run_message_loop`,
+    // `external_message_pump` disabled). Kept harmless; the schedule never
+    // fires. Remove `schedule_tx` + `MainLoopMessage::ScheduleWork` in cleanup.
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
-      // External message pump (`CefSettings.external_message_pump`): CEF asks
-      // us to run `do_message_loop_work()` `delay_ms` from now. Forward to the
-      // runtime main loop, which owns the pump and parks on this channel when
-      // idle. Best-effort: once the loop exits the receiver is gone and there
-      // is nothing left to pump.
       let _ = self
         .context
         .schedule_tx

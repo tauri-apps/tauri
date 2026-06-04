@@ -38,12 +38,15 @@ windows = { version = "0.61", features = [
   "Win32_UI_Input",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_System_LibraryLoader",
+  # MessageBoxW: native modal shown when cef::initialize fails (TAURI-RUST-F).
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", features = [] }
-objc2-foundation = { version = "0.3", features = ["NSNotification"] }
+# NSAlert/NSApplication: native modal shown when cef::initialize fails (TAURI-RUST-F).
+objc2-app-kit = { version = "0.3", features = ["NSAlert", "NSApplication", "NSResponder"] }
+objc2-foundation = { version = "0.3", features = ["NSNotification", "NSString"] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }

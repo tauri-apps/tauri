@@ -49,6 +49,7 @@ use crate::cef_webview::CefWebview;
 
 pub mod audio;
 mod cef_impl;
+mod cef_init_guard;
 mod cef_webview;
 pub mod notification;
 mod permissions;
@@ -2068,15 +2069,22 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       ..Default::default()
     };
-    assert_eq!(
-      cef::initialize(
-        Some(args.as_main_args()),
-        Some(&settings),
-        Some(&mut app),
-        std::ptr::null_mut()
-      ),
-      1
+    // `cef::initialize` returns 1 on success, 0 on failure. A failure here is
+    // unrecoverable in-process (a live prior instance holds the cache lock, or
+    // GPU/sandbox/permission failure), and used to be `assert_eq!(.., 1)` —
+    // turning every failure into the fatal `panic: assertion left == right`
+    // tracked as Sentry TAURI-RUST-F. This is the single chokepoint all
+    // platforms reach, so handling it here makes that panic impossible
+    // regardless of OS or cause: notify the user and exit cleanly instead.
+    let init_result = cef::initialize(
+      Some(args.as_main_args()),
+      Some(&settings),
+      Some(&mut app),
+      std::ptr::null_mut(),
     );
+    if init_result != 1 {
+      cef_init_guard::fail_cef_init_and_exit(init_result, &cache_path);
+    }
 
     // Initialize GTK for system tray support on Linux.
     // The muda crate (used by TrayIconBuilder) requires GTK to be initialized.

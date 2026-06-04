@@ -103,7 +103,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       split_per_abi: true,
       apk: false,
       aab: false,
-      skip_bundle: false,
+      skip_bundle: true,
       open: options.open,
       ci: false,
       args: options.args,

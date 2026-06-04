@@ -1937,10 +1937,6 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 #[derive(Debug)]
 pub struct CefRuntime<T: UserEvent> {
   pub context: RuntimeContext<T>,
-  // Bootstrap channel for events emitted before `run()` installs the embedder
-  // callback (drained once at the top of `run()`). During the run loop, CEF
-  // owns the message loop (`cef::run_message_loop`) and events are delivered
-  // directly on the UI thread, so this channel is only used pre-loop.
   event_tx: std::sync::mpsc::Sender<RunEvent<T>>,
   event_rx: std::sync::mpsc::Receiver<RunEvent<T>>,
 }

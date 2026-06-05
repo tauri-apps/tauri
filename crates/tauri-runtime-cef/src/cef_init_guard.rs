@@ -94,10 +94,15 @@ mod macos {
     // `NSAlert::runModal` requires a shared application to exist. CEF init
     // failed before Tauri created one, so make sure it is present.
     let _app = NSApplication::sharedApplication(mtm);
-    let alert = NSAlert::new(mtm);
-    alert.setMessageText(&NSString::from_str(title));
-    alert.setInformativeText(&NSString::from_str(body));
-    alert.runModal();
+    // SAFETY: these objc2 `NSAlert` methods are marked `unsafe`; the receiver
+    // is freshly created, the strings are valid, and `runModal` runs on the
+    // main thread guaranteed by the `MainThreadMarker` obtained above.
+    unsafe {
+      let alert = NSAlert::new(mtm);
+      alert.setMessageText(&NSString::from_str(title));
+      alert.setInformativeText(&NSString::from_str(body));
+      alert.runModal();
+    }
   }
 }
 
@@ -126,6 +131,11 @@ mod windows_impl {
   target_os = "netbsd"
 ))]
 mod gtk_impl {
+  // `set_title` and `run` are extension-trait methods (`GtkWindowExt` and
+  // `DialogExt` respectively); without these traits in scope the Linux build
+  // fails with E0599.
+  use gtk::prelude::{DialogExt, GtkWindowExt};
+
   pub(super) fn show(title: &str, body: &str) {
     // GTK must be initialised before any widget is created. `gtk::init` is
     // idempotent, so calling it here (CEF init already failed, so GTK was

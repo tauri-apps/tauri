@@ -607,7 +607,7 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
       // Capture the whole `RuntimeContext` (which is `Send`) rather than letting
       // edition-2021 disjoint closure captures grab the non-`Send` inner field.
       let context = context;
-      cef_impl::apply_theme_to_all_windows(&context.cef_context, theme);
+      cef_impl::set_runtime_theme(&context.cef_context, theme);
     })));
   }
 
@@ -2063,6 +2063,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
       scheme_handler_registry: Default::default(),
       cache_path: Arc::new(cache_path.clone()),
+      theme: Default::default(),
       is_shutting_down: Default::default(),
     };
 
@@ -2395,7 +2396,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   fn set_theme(&self, theme: Option<Theme>) {
-    cef_impl::apply_theme_to_all_windows(&self.context.cef_context, theme);
+    cef_impl::set_runtime_theme(&self.context.cef_context, theme);
   }
 
   #[cfg(target_os = "macos")]

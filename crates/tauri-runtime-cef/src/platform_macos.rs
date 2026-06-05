@@ -9,7 +9,8 @@ use cef::ImplWindow;
 use objc2::MainThreadMarker;
 use objc2::rc::Retained;
 use objc2_app_kit::{
-  NSApplication, NSApplicationPresentationOptions, NSCursor, NSScreen, NSView, NSWindow,
+  NSAppearance, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSApplication,
+  NSApplicationPresentationOptions, NSCursor, NSScreen, NSView, NSWindow,
   NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSString};
@@ -295,6 +296,27 @@ pub fn set_activation_policy(policy: tauri_runtime::ActivationPolicy) {
     _ => objc2_app_kit::NSApplicationActivationPolicy::Regular,
   };
   app.setActivationPolicy(ns_policy);
+}
+
+/// Sets the application-wide appearance (like tao's `set_ns_theme`), which the
+/// runtime-level `set_theme` uses so every window — current and future —
+/// follows the theme unless it overrides it explicitly. `None` follows the
+/// system theme.
+pub fn set_app_theme(theme: Option<tauri_utils::Theme>) {
+  let Some(mtm) = main_thread() else {
+    return;
+  };
+  let app = NSApplication::sharedApplication(mtm);
+  let appearance = match theme {
+    Some(tauri_utils::Theme::Dark) => unsafe {
+      NSAppearance::appearanceNamed(NSAppearanceNameDarkAqua)
+    },
+    Some(tauri_utils::Theme::Light) => unsafe {
+      NSAppearance::appearanceNamed(NSAppearanceNameAqua)
+    },
+    _ => None,
+  };
+  app.setAppearance(appearance.as_deref());
 }
 
 pub fn set_dock_visibility(visible: bool) {

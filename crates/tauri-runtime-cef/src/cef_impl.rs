@@ -285,18 +285,37 @@ fn apply_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::
   }
 }
 
-/// Applies the given theme to every open window. Used by the runtime-level
-/// `set_theme` which, unlike the per-window message, has no target window.
-pub fn apply_theme_to_all_windows<T: UserEvent>(
-  context: &Context<T>,
-  theme: Option<tauri_utils::Theme>,
-) {
+/// Applies a theme at the runtime/event-loop level, mirroring `tao`'s
+/// `EventLoop::set_theme`.
+///
+/// Unlike the per-window [`WindowMessage::SetTheme`], this has no target window:
+/// the theme is stored as the application-wide default (so windows created
+/// afterwards inherit it via [`resolve_window_theme`]), pushed to every existing
+/// window, and — on macOS — applied app-wide through `NSApp`'s appearance
+/// (matching tao's `set_ns_theme`) rather than window by window.
+pub fn set_runtime_theme<T: UserEvent>(context: &Context<T>, theme: Option<tauri_utils::Theme>) {
+  *context.theme.borrow_mut() = theme;
+
+  // macOS applies the theme at the application level, which covers the native
+  // chrome of existing and future windows in a single call.
+  #[cfg(target_os = "macos")]
+  crate::platform::set_app_theme(theme);
+
   for app_window in context.windows.borrow().values() {
     app_window.attributes.borrow_mut().theme = theme;
+    // Update the per-request-context Chromium color scheme and refresh the
+    // native window's themed colors.
     apply_window_theme_scheme(app_window, theme);
-    #[cfg(target_os = "macos")]
-    apply_macos_window_theme(app_window.window().as_ref(), theme);
   }
+}
+
+/// Resolves the theme to use for a window: its explicitly configured theme, or
+/// otherwise the application-wide theme set via the runtime-level `set_theme`.
+pub fn resolve_window_theme<T: UserEvent>(
+  context: &Context<T>,
+  window_theme: Option<tauri_utils::Theme>,
+) -> Option<tauri_utils::Theme> {
+  window_theme.or_else(|| *context.theme.borrow())
 }
 
 fn apply_request_context_theme_scheme(
@@ -587,6 +606,11 @@ pub struct Context<T: UserEvent> {
   /// [`cef::initialize`]. Per-webview request context cache paths must be
   /// equal to or a child of this directory.
   pub cache_path: Arc<PathBuf>,
+  /// Application-wide theme set via the runtime-level `set_theme`. Mirrors
+  /// `tao`'s event-loop-level theme: it is applied to every existing window and
+  /// is inherited by windows created afterwards that don't specify their own
+  /// theme. `None` means "follow the system theme".
+  pub theme: Arc<RefCell<Option<tauri_utils::Theme>>>,
   /// Set once an `ExitRequested` has been approved and the runtime is in the
   /// asynchronous tear-down phase. While set, per-window close events
   /// (`CloseRequested`, `Destroyed`) and any further `ExitRequested`/`Exit`
@@ -4067,7 +4091,7 @@ fn create_browser_window<T: UserEvent>(
     let force_close = force_close.clone();
     let mut client = client;
     move |mut request_context| {
-      let theme = attributes.borrow().theme;
+      let theme = resolve_window_theme(&context, attributes.borrow().theme);
       apply_request_context_theme_scheme(request_context.as_ref(), theme);
 
       let browser_settings = browser_settings_from_webview_attributes(&webview_attributes.borrow());
@@ -4772,11 +4796,14 @@ pub(crate) fn create_webview<T: UserEvent>(
     CefRuntimeStyle::Chrome => cef_runtime_style_t::CEF_RUNTIME_STYLE_CHROME.into(),
   };
 
-  let window_theme = context
-    .windows
-    .borrow()
-    .get(&window_id)
-    .and_then(|w| w.attributes.borrow().theme);
+  let window_theme = resolve_window_theme(
+    context,
+    context
+      .windows
+      .borrow()
+      .get(&window_id)
+      .and_then(|w| w.attributes.borrow().theme),
+  );
 
   let webview_attributes = Arc::new(RefCell::new(webview_attributes));
 

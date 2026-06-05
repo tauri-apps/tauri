@@ -532,6 +532,13 @@ pub fn build_wix_app_installer(
     }
   }
 
+  if let Some(minimum_webview2_version) = &settings.windows().minimum_webview2_version {
+    data.insert(
+      "minimum_webview2_version",
+      to_json(minimum_webview2_version),
+    );
+  }
+
   if let Some(license) = settings.license_file() {
     if license.ends_with(".rtf") {
       data.insert("license", to_json(license));

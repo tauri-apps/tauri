@@ -91,6 +91,7 @@ enum Predefined {
   Quit,
   About(Option<AboutMetadata>),
   Services,
+  BringAllToFront,
 }
 
 #[derive(Deserialize)]
@@ -303,6 +304,9 @@ impl PredefinedMenuItemPayload {
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
       }
       Predefined::Services => PredefinedMenuItem::services(webview, self.text.as_deref()),
+      Predefined::BringAllToFront => {
+        PredefinedMenuItem::bring_all_to_front(webview, self.text.as_deref())
+      }
     }
   }
 }
@@ -811,7 +815,7 @@ fn set_as_windows_menu_for_nsapp<R: Runtime>(
   {
     let resources_table = webview.resources_table();
     let submenu = resources_table.get::<Submenu<R>>(rid)?;
-    submenu.set_as_help_menu_for_nsapp()?;
+    submenu.set_as_windows_menu_for_nsapp()?;
   }
 
   let _ = rid;

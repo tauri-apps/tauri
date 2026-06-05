@@ -8,44 +8,58 @@ package {{package}}
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Bundle
 import app.tauri.plugin.PluginManager
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
+
+object TauriLifecycleObserver : DefaultLifecycleObserver {
+    override fun onResume(owner: LifecycleOwner) {
+      super.onResume(owner)
+      PluginManager.onResume()
+    }
+
+    override fun onPause(owner: LifecycleOwner) {
+      super.onPause(owner)
+      PluginManager.onPause()
+    }
+
+    override fun onStop(owner: LifecycleOwner) {
+      super.onStop(owner)
+      PluginManager.onStop()
+    }
+}
 
 abstract class TauriActivity : WryActivity() {
-  var pluginManager: PluginManager = PluginManager(this)
   override val handleBackNavigation: Boolean = false
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    PluginManager.onActivityCreate(this)
+  }
+
+  fun getPluginManager(): PluginManager {
+    return PluginManager
+  }
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
-    pluginManager.onNewIntent(intent)
-  }
-
-  override fun onResume() {
-    super.onResume()
-    pluginManager.onResume()
-  }
-
-  override fun onPause() {
-    super.onPause()
-    pluginManager.onPause()
+    PluginManager.onNewIntent(intent)
   }
 
   override fun onRestart() {
     super.onRestart()
-    pluginManager.onRestart()
-  }
-
-  override fun onStop() {
-    super.onStop()
-    pluginManager.onStop()
+    PluginManager.onRestart(this)
   }
 
   override fun onDestroy() {
     super.onDestroy()
-    pluginManager.onDestroy()
+    PluginManager.onDestroy(this)
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
     super.onConfigurationChanged(newConfig)
-    pluginManager.onConfigurationChanged(newConfig)
+    PluginManager.onConfigurationChanged(newConfig)
   }
 }

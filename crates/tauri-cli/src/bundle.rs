@@ -43,7 +43,7 @@ impl ValueEnum for BundleFormat {
   }
 
   fn to_possible_value(&self) -> Option<PossibleValue> {
-    let hide = self.0 == PackageType::Updater;
+    let hide = (!cfg!(windows) && self.0 == PackageType::Nsis) || self.0 == PackageType::Updater;
     Some(PossibleValue::new(self.0.short_name()).hide(hide))
   }
 }
@@ -287,6 +287,9 @@ fn sign_updaters(
   } else {
     private_key
   };
+  if password.is_none() {
+    log::info!("Decrypting updater signing key, expect a prompt for password")
+  }
   let secret_key =
     updater_signature::secret_key(private_key, password).context("failed to decode secret key")?;
   let public_key = updater_signature::pub_key(pubkey).context("failed to decode pubkey")?;

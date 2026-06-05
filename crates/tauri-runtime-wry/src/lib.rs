@@ -35,6 +35,8 @@ use tauri_runtime::{
 
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
+#[cfg(target_os = "android")]
+use tao::platform::android::{WindowBuilderExtAndroid, WindowExtAndroid};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(any(
@@ -78,7 +80,6 @@ use tao::{
     UserAttentionType as TaoUserAttentionType,
   },
 };
-#[cfg(desktop)]
 use tauri_utils::config::PreventOverflowConfig;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -115,7 +116,7 @@ use wry::{
 use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
 #[cfg(target_os = "ios")]
-pub use tao::platform::ios::WindowExtIOS;
+pub use tao::platform::ios::{WindowBuilderExtIOS, WindowExtIOS};
 #[cfg(target_os = "macos")]
 pub use tao::platform::macos::{
   ActivationPolicy as TaoActivationPolicy, EventLoopExtMacOS, WindowExtMacOS,
@@ -691,6 +692,25 @@ impl From<Position> for PositionWrapper {
   }
 }
 
+#[cfg(desktop)]
+fn find_monitor_for_position(
+  monitors: impl Iterator<Item = MonitorHandle>,
+  window_position: TaoPosition,
+) -> Option<MonitorHandle> {
+  monitors.into_iter().find(|m| {
+    let monitor_pos = m.position();
+    let monitor_size = m.size();
+
+    // type annotations required for 32bit targets.
+    let window_position = window_position.to_physical::<i32>(m.scale_factor());
+
+    monitor_pos.x <= window_position.x
+      && window_position.x < monitor_pos.x + monitor_size.width as i32
+      && monitor_pos.y <= window_position.y
+      && window_position.y < monitor_pos.y + monitor_size.height as i32
+  })
+}
+
 #[derive(Debug, Clone)]
 pub struct UserAttentionTypeWrapper(pub TaoUserAttentionType);
 
@@ -817,7 +837,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     #[cfg(target_os = "macos")]
     {
       // TODO: find a proper way to prevent webview being pushed out of the window.
-      // Workround for issue: https://github.com/tauri-apps/tauri/issues/10225
+      // Workaround for issue: https://github.com/tauri-apps/tauri/issues/10225
       // The window requires `NSFullSizeContentViewWindowMask` flag to prevent devtools
       // pushing the content view out of the window.
       // By setting the default style to `TitleBarStyle::Visible` should fix the issue for most of the users.
@@ -880,68 +900,91 @@ impl WindowBuilder for WindowBuilderWrapper {
       window.inner = window.inner.with_cursor_moved_event(false);
     }
 
-    #[cfg(desktop)]
+    #[cfg(target_os = "android")]
     {
-      window = window
-        .title(config.title.to_string())
-        .inner_size(config.width, config.height)
-        .focused(config.focus)
-        .focusable(config.focusable)
-        .visible(config.visible)
-        .resizable(config.resizable)
-        .fullscreen(config.fullscreen)
-        .decorations(config.decorations)
-        .maximized(config.maximized)
-        .always_on_bottom(config.always_on_bottom)
-        .always_on_top(config.always_on_top)
-        .visible_on_all_workspaces(config.visible_on_all_workspaces)
-        .content_protected(config.content_protected)
-        .skip_taskbar(config.skip_taskbar)
-        .theme(config.theme)
-        .closable(config.closable)
-        .maximizable(config.maximizable)
-        .minimizable(config.minimizable)
-        .shadow(config.shadow);
+      if let Some(activity_name) = &config.activity_name {
+        window.inner = window.inner.with_activity_name(activity_name.clone());
+      }
+      if let Some(activity_name) = &config.created_by_activity_name {
+        window.inner = window
+          .inner
+          .with_created_by_activity_name(activity_name.clone());
+      }
+    }
 
-      let mut constraints = WindowSizeConstraints::default();
+    #[cfg(target_os = "ios")]
+    {
+      if let Some(scene_identifier) = &config.requested_by_scene_identifier {
+        window.inner = window
+          .inner
+          .with_requesting_scene_identifier(scene_identifier.clone());
+      }
+    }
 
-      if let Some(min_width) = config.min_width {
-        constraints.min_width = Some(tao::dpi::LogicalUnit::new(min_width).into());
-      }
-      if let Some(min_height) = config.min_height {
-        constraints.min_height = Some(tao::dpi::LogicalUnit::new(min_height).into());
-      }
-      if let Some(max_width) = config.max_width {
-        constraints.max_width = Some(tao::dpi::LogicalUnit::new(max_width).into());
-      }
-      if let Some(max_height) = config.max_height {
-        constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
-      }
-      if let Some(color) = config.background_color {
-        window = window.background_color(color);
-      }
-      window = window.inner_size_constraints(constraints);
+    // ignore size from config for mobile for backward compatibility
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    {
+      window = window.inner_size(config.width, config.height);
+    }
 
-      if let (Some(x), Some(y)) = (config.x, config.y) {
-        window = window.position(x, y);
-      }
+    window = window
+      .title(config.title.to_string())
+      .focused(config.focus)
+      .focusable(config.focusable)
+      .visible(config.visible)
+      .resizable(config.resizable)
+      .fullscreen(config.fullscreen)
+      .decorations(config.decorations)
+      .maximized(config.maximized)
+      .always_on_bottom(config.always_on_bottom)
+      .always_on_top(config.always_on_top)
+      .visible_on_all_workspaces(config.visible_on_all_workspaces)
+      .content_protected(config.content_protected)
+      .skip_taskbar(config.skip_taskbar)
+      .theme(config.theme)
+      .closable(config.closable)
+      .maximizable(config.maximizable)
+      .minimizable(config.minimizable)
+      .shadow(config.shadow);
 
-      if config.center {
-        window = window.center();
-      }
+    let mut constraints = WindowSizeConstraints::default();
 
-      if let Some(window_classname) = &config.window_classname {
-        window = window.window_classname(window_classname);
-      }
+    if let Some(min_width) = config.min_width {
+      constraints.min_width = Some(tao::dpi::LogicalUnit::new(min_width).into());
+    }
+    if let Some(min_height) = config.min_height {
+      constraints.min_height = Some(tao::dpi::LogicalUnit::new(min_height).into());
+    }
+    if let Some(max_width) = config.max_width {
+      constraints.max_width = Some(tao::dpi::LogicalUnit::new(max_width).into());
+    }
+    if let Some(max_height) = config.max_height {
+      constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
+    }
+    if let Some(color) = config.background_color {
+      window = window.background_color(color);
+    }
+    window = window.inner_size_constraints(constraints);
 
-      if let Some(prevent_overflow) = &config.prevent_overflow {
-        window = match prevent_overflow {
-          PreventOverflowConfig::Enable(true) => window.prevent_overflow(),
-          PreventOverflowConfig::Margin(margin) => window
-            .prevent_overflow_with_margin(TaoPhysicalSize::new(margin.width, margin.height).into()),
-          _ => window,
-        };
-      }
+    if let (Some(x), Some(y)) = (config.x, config.y) {
+      window = window.position(x, y);
+    }
+
+    if config.center {
+      window = window.center();
+    }
+
+    if let Some(window_classname) = &config.window_classname {
+      window = window.window_classname(window_classname);
+    }
+
+    if let Some(prevent_overflow) = &config.prevent_overflow {
+      window = match prevent_overflow {
+        PreventOverflowConfig::Enable(true) => window.prevent_overflow(),
+        PreventOverflowConfig::Margin(margin) => window
+          .prevent_overflow_with_margin(TaoPhysicalSize::new(margin.width, margin.height).into()),
+        _ => window,
+      };
     }
 
     window
@@ -1257,6 +1300,26 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn window_classname<S: Into<String>>(self, _window_classname: S) -> Self {
     self
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.inner = self.inner.with_activity_name(class_name.into());
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
+    self.inner = self.inner.with_created_by_activity_name(class_name.into());
+    self
+  }
+
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(mut self, identifier: S) -> Self {
+    self.inner = self
+      .inner
+      .with_requesting_scene_identifier(identifier.into());
+    self
+  }
 }
 
 #[cfg(any(
@@ -1348,6 +1411,10 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkBox(Sender<GtkBox>),
+  #[cfg(target_os = "android")]
+  ActivityName(Sender<String>),
+  #[cfg(target_os = "ios")]
+  SceneIdentifier(Sender<String>),
   RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   IsEnabled(Sender<bool>),
@@ -1427,6 +1494,15 @@ pub enum WebviewMessage {
   EvaluateScript(String),
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
   EvaluateScript(String, Sender<()>, tracing::Span),
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+  EvaluateScriptWithCallback(String, Box<dyn Fn(String) + Send + 'static>),
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
+  EvaluateScriptWithCallback(
+    String,
+    Box<dyn Fn(String) + Send + 'static>,
+    Sender<()>,
+    tracing::Span,
+  ),
   CookiesForUrl(Url, Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   Cookies(Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   SetCookie(tauri_runtime::Cookie<'static>),
@@ -1782,6 +1858,46 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     )
   }
 
+  #[cfg(all(feature = "tracing", not(target_os = "android")))]
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    // use a channel so the EvaluateScript task uses the current span as parent
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::EvaluateScriptWithCallback(
+          script.into(),
+          Box::new(callback),
+          tx,
+          tracing::Span::current(),
+        ),
+      )
+    )
+  }
+
+  #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
+      ),
+    )
+  }
+
   fn set_zoom(&self, scale_factor: f64) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2007,6 +2123,18 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
     window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
+  }
+
+  /// Returns the name of the Android activity associated with this window.
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::ActivityName)
+  }
+
+  /// Returns the identifier of the UIScene tied to this UIWindow.
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::SceneIdentifier)
   }
 
   fn window_handle(
@@ -3317,6 +3445,14 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::GtkBox(tx) => tx
             .send(GtkBox(window.default_vbox().unwrap().clone()))
             .unwrap(),
+          #[cfg(target_os = "android")]
+          WindowMessage::ActivityName(tx) => {
+            tx.send(window.activity_name()).unwrap();
+          }
+          #[cfg(target_os = "ios")]
+          WindowMessage::SceneIdentifier(tx) => {
+            tx.send(window.scene_identifier()).unwrap();
+          }
           WindowMessage::RawWindowHandle(tx) => tx
             .send(
               window
@@ -3644,6 +3780,20 @@ fn handle_user_message<T: UserEvent>(
               log::error!("{e}");
             }
           }
+          #[cfg(all(feature = "tracing", not(target_os = "android")))]
+          WebviewMessage::EvaluateScriptWithCallback(script, callback, tx, span) => {
+            let _span = span.entered();
+            if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
+              log::error!("{e}");
+            }
+            tx.send(()).unwrap();
+          }
+          #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+          WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
+            if let Err(e) = webview.evaluate_script_with_callback(&script, callback) {
+              log::error!("{e}");
+            }
+          }
           WebviewMessage::Navigate(url) => {
             if let Err(e) = webview.load_url(url.as_str()) {
               log::error!("failed to navigate to url {}: {}", url, e);
@@ -3932,13 +4082,9 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
-      // wait for borrow_mut to be available - on Windows we might poll for the window to be inserted
-      Ok(webview) => loop {
-        if let Ok(mut windows) = windows.0.try_borrow_mut() {
-          windows.insert(window_id, webview);
-          break;
-        }
-      },
+      Ok(webview) => {
+        windows.0.borrow_mut().insert(window_id, webview);
+      }
       Err(e) => {
         log::error!("{e}");
       }
@@ -4244,7 +4390,7 @@ fn handle_event_loop<T: UserEvent>(
         );
       }
     },
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
     Event::Opened { urls } => {
       callback(RunEvent::Opened { urls });
     }
@@ -4255,6 +4401,35 @@ fn handle_event_loop<T: UserEvent>(
     } => callback(RunEvent::Reopen {
       has_visible_windows,
     }),
+    #[cfg(target_os = "ios")]
+    Event::SceneRequested { scene, options } => {
+      callback(RunEvent::SceneRequested { scene, options });
+    }
+    #[cfg(mobile)]
+    e @ Event::Resumed | e @ Event::Suspended => {
+      let event = match e {
+        Event::Resumed => WindowEvent::Resumed,
+        Event::Suspended => WindowEvent::Suspended,
+        _ => unreachable!(),
+      };
+
+      let windows_ref = windows.0.borrow();
+      windows_ref.values().for_each(|window| {
+        let label = window.label.clone();
+        let window_event_listeners = window.window_event_listeners.clone();
+        let listeners = window_event_listeners.lock().unwrap();
+        for handler in listeners.values() {
+          handler(&event);
+        }
+
+        callback(RunEvent::WindowEvent {
+          label,
+          event: event.clone(),
+        });
+      });
+
+      drop(windows_ref);
+    }
     _ => (),
   }
 }
@@ -4358,18 +4533,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   #[cfg(desktop)]
   if window_builder.prevent_overflow.is_some() || window_builder.center {
     let monitor = if let Some(window_position) = &window_builder.inner.window.position {
-      event_loop.available_monitors().find(|m| {
-        let monitor_pos = m.position();
-        let monitor_size = m.size();
-
-        // type annotations required for 32bit targets.
-        let window_position = window_position.to_physical::<i32>(m.scale_factor());
-
-        monitor_pos.x <= window_position.x
-          && window_position.x < monitor_pos.x + monitor_size.width as i32
-          && monitor_pos.y <= window_position.y
-          && window_position.y < monitor_pos.y + monitor_size.height as i32
-      })
+      find_monitor_for_position(event_loop.available_monitors(), *window_position)
     } else {
       event_loop.primary_monitor()
     };
@@ -4436,10 +4600,37 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   };
 
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  let (initial_position, is_fullscreen) = (
+    window_builder.inner.window.position,
+    window_builder.inner.window.fullscreen.is_some(),
+  );
+
+  // If fullscreen is requested with an explicit position, resolve the target
+  // monitor up front so the window is created fullscreen on that display.
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  if let (true, Some(position)) = (is_fullscreen, initial_position) {
+    if let Some(target_monitor) =
+      find_monitor_for_position(event_loop.available_monitors(), position)
+    {
+      window_builder.inner.window.fullscreen = Some(Fullscreen::Borderless(Some(target_monitor)));
+    }
+  }
+
   let window = window_builder
     .inner
     .build(event_loop)
+    .inspect_err(|e| log::error!("Error creating window: {e:?}"))
     .map_err(|_| Error::CreateWindow)?;
+
+  // On macOS, `with_position` uses the content origin; the title bar is added
+  // above it. `set_outer_position` is needed for precise window placement.
+  #[cfg(target_os = "macos")]
+  if !is_fullscreen {
+    if let Some(position) = initial_position {
+      window.set_outer_position(position);
+    }
+  }
 
   #[cfg(feature = "tracing")]
   {
@@ -4628,7 +4819,8 @@ You may have it installed on another user account, but it is not available for t
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_incognito(webview_attributes.incognito)
     .with_clipboard(webview_attributes.clipboard)
-    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
+    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled)
+    .with_general_autofill_enabled(webview_attributes.general_autofill_enabled);
 
   if url != "about:blank" {
     webview_builder = webview_builder.with_url(&url);
@@ -4716,63 +4908,56 @@ You may have it installed on another user account, but it is not available for t
     #[cfg(desktop)]
     let context = context.clone();
     webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
-      url
-        .parse()
-        .map(|url| {
-          let response = new_window_handler(
-            url,
-            tauri_runtime::webview::NewWindowFeatures::new(
-              features.size,
-              features.position,
-              tauri_runtime::webview::NewWindowOpener {
-                #[cfg(desktop)]
-                webview: features.opener.webview,
-                #[cfg(windows)]
-                environment: features.opener.environment,
-                #[cfg(target_os = "macos")]
-                target_configuration: features.opener.target_configuration,
-              },
-            ),
-          );
-          match response {
-            tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+      let Ok(url) = url.parse() else {
+        return wry::NewWindowResponse::Deny;
+      };
+      let response = new_window_handler(
+        url,
+        tauri_runtime::webview::NewWindowFeatures::new(
+          features.size,
+          features.position,
+          tauri_runtime::webview::NewWindowOpener {
             #[cfg(desktop)]
-            tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
-              let windows = &context.main_thread.windows.0;
-              let webview = loop {
-                if let Some(webview) = windows.try_borrow().ok().and_then(|windows| {
-                  windows
-                    .get(&window_id)
-                    .map(|window| window.webviews.first().unwrap().clone())
-                }) {
-                  break webview;
-                } else {
-                  // on Windows the window is created async so we should wait for it to be available
-                  std::thread::sleep(std::time::Duration::from_millis(50));
-                  continue;
-                };
-              };
+            webview: features.opener.webview,
+            #[cfg(windows)]
+            environment: features.opener.environment,
+            #[cfg(target_os = "macos")]
+            target_configuration: features.opener.target_configuration,
+          },
+        ),
+      );
+      match response {
+        tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+        #[cfg(desktop)]
+        tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+          let windows = &context.main_thread.windows.0;
+          let webview = windows
+            .borrow()
+            .get(&window_id)
+            .unwrap()
+            .webviews
+            .first()
+            .unwrap()
+            .clone();
 
-              #[cfg(desktop)]
-              wry::NewWindowResponse::Create {
-                #[cfg(target_os = "macos")]
-                webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
-                #[cfg(any(
-                  target_os = "linux",
-                  target_os = "dragonfly",
-                  target_os = "freebsd",
-                  target_os = "netbsd",
-                  target_os = "openbsd",
-                ))]
-                webview: webview.webview(),
-                #[cfg(windows)]
-                webview: webview.webview(),
-              }
-            }
-            tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+          #[cfg(desktop)]
+          wry::NewWindowResponse::Create {
+            #[cfg(target_os = "macos")]
+            webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd",
+            ))]
+            webview: webview.webview(),
+            #[cfg(windows)]
+            webview: webview.webview(),
           }
-        })
-        .unwrap_or(wry::NewWindowResponse::Deny)
+        }
+        tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+      }
     });
   }
 
@@ -4929,6 +5114,35 @@ You may have it installed on another user account, but it is not available for t
 
     webview_builder =
       webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview);
+
+    if let Some(on_web_content_process_terminate_handler) =
+      pending.on_web_content_process_terminate_handler
+    {
+      webview_builder = webview_builder
+        .with_on_web_content_process_terminate_handler(on_web_content_process_terminate_handler);
+    } else {
+      log::debug!("web content process terminated");
+      let context_ = context.clone();
+      let window_id_ = window_id.clone();
+      webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
+        if let Ok(windows) = &context_.main_thread.windows.0.try_borrow() {
+          if let Some(window) = windows.get(&*window_id_.lock().unwrap()) {
+            if let Some(webview) = window.webviews.iter().find(|w| w.id == id) {
+              match webview.reload() {
+                Ok(_) => log::debug!("webview reloaded"),
+                Err(e) => log::error!("failed to reload webview: {}", e),
+              }
+            } else {
+              log::error!("failed to find webview")
+            }
+          } else {
+            log::error!("failed to get window")
+          }
+        } else {
+          log::error!("failed to borrow windows")
+        }
+      });
+    }
   }
 
   #[cfg(target_os = "ios")]

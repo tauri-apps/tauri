@@ -567,7 +567,7 @@ fn allowlist_to_permissions(
       .scope
       .0
       .into_iter()
-      .map(|p| serde_json::to_value(p).unwrap().into())
+      .map(|p| serde_json::to_value(p).unwrap())
       .collect::<Vec<_>>();
 
     permissions.push(PermissionEntry::ExtendedPermission {

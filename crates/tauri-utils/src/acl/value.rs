@@ -89,9 +89,7 @@ impl From<serde_json::Value> for Value {
       serde_json::Value::Number(n) => Value::Number(if let Some(i) = n.as_i64() {
         Number::Int(i)
       } else if let Some(u) = n.as_u64() {
-        // u64 values that exceed i64::MAX cannot be represented as Int without
-        // wrapping; fall back to Float to preserve approximate magnitude.
-        Number::Float(u as f64)
+        Number::Int(u as i64)
       } else if let Some(f) = n.as_f64() {
         Number::Float(f)
       } else {

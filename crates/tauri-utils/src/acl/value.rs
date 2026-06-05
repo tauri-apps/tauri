@@ -66,7 +66,10 @@ impl From<Value> for serde_json::Value {
       Value::Null => serde_json::Value::Null,
       Value::Bool(b) => serde_json::Value::Bool(b),
       Value::Number(Number::Float(f)) => {
-        serde_json::Value::Number(serde_json::Number::from_f64(f).unwrap())
+        match serde_json::Number::from_f64(f) {
+          Some(n) => serde_json::Value::Number(n),
+          None => serde_json::Value::Null, // NaN / ±Infinity are not valid JSON
+        }
       }
       Value::Number(Number::Int(i)) => serde_json::Value::Number(i.into()),
       Value::String(s) => serde_json::Value::String(s),

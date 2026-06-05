@@ -34,9 +34,14 @@ log = "0.4.21"
 windows = { version = "0.61", features = [
   "Win32_Graphics",
   "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
   "Win32_UI_HiDpi",
   "Win32_UI_Input",
   "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Controls",
+  "Win32_UI_Shell",
+  "Win32_System_Com",
   "Win32_System_LibraryLoader",
 ] }
 
@@ -48,6 +53,7 @@ objc2-foundation = { version = "0.3", features = ["NSNotification"] }
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
 x11-dl = "2.21"
+dlopen2 = { version = "0.8", features = ["derive"] }
 
 [features]
 default = ["sandbox"]

@@ -285,6 +285,20 @@ fn apply_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::
   }
 }
 
+/// Applies the given theme to every open window. Used by the runtime-level
+/// `set_theme` which, unlike the per-window message, has no target window.
+pub fn apply_theme_to_all_windows<T: UserEvent>(
+  context: &Context<T>,
+  theme: Option<tauri_utils::Theme>,
+) {
+  for app_window in context.windows.borrow().values() {
+    app_window.attributes.borrow_mut().theme = theme;
+    apply_window_theme_scheme(app_window, theme);
+    #[cfg(target_os = "macos")]
+    apply_macos_window_theme(app_window.window().as_ref(), theme);
+  }
+}
+
 fn apply_request_context_theme_scheme(
   request_context: Option<&RequestContext>,
   theme: Option<tauri_utils::Theme>,
@@ -2057,13 +2071,13 @@ wrap_window_delegate! {
             window.set_always_on_top(1);
           }
 
-        if let Some(_always_on_bottom) = a.always_on_bottom {
-          // TODO: Implement always on bottom for CEF
+        if let Some(always_on_bottom) = a.always_on_bottom {
+          crate::platform::set_always_on_bottom(window, always_on_bottom);
         }
 
         if let Some(visible_on_all_workspaces) = a.visible_on_all_workspaces
           && visible_on_all_workspaces {
-            // TODO: Implement visible on all workspaces for CEF
+            crate::platform::set_visible_on_all_workspaces(window, visible_on_all_workspaces);
           }
 
         if let Some(content_protected) = a.content_protected {
@@ -2072,13 +2086,12 @@ wrap_window_delegate! {
 
         if let Some(skip_taskbar) = a.skip_taskbar
           && skip_taskbar {
-            // TODO: Implement skip taskbar for CEF
+            crate::platform::set_skip_taskbar(window, skip_taskbar);
           }
 
-        if let Some(shadow) = a.shadow
-          && !shadow {
-            // TODO: Implement shadow control for CEF
-          }
+        if let Some(shadow) = a.shadow {
+          crate::platform::set_shadow(window, shadow);
+        }
 
         if let Some(focusable) = a.focusable {
           window.set_focusable(if focusable { 1 } else { 0 });
@@ -3527,11 +3540,19 @@ fn handle_window_message<T: UserEvent>(
         window.center_window(Some(&window.size()));
       }
     }
-    WindowMessage::RequestUserAttention(_attention_type) => {
-      // TODO: Implement user attention
+    WindowMessage::RequestUserAttention(attention_type) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::request_user_attention(&window, attention_type);
+      }
     }
-    WindowMessage::SetEnabled(_enabled) => {
-      // TODO: Implement enabled
+    WindowMessage::SetEnabled(enabled) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        window.set_enabled(if enabled { 1 } else { 0 });
+      }
     }
     WindowMessage::SetResizable(resizable) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -3607,14 +3628,20 @@ fn handle_window_message<T: UserEvent>(
         app_window.attributes.borrow_mut().decorations = Some(decorations);
       }
     }
-    WindowMessage::SetShadow(_shadow) => {
-      // TODO: Implement shadow
+    WindowMessage::SetShadow(shadow) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::set_shadow(&window, shadow);
+      }
     }
     WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().always_on_bottom = Some(always_on_bottom);
+        if let Some(window) = app_window.window() {
+          crate::platform::set_always_on_bottom(&window, always_on_bottom);
+        }
       }
-      // TODO: Apply always on bottom via platform-specific CEF APIs if available
     }
     WindowMessage::SetAlwaysOnTop(always_on_top) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -3628,8 +3655,10 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().visible_on_all_workspaces =
           Some(visible_on_all_workspaces);
+        if let Some(window) = app_window.window() {
+          crate::platform::set_visible_on_all_workspaces(&window, visible_on_all_workspaces);
+        }
       }
-      // TODO: Apply visible on all workspaces via platform-specific CEF APIs if available
     }
     WindowMessage::SetContentProtected(protected) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
@@ -3690,8 +3719,12 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     #[cfg(target_os = "macos")]
-    WindowMessage::SetSimpleFullscreen(_fullscreen) => {
-      // TODO: Implement simple fullscreen
+    WindowMessage::SetSimpleFullscreen(fullscreen) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::set_simple_fullscreen(&window, fullscreen);
+      }
     }
     WindowMessage::SetFocus => {
       if let Some(app_window) = context.windows.borrow().get(&window_id)
@@ -3714,32 +3747,74 @@ fn handle_window_message<T: UserEvent>(
         set_window_icon(&window, icon);
       }
     }
-    WindowMessage::SetSkipTaskbar(_skip) => {
-      // TODO: Implement skip taskbar
+    WindowMessage::SetSkipTaskbar(skip) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.attributes.borrow_mut().skip_taskbar = Some(skip);
+        if let Some(window) = app_window.window() {
+          crate::platform::set_skip_taskbar(&window, skip);
+        }
+      }
     }
-    WindowMessage::SetCursorGrab(_grab) => {
-      // TODO: Implement cursor grab
+    WindowMessage::SetCursorGrab(grab) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::set_cursor_grab(&window, grab);
+      }
     }
-    WindowMessage::SetCursorVisible(_visible) => {
-      // TODO: Implement cursor visible
+    WindowMessage::SetCursorVisible(visible) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::set_cursor_visible(&window, visible);
+      }
     }
-    WindowMessage::SetCursorIcon(_icon) => {
-      // TODO: Implement cursor icon
+    WindowMessage::SetCursorIcon(icon) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::set_cursor_icon(&window, icon);
+      }
     }
-    WindowMessage::SetCursorPosition(_position) => {
-      // TODO: Implement cursor position
+    WindowMessage::SetCursorPosition(position) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        let scale_factor = window
+          .display()
+          .map(|d| d.device_scale_factor() as f64)
+          .unwrap_or(1.0);
+        crate::platform::set_cursor_position(&window, position, scale_factor);
+      }
     }
-    WindowMessage::SetIgnoreCursorEvents(_ignore) => {
-      // TODO: Implement ignore cursor events
+    WindowMessage::SetIgnoreCursorEvents(ignore) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::set_ignore_cursor_events(&window, ignore);
+      }
     }
-    WindowMessage::SetProgressBar(_progress_state) => {
-      // TODO: Implement progress bar
+    WindowMessage::SetProgressBar(progress_state) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::set_progress_bar(&window, progress_state);
+      }
     }
-    WindowMessage::SetBadgeCount(_count, _desktop_filename) => {
-      // TODO: Implement badge count
+    WindowMessage::SetBadgeCount(count, desktop_filename) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::set_badge_count(&window, count, desktop_filename);
+      }
     }
+    #[cfg(target_os = "macos")]
+    WindowMessage::SetBadgeLabel(label) => {
+      crate::platform::set_badge_label(label);
+    }
+    #[cfg(not(target_os = "macos"))]
     WindowMessage::SetBadgeLabel(_label) => {
-      // TODO: Implement badge label
+      // Badge labels are a macOS-only concept.
     }
     WindowMessage::SetOverlayIcon(icon) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id)
@@ -3749,7 +3824,16 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::SetTitleBarStyle(_style) => {
-      // TODO: Implement title bar style
+      #[cfg(target_os = "macos")]
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        let hidden_title = {
+          let a = app_window.attributes.borrow();
+          a.hidden_title.unwrap_or(!a.decorations.unwrap_or(true))
+        };
+        apply_titlebar_style(&window, _style, hidden_title);
+      }
     }
     WindowMessage::SetTrafficLightPosition(_position) => {
       #[cfg(target_os = "macos")]
@@ -3794,8 +3878,12 @@ fn handle_window_message<T: UserEvent>(
         start_window_dragging(&window);
       }
     }
-    WindowMessage::StartResizeDragging(_direction) => {
-      // TODO: Implement start resize dragging
+    WindowMessage::StartResizeDragging(direction) => {
+      if let Some(app_window) = context.windows.borrow().get(&window_id)
+        && let Some(window) = app_window.window()
+      {
+        crate::platform::start_resize_dragging(&window, direction);
+      }
     }
   }
 }
@@ -4983,6 +5071,25 @@ fn webview_bounds_ratio(
   }
 }
 
+/// Maps the subset of [`WebviewAttributes`] that CEF's `BrowserSettings`
+/// supports.
+///
+/// The following Tauri webview attributes have no per-webview equivalent in CEF
+/// and are intentionally ignored here:
+/// - `user_agent`: CEF only exposes a process-global user agent via
+///   `CefSettings.user_agent`, which is fixed before any webview is created.
+/// - `additional_browser_args`, `scroll_bar_style`, `general_autofill_enabled`:
+///   WebView2 (Windows)-only concepts.
+/// - `allow_link_preview`, `accept_first_mouse`: WKWebView (macOS/iOS)-only.
+/// - `browser_extensions_enabled`, `extensions_path`: CEF dropped extension
+///   support in the Chrome runtime.
+/// - `data_store_identifier`: a WKWebView data-store concept with no CEF analog
+///   (per-webview isolation is done through the request context cache path).
+/// - `zoom_hotkeys_enabled`: handled by Chromium's accelerator table, not a
+///   browser setting.
+///
+/// `proxy_url` is handled separately via the request context preference (see
+/// [`apply_proxy`]).
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
 ) -> BrowserSettings {
@@ -5225,6 +5332,51 @@ wrap_request_context_handler! {
 /// hop otherwise), so by the time the browser finally issues its first
 /// navigation against any of these schemes the factories have been wired up
 /// on the IO thread.
+/// Applies a fixed-server proxy to a request context via the Chromium `proxy`
+/// preference. Must be called after the request context has initialized.
+fn apply_proxy(request_context: &RequestContext, proxy_url: &url::Url) {
+  use cef::{ImplDictionaryValue, ImplValue};
+
+  let scheme = match proxy_url.scheme() {
+    "socks5" | "socks5h" => "socks5",
+    "socks4" | "socks4a" => "socks4",
+    "https" => "https",
+    _ => "http",
+  };
+  let Some(host) = proxy_url.host_str() else {
+    log::warn!("ignoring proxy URL without a host: {proxy_url}");
+    return;
+  };
+  let server = match proxy_url.port_or_known_default() {
+    Some(port) => format!("{scheme}://{host}:{port}"),
+    None => format!("{scheme}://{host}"),
+  };
+
+  let pref_name = "proxy";
+  if request_context.can_set_preference(Some(&pref_name.into())) != 1 {
+    log::warn!("the CEF request context does not allow setting the proxy preference");
+    return;
+  }
+
+  // Build `{ "mode": "fixed_servers", "server": "<scheme>://<host>:<port>" }`.
+  let Some(dict) = cef::dictionary_value_create() else {
+    return;
+  };
+  dict.set_string(Some(&"mode".into()), Some(&"fixed_servers".into()));
+  dict.set_string(Some(&"server".into()), Some(&server.as_str().into()));
+
+  let Some(value) = cef::value_create() else {
+    return;
+  };
+  let mut dict = dict;
+  value.set_dictionary(Some(&mut dict));
+
+  let mut value = value;
+  if request_context.set_preference(Some(&pref_name.into()), Some(&mut value), None) != 1 {
+    log::error!("failed to apply the proxy preference to the CEF request context");
+  }
+}
+
 fn request_context_from_webview_attributes<T: UserEvent>(
   context: &Context<T>,
   webview_attributes: &WebviewAttributes,
@@ -5261,9 +5413,16 @@ fn request_context_from_webview_attributes<T: UserEvent>(
   // its own bound callbacks, but holding an explicit reference here guarantees
   // we don't race with reference-count releases on shutdown paths.
   let rc_holder: Arc<Mutex<Option<RequestContext>>> = Arc::new(Mutex::new(None));
+  let proxy_url = webview_attributes.proxy_url.clone();
   let wrapped_callback: RequestContextInitContinuation = Box::new({
     let rc_holder = rc_holder.clone();
     move |rc| {
+      // The proxy preference can only be set once the request context's
+      // underlying profile has finished initializing, which is exactly what
+      // this continuation signals.
+      if let (Some(rc), Some(proxy_url)) = (rc.as_ref(), proxy_url.as_ref()) {
+        apply_proxy(rc, proxy_url);
+      }
       on_initialized(rc);
       let _released = rc_holder.lock().unwrap().take();
     }

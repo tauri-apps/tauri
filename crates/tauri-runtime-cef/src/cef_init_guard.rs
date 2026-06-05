@@ -126,6 +126,11 @@ mod windows_impl {
   target_os = "netbsd"
 ))]
 mod gtk_impl {
+  // `set_title` and `run` are extension-trait methods (`GtkWindowExt` and
+  // `DialogExt` respectively); without these traits in scope the Linux build
+  // fails with E0599.
+  use gtk::prelude::{DialogExt, GtkWindowExt};
+
   pub(super) fn show(title: &str, body: &str) {
     // GTK must be initialised before any widget is created. `gtk::init` is
     // idempotent, so calling it here (CEF init already failed, so GTK was

@@ -94,10 +94,15 @@ mod macos {
     // `NSAlert::runModal` requires a shared application to exist. CEF init
     // failed before Tauri created one, so make sure it is present.
     let _app = NSApplication::sharedApplication(mtm);
-    let alert = NSAlert::new(mtm);
-    alert.setMessageText(&NSString::from_str(title));
-    alert.setInformativeText(&NSString::from_str(body));
-    alert.runModal();
+    // SAFETY: these objc2 `NSAlert` methods are marked `unsafe`; the receiver
+    // is freshly created, the strings are valid, and `runModal` runs on the
+    // main thread guaranteed by the `MainThreadMarker` obtained above.
+    unsafe {
+      let alert = NSAlert::new(mtm);
+      alert.setMessageText(&NSString::from_str(title));
+      alert.setInformativeText(&NSString::from_str(body));
+      alert.runModal();
+    }
   }
 }
 

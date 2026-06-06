@@ -2804,7 +2804,19 @@ fn handle_webview_message<T: UserEvent>(
       }
     }
     WebviewMessage::ClearAllBrowsingData => {
-      // TODO: Implement clear browsing data
+      // CEF has no single "clear all browsing data" call, so we clear
+      // the cookies (including session cookies) and the HTTP cache for this
+      // context.
+      if let Some(request_context) = get_browser(context, window_id, webview_id)
+        .and_then(|b| b.host())
+        .and_then(|host| host.request_context())
+      {
+        if let Some(manager) = request_context.cookie_manager(None) {
+          manager.delete_cookies(None, None, None);
+          manager.flush_store(None);
+        }
+        request_context.clear_http_cache(None);
+      }
     }
     // Getters
     WebviewMessage::Url(tx) => {
@@ -3492,7 +3504,16 @@ fn handle_window_message<T: UserEvent>(
       let _ = tx.send(result);
     }
     WindowMessage::IsEnabled(tx) => {
-      let _ = tx.send(Ok(true));
+      let result = context
+        .windows
+        .borrow()
+        .get(&window_id)
+        .map(|w| match &w.window {
+          crate::AppWindowKind::Window(window) => Ok(window.is_enabled() == 1),
+          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
+        })
+        .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
+      let _ = tx.send(result);
     }
     WindowMessage::IsAlwaysOnTop(tx) => {
       let result = context

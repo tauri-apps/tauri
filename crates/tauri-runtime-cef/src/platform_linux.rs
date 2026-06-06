@@ -126,6 +126,23 @@ fn set_wm_state(
   }
 }
 
+/// Enables or disables user interaction with the window.
+///
+/// On X11 there is no `EnableWindow`-style call, and CEF runs on its own
+/// Aura/X11 windows rather than a GTK widget we could mark insensitive (the way
+/// `tao` does via `set_sensitive`). The best available mechanism is CEF's own
+/// `View::set_enabled`; note it disables the window's root view but does not
+/// necessarily block input to the child browser, so this is best-effort on
+/// Linux.
+pub fn set_enabled(window: &cef::Window, enabled: bool) {
+  window.set_enabled(if enabled { 1 } else { 0 });
+}
+
+/// Reports whether the window's root view is enabled.
+pub fn is_enabled(window: &cef::Window) -> bool {
+  window.is_enabled() == 1
+}
+
 pub fn set_skip_taskbar(window: &cef::Window, skip: bool) {
   let xid = window.window_handle() as c_ulong;
   // GTK's `set_skip_taskbar_hint` (used by tao) only toggles the taskbar hint.

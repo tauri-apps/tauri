@@ -3509,7 +3509,7 @@ fn handle_window_message<T: UserEvent>(
         .borrow()
         .get(&window_id)
         .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Ok(window.is_enabled() == 1),
+          crate::AppWindowKind::Window(window) => Ok(crate::platform::is_enabled(window)),
           crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
@@ -3596,7 +3596,7 @@ fn handle_window_message<T: UserEvent>(
       if let Some(app_window) = context.windows.borrow().get(&window_id)
         && let Some(window) = app_window.window()
       {
-        window.set_enabled(if enabled { 1 } else { 0 });
+        crate::platform::set_enabled(&window, enabled);
       }
     }
     WindowMessage::SetResizable(resizable) => {

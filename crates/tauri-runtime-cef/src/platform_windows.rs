@@ -10,6 +10,7 @@ use windows::Win32::Foundation::{HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Dwm::DwmExtendFrameIntoClientArea;
 use windows::Win32::System::Com::{CLSCTX_SERVER, CoCreateInstance};
 use windows::Win32::UI::Controls::MARGINS;
+use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled};
 use windows::Win32::UI::Shell::{ITaskbarList, ITaskbarList3, TaskbarList};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
@@ -235,6 +236,21 @@ pub fn set_badge_count(
   _count: Option<i64>,
   _desktop_filename: Option<String>,
 ) {
+}
+
+/// Enables or disables all user interaction with the window.
+///
+/// `EnableWindow` disables the window and, crucially, all of its child windows
+/// — including the child HWND that hosts the CEF browser — so input is blocked
+/// for the whole window. CEF's `View::set_enabled` only covers the root view
+/// and leaves the web contents focusable.
+pub fn set_enabled(window: &cef::Window, enabled: bool) {
+  let _ = unsafe { EnableWindow(hwnd(window), enabled) };
+}
+
+/// Reports whether the window is enabled.
+pub fn is_enabled(window: &cef::Window) -> bool {
+  unsafe { IsWindowEnabled(hwnd(window)) }.as_bool()
 }
 
 pub fn start_resize_dragging(window: &cef::Window, direction: ResizeDirection) {

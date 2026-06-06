@@ -10,7 +10,7 @@ use objc2::MainThreadMarker;
 use objc2::rc::Retained;
 use objc2_app_kit::{
   NSAppearance, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSApplication,
-  NSApplicationPresentationOptions, NSCursor, NSScreen, NSView, NSWindow,
+  NSApplicationPresentationOptions, NSBackingStoreType, NSCursor, NSScreen, NSView, NSWindow,
   NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSString};
@@ -317,6 +317,52 @@ pub fn set_app_theme(theme: Option<tauri_utils::Theme>) {
     _ => None,
   };
   app.setAppearance(appearance.as_deref());
+}
+
+/// Enables or disables all user interaction with the window.
+///
+/// CEF's `View::set_enabled` only disables the window's root view, not the
+/// child browser views layered on top of it, so the web contents stay
+/// focusable. Mirroring `tao`/Electron, a disabled window instead gets a
+/// translucent modal sheet attached over it, which swallows input for the
+/// entire window — browser included; removing the sheet re-enables it.
+pub fn set_enabled(window: &cef::Window, enabled: bool) {
+  let Some(ns_window) = ns_window(window) else {
+    return;
+  };
+  if !enabled {
+    // Avoid stacking multiple sheets if called twice while already disabled.
+    if unsafe { ns_window.attachedSheet() }.is_some() {
+      return;
+    }
+    let Some(mtm) = main_thread() else {
+      return;
+    };
+    let frame = ns_window.frame();
+    let sheet = unsafe {
+      NSWindow::initWithContentRect_styleMask_backing_defer(
+        mtm.alloc(),
+        frame,
+        NSWindowStyleMask::Titled,
+        NSBackingStoreType::Buffered,
+        false,
+      )
+    };
+    unsafe {
+      sheet.setAlphaValue(0.5);
+      ns_window.beginSheet_completionHandler(&sheet, None);
+    }
+  } else if let Some(attached) = unsafe { ns_window.attachedSheet() } {
+    unsafe { ns_window.endSheet(&attached) };
+  }
+}
+
+/// Reports whether the window is enabled, i.e. has no modal sheet attached by
+/// [`set_enabled`].
+pub fn is_enabled(window: &cef::Window) -> bool {
+  ns_window(window)
+    .map(|ns_window| unsafe { ns_window.attachedSheet() }.is_none())
+    .unwrap_or(true)
 }
 
 pub fn set_dock_visibility(visible: bool) {

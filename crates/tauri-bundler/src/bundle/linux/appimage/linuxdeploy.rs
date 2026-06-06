@@ -171,12 +171,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     app_dir_path.join(larger_icon_path),
     app_dir_path.join(format!("{product_name}.png")),
   )?;
+
+  // The Symlink to `.DirIcon` must use a relative target within the AppDir, not an absolute path to the build directory.
   std::os::unix::fs::symlink(
-    app_dir_path.join(format!("{product_name}.png")),
+    format!("{product_name}.png"),
     app_dir_path.join(".DirIcon"),
   )?;
+  // The Symlink to `.desktop` must use a relative target within the AppDir, not an absolute path to the build directory.
   std::os::unix::fs::symlink(
-    app_dir_path.join(format!("usr/share/applications/{product_name}.desktop")),
+    format!("usr/share/applications/{product_name}.desktop"),
     app_dir_path.join(format!("{product_name}.desktop")),
   )?;
 

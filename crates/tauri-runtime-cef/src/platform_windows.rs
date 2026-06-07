@@ -8,9 +8,12 @@ use tauri_runtime::window::CursorIcon;
 use tauri_runtime::{ProgressBarState, ResizeDirection, UserAttentionType};
 use windows::Win32::Foundation::{HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Dwm::DwmExtendFrameIntoClientArea;
+use windows::Win32::Graphics::Gdi::ClientToScreen;
 use windows::Win32::System::Com::{CLSCTX_SERVER, CoCreateInstance};
 use windows::Win32::UI::Controls::MARGINS;
-use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+  EnableWindow, GetActiveWindow, IsWindowEnabled, ReleaseCapture,
+};
 use windows::Win32::UI::Shell::{ITaskbarList, ITaskbarList3, TaskbarList};
 use windows::Win32::UI::WindowsAndMessaging::*;
 

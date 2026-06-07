@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(windows)]
-use std::process::Command;
 use std::{
   fs,
-  io::Write,
   path::{Path, PathBuf},
 };
+#[cfg(windows)]
+use std::{io::Write, process::Command};
 use ureq::ResponseExt;
 
 use crate::bundle::settings::Arch;
@@ -26,6 +25,7 @@ pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
+#[cfg(windows)]
 const VSWHERE: &[u8] = include_bytes!("vswhere.exe");
 const VCTOOLS_REDIST_DIR_ENV_VAR: &str = "VCTOOLS_REDIST_DIR";
 #[cfg(windows)]
@@ -216,6 +216,7 @@ fn glob_path(path: &Path, pattern: &str) -> String {
 ///
 /// The executable is written to a temporary file so callers do not depend on a system-installed
 /// `vswhere.exe`.
+#[cfg(windows)]
 pub fn vswhere_path() -> Option<PathBuf> {
   let mut vswhere = std::env::temp_dir();
   vswhere.push("vswhere.exe");

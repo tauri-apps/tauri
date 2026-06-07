@@ -181,7 +181,7 @@ async fn get_response<R: Runtime>(
 
 async fn proxy_dev_request(
   client: &reqwest::Client,
-  url: &String,
+  url: &str,
   response_cache: &Mutex<HashMap<String, CachedResponse>>,
   path: String,
   mut builder: http::response::Builder,
@@ -219,14 +219,14 @@ async fn proxy_dev_request(
 
   let status = response.status();
 
-  if status == http::StatusCode::NOT_MODIFIED {
-    if let Some(response) = response_cache.lock().unwrap().get(&url).cloned() {
-      for (name, value) in &response.headers {
-        builder = builder.header(name, value);
-      }
-
-      return Ok(builder.status(response.status).body(response.body.into())?);
+  if status == http::StatusCode::NOT_MODIFIED
+    && let Some(response) = response_cache.lock().unwrap().get(&url).cloned()
+  {
+    for (name, value) in &response.headers {
+      builder = builder.header(name, value);
     }
+
+    return Ok(builder.status(response.status).body(response.body.into())?);
   }
 
   let headers = response.headers().clone();

@@ -29,12 +29,24 @@ pub enum Event {
 
 type EventListener = Box<dyn Fn(&Event) + Send>;
 
+/// An event action deferred because the `event_listeners` lock was held when a
+/// listener tried to re-enter the scope (see [`Scope::emit`]).
+enum Pending {
+  Unlisten(ScopeEventId),
+  Listen {
+    id: ScopeEventId,
+    listener: EventListener,
+  },
+  Emit(Event),
+}
+
 /// Scope for filesystem access.
 #[derive(Clone)]
 pub struct Scope {
   allowed_patterns: Arc<Mutex<HashSet<Pattern>>>,
   forbidden_patterns: Arc<Mutex<HashSet<Pattern>>>,
   event_listeners: Arc<Mutex<HashMap<ScopeEventId, EventListener>>>,
+  pending: Arc<Mutex<Vec<Pending>>>,
   match_options: glob::MatchOptions,
   next_event_id: Arc<AtomicU32>,
 }
@@ -211,6 +223,7 @@ impl Scope {
       allowed_patterns: Arc::new(Mutex::new(allowed_patterns)),
       forbidden_patterns: Arc::new(Mutex::new(forbidden_patterns)),
       event_listeners: Default::default(),
+      pending: Default::default(),
       next_event_id: Default::default(),
       match_options: glob::MatchOptions {
         // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
@@ -235,39 +248,94 @@ impl Scope {
   /// Listen to an event on this scope.
   pub fn listen<F: Fn(&Event) + Send + 'static>(&self, f: F) -> ScopeEventId {
     let id = self.next_event_id();
-    self.listen_with_id(id, f);
+    self.listen_with_id(id, Box::new(f));
     id
   }
 
-  fn listen_with_id<F: Fn(&Event) + Send + 'static>(&self, id: ScopeEventId, f: F) {
-    self.event_listeners.lock().unwrap().insert(id, Box::new(f));
+  fn listen_with_id(&self, id: ScopeEventId, listener: EventListener) {
+    // Defer if the listeners lock is held (we're being called from inside a
+    // dispatch in `emit`) so we never block on the non-reentrant Mutex.
+    match self.event_listeners.try_lock() {
+      Err(_) => self.insert_pending(Pending::Listen { id, listener }),
+      Ok(mut listeners) => {
+        listeners.insert(id, listener);
+      }
+    }
   }
 
   /// Listen to an event on this scope and immediately unlisten.
   pub fn once<F: FnOnce(&Event) + Send + 'static>(&self, f: F) -> ScopeEventId {
-    let listerners = self.event_listeners.clone();
+    let scope = self.clone();
     let handler = std::cell::Cell::new(Some(f));
     let id = self.next_event_id();
-    self.listen_with_id(id, move |event| {
-      listerners.lock().unwrap().remove(&id);
-      let handler = handler
-        .take()
-        .expect("attempted to call handler more than once");
-      handler(event)
-    });
+    self.listen_with_id(
+      id,
+      Box::new(move |event| {
+        let handler = handler
+          .take()
+          .expect("attempted to call handler more than once");
+        handler(event);
+        // Re-enters the scope; `unlisten` defers if `emit` still holds the lock.
+        scope.unlisten(id);
+      }),
+    );
     id
   }
 
   /// Removes an event listener on this scope.
   pub fn unlisten(&self, id: ScopeEventId) {
-    self.event_listeners.lock().unwrap().remove(&id);
+    match self.event_listeners.try_lock() {
+      Err(_) => self.insert_pending(Pending::Unlisten(id)),
+      Ok(mut listeners) => {
+        listeners.remove(&id);
+      }
+    }
   }
 
   fn emit(&self, event: Event) {
-    let listeners = self.event_listeners.lock().unwrap();
-    let handlers = listeners.values();
-    for listener in handlers {
-      listener(&event);
+    // `try_lock` + a pending queue so a listener can re-enter the scope (a
+    // `once` listener removing itself, or a handler calling
+    // listen/unlisten/emit) without deadlocking the non-reentrant Mutex. This
+    // mirrors `crate::event::listener`: re-entrant calls are deferred and then
+    // applied by `flush_pending` once the lock is released.
+    let mut maybe_pending = false;
+    match self.event_listeners.try_lock() {
+      Err(_) => self.insert_pending(Pending::Emit(event)),
+      Ok(listeners) => {
+        for listener in listeners.values() {
+          maybe_pending = true;
+          listener(&event);
+        }
+      }
+    }
+
+    if maybe_pending {
+      self.flush_pending();
+    }
+  }
+
+  /// Queue an event action deferred because the listeners lock was held.
+  fn insert_pending(&self, action: Pending) {
+    self
+      .pending
+      .lock()
+      .expect("poisoned fs scope pending queue")
+      .push(action);
+  }
+
+  /// Apply any actions deferred while the listeners lock was held.
+  fn flush_pending(&self) {
+    let pending = {
+      let mut lock = self.pending.lock().expect("poisoned fs scope pending queue");
+      std::mem::take(&mut *lock)
+    };
+
+    for action in pending {
+      match action {
+        Pending::Unlisten(id) => self.unlisten(id),
+        Pending::Listen { id, listener } => self.listen_with_id(id, listener),
+        Pending::Emit(event) => self.emit(event),
+      }
     }
   }
 
@@ -435,6 +503,7 @@ mod tests {
       allowed_patterns: Default::default(),
       forbidden_patterns: Default::default(),
       event_listeners: Default::default(),
+      pending: Default::default(),
       next_event_id: Default::default(),
       match_options: glob::MatchOptions {
         // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
@@ -448,6 +517,124 @@ mod tests {
         ..Default::default()
       },
     }
+  }
+
+  // Runs `f` on a worker thread and fails (instead of hanging the whole suite)
+  // if it doesn't finish quickly — i.e. catches a re-entrancy deadlock in the
+  // listener dispatch path.
+  fn assert_completes(label: &str, f: impl FnOnce() + Send + 'static) {
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+      f();
+      let _ = tx.send(());
+    });
+    assert!(
+      rx.recv_timeout(Duration::from_secs(5)).is_ok(),
+      "{label} deadlocked (event_listeners lock held across a re-entrant callback)"
+    );
+  }
+
+  // A `once` listener removes itself by re-entering the scope while `emit` is
+  // dispatching. Regression test for a self-deadlock where `emit` held the
+  // `event_listeners` lock across the callback.
+  #[test]
+  fn once_listener_does_not_deadlock() {
+    let scope = new_scope();
+    scope.once(|_| {});
+    // `allow_file` -> `Scope::emit`, which dispatches to the `once` listener.
+    assert_completes("once listener", move || {
+      scope.allow_file("/home/tauri/once_test").unwrap();
+    });
+  }
+
+  // The deferred self-`unlisten` must actually remove the listener: it fires on
+  // the first emit and never again.
+  #[test]
+  fn once_fires_exactly_once() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let scope = new_scope();
+    let count = std::sync::Arc::new(AtomicUsize::new(0));
+    let c = count.clone();
+    scope.once(move |_| {
+      c.fetch_add(1, Ordering::SeqCst);
+    });
+
+    assert_completes("once fires once", {
+      let scope = scope.clone();
+      move || {
+        scope.allow_file("/home/tauri/a").unwrap();
+        scope.allow_file("/home/tauri/b").unwrap();
+      }
+    });
+    assert_eq!(
+      count.load(Ordering::SeqCst),
+      1,
+      "`once` listener fired more than once"
+    );
+  }
+
+  // A handler that registers another listener mid-dispatch: the registration is
+  // deferred (lock held) and applied by `flush_pending`, so the new listener
+  // fires on the next emit.
+  #[test]
+  fn handler_can_listen_without_deadlock() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let scope = new_scope();
+    let inner_fired = std::sync::Arc::new(AtomicUsize::new(0));
+
+    let scope_for_handler = scope.clone();
+    let inner = inner_fired.clone();
+    scope.listen(move |_| {
+      let inner = inner.clone();
+      scope_for_handler.listen(move |_| {
+        inner.fetch_add(1, Ordering::SeqCst);
+      });
+    });
+
+    assert_completes("re-entrant listen", {
+      let scope = scope.clone();
+      move || {
+        scope.allow_file("/home/tauri/first").unwrap(); // outer fires, registers inner
+        scope.allow_file("/home/tauri/second").unwrap(); // inner fires
+      }
+    });
+    assert!(
+      inner_fired.load(Ordering::SeqCst) >= 1,
+      "listener registered from within a handler never fired (pending flush broken)"
+    );
+  }
+
+  // A handler that re-emits (calls back into the scope) mid-dispatch: the emit
+  // is deferred and then flushed, with no deadlock. Guarded to re-emit once.
+  #[test]
+  fn handler_can_emit_without_deadlock() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    let scope = new_scope();
+    let reentered = std::sync::Arc::new(AtomicBool::new(false));
+
+    let scope_for_handler = scope.clone();
+    let re = reentered.clone();
+    scope.listen(move |_| {
+      if !re.swap(true, Ordering::SeqCst) {
+        scope_for_handler
+          .allow_file("/home/tauri/reentrant_emit")
+          .unwrap();
+      }
+    });
+
+    assert_completes("re-entrant emit", move || {
+      scope.allow_file("/home/tauri/trigger").unwrap();
+    });
+    assert!(
+      reentered.load(Ordering::SeqCst),
+      "handler did not re-emit"
+    );
   }
 
   #[test]

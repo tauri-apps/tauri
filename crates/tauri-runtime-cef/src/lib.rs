@@ -50,6 +50,7 @@ use crate::cef_webview::CefWebview;
 
 mod cef_impl;
 mod cef_webview;
+mod platform;
 mod utils;
 
 /// The `cef` crate used by this runtime, re-exported for convenience.
@@ -600,7 +601,15 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     crate::cef_impl::get_available_monitors()
   }
 
-  fn set_theme(&self, _theme: Option<Theme>) {}
+  fn set_theme(&self, theme: Option<Theme>) {
+    let context = self.context.clone();
+    let _ = self.context.post_message(Message::Task(Box::new(move || {
+      // Capture the whole `RuntimeContext` (which is `Send`) rather than letting
+      // edition-2021 disjoint closure captures grab the non-`Send` inner field.
+      let context = context;
+      cef_impl::set_runtime_theme(&context.cef_context, theme);
+    })));
+  }
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
@@ -641,22 +650,26 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
     &self,
-    _cb: F,
+    cb: F,
   ) -> Result<()> {
-    todo!()
+    // CEF has no equivalent of WKWebsiteDataStore identifiers; report none.
+    cb(Vec::new());
+    Ok(())
   }
 
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
     &self,
     _uuid: [u8; 16],
-    _cb: F,
+    cb: F,
   ) -> Result<()> {
-    todo!()
+    // CEF has no equivalent of WKWebsiteDataStore identifiers; nothing to remove.
+    cb(Ok(()));
+    Ok(())
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    Ok(PhysicalPosition::new(0.0, 0.0))
+    Ok(crate::platform::global_cursor_position().unwrap_or_else(|| PhysicalPosition::new(0.0, 0.0)))
   }
 }
 
@@ -2050,6 +2063,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
       scheme_handler_registry: Default::default(),
       cache_path: Arc::new(cache_path.clone()),
+      theme: Default::default(),
       is_shutting_down: Default::default(),
     };
 
@@ -2381,13 +2395,19 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     crate::cef_impl::get_available_monitors()
   }
 
-  fn set_theme(&self, _theme: Option<Theme>) {}
+  fn set_theme(&self, theme: Option<Theme>) {
+    cef_impl::set_runtime_theme(&self.context.cef_context, theme);
+  }
 
   #[cfg(target_os = "macos")]
-  fn set_activation_policy(&mut self, _activation_policy: tauri_runtime::ActivationPolicy) {}
+  fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {
+    crate::platform::set_activation_policy(activation_policy);
+  }
 
   #[cfg(target_os = "macos")]
-  fn set_dock_visibility(&mut self, _visible: bool) {}
+  fn set_dock_visibility(&mut self, visible: bool) {
+    crate::platform::set_dock_visibility(visible);
+  }
 
   #[cfg(target_os = "macos")]
   fn show(&self) {
@@ -2418,7 +2438,15 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, _callback: F) {}
+  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, mut callback: F) {
+    // Mirror a single turn of the `run` loop: drain queued events, pump one
+    // iteration of CEF's message loop, then signal that events are cleared.
+    while let Ok(event) = self.event_rx.try_recv() {
+      callback(event);
+    }
+    cef::do_message_loop_work();
+    callback(RunEvent::MainEventsCleared);
+  }
 
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, _callback: F) -> i32 {
     0
@@ -2499,7 +2527,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    Ok(PhysicalPosition::new(0.0, 0.0))
+    Ok(crate::platform::global_cursor_position().unwrap_or_else(|| PhysicalPosition::new(0.0, 0.0)))
   }
 }
 

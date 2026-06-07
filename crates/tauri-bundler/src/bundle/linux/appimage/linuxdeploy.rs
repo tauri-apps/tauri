@@ -172,7 +172,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     app_dir_path.join(format!("{product_name}.png")),
   )?;
   std::os::unix::fs::symlink(
-    app_dir_path.join(format!("{product_name}.png")),
+    format!("{product_name}.png"),
     app_dir_path.join(".DirIcon"),
   )?;
   std::os::unix::fs::symlink(

@@ -294,6 +294,8 @@ impl<R: Runtime> WebviewManager<R> {
         let payload = PageLoadPayload { url: &url, event };
 
         if let Some(w) = app_manager_.get_webview(&label) {
+          w.navigation_nonce.fetch_add(1, std::sync::atomic::Ordering::Release);
+
           if let Some(on_page_load) = &app_manager_.webview.on_page_load {
             on_page_load(&w, &payload);
           }

@@ -1303,6 +1303,8 @@ pub struct Webview<R: Runtime> {
   pub(crate) manager: Arc<AppManager<R>>,
   pub(crate) app_handle: AppHandle<R>,
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
+  /// Incremented on every page load to invalidate stale IPC responses.
+  pub(crate) navigation_nonce: Arc<std::sync::atomic::AtomicU64>,
   use_https_scheme: bool,
 }
 
@@ -1324,6 +1326,7 @@ impl<R: Runtime> Clone for Webview<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       resources_table: self.resources_table.clone(),
+      navigation_nonce: self.navigation_nonce.clone(),
       use_https_scheme: self.use_https_scheme,
     }
   }
@@ -1358,6 +1361,7 @@ impl<R: Runtime> Webview<R> {
       window: Arc::new(Mutex::new(window)),
       webview,
       resources_table: Default::default(),
+      navigation_nonce: Default::default(),
       use_https_scheme,
     }
   }
@@ -1761,10 +1765,16 @@ tauri::Builder::default()
       return;
     }
 
+    let nonce = self.navigation_nonce.load(std::sync::atomic::Ordering::Acquire);
+
     let resolver = InvokeResolver::new(
       self.clone(),
       Arc::new(Mutex::new(Some(Box::new(
         move |webview: Webview<R>, cmd, response, callback, error| {
+          let current_nonce = webview.navigation_nonce.load(std::sync::atomic::Ordering::Acquire);
+          if current_nonce != nonce {
+            return;
+          }
           responder(webview, cmd, response, callback, error);
         },
       )))),

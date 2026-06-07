@@ -475,11 +475,12 @@ impl RuntimeAuthority {
     }
   }
 
-  /// Returns the set of custom URI schemes that should be registered on the webview with the
-  /// given window/webview label, or `None` if no capability constrained custom schemes (in
-  /// which case the caller registers every custom scheme, the previous behavior). The built-in
-  /// `ipc`, `tauri`, `asset` and isolation schemes are not represented here and are always
-  /// registered regardless of this list.
+  /// Returns the set of URI schemes that may be registered on the webview with the given
+  /// window/webview label, or `None` if no capability constrained schemes (in which case the
+  /// caller registers every scheme, the previous behavior). Custom app/plugin schemes and the
+  /// built-in `asset` protocol are gated by this set. The `ipc` and `tauri` schemes (the
+  /// capability machinery itself) and the isolation scheme (a per-app dynamic name) are not
+  /// represented here and are always registered by the caller.
   pub(crate) fn allowed_uri_schemes(&self, window: &str, webview: &str) -> Option<HashSet<String>> {
     if self.uri_scheme_access.is_empty() {
       // No capability opted into scheme gating: register every custom scheme (back-compat).
@@ -948,6 +949,37 @@ mod tests {
       authority.allowed_uri_schemes("main", "locked"),
       Some(HashSet::new())
     );
+  }
+
+  #[test]
+  fn allowed_uri_schemes_gates_asset_like_any_scheme() {
+    // `asset` is not special-cased: it is allow-listable, and a webview gated to other schemes
+    // does NOT implicitly get `asset` (the caller gates the built-in asset protocol on this set).
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        uri_scheme_access: vec![
+          ResolvedUriSchemeAccess {
+            webviews: vec![Pattern::new("with-asset").unwrap()],
+            schemes: vec!["asset".into()],
+            ..Default::default()
+          },
+          ResolvedUriSchemeAccess {
+            webviews: vec![Pattern::new("no-asset").unwrap()],
+            schemes: vec!["my-scheme".into()],
+            ..Default::default()
+          },
+        ],
+        ..Default::default()
+      },
+    );
+
+    assert_eq!(
+      authority.allowed_uri_schemes("main", "with-asset"),
+      Some(HashSet::from(["asset".to_string()]))
+    );
+    let no_asset = authority.allowed_uri_schemes("main", "no-asset").unwrap();
+    assert!(!no_asset.contains("asset"));
   }
 
   #[test]

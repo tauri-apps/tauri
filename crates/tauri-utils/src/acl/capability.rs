@@ -172,13 +172,14 @@ pub struct Capability {
   /// `["sub-webview-one", "sub-webview-two"]`
   #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub webviews: Vec<String>,
-  /// List of custom URI scheme protocols this capability exposes to its matched webviews.
+  /// List of URI scheme protocols this capability exposes to its matched webviews.
   ///
-  /// When set, a custom URI scheme protocol registered by the app or a plugin is only
-  /// registered on a webview if some capability matching that webview lists the scheme here.
-  /// When unset (the default), all custom schemes remain available on every webview,
-  /// preserving the previous behavior. The built-in `ipc`, `tauri`, `asset` and isolation
-  /// schemes are always available regardless of this list.
+  /// When set, a custom URI scheme protocol (registered by the app or a plugin) and the
+  /// built-in `asset` protocol are only registered on a webview if some capability matching
+  /// that webview lists the scheme here. When unset (the default), all schemes remain
+  /// available on every webview, preserving the previous behavior. The built-in `ipc` and
+  /// `tauri` schemes — the capability machinery itself — and the isolation scheme (which uses
+  /// a per-app dynamic scheme name) are always available regardless of this list.
   ///
   /// ## Example
   ///

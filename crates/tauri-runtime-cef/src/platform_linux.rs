@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_long, c_uint, c_ulong};
 
-use cef::ImplWindow;
+use cef::{ImplView, ImplWindow};
 use tauri_runtime::dpi::{PhysicalPosition, Position};
 use tauri_runtime::window::CursorIcon;
 use tauri_runtime::{ProgressBarState, ProgressBarStatus, ResizeDirection, UserAttentionType};

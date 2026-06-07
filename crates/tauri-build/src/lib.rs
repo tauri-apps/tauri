@@ -281,8 +281,8 @@ impl WindowsAttributes {
   pub fn new_without_app_manifest() -> Self {
     Self {
       app_manifest: None,
-      window_icon_path: Default::default(),
       static_vc_runtime: None,
+      window_icon_path: Default::default(),
       append_rc_content: Vec::new(),
     }
   }

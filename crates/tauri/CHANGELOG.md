@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.11.2]
+
+### Bug Fixes
+
+- [`47e1b7549`](https://www.github.com/tauri-apps/tauri/commit/47e1b754951bffeedbcd6400928d60755fb954de) ([#15386](https://www.github.com/tauri-apps/tauri/pull/15386) by [@DominikPeters](https://www.github.com/tauri-apps/tauri/../../DominikPeters)) Fixed `Submenu.setAsWindowsMenuForNSApp()` calling the Help menu setter instead of the Window menu setter.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+- Upgraded to `tauri-runtime@2.11.2`
+- Upgraded to `tauri-runtime-wry@2.11.2`
+- Upgraded to `tauri-macros@2.6.2`
+- Upgraded to `tauri-build@2.6.2`
+
 ## \[2.11.1]
 
 ### Enhancements

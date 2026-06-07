@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.9.2]
+
+### Bug Fixes
+
+- [`b5b72ce51`](https://www.github.com/tauri-apps/tauri/commit/b5b72ce51811e9f95b1f7e9a05ea19c8f12ce694) ([#15383](https://www.github.com/tauri-apps/tauri/pull/15383) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a regression in tauri-utils 2.8.3 that made empty path an invalid resource target, e.g.
+
+  ```json
+  {
+    "bundle": {
+      "resources": {
+        "README.md": "",
+      }
+    }
+  }
+  ```
+
+  (this means `README.md` -> `$RESOURCE/README.md`, note this is a confusing behavior, and will be changed in v3)
+- [`3fd8ba2c0`](https://www.github.com/tauri-apps/tauri/commit/3fd8ba2c022717068ff6a154ce12942c3a672232) ([#15388](https://www.github.com/tauri-apps/tauri/pull/15388) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a regression in tauri-utils 2.8.3 that made an empty directory makes it skip all the following entries, e.g.
+
+  ```json
+  {
+    "bundle": {
+      "resources": [
+        "empty-directory",
+        "README.md"
+      ]
+    }
+  }
+  ```
+
+  if `empty-directory` is empty, the `README.md` will not be copied to the resource directory (skipped)
+
 ## \[2.9.1]
 
 ### Dependencies

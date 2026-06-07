@@ -172,6 +172,19 @@ pub struct Capability {
   /// `["sub-webview-one", "sub-webview-two"]`
   #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub webviews: Vec<String>,
+  /// List of custom URI scheme protocols this capability exposes to its matched webviews.
+  ///
+  /// When set, a custom URI scheme protocol registered by the app or a plugin is only
+  /// registered on a webview if some capability matching that webview lists the scheme here.
+  /// When unset (the default), all custom schemes remain available on every webview,
+  /// preserving the previous behavior. The built-in `ipc`, `tauri`, `asset` and isolation
+  /// schemes are always available regardless of this list.
+  ///
+  /// ## Example
+  ///
+  /// `["my-scheme", "my-other-scheme"]`
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub uri_schemes: Option<Vec<String>>,
   /// List of permissions attached to this capability.
   ///
   /// Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
@@ -369,6 +382,7 @@ mod build {
       let local = self.local;
       let windows = vec_lit(&self.windows, str_lit);
       let webviews = vec_lit(&self.webviews, str_lit);
+      let uri_schemes = opt_vec_lit(self.uri_schemes.as_ref(), str_lit);
       let permissions = vec_lit(&self.permissions, identity);
       let platforms = opt_vec_lit(self.platforms.as_ref(), identity);
 
@@ -381,6 +395,7 @@ mod build {
         local,
         windows,
         webviews,
+        uri_schemes,
         permissions,
         platforms
       );
@@ -429,6 +444,7 @@ mod tests {
       local: true,
       windows: vec![],
       webviews: vec![],
+      uri_schemes: None,
       permissions: vec![],
       platforms: None,
     };

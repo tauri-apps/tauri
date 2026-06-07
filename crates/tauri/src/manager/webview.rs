@@ -227,7 +227,24 @@ impl<R: Runtime> WebviewManager<R> {
 
     let mut registered_scheme_protocols = Vec::new();
 
+    // Per-webview custom URI scheme allow-list (see #13224). `None` means no capability
+    // constrained schemes, so every app-registered custom scheme is registered (back-compat).
+    let allowed_uri_schemes = app_manager
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .allowed_uri_schemes(window_label, label);
+
     for (uri_scheme, protocol) in &*self.uri_scheme_protocols.lock().unwrap() {
+      if let Some(allowed) = &allowed_uri_schemes {
+        // The built-in `ipc`, `tauri` and `asset` schemes are never gated (isolation uses a
+        // per-app dynamic scheme name registered outside this loop, so it is unaffected). This
+        // keeps the gate orthogonal to the asset protocol scope (see #9946).
+        let always_allowed = matches!(uri_scheme.as_str(), "ipc" | "tauri" | "asset");
+        if !always_allowed && !allowed.contains(uri_scheme.as_str()) {
+          continue;
+        }
+      }
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
       let app_handle = manager.app_handle().clone();

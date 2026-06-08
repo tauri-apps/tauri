@@ -95,12 +95,15 @@ pub fn handle_android_plugin_response(
     (false, false) => unreachable!(),
   };
 
-  if let Some(handler) = PENDING_PLUGIN_CALLS
+  // Drop the lock before invoking the handler: it delivers the command response
+  // to the webview (which can block on the UI thread), and holding
+  // PENDING_PLUGIN_CALLS across that call deadlocks a concurrent `run_command`.
+  let handler = PENDING_PLUGIN_CALLS
     .get_or_init(Default::default)
     .lock()
     .unwrap()
-    .remove(&id)
-  {
+    .remove(&id);
+  if let Some(handler) = handler {
     handler(if is_ok { Ok(payload) } else { Err(payload) });
   }
 }
@@ -115,12 +118,16 @@ pub fn send_channel_data(
   let data: serde_json::Value =
     serde_json::from_str(env.get_string(&data_str).unwrap().to_str().unwrap()).unwrap();
 
-  if let Some(channel) = CHANNELS
+  // Clone the channel out and drop the lock before send(): send() can block
+  // delivering to the webview, and holding CHANNELS across it deadlocks a
+  // concurrent channel registration/send.
+  let channel = CHANNELS
     .get_or_init(Default::default)
     .lock()
     .unwrap()
     .get(&(channel_id as u32))
-  {
+    .cloned();
+  if let Some(channel) = channel {
     let _ = channel.send(data);
   }
 }
@@ -165,12 +172,17 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       let config = self.raw_config.clone();
       webview
         .with_webview(move |w| {
+          let webview_ptr = w
+            .as_any()
+            .downcast_ref::<tauri_runtime_wry::Webview>()
+            .map(|w| w.inner())
+            .unwrap_or(std::ptr::null_mut());
           unsafe {
             crate::ios::register_plugin(
               &name.into(),
               init_fn(),
               &serde_json::to_string(&config).unwrap().as_str().into(),
-              w.inner() as _,
+              webview_ptr as _,
             )
           };
           tx.send(()).unwrap();
@@ -401,12 +413,16 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
         CStr::from_ptr(payload)
       };
 
-      if let Some(channel) = CHANNELS
+      // Clone the channel out and drop the lock before send(): send() can block
+      // delivering to the webview, and holding CHANNELS across it deadlocks a
+      // concurrent channel registration/send.
+      let channel = CHANNELS
         .get_or_init(Default::default)
         .lock()
         .unwrap()
         .get(&(id as u32))
-      {
+        .cloned();
+      if let Some(channel) = channel {
         let payload: serde_json::Value = serde_json::from_str(payload.to_str().unwrap()).unwrap();
         let _ = channel.send(payload);
       }

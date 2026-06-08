@@ -1673,13 +1673,13 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     id
   }
 
-  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
+  fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Webview(
         *self.window_id.lock().unwrap(),
         self.webview_id,
-        WebviewMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
+        WebviewMessage::WithWebview(Box::new(f)),
       ),
     )
   }
@@ -3044,6 +3044,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   type PlatformSpecificWebviewAttribute = WebviewAttribute;
   type PlatformSpecificInitAttribute = ();
   type WindowOpener = NewWindowOpener;
+  type Webview = Webview;
 
   fn new(args: RuntimeInitArgs<()>) -> Result<Self> {
     Self::init_with_builder(EventLoopBuilder::<Message<T>>::with_user_event(), args)
@@ -4107,44 +4108,39 @@ fn handle_user_message<T: UserEvent>(
               target_os = "openbsd"
             ))]
             {
-              f(webview.webview());
+              f(Webview::new(webview.webview()));
             }
             #[cfg(target_os = "macos")]
             {
               use wry::WebViewExtMacOS;
-              f(Webview {
-                webview: Retained::into_raw(webview.webview()) as *mut objc2::runtime::AnyObject
+              f(Webview::new(
+                Retained::into_raw(webview.webview()) as *mut objc2::runtime::AnyObject
                   as *mut std::ffi::c_void,
-                manager: Retained::into_raw(webview.manager()) as *mut objc2::runtime::AnyObject
+                Retained::into_raw(webview.manager()) as *mut objc2::runtime::AnyObject
                   as *mut std::ffi::c_void,
-                ns_window: Retained::into_raw(webview.ns_window()) as *mut objc2::runtime::AnyObject
+                Retained::into_raw(webview.ns_window()) as *mut objc2::runtime::AnyObject
                   as *mut std::ffi::c_void,
-              });
+              ));
             }
             #[cfg(target_os = "ios")]
             {
               use wry::WebViewExtIOS;
 
-              f(Webview {
-                webview: Retained::into_raw(webview.inner.webview())
-                  as *mut objc2::runtime::AnyObject
+              f(Webview::new(
+                Retained::into_raw(webview.inner.webview()) as *mut objc2::runtime::AnyObject
                   as *mut std::ffi::c_void,
-                manager: Retained::into_raw(webview.inner.manager())
-                  as *mut objc2::runtime::AnyObject
+                Retained::into_raw(webview.inner.manager()) as *mut objc2::runtime::AnyObject
                   as *mut std::ffi::c_void,
-                view_controller: window.ui_view_controller(),
-              });
+                window.ui_view_controller(),
+              ));
             }
             #[cfg(windows)]
             {
-              f(Webview {
-                controller: webview.controller(),
-                environment: webview.environment(),
-              });
+              f(Webview::new(webview.controller(), webview.environment()));
             }
             #[cfg(target_os = "android")]
             {
-              f(webview.handle())
+              f(Webview::new(webview.handle()))
             }
           }
           #[cfg(any(debug_assertions, feature = "devtools"))]

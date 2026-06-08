@@ -4475,7 +4475,6 @@ mod test {
       features: None,
       remove_unused_commands: false,
       additional_watch_folders: Vec::new(),
-      windows: WindowsBuildConfig::default(),
     };
 
     // create a bundle config

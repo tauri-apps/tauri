@@ -17,7 +17,7 @@
     "@iconify-json/ph": "^1.2.2",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@unocss/extractor-svelte": "^66.6.6",
-    "svelte": "^5.53.11",
+    "svelte": "^5.55.7",
     "unocss": "^66.6.6",
     "vite": "^8.0.5"
   }

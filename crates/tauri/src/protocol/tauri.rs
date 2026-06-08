@@ -21,19 +21,17 @@ use crate::{
 struct CachedResponse {
   status: http::StatusCode,
   headers: http::HeaderMap,
-  body: bytes::Bytes,
+  body: Vec<u8>,
 }
 
 pub fn get<R: Runtime>(
-  #[allow(unused_variables)] manager: Arc<AppManager<R>>,
+  manager: Arc<AppManager<R>>,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
+  let use_https = window_origin.starts_with("https");
   let url = {
-    let mut url = manager
-      .get_app_url(window_origin.starts_with("https"))
-      .as_str()
-      .to_string();
+    let mut url = manager.get_app_url(use_https).as_str().to_string();
     if url.ends_with('/') {
       url.pop();
     }
@@ -42,36 +40,98 @@ pub fn get<R: Runtime>(
 
   let window_origin = window_origin.to_string();
 
-  let response_cache = Arc::new(Mutex::new(HashMap::new()));
+  #[allow(unused_mut)]
+  let mut client_builder = reqwest::ClientBuilder::new();
+  if use_https {
+    #[cfg(feature = "rustls-tls")]
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+      let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+
+    // we can't load env vars at runtime, gotta embed them in the lib
+    #[allow(unused_variables)]
+    if let Some(cert_pem) = option_env!("TAURI_DEV_ROOT_CERTIFICATE") {
+      #[cfg(any(
+        feature = "native-tls",
+        feature = "native-tls-vendored",
+        feature = "rustls-tls"
+      ))]
+      {
+        log::info!("adding dev server root certificate");
+        let certificate = reqwest::Certificate::from_pem(cert_pem.as_bytes())
+          .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE");
+        client_builder = client_builder.tls_certs_merge([certificate]);
+      }
+
+      #[cfg(not(any(
+        feature = "native-tls",
+        feature = "native-tls-vendored",
+        feature = "rustls-tls"
+      )))]
+      {
+        log::warn!(
+          "the dev root-certificate-path option was provided, but you must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
+        );
+      }
+    } else {
+      log::warn!(
+        "loading HTTPS URL; you might need to provide a certificate via the `dev --root-certificate-path` option. You must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
+      );
+    }
+  }
+  let client = client_builder.build().unwrap();
+
+  let response_cache = Mutex::new(HashMap::new());
+
+  let context = Arc::new(Context {
+    manager,
+    web_resource_request_handler,
+    window_origin,
+    client,
+    url,
+    response_cache,
+  });
 
   Box::new(move |_, request, responder| {
-    match get_response(
-      request,
-      &manager,
-      &window_origin,
-      web_resource_request_handler.as_deref(),
-      (&url, &response_cache),
-    ) {
-      Ok(response) => responder.respond(response),
-      Err(e) => responder.respond(
-        HttpResponse::builder()
-          .status(StatusCode::INTERNAL_SERVER_ERROR)
-          .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-          .header("Access-Control-Allow-Origin", &window_origin)
-          .body(e.to_string().into_bytes())
-          .unwrap(),
-      ),
-    }
+    let context = context.clone();
+    crate::async_runtime::spawn(async move {
+      match get_response(&context, request).await {
+        Ok(response) => responder.respond(response),
+        Err(e) => responder.respond(
+          HttpResponse::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+            .header("Access-Control-Allow-Origin", &context.window_origin)
+            .body(e.to_string().into_bytes())
+            .unwrap(),
+        ),
+      }
+    });
   })
 }
 
-fn get_response<R: Runtime>(
-  #[allow(unused_mut)] mut request: Request<Vec<u8>>,
-  #[allow(unused_variables)] manager: &AppManager<R>,
-  window_origin: &str,
-  web_resource_request_handler: Option<&WebResourceRequestHandler>,
-  (url, response_cache): (&str, &Arc<Mutex<HashMap<String, CachedResponse>>>),
+struct Context<R: Runtime> {
+  manager: Arc<AppManager<R>>,
+  window_origin: String,
+  web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+  url: String,
+  client: reqwest::Client,
+  response_cache: Mutex<HashMap<String, CachedResponse>>,
+}
+
+async fn get_response<R: Runtime>(
+  context: &Context<R>,
+  request: Request<Vec<u8>>,
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
+  let Context {
+    manager,
+    web_resource_request_handler,
+    window_origin,
+    client,
+    url,
+    response_cache,
+  } = context;
+
   let proxy_dev_server = PROXY_DEV_SERVER && manager.assets.iter().next().is_none();
   // use the entire URI as we are going to proxy the request
   let path = if proxy_dev_server {
@@ -95,115 +155,13 @@ fn get_response<R: Runtime>(
     .map(|p| p.to_string())
     .unwrap_or_default();
 
+  #[allow(unused_mut)]
   let mut builder = HttpResponse::builder()
     .add_configured_headers(manager.config.app.security.headers.as_ref())
     .header("Access-Control-Allow-Origin", window_origin);
 
   let mut response = if proxy_dev_server {
-    let decoded_path = percent_encoding::percent_decode(path.as_bytes())
-      .decode_utf8_lossy()
-      .to_string();
-    let url = format!(
-      "{}/{}",
-      url.trim_end_matches('/'),
-      decoded_path.trim_start_matches('/')
-    );
-
-    #[cfg(feature = "rustls-tls")]
-    if rustls::crypto::CryptoProvider::get_default().is_none() {
-      let _ = rustls::crypto::ring::default_provider().install_default();
-    }
-
-    #[allow(unused_mut)]
-    let mut client = reqwest::ClientBuilder::new();
-
-    if url.starts_with("https://") {
-      // we can't load env vars at runtime, gotta embed them in the lib
-      if let Some(cert_pem) = option_env!("TAURI_DEV_ROOT_CERTIFICATE") {
-        #[cfg(any(
-          feature = "native-tls",
-          feature = "native-tls-vendored",
-          feature = "rustls-tls"
-        ))]
-        {
-          log::info!("adding dev server root certificate");
-          let certificate = reqwest::Certificate::from_pem(cert_pem.as_bytes())
-            .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE");
-          client = client.tls_certs_merge([certificate]);
-        }
-
-        #[cfg(not(any(
-          feature = "native-tls",
-          feature = "native-tls-vendored",
-          feature = "rustls-tls"
-        )))]
-        {
-          let _cert_pem = cert_pem;
-          log::warn!(
-            "the dev root-certificate-path option was provided, but you must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
-          );
-        }
-      } else {
-        log::warn!(
-          "loading HTTPS URL; you might need to provide a certificate via the `dev --root-certificate-path` option. You must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
-        );
-      }
-    }
-
-    let mut proxy_builder = client
-      .build()
-      .unwrap()
-      .request(request.method().clone(), &url);
-    proxy_builder = proxy_builder.body(std::mem::take(request.body_mut()));
-    for (name, value) in request.headers() {
-      proxy_builder = proxy_builder.header(name, value);
-    }
-    proxy_builder = proxy_builder.body(request.body().clone());
-    match crate::async_runtime::safe_block_on(proxy_builder.send()) {
-      Ok(r) => {
-        let mut response_cache_ = response_cache.lock().unwrap();
-        let mut response = None;
-        if r.status() == http::StatusCode::NOT_MODIFIED {
-          response = response_cache_.get(&url);
-        }
-        let response = if let Some(r) = response {
-          r
-        } else {
-          let status = r.status();
-          let headers = r.headers().clone();
-          let body = crate::async_runtime::safe_block_on(r.bytes())?;
-          let response = CachedResponse {
-            status,
-            headers,
-            body,
-          };
-          response_cache_.insert(url.clone(), response);
-          response_cache_.get(&url).unwrap()
-        };
-        for (name, value) in &response.headers {
-          builder = builder.header(name, value);
-        }
-        builder
-          .status(response.status)
-          .body(response.body.to_vec().into())?
-      }
-      Err(e) => {
-        let error_message = format!(
-          "Failed to request {}: {}{}",
-          url.as_str(),
-          e,
-          if let Some(s) = e.status() {
-            format!("status code: {}", s.as_u16())
-          } else if cfg!(target_os = "ios") {
-            ", did you grant local network permissions? That is required to reach the development server. Please grant the permission via the prompt or in `Settings > Privacy & Security > Local Network` and restart the app. See https://support.apple.com/en-us/102229 for more information.".to_string()
-          } else {
-            "".to_string()
-          }
-        );
-        log::error!("{error_message}");
-        return Err(error_message.into());
-      }
-    }
+    proxy_dev_request(client, url, response_cache, path, builder, &request).await?
   } else {
     let use_https_scheme = request.uri().scheme() == Some(&http::uri::Scheme::HTTPS);
     let asset = manager.get_asset(path, use_https_scheme)?;
@@ -219,4 +177,77 @@ fn get_response<R: Runtime>(
   }
 
   Ok(response)
+}
+
+async fn proxy_dev_request(
+  client: &reqwest::Client,
+  url: &str,
+  response_cache: &Mutex<HashMap<String, CachedResponse>>,
+  path: String,
+  mut builder: http::response::Builder,
+  request: &Request<Vec<u8>>,
+) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
+  let decoded_path = percent_encoding::percent_decode(path.as_bytes())
+    .decode_utf8_lossy()
+    .to_string();
+  let url = format!(
+    "{}/{}",
+    url.trim_end_matches('/'),
+    decoded_path.trim_start_matches('/')
+  );
+
+  let mut proxy_builder = client.request(request.method().clone(), &url);
+  for (name, value) in request.headers() {
+    proxy_builder = proxy_builder.header(name, value);
+  }
+  proxy_builder = proxy_builder.body(request.body().clone());
+
+  let response = proxy_builder.send().await.map_err(|e|{
+    let error_message = format!(
+      "Failed to request {url}: {e}{}",
+      if let Some(s) = e.status() {
+        format!("status code: {}", s.as_u16())
+      } else if cfg!(target_os = "ios") {
+        ", did you grant local network permissions? That is required to reach the development server. Please grant the permission via the prompt or in `Settings > Privacy & Security > Local Network` and restart the app. See https://support.apple.com/en-us/102229 for more information.".to_string()
+      } else {
+        "".to_string()
+      }
+    );
+    log::error!("{error_message}");
+    error_message
+  })?;
+
+  let status = response.status();
+
+  if status == http::StatusCode::NOT_MODIFIED
+    && let Some(response) = response_cache.lock().unwrap().get(&url).cloned()
+  {
+    for (name, value) in &response.headers {
+      builder = builder.header(name, value);
+    }
+
+    return Ok(builder.status(response.status).body(response.body.into())?);
+  }
+
+  let headers = response.headers().clone();
+  let body = response.bytes().await?.to_vec();
+  let response = CachedResponse {
+    status,
+    headers,
+    body,
+  };
+
+  response_cache
+    .lock()
+    .unwrap()
+    .insert(url.clone(), response.clone());
+
+  for (name, value) in &response.headers {
+    builder = builder.header(name, value);
+  }
+
+  builder
+    .status(response.status)
+    .body(response.body.into())
+    .map_err(Into::into)
 }

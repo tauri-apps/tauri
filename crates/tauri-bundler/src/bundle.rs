@@ -14,8 +14,6 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
-pub use windows::vswhere_path;
-
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";

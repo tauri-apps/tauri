@@ -187,6 +187,7 @@ impl Rust {
     self.app_settings.clone()
   }
 
+  #[allow(dead_code)]
   pub(crate) fn app_settings_ref(&self) -> &RustAppSettings {
     self.app_settings.as_ref()
   }

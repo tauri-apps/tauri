@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{helpers::template, Result};
-use anyhow::Context;
+use crate::{error::Context, helpers::template, Result};
 use cargo_mobile2::{
   config::app::App,
   open_harmony::{config::Config, target::Target},

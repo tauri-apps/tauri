@@ -474,15 +474,11 @@ fn parse_invoke_request<R: Runtime>(
 
       (body, content_type) = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
         .and_then(|raw| {
-          let content_type = raw.content_type().clone();
-          crypto_keys.decrypt(raw).map(|decrypted| {
-            (
-              decrypted,
-              content_type
-                .parse()
-                .unwrap_or(mime::APPLICATION_OCTET_STREAM),
-            )
-          })
+          let content_type = raw
+            .content_type()
+            .parse()
+            .unwrap_or(mime::APPLICATION_OCTET_STREAM);
+          Ok((crypto_keys.decrypt(raw)?, content_type))
         })
         .map_err(|e| e.to_string())?;
     }
@@ -578,6 +574,8 @@ mod tests {
       context,
       PluginStore::default(),
       Box::new(|_| false),
+      None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
       Default::default(),
       StateManager::new(),
@@ -694,6 +692,8 @@ mod tests {
       context,
       PluginStore::default(),
       Box::new(|_| false),
+      None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
       Default::default(),
       StateManager::new(),

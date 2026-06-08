@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.6.1"
+version = "2.9.2"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -15,13 +15,13 @@ rust-version = "1.77.2"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.7.0", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.9.2", path = "../tauri-utils", features = [
   "resources",
 ] }
 image = "0.25"
 flate2 = "1"
-anyhow = "1"
 thiserror = "2"
+anyhow = "1"
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 strsim = "0.11"
@@ -44,6 +44,8 @@ url = "2"
 uuid = { version = "1", features = ["v4", "v5"] }
 regex = "1"
 goblin = "0.9"
+plist = "1"
+
 
 [target."cfg(target_os = \"windows\")".dependencies]
 bitness = "0.4"
@@ -57,8 +59,7 @@ features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = ["formatting"] }
-plist = "1"
-tauri-macos-sign = { version = "2.2.0", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.3.4", path = "../tauri-macos-sign" }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"

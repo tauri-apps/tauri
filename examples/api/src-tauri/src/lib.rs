@@ -89,7 +89,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
             let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-            let builder = tauri::WebviewWindowBuilder::new(
+            let builder = WebviewWindowBuilder::new(
               &app_,
               format!("new-{number}"),
               tauri::WebviewUrl::External("about:blank".parse().unwrap()),
@@ -128,31 +128,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         }
       }
 
-      #[cfg(desktop)]
-      std::thread::spawn(|| {
-        let server = match tiny_http::Server::http("localhost:3003") {
-          Ok(s) => s,
-          Err(e) => {
-            eprintln!("{e}");
-            std::process::exit(1);
-          }
-        };
-        loop {
-          if let Ok(mut request) = server.recv() {
-            let mut body = Vec::new();
-            let _ = request.as_reader().read_to_end(&mut body);
-            let response = tiny_http::Response::new(
-              tiny_http::StatusCode(200),
-              request.headers().to_vec(),
-              std::io::Cursor::new(body),
-              request.body_length(),
-              None,
-            );
-            let _ = request.respond(response);
-          }
-        }
-      });
-
       setup(app);
 
       Ok(())
@@ -187,17 +162,19 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
+  #[cfg(target_os = "ios")]
+  let mut counter = 0;
   app.run(move |_app_handle, _event| {
-    #[cfg(all(desktop, not(test)))]
+    #[cfg(not(test))]
     match &_event {
-      RunEvent::ExitRequested { api, code, .. } => {
-        // Keep the event loop running even if all windows are closed
-        // This allow us to catch tray icon events when there is no window
-        // if we manually requested an exit (code is Some(_)) we will let it go through
-        if code.is_none() {
-          api.prevent_exit();
-        }
+      // Keep the event loop running even if all windows are closed
+      // This allow us to catch tray icon events when there is no window
+      // if we manually requested an exit (code is Some(_)) we will let it go through
+      #[cfg(desktop)]
+      RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
+        api.prevent_exit();
       }
+      #[cfg(desktop)]
       RunEvent::WindowEvent {
         event: tauri::WindowEvent::CloseRequested { api, .. },
         label,
@@ -212,6 +189,21 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .unwrap()
           .destroy()
           .unwrap();
+      }
+      #[cfg(target_os = "ios")]
+      RunEvent::SceneRequested { .. } => {
+        counter += 1;
+        WebviewWindowBuilder::new(
+          _app_handle,
+          format!("main-from-scene-{counter}"),
+          WebviewUrl::default(),
+        )
+        .build()
+        .unwrap();
+      }
+      #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+      RunEvent::Opened { urls } => {
+        println!("opened urls: {:?}", urls);
       }
       _ => (),
     }

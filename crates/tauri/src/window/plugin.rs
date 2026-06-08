@@ -6,23 +6,56 @@
 
 use crate::{
   plugin::{Builder, TauriPlugin},
-  Runtime,
+  sealed::ManagerBase,
+  Runtime, Window,
 };
 
-#[cfg(desktop)]
-mod desktop_commands {
-  use tauri_runtime::{window::WindowSizeConstraints, ResizeDirection};
-  use tauri_utils::TitleBarStyle;
+fn get_window<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<Window<R>> {
+  match label {
+    Some(l) if !l.is_empty() => window
+      .manager()
+      .get_window(&l)
+      .ok_or(crate::Error::WindowNotFound),
+    _ => Ok(window),
+  }
+}
+macro_rules! getter {
+  ($cmd: ident, $ret: ty) => {
+    #[command(root = "crate")]
+    pub async fn $cmd<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<$ret> {
+      get_window(window, label)?.$cmd().map_err(Into::into)
+    }
+  };
+}
+
+macro_rules! setter {
+  ($cmd: ident) => {
+    #[command(root = "crate")]
+    pub async fn $cmd<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<()> {
+      get_window(window, label)?.$cmd().map_err(Into::into)
+    }
+  };
+
+  ($cmd: ident, $input: ty) => {
+    #[command(root = "crate")]
+    pub async fn $cmd<R: Runtime>(
+      window: Window<R>,
+      label: Option<String>,
+      value: $input,
+    ) -> crate::Result<()> {
+      get_window(window, label)?.$cmd(value).map_err(Into::into)
+    }
+  };
+}
+
+mod commands {
+  use tauri_runtime::window::WindowSizeConstraints;
 
   use super::*;
   use crate::{
-    command,
-    sealed::ManagerBase,
-    utils::config::{WindowConfig, WindowEffectsConfig},
-    window::Color,
-    window::{ProgressBarState, WindowBuilder},
-    AppHandle, CursorIcon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
-    UserAttentionType, Webview, Window,
+    command, sealed::ManagerBase, utils::config::WindowConfig, window::Color,
+    window::WindowBuilder, AppHandle, Monitor, PhysicalPosition, PhysicalSize, Position, Size,
+    Theme, Window,
   };
 
   #[command(root = "crate")]
@@ -31,51 +64,9 @@ mod desktop_commands {
   }
 
   #[command(root = "crate")]
-  pub async fn create<R: Runtime>(app: AppHandle<R>, options: WindowConfig) -> crate::Result<()> {
-    WindowBuilder::from_config(&app, &options)?.build()?;
+  pub async fn create<R: Runtime>(window: Window<R>, options: WindowConfig) -> crate::Result<()> {
+    WindowBuilder::from_config(&window, &options)?.build()?;
     Ok(())
-  }
-
-  fn get_window<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<Window<R>> {
-    match label {
-      Some(l) if !l.is_empty() => window
-        .manager()
-        .get_window(&l)
-        .ok_or(crate::Error::WindowNotFound),
-      _ => Ok(window),
-    }
-  }
-
-  macro_rules! getter {
-    ($cmd: ident, $ret: ty) => {
-      #[command(root = "crate")]
-      pub async fn $cmd<R: Runtime>(
-        window: Window<R>,
-        label: Option<String>,
-      ) -> crate::Result<$ret> {
-        get_window(window, label)?.$cmd().map_err(Into::into)
-      }
-    };
-  }
-
-  macro_rules! setter {
-    ($cmd: ident) => {
-      #[command(root = "crate")]
-      pub async fn $cmd<R: Runtime>(window: Window<R>, label: Option<String>) -> crate::Result<()> {
-        get_window(window, label)?.$cmd().map_err(Into::into)
-      }
-    };
-
-    ($cmd: ident, $input: ty) => {
-      #[command(root = "crate")]
-      pub async fn $cmd<R: Runtime>(
-        window: Window<R>,
-        label: Option<String>,
-        value: $input,
-      ) -> crate::Result<()> {
-        get_window(window, label)?.$cmd(value).map_err(Into::into)
-      }
-    };
   }
 
   getter!(scale_factor, f64);
@@ -83,58 +74,91 @@ mod desktop_commands {
   getter!(outer_position, PhysicalPosition<i32>);
   getter!(inner_size, PhysicalSize<u32>);
   getter!(outer_size, PhysicalSize<u32>);
-  getter!(is_fullscreen, bool);
-  getter!(is_minimized, bool);
-  getter!(is_maximized, bool);
   getter!(is_focused, bool);
-  getter!(is_decorated, bool);
   getter!(is_resizable, bool);
-  getter!(is_maximizable, bool);
-  getter!(is_minimizable, bool);
-  getter!(is_closable, bool);
   getter!(is_visible, bool);
   getter!(is_enabled, bool);
   getter!(title, String);
-  getter!(current_monitor, Option<Monitor>);
-  getter!(primary_monitor, Option<Monitor>);
-  getter!(available_monitors, Vec<Monitor>);
-  getter!(cursor_position, PhysicalPosition<f64>);
   getter!(theme, Theme);
-  getter!(is_always_on_top, bool);
+  #[cfg(target_os = "android")]
+  getter!(activity_name, String);
+  #[cfg(target_os = "ios")]
+  getter!(scene_identifier, String);
 
-  setter!(center);
-  setter!(request_user_attention, Option<UserAttentionType>);
   setter!(set_resizable, bool);
-  setter!(set_maximizable, bool);
-  setter!(set_minimizable, bool);
-  setter!(set_closable, bool);
   setter!(set_title, &str);
-  setter!(maximize);
-  setter!(unmaximize);
-  setter!(minimize);
-  setter!(unminimize);
   setter!(show);
   setter!(hide);
   setter!(close);
   setter!(destroy);
-  setter!(set_decorations, bool);
-  setter!(set_shadow, bool);
-  setter!(set_effects, Option<WindowEffectsConfig>);
-  setter!(set_always_on_top, bool);
-  setter!(set_always_on_bottom, bool);
   setter!(set_content_protected, bool);
   setter!(set_size, Size);
   setter!(set_min_size, Option<Size>);
   setter!(set_max_size, Option<Size>);
   setter!(set_position, Position);
-  setter!(set_fullscreen, bool);
-  setter!(set_simple_fullscreen, bool);
   setter!(set_focus);
   setter!(set_focusable, bool);
+  setter!(set_background_color, Option<Color>);
+  setter!(set_size_constraints, WindowSizeConstraints);
+  setter!(set_theme, Option<Theme>);
+  setter!(set_enabled, bool);
+
+  getter!(current_monitor, Option<Monitor>);
+  getter!(primary_monitor, Option<Monitor>);
+  getter!(available_monitors, Vec<Monitor>);
+
+  #[command(root = "crate")]
+  pub async fn monitor_from_point<R: Runtime>(
+    window: Window<R>,
+    label: Option<String>,
+    x: f64,
+    y: f64,
+  ) -> crate::Result<Option<Monitor>> {
+    let window = get_window(window, label)?;
+    window.monitor_from_point(x, y)
+  }
+}
+
+#[cfg(desktop)]
+mod desktop_commands {
+  use tauri_runtime::ResizeDirection;
+  use tauri_utils::TitleBarStyle;
+
+  use super::*;
+  use crate::{
+    command, utils::config::WindowEffectsConfig, window::ProgressBarState, CursorIcon, Manager,
+    PhysicalPosition, Position, UserAttentionType, Webview,
+  };
+
+  getter!(is_fullscreen, bool);
+  getter!(is_minimized, bool);
+  getter!(is_maximized, bool);
+  getter!(is_decorated, bool);
+  getter!(is_maximizable, bool);
+  getter!(is_minimizable, bool);
+  getter!(is_closable, bool);
+  getter!(cursor_position, PhysicalPosition<f64>);
+  getter!(is_always_on_top, bool);
+
+  setter!(center);
+  setter!(request_user_attention, Option<UserAttentionType>);
+  setter!(set_maximizable, bool);
+  setter!(set_minimizable, bool);
+  setter!(set_closable, bool);
+  setter!(maximize);
+  setter!(unmaximize);
+  setter!(minimize);
+  setter!(unminimize);
+  setter!(set_decorations, bool);
+  setter!(set_shadow, bool);
+  setter!(set_effects, Option<WindowEffectsConfig>);
+  setter!(set_always_on_top, bool);
+  setter!(set_always_on_bottom, bool);
+  setter!(set_fullscreen, bool);
+  setter!(set_simple_fullscreen, bool);
   setter!(set_skip_taskbar, bool);
   setter!(set_cursor_grab, bool);
   setter!(set_cursor_visible, bool);
-  setter!(set_background_color, Option<Color>);
   setter!(set_cursor_icon, CursorIcon);
   setter!(set_cursor_position, Position);
   setter!(set_ignore_cursor_events, bool);
@@ -146,9 +170,6 @@ mod desktop_commands {
   setter!(set_badge_label, Option<String>);
   setter!(set_visible_on_all_workspaces, bool);
   setter!(set_title_bar_style, TitleBarStyle);
-  setter!(set_size_constraints, WindowSizeConstraints);
-  setter!(set_theme, Option<Theme>);
-  setter!(set_enabled, bool);
 
   #[command(root = "crate")]
   #[cfg(target_os = "windows")]
@@ -208,17 +229,6 @@ mod desktop_commands {
     }
     Ok(())
   }
-
-  #[command(root = "crate")]
-  pub async fn monitor_from_point<R: Runtime>(
-    window: Window<R>,
-    label: Option<String>,
-    x: f64,
-    y: f64,
-  ) -> crate::Result<Option<Monitor>> {
-    let window = get_window(window, label)?;
-    window.monitor_from_point(x, y)
-  }
 }
 
 /// Initializes the plugin.
@@ -244,96 +254,95 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
   Builder::new("window")
     .js_init_script(init_script)
-    .invoke_handler(
-      #[cfg(desktop)]
-      crate::generate_handler![
-        #![plugin(window)]
-        desktop_commands::create,
-        // getters
-        desktop_commands::get_all_windows,
-        desktop_commands::scale_factor,
-        desktop_commands::inner_position,
-        desktop_commands::outer_position,
-        desktop_commands::inner_size,
-        desktop_commands::outer_size,
-        desktop_commands::is_fullscreen,
-        desktop_commands::is_minimized,
-        desktop_commands::is_maximized,
-        desktop_commands::is_focused,
-        desktop_commands::is_decorated,
-        desktop_commands::is_resizable,
-        desktop_commands::is_maximizable,
-        desktop_commands::is_minimizable,
-        desktop_commands::is_closable,
-        desktop_commands::is_visible,
-        desktop_commands::is_enabled,
-        desktop_commands::title,
-        desktop_commands::current_monitor,
-        desktop_commands::primary_monitor,
-        desktop_commands::monitor_from_point,
-        desktop_commands::available_monitors,
-        desktop_commands::cursor_position,
-        desktop_commands::theme,
-        desktop_commands::is_always_on_top,
-        // setters
-        desktop_commands::center,
-        desktop_commands::request_user_attention,
-        desktop_commands::set_resizable,
-        desktop_commands::set_maximizable,
-        desktop_commands::set_minimizable,
-        desktop_commands::set_closable,
-        desktop_commands::set_title,
-        desktop_commands::maximize,
-        desktop_commands::unmaximize,
-        desktop_commands::minimize,
-        desktop_commands::unminimize,
-        desktop_commands::show,
-        desktop_commands::hide,
-        desktop_commands::close,
-        desktop_commands::destroy,
-        desktop_commands::set_decorations,
-        desktop_commands::set_shadow,
-        desktop_commands::set_effects,
-        desktop_commands::set_always_on_top,
-        desktop_commands::set_always_on_bottom,
-        desktop_commands::set_content_protected,
-        desktop_commands::set_size,
-        desktop_commands::set_min_size,
-        desktop_commands::set_max_size,
-        desktop_commands::set_size_constraints,
-        desktop_commands::set_position,
-        desktop_commands::set_fullscreen,
-        desktop_commands::set_simple_fullscreen,
-        desktop_commands::set_focus,
-        desktop_commands::set_focusable,
-        desktop_commands::set_enabled,
-        desktop_commands::set_skip_taskbar,
-        desktop_commands::set_cursor_grab,
-        desktop_commands::set_cursor_visible,
-        desktop_commands::set_cursor_icon,
-        desktop_commands::set_cursor_position,
-        desktop_commands::set_ignore_cursor_events,
-        desktop_commands::start_dragging,
-        desktop_commands::start_resize_dragging,
-        desktop_commands::set_badge_count,
-        #[cfg(target_os = "macos")]
-        desktop_commands::set_badge_label,
-        desktop_commands::set_progress_bar,
-        #[cfg(target_os = "windows")]
-        desktop_commands::set_overlay_icon,
-        desktop_commands::set_icon,
-        desktop_commands::set_visible_on_all_workspaces,
-        desktop_commands::set_background_color,
-        desktop_commands::set_title_bar_style,
-        desktop_commands::set_theme,
-        desktop_commands::toggle_maximize,
-        desktop_commands::internal_toggle_maximize,
-      ],
-      #[cfg(mobile)]
-      |invoke| {
-        invoke.resolver.reject("Window API not available on mobile");
-        true
-      },
-    )
+    .invoke_handler(crate::generate_handler![
+      #![plugin(window)]
+      commands::create,
+      // getters
+      commands::get_all_windows,
+      commands::scale_factor,
+      commands::inner_position,
+      commands::outer_position,
+      commands::inner_size,
+      commands::outer_size,
+      commands::is_focused,
+      commands::is_resizable,
+      commands::is_visible,
+      commands::is_enabled,
+      commands::title,
+      commands::theme,
+      #[cfg(target_os = "android")]
+      commands::activity_name,
+      #[cfg(target_os = "ios")]
+      commands::scene_identifier,
+
+      commands::set_resizable,
+      commands::set_title,
+      commands::show,
+      commands::hide,
+      commands::close,
+      commands::destroy,
+      commands::set_content_protected,
+      commands::set_size,
+      commands::set_min_size,
+      commands::set_max_size,
+      commands::set_position,
+      commands::set_size_constraints,
+      commands::set_focus,
+      commands::set_focusable,
+      commands::set_enabled,
+      commands::set_background_color,
+      commands::set_theme,
+      commands::current_monitor,
+      commands::primary_monitor,
+      commands::monitor_from_point,
+      commands::available_monitors,
+
+      #[cfg(desktop)] desktop_commands::is_fullscreen,
+      #[cfg(desktop)] desktop_commands::is_minimized,
+      #[cfg(desktop)] desktop_commands::is_maximized,
+      #[cfg(desktop)] desktop_commands::is_decorated,
+      #[cfg(desktop)] desktop_commands::is_maximizable,
+      #[cfg(desktop)] desktop_commands::is_minimizable,
+      #[cfg(desktop)] desktop_commands::is_closable,
+
+      #[cfg(desktop)] desktop_commands::cursor_position,
+      #[cfg(desktop)] desktop_commands::is_always_on_top,
+      // setters
+      #[cfg(desktop)] desktop_commands::center,
+      #[cfg(desktop)] desktop_commands::request_user_attention,
+      #[cfg(desktop)] desktop_commands::set_maximizable,
+      #[cfg(desktop)] desktop_commands::set_minimizable,
+      #[cfg(desktop)] desktop_commands::set_closable,
+      #[cfg(desktop)] desktop_commands::maximize,
+      #[cfg(desktop)] desktop_commands::unmaximize,
+      #[cfg(desktop)] desktop_commands::minimize,
+      #[cfg(desktop)] desktop_commands::unminimize,
+      #[cfg(desktop)] desktop_commands::set_decorations,
+      #[cfg(desktop)] desktop_commands::set_shadow,
+      #[cfg(desktop)] desktop_commands::set_effects,
+      #[cfg(desktop)] desktop_commands::set_always_on_top,
+      #[cfg(desktop)] desktop_commands::set_always_on_bottom,
+      #[cfg(desktop)] desktop_commands::set_fullscreen,
+      #[cfg(desktop)] desktop_commands::set_simple_fullscreen,
+      #[cfg(desktop)] desktop_commands::set_skip_taskbar,
+      #[cfg(desktop)] desktop_commands::set_cursor_grab,
+      #[cfg(desktop)] desktop_commands::set_cursor_visible,
+      #[cfg(desktop)] desktop_commands::set_cursor_icon,
+      #[cfg(desktop)] desktop_commands::set_cursor_position,
+      #[cfg(desktop)] desktop_commands::set_ignore_cursor_events,
+      #[cfg(desktop)] desktop_commands::start_dragging,
+      #[cfg(desktop)] desktop_commands::start_resize_dragging,
+      #[cfg(desktop)] desktop_commands::set_badge_count,
+      #[cfg(target_os = "macos")]
+      #[cfg(desktop)] desktop_commands::set_badge_label,
+      #[cfg(desktop)] desktop_commands::set_progress_bar,
+      #[cfg(target_os = "windows")]
+      #[cfg(desktop)] desktop_commands::set_overlay_icon,
+      #[cfg(desktop)] desktop_commands::set_icon,
+      #[cfg(desktop)] desktop_commands::set_visible_on_all_workspaces,
+      #[cfg(desktop)] desktop_commands::set_title_bar_style,
+      #[cfg(desktop)] desktop_commands::toggle_maximize,
+      #[cfg(desktop)] desktop_commands::internal_toggle_maximize,
+    ])
     .build()
 }

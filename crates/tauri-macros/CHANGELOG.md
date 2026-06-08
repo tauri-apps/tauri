@@ -1,5 +1,79 @@
 # Changelog
 
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+- Upgraded to `tauri-codegen@2.6.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+- Upgraded to `tauri-codegen@2.6.1`
+
+## \[2.6.0]
+
+### New Features
+
+- [`c00a3dbff`](https://www.github.com/tauri-apps/tauri/commit/c00a3dbffccd6e051d3b7332f706b6c63759865d) ([#14473](https://www.github.com/tauri-apps/tauri/pull/14473)) Add support for the `rename` attribute in the `tauri::command` macro to allow renaming the command to something other than the function name.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+- Upgraded to `tauri-codegen@2.6.0`
+
+## \[2.5.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+- Upgraded to `tauri-codegen@2.5.5`
+
+## \[2.5.4]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.5.4`
+
+## \[2.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- Upgraded to `tauri-codegen@2.5.3`
+
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+- Upgraded to `tauri-codegen@2.5.2`
+
+## \[2.5.1]
+
+### Bug Fixes
+
+- [`4b00130b8`](https://www.github.com/tauri-apps/tauri/commit/4b00130b86a27b6f121bf57897b5e92d83bcc0fc) ([#14385](https://www.github.com/tauri-apps/tauri/pull/14385) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix iOS deadlock when running on the simulator from Xcode by properly piping stdout/stderr messages through the Xcode console and OSLog.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.5.1`
+
+## \[2.5.0]
+
+### Bug Fixes
+
+- [`69476d8e2`](https://www.github.com/tauri-apps/tauri/commit/69476d8e2314b85bf46046140bc5495fe29b7d29) ([#14170](https://www.github.com/tauri-apps/tauri/pull/14170)) Fix the stack overflow when having too many commands in a single invoke handler in release build
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- Upgraded to `tauri-codegen@2.5.0`
+- [`6aa7f2d85`](https://www.github.com/tauri-apps/tauri/commit/6aa7f2d852870aeba1d4dd0e07f8be2bc9b66286) Upgraded to `tauri-utils@2.8.0`
+
 ## \[2.4.0]
 
 ### Dependencies

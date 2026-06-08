@@ -10,7 +10,8 @@ use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
 use tauri_utils::config::{
-  BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig, WindowEffectsConfig,
+  BackgroundThrottlingPolicy, Color, ScrollBarStyle as ConfigScrollBarStyle, WebviewUrl,
+  WindowConfig, WindowEffectsConfig,
 };
 use url::Url;
 
@@ -22,7 +23,7 @@ use std::{
   sync::Arc,
 };
 
-type UriSchemeProtocol = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
+type UriSchemeProtocolHandler = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
   + Send
   + Sync
   + 'static;
@@ -32,13 +33,16 @@ type WebResourceRequestHandler =
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
-type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send + Sync;
+type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send;
 
 type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 
 type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+type OnWebContentProcessTerminateHandler = dyn Fn() + Send;
 
 #[cfg(target_os = "ios")]
 type InputAccessoryViewBuilderFn = dyn Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>
@@ -103,7 +107,7 @@ pub struct NewWindowOpener {
   pub webview: webkit2gtk::WebView,
   /// The instance of the webview that initiated the new window request.
   ///
-  /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::environment`].
+  /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::with_environment`].
   #[cfg(windows)]
   pub webview: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2,
   #[cfg(windows)]
@@ -166,11 +170,31 @@ pub enum NewWindowResponse {
   /// ## Platform-specific:
   ///
   /// **Linux**: The webview must be related to the caller webview. See [`WebviewAttributes::related_view`].
-  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewAttributes::environment`].
+  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewAttributes::with_environment`].
   #[cfg(not(any(target_os = "android", target_os = "ios", target_env = "ohos")))]
   Create { window_id: WindowId },
   /// Deny the window from being opened.
   Deny,
+}
+
+/// The scrollbar style to use in the webview.
+///
+/// ## Platform-specific
+///
+/// - **Windows**: This option must be given the same value for all webviews that target the same data directory.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, Default)]
+pub enum ScrollBarStyle {
+  #[default]
+  /// The default scrollbar style for the webview.
+  Default,
+
+  #[cfg(windows)]
+  /// Fluent UI style overlay scrollbars. **Windows Only**
+  ///
+  /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
+  /// see <https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541>
+  FluentOverlay,
 }
 
 /// A webview that has yet to be built.
@@ -181,7 +205,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
 
-  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
+  /// Custom protocols to register on the webview
+  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocolHandler>>,
 
   /// How to handle IPC calls on the webview.
   pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
@@ -199,13 +224,16 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   #[cfg(target_os = "android")]
   #[allow(clippy::type_complexity)]
   pub on_webview_created:
-    Option<Box<dyn Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send>>,
+    Option<Box<dyn Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send + Sync>>,
 
   pub web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 
   pub on_page_load_handler: Option<Box<OnPageLoadHandler>>,
 
   pub download_handler: Option<Arc<DownloadHandler>>,
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  pub on_web_content_process_terminate_handler: Option<Box<OnWebContentProcessTerminateHandler>>,
 }
 
 impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
@@ -232,6 +260,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         web_resource_request_handler: None,
         on_page_load_handler: None,
         download_handler: None,
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        on_web_content_process_terminate_handler: None,
       })
     }
   }
@@ -245,17 +275,17 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
   >(
     &mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) {
     let uri_scheme = uri_scheme.into();
     self
       .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(protocol));
+      .insert(uri_scheme, Box::new(protocol_handler));
   }
 
   #[cfg(target_os = "android")]
   pub fn on_webview_created<
-    F: Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send + 'static,
+    F: Fn(CreationContext<'_, '_>) -> Result<(), jni::errors::Error> + Send + Sync + 'static,
   >(
     mut self,
     f: F,
@@ -343,7 +373,26 @@ pub struct WebviewAttributes {
   /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
   pub allow_link_preview: bool,
-  /// Allows overriding the the keyboard accessory view on iOS.
+  pub scroll_bar_style: ScrollBarStyle,
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// If not specified, this is `true` by default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  pub general_autofill_enabled: bool,
+  /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
   /// The closure parameter is the webview instance.
@@ -410,7 +459,14 @@ impl From<&WindowConfig> for WebviewAttributes {
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
       .background_throttling(config.background_throttling.clone())
-      .devtools(config.devtools);
+      .devtools(config.devtools)
+      .scroll_bar_style(match config.scroll_bar_style {
+        ConfigScrollBarStyle::Default => ScrollBarStyle::Default,
+        #[cfg(windows)]
+        ConfigScrollBarStyle::FluentOverlay => ScrollBarStyle::FluentOverlay,
+        _ => ScrollBarStyle::Default,
+      })
+      .general_autofill_enabled(config.general_autofill_enabled);
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
@@ -484,6 +540,8 @@ impl WebviewAttributes {
       background_throttling: None,
       javascript_disabled: false,
       allow_link_preview: true,
+      scroll_bar_style: ScrollBarStyle::Default,
+      general_autofill_enabled: true,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
       #[cfg(windows)]
@@ -753,10 +811,52 @@ impl WebviewAttributes {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[must_use]
   pub fn background_throttling(mut self, policy: Option<BackgroundThrottlingPolicy>) -> Self {
     self.background_throttling = policy;
+    self
+  }
+
+  /// Specifies the native scrollbar style to use with the webview.
+  /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+  ///
+  /// Defaults to [`ScrollBarStyle::Default`], which is the browser default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   - [`ScrollBarStyle::FluentOverlay`] requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///     and does nothing on older versions.
+  ///   - This option must be given the same value for all webviews that target the same data directory. Use
+  ///     [`WebviewAttributes::data_directory`] to change data directories if needed.
+  /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  #[must_use]
+  pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
+    self.scroll_bar_style = style;
+    self
+  }
+
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// By default, this is `true`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[must_use]
+  pub fn general_autofill_enabled(mut self, enabled: bool) -> Self {
+    self.general_autofill_enabled = enabled;
     self
   }
 }

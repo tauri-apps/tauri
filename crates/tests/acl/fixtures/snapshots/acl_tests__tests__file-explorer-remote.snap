@@ -398,7 +398,7 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$APP",
+                            "$APPDATA",
                         ),
                     },
                 ),

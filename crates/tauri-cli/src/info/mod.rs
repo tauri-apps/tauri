@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::app_paths::{resolve_frontend_dir, resolve_tauri_dir},
   Result,
 };
@@ -11,6 +12,7 @@ use colored::{ColoredString, Colorize};
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
+use tauri_utils::platform::Target;
 
 mod app;
 mod env_nodejs;
@@ -37,7 +39,7 @@ pub struct VersionMetadata {
 
 fn version_metadata() -> Result<VersionMetadata> {
   serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
-    .map_err(Into::into)
+    .context("failed to parse version metadata")
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -264,11 +266,6 @@ pub fn command(options: Options) -> Result<()> {
   let frontend_dir = resolve_frontend_dir();
   let tauri_dir = resolve_tauri_dir();
 
-  if tauri_dir.is_some() {
-    // safe to initialize
-    crate::helpers::app_paths::resolve();
-  }
-
   let package_manager = frontend_dir
     .as_ref()
     .map(packages_nodejs::package_manager)
@@ -312,13 +309,24 @@ pub fn command(options: Options) -> Result<()> {
     interactive,
     items: Vec::new(),
   };
-  app
-    .items
-    .extend(app::items(frontend_dir.as_ref(), tauri_dir.as_deref()));
+  if let Some(tauri_dir) = &tauri_dir {
+    if let Ok(config) = crate::helpers::config::get_config(Target::current(), &[], tauri_dir) {
+      app.items.extend(app::items(&config, frontend_dir.as_ref()));
+    };
+  }
 
   environment.display();
+
   packages.display();
+
   plugins.display();
+
+  if let (Some(frontend_dir), Some(tauri_dir)) = (&frontend_dir, &tauri_dir) {
+    if let Err(error) = plugins::check_mismatched_packages(frontend_dir, tauri_dir) {
+      println!("\n{}: {error}", "Error".bright_red().bold());
+    }
+  }
+
   app.display();
 
   // iOS

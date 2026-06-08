@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::{app_paths::walk_builder, npm::PackageManager},
-  Result,
+  Error, ErrorExt, Result,
 };
-use anyhow::Context;
 use itertools::Itertools;
 use magic_string::MagicString;
 use oxc_allocator::Allocator;
@@ -101,7 +101,8 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
       let path = entry.path();
       let ext = path.extension().unwrap_or_default();
       if JS_EXTENSIONS.iter().any(|e| e == &ext) {
-        let js_contents = std::fs::read_to_string(path)?;
+        let js_contents =
+          std::fs::read_to_string(path).fs_context("failed to read JS file", path.to_path_buf())?;
         let new_contents = migrate_imports(
           path,
           &js_contents,
@@ -110,7 +111,7 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
         )?;
         if new_contents != js_contents {
           fs::write(path, new_contents)
-            .with_context(|| format!("Error writing {}", path.display()))?;
+            .fs_context("failed to write JS file", path.to_path_buf())?;
         }
       }
     }
@@ -166,7 +167,7 @@ fn migrate_imports<'a>(
     let allocator = Allocator::default();
     let ret = Parser::new(&allocator, js_source, source_type).parse();
     if !ret.errors.is_empty() {
-      anyhow::bail!(
+      crate::error::bail!(
         "failed to parse {} as valid Javascript/Typescript file",
         path.display()
       )
@@ -193,8 +194,12 @@ fn migrate_imports<'a>(
               new_module,
               Default::default(),
             )
-            .map_err(|e| anyhow::anyhow!("{e}"))
-            .context("failed to replace import source")?;
+            .map_err(|e| {
+              Error::Context(
+                "failed to replace import source".to_string(),
+                e.to_string().into(),
+              )
+            })?;
 
           // if module was pluginified, add to packages
           if let Some(plugin_name) = new_module.strip_prefix("@tauri-apps/plugin-") {
@@ -240,7 +245,7 @@ fn migrate_imports<'a>(
               // to:
               // ```
               // import * as dialog from "@tauri-apps/plugin-dialog"
-              // import * as cli as superCli from "@tauri-apps/plugin-cli"
+              // import * as superCli from "@tauri-apps/plugin-cli"
               // ```
               import if PLUGINIFIED_MODULES.contains(&import) && module == "@tauri-apps/api" => {
                 let js_plugin: &str = MODULES_MAP[&format!("@tauri-apps/api/{import}")];
@@ -250,9 +255,7 @@ fn migrate_imports<'a>(
 
                 if specifier.local.name.as_str() != import {
                   let local = &specifier.local.name;
-                  imports_to_add.push(format!(
-                    "\nimport * as {import} as {local} from \"{js_plugin}\""
-                  ));
+                  imports_to_add.push(format!("\nimport * as {local} from \"{js_plugin}\""));
                 } else {
                   imports_to_add.push(format!("\nimport * as {import} from \"{js_plugin}\""));
                 };
@@ -279,8 +282,12 @@ fn migrate_imports<'a>(
                   new_identifier,
                   Default::default(),
                 )
-                .map_err(|e| anyhow::anyhow!("{e}"))
-                .context("failed to rename identifier")?;
+                .map_err(|e| {
+                  Error::Context(
+                    "failed to rename identifier".to_string(),
+                    e.to_string().into(),
+                  )
+                })?;
             } else {
               // if None, we need to remove this specifier,
               // it will also be replaced with an import from its new plugin below
@@ -297,8 +304,12 @@ fn migrate_imports<'a>(
 
               magic_js_source
                 .remove(script_start + start as i64, script_start + end as i64)
-                .map_err(|e| anyhow::anyhow!("{e}"))
-                .context("failed to remove identifier")?;
+                .map_err(|e| {
+                  Error::Context(
+                    "failed to remove identifier".to_string(),
+                    e.to_string().into(),
+                  )
+                })?;
             }
           }
         }
@@ -322,8 +333,7 @@ fn migrate_imports<'a>(
       for import in imports_to_add {
         magic_js_source
           .append_right(script_start as u32 + start, &import)
-          .map_err(|e| anyhow::anyhow!("{e}"))
-          .context("failed to add import")?;
+          .map_err(|e| Error::Context("failed to add import".to_string(), e.to_string().into()))?;
       }
     }
 
@@ -331,8 +341,9 @@ fn migrate_imports<'a>(
       for stmt in stmts_to_add {
         magic_js_source
           .append_right(script_start as u32 + start, stmt)
-          .map_err(|e| anyhow::anyhow!("{e}"))
-          .context("failed to add statement")?;
+          .map_err(|e| {
+            Error::Context("failed to add statement".to_string(), e.to_string().into())
+          })?;
       }
     }
   }
@@ -345,6 +356,39 @@ mod tests {
 
   use super::*;
   use pretty_assertions::assert_eq;
+
+  fn assert_migrated_output_parses(path: &Path, source: &str) {
+    let has_partial_js = path
+      .extension()
+      .is_some_and(|ext| ext == "vue" || ext == "svelte");
+
+    let sources = if !has_partial_js {
+      vec![(SourceType::from_path(path).unwrap(), source.to_string())]
+    } else {
+      partial_loader::PartialLoader::parse(
+        path
+          .extension()
+          .unwrap_or_default()
+          .to_str()
+          .unwrap_or_default(),
+        source,
+      )
+      .unwrap()
+      .into_iter()
+      .map(|s| (s.source_type, s.source_text.to_string()))
+      .collect()
+    };
+
+    for (source_type, script_source) in sources {
+      let allocator = Allocator::default();
+      let ret = Parser::new(&allocator, &script_source, source_type).parse();
+      assert!(
+        ret.errors.is_empty(),
+        "migrated output did not parse: {:?}",
+        ret.errors
+      );
+    }
+  }
 
   #[test]
   fn migrates_vue() {
@@ -391,7 +435,7 @@ mod tests {
   import * as fs from "@tauri-apps/plugin-fs";
   import "./App.css";
 import * as dialog from "@tauri-apps/plugin-dialog"
-import * as cli as superCli from "@tauri-apps/plugin-cli"
+import * as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 </script>
 
@@ -415,6 +459,7 @@ const appWindow = getCurrentWebviewWindow()
     .unwrap();
 
     assert_eq!(migrated, expected);
+    assert_migrated_output_parses(Path::new("file.vue"), &migrated);
 
     assert_eq!(
       new_plugins,
@@ -466,7 +511,7 @@ const appWindow = getCurrentWebviewWindow()
   import * as fs from "@tauri-apps/plugin-fs";
   import "./App.css";
 import * as dialog from "@tauri-apps/plugin-dialog"
-import * as cli as superCli from "@tauri-apps/plugin-cli"
+import * as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 </script>
 "#;
@@ -483,6 +528,7 @@ const appWindow = getCurrentWebviewWindow()
     .unwrap();
 
     assert_eq!(migrated, expected);
+    assert_migrated_output_parses(Path::new("file.svelte"), &migrated);
 
     assert_eq!(
       new_plugins,
@@ -585,7 +631,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import Database from "@tauri-apps/plugin-sql";
 import "./App.css";
 import * as dialog from "@tauri-apps/plugin-dialog"
-import * as cli as superCli from "@tauri-apps/plugin-cli"
+import * as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 
 function App() {
@@ -657,6 +703,7 @@ export default App;
     .unwrap();
 
     assert_eq!(migrated, expected);
+    assert_migrated_output_parses(Path::new("file.js"), &migrated);
 
     assert_eq!(
       new_plugins,

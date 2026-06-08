@@ -4,7 +4,7 @@
 
 package app.tauri.plugin
 
-import android.app.PendingIntent
+import android.content.res.Configuration
 import android.content.Context
 import android.content.Intent
 import android.webkit.WebView
@@ -17,13 +17,15 @@ import app.tauri.annotation.InvokeArg
 import app.tauri.FsUtils
 import app.tauri.JniMethod
 import app.tauri.Logger
+import com.fasterxml.jackson.annotation.JsonAutoDetect
+import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import java.lang.reflect.InvocationTargetException
 
-class PluginManager(val activity: AppCompatActivity) {
+object PluginManager {
   fun interface RequestPermissionsCallback {
     fun onResult(permissions: Map<String, Boolean>)
   }
@@ -32,16 +34,33 @@ class PluginManager(val activity: AppCompatActivity) {
     fun onResult(result: ActivityResult)
   }
 
+  lateinit var activity: AppCompatActivity
   private val plugins: HashMap<String, PluginHandle> = HashMap()
-  private val startActivityForResultLauncher: ActivityResultLauncher<Intent>
-  private val startIntentSenderForResultLauncher: ActivityResultLauncher<IntentSenderRequest>
-  private val requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
+  private lateinit var startActivityForResultLauncher: ActivityResultLauncher<Intent>
+  private lateinit var startIntentSenderForResultLauncher: ActivityResultLauncher<IntentSenderRequest>
+  private lateinit var requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
   private var requestPermissionsCallback: RequestPermissionsCallback? = null
   private var startActivityForResultCallback: ActivityResultCallback? = null
   private var startIntentSenderForResultCallback: ActivityResultCallback? = null
-  private var jsonMapper: ObjectMapper
+  private var jsonMapper: ObjectMapper = ObjectMapper()
+    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+    .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+    .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
 
   init {
+    val channelDeserializer = ChannelDeserializer({ channelId, payload ->
+      sendChannelData(channelId, payload)
+    }, jsonMapper)
+    jsonMapper
+      .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
+  }
+
+  fun onActivityCreate(activity: AppCompatActivity) {
+    // TODO: on destroy, we should change to a different activity
+    if (::activity.isInitialized) {
+      return
+    }
+    this.activity = activity
     startActivityForResultLauncher =
       activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()
       ) { result ->
@@ -65,16 +84,6 @@ class PluginManager(val activity: AppCompatActivity) {
           requestPermissionsCallback!!.onResult(result)
         }
       }
-
-    jsonMapper = ObjectMapper()
-      .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-      .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
-
-    val channelDeserializer = ChannelDeserializer({ channelId, payload ->
-      sendChannelData(channelId, payload)
-    }, jsonMapper)
-    jsonMapper
-      .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
   }
 
   fun onNewIntent(intent: Intent) {
@@ -92,6 +101,30 @@ class PluginManager(val activity: AppCompatActivity) {
   fun onResume() {
     for (plugin in plugins.values) {
       plugin.instance.onResume()
+    }
+  }
+
+  fun onRestart(activity: AppCompatActivity) {
+    for (plugin in plugins.values) {
+      plugin.instance.triggerOnRestart(activity)
+    }
+  }
+
+  fun onStop() {
+    for (plugin in plugins.values) {
+      plugin.instance.onStop()
+    }
+  }
+
+  fun onDestroy(activity: AppCompatActivity) {
+    for (plugin in plugins.values) {
+      plugin.instance.triggerOnDestroy(activity)
+    }
+  }
+
+  fun onConfigurationChanged(newConfig: Configuration) {
+    for (plugin in plugins.values) {
+      plugin.instance.onConfigurationChanged(newConfig)
     }
   }
 
@@ -173,14 +206,12 @@ class PluginManager(val activity: AppCompatActivity) {
     }
   }
 
-  companion object {
-    fun<T> loadConfig(context: Context, plugin: String, cls: Class<T>): T {
-      val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
-      val mapper = ObjectMapper()
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-      val config = mapper.readValue(tauriConfigJson, Config::class.java)
-      return mapper.readValue(config.plugins[plugin].toString(), cls)
-    }
+  fun<T> loadConfig(context: Context, plugin: String, cls: Class<T>): T {
+    val tauriConfigJson = FsUtils.readAsset(context.assets, "tauri.conf.json")
+    val mapper = ObjectMapper()
+      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    val config = mapper.readValue(tauriConfigJson, Config::class.java)
+    return mapper.readValue(config.plugins[plugin].toString(), cls)
   }
 
   private external fun handlePluginResponse(id: Int, success: String?, error: String?)

@@ -5,12 +5,13 @@
 package app.tauri.plugin
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.result.IntentSenderRequest
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import app.tauri.FsUtils
 import app.tauri.Logger
@@ -22,7 +23,6 @@ import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.json.JSONException
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -71,6 +71,51 @@ abstract class Plugin(private val activity: Activity) {
    * This event is called when the user returns to the activity. It is also called on cold starts.
    */
   open fun onResume() {}
+
+
+  /**
+   * This event is called after onStop() when the current activity is being re-displayed to the user (the user has navigated back to it).
+   * It will be followed by onStart() and then onResume().
+   */
+  open fun onRestart(activity: AppCompatActivity) {}
+
+  /**
+   * This event is called after onStop() when the current activity is being re-displayed to the user (the user has navigated back to it).
+   * It will be followed by onStart() and then onResume().
+   */
+  @Deprecated("use onRestart(activity: AppCompatActivity) instead")
+  open fun onRestart() {}
+
+  /**
+   * This event is called when the app is no longer visible to the user.
+   * You will next receive either onRestart(), onDestroy(), or nothing, depending on later user activity.
+   */
+  open fun onStop() {}
+
+  /**
+   * This event is called before the activity is destroyed.
+   */
+  open fun onDestroy(activity: AppCompatActivity) {}
+  /**
+   * This event is called before an activity is destroyed.
+   */
+  @Deprecated("use onDestroy(activity: AppCompatActivity) instead")
+  open fun onDestroy() {}
+
+  internal fun triggerOnDestroy(activity: AppCompatActivity) {
+    onDestroy(activity)
+    onDestroy()
+  }
+
+  internal fun triggerOnRestart(activity: AppCompatActivity) {
+    onRestart(activity)
+    onRestart()
+  }
+
+  /**
+   * This event is called when a configuration change occurs but the app does not recreate the activity.
+   */
+  open fun onConfigurationChanged(newConfig: Configuration) {}
 
   /**
    * Start activity for result with the provided Intent and resolve calling the provided callback method name.
@@ -146,6 +191,10 @@ abstract class Plugin(private val activity: Activity) {
         channel.sendObject(payload)
       }
     }
+  }
+
+  fun hasListener(event: String): Boolean {
+    return !listeners[event].isNullOrEmpty()
   }
 
   @Command

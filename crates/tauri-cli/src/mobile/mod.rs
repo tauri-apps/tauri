@@ -3,15 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::{
-    app_paths::tauri_dir,
-    config::{reload as reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
-  },
-  interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
-  ConfigValue,
+  error::{Context, ErrorExt},
+  helpers::config::{reload_config, Config as TauriConfig, ConfigMetadata},
+  interface::{AppInterface, AppSettings, DevProcess, Options as InterfaceOptions},
+  ConfigValue, Error, Result,
 };
-use anyhow::Context;
-use anyhow::{bail, Result};
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
@@ -32,7 +28,7 @@ use std::{
   fmt::{Display, Write},
   fs::{read_to_string, write},
   net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
-  path::PathBuf,
+  path::{Path, PathBuf},
   process::{exit, ExitStatus},
   str::FromStr,
   sync::{
@@ -72,18 +68,9 @@ impl DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
-    self.manually_killed_process.store(true, Ordering::Relaxed);
-    match self.child.kill() {
-      Ok(_) => Ok(()),
-      Err(e) => {
-        self.manually_killed_process.store(false, Ordering::Relaxed);
-        Err(e)
-      }
-    }
-  }
-
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    self.child.try_wait().map(|res| res.map(|o| o.status))
+    self.child.kill()?;
+    self.manually_killed_process.store(true, Ordering::SeqCst);
+    Ok(())
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
@@ -91,7 +78,7 @@ impl DevProcess for DevChild {
   }
 
   fn manually_killed_process(&self) -> bool {
-    self.manually_killed_process.load(Ordering::Relaxed)
+    self.manually_killed_process.load(Ordering::SeqCst)
   }
 }
 
@@ -185,29 +172,15 @@ impl Default for DevHost {
   }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub dev: bool,
-  pub features: Option<Vec<String>>,
+  pub features: Vec<String>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
   pub config: Vec<ConfigValue>,
   pub target_device: Option<TargetDevice>,
-}
-
-impl Default for CliOptions {
-  fn default() -> Self {
-    Self {
-      dev: false,
-      features: None,
-      args: vec!["--lib".into()],
-      noise_level: Default::default(),
-      vars: Default::default(),
-      config: Vec::new(),
-      target_device: None,
-    }
-  }
 }
 
 fn local_ip_address(force: bool) -> &'static IpAddr {
@@ -224,12 +197,9 @@ fn local_ip_address(force: bool) -> &'static IpAddr {
 
         })
         .collect();
-      match addresses.len() {
-        0 => panic!("No external IP detected."),
-        1 => {
-          let ipaddr = addresses.first().unwrap();
-          *ipaddr
-        }
+      match addresses.as_slice() {
+        [] => panic!("No external IP detected."),
+        [ipaddr] => *ipaddr,
         _ => {
           let selected = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
             .with_prompt(
@@ -259,25 +229,17 @@ struct DevUrlConfig {
 }
 
 fn use_network_address_for_dev_url(
-  config: &ConfigHandle,
+  config: &mut ConfigMetadata,
   dev_options: &mut crate::dev::Options,
   force_ip_prompt: bool,
+  tauri_dir: &Path,
 ) -> crate::Result<DevUrlConfig> {
-  let mut dev_url = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
+  let mut dev_url = config.build.dev_url.clone();
 
   let ip = if let Some(url) = &mut dev_url {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
-      Some(url::Host::Ipv4(i)) => {
-        i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
-      }
+      Some(url::Host::Ipv4(i)) => i == Ipv4Addr::LOCALHOST || i == Ipv4Addr::UNSPECIFIED,
       _ => false,
     };
 
@@ -290,12 +252,14 @@ fn use_network_address_for_dev_url(
         "If your frontend is not listening on that address, try configuring your development server to use the `TAURI_DEV_HOST` environment variable or 0.0.0.0 as host"
       );
 
-      *url = url::Url::parse(&format!(
+      let url_str = format!(
         "{}://{}{}",
         url.scheme(),
         SocketAddr::new(ip, url.port_or_known_default().unwrap()),
         url.path()
-      ))?;
+      );
+      *url =
+        url::Url::parse(&url_str).with_context(|| format!("failed to parse URL: {url_str}"))?;
 
       dev_options
         .config
@@ -306,11 +270,13 @@ fn use_network_address_for_dev_url(
         })));
 
       reload_config(
+        config,
         &dev_options
           .config
           .iter()
           .map(|conf| &conf.0)
           .collect::<Vec<_>>(),
+        tauri_dir,
       )?;
 
       Some(ip)
@@ -364,7 +330,7 @@ fn env_vars() -> HashMap<String, OsString> {
   vars
 }
 
-fn env() -> Result<Env, EnvError> {
+fn env() -> std::result::Result<Env, EnvError> {
   let env = Env::new()?.explicit_env_vars(env_vars());
   Ok(env)
 }
@@ -379,12 +345,17 @@ pub fn write_options(
   options.vars.extend(env_vars());
 
   let runtime = Runtime::new().unwrap();
-  let r: anyhow::Result<(ServerHandle, SocketAddr)> = runtime.block_on(async move {
-    let server = ServerBuilder::default().build("127.0.0.1:0").await?;
-    let addr = server.local_addr()?;
+  let r: crate::Result<(ServerHandle, SocketAddr)> = runtime.block_on(async move {
+    let server = ServerBuilder::default()
+      .build("127.0.0.1:0")
+      .await
+      .context("failed to build WebSocket server")?;
+    let addr = server.local_addr().context("failed to get local address")?;
 
     let mut module = RpcModule::new(());
-    module.register_method("options", move |_, _, _| Some(options.clone()))?;
+    module
+      .register_method("options", move |_, _, _| Some(options.clone()))
+      .context("failed to register options method")?;
 
     let handle = server.start(module);
 
@@ -392,15 +363,15 @@ pub fn write_options(
   });
   let (handle, addr) = r?;
 
-  write(
-    temp_dir().join(format!(
-      "{}-server-addr",
-      config
-        .original_identifier()
-        .context("app configuration is missing an identifier")?
-    )),
-    addr.to_string(),
-  )?;
+  let server_addr_path = temp_dir().join(format!(
+    "{}-server-addr",
+    config
+      .original_identifier()
+      .context("app configuration is missing an identifier")?
+  ));
+
+  write(&server_addr_path, addr.to_string())
+    .fs_context("failed to write server address file", server_addr_path)?;
 
   Ok(OptionsHandle(runtime, handle))
 }
@@ -427,10 +398,14 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
           .parse()
           .unwrap(),
         )
-        .await?;
+        .await
+        .context("failed to build WebSocket client")?;
       let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
-      let options: CliOptions = client.request("options", rpc_params![]).await?;
-      Ok::<CliOptions, anyhow::Error>(options)
+      let options: CliOptions = client
+        .request("options", rpc_params![])
+        .await
+        .context("failed to request options")?;
+      Ok::<CliOptions, Error>(options)
     })
     .expect("failed to read CLI options");
 
@@ -440,7 +415,12 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
   options
 }
 
-pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -> App {
+pub fn get_app(
+  target: Target,
+  config: &TauriConfig,
+  interface: &AppInterface,
+  tauri_dir: &Path,
+) -> App {
   let identifier = match target {
     Target::Android => config.identifier.replace('-', "_"),
     #[cfg(target_os = "macos")]
@@ -462,6 +442,12 @@ pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -
     .lib_name()
     .unwrap_or_else(|| app_name.to_snek_case());
 
+  if config.product_name.is_none() {
+    log::warn!(
+      "`productName` is not set in the Tauri configuration. Using `{app_name}` as the app name."
+    );
+  }
+
   let raw = RawAppConfig {
     name: app_name,
     lib_name: Some(lib_name),
@@ -472,28 +458,33 @@ pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -
   };
 
   let app_settings = interface.app_settings();
-  App::from_raw(tauri_dir().to_path_buf(), raw)
+  let tauri_dir = tauri_dir.to_path_buf();
+  App::from_raw(tauri_dir.to_path_buf(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
       app_settings
-        .out_dir(&InterfaceOptions {
-          debug: matches!(profile, Profile::Debug),
-          target: Some(target.into()),
-          ..Default::default()
-        })
+        .out_dir(
+          &InterfaceOptions {
+            debug: matches!(profile, Profile::Debug),
+            target: Some(target.into()),
+            ..Default::default()
+          },
+          &tauri_dir,
+        )
         .expect("failed to resolve target directory")
     })
 }
 
 #[allow(unused_variables)]
 fn ensure_init(
-  tauri_config: &ConfigHandle,
+  tauri_config: &ConfigMetadata,
   app: &App,
   project_dir: PathBuf,
   target: Target,
+  noninteractive: bool,
 ) -> Result<()> {
   if !project_dir.exists() {
-    bail!(
+    crate::error::bail!(
       "{} project directory {} doesn't exist. Please run `tauri {} init` and try again.",
       target.ide_name(),
       project_dir.display(),
@@ -501,16 +492,13 @@ fn ensure_init(
     )
   }
 
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-
   let mut project_outdated_reasons = Vec::new();
 
   match target {
     Target::Android => {
       let java_folder = project_dir
         .join("app/src/main/java")
-        .join(tauri_config_.identifier.replace('.', "/").replace('-', "_"));
+        .join(tauri_config.identifier.replace('.', "/").replace('-', "_"));
       if java_folder.exists() {
         #[cfg(unix)]
         ensure_gradlew(&project_dir)?;
@@ -521,26 +509,83 @@ fn ensure_init(
     }
     #[cfg(target_os = "macos")]
     Target::Ios => {
-      let pbxproj_contents = read_to_string(
-        project_dir
-          .join(format!("{}.xcodeproj", app.name()))
-          .join("project.pbxproj"),
-      )
-      .context("missing project.yml file in the Xcode project directory")?;
+      let xcodeproj_path = crate::helpers::fs::find_in_directory(&project_dir, "*.xcodeproj")
+        .with_context(|| format!("failed to locate xcodeproj in {}", project_dir.display()))?;
 
-      if !(pbxproj_contents.contains(ios::LIB_OUTPUT_FILE_NAME)
-        || pbxproj_contents.contains(&format!("lib{}.a", app.lib_name())))
-      {
-        project_outdated_reasons
-          .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
+      let xcodeproj_name = xcodeproj_path.file_stem().unwrap().to_str().unwrap();
+      if xcodeproj_name != app.name() {
+        let rename_targets = vec![
+          // first rename the entitlements
+          (
+            format!("{xcodeproj_name}_iOS/{xcodeproj_name}_iOS.entitlements"),
+            format!("{xcodeproj_name}_iOS/{}_iOS.entitlements", app.name()),
+          ),
+          // then the scheme folder
+          (
+            format!("{xcodeproj_name}_iOS"),
+            format!("{}_iOS", app.name()),
+          ),
+          (
+            format!("{xcodeproj_name}.xcodeproj"),
+            format!("{}.xcodeproj", app.name()),
+          ),
+        ];
+        let rename_info = rename_targets
+          .iter()
+          .map(|(from, to)| format!("- {from} to {to}"))
+          .collect::<Vec<_>>()
+          .join("\n");
+        log::error!(
+          "you have modified your package name from {current_project_name} to {new_project_name}\nWe need to apply the name change to the Xcode project, renaming:\n{rename_info}",
+          new_project_name = app.name(),
+          current_project_name = xcodeproj_name,
+        );
+        if noninteractive {
+          project_outdated_reasons
+            .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
+        } else {
+          let confirm = crate::helpers::prompts::confirm(
+            "Do you want to apply the name change to the Xcode project?",
+            Some(true),
+          )
+          .unwrap_or_default();
+          if confirm {
+            for (from, to) in rename_targets {
+              std::fs::rename(project_dir.join(&from), project_dir.join(&to))
+                .with_context(|| format!("failed to rename {from} to {to}"))?;
+            }
+
+            // update scheme name in pbxproj
+            // identifier / product name are synchronized by the dev/build commands
+            let pbxproj_path =
+              project_dir.join(format!("{}.xcodeproj/project.pbxproj", app.name()));
+            let pbxproj_contents = std::fs::read_to_string(&pbxproj_path)
+              .with_context(|| format!("failed to read {}", pbxproj_path.display()))?;
+            std::fs::write(
+              &pbxproj_path,
+              pbxproj_contents.replace(
+                &format!("{xcodeproj_name}_iOS"),
+                &format!("{}_iOS", app.name()),
+              ),
+            )
+            .with_context(|| format!("failed to write {}", pbxproj_path.display()))?;
+          } else {
+            project_outdated_reasons
+              .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
+          }
+        }
       }
+
+      // note: pbxproj is synchronied by the dev/build commands
     }
     Target::OpenHarmony => {
+      let path = project_dir.join("AppScope").join("app.json5");
       let app_json = json5::from_str::<open_harmony::AppConfig>(
-        &read_to_string(project_dir.join("AppScope").join("app.json5"))
+        &read_to_string(&path)
           .context("missing app.json5 file in the OpenHarmony project directory")?,
-      )?;
-      if app_json.app.bundle_name != tauri_config_.identifier.replace('-', "_") {
+      )
+      .with_context(|| format!("failed to parse config at {} as JSON5", path.display()))?;
+      if app_json.app.bundle_name != tauri_config.identifier.replace('-', "_") {
         project_outdated_reasons
           .push("you have modified your \"identifier\" in the Tauri configuration");
       }
@@ -549,9 +594,10 @@ fn ensure_init(
 
   if !project_outdated_reasons.is_empty() {
     let reason = project_outdated_reasons.join(" and ");
-    bail!(
-        "{} project directory is outdated because {reason}. Please run `tauri {} init` and try again.",
+    crate::error::bail!(
+        "{} project directory is outdated because {reason}. Please delete {}, run `tauri {} init` and try again.",
         target.ide_name(),
+        project_dir.display(),
         target.command_name(),
       )
   }
@@ -570,15 +616,15 @@ fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
     if !is_executable {
       permissions.set_mode(permissions.mode() | 0o111);
       std::fs::set_permissions(&gradlew_path, permissions)
-        .context("failed to mark gradlew as executable")?;
+        .fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
     }
     std::fs::write(
       &gradlew_path,
       std::fs::read_to_string(&gradlew_path)
-        .context("failed to read gradlew")?
+        .fs_context("failed to read gradlew", gradlew_path.clone())?
         .replace("\r\n", "\n"),
     )
-    .context("failed to replace gradlew CRLF with LF")?;
+    .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
   }
 
   Ok(())

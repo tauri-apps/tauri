@@ -10,8 +10,7 @@ use std::io;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-use crate::Result;
-use anyhow::Context as _;
+use crate::{error::ErrorExt, Error, Result};
 use sys::*;
 
 #[derive(Debug)]
@@ -129,17 +128,25 @@ fn open(path: &Path, opts: &OpenOptions, state: State, msg: &str) -> Result<File
   // If we want an exclusive lock then if we fail because of NotFound it's
   // likely because an intermediate directory didn't exist, so try to
   // create the directory and then continue.
-  let f = opts
-    .open(path)
-    .or_else(|e| {
-      if e.kind() == io::ErrorKind::NotFound && state == State::Exclusive {
-        create_dir_all(path.parent().unwrap())?;
-        Ok(opts.open(path)?)
-      } else {
-        Err(anyhow::Error::from(e))
-      }
-    })
-    .with_context(|| format!("failed to open: {}", path.display()))?;
+  let f = opts.open(path).or_else(|e| {
+    if e.kind() == io::ErrorKind::NotFound && state == State::Exclusive {
+      create_dir_all(path.parent().unwrap()).fs_context(
+        "failed to create directory",
+        path.parent().unwrap().to_path_buf(),
+      )?;
+      Ok(
+        opts
+          .open(path)
+          .fs_context("failed to open file", path.to_path_buf())?,
+      )
+    } else {
+      Err(Error::Fs {
+        context: "failed to open file",
+        path: path.to_path_buf(),
+        error: e,
+      })
+    }
+  })?;
   match state {
     State::Exclusive => {
       acquire(msg, path, &|| try_lock_exclusive(&f), &|| {
@@ -203,16 +210,18 @@ fn acquire(
 
     Err(e) => {
       if !error_contended(&e) {
-        let e = anyhow::Error::from(e);
-        let cx = format!("failed to lock file: {}", path.display());
-        return Err(e.context(cx));
+        return Err(Error::Fs {
+          context: "failed to lock file",
+          path: path.to_path_buf(),
+          error: e,
+        });
       }
     }
   }
   let msg = format!("waiting for file lock on {msg}");
   log::info!(action = "Blocking"; "{}", &msg);
 
-  lock_block().with_context(|| format!("failed to lock file: {}", path.display()))?;
+  lock_block().fs_context("failed to lock file", path.to_path_buf())?;
   return Ok(());
 
   #[cfg(all(target_os = "linux", not(target_env = "musl")))]

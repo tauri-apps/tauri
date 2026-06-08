@@ -7,11 +7,7 @@ use std::{collections::HashSet, path::PathBuf};
 use clap::Parser;
 use tauri_utils::acl::capability::{Capability, PermissionEntry};
 
-use crate::{
-  acl::FileFormat,
-  helpers::{app_paths::tauri_dir, prompts},
-  Result,
-};
+use crate::{acl::FileFormat, error::ErrorExt, helpers::prompts, Result};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Create a new permission file")]
@@ -36,7 +32,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let identifier = match options.identifier {
     Some(i) => i,
@@ -106,10 +102,11 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let path = match options.out {
-    Some(o) => o.canonicalize()?,
+    Some(o) => o
+      .canonicalize()
+      .fs_context("failed to canonicalize capability file path", o.clone())?,
     None => {
-      let dir = tauri_dir();
-      let capabilities_dir = dir.join("capabilities");
+      let capabilities_dir = dirs.tauri.join("capabilities");
       capabilities_dir.join(format!(
         "{}.{}",
         capability.identifier,
@@ -125,17 +122,21 @@ pub fn command(options: Options) -> Result<()> {
     );
     let overwrite = prompts::confirm(&format!("{msg}, overwrite?"), Some(false))?;
     if overwrite {
-      std::fs::remove_file(&path)?;
+      std::fs::remove_file(&path).fs_context("failed to remove capability file", path.clone())?;
     } else {
-      anyhow::bail!(msg);
+      crate::error::bail!(msg);
     }
   }
 
   if let Some(parent) = path.parent() {
-    std::fs::create_dir_all(parent)?;
+    std::fs::create_dir_all(parent).fs_context(
+      "failed to create capability directory",
+      parent.to_path_buf(),
+    )?;
   }
 
-  std::fs::write(&path, options.format.serialize(&capability)?)?;
+  std::fs::write(&path, options.format.serialize(&capability)?)
+    .fs_context("failed to write capability file", path.clone())?;
 
   log::info!(action = "Created"; "capability at {}", dunce::simplified(&path).display());
 

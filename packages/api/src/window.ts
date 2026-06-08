@@ -820,6 +820,18 @@ class Window {
     })
   }
 
+  async activityName(): Promise<string> {
+    return invoke('plugin:window|activity_name', {
+      label: this.label
+    })
+  }
+
+  async sceneIdentifier(): Promise<string> {
+    return invoke('plugin:window|scene_identifier', {
+      label: this.label
+    })
+  }
+
   // Setters
 
   /**
@@ -2094,6 +2106,29 @@ enum BackgroundThrottlingPolicy {
 }
 
 /**
+ * The scrollbar style to use in the webview.
+ *
+ * ## Platform-specific
+ *
+ * **Windows**: This option must be given the same value for all webviews.
+ *
+ * @since 2.8.0
+ */
+enum ScrollBarStyle {
+  /**
+   * The default scrollbar style for the webview.
+   */
+  Default = 'default',
+  /**
+   * Fluent UI style overlay scrollbars. **Windows Only**
+   *
+   * Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
+   * see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+   */
+  FluentOverlay = 'fluentOverlay'
+}
+
+/**
  * Platform-specific window effects
  *
  * @since 2.0.0
@@ -2206,7 +2241,7 @@ enum Effect {
    */
   Acrylic = 'acrylic',
   /**
-   * Tabbed effect that matches the system dark perefence **Windows 11 Only**
+   * Tabbed effect that matches the system dark preference **Windows 11 Only**
    */
   Tabbed = 'tabbed',
   /**
@@ -2282,21 +2317,21 @@ interface PreventOverflowMargin {
 interface WindowOptions {
   /** Show window in the center of the screen.. */
   center?: boolean
-  /** The initial vertical position. Only applies if `y` is also set. */
+  /** The initial vertical position in logical pixels. Only applies if `y` is also set. */
   x?: number
-  /** The initial horizontal position. Only applies if `x` is also set. */
+  /** The initial horizontal position in logical pixels. Only applies if `x` is also set. */
   y?: number
-  /** The initial width. */
+  /** The initial width in logical pixels. */
   width?: number
-  /** The initial height. */
+  /** The initial height in logical pixels. */
   height?: number
-  /** The minimum width. Only applies if `minHeight` is also set. */
+  /** The minimum width in logical pixels. Only applies if `minHeight` is also set. */
   minWidth?: number
-  /** The minimum height. Only applies if `minWidth` is also set. */
+  /** The minimum height in logical pixels. Only applies if `minWidth` is also set. */
   minHeight?: number
-  /** The maximum width. Only applies if `maxHeight` is also set. */
+  /** The maximum width in logical pixels. Only applies if `maxHeight` is also set. */
   maxWidth?: number
-  /** The maximum height. Only applies if `maxWidth` is also set. */
+  /** The maximum height in logical pixels. Only applies if `maxWidth` is also set. */
   maxHeight?: number
   /**
    * Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
@@ -2473,6 +2508,38 @@ interface WindowOptions {
    * It usually displays a view with "Done", "Next" buttons.
    */
   disableInputAccessoryView?: boolean
+  /**
+   * Specifies the native scrollbar style to use with the webview.
+   * CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+   *
+   * Defaults to `default`, which is the browser default.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows**:
+   *   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher, and does nothing
+   *     on older versions.
+   *   - This option must be given the same value for all webviews.
+   * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+   */
+  scrollBarStyle?: ScrollBarStyle
+  /**
+   * The name of the Android activity to create for this window.
+   */
+  activityName?: string
+  /**
+   * The name of the Android activity that is creating this webview window.
+   *
+   * This is important to determine which stack the activity will belong to.
+   */
+  createdByActivityName?: string
+  /**
+   * Sets the identifier of the UIScene that is requesting the creation of this new scene,
+   * establishing a relationship between the two scenes.
+   *
+   * By default the system uses the foreground scene.
+   */
+  requestedBySceneIdentifier?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
@@ -2600,5 +2667,6 @@ export type {
   WindowOptions,
   Color,
   BackgroundThrottlingPolicy,
-  DragDropEvent
+  DragDropEvent,
+  ScrollBarStyle
 }

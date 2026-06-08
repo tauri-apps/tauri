@@ -32,6 +32,7 @@ import {
 import { invoke } from './core'
 import {
   BackgroundThrottlingPolicy,
+  ScrollBarStyle,
   Color,
   Window,
   getCurrentWindow
@@ -713,13 +714,13 @@ interface WebviewOptions {
    * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
-  /** The initial vertical position. */
+  /** The initial vertical position in logical pixels. */
   x: number
-  /** The initial horizontal position. */
+  /** The initial horizontal position in logical pixels. */
   y: number
-  /** The initial width. */
+  /** The initial width in logical pixels. */
   width: number
-  /** The initial height. */
+  /** The initial height in logical pixels. */
   height: number
   /**
    * Whether the webview is transparent or not.
@@ -881,6 +882,40 @@ interface WebviewOptions {
    * @since 2.9.0
    */
   dataStoreIdentifier?: number[]
+  /**
+   * Specifies the native scrollbar style to use with the webview.
+   * CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+   *
+   * Defaults to `default`, which is the browser default.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows**:
+   *   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher, and does nothing
+   *     on older versions.
+   *   - This option must be given the same value for all webviews.
+   * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+   */
+  scrollBarStyle?: ScrollBarStyle
+  /**
+   * Controls the WebView's browser-level general autofill behavior.
+   *
+   * **This option does not disable password or credit card autofill.**
+   *
+   * When set to `false`, the WebView will not automatically populate general form
+   * fields using previously stored data such as addresses or contact information.
+   *
+   * If not specified, this is `true` by default.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows**: Supported. WebView2's autofill feature (called "Suggestions")
+   *   may not honor `autocomplete="off"` on input elements in some cases.
+   * - **Linux / Android / iOS / macOS**: Unsupported and performs no operation.
+   *
+   * @since 2.11.0
+   */
+  generalAutofillEnabled?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

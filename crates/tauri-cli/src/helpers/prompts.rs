@@ -4,7 +4,7 @@
 
 use std::{fmt::Display, str::FromStr};
 
-use crate::Result;
+use crate::{error::Context, Result};
 
 pub fn input<T>(
   prompt: &str,
@@ -32,7 +32,7 @@ where
     builder
       .interact_text()
       .map(|t: T| if t.ne("") { Some(t) } else { None })
-      .map_err(Into::into)
+      .context("failed to prompt input")
   }
 }
 
@@ -42,7 +42,7 @@ pub fn confirm(prompt: &str, default: Option<bool>) -> Result<bool> {
   if let Some(default) = default {
     builder = builder.default(default);
   }
-  builder.interact().map_err(Into::into)
+  builder.interact().context("failed to prompt confirm")
 }
 
 pub fn multiselect<T: ToString>(
@@ -57,5 +57,5 @@ pub fn multiselect<T: ToString>(
   if let Some(defaults) = defaults {
     builder = builder.defaults(defaults);
   }
-  builder.interact().map_err(Into::into)
+  builder.interact().context("failed to prompt multi-select")
 }

@@ -5,6 +5,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 - [Issue Reporting Guidelines](#issue-reporting-guidelines)
 - [Pull Request Guidelines](#pull-request-guidelines)
 - [Development Guide](#development-guide)
+- [AI Tool Policy](#ai-tool-policy)
 
 ## Issue Reporting Guidelines
 
@@ -33,11 +34,9 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 - It's OK to have multiple small commits as you work on the PR - we will let GitHub automatically squash it before merging.
 
 - If adding new feature:
-
   - Provide convincing reason to add this feature. Ideally you should open a suggestion issue first and have it greenlighted before working on it.
 
 - If fixing a bug:
-
   - If you are resolving a special issue, add `(fix: #xxxx[,#xxx])` (#xxxx is the issue id) in your PR title for a better release log, e.g. `fix: update entities encoding/decoding (fix #3899)`.
   - Provide detailed description of the bug in the PR, or link to an issue that does.
 
@@ -98,13 +97,23 @@ You can use `cargo install --path . --debug` to speed up test builds.
 You can build the Rust documentation locally running the following script:
 
 ```bash
-$ RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features --open
+$ cargo +nightly doc --all-features --open
 ```
 
 ### Developing the JS API
 
 The JS API provides bindings between the developer's JS in the Webview and the built-in Tauri APIs, written in Rust. Its code is located in [/packages/api](https://github.com/tauri-apps/tauri/tree/dev/packages/api).
 After making changes to the code, run `pnpm build` to build it. To test your changes, we recommend using the API example app, located in [/examples/api](https://github.com/tauri-apps/tauri/tree/dev/examples/api). It will automatically use your local copy of the JS API and provides a helpful UI to test the various commands.
+
+## AI Tool Policy
+
+It takes a lot of time to review a Pull Request while it's very easy to make a nonsensical but plausible looking one using AI tools.
+It is unfair for other contributors and the reviewers to spend much of the time dealing with this, hence these rules:
+
+1. Review and test all LLM-generated content before submitting, you're the one responsible for it, not the AI.
+2. Don't use AI to respond to review comments (except for translations).
+
+We will close the Pull Request with a `ai-slop` tag if you failed to do so.
 
 ## Financial Contribution
 

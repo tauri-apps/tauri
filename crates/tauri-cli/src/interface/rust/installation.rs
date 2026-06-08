@@ -2,18 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Result;
+use crate::{
+  error::{Error, ErrorExt},
+  Result,
+};
 
 use std::{fs::read_dir, path::PathBuf, process::Command};
 
 pub fn installed_targets() -> Result<Vec<String>> {
   let output = Command::new("rustc")
     .args(["--print", "sysroot"])
-    .output()?;
+    .output()
+    .map_err(|error| Error::CommandFailed {
+      command: "rustc --print sysroot".to_string(),
+      error,
+    })?;
   let sysroot_path = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim().to_string());
 
   let mut targets = Vec::new();
-  for entry in read_dir(sysroot_path.join("lib").join("rustlib"))?.flatten() {
+  for entry in read_dir(sysroot_path.join("lib").join("rustlib"))
+    .fs_context(
+      "failed to read Rust sysroot",
+      sysroot_path.join("lib").join("rustlib"),
+    )?
+    .flatten()
+  {
     if entry.file_type().map(|t| t.is_dir()).unwrap_or_default() {
       let name = entry.file_name();
       if name != "etc" && name != "src" {

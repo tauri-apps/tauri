@@ -8,8 +8,7 @@ use std::{
   process::Command,
 };
 
-use crate::{assert_command, CommandExt};
-use anyhow::Result;
+use crate::{assert_command, CommandExt, Error, Result};
 use rand::distr::{Alphanumeric, SampleString};
 
 mod identity;
@@ -57,14 +56,14 @@ impl Keychain {
     certificate_encoded: &OsString,
     certificate_password: &OsString,
   ) -> Result<Self> {
-    let tmp_dir = tempfile::tempdir()?;
+    let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
     let cert_path = tmp_dir.path().join("cert.p12");
     super::decode_base64(certificate_encoded, &cert_path)?;
     Self::with_certificate_file(&cert_path, certificate_password)
   }
 
   pub fn with_certificate_file(cert_path: &Path, certificate_password: &OsString) -> Result<Self> {
-    let home_dir = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("failed to resolve home dir"))?;
+    let home_dir = dirs::home_dir().ok_or(Error::ResolveHomeDir)?;
     let keychain_path = home_dir.join("Library").join("Keychains").join(format!(
       "{}.keychain-db",
       Alphanumeric.sample_string(&mut rand::rng(), 16)
@@ -73,7 +72,11 @@ impl Keychain {
 
     let keychain_list_output = Command::new("security")
       .args(["list-keychain", "-d", "user"])
-      .output()?;
+      .output()
+      .map_err(|e| Error::CommandFailed {
+        command: "security list-keychain -d user".to_string(),
+        error: e,
+      })?;
 
     assert_command(
       Command::new("security")
@@ -81,7 +84,11 @@ impl Keychain {
         .arg(&keychain_path)
         .piped(),
       "failed to create keychain",
-    )?;
+    )
+    .map_err(|error| Error::CommandFailed {
+      command: "security create-Keychain".to_string(),
+      error,
+    })?;
 
     assert_command(
       Command::new("security")
@@ -89,7 +96,11 @@ impl Keychain {
         .arg(&keychain_path)
         .piped(),
       "failed to set unlock keychain",
-    )?;
+    )
+    .map_err(|error| Error::CommandFailed {
+      command: "security unlock-keychain".to_string(),
+      error,
+    })?;
 
     assert_command(
       Command::new("security")
@@ -109,7 +120,11 @@ impl Keychain {
         .arg(&keychain_path)
         .piped(),
       "failed to import keychain certificate",
-    )?;
+    )
+    .map_err(|error| Error::CommandFailed {
+      command: "security import".to_string(),
+      error,
+    })?;
 
     assert_command(
       Command::new("security")
@@ -117,7 +132,11 @@ impl Keychain {
         .arg(&keychain_path)
         .piped(),
       "failed to set keychain settings",
-    )?;
+    )
+    .map_err(|error| Error::CommandFailed {
+      command: "security set-keychain-settings".to_string(),
+      error,
+    })?;
 
     assert_command(
       Command::new("security")
@@ -132,7 +151,11 @@ impl Keychain {
         .arg(&keychain_path)
         .piped(),
       "failed to set keychain settings",
-    )?;
+    )
+    .map_err(|error| Error::CommandFailed {
+      command: "security set-key-partition-list".to_string(),
+      error,
+    })?;
 
     let current_keychains = String::from_utf8_lossy(&keychain_list_output.stdout)
       .split('\n')
@@ -151,11 +174,15 @@ impl Keychain {
         .arg(&keychain_path)
         .piped(),
       "failed to list keychain",
-    )?;
+    )
+    .map_err(|error| Error::CommandFailed {
+      command: "security list-keychain".to_string(),
+      error,
+    })?;
 
     let signing_identity = identity::list(&keychain_path)
       .map(|l| l.first().cloned())?
-      .ok_or_else(|| anyhow::anyhow!("failed to resolve signing identity"))?;
+      .ok_or(Error::ResolveSigningIdentity)?;
 
     Ok(Self {
       path: Some(keychain_path),
@@ -211,7 +238,12 @@ impl Keychain {
 
     codesign.arg(path);
 
-    assert_command(codesign.piped(), "failed to sign app")?;
+    assert_command(codesign.piped(), "failed to sign app").map_err(|error| {
+      Error::CommandFailed {
+        command: "codesign".to_string(),
+        error,
+      }
+    })?;
 
     Ok(())
   }

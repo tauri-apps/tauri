@@ -28,18 +28,18 @@ use super::{
   OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
+  error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
-    config::{BundleResources, Config as TauriConfig, ConfigHandle},
+    config::{BundleResources, Config as TauriConfig, ConfigMetadata},
     pbxproj, strip_semver_prerelease_tag,
   },
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 
 use std::{
   env::{set_var, var_os},
   fs::create_dir_all,
-  path::PathBuf,
+  path::Path,
   str::FromStr,
   thread::sleep,
   time::Duration,
@@ -48,6 +48,7 @@ use std::{
 mod build;
 mod dev;
 pub(crate) mod project;
+mod run;
 mod xcode_script;
 
 pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "APPLE_DEVELOPMENT_TEAM";
@@ -94,6 +95,7 @@ enum Commands {
   Init(InitOptions),
   Dev(dev::Options),
   Build(build::Options),
+  Run(run::Options),
   #[clap(hide(true))]
   XcodeScript(xcode_script::Options),
 }
@@ -101,18 +103,16 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => {
-      crate::helpers::app_paths::resolve();
-      init_command(
-        MobileTarget::Ios,
-        options.ci,
-        options.reinstall_deps,
-        options.skip_targets_install,
-        options.config,
-      )?
-    }
+    Commands::Init(options) => init_command(
+      MobileTarget::Ios,
+      options.ci,
+      options.reinstall_deps,
+      options.skip_targets_install,
+      options.config,
+    )?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
-    Commands::Build(options) => build::command(options, noise_level)?,
+    Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
+    Commands::Run(options) => run::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,
   }
 
@@ -122,16 +122,12 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   tauri_config: &TauriConfig,
-  features: Option<&Vec<String>>,
+  features: &[String],
   cli_options: &CliOptions,
+  tauri_dir: &Path,
 ) -> Result<(AppleConfig, AppleMetadata)> {
   let mut ios_options = cli_options.clone();
-  if let Some(features) = features {
-    ios_options
-      .features
-      .get_or_insert(Vec::new())
-      .extend_from_slice(features);
-  }
+  ios_options.features.extend_from_slice(features);
 
   let bundle_version = if let Some(bundle_version) = tauri_config
     .bundle
@@ -223,20 +219,19 @@ pub fn get_config(
             }
             1 => None,
             _ => {
-              log::warn!("You must set the code signing certificate development team ID on  the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
+              log::warn!("You must set the code signing certificate development team ID on the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
               None
             }
           }
         }),
-    ios_features: ios_options.features.clone(),
+    ios_features: Some(ios_options.features.clone()),
     bundle_version,
     bundle_version_short,
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
     ..Default::default()
   };
-  let config = AppleConfig::from_raw(app.clone(), Some(raw))?;
-
-  let tauri_dir = tauri_dir();
+  let config = AppleConfig::from_raw(app.clone(), Some(raw))
+    .context("failed to create Apple configuration")?;
 
   let mut vendor_frameworks = Vec::new();
   let mut frameworks = Vec::new();
@@ -247,7 +242,7 @@ pub fn get_config(
     .clone()
     .unwrap_or_default()
   {
-    let framework_path = PathBuf::from(&framework);
+    let framework_path = Path::new(&framework);
     let ext = framework_path.extension().unwrap_or_default();
     if ext.is_empty() {
       frameworks.push(framework);
@@ -272,7 +267,7 @@ pub fn get_config(
     supported: true,
     ios: ApplePlatform {
       cargo_args: Some(ios_options.args),
-      features: ios_options.features,
+      features: Some(ios_options.features),
       frameworks: Some(frameworks),
       vendor_frameworks: Some(vendor_frameworks),
       ..Default::default()
@@ -287,8 +282,9 @@ pub fn get_config(
 }
 
 fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  let device_list = device::list_devices(env)
-    .map_err(|cause| anyhow::anyhow!("Failed to detect connected iOS devices: {cause}"))?;
+  let device_list = device::list_devices(env).map_err(|cause| {
+    Error::GenericError(format!("Failed to detect connected iOS devices: {cause}"))
+  })?;
   if !device_list.is_empty() {
     let device = if let Some(t) = target {
       let (device, score) = device_list
@@ -304,7 +300,7 @@ fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Dev
       if score > MIN_DEVICE_MATCH_SCORE {
         device
       } else {
-        anyhow::bail!("Could not find an iOS device matching {t}")
+        crate::error::bail!("Could not find an iOS device matching {t}")
       }
     } else {
       let index = if device_list.len() > 1 {
@@ -315,7 +311,7 @@ fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Dev
           None,
           "Device",
         )
-        .map_err(|cause| anyhow::anyhow!("Failed to prompt for iOS device: {cause}"))?
+        .context("failed to prompt for device")?
       } else {
         0
       };
@@ -329,7 +325,7 @@ fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Dev
 
     Ok(device)
   } else {
-    Err(anyhow::anyhow!("No connected iOS devices detected"))
+    crate::error::bail!("No connected iOS devices detected")
   }
 }
 
@@ -345,7 +341,9 @@ struct InstalledRuntime {
 
 fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simulator> {
   let simulator_list = device::list_simulators(env).map_err(|cause| {
-    anyhow::anyhow!("Failed to detect connected iOS Simulator devices: {cause}")
+    Error::GenericError(format!(
+      "Failed to detect connected iOS Simulator devices: {cause}"
+    ))
   })?;
   if !simulator_list.is_empty() {
     let device = if let Some(t) = target {
@@ -362,7 +360,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
       if score > MIN_DEVICE_MATCH_SCORE {
         device
       } else {
-        anyhow::bail!("Could not find an iOS Simulator matching {t}")
+        crate::error::bail!("Could not find an iOS Simulator matching {t}")
       }
     } else if simulator_list.len() > 1 {
       let index = prompt::list(
@@ -372,7 +370,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
         None,
         "Simulator",
       )
-      .map_err(|cause| anyhow::anyhow!("Failed to prompt for iOS Simulator device: {cause}"))?;
+      .context("failed to prompt for simulator")?;
       simulator_list.into_iter().nth(index).unwrap()
     } else {
       simulator_list.into_iter().next().unwrap()
@@ -389,10 +387,14 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
       duct::cmd("xcodebuild", ["-downloadPlatform", "iOS"])
         .stdout_file(os_pipe::dup_stdout().unwrap())
         .stderr_file(os_pipe::dup_stderr().unwrap())
-        .run()?;
+        .run()
+        .map_err(|e| Error::CommandFailed {
+          command: "xcodebuild -downloadPlatform iOS".to_string(),
+          error: e,
+        })?;
       return simulator_prompt(env, target);
     }
-    Err(anyhow::anyhow!("No available iOS Simulator detected"))
+    crate::error::bail!("No available iOS Simulator detected")
   }
 }
 
@@ -402,14 +404,20 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   } else {
     let simulator = simulator_prompt(env, target)?;
     log::info!("Starting simulator {}", simulator.name());
-    simulator.start_detached(env)?;
+    simulator
+      .start_detached(env)
+      .context("failed to start simulator")?;
     Ok(simulator.into())
   }
 }
 
 fn ensure_ios_runtime_installed() -> Result<()> {
-  let installed_platforms_json =
-    duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"]).read()?;
+  let installed_platforms_json = duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"])
+    .read()
+    .map_err(|e| Error::CommandFailed {
+      command: "xcrun simctl list runtimes --json".to_string(),
+      error: e,
+    })?;
   let installed_platforms: InstalledRuntimesList =
     serde_json::from_str(&installed_platforms_json).unwrap_or_default();
   if !installed_platforms
@@ -427,9 +435,13 @@ fn ensure_ios_runtime_installed() -> Result<()> {
       duct::cmd("xcodebuild", ["-downloadPlatform", "iOS"])
         .stdout_file(os_pipe::dup_stdout().unwrap())
         .stderr_file(os_pipe::dup_stderr().unwrap())
-        .run()?;
+        .run()
+        .map_err(|e| Error::CommandFailed {
+          command: "xcodebuild -downloadPlatform iOS".to_string(),
+          error: e,
+        })?;
     } else {
-      anyhow::bail!("iOS platform not installed");
+      crate::error::bail!("iOS platform not installed");
     }
   }
   Ok(())
@@ -451,7 +463,7 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
 
 fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<()> {
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
-  create_dir_all(&asset_dir)?;
+  create_dir_all(&asset_dir).fs_context("failed to create asset directory", asset_dir.clone())?;
 
   let resources = match &tauri_config.bundle.resources {
     Some(BundleResources::List(paths)) => Some(ResourcePaths::new(paths.as_slice(), true)),
@@ -460,49 +472,13 @@ fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<
   };
   if let Some(resources) = resources {
     for resource in resources.iter() {
-      let resource = resource?;
+      let resource = resource.context("failed to get resource")?;
       let dest = asset_dir.join(resource.target());
       crate::helpers::fs::copy_file(resource.path(), dest)?;
     }
   }
 
   Ok(())
-}
-
-enum PlistKind {
-  Path(PathBuf),
-  Plist(plist::Value),
-}
-
-impl From<PathBuf> for PlistKind {
-  fn from(p: PathBuf) -> Self {
-    Self::Path(p)
-  }
-}
-impl From<plist::Value> for PlistKind {
-  fn from(p: plist::Value) -> Self {
-    Self::Plist(p)
-  }
-}
-
-fn merge_plist(src: Vec<PlistKind>) -> Result<plist::Value> {
-  let mut merged_plist = plist::Dictionary::new();
-
-  for plist_kind in src {
-    let plist = match plist_kind {
-      PlistKind::Path(p) => plist::Value::from_file(p),
-      PlistKind::Plist(v) => Ok(v),
-    };
-    if let Ok(src_plist) = plist {
-      if let Some(dict) = src_plist.into_dictionary() {
-        for (key, value) in dict {
-          merged_plist.insert(key, value);
-        }
-      }
-    }
-  }
-
-  Ok(plist::Value::Dictionary(merged_plist))
 }
 
 pub fn signing_from_env() -> Result<(
@@ -515,7 +491,9 @@ pub fn signing_from_env() -> Result<(
   ) {
     (Some(certificate), Some(certificate_password)) => {
       log::info!("Reading iOS certificates from ");
-      tauri_macos_sign::Keychain::with_certificate(&certificate, &certificate_password).map(Some)?
+      tauri_macos_sign::Keychain::with_certificate(&certificate, &certificate_password)
+        .map(Some)
+        .map_err(Box::new)?
     }
     (Some(_), None) => {
       log::warn!("The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate...");
@@ -525,7 +503,9 @@ pub fn signing_from_env() -> Result<(
   };
 
   let provisioning_profile = if let Some(provisioning_profile) = var_os("IOS_MOBILE_PROVISION") {
-    tauri_macos_sign::ProvisioningProfile::from_base64(&provisioning_profile).map(Some)?
+    tauri_macos_sign::ProvisioningProfile::from_base64(&provisioning_profile)
+      .map(Some)
+      .map_err(Box::new)?
   } else {
     if keychain.is_some() {
       log::warn!("You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project.");
@@ -564,26 +544,14 @@ pub fn load_pbxproj(config: &AppleConfig) -> Result<pbxproj::Pbxproj> {
 
 pub fn synchronize_project_config(
   config: &AppleConfig,
-  tauri_config: &ConfigHandle,
+  tauri_config: &ConfigMetadata,
   pbxproj: &mut pbxproj::Pbxproj,
   export_options_plist: &mut plist::Dictionary,
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
-  let identifier = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .identifier
-    .clone();
-  let product_name = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .product_name
-    .clone();
+  let identifier = tauri_config.identifier.clone();
+  let product_name = tauri_config.product_name.clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();

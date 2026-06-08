@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::debian;
+use super::{super::debian, write_and_make_executable};
 use crate::{
   bundle::settings::Arch,
+  error::{Context, ErrorExt},
   utils::{fs_utils, http_utils::download, CommandExt},
   Settings,
 };
-use anyhow::Context;
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -124,13 +124,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // xdg-open will be handled by the `files` config instead
   if settings.deep_link_protocols().is_some() && !app_dir_usr_bin.join("xdg-open").exists() {
     fs::copy("/usr/bin/xdg-mime", app_dir_usr_bin.join("xdg-mime"))
-      .context("xdg-mime binary not found")?;
+      .fs_context("xdg-mime binary not found", "/usr/bin/xdg-mime".to_string())?;
   }
 
   // we also check if the user may have provided their own copy already
   if settings.appimage().bundle_xdg_open && !app_dir_usr_bin.join("xdg-open").exists() {
     fs::copy("/usr/bin/xdg-open", app_dir_usr_bin.join("xdg-open"))
-      .context("xdg-open binary not found")?;
+      .fs_context("xdg-open binary not found", "/usr/bin/xdg-open".to_string())?;
   }
 
   let search_dirs = [
@@ -190,6 +190,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut cmd = Command::new(linuxdeploy_path);
   cmd.env("OUTPUT", &appimage_path);
   cmd.env("ARCH", tools_arch);
+  // Looks like the cli arg isn't enough for the updated AppImage output-plugin.
+  cmd.env("APPIMAGE_EXTRACT_AND_RUN", "1");
   cmd.args([
     "--appimage-extract-and-run",
     "--verbosity",
@@ -230,7 +232,7 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     write_and_make_executable(&apprun, data)?;
   }
 
-  let linuxdeploy_arch = if arch == "i686" { "i383" } else { arch };
+  let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
   let linuxdeploy = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}.AppImage"));
   if !linuxdeploy.exists() {
     let data = download(&format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"))?;
@@ -277,13 +279,4 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     .output();
 
   Ok(linuxdeploy)
-}
-
-fn write_and_make_executable(path: &Path, data: Vec<u8>) -> std::io::Result<()> {
-  use std::os::unix::fs::PermissionsExt;
-
-  fs::write(path, data)?;
-  fs::set_permissions(path, fs::Permissions::from_mode(0o770))?;
-
-  Ok(())
 }

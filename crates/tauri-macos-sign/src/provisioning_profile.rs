@@ -4,7 +4,7 @@
 
 use std::{ffi::OsStr, path::PathBuf, process::Command};
 
-use anyhow::{Context, Result};
+use crate::{Error, Result};
 use rand::distr::{Alphanumeric, SampleString};
 
 pub struct ProvisioningProfile {
@@ -13,12 +13,16 @@ pub struct ProvisioningProfile {
 
 impl ProvisioningProfile {
   pub fn from_base64(base64: &OsStr) -> Result<Self> {
-    let home_dir = dirs::home_dir().unwrap();
+    let home_dir = dirs::home_dir().ok_or(Error::ResolveHomeDir)?;
     let provisioning_profiles_folder = home_dir
       .join("Library")
       .join("MobileDevice")
       .join("Provisioning Profiles");
-    std::fs::create_dir_all(&provisioning_profiles_folder).unwrap();
+    std::fs::create_dir_all(&provisioning_profiles_folder).map_err(|error| Error::Fs {
+      context: "failed to create provisioning profiles folder",
+      path: provisioning_profiles_folder.clone(),
+      error,
+    })?;
 
     let provisioning_profile_path = provisioning_profiles_folder.join(format!(
       "{}.mobileprovision",
@@ -35,18 +39,26 @@ impl ProvisioningProfile {
     let output = Command::new("security")
       .args(["cms", "-D", "-i"])
       .arg(&self.path)
-      .output()?;
+      .output()
+      .map_err(|error| Error::CommandFailed {
+        command: "security cms -D -i".to_string(),
+        error,
+      })?;
 
     if !output.status.success() {
-      return Err(anyhow::anyhow!("failed to decode provisioning profile"));
+      return Err(Error::FailedToDecodeProvisioningProfile);
     }
 
-    let plist = plist::from_bytes::<plist::Dictionary>(&output.stdout)
-      .context("failed to decode provisioning profile as plist")?;
+    let plist =
+      plist::from_bytes::<plist::Dictionary>(&output.stdout).map_err(|error| Error::Plist {
+        context: "failed to parse provisioning profile as plist",
+        path: self.path.clone(),
+        error,
+      })?;
 
     plist
       .get("UUID")
       .and_then(|v| v.as_string().map(ToString::to_string))
-      .ok_or_else(|| anyhow::anyhow!("could not find provisioning profile UUID"))
+      .ok_or(Error::FailedToFindProvisioningProfileUuid)
   }
 }

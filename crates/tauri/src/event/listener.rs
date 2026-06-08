@@ -168,11 +168,11 @@ impl Listeners {
 
     self.listen(event, target, move |event| {
       let id = event.id;
+      self_.unlisten(id);
       let handler = handler
         .take()
         .expect("attempted to call handler more than once");
       handler(event);
-      self_.unlisten(id);
     })
   }
 
@@ -381,5 +381,21 @@ mod test {
       // assert that the key is contained in the listeners map
       assert!(l.contains_key(&key));
     }
+  }
+
+  #[test]
+  fn event_no_deadlocks() {
+    let listeners = Listeners::default();
+    let listeners_clone = listeners.clone();
+    let event = crate::EventName::new("test-event".to_owned()).unwrap();
+    let event_clone = event.clone();
+    listeners.once(event.clone(), EventTarget::Any, move |_event| {
+      listeners_clone
+        .emit(EmitArgs::new(event_clone.as_str_event(), &()).unwrap())
+        .unwrap();
+    });
+    listeners
+      .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
+      .unwrap();
   }
 }

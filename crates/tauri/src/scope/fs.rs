@@ -7,7 +7,7 @@ use std::{
   fmt,
   path::{Path, PathBuf, MAIN_SEPARATOR},
   sync::{
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     Arc, Mutex,
   },
 };
@@ -29,19 +29,34 @@ pub enum Event {
 
 type EventListener = Box<dyn Fn(&Event) + Send>;
 
+enum Pending {
+  Unlisten(ScopeEventId),
+  Listen {
+    id: ScopeEventId,
+    handler: EventListener,
+  },
+  Emit(Event),
+}
+
+struct ScopeInner {
+  allowed_patterns: Mutex<HashSet<Pattern>>,
+  forbidden_patterns: Mutex<HashSet<Pattern>>,
+  match_options: glob::MatchOptions,
+  event_listeners: Mutex<HashMap<ScopeEventId, EventListener>>,
+  pending: Mutex<Vec<Pending>>,
+  emitting: AtomicBool,
+  next_event_id: AtomicU32,
+}
+
 /// Scope for filesystem access.
 #[derive(Clone)]
 pub struct Scope {
-  allowed_patterns: Arc<Mutex<HashSet<Pattern>>>,
-  forbidden_patterns: Arc<Mutex<HashSet<Pattern>>>,
-  event_listeners: Arc<Mutex<HashMap<ScopeEventId, EventListener>>>,
-  match_options: glob::MatchOptions,
-  next_event_id: Arc<AtomicU32>,
+  inner: Arc<ScopeInner>,
 }
 
 impl Scope {
   fn next_event_id(&self) -> u32 {
-    self.next_event_id.fetch_add(1, Ordering::Relaxed)
+    self.inner.next_event_id.fetch_add(1, Ordering::Relaxed)
   }
 }
 
@@ -51,6 +66,7 @@ impl fmt::Debug for Scope {
       .field(
         "allowed_patterns",
         &self
+          .inner
           .allowed_patterns
           .lock()
           .unwrap()
@@ -61,6 +77,7 @@ impl fmt::Debug for Scope {
       .field(
         "forbidden_patterns",
         &self
+          .inner
           .forbidden_patterns
           .lock()
           .unwrap()
@@ -208,66 +225,122 @@ impl Scope {
     };
 
     Ok(Self {
-      allowed_patterns: Arc::new(Mutex::new(allowed_patterns)),
-      forbidden_patterns: Arc::new(Mutex::new(forbidden_patterns)),
-      event_listeners: Default::default(),
-      next_event_id: Default::default(),
-      match_options: glob::MatchOptions {
-        // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
-        // see: <https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5>
-        require_literal_separator: true,
-        require_literal_leading_dot,
-        ..Default::default()
-      },
+      inner: Arc::new(ScopeInner {
+        allowed_patterns: Mutex::new(allowed_patterns),
+        forbidden_patterns: Mutex::new(forbidden_patterns),
+        event_listeners: Default::default(),
+        pending: Default::default(),
+        emitting: AtomicBool::new(false),
+        next_event_id: Default::default(),
+        match_options: glob::MatchOptions {
+          // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
+          // see: <https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5>
+          require_literal_separator: true,
+          require_literal_leading_dot,
+          ..Default::default()
+        },
+      }),
     })
   }
 
   /// The list of allowed patterns.
   pub fn allowed_patterns(&self) -> HashSet<Pattern> {
-    self.allowed_patterns.lock().unwrap().clone()
+    self.inner.allowed_patterns.lock().unwrap().clone()
   }
 
   /// The list of forbidden patterns.
   pub fn forbidden_patterns(&self) -> HashSet<Pattern> {
-    self.forbidden_patterns.lock().unwrap().clone()
+    self.inner.forbidden_patterns.lock().unwrap().clone()
   }
 
   /// Listen to an event on this scope.
   pub fn listen<F: Fn(&Event) + Send + 'static>(&self, f: F) -> ScopeEventId {
     let id = self.next_event_id();
-    self.listen_with_id(id, f);
+    self.listen_with_id(id, Box::new(f));
     id
   }
 
-  fn listen_with_id<F: Fn(&Event) + Send + 'static>(&self, id: ScopeEventId, f: F) {
-    self.event_listeners.lock().unwrap().insert(id, Box::new(f));
+  fn listen_with_id(&self, id: ScopeEventId, handler: EventListener) {
+    if self.inner.emitting.load(Ordering::Relaxed) {
+      self
+        .inner
+        .pending
+        .lock()
+        .unwrap()
+        .push(Pending::Listen { id, handler });
+    } else {
+      self
+        .inner
+        .event_listeners
+        .lock()
+        .unwrap()
+        .insert(id, handler);
+    }
   }
 
   /// Listen to an event on this scope and immediately unlisten.
   pub fn once<F: FnOnce(&Event) + Send + 'static>(&self, f: F) -> ScopeEventId {
-    let listerners = self.event_listeners.clone();
+    let self_ = self.clone();
     let handler = std::cell::Cell::new(Some(f));
     let id = self.next_event_id();
-    self.listen_with_id(id, move |event| {
-      listerners.lock().unwrap().remove(&id);
-      let handler = handler
-        .take()
-        .expect("attempted to call handler more than once");
-      handler(event)
-    });
+    self.listen_with_id(
+      id,
+      Box::new(move |event| {
+        self_.unlisten(id);
+        let handler = handler
+          .take()
+          .expect("attempted to call handler more than once");
+        handler(event);
+      }),
+    );
     id
   }
 
   /// Removes an event listener on this scope.
   pub fn unlisten(&self, id: ScopeEventId) {
-    self.event_listeners.lock().unwrap().remove(&id);
+    if self.inner.emitting.load(Ordering::Relaxed) {
+      self
+        .inner
+        .pending
+        .lock()
+        .unwrap()
+        .push(Pending::Unlisten(id));
+    } else {
+      self.inner.event_listeners.lock().unwrap().remove(&id);
+    }
   }
 
   fn emit(&self, event: Event) {
-    let listeners = self.event_listeners.lock().unwrap();
-    let handlers = listeners.values();
-    for listener in handlers {
-      listener(&event);
+    let was_emitting = self.inner.emitting.swap(true, Ordering::Relaxed);
+    if was_emitting {
+      self
+        .inner
+        .pending
+        .lock()
+        .unwrap()
+        .push(Pending::Emit(event));
+      return;
+    }
+
+    {
+      let listeners = self.inner.event_listeners.lock().unwrap();
+      let handlers = listeners.values();
+      for listener in handlers {
+        listener(&event);
+      }
+      self.inner.emitting.store(false, Ordering::Relaxed);
+    }
+
+    let pending = {
+      let mut lock = self.inner.pending.lock().unwrap();
+      std::mem::take(&mut *lock)
+    };
+    for action in pending {
+      match action {
+        Pending::Unlisten(id) => self.unlisten(id),
+        Pending::Listen { id, handler } => self.listen_with_id(id, handler),
+        Pending::Emit(event) => self.emit(event),
+      }
     }
   }
 
@@ -278,7 +351,7 @@ impl Scope {
   pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
     let path = path.as_ref();
     {
-      let mut list = self.allowed_patterns.lock().unwrap();
+      let mut list = self.inner.allowed_patterns.lock().unwrap();
 
       // allow the directory to be read
       push_pattern(&mut list, path, escaped_pattern)?;
@@ -297,7 +370,7 @@ impl Scope {
   pub fn allow_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
     let path = path.as_ref();
     push_pattern(
-      &mut self.allowed_patterns.lock().unwrap(),
+      &mut self.inner.allowed_patterns.lock().unwrap(),
       path,
       escaped_pattern,
     )?;
@@ -311,7 +384,7 @@ impl Scope {
   pub fn forbid_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
     let path = path.as_ref();
     {
-      let mut list = self.forbidden_patterns.lock().unwrap();
+      let mut list = self.inner.forbidden_patterns.lock().unwrap();
 
       // allow the directory to be read
       push_pattern(&mut list, path, escaped_pattern)?;
@@ -330,7 +403,7 @@ impl Scope {
   pub fn forbid_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
     let path = path.as_ref();
     push_pattern(
-      &mut self.forbidden_patterns.lock().unwrap(),
+      &mut self.inner.forbidden_patterns.lock().unwrap(),
       path,
       escaped_pattern,
     )?;
@@ -349,21 +422,23 @@ impl Scope {
     if let Ok(path) = path {
       let path: PathBuf = path.components().collect();
       let forbidden = self
+        .inner
         .forbidden_patterns
         .lock()
         .unwrap()
         .iter()
-        .any(|p| p.matches_path_with(&path, self.match_options));
+        .any(|p| p.matches_path_with(&path, self.inner.match_options));
 
       if forbidden {
         false
       } else {
         let allowed = self
+          .inner
           .allowed_patterns
           .lock()
           .unwrap()
           .iter()
-          .any(|p| p.matches_path_with(&path, self.match_options));
+          .any(|p| p.matches_path_with(&path, self.inner.match_options));
 
         allowed
       }
@@ -381,11 +456,12 @@ impl Scope {
     if let Ok(path) = path {
       let path: PathBuf = path.components().collect();
       self
+        .inner
         .forbidden_patterns
         .lock()
         .unwrap()
         .iter()
-        .any(|p| p.matches_path_with(&path, self.match_options))
+        .any(|p| p.matches_path_with(&path, self.inner.match_options))
     } else {
       true
     }
@@ -424,29 +500,35 @@ fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternE
 
 #[cfg(test)]
 mod tests {
-  use std::collections::HashSet;
+  use std::{collections::HashSet, sync::Arc};
 
   use glob::Pattern;
+
+  use crate::fs::ScopeInner;
 
   use super::{push_pattern, Scope};
 
   fn new_scope() -> Scope {
     Scope {
-      allowed_patterns: Default::default(),
-      forbidden_patterns: Default::default(),
-      event_listeners: Default::default(),
-      next_event_id: Default::default(),
-      match_options: glob::MatchOptions {
-        // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
-        // see: <https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5>
-        require_literal_separator: true,
-        // dotfiles are not supposed to be exposed by default on unix
-        #[cfg(unix)]
-        require_literal_leading_dot: true,
-        #[cfg(windows)]
-        require_literal_leading_dot: false,
-        ..Default::default()
-      },
+      inner: Arc::new(ScopeInner {
+        allowed_patterns: Default::default(),
+        forbidden_patterns: Default::default(),
+        event_listeners: Default::default(),
+        pending: Default::default(),
+        emitting: Default::default(),
+        next_event_id: Default::default(),
+        match_options: glob::MatchOptions {
+          // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
+          // see: <https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5>
+          require_literal_separator: true,
+          // dotfiles are not supposed to be exposed by default on unix
+          #[cfg(unix)]
+          require_literal_leading_dot: true,
+          #[cfg(windows)]
+          require_literal_leading_dot: false,
+          ..Default::default()
+        },
+      }),
     }
   }
 
@@ -644,5 +726,16 @@ mod tests {
       assert_pattern!(patterns, "\\\\?\\C:\\path\\to\\dir");
       assert_pattern!(patterns, "\\\\?\\C:\\path\\to\\dir\\**");
     }
+  }
+
+  #[test]
+  fn event_no_deadlocks() {
+    let scope = new_scope();
+    let scope_clone = scope.clone();
+    scope.once(move |event| {
+      assert!(matches!(event, super::Event::PathAllowed(_)));
+      scope_clone.allow_file("/another-test-path").unwrap();
+    });
+    scope.allow_file("/test-path").unwrap();
   }
 }

@@ -1,0 +1,62 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test `@tauri-apps/cli`
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '.github/workflows/test-cli-js.yml'
+      - 'packages/cli/**'
+      # currently` @tauri-apps/cli` only tests the template
+      - 'crates/tauri-cli/templates/app/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      - name: install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: test
+        timeout-minutes: 30
+        run: |
+          cd ./packages/cli
+          pnpm i --frozen-lockfile
+          pnpm build
+          pnpm test

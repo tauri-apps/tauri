@@ -1,0 +1,130 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: docker
+
+on:
+  workflow_dispatch:
+  #pull_request:
+  #  paths:
+  #    - '.docker/**'
+  #    - '.github/workflows/docker.yml'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+
+      - name: install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Upload cross
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross
+          path: '~/.cargo/bin/cross'
+          if-no-files-found: error
+
+      - name: build CLI
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
+
+      - name: Upload CLI
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-tauri
+          path: crates/tauri-cli/target/debug/cargo-tauri
+          if-no-files-found: error
+
+  docker:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { name: 'aarch64-unknown-linux-gnu', filename: 'aarch64' }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: install stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target.name }}
+
+      - run: npm i -g --force corepack
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Download cross
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: cross
+          path: '~/.cargo/bin'
+
+      - name: Download CLI
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: cargo-tauri
+          path: 'examples/api'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and export to Docker
+        uses: docker/build-push-action@v3
+        with:
+          context: .docker/cross
+          file: .docker/cross/${{ matrix.target.filename }}.Dockerfile
+          load: true
+          tags: ${{ matrix.target.name }}:latest
+
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
+
+      - name: Test
+        run: |
+          cd packages/api
+          pnpm i --frozen-lockfile && pnpm build
+          cd ../../examples/api
+          pnpm i --frozen-lockfile
+          . .setup-cross.sh
+          chmod +x cargo-tauri
+          chmod +x $HOME/.cargo/bin/cross
+          ./cargo-tauri build --runner cross --bundles deb --target ${{ matrix.target.name }} --verbose
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .docker/cross
+          file: .docker/cross/${{ matrix.target.filename }}.Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/${{ matrix.target.name }}:latest

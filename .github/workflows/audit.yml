@@ -1,0 +1,50 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: Audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+  pull_request:
+    paths:
+      - '.github/workflows/audit.yml'
+      - '**/Cargo.lock'
+      - '**/Cargo.toml'
+      - '**/package.json'
+      - '**/pnpm-lock.yaml'
+  push:
+    branches:
+      - dev
+    paths:
+      - '.github/workflows/audit.yml'
+      - '**/Cargo.lock'
+      - '**/Cargo.toml'
+      - '**/package.json'
+      - '**/pnpm-lock.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: rust audit
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  audit-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+      - run: pnpm audit

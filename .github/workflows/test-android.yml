@@ -1,0 +1,106 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test android
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/test-android.yml'
+      - 'crates/tauri-cli/templates/mobile/android/**'
+      - 'crates/tauri-cli/src/mobile/**'
+      - '!crates/tauri-cli/src/mobile/ios.rs'
+      - '!crates/tauri-cli/src/mobile/ios/**'
+      - 'crates/tauri-build/src/mobile.rs'
+      - 'crates/tauri/mobile/android/**'
+      - 'crates/tauri/mobile/android-codegen/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install Rust 1.77.2
+        uses: dtolnay/rust-toolchain@1.77.2
+
+      - name: install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'pnpm'
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: 'gradle'
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r25b
+          local-cache: true
+
+      # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
+      - name: Restore Android Symlinks
+        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'macos-latest'
+        run: |
+          directory="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          find "$directory" -type l | while read link; do
+              current_target=$(readlink "$link")
+              new_target="$directory/$(basename "$current_target")"
+              ln -sf "$new_target" "$link"
+              echo "Changed $(basename "$link") from $current_target to $new_target"
+          done
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: build CLI
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
+
+      - name: move CLI to cargo bin dir
+        if: matrix.platform != 'windows-latest'
+        run: mv ./target/debug/cargo-tauri $HOME/.cargo/bin
+
+      - name: move CLI to cargo bin dir
+        if: matrix.platform == 'windows-latest'
+        run: mv ./target/debug/cargo-tauri.exe $HOME/.cargo/bin
+
+      - run: pnpm i --frozen-lockfile
+
+      - name: build Tauri API
+        working-directory: ./packages/api
+        run: pnpm build
+
+      - name: init Android Studio project
+        working-directory: ./examples/api
+        run: cargo tauri android init
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+      - name: build APK
+        working-directory: ./examples/api
+        run: cargo tauri android build
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}

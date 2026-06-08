@@ -1,0 +1,44 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: check change tags
+
+on:
+  pull_request:
+    paths:
+      - '.changes/*.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: check change files end with .md
+        run: |
+          for file in .changes/*
+          do
+            if [[ ! "$file" =~ \.(md|json)$ ]]; then
+              echo ".changes directory should only contain files that end with .md"
+              echo "found an invalid file in .changes directory:"
+              echo "$file"
+              exit 1
+            fi
+          done
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          list-files: shell
+          filters: |
+            changes:
+              - added|modified: '.changes/*.md'
+
+      - name: check
+        run: node ./.scripts/ci/check-change-tags.js ${{ steps.filter.outputs.changes_files }}
+        if: ${{ steps.filter.outputs.changes == 'true' }}

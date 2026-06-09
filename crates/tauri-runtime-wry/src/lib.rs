@@ -335,7 +335,8 @@ impl<T: UserEvent> Context<T> {
         tx,
       ),
     )?;
-    rx.recv().unwrap()?;
+    rx.recv()
+      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWindowDispatcher {
       window_id,
@@ -4086,9 +4087,11 @@ fn handle_user_message<T: UserEvent>(
     Message::CreateWindow(window_id, handler, sender) => match handler(event_loop) {
       Ok(webview) => {
         windows.0.borrow_mut().insert(window_id, webview);
+        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
         sender.send(Ok(())).unwrap();
       }
       Err(e) => {
+        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
         sender.send(Err(e)).unwrap();
       }
     },

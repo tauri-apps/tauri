@@ -379,6 +379,7 @@ impl<T: UserEvent> Context<T> {
     let window_id_wrapper = Arc::new(Mutex::new(window_id));
     let window_id_wrapper_ = window_id_wrapper.clone();
 
+    let (tx, rx) = channel();
     send_user_message(
       self,
       Message::CreateWebview(
@@ -394,8 +395,11 @@ impl<T: UserEvent> Context<T> {
             options.focused_webview,
           )
         }),
+        tx,
       ),
     )?;
+    rx.recv()
+      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWebviewDispatcher {
       window_id: window_id_wrapper,
@@ -1570,7 +1574,7 @@ pub enum Message<T: 'static> {
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewId, WebviewMessage),
   EventLoopWindowTarget(EventLoopWindowTargetMessage),
-  CreateWebview(WindowId, CreateWebviewClosure),
+  CreateWebview(WindowId, CreateWebviewClosure, Sender<Result<()>>),
   CreateWindow(WindowId, CreateWindowClosure<T>, Sender<Result<()>>),
   CreateRawWindow(
     WindowId,
@@ -4062,7 +4066,7 @@ fn handle_user_message<T: UserEvent>(
         }
       }
     }
-    Message::CreateWebview(window_id, handler) => {
+    Message::CreateWebview(window_id, handler, sender) => {
       let window = windows
         .0
         .borrow()
@@ -4077,9 +4081,12 @@ fn handle_user_message<T: UserEvent>(
               w.has_children.store(true, Ordering::Relaxed);
               w
             });
+            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+            sender.send(Ok(())).unwrap();
           }
           Err(e) => {
-            log::error!("{e}");
+            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+            sender.send(Err(e)).unwrap();
           }
         }
       }

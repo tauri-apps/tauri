@@ -24,18 +24,19 @@ mod utils;
 
 /// The list of examples for benchmarks
 fn get_all_benchmarks(target: &str) -> Vec<(String, String)> {
+  let extension = if cfg!(windows) { ".exe" } else { "" };
   vec![
     (
       "tauri_hello_world".into(),
-      format!("../target/{target}/release/bench_helloworld"),
+      format!("../target/{target}/release/bench_helloworld{extension}"),
     ),
     (
       "tauri_cpu_intensive".into(),
-      format!("../target/{target}/release/bench_cpu_intensive"),
+      format!("../target/{target}/release/bench_cpu_intensive{extension}"),
     ),
     (
       "tauri_3mb_transfer".into(),
-      format!("../target/{target}/release/bench_files_transfer"),
+      format!("../target/{target}/release/bench_files_transfer{extension}"),
     ),
   ]
 }
@@ -126,11 +127,6 @@ fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
       .with_context(|| format!("failed to parse mprof data for {name}"))?
     {
       results.insert(name, mem);
-    }
-
-    // Clean up the temporary file
-    if let Err(e) = std::fs::remove_file(&benchmark_file) {
-      eprintln!("Warning: failed to remove temporary file {benchmark_file_str}: {e}");
     }
   }
 
@@ -271,7 +267,19 @@ fn run_exec_time(target: &str) -> Result<HashMap<String, HashMap<String, f64>>> 
     "--show-output",
     "--warmup",
     "3",
+    // It seems like if we run them back to back,
+    // the execution time will get longer and longer for some reason on macOS and Windows
+    "--prepare",
+    "sleep 1",
   ];
+
+  if cfg!(target_os = "windows") {
+    // For `sleep 1` to work
+    // hyperfine uses cmd by default and it would fail with
+    // 'Input redirection is not supported, exiting the process immediately.'
+    command.push("--shell");
+    command.push("powershell");
+  }
 
   let benchmarks = get_all_benchmarks(target);
   let mut benchmark_paths = Vec::new();
@@ -372,13 +380,9 @@ fn main() -> Result<()> {
   println!("\n===== </BENCHMARK RESULTS>");
 
   let bench_file = target_dir.join("bench.json");
-  if let Some(filename) = bench_file.to_str() {
-    utils::write_json(filename, &serde_json::to_value(&new_data)?)
-      .context("failed to write benchmark results to file")?;
-    println!("Results written to: {filename}");
-  } else {
-    eprintln!("Cannot write bench.json, path contains invalid UTF-8");
-  }
+  utils::write_json(&bench_file, &serde_json::to_value(&new_data)?)
+    .context("failed to write benchmark results to file")?;
+  println!("Results written to: {}", bench_file.display());
 
   Ok(())
 }

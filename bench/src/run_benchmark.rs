@@ -19,6 +19,7 @@ use std::{
   path::Path,
   process::{Command, Stdio},
 };
+use time::format_description::well_known::Rfc3339;
 
 mod utils;
 
@@ -357,7 +358,7 @@ fn main() -> Result<()> {
   let cargo_deps = cargo_deps();
 
   let mut new_data = utils::BenchResult {
-    created_at: timestamp,
+    created_at: time::OffsetDateTime::now_utc().format(&Rfc3339).unwrap(),
     sha1: {
       let output = utils::run_collect(&["git", "rev-parse", "HEAD"])?;
       output.0.trim().to_string()

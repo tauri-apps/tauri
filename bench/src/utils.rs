@@ -240,8 +240,8 @@ pub fn read_json(filename: &str) -> Result<Value> {
 
 /// Write a [`serde_json::Value`] into a JSON file.
 pub fn write_json(filename: &Path, value: &Value) -> Result<()> {
-  let f =
-    fs::File::create(filename).with_context(|| format!("failed to create JSON file {filename}"))?;
+  let f = fs::File::create(filename)
+    .with_context(|| format!("failed to create JSON file {}", filename.display()))?;
   serde_json::to_writer(f, value)?;
   Ok(())
 }

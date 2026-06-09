@@ -343,11 +343,6 @@ fn main() -> Result<()> {
   env::set_current_dir(utils::bench_root_path())
     .context("failed to set working directory to bench root")?;
 
-  let now = std::time::SystemTime::now()
-    .duration_since(std::time::UNIX_EPOCH)
-    .context("failed to get current time")?;
-  let timestamp = format!("{}", now.as_secs());
-
   println!("Running execution time benchmarks...");
   let exec_time = run_exec_time(target)?;
 

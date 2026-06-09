@@ -86,12 +86,12 @@ impl From<serde_json::Value> for Value {
     match value {
       serde_json::Value::Null => Value::Null,
       serde_json::Value::Bool(b) => Value::Bool(b),
-      serde_json::Value::Number(n) => Value::Number(if let Some(f) = n.as_f64() {
+      serde_json::Value::Number(n) => Value::Number(if let Some(i) = n.as_i64() {
+        Number::Int(i)
+      } else if let Some(u) = n.as_u64() {
+        Number::Int(u as i64)
+      } else if let Some(f) = n.as_f64() {
         Number::Float(f)
-      } else if let Some(n) = n.as_u64() {
-        Number::Int(n as i64)
-      } else if let Some(n) = n.as_i64() {
-        Number::Int(n)
       } else {
         Number::Int(0)
       }),

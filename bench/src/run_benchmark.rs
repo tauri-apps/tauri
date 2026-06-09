@@ -128,11 +128,6 @@ fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
     {
       results.insert(name, mem);
     }
-
-    // Clean up the temporary file
-    if let Err(e) = std::fs::remove_file(&benchmark_file) {
-      eprintln!("Warning: failed to remove temporary file {benchmark_file_str}: {e}");
-    }
   }
 
   Ok(results)

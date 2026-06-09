@@ -697,6 +697,25 @@ impl From<Position> for PositionWrapper {
   }
 }
 
+#[cfg(desktop)]
+fn find_monitor_for_position(
+  monitors: impl Iterator<Item = MonitorHandle>,
+  window_position: TaoPosition,
+) -> Option<MonitorHandle> {
+  monitors.into_iter().find(|m| {
+    let monitor_pos = m.position();
+    let monitor_size = m.size();
+
+    // type annotations required for 32bit targets.
+    let window_position = window_position.to_physical::<i32>(m.scale_factor());
+
+    monitor_pos.x <= window_position.x
+      && window_position.x < monitor_pos.x + monitor_size.width as i32
+      && monitor_pos.y <= window_position.y
+      && window_position.y < monitor_pos.y + monitor_size.height as i32
+  })
+}
+
 #[derive(Debug, Clone)]
 pub struct UserAttentionTypeWrapper(pub TaoUserAttentionType);
 
@@ -1764,12 +1783,11 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   }
 
   fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>> {
-    let current_window_id = self.window_id.lock().unwrap();
     let (tx, rx) = channel();
     send_user_message(
       &self.context,
       Message::Webview(
-        *current_window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::CookiesForUrl(url, tx),
       ),
@@ -4387,6 +4405,31 @@ fn handle_event_loop<T: UserEvent>(
     Event::SceneRequested { scene, options } => {
       callback(RunEvent::SceneRequested { scene, options });
     }
+    #[cfg(mobile)]
+    e @ Event::Resumed | e @ Event::Suspended => {
+      let event = match e {
+        Event::Resumed => WindowEvent::Resumed,
+        Event::Suspended => WindowEvent::Suspended,
+        _ => unreachable!(),
+      };
+
+      let windows_ref = windows.0.borrow();
+      windows_ref.values().for_each(|window| {
+        let label = window.label.clone();
+        let window_event_listeners = window.window_event_listeners.clone();
+        let listeners = window_event_listeners.lock().unwrap();
+        for handler in listeners.values() {
+          handler(&event);
+        }
+
+        callback(RunEvent::WindowEvent {
+          label,
+          event: event.clone(),
+        });
+      });
+
+      drop(windows_ref);
+    }
     _ => (),
   }
 }
@@ -4490,18 +4533,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   #[cfg(desktop)]
   if window_builder.prevent_overflow.is_some() || window_builder.center {
     let monitor = if let Some(window_position) = &window_builder.inner.window.position {
-      event_loop.available_monitors().find(|m| {
-        let monitor_pos = m.position();
-        let monitor_size = m.size();
-
-        // type annotations required for 32bit targets.
-        let window_position = window_position.to_physical::<i32>(m.scale_factor());
-
-        monitor_pos.x <= window_position.x
-          && window_position.x < monitor_pos.x + monitor_size.width as i32
-          && monitor_pos.y <= window_position.y
-          && window_position.y < monitor_pos.y + monitor_size.height as i32
-      })
+      find_monitor_for_position(event_loop.available_monitors(), *window_position)
     } else {
       event_loop.primary_monitor()
     };
@@ -4568,11 +4600,37 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   };
 
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  let (initial_position, is_fullscreen) = (
+    window_builder.inner.window.position,
+    window_builder.inner.window.fullscreen.is_some(),
+  );
+
+  // If fullscreen is requested with an explicit position, resolve the target
+  // monitor up front so the window is created fullscreen on that display.
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  if let (true, Some(position)) = (is_fullscreen, initial_position) {
+    if let Some(target_monitor) =
+      find_monitor_for_position(event_loop.available_monitors(), position)
+    {
+      window_builder.inner.window.fullscreen = Some(Fullscreen::Borderless(Some(target_monitor)));
+    }
+  }
+
   let window = window_builder
     .inner
     .build(event_loop)
     .inspect_err(|e| log::error!("Error creating window: {e:?}"))
     .map_err(|_| Error::CreateWindow)?;
+
+  // On macOS, `with_position` uses the content origin; the title bar is added
+  // above it. `set_outer_position` is needed for precise window placement.
+  #[cfg(target_os = "macos")]
+  if !is_fullscreen {
+    if let Some(position) = initial_position {
+      window.set_outer_position(position);
+    }
+  }
 
   #[cfg(feature = "tracing")]
   {

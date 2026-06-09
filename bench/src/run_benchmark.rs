@@ -19,6 +19,7 @@ use std::{
   path::Path,
   process::{Command, Stdio},
 };
+use time::format_description::well_known::Rfc3339;
 
 mod utils;
 
@@ -342,11 +343,6 @@ fn main() -> Result<()> {
   env::set_current_dir(utils::bench_root_path())
     .context("failed to set working directory to bench root")?;
 
-  let now = std::time::SystemTime::now()
-    .duration_since(std::time::UNIX_EPOCH)
-    .context("failed to get current time")?;
-  let timestamp = format!("{}", now.as_secs());
-
   println!("Running execution time benchmarks...");
   let exec_time = run_exec_time(target)?;
 
@@ -357,7 +353,7 @@ fn main() -> Result<()> {
   let cargo_deps = cargo_deps();
 
   let mut new_data = utils::BenchResult {
-    created_at: timestamp,
+    created_at: time::OffsetDateTime::now_utc().format(&Rfc3339).unwrap(),
     sha1: {
       let output = utils::run_collect(&["git", "rev-parse", "HEAD"])?;
       output.0.trim().to_string()

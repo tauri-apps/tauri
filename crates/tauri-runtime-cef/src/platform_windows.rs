@@ -21,6 +21,35 @@ fn hwnd(window: &cef::Window) -> HWND {
   HWND(window.window_handle().0 as _)
 }
 
+pub fn set_parent(window: &cef::Window, parent: HWND) {
+  let hwnd = hwnd(window);
+  unsafe {
+    let mut style = WINDOW_STYLE(GetWindowLongPtrW(hwnd, GWL_STYLE) as u32);
+    style |= WS_CHILD | WS_CLIPSIBLINGS;
+    style &=
+      !(WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+    SetWindowLongPtrW(hwnd, GWL_STYLE, style.0 as isize);
+
+    let mut ex_style = WINDOW_EX_STYLE(GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32);
+    ex_style &= !(WS_EX_APPWINDOW | WS_EX_WINDOWEDGE | WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE);
+    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style.0 as isize);
+
+    let _ = SetParent(hwnd, Some(parent));
+
+    // Recompute the non-client frame after switching the HWND from a top-level
+    // window to a child window.
+    let _ = SetWindowPos(
+      hwnd,
+      None,
+      0,
+      0,
+      0,
+      0,
+      SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+    );
+  }
+}
+
 pub fn set_skip_taskbar(window: &cef::Window, skip: bool) {
   let hwnd = hwnd(window);
   unsafe {

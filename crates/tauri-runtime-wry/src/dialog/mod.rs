@@ -7,7 +7,8 @@ mod windows;
 
 // Takes a `&'static str` here since we convert clickable hyperlinks,
 // DO NOT pass in untrusted input
-pub fn error(#[allow(unused_variables)] err: &'static str) {
+#[cfg_attr(not(windows), allow(unused))]
+pub fn error(err: &'static str) {
   #[cfg(windows)]
   windows::error(err);
 

@@ -39,12 +39,12 @@ fn get_response(
   let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
 
   if let Err(e) = SafePathBuf::new(path.clone().into()) {
-    log::error!("asset protocol path \"{}\" is not valid: {}", path, e);
+    log::error!("asset protocol path \"{path}\" is not valid: {e}");
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
   if !scope.is_allowed(&path) {
-    log::error!("asset protocol not configured to allow the path: {}", path);
+    log::error!("asset protocol not configured to allow the path: {path}");
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
@@ -55,14 +55,14 @@ fn get_response(
       #[cfg(target_os = "android")]
       {
         if path.starts_with("/storage/emulated/0/Android/data/") {
-          log::error!("Failed to open Android external storage file '{}': {}. This may be due to missing storage permissions.", path, e);
+          log::error!("Failed to open Android external storage file '{path}': {e}. This may be due to missing storage permissions.");
         }
       }
       return if e.kind() == std::io::ErrorKind::NotFound {
-        log::error!("File does not exist at path: {}", path);
+        log::error!("File does not exist at path: {path}");
         return resp.status(404).body(Vec::new().into()).map_err(Into::into);
       } else if e.kind() == std::io::ErrorKind::PermissionDenied {
-        log::error!("Missing OS permission to access path \"{}\": {}", path, e);
+        log::error!("Missing OS permission to access path \"{path}\": {e}");
         return resp.status(403).body(Vec::new().into()).map_err(Into::into);
       } else {
         Err(e.into())

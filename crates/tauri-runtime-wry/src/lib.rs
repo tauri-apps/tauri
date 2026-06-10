@@ -526,6 +526,7 @@ impl WindowEventWrapper {
         // (without receiving a webview focus, such as when clicking the taskbar app icon or using Alt + Tab)
         // in this case we must send the focus change event here
         #[cfg(windows)]
+        #[allow(clippy::collapsible_match)]
         if window.has_children.load(Ordering::Relaxed) {
           const FOCUSED_WEBVIEW_MARKER: &str = "__tauriWindow?";
           let mut focused_webview = window.focused_webview.lock().unwrap();
@@ -541,9 +542,13 @@ impl WindowEventWrapper {
 
           // reset focused_webview on blur, or set to a dummy value on focus
           // (to prevent double focus event when we click a webview after focusing a window)
-          *focused_webview = (*focused).then(|| FOCUSED_WEBVIEW_MARKER.to_string());
+          *focused_webview = if *focused {
+            Some(FOCUSED_WEBVIEW_MARKER.to_owned())
+          } else {
+            None
+          };
 
-          return Self(Some(WindowEvent::Focused(*focused)));
+          WindowEvent::Focused(*focused)
         } else {
           // when not on multiwebview mode, we handle focus change events on the webview (add_GotFocus and add_LostFocus)
           return Self(None);
@@ -3086,19 +3091,17 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         focused_webview,
       )?;
 
-      #[allow(unknown_lints, clippy::manual_inspect)]
-      self
+      if let Some(w) = self
         .context
         .main_thread
         .windows
         .0
         .borrow_mut()
         .get_mut(&window_id)
-        .map(|w| {
-          w.webviews.push(webview);
-          w.has_children.store(true, Ordering::Relaxed);
-          w
-        });
+      {
+        w.webviews.push(webview);
+        w.has_children.store(true, Ordering::Relaxed);
+      }
 
       let dispatcher = WryWebviewDispatcher {
         window_id: window_id_wrapper,
@@ -4067,12 +4070,10 @@ fn handle_user_message<T: UserEvent>(
       if let Some((Some(window), focused_webview)) = window {
         match handler(&window, CreateWebviewOptions { focused_webview }) {
           Ok(webview) => {
-            #[allow(unknown_lints, clippy::manual_inspect)]
-            windows.0.borrow_mut().get_mut(&window_id).map(|w| {
+            if let Some(w) = windows.0.borrow_mut().get_mut(&window_id) {
               w.webviews.push(webview);
               w.has_children.store(true, Ordering::Relaxed);
-              w
-            });
+            }
           }
           Err(e) => {
             log::error!("{e}");
@@ -4737,9 +4738,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 /// the kind of the webview
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 enum WebviewKind {
-  // webview is the entire window content
+  /// webview is the entire window content
   WindowContent,
-  // webview is a child of the window, which can contain other webviews too
+  /// webview is a child of the window, which can contain other webviews too
   WindowChild,
 }
 
@@ -5034,7 +5035,7 @@ You may have it installed on another user account, but it is not available for t
 
   if let Some(page_load_handler) = pending.on_page_load_handler {
     webview_builder = webview_builder.with_on_page_load_handler(move |event, url| {
-      let _ = url.parse().map(|url| {
+      if let Ok(url) = url.parse() {
         page_load_handler(
           url,
           match event {
@@ -5042,7 +5043,7 @@ You may have it installed on another user account, but it is not available for t
             wry::PageLoadEvent::Finished => tauri_runtime::webview::PageLoadEvent::Finished,
           },
         )
-      });
+      };
     });
   }
 
@@ -5137,7 +5138,7 @@ You may have it installed on another user account, but it is not available for t
             if let Some(webview) = window.webviews.iter().find(|w| w.id == id) {
               match webview.reload() {
                 Ok(_) => log::debug!("webview reloaded"),
-                Err(e) => log::error!("failed to reload webview: {}", e),
+                Err(e) => log::error!("failed to reload webview: {e}"),
               }
             } else {
               log::error!("failed to find webview")
@@ -5168,7 +5169,6 @@ You may have it installed on another user account, but it is not available for t
   }
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-    kind,
     window_id.clone(),
     id,
     context.clone(),
@@ -5333,6 +5333,8 @@ You may have it installed on another user account, but it is not available for t
           // we get the gotFocus event of the other webview before the lostFocus
           // so this check makes sense
           let lost_window_focus = focused_webview.as_ref().map_or(true, |w| w == &label_);
+          // TODO: Use `is_none_or` instead when MSRV gets raised above 1.82
+          // let lost_window_focus = focused_webview.as_ref().is_none_or(|t| t == &label_);
 
           if lost_window_focus {
             // only reset when we lost window focus - otherwise some other webview is focused
@@ -5388,7 +5390,6 @@ You may have it installed on another user account, but it is not available for t
 
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
-  _kind: WebviewKind,
   window_id: Arc<Mutex<WindowId>>,
   webview_id: WebviewId,
   context: Context<T>,

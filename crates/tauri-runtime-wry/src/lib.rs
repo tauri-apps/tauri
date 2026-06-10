@@ -4412,10 +4412,20 @@ fn handle_event_loop<T: UserEvent>(
         _ => unreachable!(),
       };
 
-      let windows_ref = windows.0.borrow();
-      windows_ref.values().for_each(|window| {
-        let label = window.label.clone();
-        let window_event_listeners = window.window_event_listeners.clone();
+      // Collect the per-window listener handles and release the `windows`
+      // borrow before dispatching: handlers and the `RunEvent` callback may
+      // create or close windows (`windows.0.borrow_mut()`), which would panic
+      // the `RefCell` if we held the borrow across them. The desktop
+      // `WindowEvent` branches drop the borrow before dispatching for the same
+      // reason; this mobile `Resumed`/`Suspended` branch was the exception.
+      let targets = windows
+        .0
+        .borrow()
+        .values()
+        .map(|w| (w.label.clone(), w.window_event_listeners.clone()))
+        .collect::<Vec<_>>();
+
+      for (label, window_event_listeners) in targets {
         let listeners = window_event_listeners.lock().unwrap();
         for handler in listeners.values() {
           handler(&event);
@@ -4425,9 +4435,7 @@ fn handle_event_loop<T: UserEvent>(
           label,
           event: event.clone(),
         });
-      });
-
-      drop(windows_ref);
+      }
     }
     _ => (),
   }

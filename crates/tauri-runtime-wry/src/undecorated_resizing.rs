@@ -540,10 +540,15 @@ mod gtk {
     webview.connect_button_press_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventButton| {
         if event.button() == 1 {
-          // This one should be GtkBox
-          if let Some(window) = webview.parent().and_then(|w| w.parent()) {
-            // Safe to unwrap unless this is not from tao
-            let window: gtk::Window = window.downcast().unwrap();
+          // Resolve the toplevel window. The webview's ancestry is not
+          // guaranteed to be `webview → GtkBox → GtkWindow`: an embedding
+          // application may reparent the webview into another container
+          // (e.g. a GtkPaned), and unwrapping a downcast of the second
+          // ancestor panics the main thread on the first click.
+          if let Some(window) = webview
+            .toplevel()
+            .and_then(|w| w.downcast::<gtk::Window>().ok())
+          {
             if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
               if let Some(window) = window.window() {
                 let (root_x, root_y) = event.root();
@@ -580,10 +585,12 @@ mod gtk {
 
     webview.connect_touch_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::Event| {
-        // This one should be GtkBox
-        if let Some(window) = webview.parent().and_then(|w| w.parent()) {
-          // Safe to unwrap unless this is not from tao
-          let window: gtk::Window = window.downcast().unwrap();
+        // Same toplevel resolution as the button-press handler above — the
+        // two-ancestor downcast panics when the webview was reparented.
+        if let Some(window) = webview
+          .toplevel()
+          .and_then(|w| w.downcast::<gtk::Window>().ok())
+        {
           if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
             if let Some(window) = window.window() {
               if let Some((root_x, root_y)) = event.root_coords() {

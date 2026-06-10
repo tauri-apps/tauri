@@ -60,15 +60,6 @@ impl<'a, M: Manager<crate::Cef>> WebviewWindowBuilder<'a, crate::Cef, M> {
     self.webview_builder = self.webview_builder.browser_runtime_style(style);
     self
   }
-
-  /// Crete a full Chrome browser window.
-  ///
-  /// In this case most window builder options are ignored,
-  /// as we can only control the size and position of the window.
-  pub fn browser_window(mut self) -> Self {
-    self.window_builder.window_builder = self.window_builder.window_builder.browser_window();
-    self
-  }
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {

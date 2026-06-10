@@ -2021,6 +2021,12 @@ wrap_window_delegate! {
         drag_window::windows::subclass_window_for_dragging(window);
 
         let a = self.attributes.borrow();
+
+        #[cfg(windows)]
+        if let Some(owner) = a.owner {
+          crate::platform::set_owner(window, owner);
+        }
+
         #[cfg(target_os = "macos")]
         apply_macos_window_theme(Some(window), a.theme);
         if let Some(icon) = a.icon.clone() {

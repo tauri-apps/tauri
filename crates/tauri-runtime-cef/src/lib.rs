@@ -348,28 +348,14 @@ pub type WebviewEventHandler = Box<dyn Fn(&tauri_runtime::window::WebviewEvent) 
 pub type WebviewEventListeners =
   Arc<Mutex<HashMap<u32, Arc<Mutex<HashMap<tauri_runtime::WebviewEventId, WebviewEventHandler>>>>>>;
 
-pub(crate) enum AppWindowKind {
-  Window(cef::Window),
-  BrowserWindow,
-}
-
 pub(crate) struct AppWindow {
   pub label: String,
-  pub window: AppWindowKind,
+  pub window: cef::Window,
   pub force_close: Arc<AtomicBool>,
   pub attributes: Arc<RefCell<CefWindowBuilder>>,
   pub webviews: Vec<AppWebview>,
   pub window_event_listeners: WindowEventListeners,
   pub webview_event_listeners: WebviewEventListeners,
-}
-
-impl AppWindow {
-  fn window(&self) -> Option<cef::Window> {
-    match &self.window {
-      AppWindowKind::Window(window) => Some(window.clone()),
-      AppWindowKind::BrowserWindow => None,
-    }
-  }
 }
 
 #[derive(Clone)]
@@ -734,7 +720,6 @@ pub struct CefWindowBuilder {
   drag_and_drop: Option<bool>,
   has_icon: bool,
   icon: Option<Icon<'static>>,
-  browser_window: bool,
 }
 
 impl Default for CefWindowBuilder {
@@ -786,15 +771,7 @@ impl Default for CefWindowBuilder {
       drag_and_drop: None,
       has_icon: false,
       icon: None,
-      browser_window: false,
     }
-  }
-}
-
-impl CefWindowBuilder {
-  pub fn browser_window(mut self) -> Self {
-    self.browser_window = true;
-    self
   }
 }
 

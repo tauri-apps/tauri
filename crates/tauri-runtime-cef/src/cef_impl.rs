@@ -279,10 +279,8 @@ fn set_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::Th
 
 fn apply_window_theme_scheme(app_window: &AppWindow, theme: Option<tauri_utils::Theme>) {
   set_window_theme_scheme(app_window, theme);
-  if let Some(window) = app_window.window() {
-    // Ask CEF Views to refresh themed colors immediately.
-    window.theme_changed();
-  }
+  // Ask CEF Views to refresh themed colors immediately.
+  app_window.window.theme_changed();
 }
 
 /// Applies a theme at the runtime/event-loop level, mirroring `tao`'s
@@ -1476,17 +1474,8 @@ wrap_download_handler! {
   }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum WindowKind {
-  /// Full browser window created with browser_host_create_browser_sync
-  Browser,
-  /// Tauri window created with window_create_top_level
-  Tauri,
-}
-
 wrap_life_span_handler! {
   struct BrowserLifeSpanHandler<T: UserEvent> {
-    window_kind: WindowKind,
     window_id: WindowId,
     context: Context<T>,
     new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
@@ -1502,58 +1491,51 @@ wrap_life_span_handler! {
     }
 
     fn on_before_close(&self, browser: Option<&mut Browser>) {
-      match self.window_kind {
-        WindowKind::Browser => {
+      let Some(browser) = browser else {
+        return;
+      };
+      let browser_id = browser.identifier();
+
+      let (webview, is_last_in_window) = {
+        let mut windows = self.context.windows.borrow_mut();
+        let Some(app_window) = windows.get_mut(&self.window_id) else {
+          return;
+        };
+        let webview_index = app_window
+          .webviews
+          .iter()
+          .position(|w| *w.browser_id.borrow() == browser_id);
+        let Some(index) = webview_index else {
+          return;
+        };
+        let webview = app_window.webviews.remove(index);
+        let webview_id = webview.webview_id;
+        app_window
+          .webview_event_listeners
+          .lock()
+          .unwrap()
+          .remove(&webview_id);
+        let is_last = app_window.webviews.is_empty();
+        (webview, is_last)
+      };
+
+      {
+        let mut registry = self.context.scheme_handler_registry.lock().unwrap();
+        let schemes: Vec<_> = webview
+          .uri_scheme_protocols
+          .keys()
+          .cloned()
+          .collect();
+        for scheme in schemes {
+          registry.remove(&(browser_id, scheme));
+        }
+      }
+
+      // safe to drop - CEF callbacks can borrow windows
+      drop(webview);
+
+      if is_last_in_window {
           on_window_destroyed(self.window_id, &self.context);
-        }
-        WindowKind::Tauri => {
-          let Some(browser) = browser else {
-            return;
-          };
-          let browser_id = browser.identifier();
-
-          let (webview, is_last_in_window) = {
-            let mut windows = self.context.windows.borrow_mut();
-            let Some(app_window) = windows.get_mut(&self.window_id) else {
-              return;
-            };
-            let webview_index = app_window
-              .webviews
-              .iter()
-              .position(|w| *w.browser_id.borrow() == browser_id);
-            let Some(index) = webview_index else {
-              return;
-            };
-            let webview = app_window.webviews.remove(index);
-            let webview_id = webview.webview_id;
-            app_window
-              .webview_event_listeners
-              .lock()
-              .unwrap()
-              .remove(&webview_id);
-            let is_last = app_window.webviews.is_empty();
-            (webview, is_last)
-          };
-
-          {
-            let mut registry = self.context.scheme_handler_registry.lock().unwrap();
-            let schemes: Vec<_> = webview
-              .uri_scheme_protocols
-              .keys()
-              .cloned()
-              .collect();
-            for scheme in schemes {
-              registry.remove(&(browser_id, scheme));
-            }
-          }
-
-          // safe to drop - CEF callbacks can borrow windows
-          drop(webview);
-
-          if is_last_in_window {
-            on_window_destroyed(self.window_id, &self.context);
-          }
-        }
       }
     }
 
@@ -1636,7 +1618,6 @@ wrap_life_span_handler! {
 
 wrap_client! {
   struct BrowserClient<T: UserEvent> {
-    window_kind: WindowKind,
     window_id: WindowId,
     webview_id: u32,
     label: String,
@@ -1677,7 +1658,6 @@ wrap_client! {
 
     fn life_span_handler(&self) -> Option<LifeSpanHandler> {
       Some(BrowserLifeSpanHandler::new(
-        self.window_kind,
         self.window_id,
         self.context.clone(),
         self.new_window_handler.clone(),
@@ -2549,8 +2529,8 @@ fn handle_webview_message<T: UserEvent>(
         .get(&window_id)
         .and_then(|app_window| {
           let device_scale_factor = app_window
-            .window()
-            .and_then(|window| window.display())
+            .window
+            .display()
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
 
@@ -2572,7 +2552,7 @@ fn handle_webview_message<T: UserEvent>(
               let bounds_arc = wrapper.bounds.clone();
               let is_browser = wrapper.inner.is_browser();
               let window_bounds = if is_browser {
-                app_window.window().map(|w| w.bounds())
+                Some(app_window.window.bounds())
               } else {
                 None
               };
@@ -2599,8 +2579,8 @@ fn handle_webview_message<T: UserEvent>(
         .get(&window_id)
         .and_then(|app_window| {
           let device_scale_factor = app_window
-            .window()
-            .and_then(|window| window.display())
+            .window
+            .display()
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
 
@@ -2622,7 +2602,7 @@ fn handle_webview_message<T: UserEvent>(
               let bounds_arc = wrapper.bounds.clone();
               let is_browser = wrapper.inner.is_browser();
               let window_bounds = if is_browser {
-                app_window.window().map(|w| w.bounds())
+                Some(app_window.window.bounds())
               } else {
                 None
               };
@@ -2649,8 +2629,8 @@ fn handle_webview_message<T: UserEvent>(
         .get(&window_id)
         .and_then(|app_window| {
           let device_scale_factor = app_window
-            .window()
-            .and_then(|window| window.display())
+            .window
+            .display()
             .map(|d| d.device_scale_factor() as f64)
             .unwrap_or(1.0);
 
@@ -2664,7 +2644,7 @@ fn handle_webview_message<T: UserEvent>(
               let bounds_arc = wrapper.bounds.clone();
               let is_browser = wrapper.inner.is_browser();
               let window_bounds = if is_browser {
-                app_window.window().map(|w| w.bounds())
+                Some(app_window.window.bounds())
               } else {
                 None
               };
@@ -2715,13 +2695,7 @@ fn handle_webview_message<T: UserEvent>(
         };
 
         let target_cef_window = match windows.get(&target_window_id) {
-          Some(tw) => match &tw.window {
-            crate::AppWindowKind::Window(window) => window.clone(),
-            crate::AppWindowKind::BrowserWindow => {
-              let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
-              return;
-            }
-          },
+          Some(target_window) => target_window.window.clone(),
           None => {
             let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
             return;
@@ -2756,22 +2730,20 @@ fn handle_webview_message<T: UserEvent>(
         && wrapper.inner.is_browser()
       {
         if auto_resize {
-          if let Some(window) = app_window.window() {
-            let window_bounds = window.bounds();
-            let window_size =
-              LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
+          let window_bounds = app_window.window.bounds();
+          let window_size =
+            LogicalSize::new(window_bounds.width as u32, window_bounds.height as u32);
 
-            let ob = wrapper.inner.bounds();
-            let pos = LogicalPosition::new(ob.x, ob.y);
-            let size = LogicalSize::new(ob.width as u32, ob.height as u32);
+          let ob = wrapper.inner.bounds();
+          let pos = LogicalPosition::new(ob.x, ob.y);
+          let size = LogicalSize::new(ob.width as u32, ob.height as u32);
 
-            *wrapper.bounds.lock().unwrap() = Some(crate::WebviewBounds {
-              x_rate: pos.x as f32 / window_size.width as f32,
-              y_rate: pos.y as f32 / window_size.height as f32,
-              width_rate: size.width as f32 / window_size.width as f32,
-              height_rate: size.height as f32 / window_size.height as f32,
-            });
-          }
+          *wrapper.bounds.lock().unwrap() = Some(crate::WebviewBounds {
+            x_rate: pos.x as f32 / window_size.width as f32,
+            y_rate: pos.y as f32 / window_size.height as f32,
+            width_rate: size.width as f32 / window_size.width as f32,
+            height_rate: size.height as f32 / window_size.height as f32,
+          });
         } else {
           *wrapper.bounds.lock().unwrap() = None;
         }
@@ -3240,8 +3212,9 @@ fn handle_window_message<T: UserEvent>(
         .borrow()
         .get(&window_id)
         .and_then(|w| {
-          w.window()
-            .and_then(|window| window.display().map(|d| Ok(d.device_scale_factor() as f64)))
+          w.window
+            .display()
+            .map(|d| Ok(d.device_scale_factor() as f64))
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -3251,16 +3224,14 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => {
-            let bounds = window.bounds();
-            let scale = window
-              .display()
-              .map(|d| d.device_scale_factor() as f64)
-              .unwrap_or(1.0);
-            Ok(LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale))
-          }
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
+        .map(|w| {
+          let bounds = w.window.bounds();
+          let scale = w
+            .window
+            .display()
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          Ok(LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale))
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -3270,16 +3241,14 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => {
-            let bounds = window.bounds();
-            let scale = window
-              .display()
-              .map(|d| d.device_scale_factor() as f64)
-              .unwrap_or(1.0);
-            Ok(LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale))
-          }
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
+        .map(|w| {
+          let bounds = w.window.bounds();
+          let scale = w
+            .window
+            .display()
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          Ok(LogicalPosition::new(bounds.x, bounds.y).to_physical::<i32>(scale))
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -3289,26 +3258,24 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => {
-            #[cfg(not(windows))]
-            let size = {
-              let scale = window
-                .display()
-                .map(|d| d.device_scale_factor() as f64)
-                .unwrap_or(1.0);
+        .map(|w| {
+          #[cfg(not(windows))]
+          let size = {
+            let scale = w
+              .window
+              .display()
+              .map(|d| d.device_scale_factor() as f64)
+              .unwrap_or(1.0);
 
-              let bounds = window.bounds();
-              LogicalSize::new(bounds.width as u32, bounds.height as u32).to_physical::<u32>(scale)
-            };
+            let bounds = w.window.bounds();
+            LogicalSize::new(bounds.width as u32, bounds.height as u32).to_physical::<u32>(scale)
+          };
 
-            // On Windows, window.bounds() is the outer size, not the inner size.
-            #[cfg(windows)]
-            let size = crate::utils::windows::inner_size(window.window_handle());
+          // On Windows, window.bounds() is the outer size, not the inner size.
+          #[cfg(windows)]
+          let size = crate::utils::windows::inner_size(w.window.window_handle());
 
-            Ok(size)
-          }
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
+          Ok(size)
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -3318,18 +3285,14 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => {
-            let bounds = window.bounds();
-            let scale = window
-              .display()
-              .map(|d| d.device_scale_factor() as f64)
-              .unwrap_or(1.0);
-            Ok(
-              LogicalSize::new(bounds.width as u32, bounds.height as u32).to_physical::<u32>(scale),
-            )
-          }
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
+        .map(|w| {
+          let bounds = w.window.bounds();
+          let scale = w
+            .window
+            .display()
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          Ok(LogicalSize::new(bounds.width as u32, bounds.height as u32).to_physical::<u32>(scale))
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -3339,10 +3302,7 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Ok(window.is_fullscreen() == 1),
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
-        })
+        .map(|w| Ok(w.window.is_fullscreen() == 1))
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
@@ -3351,10 +3311,7 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Ok(window.is_minimized() == 1),
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
-        })
+        .map(|w| Ok(w.window.is_minimized() == 1))
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
@@ -3363,10 +3320,7 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Ok(window.is_maximized() == 1),
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
-        })
+        .map(|w| Ok(w.window.is_maximized() == 1))
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
@@ -3375,10 +3329,7 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Ok(window.has_focus() == 1),
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
-        })
+        .map(|w| Ok(w.window.has_focus() == 1))
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
@@ -3432,10 +3383,7 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Ok(window.is_visible() == 1),
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
-        })
+        .map(|w| Ok(w.window.is_visible() == 1))
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
@@ -3444,12 +3392,9 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => {
-            let title = window.title();
-            Ok(cef::CefString::from(&title).to_string())
-          }
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
+        .map(|w| {
+          let title = w.window.title();
+          Ok(cef::CefString::from(&title).to_string())
         })
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
@@ -3459,9 +3404,8 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .and_then(|w| w.window())
-        .map(|window| {
-          let b = window.bounds();
+        .map(|w| {
+          let b = w.window.bounds();
           cef::display_get_matching_bounds(Some(&b), 1).map(|d| {
             let bounds = d.bounds();
             let work = d.work_area();
@@ -3516,10 +3460,7 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Ok(crate::platform::is_enabled(window)),
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
-        })
+        .map(|w| Ok(crate::platform::is_enabled(&w.window)))
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
@@ -3528,10 +3469,7 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => Ok(window.is_always_on_top() == 1),
-          crate::AppWindowKind::BrowserWindow => Err(tauri_runtime::Error::FailedToSendMessage),
-        })
+        .map(|w| Ok(w.window.is_always_on_top() == 1))
         .unwrap_or_else(|| Err(tauri_runtime::Error::FailedToSendMessage));
       let _ = tx.send(result);
     }
@@ -3540,71 +3478,64 @@ fn handle_window_message<T: UserEvent>(
         .windows
         .borrow()
         .get(&window_id)
-        .map(|w| match &w.window {
-          crate::AppWindowKind::Window(window) => {
-            #[cfg(target_os = "linux")]
-            unsafe {
-              let xid = window.window_handle();
+        .map(|w| {
+          #[cfg(target_os = "linux")]
+          unsafe {
+            let xid = w.window.window_handle();
+            Ok(raw_window_handle::WindowHandle::borrow_raw(
+              raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(
+                xid,
+              )),
+            ))
+          }
+
+          #[cfg(target_os = "macos")]
+          unsafe {
+            let ns_view = w.window.window_handle();
+            if let Some(nn) = std::ptr::NonNull::new(ns_view) {
               Ok(raw_window_handle::WindowHandle::borrow_raw(
-                raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(
-                  xid,
-                )),
+                raw_window_handle::RawWindowHandle::AppKit(
+                  raw_window_handle::AppKitWindowHandle::new(nn),
+                ),
               ))
-            }
-
-            #[cfg(target_os = "macos")]
-            unsafe {
-              let ns_view = window.window_handle();
-              if let Some(nn) = std::ptr::NonNull::new(ns_view) {
-                Ok(raw_window_handle::WindowHandle::borrow_raw(
-                  raw_window_handle::RawWindowHandle::AppKit(
-                    raw_window_handle::AppKitWindowHandle::new(nn),
-                  ),
-                ))
-              } else {
-                Err(raw_window_handle::HandleError::Unavailable)
-              }
-            }
-
-            #[cfg(windows)]
-            unsafe {
-              let hwnd = window.window_handle().0 as isize;
-              if let Some(nz) = std::num::NonZeroIsize::new(hwnd) {
-                Ok(raw_window_handle::WindowHandle::borrow_raw(
-                  raw_window_handle::RawWindowHandle::Win32(
-                    raw_window_handle::Win32WindowHandle::new(nz),
-                  ),
-                ))
-              } else {
-                Err(raw_window_handle::HandleError::Unavailable)
-              }
+            } else {
+              Err(raw_window_handle::HandleError::Unavailable)
             }
           }
-          crate::AppWindowKind::BrowserWindow => Err(raw_window_handle::HandleError::Unavailable),
+
+          #[cfg(windows)]
+          unsafe {
+            let hwnd = w.window.window_handle().0 as isize;
+            if let Some(nz) = std::num::NonZeroIsize::new(hwnd) {
+              Ok(raw_window_handle::WindowHandle::borrow_raw(
+                raw_window_handle::RawWindowHandle::Win32(
+                  raw_window_handle::Win32WindowHandle::new(nz),
+                ),
+              ))
+            } else {
+              Err(raw_window_handle::HandleError::Unavailable)
+            }
+          }
         })
         .unwrap_or(Err(raw_window_handle::HandleError::Unavailable));
       let _ = tx.send(result);
     }
     // Setters
     WindowMessage::Center => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.center_window(Some(&window.size()));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window
+          .window
+          .center_window(Some(&app_window.window.size()));
       }
     }
     WindowMessage::RequestUserAttention(attention_type) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::request_user_attention(&window, attention_type);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::request_user_attention(&app_window.window, attention_type);
       }
     }
     WindowMessage::SetEnabled(enabled) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_enabled(&window, enabled);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_enabled(&app_window.window, enabled);
       }
     }
     WindowMessage::SetResizable(resizable) => {
@@ -3628,52 +3559,40 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::SetTitle(title) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.set_title(Some(&cef::CefString::from(title.as_str())));
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window
+          .window
+          .set_title(Some(&cef::CefString::from(title.as_str())));
       }
     }
     WindowMessage::Maximize => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.maximize();
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.window.maximize();
       }
     }
     WindowMessage::Unmaximize => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.restore();
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.window.restore();
       }
     }
     WindowMessage::Minimize => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.minimize();
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.window.minimize();
       }
     }
     WindowMessage::Unminimize => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.restore();
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.window.restore();
       }
     }
     WindowMessage::Show => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.show();
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.window.show();
       }
     }
     WindowMessage::Hide => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.hide();
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.window.hide();
       }
     }
     WindowMessage::SetDecorations(decorations) => {
@@ -3682,50 +3601,44 @@ fn handle_window_message<T: UserEvent>(
       }
     }
     WindowMessage::SetShadow(shadow) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_shadow(&window, shadow);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_shadow(&app_window.window, shadow);
       }
     }
     WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().always_on_bottom = Some(always_on_bottom);
-        if let Some(window) = app_window.window() {
-          crate::platform::set_always_on_bottom(&window, always_on_bottom);
-        }
+        crate::platform::set_always_on_bottom(&app_window.window, always_on_bottom);
       }
     }
     WindowMessage::SetAlwaysOnTop(always_on_top) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().always_on_top = Some(always_on_top);
-        if let Some(window) = app_window.window() {
-          window.set_always_on_top(if always_on_top { 1 } else { 0 });
-        }
+        app_window
+          .window
+          .set_always_on_top(if always_on_top { 1 } else { 0 });
       }
     }
     WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().visible_on_all_workspaces =
           Some(visible_on_all_workspaces);
-        if let Some(window) = app_window.window() {
-          crate::platform::set_visible_on_all_workspaces(&window, visible_on_all_workspaces);
-        }
+        crate::platform::set_visible_on_all_workspaces(
+          &app_window.window,
+          visible_on_all_workspaces,
+        );
       }
     }
     WindowMessage::SetContentProtected(protected) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().content_protected = Some(protected);
-        if let Some(window) = app_window.window() {
-          apply_content_protection(&window, protected);
-        }
+        apply_content_protection(&app_window.window, protected);
       }
     }
     #[allow(unused_mut)]
     WindowMessage::SetSize(mut size) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-        && let Some(display) = window.display()
+        && let Some(display) = app_window.window.display()
       {
         let device_scale_factor = display.device_scale_factor() as f64;
 
@@ -3734,9 +3647,9 @@ fn handle_window_message<T: UserEvent>(
         // On Windows, the size set via CEF APIs is the outer size (including borders),
         // so we need to adjust it to set the correct inner size.
         #[cfg(windows)]
-        let size = crate::utils::windows::adjust_size(window.window_handle(), size);
+        let size = crate::utils::windows::adjust_size(app_window.window.window_handle(), size);
 
-        window.set_size(Some(&size));
+        app_window.window.set_size(Some(&size));
       }
     }
     WindowMessage::SetMinSize(size) => {
@@ -3756,109 +3669,87 @@ fn handle_window_message<T: UserEvent>(
     }
     WindowMessage::SetPosition(position) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-        && let Some(display) = window.display()
+        && let Some(display) = app_window.window.display()
       {
         let device_scale_factor = display.device_scale_factor() as f64;
         let position = position_to_cef(position, device_scale_factor);
-        window.set_position(Some(&position));
+        app_window.window.set_position(Some(&position));
       }
     }
     WindowMessage::SetFullscreen(fullscreen) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.set_fullscreen(if fullscreen { 1 } else { 0 });
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window
+          .window
+          .set_fullscreen(if fullscreen { 1 } else { 0 });
       }
     }
     #[cfg(target_os = "macos")]
     WindowMessage::SetSimpleFullscreen(fullscreen) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_simple_fullscreen(&window, fullscreen);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_simple_fullscreen(&app_window.window, fullscreen);
       }
     }
     WindowMessage::SetFocus => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.request_focus();
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window.window.request_focus();
       }
     }
     WindowMessage::SetFocusable(focusable) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        window.set_focusable(if focusable { 1 } else { 0 });
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        app_window
+          .window
+          .set_focusable(if focusable { 1 } else { 0 });
       }
     }
     WindowMessage::SetIcon(icon) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        set_window_icon(&window, icon);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        set_window_icon(&app_window.window, icon);
       }
     }
     WindowMessage::SetSkipTaskbar(skip) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().skip_taskbar = Some(skip);
-        if let Some(window) = app_window.window() {
-          crate::platform::set_skip_taskbar(&window, skip);
-        }
+        crate::platform::set_skip_taskbar(&app_window.window, skip);
       }
     }
     WindowMessage::SetCursorGrab(grab) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_cursor_grab(&window, grab);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_cursor_grab(&app_window.window, grab);
       }
     }
     WindowMessage::SetCursorVisible(visible) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_cursor_visible(&window, visible);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_cursor_visible(&app_window.window, visible);
       }
     }
     WindowMessage::SetCursorIcon(icon) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_cursor_icon(&window, icon);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_cursor_icon(&app_window.window, icon);
       }
     }
     WindowMessage::SetCursorPosition(position) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        let scale_factor = window
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        let scale_factor = app_window
+          .window
           .display()
           .map(|d| d.device_scale_factor() as f64)
           .unwrap_or(1.0);
-        crate::platform::set_cursor_position(&window, position, scale_factor);
+        crate::platform::set_cursor_position(&app_window.window, position, scale_factor);
       }
     }
     WindowMessage::SetIgnoreCursorEvents(ignore) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_ignore_cursor_events(&window, ignore);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_ignore_cursor_events(&app_window.window, ignore);
       }
     }
     WindowMessage::SetProgressBar(progress_state) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_progress_bar(&window, progress_state);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_progress_bar(&app_window.window, progress_state);
       }
     }
     WindowMessage::SetBadgeCount(count, desktop_filename) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::set_badge_count(&window, count, desktop_filename);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::set_badge_count(&app_window.window, count, desktop_filename);
       }
     }
     #[cfg(target_os = "macos")]
@@ -3870,31 +3761,25 @@ fn handle_window_message<T: UserEvent>(
       // Badge labels are a macOS-only concept.
     }
     WindowMessage::SetOverlayIcon(icon) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        set_overlay_icon(&window, icon);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        set_overlay_icon(&app_window.window, icon);
       }
     }
     WindowMessage::SetTitleBarStyle(_style) => {
       #[cfg(target_os = "macos")]
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
         let hidden_title = {
           let a = app_window.attributes.borrow();
           a.hidden_title.unwrap_or(!a.decorations.unwrap_or(true))
         };
-        apply_titlebar_style(&window, _style, hidden_title);
+        apply_titlebar_style(&app_window.window, _style, hidden_title);
       }
     }
     WindowMessage::SetTrafficLightPosition(_position) => {
       #[cfg(target_os = "macos")]
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().traffic_light_position = Some(_position);
-        if let Some(window) = app_window.window() {
-          apply_traffic_light_position(window.window_handle(), &_position);
-        }
+        apply_traffic_light_position(app_window.window.window_handle(), &_position);
       }
     }
     WindowMessage::SetTheme(theme) => {
@@ -3906,8 +3791,7 @@ fn handle_window_message<T: UserEvent>(
         apply_window_theme_scheme(app_window, theme);
         #[cfg(target_os = "macos")]
         {
-          let window = app_window.window();
-          apply_macos_window_theme(window.as_ref(), theme);
+          apply_macos_window_theme(Some(&app_window.window), theme);
         }
         // theme changed event is sent by the on_theme_changed handler
       }
@@ -3915,27 +3799,22 @@ fn handle_window_message<T: UserEvent>(
     WindowMessage::SetBackgroundColor(color) => {
       if let Some(app_window) = context.windows.borrow().get(&window_id) {
         app_window.attributes.borrow_mut().background_color = color;
-        let Some(window) = app_window.window() else {
-          return;
-        };
-        let color = color
-          .map(color_to_cef_argb)
-          .unwrap_or_else(|| window.theme_color(ColorId::COLOR_PRIMARY_BACKGROUND.get_raw() as _));
-        window.set_background_color(color);
+        let color = color.map(color_to_cef_argb).unwrap_or_else(|| {
+          app_window
+            .window
+            .theme_color(ColorId::COLOR_PRIMARY_BACKGROUND.get_raw() as _)
+        });
+        app_window.window.set_background_color(color);
       }
     }
     WindowMessage::StartDragging => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        start_window_dragging(&window);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        start_window_dragging(&app_window.window);
       }
     }
     WindowMessage::StartResizeDragging(direction) => {
-      if let Some(app_window) = context.windows.borrow().get(&window_id)
-        && let Some(window) = app_window.window()
-      {
-        crate::platform::start_resize_dragging(&window, direction);
+      if let Some(app_window) = context.windows.borrow().get(&window_id) {
+        crate::platform::start_resize_dragging(&app_window.window, direction);
       }
     }
   }
@@ -4014,227 +3893,6 @@ wrap_task! {
   }
 }
 
-fn create_browser_window<T: UserEvent>(
-  context: &Context<T>,
-  window_id: WindowId,
-  webview_id: u32,
-  label: String,
-  window_builder: CefWindowBuilder,
-  webview: PendingWebview<T, CefRuntime<T>>,
-) {
-  let PendingWebview {
-    label: webview_label,
-    opener: _,
-    mut webview_attributes,
-    platform_specific_attributes: _,
-    uri_scheme_protocols,
-    ipc_handler,
-    navigation_handler,
-    new_window_handler,
-    document_title_changed_handler,
-    address_changed_handler,
-    url,
-    web_resource_request_handler: _,
-    mut on_page_load_handler,
-    download_handler,
-    // TODO
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
-      on_web_content_process_terminate_handler: _,
-  } = webview;
-
-  let address_changed_handler = address_changed_handler
-    .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<AddressChangedHandler>);
-
-  let drag_drop_handler_enabled = webview_attributes.drag_drop_handler_enabled;
-  let initialization_scripts =
-    initialization_scripts_from_webview_attributes(&mut webview_attributes);
-
-  let on_page_load_handler = on_page_load_handler.take().map(Arc::from);
-  let document_title_changed_handler = document_title_changed_handler.map(Arc::from);
-  let navigation_handler = navigation_handler.map(Arc::from);
-  let new_window_handler = new_window_handler.map(Arc::from);
-  let ipc_handler: Option<Arc<IpcHandler<T>>> = ipc_handler.map(Arc::from);
-
-  let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
-    && webview_attributes.devtools.unwrap_or(true);
-
-  let custom_protocol_scheme = if webview_attributes.use_https_scheme {
-    "https"
-  } else {
-    "http"
-  }
-  .to_string();
-
-  let uri_scheme_protocols: HashMap<String, Arc<Box<UriSchemeProtocolHandler>>> =
-    uri_scheme_protocols
-      .into_iter()
-      .map(|(k, v)| (k, Arc::new(v)))
-      .collect();
-
-  let custom_schemes = uri_scheme_protocols.keys().cloned().collect::<Vec<_>>();
-  let custom_scheme_domain_names = custom_schemes
-    .iter()
-    .map(|scheme| format!("{scheme}.localhost"))
-    .collect::<Vec<_>>();
-
-  // Create the AppWindow with BrowserWindow variant before creating the browser
-  let force_close = Arc::new(AtomicBool::new(false));
-  let attributes = Arc::new(RefCell::new(window_builder));
-
-  let initial_url = url.clone();
-  let url = CefString::from(INITIAL_LOAD_URL);
-  let drag_drop_state = Arc::new(Mutex::new(DragDropState::default()));
-
-  let client = BrowserClient::new(
-    WindowKind::Browser,
-    window_id,
-    webview_id,
-    webview_label.clone(),
-    DragDropEventTarget::Window,
-    drag_drop_handler_enabled,
-    drag_drop_state,
-    ipc_handler,
-    on_page_load_handler,
-    document_title_changed_handler,
-    navigation_handler,
-    address_changed_handler,
-    new_window_handler,
-    download_handler,
-    devtools_enabled,
-    context.clone(),
-    runtime_context(context),
-    None,
-  );
-
-  let webview_attributes = Arc::new(RefCell::new(webview_attributes));
-
-  // See `create_webview` for why browser creation is deferred to the
-  // request context's `on_request_context_initialized` callback, and why we
-  // synchronously pump the message loop afterwards.
-  let (init_done, on_initialized) = deferred_init_continuation({
-    let context = context.clone();
-    let webview_attributes = webview_attributes.clone();
-    let initialization_scripts = initialization_scripts.clone();
-    let custom_protocol_scheme = custom_protocol_scheme.clone();
-    let attributes = attributes.clone();
-    let force_close = force_close.clone();
-    let mut client = client;
-    move |mut request_context| {
-      let theme = resolve_window_theme(&context, attributes.borrow().theme);
-      apply_request_context_theme_scheme(request_context.as_ref(), theme);
-
-      let browser_settings = browser_settings_from_webview_attributes(&webview_attributes.borrow());
-
-      let mut bounds = cef::Rect {
-        x: 0,
-        y: 0,
-        width: 800,
-        height: 600,
-      };
-      let device_scale_factor = display_get_primary()
-        .map(|d| d.device_scale_factor() as f64)
-        .unwrap_or(1.);
-      if let Some(size) = attributes.borrow().inner_size {
-        let size = size_to_cef(size, device_scale_factor);
-        bounds.width = size.width;
-        bounds.height = size.height;
-      }
-      if let Some(position) = attributes.borrow().position {
-        let position = position_to_cef(position, device_scale_factor);
-        bounds.x = position.x;
-        bounds.y = position.y;
-      }
-
-      let window_info = cef::WindowInfo {
-        bounds,
-        ..Default::default()
-      };
-
-      let Some(browser) = browser_host_create_browser_sync(
-        Some(&window_info),
-        Some(&mut client),
-        Some(&url),
-        Some(&browser_settings),
-        None,
-        request_context.as_mut(),
-      ) else {
-        eprintln!("Failed to create browser");
-        return;
-      };
-      let browser_id_val = browser.identifier();
-
-      {
-        let mut registry = context.scheme_handler_registry.lock().unwrap();
-        for (scheme, handler) in &uri_scheme_protocols {
-          registry.insert(
-            (browser_id_val, scheme.clone()),
-            (
-              webview_label.clone(),
-              handler.clone(),
-              initialization_scripts.clone(),
-            ),
-          );
-        }
-      }
-      let devtools_protocol_handlers = Arc::new(Mutex::new(Vec::<
-        Arc<dyn Fn(crate::DevToolsProtocol) + Send + Sync>,
-      >::new()));
-      let pending_initial_loads = Arc::new(Mutex::new(HashMap::new()));
-      let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
-        &browser,
-        devtools_protocol_handlers.clone(),
-        pending_initial_loads.clone(),
-      )));
-
-      load_initial_url_after_registering_initialization_scripts(
-        &browser,
-        &initialization_scripts,
-        &custom_protocol_scheme,
-        &custom_scheme_domain_names,
-        &initial_url,
-        &pending_initial_loads,
-      );
-
-      let browser = CefWebview::Browser(browser);
-
-      context.windows.borrow_mut().insert(
-        window_id,
-        AppWindow {
-          label,
-          window: crate::AppWindowKind::BrowserWindow,
-          force_close,
-          attributes,
-          webviews: vec![AppWebview {
-            webview_id,
-            browser_id: Arc::new(RefCell::new(browser_id_val)),
-            label: webview_label,
-            inner: browser,
-            bounds: Arc::new(Mutex::new(None)),
-            devtools_enabled,
-            uri_scheme_protocols: Arc::new(uri_scheme_protocols),
-            initialization_scripts,
-            devtools_protocol_handlers,
-            devtools_observer_registration,
-            webview_attributes,
-          }],
-          window_event_listeners: Arc::new(Mutex::new(HashMap::new())),
-          webview_event_listeners: Arc::new(Mutex::new(HashMap::new())),
-        },
-      );
-    }
-  });
-
-  request_context_from_webview_attributes(
-    context,
-    &webview_attributes.borrow(),
-    &custom_schemes,
-    &custom_protocol_scheme,
-    on_initialized,
-  );
-
-  wait_for_deferred_init(&init_done);
-}
-
 pub(crate) fn create_window<T: UserEvent>(
   context: &Context<T>,
   window_id: WindowId,
@@ -4246,21 +3904,6 @@ pub(crate) fn create_window<T: UserEvent>(
     window_builder,
     webview,
   } = pending;
-
-  if window_builder.browser_window {
-    if let Some(webview) = webview {
-      return create_browser_window(
-        context,
-        window_id,
-        webview_id,
-        label,
-        window_builder,
-        webview,
-      );
-    } else {
-      panic!("unexpected browser_window without webview config");
-    }
-  }
 
   let force_close = Arc::new(AtomicBool::new(false));
   let attributes = Arc::new(RefCell::new(window_builder));
@@ -4284,7 +3927,7 @@ pub(crate) fn create_window<T: UserEvent>(
     window_id,
     AppWindow {
       label,
-      window: crate::AppWindowKind::Window(window),
+      window,
       force_close,
       attributes,
       webviews: Vec::new(),
@@ -4650,12 +4293,10 @@ fn on_window_close(window_id: WindowId, windows: &Arc<RefCell<HashMap<WindowId, 
       return;
     };
     app_window.force_close.store(true, Ordering::SeqCst);
-    app_window.window()
+    app_window.window.clone()
   };
 
-  if let Some(window) = cef_window {
-    window.close();
-  }
+  cef_window.close();
 }
 
 fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) {
@@ -4734,17 +4375,13 @@ pub(crate) fn create_webview<T: UserEvent>(
   let address_changed_handler = address_changed_handler
     .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<AddressChangedHandler>);
 
-  let window = match context
-    .windows
-    .borrow()
-    .get(&window_id)
-    .and_then(|app_window| app_window.window())
-  {
-    Some(w) => w,
-    None => {
-      eprintln!("Window {window_id:?} not found or is a browser window when creating webview",);
+  let window = {
+    let windows = context.windows.borrow();
+    let Some(app_window) = windows.get(&window_id) else {
+      eprintln!("Window {window_id:?} not found when creating webview");
       return;
-    }
+    };
+    app_window.window.clone()
   };
 
   let drag_drop_handler_enabled = webview_attributes.drag_drop_handler_enabled;
@@ -4783,7 +4420,6 @@ pub(crate) fn create_webview<T: UserEvent>(
   };
 
   let client = BrowserClient::new(
-    WindowKind::Tauri,
     window_id,
     webview_id,
     label.clone(),
@@ -5284,7 +4920,7 @@ where
 ///    flips. We can't call `do_message_loop_work` from this thread - it
 ///    asserts on the init thread.
 ///
-/// Spinning here keeps `create_webview` / `create_browser_window` synchronous
+/// Spinning here keeps `create_webview` synchronous
 /// from the caller's perspective: the function does not return until the
 /// browser exists in `context.windows`, so any subsequent dispatcher call
 /// (e.g. `webview.open_devtools()`, `webview.on_dev_tools_protocol(...)`)

@@ -2023,7 +2023,9 @@ wrap_window_delegate! {
         let a = self.attributes.borrow();
 
         #[cfg(windows)]
-        if let Some(owner) = a.owner {
+        if let Some(parent) = a.parent {
+          crate::platform::set_parent(window, parent);
+        } else if let Some(owner) = a.owner {
           crate::platform::set_owner(window, owner);
         }
 

@@ -50,6 +50,12 @@ pub fn set_parent(window: &cef::Window, parent: HWND) {
   }
 }
 
+pub fn set_owner(window: &cef::Window, owner: HWND) {
+  unsafe {
+    SetWindowLongPtrW(hwnd(window), GWLP_HWNDPARENT, owner.0 as isize);
+  }
+}
+
 pub fn set_skip_taskbar(window: &cef::Window, skip: bool) {
   let hwnd = hwnd(window);
   unsafe {

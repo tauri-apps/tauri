@@ -26,7 +26,7 @@ struct CachedResponse {
 
 pub fn get<R: Runtime>(
   manager: Arc<AppManager<R>>,
-  window_origin: &str,
+  window_origin: String,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
   let window_origin = window_origin.to_string();
@@ -152,7 +152,7 @@ async fn get_response<R: Runtime>(
     request
       .uri()
       .to_string()
-      .split(&['?', '#'][..])
+      .split(&['?', '#'])
       .next()
       .unwrap()
       .into()

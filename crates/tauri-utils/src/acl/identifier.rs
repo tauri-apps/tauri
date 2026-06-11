@@ -216,7 +216,12 @@ impl<'de> Deserialize<'de> for Identifier {
   where
     D: Deserializer<'de>,
   {
-    Self::try_from(String::deserialize(deserializer)?).map_err(serde::de::Error::custom)
+    let raw = String::deserialize(deserializer)?;
+    Self::try_from(raw.clone()).map_err(|e| {
+      serde::de::Error::custom(format!(
+        "invalid plugin or permission identifier '{raw}': {e}"
+      ))
+    })
   }
 }
 

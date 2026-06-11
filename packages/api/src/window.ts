@@ -58,6 +58,15 @@ export interface Monitor {
   }
   /** The scale factor that can be used to map physical pixels to logical pixels. */
   scaleFactor: number
+  /** The monitor's resolution in logical pixels, matching the units used by window creation options. */
+  logicalSize: LogicalSize
+  /** The Top-left corner position of the monitor in logical pixels, matching the units used by window creation options. */
+  logicalPosition: LogicalPosition
+  /** The monitor's work area in logical pixels. */
+  logicalWorkArea: {
+    position: LogicalPosition
+    size: LogicalSize
+  }
 }
 
 type Theme = 'light' | 'dark'
@@ -2543,18 +2552,31 @@ interface WindowOptions {
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
-  return m === null
-    ? null
-    : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position),
-        size: new PhysicalSize(m.size),
-        workArea: {
-          position: new PhysicalPosition(m.workArea.position),
-          size: new PhysicalSize(m.workArea.size)
-        }
-      }
+  if (m === null) {
+    return null
+  }
+
+  const position = new PhysicalPosition(m.position)
+  const size = new PhysicalSize(m.size)
+  const workAreaPosition = new PhysicalPosition(m.workArea.position)
+  const workAreaSize = new PhysicalSize(m.workArea.size)
+
+  return {
+    name: m.name,
+    scaleFactor: m.scaleFactor,
+    position,
+    size,
+    workArea: {
+      position: workAreaPosition,
+      size: workAreaSize
+    },
+    logicalPosition: position.toLogical(m.scaleFactor),
+    logicalSize: size.toLogical(m.scaleFactor),
+    logicalWorkArea: {
+      position: workAreaPosition.toLogical(m.scaleFactor),
+      size: workAreaSize.toLogical(m.scaleFactor)
+    }
+  }
 }
 
 /**

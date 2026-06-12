@@ -628,8 +628,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     );
   }
 
-  if !is_dev() && target_triple.contains("unknown-linux-gnu") {
-    // TODO: Only needed for CEF.
+  if target_triple.contains("unknown-linux-gnu")
+    && env::var("DEP_TAURI_RUNTIME").as_deref() == Ok("cef")
+  {
+    // The executable links against libcef.so, which sits next to it: the
+    // cef-dll-sys build script copies the CEF distribution into the cargo
+    // target directory for dev, and the bundler ships it alongside the binary
+    // in packages. `$ORIGIN` makes the loader look there in both cases.
     println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
   }
 

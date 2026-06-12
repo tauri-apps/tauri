@@ -54,6 +54,7 @@ objc2-foundation = { version = "0.3", features = ["NSNotification"] }
 gtk = { version = "0.18", features = ["v3_24"] }
 x11-dl = "2.21"
 dlopen2 = { version = "0.8", features = ["derive"] }
+libc = "0.2"
 
 [features]
 default = ["sandbox"]

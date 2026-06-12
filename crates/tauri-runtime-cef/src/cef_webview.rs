@@ -9,6 +9,9 @@ mod windows;
 #[cfg(target_os = "linux")]
 mod linux;
 
+#[cfg(target_os = "linux")]
+pub(crate) use linux::repair_browser_window;
+
 #[derive(Clone)]
 pub enum CefWebview {
   BrowserView(cef::BrowserView),
@@ -101,6 +104,28 @@ impl CefWebview {
       CefWebview::Browser(browser) => browser.set_parent(parent),
     }
   }
+
+  /// Raises the browser's X window above its siblings — most importantly above
+  /// the CEF Views window's own full-size content surface, which Chromium
+  /// restacks on top of the child browsers when the window is resized or
+  /// shown again (e.g. tiling-WM workspace switches), leaving the webviews
+  /// unpainted/occluded.
+  #[cfg(target_os = "linux")]
+  pub fn raise(&self) {
+    if let CefWebview::Browser(browser) = self {
+      browser.raise();
+    }
+  }
+
+  /// Forces the browser's compositor to produce a fresh frame after the
+  /// window manager hid and re-showed the toplevel. See the Linux
+  /// `refresh_render_target` implementation for details.
+  #[cfg(target_os = "linux")]
+  pub fn refresh_render_target(&self) {
+    if let CefWebview::Browser(browser) = self {
+      browser.refresh_render_target();
+    }
+  }
 }
 
 trait CefBrowserExt {
@@ -117,4 +142,8 @@ trait CefBrowserExt {
   fn hwnd(&self) -> Option<::windows::Win32::Foundation::HWND>;
   #[cfg(target_os = "linux")]
   fn xid(&self) -> Option<u64>;
+  #[cfg(target_os = "linux")]
+  fn raise(&self);
+  #[cfg(target_os = "linux")]
+  fn refresh_render_target(&self);
 }

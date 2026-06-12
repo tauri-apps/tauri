@@ -1534,6 +1534,11 @@ wrap_life_span_handler! {
       // safe to drop - CEF callbacks can borrow windows
       drop(webview);
 
+      #[cfg(target_os = "linux")]
+      if let Some(app_window) = self.context.windows.borrow().get(&self.window_id) {
+        sync_map_watcher_children(app_window);
+      }
+
       if is_last_in_window {
           on_window_destroyed(self.window_id, &self.context);
       }
@@ -2257,6 +2262,9 @@ wrap_window_delegate! {
         inner.set_bounds(Some(&rect));
       }
 
+      #[cfg(target_os = "linux")]
+      raise_window_webviews(self.window_id, &self.windows);
+
       let scale = window_scale_factor(window);
 
       #[cfg(not(windows))]
@@ -2327,6 +2335,15 @@ wrap_window_delegate! {
       _window: Option<&mut Window>,
       active: ::std::os::raw::c_int,
     ) {
+      // Repair the child webviews when the window becomes active again —
+      // showing the window (workspace switch, deminimize) can restack the
+      // Views content surface above them and leave their compositors
+      // stalled without a fresh frame.
+      #[cfg(target_os = "linux")]
+      if active == 1 {
+        refresh_window_webviews(self.window_id, &self.windows);
+      }
+
       send_window_event(
         self.window_id,
         &self.windows,
@@ -2335,6 +2352,93 @@ wrap_window_delegate! {
       );
     }
   }
+}
+
+/// Re-raises every windowed (X11 child) webview of `window_id` above the CEF
+/// Views window's own full-size content surface. Chromium restacks that
+/// surface on top of the child browsers when the window is resized, shown or
+/// activated again (e.g. after a tiling-WM workspace switch), which leaves
+/// the webviews occluded and seemingly unpainted.
+#[cfg(target_os = "linux")]
+fn raise_window_webviews(
+  window_id: WindowId,
+  windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
+) {
+  let Ok(windows_ref) = windows.try_borrow() else {
+    return;
+  };
+  if let Some(app_window) = windows_ref.get(&window_id) {
+    for webview in &app_window.webviews {
+      webview.inner.raise();
+    }
+  }
+}
+
+/// Raises and resize-jiggles every windowed webview of `window_id`: re-raises
+/// them above the Views content surface and forces the renderer to produce a
+/// fresh frame. Used when the window becomes active again after the window
+/// manager hid it (workspace switch, iconify), which leaves the child
+/// browsers stalled/occluded.
+#[cfg(target_os = "linux")]
+fn refresh_window_webviews(
+  window_id: WindowId,
+  windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>,
+) {
+  let Ok(windows_ref) = windows.try_borrow() else {
+    return;
+  };
+  if let Some(app_window) = windows_ref.get(&window_id) {
+    for webview in &app_window.webviews {
+      webview.inner.raise();
+      webview.inner.refresh_render_target();
+    }
+  }
+}
+
+#[cfg(target_os = "linux")]
+wrap_task! {
+  struct RepairWebviewsTask {
+    children: Vec<u64>,
+  }
+
+  impl Task {
+    fn execute(&self) {
+      log::debug!("cef: repairing {} webviews on the UI thread", self.children.len());
+      for &xid in &self.children {
+        crate::cef_webview::repair_browser_window(xid);
+      }
+    }
+  }
+}
+
+/// Posts a CEF UI task that raises and resize-jiggles the given browser X
+/// windows. Posting (rather than touching X from the calling thread) keeps
+/// the repair serialized with Chromium's own processing of the show
+/// transition's X events — repairs from a separate connection can race ahead
+/// of Chromium's visibility handling and intermittently have no effect.
+///
+/// Callable from any thread; used by [`crate::platform::map_watcher`].
+#[cfg(target_os = "linux")]
+pub(crate) fn post_repair_webviews_task(children: Vec<u64>) {
+  let mut task = RepairWebviewsTask::new(children);
+  cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+}
+
+/// Pushes the current set of X11 child browser windows of `app_window` to the
+/// [`crate::platform::map_watcher`], which repairs them (raise + resize
+/// jiggle) whenever the toplevel is shown again. Call after every change to
+/// the window's webview list.
+#[cfg(target_os = "linux")]
+fn sync_map_watcher_children(app_window: &AppWindow) {
+  let children = app_window
+    .webviews
+    .iter()
+    .filter_map(|webview| match &webview.inner {
+      CefWebview::Browser(browser) => browser.host().map(|host| host.window_handle()),
+      CefWebview::BrowserView(_) => None,
+    })
+    .collect();
+  crate::platform::map_watcher::set_children(app_window.window.window_handle(), children);
 }
 
 fn get_webview<T: UserEvent>(
@@ -2510,6 +2614,11 @@ fn handle_webview_message<T: UserEvent>(
           }
         }
         wrapper.inner.close();
+
+        #[cfg(target_os = "linux")]
+        if let Some(app_window) = context.windows.borrow().get(&window_id) {
+          sync_map_watcher_children(app_window);
+        }
       }
     }
     WebviewMessage::Show => {
@@ -2718,6 +2827,13 @@ fn handle_webview_message<T: UserEvent>(
           let _ = tx.send(Ok(()));
         } else {
           let _ = tx.send(Err(tauri_runtime::Error::FailedToSendMessage));
+        }
+
+        #[cfg(target_os = "linux")]
+        for id in [window_id, target_window_id] {
+          if let Some(app_window) = windows.get(&id) {
+            sync_map_watcher_children(app_window);
+          }
         }
       }
     }
@@ -3923,6 +4039,11 @@ pub(crate) fn create_window<T: UserEvent>(
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
 
+  // Watch the toplevel for show transitions so multiwebview children can be
+  // repaired when a window manager hides and re-shows the window.
+  #[cfg(target_os = "linux")]
+  crate::platform::map_watcher::watch(window.window_handle());
+
   context.windows.borrow_mut().insert(
     window_id,
     AppWindow {
@@ -4315,6 +4436,9 @@ fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) 
   };
 
   if let Some(ref app_window) = removed_window {
+    #[cfg(target_os = "linux")]
+    crate::platform::map_watcher::unwatch(app_window.window.window_handle());
+
     let mut registry = context.scheme_handler_registry.lock().unwrap();
     for webview in &app_window.webviews {
       let browser_id = *webview.browser_id.borrow();
@@ -4510,10 +4634,25 @@ pub(crate) fn create_webview<T: UserEvent>(
         #[cfg(target_os = "macos")]
         let window_handle = ensure_valid_content_view(window_handle);
 
-        let mut window_info = cef::WindowInfo::default().set_as_child(
-          window_handle,
-          bounds.as_ref().unwrap_or(&cef::Rect::default()),
-        );
+        let child_bounds = bounds.clone().unwrap_or_default();
+        // On Linux the child browser is a raw X11 window, so `WindowInfo`
+        // bounds are physical pixels, while `bounds` is in DIP like the rest
+        // of the CEF Views APIs.
+        #[cfg(target_os = "linux")]
+        let child_bounds = {
+          let scale = window
+            .display()
+            .map(|d| d.device_scale_factor() as f64)
+            .unwrap_or(1.0);
+          cef::Rect {
+            x: (child_bounds.x as f64 * scale).round() as i32,
+            y: (child_bounds.y as f64 * scale).round() as i32,
+            width: (child_bounds.width as f64 * scale).round() as i32,
+            height: (child_bounds.height as f64 * scale).round() as i32,
+          }
+        };
+
+        let mut window_info = cef::WindowInfo::default().set_as_child(window_handle, &child_bounds);
         window_info.runtime_style = cef_runtime_style;
 
         let Some(browser_host) = browser_host_create_browser_sync(
@@ -4569,16 +4708,13 @@ pub(crate) fn create_webview<T: UserEvent>(
 
         browser.set_bounds(bounds.as_ref());
 
-        // On Linux, explicitly set parent after creation as set_as_child may not work correctly
+        // On Linux, make sure the browser's X11 window is mapped and raised
+        // above the Views window's own full-size content surface — otherwise
+        // the surface occludes the webview and it is never painted.
         #[cfg(target_os = "linux")]
         {
-          // Try to set parent - if window handle isn't available yet, this will be a no-op
-          // but the browser should become visible once the handle is available
-          browser.set_parent(&window);
-          // Ensure browser is visible after setting parent
           browser.set_visible(1);
-          // Set bounds again after reparenting to ensure correct size
-          browser.set_bounds(bounds.as_ref());
+          browser.raise();
         }
 
         let auto_resize = webview_attributes.borrow().auto_resize;
@@ -4607,6 +4743,11 @@ pub(crate) fn create_webview<T: UserEvent>(
             devtools_observer_registration,
             webview_attributes,
           });
+
+        #[cfg(target_os = "linux")]
+        if let Some(app_window) = context.windows.borrow().get(&window_id) {
+          sync_map_watcher_children(app_window);
+        }
       } else {
         let browser_id = Arc::new(RefCell::new(0));
         let uri_scheme_protocols = Arc::new(uri_scheme_protocols);

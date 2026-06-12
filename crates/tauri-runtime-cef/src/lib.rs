@@ -2489,6 +2489,9 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     cef_impl::close_all_windows(&self.context.cef_context.windows);
     while !self.context.cef_context.windows.borrow().is_empty() {
       cef::do_message_loop_work();
+      // The browser tear-down involves cross-process round trips; yield
+      // between iterations instead of pumping at 100% CPU.
+      std::thread::sleep(std::time::Duration::from_millis(1));
     }
 
     cef::shutdown();

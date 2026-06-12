@@ -30,9 +30,9 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{
-  AppWebview, AppWindow, CefRuntime, CefWebviewDispatcher, CefWindowBuilder,
-  DevToolsProtocolHandler, Message, RuntimeContext, RuntimeStyle as CefRuntimeStyle, Webview,
-  WebviewAtribute, WebviewMessage, WindowMessage, cef_webview::CefWebview,
+  AppWebview, AppWindow, CefRuntime, CefWebviewDispatcher, DevToolsProtocolHandler, Message,
+  RuntimeContext, RuntimeStyle as CefRuntimeStyle, Webview, WebviewAtribute, WebviewMessage,
+  WindowMessage, cef_webview::CefWebview,
 };
 
 use std::cell::Cell;
@@ -4894,10 +4894,10 @@ where
 /// Block the calling thread until `flag` is `true`.
 ///
 /// Browser creation goes through `RequestContextHandler::on_request_context_initialized`,
-/// which CEF always dispatches via `CEF_POST_TASK(CEF_UIT, ...)`. Tauri runs
-/// CEF with an external message pump (see `cef::do_message_loop_work` in the
-/// runtime's main loop), so the only way for that posted task to actually
-/// execute is for someone on the CEF UI thread to keep pumping the loop.
+/// which CEF always dispatches via `CEF_POST_TASK(CEF_UIT, ...)`. When this
+/// runs on the CEF UI thread (inside `cef::run_message_loop`'s dispatch or
+/// before the loop starts), that posted task can only execute if we pump the
+/// loop ourselves while waiting.
 ///
 /// Two cases:
 ///

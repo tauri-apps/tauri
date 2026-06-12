@@ -615,6 +615,10 @@ pub struct Context<T: UserEvent> {
   /// emissions are suppressed so the public event sequence stays at
   /// `ExitRequested -> Exit` for direct exits.
   pub is_shutting_down: Arc<AtomicBool>,
+  /// Exit code requested through [`Message::RequestExit`], reported by
+  /// `run_return`. `None` (mapped to 0) when the app exits by closing its
+  /// last window.
+  pub exit_code: Arc<Mutex<Option<i32>>>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -3868,6 +3872,7 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
       if !should_prevent {
+        *context.exit_code.lock().unwrap() = Some(code);
         context.is_shutting_down.store(true, Ordering::SeqCst);
         in_callback(|| (context.callback.borrow())(RunEvent::Exit));
       }

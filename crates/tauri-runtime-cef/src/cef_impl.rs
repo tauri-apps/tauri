@@ -1571,18 +1571,14 @@ wrap_life_span_handler! {
         return 1;
       };
 
-      // Extract size and position from popup_features
-      // Note: PopupFeatures fields may vary by CEF version, so we handle them defensively
-      let size = popup_features.and({
-        // Try to access width/height fields - structure may vary
-        // For now, we'll use None if we can't determine the size
-        None // TODO: Implement proper PopupFeatures field access when CEF API is available
+      // window.open() features are CSS pixels, which map to Tauri's logical units.
+      let size = popup_features.and_then(|f| {
+        (f.width_set != 0 && f.height_set != 0)
+          .then(|| LogicalSize::new(f.width as f64, f.height as f64))
       });
 
-      let position = popup_features.and({
-        // Try to access x/y fields - structure may vary
-        // For now, we'll use None if we can't determine the position
-        None // TODO: Implement proper PopupFeatures field access when CEF API is available
+      let position = popup_features.and_then(|f| {
+        (f.x_set != 0 && f.y_set != 0).then(|| LogicalPosition::new(f.x as f64, f.y as f64))
       });
 
       let features = tauri_runtime::webview::NewWindowFeatures::new(
@@ -1598,13 +1594,27 @@ wrap_life_span_handler! {
           // Allow CEF to handle the popup with default behavior
           0
         }
-        tauri_runtime::webview::NewWindowResponse::Create { window_id: _window_id } => {
-          // We need to create a window and associate it with the popup
-          // For now, we'll deny the popup and let the handler create the window
-          // The window creation should happen via the message system
-          // This is a limitation - CEF doesn't easily support creating a window
-          // and associating it with a popup in the callback
-          // We return 1 to cancel the popup, and the handler should create the window
+        tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+          // CEF cannot transplant a popup's contents into an existing
+          // browser, so cancel the popup and navigate the designated
+          // window's first webview to the URL instead — the closest
+          // equivalent of wry hosting the popup in that window's webview.
+          // Note `window.opener` is not linked to the new document.
+          let frame = self
+            .context
+            .windows
+            .try_borrow()
+            .ok()
+            .and_then(|windows| {
+              windows
+                .get(&window_id)
+                .and_then(|w| w.webviews.first())
+                .and_then(|webview| webview.inner.browser())
+                .and_then(|browser| browser.main_frame())
+            });
+          if let Some(frame) = frame {
+            frame.load_url(Some(&CefString::from(url_str.as_str())));
+          }
           1
         }
         tauri_runtime::webview::NewWindowResponse::Deny => {

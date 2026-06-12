@@ -3826,8 +3826,14 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       window_id,
       webview_id,
       pending,
-      after_window_creation: _todo,
-    } => create_window(context, window_id, webview_id, *pending),
+      after_window_creation,
+    } => create_window(
+      context,
+      window_id,
+      webview_id,
+      *pending,
+      after_window_creation,
+    ),
     Message::CreateWebview {
       window_id,
       webview_id,
@@ -3898,6 +3904,7 @@ pub(crate) fn create_window<T: UserEvent>(
   window_id: WindowId,
   webview_id: u32,
   pending: PendingWindow<T, CefRuntime<T>>,
+  after_window_creation: Option<crate::AfterWindowCreation>,
 ) {
   let PendingWindow {
     label,
@@ -3922,6 +3929,22 @@ pub(crate) fn create_window<T: UserEvent>(
   );
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
+
+  if let Some(after_window_creation) = after_window_creation {
+    #[cfg(windows)]
+    after_window_creation(tauri_runtime::window::RawWindow {
+      hwnd: window.window_handle().0 as isize,
+      _marker: &std::marker::PhantomData,
+    });
+    #[cfg(target_os = "macos")]
+    after_window_creation(tauri_runtime::window::RawWindow {
+      _marker: &std::marker::PhantomData,
+    });
+    // On Linux `RawWindow` carries a `gtk::ApplicationWindow`, which CEF
+    // windows don't have, so the hook cannot be invoked there.
+    #[cfg(target_os = "linux")]
+    let _ = after_window_creation;
+  }
 
   context.windows.borrow_mut().insert(
     window_id,

@@ -132,7 +132,7 @@ macro_rules! window_getter {
   }};
 }
 
-type AfterWindowCreation = Box<dyn Fn(RawWindow) + Send + 'static>;
+pub(crate) type AfterWindowCreation = Box<dyn Fn(RawWindow) + Send + 'static>;
 
 enum Message<T: UserEvent + 'static> {
   Task(Box<dyn FnOnce() + Send>),
@@ -2276,7 +2276,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self>,
-    _after_window_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = self.context.cef_context.next_window_id();
@@ -2297,6 +2297,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       window_id,
       webview_id.unwrap_or_default(),
       pending,
+      after_window_creation.map(|f| Box::new(f) as AfterWindowCreation),
     );
 
     let dispatcher = CefWindowDispatcher {

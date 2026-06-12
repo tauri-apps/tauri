@@ -1,5 +1,5 @@
 ---
-"@tauri-apps/api": "minor:feat"
+"@tauri-apps/api": "patch:enhance"
 ---
 
-Add `logicalPosition`, `logicalSize` and `logicalWorkArea` to the `Monitor` object returned by `currentMonitor()`, `primaryMonitor()`, `monitorFromPoint()` and `availableMonitors()`. These values are derived from the existing physical bounds and `scaleFactor`, and match the logical units expected by window creation options, removing the need for manual conversion (especially on macOS mixed-DPI setups).
+Document that `Monitor.size`, `Monitor.position` and `Monitor.workArea` are in physical pixels, with examples showing how to convert them to the logical pixels expected by window creation options via `toLogical(monitor.scaleFactor)`.

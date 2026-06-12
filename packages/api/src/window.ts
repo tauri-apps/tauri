@@ -47,26 +47,45 @@ import { Image, transformImage } from './image'
 export interface Monitor {
   /** Human-readable name of the monitor */
   name: string | null
-  /** The monitor's resolution. */
+  /**
+   * The monitor's resolution in physical pixels.
+   *
+   * Use {@linkcode Monitor.scaleFactor} to convert to logical pixels:
+   * ```typescript
+   * const logicalSize = monitor.size.toLogical(monitor.scaleFactor);
+   * ```
+   */
   size: PhysicalSize
-  /** the Top-left corner position of the monitor relative to the larger full screen area. */
+  /**
+   * the Top-left corner position of the monitor relative to the larger full screen area, in physical pixels.
+   *
+   * Note that window creation options such as `x`, `y`, `width` and `height` expect
+   * logical pixels, so convert with {@linkcode Monitor.scaleFactor} first:
+   * ```typescript
+   * import { currentMonitor } from '@tauri-apps/api/window';
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+   *
+   * const monitor = await currentMonitor();
+   * const position = monitor.position.toLogical(monitor.scaleFactor);
+   * const webview = new WebviewWindow('my-label', { x: position.x, y: position.y });
+   * ```
+   */
   position: PhysicalPosition
-  /** The monitor's work area. */
+  /**
+   * The monitor's work area (the monitor area excluding taskbars and docks) in physical pixels.
+   *
+   * Use {@linkcode Monitor.scaleFactor} to convert to logical pixels as shown in
+   * {@linkcode Monitor.position}.
+   */
   workArea: {
     position: PhysicalPosition
     size: PhysicalSize
   }
-  /** The scale factor that can be used to map physical pixels to logical pixels. */
+  /**
+   * The scale factor that can be used to map physical pixels to logical pixels,
+   * e.g. `monitor.position.toLogical(monitor.scaleFactor)`.
+   */
   scaleFactor: number
-  /** The monitor's resolution in logical pixels, matching the units used by window creation options. */
-  logicalSize: LogicalSize
-  /** The Top-left corner position of the monitor in logical pixels, matching the units used by window creation options. */
-  logicalPosition: LogicalPosition
-  /** The monitor's work area in logical pixels. */
-  logicalWorkArea: {
-    position: LogicalPosition
-    size: LogicalSize
-  }
 }
 
 type Theme = 'light' | 'dark'
@@ -2552,31 +2571,18 @@ interface WindowOptions {
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
-  if (m === null) {
-    return null
-  }
-
-  const position = new PhysicalPosition(m.position)
-  const size = new PhysicalSize(m.size)
-  const workAreaPosition = new PhysicalPosition(m.workArea.position)
-  const workAreaSize = new PhysicalSize(m.workArea.size)
-
-  return {
-    name: m.name,
-    scaleFactor: m.scaleFactor,
-    position,
-    size,
-    workArea: {
-      position: workAreaPosition,
-      size: workAreaSize
-    },
-    logicalPosition: position.toLogical(m.scaleFactor),
-    logicalSize: size.toLogical(m.scaleFactor),
-    logicalWorkArea: {
-      position: workAreaPosition.toLogical(m.scaleFactor),
-      size: workAreaSize.toLogical(m.scaleFactor)
-    }
-  }
+  return m === null
+    ? null
+    : {
+        name: m.name,
+        scaleFactor: m.scaleFactor,
+        position: new PhysicalPosition(m.position),
+        size: new PhysicalSize(m.size),
+        workArea: {
+          position: new PhysicalPosition(m.workArea.position),
+          size: new PhysicalSize(m.workArea.size)
+        }
+      }
 }
 
 /**

@@ -708,7 +708,9 @@ wrap_browser_process_handler! {
       let mut list = CefStringList::new();
       command_line.arguments(Some(&mut list));
       let args: Vec<String> = list.into_iter().collect();
-      if let Ok(url) = url::Url::parse(&args[0]) {
+      if let Some(first_arg) = args.first()
+        && let Ok(url) = url::Url::parse(first_arg)
+      {
         let scheme = url.scheme().to_string();
         if self.deep_link_schemes.iter().any(|s| s == &scheme) {
           (self.context.callback.borrow())(RunEvent::Opened {

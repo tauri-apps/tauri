@@ -66,8 +66,10 @@ export interface Monitor {
    * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
    *
    * const monitor = await currentMonitor();
-   * const position = monitor.position.toLogical(monitor.scaleFactor);
-   * const webview = new WebviewWindow('my-label', { x: position.x, y: position.y });
+   * if (monitor) {
+   *   const position = monitor.position.toLogical(monitor.scaleFactor);
+   *   const webview = new WebviewWindow('my-label', { x: position.x, y: position.y });
+   * }
    * ```
    */
   position: PhysicalPosition

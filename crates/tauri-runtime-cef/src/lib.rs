@@ -2042,6 +2042,7 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_path: Arc::new(cache_path.clone()),
       theme: Default::default(),
       is_shutting_down: Default::default(),
+      exit_code: Default::default(),
     };
 
     // Promote `NSApp` to our `SimpleApplication` subclass *before* CEF (or
@@ -2418,8 +2419,11 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     callback(RunEvent::MainEventsCleared);
   }
 
-  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, _callback: F) -> i32 {
-    0
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
+    let exit_code = self.context.cef_context.exit_code.clone();
+    self.run(callback);
+    let code = exit_code.lock().unwrap().take();
+    code.unwrap_or(0)
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {

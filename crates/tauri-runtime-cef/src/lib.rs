@@ -132,7 +132,7 @@ macro_rules! window_getter {
   }};
 }
 
-type AfterWindowCreation = Box<dyn Fn(RawWindow) + Send + 'static>;
+pub(crate) type AfterWindowCreation = Box<dyn Fn(RawWindow) + Send + 'static>;
 
 enum Message<T: UserEvent + 'static> {
   Task(Box<dyn FnOnce() + Send>),
@@ -2042,6 +2042,7 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_path: Arc::new(cache_path.clone()),
       theme: Default::default(),
       is_shutting_down: Default::default(),
+      exit_code: Default::default(),
     };
 
     // Promote `NSApp` to our `SimpleApplication` subclass *before* CEF (or
@@ -2276,7 +2277,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self>,
-    _after_window_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = self.context.cef_context.next_window_id();
@@ -2297,6 +2298,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       window_id,
       webview_id.unwrap_or_default(),
       pending,
+      after_window_creation.map(|f| Box::new(f) as AfterWindowCreation),
     );
 
     let dispatcher = CefWindowDispatcher {
@@ -2418,8 +2420,11 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     callback(RunEvent::MainEventsCleared);
   }
 
-  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, _callback: F) -> i32 {
-    0
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
+    let exit_code = self.context.cef_context.exit_code.clone();
+    self.run(callback);
+    let code = exit_code.lock().unwrap().take();
+    code.unwrap_or(0)
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
@@ -2489,6 +2494,9 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     cef_impl::close_all_windows(&self.context.cef_context.windows);
     while !self.context.cef_context.windows.borrow().is_empty() {
       cef::do_message_loop_work();
+      // The browser tear-down involves cross-process round trips; yield
+      // between iterations instead of pumping at 100% CPU.
+      std::thread::sleep(std::time::Duration::from_millis(1));
     }
 
     cef::shutdown();

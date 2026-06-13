@@ -151,9 +151,22 @@ wrap_request_handler! {
     drag_drop_event_target: DragDropEventTarget,
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
+    web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>>,
   }
 
   impl RequestHandler {
+    fn on_render_process_terminated(
+      &self,
+      _browser: Option<&mut Browser>,
+      _status: TerminationStatus,
+      _error_code: ::std::os::raw::c_int,
+      _error_string: Option<&CefString>,
+    ) {
+      if let Some(handler) = &self.web_content_process_terminate_handler {
+        handler();
+      }
+    }
+
     fn on_before_browse(
       &self,
       _browser: Option<&mut Browser>,

@@ -30,9 +30,9 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::html::normalize_script_for_csp;
 
 use crate::{
-  AppWebview, AppWindow, CefRuntime, CefWebviewDispatcher, CefWindowBuilder,
-  DevToolsProtocolHandler, Message, RuntimeContext, RuntimeStyle as CefRuntimeStyle, Webview,
-  WebviewAtribute, WebviewMessage, WindowMessage, cef_webview::CefWebview,
+  AppWebview, AppWindow, CefRuntime, CefWebviewDispatcher, DevToolsProtocolHandler, Message,
+  RuntimeContext, RuntimeStyle as CefRuntimeStyle, Webview, WebviewAtribute, WebviewMessage,
+  WindowMessage, cef_webview::CefWebview,
 };
 
 use std::cell::Cell;
@@ -615,6 +615,10 @@ pub struct Context<T: UserEvent> {
   /// emissions are suppressed so the public event sequence stays at
   /// `ExitRequested -> Exit` for direct exits.
   pub is_shutting_down: Arc<AtomicBool>,
+  /// Exit code requested through [`Message::RequestExit`], reported by
+  /// `run_return`. `None` (mapped to 0) when the app exits by closing its
+  /// last window.
+  pub exit_code: Arc<Mutex<Option<i32>>>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -708,7 +712,9 @@ wrap_browser_process_handler! {
       let mut list = CefStringList::new();
       command_line.arguments(Some(&mut list));
       let args: Vec<String> = list.into_iter().collect();
-      if let Ok(url) = url::Url::parse(&args[0]) {
+      if let Some(first_arg) = args.first()
+        && let Ok(url) = url::Url::parse(first_arg)
+      {
         let scheme = url.scheme().to_string();
         if self.deep_link_schemes.iter().any(|s| s == &scheme) {
           (self.context.callback.borrow())(RunEvent::Opened {
@@ -1576,18 +1582,14 @@ wrap_life_span_handler! {
         return 1;
       };
 
-      // Extract size and position from popup_features
-      // Note: PopupFeatures fields may vary by CEF version, so we handle them defensively
-      let size = popup_features.and({
-        // Try to access width/height fields - structure may vary
-        // For now, we'll use None if we can't determine the size
-        None // TODO: Implement proper PopupFeatures field access when CEF API is available
+      // window.open() features are CSS pixels, which map to Tauri's logical units.
+      let size = popup_features.and_then(|f| {
+        (f.width_set != 0 && f.height_set != 0)
+          .then(|| LogicalSize::new(f.width as f64, f.height as f64))
       });
 
-      let position = popup_features.and({
-        // Try to access x/y fields - structure may vary
-        // For now, we'll use None if we can't determine the position
-        None // TODO: Implement proper PopupFeatures field access when CEF API is available
+      let position = popup_features.and_then(|f| {
+        (f.x_set != 0 && f.y_set != 0).then(|| LogicalPosition::new(f.x as f64, f.y as f64))
       });
 
       let features = tauri_runtime::webview::NewWindowFeatures::new(
@@ -1603,13 +1605,27 @@ wrap_life_span_handler! {
           // Allow CEF to handle the popup with default behavior
           0
         }
-        tauri_runtime::webview::NewWindowResponse::Create { window_id: _window_id } => {
-          // We need to create a window and associate it with the popup
-          // For now, we'll deny the popup and let the handler create the window
-          // The window creation should happen via the message system
-          // This is a limitation - CEF doesn't easily support creating a window
-          // and associating it with a popup in the callback
-          // We return 1 to cancel the popup, and the handler should create the window
+        tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+          // CEF cannot transplant a popup's contents into an existing
+          // browser, so cancel the popup and navigate the designated
+          // window's first webview to the URL instead — the closest
+          // equivalent of wry hosting the popup in that window's webview.
+          // Note `window.opener` is not linked to the new document.
+          let frame = self
+            .context
+            .windows
+            .try_borrow()
+            .ok()
+            .and_then(|windows| {
+              windows
+                .get(&window_id)
+                .and_then(|w| w.webviews.first())
+                .and_then(|webview| webview.inner.browser())
+                .and_then(|browser| browser.main_frame())
+            });
+          if let Some(frame) = frame {
+            frame.load_url(Some(&CefString::from(url_str.as_str())));
+          }
           1
         }
         tauri_runtime::webview::NewWindowResponse::Deny => {
@@ -1636,6 +1652,7 @@ wrap_client! {
     address_changed_handler: Option<Arc<AddressChangedHandler>>,
     new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
+    web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>>,
     devtools_enabled: bool,
     context: Context<T>,
     runtime_context: RuntimeContext<T>,
@@ -1658,6 +1675,7 @@ wrap_client! {
         self.drag_drop_event_target,
         self.drag_drop_handler_enabled,
         self.drag_drop_state.clone(),
+        self.web_content_process_terminate_handler.clone(),
       ))
     }
 
@@ -3942,8 +3960,14 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       window_id,
       webview_id,
       pending,
-      after_window_creation: _todo,
-    } => create_window(context, window_id, webview_id, *pending),
+      after_window_creation,
+    } => create_window(
+      context,
+      window_id,
+      webview_id,
+      *pending,
+      after_window_creation,
+    ),
     Message::CreateWebview {
       window_id,
       webview_id,
@@ -3984,6 +4008,7 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
       if !should_prevent {
+        *context.exit_code.lock().unwrap() = Some(code);
         context.is_shutting_down.store(true, Ordering::SeqCst);
         in_callback(|| (context.callback.borrow())(RunEvent::Exit));
       }
@@ -4014,6 +4039,7 @@ pub(crate) fn create_window<T: UserEvent>(
   window_id: WindowId,
   webview_id: u32,
   pending: PendingWindow<T, CefRuntime<T>>,
+  after_window_creation: Option<crate::AfterWindowCreation>,
 ) {
   let PendingWindow {
     label,
@@ -4038,6 +4064,22 @@ pub(crate) fn create_window<T: UserEvent>(
   );
 
   let window = window_create_top_level(Some(&mut delegate)).expect("Failed to create window");
+
+  if let Some(after_window_creation) = after_window_creation {
+    #[cfg(windows)]
+    after_window_creation(tauri_runtime::window::RawWindow {
+      hwnd: window.window_handle().0 as isize,
+      _marker: &std::marker::PhantomData,
+    });
+    #[cfg(target_os = "macos")]
+    after_window_creation(tauri_runtime::window::RawWindow {
+      _marker: &std::marker::PhantomData,
+    });
+    // On Linux `RawWindow` carries a `gtk::ApplicationWindow`, which CEF
+    // windows don't have, so the hook cannot be invoked there.
+    #[cfg(target_os = "linux")]
+    let _ = after_window_creation;
+  }
 
   // Watch the toplevel for show transitions so multiwebview children can be
   // repaired when a window manager hides and re-shows the window.
@@ -4488,13 +4530,21 @@ pub(crate) fn create_webview<T: UserEvent>(
     document_title_changed_handler,
     address_changed_handler,
     url,
+    // Consumed by tauri core itself (wrapped into the `tauri` URI scheme
+    // protocol before the pending webview reaches the runtime), so there is
+    // nothing to handle here — tauri-runtime-wry ignores it as well.
     web_resource_request_handler: _,
     mut on_page_load_handler,
     download_handler,
-    // TODO
     #[cfg(any(target_os = "macos", target_os = "ios"))]
-      on_web_content_process_terminate_handler: _,
+    on_web_content_process_terminate_handler,
   } = pending;
+
+  #[cfg(target_os = "macos")]
+  let web_content_process_terminate_handler = on_web_content_process_terminate_handler
+    .map(|handler| Arc::from(handler) as Arc<dyn Fn() + Send>);
+  #[cfg(not(target_os = "macos"))]
+  let web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>> = None;
 
   let address_changed_handler = address_changed_handler
     .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<AddressChangedHandler>);
@@ -4557,6 +4607,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     address_changed_handler,
     new_window_handler,
     download_handler,
+    web_content_process_terminate_handler,
     devtools_enabled,
     context.clone(),
     runtime_context(context),
@@ -5035,10 +5086,10 @@ where
 /// Block the calling thread until `flag` is `true`.
 ///
 /// Browser creation goes through `RequestContextHandler::on_request_context_initialized`,
-/// which CEF always dispatches via `CEF_POST_TASK(CEF_UIT, ...)`. Tauri runs
-/// CEF with an external message pump (see `cef::do_message_loop_work` in the
-/// runtime's main loop), so the only way for that posted task to actually
-/// execute is for someone on the CEF UI thread to keep pumping the loop.
+/// which CEF always dispatches via `CEF_POST_TASK(CEF_UIT, ...)`. When this
+/// runs on the CEF UI thread (inside `cef::run_message_loop`'s dispatch or
+/// before the loop starts), that posted task can only execute if we pump the
+/// loop ourselves while waiting.
 ///
 /// Two cases:
 ///

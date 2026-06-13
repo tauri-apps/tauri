@@ -1647,6 +1647,7 @@ wrap_client! {
     address_changed_handler: Option<Arc<AddressChangedHandler>>,
     new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, crate::CefRuntime<T>>>>,
     download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
+    web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>>,
     devtools_enabled: bool,
     context: Context<T>,
     runtime_context: RuntimeContext<T>,
@@ -1669,6 +1670,7 @@ wrap_client! {
         self.drag_drop_event_target,
         self.drag_drop_handler_enabled,
         self.drag_drop_state.clone(),
+        self.web_content_process_terminate_handler.clone(),
       ))
     }
 
@@ -4404,13 +4406,21 @@ pub(crate) fn create_webview<T: UserEvent>(
     document_title_changed_handler,
     address_changed_handler,
     url,
+    // Consumed by tauri core itself (wrapped into the `tauri` URI scheme
+    // protocol before the pending webview reaches the runtime), so there is
+    // nothing to handle here — tauri-runtime-wry ignores it as well.
     web_resource_request_handler: _,
     mut on_page_load_handler,
     download_handler,
-    // TODO
     #[cfg(any(target_os = "macos", target_os = "ios"))]
-      on_web_content_process_terminate_handler: _,
+    on_web_content_process_terminate_handler,
   } = pending;
+
+  #[cfg(target_os = "macos")]
+  let web_content_process_terminate_handler = on_web_content_process_terminate_handler
+    .map(|handler| Arc::from(handler) as Arc<dyn Fn() + Send>);
+  #[cfg(not(target_os = "macos"))]
+  let web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>> = None;
 
   let address_changed_handler = address_changed_handler
     .map(|h| Arc::new(move |url: &url::Url| h(url)) as Arc<AddressChangedHandler>);
@@ -4473,6 +4483,7 @@ pub(crate) fn create_webview<T: UserEvent>(
     address_changed_handler,
     new_window_handler,
     download_handler,
+    web_content_process_terminate_handler,
     devtools_enabled,
     context.clone(),
     runtime_context(context),

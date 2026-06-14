@@ -8995,6 +8995,8 @@ dependencies = [
 name = "tauri-codegen"
 version = "2.6.2"
 dependencies = [
+ "alloc-no-stdlib",
+ "alloc-stdlib",
  "base64 0.22.1",
  "brotli",
  "ico",
@@ -9216,6 +9218,8 @@ name = "tauri-utils"
 version = "2.9.2"
 dependencies = [
  "aes-gcm",
+ "alloc-no-stdlib",
+ "alloc-stdlib",
  "anyhow",
  "brotli",
  "cargo_metadata",

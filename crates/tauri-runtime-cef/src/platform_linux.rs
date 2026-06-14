@@ -544,3 +544,401 @@ pub fn start_resize_dragging(window: &cef::Window, direction: ResizeDirection) {
     );
   });
 }
+
+/// Watches CEF Views toplevel windows for hidden→visible transitions and
+/// "repairs" their child browser windows when the toplevel is shown again.
+///
+/// When a window manager hides a window (workspace switch in i3/sway,
+/// iconification, ...), Chromium pauses the toplevel's compositing, and once
+/// shown again the child browsers' compositors stay paused, leaving every
+/// webview blank until something else (a refocus, a resize) forces a new
+/// frame. CEF offers no callback for any of this — it is only observable at
+/// the X11 level — so a small watcher thread with its own X connection
+/// listens for it.
+///
+/// Two distinct signals cover the WM landscape:
+/// - `MapNotify`: WMs that unmap the client window directly.
+/// - `PropertyNotify` for `WM_STATE` / `_NET_WM_STATE`: reparenting WMs like
+///   i3 never unmap the client — they hide the frame and only flip
+///   `WM_STATE` to Iconic and add `_NET_WM_STATE_HIDDEN` on the client. The
+///   watcher tracks the combined hidden state and reacts to the
+///   hidden→visible transition.
+///
+/// On either signal the watcher, for every registered child browser window:
+/// 1. raises it above the Views window's own full-size content surface
+///    (which Chromium restacks on top of the children when the window is
+///    shown), and
+/// 2. cycles the `_NET_WM_STATE_HIDDEN` property off/on — the cefclient
+///    `SetXWindowVisible` protocol, which CEF's `CefWindowX11` forwards to
+///    the inner Chromium widget, pausing and resuming its compositor so a
+///    fresh frame is produced.
+pub mod map_watcher {
+  use super::*;
+  use std::os::unix::io::RawFd;
+  use std::sync::{Mutex, OnceLock, mpsc};
+
+  enum Control {
+    Watch {
+      toplevel: c_ulong,
+    },
+    Unwatch {
+      toplevel: c_ulong,
+    },
+    SetChildren {
+      toplevel: c_ulong,
+      children: Vec<c_ulong>,
+    },
+  }
+
+  struct Watcher {
+    tx: Mutex<mpsc::Sender<Control>>,
+    wake_fd: RawFd,
+  }
+
+  static WATCHER: OnceLock<Option<Watcher>> = OnceLock::new();
+
+  /// Starts watching `toplevel` for map events.
+  pub fn watch(toplevel: u64) {
+    send(Control::Watch {
+      toplevel: toplevel as c_ulong,
+    });
+  }
+
+  /// Stops watching `toplevel` (e.g. when the window is destroyed).
+  pub fn unwatch(toplevel: u64) {
+    send(Control::Unwatch {
+      toplevel: toplevel as c_ulong,
+    });
+  }
+
+  /// Replaces the set of child browser windows repaired on `MapNotify`.
+  pub fn set_children(toplevel: u64, children: Vec<u64>) {
+    send(Control::SetChildren {
+      toplevel: toplevel as c_ulong,
+      children: children.into_iter().map(|c| c as c_ulong).collect(),
+    });
+  }
+
+  fn send(msg: Control) {
+    let Some(watcher) = WATCHER.get_or_init(spawn).as_ref() else {
+      return;
+    };
+    if watcher.tx.lock().unwrap().send(msg).is_ok() {
+      // Wake the watcher thread out of poll().
+      unsafe {
+        let byte = 1u8;
+        libc::write(watcher.wake_fd, &byte as *const u8 as *const _, 1);
+      }
+    }
+  }
+
+  fn spawn() -> Option<Watcher> {
+    let xlib = xlib::Xlib::open().ok()?;
+    let mut fds = [0; 2];
+    if unsafe { libc::pipe(fds.as_mut_ptr()) } != 0 {
+      return None;
+    }
+    let (read_fd, wake_fd) = (fds[0], fds[1]);
+
+    let (tx, rx) = mpsc::channel();
+    std::thread::Builder::new()
+      .name("cef-x11-map-watcher".into())
+      .spawn(move || run(xlib, rx, read_fd))
+      .ok()?;
+
+    Some(Watcher {
+      tx: Mutex::new(tx),
+      wake_fd,
+    })
+  }
+
+  fn run(xlib: xlib::Xlib, rx: mpsc::Receiver<Control>, wake_rx: RawFd) {
+    let display = unsafe { (xlib.XOpenDisplay)(std::ptr::null()) };
+    if display.is_null() {
+      return;
+    }
+    let x_fd = unsafe { (xlib.XConnectionNumber)(display) };
+
+    struct Watched {
+      children: Vec<c_ulong>,
+      hidden: bool,
+      /// Rate limiter for `VisibilityNotify`-driven repairs.
+      last_visibility_repair: Option<std::time::Instant>,
+    }
+
+    let net_wm_state = atom(&xlib, display, "_NET_WM_STATE");
+    let net_wm_state_hidden = atom(&xlib, display, "_NET_WM_STATE_HIDDEN");
+    let wm_state = atom(&xlib, display, "WM_STATE");
+
+    let mut watched: HashMap<c_ulong, Watched> = HashMap::new();
+    // Repairs scheduled for watched toplevels after a show transition.
+    // Chromium recreates its presentation surfaces asynchronously, so a
+    // single fixed delay races with it — run several passes instead. The
+    // cycle is idempotent: extra passes on an already-repaired window are
+    // no-ops visually.
+    const REPAIR_DELAYS: [std::time::Duration; 4] = [
+      std::time::Duration::from_millis(50),
+      std::time::Duration::from_millis(250),
+      std::time::Duration::from_millis(750),
+      std::time::Duration::from_millis(1500),
+    ];
+    let mut pending_repairs: Vec<(std::time::Instant, c_ulong)> = Vec::new();
+    let schedule_repairs = |pending: &mut Vec<(std::time::Instant, c_ulong)>, toplevel: c_ulong| {
+      let now = std::time::Instant::now();
+      pending.retain(|(_, t)| *t != toplevel);
+      pending.extend(REPAIR_DELAYS.iter().map(|d| (now + *d, toplevel)));
+    };
+
+    loop {
+      // Apply registration changes.
+      while let Ok(msg) = rx.try_recv() {
+        match msg {
+          Control::Watch { toplevel } => {
+            unsafe {
+              (xlib.XSelectInput)(
+                display,
+                toplevel,
+                xlib::StructureNotifyMask | xlib::PropertyChangeMask | xlib::VisibilityChangeMask,
+              );
+              (xlib.XFlush)(display);
+            }
+            let hidden = window_hidden(
+              &xlib,
+              display,
+              toplevel,
+              net_wm_state,
+              net_wm_state_hidden,
+              wm_state,
+            );
+            log::debug!("cef map watcher: watching 0x{toplevel:x}, hidden={hidden}");
+            watched.entry(toplevel).or_insert(Watched {
+              children: Vec::new(),
+              hidden,
+              last_visibility_repair: None,
+            });
+          }
+          Control::Unwatch { toplevel } => {
+            watched.remove(&toplevel);
+            pending_repairs.retain(|(_, t)| *t != toplevel);
+          }
+          Control::SetChildren { toplevel, children } => {
+            watched
+              .entry(toplevel)
+              .or_insert(Watched {
+                children: Vec::new(),
+                hidden: false,
+                last_visibility_repair: None,
+              })
+              .children = children;
+          }
+        }
+      }
+
+      // Drain X events.
+      while unsafe { (xlib.XPending)(display) } > 0 {
+        let mut event: xlib::XEvent = unsafe { std::mem::zeroed() };
+        unsafe { (xlib.XNextEvent)(display, &mut event) };
+        match unsafe { event.type_ } {
+          // WMs that unmap the client window directly.
+          xlib::MapNotify => {
+            let map: &xlib::XMapEvent = unsafe { &event.map };
+            if let Some(state) = watched.get_mut(&map.window) {
+              state.hidden = false;
+              schedule_repairs(&mut pending_repairs, map.window);
+            }
+          }
+          // Reparenting WMs (i3, ...) never unmap the client — they only
+          // flip WM_STATE to Iconic / add _NET_WM_STATE_HIDDEN while the
+          // window's workspace is not visible.
+          xlib::PropertyNotify => {
+            let property: &xlib::XPropertyEvent = unsafe { &event.property };
+            if (property.atom == net_wm_state || property.atom == wm_state)
+              && let Some(state) = watched.get_mut(&property.window)
+            {
+              let hidden = window_hidden(
+                &xlib,
+                display,
+                property.window,
+                net_wm_state,
+                net_wm_state_hidden,
+                wm_state,
+              );
+              log::trace!(
+                "cef map watcher: WM state change on 0x{:x}, hidden {} -> {}",
+                property.window,
+                state.hidden,
+                hidden
+              );
+              if state.hidden && !hidden {
+                schedule_repairs(&mut pending_repairs, property.window);
+              }
+              state.hidden = hidden;
+            }
+          }
+          // The catch-all: X always generates a VisibilityNotify when a
+          // window transitions back to viewable, even when the window
+          // manager hid it without unmapping the client or flipping its WM
+          // state (i3 workspace switches hide only the frame). Becoming
+          // unviewable generates no event, so this cannot track the hidden
+          // state — instead, any non-fully-obscured visibility event
+          // triggers a (rate-limited) repair. Spurious repairs from plain
+          // uncover events are harmless: the resize jiggle is a 1px
+          // resize-and-restore.
+          xlib::VisibilityNotify => {
+            let visibility: &xlib::XVisibilityEvent = unsafe { &event.visibility };
+            if visibility.state != xlib::VisibilityFullyObscured
+              && let Some(state) = watched.get_mut(&visibility.window)
+            {
+              let now = std::time::Instant::now();
+              let recently_repaired = state
+                .last_visibility_repair
+                .is_some_and(|last| now.duration_since(last) < std::time::Duration::from_secs(1));
+              log::trace!(
+                "cef map watcher: visibility change on 0x{:x} (state {}), recently_repaired={recently_repaired}",
+                visibility.window,
+                visibility.state,
+              );
+              if !recently_repaired {
+                state.last_visibility_repair = Some(now);
+                state.hidden = false;
+                schedule_repairs(&mut pending_repairs, visibility.window);
+              }
+            }
+          }
+          _ => {}
+        }
+      }
+
+      // Run due repairs.
+      let now = std::time::Instant::now();
+      pending_repairs.retain(|(deadline, toplevel)| {
+        if *deadline <= now {
+          if let Some(state) = watched.get(toplevel) {
+            repair_children(&state.children);
+          }
+          false
+        } else {
+          true
+        }
+      });
+
+      // Sleep until the X connection or the control pipe has data, or the
+      // next scheduled repair is due.
+      let timeout = pending_repairs
+        .iter()
+        .map(|(deadline, _)| *deadline)
+        .min()
+        .map(|deadline| {
+          deadline
+            .saturating_duration_since(std::time::Instant::now())
+            .as_millis()
+            .min(i32::MAX as u128) as i32
+            + 1
+        })
+        .unwrap_or(-1);
+      let mut poll_fds = [
+        libc::pollfd {
+          fd: x_fd,
+          events: libc::POLLIN,
+          revents: 0,
+        },
+        libc::pollfd {
+          fd: wake_rx,
+          events: libc::POLLIN,
+          revents: 0,
+        },
+      ];
+      unsafe {
+        libc::poll(poll_fds.as_mut_ptr(), 2, timeout);
+      }
+      if poll_fds[1].revents & libc::POLLIN != 0 {
+        let mut buf = [0u8; 32];
+        unsafe {
+          libc::read(wake_rx, buf.as_mut_ptr() as *mut _, buf.len());
+        }
+      }
+    }
+  }
+
+  /// Reports whether the window manager currently considers `window` hidden:
+  /// either `_NET_WM_STATE` contains `_NET_WM_STATE_HIDDEN` (EWMH) or
+  /// `WM_STATE` is anything other than Normal (ICCCM). The latter covers
+  /// i3, which sets `WM_STATE` to Withdrawn — not Iconic — for windows on
+  /// invisible workspaces, without adding `_NET_WM_STATE_HIDDEN`.
+  fn window_hidden(
+    xlib: &xlib::Xlib,
+    display: *mut xlib::Display,
+    window: c_ulong,
+    net_wm_state: c_ulong,
+    net_wm_state_hidden: c_ulong,
+    wm_state: c_ulong,
+  ) -> bool {
+    const NORMAL_STATE: c_ulong = 1;
+
+    unsafe fn read_property(
+      xlib: &xlib::Xlib,
+      display: *mut xlib::Display,
+      window: c_ulong,
+      property: c_ulong,
+    ) -> Option<Vec<c_ulong>> {
+      let mut actual_type: c_ulong = 0;
+      let mut actual_format: i32 = 0;
+      let mut nitems: c_ulong = 0;
+      let mut bytes_after: c_ulong = 0;
+      let mut prop: *mut u8 = std::ptr::null_mut();
+      let status = unsafe {
+        (xlib.XGetWindowProperty)(
+          display,
+          window,
+          property,
+          0,
+          1024,
+          xlib::False,
+          0, // AnyPropertyType
+          &mut actual_type,
+          &mut actual_format,
+          &mut nitems,
+          &mut bytes_after,
+          &mut prop,
+        )
+      };
+      if status != 0 || prop.is_null() {
+        return None;
+      }
+      let values = if actual_format == 32 {
+        unsafe { std::slice::from_raw_parts(prop as *const c_ulong, nitems as usize).to_vec() }
+      } else {
+        Vec::new()
+      };
+      unsafe { (xlib.XFree)(prop as *mut _) };
+      Some(values)
+    }
+
+    if let Some(atoms) = unsafe { read_property(xlib, display, window, net_wm_state) }
+      && atoms.contains(&net_wm_state_hidden)
+    {
+      return true;
+    }
+
+    if let Some(state) = unsafe { read_property(xlib, display, window, wm_state) }
+      && let Some(&value) = state.first()
+      && value != NORMAL_STATE
+    {
+      return true;
+    }
+
+    false
+  }
+
+  fn repair_children(children: &[c_ulong]) {
+    log::debug!(
+      "cef map watcher: posting repair task for {} webviews",
+      children.len()
+    );
+    // Run the actual repair on the CEF UI thread so it is serialized with
+    // Chromium's processing of the show transition's X events; doing the X
+    // work from this thread's connection can race ahead of Chromium's
+    // visibility handling and intermittently have no effect.
+    crate::cef_impl::post_repair_webviews_task(children.to_vec());
+  }
+}

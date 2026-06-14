@@ -8995,10 +8995,9 @@ dependencies = [
 name = "tauri-codegen"
 version = "2.6.2"
 dependencies = [
- "alloc-no-stdlib",
- "alloc-stdlib",
  "base64 0.22.1",
  "brotli",
+ "brotli-decompressor",
  "ico",
  "json-patch",
  "plist",
@@ -9218,10 +9217,9 @@ name = "tauri-utils"
 version = "2.9.2"
 dependencies = [
  "aes-gcm",
- "alloc-no-stdlib",
- "alloc-stdlib",
  "anyhow",
  "brotli",
+ "brotli-decompressor",
  "cargo_metadata",
  "ctor 0.8.0",
  "dom_query",

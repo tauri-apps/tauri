@@ -21,9 +21,8 @@ phf = { version = "0.13", features = ["macros"] }
 brotli = { version = "8", optional = true, default-features = false, features = [
   "std",
 ] }
-# 0.2.3 is broken https://github.com/tauri-apps/tauri/issues/15541
-alloc-stdlib = "<=0.2.2"
-alloc-no-stdlib = ">=2.0.4, <3.0.0"
+# 5.0.2 pulls in alloc-no-stdlib 3.0.0 at the same time as 2.0 which doesn't compile
+brotli-decompressor = "<=5.0.1"
 url = { version = "2", features = ["serde"] }
 html5ever = { version = "0.29", optional = true }
 kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader", optional = true }

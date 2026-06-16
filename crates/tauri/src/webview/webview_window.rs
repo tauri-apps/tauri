@@ -1651,16 +1651,28 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Hides the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn hide_menu(&self) -> crate::Result<()> {
     self.window.hide_menu()
   }
 
   /// Shows the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn show_menu(&self) -> crate::Result<()> {
     self.window.show_menu()
   }
 
   /// Shows the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     self.window.is_menu_visible()
   }

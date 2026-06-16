@@ -2697,16 +2697,9 @@ impl<T: UserEvent> WryHandle<T> {
     rx.recv().unwrap()
   }
 
-  /// Gets the [`WebviewId'] associated with the given [`WindowId`].
+  /// Gets the [`WindowId`] associated with the given [`TaoWindowId`].
   pub fn window_id(&self, window_id: TaoWindowId) -> WindowId {
-    *self
-      .context
-      .window_id_map
-      .0
-      .lock()
-      .unwrap()
-      .get(&window_id)
-      .unwrap()
+    self.context.window_id_map.get(&window_id).unwrap()
   }
 
   /// Send a message to the event loop.

@@ -44,7 +44,7 @@ describe('[CLI] @tauri-apps/cli template', () => {
 
     await cli.run([
       'init',
-      '-vvv',
+      '-vv',
       '--directory',
       process.cwd(),
       '--force',

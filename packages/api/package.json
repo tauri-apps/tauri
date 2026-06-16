@@ -52,7 +52,7 @@
     "@types/node": "^24.11.0",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-security": "4.0.0",
+    "eslint-plugin-security": "4.0.1",
     "fast-glob": "3.3.3",
     "globals": "^17.4.0",
     "rollup": "4.61.1",

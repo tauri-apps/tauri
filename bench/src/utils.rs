@@ -18,7 +18,7 @@ use std::{
   collections::HashMap,
   fs,
   io::{BufRead, BufReader},
-  path::PathBuf,
+  path::{Path, PathBuf},
   process::{Command, Output, Stdio},
 };
 
@@ -71,7 +71,7 @@ pub fn get_target() -> &'static str {
   return "aarch64-unknown-freebsd";
 
   #[cfg(target_os = "windows")]
-  unimplemented!("Windows target not implemented yet");
+  return "x86_64-pc-windows-msvc";
 }
 
 /// Get the `target/release` directory path for benchmarks.
@@ -250,9 +250,9 @@ pub fn read_json(filename: &str) -> Result<Value> {
 }
 
 /// Write a [`serde_json::Value`] into a JSON file.
-pub fn write_json(filename: &str, value: &Value) -> Result<()> {
-  let f =
-    fs::File::create(filename).with_context(|| format!("failed to create JSON file {filename}"))?;
+pub fn write_json(filename: &Path, value: &Value) -> Result<()> {
+  let f = fs::File::create(filename)
+    .with_context(|| format!("failed to create JSON file {}", filename.display()))?;
   serde_json::to_writer(f, value)?;
   Ok(())
 }

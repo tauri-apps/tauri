@@ -1161,15 +1161,6 @@ impl<R: Runtime> Window<R> {
     self.webviews().iter().all(|w| w.label() == self.label())
   }
 
-  /// Runs the given closure on the main thread.
-  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .run_on_main_thread(f)
-      .map_err(Into::into)
-  }
-
   /// The label of this window.
   pub fn label(&self) -> &str {
     &self.window.label

@@ -491,14 +491,6 @@ impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
 }
 
 impl<R: Runtime> AppHandle<R> {
-  /// Runs the given closure on the main thread.
-  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
-    self
-      .runtime_handle
-      .run_on_main_thread(f)
-      .map_err(Into::into)
-  }
-
   /// Adds a Tauri application plugin.
   /// This function can be used to register a plugin that is loaded dynamically e.g. after login.
   /// For plugins that are created when the app is started, prefer [`Builder::plugin`].
@@ -1248,11 +1240,6 @@ impl<R: Runtime> App<R> {
     #[cfg(all(desktop, feature = "tray-icon"))]
     self.handle.plugin(crate::tray::plugin::init())?;
     Ok(())
-  }
-
-  /// Runs the given closure on the main thread.
-  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
-    self.app_handle().run_on_main_thread(f)
   }
 
   /// Gets a handle to the application instance.

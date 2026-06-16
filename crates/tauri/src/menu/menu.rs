@@ -9,7 +9,6 @@ use super::sealed::ContextMenuBase;
 use super::{
   AboutMetadata, IsMenuItem, Menu, MenuInner, MenuItemKind, PredefinedMenuItem, Submenu,
 };
-use crate::run_main_thread;
 use crate::Window;
 use crate::{AppHandle, Manager, Position, Runtime};
 use muda::ContextMenu;
@@ -94,7 +93,7 @@ impl<R: Runtime> Menu<R> {
     let handle = manager.app_handle();
     let app_handle = handle.clone();
 
-    let menu = run_main_thread!(handle, || {
+    let menu = handle.run_on_main_thread_return(move || {
       let menu = muda::Menu::new();
       MenuInner {
         id: menu.id().clone(),
@@ -112,7 +111,7 @@ impl<R: Runtime> Menu<R> {
     let app_handle = handle.clone();
 
     let id = id.into();
-    let menu = run_main_thread!(handle, || {
+    let menu = handle.run_on_main_thread_return(move || {
       let menu = muda::Menu::with_id(id.clone());
       MenuInner {
         id,

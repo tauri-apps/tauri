@@ -1371,15 +1371,6 @@ impl<R: Runtime> Webview<R> {
     WebviewBuilder::new(label.into(), url)
   }
 
-  /// Runs the given closure on the main thread.
-  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
-    self
-      .webview
-      .dispatcher
-      .run_on_main_thread(f)
-      .map_err(Into::into)
-  }
-
   /// The webview label.
   pub fn label(&self) -> &str {
     &self.webview.label

@@ -95,6 +95,8 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
+          use $crate::Manager;
+
           let inner = self.inner.take();
           // SAFETY: inner was created on main thread and is being dropped on main thread
           let inner = $crate::UnsafeSend(inner);

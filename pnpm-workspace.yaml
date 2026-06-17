@@ -11,4 +11,5 @@ onlyBuiltDependencies:
   - workerd
 
 overrides:
+  esbuild@>=0.27.3 <0.28.1: '>=0.28.1'
   ws@>=8.0.0 <8.20.1: '>=8.20.1'

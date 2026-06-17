@@ -83,16 +83,6 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> $crate::Resource for $type<R> {}
 
-      impl<R: $crate::Runtime> Clone for $inner<R> {
-        fn clone(&self) -> Self {
-          Self {
-            id: self.id.clone(),
-            inner: self.inner.clone(),
-            app_handle: self.app_handle.clone(),
-          }
-        }
-      }
-
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
           let inner = self.inner.take();

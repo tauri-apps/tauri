@@ -7,7 +7,7 @@ version = "0.0.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "=3.4"
+napi = "=3.9.2"
 napi-sys = "=3.0"
 napi-derive-backend = "=3.0.0"
 napi-derive = "=3.3.0"

@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.11.3]
+
+### Bug Fixes
+
+- [`f1fe2d683`](https://www.github.com/tauri-apps/tauri/commit/f1fe2d683c0db87707e4ed788e5aae5f6022d913) ([#15504](https://www.github.com/tauri-apps/tauri/pull/15504) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `cookies_for_url` can cause deadlocks if called with another windowing/webview method
+- [`056069ad0`](https://www.github.com/tauri-apps/tauri/commit/056069ad0f5b537de37ccadac08c1a89507f23f1) ([#15502](https://www.github.com/tauri-apps/tauri/pull/15502) by [@bclarke123](https://www.github.com/tauri-apps/tauri/../../bclarke123)) Fix a `RefCell` `BorrowMutError` panic on mobile: the `Resumed`/`Suspended` event branch held a `windows` borrow across the window-event handlers and the `RunEvent` callback, so any of them that created or closed a window (e.g. from a resume/suspend handler) panicked.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+- Upgraded to `tauri-runtime@2.11.3`
+
 ## \[2.11.2]
 
 ### Dependencies

@@ -690,6 +690,24 @@ impl BinarySettings {
   pub fn file_name(&self) -> &str {
     self.filename.as_ref().unwrap_or(&self.name)
   }
+
+  fn required_features_enabled(&self, enabled_features: &[String]) -> bool {
+    match &self.required_features {
+      Some(req_features) => req_features
+        .iter()
+        .all(|feat| enabled_features.contains(feat)),
+      None => true,
+    }
+  }
+
+  fn matches_src_bin(&self, name: &str, path: &Path) -> bool {
+    self.name == name
+      || self.file_name() == name
+      || self
+        .path
+        .as_ref()
+        .is_some_and(|src_path| path.ends_with(src_path))
+  }
 }
 
 /// The package settings.
@@ -933,6 +951,7 @@ impl AppSettings for RustAppSettings {
 
   fn get_binaries(&self, options: &Options, tauri_dir: &Path) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries = Vec::new();
+    let mut disabled_bins = Vec::new();
 
     if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
@@ -941,14 +960,9 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        if let Some(req_features) = &bin.required_features {
-          // Check if all required features are enabled.
-          if !req_features
-            .iter()
-            .all(|feat| options.features.contains(feat))
-          {
-            continue;
-          }
+        if !bin.required_features_enabled(&options.features) {
+          disabled_bins.push(bin);
+          continue;
         }
         let file_name = bin.file_name();
         let is_main = file_name == self.cargo_package_settings.name || file_name == default_run;
@@ -996,7 +1010,10 @@ impl AppSettings for RustAppSettings {
       let bin_exists = binaries
         .iter()
         .any(|bin| bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string())));
-      if !bin_exists {
+      let bin_disabled = disabled_bins
+        .iter()
+        .any(|bin| bin.matches_src_bin(&name, &path));
+      if !bin_exists && !bin_disabled {
         binaries.push(BundleBinary::new(name, false))
       }
     }
@@ -1730,6 +1747,44 @@ mod pkgconfig_utils {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::fs;
+
+  fn app_settings_with_manifest(cargo_toml: &str) -> (tempfile::TempDir, RustAppSettings) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let tauri_dir = temp_dir.path().to_path_buf();
+    fs::create_dir_all(tauri_dir.join("src/bin")).unwrap();
+    fs::write(tauri_dir.join("Cargo.toml"), cargo_toml).unwrap();
+    fs::write(tauri_dir.join("src/main.rs"), "").unwrap();
+    fs::write(tauri_dir.join("src/bin/generate-bindings.rs"), "").unwrap();
+
+    let cargo_settings = CargoSettings::load(&tauri_dir).unwrap();
+    let cargo_package_settings = cargo_settings.package.clone().unwrap();
+    let package_settings = PackageSettings {
+      product_name: cargo_package_settings.name.clone(),
+      version: "0.1.0".into(),
+      description: String::new(),
+      homepage: None,
+      authors: None,
+      default_run: cargo_package_settings.default_run.clone(),
+    };
+
+    let target_triple = "x86_64-unknown-linux-gnu".to_string();
+
+    (
+      temp_dir,
+      RustAppSettings {
+        manifest: Mutex::new(Manifest::default()),
+        cargo_settings,
+        cargo_package_settings,
+        cargo_ws_package_settings: None,
+        package_settings,
+        cargo_config: CargoConfig::default(),
+        target_triple: target_triple.clone(),
+        target_platform: TargetPlatform::from_triple(&target_triple),
+        workspace_dir: tauri_dir,
+      },
+    )
+  }
 
   #[test]
   fn parse_cargo_option() {
@@ -1748,6 +1803,41 @@ mod tests {
     assert_eq!(get_cargo_option(&args, "--profile"), Some("holla"));
     assert_eq!(get_cargo_option(&args, "--target-dir"), Some("path/to/dir"));
     assert_eq!(get_cargo_option(&args, "--non-existent"), None);
+  }
+
+  #[test]
+  fn get_binaries_ignores_src_bin_with_disabled_required_features() {
+    let cargo_toml = r#"
+      [package]
+      name = "app"
+      version = "0.1.0"
+      default-run = "app"
+
+      [[bin]]
+      name = "generate-bindings"
+      path = "src/bin/generate-bindings.rs"
+      required-features = ["bindings"]
+    "#;
+
+    let (temp_dir, app_settings) = app_settings_with_manifest(cargo_toml);
+    let tauri_dir = temp_dir.path();
+
+    let binaries = app_settings
+      .get_binaries(&Options::default(), tauri_dir)
+      .unwrap();
+    assert!(binaries.iter().any(|bin| bin.name() == "app" && bin.main()));
+    assert!(!binaries.iter().any(|bin| bin.name() == "generate-bindings"));
+
+    let binaries = app_settings
+      .get_binaries(
+        &Options {
+          features: vec!["bindings".into()],
+          ..Default::default()
+        },
+        tauri_dir,
+      )
+      .unwrap();
+    assert!(binaries.iter().any(|bin| bin.name() == "generate-bindings"));
   }
 
   #[test]

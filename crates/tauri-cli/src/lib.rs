@@ -243,6 +243,11 @@ where
       Some("handlebars"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
     )
+    // `ureq_proto` logs out every network packets at trace level
+    .filter(
+      Some("ureq_proto"),
+      verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
+    )
     .format(|f, record| {
       let mut is_command_output = false;
       if let Some(action) = record.key_values().get("action".into()) {

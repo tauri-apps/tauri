@@ -30,7 +30,7 @@ pub use {
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
     DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings, PackageSettings,
-    PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    PackageType, PkgSettings, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
     UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
   },
 };
@@ -105,23 +105,6 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
 
   Ok(())
 }
-
-pub use self::{
-  category::AppCategory,
-  settings::{
-    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, Entitlements, IosSettings, MacOsSettings, PackageSettings, PackageType,
-    PkgSettings, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
-    UpdaterSettings,
-  },
-};
-pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
-
-use std::{
-  fmt::Write,
-  io::{Seek, SeekFrom},
-  path::PathBuf,
-};
 
 /// Generated bundle metadata.
 #[derive(Debug)]

@@ -15,7 +15,6 @@ use crate::{
 };
 use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;
-use std::mem::ManuallyDrop;
 use std::path::Path;
 pub use tray_icon::TrayIconId;
 
@@ -370,7 +369,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
 
     let icon = TrayIcon {
       id,
-      inner: ManuallyDrop::new(unsafe_tray.take()),
+      inner: unsafe_tray.take(),
       app_handle: app_handle.clone(),
     };
 
@@ -394,12 +393,11 @@ impl<R: Runtime> TrayIconBuilder<R> {
 ///
 /// This type is reference-counted and the icon is removed when the last instance is dropped.
 ///
-/// See [`TrayIconBuilder`] to construct this type.
+/// See [TrayIconBuilder] to construct this type.
 #[tauri_macros::default_runtime(crate::Wry, wry)]
 pub struct TrayIcon<R: Runtime> {
   id: TrayIconId,
-  // SAFETY: we only call `ManuallyDrop::take` in [`Self::drop`] to drop it on main thread
-  inner: ManuallyDrop<tray_icon::TrayIcon>,
+  inner: tray_icon::TrayIcon,
   app_handle: AppHandle<R>,
 }
 
@@ -410,17 +408,6 @@ impl<R: Runtime> Clone for TrayIcon<R> {
       inner: self.inner.clone(),
       app_handle: self.app_handle.clone(),
     }
-  }
-}
-
-impl<R: Runtime> Drop for TrayIcon<R> {
-  fn drop(&mut self) {
-    let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
-    // SAFETY: inner was created on main thread and is being dropped on main thread
-    let inner = UnsafeSend(inner);
-    let _ = self.app_handle.run_on_main_thread(move || {
-      drop(inner.take());
-    });
   }
 }
 

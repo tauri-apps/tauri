@@ -80,7 +80,7 @@ impl<R: Runtime> MenuItem<R> {
 
   /// Returns a unique identifier associated with this menu item.
   pub fn id(&self) -> &MenuId {
-    &self.0.id
+    self.0.inner.id()
   }
 
   /// Get the text for this menu item.

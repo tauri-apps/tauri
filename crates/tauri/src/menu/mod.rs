@@ -70,7 +70,6 @@ macro_rules! gen_wrappers {
     $(
       #[tauri_macros::default_runtime(crate::Wry, wry)]
       pub(crate) struct $inner<R: $crate::Runtime> {
-        id: $crate::menu::MenuId,
         // SAFETY: we only call `ManuallyDrop::take` in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
@@ -79,7 +78,6 @@ macro_rules! gen_wrappers {
       impl<R: $crate::Runtime> $inner<R> {
         fn new(app_handle: $crate::AppHandle<R>, menu: ::muda::$type) -> Self {
           Self {
-            id: menu.id().clone(),
             inner: ManuallyDrop::new(menu),
             app_handle,
           }
@@ -133,7 +131,7 @@ macro_rules! gen_wrappers {
           }
 
           fn id(&self) -> &MenuId {
-            &self.0.id
+            self.0.inner.id()
           }
         }
       )*

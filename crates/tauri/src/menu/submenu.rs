@@ -246,7 +246,7 @@ impl<R: Runtime> Submenu<R> {
 
   /// Returns a unique identifier associated with this submenu.
   pub fn id(&self) -> &MenuId {
-    &self.0.id
+    self.0.inner.id()
   }
 
   /// Add a menu item to the end of this submenu.

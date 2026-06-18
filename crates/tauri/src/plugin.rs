@@ -173,7 +173,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       .runtime_authority
       .lock()
       .unwrap()
-      .scope_manager
+      .scope_manager()
       .get_global_scope_typed(&self.handle, self.name)
   }
 }

@@ -51,6 +51,11 @@ pub trait PermissionSchemaGenerator<
   /// Permissions to generate schema for.
   fn permissions(&'a self) -> P;
 
+  /// Commands that have `allow-$command`/`deny-$command` permissions generated on demand.
+  fn commands(&self) -> &[String] {
+    &[]
+  }
+
   /// A utility function to generate a schema for a permission identifier
   fn perm_id_schema(name: Option<&str>, id: &str, description: Option<&str>) -> Schema {
     let command_name = match name {
@@ -110,6 +115,40 @@ pub trait PermissionSchemaGenerator<
       permission_schemas.push(schema);
     }
 
+    // schema for the `allow-$command`/`deny-$command` permissions generated on demand
+    let commands = self.commands();
+    for command in commands {
+      let slug = command.replace('_', "-");
+      permission_schemas.push(Self::perm_id_schema(
+        name,
+        &format!("allow-{slug}"),
+        Some(&format!(
+          "Enables the {command} command without any pre-configured scope."
+        )),
+      ));
+      permission_schemas.push(Self::perm_id_schema(
+        name,
+        &format!("deny-{slug}"),
+        Some(&format!(
+          "Denies the {command} command without any pre-configured scope."
+        )),
+      ));
+    }
+
+    // schema for the `allow-*`/`deny-*` wildcard permissions (app manifest only)
+    if !commands.is_empty() && name == Some(super::APP_ACL_KEY) {
+      permission_schemas.push(Self::perm_id_schema(
+        name,
+        "allow-*",
+        Some("Enables all commands without any pre-configured scope."),
+      ));
+      permission_schemas.push(Self::perm_id_schema(
+        name,
+        "deny-*",
+        Some("Denies all commands without any pre-configured scope."),
+      ));
+    }
+
     permission_schemas
   }
 }
@@ -164,6 +203,10 @@ impl<'a>
   fn permissions(&'a self) -> Values<'a, std::string::String, Permission> {
     self.permissions.values()
   }
+
+  fn commands(&self) -> &[String] {
+    &self.commands
+  }
 }
 
 impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permission>>
@@ -187,6 +230,10 @@ impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permiss
 
   fn permissions(&'a self) -> Iter<'a, Permission> {
     self.permission.iter()
+  }
+
+  fn commands(&self) -> &[String] {
+    &self.commands
   }
 }
 

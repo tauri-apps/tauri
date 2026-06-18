@@ -7,8 +7,7 @@ use crate::{Settings, bundle::settings::Arch, error::ErrorExt, utils::CommandExt
 
 use rpm::{self, Dependency, FileOptions, signature::pgp};
 use std::{
-  env,
-  fs,
+  env, fs,
   path::{Path, PathBuf},
   process::Command,
 };
@@ -77,7 +76,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let build_config = rpm::BuildConfig::default().compression(dbg!(compression));
 
   let mut builder = rpm::PackageBuilder::new(&name, version, &license, arch, summary);
-    builder.using_config(build_config)
+  builder
+    .using_config(build_config)
     .epoch(epoch)
     .release(release);
 
@@ -149,7 +149,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         .join(bin.name());
       builder.with_file(src, FileOptions::new(cef_bin_dest.to_string_lossy()))?;
       builder.with_symlink(
-        FileOptions::symlink(dest.to_string_lossy(), cef_bin_dest.to_string_lossy().replace("/usr", "..")).mode(0o120555)
+        FileOptions::symlink(
+          dest.to_string_lossy(),
+          cef_bin_dest.to_string_lossy().replace("/usr", ".."),
+        )
+        .mode(0o120555),
       )?;
     } else {
       builder.with_file(src, FileOptions::new(dest.to_string_lossy()))?;
@@ -193,9 +197,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Add resources and/or prepare for CEF files
   if settings.resource_files().count() > 0 || settings.bundle_settings().cef_path.is_some() {
     let resource_dir = Path::new("/usr/lib").join(settings.product_name());
-    builder.with_dir_entry(
-      FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755),
-    )?;
+    builder.with_dir_entry(FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755))?;
     // Then add the resources files in that directory
     for resource in settings.resource_files().iter() {
       let resource = resource?;

@@ -96,7 +96,8 @@ impl ValidByte {
   }
 
   fn alpha_numeric_hyphen(byte: u8) -> Option<Self> {
-    (byte.is_ascii_alphanumeric() || byte == b'-').then_some(Self::Byte(byte))
+    // `*` is allowed so the implicit `allow-*`/`deny-*` wildcard command permissions can be referenced
+    (byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'*').then_some(Self::Byte(byte))
   }
 
   fn next(&self, next: u8) -> Option<ValidByte> {
@@ -266,6 +267,11 @@ mod tests {
     assert!(ident("pre--fix:base--sep").is_ok());
     assert!(ident("prefix:base--sep").is_ok());
     assert!(ident("pre--fix:base").is_ok());
+
+    // wildcard command permissions
+    assert!(ident("allow-*").is_ok());
+    assert!(ident("deny-*").is_ok());
+    assert!(ident("prefix:allow-*").is_ok());
 
     assert!(ident("prefix::base").is_err());
     assert!(ident(":base").is_err());

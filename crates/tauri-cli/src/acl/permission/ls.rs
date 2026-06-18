@@ -145,6 +145,26 @@ pub fn command(options: Options) -> Result<()> {
         }
       }
 
+      for command in &manifest.commands {
+        let slug = command.replace('_', "-");
+        for (id, action) in [
+          (format!("allow-{slug}"), "Enables"),
+          (format!("deny-{slug}"), "Denies"),
+        ] {
+          if options
+            .filter
+            .as_ref()
+            .map(|f| id.contains(f))
+            .unwrap_or(true)
+          {
+            permissions.push(format!(
+              "{prefix}{}\n{action} the {command} command without any pre-configured scope.",
+              id.cyan(),
+            ));
+          }
+        }
+      }
+
       if !permissions.is_empty() {
         println!("{}\n", permissions.join("\n\n"));
       }

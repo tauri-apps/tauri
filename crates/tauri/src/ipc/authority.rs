@@ -442,22 +442,34 @@ impl RuntimeAuthority {
       manifest: &Manifest,
       set: &crate::utils::acl::PermissionSet,
       command: &str,
+      allow_wildcard: bool,
     ) -> bool {
       for permission_id in &set.permissions {
         if permission_id == "default" {
           if let Some(default) = &manifest.default_permission
-            && has_permissions_allowing_command(manifest, default, command)
+            && has_permissions_allowing_command(manifest, default, command, allow_wildcard)
           {
             return true;
           }
-        } else if let Some(ref_set) = manifest.permission_sets.get(permission_id) {
-          if has_permissions_allowing_command(manifest, ref_set, command) {
-            return true;
-          }
+        } else if let Some(ref_set) = manifest.permission_sets.get(permission_id)
+          && has_permissions_allowing_command(manifest, ref_set, command, allow_wildcard)
+        {
+          return true;
         } else if let Some(permission) = manifest.permissions.get(permission_id)
           && permission.commands.allow.contains(&command.into())
         {
           return true;
+        } else if let Some(permission) = manifest.command_permission(permission_id, allow_wildcard)
+        {
+          // `*` is the wildcard command produced by the `allow-*` permission
+          if permission
+            .commands
+            .allow
+            .iter()
+            .any(|c| c == command || c == "*")
+          {
+            return true;
+          }
         }
       }
       false
@@ -518,13 +530,16 @@ impl RuntimeAuthority {
         {
           let mut permissions_referencing_command = Vec::new();
 
+          // the `allow-*`/`deny-*` wildcards are only available for the app manifest
+          let allow_wildcard = key == APP_ACL_KEY;
+
           if let Some(default) = &manifest.default_permission
-            && has_permissions_allowing_command(manifest, default, command_name)
+            && has_permissions_allowing_command(manifest, default, command_name, allow_wildcard)
           {
             permissions_referencing_command.push("default".into());
           }
           for set in manifest.permission_sets.values() {
-            if has_permissions_allowing_command(manifest, set, command_name) {
+            if has_permissions_allowing_command(manifest, set, command_name, allow_wildcard) {
               permissions_referencing_command.push(set.identifier.clone());
             }
           }
@@ -532,6 +547,13 @@ impl RuntimeAuthority {
             if permission.commands.allow.contains(&command_name.into()) {
               permissions_referencing_command.push(permission.identifier.clone());
             }
+          }
+          if manifest.commands.iter().any(|c| c == command_name) {
+            permissions_referencing_command
+              .push(format!("allow-{}", command_name.replace('_', "-")));
+          }
+          if allow_wildcard && !manifest.commands.is_empty() {
+            permissions_referencing_command.push("allow-*".to_string());
           }
 
           permissions_referencing_command.sort();
@@ -593,31 +615,49 @@ impl RuntimeAuthority {
     // First command dispatch blocks here if the resolved ACL is still building on the
     // background thread (see `RuntimeAuthority::new_async`); subsequent calls are cached.
     let inner = self.inner();
+    // the `allow-*`/`deny-*` wildcard permissions resolve to a single `*` command (per manifest)
+    // instead of one entry per command, so we also look the command up under its wildcard key.
+    let wildcard = wildcard_command(command);
     if inner
       .denied_commands
       .get(command)
+      .or_else(|| inner.denied_commands.get(&wildcard))
       .map(|resolved| resolved.iter().any(|cmd| origin.matches(&cmd.context)))
       .is_some()
     {
       None
     } else {
-      inner.allowed_commands.get(command).and_then(|resolved| {
-        let resolved_cmds = resolved
-          .iter()
-          .filter(|cmd| {
-            origin.matches(&cmd.context)
-              && (cmd.webviews.iter().any(|w| w.matches(webview))
-                || cmd.windows.iter().any(|w| w.matches(window)))
-          })
-          .cloned()
-          .collect::<Vec<_>>();
-        if resolved_cmds.is_empty() {
-          None
-        } else {
-          Some(resolved_cmds)
-        }
-      })
+      let resolved_cmds = inner
+        .allowed_commands
+        .get(command)
+        .into_iter()
+        .chain(inner.allowed_commands.get(&wildcard))
+        .flatten()
+        .filter(|cmd| {
+          origin.matches(&cmd.context)
+            && (cmd.webviews.iter().any(|w| w.matches(webview))
+              || cmd.windows.iter().any(|w| w.matches(window)))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+      if resolved_cmds.is_empty() {
+        None
+      } else {
+        Some(resolved_cmds)
+      }
     }
+  }
+}
+
+/// The wildcard command key that matches every command of the same manifest:
+/// `*` for app commands and `plugin:$name|*` for plugin commands.
+///
+/// Used to resolve the implicit `allow-*`/`deny-*` permissions without expanding them
+/// into one entry per command in the resolved ACL.
+fn wildcard_command(command: &str) -> String {
+  match command.rsplit_once('|') {
+    Some((prefix, _)) => format!("{prefix}|*"),
+    None => "*".to_string(),
   }
 }
 
@@ -1010,6 +1050,46 @@ mod tests {
   }
 
   #[test]
+  fn wildcard_command_allows_any_app_command() {
+    let window = "main";
+    let webview = "main";
+
+    // a single `*` entry stands in for every app command (the `allow-*` permission)
+    let resolved_cmd = vec![ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      ..Default::default()
+    }];
+    let allowed_commands = [("*".to_string(), resolved_cmd.clone())]
+      .into_iter()
+      .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
+
+    // an arbitrary app command (never listed explicitly) is allowed through the wildcard entry
+    assert_eq!(
+      authority.resolve_access("some_command", window, webview, &Origin::Local),
+      Some(resolved_cmd.clone())
+    );
+    assert_eq!(
+      authority.resolve_access("another_command", window, webview, &Origin::Local),
+      Some(resolved_cmd)
+    );
+
+    // plugin commands use a per-plugin wildcard key, so the app wildcard does not allow them
+    assert!(
+      authority
+        .resolve_access("plugin:fs|read", window, webview, &Origin::Local)
+        .is_none()
+    );
+  }
+
+  #[test]
   fn webview_glob_pattern_matches() {
     let command = "my-command";
     let window = "other-*";
@@ -1257,6 +1337,7 @@ mod tests {
           default_permission: None,
           permissions: Default::default(),
           permission_sets: Default::default(),
+          commands: Default::default(),
           global_scope_schema: None,
         },
       )]

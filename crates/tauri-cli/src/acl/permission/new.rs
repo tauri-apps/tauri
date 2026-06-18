@@ -113,6 +113,7 @@ pub fn command(options: Options) -> Result<()> {
         default: None,
         set: Vec::new(),
         permission: vec![permission],
+        commands: Vec::new(),
       })
       .context("failed to serialize permission")?,
   )

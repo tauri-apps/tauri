@@ -575,33 +575,21 @@ impl<R: Runtime> MenuItemKind<R> {
 
   pub(crate) fn from_muda(app_handle: AppHandle<R>, i: muda::MenuItemKind) -> Self {
     match i {
-      muda::MenuItemKind::MenuItem(i) => Self::MenuItem(MenuItem(Arc::new(MenuItemInner {
-        id: i.id().clone(),
-        inner: ManuallyDrop::new(i),
-        app_handle,
-      }))),
-      muda::MenuItemKind::Submenu(i) => Self::Submenu(Submenu(Arc::new(SubmenuInner {
-        id: i.id().clone(),
-        inner: ManuallyDrop::new(i),
-        app_handle,
-      }))),
-      muda::MenuItemKind::Predefined(i) => {
-        Self::Predefined(PredefinedMenuItem(Arc::new(PredefinedMenuItemInner {
-          id: i.id().clone(),
-          inner: ManuallyDrop::new(i),
-          app_handle,
-        })))
+      muda::MenuItemKind::MenuItem(i) => {
+        Self::MenuItem(MenuItem(Arc::new(MenuItemInner::new(app_handle, i))))
       }
-      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(CheckMenuItemInner {
-        id: i.id().clone(),
-        inner: ManuallyDrop::new(i),
-        app_handle,
-      }))),
-      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner {
-        id: i.id().clone(),
-        inner: ManuallyDrop::new(i),
-        app_handle,
-      }))),
+      muda::MenuItemKind::Submenu(i) => {
+        Self::Submenu(Submenu(Arc::new(SubmenuInner::new(app_handle, i))))
+      }
+      muda::MenuItemKind::Predefined(i) => Self::Predefined(PredefinedMenuItem(Arc::new(
+        PredefinedMenuItemInner::new(app_handle, i),
+      ))),
+      muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(
+        CheckMenuItemInner::new(app_handle, i),
+      ))),
+      muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner::new(
+        app_handle, i,
+      )))),
     }
   }
 

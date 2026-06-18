@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::mem::ManuallyDrop;
 use std::sync::Arc;
 
 use super::run_item_main_thread;
@@ -40,11 +39,7 @@ impl<R: Runtime> IconMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::IconMenuItem::new(text, enabled, icon, accelerator);
-      IconMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      IconMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -81,11 +76,7 @@ impl<R: Runtime> IconMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::IconMenuItem::with_id(id.clone(), text, enabled, icon, accelerator);
-      IconMenuItemInner {
-        id,
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      IconMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -119,11 +110,7 @@ impl<R: Runtime> IconMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::IconMenuItem::with_native_icon(text, enabled, icon, accelerator);
-      IconMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      IconMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -161,11 +148,7 @@ impl<R: Runtime> IconMenuItem<R> {
     let item = run_main_thread!(handle, || {
       let item =
         muda::IconMenuItem::with_id_and_native_icon(id.clone(), text, enabled, icon, accelerator);
-      IconMenuItemInner {
-        id,
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      IconMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))

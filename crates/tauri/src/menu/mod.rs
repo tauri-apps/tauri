@@ -76,6 +76,16 @@ macro_rules! gen_wrappers {
         app_handle: $crate::AppHandle<R>,
       }
 
+      impl<R: $crate::Runtime> $inner<R> {
+        fn new(app_handle: $crate::AppHandle<R>, menu: ::muda::$type) -> Self {
+          Self {
+            id: menu.id().clone(),
+            inner: ManuallyDrop::new(menu),
+            app_handle,
+          }
+        }
+      }
+
       /// # Safety
       ///
       /// We make sure it always runs on the main thread.

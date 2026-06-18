@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::mem::ManuallyDrop;
 use std::sync::Arc;
 
 use super::run_item_main_thread;
@@ -19,11 +18,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::separator();
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -38,11 +33,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::copy(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -57,11 +48,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::cut(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -76,11 +63,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::paste(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -95,11 +78,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::select_all(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -118,11 +97,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::undo(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -140,11 +115,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::redo(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -163,11 +134,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::minimize(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -186,11 +153,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::maximize(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -209,11 +172,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::fullscreen(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -232,11 +191,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::hide(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -255,11 +210,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::hide_others(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -278,11 +229,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::show_all(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -301,11 +248,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::close_window(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -324,11 +267,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::quit(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -352,11 +291,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::about(text.as_deref(), metadata);
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -375,11 +310,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::services(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -398,11 +329,7 @@ impl<R: Runtime> PredefinedMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::PredefinedMenuItem::bring_all_to_front(text.as_deref());
-      PredefinedMenuItemInner {
-        id: item.id().clone(),
-        inner: ManuallyDrop::new(item),
-        app_handle,
-      }
+      PredefinedMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))

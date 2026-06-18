@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::mem::ManuallyDrop;
 use std::sync::Arc;
 
 use super::run_item_main_thread;
@@ -97,11 +96,7 @@ impl<R: Runtime> Submenu<R> {
 
     let submenu = run_main_thread!(handle, || {
       let submenu = muda::Submenu::new(text, enabled);
-      SubmenuInner {
-        id: submenu.id().clone(),
-        inner: ManuallyDrop::new(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
 
     Ok(Self(Arc::new(submenu)))
@@ -123,11 +118,7 @@ impl<R: Runtime> Submenu<R> {
       if let Some((rgba, width, height)) = icon_data.clone() {
         submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
       }
-      SubmenuInner {
-        id: submenu.id().clone(),
-        inner: ManuallyDrop::new(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
     Ok(Self(Arc::new(submenu)))
   }
@@ -147,11 +138,7 @@ impl<R: Runtime> Submenu<R> {
       if let Some(icon) = icon {
         submenu.set_native_icon(Some(icon.into()));
       }
-      SubmenuInner {
-        id: submenu.id().clone(),
-        inner: ManuallyDrop::new(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
     Ok(Self(Arc::new(submenu)))
   }
@@ -171,11 +158,7 @@ impl<R: Runtime> Submenu<R> {
 
     let submenu = run_main_thread!(handle, || {
       let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
-      SubmenuInner {
-        id,
-        inner: ManuallyDrop::new(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
 
     Ok(Self(Arc::new(submenu)))
@@ -199,11 +182,7 @@ impl<R: Runtime> Submenu<R> {
       if let Some((rgba, width, height)) = icon_data.clone() {
         submenu.set_icon(Some(MudaIcon::from_rgba(rgba, width, height).unwrap()));
       }
-      SubmenuInner {
-        id,
-        inner: ManuallyDrop::new(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
     Ok(Self(Arc::new(submenu)))
   }
@@ -225,11 +204,7 @@ impl<R: Runtime> Submenu<R> {
       if let Some(icon) = icon {
         submenu.set_native_icon(Some(icon.into()));
       }
-      SubmenuInner {
-        id,
-        inner: ManuallyDrop::new(submenu),
-        app_handle,
-      }
+      SubmenuInner::new(app_handle, submenu)
     })?;
     Ok(Self(Arc::new(submenu)))
   }

@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.11.3]
+
+### Bug Fixes
+
+- [`5075c81a1`](https://www.github.com/tauri-apps/tauri/commit/5075c81a1c7c5e19e648df47766df7ffdb495b0f) ([#15550](https://www.github.com/tauri-apps/tauri/pull/15550) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix double clicking `data-tauri-drag-region` maximizes the window even when `is_maximizable` is set to false
+- [`7af245c60`](https://www.github.com/tauri-apps/tauri/commit/7af245c60b3e7620158499db06545e284461925b) ([#15474](https://www.github.com/tauri-apps/tauri/pull/15474) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `tauri::scope::fs::Scope::once` deadlocks
+- [`4c8bb98cd`](https://www.github.com/tauri-apps/tauri/commit/4c8bb98cd504e9bdca712deb904a0479726dfa15) ([#15475](https://www.github.com/tauri-apps/tauri/pull/15475) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Listener::once` can be called multiple times if they trigger `emit`(s) inside the handler
+- [`66f873d62`](https://www.github.com/tauri-apps/tauri/commit/66f873d623ee3325179047efba85bd0cce0a6658) ([#15491](https://www.github.com/tauri-apps/tauri/pull/15491) by [@bclarke123](https://www.github.com/tauri-apps/tauri/../../bclarke123)) Adjust mutex locking in `send_channel_data_handler`, `handle_android_plugin_response`, `send_channel_data` to avoid deadlocks
+
+### Performance Improvements
+
+- [`e6083a111`](https://www.github.com/tauri-apps/tauri/commit/e6083a1119aba0674743e2e7d27cf12d28968cbf) ([#15220](https://www.github.com/tauri-apps/tauri/pull/15220) by [@DeTeam](https://www.github.com/tauri-apps/tauri/../../DeTeam)) Load `tauri://` custom protocol handlers asynchronously to speed up load time
+- [`800eade58`](https://www.github.com/tauri-apps/tauri/commit/800eade58d1c09d19f283d0a014b9e00bef9cc81) ([#15444](https://www.github.com/tauri-apps/tauri/pull/15444) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Reuse proxy reqwest client in mobile dev, improving the dev load speed
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+- Upgraded to `tauri-runtime-wry@2.11.3`
+- Upgraded to `tauri-runtime@2.11.3`
+- Upgraded to `tauri-macros@2.6.3`
+- Upgraded to `tauri-build@2.6.3`
+- [`504ff3f44`](https://www.github.com/tauri-apps/tauri/commit/504ff3f44eff2c0627eae6664e91e77b838e7ed3) ([#15364](https://www.github.com/tauri-apps/tauri/pull/15364) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated dependency `tray-icon` to 0.24
+
 ## \[2.11.2]
 
 ### Bug Fixes

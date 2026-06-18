@@ -70,7 +70,7 @@ macro_rules! gen_wrappers {
     $(
       #[tauri_macros::default_runtime(crate::Wry, wry)]
       pub(crate) struct $inner<R: $crate::Runtime> {
-        // SAFETY: we only call `ManuallyDrop::take` in [`Self::drop`] to drop it on main thread
+        // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
       }
@@ -94,6 +94,7 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
+          // SAFETY: we will not access `self.inner` after this
           let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
           // SAFETY: inner was created on main thread and is being dropped on main thread
           let inner = $crate::UnsafeSend(inner);

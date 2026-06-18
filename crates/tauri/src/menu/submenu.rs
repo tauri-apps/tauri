@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::mem::ManuallyDrop;
 use std::sync::Arc;
 
 use super::run_item_main_thread;
@@ -98,7 +99,7 @@ impl<R: Runtime> Submenu<R> {
       let submenu = muda::Submenu::new(text, enabled);
       SubmenuInner {
         id: submenu.id().clone(),
-        inner: Some(submenu),
+        inner: ManuallyDrop::new(submenu),
         app_handle,
       }
     })?;
@@ -124,7 +125,7 @@ impl<R: Runtime> Submenu<R> {
       }
       SubmenuInner {
         id: submenu.id().clone(),
-        inner: Some(submenu),
+        inner: ManuallyDrop::new(submenu),
         app_handle,
       }
     })?;
@@ -148,7 +149,7 @@ impl<R: Runtime> Submenu<R> {
       }
       SubmenuInner {
         id: submenu.id().clone(),
-        inner: Some(submenu),
+        inner: ManuallyDrop::new(submenu),
         app_handle,
       }
     })?;
@@ -172,7 +173,7 @@ impl<R: Runtime> Submenu<R> {
       let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
       SubmenuInner {
         id,
-        inner: Some(submenu),
+        inner: ManuallyDrop::new(submenu),
         app_handle,
       }
     })?;
@@ -200,7 +201,7 @@ impl<R: Runtime> Submenu<R> {
       }
       SubmenuInner {
         id,
-        inner: Some(submenu),
+        inner: ManuallyDrop::new(submenu),
         app_handle,
       }
     })?;
@@ -226,7 +227,7 @@ impl<R: Runtime> Submenu<R> {
       }
       SubmenuInner {
         id,
-        inner: Some(submenu),
+        inner: ManuallyDrop::new(submenu),
         app_handle,
       }
     })?;

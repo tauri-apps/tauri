@@ -13,7 +13,7 @@ mod normal;
 pub(crate) mod plugin;
 mod predefined;
 mod submenu;
-use std::sync::Arc;
+use std::{mem::ManuallyDrop, sync::Arc};
 
 pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
@@ -71,7 +71,8 @@ macro_rules! gen_wrappers {
       #[tauri_macros::default_runtime(crate::Wry, wry)]
       pub(crate) struct $inner<R: $crate::Runtime> {
         id: $crate::menu::MenuId,
-        inner: ::std::option::Option<::muda::$type>,
+        // SAFETY: we only call `ManuallyDrop::take` in [`Self::drop`] to drop it on main thread
+        inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
       }
 
@@ -85,7 +86,7 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
-          let inner = self.inner.take();
+          let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
           // SAFETY: inner was created on main thread and is being dropped on main thread
           let inner = $crate::UnsafeSend(inner);
           let _ = self.app_handle.run_on_main_thread(move || {
@@ -96,10 +97,9 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> AsRef<::muda::$type> for $inner<R> {
         fn as_ref(&self) -> &::muda::$type {
-          self.inner.as_ref().unwrap()
+          &self.inner
         }
       }
-
 
       $(#[$attr])*
       pub struct $type<R: $crate::Runtime>(::std::sync::Arc<$inner<R>>);
@@ -567,29 +567,29 @@ impl<R: Runtime> MenuItemKind<R> {
     match i {
       muda::MenuItemKind::MenuItem(i) => Self::MenuItem(MenuItem(Arc::new(MenuItemInner {
         id: i.id().clone(),
-        inner: i.into(),
+        inner: ManuallyDrop::new(i),
         app_handle,
       }))),
       muda::MenuItemKind::Submenu(i) => Self::Submenu(Submenu(Arc::new(SubmenuInner {
         id: i.id().clone(),
-        inner: i.into(),
+        inner: ManuallyDrop::new(i),
         app_handle,
       }))),
       muda::MenuItemKind::Predefined(i) => {
         Self::Predefined(PredefinedMenuItem(Arc::new(PredefinedMenuItemInner {
           id: i.id().clone(),
-          inner: i.into(),
+          inner: ManuallyDrop::new(i),
           app_handle,
         })))
       }
       muda::MenuItemKind::Check(i) => Self::Check(CheckMenuItem(Arc::new(CheckMenuItemInner {
         id: i.id().clone(),
-        inner: i.into(),
+        inner: ManuallyDrop::new(i),
         app_handle,
       }))),
       muda::MenuItemKind::Icon(i) => Self::Icon(IconMenuItem(Arc::new(IconMenuItemInner {
         id: i.id().clone(),
-        inner: i.into(),
+        inner: ManuallyDrop::new(i),
         app_handle,
       }))),
     }

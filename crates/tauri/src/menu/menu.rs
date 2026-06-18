@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::mem::ManuallyDrop;
 use std::sync::Arc;
 
 use super::run_item_main_thread;
@@ -98,7 +99,7 @@ impl<R: Runtime> Menu<R> {
       let menu = muda::Menu::new();
       MenuInner {
         id: menu.id().clone(),
-        inner: Some(menu),
+        inner: ManuallyDrop::new(menu),
         app_handle,
       }
     })?;
@@ -116,7 +117,7 @@ impl<R: Runtime> Menu<R> {
       let menu = muda::Menu::with_id(id.clone());
       MenuInner {
         id,
-        inner: Some(menu),
+        inner: ManuallyDrop::new(menu),
         app_handle,
       }
     })?;

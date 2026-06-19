@@ -15,6 +15,23 @@ use tauri_utils::config::RpmCompression;
 
 use super::freedesktop;
 
+// https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning/
+// TODO: this may not cover it perfectly yet, it's just a hotfix for prerelease semver
+fn to_rpm_version(version: &str) -> String {
+  match semver::Version::parse(version) {
+    Ok(v) if !v.pre.is_empty() => {
+      let pre = v.pre.as_str().replace('-', ".");
+      let mut rpm = format!("{}.{}.{}~{}", v.major, v.minor, v.patch, pre);
+      if !v.build.is_empty() {
+        rpm.push('+');
+        rpm.push_str(v.build.as_str());
+      }
+      rpm
+    }
+    _ => version.to_string(),
+  }
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -75,7 +92,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let build_config = rpm::BuildConfig::default().compression(dbg!(compression));
 
-  let mut builder = rpm::PackageBuilder::new(&name, version, &license, arch, summary);
+  let mut builder = rpm::PackageBuilder::new(&name, &to_rpm_version(version), &license, arch, summary);
   builder
     .using_config(build_config)
     .epoch(epoch)

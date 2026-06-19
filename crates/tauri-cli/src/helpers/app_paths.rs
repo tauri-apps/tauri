@@ -114,7 +114,13 @@ pub fn resolve_tauri_dir() -> Option<PathBuf> {
   log::debug!("resolving Tauri directory from {}", src_dir.display());
 
   lookup(&src_dir, |path| {
-    folder_has_configuration_file(Target::Linux, path) || is_configuration_file(Target::Linux, path)
+    #[cfg(target_os = "freebsd")]
+    let found = folder_has_configuration_file(Target::FreeBSD, path)
+      || is_configuration_file(Target::FreeBSD, path);
+    #[cfg(not(target_os = "freebsd"))]
+    let found = folder_has_configuration_file(Target::Linux, path)
+      || is_configuration_file(Target::Linux, path);
+    found
   })
   .map(|p| {
     if p.is_dir() {

@@ -37,7 +37,9 @@
       "x86_64-unknown-linux-musl",
       "riscv64gc-unknown-linux-gnu",
       "i686-pc-windows-msvc",
-      "aarch64-pc-windows-msvc"
+      "aarch64-pc-windows-msvc",
+      "x86_64-unknown-freebsd",
+      "aarch64-unknown-freebsd"
     ]
   },
   "devDependencies": {

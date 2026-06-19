@@ -22,8 +22,8 @@ use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
-  WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, PkgSettings, Position, RpmSettings, Size,
+  UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
@@ -105,6 +105,7 @@ impl From<crate::dev::Options> for Options {
   }
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 #[derive(Debug, Clone)]
 pub struct MobileOptions {
   pub debug: bool,
@@ -115,6 +116,7 @@ pub struct MobileOptions {
   pub additional_watch_folders: Vec<PathBuf>,
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 #[derive(Debug, Clone)]
 pub struct WatcherOptions {
   pub config: Vec<ConfigValue>,
@@ -237,6 +239,7 @@ impl Rust {
     }
   }
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   pub fn mobile_dev<
     R: Fn(MobileOptions, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
   >(
@@ -271,6 +274,7 @@ impl Rust {
     }
   }
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   pub fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: &mut ConfigMetadata,
@@ -1038,6 +1042,7 @@ impl AppSettings for RustAppSettings {
     Ok(binaries)
   }
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   fn app_name(&self) -> Option<String> {
     self
       .manifest
@@ -1052,6 +1057,7 @@ impl AppSettings for RustAppSettings {
       .map(|n| n.to_string())
   }
 
+  #[cfg(any(target_os = "macos", target_os = "linux", windows))]
   fn lib_name(&self) -> Option<String> {
     self
       .manifest
@@ -1605,6 +1611,19 @@ fn tauri_config_to_bundle_settings(
       pre_remove_script: config.linux.rpm.pre_remove_script,
       post_remove_script: config.linux.rpm.post_remove_script,
       compression: config.linux.rpm.compression,
+    },
+    pkg: PkgSettings {
+      depends: config.freebsd.pkg.depends,
+      provides: config.freebsd.pkg.provides,
+      conflicts: config.freebsd.pkg.conflicts,
+      replaces: config.freebsd.pkg.replaces,
+      category: config.freebsd.pkg.category,
+      files: config.freebsd.pkg.files,
+      desktop_template: config.freebsd.pkg.desktop_template,
+      pre_install_script: config.freebsd.pkg.pre_install_script,
+      post_install_script: config.freebsd.pkg.post_install_script,
+      pre_remove_script: config.freebsd.pkg.pre_remove_script,
+      post_remove_script: config.freebsd.pkg.post_remove_script,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

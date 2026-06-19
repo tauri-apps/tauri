@@ -3,6 +3,7 @@ description = "app capability"
 windows = ["main"]
 permissions = [
   "os:allow-apt-linux",
+  "os:allow-pkg-freebsd",
   "os:allow-library-folder-macos",
   "os:deny-webview-folder-windows",
   "os:open-browser",

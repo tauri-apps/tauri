@@ -8,24 +8,30 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use handlebars::{to_json, Handlebars};
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
+use handlebars::to_json;
+use handlebars::Handlebars;
 use include_dir::Dir;
 use serde::Serialize;
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 use serde_json::value::{Map, Value as JsonValue};
 
 use crate::error::ErrorExt;
 
 /// Map of template variable names and values.
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 #[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct JsonMap(Map<String, JsonValue>);
 
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 impl Default for JsonMap {
   fn default() -> Self {
     Self(Map::new())
   }
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 impl JsonMap {
   pub fn insert(&mut self, name: &str, value: impl Serialize) {
     self.0.insert(name.to_owned(), to_json(value));

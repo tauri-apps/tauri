@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 
 mod category;
+#[cfg(target_os = "freebsd")]
+mod freebsd;
 mod kmp;
 #[cfg(target_os = "linux")]
 mod linux;
@@ -28,7 +30,7 @@ pub use {
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
     DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings, PackageSettings,
-    PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    PackageType, PkgSettings, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
     UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
   },
 };
@@ -47,6 +49,16 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
       return Err(crate::Error::InvalidPackageType(
         package_type.short_name().to_owned(),
         "Linux".to_owned(),
+      ))
+    }
+  };
+  #[cfg(target_os = "freebsd")]
+  let bundle_type = match package_type {
+    crate::PackageType::Pkg => b"__TAURI_BUNDLE_TYPE_VAR_PKG",
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "FreeBSD".to_owned(),
       ))
     }
   };
@@ -183,6 +195,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::Rpm => linux::rpm::bundle_project(settings)?,
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(settings)?,
+      #[cfg(target_os = "freebsd")]
+      PackageType::Pkg => freebsd::pkg::bundle_project(settings)?,
       _ => {
         log::warn!("ignoring {}", package_type.short_name());
         continue;
@@ -228,11 +242,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         // Self contained updater, no need to zip
         matches!(
           package_type,
-          PackageType::AppImage | PackageType::Nsis | PackageType::WindowsMsi | PackageType::Deb
+          PackageType::AppImage
+            | PackageType::Nsis
+            | PackageType::WindowsMsi
+            | PackageType::Deb
+            | PackageType::Pkg
         )
       })
     {
-      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
+      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, deb, msi, nsis, pkg");
     }
     if updater.v1_compatible {
       log::warn!("Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin");

@@ -54,6 +54,7 @@ impl ConfigFormat {
         Target::MacOS => "tauri.macos.conf.json",
         Target::Windows => "tauri.windows.conf.json",
         Target::Linux => "tauri.linux.conf.json",
+        Target::FreeBSD => "tauri.freebsd.conf.json",
         Target::Android => "tauri.android.conf.json",
         Target::Ios => "tauri.ios.conf.json",
       },
@@ -61,6 +62,7 @@ impl ConfigFormat {
         Target::MacOS => "tauri.macos.conf.json5",
         Target::Windows => "tauri.windows.conf.json5",
         Target::Linux => "tauri.linux.conf.json5",
+        Target::FreeBSD => "tauri.freebsd.conf.json5",
         Target::Android => "tauri.android.conf.json5",
         Target::Ios => "tauri.ios.conf.json5",
       },
@@ -68,6 +70,7 @@ impl ConfigFormat {
         Target::MacOS => "Tauri.macos.toml",
         Target::Windows => "Tauri.windows.toml",
         Target::Linux => "Tauri.linux.toml",
+        Target::FreeBSD => "Tauri.freebsd.toml",
         Target::Android => "Tauri.android.toml",
         Target::Ios => "Tauri.ios.toml",
       },
@@ -169,6 +172,7 @@ pub fn is_configuration_file(target: Target, path: &Path) -> bool {
 /// Then it looks for a platform-specific configuration file:
 /// - `tauri.macos.conf.json[5]` or `Tauri.macos.toml` on macOS
 /// - `tauri.linux.conf.json[5]` or `Tauri.linux.toml` on Linux
+/// - `tauri.freebsd.conf.json[5]` or `Tauri.freebsd.toml` on FreeBSD
 /// - `tauri.windows.conf.json[5]` or `Tauri.windows.toml` on Windows
 /// - `tauri.android.conf.json[5]` or `Tauri.android.toml` on Android
 /// - `tauri.ios.conf.json[5]` or `Tauri.ios.toml` on iOS

@@ -11,20 +11,20 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", windows))]
 mod cli;
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", windows))]
 mod server;
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", windows))]
 mod webdriver;
 
-#[cfg(not(any(target_os = "linux", windows)))]
+#[cfg(not(any(target_os = "linux", target_os = "freebsd", windows)))]
 fn main() {
   println!("tauri-driver is not supported on this platform");
   std::process::exit(1);
 }
 
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", windows))]
 fn main() {
   let args = pico_args::Arguments::from_env().into();
 

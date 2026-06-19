@@ -33,6 +33,33 @@ Resolved {
                     1,
                 ),
             },
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    2,
+                ),
+            },
         ],
     },
     denied_commands: {},
@@ -42,21 +69,19 @@ Resolved {
                 Map(
                     {
                         "command": String(
-                            "safari",
+                            "pkg",
                         ),
                     },
                 ),
             ],
             deny: [],
         },
-    },
-    global_scope: {
-        "os": ResolvedScope {
+        2: ResolvedScope {
             allow: [
                 Map(
                     {
-                        "path": String(
-                            "$HOME/Library/**",
+                        "command": String(
+                            "firefox",
                         ),
                     },
                 ),
@@ -64,4 +89,5 @@ Resolved {
             deny: [],
         },
     },
+    global_scope: {},
 }

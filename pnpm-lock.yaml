@@ -17,7 +17,7 @@ importers:
         version: 3.8.1
 
   crates/tauri-schema-worker:
-    devDependencies:
+    optionalDependencies:
       wrangler:
         specifier: ^4.75.0
         version: 4.75.0
@@ -2754,13 +2754,15 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.2.4
 
-  '@cloudflare/kv-asset-handler@0.4.2': {}
+  '@cloudflare/kv-asset-handler@0.4.2':
+    optional: true
 
   '@cloudflare/unenv-preset@2.15.0(unenv@2.0.0-rc.24)(workerd@1.20260317.1)':
     dependencies:
       unenv: 2.0.0-rc.24
     optionalDependencies:
       workerd: 1.20260317.1
+    optional: true
 
   '@cloudflare/workerd-darwin-64@1.20260317.1':
     optional: true
@@ -2780,6 +2782,7 @@ snapshots:
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
+    optional: true
 
   '@emnapi/core@1.10.0':
     dependencies:
@@ -2943,7 +2946,8 @@ snapshots:
       '@iconify/types': 2.0.0
       mlly: 1.8.0
 
-  '@img/colour@1.1.0': {}
+  '@img/colour@1.1.0':
+    optional: true
 
   '@img/sharp-darwin-arm64@0.34.5':
     optionalDependencies:
@@ -3192,6 +3196,7 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+    optional: true
 
   '@napi-rs/cli@3.4.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.1)(@types/node@24.11.0)':
     dependencies:
@@ -3615,14 +3620,17 @@ snapshots:
   '@poppinss/colors@4.1.6':
     dependencies:
       kleur: 4.1.5
+    optional: true
 
   '@poppinss/dumper@0.6.5':
     dependencies:
       '@poppinss/colors': 4.1.6
       '@sindresorhus/is': 7.2.0
       supports-color: 10.2.2
+    optional: true
 
-  '@poppinss/exception@1.2.3': {}
+  '@poppinss/exception@1.2.3':
+    optional: true
 
   '@quansync/fs@1.0.0':
     dependencies:
@@ -3779,9 +3787,11 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.61.1':
     optional: true
 
-  '@sindresorhus/is@7.2.0': {}
+  '@sindresorhus/is@7.2.0':
+    optional: true
 
-  '@speed-highlight/core@1.2.14': {}
+  '@speed-highlight/core@1.2.14':
+    optional: true
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -4124,7 +4134,8 @@ snapshots:
 
   before-after-hook@4.0.0: {}
 
-  blake3-wasm@2.1.5: {}
+  blake3-wasm@2.1.5:
+    optional: true
 
   brace-expansion@5.0.6:
     dependencies:
@@ -4168,9 +4179,8 @@ snapshots:
 
   consola@3.4.2: {}
 
-  convert-source-map@2.0.0: {}
-
-  cookie@1.1.1: {}
+  cookie@1.1.1:
+    optional: true
 
   cross-env@10.1.0:
     dependencies:
@@ -4210,7 +4220,8 @@ snapshots:
 
   emoji-regex@8.0.0: {}
 
-  error-stack-parser-es@1.0.5: {}
+  error-stack-parser-es@1.0.5:
+    optional: true
 
   es-module-lexer@2.1.0: {}
 
@@ -4452,7 +4463,8 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  kleur@4.1.5: {}
+  kleur@4.1.5:
+    optional: true
 
   levn@0.4.1:
     dependencies:
@@ -4548,6 +4560,7 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    optional: true
 
   minimatch@10.2.5:
     dependencies:
@@ -4638,7 +4651,8 @@ snapshots:
 
   path-parse@1.0.7: {}
 
-  path-to-regexp@6.3.0: {}
+  path-to-regexp@6.3.0:
+    optional: true
 
   pathe@2.0.3: {}
 
@@ -4780,6 +4794,7 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
+    optional: true
 
   shebang-command@2.0.0:
     dependencies:
@@ -4822,7 +4837,8 @@ snapshots:
     dependencies:
       ansi-regex: 5.0.1
 
-  supports-color@10.2.2: {}
+  supports-color@10.2.2:
+    optional: true
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
@@ -4915,11 +4931,13 @@ snapshots:
 
   undici-types@7.16.0: {}
 
-  undici@7.24.4: {}
+  undici@7.24.4:
+    optional: true
 
   unenv@2.0.0-rc.24:
     dependencies:
       pathe: 2.0.3
+    optional: true
 
   universal-user-agent@7.0.3: {}
 
@@ -5028,6 +5046,7 @@ snapshots:
       '@cloudflare/workerd-linux-64': 1.20260317.1
       '@cloudflare/workerd-linux-arm64': 1.20260317.1
       '@cloudflare/workerd-windows-64': 1.20260317.1
+    optional: true
 
   wrangler@4.75.0:
     dependencies:
@@ -5044,6 +5063,7 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    optional: true
 
   wrap-ansi@6.2.0:
     dependencies:
@@ -5051,7 +5071,8 @@ snapshots:
       string-width: 4.2.3
       strip-ansi: 6.0.1
 
-  ws@8.21.0: {}
+  ws@8.21.0:
+    optional: true
 
   yocto-queue@0.1.0: {}
 
@@ -5061,6 +5082,7 @@ snapshots:
     dependencies:
       '@poppinss/exception': 1.2.3
       error-stack-parser-es: 1.0.5
+    optional: true
 
   youch@4.1.0-beta.10:
     dependencies:
@@ -5069,5 +5091,6 @@ snapshots:
       '@speed-highlight/core': 1.2.14
       cookie: 1.1.1
       youch-core: 0.3.3
+    optional: true
 
   zimmerframe@1.1.4: {}

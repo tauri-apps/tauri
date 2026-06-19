@@ -531,9 +531,9 @@ impl<R: Runtime> WebviewManager<R> {
       manager.manager_owned(),
     ));
 
-    // in `windows`, we need to force a data_directory
+    // On WebKitGTK and WebView2, force a stable data directory unless the user set one.
     // but we do respect user-specification
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
       let local_app_data = manager.path().resolve(
         &app_manager.config.identifier,

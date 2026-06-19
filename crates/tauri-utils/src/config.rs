@@ -136,6 +136,8 @@ pub enum BundleType {
   Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The FreeBSD package bundle (.pkg).
+  Pkg,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -153,6 +155,7 @@ impl BundleType {
       BundleType::Deb,
       BundleType::Rpm,
       BundleType::AppImage,
+      BundleType::Pkg,
       BundleType::Msi,
       BundleType::Nsis,
       BundleType::App,
@@ -170,6 +173,7 @@ impl Display for BundleType {
         Self::Deb => "deb",
         Self::Rpm => "rpm",
         Self::AppImage => "appimage",
+        Self::Pkg => "pkg",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",
@@ -198,6 +202,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "deb" => Ok(Self::Deb),
       "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
+      "pkg" => Ok(Self::Pkg),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
@@ -397,6 +402,60 @@ pub struct LinuxConfig {
   /// Configuration for the RPM bundle.
   #[serde(default)]
   pub rpm: RpmConfig,
+}
+
+/// Configuration for FreeBSD bundles.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FreeBSDConfig {
+  /// Configuration for the FreeBSD pkg bundle.
+  #[serde(default)]
+  pub pkg: PkgConfig,
+}
+
+/// Configuration for FreeBSD pkg bundles.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PkgConfig {
+  /// The list of FreeBSD pkg dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of FreeBSD pkg conflict package names or pkg query patterns.
+  ///
+  /// Each entry must resolve in the installed package database or configured repositories.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of FreeBSD pkg replacement package names or pkg query patterns.
+  ///
+  /// Each entry must resolve in the installed package database or configured repositories.
+  pub replaces: Option<Vec<String>>,
+  /// The FreeBSD port origin category.
+  pub category: Option<String>,
+  /// The files to include on the package.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon`, `name`, `mime_type`
+  /// and `long_description`.
+  #[serde(alias = "desktop-template")]
+  pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is installed.
+  #[serde(alias = "pre-install-script")]
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is installed.
+  #[serde(alias = "post-install-script")]
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed.
+  #[serde(alias = "pre-remove-script")]
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed.
+  #[serde(alias = "post-remove-script")]
+  pub post_remove_script: Option<PathBuf>,
 }
 
 /// Compression algorithms used when bundling RPM packages.
@@ -1676,6 +1735,9 @@ pub struct BundleConfig {
   /// Configuration for the Linux bundles.
   #[serde(default)]
   pub linux: LinuxConfig,
+  /// Configuration for the FreeBSD bundles.
+  #[serde(default)]
+  pub freebsd: FreeBSDConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", alias = "macos", default)]
   pub macos: MacConfig,
@@ -3537,8 +3599,8 @@ where
 ///
 /// In addition to the default configuration file, Tauri can
 /// read a platform-specific configuration from `tauri.linux.conf.json`,
-/// `tauri.windows.conf.json`, `tauri.macos.conf.json`, `tauri.android.conf.json` and `tauri.ios.conf.json`
-/// (or `Tauri.linux.toml`, `Tauri.windows.toml`, `Tauri.macos.toml`, `Tauri.android.toml` and `Tauri.ios.toml` if the `Tauri.toml` format is used),
+/// `tauri.freebsd.conf.json`, `tauri.windows.conf.json`, `tauri.macos.conf.json`, `tauri.android.conf.json` and `tauri.ios.conf.json`
+/// (or `Tauri.linux.toml`, `Tauri.freebsd.toml`, `Tauri.windows.toml`, `Tauri.macos.toml`, `Tauri.android.toml` and `Tauri.ios.toml` if the `Tauri.toml` format is used),
 /// which gets merged with the main configuration object.
 ///
 /// ## Configuration Structure
@@ -4039,6 +4101,7 @@ mod build {
       let license = opt_str_lit(self.license.as_ref());
       let license_file = opt_lit(self.license_file.as_ref().map(path_buf_lit).as_ref());
       let linux = quote!(Default::default());
+      let freebsd = quote!(Default::default());
       let macos = quote!(Default::default());
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
@@ -4064,6 +4127,7 @@ mod build {
         external_bin,
         windows,
         linux,
+        freebsd,
         macos,
         ios,
         android
@@ -4502,6 +4566,7 @@ mod test {
       license: None,
       license_file: None,
       linux: Default::default(),
+      freebsd: Default::default(),
       macos: Default::default(),
       external_bin: None,
       windows: Default::default(),

@@ -363,6 +363,11 @@ fn validate_capabilities(
           permission_name == "default"
             || manifest.permissions.contains_key(permission_name)
             || manifest.permission_sets.contains_key(permission_name)
+            // `allow-$command`/`deny-$command` permissions are materialized on demand from the commands list
+            // (the `allow-*`/`deny-*` wildcards are only available for the app manifest)
+            || manifest
+              .command_permission(permission_name, key == APP_ACL_KEY)
+              .is_some()
         })
         .unwrap_or(false);
 
@@ -382,6 +387,16 @@ fn validate_capabilities(
           }
           for p in manifest.permission_sets.keys() {
             available_permissions.push(format!("{prefix}{p}"));
+          }
+          for command in &manifest.commands {
+            let slug = command.replace('_', "-");
+            available_permissions.push(format!("{prefix}allow-{slug}"));
+            available_permissions.push(format!("{prefix}deny-{slug}"));
+          }
+          // the `allow-*`/`deny-*` wildcards are only available for the app manifest
+          if key == APP_ACL_KEY && !manifest.commands.is_empty() {
+            available_permissions.push(format!("{prefix}allow-*"));
+            available_permissions.push(format!("{prefix}deny-*"));
           }
         }
 
@@ -407,7 +422,8 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
   )?;
   let has_app_manifest = app_acl.manifest.default_permission.is_some()
     || !app_acl.manifest.permission_sets.is_empty()
-    || !app_acl.manifest.permissions.is_empty();
+    || !app_acl.manifest.permissions.is_empty()
+    || !app_acl.manifest.commands.is_empty();
   if has_app_manifest {
     acl_manifests.insert(APP_ACL_KEY.into(), app_acl.manifest);
   }

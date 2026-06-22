@@ -117,6 +117,15 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
     "".into()
   };
 
+  // the `allow-*` wildcard permission resolves to a single `*` command that allows every command of
+  // the manifest, so keep all of them when it is present.
+  if allowed_commands
+    .commands
+    .contains(&format!("{command_prefix}*"))
+  {
+    return;
+  }
+
   command_defs.retain(|command_def| {
     let mut wrapper = command_def.path.clone();
     let last = super::path_to_command(&mut wrapper);

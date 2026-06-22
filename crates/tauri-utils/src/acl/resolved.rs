@@ -4,7 +4,7 @@
 
 //! Resolved ACL for runtime usage.
 
-use std::{collections::BTreeMap, fmt};
+use std::{borrow::Cow, collections::BTreeMap, fmt};
 
 use crate::platform::Target;
 
@@ -332,8 +332,11 @@ pub struct TraversedPermission<'a> {
   pub key: String,
   /// Permission's name
   pub permission_name: String,
-  /// Permission details
-  pub permission: &'a Permission,
+  /// Permission details.
+  ///
+  /// This is borrowed for permissions stored in the [`Manifest`], or owned for the `allow-$command`
+  /// and `deny-$command` permissions [materialized on demand](Manifest::command_permission).
+  pub permission: Cow<'a, Permission>,
 }
 
 /// Expand a permissions id based on the ACL to get the associated permissions (e.g. expand some-plugin:default)
@@ -361,7 +364,14 @@ pub fn get_permissions<'a>(
     Ok(vec![TraversedPermission {
       key: key.to_string(),
       permission_name: permission_name.to_string(),
-      permission,
+      permission: Cow::Borrowed(permission),
+    }])
+  } else if let Some(permission) = manifest.command_permission(permission_name, key == APP_ACL_KEY)
+  {
+    Ok(vec![TraversedPermission {
+      key: key.to_string(),
+      permission_name: permission_name.to_string(),
+      permission: Cow::Owned(permission),
     }])
   } else {
     Err(Error::UnknownPermission {
@@ -409,7 +419,7 @@ fn get_permission_set_permissions<'a>(
       permissions.push(TraversedPermission {
         key: key.to_string(),
         permission_name: permission_name.to_string(),
-        permission,
+        permission: Cow::Borrowed(permission),
       });
     } else if let Some(permission_set) = manifest.permission_sets.get(permission_name) {
       permissions.extend(get_permission_set_permissions(
@@ -418,6 +428,14 @@ fn get_permission_set_permissions<'a>(
         manifest,
         permission_set,
       )?);
+    } else if let Some(permission) =
+      manifest.command_permission(permission_name, key == APP_ACL_KEY)
+    {
+      permissions.push(TraversedPermission {
+        key: key.to_string(),
+        permission_name: permission_name.to_string(),
+        permission: Cow::Owned(permission),
+      });
     } else {
       return Err(Error::SetPermissionNotFound {
         permission: permission_name.to_string(),
@@ -563,7 +581,10 @@ mod build {
 #[cfg(test)]
 mod tests {
 
-  use super::{Identifier, Manifest, Permission, PermissionSet, get_permissions};
+  use super::{
+    APP_ACL_KEY, Identifier, Manifest, Permission, PermissionSet, Resolved, get_permissions,
+  };
+  use crate::platform::Target;
 
   fn manifest<const P: usize, const S: usize>(
     name: &str,
@@ -679,5 +700,103 @@ mod tests {
     assert_eq!(permissions[4].permission_name, "fetch");
     assert_eq!(permissions[5].key, "http");
     assert_eq!(permissions[5].permission_name, "fetch-cancel");
+  }
+
+  fn manifest_with_commands(name: &str, commands: &[&str]) -> (String, Manifest) {
+    (
+      name.to_string(),
+      Manifest {
+        commands: commands.iter().map(|c| c.to_string()).collect(),
+        ..Default::default()
+      },
+    )
+  }
+
+  #[test]
+  fn resolves_implicit_command_permissions() {
+    let acl = [manifest_with_commands("fs", &["read_file", "write_file"])].into();
+
+    // `allow-$command` resolves to the command with the original (snake_case) name
+    let permissions = get_permissions(&id("fs:allow-read-file"), &acl).unwrap();
+    assert_eq!(permissions.len(), 1);
+    assert_eq!(permissions[0].key, "fs");
+    assert_eq!(permissions[0].permission.commands.allow, ["read_file"]);
+    assert!(permissions[0].permission.commands.deny.is_empty());
+
+    // `deny-$command` resolves to the deny side
+    let permissions = get_permissions(&id("fs:deny-write-file"), &acl).unwrap();
+    assert_eq!(permissions.len(), 1);
+    assert_eq!(permissions[0].permission.commands.deny, ["write_file"]);
+
+    // unknown command is still an error
+    assert!(get_permissions(&id("fs:allow-unknown"), &acl).is_err());
+  }
+
+  #[test]
+  fn resolves_wildcard_command_permission() {
+    let acl = [(
+      APP_ACL_KEY.to_string(),
+      manifest_with_commands("__app__", &["read_file", "write_file"]).1,
+    )]
+    .into();
+
+    // the wildcard resolves to a single `*` command instead of one entry per command
+    let permissions = get_permissions(&id("allow-*"), &acl).unwrap();
+    assert_eq!(permissions.len(), 1);
+    assert_eq!(permissions[0].permission.commands.allow, ["*"]);
+
+    let permissions = get_permissions(&id("deny-*"), &acl).unwrap();
+    assert_eq!(permissions.len(), 1);
+    assert_eq!(permissions[0].permission.commands.deny, ["*"]);
+
+    // the wildcard is only available for the app manifest, not for plugins
+    let plugin_acl = [manifest_with_commands("fs", &["read_file", "write_file"])].into();
+    assert!(get_permissions(&id("fs:allow-*"), &plugin_acl).is_err());
+    // but specific command permissions still work for plugins
+    assert!(get_permissions(&id("fs:allow-read-file"), &plugin_acl).is_ok());
+
+    // the wildcard is not a valid permission when the app manifest has no commands
+    let empty = [(APP_ACL_KEY.to_string(), manifest("__app__", [], None, []).1)].into();
+    assert!(get_permissions(&id("allow-*"), &empty).is_err());
+  }
+
+  #[test]
+  fn resolve_wildcard_uses_single_entry() {
+    use crate::acl::{Capability, capability::PermissionEntry};
+
+    let acl = [(
+      APP_ACL_KEY.to_string(),
+      Manifest {
+        commands: ["echo", "ping", "spam"]
+          .iter()
+          .map(|c| c.to_string())
+          .collect(),
+        ..Default::default()
+      },
+    )]
+    .into();
+
+    let capability = Capability {
+      identifier: "main".to_string(),
+      description: String::new(),
+      remote: None,
+      local: true,
+      windows: vec!["main".to_string()],
+      webviews: Vec::new(),
+      permissions: vec![PermissionEntry::PermissionRef(id("allow-*"))],
+      platforms: None,
+    };
+
+    let resolved = Resolved::resolve(
+      &acl,
+      [("main".to_string(), capability)].into(),
+      Target::Linux,
+    )
+    .unwrap();
+
+    // the whole app is allowed through a single resolved entry keyed by `*`
+    assert_eq!(resolved.allowed_commands.len(), 1);
+    assert!(resolved.allowed_commands.contains_key("*"));
+    assert!(resolved.denied_commands.is_empty());
   }
 }

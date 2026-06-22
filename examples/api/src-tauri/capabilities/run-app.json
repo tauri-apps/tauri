@@ -6,6 +6,7 @@
   "permissions": [
     "core:window:allow-is-enabled",
     "core:window:allow-set-enabled",
+    "allow-*",
     {
       "identifier": "allow-log-operation",
       "allow": [
@@ -14,9 +15,6 @@
         }
       ]
     },
-    "allow-perform-request",
-    "allow-echo",
-    "allow-spam",
     "app-menu:default",
     "sample:allow-ping-scoped",
     "sample:global-scope",

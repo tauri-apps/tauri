@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Display};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::de::DeserializeOwned;
 
@@ -24,14 +24,47 @@ use crate::{Runtime, ipc::InvokeError, sealed::ManagerBase};
 
 use super::{CommandArg, CommandItem};
 
-/// The runtime authority used to authorize IPC execution based on the Access Control List.
-pub struct RuntimeAuthority {
+/// Materialized authority data derived from the resolved ACL.
+///
+/// Built lazily (see [`RuntimeAuthority::inner`]) because constructing it is the dominant cost
+/// of `generate_context!`: the resolved ACL (`allowed_commands` / `denied_commands` / scopes for
+/// every command) is emitted by `tauri-codegen` as a large literal built at runtime. It is only
+/// needed at command-dispatch time, never during startup, so building it off-thread keeps that
+/// cost off the startup critical path. Deep-link forwards exit without ever dispatching a
+/// command, so they never block on the build: it runs on the background thread and is discarded
+/// when the process exits.
+struct RuntimeAuthorityInner {
+  /// Raw ACL manifests. Only read on the command-denied error path
+  /// ([`RuntimeAuthority::resolve_access_message`]) and by the `dynamic-acl` feature; dropped
+  /// entirely in release builds.
   #[cfg(any(feature = "dynamic-acl", debug_assertions))]
   acl: BTreeMap<String, Manifest>,
   has_app_acl: bool,
   allowed_commands: BTreeMap<String, Vec<ResolvedCommand>>,
   denied_commands: BTreeMap<String, Vec<ResolvedCommand>>,
-  pub(crate) scope_manager: ScopeManager,
+  scope_manager: ScopeManager,
+}
+
+/// `Send` inputs to a [`RuntimeAuthorityInner`], produced off-thread by
+/// [`RuntimeAuthority::new_async`].
+///
+/// Only the expensive, `Send` data (the resolved ACL and raw manifests) is built on the
+/// background thread; the empty `StateManager` scope caches are assembled on the consuming
+/// thread in [`RuntimeAuthority::build_inner`] (they are not `Send` and are cheap to create).
+struct ResolvedAcl {
+  #[cfg(any(feature = "dynamic-acl", debug_assertions))]
+  acl: BTreeMap<String, Manifest>,
+  resolved: Resolved,
+}
+
+/// The runtime authority used to authorize IPC execution based on the Access Control List.
+pub struct RuntimeAuthority {
+  /// Materialized authority data. Populated eagerly by [`Self::new`] or lazily by
+  /// [`Self::inner`], which joins the background builder on first access.
+  inner: OnceLock<RuntimeAuthorityInner>,
+  /// Background builder for [`Self::inner`], joined on first access. `None` for the eager
+  /// [`Self::new`] constructor.
+  pending: Option<Mutex<Option<std::thread::JoinHandle<ResolvedAcl>>>>,
 }
 
 /// The origin trying to access the IPC.
@@ -79,7 +112,12 @@ impl Origin {
 #[macro_export]
 macro_rules! runtime_authority {
   ($acl:expr, $resolved_acl:expr) => {
-    $crate::ipc::RuntimeAuthority::new($acl, $resolved_acl)
+    // Build the (expensive) resolved ACL and raw ACL on a background thread; the first
+    // command-authorization check blocks on the result. `|| $acl` / `|| $resolved_acl` are
+    // non-capturing (both are emitted as compile-time literals), so they coerce to `fn`
+    // pointers. This keeps ACL construction — the dominant cost of `generate_context!` — off
+    // the startup critical path. See `RuntimeAuthority`.
+    $crate::ipc::RuntimeAuthority::new_async(|| $acl, || $resolved_acl)
   };
 }
 
@@ -96,46 +134,149 @@ macro_rules! runtime_authority {
 #[macro_export]
 macro_rules! runtime_authority {
   ($_acl:expr, $resolved_acl:expr) => {
-    $crate::ipc::RuntimeAuthority::new($resolved_acl)
+    // Release builds drop the raw ACL entirely; only the resolved ACL is built, off-thread.
+    $crate::ipc::RuntimeAuthority::new_async(|| $resolved_acl)
   };
 }
 
 impl RuntimeAuthority {
-  /// Contruct a new [`RuntimeAuthority`] from the ACL
+  /// Assembles [`RuntimeAuthorityInner`] from resolved ACL data.
   ///
-  /// **Please prefer using the [`runtime_authority`] macro instead of calling this directly**
-  #[doc(hidden)]
-  pub fn new(
-    #[cfg(any(feature = "dynamic-acl", debug_assertions))] acl: BTreeMap<String, Manifest>,
-    resolved_acl: Resolved,
-  ) -> Self {
-    let command_cache = resolved_acl
+  /// The expensive part (the [`Resolved`] literal) is already built; this only wires up the
+  /// empty [`StateManager`] scope caches, so it is cheap and runs on the consuming thread.
+  fn build_inner(resolved_acl: ResolvedAcl) -> RuntimeAuthorityInner {
+    let ResolvedAcl {
+      #[cfg(any(feature = "dynamic-acl", debug_assertions))]
+      acl,
+      resolved,
+    } = resolved_acl;
+    let command_cache = resolved
       .command_scope
       .keys()
       .map(|key| (*key, StateManager::new()))
       .collect();
-    Self {
+    RuntimeAuthorityInner {
       #[cfg(any(feature = "dynamic-acl", debug_assertions))]
       acl,
-      has_app_acl: resolved_acl.has_app_acl,
-      allowed_commands: resolved_acl.allowed_commands,
-      denied_commands: resolved_acl.denied_commands,
+      has_app_acl: resolved.has_app_acl,
+      allowed_commands: resolved.allowed_commands,
+      denied_commands: resolved.denied_commands,
       scope_manager: ScopeManager {
-        command_scope: resolved_acl.command_scope,
-        global_scope: resolved_acl.global_scope,
+        command_scope: resolved.command_scope,
+        global_scope: resolved.global_scope,
         command_cache,
         global_scope_cache: StateManager::new(),
       },
     }
   }
 
+  /// Construct a new [`RuntimeAuthority`] from already-resolved ACL data (built eagerly).
+  ///
+  /// Prefer the [`runtime_authority`] macro, which builds the ACL lazily off-thread via
+  /// [`Self::new_async`]. This eager constructor is for callers that already have the resolved
+  /// ACL in hand (e.g. tests).
+  #[doc(hidden)]
+  pub fn new(
+    #[cfg(any(feature = "dynamic-acl", debug_assertions))] acl: BTreeMap<String, Manifest>,
+    resolved_acl: Resolved,
+  ) -> Self {
+    let inner = OnceLock::new();
+    let _ = inner.set(Self::build_inner(ResolvedAcl {
+      #[cfg(any(feature = "dynamic-acl", debug_assertions))]
+      acl,
+      resolved: resolved_acl,
+    }));
+    Self {
+      inner,
+      pending: None,
+    }
+  }
+
+  /// Construct a new [`RuntimeAuthority`], building the resolved ACL on a background thread.
+  ///
+  /// The resolved ACL (and raw ACL) is the dominant cost of `generate_context!`, yet it is only
+  /// needed at command-dispatch time. Building it off-thread keeps it off the startup critical
+  /// path; the first read via [`Self::inner`] (e.g. [`Self::resolve_access`]) blocks on the
+  /// result. The [`runtime_authority`] macro passes non-capturing closures over compile-time
+  /// literals; the `Send + 'static` bound also lets callers (e.g. tests) pass capturing
+  /// closures.
+  ///
+  /// The thread spawn + join is pure overhead for trivial ACLs (e.g. tests and small apps), so
+  /// this only pays off above a non-trivial resolved-ACL size; the size is not known until the
+  /// ACL is built, so the trade-off cannot be gated at runtime. Use [`Self::new`] when the
+  /// resolved ACL is already in hand and the overhead is not worth it.
+  ///
+  /// **Please prefer using the [`runtime_authority`] macro instead of calling this directly**
+  #[doc(hidden)]
+  pub fn new_async(
+    #[cfg(any(feature = "dynamic-acl", debug_assertions))] acl_builder: impl FnOnce() -> BTreeMap<
+      String,
+      Manifest,
+    > + Send
+    + 'static,
+    resolved_builder: impl FnOnce() -> Resolved + Send + 'static,
+  ) -> Self {
+    let handle = std::thread::Builder::new()
+      .name(String::from("tauri runtime authority"))
+      // The resolved-ACL literal construction is deep; give it the headroom the generated
+      // context-creation thread used to need (it no longer constructs the ACL inline).
+      .stack_size(8 * 1024 * 1024)
+      .spawn(move || ResolvedAcl {
+        #[cfg(any(feature = "dynamic-acl", debug_assertions))]
+        acl: acl_builder(),
+        resolved: resolved_builder(),
+      })
+      .expect("failed to spawn runtime authority builder thread");
+    Self {
+      inner: OnceLock::new(),
+      pending: Some(Mutex::new(Some(handle))),
+    }
+  }
+
+  /// Returns the materialized authority data, blocking on the background builder on first
+  /// access if this authority was constructed via [`Self::new_async`].
+  fn inner(&self) -> &RuntimeAuthorityInner {
+    self.inner.get_or_init(|| {
+      let handle = self
+        .pending
+        .as_ref()
+        .expect("runtime authority has neither resolved data nor a pending builder")
+        .lock()
+        .unwrap()
+        .take()
+        // The handle is taken exactly once. If it is already gone while `inner` is still unset,
+        // a previous `inner()` call took it and panicked joining the builder thread, so report
+        // that cause rather than the misleading "neither data nor builder".
+        .expect("runtime authority builder thread panicked");
+      let resolved_acl = handle
+        .join()
+        .expect("runtime authority builder thread panicked");
+      Self::build_inner(resolved_acl)
+    })
+  }
+
+  /// Mutable access to the materialized authority data, materializing it first if needed.
+  fn inner_mut(&mut self) -> &mut RuntimeAuthorityInner {
+    // Force materialization (the returned shared borrow ends immediately), then hand out `&mut`.
+    let _ = self.inner();
+    self
+      .inner
+      .get_mut()
+      .expect("runtime authority materialized above")
+  }
+
+  /// The scope manager, materializing the authority data first if needed.
+  pub(crate) fn scope_manager(&self) -> &ScopeManager {
+    &self.inner().scope_manager
+  }
+
   pub(crate) fn has_app_manifest(&self) -> bool {
-    self.has_app_acl
+    self.inner().has_app_acl
   }
 
   #[doc(hidden)]
   pub fn __allow_command(&mut self, command: String, context: ExecutionContext) {
-    self.allowed_commands.insert(
+    self.inner_mut().allowed_commands.insert(
       command,
       vec![ResolvedCommand {
         context,
@@ -171,26 +312,29 @@ impl RuntimeAuthority {
       }
     }
 
+    // Resolve against the raw ACL (materializes the authority) before taking `&mut` below.
     let resolved = Resolved::resolve(
-      &self.acl,
+      &self.inner().acl,
       capabilities,
       tauri_utils::platform::Target::current(),
     )
     .unwrap();
 
+    let inner = self.inner_mut();
+
     // fill global scope
     for (plugin, global_scope) in resolved.global_scope {
-      let global_scope_entry = self.scope_manager.global_scope.entry(plugin).or_default();
+      let global_scope_entry = inner.scope_manager.global_scope.entry(plugin).or_default();
 
       global_scope_entry.allow.extend(global_scope.allow);
       global_scope_entry.deny.extend(global_scope.deny);
 
-      self.scope_manager.global_scope_cache = StateManager::new();
+      inner.scope_manager.global_scope_cache = StateManager::new();
     }
 
     // denied commands
     for (cmd_key, resolved_cmds) in resolved.denied_commands {
-      let entry = self.denied_commands.entry(cmd_key).or_default();
+      let entry = inner.denied_commands.entry(cmd_key).or_default();
       entry.extend(resolved_cmds);
     }
 
@@ -201,7 +345,7 @@ impl RuntimeAuthority {
         if let Some(scope_id) = resolved_cmd.scope_id {
           let command_scope = resolved.command_scope.get(&scope_id).unwrap();
 
-          let command_scope_entry = self
+          let command_scope_entry = inner
             .scope_manager
             .command_scope
             .entry(scope_id)
@@ -211,14 +355,14 @@ impl RuntimeAuthority {
             .extend(command_scope.allow.clone());
           command_scope_entry.deny.extend(command_scope.deny.clone());
 
-          self
+          inner
             .scope_manager
             .command_cache
             .insert(scope_id, StateManager::new());
         }
       }
 
-      let entry = self.allowed_commands.entry(cmd_key).or_default();
+      let entry = inner.allowed_commands.entry(cmd_key).or_default();
       entry.extend(resolved_cmds);
     }
 
@@ -298,22 +442,34 @@ impl RuntimeAuthority {
       manifest: &Manifest,
       set: &crate::utils::acl::PermissionSet,
       command: &str,
+      allow_wildcard: bool,
     ) -> bool {
       for permission_id in &set.permissions {
         if permission_id == "default" {
           if let Some(default) = &manifest.default_permission
-            && has_permissions_allowing_command(manifest, default, command)
+            && has_permissions_allowing_command(manifest, default, command, allow_wildcard)
           {
             return true;
           }
-        } else if let Some(ref_set) = manifest.permission_sets.get(permission_id) {
-          if has_permissions_allowing_command(manifest, ref_set, command) {
-            return true;
-          }
+        } else if let Some(ref_set) = manifest.permission_sets.get(permission_id)
+          && has_permissions_allowing_command(manifest, ref_set, command, allow_wildcard)
+        {
+          return true;
         } else if let Some(permission) = manifest.permissions.get(permission_id)
           && permission.commands.allow.contains(&command.into())
         {
           return true;
+        } else if let Some(permission) = manifest.command_permission(permission_id, allow_wildcard)
+        {
+          // `*` is the wildcard command produced by the `allow-*` permission
+          if permission
+            .commands
+            .allow
+            .iter()
+            .any(|c| c == command || c == "*")
+          {
+            return true;
+          }
         }
       }
       false
@@ -331,15 +487,18 @@ impl RuntimeAuthority {
       format!("{key}.{command_name}")
     };
 
-    if let Some(resolved) = self.denied_commands.get(&command) {
+    // Materialize the authority once; everything below reads the resolved ACL.
+    let inner = self.inner();
+
+    if let Some(resolved) = inner.denied_commands.get(&command) {
       format!(
         "{command_pretty_name} explicitly denied on origin {origin}\n\nreferenced by: {}",
         print_references(resolved)
       )
     } else {
-      let command_matches = self.allowed_commands.get(&command);
+      let command_matches = inner.allowed_commands.get(&command);
 
-      if let Some(resolved) = self.allowed_commands.get(&command) {
+      if let Some(resolved) = inner.allowed_commands.get(&command) {
         let resolved_matching_origin = resolved
           .iter()
           .filter(|cmd| origin.matches(&cmd.context))
@@ -364,20 +523,23 @@ impl RuntimeAuthority {
           )
         }
       } else {
-        let permission_error_detail = if let Some((key, manifest)) = self
+        let permission_error_detail = if let Some((key, manifest)) = inner
           .acl
           .get_key_value(key)
-          .or_else(|| self.acl.get_key_value(&format!("core:{key}")))
+          .or_else(|| inner.acl.get_key_value(&format!("core:{key}")))
         {
           let mut permissions_referencing_command = Vec::new();
 
+          // the `allow-*`/`deny-*` wildcards are only available for the app manifest
+          let allow_wildcard = key == APP_ACL_KEY;
+
           if let Some(default) = &manifest.default_permission
-            && has_permissions_allowing_command(manifest, default, command_name)
+            && has_permissions_allowing_command(manifest, default, command_name, allow_wildcard)
           {
             permissions_referencing_command.push("default".into());
           }
           for set in manifest.permission_sets.values() {
-            if has_permissions_allowing_command(manifest, set, command_name) {
+            if has_permissions_allowing_command(manifest, set, command_name, allow_wildcard) {
               permissions_referencing_command.push(set.identifier.clone());
             }
           }
@@ -385,6 +547,13 @@ impl RuntimeAuthority {
             if permission.commands.allow.contains(&command_name.into()) {
               permissions_referencing_command.push(permission.identifier.clone());
             }
+          }
+          if manifest.commands.iter().any(|c| c == command_name) {
+            permissions_referencing_command
+              .push(format!("allow-{}", command_name.replace('_', "-")));
+          }
+          if allow_wildcard && !manifest.commands.is_empty() {
+            permissions_referencing_command.push("allow-*".to_string());
           }
 
           permissions_referencing_command.sort();
@@ -443,31 +612,52 @@ impl RuntimeAuthority {
     webview: &str,
     origin: &Origin,
   ) -> Option<Vec<ResolvedCommand>> {
-    if self
+    // First command dispatch blocks here if the resolved ACL is still building on the
+    // background thread (see `RuntimeAuthority::new_async`); subsequent calls are cached.
+    let inner = self.inner();
+    // the `allow-*`/`deny-*` wildcard permissions resolve to a single `*` command (per manifest)
+    // instead of one entry per command, so we also look the command up under its wildcard key.
+    let wildcard = wildcard_command(command);
+    if inner
       .denied_commands
       .get(command)
+      .or_else(|| inner.denied_commands.get(&wildcard))
       .map(|resolved| resolved.iter().any(|cmd| origin.matches(&cmd.context)))
       .is_some()
     {
       None
     } else {
-      self.allowed_commands.get(command).and_then(|resolved| {
-        let resolved_cmds = resolved
-          .iter()
-          .filter(|cmd| {
-            origin.matches(&cmd.context)
-              && (cmd.webviews.iter().any(|w| w.matches(webview))
-                || cmd.windows.iter().any(|w| w.matches(window)))
-          })
-          .cloned()
-          .collect::<Vec<_>>();
-        if resolved_cmds.is_empty() {
-          None
-        } else {
-          Some(resolved_cmds)
-        }
-      })
+      let resolved_cmds = inner
+        .allowed_commands
+        .get(command)
+        .into_iter()
+        .chain(inner.allowed_commands.get(&wildcard))
+        .flatten()
+        .filter(|cmd| {
+          origin.matches(&cmd.context)
+            && (cmd.webviews.iter().any(|w| w.matches(webview))
+              || cmd.windows.iter().any(|w| w.matches(window)))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+      if resolved_cmds.is_empty() {
+        None
+      } else {
+        Some(resolved_cmds)
+      }
     }
+  }
+}
+
+/// The wildcard command key that matches every command of the same manifest:
+/// `*` for app commands and `plugin:$name|*` for plugin commands.
+///
+/// Used to resolve the implicit `allow-*`/`deny-*` permissions without expanding them
+/// into one entry per command in the resolved ACL.
+fn wildcard_command(command: &str) -> String {
+  match command.rsplit_once('|') {
+    Some((prefix, _)) => format!("{prefix}|*"),
+    None => "*".to_string(),
   }
 }
 
@@ -518,7 +708,7 @@ impl<T: ScopeObject> CommandScope<T> {
         .runtime_authority
         .lock()
         .unwrap()
-        .scope_manager
+        .scope_manager()
         .get_command_scope_typed::<R, T>(webview.app_handle(), &scope_id)?;
 
       for s in scope.allows() {
@@ -637,7 +827,7 @@ impl<T: ScopeObject> GlobalScope<T> {
       .runtime_authority
       .lock()
       .unwrap()
-      .scope_manager
+      .scope_manager()
       .get_global_scope_typed(webview.app_handle(), plugin)
       .map(Self)
   }
@@ -856,6 +1046,46 @@ mod tests {
         &Origin::Local
       ),
       Some(resolved_cmd)
+    );
+  }
+
+  #[test]
+  fn wildcard_command_allows_any_app_command() {
+    let window = "main";
+    let webview = "main";
+
+    // a single `*` entry stands in for every app command (the `allow-*` permission)
+    let resolved_cmd = vec![ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      ..Default::default()
+    }];
+    let allowed_commands = [("*".to_string(), resolved_cmd.clone())]
+      .into_iter()
+      .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
+
+    // an arbitrary app command (never listed explicitly) is allowed through the wildcard entry
+    assert_eq!(
+      authority.resolve_access("some_command", window, webview, &Origin::Local),
+      Some(resolved_cmd.clone())
+    );
+    assert_eq!(
+      authority.resolve_access("another_command", window, webview, &Origin::Local),
+      Some(resolved_cmd)
+    );
+
+    // plugin commands use a per-plugin wildcard key, so the app wildcard does not allow them
+    assert!(
+      authority
+        .resolve_access("plugin:fs|read", window, webview, &Origin::Local)
+        .is_none()
     );
   }
 
@@ -1107,6 +1337,7 @@ mod tests {
           default_permission: None,
           permissions: Default::default(),
           permission_sets: Default::default(),
+          commands: Default::default(),
           global_scope_schema: None,
         },
       )]
@@ -1192,6 +1423,129 @@ mod tests {
         }
       ),
       "myplugin.my-command-webview-window not allowed on window \"main-*\", webview \"webview-*\", URL: http://localhost:123/\n\nallowed on: [windows: \"main-*\", webviews: \"webview-*\", URL: local], [windows: \"main-*\", webviews: \"webview-*\", URL: http://localhost:8080]\n\nreferenced by: capability: maincap, permission: allow-command || capability: maincap, permission: allow-command"
+    );
+  }
+
+  // ============================================================================
+  // Async (background-built) authority
+  // ============================================================================
+  //
+  // The `runtime_authority!` macro builds the resolved ACL on a background thread via
+  // `new_async`; the first authorization read joins it (see `RuntimeAuthority::inner`). These
+  // tests assert the background-built authority authorizes identically to the eager `new` path.
+
+  /// A resolved ACL with one allowed command (window `main-*`, command scope `1`), one denied
+  /// command (any window), and a command scope. Built fresh on each call so it can be used both
+  /// eagerly and as a `new_async` builder.
+  fn sample_resolved() -> Resolved {
+    use tauri_utils::acl::resolved::{ResolvedScope, ScopeKey};
+
+    let allowed_commands = [(
+      "allowed-command".to_string(),
+      vec![ResolvedCommand {
+        windows: vec![Pattern::new("main-*").unwrap()],
+        scope_id: Some(1 as ScopeKey),
+        ..Default::default()
+      }],
+    )]
+    .into_iter()
+    .collect();
+    let denied_commands = [(
+      "denied-command".to_string(),
+      vec![ResolvedCommand {
+        windows: vec![Pattern::new("*").unwrap()],
+        ..Default::default()
+      }],
+    )]
+    .into_iter()
+    .collect();
+    let command_scope = [(1 as ScopeKey, ResolvedScope::default())]
+      .into_iter()
+      .collect();
+
+    Resolved {
+      allowed_commands,
+      denied_commands,
+      command_scope,
+      ..Default::default()
+    }
+  }
+
+  #[test]
+  fn async_authority_resolves_allowed_command() {
+    // Built off-thread; `resolve_access` must block on the builder, then authorize correctly.
+    let authority = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+
+    assert!(
+      authority
+        .resolve_access("allowed-command", "main-window", "wv", &Origin::Local)
+        .is_some(),
+      "allowed command should resolve through the background-built authority"
+    );
+    assert!(
+      authority
+        .resolve_access("unknown-command", "main-window", "wv", &Origin::Local)
+        .is_none(),
+      "unknown command must not be allowed"
+    );
+  }
+
+  #[test]
+  fn async_authority_denied_takes_precedence() {
+    let authority = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+    assert!(
+      authority
+        .resolve_access("denied-command", "anything", "wv", &Origin::Local)
+        .is_none(),
+      "denied command must be rejected through the background-built authority"
+    );
+  }
+
+  #[test]
+  fn async_and_eager_authority_agree() {
+    let eager = RuntimeAuthority::new(Default::default(), sample_resolved());
+    let lazy = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+
+    for (command, window) in [
+      ("allowed-command", "main-1"),
+      ("allowed-command", "other-1"),
+      ("denied-command", "main-1"),
+      ("unknown-command", "main-1"),
+    ] {
+      assert_eq!(
+        eager.resolve_access(command, window, "wv", &Origin::Local),
+        lazy.resolve_access(command, window, "wv", &Origin::Local),
+        "eager and background-built authority disagree for command={command} window={window}"
+      );
+    }
+  }
+
+  #[test]
+  fn async_authority_scope_manager_materializes() {
+    // `scope_manager()` must also join the background builder and expose the resolved scopes.
+    let authority = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+    assert!(
+      authority.scope_manager().command_scope.contains_key(&1),
+      "scope manager should expose the resolved command scope after materialization"
+    );
+  }
+
+  #[cfg(debug_assertions)]
+  #[test]
+  fn async_authority_resolve_access_message_materializes() {
+    // The debug-only error path reads the raw ACL through the background-built authority; ensure
+    // it materializes and produces a denial message without panicking.
+    let authority = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+    let message = authority.resolve_access_message(
+      super::APP_ACL_KEY,
+      "denied-command",
+      "win",
+      "wv",
+      &Origin::Local,
+    );
+    assert!(
+      message.contains("denied"),
+      "expected a denial message, got: {message}"
     );
   }
 }

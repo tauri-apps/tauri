@@ -76,7 +76,7 @@ jobs:
           - { args: --all-features, key: all }
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: install Rust
         uses: dtolnay/rust-toolchain@master
@@ -95,13 +95,11 @@ jobs:
           key: ${{ matrix.platform.target }}
           save-if: ${{ matrix.features.key == 'all' }}
 
-      - name: install cargo-binstall
-        if: ${{ matrix.platform.cargo == 'cross' }}
-        uses: cargo-bins/cargo-binstall@v1.19.1
-
       - name: install cross
         if: ${{ matrix.platform.cargo == 'cross' }}
-        run: cargo binstall cross@0.2.5 --no-confirm
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross@0.2.5
 
       - name: test tauri-utils
         # Using --lib --bins --tests to skip doc tests

@@ -113,7 +113,7 @@ It is unfair for other contributors and the reviewers to spend much of the time 
 1. Review and test all LLM-generated content before submitting, you're the one responsible for it, not the AI.
 2. Don't use AI to respond to review comments (except for translations).
 
-We will close the Pull Request with a `ai-slop` tag if you failed to do so.
+We will close the Pull Request with an `ai-slop` tag if you fail to follow these rules.
 
 ## Financial Contribution
 

@@ -14,7 +14,24 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
+use crate::error::ErrorExt;
+use anyhow::Context;
+use std::{
+  fmt::Write,
+  io::{Seek, SeekFrom},
+  path::PathBuf,
+};
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
+
+pub use {
+  category::AppCategory,
+  settings::{
+    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
+    DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings, PackageSettings,
+    PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
+  },
+};
 
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
@@ -77,22 +94,6 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
   Ok(())
 }
 
-pub use self::{
-  category::AppCategory,
-  settings::{
-    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, Entitlements, IosSettings, MacOsSettings, PackageSettings, PackageType, PlistKind,
-    Position, RpmSettings, Settings, SettingsBuilder, Size, UpdaterSettings,
-  },
-};
-pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
-
-use std::{
-  fmt::Write,
-  io::{Seek, SeekFrom},
-  path::PathBuf,
-};
-
 /// Generated bundle metadata.
 #[derive(Debug)]
 pub struct Bundle {
@@ -121,11 +122,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
   sign_binaries_if_needed(settings, target_os)?;
 
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|b| b.main())
-    .expect("Main binary missing in settings");
+  let main_binary = settings.main_binary()?;
   let main_binary_path = settings.binary_path(main_binary);
 
   // We make a copy of the unsigned main_binary so that we can restore it after each package_type step.
@@ -135,8 +132,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   //      (re)signing is performed after every `patch_binary()` operation
   //  - signing an already-signed binary can result in multiple signatures, causing verification errors
   // TODO: change this to work on a copy while preserving the main binary unchanged
-  let mut main_binary_copy = tempfile::tempfile()?;
-  let mut main_binary_orignal = std::fs::File::open(&main_binary_path)?;
+  let mut main_binary_copy =
+    tempfile::tempfile().context("failed to create temp file for main binary copy")?;
+  let mut main_binary_orignal = std::fs::File::open(&main_binary_path)
+    .fs_context("can't open main binary", &main_binary_path)?;
   std::io::copy(&mut main_binary_orignal, &mut main_binary_copy)?;
 
   let mut bundles = Vec::<Bundle>::new();

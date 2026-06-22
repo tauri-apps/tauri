@@ -1,0 +1,945 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+#![allow(clippy::arc_with_non_send_sync)]
+#![allow(clippy::too_many_arguments)]
+
+use std::{
+  collections::HashMap,
+  fmt,
+  fs::create_dir_all,
+  path::PathBuf,
+  sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU32, Ordering},
+    mpsc::{self, Receiver, Sender},
+  },
+  time::{Duration, Instant},
+};
+
+use cef::*;
+use raw_window_handle::DisplayHandle;
+use tauri_runtime::{
+  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Result, RunEvent, Runtime,
+  RuntimeHandle, RuntimeInitArgs, UserEvent,
+  dpi::PhysicalPosition,
+  monitor::Monitor,
+  webview::{DetachedWebview, PendingWebview},
+  window::{DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId},
+};
+use tauri_utils::Theme;
+use winit::{
+  application::ApplicationHandler,
+  event::{StartCause, WindowEvent as WinitWindowEvent},
+  event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy as WinitEventLoopProxy},
+  window::WindowId as WinitWindowId,
+};
+
+use crate::{
+  browser_client, ipc, request_handler,
+  webview::{
+    self, AppWebview, CefWebviewDispatcher, Webview, WebviewAtribute, WebviewMessage,
+    create_webview_detached,
+  },
+  window::{AppWindow, CefWindowDispatcher, WindowMessage, create_window_detached},
+};
+
+/// The `cef` crate used by this runtime, re-exported for convenience.
+///
+/// # Stability
+///
+/// The cef crate follows the Chromium Embedded Framework interface and there is
+/// no API stability guarantees. The crate will be updated frequently, usually
+/// in minor releases when a known breaking change is discovered.
+pub use cef;
+
+/// Platform-specific runtime init attributes.
+#[derive(Clone, Debug)]
+pub enum RuntimeInitAttribute {
+  /// Command line arguments passed to CEF.
+  CommandLineArgs { args: Vec<(String, Option<String>)> },
+  /// Deep link schemes.
+  DeepLinkSchemes { schemes: Vec<String> },
+  /// Directory used for CEF disk cache (`Settings::cache_path`).
+  ///
+  /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
+  CachePath { path: PathBuf },
+}
+
+impl tauri_runtime::InitAttribute for RuntimeInitAttribute {
+  fn new(config: &tauri_utils::config::Config) -> Result<Vec<Self>> {
+    let mut attrs = Vec::new();
+    if let Some(plugin_config) = config
+      .plugins
+      .0
+      .get("deep-link")
+      .and_then(|config| config.get("desktop").cloned())
+    {
+      #[derive(serde::Deserialize)]
+      #[serde(untagged)]
+      enum DesktopDeepLinks {
+        One(tauri_utils::config::DeepLinkProtocol),
+        List(Vec<tauri_utils::config::DeepLinkProtocol>),
+      }
+
+      let protocols: DesktopDeepLinks =
+        serde_json::from_value(plugin_config).map_err(tauri_runtime::Error::Json)?;
+      let schemes = match protocols {
+        DesktopDeepLinks::One(protocol) => protocol.schemes,
+        DesktopDeepLinks::List(protocols) => protocols
+          .into_iter()
+          .flat_map(|protocol| protocol.schemes)
+          .collect(),
+      };
+
+      attrs.push(RuntimeInitAttribute::DeepLinkSchemes { schemes });
+    }
+    Ok(attrs)
+  }
+}
+
+#[derive(Debug)]
+pub struct NewWindowOpener {}
+
+#[derive(Clone, Debug)]
+pub struct EventProxy<T: UserEvent> {
+  context: RuntimeContext<T>,
+}
+
+impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
+  fn send_event(&self, event: T) -> Result<()> {
+    self.context.send_message(Message::UserEvent(event))
+  }
+}
+
+#[derive(Clone)]
+pub(crate) struct RuntimeContext<T: UserEvent> {
+  pub(crate) sender: Sender<Message<T>>,
+  pub(crate) proxy: WinitEventLoopProxy,
+  main_thread_id: std::thread::ThreadId,
+  next_window_id: Arc<AtomicU32>,
+  next_webview_id: Arc<AtomicU32>,
+  next_window_event_id: Arc<AtomicU32>,
+  next_webview_event_id: Arc<AtomicU32>,
+  /// Root cache path passed to [`cef::Settings::cache_path`] during
+  /// [`cef::initialize`]. Per-webview `data_directory` profiles must resolve
+  /// under this root for CEF request contexts to be accepted.
+  pub(crate) cache_path: Arc<PathBuf>,
+}
+
+impl<T: UserEvent> fmt::Debug for RuntimeContext<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("RuntimeContext").finish()
+  }
+}
+
+impl<T: UserEvent> RuntimeContext<T> {
+  pub(crate) fn send_message(&self, message: Message<T>) -> Result<()> {
+    self
+      .sender
+      .send(message)
+      .map_err(|_| Error::FailedToSendMessage)?;
+    self.proxy.wake_up();
+    Ok(())
+  }
+
+  pub(crate) fn is_main_thread(&self) -> bool {
+    std::thread::current().id() == self.main_thread_id
+  }
+
+  /// Run `f` on the main (event-loop) thread.
+  ///
+  /// When called from the main thread we execute `f` inline instead of posting
+  /// it to the channel. Tauri implements several blocking getters as
+  /// `run_on_main_thread(|| { .. tx.send(..) }); rx.recv()` (e.g.
+  /// `Window::add_child`). Those run during `setup`, which the runtime drives
+  /// re-entrantly inside the event loop (on `RunEvent::Ready`); posting the
+  /// closure instead of running it inline would deadlock because the loop
+  /// cannot drain the task while the main thread blocks on `rx.recv()`.
+  pub(crate) fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
+    if self.is_main_thread() {
+      f();
+      Ok(())
+    } else {
+      self.send_message(Message::Task(Box::new(f)))
+    }
+  }
+
+  pub(crate) fn next_window_id(&self) -> WindowId {
+    self.next_window_id.fetch_add(1, Ordering::Relaxed).into()
+  }
+
+  pub(crate) fn next_webview_id(&self) -> u32 {
+    self.next_webview_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  pub(crate) fn next_window_event_id(&self) -> u32 {
+    self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  pub(crate) fn next_webview_event_id(&self) -> u32 {
+    self.next_webview_event_id.fetch_add(1, Ordering::Relaxed)
+  }
+}
+
+pub(crate) enum Message<T: UserEvent> {
+  CefWork(Duration),
+  BrowserClosed(WindowId, u32),
+  Opened(Vec<url::Url>),
+  CreateWindow {
+    window_id: WindowId,
+    webview_id: Option<u32>,
+    pending: Box<PendingWindow<T, CefRuntime<T>>>,
+    after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
+  },
+  CreateWebview {
+    window_id: WindowId,
+    webview_id: u32,
+    pending: Box<PendingWebview<T, CefRuntime<T>>>,
+  },
+  Window {
+    window_id: WindowId,
+    message: WindowMessage,
+  },
+  Webview {
+    window_id: WindowId,
+    webview_id: u32,
+    message: WebviewMessage,
+  },
+  Task(Box<dyn FnOnce() + Send>),
+  RequestExit(i32),
+  UserEvent(T),
+}
+
+#[cfg(target_os = "macos")]
+fn is_cef_helper_process() -> bool {
+  const HELPER_SUFFIXES: &[&str] = &[
+    " Helper (GPU)",
+    " Helper (Renderer)",
+    " Helper (Plugin)",
+    " Helper (Alerts)",
+    " Helper",
+  ];
+
+  std::env::current_exe()
+    .ok()
+    .and_then(|path| {
+      path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| HELPER_SUFFIXES.iter().any(|suffix| name.ends_with(suffix)))
+    })
+    .unwrap_or_default()
+}
+
+#[derive(Clone, Copy)]
+enum CefPump {
+  Idle,
+  DueAt(Instant),
+}
+
+pub(crate) struct AppState<T: UserEvent> {
+  pub(crate) windows: HashMap<WindowId, AppWindow>,
+  pub(crate) winid_id_to_window_id_map: HashMap<WinitWindowId, WindowId>,
+  pub(crate) callback: Box<dyn FnMut(RunEvent<T>)>,
+  pub(crate) live_browsers: usize,
+  pub(crate) exiting: bool,
+}
+
+pub(crate) struct WinitCefApp<T: UserEvent> {
+  pub(crate) context: RuntimeContext<T>,
+  receiver: Receiver<Message<T>>,
+  pub(crate) state: AppState<T>,
+  cef_pump: CefPump,
+  pub(crate) scheme_registry: request_handler::SchemeRegistry,
+}
+
+impl<T: UserEvent> WinitCefApp<T> {
+  fn new(
+    context: RuntimeContext<T>,
+    receiver: Receiver<Message<T>>,
+    callback: Box<dyn FnMut(RunEvent<T>)>,
+    scheme_registry: request_handler::SchemeRegistry,
+  ) -> Self {
+    Self {
+      context,
+      receiver,
+      state: AppState {
+        windows: HashMap::new(),
+        winid_id_to_window_id_map: HashMap::new(),
+        callback,
+        live_browsers: 0,
+        exiting: false,
+      },
+      cef_pump: CefPump::Idle,
+      scheme_registry,
+    }
+  }
+
+  fn run_callback(&mut self, event: RunEvent<T>) {
+    (self.state.callback)(event);
+  }
+
+  fn drain_messages(&mut self, event_loop: &dyn ActiveEventLoop) {
+    while let Ok(message) = self.receiver.try_recv() {
+      self.handle_message(event_loop, message);
+    }
+  }
+
+  fn handle_message(&mut self, event_loop: &dyn ActiveEventLoop, message: Message<T>) {
+    match message {
+      Message::CefWork(delay) => self.schedule_cef_work(event_loop, delay),
+      Message::BrowserClosed(window_id, webview_id) => {
+        if let Some(host) = self.state.windows.get_mut(&window_id)
+          && let Some(index) = host
+            .children
+            .iter()
+            .position(|child| child.webview_id == webview_id)
+        {
+          let child = host.children.remove(index);
+          self.remove_scheme_handler_entries(&child);
+        }
+        self.state.live_browsers = self.state.live_browsers.saturating_sub(1);
+        self.exit_if_done(event_loop);
+      }
+      Message::CreateWindow {
+        window_id,
+        webview_id,
+        pending,
+        after_window_creation,
+      } => {
+        self.create_window(
+          event_loop,
+          window_id,
+          webview_id,
+          pending,
+          after_window_creation,
+        );
+      }
+      Message::CreateWebview {
+        window_id,
+        webview_id,
+        pending,
+      } => self.create_webview(window_id, webview_id, *pending),
+      Message::Window { window_id, message } => {
+        self.handle_window_message(event_loop, window_id, message)
+      }
+      Message::Webview {
+        window_id,
+        webview_id,
+        message,
+      } => self.handle_webview_message(window_id, webview_id, message),
+      Message::Task(task) => task(),
+      Message::RequestExit(code) => {
+        let (tx, rx) = mpsc::channel();
+        self.run_callback(RunEvent::ExitRequested {
+          code: Some(code),
+          tx,
+        });
+        if !matches!(rx.try_recv(), Ok(ExitRequestedEventAction::Prevent)) {
+          self.state.exiting = true;
+          self.close_all_browsers();
+          self.exit_if_done(event_loop);
+        }
+      }
+      Message::Opened(urls) => self.run_callback(RunEvent::Opened { urls }),
+      Message::UserEvent(event) => self.run_callback(RunEvent::UserEvent(event)),
+    }
+  }
+
+  /// Removes the webview's `(browser_id, scheme)` entries from the scheme registry.
+  fn remove_scheme_handler_entries(&self, child: &AppWebview) {
+    let mut registry = self.scheme_registry.lock().unwrap();
+    for scheme in child.uri_scheme_protocols.keys() {
+      registry.remove(&(child.browser_id, scheme.clone()));
+    }
+  }
+
+  pub(crate) fn close_window(&mut self, window_id: WindowId, event_loop: &dyn ActiveEventLoop) {
+    let Some(host) = self.state.windows.remove(&window_id) else {
+      return;
+    };
+    self
+      .state
+      .winid_id_to_window_id_map
+      .remove(&host.window.id());
+    // The window is gone from `state.windows`, so the deferred `BrowserClosed`
+    // messages won't find it to remove; do it here while we still hold the children.
+    for child in &host.children {
+      self.remove_scheme_handler_entries(child);
+      child.host.close_browser(1);
+    }
+    self.exit_if_done(event_loop);
+  }
+
+  fn close_all_browsers(&mut self) {
+    for host in self.state.windows.values() {
+      for child in &host.children {
+        self.remove_scheme_handler_entries(child);
+        child.host.close_browser(1);
+      }
+    }
+    self.state.windows.clear();
+    self.state.winid_id_to_window_id_map.clear();
+  }
+
+  fn exit_if_done(&mut self, event_loop: &dyn ActiveEventLoop) {
+    if (self.state.exiting || self.state.windows.is_empty()) && self.state.live_browsers == 0 {
+      event_loop.exit();
+    }
+  }
+
+  fn advance_cef(&mut self) {
+    cef::do_message_loop_work();
+  }
+
+  fn schedule_cef_work(&mut self, event_loop: &dyn ActiveEventLoop, delay: Duration) {
+    let deadline = Instant::now()
+      .checked_add(delay)
+      .unwrap_or_else(|| Instant::now() + Duration::from_secs(60));
+    self.cef_pump = CefPump::DueAt(deadline);
+    event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+  }
+
+  fn advance_cef_if_due(&mut self, event_loop: &dyn ActiveEventLoop) {
+    if let CefPump::DueAt(deadline) = self.cef_pump {
+      if Instant::now() < deadline {
+        event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+        return;
+      }
+
+      self.cef_pump = CefPump::Idle;
+    }
+
+    self.advance_cef();
+  }
+}
+
+impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
+  fn can_create_surfaces(&mut self, _event_loop: &dyn ActiveEventLoop) {}
+
+  fn new_events(&mut self, _event_loop: &dyn ActiveEventLoop, cause: StartCause) {
+    if matches!(cause, StartCause::Init) {
+      self.run_callback(RunEvent::Ready);
+      self.advance_cef();
+    }
+  }
+
+  fn proxy_wake_up(&mut self, event_loop: &dyn ActiveEventLoop) {
+    self.drain_messages(event_loop);
+    self.advance_cef_if_due(event_loop);
+  }
+
+  fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
+    self.advance_cef_if_due(event_loop);
+    self.run_callback(RunEvent::MainEventsCleared);
+  }
+
+  fn window_event(
+    &mut self,
+    event_loop: &dyn ActiveEventLoop,
+    winit_id: WinitWindowId,
+    event: WinitWindowEvent,
+  ) {
+    let Some(window_id) = self.state.winid_id_to_window_id_map.get(&winit_id).copied() else {
+      return;
+    };
+    let Some(host) = self.state.windows.get_mut(&window_id) else {
+      return;
+    };
+
+    match event {
+      WinitWindowEvent::CloseRequested => {
+        let (tx, rx) = mpsc::channel();
+        let label = host.label.clone();
+        self.run_callback(RunEvent::WindowEvent {
+          label,
+          event: WindowEvent::CloseRequested { signal_tx: tx },
+        });
+        if !matches!(rx.try_recv(), Ok(true)) {
+          self.close_window(window_id, event_loop);
+        }
+      }
+      WinitWindowEvent::Destroyed => {
+        let label = host.label.clone();
+        self.close_window(window_id, event_loop);
+        self.run_callback(RunEvent::WindowEvent {
+          label,
+          event: WindowEvent::Destroyed,
+        });
+      }
+      WinitWindowEvent::SurfaceResized(size) => {
+        webview::layout_app_window(host);
+        let label = host.label.clone();
+        self.run_callback(RunEvent::WindowEvent {
+          label,
+          event: WindowEvent::Resized(size),
+        });
+      }
+      WinitWindowEvent::Moved(pos) => {
+        let label = host.label.clone();
+        self.run_callback(RunEvent::WindowEvent {
+          label,
+          event: WindowEvent::Moved(PhysicalPosition::new(pos.x, pos.y)),
+        });
+      }
+      WinitWindowEvent::Focused(focused) => {
+        let label = host.label.clone();
+        self.run_callback(RunEvent::WindowEvent {
+          label,
+          event: WindowEvent::Focused(focused),
+        });
+      }
+      _ => {}
+    }
+  }
+}
+
+wrap_app! {
+  struct TauriCefApp<T: UserEvent> {
+    sender: Sender<Message<T>>,
+    proxy: WinitEventLoopProxy,
+    context_initialized: Arc<AtomicBool>,
+    deep_link_schemes: Vec<String>,
+    command_line_args: Vec<(String, Option<String>)>,
+  }
+
+  impl App {
+    fn render_process_handler(&self) -> Option<RenderProcessHandler> {
+      Some(ipc::TauriRenderProcessHandler::new())
+    }
+
+    fn browser_process_handler(&self) -> Option<BrowserProcessHandler> {
+      Some(browser_client::TauriCefBrowserProcessHandler::new(
+        self.sender.clone(),
+        self.proxy.clone(),
+        self.context_initialized.clone(),
+        self.deep_link_schemes.clone(),
+      ))
+    }
+
+    fn on_before_command_line_processing(
+      &self,
+      _process_type: Option<&CefString>,
+      command_line: Option<&mut CommandLine>,
+    ) {
+      if let Some(command_line) = command_line {
+        for (arg, value) in &self.command_line_args {
+          if let Some(value) = value {
+            command_line.append_switch_with_value(
+              Some(&CefString::from(arg.as_str())),
+              Some(&CefString::from(value.as_str())),
+            );
+          } else if arg.starts_with("-") {
+            command_line.append_switch(Some(&CefString::from(arg.as_str())));
+          } else {
+            command_line.append_argument(Some(&CefString::from(arg.as_str())));
+          }
+        }
+      }
+    }
+  }
+}
+
+pub fn run_cef_helper_process() {
+  let args = cef::args::Args::new();
+
+  #[cfg(all(target_os = "macos", feature = "sandbox"))]
+  let _sandbox = {
+    let mut sandbox = cef::sandbox::Sandbox::new();
+    sandbox.initialize(args.as_main_args());
+    sandbox
+  };
+
+  #[cfg(target_os = "macos")]
+  let _loader = {
+    let loader = cef::library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), true);
+    assert!(loader.load());
+    loader
+  };
+
+  let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+  let mut app = TauriCefHelperApp::new();
+  let _ = cef::execute_process(
+    Some(args.as_main_args()),
+    Some(&mut app),
+    std::ptr::null_mut(),
+  );
+}
+
+wrap_app! {
+  struct TauriCefHelperApp;
+
+  impl App {
+    fn render_process_handler(&self) -> Option<RenderProcessHandler> {
+      Some(ipc::TauriRenderProcessHandler::new())
+    }
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct CefRuntimeHandle<T: UserEvent> {
+  context: RuntimeContext<T>,
+}
+
+impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
+  type Runtime = CefRuntime<T>;
+
+  fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy {
+    EventProxy {
+      context: self.context.clone(),
+    }
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy(
+    &self,
+    _activation_policy: tauri_runtime::ActivationPolicy,
+  ) -> Result<()> {
+    Ok(())
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_dock_visibility(&self, _visible: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn request_exit(&self, code: i32) -> Result<()> {
+    self.context.send_message(Message::RequestExit(code))
+  }
+
+  fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
+    &self,
+    pending: PendingWindow<T, Self::Runtime>,
+    after_window_creation: Option<F>,
+  ) -> Result<DetachedWindow<T, Self::Runtime>> {
+    create_window_detached(&self.context, pending, after_window_creation)
+  }
+
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self::Runtime>,
+  ) -> Result<DetachedWebview<T, Self::Runtime>> {
+    create_webview_detached(&self.context, window_id, pending)
+  }
+
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
+    self.context.run_on_main_thread(f)
+  }
+
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
+    return Err(raw_window_handle::HandleError::Unavailable);
+  }
+
+  fn primary_monitor(&self) -> Option<Monitor> {
+    None
+  }
+
+  fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<Monitor> {
+    None
+  }
+
+  fn available_monitors(&self) -> Vec<Monitor> {
+    Vec::new()
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
+  }
+
+  fn set_theme(&self, _theme: Option<Theme>) {}
+
+  #[cfg(target_os = "macos")]
+  fn show(&self) -> Result<()> {
+    Ok(())
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hide(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_device_event_filter(&self, _filter: DeviceEventFilter) {}
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    cb: F,
+  ) -> Result<()> {
+    cb(Vec::new());
+    Ok(())
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    _uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    cb(Ok(()));
+    Ok(())
+  }
+}
+
+pub struct CefRuntime<T: UserEvent> {
+  event_loop: EventLoop,
+  receiver: Receiver<Message<T>>,
+  context: RuntimeContext<T>,
+  scheme_registry: request_handler::SchemeRegistry,
+}
+
+impl<T: UserEvent> fmt::Debug for CefRuntime<T> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("CefRuntime").finish()
+  }
+}
+
+impl<T: UserEvent> CefRuntime<T> {
+  fn init(runtime_args: RuntimeInitArgs<RuntimeInitAttribute>) -> Result<Self> {
+    let args = cef::args::Args::new();
+
+    #[cfg(target_os = "macos")]
+    let is_helper = is_cef_helper_process();
+
+    #[cfg(target_os = "macos")]
+    let (_sandbox, _loader) = {
+      #[cfg(feature = "sandbox")]
+      let sandbox = if is_helper {
+        let mut sandbox = cef::sandbox::Sandbox::new();
+        sandbox.initialize(args.as_main_args());
+        Some(sandbox)
+      } else {
+        None
+      };
+      #[cfg(not(feature = "sandbox"))]
+      let sandbox = ();
+
+      let loader =
+        cef::library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), is_helper);
+      assert!(loader.load());
+
+      (sandbox, loader)
+    };
+
+    let mut command_line_args = Vec::new();
+    let mut deep_link_schemes = Vec::new();
+    let mut cache_path_override = None::<PathBuf>;
+    for arg in runtime_args.platform_specific_attributes {
+      match arg {
+        RuntimeInitAttribute::CommandLineArgs { args } => command_line_args.extend(args),
+        RuntimeInitAttribute::DeepLinkSchemes { schemes } => deep_link_schemes.extend(schemes),
+        RuntimeInitAttribute::CachePath { path } => cache_path_override = Some(path),
+      }
+    }
+
+    let cache_path = cache_path_override.unwrap_or_else(|| {
+      let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
+      cache_base.join(&runtime_args.identifier).join("cef")
+    });
+    let _ = create_dir_all(&cache_path);
+
+    let mut event_loop_builder = EventLoop::builder();
+
+    #[cfg(windows)]
+    if let Some(hook) = runtime_args.msg_hook {
+      use winit::platform::windows::EventLoopBuilderExtWindows;
+      event_loop_builder.with_msg_hook(hook);
+    }
+
+    let event_loop = event_loop_builder
+      .build()
+      .map_err(|_| Error::CreateWindow)?;
+    let proxy = event_loop.create_proxy();
+    let (sender, receiver) = mpsc::channel();
+    let context_initialized = Arc::new(AtomicBool::new(false));
+    let context = RuntimeContext {
+      sender: sender.clone(),
+      proxy: proxy.clone(),
+      main_thread_id: std::thread::current().id(),
+      next_window_id: Default::default(),
+      next_webview_id: Default::default(),
+      next_window_event_id: Default::default(),
+      next_webview_event_id: Default::default(),
+      cache_path: Arc::new(cache_path.clone()),
+    };
+
+    let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+    command_line_args.push(("--enable-media-stream".to_string(), None));
+    let mut app = TauriCefApp::new(
+      sender,
+      proxy,
+      context_initialized.clone(),
+      deep_link_schemes,
+      command_line_args,
+    );
+    let ret = cef::execute_process(
+      Some(args.as_main_args()),
+      Some(&mut app),
+      std::ptr::null_mut(),
+    );
+    assert_eq!(
+      ret, -1,
+      "CEF subprocess reached browser runtime initialization"
+    );
+
+    let settings = cef::Settings {
+      no_sandbox: !cfg!(feature = "sandbox") as i32,
+      cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
+      external_message_pump: 1,
+      ..Default::default()
+    };
+    if cef::initialize(
+      Some(args.as_main_args()),
+      Some(&settings),
+      Some(&mut app),
+      std::ptr::null_mut(),
+    ) != 1
+    {
+      return Err(Error::WebviewRuntimeNotInstalled);
+    }
+
+    // Wait for the CEF context to initialize before returning, so that the runtime is ready to create browsers.
+    while !context_initialized.load(Ordering::SeqCst) {
+      cef::do_message_loop_work();
+      std::thread::sleep(Duration::from_millis(1));
+    }
+
+    Ok(Self {
+      event_loop,
+      receiver,
+      context,
+      scheme_registry: Default::default(),
+    })
+  }
+}
+
+impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
+  type WindowDispatcher = CefWindowDispatcher<T>;
+  type WebviewDispatcher = CefWebviewDispatcher<T>;
+  type Handle = CefRuntimeHandle<T>;
+  type EventLoopProxy = EventProxy<T>;
+  type PlatformSpecificWebviewAttribute = WebviewAtribute;
+  type Webview = Webview;
+  type PlatformSpecificInitAttribute = RuntimeInitAttribute;
+  type WindowOpener = NewWindowOpener;
+
+  fn new(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
+    Self::init(args)
+  }
+
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
+    Self::init(args)
+  }
+
+  fn create_proxy(&self) -> Self::EventLoopProxy {
+    EventProxy {
+      context: self.context.clone(),
+    }
+  }
+
+  fn handle(&self) -> Self::Handle {
+    CefRuntimeHandle {
+      context: self.context.clone(),
+    }
+  }
+
+  fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
+    &self,
+    pending: PendingWindow<T, Self>,
+    after_window_creation: Option<F>,
+  ) -> Result<DetachedWindow<T, Self>> {
+    create_window_detached(&self.context, pending, after_window_creation)
+  }
+
+  fn create_webview(
+    &self,
+    window_id: WindowId,
+    pending: PendingWebview<T, Self>,
+  ) -> Result<DetachedWebview<T, Self>> {
+    create_webview_detached(&self.context, window_id, pending)
+  }
+
+  fn primary_monitor(&self) -> Option<Monitor> {
+    None
+  }
+
+  fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<Monitor> {
+    None
+  }
+
+  fn available_monitors(&self) -> Vec<Monitor> {
+    Vec::new()
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
+  }
+
+  fn set_theme(&self, _theme: Option<Theme>) {}
+
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy(&mut self, _activation_policy: tauri_runtime::ActivationPolicy) {}
+
+  #[cfg(target_os = "macos")]
+  fn set_dock_visibility(&mut self, _visible: bool) {}
+
+  #[cfg(target_os = "macos")]
+  fn show(&self) {}
+
+  #[cfg(target_os = "macos")]
+  fn hide(&self) {}
+
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+    self.event_loop.listen_device_events(match filter {
+      DeviceEventFilter::Always => winit::event_loop::DeviceEvents::Never,
+      DeviceEventFilter::Unfocused => winit::event_loop::DeviceEvents::WhenFocused,
+      DeviceEventFilter::Never => winit::event_loop::DeviceEvents::Always,
+    });
+  }
+
+  fn custom_scheme_url(scheme: &str, https: bool) -> String {
+    format!(
+      "{}://{scheme}.localhost",
+      if https { "https" } else { "http" }
+    )
+  }
+
+  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
+    while let Ok(message) = self.receiver.try_recv() {
+      if let Message::UserEvent(event) = message {
+        callback(RunEvent::UserEvent(event));
+      }
+    }
+    cef::do_message_loop_work();
+    callback(RunEvent::MainEventsCleared);
+  }
+
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
+    self.run(callback);
+    // TODO
+    0
+  }
+
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
+    let app = WinitCefApp::new(
+      self.context,
+      self.receiver,
+      Box::new(callback),
+      self.scheme_registry,
+    );
+    let _ = self.event_loop.run_app(app);
+    cef::shutdown();
+  }
+}

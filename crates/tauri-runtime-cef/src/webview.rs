@@ -73,6 +73,12 @@ pub fn webview_version() -> tauri_runtime::Result<String> {
   ))
 }
 
+#[inline]
+fn color_to_cef_argb(color: Color) -> u32 {
+  let (r, g, b, a) = color.into();
+  ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
+}
+
 #[derive(Debug, Clone)]
 pub enum DevToolsProtocol {
   Message(Vec<u8>),
@@ -279,7 +285,11 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     let window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
     let settings = cef::BrowserSettings {
-      background_color: 0xffffffff,
+      background_color: pending
+        .webview_attributes
+        .background_color
+        .map(color_to_cef_argb)
+        .unwrap_or(0),
       ..Default::default()
     };
 

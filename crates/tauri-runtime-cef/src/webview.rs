@@ -221,6 +221,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       document_title_changed_handler,
       navigation_handler: pending.navigation_handler.map(Arc::from),
       address_changed_handler,
+      download_handler: pending.download_handler.take(),
     };
 
     let mut client = browser_client::TauriCefBrowserClient::new(

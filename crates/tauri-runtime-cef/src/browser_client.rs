@@ -158,6 +158,115 @@ wrap_display_handler! {
   }
 }
 
+wrap_download_handler! {
+  struct TauriCefDownloadHandler {
+    download_handler: Arc<tauri_runtime::webview::DownloadHandler>,
+  }
+
+  impl DownloadHandler {
+    fn can_download(
+      &self,
+      _browser: Option<&mut Browser>,
+      _url: Option<&CefStringUtf16>,
+      _request_method: Option<&CefStringUtf16>,
+    ) -> ::std::os::raw::c_int {
+      // on_before_download is the one that actually validates the download.
+      // so we return 1 to allow the download here
+      1
+    }
+
+    fn on_before_download(
+      &self,
+      _browser: Option<&mut Browser>,
+      download_item: Option<&mut DownloadItem>,
+      suggested_name: Option<&CefStringUtf16>,
+      callback: Option<&mut BeforeDownloadCallback>,
+    ) -> ::std::os::raw::c_int {
+      let Some(download_item) = download_item else {
+        return 0;
+      };
+      let Some(callback) = callback else {
+        return 0;
+      };
+
+      let url_str = CefString::from(&download_item.url()).to_string();
+      let Ok(url) = url::Url::parse(&url_str) else {
+        return 0;
+      };
+
+      let suggested_path = suggested_name
+        .map(|s| s.to_string())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_default();
+
+      let mut destination = suggested_path.clone();
+
+      // Call handler with Requested event.
+      let should_allow =
+        (self.download_handler)(tauri_runtime::webview::DownloadEvent::Requested {
+          url: url.clone(),
+          destination: &mut destination,
+      });
+
+      if should_allow {
+        // Set the download path.
+        let destination_cef = CefStringUtf16::from(destination.to_string_lossy().as_ref());
+
+        // If the user callback did not modify the destination, show the dialog.
+        let show_dialog = destination == suggested_path;
+        callback.cont(Some(&destination_cef), show_dialog as ::std::os::raw::c_int);
+      }
+
+      1
+    }
+
+    fn on_download_updated(
+      &self,
+      _browser: Option<&mut Browser>,
+      download_item: Option<&mut DownloadItem>,
+      _callback: Option<&mut DownloadItemCallback>,
+    ) {
+      let Some(download_item) = download_item else {
+        return;
+      };
+
+      // Get download URL.
+      let url_str = CefString::from(&download_item.url()).to_string();
+      let Ok(url) = url::Url::parse(&url_str) else {
+        return;
+      };
+
+      // Check download state - CEF returns i32 where 0 is false, non-zero is true.
+      let is_complete = download_item.is_complete() != 0;
+      let is_canceled = download_item.is_canceled() != 0;
+      let success = is_complete && !is_canceled;
+
+      // Get full path if available - full_path() returns CefStringUserfreeUtf16.
+      let full_path = if is_complete || is_canceled {
+        let path_cef = download_item.full_path();
+        let path_str = CefString::from(&path_cef).to_string();
+        if !path_str.is_empty() {
+          Some(std::path::PathBuf::from(path_str))
+        } else {
+          None
+        }
+      } else {
+        None
+      };
+
+      // Only call handler when download is finished (complete or canceled).
+      if is_complete || is_canceled {
+        // Call handler with Finished event.
+        (self.download_handler)(tauri_runtime::webview::DownloadEvent::Finished {
+          url,
+          path: full_path,
+          success,
+        });
+      }
+    }
+  }
+}
+
 wrap_life_span_handler! {
   struct TauriCefChildLifeSpanHandler<T: UserEvent> {
     sender: Sender<Message<T>>,
@@ -195,6 +304,7 @@ pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
     Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
   pub(crate) navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
   pub(crate) address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
+  pub(crate) download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
 }
 
 impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
@@ -205,6 +315,7 @@ impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
       document_title_changed_handler: self.document_title_changed_handler.clone(),
       navigation_handler: self.navigation_handler.clone(),
       address_changed_handler: self.address_changed_handler.clone(),
+      download_handler: self.download_handler.clone(),
     }
   }
 }
@@ -252,6 +363,14 @@ wrap_client! {
         self.handlers.document_title_changed_handler.clone(),
         self.handlers.address_changed_handler.clone(),
       ))
+    }
+
+    fn download_handler(&self) -> Option<DownloadHandler> {
+      self
+        .handlers
+        .download_handler
+        .clone()
+        .map(TauriCefDownloadHandler::new)
     }
 
     fn on_process_message_received(

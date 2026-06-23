@@ -4,7 +4,7 @@
 
 use tauri_runtime::{
   Icon, Result,
-  dpi::{Position, Size},
+  dpi::{LogicalSize as TauriLogicalSize, PhysicalSize, PixelUnit, Position, Size},
   window::{WindowBuilder, WindowBuilderBase, WindowSizeConstraints},
 };
 use tauri_utils::{
@@ -14,9 +14,15 @@ use tauri_utils::{
 use winit::{
   dpi::{LogicalPosition, LogicalSize},
   monitor::Fullscreen,
+  raw_window_handle::RawWindowHandle,
   window::{WindowAttributes, WindowButtons},
 };
 
+#[cfg(target_os = "macos")]
+use std::ptr::NonNull;
+
+#[cfg(windows)]
+use std::num::NonZeroIsize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
@@ -51,16 +57,51 @@ impl WindowBuilder for WindowBuilderWrapper {
       .visible(config.visible)
       .decorations(config.decorations)
       .maximized(config.maximized)
-      .always_on_top(config.always_on_top)
+      .content_protected(config.content_protected)
       .closable(config.closable)
       .maximizable(config.maximizable)
       .minimizable(config.minimizable)
+      .skip_taskbar(config.skip_taskbar)
+      .shadow(config.shadow)
       .theme(config.theme);
+    if config.always_on_bottom {
+      builder = builder.always_on_bottom(true);
+    } else if config.always_on_top {
+      builder = builder.always_on_top(true);
+    }
+    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+    {
+      builder = builder.transparent(config.transparent);
+    }
+    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
+      builder = builder.min_inner_size(min_width, min_height);
+    }
+    if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
+      builder = builder.max_inner_size(max_width, max_height);
+    }
+    if let Some(color) = config.background_color {
+      builder = builder.background_color(color);
+    }
     if let (Some(x), Some(y)) = (config.x, config.y) {
       builder = builder.position(x, y);
     }
+    #[cfg(target_os = "macos")]
+    {
+      builder = builder
+        .hidden_title(config.hidden_title)
+        .title_bar_style(config.title_bar_style);
+      if let Some(identifier) = &config.tabbing_identifier {
+        builder = builder.tabbing_identifier(identifier);
+      }
+      let pl_attrs =
+        platfomr_atts(&mut builder.inner).with_accepts_first_mouse(config.accept_first_mouse);
+      builder.inner = builder.inner.with_platform_attributes(Box::new(pl_attrs));
+    }
     if config.center {
       builder = builder.center();
+    }
+    if let Some(window_classname) = &config.window_classname {
+      builder = builder.window_classname(window_classname);
     }
     builder
   }
@@ -96,8 +137,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn inner_size_constraints(self, _constraints: WindowSizeConstraints) -> Self {
-    // TODO
+  fn inner_size_constraints(mut self, _constraints: WindowSizeConstraints) -> Self {
+    // TODO: individual min/max size constraints are not supported by winit
     self
   }
 
@@ -217,7 +258,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     Ok(self)
   }
 
-  fn skip_taskbar(self, _skip: bool) -> Self {
+  #[allow(unused_mut)]
+  fn skip_taskbar(mut self, _skip: bool) -> Self {
     #[cfg(windows)]
     {
       let pl_attrs = platfomr_atts(&mut self.inner).with_skip_taskbar(_skip);
@@ -250,14 +292,19 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(windows)]
-  fn owner(self, _owner: HWND) -> Self {
-    // TODO
+  fn owner(mut self, owner: HWND) -> Self {
+    let pl_attrs = platfomr_atts(&mut self.inner).with_owner_window(owner.0);
+    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
     self
   }
 
   #[cfg(windows)]
-  fn parent(self, _parent: HWND) -> Self {
-    // TODO
+  fn parent(mut self, parent: HWND) -> Self {
+    if let Some(hwnd) = NonZeroIsize::new(parent.0 as isize) {
+      let handle = RawWindowHandle::Win32(winit::raw_window_handle::Win32WindowHandle::new(hwnd));
+      // SAFETY: Tauri passes a live parent HWND owned by the application.
+      self.inner = unsafe { self.inner.with_parent_window(Some(handle)) };
+    }
     self
   }
 
@@ -269,8 +316,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(target_os = "macos")]
-  fn parent(self, _parent: *mut std::ffi::c_void) -> Self {
-    // TODO
+  fn parent(mut self, parent: *mut std::ffi::c_void) -> Self {
+    if let Some(ns_view) = NonNull::new(parent) {
+      let handle =
+        RawWindowHandle::AppKit(winit::raw_window_handle::AppKitWindowHandle::new(ns_view));
+      // SAFETY: Tauri passes a live parent NSView owned by the application.
+      self.inner = unsafe { self.inner.with_parent_window(Some(handle)) };
+    }
     self
   }
 
@@ -322,7 +374,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn window_classname<S: Into<String>>(self, _window_classname: S) -> Self {
+  #[allow(unused_mut)]
+  fn window_classname<S: Into<String>>(mut self, _window_classname: S) -> Self {
     #[cfg(windows)]
     {
       let pl_attrs = platfomr_atts(&mut self.inner).with_class_name(_window_classname.into());

@@ -303,6 +303,10 @@ pub(crate) enum Message<T: UserEvent> {
     webview_id: u32,
     message: WebviewMessage,
   },
+  NavigateFirstWebview {
+    window_id: WindowId,
+    url: String,
+  },
   DragDropScriptEvent {
     window_id: WindowId,
     webview_id: u32,
@@ -433,6 +437,9 @@ impl<T: UserEvent> WinitCefApp<T> {
         webview_id,
         message,
       } => self.handle_webview_message(window_id, webview_id, message),
+      Message::NavigateFirstWebview { window_id, url } => {
+        self.navigate_first_webview(window_id, &url)
+      }
       Message::DragDropScriptEvent {
         window_id,
         webview_id,
@@ -596,6 +603,20 @@ impl<T: UserEvent> WinitCefApp<T> {
       child.host.close_browser(1);
     }
     self.exit_if_done(event_loop);
+  }
+
+  fn navigate_first_webview(&self, window_id: WindowId, url: &str) {
+    let Some(frame) = self
+      .state
+      .windows
+      .get(&window_id)
+      .and_then(|window| window.children.first())
+      .and_then(|webview| webview.browser.main_frame())
+    else {
+      return;
+    };
+
+    frame.load_url(Some(&CefString::from(url)));
   }
 
   fn close_all_browsers(&mut self) {

@@ -14,12 +14,16 @@ use std::{
 };
 
 use cef::*;
-use tauri_runtime::{UserEvent, window::WindowId};
+use tauri_runtime::{
+  UserEvent,
+  dpi::{LogicalPosition, LogicalSize},
+  window::WindowId,
+};
 use winit::event_loop::EventLoopProxy as WinitEventLoopProxy;
 
 use crate::{
   ipc, request_handler,
-  runtime::{Message, RuntimeContext},
+  runtime::{CefRuntime, Message, NewWindowOpener, RuntimeContext},
   webview::INITIAL_LOAD_URL,
 };
 
@@ -499,6 +503,8 @@ wrap_life_span_handler! {
     proxy: WinitEventLoopProxy,
     window_id: WindowId,
     webview_id: u32,
+    context: RuntimeContext<T>,
+    new_window_handler: Option<Arc<tauri_runtime::webview::NewWindowHandler<T, CefRuntime<T>>>>,
     initial_url: Option<String>,
   }
 
@@ -508,6 +514,60 @@ wrap_life_span_handler! {
         && let Some(initial_url) = &self.initial_url
       {
         check_and_reload_if_blank(browser.clone(), initial_url.clone());
+      }
+    }
+
+    fn on_before_popup(
+      &self,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _popup_id: std::os::raw::c_int,
+      target_url: Option<&CefString>,
+      _target_frame_name: Option<&CefString>,
+      _target_disposition: WindowOpenDisposition,
+      _user_gesture: std::os::raw::c_int,
+      popup_features: Option<&PopupFeatures>,
+      _window_info: Option<&mut WindowInfo>,
+      _client: Option<&mut Option<Client>>,
+      _settings: Option<&mut BrowserSettings>,
+      _extra_info: Option<&mut Option<DictionaryValue>>,
+      _no_javascript_access: Option<&mut i32>,
+    ) -> std::os::raw::c_int {
+      let Some(handler) = &self.new_window_handler else {
+        return 0;
+      };
+
+      let Some(target_url) = target_url else {
+        return 1;
+      };
+
+      let url_str = target_url.to_string();
+      let Ok(url) = url::Url::parse(&url_str) else {
+        return 1;
+      };
+
+      // window.open() features are CSS pixels, which map to Tauri's logical units.
+      let size = popup_features.and_then(|features| {
+        (features.width_set != 0 && features.height_set != 0)
+          .then(|| LogicalSize::new(features.width as f64, features.height as f64))
+      });
+      let position = popup_features.and_then(|features| {
+        (features.x_set != 0 && features.y_set != 0)
+          .then(|| LogicalPosition::new(features.x as f64, features.y as f64))
+      });
+      let features =
+        tauri_runtime::webview::NewWindowFeatures::new(size, position, NewWindowOpener {});
+
+      match handler(url, features) {
+        tauri_runtime::webview::NewWindowResponse::Allow => 0,
+        tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+          let _ = self.context.send_message(Message::NavigateFirstWebview {
+            window_id,
+            url: url_str,
+          });
+          1
+        }
+        tauri_runtime::webview::NewWindowResponse::Deny => 1,
       }
     }
 
@@ -530,6 +590,8 @@ pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
     Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
   pub(crate) navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
   pub(crate) address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
+  pub(crate) new_window_handler:
+    Option<Arc<tauri_runtime::webview::NewWindowHandler<T, CefRuntime<T>>>>,
   pub(crate) download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
 }
 
@@ -541,6 +603,7 @@ impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
       document_title_changed_handler: self.document_title_changed_handler.clone(),
       navigation_handler: self.navigation_handler.clone(),
       address_changed_handler: self.address_changed_handler.clone(),
+      new_window_handler: self.new_window_handler.clone(),
       download_handler: self.download_handler.clone(),
     }
   }
@@ -587,6 +650,8 @@ wrap_client! {
         self.proxy.clone(),
         self.window_id,
         self.webview_id,
+        self.context.clone(),
+        self.handlers.new_window_handler.clone(),
         self.initial_url.clone(),
       ))
     }

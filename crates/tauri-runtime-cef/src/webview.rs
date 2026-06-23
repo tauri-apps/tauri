@@ -243,6 +243,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       document_title_changed_handler,
       navigation_handler: pending.navigation_handler.map(Arc::from),
       address_changed_handler,
+      new_window_handler: pending.new_window_handler.map(Arc::from),
       download_handler: pending.download_handler.take(),
     };
 

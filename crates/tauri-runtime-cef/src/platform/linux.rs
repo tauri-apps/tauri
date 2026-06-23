@@ -11,8 +11,15 @@ pub(crate) fn raw_handle(window: &dyn Window) -> *mut c_void {
   todo!("TODO: implement CEF/winit host handles on Linux")
 }
 
-pub(crate) fn set_child_bounds(handle: *mut c_void, x: i32, y: i32, width: i32, height: i32) {
-  let _ = (handle, x, y, width, height);
+pub(crate) fn set_child_bounds(
+  handle: *mut c_void,
+  scale: f64,
+  x: i32,
+  y: i32,
+  width: i32,
+  height: i32,
+) {
+  let _ = (handle, scale, x, y, width, height);
   todo!("TODO: implement CEF/winit child layout on Linux")
 }
 

@@ -13,7 +13,7 @@ use objc2_app_kit::{
   NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSView, NSWindowButton,
 };
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize};
-use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Position, Rect};
+use tauri_runtime::dpi::{LogicalPosition, LogicalSize, Position, Rect};
 use winit::{
   raw_window_handle::{HasWindowHandle, RawWindowHandle},
   window::Window,
@@ -151,7 +151,7 @@ pub fn apply_traffic_light_position(window: *mut c_void, position: &Position) {
   }
 }
 
-pub fn set_child_bounds(handle: *mut c_void, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
+pub fn set_child_bounds(handle: *mut c_void, scale: f64, x: i32, y: i32, width: i32, height: i32) {
   let view = handle.cast::<NSView>();
   let Some(view) = (unsafe { Retained::<NSView>::retain(view) }) else {
     return;
@@ -159,11 +159,20 @@ pub fn set_child_bounds(handle: *mut c_void, _scale: f64, x: i32, y: i32, width:
   let Some(parent) = (unsafe { view.superview() }) else {
     return;
   };
+
+  // set_child_bounds is physical pixels, but NSView frame is logical pixels
+  let x = x as f64 / scale;
+  let y = y as f64 / scale;
+  let width = width as f64 / scale;
+  let height = height as f64 / scale;
+
   let parent_frame = parent.frame();
-  let frame = NSRect::new(
-    NSPoint::new(x as f64, parent_frame.size.height - (y + height) as f64),
-    NSSize::new(width as f64, height as f64),
-  );
+  let y = if parent.isFlipped() {
+    y
+  } else {
+    parent_frame.size.height - (y + height)
+  };
+  let frame = NSRect::new(NSPoint::new(x, y), NSSize::new(width, height));
   view.setFrame(frame);
 }
 
@@ -174,16 +183,17 @@ pub fn child_bounds(handle: *mut c_void) -> Option<Rect> {
   let parent_frame = parent.frame();
   let frame = view.frame();
 
+  let y = if parent.isFlipped() {
+    frame.origin.y
+  } else {
+    parent_frame.size.height - frame.origin.y - frame.size.height
+  };
+
+  let position = LogicalPosition::new(frame.origin.x, y);
+  let size = LogicalSize::new(frame.size.width, frame.size.height);
+
   Some(Rect {
-    position: PhysicalPosition::new(
-      frame.origin.x as i32,
-      (parent_frame.size.height - frame.origin.y - frame.size.height) as i32,
-    )
-    .into(),
-    size: PhysicalSize::new(
-      frame.size.width.max(0.0) as u32,
-      frame.size.height.max(0.0) as u32,
-    )
-    .into(),
+    position: position.into(),
+    size: size.into(),
   })
 }

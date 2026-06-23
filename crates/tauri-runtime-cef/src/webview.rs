@@ -197,7 +197,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     scale: f64,
     mut pending: PendingWebview<T, CefRuntime<T>>,
   ) -> AppWebview {
-    let (bounds, bounds_rate) = compute_child_bounds(
+    let bounds_rate = compute_child_bounds_rate(
       pending.webview_attributes.bounds.as_ref(),
       pending.webview_attributes.auto_resize,
       host_size,
@@ -228,6 +228,19 @@ impl<T: UserEvent> WinitCefApp<T> {
     let parent = cef::sys::HWND(parent.cast());
     #[cfg(not(windows))]
     let parent = parent as cef::sys::cef_window_handle_t;
+
+    let bounds = pending.webview_attributes.bounds.unwrap_or_default();
+    #[cfg(not(target_os = "macos"))]
+    let bounds = bounds.to_physical::<i32, i32>(scale);
+    #[cfg(target_os = "macos")]
+    let bounds = bounds.to_logical::<i32, i32>(scale);
+    let bounds = cef::Rect {
+      x: bounds.position.x,
+      y: bounds.position.y,
+      width: bounds.size.width as i32,
+      height: bounds.size.height as i32,
+    };
+
     let window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
     let settings = cef::BrowserSettings {
       background_color: 0xffffffff,
@@ -922,40 +935,33 @@ pub(crate) fn layout_app_window(host: &AppWindow) {
 ///
 /// A webview with explicit bounds keeps them, with auto-resize storing a
 /// fractional rate; a webview without bounds fills the host window.
-pub(crate) fn compute_child_bounds(
+pub(crate) fn compute_child_bounds_rate(
   bounds: Option<&Rect>,
   auto_resize: bool,
   host_size: PhysicalSize<u32>,
   scale: f64,
-) -> (cef::Rect, Option<BoundsRate>) {
+) -> Option<BoundsRate> {
   let min_w = host_size.width.max(1) as i32;
   let min_h = host_size.height.max(1) as i32;
-  let mut out_bounds = cef::Rect::default();
-  let mut rate = None;
 
-  if let Some(bounds) = bounds {
-    let pos = bounds.position.to_physical::<i32>(scale);
-    let size = bounds.size.to_physical::<u32>(scale);
+  let Some(bounds) = bounds else {
+    return None;
+  };
 
-    out_bounds.x = pos.x;
-    out_bounds.y = pos.y;
-    out_bounds.width = size.width as i32;
-    out_bounds.height = size.height as i32;
+  let pos = bounds.position.to_physical::<i32>(scale);
+  let size = bounds.size.to_physical::<u32>(scale);
 
-    let x = out_bounds.x;
-    let y = out_bounds.y;
-    let w = out_bounds.width;
-    let h = out_bounds.height;
+  let x = pos.x;
+  let y = pos.y;
+  let w = size.width;
+  let h = size.height;
 
-    rate = auto_resize.then(|| BoundsRate {
-      x: x as f32 / min_w as f32,
-      y: y as f32 / min_h as f32,
-      width: w as f32 / min_w as f32,
-      height: h as f32 / min_h as f32,
-    });
-  }
-
-  (out_bounds, rate)
+  auto_resize.then(|| BoundsRate {
+    x: x as f32 / min_w as f32,
+    y: y as f32 / min_h as f32,
+    width: w as f32 / min_w as f32,
+    height: h as f32 / min_h as f32,
+  })
 }
 
 fn set_browser_bounds(

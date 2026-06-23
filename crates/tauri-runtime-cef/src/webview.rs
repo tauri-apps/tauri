@@ -936,10 +936,10 @@ pub(crate) fn layout_app_window(host: &AppWindow) {
   }
 }
 
-/// Resolve a webview's initial physical bounds relative to the host client area.
+/// Compute the bounds rate of a child webview relative to its host window.
 ///
-/// A webview with explicit bounds keeps them, with auto-resize storing a
-/// fractional rate; a webview without bounds fills the host window.
+/// For webiews filling the window, default rate is used, otherwise the rate is computed from the current bounds and host size
+/// if auto_resize is enabled, otherwise None is returned.
 pub(crate) fn compute_child_bounds_rate(
   bounds: Option<&Rect>,
   auto_resize: bool,
@@ -947,7 +947,7 @@ pub(crate) fn compute_child_bounds_rate(
   scale: f64,
 ) -> Option<BoundsRate> {
   let Some(bounds) = bounds else {
-    return None;
+    return Some(BoundsRate::default());
   };
 
   if !auto_resize {

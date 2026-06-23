@@ -7,6 +7,8 @@
 
 mod browser_client;
 mod ipc;
+#[cfg(target_os = "macos")]
+mod macos_cef_pump;
 mod platform;
 mod request_context;
 mod request_handler;

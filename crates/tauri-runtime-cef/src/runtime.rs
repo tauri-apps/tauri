@@ -40,6 +40,8 @@ use winit::{
 };
 
 #[cfg(target_os = "macos")]
+use crate::macos_cef_pump::MacosCefPump;
+#[cfg(target_os = "macos")]
 use crate::platform;
 use crate::{
   browser_client, ipc, request_handler,
@@ -128,6 +130,8 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
   current_dispatch: Arc<Mutex<Option<MainThreadDispatch<T>>>>,
+  #[cfg(target_os = "macos")]
+  pub(crate) cef_pump: MacosCefPump,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
   /// [`cef::initialize`]. Per-webview `data_directory` profiles must resolve
   /// under this root for CEF request contexts to be accepted.
@@ -265,9 +269,17 @@ impl<T: UserEvent> RuntimeContext<T> {
   pub(crate) fn next_webview_event_id(&self) -> u32 {
     self.next_webview_event_id.fetch_add(1, Ordering::Relaxed)
   }
+
+  pub(crate) fn advance_cef(&self) {
+    #[cfg(target_os = "macos")]
+    self.cef_pump.do_message_loop_work();
+    #[cfg(not(target_os = "macos"))]
+    cef::do_message_loop_work();
+  }
 }
 
 pub(crate) enum Message<T: UserEvent> {
+  #[cfg_attr(target_os = "macos", allow(dead_code))]
   CefWork(Duration),
   BrowserClosed(WindowId, u32),
   Opened(Vec<url::Url>),
@@ -603,10 +615,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
   }
 
-  fn advance_cef(&mut self) {
-    cef::do_message_loop_work();
-  }
-
   fn schedule_cef_work(&mut self, event_loop: &dyn ActiveEventLoop, delay: Duration) {
     let deadline = Instant::now()
       .checked_add(delay)
@@ -625,7 +633,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       self.cef_pump = CefPump::Idle;
     }
 
-    self.advance_cef();
+    self.context.advance_cef();
   }
 }
 
@@ -639,7 +647,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     let _guard = install_current_dispatch(self, event_loop);
     if matches!(cause, StartCause::Init) {
       self.run_callback(RunEvent::Ready);
-      self.advance_cef();
+      self.context.advance_cef();
     }
   }
 
@@ -740,8 +748,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
 
 wrap_app! {
   struct TauriCefApp<T: UserEvent> {
-    sender: Sender<Message<T>>,
-    proxy: WinitEventLoopProxy,
+    context: RuntimeContext<T>,
     context_initialized: Arc<AtomicBool>,
     deep_link_schemes: Vec<String>,
     command_line_args: Vec<(String, Option<String>)>,
@@ -754,8 +761,7 @@ wrap_app! {
 
     fn browser_process_handler(&self) -> Option<BrowserProcessHandler> {
       Some(browser_client::TauriCefBrowserProcessHandler::new(
-        self.sender.clone(),
-        self.proxy.clone(),
+        self.context.clone(),
         self.context_initialized.clone(),
         self.deep_link_schemes.clone(),
       ))
@@ -1007,6 +1013,8 @@ impl<T: UserEvent> CefRuntime<T> {
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
+    #[cfg(target_os = "macos")]
+    let cef_pump = MacosCefPump::new();
     let context = RuntimeContext {
       sender: sender.clone(),
       proxy: proxy.clone(),
@@ -1016,14 +1024,15 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
       current_dispatch: Default::default(),
+      #[cfg(target_os = "macos")]
+      cef_pump,
       cache_path: Arc::new(cache_path.clone()),
     };
 
     let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
     command_line_args.push(("--enable-media-stream".to_string(), None));
     let mut app = TauriCefApp::new(
-      sender,
-      proxy,
+      context.clone(),
       context_initialized.clone(),
       deep_link_schemes,
       command_line_args,
@@ -1056,7 +1065,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     // Wait for the CEF context to initialize before returning, so that the runtime is ready to create browsers.
     while !context_initialized.load(Ordering::SeqCst) {
-      cef::do_message_loop_work();
+      context.advance_cef();
       std::thread::sleep(Duration::from_millis(1));
     }
 
@@ -1182,7 +1191,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
         callback(RunEvent::UserEvent(event));
       }
     }
-    cef::do_message_loop_work();
+    self.context.advance_cef();
     callback(RunEvent::MainEventsCleared);
   }
 

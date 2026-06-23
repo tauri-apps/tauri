@@ -4,11 +4,11 @@
 
 use tauri_runtime::{
   Icon, Result,
-  dpi::Size,
+  dpi::{Position, Size},
   window::{WindowBuilder, WindowBuilderBase, WindowSizeConstraints},
 };
 use tauri_utils::{
-  Theme,
+  Theme, TitleBarStyle,
   config::{Color, WindowConfig},
 };
 use winit::{
@@ -157,7 +157,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn focusable(mut self, focusable: bool) -> Self {
+  fn focusable(self, _focusable: bool) -> Self {
     // TODO
     self
   }
@@ -217,9 +217,14 @@ impl WindowBuilder for WindowBuilderWrapper {
     Ok(self)
   }
 
-  fn skip_taskbar(mut self, skip: bool) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.inner).with_skip_taskbar(skip);
-    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+  fn skip_taskbar(self, _skip: bool) -> Self {
+    #[cfg(windows)]
+    {
+      let pl_attrs = platfomr_atts(&mut self.inner).with_skip_taskbar(_skip);
+      self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+      return self;
+    }
+
     self
   }
 
@@ -229,8 +234,18 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn shadow(mut self, enable: bool) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.inner).with_undecorated_shadow(enable);
-    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    #[cfg(windows)]
+    {
+      let pl_attrs = platfomr_atts(&mut self.inner).with_undecorated_shadow(enable);
+      self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+      let pl_attrs = platfomr_atts(&mut self.inner).with_has_shadow(enable);
+      self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    }
+
     self
   }
 
@@ -253,6 +268,51 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn parent(self, _parent: *mut std::ffi::c_void) -> Self {
+    // TODO
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    let pl_attrs = *platfomr_atts(&mut self.inner);
+    let pl_attrs = match style {
+      TitleBarStyle::Visible => pl_attrs
+        .with_titlebar_transparent(false)
+        .with_fullsize_content_view(true),
+      TitleBarStyle::Transparent => pl_attrs
+        .with_titlebar_transparent(true)
+        .with_fullsize_content_view(false),
+      TitleBarStyle::Overlay => pl_attrs
+        .with_titlebar_transparent(true)
+        .with_fullsize_content_view(true),
+      _ => pl_attrs,
+    };
+    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn traffic_light_position<P: Into<Position>>(self, _position: P) -> Self {
+    // TODO
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hidden_title(mut self, hidden: bool) -> Self {
+    let pl_attrs = platfomr_atts(&mut self.inner).with_title_hidden(hidden);
+    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn tabbing_identifier(mut self, identifier: &str) -> Self {
+    let pl_attrs = platfomr_atts(&mut self.inner).with_tabbing_identifier(identifier);
+    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    self
+  }
+
   fn theme(mut self, theme: Option<Theme>) -> Self {
     self.inner = self.inner.with_theme(theme.map(|theme| match theme {
       Theme::Light => winit::window::Theme::Light,
@@ -262,9 +322,14 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn window_classname<S: Into<String>>(mut self, window_classname: S) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.inner).with_class_name(window_classname.into());
-    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+  fn window_classname<S: Into<String>>(self, _window_classname: S) -> Self {
+    #[cfg(windows)]
+    {
+      let pl_attrs = platfomr_atts(&mut self.inner).with_class_name(_window_classname.into());
+      self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+      return self;
+    }
+
     self
   }
 

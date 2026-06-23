@@ -15,7 +15,7 @@ use winit::{
 
 use std::ffi::c_void;
 
-pub(crate) fn raw_handle(window: &dyn Window) -> *mut c_void {
+pub fn raw_handle(window: &dyn Window) -> *mut c_void {
   let handle = window.window_handle().expect("failed to get window handle");
   match handle.as_raw() {
     RawWindowHandle::Win32(handle) => handle.hwnd.get() as usize as *mut c_void,
@@ -23,7 +23,7 @@ pub(crate) fn raw_handle(window: &dyn Window) -> *mut c_void {
   }
 }
 
-pub(crate) fn set_child_bounds(handle: *mut c_void, x: i32, y: i32, width: i32, height: i32) {
+pub fn set_child_bounds(handle: *mut c_void, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
   unsafe {
     let _ = SetWindowPos(
       HWND(handle),
@@ -37,7 +37,7 @@ pub(crate) fn set_child_bounds(handle: *mut c_void, x: i32, y: i32, width: i32, 
   }
 }
 
-pub(crate) fn child_bounds(handle: *mut c_void) -> Option<Rect> {
+pub fn child_bounds(handle: *mut c_void) -> Option<Rect> {
   let mut rect = RECT::default();
   unsafe {
     let parent = GetParent(HWND(handle)).ok()?;

@@ -9,9 +9,10 @@ use std::{
   collections::HashMap,
   fmt,
   fs::create_dir_all,
+  marker::PhantomData,
   path::PathBuf,
   sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::{self, Receiver, Sender},
   },
@@ -122,10 +123,80 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
+  current_dispatch: Arc<Mutex<Option<MainThreadDispatch<T>>>>,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
   /// [`cef::initialize`]. Per-webview `data_directory` profiles must resolve
   /// under this root for CEF request contexts to be accepted.
   pub(crate) cache_path: Arc<PathBuf>,
+}
+
+/// Scoped access to the current winit callback state.
+///
+/// `ActiveEventLoop` is only borrowed during `ApplicationHandler` callbacks, but
+/// setup-time runtime messages may synchronously need it. While a callback is
+/// active, this slot lets main-thread `send_message` handle work immediately;
+/// other threads still queue and wake the loop. The guard restores the previous
+/// slot so the raw pointers are never treated as valid beyond their callback.
+#[derive(Clone, Copy)]
+struct MainThreadDispatch<T: UserEvent> {
+  app: *mut WinitCefApp<T>,
+  event_loop: *const dyn ActiveEventLoop,
+  _marker: PhantomData<fn() -> T>,
+}
+
+// SAFETY: the dispatch slot is installed only while winit is synchronously
+// invoking this runtime on the main event-loop thread. `send_message` only uses
+// the stored pointers when called from that same thread.
+unsafe impl<T: UserEvent> Send for MainThreadDispatch<T> {}
+
+struct MainThreadDispatchGuard<T: UserEvent> {
+  context: RuntimeContext<T>,
+  previous: Option<MainThreadDispatch<T>>,
+}
+
+impl<T: UserEvent> Drop for MainThreadDispatchGuard<T> {
+  fn drop(&mut self) {
+    *self.context.current_dispatch.lock().unwrap() = self.previous.take();
+  }
+}
+
+fn install_current_dispatch<T: UserEvent>(
+  app: &mut WinitCefApp<T>,
+  event_loop: &dyn ActiveEventLoop,
+) -> MainThreadDispatchGuard<T> {
+  let dispatch = MainThreadDispatch {
+    app: app as *mut _,
+    event_loop: event_loop as *const _,
+    _marker: PhantomData,
+  };
+
+  let mut current_dispatch = app.context.current_dispatch.lock().unwrap();
+  let previous = current_dispatch.replace(dispatch);
+
+  MainThreadDispatchGuard {
+    context: app.context.clone(),
+    previous,
+  }
+}
+
+fn handle_main_thread_message<T: UserEvent>(
+  context: &RuntimeContext<T>,
+  message: Message<T>,
+) -> std::result::Result<(), Message<T>> {
+  let dispatch = context.current_dispatch.lock().unwrap();
+  let Some(dispatch) = dispatch.as_ref() else {
+    return Err(message);
+  };
+
+  // SAFETY: `install_current_dispatch` stores pointers to the currently
+  // executing winit application handler and event-loop callback. This function
+  // is only called on the runtime main thread while that callback is active.
+  let app = unsafe { &mut *dispatch.app };
+  let event_loop = unsafe { &*dispatch.event_loop };
+
+  app.handle_message(event_loop, message);
+
+  Ok(())
 }
 
 impl<T: UserEvent> fmt::Debug for RuntimeContext<T> {
@@ -136,6 +207,15 @@ impl<T: UserEvent> fmt::Debug for RuntimeContext<T> {
 
 impl<T: UserEvent> RuntimeContext<T> {
   pub(crate) fn send_message(&self, message: Message<T>) -> Result<()> {
+    let message = if self.is_main_thread() {
+      match handle_main_thread_message(self, message) {
+        Ok(()) => return Ok(()),
+        Err(message) => message,
+      }
+    } else {
+      message
+    };
+
     self
       .sender
       .send(message)
@@ -154,9 +234,9 @@ impl<T: UserEvent> RuntimeContext<T> {
   /// it to the channel. Tauri implements several blocking getters as
   /// `run_on_main_thread(|| { .. tx.send(..) }); rx.recv()` (e.g.
   /// `Window::add_child`). Those run during `setup`, which the runtime drives
-  /// re-entrantly inside the event loop (on `RunEvent::Ready`); posting the
-  /// closure instead of running it inline would deadlock because the loop
-  /// cannot drain the task while the main thread blocks on `rx.recv()`.
+  /// from winit's `can_create_surfaces`; posting the closure instead of running
+  /// it inline would deadlock because the loop cannot drain the task while the
+  /// main thread blocks on `rx.recv()`.
   pub(crate) fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     if self.is_main_thread() {
       f();
@@ -417,9 +497,13 @@ impl<T: UserEvent> WinitCefApp<T> {
 }
 
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
-  fn can_create_surfaces(&mut self, _event_loop: &dyn ActiveEventLoop) {}
+  fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
+    let _guard = install_current_dispatch(self, event_loop);
+    self.drain_messages(event_loop);
+  }
 
-  fn new_events(&mut self, _event_loop: &dyn ActiveEventLoop, cause: StartCause) {
+  fn new_events(&mut self, event_loop: &dyn ActiveEventLoop, cause: StartCause) {
+    let _guard = install_current_dispatch(self, event_loop);
     if matches!(cause, StartCause::Init) {
       self.run_callback(RunEvent::Ready);
       self.advance_cef();
@@ -427,11 +511,13 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   }
 
   fn proxy_wake_up(&mut self, event_loop: &dyn ActiveEventLoop) {
+    let _guard = install_current_dispatch(self, event_loop);
     self.drain_messages(event_loop);
     self.advance_cef_if_due(event_loop);
   }
 
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
+    let _guard = install_current_dispatch(self, event_loop);
     self.advance_cef_if_due(event_loop);
     self.run_callback(RunEvent::MainEventsCleared);
   }
@@ -442,6 +528,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     winit_id: WinitWindowId,
     event: WinitWindowEvent,
   ) {
+    let _guard = install_current_dispatch(self, event_loop);
     let Some(window_id) = self.state.winid_id_to_window_id_map.get(&winit_id).copied() else {
       return;
     };
@@ -595,13 +682,15 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   #[cfg(target_os = "macos")]
   fn set_activation_policy(
     &self,
-    _activation_policy: tauri_runtime::ActivationPolicy,
+    activation_policy: tauri_runtime::ActivationPolicy,
   ) -> Result<()> {
+    crate::platform::set_activation_policy(activation_policy);
     Ok(())
   }
 
   #[cfg(target_os = "macos")]
-  fn set_dock_visibility(&self, _visible: bool) -> Result<()> {
+  fn set_dock_visibility(&self, visible: bool) -> Result<()> {
+    crate::platform::set_dock_visibility(visible);
     Ok(())
   }
 
@@ -655,11 +744,13 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
 
   #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
+    crate::platform::set_application_visibility(true);
     Ok(())
   }
 
   #[cfg(target_os = "macos")]
   fn hide(&self) -> Result<()> {
+    crate::platform::set_application_visibility(false);
     Ok(())
   }
 
@@ -725,6 +816,11 @@ impl<T: UserEvent> CefRuntime<T> {
       (sandbox, loader)
     };
 
+    #[cfg(target_os = "macos")]
+    if !is_helper {
+      crate::platform::setup_application();
+    }
+
     let mut command_line_args = Vec::new();
     let mut deep_link_schemes = Vec::new();
     let mut cache_path_override = None::<PathBuf>;
@@ -764,6 +860,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
+      current_dispatch: Default::default(),
       cache_path: Arc::new(cache_path.clone()),
     };
 
@@ -890,16 +987,24 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   fn set_theme(&self, _theme: Option<Theme>) {}
 
   #[cfg(target_os = "macos")]
-  fn set_activation_policy(&mut self, _activation_policy: tauri_runtime::ActivationPolicy) {}
+  fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {
+    crate::platform::set_activation_policy(activation_policy);
+  }
 
   #[cfg(target_os = "macos")]
-  fn set_dock_visibility(&mut self, _visible: bool) {}
+  fn set_dock_visibility(&mut self, visible: bool) {
+    crate::platform::set_dock_visibility(visible);
+  }
 
   #[cfg(target_os = "macos")]
-  fn show(&self) {}
+  fn show(&self) {
+    crate::platform::set_application_visibility(true);
+  }
 
   #[cfg(target_os = "macos")]
-  fn hide(&self) {}
+  fn hide(&self) {
+    crate::platform::set_application_visibility(false);
+  }
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
     self.event_loop.listen_device_events(match filter {

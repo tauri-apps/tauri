@@ -4,13 +4,13 @@
 
 use std::{
   collections::HashMap,
-  marker::PhantomData,
   sync::{
     Arc, Mutex,
     mpsc::{self, Receiver, Sender},
   },
 };
 
+use raw_window_handle::HasWindowHandle;
 use tauri_runtime::{
   Error, Icon, ProgressBarState, Result, UserAttentionType, UserEvent, WindowDispatch,
   WindowEventId,
@@ -23,10 +23,14 @@ use tauri_runtime::{
   },
 };
 use tauri_utils::{Theme, config::Color};
-use winit::{
-  event_loop::ActiveEventLoop, monitor::Fullscreen, platform::windows::WindowExtWindows,
-  window::Window as WinitWindow,
-};
+use winit::{event_loop::ActiveEventLoop, monitor::Fullscreen, window::Window as WinitWindow};
+
+#[cfg(windows)]
+use std::marker::PhantomData;
+#[cfg(target_os = "macos")]
+use winit::platform::macos::WindowExtMacOS;
+#[cfg(windows)]
+use winit::platform::windows::WindowExtWindows;
 
 use crate::{
   platform,
@@ -34,6 +38,9 @@ use crate::{
   webview::{self, AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
 };
+
+pub(crate) struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
+unsafe impl Send for SendRawWindowHandle {}
 
 pub(crate) enum WindowMessage {
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
@@ -61,6 +68,7 @@ pub(crate) enum WindowMessage {
   PrimaryMonitor(Sender<Result<Option<Monitor>>>),
   MonitorFromPoint(Sender<Result<Option<Monitor>>>, f64, f64),
   AvailableMonitors(Sender<Result<Vec<Monitor>>>),
+  RawWindowHandle(Sender<Result<SendRawWindowHandle>>),
   Theme(Sender<Result<Theme>>),
   Center,
   RequestUserAttention(Option<UserAttentionType>),
@@ -88,6 +96,8 @@ pub(crate) enum WindowMessage {
   SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
+  #[cfg(target_os = "macos")]
+  SetSimpleFullscreen(bool),
   SetFocus,
   SetFocusable(bool),
   SetIcon(Icon<'static>),
@@ -124,7 +134,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     window_id: WindowId,
     webview_id: Option<u32>,
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
-    after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
+    _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
   ) {
     let attrs = pending.window_builder.inner.clone();
     let window = event_loop
@@ -133,7 +143,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     let native = platform::raw_handle(window.as_ref());
 
     #[cfg(windows)]
-    if let Some(after_window_creation) = after_window_creation {
+    if let Some(after_window_creation) = _after_window_creation {
       after_window_creation(RawWindow {
         hwnd: native as isize,
         _marker: &PhantomData,
@@ -261,6 +271,13 @@ impl<T: UserEvent> WinitCefApp<T> {
           .collect();
         let _ = tx.send(Ok(monitors));
       }
+      WindowMessage::RawWindowHandle(tx) => {
+        let handle = window.window_handle();
+        let send_handle = handle
+          .map(|h| SendRawWindowHandle(h.as_raw()))
+          .map_err(|e| Error::FailedToSendMessage);
+        let _ = tx.send(send_handle);
+      }
       WindowMessage::Theme(tx) => {
         let theme = window.theme();
         let theme = theme.map(|theme| match theme {
@@ -282,7 +299,12 @@ impl<T: UserEvent> WinitCefApp<T> {
           None => None,
         })
       }
-      WindowMessage::SetEnabled(value) => window.set_enable(value),
+      WindowMessage::SetEnabled(_value) => {
+        #[cfg(windows)]
+        window.set_enable(_value);
+
+        // TODO: Implement for other platforms
+      }
       WindowMessage::SetResizable(value) => window.set_resizable(value),
       WindowMessage::SetTitle(title) => window.set_title(&title),
       WindowMessage::Maximize => window.set_maximized(true),
@@ -298,6 +320,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         app_window
           .window
           .set_fullscreen(value.then_some(Fullscreen::Borderless(None)));
+      }
+      #[cfg(target_os = "macos")]
+      WindowMessage::SetSimpleFullscreen(value) => {
+        window.set_simple_fullscreen(value);
       }
       WindowMessage::SetFocus => window.focus_window(),
       WindowMessage::SetMinSize(min_size) => window.set_min_surface_size(min_size),
@@ -318,11 +344,11 @@ impl<T: UserEvent> WinitCefApp<T> {
         window.set_enabled_buttons(buttons);
       }
       WindowMessage::SetAlwaysOnBottom(value) => window.set_window_level(match value {
-        true => winit::window::WindowLevel::AlwaysOnTop,
+        true => winit::window::WindowLevel::AlwaysOnBottom,
         false => winit::window::WindowLevel::Normal,
       }),
       WindowMessage::SetAlwaysOnTop(value) => window.set_window_level(match value {
-        true => winit::window::WindowLevel::AlwaysOnBottom,
+        true => winit::window::WindowLevel::AlwaysOnTop,
         false => winit::window::WindowLevel::Normal,
       }),
       WindowMessage::SetContentProtected(value) => window.set_content_protected(value),
@@ -331,11 +357,18 @@ impl<T: UserEvent> WinitCefApp<T> {
           window.set_window_icon(Some(icon))
         }
       }
-      WindowMessage::SetSkipTaskbar(value) => window.set_skip_taskbar(value),
-      #[cfg(windows)]
-      WindowMessage::SetShadow(value) => window.set_undecorated_shadow(value),
-      #[cfg(target_os = "macos")]
-      WindowMessage::SetShadow(value) => window.set_has_shadows(value),
+      WindowMessage::SetSkipTaskbar(_value) => {
+        #[cfg(windows)]
+        window.set_skip_taskbar(_value);
+
+        // TODO: linux
+      }
+      WindowMessage::SetShadow(value) => {
+        #[cfg(windows)]
+        window.set_undecorated_shadow(value);
+        #[cfg(target_os = "macos")]
+        window.set_has_shadow(value);
+      }
       WindowMessage::SetCursorGrab(value) => {
         let _ = window.set_cursor_grab(match value {
           true => winit::window::CursorGrabMode::Confined,
@@ -514,7 +547,9 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    Err(raw_window_handle::HandleError::Unavailable)
+    let handle: Result<SendRawWindowHandle> = window_getter!(self, RawWindowHandle);
+    let handle = handle.map_err(|_| raw_window_handle::HandleError::Unavailable)?;
+    Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(handle.0) })
   }
 
   fn theme(&self) -> Result<Theme> {
@@ -729,6 +764,14 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     self.context.send_message(Message::Window {
       window_id: self.window_id,
       message: WindowMessage::SetFullscreen(fullscreen),
+    })
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_simple_fullscreen(&self, enable: bool) -> Result<()> {
+    self.context.send_message(Message::Window {
+      window_id: self.window_id,
+      message: WindowMessage::SetSimpleFullscreen(enable),
     })
   }
 

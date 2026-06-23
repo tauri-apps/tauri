@@ -2,21 +2,146 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ffi::c_void;
-use tauri_runtime::dpi::Rect;
-use winit::window::Window;
+use std::{cell::Cell, ffi::c_void};
 
-pub(crate) fn raw_handle(window: &dyn Window) -> *mut c_void {
-  let _ = window;
-  todo!("TODO: implement CEF/winit host handles on macOS")
+use cef::application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol};
+use objc2::{
+  ClassType, DefinedClass, MainThreadMarker, define_class, extern_methods, msg_send, rc::Retained,
+  runtime::Bool,
+};
+use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSView};
+use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize};
+use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
+use winit::{
+  raw_window_handle::{HasWindowHandle, RawWindowHandle},
+  window::Window,
+};
+
+#[derive(Default)]
+struct CefWinitApplicationIvars {
+  handling_send_event: Cell<Bool>,
 }
 
-pub(crate) fn set_child_bounds(handle: *mut c_void, x: i32, y: i32, width: i32, height: i32) {
-  let _ = (handle, x, y, width, height);
-  todo!("TODO: implement CEF/winit child layout on macOS")
+define_class!(
+  #[unsafe(super(NSApplication))]
+  #[ivars = CefWinitApplicationIvars]
+  struct CefWinitApplication;
+
+  impl CefWinitApplication {
+    #[unsafe(method(sendEvent:))]
+    unsafe fn send_event(&self, event: &NSEvent) {
+      let was_handling = self.ivars().handling_send_event.get();
+      self.ivars().handling_send_event.set(Bool::YES);
+      let _: () = unsafe { msg_send![super(self), sendEvent: event] };
+      self.ivars().handling_send_event.set(was_handling);
+    }
+  }
+
+  unsafe impl CrAppControlProtocol for CefWinitApplication {
+    #[unsafe(method(setHandlingSendEvent:))]
+    unsafe fn set_handling_send_event(&self, handling_send_event: Bool) {
+      self.ivars().handling_send_event.set(handling_send_event);
+    }
+  }
+
+  unsafe impl CrAppProtocol for CefWinitApplication {
+    #[unsafe(method(isHandlingSendEvent))]
+    unsafe fn is_handling_send_event(&self) -> Bool {
+      self.ivars().handling_send_event.get()
+    }
+  }
+
+  unsafe impl CefAppProtocol for CefWinitApplication {}
+);
+
+impl CefWinitApplication {
+  extern_methods! {
+    #[unsafe(method(sharedApplication))]
+    fn shared_application() -> Retained<Self>;
+  }
 }
 
-pub(crate) fn child_bounds(handle: *mut c_void) -> Option<Rect> {
-  let _ = handle;
-  todo!("TODO: implement CEF/winit child bounds on macOS")
+pub fn setup_application() {
+  let _ = CefWinitApplication::shared_application();
+  let mtm = MainThreadMarker::new().expect("macOS application must start on the main thread");
+  assert!(NSApp(mtm).isKindOfClass(CefWinitApplication::class()));
+}
+
+pub fn set_activation_policy(policy: tauri_runtime::ActivationPolicy) {
+  let Some(mtm) = MainThreadMarker::new() else {
+    return;
+  };
+  let app = NSApplication::sharedApplication(mtm);
+  let policy = match policy {
+    tauri_runtime::ActivationPolicy::Regular => NSApplicationActivationPolicy::Regular,
+    tauri_runtime::ActivationPolicy::Accessory => NSApplicationActivationPolicy::Accessory,
+    tauri_runtime::ActivationPolicy::Prohibited => NSApplicationActivationPolicy::Prohibited,
+    _ => NSApplicationActivationPolicy::Regular,
+  };
+  app.setActivationPolicy(policy);
+}
+
+pub fn set_dock_visibility(visible: bool) {
+  set_activation_policy(if visible {
+    tauri_runtime::ActivationPolicy::Regular
+  } else {
+    tauri_runtime::ActivationPolicy::Accessory
+  });
+}
+
+pub fn set_application_visibility(visible: bool) {
+  let Some(mtm) = MainThreadMarker::new() else {
+    return;
+  };
+  let app = NSApp(mtm);
+  if visible {
+    app.unhide(None);
+  } else {
+    app.hide(None);
+  }
+}
+
+pub fn raw_handle(window: &dyn Window) -> *mut c_void {
+  let handle = window.window_handle().expect("failed to get window handle");
+  match handle.as_raw() {
+    RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr().cast(),
+    other => panic!("expected AppKit window handle, got {other:?}"),
+  }
+}
+
+pub fn set_child_bounds(handle: *mut c_void, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
+  let view = handle.cast::<NSView>();
+  let Some(view) = (unsafe { Retained::<NSView>::retain(view) }) else {
+    return;
+  };
+  let Some(parent) = (unsafe { view.superview() }) else {
+    return;
+  };
+  let parent_frame = parent.frame();
+  let frame = NSRect::new(
+    NSPoint::new(x as f64, parent_frame.size.height - (y + height) as f64),
+    NSSize::new(width as f64, height as f64),
+  );
+  view.setFrame(frame);
+}
+
+pub fn child_bounds(handle: *mut c_void) -> Option<Rect> {
+  let view = handle.cast::<NSView>();
+  let view = unsafe { Retained::<NSView>::retain(view) }?;
+  let parent = unsafe { view.superview()? };
+  let parent_frame = parent.frame();
+  let frame = view.frame();
+
+  Some(Rect {
+    position: PhysicalPosition::new(
+      frame.origin.x as i32,
+      (parent_frame.size.height - frame.origin.y - frame.size.height) as i32,
+    )
+    .into(),
+    size: PhysicalSize::new(
+      frame.size.width.max(0.0) as u32,
+      frame.size.height.max(0.0) as u32,
+    )
+    .into(),
+  })
 }

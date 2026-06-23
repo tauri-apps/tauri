@@ -485,9 +485,17 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::AddEventListener(event_id, handler) => {
         child.listeners.lock().unwrap().insert(event_id, handler);
       }
-      WebviewMessage::Show
-      | WebviewMessage::Hide
-      | WebviewMessage::SetAutoResize(_)
+      WebviewMessage::Show => {
+        child.host.was_hidden(0);
+        let handle = browser_raw_handle(&child.host);
+        platform::set_child_visible(handle, true);
+      }
+      WebviewMessage::Hide => {
+        child.host.was_hidden(1);
+        let handle = browser_raw_handle(&child.host);
+        platform::set_child_visible(handle, false);
+      }
+      WebviewMessage::SetAutoResize(_)
       | WebviewMessage::SetZoom(_)
       | WebviewMessage::SetBackgroundColor(_)
       | WebviewMessage::ClearAllBrowsingData => {

@@ -6,7 +6,10 @@ use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
 use windows::Win32::{
   Foundation::{HWND, POINT, RECT},
   Graphics::Gdi::MapWindowPoints,
-  UI::WindowsAndMessaging::{GetParent, GetWindowRect, SWP_NOACTIVATE, SWP_NOZORDER, SetWindowPos},
+  UI::WindowsAndMessaging::{
+    GetParent, GetWindowRect, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER, SetWindowPos,
+    ShowWindow,
+  },
 };
 use winit::{
   raw_window_handle::{HasWindowHandle, RawWindowHandle},
@@ -34,6 +37,12 @@ pub fn set_child_bounds(handle: *mut c_void, _scale: f64, x: i32, y: i32, width:
       height,
       SWP_NOZORDER | SWP_NOACTIVATE,
     );
+  }
+}
+
+pub fn set_child_visible(handle: *mut c_void, visible: bool) {
+  unsafe {
+    let _ = ShowWindow(HWND(handle), if visible { SW_SHOW } else { SW_HIDE });
   }
 }
 

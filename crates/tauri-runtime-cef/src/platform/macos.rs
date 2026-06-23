@@ -176,6 +176,15 @@ pub fn set_child_bounds(handle: *mut c_void, scale: f64, x: i32, y: i32, width: 
   view.setFrame(frame);
 }
 
+pub fn set_child_visible(handle: *mut c_void, visible: bool) {
+  let view = handle.cast::<NSView>();
+  let Some(view) = (unsafe { Retained::<NSView>::retain(view) }) else {
+    return;
+  };
+
+  view.setHidden(!visible);
+}
+
 pub fn child_bounds(handle: *mut c_void) -> Option<Rect> {
   let view = handle.cast::<NSView>();
   let view = unsafe { Retained::<NSView>::retain(view) }?;

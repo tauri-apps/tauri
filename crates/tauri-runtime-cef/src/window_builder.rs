@@ -4,7 +4,7 @@
 
 use tauri_runtime::{
   Icon, Result,
-  dpi::{LogicalSize as TauriLogicalSize, PhysicalSize, PixelUnit, Position, Size},
+  dpi::{Position, Size},
   window::{WindowBuilder, WindowBuilderBase, WindowSizeConstraints},
 };
 use tauri_utils::{
@@ -30,6 +30,8 @@ use windows::Win32::Foundation::HWND;
 pub struct WindowBuilderWrapper {
   pub(crate) inner: WindowAttributes,
   pub(crate) center: bool,
+  #[cfg(target_os = "macos")]
+  pub(crate) traffic_light_position: Option<Position>,
 }
 
 unsafe impl Send for WindowBuilderWrapper {}
@@ -43,6 +45,8 @@ impl WindowBuilder for WindowBuilderWrapper {
         .with_title("Tauri App")
         .with_visible(true),
       center: false,
+      #[cfg(target_os = "macos")]
+      traffic_light_position: None,
     }
   }
 
@@ -90,6 +94,9 @@ impl WindowBuilder for WindowBuilderWrapper {
       builder = builder
         .hidden_title(config.hidden_title)
         .title_bar_style(config.title_bar_style);
+      if let Some(position) = &config.traffic_light_position {
+        builder = builder.traffic_light_position(LogicalPosition::new(position.x, position.y));
+      }
       if let Some(identifier) = &config.tabbing_identifier {
         builder = builder.tabbing_identifier(identifier);
       }
@@ -137,7 +144,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn inner_size_constraints(mut self, _constraints: WindowSizeConstraints) -> Self {
+  fn inner_size_constraints(self, _constraints: WindowSizeConstraints) -> Self {
     // TODO: individual min/max size constraints are not supported by winit
     self
   }
@@ -346,8 +353,8 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(target_os = "macos")]
-  fn traffic_light_position<P: Into<Position>>(self, _position: P) -> Self {
-    // TODO
+  fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.traffic_light_position = Some(position.into());
     self
   }
 

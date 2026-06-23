@@ -9,9 +9,11 @@ use objc2::{
   ClassType, DefinedClass, MainThreadMarker, define_class, extern_methods, msg_send, rc::Retained,
   runtime::Bool,
 };
-use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSView};
+use objc2_app_kit::{
+  NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSView, NSWindowButton,
+};
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize};
-use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
+use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Position, Rect};
 use winit::{
   raw_window_handle::{HasWindowHandle, RawWindowHandle},
   window::Window,
@@ -106,6 +108,46 @@ pub fn raw_handle(window: &dyn Window) -> *mut c_void {
   match handle.as_raw() {
     RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr().cast(),
     other => panic!("expected AppKit window handle, got {other:?}"),
+  }
+}
+
+pub fn apply_traffic_light_position(window: *mut c_void, position: &Position) {
+  let nsview = unsafe { Retained::<NSView>::retain(window.cast()) };
+  let Some(nsview) = nsview else {
+    return;
+  };
+  let Some(nswindow) = nsview.window() else {
+    return;
+  };
+
+  let Some(close) = nswindow.standardWindowButton(NSWindowButton::CloseButton) else {
+    return;
+  };
+  let Some(miniaturize) = nswindow.standardWindowButton(NSWindowButton::MiniaturizeButton) else {
+    return;
+  };
+  let Some(zoom) = nswindow.standardWindowButton(NSWindowButton::ZoomButton) else {
+    return;
+  };
+
+  let pos = position.to_logical::<f64>(nswindow.backingScaleFactor());
+  let title_bar_container_view = unsafe { close.superview().and_then(|view| view.superview()) };
+  let Some(title_bar_container_view) = title_bar_container_view else {
+    return;
+  };
+
+  let close_rect = close.frame();
+  let title_bar_frame_height = close_rect.size.height + pos.y;
+  let mut title_bar_rect = title_bar_container_view.frame();
+  title_bar_rect.size.height = title_bar_frame_height;
+  title_bar_rect.origin.y = nswindow.frame().size.height - title_bar_frame_height;
+  title_bar_container_view.setFrame(title_bar_rect);
+
+  let space_between = miniaturize.frame().origin.x - close_rect.origin.x;
+  for (index, button) in [close, miniaturize, zoom].into_iter().enumerate() {
+    let mut origin = button.frame().origin;
+    origin.x = pos.x + (index as f64 * space_between);
+    button.setFrameOrigin(origin);
   }
 }
 

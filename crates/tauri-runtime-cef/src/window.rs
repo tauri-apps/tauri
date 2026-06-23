@@ -136,11 +136,17 @@ impl<T: UserEvent> WinitCefApp<T> {
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
     _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
   ) {
+    #[cfg(target_os = "macos")]
+    let traffic_light_position = pending.window_builder.traffic_light_position;
     let attrs = pending.window_builder.inner.clone();
     let window = event_loop
       .create_window(attrs)
       .expect("failed to create winit window");
     let native = platform::raw_handle(window.as_ref());
+    #[cfg(target_os = "macos")]
+    if let Some(position) = traffic_light_position {
+      platform::apply_traffic_light_position(native, &position);
+    }
 
     #[cfg(windows)]
     if let Some(after_window_creation) = _after_window_creation {
@@ -383,6 +389,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetCursorPosition(value) => _ = window.set_cursor_position(value),
       WindowMessage::SetIgnoreCursorEvents(value) => _ = window.set_cursor_hittest(value),
 
+      WindowMessage::SetTrafficLightPosition(_position) => {
+        #[cfg(target_os = "macos")]
+        platform::apply_traffic_light_position(platform::raw_handle(window.as_ref()), &_position);
+      }
+
       WindowMessage::SetFocusable(_)
       | WindowMessage::SetSizeConstraints(_)
       | WindowMessage::SetVisibleOnAllWorkspaces(_)
@@ -391,7 +402,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       | WindowMessage::SetBadgeLabel(_)
       | WindowMessage::SetOverlayIcon(_)
       | WindowMessage::SetTitleBarStyle(_)
-      | WindowMessage::SetTrafficLightPosition(_)
       | WindowMessage::SetTheme(_)
       | WindowMessage::SetBackgroundColor(_)
       | WindowMessage::StartDragging

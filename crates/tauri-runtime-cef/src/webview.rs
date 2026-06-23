@@ -215,6 +215,8 @@ impl<T: UserEvent> WinitCefApp<T> {
     let document_title_changed_handler =
       pending.document_title_changed_handler.take().map(Arc::from);
     let address_changed_handler = pending.address_changed_handler.take().map(Arc::from);
+    let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
+      && pending.webview_attributes.devtools.unwrap_or(true);
     let handlers = browser_client::TauriCefBrowserClientHandlers {
       ipc_handler: pending.ipc_handler.map(Arc::from),
       on_page_load_handler,
@@ -230,6 +232,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       webview_id,
       pending.label.clone(),
       Some(pending.url.as_str().to_string()),
+      devtools_enabled,
       handlers,
       self.context.proxy.clone(),
       self.context.sender.clone(),

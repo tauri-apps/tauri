@@ -267,6 +267,28 @@ wrap_download_handler! {
   }
 }
 
+wrap_context_menu_handler! {
+  struct TauriCefContextMenuHandler {
+    devtools_enabled: bool,
+  }
+
+  impl ContextMenuHandler {
+    fn on_before_context_menu(
+      &self,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _params: Option<&mut ContextMenuParams>,
+      model: Option<&mut MenuModel>,
+    ) {
+      if !self.devtools_enabled
+        && let Some(model) = model
+      {
+        model.remove_at(model.count() - 1);
+      }
+    }
+  }
+}
+
 wrap_life_span_handler! {
   struct TauriCefChildLifeSpanHandler<T: UserEvent> {
     sender: Sender<Message<T>>,
@@ -327,6 +349,7 @@ wrap_client! {
     pub(crate) webview_id: u32,
     pub(crate) label: String,
     initial_url: Option<String>,
+    devtools_enabled: bool,
     pub(crate) handlers: TauriCefBrowserClientHandlers<T>,
     proxy: WinitEventLoopProxy,
     sender: Sender<Message<T>>,
@@ -371,6 +394,10 @@ wrap_client! {
         .download_handler
         .clone()
         .map(TauriCefDownloadHandler::new)
+    }
+
+    fn context_menu_handler(&self) -> Option<ContextMenuHandler> {
+      Some(TauriCefContextMenuHandler::new(self.devtools_enabled))
     }
 
     fn on_process_message_received(

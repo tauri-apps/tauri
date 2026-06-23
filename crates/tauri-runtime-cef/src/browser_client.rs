@@ -16,6 +16,7 @@ use winit::event_loop::EventLoopProxy as WinitEventLoopProxy;
 use crate::{
   ipc, request_handler,
   runtime::{Message, RuntimeContext},
+  webview::INITIAL_LOAD_URL,
 };
 
 // There is some race condition on CEF that causes the app loading to fail
@@ -104,6 +105,59 @@ wrap_load_handler! {
   }
 }
 
+wrap_display_handler! {
+  struct TauriCefDisplayHandler {
+    document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
+    address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
+  }
+
+  impl DisplayHandler {
+    fn on_title_change(
+      &self,
+      _browser: Option<&mut Browser>,
+      title: Option<&CefString>,
+    ) {
+      let Some(handler) = &self.document_title_changed_handler else {
+        return;
+      };
+      let Some(title) = title else {
+        return;
+      };
+
+      handler(title.to_string());
+    }
+
+    fn on_address_change(
+      &self,
+      _browser: Option<&mut Browser>,
+      frame: Option<&mut Frame>,
+      url: Option<&CefString>,
+    ) {
+      // Only fire for main frame URL changes (matches on_before_browse behavior).
+      if let Some(frame) = frame
+        && frame.is_main() == 0
+      {
+        return;
+      }
+      let Some(handler) = &self.address_changed_handler else {
+        return;
+      };
+      let Some(url) = url else {
+        return;
+      };
+      let url = url.to_string();
+
+      if url == INITIAL_LOAD_URL {
+        return;
+      }
+
+      if let Ok(url) = url::Url::parse(&url) {
+        handler(&url);
+      }
+    }
+  }
+}
+
 wrap_life_span_handler! {
   struct TauriCefChildLifeSpanHandler<T: UserEvent> {
     sender: Sender<Message<T>>,
@@ -143,7 +197,9 @@ wrap_client! {
     initial_url: Option<String>,
     pub(crate) ipc_handler: Option<Arc<ipc::IpcHandler<T>>>,
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
+    document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
+    address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
     proxy: WinitEventLoopProxy,
     sender: Sender<Message<T>>,
   }
@@ -170,6 +226,13 @@ wrap_client! {
 
     fn load_handler(&self) -> Option<LoadHandler> {
       Some(TauriCefLoadHandler::new(self.on_page_load_handler.clone()))
+    }
+
+    fn display_handler(&self) -> Option<DisplayHandler> {
+      Some(TauriCefDisplayHandler::new(
+        self.document_title_changed_handler.clone(),
+        self.address_changed_handler.clone(),
+      ))
     }
 
     fn on_process_message_received(

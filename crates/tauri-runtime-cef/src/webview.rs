@@ -229,7 +229,12 @@ impl<T: UserEvent> WinitCefApp<T> {
     #[cfg(not(windows))]
     let parent = parent as cef::sys::cef_window_handle_t;
 
-    let bounds = pending.webview_attributes.bounds.unwrap_or_default();
+    // If the bounds are not specified, default to the parent window's size and position.
+    // aka full-window webview.
+    let bounds = pending.webview_attributes.bounds.unwrap_or_else(|| Rect {
+      position: PhysicalPosition::new(0, 0).into(),
+      size: host_size.into(),
+    });
     #[cfg(not(target_os = "macos"))]
     let bounds = bounds.to_physical::<i32, i32>(scale);
     #[cfg(target_os = "macos")]
@@ -941,12 +946,16 @@ pub(crate) fn compute_child_bounds_rate(
   host_size: PhysicalSize<u32>,
   scale: f64,
 ) -> Option<BoundsRate> {
-  let min_w = host_size.width.max(1) as i32;
-  let min_h = host_size.height.max(1) as i32;
-
   let Some(bounds) = bounds else {
     return None;
   };
+
+  if !auto_resize {
+    return None;
+  }
+
+  let min_w = host_size.width.max(1) as i32;
+  let min_h = host_size.height.max(1) as i32;
 
   let pos = bounds.position.to_physical::<i32>(scale);
   let size = bounds.size.to_physical::<u32>(scale);
@@ -956,7 +965,7 @@ pub(crate) fn compute_child_bounds_rate(
   let w = size.width;
   let h = size.height;
 
-  auto_resize.then(|| BoundsRate {
+  Some(BoundsRate {
     x: x as f32 / min_w as f32,
     y: y as f32 / min_h as f32,
     width: w as f32 / min_w as f32,

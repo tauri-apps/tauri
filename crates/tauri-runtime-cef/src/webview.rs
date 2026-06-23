@@ -495,8 +495,19 @@ impl<T: UserEvent> WinitCefApp<T> {
         let handle = browser_raw_handle(&child.host);
         platform::set_child_visible(handle, false);
       }
+      WebviewMessage::SetZoom(scale_factor) => {
+        // CEF uses a logarithmic zoom level where percentage = 1.2^level
+        // (Chromium's kTextSizeMultiplierRatio). Convert from Tauri linear
+        // scale factor (1.0 = 100%) to CEF's level (0.0 = 100%)
+        const CEF_ZOOM_BASE: f64 = 1.2;
+        let zoom_level = if scale_factor > 0.0 {
+          scale_factor.ln() / CEF_ZOOM_BASE.ln()
+        } else {
+          0.0
+        };
+        child.host.set_zoom_level(zoom_level);
+      }
       WebviewMessage::SetAutoResize(_)
-      | WebviewMessage::SetZoom(_)
       | WebviewMessage::SetBackgroundColor(_)
       | WebviewMessage::ClearAllBrowsingData => {
         // TODO

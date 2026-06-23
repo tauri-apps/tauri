@@ -188,6 +188,27 @@ wrap_life_span_handler! {
   }
 }
 
+pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
+  pub(crate) ipc_handler: Option<Arc<ipc::IpcHandler<T>>>,
+  pub(crate) on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
+  pub(crate) document_title_changed_handler:
+    Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
+  pub(crate) navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
+  pub(crate) address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
+}
+
+impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
+  fn clone(&self) -> Self {
+    Self {
+      ipc_handler: self.ipc_handler.clone(),
+      on_page_load_handler: self.on_page_load_handler.clone(),
+      document_title_changed_handler: self.document_title_changed_handler.clone(),
+      navigation_handler: self.navigation_handler.clone(),
+      address_changed_handler: self.address_changed_handler.clone(),
+    }
+  }
+}
+
 wrap_client! {
   pub(crate) struct TauriCefBrowserClient<T: UserEvent> {
     pub(crate) context: RuntimeContext<T>,
@@ -195,11 +216,7 @@ wrap_client! {
     pub(crate) webview_id: u32,
     pub(crate) label: String,
     initial_url: Option<String>,
-    pub(crate) ipc_handler: Option<Arc<ipc::IpcHandler<T>>>,
-    on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
-    document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
-    navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
-    address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
+    pub(crate) handlers: TauriCefBrowserClientHandlers<T>,
     proxy: WinitEventLoopProxy,
     sender: Sender<Message<T>>,
   }
@@ -207,7 +224,7 @@ wrap_client! {
   impl Client {
     fn request_handler(&self) -> Option<RequestHandler> {
       Some(request_handler::WebRequestHandler::new(
-        self.navigation_handler.clone(),
+        self.handlers.navigation_handler.clone(),
         self.context.clone(),
         self.window_id,
         self.webview_id,
@@ -225,13 +242,15 @@ wrap_client! {
     }
 
     fn load_handler(&self) -> Option<LoadHandler> {
-      Some(TauriCefLoadHandler::new(self.on_page_load_handler.clone()))
+      Some(TauriCefLoadHandler::new(
+        self.handlers.on_page_load_handler.clone(),
+      ))
     }
 
     fn display_handler(&self) -> Option<DisplayHandler> {
       Some(TauriCefDisplayHandler::new(
-        self.document_title_changed_handler.clone(),
-        self.address_changed_handler.clone(),
+        self.handlers.document_title_changed_handler.clone(),
+        self.handlers.address_changed_handler.clone(),
       ))
     }
 

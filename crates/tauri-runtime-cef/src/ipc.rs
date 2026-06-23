@@ -136,7 +136,7 @@ pub(crate) fn on_process_message_received<T: UserEvent>(
   if CefString::from(&message.name()).to_string() != IPC_MESSAGE_NAME {
     return 0;
   }
-  let Some(handler) = client.ipc_handler.as_ref() else {
+  let Some(handler) = client.handlers.ipc_handler.as_ref() else {
     return 1;
   };
   let Some(args) = message.argument_list() else {

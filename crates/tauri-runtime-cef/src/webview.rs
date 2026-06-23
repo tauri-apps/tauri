@@ -215,6 +215,13 @@ impl<T: UserEvent> WinitCefApp<T> {
     let document_title_changed_handler =
       pending.document_title_changed_handler.take().map(Arc::from);
     let address_changed_handler = pending.address_changed_handler.take().map(Arc::from);
+    let handlers = browser_client::TauriCefBrowserClientHandlers {
+      ipc_handler: pending.ipc_handler.map(Arc::from),
+      on_page_load_handler,
+      document_title_changed_handler,
+      navigation_handler: pending.navigation_handler.map(Arc::from),
+      address_changed_handler,
+    };
 
     let mut client = browser_client::TauriCefBrowserClient::new(
       self.context.clone(),
@@ -222,11 +229,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       webview_id,
       pending.label.clone(),
       Some(pending.url.as_str().to_string()),
-      pending.ipc_handler.map(Arc::from),
-      on_page_load_handler,
-      document_title_changed_handler,
-      pending.navigation_handler.map(Arc::from),
-      address_changed_handler,
+      handlers,
       self.context.proxy.clone(),
       self.context.sender.clone(),
     );

@@ -50,6 +50,60 @@ fn check_and_reload_if_blank(browser: cef::Browser, initial_url: String) {
   });
 }
 
+wrap_load_handler! {
+  struct TauriCefLoadHandler {
+    on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
+  }
+
+  impl LoadHandler {
+    fn on_load_start(
+      &self,
+      _browser: Option<&mut Browser>,
+      frame: Option<&mut Frame>,
+      _transition_type: TransitionType,
+    ) {
+      let Some(handler) = &self.on_page_load_handler else {
+        return;
+      };
+      let Some(frame) = frame else {
+        return;
+      };
+
+      if frame.is_main() == 0 {
+        return;
+      }
+
+      let url = cef::CefString::from(&frame.url()).to_string();
+      if let Ok(url) = url::Url::parse(&url) {
+        handler(url, tauri_runtime::webview::PageLoadEvent::Started);
+      }
+    }
+
+    fn on_load_end(
+      &self,
+      _browser: Option<&mut Browser>,
+      frame: Option<&mut Frame>,
+      _http_status_code: ::std::os::raw::c_int,
+    ) {
+      let Some(handler) = &self.on_page_load_handler else {
+        return;
+      };
+      let Some(frame) = frame else {
+        return;
+      };
+
+      if frame.is_main() == 0 {
+        return;
+      }
+
+      let url = cef::CefString::from(&frame.url()).to_string();
+      if let Ok(url) = url::Url::parse(&url) {
+        handler(url, tauri_runtime::webview::PageLoadEvent::Finished);
+      }
+    }
+  }
+}
+
 wrap_life_span_handler! {
   struct TauriCefChildLifeSpanHandler<T: UserEvent> {
     sender: Sender<Message<T>>,
@@ -88,6 +142,7 @@ wrap_client! {
     pub(crate) label: String,
     initial_url: Option<String>,
     pub(crate) ipc_handler: Option<Arc<ipc::IpcHandler<T>>>,
+    on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
     navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
     proxy: WinitEventLoopProxy,
     sender: Sender<Message<T>>,
@@ -111,6 +166,10 @@ wrap_client! {
         self.webview_id,
         self.initial_url.clone(),
       ))
+    }
+
+    fn load_handler(&self) -> Option<LoadHandler> {
+      Some(TauriCefLoadHandler::new(self.on_page_load_handler.clone()))
     }
 
     fn on_process_message_received(

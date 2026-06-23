@@ -211,6 +211,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         .map(|(scheme, handler)| (scheme, Arc::new(handler)))
         .collect(),
     );
+    let on_page_load_handler = pending.on_page_load_handler.take().map(Arc::from);
 
     let mut client = browser_client::TauriCefBrowserClient::new(
       self.context.clone(),
@@ -219,6 +220,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       pending.label.clone(),
       Some(pending.url.as_str().to_string()),
       pending.ipc_handler.map(Arc::from),
+      on_page_load_handler,
       pending.navigation_handler.map(Arc::from),
       self.context.proxy.clone(),
       self.context.sender.clone(),

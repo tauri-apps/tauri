@@ -88,6 +88,8 @@ pub enum DevToolsProtocol {
 }
 
 pub(crate) type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;
+pub(crate) type WebviewEventHandler = Box<dyn Fn(&WebviewEvent) + Send>;
+pub(crate) type WebviewEventListeners = Arc<Mutex<HashMap<WebviewEventId, WebviewEventHandler>>>;
 
 pub(crate) enum WebviewMessage {
   AddEventListener(WebviewEventId, Box<dyn Fn(&WebviewEvent) + Send>),
@@ -161,6 +163,7 @@ pub(crate) struct AppWebview {
   pub(crate) devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
   /// Keeps the DevTools message observer registered. Dropping this unregisters the observer.
   pub(crate) devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
+  pub(crate) listeners: WebviewEventListeners,
   pub(crate) bounds_rate: Option<BoundsRate>,
 }
 
@@ -179,7 +182,15 @@ impl<T: UserEvent> WinitCefApp<T> {
     let host_size = host.window.surface_size();
     let scale = host.window.scale_factor();
 
-    let child = self.create_browser_child(window_id, webview_id, native, host_size, scale, pending);
+    let child = self.create_browser_child(
+      window_id,
+      webview_id,
+      native,
+      host_size,
+      scale,
+      browser_client::DragDropEventTarget::Webview,
+      pending,
+    );
 
     if let Some(host) = self.state.windows.get_mut(&window_id) {
       host.children.push(child);
@@ -195,6 +206,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     parent: *mut c_void,
     host_size: PhysicalSize<u32>,
     scale: f64,
+    drag_drop_event_target: browser_client::DragDropEventTarget,
     mut pending: PendingWebview<T, CefRuntime<T>>,
   ) -> AppWebview {
     let bounds_rate = compute_child_bounds_rate(
@@ -217,6 +229,8 @@ impl<T: UserEvent> WinitCefApp<T> {
     let address_changed_handler = pending.address_changed_handler.take().map(Arc::from);
     let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
       && pending.webview_attributes.devtools.unwrap_or(true);
+    let drag_drop_handler_enabled = pending.webview_attributes.drag_drop_handler_enabled;
+    let drag_drop_state = Arc::new(Mutex::new(browser_client::DragDropState::default()));
     let handlers = browser_client::TauriCefBrowserClientHandlers {
       ipc_handler: pending.ipc_handler.map(Arc::from),
       on_page_load_handler,
@@ -233,6 +247,9 @@ impl<T: UserEvent> WinitCefApp<T> {
       pending.label.clone(),
       Some(pending.url.as_str().to_string()),
       devtools_enabled,
+      drag_drop_event_target,
+      drag_drop_handler_enabled,
+      drag_drop_state,
       handlers,
       self.context.proxy.clone(),
       self.context.sender.clone(),
@@ -340,6 +357,7 @@ impl<T: UserEvent> WinitCefApp<T> {
             uri_scheme_protocols,
             devtools_protocol_handlers,
             devtools_observer_registration,
+            listeners: Default::default(),
             bounds_rate,
           })
           .expect("failed to send initialized CEF browser");
@@ -464,13 +482,15 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WebviewMessage::WithWebview(f) => f(Webview::new(child.browser.clone())),
       WebviewMessage::Print => child.host.print(),
+      WebviewMessage::AddEventListener(event_id, handler) => {
+        child.listeners.lock().unwrap().insert(event_id, handler);
+      }
       WebviewMessage::Show
       | WebviewMessage::Hide
       | WebviewMessage::SetAutoResize(_)
       | WebviewMessage::SetZoom(_)
       | WebviewMessage::SetBackgroundColor(_)
-      | WebviewMessage::ClearAllBrowsingData
-      | WebviewMessage::AddEventListener(_, _) => {
+      | WebviewMessage::ClearAllBrowsingData => {
         // TODO
       }
       WebviewMessage::Reparent(_, tx) => {
@@ -569,13 +589,93 @@ impl CefInitScript {
   }
 }
 
+pub(crate) const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
+
+const DRAG_DROP_INIT_SCRIPT: &str = r#"
+(() => {
+  if (window.__TAURI_CEF_DRAG_DROP__) {
+    return;
+  }
+
+  Object.defineProperty(window, "__TAURI_CEF_DRAG_DROP__", {
+    value: true,
+    configurable: false,
+  });
+
+  const PATH = "/__tauri_cef_drag_drop__";
+  let entered = false;
+
+  const position = (event) => ({
+    x: event.clientX * window.devicePixelRatio,
+    y: event.clientY * window.devicePixelRatio,
+  });
+
+  const send = (type, event) => {
+    const pos = position(event);
+    const url = new URL(PATH, window.location.href);
+    url.searchParams.set("payload", JSON.stringify({ type, x: pos.x, y: pos.y }));
+    fetch(url.href, {
+      method: "GET",
+      cache: "no-store",
+      credentials: "omit",
+    }).catch(() => {});
+  };
+
+  const listen = (eventName, handler) => {
+    window.addEventListener(eventName, handler, { capture: true });
+  };
+
+  listen("dragenter", (event) => {
+    if (!entered) {
+      entered = true;
+      send("enter", event);
+    }
+  });
+
+  listen("dragover", (event) => {
+    if (!entered) {
+      entered = true;
+      send("enter", event);
+    }
+    send("over", event);
+  });
+
+  listen("drop", (event) => {
+    if (!entered) {
+      send("enter", event);
+    }
+    entered = false;
+    send("drop", event);
+  });
+
+  listen("dragleave", (event) => {
+    const x = event.clientX;
+    const y = event.clientY;
+    if (entered && (x <= 0 || y <= 0 || x >= window.innerWidth || y >= window.innerHeight)) {
+      entered = false;
+      send("leave", event);
+    }
+  });
+})();
+"#;
+
 pub(crate) fn initialization_scripts(attrs: &mut WebviewAttributes) -> Arc<Vec<CefInitScript>> {
-  Arc::new(
+  let mut initialization_scripts = Vec::new();
+
+  if attrs.drag_drop_handler_enabled {
+    initialization_scripts.push(CefInitScript::new(InitializationScript {
+      script: DRAG_DROP_INIT_SCRIPT.to_string(),
+      for_main_frame_only: false,
+    }));
+  }
+
+  initialization_scripts.extend(
     std::mem::take(&mut attrs.initialization_scripts)
       .into_iter()
-      .map(CefInitScript::new)
-      .collect(),
-  )
+      .map(CefInitScript::new),
+  );
+
+  Arc::new(initialization_scripts)
 }
 
 #[derive(Debug, Clone)]

@@ -27,7 +27,11 @@ use tauri_utils::{
 };
 use url::Url;
 
-use crate::{runtime::RuntimeContext, webview::CefInitScript, webview::INITIAL_LOAD_URL};
+use crate::{
+  browser_client::{DragDropEventTarget, DragDropScriptEvent, DragDropState},
+  runtime::{Message, RuntimeContext},
+  webview::{CefInitScript, DRAG_DROP_BRIDGE_PATH, INITIAL_LOAD_URL},
+};
 
 type HttpResponse = Arc<RefCell<Option<http::Response<Cursor<Vec<u8>>>>>>;
 pub(crate) type SchemeRegistry = Arc<
@@ -108,6 +112,9 @@ wrap_request_handler! {
     context: RuntimeContext<T>,
     window_id: WindowId,
     webview_id: u32,
+    drag_drop_event_target: DragDropEventTarget,
+    drag_drop_handler_enabled: bool,
+    drag_drop_state: Arc<Mutex<DragDropState>>,
   }
 
   impl RequestHandler {
@@ -148,6 +155,74 @@ wrap_request_handler! {
 
       let should_navigate = handler(&url);
       if should_navigate { 0 } else { 1 }
+    }
+
+    fn resource_request_handler(
+      &self,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      _request: Option<&mut Request>,
+      _is_navigation: ::std::os::raw::c_int,
+      _is_download: ::std::os::raw::c_int,
+      _request_initiator: Option<&CefString>,
+      _disable_default_handling: Option<&mut ::std::os::raw::c_int>,
+    ) -> Option<ResourceRequestHandler> {
+      Some(WebDragDropResourceRequestHandler::new(
+        self.context.clone(),
+        self.window_id,
+        self.webview_id,
+        self.drag_drop_event_target,
+        self.drag_drop_handler_enabled,
+        self.drag_drop_state.clone(),
+      ))
+    }
+  }
+}
+
+wrap_resource_request_handler! {
+  pub struct WebDragDropResourceRequestHandler<T: UserEvent> {
+    context: RuntimeContext<T>,
+    window_id: WindowId,
+    webview_id: u32,
+    drag_drop_event_target: DragDropEventTarget,
+    drag_drop_handler_enabled: bool,
+    drag_drop_state: Arc<Mutex<DragDropState>>,
+  }
+
+  impl ResourceRequestHandler {
+    fn on_before_resource_load(
+      &self,
+      _browser: Option<&mut Browser>,
+      _frame: Option<&mut Frame>,
+      request: Option<&mut Request>,
+      _callback: Option<&mut Callback>,
+    ) -> ReturnValue {
+      if self.drag_drop_handler_enabled
+        && let Some(request) = request
+      {
+        let url = CefString::from(&request.url()).to_string();
+        if let Ok(url) = Url::parse(&url)
+          && url.path() == DRAG_DROP_BRIDGE_PATH
+        {
+          if let Some(payload) = url
+            .query_pairs()
+            .find_map(|(key, value)| (key == "payload").then(|| value.into_owned()))
+            && let Ok(event) = serde_json::from_str::<DragDropScriptEvent>(&payload)
+          {
+            let _ = self.context.send_message(Message::DragDropScriptEvent {
+              window_id: self.window_id,
+              webview_id: self.webview_id,
+              target: self.drag_drop_event_target,
+              drag_drop_state: self.drag_drop_state.clone(),
+              event,
+            });
+          }
+
+          return sys::cef_return_value_t::RV_CANCEL.into();
+        }
+      }
+
+      sys::cef_return_value_t::RV_CONTINUE.into()
     }
   }
 }

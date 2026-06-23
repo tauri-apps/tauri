@@ -33,7 +33,7 @@ use winit::platform::macos::WindowExtMacOS;
 use winit::platform::windows::WindowExtWindows;
 
 use crate::{
-  platform,
+  browser_client, platform,
   runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp},
   webview::{self, AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
@@ -172,7 +172,15 @@ impl<T: UserEvent> WinitCefApp<T> {
     if let (Some(webview_id), Some(webview)) = (webview_id, pending.webview) {
       let size = host.window.surface_size();
       let scale = host.window.scale_factor();
-      let child = self.create_browser_child(window_id, webview_id, native, size, scale, webview);
+      let child = self.create_browser_child(
+        window_id,
+        webview_id,
+        native,
+        size,
+        scale,
+        browser_client::DragDropEventTarget::Window,
+        webview,
+      );
       self.state.live_browsers += 1;
       host.children.push(child);
     }

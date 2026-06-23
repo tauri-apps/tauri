@@ -27,7 +27,9 @@ use tauri_runtime::{
   dpi::PhysicalPosition,
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
-  window::{DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId},
+  window::{
+    DetachedWindow, DragDropEvent, PendingWindow, RawWindow, WebviewEvent, WindowEvent, WindowId,
+  },
 };
 use tauri_utils::Theme;
 use winit::{
@@ -289,6 +291,13 @@ pub(crate) enum Message<T: UserEvent> {
     webview_id: u32,
     message: WebviewMessage,
   },
+  DragDropScriptEvent {
+    window_id: WindowId,
+    webview_id: u32,
+    target: browser_client::DragDropEventTarget,
+    drag_drop_state: Arc<Mutex<browser_client::DragDropState>>,
+    event: browser_client::DragDropScriptEvent,
+  },
   Task(Box<dyn FnOnce() + Send>),
   RequestExit(i32),
   UserEvent(T),
@@ -412,6 +421,15 @@ impl<T: UserEvent> WinitCefApp<T> {
         webview_id,
         message,
       } => self.handle_webview_message(window_id, webview_id, message),
+      Message::DragDropScriptEvent {
+        window_id,
+        webview_id,
+        target,
+        drag_drop_state,
+        event,
+      } => {
+        self.handle_drag_drop_script_event(window_id, webview_id, target, drag_drop_state, event)
+      }
       Message::Task(task) => task(),
       Message::RequestExit(code) => {
         let (tx, rx) = mpsc::channel();
@@ -435,6 +453,119 @@ impl<T: UserEvent> WinitCefApp<T> {
     let mut registry = self.scheme_registry.lock().unwrap();
     for scheme in child.uri_scheme_protocols.keys() {
       registry.remove(&(child.browser_id, scheme.clone()));
+    }
+  }
+
+  fn handle_drag_drop_script_event(
+    &mut self,
+    window_id: WindowId,
+    webview_id: u32,
+    target: browser_client::DragDropEventTarget,
+    drag_drop_state: Arc<Mutex<browser_client::DragDropState>>,
+    script_event: browser_client::DragDropScriptEvent,
+  ) {
+    let position = PhysicalPosition::new(script_event.x, script_event.y);
+    let event = {
+      let mut state = drag_drop_state.lock().unwrap();
+      if !state.native_entered {
+        return;
+      }
+
+      match script_event.kind.as_str() {
+        "enter" => {
+          if state.entered {
+            return;
+          }
+
+          let Some(paths) = state.paths.clone() else {
+            return;
+          };
+          state.entered = true;
+          Some(DragDropEvent::Enter { paths, position })
+        }
+        "over" => {
+          if state.entered {
+            Some(DragDropEvent::Over { position })
+          } else {
+            None
+          }
+        }
+        "drop" => {
+          let paths = state.entered.then(|| state.paths.take()).flatten();
+          state.entered = false;
+          state.native_entered = false;
+          paths.map(|paths| DragDropEvent::Drop { paths, position })
+        }
+        "leave" => {
+          state.native_entered = false;
+          state.paths = None;
+
+          if state.entered {
+            state.entered = false;
+            Some(DragDropEvent::Leave)
+          } else {
+            None
+          }
+        }
+        _ => None,
+      }
+    };
+
+    if let Some(event) = event {
+      self.emit_drag_drop_event(window_id, webview_id, target, event);
+    }
+  }
+
+  fn emit_drag_drop_event(
+    &mut self,
+    window_id: WindowId,
+    webview_id: u32,
+    target: browser_client::DragDropEventTarget,
+    event: DragDropEvent,
+  ) {
+    match target {
+      browser_client::DragDropEventTarget::Window => {
+        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+      }
+      browser_client::DragDropEventTarget::Webview => {
+        self.emit_webview_event(window_id, webview_id, WebviewEvent::DragDrop(event));
+      }
+    }
+  }
+
+  fn emit_window_event(&mut self, window_id: WindowId, event: WindowEvent) {
+    let Some(host) = self.state.windows.get(&window_id) else {
+      return;
+    };
+    let label = host.label.clone();
+    let listeners = host.listeners.clone();
+
+    {
+      let listeners = listeners.lock().unwrap();
+      for handler in listeners.values() {
+        handler(&event);
+      }
+    }
+
+    self.run_callback(RunEvent::WindowEvent { label, event });
+  }
+
+  fn emit_webview_event(&mut self, window_id: WindowId, webview_id: u32, event: WebviewEvent) {
+    let Some(host) = self.state.windows.get(&window_id) else {
+      return;
+    };
+    let Some(child) = host
+      .children
+      .iter()
+      .find(|child| child.webview_id == webview_id)
+    else {
+      return;
+    };
+    let listeners = child.listeners.clone();
+
+    let listeners = listeners.lock().unwrap();
+    for handler in listeners.values() {
+      handler(&event);
     }
   }
 
@@ -579,6 +710,21 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
           label,
           event: WindowEvent::Focused(focused),
         });
+      }
+      WinitWindowEvent::DragEntered { paths, position } => {
+        let event = DragDropEvent::Enter { paths, position };
+        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+      }
+      WinitWindowEvent::DragMoved { position } => {
+        let event = DragDropEvent::Over { position };
+        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+      }
+      WinitWindowEvent::DragDropped { paths, position } => {
+        let event = DragDropEvent::Drop { paths, position };
+        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+      }
+      WinitWindowEvent::DragLeft { .. } => {
+        self.emit_window_event(window_id, WindowEvent::DragDrop(DragDropEvent::Leave));
       }
       #[cfg(target_os = "macos")]
       WinitWindowEvent::RedrawRequested => {

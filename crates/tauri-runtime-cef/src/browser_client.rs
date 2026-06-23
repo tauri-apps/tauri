@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::sync::{
-  Arc,
-  atomic::{AtomicBool, Ordering},
-  mpsc::Sender,
-};
 use std::time::Duration;
+use std::{
+  path::PathBuf,
+  sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+    mpsc::Sender,
+  },
+};
 
 use cef::*;
 use tauri_runtime::{UserEvent, window::WindowId};
@@ -25,6 +28,49 @@ type CefOsEvent<'a> = Option<&'a mut cef::sys::XEvent>;
 type CefOsEvent<'a> = *mut u8;
 #[cfg(windows)]
 type CefOsEvent<'a> = Option<&'a mut cef::sys::MSG>;
+
+#[derive(Default)]
+pub(crate) struct DragDropState {
+  pub(crate) paths: Option<Vec<PathBuf>>,
+  pub(crate) native_entered: bool,
+  pub(crate) entered: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DragDropEventTarget {
+  Window,
+  Webview,
+}
+
+#[derive(Clone, serde::Deserialize)]
+pub(crate) struct DragDropScriptEvent {
+  #[serde(rename = "type")]
+  pub(crate) kind: String,
+  pub(crate) x: f64,
+  pub(crate) y: f64,
+}
+
+fn collect_drag_data_paths(drag_data: &mut DragData) -> Vec<PathBuf> {
+  let mut paths = CefStringList::new();
+  if drag_data.file_paths(Some(&mut paths)) != 0 {
+    let paths = paths
+      .into_iter()
+      .filter(|path| !path.is_empty())
+      .map(PathBuf::from)
+      .collect::<Vec<_>>();
+
+    if !paths.is_empty() {
+      return paths;
+    }
+  }
+
+  let file_name = CefStringUtf16::from(&drag_data.file_name()).to_string();
+  if file_name.is_empty() {
+    Vec::new()
+  } else {
+    vec![PathBuf::from(file_name)]
+  }
+}
 
 // There is some race condition on CEF that causes the app loading to fail
 // when there is a network service crash:
@@ -56,6 +102,32 @@ fn check_and_reload_if_blank(browser: cef::Browser, initial_url: String) {
       std::thread::sleep(check_interval);
     }
   });
+}
+
+wrap_drag_handler! {
+  struct TauriCefDragHandler {
+    drag_drop_state: Arc<Mutex<DragDropState>>,
+  }
+
+  impl DragHandler {
+    fn on_drag_enter(
+      &self,
+      _browser: Option<&mut Browser>,
+      drag_data: Option<&mut DragData>,
+      _mask: DragOperationsMask,
+    ) -> ::std::os::raw::c_int {
+      let mut state = self.drag_drop_state.lock().unwrap();
+      state.entered = false;
+      state.paths = drag_data
+        .map(collect_drag_data_paths)
+        .filter(|paths| !paths.is_empty());
+      state.native_entered = state.paths.is_some();
+
+      // Let Chromium continue with the drag operation so the injected script can
+      // report over/drop/leave with accurate viewport positions.
+      0
+    }
+  }
 }
 
 wrap_load_handler! {
@@ -481,18 +553,30 @@ wrap_client! {
     pub(crate) label: String,
     initial_url: Option<String>,
     devtools_enabled: bool,
+    drag_drop_event_target: DragDropEventTarget,
+    drag_drop_handler_enabled: bool,
+    drag_drop_state: Arc<Mutex<DragDropState>>,
     pub(crate) handlers: TauriCefBrowserClientHandlers<T>,
     proxy: WinitEventLoopProxy,
     sender: Sender<Message<T>>,
   }
 
   impl Client {
+    fn drag_handler(&self) -> Option<DragHandler> {
+      self
+        .drag_drop_handler_enabled
+        .then(|| TauriCefDragHandler::new(self.drag_drop_state.clone()))
+    }
+
     fn request_handler(&self) -> Option<RequestHandler> {
       Some(request_handler::WebRequestHandler::new(
         self.handlers.navigation_handler.clone(),
         self.context.clone(),
         self.window_id,
         self.webview_id,
+        self.drag_drop_event_target,
+        self.drag_drop_handler_enabled,
+        self.drag_drop_state.clone(),
       ))
     }
 

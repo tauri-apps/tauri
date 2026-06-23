@@ -125,6 +125,8 @@ pub(crate) struct AppWindow {
   pub(crate) window: Box<dyn WinitWindow>,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: Arc<Mutex<HashMap<WindowEventId, Box<dyn Fn(&WindowEvent) + Send>>>>,
+  #[cfg(target_os = "macos")]
+  pub(crate) traffic_light_position: Option<Position>,
 }
 
 impl<T: UserEvent> WinitCefApp<T> {
@@ -163,6 +165,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       window,
       children: Vec::new(),
       listeners: Default::default(),
+      #[cfg(target_os = "macos")]
+      traffic_light_position,
     };
 
     if let (Some(webview_id), Some(webview)) = (webview_id, pending.webview) {
@@ -391,7 +395,11 @@ impl<T: UserEvent> WinitCefApp<T> {
 
       WindowMessage::SetTrafficLightPosition(_position) => {
         #[cfg(target_os = "macos")]
-        platform::apply_traffic_light_position(platform::raw_handle(window.as_ref()), &_position);
+        {
+          app_window.traffic_light_position = Some(_position.clone());
+          let handle = platform::raw_handle(window.as_ref());
+          platform::apply_traffic_light_position(handle, &_position);
+        }
       }
 
       WindowMessage::SetFocusable(_)

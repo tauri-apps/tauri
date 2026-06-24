@@ -7,8 +7,8 @@ use windows::Win32::{
   Foundation::{HWND, POINT, RECT},
   Graphics::Gdi::MapWindowPoints,
   UI::WindowsAndMessaging::{
-    GetParent, GetWindowRect, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER, SetWindowPos,
-    ShowWindow,
+    GetParent, GetWindowRect, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER, SetParent,
+    SetWindowPos, ShowWindow,
   },
 };
 use winit::{
@@ -44,6 +44,10 @@ pub fn set_child_visible(handle: *mut c_void, visible: bool) {
   unsafe {
     let _ = ShowWindow(HWND(handle), if visible { SW_SHOW } else { SW_HIDE });
   }
+}
+
+pub fn set_child_parent(handle: *mut c_void, parent: *mut c_void) {
+  let _ = unsafe { SetParent(HWND(handle), Some(HWND(parent))) };
 }
 
 pub fn child_bounds(handle: *mut c_void) -> Option<Rect> {

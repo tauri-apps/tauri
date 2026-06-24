@@ -28,6 +28,11 @@ pub(crate) fn set_child_visible(handle: *mut c_void, visible: bool) {
   todo!("TODO: implement CEF/winit child visibility on Linux")
 }
 
+pub(crate) fn set_child_parent(handle: *mut c_void, parent: *mut c_void) {
+  let _ = (handle, parent);
+  todo!("TODO: implement CEF/winit child reparenting on Linux")
+}
+
 pub(crate) fn child_bounds(handle: *mut c_void) -> Option<Rect> {
   let _ = handle;
   todo!("TODO: implement CEF/winit child bounds on Linux")

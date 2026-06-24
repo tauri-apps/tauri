@@ -523,16 +523,56 @@ impl<T: UserEvent> WinitCefApp<T> {
       | WebviewMessage::ClearAllBrowsingData => {
         // TODO
       }
-      WebviewMessage::Reparent(_, tx) => {
-        //TODO
-        let _ = tx.send(Err(Error::WindowNotFound));
-      }
       WebviewMessage::CookiesForUrl(_, tx) | WebviewMessage::Cookies(tx) => {
         // TODO
         let _ = tx.send(Ok(Vec::new()));
       }
       WebviewMessage::SetCookie(_) | WebviewMessage::DeleteCookie(_) => {
         // TODO
+      }
+      WebviewMessage::Reparent(target_window_id, tx) => {
+        if window_id == target_window_id {
+          let _ = tx.send(Ok(()));
+          return;
+        }
+
+        if !self.state.windows.contains_key(&target_window_id) {
+          let _ = tx.send(Err(Error::WindowNotFound));
+          return;
+        }
+
+        let Some(mut child) = self.state.windows.get_mut(&window_id).and_then(|host| {
+          host
+            .children
+            .iter()
+            .position(|child| child.webview_id == webview_id)
+            .map(|index| host.children.remove(index))
+        }) else {
+          let _ = tx.send(Err(Error::WindowNotFound));
+          return;
+        };
+
+        let Some(target_host) = self.state.windows.get_mut(&target_window_id) else {
+          let _ = tx.send(Err(Error::WindowNotFound));
+          return;
+        };
+
+        let handle = browser_raw_handle(&child.host);
+        let bounds = platform::child_bounds(handle).unwrap_or_else(|| Rect {
+          position: PhysicalPosition::new(0, 0).into(),
+          size: target_host.window.surface_size().into(),
+        });
+        let target_parent = platform::raw_handle(target_host.window.as_ref());
+        platform::set_child_parent(handle, target_parent);
+        set_browser_bounds(
+          &mut child,
+          target_host.window.surface_size(),
+          target_host.window.scale_factor(),
+          bounds,
+        );
+
+        target_host.children.push(child);
+        let _ = tx.send(Ok(()));
       }
       #[cfg(any(debug_assertions, feature = "devtools"))]
       WebviewMessage::OpenDevTools => child.host.show_dev_tools(None, None, None, None),
@@ -992,7 +1032,11 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
       webview_id: self.webview_id,
       message: WebviewMessage::Reparent(window_id, tx),
     })?;
-    rx.recv().map_err(|_| Error::FailedToReceiveMessage)?
+    let result = rx.recv().map_err(|_| Error::FailedToReceiveMessage)?;
+    if result.is_ok() {
+      *self.window_id.lock().unwrap() = window_id;
+    }
+    result
   }
 
   fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>> {

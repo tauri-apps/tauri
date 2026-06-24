@@ -200,32 +200,46 @@ impl<T: UserEvent> WinitCefApp<T> {
     webview_id: u32,
     pending: PendingWebview<T, CefRuntime<T>>,
   ) {
+    self.create_browser_child(
+      window_id,
+      webview_id,
+      browser_client::DragDropEventTarget::Webview,
+      pending,
+    );
+  }
+
+  pub(crate) fn create_browser_child(
+    &mut self,
+    window_id: WindowId,
+    webview_id: u32,
+    drag_drop_event_target: browser_client::DragDropEventTarget,
+    pending: PendingWebview<T, CefRuntime<T>>,
+  ) {
     let Some(appwindow) = self.state.windows.get(&window_id) else {
       return;
     };
 
-    let native = appwindow.raw_handle_as_cef_handle();
+    let parent = appwindow.raw_handle_as_cef_handle();
     let parent_size = appwindow.window.surface_size();
     let scale = appwindow.window.scale_factor();
-
-    let child = self.create_browser_child(
+    let child = self.build_browser_child(
       window_id,
       webview_id,
-      native,
+      parent,
       parent_size,
       scale,
-      browser_client::DragDropEventTarget::Webview,
+      drag_drop_event_target,
       pending,
     );
 
     if let Some(appwindow) = self.state.windows.get_mut(&window_id) {
-      appwindow.children.push(child);
       self.state.live_browsers += 1;
+      appwindow.children.push(child);
       layout_app_window(appwindow);
     }
   }
 
-  pub(crate) fn create_browser_child(
+  fn build_browser_child(
     &mut self,
     window_id: WindowId,
     webview_id: u32,

@@ -36,7 +36,7 @@ use winit::platform::windows::WindowExtWindows;
 use crate::{
   browser_client,
   runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp},
-  webview::{self, AppWebview, CefWebviewDispatcher, create_webview_detached},
+  webview::{AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
 };
 
@@ -192,7 +192,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       .expect("failed to create winit window");
 
     let winit_id = window.id();
-    let mut appwindow = AppWindow {
+    let appwindow = AppWindow {
       id: window_id,
       label: pending.label.clone(),
       window,
@@ -216,29 +216,20 @@ impl<T: UserEvent> WinitCefApp<T> {
       });
     }
 
-    if let (Some(webview_id), Some(webview)) = (webview_id, pending.webview) {
-      let size = appwindow.window.surface_size();
-      let scale = appwindow.window.scale_factor();
-      let native = appwindow.raw_handle_as_cef_handle();
-      let child = self.create_browser_child(
-        window_id,
-        webview_id,
-        native,
-        size,
-        scale,
-        browser_client::DragDropEventTarget::Window,
-        webview,
-      );
-      self.state.live_browsers += 1;
-      appwindow.children.push(child);
-    }
-
-    webview::layout_app_window(&appwindow);
     self
       .state
       .winid_id_to_window_id_map
       .insert(winit_id, window_id);
     self.state.windows.insert(window_id, appwindow);
+
+    if let (Some(webview_id), Some(webview)) = (webview_id, pending.webview) {
+      self.create_browser_child(
+        window_id,
+        webview_id,
+        browser_client::DragDropEventTarget::Window,
+        webview,
+      );
+    }
   }
 
   pub(crate) fn handle_window_message(

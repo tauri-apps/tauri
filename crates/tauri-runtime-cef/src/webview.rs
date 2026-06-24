@@ -74,7 +74,7 @@ pub fn webview_version() -> tauri_runtime::Result<String> {
 }
 
 #[inline]
-fn color_to_cef_argb(color: Color) -> u32 {
+fn color_to_argb(color: Color) -> u32 {
   let (r, g, b, a) = color.into();
   ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
 }
@@ -289,7 +289,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       background_color: pending
         .webview_attributes
         .background_color
-        .map(color_to_cef_argb)
+        .map(color_to_argb)
         .unwrap_or(0),
       ..Default::default()
     };

@@ -565,9 +565,17 @@ impl<T: UserEvent> WinitCefApp<T> {
         };
         child.host.set_zoom_level(zoom_level);
       }
-      WebviewMessage::SetAutoResize(_)
-      | WebviewMessage::SetBackgroundColor(_)
-      | WebviewMessage::ClearAllBrowsingData => {
+      WebviewMessage::SetAutoResize(auto_resize) => {
+        if auto_resize {
+          let bounds = child.bounds();
+          let parent_size = appwindow.window.surface_size();
+          let scale = appwindow.window.scale_factor();
+          child.bounds_rate = compute_child_bounds_rate(bounds.as_ref(), true, parent_size, scale);
+        } else {
+          child.bounds_rate = None;
+        }
+      }
+      WebviewMessage::SetBackgroundColor(_) | WebviewMessage::ClearAllBrowsingData => {
         // TODO
       }
       WebviewMessage::CookiesForUrl(url, tx) => {

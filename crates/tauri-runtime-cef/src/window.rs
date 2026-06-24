@@ -293,6 +293,19 @@ impl<T: UserEvent> WinitCefApp<T> {
     window_id: WindowId,
     message: WindowMessage,
   ) {
+    // Handle Close and Destroy messages first to avoid borrowing issues with the window.
+    match message {
+      WindowMessage::Close => {
+        self.request_window_close(window_id, event_loop);
+        return;
+      }
+      WindowMessage::Destroy => {
+        self.close_window(window_id, event_loop);
+        return;
+      }
+      _ => {}
+    }
+
     let Some(app_window) = self.state.windows.get_mut(&window_id) else {
       return;
     };
@@ -302,7 +315,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::AddEventListener(id, listener) => {
         app_window.listeners.lock().unwrap().insert(id, listener);
       }
-      WindowMessage::Close | WindowMessage::Destroy => self.close_window(window_id, event_loop),
+      WindowMessage::Close | WindowMessage::Destroy => unreachable!("handled before borrowing"),
       WindowMessage::ScaleFactor(tx) => _ = tx.send(Ok(window.scale_factor())),
       WindowMessage::InnerSize(tx) => _ = tx.send(Ok(window.surface_size())),
       WindowMessage::OuterSize(tx) => _ = tx.send(Ok(window.outer_size())),

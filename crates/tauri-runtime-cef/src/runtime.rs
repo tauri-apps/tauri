@@ -508,13 +508,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       Message::Task(task) => task(),
       Message::RequestExit(code) => {
-        let (tx, rx) = mpsc::channel();
-        self.run_callback(RunEvent::ExitRequested {
-          code: Some(code),
-          tx,
-        });
-        if !matches!(rx.try_recv(), Ok(ExitRequestedEventAction::Prevent)) {
-          self.state.exiting = true;
+        if self.request_exit(Some(code)) {
           self.close_all_browsers();
           self.exit_if_done(event_loop);
         }
@@ -631,6 +625,24 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
   }
 
+  fn request_exit(&mut self, code: Option<i32>) -> bool {
+    // if we already exiting, don't request exit again
+    if self.state.exiting {
+      return false;
+    }
+
+    let (tx, rx) = mpsc::channel();
+    self.run_callback(RunEvent::ExitRequested { code, tx });
+
+    if matches!(rx.try_recv(), Ok(ExitRequestedEventAction::Prevent)) {
+      false
+    } else {
+      self.state.exiting = true;
+      self.run_callback(RunEvent::Exit);
+      true
+    }
+  }
+
   pub(crate) fn close_window(&mut self, window_id: WindowId, event_loop: &dyn ActiveEventLoop) {
     let Some(appwindow) = self.state.windows.remove(&window_id) else {
       return;
@@ -646,6 +658,24 @@ impl<T: UserEvent> WinitCefApp<T> {
       child.host.close_browser(1);
     }
     self.exit_if_done(event_loop);
+  }
+
+  pub(crate) fn request_window_close(
+    &mut self,
+    window_id: WindowId,
+    event_loop: &dyn ActiveEventLoop,
+  ) {
+    // Avoid requesting window close if we already exisitng
+    if self.state.exiting {
+      self.close_window(window_id, event_loop);
+      return;
+    }
+
+    let (tx, rx) = mpsc::channel();
+    self.emit_window_event(window_id, WindowEvent::CloseRequested { signal_tx: tx });
+    if !matches!(rx.try_recv(), Ok(true)) {
+      self.close_window(window_id, event_loop);
+    }
   }
 
   fn navigate_first_webview(&self, window_id: WindowId, url: &str) {
@@ -674,7 +704,11 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn exit_if_done(&mut self, event_loop: &dyn ActiveEventLoop) {
-    if (self.state.exiting || self.state.windows.is_empty()) && self.state.live_browsers == 0 {
+    if self.state.live_browsers != 0 {
+      return;
+    }
+
+    if self.state.exiting || (self.state.windows.is_empty() && self.request_exit(None)) {
       event_loop.exit();
     }
   }
@@ -742,24 +776,17 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     };
 
     match event {
-      WinitWindowEvent::CloseRequested => {
-        let (tx, rx) = mpsc::channel();
-        let label = appwindow.label.clone();
-        self.run_callback(RunEvent::WindowEvent {
-          label,
-          event: WindowEvent::CloseRequested { signal_tx: tx },
-        });
-        if !matches!(rx.try_recv(), Ok(true)) {
-          self.close_window(window_id, event_loop);
-        }
-      }
+      WinitWindowEvent::CloseRequested => self.request_window_close(window_id, event_loop),
+
       WinitWindowEvent::Destroyed => {
-        let label = appwindow.label.clone();
+        let label = (!self.state.exiting).then(|| appwindow.label.clone());
+        if let Some(label) = label {
+          self.run_callback(RunEvent::WindowEvent {
+            label,
+            event: WindowEvent::Destroyed,
+          });
+        }
         self.close_window(window_id, event_loop);
-        self.run_callback(RunEvent::WindowEvent {
-          label,
-          event: WindowEvent::Destroyed,
-        });
       }
       WinitWindowEvent::SurfaceResized(size) => {
         webview::layout_app_window(appwindow);

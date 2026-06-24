@@ -74,6 +74,29 @@ fn tauri_resize_direction_to_winit(
   }
 }
 
+pub(crate) fn paired_size_constraint(
+  width: Option<tauri_runtime::dpi::PixelUnit>,
+  height: Option<tauri_runtime::dpi::PixelUnit>,
+) -> Option<Size> {
+  match (width, height) {
+    (
+      Some(tauri_runtime::dpi::PixelUnit::Logical(width)),
+      Some(tauri_runtime::dpi::PixelUnit::Logical(height)),
+    ) => Some(Size::Logical(tauri_runtime::dpi::LogicalSize::new(
+      width.into(),
+      height.into(),
+    ))),
+    (
+      Some(tauri_runtime::dpi::PixelUnit::Physical(width)),
+      Some(tauri_runtime::dpi::PixelUnit::Physical(height)),
+    ) => Some(Size::Physical(PhysicalSize::new(
+      width.into(),
+      height.into(),
+    ))),
+    _ => None,
+  }
+}
+
 pub(crate) enum WindowMessage {
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
   Close,
@@ -488,9 +511,15 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::StartResizeDragging(direction) => {
         let _ = window.drag_resize_window(tauri_resize_direction_to_winit(direction));
       }
+      WindowMessage::SetSizeConstraints(constraints) => {
+        // TODO: upstream individual width/height size constraints to winit.
+        let min_size = paired_size_constraint(constraints.min_width, constraints.min_height);
+        let max_size = paired_size_constraint(constraints.max_width, constraints.max_height);
+        window.set_min_surface_size(min_size);
+        window.set_max_surface_size(max_size);
+      }
 
       WindowMessage::SetFocusable(_)
-      | WindowMessage::SetSizeConstraints(_)
       | WindowMessage::SetVisibleOnAllWorkspaces(_)
       | WindowMessage::SetProgressBar(_)
       | WindowMessage::SetTitleBarStyle(_)

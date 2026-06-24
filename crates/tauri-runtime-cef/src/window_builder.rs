@@ -18,7 +18,7 @@ use winit::{
   window::{WindowAttributes, WindowButtons},
 };
 
-use crate::window::tauri_theme_to_winit_theme;
+use crate::window::{paired_size_constraint, tauri_theme_to_winit_theme};
 
 #[cfg(target_os = "macos")]
 use std::ptr::NonNull;
@@ -146,8 +146,12 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn inner_size_constraints(self, _constraints: WindowSizeConstraints) -> Self {
-    // TODO: individual min/max size constraints are not supported by winit
+  fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    // TODO: upstream individual width/height size constraints to winit.
+    self.inner.min_surface_size =
+      paired_size_constraint(constraints.min_width, constraints.min_height);
+    self.inner.max_surface_size =
+      paired_size_constraint(constraints.max_width, constraints.max_height);
     self
   }
 

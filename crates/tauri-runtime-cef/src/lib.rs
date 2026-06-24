@@ -2439,7 +2439,13 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       &mut *self.context.cef_context.callback.borrow_mut(),
       Box::new(move |event| {
         if let RunEvent::Exit = event {
+          // Breaking the loop is normally driven by a posted task (see
+          // `cef_impl::post_quit_message_loop`), so `Exit` is not forwarded to
+          // the embedder here — the terminal `Exit` is delivered once shutdown
+          // completes. This stays as a fallback for any path that emits `Exit`
+          // through the callback directly.
           cef::quit_message_loop();
+          crate::platform::stop_event_loop();
           return;
         }
         match callback.try_borrow_mut() {
@@ -2473,18 +2479,16 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
     // Tear-down phase — mirrors the tail of cefclient's `RunMain`:
     // `message_loop->Run()` returns, then `context->Shutdown()` runs and
-    // objects are released. cefclient is able to call `Shutdown()` directly
-    // because `RootWindowManager::CleanupOnUIThread` had already waited for
-    // every `OnBeforeClose`; our embedder-driven main loop breaks earlier on
-    // the `Exit` signal, so we have to drive the equivalent wait ourselves:
-    // close any still-open windows cooperatively (CEF's normal
-    // `can_close -> close_window_browsers -> OnBeforeClose -> on_window_destroyed`
-    // chain) and pump until the windows map is empty before calling
+    // objects are released. By the time the loop quits we have normally already
+    // closed every window (the exit path closes them and quits once the last
+    // browser is gone), but defensively close any that remain and pump the
+    // normal `can_close -> close_window_browsers -> OnBeforeClose ->
+    // on_window_destroyed` chain until the windows map is empty before calling
     // `cef::shutdown`. Skipping this step trips use-after-free in CEF.
     //
     // Mark shut-down state defensively in case we got here via a path that
-    // didn't set it (e.g. an embedder-emitted Exit). With it set, the
-    // per-window callbacks during the drain stay silent.
+    // didn't set it. With it set, the per-window callbacks during the drain
+    // stay silent.
     self
       .context
       .cef_context
@@ -2501,11 +2505,10 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
     cef::shutdown();
 
-    // Deliver the terminal `Exit` to the embedder. The wrapper above routes
-    // every `Exit` to the channel (so the main loop can break) and never
-    // forwards it to the user callback, so this final call is what the
-    // embedder actually observes — matching cefclient where the process
-    // returns from `main()` once shutdown completes.
+    // Deliver the terminal `Exit` to the embedder. Quitting the loop is driven
+    // by a posted task that never forwards `Exit` to the user callback, so this
+    // final call is what the embedder actually observes — matching cefclient
+    // where the process returns from `main()` once shutdown completes.
     (callback_.borrow_mut())(RunEvent::Exit);
   }
 

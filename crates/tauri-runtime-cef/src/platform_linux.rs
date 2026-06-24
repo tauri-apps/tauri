@@ -143,6 +143,10 @@ pub fn is_enabled(window: &cef::Window) -> bool {
   window.is_enabled() == 1
 }
 
+/// Only macOS needs to break the run loop explicitly; elsewhere
+/// `cef::quit_message_loop` suffices, so this is a no-op.
+pub fn stop_event_loop() {}
+
 pub fn set_skip_taskbar(window: &cef::Window, skip: bool) {
   let xid = window.window_handle() as c_ulong;
   // GTK's `set_skip_taskbar_hint` (used by tao) only toggles the taskbar hint.

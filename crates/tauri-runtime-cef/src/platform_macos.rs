@@ -10,8 +10,8 @@ use objc2::MainThreadMarker;
 use objc2::rc::Retained;
 use objc2_app_kit::{
   NSAppearance, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSApplication,
-  NSApplicationPresentationOptions, NSBackingStoreType, NSCursor, NSScreen, NSView, NSWindow,
-  NSWindowCollectionBehavior, NSWindowStyleMask,
+  NSApplicationPresentationOptions, NSBackingStoreType, NSCursor, NSEvent, NSEventModifierFlags,
+  NSEventType, NSScreen, NSView, NSWindow, NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSPoint, NSRect, NSString};
 use tauri_runtime::dpi::{PhysicalPosition, Position};
@@ -39,6 +39,44 @@ fn ns_window(window: &cef::Window) -> Option<Retained<NSWindow>> {
 
 fn main_thread() -> Option<MainThreadMarker> {
   MainThreadMarker::new()
+}
+
+/// Breaks out of the AppKit run loop that `cef::run_message_loop` is pumping.
+///
+/// `cef::quit_message_loop` runs CEF's `base::RunLoop` quit closure, which only
+/// reaches `-[NSApplication stop:]` when CEF's run loop is the *topmost* active
+/// one. On the app-terminate close path that is not the case, so the quit is
+/// silently dropped and `-[NSApplication run]` keeps spinning. We stop the
+/// application's run loop directly, which is robust regardless of nesting.
+///
+/// `stop:` only takes effect *after* the next event is processed, and after the
+/// last window closed the app is idle, so we also post a no-op
+/// application-defined event to force one more loop iteration — the same trick
+/// winit/tao use. Without it `run` would block in `nextEventMatchingMask:` and
+/// never observe the stop.
+pub fn stop_event_loop() {
+  let Some(mtm) = main_thread() else {
+    return;
+  };
+  let app = NSApplication::sharedApplication(mtm);
+  app.stop(None);
+
+  let event = unsafe {
+    NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+      NSEventType::ApplicationDefined,
+      NSPoint::new(0.0, 0.0),
+      NSEventModifierFlags::empty(),
+      0.0,
+      0,
+      None,
+      0,
+      0,
+      0,
+    )
+  };
+  if let Some(event) = event {
+    app.postEvent_atStart(&event, true);
+  }
 }
 
 /// macOS has no taskbar, so skipping it is a no-op.

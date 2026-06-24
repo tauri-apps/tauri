@@ -3988,10 +3988,10 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
       message,
     } => handle_webview_message(context, window_id, webview_id, message),
     Message::RequestExit(code) => {
-      // Direct-exit path (e.g. `request_exit`, macOS `-terminate:`): emit
-      // only `ExitRequested -> Exit`, matching the cefclient terminate flow
-      // where `CloseAllWindows` is initiated only after the embedder agrees
-      // to quit. Skip if we're already shutting down to avoid re-prompting.
+      // Direct-exit path (e.g. `request_exit`, macOS `-terminate:`): surface
+      // `ExitRequested` and, if the embedder agrees, begin the orderly close,
+      // matching the cefclient terminate flow. Skip if we're already shutting
+      // down to avoid re-prompting.
       if context.is_shutting_down.load(Ordering::SeqCst) {
         return;
       }
@@ -4004,13 +4004,22 @@ pub fn handle_message<T: UserEvent>(context: &Context<T>, message: Message<T>) {
         });
       });
 
-      let recv = rx.try_recv();
-      let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+      let should_prevent =
+        matches!(rx.try_recv(), Ok(ExitRequestedEventAction::Prevent));
+      if should_prevent {
+        return;
+      }
 
-      if !should_prevent {
-        *context.exit_code.lock().unwrap() = Some(code);
-        context.is_shutting_down.store(true, Ordering::SeqCst);
-        in_callback(|| (context.callback.borrow())(RunEvent::Exit));
+      *context.exit_code.lock().unwrap() = Some(code);
+      context.is_shutting_down.store(true, Ordering::SeqCst);
+
+      // Close every browser window now and let the final `on_window_destroyed`
+      // quit the loop once the last browser is gone (matching cefclient's
+      // terminate flow). If there are no windows, quit straight away.
+      if context.windows.borrow().is_empty() {
+        post_quit_message_loop(context);
+      } else {
+        close_all_windows(&context.windows);
       }
     }
     Message::Task(t) => t(),
@@ -4407,15 +4416,37 @@ pub fn set_browsers_accessibility_state<T: UserEvent>(context: &Context<T>, enab
   }
 }
 
+/// Breaks out of `cef::run_message_loop`, posted as a UI-thread task rather
+/// than run inline.
+///
+/// `quit_message_loop` runs CEF's `base::RunLoop` quit closure, which only
+/// reaches the platform "stop" when CEF's run loop is the *topmost* active one.
+/// Called directly from a CEF callback it can land while Chrome is inside a
+/// nested run loop (e.g. the close sequence an app-terminate kicks off), where
+/// the quit is silently dropped and `run_message_loop` never returns. Running
+/// it from a posted (non-nestable) task defers it to a clean top-of-loop point,
+/// and [`crate::platform::stop_event_loop`] then stops the platform run loop
+/// directly — see its docs for why `quit_message_loop` is not enough on macOS.
+fn post_quit_message_loop<T: UserEvent>(context: &Context<T>) {
+  let mut task = SendMessageTask::new(
+    context.clone(),
+    Arc::new(RefCell::new(Message::Task(Box::new(|| {
+      cef::quit_message_loop();
+      crate::platform::stop_event_loop();
+    })))),
+  );
+  cef::post_task(sys::cef_thread_id_t::TID_UI.into(), Some(&mut task));
+}
+
 /// Tear-down equivalent of cefclient's `RootWindowManager::CloseAllWindows`:
 /// drives every remaining window through the normal CEF lifecycle so each
 /// browser sees `OnBeforeClose`.
 ///
 /// Each call goes `force_close → can_close → close_window_browsers →
 /// on_before_close → on_window_destroyed`. While `Context::is_shutting_down`
-/// is set, those callbacks suppress their public events so the embedder only
-/// sees the `ExitRequested -> Exit` pair we already emitted for the direct
-/// exit.
+/// is set, those callbacks suppress their public events: the embedder saw
+/// `ExitRequested` when the direct exit was approved and gets the terminal
+/// `Exit` once the loop returns and shutdown completes.
 pub fn close_all_windows(windows: &Arc<RefCell<HashMap<WindowId, AppWindow>>>) {
   let window_ids: Vec<_> = windows.borrow().keys().copied().collect();
   for window_id in window_ids {
@@ -4492,21 +4523,26 @@ fn on_window_destroyed<T: UserEvent>(window_id: WindowId, context: &Context<T>) 
 
   drop(removed_window);
 
-  let is_empty = context.windows.borrow().is_empty();
-  // Window-close exit path: only emit the terminal `ExitRequested -> Exit`
-  // pair when this is the last window being destroyed naturally. If we're
-  // already shutting down (direct-exit tear-down or a previously approved
-  // exit) the events have already been delivered.
-  if is_empty && !is_shutting_down {
+  if !context.windows.borrow().is_empty() {
+    return;
+  }
+
+  // The last window is gone, so the message loop can finally be quit.
+  if is_shutting_down {
+    // Direct-exit tear-down: the embedder already saw `ExitRequested` when the
+    // exit was approved; the terminal `Exit` is delivered to the embedder once
+    // the loop returns and shutdown completes. Just break the loop here.
+    post_quit_message_loop(context);
+  } else {
+    // Natural last-window close: surface `ExitRequested` and, unless the
+    // embedder vetoes, break the loop.
     let (tx, rx) = channel();
     (context.callback.borrow())(RunEvent::ExitRequested { code: None, tx });
 
-    let recv = rx.try_recv();
-    let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
-
+    let should_prevent = matches!(rx.try_recv(), Ok(ExitRequestedEventAction::Prevent));
     if !should_prevent {
       context.is_shutting_down.store(true, Ordering::SeqCst);
-      (context.callback.borrow())(RunEvent::Exit);
+      post_quit_message_loop(context);
     }
   }
 }

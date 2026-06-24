@@ -21,6 +21,10 @@ fn hwnd(window: &cef::Window) -> HWND {
   HWND(window.window_handle().0 as _)
 }
 
+/// Only macOS needs to break the run loop explicitly; elsewhere
+/// `cef::quit_message_loop` suffices, so this is a no-op.
+pub fn stop_event_loop() {}
+
 pub fn set_parent(window: &cef::Window, parent: HWND) {
   let hwnd = hwnd(window);
   unsafe {

@@ -33,6 +33,7 @@ winit = "0.31.0-beta.2"
 windows = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  "Win32_System_Com",
   "Win32_System_LibraryLoader",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
@@ -42,6 +43,7 @@ windows = { version = "0.61", features = [
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSApplication",
+  "NSDockTile",
   "NSEvent",
   "NSResponder",
   "NSView",
@@ -49,6 +51,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSObject",
   "NSRunLoop",
+  "NSString",
   "NSThread",
   "NSTimer",
 ] }

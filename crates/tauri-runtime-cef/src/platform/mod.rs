@@ -28,3 +28,16 @@ mod linux;
   target_os = "openbsd"
 ))]
 pub use linux::*;
+
+pub trait EventLoopExt {
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy(&self, policy: tauri_runtime::ActivationPolicy);
+  #[cfg(target_os = "macos")]
+  fn set_dock_visibility(&self, visible: bool);
+  #[cfg(target_os = "macos")]
+  fn show_application(&self);
+  #[cfg(target_os = "macos")]
+  fn hide_application(&self);
+  fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>);
+  fn set_badge_label(&self, label: Option<String>);
+}

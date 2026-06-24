@@ -44,8 +44,7 @@ use winit::{
 
 #[cfg(target_os = "macos")]
 use crate::macos_cef_pump::MacosCefPump;
-#[cfg(target_os = "macos")]
-use crate::platform::EventLoopExtMacos;
+use crate::platform::EventLoopExt;
 use crate::{
   cef_impl::{client as browser_client, ipc, request_handler},
   webview::{

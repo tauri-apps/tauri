@@ -2,8 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{webview::AppWebview, window::AppWindow};
+use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
 use tauri_runtime::dpi::Rect;
+use winit::event_loop::ActiveEventLoop;
+
+impl EventLoopExt for dyn ActiveEventLoop + '_ {
+  fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {
+    let _ = (count, desktop_filename);
+    // TODO
+  }
+
+  fn set_badge_label(&self, label: Option<String>) {
+    let _ = label;
+    // TODO
+  }
+}
 
 impl AppWebview {
   pub(crate) fn bounds(&self) -> Option<Rect> {

@@ -4,7 +4,7 @@
 
 use std::cell::Cell;
 
-use crate::{webview::AppWebview, window::AppWindow};
+use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
 use cef::{
   ImplBrowserHost,
   application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol},
@@ -16,7 +16,7 @@ use objc2::{
 use objc2_app_kit::{
   NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSView, NSWindowButton,
 };
-use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize};
+use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri_runtime::dpi::{LogicalPosition, LogicalSize, Position, Rect};
 use winit::event_loop::ActiveEventLoop;
 
@@ -70,14 +70,7 @@ pub fn setup_application() {
   assert!(NSApp(mtm).isKindOfClass(CefWinitApplication::class()));
 }
 
-pub trait EventLoopExtMacos {
-  fn set_activation_policy(&self, policy: tauri_runtime::ActivationPolicy);
-  fn set_dock_visibility(&self, visible: bool);
-  fn show_application(&self);
-  fn hide_application(&self);
-}
-
-impl EventLoopExtMacos for dyn ActiveEventLoop + '_ {
+impl EventLoopExt for dyn ActiveEventLoop + '_ {
   fn set_activation_policy(&self, policy: tauri_runtime::ActivationPolicy) {
     let Some(mtm) = MainThreadMarker::new() else {
       return;
@@ -112,6 +105,20 @@ impl EventLoopExtMacos for dyn ActiveEventLoop + '_ {
       return;
     };
     NSApp(mtm).hide(None);
+  }
+
+  fn set_badge_count(&self, count: Option<i64>, _desktop_filename: Option<String>) {
+    self.set_badge_label(count.map(|count| count.to_string()));
+  }
+
+  fn set_badge_label(&self, label: Option<String>) {
+    let Some(mtm) = MainThreadMarker::new() else {
+      return;
+    };
+    let app = NSApplication::sharedApplication(mtm);
+    let dock_tile = app.dockTile();
+    let ns_label = label.map(|label| NSString::from_str(&label));
+    dock_tile.setBadgeLabel(ns_label.as_deref());
   }
 }
 

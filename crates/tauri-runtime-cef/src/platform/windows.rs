@@ -2,21 +2,80 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{webview::AppWebview, window::AppWindow};
+use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
+use tauri_runtime::Icon;
 use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
 use windows::Win32::{
   Foundation::{HWND, POINT, RECT},
   Graphics::Gdi::MapWindowPoints,
+  System::Com::{CLSCTX_SERVER, CoCreateInstance},
+  UI::Shell::{ITaskbarList3, TaskbarList},
   UI::WindowsAndMessaging::{
-    GetParent, GetWindowRect, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER, SetParent,
-    SetWindowPos, ShowWindow,
+    CreateIcon, DestroyIcon, GetParent, GetWindowRect, SW_HIDE, SW_SHOW, SWP_NOACTIVATE,
+    SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow,
   },
 };
+use winit::event_loop::ActiveEventLoop;
 
 impl AppWindow {
   pub(crate) fn hwnd(&self) -> HWND {
     let hwnd = self.raw_handle_as_cef_handle();
     HWND(hwnd.0 as _)
+  }
+
+  pub(crate) fn set_overlay_icon(&self, icon: Option<Icon<'static>>) {
+    let Ok(taskbar) =
+      (unsafe { CoCreateInstance::<_, ITaskbarList3>(&TaskbarList, None, CLSCTX_SERVER) })
+    else {
+      return;
+    };
+
+    let icon = icon.map(icon_to_hicon);
+    let hwnd = self.hwnd();
+
+    if let Some(icon) = icon {
+      let _ = unsafe { taskbar.SetOverlayIcon(hwnd, icon, None) };
+      let _ = unsafe { DestroyIcon(icon) };
+    } else {
+      let _ = unsafe { taskbar.SetOverlayIcon(hwnd, Default::default(), None) };
+    }
+  }
+}
+
+impl EventLoopExt for dyn ActiveEventLoop + '_ {
+  fn set_badge_count(&self, _count: Option<i64>, _desktop_filename: Option<String>) {
+    // Unsupported on Windows
+  }
+  fn set_badge_label(&self, _label: Option<String>) {
+    // Unsupported on Windows
+  }
+}
+
+fn icon_to_hicon(icon: Icon<'static>) -> Option<windows::Win32::UI::WindowsAndMessaging::HICON> {
+  let width = icon.width;
+  let height = icon.height;
+  let mut rgba = icon.rgba.into_owned();
+  if width == 0 || height == 0 || rgba.len() != width as usize * height as usize * 4 {
+    return None;
+  }
+
+  let mut and_mask = Vec::with_capacity(width as usize * height as usize);
+  for pixel in rgba.chunks_exact_mut(4) {
+    and_mask.push(pixel[3].wrapping_sub(u8::MAX));
+    pixel.swap(0, 2);
+  }
+
+  unsafe {
+    CreateIcon(
+      None,
+      width as i32,
+      height as i32,
+      1,
+      32,
+      and_mask.as_ptr(),
+      rgba.as_ptr(),
+    )
+    .ok()
   }
 }
 

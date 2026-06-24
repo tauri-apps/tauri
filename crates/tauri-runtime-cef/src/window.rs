@@ -26,6 +26,7 @@ use tauri_runtime::{
 use tauri_utils::{Theme, config::Color};
 use winit::{event_loop::ActiveEventLoop, monitor::Fullscreen, window::Window as WinitWindow};
 
+use crate::platform::EventLoopExt;
 #[cfg(windows)]
 use std::marker::PhantomData;
 #[cfg(target_os = "macos")]
@@ -460,14 +461,19 @@ impl<T: UserEvent> WinitCefApp<T> {
         }
       }
       WindowMessage::SetTheme(theme) => window.set_theme(tauri_theme_to_winit_theme(theme)),
+      WindowMessage::SetBadgeCount(count, desktop_filename) => {
+        event_loop.set_badge_count(count, desktop_filename)
+      }
+      WindowMessage::SetBadgeLabel(label) => event_loop.set_badge_label(label),
+      WindowMessage::SetOverlayIcon(_icon) => {
+        #[cfg(windows)]
+        app_window.set_overlay_icon(_icon);
+      }
 
       WindowMessage::SetFocusable(_)
       | WindowMessage::SetSizeConstraints(_)
       | WindowMessage::SetVisibleOnAllWorkspaces(_)
       | WindowMessage::SetProgressBar(_)
-      | WindowMessage::SetBadgeCount(_, _)
-      | WindowMessage::SetBadgeLabel(_)
-      | WindowMessage::SetOverlayIcon(_)
       | WindowMessage::SetTitleBarStyle(_)
       | WindowMessage::SetBackgroundColor(_)
       | WindowMessage::StartDragging

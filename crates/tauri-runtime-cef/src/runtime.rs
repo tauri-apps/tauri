@@ -1197,7 +1197,8 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     #[cfg(windows)]
     use winit::platform::windows::EventLoopBuilderExtWindows;
 
-    let event_loop_builder = EventLoopBuilder::default().with_any_thread(true);
+    let mut event_loop_builder = EventLoopBuilder::default();
+    event_loop_builder.with_any_thread(true);
     Self::init(event_loop_builder, args)
   }
 

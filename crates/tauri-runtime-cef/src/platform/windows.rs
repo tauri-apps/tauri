@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
+use cef::ImplBrowserHost;
 use tauri_runtime::{
   Error, Icon, Result,
   dpi::{PhysicalPosition, PhysicalSize, Rect},
@@ -33,7 +34,7 @@ impl AppWindow {
       return;
     };
 
-    let icon = icon.map(icon_to_hicon);
+    let icon = icon.and_then(icon_to_hicon);
     let hwnd = self.hwnd();
 
     if let Some(icon) = icon {

@@ -192,7 +192,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       .expect("failed to create winit window");
 
     let winit_id = window.id();
-    let mut host = AppWindow {
+    let mut appwindow = AppWindow {
       id: window_id,
       label: pending.label.clone(),
       window,
@@ -203,23 +203,23 @@ impl<T: UserEvent> WinitCefApp<T> {
     };
 
     #[cfg(target_os = "macos")]
-    if let Some(position) = &host.traffic_light_position {
-      host.apply_traffic_light_position(position);
+    if let Some(position) = &appwindow.traffic_light_position {
+      appwindow.apply_traffic_light_position(position);
     }
 
     #[cfg(windows)]
     if let Some(after_window_creation) = _after_window_creation {
-      let native = host.raw_handle_as_cef_handle();
+      let hwnd = appwindow.hwnd();
       after_window_creation(RawWindow {
-        hwnd: native.0 as isize,
+        hwnd: hwnd.0 as isize,
         _marker: &PhantomData,
       });
     }
 
     if let (Some(webview_id), Some(webview)) = (webview_id, pending.webview) {
-      let size = host.window.surface_size();
-      let scale = host.window.scale_factor();
-      let native = host.raw_handle_as_cef_handle();
+      let size = appwindow.window.surface_size();
+      let scale = appwindow.window.scale_factor();
+      let native = appwindow.raw_handle_as_cef_handle();
       let child = self.create_browser_child(
         window_id,
         webview_id,
@@ -230,15 +230,15 @@ impl<T: UserEvent> WinitCefApp<T> {
         webview,
       );
       self.state.live_browsers += 1;
-      host.children.push(child);
+      appwindow.children.push(child);
     }
 
-    webview::layout_app_window(&host);
+    webview::layout_app_window(&appwindow);
     self
       .state
       .winid_id_to_window_id_map
       .insert(winit_id, window_id);
-    self.state.windows.insert(window_id, host);
+    self.state.windows.insert(window_id, appwindow);
   }
 
   pub(crate) fn handle_window_message(

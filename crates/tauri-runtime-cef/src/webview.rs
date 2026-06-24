@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use std::collections::HashMap;
-use std::ffi::c_void;
 use std::sync::Arc;
 use std::sync::{
   Mutex,
@@ -128,8 +127,8 @@ pub(crate) enum WebviewMessage {
   OnDevToolsProtocol(Arc<DevToolsProtocolHandler>, Sender<Result<()>>),
 }
 
-/// A webview's bounds expressed as a fraction of its host window, used to
-/// reposition/resize auto-resize webviews when the host window changes size.
+/// A webview's bounds expressed as a fraction of its parent window, used to
+/// reposition/resize auto-resize webviews when the parent window changes size.
 #[derive(Clone, Copy)]
 pub(crate) struct BoundsRate {
   pub(crate) x: f32,
@@ -163,7 +162,7 @@ pub(crate) struct AppWebview {
 }
 
 impl AppWebview {
-  pub(crate) fn set_bounds(&mut self, host_size: PhysicalSize<u32>, scale: f64, bounds: Rect) {
+  pub(crate) fn set_bounds(&mut self, parent_size: PhysicalSize<u32>, scale: f64, bounds: Rect) {
     let position = bounds.position.to_physical::<i32>(scale);
     let size = bounds.size.to_physical::<u32>(scale);
 
@@ -173,8 +172,8 @@ impl AppWebview {
     let h = size.height as i32;
 
     if self.bounds_rate.is_some() {
-      let win_w = host_size.width.max(1) as f32;
-      let win_h = host_size.height.max(1) as f32;
+      let win_w = parent_size.width.max(1) as f32;
+      let win_h = parent_size.height.max(1) as f32;
       self.bounds_rate = Some(BoundsRate {
         x: x as f32 / win_w,
         y: y as f32 / win_h,
@@ -201,28 +200,28 @@ impl<T: UserEvent> WinitCefApp<T> {
     webview_id: u32,
     pending: PendingWebview<T, CefRuntime<T>>,
   ) {
-    let Some(host) = self.state.windows.get(&window_id) else {
+    let Some(appwindow) = self.state.windows.get(&window_id) else {
       return;
     };
 
-    let native = host.raw_handle_as_cef_handle();
-    let host_size = host.window.surface_size();
-    let scale = host.window.scale_factor();
+    let native = appwindow.raw_handle_as_cef_handle();
+    let parent_size = appwindow.window.surface_size();
+    let scale = appwindow.window.scale_factor();
 
     let child = self.create_browser_child(
       window_id,
       webview_id,
       native,
-      host_size,
+      parent_size,
       scale,
       browser_client::DragDropEventTarget::Webview,
       pending,
     );
 
-    if let Some(host) = self.state.windows.get_mut(&window_id) {
-      host.children.push(child);
+    if let Some(appwindow) = self.state.windows.get_mut(&window_id) {
+      appwindow.children.push(child);
       self.state.live_browsers += 1;
-      layout_app_window(host);
+      layout_app_window(appwindow);
     }
   }
 
@@ -231,7 +230,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     window_id: WindowId,
     webview_id: u32,
     parent: CefWindowHandle,
-    host_size: PhysicalSize<u32>,
+    parent_size: PhysicalSize<u32>,
     scale: f64,
     drag_drop_event_target: browser_client::DragDropEventTarget,
     mut pending: PendingWebview<T, CefRuntime<T>>,
@@ -239,7 +238,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     let bounds_rate = compute_child_bounds_rate(
       pending.webview_attributes.bounds.as_ref(),
       pending.webview_attributes.auto_resize,
-      host_size,
+      parent_size,
       scale,
     );
     let initialization_scripts = initialization_scripts(&mut pending.webview_attributes);
@@ -287,7 +286,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // aka full-window webview.
     let bounds = pending.webview_attributes.bounds.unwrap_or_else(|| Rect {
       position: PhysicalPosition::new(0, 0).into(),
-      size: host_size.into(),
+      size: parent_size.into(),
     });
     #[cfg(not(target_os = "macos"))]
     let bounds = bounds.to_physical::<i32, i32>(scale);
@@ -414,10 +413,10 @@ impl<T: UserEvent> WinitCefApp<T> {
     webview_id: u32,
     message: WebviewMessage,
   ) {
-    let Some(host) = self.state.windows.get_mut(&window_id) else {
+    let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
-    let Some(child) = host
+    let Some(child) = appwindow
       .children
       .iter_mut()
       .find(|child| child.webview_id == webview_id)
@@ -454,29 +453,29 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::CanGoForward(tx) => _ = tx.send(Ok(child.browser.can_go_forward() == 1)),
       WebviewMessage::Close => child.host.close_browser(0),
       WebviewMessage::SetBounds(bounds) => {
-        let host_size = host.window.surface_size();
-        let scale = host.window.scale_factor();
-        child.set_bounds(host_size, scale, bounds);
+        let parent_size = appwindow.window.surface_size();
+        let scale = appwindow.window.scale_factor();
+        child.set_bounds(parent_size, scale, bounds);
       }
       WebviewMessage::SetSize(size) => {
-        let host_size = host.window.surface_size();
-        let scale = host.window.scale_factor();
+        let parent_size = appwindow.window.surface_size();
+        let scale = appwindow.window.scale_factor();
         let bounds = child.bounds().unwrap_or_default();
         let new_bounds = Rect {
           position: bounds.position,
           size,
         };
-        child.set_bounds(host_size, scale, new_bounds);
+        child.set_bounds(parent_size, scale, new_bounds);
       }
       WebviewMessage::SetPosition(position) => {
-        let host_size = host.window.surface_size();
-        let scale = host.window.scale_factor();
+        let parent_size = appwindow.window.surface_size();
+        let scale = appwindow.window.scale_factor();
         let bounds = child.bounds().unwrap_or_default();
         let new_bounds = Rect {
           position,
           size: bounds.size,
         };
-        child.set_bounds(host_size, scale, new_bounds);
+        child.set_bounds(parent_size, scale, new_bounds);
       }
       WebviewMessage::SetFocus => child.host.set_focus(1),
       WebviewMessage::Url(tx) => {
@@ -494,12 +493,12 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::Position(tx) => {
         let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
         let position = bounds.map(|b| b.position);
-        let position = position.map(|p| p.to_physical::<i32>(host.window.scale_factor()));
+        let position = position.map(|p| p.to_physical::<i32>(appwindow.window.scale_factor()));
         let _ = tx.send(position);
       }
       WebviewMessage::Size(tx) => {
         let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
-        let size = bounds.map(|b| b.size.to_physical::<u32>(host.window.scale_factor()));
+        let size = bounds.map(|b| b.size.to_physical::<u32>(appwindow.window.scale_factor()));
         let _ = tx.send(size);
       }
       WebviewMessage::WithWebview(f) => f(Webview::new(child.browser.clone())),
@@ -544,34 +543,39 @@ impl<T: UserEvent> WinitCefApp<T> {
           return;
         }
 
-        let Some(mut child) = self.state.windows.get_mut(&window_id).and_then(|host| {
-          host
-            .children
-            .iter()
-            .position(|child| child.webview_id == webview_id)
-            .map(|index| host.children.remove(index))
-        }) else {
+        let Some(mut child) = self
+          .state
+          .windows
+          .get_mut(&window_id)
+          .and_then(|appwindow| {
+            appwindow
+              .children
+              .iter()
+              .position(|child| child.webview_id == webview_id)
+              .map(|index| appwindow.children.remove(index))
+          })
+        else {
           let _ = tx.send(Err(Error::WindowNotFound));
           return;
         };
 
-        let Some(target_host) = self.state.windows.get_mut(&target_window_id) else {
+        let Some(target_appwindow) = self.state.windows.get_mut(&target_window_id) else {
           let _ = tx.send(Err(Error::WindowNotFound));
           return;
         };
 
         let bounds = child.bounds().unwrap_or_else(|| Rect {
           position: PhysicalPosition::new(0, 0).into(),
-          size: target_host.window.surface_size().into(),
+          size: target_appwindow.window.surface_size().into(),
         });
-        child.reparent(target_host);
+        child.reparent(target_appwindow);
         child.set_bounds(
-          target_host.window.surface_size(),
-          target_host.window.scale_factor(),
+          target_appwindow.window.surface_size(),
+          target_appwindow.window.scale_factor(),
           bounds,
         );
 
-        target_host.children.push(child);
+        target_appwindow.children.push(child);
         let _ = tx.send(Ok(()));
       }
       #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -1102,17 +1106,17 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
   }
 }
 
-/// Reposition every child webview to follow the host window size.
+/// Reposition every child webview to follow the parent window size.
 ///
 /// Children with a bounds rate (auto-resize / window-filling) are recomputed
 /// from the current window size; children with fixed bounds keep whatever bounds
 /// they were last given.
-pub(crate) fn layout_app_window(host: &AppWindow) {
-  let host_size = host.window.surface_size();
-  let win_w = host_size.width as f32;
-  let win_h = host_size.height as f32;
-  let scale = host.window.scale_factor();
-  for child in &host.children {
+pub(crate) fn layout_app_window(appwindow: &AppWindow) {
+  let parent_size = appwindow.window.surface_size();
+  let win_w = parent_size.width as f32;
+  let win_h = parent_size.height as f32;
+  let scale = appwindow.window.scale_factor();
+  for child in &appwindow.children {
     let Some(rate) = child.bounds_rate else {
       continue;
     };
@@ -1126,14 +1130,14 @@ pub(crate) fn layout_app_window(host: &AppWindow) {
   }
 }
 
-/// Compute the bounds rate of a child webview relative to its host window.
+/// Compute the bounds rate of a child webview relative to its parent window.
 ///
-/// For webiews filling the window, default rate is used, otherwise the rate is computed from the current bounds and host size
+/// For webiews filling the window, default rate is used, otherwise the rate is computed from the current bounds and parent size
 /// if auto_resize is enabled, otherwise None is returned.
 pub(crate) fn compute_child_bounds_rate(
   bounds: Option<&Rect>,
   auto_resize: bool,
-  host_size: PhysicalSize<u32>,
+  parent_size: PhysicalSize<u32>,
   scale: f64,
 ) -> Option<BoundsRate> {
   let Some(bounds) = bounds else {
@@ -1144,8 +1148,8 @@ pub(crate) fn compute_child_bounds_rate(
     return None;
   }
 
-  let min_w = host_size.width.max(1) as i32;
-  let min_h = host_size.height.max(1) as i32;
+  let min_w = parent_size.width.max(1) as i32;
+  let min_h = parent_size.height.max(1) as i32;
 
   let pos = bounds.position.to_physical::<i32>(scale);
   let size = bounds.size.to_physical::<u32>(scale);

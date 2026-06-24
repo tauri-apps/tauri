@@ -396,13 +396,13 @@ impl<T: UserEvent> WinitCefApp<T> {
     match message {
       Message::CefWork(delay) => self.schedule_cef_work(event_loop, delay),
       Message::BrowserClosed(window_id, webview_id) => {
-        if let Some(host) = self.state.windows.get_mut(&window_id)
-          && let Some(index) = host
+        if let Some(appwindow) = self.state.windows.get_mut(&window_id)
+          && let Some(index) = appwindow
             .children
             .iter()
             .position(|child| child.webview_id == webview_id)
         {
-          let child = host.children.remove(index);
+          let child = appwindow.children.remove(index);
           self.remove_scheme_handler_entries(&child);
         }
         self.state.live_browsers = self.state.live_browsers.saturating_sub(1);
@@ -551,11 +551,11 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn emit_window_event(&mut self, window_id: WindowId, event: WindowEvent) {
-    let Some(host) = self.state.windows.get(&window_id) else {
+    let Some(appwindow) = self.state.windows.get(&window_id) else {
       return;
     };
-    let label = host.label.clone();
-    let listeners = host.listeners.clone();
+    let label = appwindow.label.clone();
+    let listeners = appwindow.listeners.clone();
 
     {
       let listeners = listeners.lock().unwrap();
@@ -568,10 +568,10 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn emit_webview_event(&mut self, window_id: WindowId, webview_id: u32, event: WebviewEvent) {
-    let Some(host) = self.state.windows.get(&window_id) else {
+    let Some(appwindow) = self.state.windows.get(&window_id) else {
       return;
     };
-    let Some(child) = host
+    let Some(child) = appwindow
       .children
       .iter()
       .find(|child| child.webview_id == webview_id)
@@ -587,16 +587,16 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   pub(crate) fn close_window(&mut self, window_id: WindowId, event_loop: &dyn ActiveEventLoop) {
-    let Some(host) = self.state.windows.remove(&window_id) else {
+    let Some(appwindow) = self.state.windows.remove(&window_id) else {
       return;
     };
     self
       .state
       .winid_id_to_window_id_map
-      .remove(&host.window.id());
+      .remove(&appwindow.window.id());
     // The window is gone from `state.windows`, so the deferred `BrowserClosed`
     // messages won't find it to remove; do it here while we still hold the children.
-    for child in &host.children {
+    for child in &appwindow.children {
       self.remove_scheme_handler_entries(child);
       child.host.close_browser(1);
     }
@@ -618,8 +618,8 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn close_all_browsers(&mut self) {
-    for host in self.state.windows.values() {
-      for child in &host.children {
+    for appwindow in self.state.windows.values() {
+      for child in &appwindow.children {
         self.remove_scheme_handler_entries(child);
         child.host.close_browser(1);
       }
@@ -692,14 +692,14 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     let Some(window_id) = self.state.winid_id_to_window_id_map.get(&winit_id).copied() else {
       return;
     };
-    let Some(host) = self.state.windows.get_mut(&window_id) else {
+    let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
 
     match event {
       WinitWindowEvent::CloseRequested => {
         let (tx, rx) = mpsc::channel();
-        let label = host.label.clone();
+        let label = appwindow.label.clone();
         self.run_callback(RunEvent::WindowEvent {
           label,
           event: WindowEvent::CloseRequested { signal_tx: tx },
@@ -709,7 +709,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         }
       }
       WinitWindowEvent::Destroyed => {
-        let label = host.label.clone();
+        let label = appwindow.label.clone();
         self.close_window(window_id, event_loop);
         self.run_callback(RunEvent::WindowEvent {
           label,
@@ -717,22 +717,22 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         });
       }
       WinitWindowEvent::SurfaceResized(size) => {
-        webview::layout_app_window(host);
-        let label = host.label.clone();
+        webview::layout_app_window(appwindow);
+        let label = appwindow.label.clone();
         self.run_callback(RunEvent::WindowEvent {
           label,
           event: WindowEvent::Resized(size),
         });
       }
       WinitWindowEvent::Moved(pos) => {
-        let label = host.label.clone();
+        let label = appwindow.label.clone();
         self.run_callback(RunEvent::WindowEvent {
           label,
           event: WindowEvent::Moved(PhysicalPosition::new(pos.x, pos.y)),
         });
       }
       WinitWindowEvent::Focused(focused) => {
-        let label = host.label.clone();
+        let label = appwindow.label.clone();
         self.run_callback(RunEvent::WindowEvent {
           label,
           event: WindowEvent::Focused(focused),
@@ -755,8 +755,8 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       }
       #[cfg(target_os = "macos")]
       WinitWindowEvent::RedrawRequested => {
-        if let Some(position) = &host.traffic_light_position {
-          host.apply_traffic_light_position(position);
+        if let Some(position) = &appwindow.traffic_light_position {
+          appwindow.apply_traffic_light_position(position);
         }
       }
       _ => {}

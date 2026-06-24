@@ -13,9 +13,16 @@ use windows::Win32::{
   },
 };
 
-impl AppWebview {
+impl AppWindow {
   pub(crate) fn hwnd(&self) -> HWND {
     let hwnd = self.raw_handle_as_cef_handle();
+    HWND(hwnd.0 as _)
+  }
+}
+
+impl AppWebview {
+  pub(crate) fn hwnd(&self) -> HWND {
+    let hwnd = self.host.window_handle();
     HWND(hwnd.0 as _)
   }
 

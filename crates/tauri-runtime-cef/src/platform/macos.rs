@@ -15,12 +15,14 @@ use objc2::{
 };
 use objc2_app_kit::{
   NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSScreen, NSView, NSWindowButton,
+  NSWindowStyleMask,
 };
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri_runtime::{
   Error, Result,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, Position, Rect},
 };
+use tauri_utils::TitleBarStyle;
 use winit::event_loop::ActiveEventLoop;
 
 #[derive(Default)]
@@ -183,6 +185,37 @@ impl AppWindow {
       let mut origin = button.frame().origin;
       origin.x = pos.x + (index as f64 * space_between);
       button.setFrameOrigin(origin);
+    }
+  }
+
+  pub(crate) fn set_title_bar_style(&self, style: TitleBarStyle) {
+    let Some(nsview) = self.nsview() else {
+      return;
+    };
+    let Some(nswindow) = nsview.window() else {
+      return;
+    };
+
+    match style {
+      TitleBarStyle::Visible => {
+        nswindow.setTitlebarAppearsTransparent(false);
+        let mut mask = nswindow.styleMask();
+        mask.remove(NSWindowStyleMask::FullSizeContentView);
+        nswindow.setStyleMask(mask);
+      }
+      TitleBarStyle::Transparent => {
+        nswindow.setTitlebarAppearsTransparent(true);
+        let mut mask = nswindow.styleMask();
+        mask.remove(NSWindowStyleMask::FullSizeContentView);
+        nswindow.setStyleMask(mask);
+      }
+      TitleBarStyle::Overlay => {
+        nswindow.setTitlebarAppearsTransparent(true);
+        let mut mask = nswindow.styleMask();
+        mask.insert(NSWindowStyleMask::FullSizeContentView);
+        nswindow.setStyleMask(mask);
+      }
+      _ => {}
     }
   }
 }

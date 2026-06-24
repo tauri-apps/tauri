@@ -498,6 +498,10 @@ impl<T: UserEvent> WinitCefApp<T> {
           app_window.apply_traffic_light_position(&_position);
         }
       }
+      WindowMessage::SetTitleBarStyle(_style) => {
+        #[cfg(target_os = "macos")]
+        app_window.set_title_bar_style(_style);
+      }
       WindowMessage::SetTheme(theme) => window.set_theme(tauri_theme_to_winit_theme(theme)),
       WindowMessage::SetBadgeCount(count, desktop_filename) => {
         event_loop.set_badge_count(count, desktop_filename)
@@ -522,7 +526,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetFocusable(_)
       | WindowMessage::SetVisibleOnAllWorkspaces(_)
       | WindowMessage::SetProgressBar(_)
-      | WindowMessage::SetTitleBarStyle(_)
       | WindowMessage::SetBackgroundColor(_) => {
         // TODO
       }

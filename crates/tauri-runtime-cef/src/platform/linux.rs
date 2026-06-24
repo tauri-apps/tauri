@@ -35,6 +35,12 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
 }
 
 impl AppWebview {
+  pub(crate) fn set_background_color(&self, color: Option<Color>) {
+    let _ = (self, color);
+    // Native child-window background is not equivalent to Chromium's rendered
+    // background. Creation still applies BrowserSettings.
+  }
+
   pub(crate) fn bounds(&self) -> Option<Rect> {
     let _ = self;
     todo!("TODO: implement CEF/winit child bounds on Linux")

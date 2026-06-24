@@ -575,9 +575,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           child.bounds_rate = None;
         }
       }
-      WebviewMessage::SetBackgroundColor(_) => {
-        // TODO
-      }
+      WebviewMessage::SetBackgroundColor(color) => child.set_background_color(color),
       WebviewMessage::ClearAllBrowsingData => {
         if let Some(manager) = child.cookie_manager() {
           manager.delete_cookies(None, None, None);

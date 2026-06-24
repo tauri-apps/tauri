@@ -266,6 +266,24 @@ impl AppWebview {
     unsafe { Retained::<NSView>::retain(view) }
   }
 
+  pub(crate) fn set_background_color(&self, color: Option<Color>) {
+    let Some(nsview) = self.nsview() else {
+      return;
+    };
+
+    nsview.setWantsLayer(true);
+
+    let Some(layer) = nsview.layer() else {
+      return;
+    };
+
+    let nscolor = color
+      .map(ns_color_from_tauri_color)
+      .unwrap_or_else(NSColor::windowBackgroundColor);
+    let cg_color = nscolor.CGColor();
+    layer.setBackgroundColor(Some(&cg_color));
+  }
+
   pub(crate) fn bounds(&self) -> Option<Rect> {
     let Some(nsview) = self.nsview() else {
       return None;

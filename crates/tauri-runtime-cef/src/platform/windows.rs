@@ -100,6 +100,12 @@ impl AppWebview {
     HWND(hwnd.0 as _)
   }
 
+  pub(crate) fn set_background_color(&self, color: Option<Color>) {
+    let _ = color;
+    // Changing the native child HWND background only affects erase/fill, not
+    // Chromium's rendered background. Creation still applies BrowserSettings.
+  }
+
   pub(crate) fn bounds(&self) -> Option<Rect> {
     let hwnd = self.hwnd();
 

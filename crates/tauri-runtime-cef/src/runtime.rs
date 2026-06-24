@@ -42,7 +42,7 @@ use winit::{
 #[cfg(target_os = "macos")]
 use crate::macos_cef_pump::MacosCefPump;
 use crate::{
-  browser_client, ipc, request_handler,
+  cef_impl::{client as browser_client, ipc, request_handler},
   webview::{
     self, AppWebview, CefWebviewDispatcher, Webview, WebviewAtribute, WebviewMessage,
     create_webview_detached,

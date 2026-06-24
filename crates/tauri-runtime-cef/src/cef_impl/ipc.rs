@@ -8,7 +8,7 @@ use cef::*;
 use tauri_runtime::{UserEvent, webview::DetachedWebview};
 
 use crate::{
-  browser_client::TauriCefBrowserClient, runtime::CefRuntime, webview::CefWebviewDispatcher,
+  cef_impl::client::TauriCefBrowserClient, runtime::CefRuntime, webview::CefWebviewDispatcher,
 };
 
 const IPC_MESSAGE_NAME: &str = "tauri:ipc";

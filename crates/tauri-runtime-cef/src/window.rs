@@ -34,7 +34,7 @@ use winit::platform::macos::WindowExtMacOS;
 use winit::platform::windows::WindowExtWindows;
 
 use crate::{
-  browser_client,
+  cef_impl::client as browser_client,
   runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp},
   webview::{AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,

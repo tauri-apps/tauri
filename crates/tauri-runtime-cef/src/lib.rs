@@ -5,13 +5,10 @@
 #![allow(clippy::arc_with_non_send_sync)]
 #![allow(clippy::too_many_arguments)]
 
-mod browser_client;
-mod ipc;
+mod cef_impl;
 #[cfg(target_os = "macos")]
 mod macos_cef_pump;
 mod platform;
-mod request_context;
-mod request_handler;
 mod runtime;
 mod webview;
 mod window;

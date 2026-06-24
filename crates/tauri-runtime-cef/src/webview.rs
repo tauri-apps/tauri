@@ -24,9 +24,9 @@ use tauri_runtime::{
 use tauri_utils::config::Color;
 use url::Url;
 
+use crate::cef_impl::{client as browser_client, request_context};
 use crate::runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp};
 use crate::window::{AppWindow, CefWindowHandle};
-use crate::{browser_client, request_context};
 
 /// A handle to the native CEF browser backing a Tauri webview.
 ///

@@ -17,7 +17,7 @@ use cef::*;
 use sha2::{Digest, Sha256};
 use tauri_runtime::webview::WebviewAttributes;
 
-use crate::request_handler;
+use crate::cef_impl::request_handler;
 
 /// Resolves a CEF-compatible cache path for a per-webview request context.
 ///

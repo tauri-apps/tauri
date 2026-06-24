@@ -28,7 +28,7 @@ use tauri_utils::{
 use url::Url;
 
 use crate::{
-  browser_client::{DragDropEventTarget, DragDropScriptEvent, DragDropState},
+  cef_impl::client::{DragDropEventTarget, DragDropScriptEvent, DragDropState},
   runtime::{Message, RuntimeContext},
   webview::{CefInitScript, DRAG_DROP_BRIDGE_PATH, INITIAL_LOAD_URL},
 };

@@ -459,6 +459,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         true => winit::window::WindowLevel::AlwaysOnTop,
         false => winit::window::WindowLevel::Normal,
       }),
+      WindowMessage::SetVisibleOnAllWorkspaces(_value) => {
+        #[cfg(target_os = "macos")]
+        app_window.set_visible_on_all_workspaces(_value);
+      }
       WindowMessage::SetContentProtected(value) => window.set_content_protected(value),
       WindowMessage::SetIcon(icon) => {
         if let Ok(icon) = super::window::tauri_icon_to_winit_icon(icon) {
@@ -524,7 +528,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
 
       WindowMessage::SetFocusable(_)
-      | WindowMessage::SetVisibleOnAllWorkspaces(_)
       | WindowMessage::SetProgressBar(_)
       | WindowMessage::SetBackgroundColor(_) => {
         // TODO

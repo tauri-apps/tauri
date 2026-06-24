@@ -15,7 +15,7 @@ use objc2::{
 };
 use objc2_app_kit::{
   NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSScreen, NSView, NSWindowButton,
-  NSWindowStyleMask,
+  NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri_runtime::{
@@ -217,6 +217,19 @@ impl AppWindow {
       }
       _ => {}
     }
+  }
+
+  pub(crate) fn set_visible_on_all_workspaces(&self, visible: bool) {
+    let Some(nsview) = self.nsview() else {
+      return;
+    };
+    let Some(nswindow) = nsview.window() else {
+      return;
+    };
+
+    let mut collection_behavior = nswindow.collectionBehavior();
+    collection_behavior.set(NSWindowCollectionBehavior::CanJoinAllSpaces, visible);
+    nswindow.setCollectionBehavior(collection_behavior);
   }
 }
 

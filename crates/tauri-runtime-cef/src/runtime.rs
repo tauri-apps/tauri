@@ -35,12 +35,17 @@ use tauri_utils::Theme;
 use winit::{
   application::ApplicationHandler,
   event::{StartCause, WindowEvent as WinitWindowEvent},
-  event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy as WinitEventLoopProxy},
+  event_loop::{
+    ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder,
+    EventLoopProxy as WinitEventLoopProxy,
+  },
   window::WindowId as WinitWindowId,
 };
 
 #[cfg(target_os = "macos")]
 use crate::macos_cef_pump::MacosCefPump;
+#[cfg(target_os = "macos")]
+use crate::platform::EventLoopExtMacos;
 use crate::{
   cef_impl::{client as browser_client, ipc, request_handler},
   webview::{
@@ -279,6 +284,7 @@ impl<T: UserEvent> RuntimeContext<T> {
 pub(crate) enum Message<T: UserEvent> {
   #[cfg_attr(target_os = "macos", allow(dead_code))]
   CefWork(Duration),
+  EventLoop(EventLoopMessage),
   BrowserClosed(WindowId, u32),
   Opened(Vec<url::Url>),
   CreateWindow {
@@ -315,6 +321,17 @@ pub(crate) enum Message<T: UserEvent> {
   Task(Box<dyn FnOnce() + Send>),
   RequestExit(i32),
   UserEvent(T),
+}
+
+pub(crate) enum EventLoopMessage {
+  #[cfg(target_os = "macos")]
+  SetActivationPolicy(tauri_runtime::ActivationPolicy),
+  #[cfg(target_os = "macos")]
+  SetDockVisibility(bool),
+  #[cfg(target_os = "macos")]
+  ShowApplication,
+  #[cfg(target_os = "macos")]
+  HideApplication,
 }
 
 #[cfg(target_os = "macos")]
@@ -395,6 +412,7 @@ impl<T: UserEvent> WinitCefApp<T> {
   fn handle_message(&mut self, event_loop: &dyn ActiveEventLoop, message: Message<T>) {
     match message {
       Message::CefWork(delay) => self.schedule_cef_work(event_loop, delay),
+      Message::EventLoop(message) => self.handle_event_loop_message(event_loop, message),
       Message::BrowserClosed(window_id, webview_id) => {
         if let Some(appwindow) = self.state.windows.get_mut(&window_id)
           && let Some(index) = appwindow
@@ -464,6 +482,25 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       Message::Opened(urls) => self.run_callback(RunEvent::Opened { urls }),
       Message::UserEvent(event) => self.run_callback(RunEvent::UserEvent(event)),
+    }
+  }
+
+  fn handle_event_loop_message(
+    &mut self,
+    event_loop: &dyn ActiveEventLoop,
+    message: EventLoopMessage,
+  ) {
+    match message {
+      #[cfg(target_os = "macos")]
+      EventLoopMessage::SetActivationPolicy(activation_policy) => {
+        event_loop.set_activation_policy(activation_policy)
+      }
+      #[cfg(target_os = "macos")]
+      EventLoopMessage::SetDockVisibility(visible) => event_loop.set_dock_visibility(visible),
+      #[cfg(target_os = "macos")]
+      EventLoopMessage::ShowApplication => event_loop.show_application(),
+      #[cfg(target_os = "macos")]
+      EventLoopMessage::HideApplication => event_loop.hide_application(),
     }
   }
 
@@ -805,14 +842,14 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     &self,
     activation_policy: tauri_runtime::ActivationPolicy,
   ) -> Result<()> {
-    crate::platform::set_activation_policy(activation_policy);
-    Ok(())
+    let message = Message::EventLoop(EventLoopMessage::SetActivationPolicy(activation_policy));
+    self.context.send_message(message)
   }
 
   #[cfg(target_os = "macos")]
   fn set_dock_visibility(&self, visible: bool) -> Result<()> {
-    crate::platform::set_dock_visibility(visible);
-    Ok(())
+    let message = Message::EventLoop(EventLoopMessage::SetDockVisibility(visible));
+    self.context.send_message(message)
   }
 
   fn request_exit(&self, code: i32) -> Result<()> {
@@ -865,14 +902,14 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
 
   #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
-    crate::platform::set_application_visibility(true);
-    Ok(())
+    let message = Message::EventLoop(EventLoopMessage::ShowApplication);
+    self.context.send_message(message)
   }
 
   #[cfg(target_os = "macos")]
   fn hide(&self) -> Result<()> {
-    crate::platform::set_application_visibility(false);
-    Ok(())
+    let message = Message::EventLoop(EventLoopMessage::HideApplication);
+    self.context.send_message(message)
   }
 
   fn set_device_event_filter(&self, _filter: DeviceEventFilter) {}
@@ -911,7 +948,10 @@ impl<T: UserEvent> fmt::Debug for CefRuntime<T> {
 }
 
 impl<T: UserEvent> CefRuntime<T> {
-  fn init(runtime_args: RuntimeInitArgs<RuntimeInitAttribute>) -> Result<Self> {
+  fn init(
+    mut event_loop_builder: EventLoopBuilder,
+    runtime_args: RuntimeInitArgs<RuntimeInitAttribute>,
+  ) -> Result<Self> {
     let args = cef::args::Args::new();
 
     #[cfg(target_os = "macos")]
@@ -959,7 +999,15 @@ impl<T: UserEvent> CefRuntime<T> {
     });
     let _ = create_dir_all(&cache_path);
 
-    let mut event_loop_builder = EventLoop::builder();
+    // Force X11 usage on Linux and BSD, because CEF does not support Wayland yet.
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    event_loop_builder.with_x11();
 
     #[cfg(windows)]
     if let Some(hook) = runtime_args.msg_hook {
@@ -1049,7 +1097,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type WindowOpener = NewWindowOpener;
 
   fn new(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
-    Self::init(args)
+    Self::init(EventLoopBuilder::default(), args)
   }
 
   #[cfg(any(
@@ -1061,7 +1109,19 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     target_os = "openbsd"
   ))]
   fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
-    Self::init(args)
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    use winit::platform::unix::EventLoopBuilderExtUnix;
+    #[cfg(windows)]
+    use winit::platform::windows::EventLoopBuilderExtWindows;
+
+    let event_loop_builder = EventLoopBuilder::default().with_any_thread(true);
+    Self::init(event_loop_builder, args)
   }
 
   fn create_proxy(&self) -> Self::EventLoopProxy {
@@ -1112,22 +1172,26 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {
-    crate::platform::set_activation_policy(activation_policy);
+    let message = Message::EventLoop(EventLoopMessage::SetActivationPolicy(activation_policy));
+    let _ = self.context.send_message(message);
   }
 
   #[cfg(target_os = "macos")]
   fn set_dock_visibility(&mut self, visible: bool) {
-    crate::platform::set_dock_visibility(visible);
+    let message = Message::EventLoop(EventLoopMessage::SetDockVisibility(visible));
+    let _ = self.context.send_message(message);
   }
 
   #[cfg(target_os = "macos")]
   fn show(&self) {
-    crate::platform::set_application_visibility(true);
+    let message = Message::EventLoop(EventLoopMessage::ShowApplication);
+    let _ = self.context.send_message(message);
   }
 
   #[cfg(target_os = "macos")]
   fn hide(&self) {
-    crate::platform::set_application_visibility(false);
+    let message = Message::EventLoop(EventLoopMessage::HideApplication);
+    let _ = self.context.send_message(message);
   }
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
@@ -1157,7 +1221,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
 
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
     self.run(callback);
-    // TODO
+    // TODO: return the exit code from the runtime, if possible. For now, always return 0
     0
   }
 

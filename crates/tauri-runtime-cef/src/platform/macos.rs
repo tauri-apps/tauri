@@ -18,6 +18,7 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize};
 use tauri_runtime::dpi::{LogicalPosition, LogicalSize, Position, Rect};
+use winit::event_loop::ActiveEventLoop;
 
 #[derive(Default)]
 struct CefWinitApplicationIvars {
@@ -69,37 +70,48 @@ pub fn setup_application() {
   assert!(NSApp(mtm).isKindOfClass(CefWinitApplication::class()));
 }
 
-pub fn set_activation_policy(policy: tauri_runtime::ActivationPolicy) {
-  let Some(mtm) = MainThreadMarker::new() else {
-    return;
-  };
-  let app = NSApplication::sharedApplication(mtm);
-  let policy = match policy {
-    tauri_runtime::ActivationPolicy::Regular => NSApplicationActivationPolicy::Regular,
-    tauri_runtime::ActivationPolicy::Accessory => NSApplicationActivationPolicy::Accessory,
-    tauri_runtime::ActivationPolicy::Prohibited => NSApplicationActivationPolicy::Prohibited,
-    _ => NSApplicationActivationPolicy::Regular,
-  };
-  app.setActivationPolicy(policy);
+pub trait EventLoopExtMacos {
+  fn set_activation_policy(&self, policy: tauri_runtime::ActivationPolicy);
+  fn set_dock_visibility(&self, visible: bool);
+  fn show_application(&self);
+  fn hide_application(&self);
 }
 
-pub fn set_dock_visibility(visible: bool) {
-  set_activation_policy(if visible {
-    tauri_runtime::ActivationPolicy::Regular
-  } else {
-    tauri_runtime::ActivationPolicy::Accessory
-  });
-}
+impl EventLoopExtMacos for dyn ActiveEventLoop + '_ {
+  fn set_activation_policy(&self, policy: tauri_runtime::ActivationPolicy) {
+    let Some(mtm) = MainThreadMarker::new() else {
+      return;
+    };
+    let app = NSApplication::sharedApplication(mtm);
+    let policy = match policy {
+      tauri_runtime::ActivationPolicy::Regular => NSApplicationActivationPolicy::Regular,
+      tauri_runtime::ActivationPolicy::Accessory => NSApplicationActivationPolicy::Accessory,
+      tauri_runtime::ActivationPolicy::Prohibited => NSApplicationActivationPolicy::Prohibited,
+      _ => NSApplicationActivationPolicy::Regular,
+    };
+    app.setActivationPolicy(policy);
+  }
 
-pub fn set_application_visibility(visible: bool) {
-  let Some(mtm) = MainThreadMarker::new() else {
-    return;
-  };
-  let app = NSApp(mtm);
-  if visible {
-    app.unhide(None);
-  } else {
-    app.hide(None);
+  fn set_dock_visibility(&self, visible: bool) {
+    self.set_activation_policy(if visible {
+      tauri_runtime::ActivationPolicy::Regular
+    } else {
+      tauri_runtime::ActivationPolicy::Accessory
+    });
+  }
+
+  fn show_application(&self) {
+    let Some(mtm) = MainThreadMarker::new() else {
+      return;
+    };
+    NSApp(mtm).unhide(None);
+  }
+
+  fn hide_application(&self) {
+    let Some(mtm) = MainThreadMarker::new() else {
+      return;
+    };
+    NSApp(mtm).hide(None);
   }
 }
 

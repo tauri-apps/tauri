@@ -18,6 +18,8 @@ use winit::{
   window::{WindowAttributes, WindowButtons},
 };
 
+use crate::window::tauri_theme_to_winit_theme;
+
 #[cfg(target_os = "macos")]
 use std::ptr::NonNull;
 
@@ -373,11 +375,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn theme(mut self, theme: Option<Theme>) -> Self {
-    self.inner = self.inner.with_theme(theme.map(|theme| match theme {
-      Theme::Light => winit::window::Theme::Light,
-      Theme::Dark => winit::window::Theme::Dark,
-      _ => winit::window::Theme::Light,
-    }));
+    self.inner = self.inner.with_theme(tauri_theme_to_winit_theme(theme));
     self
   }
 

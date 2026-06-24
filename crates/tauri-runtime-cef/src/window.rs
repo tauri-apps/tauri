@@ -43,6 +43,21 @@ use crate::{
 pub(crate) struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
+pub(crate) fn tauri_theme_to_winit_theme(theme: Option<Theme>) -> Option<winit::window::Theme> {
+  theme.map(|theme| match theme {
+    Theme::Light => winit::window::Theme::Light,
+    Theme::Dark => winit::window::Theme::Dark,
+    _ => winit::window::Theme::Light,
+  })
+}
+
+fn winit_theme_to_tauri_theme(theme: winit::window::Theme) -> Theme {
+  match theme {
+    winit::window::Theme::Light => Theme::Light,
+    winit::window::Theme::Dark => Theme::Dark,
+  }
+}
+
 pub(crate) enum WindowMessage {
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
   Close,
@@ -337,10 +352,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WindowMessage::Theme(tx) => {
         let theme = window.theme();
-        let theme = theme.map(|theme| match theme {
-          winit::window::Theme::Light => Theme::Light,
-          winit::window::Theme::Dark => Theme::Dark,
-        });
+        let theme = theme.map(winit_theme_to_tauri_theme);
         let theme = theme.unwrap_or(Theme::Light);
         let _ = tx.send(Ok(theme));
       }
@@ -447,6 +459,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           app_window.apply_traffic_light_position(&_position);
         }
       }
+      WindowMessage::SetTheme(theme) => window.set_theme(tauri_theme_to_winit_theme(theme)),
 
       WindowMessage::SetFocusable(_)
       | WindowMessage::SetSizeConstraints(_)
@@ -456,7 +469,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       | WindowMessage::SetBadgeLabel(_)
       | WindowMessage::SetOverlayIcon(_)
       | WindowMessage::SetTitleBarStyle(_)
-      | WindowMessage::SetTheme(_)
       | WindowMessage::SetBackgroundColor(_)
       | WindowMessage::StartDragging
       | WindowMessage::StartResizeDragging(_) => {

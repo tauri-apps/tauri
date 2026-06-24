@@ -52,6 +52,7 @@ use crate::{
     self, AppWebview, CefWebviewDispatcher, Webview, WebviewAtribute, WebviewMessage,
     create_webview_detached,
   },
+  window::tauri_theme_to_winit_theme,
   window::{AppWindow, CefWindowDispatcher, WindowMessage, create_window_detached},
 };
 
@@ -324,6 +325,7 @@ pub(crate) enum Message<T: UserEvent> {
 }
 
 pub(crate) enum EventLoopMessage {
+  SetTheme(Option<Theme>),
   #[cfg(target_os = "macos")]
   SetActivationPolicy(tauri_runtime::ActivationPolicy),
   #[cfg(target_os = "macos")]
@@ -491,6 +493,12 @@ impl<T: UserEvent> WinitCefApp<T> {
     message: EventLoopMessage,
   ) {
     match message {
+      EventLoopMessage::SetTheme(theme) => {
+        let theme = tauri_theme_to_winit_theme(theme);
+        for appwindow in self.state.windows.values() {
+          appwindow.window.set_theme(theme);
+        }
+      }
       #[cfg(target_os = "macos")]
       EventLoopMessage::SetActivationPolicy(activation_policy) => {
         event_loop.set_activation_policy(activation_policy)
@@ -898,7 +906,10 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     Ok(PhysicalPosition::new(0.0, 0.0))
   }
 
-  fn set_theme(&self, _theme: Option<Theme>) {}
+  fn set_theme(&self, theme: Option<Theme>) {
+    let message = Message::EventLoop(EventLoopMessage::SetTheme(theme));
+    let _ = self.context.send_message(message);
+  }
 
   #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
@@ -1168,7 +1179,10 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     Ok(PhysicalPosition::new(0.0, 0.0))
   }
 
-  fn set_theme(&self, _theme: Option<Theme>) {}
+  fn set_theme(&self, theme: Option<Theme>) {
+    let message = Message::EventLoop(EventLoopMessage::SetTheme(theme));
+    let _ = self.context.send_message(message);
+  }
 
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {

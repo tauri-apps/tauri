@@ -24,7 +24,7 @@ use tauri_runtime::{
 use tauri_utils::config::Color;
 use url::Url;
 
-use crate::cef_impl::{client as browser_client, request_context};
+use crate::cef_impl::{client as browser_client, cookie, request_context};
 use crate::runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp};
 use crate::window::{AppWindow, CefWindowHandle};
 
@@ -190,6 +190,13 @@ impl AppWebview {
   pub(crate) fn set_visible(&self, visible: bool) {
     self.host.was_hidden(if visible { 0 } else { 1 });
     self.apply_visible(visible);
+  }
+
+  pub fn url(&self) -> Option<String> {
+    self
+      .browser
+      .main_frame()
+      .map(|frame| cef::CefString::from(&frame.url()).to_string())
   }
 }
 
@@ -493,11 +500,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WebviewMessage::SetFocus => child.host.set_focus(1),
       WebviewMessage::Url(tx) => {
-        let url = child
-          .browser
-          .main_frame()
-          .map(|frame| cef::CefString::from(&frame.url()).to_string())
-          .unwrap_or_default();
+        let url = child.url().unwrap_or_default();
         let _ = tx.send(Ok(url));
       }
       WebviewMessage::Bounds(tx) => {
@@ -539,12 +542,31 @@ impl<T: UserEvent> WinitCefApp<T> {
       | WebviewMessage::ClearAllBrowsingData => {
         // TODO
       }
-      WebviewMessage::CookiesForUrl(_, tx) | WebviewMessage::Cookies(tx) => {
-        // TODO
-        let _ = tx.send(Ok(Vec::new()));
+      WebviewMessage::CookiesForUrl(url, tx) => {
+        if let Some(manager) = child.cookie_manager() {
+          cookie::visit_url_cookies(manager, url, tx);
+        } else {
+          let _ = tx.send(Ok(Vec::new()));
+        }
       }
-      WebviewMessage::SetCookie(_) | WebviewMessage::DeleteCookie(_) => {
-        // TODO
+      WebviewMessage::Cookies(tx) => {
+        if let Some(manager) = child.cookie_manager() {
+          cookie::visit_all_cookies(manager, tx);
+        } else {
+          let _ = tx.send(Ok(Vec::new()));
+        }
+      }
+      WebviewMessage::SetCookie(cookie) => {
+        if let Some(manager) = child.cookie_manager() {
+          let url = child.url();
+          cookie::set_cookie(manager, url, cookie);
+        }
+      }
+      WebviewMessage::DeleteCookie(cookie) => {
+        if let Some(manager) = child.cookie_manager() {
+          let url = child.url();
+          cookie::delete_cookie(manager, url, cookie);
+        }
       }
       WebviewMessage::Reparent(target_window_id, tx) => {
         if window_id == target_window_id {

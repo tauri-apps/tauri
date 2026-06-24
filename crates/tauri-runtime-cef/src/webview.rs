@@ -575,8 +575,17 @@ impl<T: UserEvent> WinitCefApp<T> {
           child.bounds_rate = None;
         }
       }
-      WebviewMessage::SetBackgroundColor(_) | WebviewMessage::ClearAllBrowsingData => {
+      WebviewMessage::SetBackgroundColor(_) => {
         // TODO
+      }
+      WebviewMessage::ClearAllBrowsingData => {
+        if let Some(manager) = child.cookie_manager() {
+          manager.delete_cookies(None, None, None);
+          manager.flush_store(None);
+        }
+        if let Some(request_context) = child.host.request_context() {
+          request_context.clear_http_cache(None);
+        }
       }
       WebviewMessage::CookiesForUrl(url, tx) => {
         if let Some(manager) = child.cookie_manager() {

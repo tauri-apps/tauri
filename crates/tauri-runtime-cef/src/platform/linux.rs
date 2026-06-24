@@ -7,7 +7,15 @@ use tauri_runtime::{
   Error, Result,
   dpi::{PhysicalPosition, Rect},
 };
+use tauri_utils::config::Color;
 use winit::event_loop::ActiveEventLoop;
+
+impl AppWindow {
+  pub(crate) fn set_background_color(&self, color: Option<Color>) {
+    let _ = (self, color);
+    // TODO: implement native window background color on Linux/BSD.
+  }
+}
 
 impl EventLoopExt for dyn ActiveEventLoop + '_ {
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {

@@ -14,15 +14,15 @@ use objc2::{
   runtime::Bool,
 };
 use objc2_app_kit::{
-  NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSScreen, NSView, NSWindowButton,
-  NSWindowCollectionBehavior, NSWindowStyleMask,
+  NSApp, NSApplication, NSApplicationActivationPolicy, NSColor, NSEvent, NSScreen, NSView,
+  NSWindowButton, NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri_runtime::{
   Error, Result,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, Position, Rect},
 };
-use tauri_utils::TitleBarStyle;
+use tauri_utils::{TitleBarStyle, config::Color};
 use winit::event_loop::ActiveEventLoop;
 
 #[derive(Default)]
@@ -231,6 +231,32 @@ impl AppWindow {
     collection_behavior.set(NSWindowCollectionBehavior::CanJoinAllSpaces, visible);
     nswindow.setCollectionBehavior(collection_behavior);
   }
+
+  pub(crate) fn set_background_color(&self, color: Option<Color>) {
+    let Some(nsview) = self.nsview() else {
+      return;
+    };
+    let Some(nswindow) = nsview.window() else {
+      return;
+    };
+
+    let nscolor = color
+      .map(ns_color_from_tauri_color)
+      .unwrap_or_else(NSColor::windowBackgroundColor);
+    nswindow.setOpaque(color.map(|color| color.3 == u8::MAX).unwrap_or(true));
+    nswindow.setBackgroundColor(Some(&nscolor));
+  }
+}
+
+fn ns_color_from_tauri_color(color: Color) -> objc2::rc::Retained<NSColor> {
+  let Color(red, green, blue, alpha) = color;
+  let scale = u8::MAX as f64;
+  NSColor::colorWithSRGBRed_green_blue_alpha(
+    red as f64 / scale,
+    green as f64 / scale,
+    blue as f64 / scale,
+    alpha as f64 / scale,
+  )
 }
 
 impl AppWebview {

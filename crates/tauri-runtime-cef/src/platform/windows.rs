@@ -7,6 +7,7 @@ use tauri_runtime::{
   Error, Icon, Result,
   dpi::{PhysicalPosition, PhysicalSize, Rect},
 };
+use tauri_utils::config::Color;
 use windows::Win32::{
   Foundation::{HWND, POINT, RECT},
   Graphics::Gdi::MapWindowPoints,
@@ -41,6 +42,11 @@ impl AppWindow {
     } else {
       let _ = unsafe { taskbar.SetOverlayIcon(hwnd, Default::default(), None) };
     }
+  }
+
+  pub(crate) fn set_background_color(&self, color: Option<Color>) {
+    let _ = color;
+    // TODO: implement native window background color on Windows.
   }
 }
 

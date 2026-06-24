@@ -506,6 +506,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         #[cfg(target_os = "macos")]
         app_window.set_title_bar_style(_style);
       }
+      WindowMessage::SetBackgroundColor(_color) => app_window.set_background_color(_color),
       WindowMessage::SetTheme(theme) => window.set_theme(tauri_theme_to_winit_theme(theme)),
       WindowMessage::SetBadgeCount(count, desktop_filename) => {
         event_loop.set_badge_count(count, desktop_filename)
@@ -527,9 +528,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         window.set_max_surface_size(max_size);
       }
 
-      WindowMessage::SetFocusable(_)
-      | WindowMessage::SetProgressBar(_)
-      | WindowMessage::SetBackgroundColor(_) => {
+      WindowMessage::SetFocusable(_) | WindowMessage::SetProgressBar(_) => {
         // TODO
       }
     }

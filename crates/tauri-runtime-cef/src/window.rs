@@ -238,8 +238,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
     _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
   ) {
-    #[cfg(target_os = "macos")]
-    let traffic_light_position = pending.window_builder.traffic_light_position;
     let attrs = pending.window_builder.inner.clone();
     let window = event_loop
       .create_window(attrs)
@@ -253,13 +251,16 @@ impl<T: UserEvent> WinitCefApp<T> {
       children: Vec::new(),
       listeners: Default::default(),
       #[cfg(target_os = "macos")]
-      traffic_light_position,
+      traffic_light_position: pending.window_builder.traffic_light_position,
     };
 
     #[cfg(target_os = "macos")]
     if let Some(position) = &appwindow.traffic_light_position {
       appwindow.apply_traffic_light_position(position);
     }
+
+    #[cfg(target_os = "macos")]
+    appwindow.set_visible_on_all_workspaces(pending.window_builder.visible_on_all_workspaces);
 
     #[cfg(windows)]
     if let Some(after_window_creation) = _after_window_creation {

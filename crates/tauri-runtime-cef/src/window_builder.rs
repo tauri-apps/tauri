@@ -34,6 +34,8 @@ pub struct WindowBuilderWrapper {
   pub(crate) center: bool,
   #[cfg(target_os = "macos")]
   pub(crate) traffic_light_position: Option<Position>,
+  #[cfg(target_os = "macos")]
+  pub(crate) visible_on_all_workspaces: bool,
 }
 
 unsafe impl Send for WindowBuilderWrapper {}
@@ -49,6 +51,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       center: false,
       #[cfg(target_os = "macos")]
       traffic_light_position: None,
+      #[cfg(target_os = "macos")]
+      visible_on_all_workspaces: false,
     }
   }
 
@@ -69,6 +73,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       .minimizable(config.minimizable)
       .skip_taskbar(config.skip_taskbar)
       .shadow(config.shadow)
+      .visible_on_all_workspaces(config.visible_on_all_workspaces)
       .theme(config.theme);
     if config.always_on_bottom {
       builder = builder.always_on_bottom(true);
@@ -255,8 +260,12 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn visible_on_all_workspaces(self, _visible_on_all_workspaces: bool) -> Self {
-    // TODO
+  fn visible_on_all_workspaces(mut self, _visible_on_all_workspaces: bool) -> Self {
+    #[cfg(target_os = "macos")]
+    {
+      self.visible_on_all_workspaces = _visible_on_all_workspaces;
+    }
+
     self
   }
 

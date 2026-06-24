@@ -59,6 +59,21 @@ fn winit_theme_to_tauri_theme(theme: winit::window::Theme) -> Theme {
   }
 }
 
+fn tauri_resize_direction_to_winit(
+  direction: tauri_runtime::ResizeDirection,
+) -> winit::window::ResizeDirection {
+  match direction {
+    tauri_runtime::ResizeDirection::East => winit::window::ResizeDirection::East,
+    tauri_runtime::ResizeDirection::North => winit::window::ResizeDirection::North,
+    tauri_runtime::ResizeDirection::NorthEast => winit::window::ResizeDirection::NorthEast,
+    tauri_runtime::ResizeDirection::NorthWest => winit::window::ResizeDirection::NorthWest,
+    tauri_runtime::ResizeDirection::South => winit::window::ResizeDirection::South,
+    tauri_runtime::ResizeDirection::SouthEast => winit::window::ResizeDirection::SouthEast,
+    tauri_runtime::ResizeDirection::SouthWest => winit::window::ResizeDirection::SouthWest,
+    tauri_runtime::ResizeDirection::West => winit::window::ResizeDirection::West,
+  }
+}
+
 pub(crate) enum WindowMessage {
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
   Close,
@@ -469,15 +484,17 @@ impl<T: UserEvent> WinitCefApp<T> {
         #[cfg(windows)]
         app_window.set_overlay_icon(_icon);
       }
+      WindowMessage::StartDragging => _ = window.drag_window(),
+      WindowMessage::StartResizeDragging(direction) => {
+        let _ = window.drag_resize_window(tauri_resize_direction_to_winit(direction));
+      }
 
       WindowMessage::SetFocusable(_)
       | WindowMessage::SetSizeConstraints(_)
       | WindowMessage::SetVisibleOnAllWorkspaces(_)
       | WindowMessage::SetProgressBar(_)
       | WindowMessage::SetTitleBarStyle(_)
-      | WindowMessage::SetBackgroundColor(_)
-      | WindowMessage::StartDragging
-      | WindowMessage::StartResizeDragging(_) => {
+      | WindowMessage::SetBackgroundColor(_) => {
         // TODO
       }
     }

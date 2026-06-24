@@ -14,10 +14,13 @@ use objc2::{
   runtime::Bool,
 };
 use objc2_app_kit::{
-  NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSView, NSWindowButton,
+  NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSScreen, NSView, NSWindowButton,
 };
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
-use tauri_runtime::dpi::{LogicalPosition, LogicalSize, Position, Rect};
+use tauri_runtime::{
+  Error, Result,
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, Position, Rect},
+};
 use winit::event_loop::ActiveEventLoop;
 
 #[derive(Default)]
@@ -119,6 +122,21 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
     let dock_tile = app.dockTile();
     let ns_label = label.map(|label| NSString::from_str(&label));
     dock_tile.setBadgeLabel(ns_label.as_deref());
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    let Some(mtm) = MainThreadMarker::new() else {
+      return Err(Error::FailedToGetCursorPosition);
+    };
+    // `NSEvent::mouseLocation` uses a bottom-left origin; flip to top-left.
+    let location: NSPoint = NSEvent::mouseLocation();
+    let screen_height = NSScreen::mainScreen(mtm)
+      .map(|screen| screen.frame().size.height)
+      .ok_or(Error::FailedToGetCursorPosition)?;
+    Ok(PhysicalPosition::new(
+      location.x,
+      screen_height - location.y,
+    ))
   }
 }
 

@@ -1062,7 +1062,7 @@ where
   })
 }
 
-fn winit_monitor_to_tauri_monitor(monitor: &winit::monitor::MonitorHandle) -> Monitor {
+pub(crate) fn winit_monitor_to_tauri_monitor(monitor: &winit::monitor::MonitorHandle) -> Monitor {
   Monitor {
     name: monitor.name().map(|s| s.to_string()),
     scale_factor: monitor.scale_factor(),
@@ -1071,7 +1071,7 @@ fn winit_monitor_to_tauri_monitor(monitor: &winit::monitor::MonitorHandle) -> Mo
       .current_video_mode()
       .map(|v| v.size())
       .unwrap_or_default(),
-    // TODO
+    // TODO: get work area from winit monitor handle
     work_area: PhysicalRect {
       position: monitor.position().unwrap_or_default(),
       size: monitor

@@ -3,16 +3,18 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
-use tauri_runtime::Icon;
-use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
+use tauri_runtime::{
+  Error, Icon, Result,
+  dpi::{PhysicalPosition, PhysicalSize, Rect},
+};
 use windows::Win32::{
   Foundation::{HWND, POINT, RECT},
   Graphics::Gdi::MapWindowPoints,
   System::Com::{CLSCTX_SERVER, CoCreateInstance},
   UI::Shell::{ITaskbarList3, TaskbarList},
   UI::WindowsAndMessaging::{
-    CreateIcon, DestroyIcon, GetParent, GetWindowRect, SW_HIDE, SW_SHOW, SWP_NOACTIVATE,
-    SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow,
+    CreateIcon, DestroyIcon, GetCursorPos, GetParent, GetWindowRect, SW_HIDE, SW_SHOW,
+    SWP_NOACTIVATE, SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow,
   },
 };
 use winit::event_loop::ActiveEventLoop;
@@ -48,6 +50,12 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
   }
   fn set_badge_label(&self, _label: Option<String>) {
     // Unsupported on Windows
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    let mut point = POINT::default();
+    unsafe { GetCursorPos(&mut point) }.map_err(|_| Error::FailedToGetCursorPosition)?;
+    Ok(PhysicalPosition::new(point.x as f64, point.y as f64))
   }
 }
 

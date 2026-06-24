@@ -52,7 +52,10 @@ use crate::{
     create_webview_detached,
   },
   window::tauri_theme_to_winit_theme,
-  window::{AppWindow, CefWindowDispatcher, WindowMessage, create_window_detached},
+  window::{
+    AppWindow, CefWindowDispatcher, WindowMessage, create_window_detached,
+    winit_monitor_to_tauri_monitor,
+  },
 };
 
 /// The `cef` crate used by this runtime, re-exported for convenience.
@@ -325,6 +328,10 @@ pub(crate) enum Message<T: UserEvent> {
 
 pub(crate) enum EventLoopMessage {
   SetTheme(Option<Theme>),
+  PrimaryMonitor(Sender<Option<Monitor>>),
+  MonitorFromPoint(Sender<Option<Monitor>>, f64, f64),
+  AvailableMonitors(Sender<Vec<Monitor>>),
+  CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
   #[cfg(target_os = "macos")]
   SetActivationPolicy(tauri_runtime::ActivationPolicy),
   #[cfg(target_os = "macos")]
@@ -333,6 +340,37 @@ pub(crate) enum EventLoopMessage {
   ShowApplication,
   #[cfg(target_os = "macos")]
   HideApplication,
+}
+
+macro_rules! event_loop_getter {
+  ($self:ident, $variant:ident) => {{
+    let (tx, rx) = mpsc::channel();
+    match $self
+      .context
+      .send_message(Message::EventLoop(EventLoopMessage::$variant(tx)))
+    {
+      Ok(()) => rx.recv().map_err(|_| Error::FailedToReceiveMessage),
+      Err(error) => Err(error),
+    }
+  }};
+}
+
+fn find_monitor_from_point(
+  monitors: impl Iterator<Item = winit::monitor::MonitorHandle>,
+  x: f64,
+  y: f64,
+) -> Option<winit::monitor::MonitorHandle> {
+  monitors.into_iter().find(|monitor| {
+    let pos = monitor.position().unwrap_or_default();
+    let size = monitor
+      .current_video_mode()
+      .map(|mode| mode.size())
+      .unwrap_or_default();
+    x >= pos.x as f64
+      && x <= pos.x as f64 + size.width as f64
+      && y >= pos.y as f64
+      && y <= pos.y as f64 + size.height as f64
+  })
 }
 
 #[cfg(target_os = "macos")]
@@ -497,6 +535,27 @@ impl<T: UserEvent> WinitCefApp<T> {
         for appwindow in self.state.windows.values() {
           appwindow.window.set_theme(theme);
         }
+      }
+      EventLoopMessage::PrimaryMonitor(tx) => {
+        let monitor = event_loop
+          .primary_monitor()
+          .map(|monitor| winit_monitor_to_tauri_monitor(&monitor));
+        let _ = tx.send(monitor);
+      }
+      EventLoopMessage::MonitorFromPoint(tx, x, y) => {
+        let monitor = find_monitor_from_point(event_loop.available_monitors(), x, y)
+          .map(|monitor| winit_monitor_to_tauri_monitor(&monitor));
+        let _ = tx.send(monitor);
+      }
+      EventLoopMessage::AvailableMonitors(tx) => {
+        let monitors = event_loop
+          .available_monitors()
+          .map(|monitor| winit_monitor_to_tauri_monitor(&monitor))
+          .collect();
+        let _ = tx.send(monitors);
+      }
+      EventLoopMessage::CursorPosition(tx) => {
+        let _ = tx.send(event_loop.cursor_position());
       }
       #[cfg(target_os = "macos")]
       EventLoopMessage::SetActivationPolicy(activation_policy) => {
@@ -890,19 +949,27 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
-    None
+    event_loop_getter!(self, PrimaryMonitor).ok().flatten()
   }
 
-  fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<Monitor> {
-    None
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    let (tx, rx) = mpsc::channel();
+    self
+      .context
+      .send_message(Message::EventLoop(EventLoopMessage::MonitorFromPoint(
+        tx, x, y,
+      )))
+      .and_then(|_| rx.recv().map_err(|_| Error::FailedToReceiveMessage))
+      .ok()
+      .flatten()
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
-    Vec::new()
+    event_loop_getter!(self, AvailableMonitors).unwrap_or_default()
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    Ok(PhysicalPosition::new(0.0, 0.0))
+    event_loop_getter!(self, CursorPosition)?
   }
 
   fn set_theme(&self, theme: Option<Theme>) {
@@ -1163,19 +1230,27 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
-    None
+    event_loop_getter!(self, PrimaryMonitor).ok().flatten()
   }
 
-  fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<Monitor> {
-    None
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    let (tx, rx) = mpsc::channel();
+    self
+      .context
+      .send_message(Message::EventLoop(EventLoopMessage::MonitorFromPoint(
+        tx, x, y,
+      )))
+      .and_then(|_| rx.recv().map_err(|_| Error::FailedToReceiveMessage))
+      .ok()
+      .flatten()
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
-    Vec::new()
+    event_loop_getter!(self, AvailableMonitors).unwrap_or_default()
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    Ok(PhysicalPosition::new(0.0, 0.0))
+    event_loop_getter!(self, CursorPosition)?
   }
 
   fn set_theme(&self, theme: Option<Theme>) {

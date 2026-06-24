@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
-use tauri_runtime::dpi::Rect;
+use tauri_runtime::{
+  Error, Result,
+  dpi::{PhysicalPosition, Rect},
+};
 use winit::event_loop::ActiveEventLoop;
 
 impl EventLoopExt for dyn ActiveEventLoop + '_ {
@@ -15,6 +18,11 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
   fn set_badge_label(&self, label: Option<String>) {
     let _ = label;
     // TODO
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    // TODO: implement CEF/winit global cursor position on Linux/BSD.
+    Err(Error::FailedToGetCursorPosition)
   }
 }
 

@@ -40,4 +40,5 @@ pub trait EventLoopExt {
   fn hide_application(&self);
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>);
   fn set_badge_label(&self, label: Option<String>);
+  fn cursor_position(&self) -> tauri_runtime::Result<tauri_runtime::dpi::PhysicalPosition<f64>>;
 }

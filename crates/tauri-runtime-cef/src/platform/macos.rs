@@ -185,8 +185,7 @@ impl AppWebview {
     let Some(view) = self.nsview() else {
       return;
     };
-    let parent = parent.raw_handle_as_cef_handle().cast::<NSView>();
-    let Some(parent) = (unsafe { Retained::<NSView>::retain(parent) }) else {
+    let Some(parent) = parent.nsview() else {
       return;
     };
 

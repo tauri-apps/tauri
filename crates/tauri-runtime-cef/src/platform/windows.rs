@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::{webview::AppWebview, window::AppWindow};
 use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
 use windows::Win32::{
   Foundation::{HWND, POINT, RECT},
@@ -11,76 +12,70 @@ use windows::Win32::{
     SetWindowPos, ShowWindow,
   },
 };
-use winit::{
-  raw_window_handle::{HasWindowHandle, RawWindowHandle},
-  window::Window,
-};
 
-use std::ffi::c_void;
-
-pub fn raw_handle(window: &dyn Window) -> *mut c_void {
-  let handle = window.window_handle().expect("failed to get window handle");
-  match handle.as_raw() {
-    RawWindowHandle::Win32(handle) => handle.hwnd.get() as usize as *mut c_void,
-    other => panic!("expected Win32 window handle, got {other:?}"),
+impl AppWebview {
+  pub(crate) fn hwnd(&self) -> HWND {
+    let hwnd = self.raw_handle_as_cef_handle();
+    HWND(hwnd.0 as _)
   }
-}
 
-pub fn set_child_bounds(handle: *mut c_void, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
-  unsafe {
-    let _ = SetWindowPos(
-      HWND(handle),
-      None,
-      x,
-      y,
-      width,
-      height,
-      SWP_NOZORDER | SWP_NOACTIVATE,
-    );
-  }
-}
+  pub(crate) fn bounds(&self) -> Option<Rect> {
+    let hwnd = self.hwnd();
 
-pub fn set_child_visible(handle: *mut c_void, visible: bool) {
-  unsafe {
-    let _ = ShowWindow(HWND(handle), if visible { SW_SHOW } else { SW_HIDE });
-  }
-}
+    let mut rect = RECT::default();
+    unsafe {
+      let parent = GetParent(hwnd).ok()?;
+      if parent.0.is_null() {
+        return None;
+      }
 
-pub fn set_child_parent(handle: *mut c_void, parent: *mut c_void) {
-  let _ = unsafe { SetParent(HWND(handle), Some(HWND(parent))) };
-}
+      GetWindowRect(hwnd, &mut rect).ok()?;
 
-pub fn child_bounds(handle: *mut c_void) -> Option<Rect> {
-  let mut rect = RECT::default();
-  unsafe {
-    let parent = GetParent(HWND(handle)).ok()?;
-    if parent.0.is_null() {
-      return None;
+      let mut points = [
+        POINT {
+          x: rect.left,
+          y: rect.top,
+        },
+        POINT {
+          x: rect.right,
+          y: rect.bottom,
+        },
+      ];
+      if MapWindowPoints(None, Some(parent), &mut points) == 0 {
+        return None;
+      }
+
+      let x = points[0].x;
+      let y = points[0].y;
+      let width = (points[1].x - points[0].x).max(0) as u32;
+      let height = (points[1].y - points[0].y).max(0) as u32;
+      Some(Rect {
+        position: PhysicalPosition::new(x, y).into(),
+        size: PhysicalSize::new(width, height).into(),
+      })
     }
+  }
 
-    GetWindowRect(HWND(handle), &mut rect).ok()?;
+  pub(crate) fn reparent(&self, parent: &AppWindow) {
+    let parent = parent.hwnd();
+    let _ = unsafe { SetParent(self.hwnd(), Some(parent)) };
+  }
 
-    let mut points = [
-      POINT {
-        x: rect.left,
-        y: rect.top,
-      },
-      POINT {
-        x: rect.right,
-        y: rect.bottom,
-      },
-    ];
-    if MapWindowPoints(None, Some(parent), &mut points) == 0 {
-      return None;
+  pub(crate) fn apply_visible(&self, visible: bool) {
+    let _ = unsafe { ShowWindow(self.hwnd(), if visible { SW_SHOW } else { SW_HIDE }) };
+  }
+
+  pub(crate) fn apply_physical_bounds(&self, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
+    unsafe {
+      let _ = SetWindowPos(
+        self.hwnd(),
+        None,
+        x,
+        y,
+        width,
+        height,
+        SWP_NOZORDER | SWP_NOACTIVATE,
+      );
     }
-
-    let x = points[0].x;
-    let y = points[0].y;
-    let width = (points[1].x - points[0].x).max(0) as u32;
-    let height = (points[1].y - points[0].y).max(0) as u32;
-    Some(Rect {
-      position: PhysicalPosition::new(x, y).into(),
-      size: PhysicalSize::new(width, height).into(),
-    })
   }
 }

@@ -2,38 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ffi::c_void;
+use crate::{webview::AppWebview, window::AppWindow};
 use tauri_runtime::dpi::Rect;
-use winit::window::Window;
 
-pub(crate) fn raw_handle(window: &dyn Window) -> *mut c_void {
-  let _ = window;
-  todo!("TODO: implement CEF/winit host handles on Linux")
-}
+impl AppWebview {
+  pub(crate) fn bounds(&self) -> Option<Rect> {
+    let _ = self;
+    todo!("TODO: implement CEF/winit child bounds on Linux")
+  }
 
-pub(crate) fn set_child_bounds(
-  handle: *mut c_void,
-  scale: f64,
-  x: i32,
-  y: i32,
-  width: i32,
-  height: i32,
-) {
-  let _ = (handle, scale, x, y, width, height);
-  todo!("TODO: implement CEF/winit child layout on Linux")
-}
+  pub(crate) fn reparent(&self, parent: &AppWindow) {
+    let _ = (self, parent);
+    todo!("TODO: implement CEF/winit child reparenting on Linux")
+  }
 
-pub(crate) fn set_child_visible(handle: *mut c_void, visible: bool) {
-  let _ = (handle, visible);
-  todo!("TODO: implement CEF/winit child visibility on Linux")
-}
+  pub(crate) fn apply_visible(&self, visible: bool) {
+    let _ = visible;
+    todo!("TODO: implement CEF/winit child visibility on Linux")
+  }
 
-pub(crate) fn set_child_parent(handle: *mut c_void, parent: *mut c_void) {
-  let _ = (handle, parent);
-  todo!("TODO: implement CEF/winit child reparenting on Linux")
-}
-
-pub(crate) fn child_bounds(handle: *mut c_void) -> Option<Rect> {
-  let _ = handle;
-  todo!("TODO: implement CEF/winit child bounds on Linux")
+  pub(crate) fn apply_physical_bounds(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
+    let _ = (scale, x, y, width, height);
+    todo!("TODO: implement CEF/winit child layout on Linux")
+  }
 }

@@ -11,6 +11,7 @@ use std::{
 };
 
 use raw_window_handle::HasWindowHandle;
+use raw_window_handle::RawWindowHandle;
 use tauri_runtime::{
   Error, Icon, ProgressBarState, Result, UserAttentionType, UserEvent, WindowDispatch,
   WindowEventId,
@@ -33,7 +34,7 @@ use winit::platform::macos::WindowExtMacOS;
 use winit::platform::windows::WindowExtWindows;
 
 use crate::{
-  browser_client, platform,
+  browser_client,
   runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp},
   webview::{self, AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
@@ -129,6 +130,51 @@ pub(crate) struct AppWindow {
   pub(crate) traffic_light_position: Option<Position>,
 }
 
+#[cfg(windows)]
+pub(crate) type CefWindowHandle = cef::sys::HWND;
+#[cfg(not(windows))]
+pub(crate) type CefWindowHandle = *mut std::ffi::c_void;
+
+impl AppWindow {
+  pub(crate) fn raw_handle_as_cef_handle(&self) -> CefWindowHandle {
+    let handle = self
+      .window
+      .window_handle()
+      .expect("failed to get window handle");
+    match handle.as_raw() {
+      #[cfg(windows)]
+      RawWindowHandle::Win32(handle) => cef::sys::HWND(handle.hwnd.get() as *mut _),
+      #[cfg(target_os = "macos")]
+      RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr().cast(),
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      RawWindowHandle::Xlib(handle) => handle.window as usize as *mut c_void,
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      RawWindowHandle::Xcb(handle) => handle.window.get() as usize as *mut c_void,
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      RawWindowHandle::Wayland(handle) => handle.surface.as_ptr().cast(),
+      other => panic!("expected platform window handle, got {other:?}"),
+    }
+  }
+}
+
 impl<T: UserEvent> WinitCefApp<T> {
   pub(crate) fn create_window(
     &mut self,
@@ -144,19 +190,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     let window = event_loop
       .create_window(attrs)
       .expect("failed to create winit window");
-    let native = platform::raw_handle(window.as_ref());
-    #[cfg(target_os = "macos")]
-    if let Some(position) = traffic_light_position {
-      platform::apply_traffic_light_position(native, &position);
-    }
-
-    #[cfg(windows)]
-    if let Some(after_window_creation) = _after_window_creation {
-      after_window_creation(RawWindow {
-        hwnd: native as isize,
-        _marker: &PhantomData,
-      });
-    }
 
     let winit_id = window.id();
     let mut host = AppWindow {
@@ -169,9 +202,24 @@ impl<T: UserEvent> WinitCefApp<T> {
       traffic_light_position,
     };
 
+    #[cfg(target_os = "macos")]
+    if let Some(position) = &host.traffic_light_position {
+      host.apply_traffic_light_position(position);
+    }
+
+    #[cfg(windows)]
+    if let Some(after_window_creation) = _after_window_creation {
+      let native = host.raw_handle_as_cef_handle();
+      after_window_creation(RawWindow {
+        hwnd: native.0 as isize,
+        _marker: &PhantomData,
+      });
+    }
+
     if let (Some(webview_id), Some(webview)) = (webview_id, pending.webview) {
       let size = host.window.surface_size();
       let scale = host.window.scale_factor();
+      let native = host.raw_handle_as_cef_handle();
       let child = self.create_browser_child(
         window_id,
         webview_id,
@@ -405,8 +453,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         #[cfg(target_os = "macos")]
         {
           app_window.traffic_light_position = Some(_position.clone());
-          let handle = platform::raw_handle(window.as_ref());
-          platform::apply_traffic_light_position(handle, &_position);
+          app_window.apply_traffic_light_position(&_position);
         }
       }
 

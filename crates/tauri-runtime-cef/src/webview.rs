@@ -26,8 +26,8 @@ use tauri_utils::config::Color;
 use url::Url;
 
 use crate::runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp};
-use crate::window::AppWindow;
-use crate::{browser_client, platform, request_context};
+use crate::window::{AppWindow, CefWindowHandle};
+use crate::{browser_client, request_context};
 
 /// A handle to the native CEF browser backing a Tauri webview.
 ///
@@ -49,17 +49,6 @@ impl Webview {
   /// browser host, the main frame or the native window handle.
   pub fn browser(&self) -> cef::Browser {
     self.browser.clone()
-  }
-}
-
-pub(crate) fn browser_raw_handle(browser_host: &cef::BrowserHost) -> *mut c_void {
-  #[cfg(windows)]
-  {
-    browser_host.window_handle().0.cast()
-  }
-  #[cfg(unix)]
-  {
-    browser_host.window_handle() as usize as *mut c_void
   }
 }
 
@@ -173,6 +162,38 @@ pub(crate) struct AppWebview {
   pub(crate) bounds_rate: Option<BoundsRate>,
 }
 
+impl AppWebview {
+  pub(crate) fn set_bounds(&mut self, host_size: PhysicalSize<u32>, scale: f64, bounds: Rect) {
+    let position = bounds.position.to_physical::<i32>(scale);
+    let size = bounds.size.to_physical::<u32>(scale);
+
+    let x = position.x;
+    let y = position.y;
+    let w = size.width as i32;
+    let h = size.height as i32;
+
+    if self.bounds_rate.is_some() {
+      let win_w = host_size.width.max(1) as f32;
+      let win_h = host_size.height.max(1) as f32;
+      self.bounds_rate = Some(BoundsRate {
+        x: x as f32 / win_w,
+        y: y as f32 / win_h,
+        width: w as f32 / win_w,
+        height: h as f32 / win_h,
+      });
+    }
+
+    self.host.notify_move_or_resize_started();
+    self.apply_physical_bounds(scale, x, y, w, h);
+    self.host.was_resized();
+  }
+
+  pub(crate) fn set_visible(&self, visible: bool) {
+    self.host.was_hidden(if visible { 0 } else { 1 });
+    self.apply_visible(visible);
+  }
+}
+
 impl<T: UserEvent> WinitCefApp<T> {
   pub(crate) fn create_webview(
     &mut self,
@@ -184,7 +205,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     };
 
-    let native = platform::raw_handle(host.window.as_ref());
+    let native = host.raw_handle_as_cef_handle();
     let host_size = host.window.surface_size();
     let scale = host.window.scale_factor();
 
@@ -209,7 +230,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     &mut self,
     window_id: WindowId,
     webview_id: u32,
-    parent: *mut c_void,
+    parent: CefWindowHandle,
     host_size: PhysicalSize<u32>,
     scale: f64,
     drag_drop_event_target: browser_client::DragDropEventTarget,
@@ -261,11 +282,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       self.context.proxy.clone(),
       self.context.sender.clone(),
     );
-
-    #[cfg(windows)]
-    let parent = cef::sys::HWND(parent.cast());
-    #[cfg(not(windows))]
-    let parent = parent as cef::sys::cef_window_handle_t;
 
     // If the bounds are not specified, default to the parent window's size and position.
     // aka full-window webview.
@@ -440,29 +456,27 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::SetBounds(bounds) => {
         let host_size = host.window.surface_size();
         let scale = host.window.scale_factor();
-        set_browser_bounds(child, host_size, scale, bounds);
+        child.set_bounds(host_size, scale, bounds);
       }
       WebviewMessage::SetSize(size) => {
         let host_size = host.window.surface_size();
         let scale = host.window.scale_factor();
-        let handle = browser_raw_handle(&child.host);
-        let bounds = platform::child_bounds(handle).unwrap_or_default();
+        let bounds = child.bounds().unwrap_or_default();
         let new_bounds = Rect {
           position: bounds.position,
           size,
         };
-        set_browser_bounds(child, host_size, scale, new_bounds);
+        child.set_bounds(host_size, scale, new_bounds);
       }
       WebviewMessage::SetPosition(position) => {
         let host_size = host.window.surface_size();
         let scale = host.window.scale_factor();
-        let handle = browser_raw_handle(&child.host);
-        let bounds = platform::child_bounds(handle).unwrap_or_default();
+        let bounds = child.bounds().unwrap_or_default();
         let new_bounds = Rect {
           position,
           size: bounds.size,
         };
-        set_browser_bounds(child, host_size, scale, new_bounds);
+        child.set_bounds(host_size, scale, new_bounds);
       }
       WebviewMessage::SetFocus => child.host.set_focus(1),
       WebviewMessage::Url(tx) => {
@@ -474,20 +488,17 @@ impl<T: UserEvent> WinitCefApp<T> {
         let _ = tx.send(Ok(url));
       }
       WebviewMessage::Bounds(tx) => {
-        let handle = browser_raw_handle(&child.host);
-        let bounds = platform::child_bounds(handle).ok_or(Error::FailedToSendMessage);
+        let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
         let _ = tx.send(bounds);
       }
       WebviewMessage::Position(tx) => {
-        let handle = browser_raw_handle(&child.host);
-        let bounds = platform::child_bounds(handle).ok_or(Error::FailedToSendMessage);
+        let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
         let position = bounds.map(|b| b.position);
         let position = position.map(|p| p.to_physical::<i32>(host.window.scale_factor()));
         let _ = tx.send(position);
       }
       WebviewMessage::Size(tx) => {
-        let handle = browser_raw_handle(&child.host);
-        let bounds = platform::child_bounds(handle).ok_or(Error::FailedToSendMessage);
+        let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
         let size = bounds.map(|b| b.size.to_physical::<u32>(host.window.scale_factor()));
         let _ = tx.send(size);
       }
@@ -496,16 +507,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::AddEventListener(event_id, handler) => {
         child.listeners.lock().unwrap().insert(event_id, handler);
       }
-      WebviewMessage::Show => {
-        child.host.was_hidden(0);
-        let handle = browser_raw_handle(&child.host);
-        platform::set_child_visible(handle, true);
-      }
-      WebviewMessage::Hide => {
-        child.host.was_hidden(1);
-        let handle = browser_raw_handle(&child.host);
-        platform::set_child_visible(handle, false);
-      }
+      WebviewMessage::Show => child.set_visible(true),
+      WebviewMessage::Hide => child.set_visible(false),
       WebviewMessage::SetZoom(scale_factor) => {
         // CEF uses a logarithmic zoom level where percentage = 1.2^level
         // (Chromium's kTextSizeMultiplierRatio). Convert from Tauri linear
@@ -557,15 +560,12 @@ impl<T: UserEvent> WinitCefApp<T> {
           return;
         };
 
-        let handle = browser_raw_handle(&child.host);
-        let bounds = platform::child_bounds(handle).unwrap_or_else(|| Rect {
+        let bounds = child.bounds().unwrap_or_else(|| Rect {
           position: PhysicalPosition::new(0, 0).into(),
           size: target_host.window.surface_size().into(),
         });
-        let target_parent = platform::raw_handle(target_host.window.as_ref());
-        platform::set_child_parent(handle, target_parent);
-        set_browser_bounds(
-          &mut child,
+        child.reparent(target_host);
+        child.set_bounds(
           target_host.window.surface_size(),
           target_host.window.scale_factor(),
           bounds,
@@ -1120,7 +1120,9 @@ pub(crate) fn layout_app_window(host: &AppWindow) {
     let y = (rate.y * win_h).round() as i32;
     let w = (rate.width * win_w).round() as i32;
     let h = (rate.height * win_h).round() as i32;
-    apply_browser_physical_bounds(child, scale, x, y, w, h);
+    child.host.notify_move_or_resize_started();
+    child.apply_physical_bounds(scale, x, y, w, h);
+    child.host.was_resized();
   }
 }
 
@@ -1159,39 +1161,6 @@ pub(crate) fn compute_child_bounds_rate(
     width: w as f32 / min_w as f32,
     height: h as f32 / min_h as f32,
   })
-}
-
-fn set_browser_bounds(
-  child: &mut AppWebview,
-  host_size: PhysicalSize<u32>,
-  scale: f64,
-  bounds: Rect,
-) {
-  let position = bounds.position.to_physical::<i32>(scale);
-  let size = bounds.size.to_physical::<u32>(scale);
-  let x = position.x;
-  let y = position.y;
-  let w = size.width as i32;
-  let h = size.height as i32;
-
-  if child.bounds_rate.is_some() {
-    let win_w = host_size.width.max(1) as f32;
-    let win_h = host_size.height.max(1) as f32;
-    child.bounds_rate = Some(BoundsRate {
-      x: x as f32 / win_w,
-      y: y as f32 / win_h,
-      width: w as f32 / win_w,
-      height: h as f32 / win_h,
-    });
-  }
-  apply_browser_physical_bounds(child, scale, x, y, w, h);
-}
-
-fn apply_browser_physical_bounds(child: &AppWebview, scale: f64, x: i32, y: i32, w: i32, h: i32) {
-  child.host.notify_move_or_resize_started();
-  let handle = browser_raw_handle(&child.host);
-  platform::set_child_bounds(handle, scale, x, y, w, h);
-  child.host.was_resized();
 }
 
 pub(crate) const INITIAL_LOAD_URL: &str = concat!(

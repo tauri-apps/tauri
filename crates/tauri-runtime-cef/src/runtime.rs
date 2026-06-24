@@ -41,8 +41,6 @@ use winit::{
 
 #[cfg(target_os = "macos")]
 use crate::macos_cef_pump::MacosCefPump;
-#[cfg(target_os = "macos")]
-use crate::platform;
 use crate::{
   browser_client, ipc, request_handler,
   webview::{
@@ -758,8 +756,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       #[cfg(target_os = "macos")]
       WinitWindowEvent::RedrawRequested => {
         if let Some(position) = &host.traffic_light_position {
-          let handle = platform::raw_handle(host.window.as_ref());
-          platform::apply_traffic_light_position(handle, position);
+          host.apply_traffic_light_position(position);
         }
       }
       _ => {}

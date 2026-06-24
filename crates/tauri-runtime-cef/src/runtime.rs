@@ -445,7 +445,9 @@ impl<T: UserEvent> WinitCefApp<T> {
         drag_drop_state,
         event,
       } => {
-        self.handle_drag_drop_script_event(window_id, webview_id, target, drag_drop_state, event)
+        if let Some(event) = browser_client::event_from_script_event(&drag_drop_state, event) {
+          self.emit_drag_drop_event(window_id, webview_id, target, event);
+        }
       }
       Message::Task(task) => task(),
       Message::RequestExit(code) => {
@@ -470,66 +472,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     let mut registry = self.scheme_registry.lock().unwrap();
     for scheme in child.uri_scheme_protocols.keys() {
       registry.remove(&(child.browser_id, scheme.clone()));
-    }
-  }
-
-  fn handle_drag_drop_script_event(
-    &mut self,
-    window_id: WindowId,
-    webview_id: u32,
-    target: browser_client::DragDropEventTarget,
-    drag_drop_state: Arc<Mutex<browser_client::DragDropState>>,
-    script_event: browser_client::DragDropScriptEvent,
-  ) {
-    let position = PhysicalPosition::new(script_event.x, script_event.y);
-    let event = {
-      let mut state = drag_drop_state.lock().unwrap();
-      if !state.native_entered {
-        return;
-      }
-
-      match script_event.kind.as_str() {
-        "enter" => {
-          if state.entered {
-            return;
-          }
-
-          let Some(paths) = state.paths.clone() else {
-            return;
-          };
-          state.entered = true;
-          Some(DragDropEvent::Enter { paths, position })
-        }
-        "over" => {
-          if state.entered {
-            Some(DragDropEvent::Over { position })
-          } else {
-            None
-          }
-        }
-        "drop" => {
-          let paths = state.entered.then(|| state.paths.take()).flatten();
-          state.entered = false;
-          state.native_entered = false;
-          paths.map(|paths| DragDropEvent::Drop { paths, position })
-        }
-        "leave" => {
-          state.native_entered = false;
-          state.paths = None;
-
-          if state.entered {
-            state.entered = false;
-            Some(DragDropEvent::Leave)
-          } else {
-            None
-          }
-        }
-        _ => None,
-      }
-    };
-
-    if let Some(event) = event {
-      self.emit_drag_drop_event(window_id, webview_id, target, event);
     }
   }
 

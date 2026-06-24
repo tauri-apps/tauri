@@ -677,84 +677,12 @@ impl CefInitScript {
   }
 }
 
-pub(crate) const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
-
-const DRAG_DROP_INIT_SCRIPT: &str = r#"
-(() => {
-  if (window.__TAURI_CEF_DRAG_DROP__) {
-    return;
-  }
-
-  Object.defineProperty(window, "__TAURI_CEF_DRAG_DROP__", {
-    value: true,
-    configurable: false,
-  });
-
-  const PATH = "/__tauri_cef_drag_drop__";
-  let entered = false;
-
-  const position = (event) => ({
-    x: event.clientX * window.devicePixelRatio,
-    y: event.clientY * window.devicePixelRatio,
-  });
-
-  const send = (type, event) => {
-    const pos = position(event);
-    const url = new URL(PATH, window.location.href);
-    url.searchParams.set("payload", JSON.stringify({ type, x: pos.x, y: pos.y }));
-    fetch(url.href, {
-      method: "GET",
-      cache: "no-store",
-      credentials: "omit",
-    }).catch(() => {});
-  };
-
-  const listen = (eventName, handler) => {
-    window.addEventListener(eventName, handler, { capture: true });
-  };
-
-  listen("dragenter", (event) => {
-    if (!entered) {
-      entered = true;
-      send("enter", event);
-    }
-  });
-
-  listen("dragover", (event) => {
-    if (!entered) {
-      entered = true;
-      send("enter", event);
-    }
-    send("over", event);
-  });
-
-  listen("drop", (event) => {
-    if (!entered) {
-      send("enter", event);
-    }
-    entered = false;
-    send("drop", event);
-  });
-
-  listen("dragleave", (event) => {
-    const x = event.clientX;
-    const y = event.clientY;
-    if (entered && (x <= 0 || y <= 0 || x >= window.innerWidth || y >= window.innerHeight)) {
-      entered = false;
-      send("leave", event);
-    }
-  });
-})();
-"#;
-
 pub(crate) fn initialization_scripts(attrs: &mut WebviewAttributes) -> Arc<Vec<CefInitScript>> {
   let mut initialization_scripts = Vec::new();
 
   if attrs.drag_drop_handler_enabled {
-    initialization_scripts.push(CefInitScript::new(InitializationScript {
-      script: DRAG_DROP_INIT_SCRIPT.to_string(),
-      for_main_frame_only: false,
-    }));
+    let drag_script = browser_client::drag_drop_initialization_script();
+    initialization_scripts.push(CefInitScript::new(drag_script));
   }
 
   initialization_scripts.extend(

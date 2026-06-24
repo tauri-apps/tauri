@@ -27,7 +27,10 @@ use context_menu::TauriCefContextMenuHandler;
 use display::TauriCefDisplayHandler;
 use download::TauriCefDownloadHandler;
 use drag::TauriCefDragHandler;
-pub(crate) use drag::{DragDropEventTarget, DragDropScriptEvent, DragDropState};
+pub(crate) use drag::{
+  DragDropEventTarget, DragDropScriptEvent, DragDropState, WebDragDropResourceRequestHandler,
+  drag_drop_initialization_script, event_from_script_event,
+};
 use keyboard::TauriCefKeyboardHandler;
 use life_span::TauriCefChildLifeSpanHandler;
 use load::TauriCefLoadHandler;

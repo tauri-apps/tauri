@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.11.3]
+
+### Bug Fixes
+
+- [`50b0237ed`](https://www.github.com/tauri-apps/tauri/commit/50b0237edb9ed683979b7954975b98a4d22a9f70) ([#15549](https://www.github.com/tauri-apps/tauri/pull/15549) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Escape special characters in `productName` when generating Android `strings.xml`
+- [`728c8d4a5`](https://www.github.com/tauri-apps/tauri/commit/728c8d4a5d9e3badf4683eb2e493d950d27d6b66) ([#15473](https://www.github.com/tauri-apps/tauri/pull/15473) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Skip building bundles when using `tauri android run`
+- [`be0cb0d43`](https://www.github.com/tauri-apps/tauri/commit/be0cb0d4378ddf26bc33066b3750f2639ade15f5) ([#15344](https://www.github.com/tauri-apps/tauri/pull/15344) by [@raglady](https://www.github.com/tauri-apps/tauri/../../raglady)) Fix NDK_HOME environment variable not honored when set
+- [`ed8fd411f`](https://www.github.com/tauri-apps/tauri/commit/ed8fd411fe10469da33f63ed5bd9d7ae19e77d84) ([#15552](https://www.github.com/tauri-apps/tauri/pull/15552) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Make `ureq_proto` show trace level logs only on `-vvv` instead of `-vv`
+- [`fca4a31f9`](https://www.github.com/tauri-apps/tauri/commit/fca4a31f94f8ba709d1b28e073e69867b8704e6e) ([#15454](https://www.github.com/tauri-apps/tauri/pull/15454) by [@fallintoplace](https://www.github.com/tauri-apps/tauri/../../fallintoplace)) Fix `tauri migrate` generating invalid namespace imports for aliased pluginified imports from `@tauri-apps/api`.
+
+  Inputs like `import { cli as superCli } from "@tauri-apps/api"` now migrate to `import * as superCli from "@tauri-apps/plugin-cli"` instead of producing invalid ESM syntax. The migration tests also reparse migrated JS, Svelte, and Vue output so syntax regressions are caught directly.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.11.3`
+
 ## \[2.11.2]
 
 ### Dependencies

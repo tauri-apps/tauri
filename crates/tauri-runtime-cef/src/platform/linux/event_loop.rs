@@ -8,17 +8,15 @@ use winit::event_loop::ActiveEventLoop;
 
 use crate::platform::EventLoopExt;
 
-use super::utils::with_x11;
+use super::{taskbar, utils::with_x11};
 
 impl EventLoopExt for dyn ActiveEventLoop + '_ {
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {
-    let _ = (count, desktop_filename);
-    // TODO
+    taskbar::set_badge_count(count, desktop_filename);
   }
 
-  fn set_badge_label(&self, label: Option<String>) {
-    let _ = label;
-    // TODO
+  fn set_badge_label(&self, _label: Option<String>) {
+    // Unsupported on Linux/BSD
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {

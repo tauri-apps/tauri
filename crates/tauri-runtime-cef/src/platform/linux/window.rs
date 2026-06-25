@@ -7,6 +7,8 @@ use tauri_utils::config::Color;
 
 use crate::window::AppWindow;
 
+use super::taskbar;
+
 impl AppWindow {
   pub(crate) fn set_enabled(&self, enabled: bool) {
     let _ = (self, enabled);
@@ -25,7 +27,6 @@ impl AppWindow {
   }
 
   pub(crate) fn set_progress_bar(&self, state: ProgressBarState) {
-    let _ = (self, state);
-    // TODO: implement native progress bar integration on Linux/BSD.
+    taskbar::set_progress_bar(state);
   }
 }

@@ -4,6 +4,7 @@
 
 mod event_loop;
 mod monitor;
+mod taskbar;
 mod utils;
 mod webview;
 mod window;

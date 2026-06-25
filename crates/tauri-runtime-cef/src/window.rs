@@ -31,7 +31,7 @@ use winit::{
 };
 
 use crate::platform::{EventLoopExt, MonitorExt};
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 use std::marker::PhantomData;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowExtMacOS;
@@ -413,11 +413,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       appwindow.set_background_color(appwindow.attrs.background_color);
     }
 
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     if let Some(after_window_creation) = _after_window_creation {
-      let hwnd = appwindow.hwnd();
       after_window_creation(RawWindow {
-        hwnd: hwnd.0 as isize,
+        #[cfg(windows)]
+        hwnd: appwindow.hwnd().0 as isize,
         _marker: &PhantomData,
       });
     }

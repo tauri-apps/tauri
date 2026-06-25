@@ -299,8 +299,23 @@ pub(crate) struct AppWindowAttrs {
   pub(crate) prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
   pub(crate) traffic_light_position: Option<Position>,
-  #[cfg(target_os = "macos")]
+  #[cfg(any(
+    target_os = "macos",
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   pub(crate) visible_on_all_workspaces: bool,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub(crate) skip_taskbar: bool,
 }
 
 impl AppWindow {
@@ -379,6 +394,18 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
 
       appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
+    }
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
+      appwindow.set_skip_taskbar(appwindow.attrs.skip_taskbar);
     }
 
     if appwindow.attrs.background_color.is_some() {
@@ -602,6 +629,17 @@ impl<T: UserEvent> WinitCefApp<T> {
           app_window.attrs.visible_on_all_workspaces = _value;
           app_window.set_visible_on_all_workspaces(_value);
         }
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        {
+          app_window.attrs.visible_on_all_workspaces = _value;
+          app_window.set_visible_on_all_workspaces(_value);
+        }
       }
       WindowMessage::SetContentProtected(value) => window.set_content_protected(value),
       WindowMessage::SetIcon(icon) => {
@@ -612,8 +650,14 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetSkipTaskbar(_value) => {
         #[cfg(windows)]
         window.set_skip_taskbar(_value);
-
-        // TODO: linux
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        app_window.set_skip_taskbar(_value);
       }
       WindowMessage::SetShadow(value) => {
         #[cfg(windows)]

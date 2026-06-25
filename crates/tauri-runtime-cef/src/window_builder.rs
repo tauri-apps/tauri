@@ -274,10 +274,17 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn visible_on_all_workspaces(mut self, _visible_on_all_workspaces: bool) -> Self {
-    #[cfg(target_os = "macos")]
+  fn visible_on_all_workspaces(mut self, visible_on_all_workspaces: bool) -> Self {
+    #[cfg(any(
+      target_os = "macos",
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     {
-      self.attrs.visible_on_all_workspaces = _visible_on_all_workspaces;
+      self.attrs.visible_on_all_workspaces = visible_on_all_workspaces;
     }
 
     self
@@ -295,15 +302,26 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[allow(unused_mut)]
-  fn skip_taskbar(mut self, _skip: bool) -> Self {
+  fn skip_taskbar(mut self, skip: bool) -> Self {
     #[cfg(windows)]
     {
-      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_skip_taskbar(_skip);
+      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_skip_taskbar(skip);
       self.attrs.inner = self
         .attrs
         .inner
         .with_platform_attributes(Box::new(pl_attrs));
       return self;
+    }
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      self.attrs.skip_taskbar = skip;
     }
 
     self

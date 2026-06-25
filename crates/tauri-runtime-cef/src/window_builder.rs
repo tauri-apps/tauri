@@ -4,12 +4,12 @@
 
 use tauri_runtime::{
   Icon, Result,
-  dpi::{Position, Size},
+  dpi::{PhysicalSize, Position, Size},
   window::{WindowBuilder, WindowBuilderBase, WindowSizeConstraints},
 };
 use tauri_utils::{
   Theme, TitleBarStyle,
-  config::{Color, WindowConfig},
+  config::{Color, PreventOverflowConfig, WindowConfig},
 };
 use winit::{
   dpi::{LogicalPosition, LogicalSize},
@@ -114,6 +114,16 @@ impl WindowBuilder for WindowBuilderWrapper {
     if let Some(window_classname) = &config.window_classname {
       builder = builder.window_classname(window_classname);
     }
+    if let Some(prevent_overflow) = &config.prevent_overflow {
+      builder = match prevent_overflow {
+        PreventOverflowConfig::Enable(true) => builder.prevent_overflow(),
+        PreventOverflowConfig::Margin(margin) => {
+          let margin = PhysicalSize::new(margin.width, margin.height);
+          builder.prevent_overflow_with_margin(margin.into())
+        }
+        _ => builder,
+      };
+    }
     builder
   }
 
@@ -160,13 +170,13 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn prevent_overflow(self) -> Self {
-    // TODO
+  fn prevent_overflow(mut self) -> Self {
+    self.attrs.prevent_overflow = Some(PhysicalSize::new(0, 0).into());
     self
   }
 
-  fn prevent_overflow_with_margin(self, _margin: Size) -> Self {
-    // TODO
+  fn prevent_overflow_with_margin(mut self, margin: Size) -> Self {
+    self.attrs.prevent_overflow = Some(margin);
     self
   }
 

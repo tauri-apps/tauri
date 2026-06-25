@@ -111,8 +111,54 @@ fn find_monitor_for_position(
   })
 }
 
-fn center_window_attributes(event_loop: &dyn ActiveEventLoop, attrs: &mut WindowAttributes) {
+fn clamp_surface_size(attrs: &WindowAttributes, scale_factor: f64) -> PhysicalSize<u32> {
+  let mut size = attrs
+    .surface_size
+    .unwrap_or_else(|| PhysicalSize::new(800, 600).into())
+    .to_physical::<u32>(scale_factor);
+
+  if let Some(min_size) = attrs.min_surface_size {
+    let min_size = min_size.to_physical::<u32>(scale_factor);
+    size.width = size.width.max(min_size.width);
+    size.height = size.height.max(min_size.height);
+  }
+
+  if let Some(max_size) = attrs.max_surface_size {
+    let max_size = max_size.to_physical::<u32>(scale_factor);
+    size.width = size.width.min(max_size.width);
+    size.height = size.height.min(max_size.height);
+  }
+
+  size
+}
+
+fn apply_prevent_overflow(
+  attrs: &mut WindowAttributes,
+  window_size: &mut PhysicalSize<u32>,
+  monitor: &MonitorHandle,
+  margin: Size,
+) {
+  let work_area = monitor.work_area();
+  let margin = margin.to_physical::<u32>(monitor.scale_factor());
+  let constraint = PhysicalSize::new(
+    work_area.size.width.saturating_sub(margin.width),
+    work_area.size.height.saturating_sub(margin.height),
+  );
+
+  if window_size.width > constraint.width || window_size.height > constraint.height {
+    window_size.width = window_size.width.min(constraint.width);
+    window_size.height = window_size.height.min(constraint.height);
+    attrs.surface_size = Some((*window_size).into());
+  }
+}
+
+fn prepare_window_attributes(event_loop: &dyn ActiveEventLoop, attrs: &mut AppWindowAttrs) {
+  if !attrs.center && attrs.prevent_overflow.is_none() {
+    return;
+  }
+
   let monitor = attrs
+    .inner
     .position
     .and_then(|position| {
       let monitors = event_loop.available_monitors();
@@ -124,13 +170,16 @@ fn center_window_attributes(event_loop: &dyn ActiveEventLoop, attrs: &mut Window
     return;
   };
 
-  let desired_size = attrs
-    .surface_size
-    .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-  let window_size = desired_size.to_physical::<u32>(monitor.scale_factor());
+  let mut window_size = clamp_surface_size(&attrs.inner, monitor.scale_factor());
 
-  let position = calculate_window_center_position(window_size, &monitor);
-  attrs.position = Some(position.into());
+  if let Some(margin) = attrs.prevent_overflow {
+    apply_prevent_overflow(&mut attrs.inner, &mut window_size, &monitor, margin);
+  }
+
+  if attrs.center {
+    let position = calculate_window_center_position(window_size, &monitor);
+    attrs.inner.position = Some(position.into());
+  }
 }
 
 pub(crate) fn paired_size_constraint(
@@ -247,6 +296,7 @@ pub(crate) struct AppWindowAttrs {
   pub(crate) inner: WindowAttributes,
   pub(crate) center: bool,
   pub(crate) background_color: Option<Color>,
+  pub(crate) prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
   pub(crate) traffic_light_position: Option<Position>,
   #[cfg(target_os = "macos")]
@@ -306,9 +356,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
   ) {
     let mut attrs = pending.window_builder.attrs.clone();
-    if attrs.center {
-      center_window_attributes(event_loop, &mut attrs.inner);
-    }
+    prepare_window_attributes(event_loop, &mut attrs);
 
     let window = event_loop
       .create_window(attrs.inner.clone())

@@ -9,7 +9,7 @@ use cef::*;
 use crate::webview::INITIAL_LOAD_URL;
 
 wrap_display_handler! {
-  pub(super) struct TauriCefDisplayHandler {
+  pub struct TauriCefDisplayHandler {
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
     address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
   }

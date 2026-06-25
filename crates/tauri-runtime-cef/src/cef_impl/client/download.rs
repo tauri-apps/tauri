@@ -7,7 +7,7 @@ use std::sync::Arc;
 use cef::*;
 
 wrap_download_handler! {
-  pub(super) struct TauriCefDownloadHandler {
+  pub struct TauriCefDownloadHandler {
     download_handler: Arc<tauri_runtime::webview::DownloadHandler>,
   }
 

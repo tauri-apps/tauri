@@ -5,7 +5,7 @@
 use cef::*;
 
 wrap_context_menu_handler! {
-  pub(super) struct TauriCefContextMenuHandler {
+  pub struct TauriCefContextMenuHandler {
     devtools_enabled: bool,
   }
 

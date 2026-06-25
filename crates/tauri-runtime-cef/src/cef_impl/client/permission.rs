@@ -5,7 +5,7 @@
 use cef::*;
 
 wrap_permission_handler! {
-  pub(super) struct TauriCefPermissionHandler {}
+  pub struct TauriCefPermissionHandler {}
 
   impl PermissionHandler {
     fn on_request_media_access_permission(

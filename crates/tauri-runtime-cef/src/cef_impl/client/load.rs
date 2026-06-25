@@ -7,7 +7,7 @@ use std::sync::Arc;
 use cef::*;
 
 wrap_load_handler! {
-  pub(super) struct TauriCefLoadHandler {
+  pub struct TauriCefLoadHandler {
     on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
   }
 

@@ -47,7 +47,7 @@ fn check_and_reload_if_blank(browser: cef::Browser, initial_url: String) {
 }
 
 wrap_life_span_handler! {
-  pub(super) struct TauriCefChildLifeSpanHandler<T: UserEvent> {
+  pub struct TauriCefChildLifeSpanHandler<T: UserEvent> {
     sender: Sender<Message<T>>,
     proxy: WinitEventLoopProxy,
     window_id: WindowId,

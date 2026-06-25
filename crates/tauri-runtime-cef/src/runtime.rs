@@ -1100,7 +1100,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     #[cfg(target_os = "macos")]
     if !is_helper {
-      crate::platform::setup_application();
+      crate::platform::macos::setup_application();
     }
 
     let mut command_line_args = Vec::new();

@@ -4,13 +4,9 @@
 
 #[cfg(windows)]
 mod windows;
-#[cfg(windows)]
-pub use windows::*;
 
 #[cfg(target_os = "macos")]
 mod macos;
-#[cfg(target_os = "macos")]
-pub use macos::*;
 
 #[cfg(any(
   target_os = "linux",
@@ -20,14 +16,6 @@ pub use macos::*;
   target_os = "openbsd"
 ))]
 mod linux;
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-pub use linux::*;
 
 use tauri_runtime::dpi::PhysicalRect;
 use winit::monitor::MonitorHandle;

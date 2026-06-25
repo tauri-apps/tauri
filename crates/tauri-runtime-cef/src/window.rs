@@ -267,7 +267,7 @@ impl AppWindow {
       .expect("failed to get window handle");
     match handle.as_raw() {
       #[cfg(windows)]
-      RawWindowHandle::Win32(handle) => cef::sys::cef_window_handle_t(handle.hwnd.get() as *mut _),
+      RawWindowHandle::Win32(handle) => cef::sys::HWND(handle.hwnd.get() as *mut _),
       #[cfg(target_os = "macos")]
       RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr().cast(),
       #[cfg(any(
@@ -286,13 +286,6 @@ impl AppWindow {
         target_os = "openbsd"
       ))]
       RawWindowHandle::Xcb(handle) => handle.window.get() as cef::sys::cef_window_handle_t,
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
       other => panic!("expected platform window handle, got {other:?}"),
     }
   }

@@ -12,7 +12,7 @@ type CefOsEvent<'a> = *mut u8;
 type CefOsEvent<'a> = Option<&'a mut cef::sys::MSG>;
 
 wrap_keyboard_handler! {
-  pub(super) struct TauriCefKeyboardHandler {
+  pub struct TauriCefKeyboardHandler {
     devtools_enabled: bool,
   }
 

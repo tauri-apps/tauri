@@ -139,7 +139,7 @@ fn collect_drag_data_paths(drag_data: &mut DragData) -> Vec<PathBuf> {
 }
 
 wrap_drag_handler! {
-  pub(super) struct TauriCefDragHandler {
+  pub struct TauriCefDragHandler {
     drag_drop_state: Arc<Mutex<DragDropState>>,
   }
 

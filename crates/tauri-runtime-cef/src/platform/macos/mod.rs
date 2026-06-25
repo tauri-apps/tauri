@@ -12,3 +12,4 @@ mod webview;
 mod window;
 
 pub use application::setup_application;
+pub(crate) use application::{AppDelegateEvent, set_application_event_handler};

@@ -312,6 +312,14 @@ pub(crate) enum Message<T: UserEvent> {
   EventLoop(EventLoopMessage),
   BrowserClosed(WindowId, u32),
   Opened(Vec<url::Url>),
+  #[cfg(target_os = "macos")]
+  Reopen {
+    has_visible_windows: bool,
+  },
+  #[cfg(target_os = "macos")]
+  AccessibilityChanged {
+    enabled: bool,
+  },
   CreateWindow {
     window_id: WindowId,
     webview_id: Option<u32>,
@@ -541,6 +549,14 @@ impl<T: UserEvent> WinitCefApp<T> {
         }
       }
       Message::Opened(urls) => self.run_callback(RunEvent::Opened { urls }),
+      #[cfg(target_os = "macos")]
+      Message::Reopen {
+        has_visible_windows,
+      } => self.run_callback(RunEvent::Reopen {
+        has_visible_windows,
+      }),
+      #[cfg(target_os = "macos")]
+      Message::AccessibilityChanged { enabled } => self.set_browsers_accessibility_state(enabled),
       Message::UserEvent(event) => self.run_callback(RunEvent::UserEvent(event)),
     }
   }
@@ -732,6 +748,20 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
     self.state.windows.clear();
     self.state.winid_id_to_window_id_map.clear();
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_browsers_accessibility_state(&self, enabled: bool) {
+    let state = if enabled {
+      State::ENABLED
+    } else {
+      State::DISABLED
+    };
+    for appwindow in self.state.windows.values() {
+      for child in &appwindow.children {
+        child.host.set_accessibility_state(state);
+      }
+    }
   }
 
   fn exit_if_done(&mut self, event_loop: &dyn ActiveEventLoop) {
@@ -1207,6 +1237,31 @@ impl<T: UserEvent> CefRuntime<T> {
     ) != 1
     {
       return Err(Error::WebviewRuntimeNotInstalled);
+    }
+
+    #[cfg(target_os = "macos")]
+    if !is_helper {
+      use crate::platform::macos::AppDelegateEvent;
+
+      let context_ = context.clone();
+      crate::platform::macos::set_application_event_handler(Box::new(move |event| match event {
+        AppDelegateEvent::TryTerminate => {
+          let _ = context_.send_message(Message::RequestExit(0));
+        }
+        AppDelegateEvent::Reopen {
+          has_visible_windows,
+        } => {
+          let _ = context_.send_message(Message::Reopen {
+            has_visible_windows,
+          });
+        }
+        AppDelegateEvent::AccessibilityChanged { enabled } => {
+          let _ = context_.send_message(Message::AccessibilityChanged { enabled });
+        }
+        AppDelegateEvent::OpenURLs { urls } => {
+          let _ = context_.send_message(Message::Opened(urls));
+        }
+      }));
     }
 
     // Wait for the CEF context to initialize before returning, so that the runtime is ready to create browsers.

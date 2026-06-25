@@ -65,11 +65,13 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "objc2-quartz-core",
 ] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
+  "NSArray",
   "NSObject",
   "NSRunLoop",
   "NSString",
   "NSThread",
   "NSTimer",
+  "NSURL",
 ] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

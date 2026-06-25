@@ -2083,6 +2083,12 @@ impl<T: UserEvent> CefRuntime<T> {
     let settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
+      user_agent: runtime_args
+        .user_agent
+        .as_ref()
+        .unwrap_or(&"".to_owned())
+        .as_str()
+        .into(),
       ..Default::default()
     };
     assert_eq!(

@@ -1693,12 +1693,14 @@ impl<R: Runtime> Builder<R> {
       target_os = "openbsd"
     ))]
     app_id: Option<String>,
+    user_agent: Option<String>,
     #[cfg(windows)] msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
   ) -> RuntimeInitArgs<R::PlatformSpecificInitAttribute> {
     RuntimeInitArgs {
       identifier: identifier.to_string(),
       custom_schemes,
       platform_specific_attributes,
+      user_agent,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -2381,6 +2383,20 @@ tauri::Builder::<tauri::Wry>::new()
       custom_schemes.push(schema.clone());
     }
 
+    let user_agents: Vec<&String> = manager
+      .config
+      .app
+      .windows
+      .iter()
+      .filter_map(|w| w.user_agent.as_ref())
+      .collect();
+    if user_agents.windows(2).any(|ua| ua[0] != ua[1]) {
+      eprintln!(
+        "The CEF runtime only supports setting a single user agent - the first user agent defined in the app windows config will be used"
+      );
+    }
+    let user_agent = user_agents.first().map(|ua| ua.as_str().to_owned());
+
     let runtime_args = Self::build_runtime_init_args(
       &manager.config.identifier,
       custom_schemes,
@@ -2393,6 +2409,7 @@ tauri::Builder::<tauri::Wry>::new()
         target_os = "openbsd"
       ))]
       app_id,
+      user_agent,
       #[cfg(windows)]
       {
         let menus = manager.menu.menus.clone();

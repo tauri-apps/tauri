@@ -624,8 +624,14 @@ impl<T: UserEvent> WinitCefApp<T> {
         window.set_max_surface_size(max_size);
       }
 
-      WindowMessage::SetFocusable(_) | WindowMessage::SetProgressBar(_) => {
+      WindowMessage::SetFocusable(_) => {
         // TODO
+      }
+      WindowMessage::SetProgressBar(state) => {
+        #[cfg(target_os = "macos")]
+        event_loop.set_progress_bar(state);
+        #[cfg(not(target_os = "macos"))]
+        app_window.set_progress_bar(state);
       }
     }
   }

@@ -9,7 +9,7 @@ use crate::{
 };
 use cef::ImplBrowserHost;
 use tauri_runtime::{
-  Error, Icon, Result,
+  Error, Icon, ProgressBarState, ProgressBarStatus, Result,
   dpi::{PhysicalPosition, PhysicalRect, PhysicalSize, Rect},
 };
 use tauri_utils::config::Color;
@@ -18,7 +18,10 @@ use windows::Win32::{
   Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO, MapWindowPoints},
   System::Com::{CLSCTX_SERVER, CoCreateInstance},
   UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
-  UI::Shell::{ITaskbarList3, TaskbarList},
+  UI::Shell::{
+    ITaskbarList3, TBPF_ERROR, TBPF_INDETERMINATE, TBPF_NOPROGRESS, TBPF_NORMAL, TBPF_PAUSED,
+    TaskbarList,
+  },
   UI::WindowsAndMessaging::{
     CreateIcon, DestroyIcon, GetCursorPos, GetParent, GetWindowRect, SW_HIDE, SW_SHOW,
     SWP_NOACTIVATE, SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow,
@@ -78,6 +81,30 @@ impl AppWindow {
       let _ = unsafe { DestroyIcon(icon) };
     } else {
       let _ = unsafe { taskbar.SetOverlayIcon(hwnd, Default::default(), None) };
+    }
+  }
+
+  pub(crate) fn set_progress_bar(&self, state: ProgressBarState) {
+    let Ok(taskbar) =
+      (unsafe { CoCreateInstance::<_, ITaskbarList3>(&TaskbarList, None, CLSCTX_SERVER) })
+    else {
+      return;
+    };
+
+    let hwnd = self.hwnd();
+    if let Some(status) = state.status {
+      let flag = match status {
+        ProgressBarStatus::None => TBPF_NOPROGRESS,
+        ProgressBarStatus::Normal => TBPF_NORMAL,
+        ProgressBarStatus::Indeterminate => TBPF_INDETERMINATE,
+        ProgressBarStatus::Paused => TBPF_PAUSED,
+        ProgressBarStatus::Error => TBPF_ERROR,
+      };
+      let _ = unsafe { taskbar.SetProgressState(hwnd, flag) };
+    }
+
+    if let Some(progress) = state.progress {
+      let _ = unsafe { taskbar.SetProgressValue(hwnd, progress.min(100), 100) };
     }
   }
 

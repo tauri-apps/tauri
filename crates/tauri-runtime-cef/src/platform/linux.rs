@@ -8,7 +8,7 @@ use crate::{
   window::AppWindow,
 };
 use tauri_runtime::{
-  Error, Result,
+  Error, ProgressBarState, Result,
   dpi::{PhysicalPosition, PhysicalRect, Rect},
 };
 use tauri_utils::config::Color;
@@ -36,6 +36,11 @@ impl AppWindow {
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
     let _ = (self, color);
     // TODO: implement native window background color on Linux/BSD.
+  }
+
+  pub(crate) fn set_progress_bar(&self, state: ProgressBarState) {
+    let _ = (self, state);
+    // TODO: implement native progress bar integration on Linux/BSD.
   }
 }
 

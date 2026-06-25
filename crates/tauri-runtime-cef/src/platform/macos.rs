@@ -14,16 +14,17 @@ use cef::{
   application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol},
 };
 use objc2::{
-  ClassType, DefinedClass, MainThreadMarker, define_class, extern_methods, msg_send, rc::Retained,
-  runtime::Bool,
+  ClassType, DefinedClass, MainThreadMarker, MainThreadOnly, define_class, extern_methods,
+  msg_send, rc::Retained, runtime::Bool,
 };
 use objc2_app_kit::{
-  NSApp, NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSColor, NSEvent,
-  NSScreen, NSView, NSWindow, NSWindowButton, NSWindowCollectionBehavior, NSWindowStyleMask,
+  NSApp, NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSBezierPath, NSColor,
+  NSDockTile, NSEvent, NSImageView, NSProgressIndicator, NSScreen, NSView, NSWindow,
+  NSWindowButton, NSWindowCollectionBehavior, NSWindowStyleMask,
 };
-use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
+use objc2_foundation::{NSInsetRect, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri_runtime::{
-  Error, Result,
+  Error, ProgressBarState, ProgressBarStatus, Result,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalRect, Position, Rect},
 };
 use tauri_utils::{TitleBarStyle, config::Color};
@@ -73,6 +74,132 @@ impl CefWinitApplication {
     #[unsafe(method(sharedApplication))]
     fn shared_application() -> Retained<Self>;
   }
+}
+
+struct DockProgressIndicatorIvars {
+  state: Cell<ProgressBarStatus>,
+}
+
+impl Default for DockProgressIndicatorIvars {
+  fn default() -> Self {
+    Self {
+      state: Cell::new(ProgressBarStatus::None),
+    }
+  }
+}
+
+define_class!(
+  #[unsafe(super(NSProgressIndicator))]
+  #[ivars = DockProgressIndicatorIvars]
+  struct DockProgressIndicator;
+
+  impl DockProgressIndicator {
+    #[unsafe(method(drawRect:))]
+    fn draw_rect(&self, rect: NSRect) {
+      let bar = NSRect::new(
+        NSPoint::new(0.0, 4.0),
+        NSSize::new(rect.size.width, 8.0),
+      );
+      let bar_inner = NSInsetRect(bar, 0.5, 0.5);
+      let mut bar_progress = NSInsetRect(bar, 1.0, 1.0);
+
+      let progress = (self.doubleValue() / 100.0).clamp(0.0, 1.0);
+      bar_progress.size.width *= progress;
+
+      NSColor::colorWithWhite_alpha(1.0, 0.05).set();
+      draw_rounded_rect(bar);
+      draw_rounded_rect(bar_inner);
+
+      let progress_color = match self.ivars().state.get() {
+        ProgressBarStatus::Paused => NSColor::systemYellowColor(),
+        ProgressBarStatus::Error => NSColor::systemRedColor(),
+        _ => NSColor::systemBlueColor(),
+      };
+      progress_color.set();
+      draw_rounded_rect(bar_progress);
+    }
+  }
+);
+
+impl DockProgressIndicator {
+  fn new(mtm: MainThreadMarker, frame: NSRect) -> Retained<Self> {
+    let this = Self::alloc(mtm).set_ivars(DockProgressIndicatorIvars::default());
+    unsafe { msg_send![super(this), initWithFrame: frame] }
+  }
+
+  fn set_state(&self, status: ProgressBarStatus) {
+    self.ivars().state.set(status);
+  }
+}
+
+fn draw_rounded_rect(rect: NSRect) {
+  let radius = rect.size.height / 2.0;
+  NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect, radius, radius).fill();
+}
+
+fn set_dock_progress_bar(state: ProgressBarState) {
+  let Some(mtm) = MainThreadMarker::new() else {
+    return;
+  };
+  let app = NSApplication::sharedApplication(mtm);
+  let dock_tile = app.dockTile();
+  let Some(progress_indicator) = dock_progress_indicator(&app, &dock_tile, mtm) else {
+    return;
+  };
+
+  if let Some(progress) = state.progress {
+    progress_indicator.setDoubleValue(progress.min(100) as f64);
+    progress_indicator.setHidden(false);
+  }
+
+  if let Some(status) = state.status {
+    progress_indicator.set_state(status);
+    progress_indicator.setHidden(matches!(status, ProgressBarStatus::None));
+  }
+
+  dock_tile.display();
+}
+
+fn dock_progress_indicator(
+  app: &NSApplication,
+  dock_tile: &NSDockTile,
+  mtm: MainThreadMarker,
+) -> Option<Retained<DockProgressIndicator>> {
+  let content_view = match dock_tile.contentView(mtm) {
+    Some(content_view) => content_view,
+    None => {
+      let app_icon = app.applicationIconImage()?;
+      let image_view = NSImageView::imageViewWithImage(&app_icon, mtm);
+      dock_tile.setContentView(Some(&image_view));
+      dock_tile.contentView(mtm)?
+    }
+  };
+
+  if let Some(progress_indicator) = existing_progress_indicator(&content_view) {
+    return Some(progress_indicator);
+  }
+
+  let dock_tile_size = dock_tile.size();
+  let frame = NSRect::new(
+    NSPoint::new(0.0, 0.0),
+    NSSize::new(dock_tile_size.width, 15.0),
+  );
+  let progress_indicator = DockProgressIndicator::new(mtm, frame);
+  content_view.addSubview(&progress_indicator);
+
+  Some(progress_indicator)
+}
+
+fn existing_progress_indicator(content_view: &NSView) -> Option<Retained<DockProgressIndicator>> {
+  let subviews = content_view.subviews();
+  for idx in 0..subviews.count() {
+    let subview = subviews.objectAtIndex(idx);
+    if let Ok(progress_indicator) = subview.downcast::<DockProgressIndicator>() {
+      return Some(progress_indicator);
+    }
+  }
+
+  None
 }
 
 pub fn setup_application() {
@@ -142,6 +269,11 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
       return;
     };
     NSApp(mtm).hide(None);
+  }
+
+  fn set_progress_bar(&self, state: ProgressBarState) {
+    let _ = self;
+    set_dock_progress_bar(state);
   }
 
   fn set_badge_count(&self, count: Option<i64>, _desktop_filename: Option<String>) {

@@ -1263,6 +1263,6 @@ fn tauri_cursor_to_winit_cursor(cursor: CursorIcon) -> winit::cursor::CursorIcon
     CursorIcon::NwseResize => winit::cursor::CursorIcon::NwseResize,
     CursorIcon::ColResize => winit::cursor::CursorIcon::ColResize,
     CursorIcon::RowResize => winit::cursor::CursorIcon::RowResize,
-    _ => todo!(),
+    _ => winit::cursor::CursorIcon::Default,
   }
 }

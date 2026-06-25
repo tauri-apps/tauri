@@ -242,11 +242,15 @@ pub(crate) struct AppWindow {
   pub(crate) listeners: Arc<Mutex<HashMap<WindowEventId, Box<dyn Fn(&WindowEvent) + Send>>>>,
 }
 
-struct AppWindowAttrs {
-  inner: WindowAttributes,
-  background_color: Option<Color>,
+#[derive(Clone, Debug, Default)]
+pub(crate) struct AppWindowAttrs {
+  pub(crate) inner: WindowAttributes,
+  pub(crate) center: bool,
+  pub(crate) background_color: Option<Color>,
   #[cfg(target_os = "macos")]
-  traffic_light_position: Option<Position>,
+  pub(crate) traffic_light_position: Option<Position>,
+  #[cfg(target_os = "macos")]
+  pub(crate) visible_on_all_workspaces: bool,
 }
 
 impl AppWindow {
@@ -301,13 +305,13 @@ impl<T: UserEvent> WinitCefApp<T> {
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
     _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
   ) {
-    let mut attrs = pending.window_builder.inner.clone();
-    if pending.window_builder.center {
-      center_window_attributes(event_loop, &mut attrs);
+    let mut attrs = pending.window_builder.attrs.clone();
+    if attrs.center {
+      center_window_attributes(event_loop, &mut attrs.inner);
     }
 
     let window = event_loop
-      .create_window(attrs.clone())
+      .create_window(attrs.inner.clone())
       .expect("failed to create winit window");
 
     let winit_id = window.id();
@@ -315,23 +319,19 @@ impl<T: UserEvent> WinitCefApp<T> {
       id: window_id,
       label: pending.label.clone(),
       window,
-      attrs: AppWindowAttrs {
-        inner: attrs,
-        background_color: pending.window_builder.background_color,
-        #[cfg(target_os = "macos")]
-        traffic_light_position: pending.window_builder.traffic_light_position,
-      },
+      attrs,
       children: Vec::new(),
       listeners: Default::default(),
     };
 
     #[cfg(target_os = "macos")]
-    if let Some(position) = &appwindow.attrs.traffic_light_position {
-      appwindow.apply_traffic_light_position(position);
-    }
+    {
+      if let Some(position) = &appwindow.attrs.traffic_light_position {
+        appwindow.apply_traffic_light_position(position);
+      }
 
-    #[cfg(target_os = "macos")]
-    appwindow.set_visible_on_all_workspaces(pending.window_builder.visible_on_all_workspaces);
+      appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
+    }
 
     if appwindow.attrs.background_color.is_some() {
       appwindow.set_background_color(appwindow.attrs.background_color);
@@ -550,7 +550,10 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WindowMessage::SetVisibleOnAllWorkspaces(_value) => {
         #[cfg(target_os = "macos")]
-        app_window.set_visible_on_all_workspaces(_value);
+        {
+          app_window.attrs.visible_on_all_workspaces = _value;
+          app_window.set_visible_on_all_workspaces(_value);
+        }
       }
       WindowMessage::SetContentProtected(value) => window.set_content_protected(value),
       WindowMessage::SetIcon(icon) => {

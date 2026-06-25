@@ -18,7 +18,7 @@ use winit::{
   window::{WindowAttributes, WindowButtons},
 };
 
-use crate::window::{paired_size_constraint, tauri_theme_to_winit_theme};
+use crate::window::{AppWindowAttrs, paired_size_constraint, tauri_theme_to_winit_theme};
 
 #[cfg(target_os = "macos")]
 use std::ptr::NonNull;
@@ -30,13 +30,7 @@ use windows::Win32::Foundation::HWND;
 
 #[derive(Clone, Default, Debug)]
 pub struct WindowBuilderWrapper {
-  pub(crate) inner: WindowAttributes,
-  pub(crate) center: bool,
-  pub(crate) background_color: Option<Color>,
-  #[cfg(target_os = "macos")]
-  pub(crate) traffic_light_position: Option<Position>,
-  #[cfg(target_os = "macos")]
-  pub(crate) visible_on_all_workspaces: bool,
+  pub(crate) attrs: AppWindowAttrs,
 }
 
 unsafe impl Send for WindowBuilderWrapper {}
@@ -46,15 +40,12 @@ impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
     Self {
-      inner: WindowAttributes::default()
-        .with_title("Tauri App")
-        .with_visible(true),
-      center: false,
-      background_color: None,
-      #[cfg(target_os = "macos")]
-      traffic_light_position: None,
-      #[cfg(target_os = "macos")]
-      visible_on_all_workspaces: false,
+      attrs: AppWindowAttrs {
+        inner: WindowAttributes::default()
+          .with_title("Tauri App")
+          .with_visible(true),
+        ..Default::default()
+      },
     }
   }
 
@@ -109,9 +100,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(identifier) = &config.tabbing_identifier {
         builder = builder.tabbing_identifier(identifier);
       }
-      let pl_attrs =
-        platfomr_atts(&mut builder.inner).with_accepts_first_mouse(config.accept_first_mouse);
-      builder.inner = builder.inner.with_platform_attributes(Box::new(pl_attrs));
+      let mut pl_attrs = platfomr_atts(&mut builder.attrs.inner);
+      pl_attrs = pl_attrs.with_accepts_first_mouse(config.accept_first_mouse);
+
+      builder.attrs.inner = builder
+        .attrs
+        .inner
+        .with_platform_attributes(Box::new(pl_attrs));
     }
     if config.center {
       builder = builder.center();
@@ -123,31 +118,34 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn center(mut self) -> Self {
-    self.center = true;
+    self.attrs.center = true;
     self
   }
 
   fn position(mut self, x: f64, y: f64) -> Self {
-    self.inner = self.inner.with_position(LogicalPosition::new(x, y));
+    self.attrs.inner = self.attrs.inner.with_position(LogicalPosition::new(x, y));
     self
   }
 
   fn inner_size(mut self, width: f64, height: f64) -> Self {
-    self.inner = self
+    self.attrs.inner = self
+      .attrs
       .inner
       .with_surface_size(LogicalSize::new(width, height));
     self
   }
 
   fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
-    self.inner = self
+    self.attrs.inner = self
+      .attrs
       .inner
       .with_min_surface_size(LogicalSize::new(min_width, min_height));
     self
   }
 
   fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
-    self.inner = self
+    self.attrs.inner = self
+      .attrs
       .inner
       .with_max_surface_size(LogicalSize::new(max_width, max_height));
     self
@@ -155,9 +153,9 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
     // TODO: upstream individual width/height size constraints to winit.
-    self.inner.min_surface_size =
+    self.attrs.inner.min_surface_size =
       paired_size_constraint(constraints.min_width, constraints.min_height);
-    self.inner.max_surface_size =
+    self.attrs.inner.max_surface_size =
       paired_size_constraint(constraints.max_width, constraints.max_height);
     self
   }
@@ -173,12 +171,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn resizable(mut self, resizable: bool) -> Self {
-    self.inner = self.inner.with_resizable(resizable);
+    self.attrs.inner = self.attrs.inner.with_resizable(resizable);
     self
   }
 
   fn maximizable(mut self, maximizable: bool) -> Self {
     self
+      .attrs
       .inner
       .enabled_buttons
       .set(WindowButtons::MAXIMIZE, maximizable);
@@ -187,6 +186,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn minimizable(mut self, minimizable: bool) -> Self {
     self
+      .attrs
       .inner
       .enabled_buttons
       .set(WindowButtons::MINIMIZE, minimizable);
@@ -195,6 +195,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn closable(mut self, closable: bool) -> Self {
     self
+      .attrs
       .inner
       .enabled_buttons
       .set(WindowButtons::CLOSE, closable);
@@ -202,19 +203,20 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn title<S: Into<String>>(mut self, title: S) -> Self {
-    self.inner = self.inner.with_title(title);
+    self.attrs.inner = self.attrs.inner.with_title(title);
     self
   }
 
   fn fullscreen(mut self, fullscreen: bool) -> Self {
-    self.inner = self
+    self.attrs.inner = self
+      .attrs
       .inner
       .with_fullscreen(fullscreen.then_some(Fullscreen::Borderless(None)));
     self
   }
 
   fn focused(mut self, focused: bool) -> Self {
-    self.inner = self.inner.with_active(focused);
+    self.attrs.inner = self.attrs.inner.with_active(focused);
     self
   }
 
@@ -224,28 +226,28 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn maximized(mut self, maximized: bool) -> Self {
-    self.inner = self.inner.with_maximized(maximized);
+    self.attrs.inner = self.attrs.inner.with_maximized(maximized);
     self
   }
 
   fn visible(mut self, visible: bool) -> Self {
-    self.inner = self.inner.with_visible(visible);
+    self.attrs.inner = self.attrs.inner.with_visible(visible);
     self
   }
 
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   fn transparent(mut self, transparent: bool) -> Self {
-    self.inner = self.inner.with_transparent(transparent);
+    self.attrs.inner = self.attrs.inner.with_transparent(transparent);
     self
   }
 
   fn decorations(mut self, decorations: bool) -> Self {
-    self.inner = self.inner.with_decorations(decorations);
+    self.attrs.inner = self.attrs.inner.with_decorations(decorations);
     self
   }
 
   fn always_on_bottom(mut self, always_on_bottom: bool) -> Self {
-    self.inner = self.inner.with_window_level(if always_on_bottom {
+    self.attrs.inner = self.attrs.inner.with_window_level(if always_on_bottom {
       winit::window::WindowLevel::AlwaysOnBottom
     } else {
       winit::window::WindowLevel::Normal
@@ -254,7 +256,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn always_on_top(mut self, always_on_top: bool) -> Self {
-    self.inner = self.inner.with_window_level(if always_on_top {
+    self.attrs.inner = self.attrs.inner.with_window_level(if always_on_top {
       winit::window::WindowLevel::AlwaysOnTop
     } else {
       winit::window::WindowLevel::Normal
@@ -265,20 +267,20 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn visible_on_all_workspaces(mut self, _visible_on_all_workspaces: bool) -> Self {
     #[cfg(target_os = "macos")]
     {
-      self.visible_on_all_workspaces = _visible_on_all_workspaces;
+      self.attrs.visible_on_all_workspaces = _visible_on_all_workspaces;
     }
 
     self
   }
 
   fn content_protected(mut self, protected: bool) -> Self {
-    self.inner = self.inner.with_content_protected(protected);
+    self.attrs.inner = self.attrs.inner.with_content_protected(protected);
     self
   }
 
   fn icon(mut self, icon: Icon) -> Result<Self> {
     let icon = super::window::tauri_icon_to_winit_icon(icon)?;
-    self.inner = self.inner.with_window_icon(Some(icon));
+    self.attrs.inner = self.attrs.inner.with_window_icon(Some(icon));
     Ok(self)
   }
 
@@ -286,8 +288,11 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn skip_taskbar(mut self, _skip: bool) -> Self {
     #[cfg(windows)]
     {
-      let pl_attrs = platfomr_atts(&mut self.inner).with_skip_taskbar(_skip);
-      self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_skip_taskbar(_skip);
+      self.attrs.inner = self
+        .attrs
+        .inner
+        .with_platform_attributes(Box::new(pl_attrs));
       return self;
     }
 
@@ -295,21 +300,27 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn background_color(mut self, color: Color) -> Self {
-    self.background_color = Some(color);
+    self.attrs.background_color = Some(color);
     self
   }
 
   fn shadow(mut self, enable: bool) -> Self {
     #[cfg(windows)]
     {
-      let pl_attrs = platfomr_atts(&mut self.inner).with_undecorated_shadow(enable);
-      self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_undecorated_shadow(enable);
+      self.attrs.inner = self
+        .attrs
+        .inner
+        .with_platform_attributes(Box::new(pl_attrs));
     }
 
     #[cfg(target_os = "macos")]
     {
-      let pl_attrs = platfomr_atts(&mut self.inner).with_has_shadow(enable);
-      self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_has_shadow(enable);
+      self.attrs.inner = self
+        .attrs
+        .inner
+        .with_platform_attributes(Box::new(pl_attrs));
     }
 
     self
@@ -317,8 +328,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(windows)]
   fn owner(mut self, owner: HWND) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.inner).with_owner_window(owner.0);
-    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_owner_window(owner.0);
+    self.attrs.inner = self
+      .attrs
+      .inner
+      .with_platform_attributes(Box::new(pl_attrs));
     self
   }
 
@@ -327,15 +341,18 @@ impl WindowBuilder for WindowBuilderWrapper {
     if let Some(hwnd) = NonZeroIsize::new(parent.0 as isize) {
       let handle = RawWindowHandle::Win32(winit::raw_window_handle::Win32WindowHandle::new(hwnd));
       // SAFETY: Tauri passes a live parent HWND owned by the application.
-      self.inner = unsafe { self.inner.with_parent_window(Some(handle)) };
+      self.attrs.inner = unsafe { self.attrs.inner.with_parent_window(Some(handle)) };
     }
     self
   }
 
   #[cfg(windows)]
   fn drag_and_drop(mut self, enabled: bool) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.inner).with_drag_and_drop(enabled);
-    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_drag_and_drop(enabled);
+    self.attrs.inner = self
+      .attrs
+      .inner
+      .with_platform_attributes(Box::new(pl_attrs));
     self
   }
 
@@ -345,7 +362,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       let handle =
         RawWindowHandle::AppKit(winit::raw_window_handle::AppKitWindowHandle::new(ns_view));
       // SAFETY: Tauri passes a live parent NSView owned by the application.
-      self.inner = unsafe { self.inner.with_parent_window(Some(handle)) };
+      self.attrs.inner = unsafe { self.attrs.inner.with_parent_window(Some(handle)) };
     }
     self
   }
@@ -363,7 +380,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "macos")]
   fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
-    let pl_attrs = *platfomr_atts(&mut self.inner);
+    let pl_attrs = *platfomr_atts(&mut self.attrs.inner);
     let pl_attrs = match style {
       TitleBarStyle::Visible => pl_attrs
         .with_titlebar_transparent(false)
@@ -376,32 +393,44 @@ impl WindowBuilder for WindowBuilderWrapper {
         .with_fullsize_content_view(true),
       _ => pl_attrs,
     };
-    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    self.attrs.inner = self
+      .attrs
+      .inner
+      .with_platform_attributes(Box::new(pl_attrs));
     self
   }
 
   #[cfg(target_os = "macos")]
   fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
-    self.traffic_light_position = Some(position.into());
+    self.attrs.traffic_light_position = Some(position.into());
     self
   }
 
   #[cfg(target_os = "macos")]
   fn hidden_title(mut self, hidden: bool) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.inner).with_title_hidden(hidden);
-    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_title_hidden(hidden);
+    self.attrs.inner = self
+      .attrs
+      .inner
+      .with_platform_attributes(Box::new(pl_attrs));
     self
   }
 
   #[cfg(target_os = "macos")]
   fn tabbing_identifier(mut self, identifier: &str) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.inner).with_tabbing_identifier(identifier);
-    self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+    let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_tabbing_identifier(identifier);
+    self.attrs.inner = self
+      .attrs
+      .inner
+      .with_platform_attributes(Box::new(pl_attrs));
     self
   }
 
   fn theme(mut self, theme: Option<Theme>) -> Self {
-    self.inner = self.inner.with_theme(tauri_theme_to_winit_theme(theme));
+    self.attrs.inner = self
+      .attrs
+      .inner
+      .with_theme(tauri_theme_to_winit_theme(theme));
     self
   }
 
@@ -409,8 +438,11 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn window_classname<S: Into<String>>(mut self, _window_classname: S) -> Self {
     #[cfg(windows)]
     {
-      let pl_attrs = platfomr_atts(&mut self.inner).with_class_name(_window_classname.into());
-      self.inner = self.inner.with_platform_attributes(Box::new(pl_attrs));
+      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_class_name(_window_classname.into());
+      self.attrs.inner = self
+        .attrs
+        .inner
+        .with_platform_attributes(Box::new(pl_attrs));
       return self;
     }
 
@@ -418,11 +450,11 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn has_icon(&self) -> bool {
-    self.inner.window_icon.is_some()
+    self.attrs.inner.window_icon.is_some()
   }
 
   fn get_theme(&self) -> Option<Theme> {
-    self.inner.preferred_theme.map(|theme| match theme {
+    self.attrs.inner.preferred_theme.map(|theme| match theme {
       winit::window::Theme::Light => Theme::Light,
       winit::window::Theme::Dark => Theme::Dark,
     })

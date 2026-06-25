@@ -348,6 +348,17 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn transient_for(self, _parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+    self
+  }
+
   #[cfg(target_os = "macos")]
   fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
     let pl_attrs = *platfomr_atts(&mut self.inner);
@@ -427,7 +438,7 @@ type PlatformAttributes = winit::platform::macos::WindowAttributesMacOS;
   target_os = "openbsd",
   target_os = "netbsd"
 ))]
-type PlatformAttributes = winit::platform::unix::WindowAttributesUnix;
+type PlatformAttributes = winit::platform::x11::WindowAttributesX11;
 
 fn platfomr_atts(attrs: &mut WindowAttributes) -> Box<PlatformAttributes> {
   attrs

@@ -57,6 +57,14 @@ use crate::{
     winit_monitor_to_tauri_monitor,
   },
 };
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+use winit::platform::x11::EventLoopBuilderExtX11;
 
 /// The `cef` crate used by this runtime, re-exported for convenience.
 ///
@@ -1112,7 +1120,7 @@ impl<T: UserEvent> CefRuntime<T> {
     });
     let _ = create_dir_all(&cache_path);
 
-    // Force X11 usage on Linux and BSD, because CEF does not support Wayland yet.
+    // Force X11 usage on Linux
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1120,7 +1128,10 @@ impl<T: UserEvent> CefRuntime<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    event_loop_builder.with_x11();
+    {
+      command_line_args.push(("ozone-platform".to_string(), Some("x11".to_string())));
+      event_loop_builder.with_x11();
+    }
 
     #[cfg(windows)]
     if let Some(hook) = runtime_args.msg_hook {
@@ -1222,6 +1233,8 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     target_os = "openbsd"
   ))]
   fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
+    #[cfg(windows)]
+    use winit::platform::windows::EventLoopBuilderExtWindows;
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1229,9 +1242,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     ))]
-    use winit::platform::unix::EventLoopBuilderExtUnix;
-    #[cfg(windows)]
-    use winit::platform::windows::EventLoopBuilderExtWindows;
+    use winit::platform::x11::EventLoopBuilderExtX11;
 
     let mut event_loop_builder = EventLoopBuilder::default();
     event_loop_builder.with_any_thread(true);

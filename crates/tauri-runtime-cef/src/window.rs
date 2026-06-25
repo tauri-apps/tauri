@@ -248,11 +248,6 @@ struct AppWindowAttrs {
   traffic_light_position: Option<Position>,
 }
 
-#[cfg(windows)]
-pub(crate) type CefWindowHandle = cef::sys::HWND;
-#[cfg(not(windows))]
-pub(crate) type CefWindowHandle = *mut std::ffi::c_void;
-
 impl AppWindow {
   pub(crate) fn center(&self) {
     let monitor = self.window.current_monitor();
@@ -265,14 +260,14 @@ impl AppWindow {
     self.window.set_outer_position(Position::Physical(position));
   }
 
-  pub(crate) fn raw_handle_as_cef_handle(&self) -> CefWindowHandle {
+  pub(crate) fn raw_handle_as_cef_handle(&self) -> cef::sys::cef_window_handle_t {
     let handle = self
       .window
       .window_handle()
       .expect("failed to get window handle");
     match handle.as_raw() {
       #[cfg(windows)]
-      RawWindowHandle::Win32(handle) => cef::sys::HWND(handle.hwnd.get() as *mut _),
+      RawWindowHandle::Win32(handle) => cef::sys::cef_window_handle_t(handle.hwnd.get() as *mut _),
       #[cfg(target_os = "macos")]
       RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr().cast(),
       #[cfg(any(
@@ -282,7 +277,7 @@ impl AppWindow {
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      RawWindowHandle::Xlib(handle) => handle.window as usize as *mut c_void,
+      RawWindowHandle::Xlib(handle) => handle.window as cef::sys::cef_window_handle_t,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -290,7 +285,7 @@ impl AppWindow {
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      RawWindowHandle::Xcb(handle) => handle.window.get() as usize as *mut c_void,
+      RawWindowHandle::Xcb(handle) => handle.window.get() as cef::sys::cef_window_handle_t,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -298,7 +293,6 @@ impl AppWindow {
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      RawWindowHandle::Wayland(handle) => handle.surface.as_ptr().cast(),
       other => panic!("expected platform window handle, got {other:?}"),
     }
   }
@@ -777,6 +771,28 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
     window_getter!(self, AvailableMonitors)
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
+    Err(Error::FailedToSendMessage)
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn default_vbox(&self) -> Result<gtk::Box> {
+    Err(Error::FailedToSendMessage)
   }
 
   fn window_handle(

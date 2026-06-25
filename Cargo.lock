@@ -9838,6 +9838,7 @@ dependencies = [
  "cef",
  "dioxus-debug-cell",
  "dirs 6.0.0",
+ "gtk",
  "html5ever 0.29.1",
  "http 1.3.1",
  "kuchikiki",

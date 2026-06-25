@@ -26,7 +26,7 @@ use url::Url;
 
 use crate::cef_impl::{client as browser_client, cookie, request_context};
 use crate::runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp};
-use crate::window::{AppWindow, CefWindowHandle};
+use crate::window::AppWindow;
 
 /// A handle to the native CEF browser backing a Tauri webview.
 ///
@@ -250,7 +250,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     &mut self,
     window_id: WindowId,
     webview_id: u32,
-    parent: CefWindowHandle,
+    parent: cef::sys::cef_window_handle_t,
     parent_size: PhysicalSize<u32>,
     scale: f64,
     drag_drop_event_target: browser_client::DragDropEventTarget,

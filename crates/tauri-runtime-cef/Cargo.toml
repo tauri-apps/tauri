@@ -42,6 +42,10 @@ windows = { version = "0.61", features = [
 
 [target."cfg(target_os = \"macos\")".dependencies]
 objc2 = "0.6"
+objc2-application-services = { version = "0.3", default-features = false, features = [
+  "HIServices",
+  "Processes",
+] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSApplication",
   "NSBezierPath",
@@ -53,6 +57,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSImageView",
   "NSProgressIndicator",
   "NSResponder",
+  "NSRunningApplication",
   "NSScreen",
   "NSView",
   "NSWindow",

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::cell::Cell;
+use std::{
+  cell::Cell,
+  time::{Duration, Instant},
+};
 
 use crate::{
   platform::{EventLoopExt, MonitorExt},
@@ -15,12 +18,20 @@ use cef::{
 };
 use objc2::{
   ClassType, DefinedClass, MainThreadMarker, MainThreadOnly, define_class, extern_methods,
-  msg_send, rc::Retained, runtime::Bool,
+  msg_send,
+  rc::Retained,
+  runtime::{AnyObject, Bool},
+  sel,
 };
 use objc2_app_kit::{
-  NSApp, NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSBezierPath, NSColor,
-  NSDockTile, NSEvent, NSImageView, NSProgressIndicator, NSScreen, NSView, NSWindow,
-  NSWindowButton, NSWindowCollectionBehavior, NSWindowStyleMask,
+  NSApp, NSApplication, NSApplicationActivationOptions, NSApplicationActivationPolicy,
+  NSBackingStoreType, NSBezierPath, NSColor, NSDockTile, NSEvent, NSImageView, NSProgressIndicator,
+  NSRunningApplication, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowCollectionBehavior,
+  NSWindowStyleMask,
+};
+use objc2_application_services::{
+  ProcessApplicationTransformState, TransformProcessType, kCurrentProcess,
+  kProcessTransformToForegroundApplication, kProcessTransformToUIElementApplication,
 };
 use objc2_foundation::{NSInsetRect, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri_runtime::{
@@ -32,9 +43,20 @@ use winit::{
   event_loop::ActiveEventLoop, monitor::MonitorHandle, platform::macos::MonitorHandleExtMacOS,
 };
 
+const DOCK_SHOW_TIMEOUT: Duration = Duration::from_secs(1);
+const DOCK_BUNDLE_IDENTIFIER: &str = "com.apple.dock";
+
+#[repr(C)]
+#[allow(non_snake_case)]
+struct ProcessSerialNumber {
+  highLongOfPSN: u32,
+  lowLongOfPSN: u32,
+}
+
 #[derive(Default)]
 struct CefWinitApplicationIvars {
   handling_send_event: Cell<Bool>,
+  last_dock_show: Cell<Option<Instant>>,
 }
 
 define_class!(
@@ -49,6 +71,17 @@ define_class!(
       self.ivars().handling_send_event.set(Bool::YES);
       let _: () = unsafe { msg_send![super(self), sendEvent: event] };
       self.ivars().handling_send_event.set(was_handling);
+    }
+
+    #[unsafe(method(tauriTransformProcessToForeground))]
+    fn transform_process_to_foreground(&self) {
+      transform_process_type(kProcessTransformToForegroundApplication);
+    }
+
+    #[unsafe(method(tauriActivateCurrentApplication))]
+    fn activate_current_application(&self) {
+      let app = NSRunningApplication::currentApplication();
+      app.activateWithOptions(NSApplicationActivationOptions::ActivateIgnoringOtherApps);
     }
   }
 
@@ -73,6 +106,59 @@ impl CefWinitApplication {
   extern_methods! {
     #[unsafe(method(sharedApplication))]
     fn shared_application() -> Retained<Self>;
+  }
+
+  fn set_dock_visibility(&self, visible: bool) {
+    if visible {
+      self.set_dock_show();
+    } else {
+      self.set_dock_hide();
+    }
+  }
+
+  fn set_dock_hide(&self) {
+    let now = Instant::now();
+    if let Some(last_dock_show_time) = self.ivars().last_dock_show.get() {
+      if now.duration_since(last_dock_show_time) < DOCK_SHOW_TIMEOUT {
+        return;
+      }
+    }
+
+    set_windows_can_hide(self, false);
+    transform_process_type(kProcessTransformToUIElementApplication);
+  }
+
+  fn set_dock_show(&self) {
+    self.ivars().last_dock_show.set(Some(Instant::now()));
+    set_windows_can_hide(self, true);
+
+    if NSRunningApplication::currentApplication().isActive() {
+      // TransformProcessType is buggy when bringing an active UIElement app
+      // back to foreground. Electron works around it by activating Dock first,
+      // then delaying the foreground transform and app reactivation:
+      // https://github.com/electron/electron/blob/main/shell/browser/browser_mac.mm#L553-L574
+      activate_dock();
+      self.perform_delayed_dock_show();
+    } else {
+      transform_process_type(kProcessTransformToForegroundApplication);
+    }
+  }
+
+  fn perform_delayed_dock_show(&self) {
+    unsafe {
+      let _: () = msg_send![
+        self,
+        performSelector: sel!(tauriTransformProcessToForeground),
+        withObject: None::<&AnyObject>,
+        afterDelay: 1.0f64,
+      ];
+      let _: () = msg_send![
+        self,
+        performSelector: sel!(tauriActivateCurrentApplication),
+        withObject: None::<&AnyObject>,
+        afterDelay: 2.0f64,
+      ];
+    }
   }
 }
 
@@ -202,6 +288,36 @@ fn existing_progress_indicator(content_view: &NSView) -> Option<Retained<DockPro
   None
 }
 
+fn set_windows_can_hide(app: &NSApplication, can_hide: bool) {
+  let windows = app.windows();
+  for idx in 0..windows.count() {
+    windows.objectAtIndex(idx).setCanHide(can_hide);
+  }
+}
+
+fn activate_dock() {
+  let dock_bundle_identifier = NSString::from_str(DOCK_BUNDLE_IDENTIFIER);
+  let dock_apps =
+    NSRunningApplication::runningApplicationsWithBundleIdentifier(&dock_bundle_identifier);
+  if dock_apps.count() > 0 {
+    dock_apps
+      .objectAtIndex(0)
+      .activateWithOptions(NSApplicationActivationOptions::ActivateIgnoringOtherApps);
+  }
+}
+
+fn transform_process_type(transform_state: ProcessApplicationTransformState) {
+  let process_serial_number = ProcessSerialNumber {
+    highLongOfPSN: 0,
+    lowLongOfPSN: kCurrentProcess,
+  };
+
+  unsafe {
+    let serial = (&process_serial_number as *const ProcessSerialNumber).cast();
+    let _ = TransformProcessType(serial, transform_state);
+  }
+}
+
 pub fn setup_application() {
   let _ = CefWinitApplication::shared_application();
   let mtm = MainThreadMarker::new().expect("macOS application must start on the main thread");
@@ -250,11 +366,12 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
   }
 
   fn set_dock_visibility(&self, visible: bool) {
-    self.set_activation_policy(if visible {
-      tauri_runtime::ActivationPolicy::Regular
-    } else {
-      tauri_runtime::ActivationPolicy::Accessory
-    });
+    let Some(_mtm) = MainThreadMarker::new() else {
+      return;
+    };
+
+    let app = CefWinitApplication::shared_application();
+    app.set_dock_visibility(visible);
   }
 
   fn show_application(&self) {

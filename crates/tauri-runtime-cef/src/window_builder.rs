@@ -32,6 +32,7 @@ use windows::Win32::Foundation::HWND;
 pub struct WindowBuilderWrapper {
   pub(crate) inner: WindowAttributes,
   pub(crate) center: bool,
+  pub(crate) background_color: Option<Color>,
   #[cfg(target_os = "macos")]
   pub(crate) traffic_light_position: Option<Position>,
   #[cfg(target_os = "macos")]
@@ -49,6 +50,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         .with_title("Tauri App")
         .with_visible(true),
       center: false,
+      background_color: None,
       #[cfg(target_os = "macos")]
       traffic_light_position: None,
       #[cfg(target_os = "macos")]
@@ -292,8 +294,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn background_color(self, _color: Color) -> Self {
-    // TODO
+  fn background_color(mut self, color: Color) -> Self {
+    self.background_color = Some(color);
     self
   }
 

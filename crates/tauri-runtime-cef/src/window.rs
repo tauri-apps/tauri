@@ -244,6 +244,7 @@ pub(crate) struct AppWindow {
 
 struct AppWindowAttrs {
   inner: WindowAttributes,
+  background_color: Option<Color>,
   #[cfg(target_os = "macos")]
   traffic_light_position: Option<Position>,
 }
@@ -316,6 +317,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       window,
       attrs: AppWindowAttrs {
         inner: attrs,
+        background_color: pending.window_builder.background_color,
         #[cfg(target_os = "macos")]
         traffic_light_position: pending.window_builder.traffic_light_position,
       },
@@ -330,6 +332,10 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     #[cfg(target_os = "macos")]
     appwindow.set_visible_on_all_workspaces(pending.window_builder.visible_on_all_workspaces);
+
+    if appwindow.attrs.background_color.is_some() {
+      appwindow.set_background_color(appwindow.attrs.background_color);
+    }
 
     #[cfg(windows)]
     if let Some(after_window_creation) = _after_window_creation {
@@ -589,7 +595,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         #[cfg(target_os = "macos")]
         app_window.set_title_bar_style(_style);
       }
-      WindowMessage::SetBackgroundColor(_color) => app_window.set_background_color(_color),
+      WindowMessage::SetBackgroundColor(color) => {
+        app_window.attrs.background_color = color;
+        app_window.set_background_color(color);
+      }
       WindowMessage::SetTheme(theme) => window.set_theme(tauri_theme_to_winit_theme(theme)),
       WindowMessage::SetBadgeCount(count, desktop_filename) => {
         event_loop.set_badge_count(count, desktop_filename)

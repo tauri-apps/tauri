@@ -2,13 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
+use crate::{
+  platform::{EventLoopExt, MonitorExt},
+  webview::AppWebview,
+  window::AppWindow,
+};
 use tauri_runtime::{
   Error, Result,
-  dpi::{PhysicalPosition, Rect},
+  dpi::{PhysicalPosition, PhysicalRect, Rect},
 };
 use tauri_utils::config::Color;
-use winit::event_loop::ActiveEventLoop;
+use winit::{event_loop::ActiveEventLoop, monitor::MonitorHandle};
+
+impl MonitorExt for MonitorHandle {
+  fn work_area(&self) -> PhysicalRect<i32, u32> {
+    // TODO: implement native Linux/BSD work-area lookup via winit-gtk4 when it is available.
+    super::monitor_bounds(self)
+  }
+}
 
 impl AppWindow {
   pub(crate) fn set_background_color(&self, color: Option<Color>) {

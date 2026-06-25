@@ -4,7 +4,11 @@
 
 use std::cell::Cell;
 
-use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
+use crate::{
+  platform::{EventLoopExt, MonitorExt},
+  webview::AppWebview,
+  window::AppWindow,
+};
 use cef::{
   ImplBrowserHost,
   application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol},
@@ -20,10 +24,12 @@ use objc2_app_kit::{
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri_runtime::{
   Error, Result,
-  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, Position, Rect},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalRect, Position, Rect},
 };
 use tauri_utils::{TitleBarStyle, config::Color};
-use winit::event_loop::ActiveEventLoop;
+use winit::{
+  event_loop::ActiveEventLoop, monitor::MonitorHandle, platform::macos::MonitorHandleExtMacOS,
+};
 
 #[derive(Default)]
 struct CefWinitApplicationIvars {
@@ -73,6 +79,32 @@ pub fn setup_application() {
   let _ = CefWinitApplication::shared_application();
   let mtm = MainThreadMarker::new().expect("macOS application must start on the main thread");
   assert!(NSApp(mtm).isKindOfClass(CefWinitApplication::class()));
+}
+
+impl MonitorExt for MonitorHandle {
+  fn work_area(&self) -> PhysicalRect<i32, u32> {
+    let Some(ns_screen) = self.ns_screen() else {
+      return super::monitor_bounds(self);
+    };
+
+    let ns_screen: &NSScreen = unsafe { &*ns_screen.cast() };
+    let screen_frame = ns_screen.frame();
+    let visible_frame = ns_screen.visibleFrame();
+    let scale_factor = self.scale_factor();
+
+    let position = self.position().unwrap_or_default();
+    let mut position = position.to_logical::<f64>(scale_factor);
+    position.x += visible_frame.origin.x - screen_frame.origin.x;
+    position.y += (screen_frame.origin.y + screen_frame.size.height)
+      - (visible_frame.origin.y + visible_frame.size.height);
+
+    let size = LogicalSize::new(visible_frame.size.width, visible_frame.size.height);
+
+    PhysicalRect {
+      position: position.to_physical(scale_factor),
+      size: size.to_physical(scale_factor),
+    }
+  }
 }
 
 impl EventLoopExt for dyn ActiveEventLoop + '_ {

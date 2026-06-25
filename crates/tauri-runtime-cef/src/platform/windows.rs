@@ -2,16 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{platform::EventLoopExt, webview::AppWebview, window::AppWindow};
+use crate::{
+  platform::{EventLoopExt, MonitorExt},
+  webview::AppWebview,
+  window::AppWindow,
+};
 use cef::ImplBrowserHost;
 use tauri_runtime::{
   Error, Icon, Result,
-  dpi::{PhysicalPosition, PhysicalSize, Rect},
+  dpi::{PhysicalPosition, PhysicalRect, PhysicalSize, Rect},
 };
 use tauri_utils::config::Color;
 use windows::Win32::{
   Foundation::{HWND, POINT, RECT},
-  Graphics::Gdi::MapWindowPoints,
+  Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO, MapWindowPoints},
   System::Com::{CLSCTX_SERVER, CoCreateInstance},
   UI::Shell::{ITaskbarList3, TaskbarList},
   UI::WindowsAndMessaging::{
@@ -19,7 +23,30 @@ use windows::Win32::{
     SWP_NOACTIVATE, SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow,
   },
 };
-use winit::event_loop::ActiveEventLoop;
+use winit::{event_loop::ActiveEventLoop, monitor::MonitorHandle};
+
+impl MonitorExt for MonitorHandle {
+  fn work_area(&self) -> PhysicalRect<i32, u32> {
+    let mut monitor_info = MONITORINFO {
+      cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+      ..Default::default()
+    };
+
+    let hmonitor = HMONITOR(self.native_id() as _);
+
+    let status = unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info) };
+    if !status.as_bool() {
+      return super::monitor_bounds(self);
+    }
+
+    let position = PhysicalPosition::new(monitor_info.rcWork.left, monitor_info.rcWork.top);
+    let size = PhysicalSize::new(
+      (monitor_info.rcWork.right - monitor_info.rcWork.left) as u32,
+      (monitor_info.rcWork.bottom - monitor_info.rcWork.top) as u32,
+    );
+    PhysicalRect { position, size }
+  }
+}
 
 impl AppWindow {
   pub(crate) fn hwnd(&self) -> HWND {

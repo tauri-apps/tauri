@@ -15,7 +15,7 @@ use raw_window_handle::RawWindowHandle;
 use tauri_runtime::{
   Error, Icon, ProgressBarState, Result, UserAttentionType, UserEvent, WindowDispatch,
   WindowEventId,
-  dpi::{PhysicalPosition, PhysicalRect, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
   window::{
@@ -24,9 +24,13 @@ use tauri_runtime::{
   },
 };
 use tauri_utils::{Theme, config::Color};
-use winit::{event_loop::ActiveEventLoop, monitor::Fullscreen, window::Window as WinitWindow};
+use winit::{
+  event_loop::ActiveEventLoop,
+  monitor::{Fullscreen, MonitorHandle},
+  window::{Window as WinitWindow, WindowAttributes},
+};
 
-use crate::platform::EventLoopExt;
+use crate::platform::{EventLoopExt, MonitorExt};
 #[cfg(windows)]
 use std::marker::PhantomData;
 #[cfg(target_os = "macos")]
@@ -72,6 +76,61 @@ fn tauri_resize_direction_to_winit(
     tauri_runtime::ResizeDirection::SouthWest => winit::window::ResizeDirection::SouthWest,
     tauri_runtime::ResizeDirection::West => winit::window::ResizeDirection::West,
   }
+}
+
+fn calculate_window_center_position(
+  window_size: PhysicalSize<u32>,
+  monitor: &MonitorHandle,
+) -> PhysicalPosition<i32> {
+  let work_area = monitor.work_area();
+  PhysicalPosition::new(
+    work_area.position.x + ((work_area.size.width as i32 - window_size.width as i32).max(0) / 2),
+    work_area.position.y + ((work_area.size.height as i32 - window_size.height as i32).max(0) / 2),
+  )
+}
+
+fn find_monitor_for_position(
+  monitors: impl Iterator<Item = MonitorHandle>,
+  position: Position,
+) -> Option<MonitorHandle> {
+  monitors.into_iter().find(|monitor| {
+    let Some(monitor_position) = monitor.position() else {
+      return false;
+    };
+    let Some(video_mode) = monitor.current_video_mode() else {
+      return false;
+    };
+
+    let monitor_size = video_mode.size();
+    let position = position.to_physical::<i32>(monitor.scale_factor());
+
+    monitor_position.x <= position.x
+      && position.x < monitor_position.x + monitor_size.width as i32
+      && monitor_position.y <= position.y
+      && position.y < monitor_position.y + monitor_size.height as i32
+  })
+}
+
+fn center_window_attributes(event_loop: &dyn ActiveEventLoop, attrs: &mut WindowAttributes) {
+  let monitor = attrs
+    .position
+    .and_then(|position| {
+      let monitors = event_loop.available_monitors();
+      find_monitor_for_position(monitors, position)
+    })
+    .or_else(|| event_loop.primary_monitor());
+
+  let Some(monitor) = monitor else {
+    return;
+  };
+
+  let desired_size = attrs
+    .surface_size
+    .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+  let window_size = desired_size.to_physical::<u32>(monitor.scale_factor());
+
+  let position = calculate_window_center_position(window_size, &monitor);
+  attrs.position = Some(position.into());
 }
 
 pub(crate) fn paired_size_constraint(
@@ -190,6 +249,17 @@ pub(crate) type CefWindowHandle = cef::sys::HWND;
 pub(crate) type CefWindowHandle = *mut std::ffi::c_void;
 
 impl AppWindow {
+  pub(crate) fn center(&self) {
+    let monitor = self.window.current_monitor();
+    let monitor = monitor.or_else(|| self.window.primary_monitor());
+    let Some(monitor) = monitor else {
+      return;
+    };
+
+    let position = calculate_window_center_position(self.window.outer_size(), &monitor);
+    self.window.set_outer_position(Position::Physical(position));
+  }
+
   pub(crate) fn raw_handle_as_cef_handle(&self) -> CefWindowHandle {
     let handle = self
       .window
@@ -238,7 +308,11 @@ impl<T: UserEvent> WinitCefApp<T> {
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
     _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
   ) {
-    let attrs = pending.window_builder.inner.clone();
+    let mut attrs = pending.window_builder.inner.clone();
+    if pending.window_builder.center {
+      center_window_attributes(event_loop, &mut attrs);
+    }
+
     let window = event_loop
       .create_window(attrs)
       .expect("failed to create winit window");
@@ -410,7 +484,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         let _ = tx.send(Ok(theme));
       }
       WindowMessage::Center => {
-        // TODO
+        app_window.center();
       }
       WindowMessage::RequestUserAttention(attention) => {
         window.request_user_attention(match attention {
@@ -1119,14 +1193,7 @@ pub(crate) fn winit_monitor_to_tauri_monitor(monitor: &winit::monitor::MonitorHa
       .current_video_mode()
       .map(|v| v.size())
       .unwrap_or_default(),
-    // TODO: get work area from winit monitor handle
-    work_area: PhysicalRect {
-      position: monitor.position().unwrap_or_default(),
-      size: monitor
-        .current_video_mode()
-        .map(|v| v.size())
-        .unwrap_or_default(),
-    },
+    work_area: monitor.work_area(),
   }
 }
 

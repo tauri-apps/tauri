@@ -227,6 +227,14 @@ impl<T: UserEvent> fmt::Debug for RuntimeContext<T> {
   }
 }
 
+#[cfg(target_os = "linux")]
+fn drain_glib() {
+  let context = gtk::glib::MainContext::default();
+  while context.pending() {
+    context.iteration(false);
+  }
+}
+
 impl<T: UserEvent> RuntimeContext<T> {
   pub(crate) fn send_message(&self, message: Message<T>) -> Result<()> {
     let message = if self.is_main_thread() {
@@ -287,7 +295,13 @@ impl<T: UserEvent> RuntimeContext<T> {
   pub(crate) fn advance_cef(&self) {
     #[cfg(target_os = "macos")]
     self.cef_pump.do_message_loop_work();
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    {
+      drain_glib();
+      cef::do_message_loop_work();
+      drain_glib();
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     cef::do_message_loop_work();
   }
 }

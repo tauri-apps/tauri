@@ -4,11 +4,11 @@
 
 use tauri_runtime::{
   Icon, Result,
-  dpi::{PhysicalSize, Position, Size},
+  dpi::{PhysicalSize, Size},
   window::{WindowBuilder, WindowBuilderBase, WindowSizeConstraints},
 };
 use tauri_utils::{
-  Theme, TitleBarStyle,
+  Theme,
   config::{Color, PreventOverflowConfig, WindowConfig},
 };
 use winit::{
@@ -22,6 +22,10 @@ use crate::window::{AppWindowAttrs, paired_size_constraint, tauri_theme_to_winit
 
 #[cfg(target_os = "macos")]
 use std::ptr::NonNull;
+#[cfg(target_os = "macos")]
+use tauri_runtime::dpi::Position;
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 
 #[cfg(windows)]
 use std::num::NonZeroIsize;
@@ -310,7 +314,6 @@ impl WindowBuilder for WindowBuilderWrapper {
         .attrs
         .inner
         .with_platform_attributes(Box::new(pl_attrs));
-      return self;
     }
 
     #[cfg(any(
@@ -471,7 +474,6 @@ impl WindowBuilder for WindowBuilderWrapper {
         .attrs
         .inner
         .with_platform_attributes(Box::new(pl_attrs));
-      return self;
     }
 
     self

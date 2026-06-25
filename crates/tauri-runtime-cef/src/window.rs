@@ -283,6 +283,7 @@ pub(crate) enum WindowMessage {
 }
 
 pub(crate) struct AppWindow {
+  #[allow(unused)]
   pub(crate) id: WindowId,
   pub(crate) label: String,
   pub(crate) window: Box<dyn WinitWindow>,
@@ -547,7 +548,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         let handle = window.window_handle();
         let send_handle = handle
           .map(|h| SendRawWindowHandle(h.as_raw()))
-          .map_err(|e| Error::FailedToSendMessage);
+          .map_err(|_| Error::FailedToSendMessage);
         let _ = tx.send(send_handle);
       }
       WindowMessage::Theme(tx) => {

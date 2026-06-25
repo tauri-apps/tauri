@@ -22,6 +22,17 @@ impl MonitorExt for MonitorHandle {
 }
 
 impl AppWindow {
+  pub(crate) fn set_enabled(&self, enabled: bool) {
+    let _ = (self, enabled);
+    // TODO: implement native window enabled state on Linux/BSD.
+  }
+
+  pub(crate) fn is_enabled(&self) -> bool {
+    let _ = self;
+    // TODO: query native window enabled state on Linux/BSD.
+    true
+  }
+
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
     let _ = (self, color);
     // TODO: implement native window background color on Linux/BSD.

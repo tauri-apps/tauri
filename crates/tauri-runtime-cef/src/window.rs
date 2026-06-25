@@ -27,7 +27,7 @@ use tauri_utils::{Theme, config::Color};
 use winit::{
   event_loop::ActiveEventLoop,
   monitor::{Fullscreen, MonitorHandle},
-  window::{Window as WinitWindow, WindowAttributes},
+  window::{Window as WinitWindow, WindowAttributes, WindowLevel},
 };
 
 use crate::platform::{EventLoopExt, MonitorExt};
@@ -237,10 +237,15 @@ pub(crate) struct AppWindow {
   pub(crate) id: WindowId,
   pub(crate) label: String,
   pub(crate) window: Box<dyn WinitWindow>,
+  attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: Arc<Mutex<HashMap<WindowEventId, Box<dyn Fn(&WindowEvent) + Send>>>>,
+}
+
+struct AppWindowAttrs {
+  inner: WindowAttributes,
   #[cfg(target_os = "macos")]
-  pub(crate) traffic_light_position: Option<Position>,
+  traffic_light_position: Option<Position>,
 }
 
 #[cfg(windows)]
@@ -314,7 +319,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
 
     let window = event_loop
-      .create_window(attrs)
+      .create_window(attrs.clone())
       .expect("failed to create winit window");
 
     let winit_id = window.id();
@@ -322,14 +327,17 @@ impl<T: UserEvent> WinitCefApp<T> {
       id: window_id,
       label: pending.label.clone(),
       window,
+      attrs: AppWindowAttrs {
+        inner: attrs,
+        #[cfg(target_os = "macos")]
+        traffic_light_position: pending.window_builder.traffic_light_position,
+      },
       children: Vec::new(),
       listeners: Default::default(),
-      #[cfg(target_os = "macos")]
-      traffic_light_position: pending.window_builder.traffic_light_position,
     };
 
     #[cfg(target_os = "macos")]
-    if let Some(position) = &appwindow.traffic_light_position {
+    if let Some(position) = &appwindow.attrs.traffic_light_position {
       appwindow.apply_traffic_light_position(position);
     }
 
@@ -421,13 +429,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         let _ = tx.send(Ok(is_closable));
       }
       WindowMessage::IsVisible(tx) => _ = tx.send(Ok(window.is_visible().unwrap_or(true))),
-      WindowMessage::IsEnabled(tx) => {
-        // TODO
-        let _ = tx.send(Ok(true));
-      }
+      WindowMessage::IsEnabled(tx) => _ = tx.send(Ok(app_window.is_enabled())),
       WindowMessage::IsAlwaysOnTop(tx) => {
-        // TODO
-        let _ = tx.send(Ok(false));
+        let is_on_top = app_window.attrs.inner.window_level == WindowLevel::AlwaysOnTop;
+        let _ = tx.send(Ok(is_on_top));
       }
       WindowMessage::Title(tx) => _ = tx.send(Ok(window.title())),
       WindowMessage::InnerPosition(tx) | WindowMessage::OuterPosition(tx) => {
@@ -495,12 +500,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           None => None,
         })
       }
-      WindowMessage::SetEnabled(_value) => {
-        #[cfg(windows)]
-        window.set_enable(_value);
-
-        // TODO: Implement for other platforms
-      }
+      WindowMessage::SetEnabled(value) => app_window.set_enabled(value),
       WindowMessage::SetResizable(value) => window.set_resizable(value),
       WindowMessage::SetTitle(title) => window.set_title(&title),
       WindowMessage::Maximize => window.set_maximized(true),
@@ -539,14 +539,22 @@ impl<T: UserEvent> WinitCefApp<T> {
         buttons.set(winit::window::WindowButtons::CLOSE, value);
         window.set_enabled_buttons(buttons);
       }
-      WindowMessage::SetAlwaysOnBottom(value) => window.set_window_level(match value {
-        true => winit::window::WindowLevel::AlwaysOnBottom,
-        false => winit::window::WindowLevel::Normal,
-      }),
-      WindowMessage::SetAlwaysOnTop(value) => window.set_window_level(match value {
-        true => winit::window::WindowLevel::AlwaysOnTop,
-        false => winit::window::WindowLevel::Normal,
-      }),
+      WindowMessage::SetAlwaysOnBottom(value) => {
+        let level = match value {
+          true => WindowLevel::AlwaysOnBottom,
+          false => WindowLevel::Normal,
+        };
+        app_window.attrs.inner.window_level = level;
+        window.set_window_level(level);
+      }
+      WindowMessage::SetAlwaysOnTop(value) => {
+        let level = match value {
+          true => WindowLevel::AlwaysOnTop,
+          false => WindowLevel::Normal,
+        };
+        app_window.attrs.inner.window_level = level;
+        window.set_window_level(level);
+      }
       WindowMessage::SetVisibleOnAllWorkspaces(_value) => {
         #[cfg(target_os = "macos")]
         app_window.set_visible_on_all_workspaces(_value);
@@ -586,7 +594,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetTrafficLightPosition(_position) => {
         #[cfg(target_os = "macos")]
         {
-          app_window.traffic_light_position = Some(_position.clone());
+          app_window.attrs.traffic_light_position = Some(_position.clone());
           app_window.apply_traffic_light_position(&_position);
         }
       }

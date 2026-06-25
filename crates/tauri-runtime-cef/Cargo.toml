@@ -35,6 +35,7 @@ windows = { version = "0.61", features = [
   "Win32_Graphics_Gdi",
   "Win32_System_Com",
   "Win32_System_LibraryLoader",
+  "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
@@ -49,6 +50,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSResponder",
   "NSScreen",
   "NSView",
+  "NSWindow",
   "objc2-core-graphics",
   "objc2-quartz-core",
 ] }

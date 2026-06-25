@@ -17,6 +17,7 @@ use windows::Win32::{
   Foundation::{HWND, POINT, RECT},
   Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO, MapWindowPoints},
   System::Com::{CLSCTX_SERVER, CoCreateInstance},
+  UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
   UI::Shell::{ITaskbarList3, TaskbarList},
   UI::WindowsAndMessaging::{
     CreateIcon, DestroyIcon, GetCursorPos, GetParent, GetWindowRect, SW_HIDE, SW_SHOW,
@@ -52,6 +53,14 @@ impl AppWindow {
   pub(crate) fn hwnd(&self) -> HWND {
     let hwnd = self.raw_handle_as_cef_handle();
     HWND(hwnd.0 as _)
+  }
+
+  pub(crate) fn is_enabled(&self) -> bool {
+    unsafe { IsWindowEnabled(self.hwnd()) }.as_bool()
+  }
+
+  pub(crate) fn set_enabled(&self, enabled: bool) {
+    let _ = unsafe { EnableWindow(self.hwnd(), enabled) };
   }
 
   pub(crate) fn set_overlay_icon(&self, icon: Option<Icon<'static>>) {

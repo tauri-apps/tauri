@@ -18,8 +18,8 @@ use objc2::{
   runtime::Bool,
 };
 use objc2_app_kit::{
-  NSApp, NSApplication, NSApplicationActivationPolicy, NSColor, NSEvent, NSScreen, NSView,
-  NSWindowButton, NSWindowCollectionBehavior, NSWindowStyleMask,
+  NSApp, NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSColor, NSEvent,
+  NSScreen, NSView, NSWindow, NSWindowButton, NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use tauri_runtime::{
@@ -179,6 +179,49 @@ impl AppWindow {
     let handle = self.raw_handle_as_cef_handle();
     let view = handle.cast::<NSView>();
     unsafe { Retained::<NSView>::retain(view) }
+  }
+
+  pub(crate) fn set_enabled(&self, enabled: bool) {
+    let Some(nsview) = self.nsview() else {
+      return;
+    };
+    let Some(nswindow) = nsview.window() else {
+      return;
+    };
+
+    if enabled {
+      if let Some(attached) = unsafe { nswindow.attachedSheet() } {
+        unsafe { nswindow.endSheet(&attached) };
+      }
+    } else {
+      if unsafe { nswindow.attachedSheet() }.is_some() {
+        return;
+      }
+
+      let Some(mtm) = MainThreadMarker::new() else {
+        return;
+      };
+      let frame = nswindow.frame();
+      let sheet = unsafe {
+        NSWindow::initWithContentRect_styleMask_backing_defer(
+          mtm.alloc(),
+          frame,
+          NSWindowStyleMask::Titled,
+          NSBackingStoreType::Buffered,
+          false,
+        )
+      };
+      sheet.setAlphaValue(0.5);
+      nswindow.beginSheet_completionHandler(&sheet, None);
+    }
+  }
+
+  pub(crate) fn is_enabled(&self) -> bool {
+    self
+      .nsview()
+      .and_then(|nsview| nsview.window())
+      .map(|nswindow| unsafe { nswindow.attachedSheet() }.is_none())
+      .unwrap_or(true)
   }
 
   pub(crate) fn apply_traffic_light_position(&self, position: &Position) {

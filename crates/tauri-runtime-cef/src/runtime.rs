@@ -453,6 +453,10 @@ impl<T: UserEvent> WinitCefApp<T> {
       Message::CefWork(delay) => self.schedule_cef_work(event_loop, delay),
       Message::EventLoop(message) => self.handle_event_loop_message(event_loop, message),
       Message::BrowserClosed(window_id, webview_id) => {
+        // Standalone webview.close() keeps the child in state until this
+        // callback, so cleanup happens here. Window/app teardown removes child
+        // bookkeeping before asking CEF to close; then this message is only the
+        // lifecycle acknowledgement that lets live_browsers drain.
         if let Some(appwindow) = self.state.windows.get_mut(&window_id)
           && let Some(index) = appwindow
             .children
@@ -462,6 +466,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           let child = appwindow.children.remove(index);
           self.remove_scheme_handler_entries(&child);
         }
+
         self.state.live_browsers = self.state.live_browsers.saturating_sub(1);
         self.exit_if_done(event_loop);
       }
@@ -651,8 +656,9 @@ impl<T: UserEvent> WinitCefApp<T> {
       .state
       .winid_id_to_window_id_map
       .remove(&appwindow.window.id());
-    // The window is gone from `state.windows`, so the deferred `BrowserClosed`
-    // messages won't find it to remove; do it here while we still hold the children.
+    // The window is gone from state, so BrowserClosed will not find these
+    // children later. Clean registry entries while we still hold them; the CEF
+    // shutdown drain is still enforced by live_browsers.
     for child in &appwindow.children {
       self.remove_scheme_handler_entries(child);
       child.host.close_browser(1);
@@ -693,6 +699,9 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn close_all_browsers(&mut self) {
+    // App shutdown follows the same eager bookkeeping cleanup as window
+    // teardown. live_browsers keeps the loop alive until CEF confirms every
+    // browser close through BrowserClosed.
     for appwindow in self.state.windows.values() {
       for child in &appwindow.children {
         self.remove_scheme_handler_entries(child);

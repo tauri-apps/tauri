@@ -3,34 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 use cef::ImplBrowserHost;
-use std::{ffi::CString, os::raw::c_ulong, sync::LazyLock};
+use std::os::raw::c_ulong;
 use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
 use tauri_utils::config::Color;
 use x11_dl::xlib;
 
 use crate::{webview::AppWebview, window::AppWindow};
 
-static X11: LazyLock<Option<xlib::Xlib>> = LazyLock::new(|| xlib::Xlib::open().ok());
-
-fn with_cef_display<R>(default: R, f: impl FnOnce(&xlib::Xlib, *mut xlib::Display) -> R) -> R {
-  let Some(xlib) = X11.as_ref() else {
-    return default;
-  };
-  let display = cef::get_xdisplay() as *mut xlib::Display;
-  if display.is_null() {
-    return default;
-  }
-  let result = f(xlib, display);
-  unsafe {
-    (xlib.XFlush)(display);
-  }
-  result
-}
-
-fn atom(xlib: &xlib::Xlib, display: *mut xlib::Display, name: &str) -> c_ulong {
-  let cname = CString::new(name).unwrap();
-  unsafe { (xlib.XInternAtom)(display, cname.as_ptr(), 0) }
-}
+use super::utils::{atom, with_cef_display};
 
 impl AppWebview {
   fn xid(&self) -> Option<xlib::Window> {

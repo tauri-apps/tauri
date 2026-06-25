@@ -4,5 +4,6 @@
 
 mod event_loop;
 mod monitor;
+mod utils;
 mod webview;
 mod window;

@@ -10,6 +10,7 @@ use std::{
   },
 };
 
+use cef::ImplBrowserHost;
 use raw_window_handle::HasWindowHandle;
 use raw_window_handle::RawWindowHandle;
 use tauri_runtime::{
@@ -39,7 +40,7 @@ use winit::platform::macos::WindowExtMacOS;
 use winit::platform::windows::WindowExtWindows;
 
 use crate::{
-  cef_impl::client as browser_client,
+  cef_impl::{client as browser_client, request_context},
   runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp},
   webview::{AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
@@ -331,6 +332,31 @@ impl AppWindow {
     self.window.set_outer_position(Position::Physical(position));
   }
 
+  pub(crate) fn preferred_theme(&self) -> Option<Theme> {
+    self
+      .attrs
+      .inner
+      .preferred_theme
+      .map(winit_theme_to_tauri_theme)
+  }
+
+  pub(crate) fn resolved_theme(&self, app_wide_theme: Option<Theme>) -> Option<Theme> {
+    self.preferred_theme().or(app_wide_theme)
+  }
+
+  pub(crate) fn set_theme(&mut self, theme: Option<Theme>) {
+    self.attrs.inner.preferred_theme = tauri_theme_to_winit_theme(theme);
+    self.window.set_theme(tauri_theme_to_winit_theme(theme));
+    self.apply_cef_theme(theme);
+  }
+
+  fn apply_cef_theme(&self, theme: Option<Theme>) {
+    for child in &self.children {
+      let request_context = child.host.request_context();
+      request_context::apply_theme_scheme(request_context.as_ref(), theme);
+    }
+  }
+
   pub(crate) fn raw_handle_as_cef_handle(&self) -> cef::sys::cef_window_handle_t {
     let handle = self
       .window
@@ -372,6 +398,10 @@ impl<T: UserEvent> WinitCefApp<T> {
     _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
   ) {
     let mut attrs = pending.window_builder.attrs.clone();
+    if attrs.inner.preferred_theme.is_none() {
+      attrs.inner.preferred_theme =
+        tauri_theme_to_winit_theme(*self.context.app_wide_theme.lock().unwrap());
+    }
     prepare_window_attributes(event_loop, &mut attrs);
 
     let window = event_loop
@@ -695,7 +725,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         app_window.attrs.background_color = color;
         app_window.set_background_color(color);
       }
-      WindowMessage::SetTheme(theme) => window.set_theme(tauri_theme_to_winit_theme(theme)),
+      WindowMessage::SetTheme(theme) => app_window.set_theme(theme),
       WindowMessage::SetBadgeCount(count, desktop_filename) => {
         event_loop.set_badge_count(count, desktop_filename)
       }

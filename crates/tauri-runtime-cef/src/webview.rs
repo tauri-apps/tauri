@@ -21,7 +21,7 @@ use tauri_runtime::{
   },
   window::{WebviewEvent, WindowId},
 };
-use tauri_utils::config::Color;
+use tauri_utils::{Theme, config::Color};
 use url::Url;
 
 use crate::cef_impl::{client as browser_client, cookie, request_context};
@@ -229,12 +229,15 @@ impl<T: UserEvent> WinitCefApp<T> {
     let parent = appwindow.raw_handle_as_cef_handle();
     let parent_size = appwindow.window.surface_size();
     let scale = appwindow.window.scale_factor();
+    let app_wide_theme = *self.context.app_wide_theme.lock().unwrap();
+    let theme = appwindow.resolved_theme(app_wide_theme);
     let child = self.build_browser_child(
       window_id,
       webview_id,
       parent,
       parent_size,
       scale,
+      theme,
       drag_drop_event_target,
       pending,
     );
@@ -253,6 +256,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     parent: cef::sys::cef_window_handle_t,
     parent_size: PhysicalSize<u32>,
     scale: f64,
+    theme: Option<Theme>,
     drag_drop_event_target: browser_client::DragDropEventTarget,
     mut pending: PendingWebview<T, CefRuntime<T>>,
   ) -> AppWebview {
@@ -350,6 +354,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       let custom_scheme_domain_names = custom_scheme_domain_names.clone();
       let label = pending.label.clone();
       move |mut request_context| {
+        request_context::apply_theme_scheme(request_context.as_ref(), theme);
+
         // Create with an inert document so the BrowserHost exists before the real
         // navigation; the real URL is loaded once the document-start script is set.
         let initial_url = CefString::from(INITIAL_LOAD_URL);

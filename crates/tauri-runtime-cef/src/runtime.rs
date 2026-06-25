@@ -51,7 +51,6 @@ use crate::{
     self, AppWebview, CefWebviewDispatcher, Webview, WebviewAtribute, WebviewMessage,
     create_webview_detached,
   },
-  window::tauri_theme_to_winit_theme,
   window::{
     AppWindow, CefWindowDispatcher, WindowMessage, create_window_detached,
     winit_monitor_to_tauri_monitor,
@@ -144,6 +143,7 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
   current_dispatch: Arc<Mutex<Option<MainThreadDispatch<T>>>>,
+  pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
   #[cfg(target_os = "macos")]
   pub(crate) cef_pump: MacosCefPump,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
@@ -568,9 +568,9 @@ impl<T: UserEvent> WinitCefApp<T> {
   ) {
     match message {
       EventLoopMessage::SetTheme(theme) => {
-        let theme = tauri_theme_to_winit_theme(theme);
-        for appwindow in self.state.windows.values() {
-          appwindow.window.set_theme(theme);
+        *self.context.app_wide_theme.lock().unwrap() = theme;
+        for appwindow in self.state.windows.values_mut() {
+          appwindow.set_theme(theme);
         }
       }
       EventLoopMessage::PrimaryMonitor(tx) => {
@@ -1200,6 +1200,7 @@ impl<T: UserEvent> CefRuntime<T> {
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
       current_dispatch: Default::default(),
+      app_wide_theme: Default::default(),
       #[cfg(target_os = "macos")]
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),

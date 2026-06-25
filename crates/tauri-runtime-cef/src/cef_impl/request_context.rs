@@ -16,8 +16,24 @@ use base64::Engine;
 use cef::*;
 use sha2::{Digest, Sha256};
 use tauri_runtime::webview::WebviewAttributes;
+use tauri_utils::Theme;
 
 use crate::cef_impl::request_handler;
+
+#[inline]
+fn theme_to_color_variant(theme: Option<Theme>) -> ColorVariant {
+  match theme {
+    Some(Theme::Dark) => ColorVariant::DARK,
+    Some(Theme::Light) => ColorVariant::LIGHT,
+    _ => ColorVariant::SYSTEM,
+  }
+}
+
+pub(crate) fn apply_theme_scheme(request_context: Option<&RequestContext>, theme: Option<Theme>) {
+  if let Some(request_context) = request_context {
+    request_context.set_chrome_color_scheme(theme_to_color_variant(theme), 0);
+  }
+}
 
 /// Resolves a CEF-compatible cache path for a per-webview request context.
 ///

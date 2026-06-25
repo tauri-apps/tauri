@@ -9865,6 +9865,7 @@ dependencies = [
  "url",
  "windows 0.61.1",
  "winit",
+ "x11-dl",
 ]
 
 [[package]]

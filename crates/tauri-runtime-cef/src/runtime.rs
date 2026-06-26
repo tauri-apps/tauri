@@ -816,9 +816,14 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
 
   fn new_events(&mut self, event_loop: &dyn ActiveEventLoop, cause: StartCause) {
     let _guard = install_current_dispatch(self, event_loop);
-    if matches!(cause, StartCause::Init) {
-      self.run_callback(RunEvent::Ready);
-      self.context.advance_cef();
+    match cause {
+      StartCause::Init => {
+        self.run_callback(RunEvent::Ready);
+        self.context.advance_cef();
+      }
+      // Match wry/tao, which emit `Resumed` on each `Poll` start cause.
+      StartCause::Poll => self.run_callback(RunEvent::Resumed),
+      _ => {}
     }
   }
 

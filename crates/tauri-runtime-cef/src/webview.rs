@@ -323,6 +323,13 @@ impl<T: UserEvent> WinitCefApp<T> {
       && pending.webview_attributes.devtools.unwrap_or(true);
     let drag_drop_handler_enabled = pending.webview_attributes.drag_drop_handler_enabled;
     let drag_drop_state = Arc::new(Mutex::new(browser_client::DragDropState::default()));
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    let web_content_process_terminate_handler = pending
+      .on_web_content_process_terminate_handler
+      .take()
+      .map(|handler| Arc::from(handler) as Arc<dyn Fn() + Send>);
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+    let web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>> = None;
     let handlers = browser_client::TauriCefBrowserClientHandlers {
       ipc_handler: pending.ipc_handler.map(Arc::from),
       on_page_load_handler,
@@ -331,6 +338,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       address_changed_handler,
       new_window_handler: pending.new_window_handler.map(Arc::from),
       download_handler: pending.download_handler.take(),
+      web_content_process_terminate_handler,
     };
 
     let mut client = browser_client::TauriCefBrowserClient::new(

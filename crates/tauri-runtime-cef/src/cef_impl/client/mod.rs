@@ -47,6 +47,7 @@ pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
   pub(crate) new_window_handler:
     Option<Arc<tauri_runtime::webview::NewWindowHandler<T, CefRuntime<T>>>>,
   pub(crate) download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
+  pub(crate) web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>>,
 }
 
 impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
@@ -59,6 +60,7 @@ impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
       address_changed_handler: self.address_changed_handler.clone(),
       new_window_handler: self.new_window_handler.clone(),
       download_handler: self.download_handler.clone(),
+      web_content_process_terminate_handler: self.web_content_process_terminate_handler.clone(),
     }
   }
 }
@@ -95,6 +97,7 @@ wrap_client! {
         self.drag_drop_event_target,
         self.drag_drop_handler_enabled,
         self.drag_drop_state.clone(),
+        self.handlers.web_content_process_terminate_handler.clone(),
       ))
     }
 

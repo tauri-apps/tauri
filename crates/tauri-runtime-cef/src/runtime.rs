@@ -854,6 +854,22 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         webview::layout_app_window(appwindow);
         self.emit_window_event(window_id, WindowEvent::Resized(size));
       }
+      WinitWindowEvent::ScaleFactorChanged {
+        scale_factor,
+        surface_size_writer,
+      } => {
+        let new_inner_size = surface_size_writer
+          .surface_size()
+          .unwrap_or_else(|_| appwindow.window.surface_size());
+        webview::layout_app_window(appwindow);
+        self.emit_window_event(
+          window_id,
+          WindowEvent::ScaleFactorChanged {
+            scale_factor,
+            new_inner_size,
+          },
+        );
+      }
       WinitWindowEvent::Moved(pos) => {
         self.emit_window_event(
           window_id,

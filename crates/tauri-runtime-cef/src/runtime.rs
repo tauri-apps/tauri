@@ -53,7 +53,7 @@ use crate::{
   },
   window::{
     AppWindow, CefWindowDispatcher, WindowMessage, create_window_detached,
-    winit_monitor_to_tauri_monitor,
+    winit_monitor_to_tauri_monitor, winit_theme_to_tauri_theme,
   },
 };
 #[cfg(any(
@@ -870,6 +870,13 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
           label,
           event: WindowEvent::Focused(focused),
         });
+      }
+      WinitWindowEvent::ThemeChanged(theme) => {
+        let system_theme = winit_theme_to_tauri_theme(theme);
+        if let Some(explicit_theme) = appwindow.preferred_theme() {
+          appwindow.set_theme(Some(explicit_theme));
+        }
+        self.emit_window_event(window_id, WindowEvent::ThemeChanged(system_theme));
       }
       WinitWindowEvent::DragEntered { paths, position } => {
         let event = DragDropEvent::Enter { paths, position };

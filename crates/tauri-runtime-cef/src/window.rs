@@ -57,7 +57,7 @@ pub(crate) fn tauri_theme_to_winit_theme(theme: Option<Theme>) -> Option<winit::
   })
 }
 
-fn winit_theme_to_tauri_theme(theme: winit::window::Theme) -> Theme {
+pub(crate) fn winit_theme_to_tauri_theme(theme: winit::window::Theme) -> Theme {
   match theme {
     winit::window::Theme::Light => Theme::Light,
     winit::window::Theme::Dark => Theme::Dark,

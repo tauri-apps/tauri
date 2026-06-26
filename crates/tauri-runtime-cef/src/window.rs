@@ -545,7 +545,8 @@ impl<T: UserEvent> WinitCefApp<T> {
         let _ = tx.send(Ok(is_on_top));
       }
       WindowMessage::Title(tx) => _ = tx.send(Ok(window.title())),
-      WindowMessage::InnerPosition(tx) | WindowMessage::OuterPosition(tx) => {
+      WindowMessage::InnerPosition(tx) => _ = tx.send(Ok(app_window.window.surface_position())),
+      WindowMessage::OuterPosition(tx) => {
         let pos = app_window
           .window
           .outer_position()

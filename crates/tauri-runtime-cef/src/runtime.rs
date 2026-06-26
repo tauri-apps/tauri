@@ -693,7 +693,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       false
     } else {
       self.state.exiting = true;
-      self.run_callback(RunEvent::Exit);
       true
     }
   }
@@ -782,6 +781,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
 
     if self.state.exiting || (self.state.windows.is_empty() && self.request_exit(None)) {
+      self.run_callback(RunEvent::Exit);
       event_loop.exit();
     }
   }

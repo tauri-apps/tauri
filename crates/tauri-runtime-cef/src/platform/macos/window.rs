@@ -31,11 +31,11 @@ impl AppWindow {
     };
 
     if enabled {
-      if let Some(attached) = unsafe { nswindow.attachedSheet() } {
-        unsafe { nswindow.endSheet(&attached) };
+      if let Some(attached) = nswindow.attachedSheet() {
+        nswindow.endSheet(&attached);
       }
     } else {
-      if unsafe { nswindow.attachedSheet() }.is_some() {
+      if nswindow.attachedSheet().is_some() {
         return;
       }
 
@@ -53,7 +53,7 @@ impl AppWindow {
         )
       };
       sheet.setAlphaValue(0.5);
-      nswindow.beginSheet_completionHandler(&sheet, None);
+      (&*nswindow).beginSheet_completionHandler(&*sheet, None);
     }
   }
 
@@ -61,7 +61,7 @@ impl AppWindow {
     self
       .nsview()
       .and_then(|nsview| nsview.window())
-      .map(|nswindow| unsafe { nswindow.attachedSheet() }.is_none())
+      .map(|nswindow| nswindow.attachedSheet().is_none())
       .unwrap_or(true)
   }
 

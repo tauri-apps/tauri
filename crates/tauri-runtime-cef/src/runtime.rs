@@ -888,7 +888,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       }
       #[cfg(target_os = "macos")]
       WinitWindowEvent::RedrawRequested => {
-        if let Some(position) = &appwindow.traffic_light_position {
+        if let Some(position) = &appwindow.attrs.traffic_light_position {
           appwindow.apply_traffic_light_position(position);
         }
       }

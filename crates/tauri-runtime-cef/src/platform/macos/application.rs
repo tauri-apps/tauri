@@ -24,7 +24,7 @@ use objc2_foundation::{NSArray, NSObject, NSObjectProtocol, NSString, NSURL};
 use super::utils;
 
 #[derive(Default)]
-struct CefWinitApplicationIvars {
+pub(crate) struct CefWinitApplicationIvars {
   handling_send_event: Cell<Bool>,
   last_dock_show: Cell<Option<Instant>>,
   delegate: RefCell<Option<Retained<AppDelegate>>>,
@@ -102,10 +102,12 @@ define_class!(
       });
     }
   }
+);
 
+define_class!(
   #[unsafe(super(NSApplication))]
   #[ivars = CefWinitApplicationIvars]
-  pub struct CefWinitApplication;
+  pub(crate) struct CefWinitApplication;
 
   impl CefWinitApplication {
     #[unsafe(method(sendEvent:))]
@@ -124,6 +126,7 @@ define_class!(
     #[unsafe(method(tauriActivateCurrentApplication))]
     fn activate_current_application(&self) {
       let app = NSRunningApplication::currentApplication();
+      #[allow(deprecated)]
       app.activateWithOptions(NSApplicationActivationOptions::ActivateIgnoringOtherApps);
     }
 

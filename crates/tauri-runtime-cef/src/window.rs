@@ -288,7 +288,7 @@ pub(crate) struct AppWindow {
   pub(crate) id: WindowId,
   pub(crate) label: String,
   pub(crate) window: Box<dyn WinitWindow>,
-  attrs: AppWindowAttrs,
+  pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: Arc<Mutex<HashMap<WindowEventId, Box<dyn Fn(&WindowEvent) + Send>>>>,
 }

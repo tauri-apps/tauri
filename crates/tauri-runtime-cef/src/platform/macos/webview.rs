@@ -36,7 +36,7 @@ impl AppWebview {
       .unwrap_or_else(NSColor::windowBackgroundColor);
 
     let cg_color = nscolor.CGColor();
-    layer.setBackgroundColor(Some(&cg_color));
+    layer.setBackgroundColor(Some(&*cg_color));
   }
 
   pub(crate) fn bounds(&self) -> Option<Rect> {

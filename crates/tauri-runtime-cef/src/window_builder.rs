@@ -104,8 +104,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(identifier) = &config.tabbing_identifier {
         builder = builder.tabbing_identifier(identifier);
       }
-      let mut pl_attrs = platfomr_atts(&mut builder.attrs.inner);
-      pl_attrs = pl_attrs.with_accepts_first_mouse(config.accept_first_mouse);
+      let pl_attrs = (*platform_attrs(&mut builder.attrs.inner))
+        .with_accepts_first_mouse(config.accept_first_mouse);
 
       builder.attrs.inner = builder
         .attrs
@@ -309,7 +309,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn skip_taskbar(mut self, skip: bool) -> Self {
     #[cfg(windows)]
     {
-      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_skip_taskbar(skip);
+      let pl_attrs = platform_attrs(&mut self.attrs.inner).with_skip_taskbar(skip);
       self.attrs.inner = self
         .attrs
         .inner
@@ -338,7 +338,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn shadow(mut self, enable: bool) -> Self {
     #[cfg(windows)]
     {
-      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_undecorated_shadow(enable);
+      let pl_attrs = platform_attrs(&mut self.attrs.inner).with_undecorated_shadow(enable);
       self.attrs.inner = self
         .attrs
         .inner
@@ -347,7 +347,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
     #[cfg(target_os = "macos")]
     {
-      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_has_shadow(enable);
+      let pl_attrs = platform_attrs(&mut self.attrs.inner).with_has_shadow(enable);
       self.attrs.inner = self
         .attrs
         .inner
@@ -359,7 +359,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(windows)]
   fn owner(mut self, owner: HWND) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_owner_window(owner.0);
+    let pl_attrs = platform_attrs(&mut self.attrs.inner).with_owner_window(owner.0);
     self.attrs.inner = self
       .attrs
       .inner
@@ -379,7 +379,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(windows)]
   fn drag_and_drop(mut self, enabled: bool) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_drag_and_drop(enabled);
+    let pl_attrs = platform_attrs(&mut self.attrs.inner).with_drag_and_drop(enabled);
     self.attrs.inner = self
       .attrs
       .inner
@@ -411,7 +411,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "macos")]
   fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
-    let pl_attrs = *platfomr_atts(&mut self.attrs.inner);
+    let pl_attrs = *platform_attrs(&mut self.attrs.inner);
     let pl_attrs = match style {
       TitleBarStyle::Visible => pl_attrs
         .with_titlebar_transparent(false)
@@ -439,7 +439,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "macos")]
   fn hidden_title(mut self, hidden: bool) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_title_hidden(hidden);
+    let pl_attrs = platform_attrs(&mut self.attrs.inner).with_title_hidden(hidden);
     self.attrs.inner = self
       .attrs
       .inner
@@ -449,7 +449,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "macos")]
   fn tabbing_identifier(mut self, identifier: &str) -> Self {
-    let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_tabbing_identifier(identifier);
+    let pl_attrs = platform_attrs(&mut self.attrs.inner).with_tabbing_identifier(identifier);
     self.attrs.inner = self
       .attrs
       .inner
@@ -469,7 +469,8 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn window_classname<S: Into<String>>(mut self, _window_classname: S) -> Self {
     #[cfg(windows)]
     {
-      let pl_attrs = platfomr_atts(&mut self.attrs.inner).with_class_name(_window_classname.into());
+      let pl_attrs =
+        platform_attrs(&mut self.attrs.inner).with_class_name(_window_classname.into());
       self.attrs.inner = self
         .attrs
         .inner
@@ -504,7 +505,7 @@ type PlatformAttributes = winit::platform::macos::WindowAttributesMacOS;
 ))]
 type PlatformAttributes = winit::platform::x11::WindowAttributesX11;
 
-fn platfomr_atts(attrs: &mut WindowAttributes) -> Box<PlatformAttributes> {
+fn platform_attrs(attrs: &mut WindowAttributes) -> Box<PlatformAttributes> {
   attrs
     .platform
     .take()

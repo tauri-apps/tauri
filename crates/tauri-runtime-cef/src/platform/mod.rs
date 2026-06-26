@@ -6,7 +6,7 @@
 mod windows;
 
 #[cfg(target_os = "macos")]
-mod macos;
+pub mod macos;
 
 #[cfg(any(
   target_os = "linux",

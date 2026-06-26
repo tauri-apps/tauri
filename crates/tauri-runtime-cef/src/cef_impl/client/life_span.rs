@@ -110,6 +110,11 @@ wrap_life_span_handler! {
       match handler(url, features) {
         tauri_runtime::webview::NewWindowResponse::Allow => 0,
         tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+          // CEF cannot transplant a popup's contents into an existing
+          // browser, so cancel the popup and navigate the designated
+          // window's first webview to the URL instead — the closest
+          // equivalent of wry hosting the popup in that window's webview.
+          // Note `window.opener` is not linked to the new document.
           let _ = self.context.send_message(Message::NavigateFirstWebview {
             window_id,
             url: url_str,

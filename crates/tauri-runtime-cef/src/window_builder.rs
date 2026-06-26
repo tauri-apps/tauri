@@ -424,7 +424,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     let pl_attrs = match style {
       TitleBarStyle::Visible => pl_attrs
         .with_titlebar_transparent(false)
-        .with_fullsize_content_view(true),
+        .with_fullsize_content_view(false),
       TitleBarStyle::Transparent => pl_attrs
         .with_titlebar_transparent(true)
         .with_fullsize_content_view(false),

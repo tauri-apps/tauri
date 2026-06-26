@@ -20,7 +20,7 @@ use std::{
 };
 
 use cef::*;
-use raw_window_handle::DisplayHandle;
+use raw_window_handle::{DisplayHandle, HasDisplayHandle};
 use tauri_runtime::{
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Result, RunEvent, Runtime,
   RuntimeHandle, RuntimeInitArgs, UserEvent,
@@ -52,7 +52,7 @@ use crate::{
     create_webview_detached,
   },
   window::{
-    AppWindow, CefWindowDispatcher, WindowMessage, create_window_detached,
+    AppWindow, CefWindowDispatcher, SendRawDisplayHandle, WindowMessage, create_window_detached,
     winit_monitor_to_tauri_monitor, winit_theme_to_tauri_theme,
   },
 };
@@ -362,6 +362,7 @@ pub(crate) enum EventLoopMessage {
   MonitorFromPoint(Sender<Option<Monitor>>, f64, f64),
   AvailableMonitors(Sender<Vec<Monitor>>),
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
+  DisplayHandle(Sender<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>>),
   #[cfg(target_os = "macos")]
   SetActivationPolicy(tauri_runtime::ActivationPolicy),
   #[cfg(target_os = "macos")]
@@ -593,6 +594,12 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       EventLoopMessage::CursorPosition(tx) => {
         let _ = tx.send(event_loop.cursor_position());
+      }
+      EventLoopMessage::DisplayHandle(tx) => {
+        let handle = event_loop
+          .display_handle()
+          .map(|handle| SendRawDisplayHandle(handle.as_raw()));
+        let _ = tx.send(handle);
       }
       #[cfg(target_os = "macos")]
       EventLoopMessage::SetActivationPolicy(activation_policy) => {
@@ -1048,7 +1055,11 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   fn display_handle(
     &self,
   ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
-    return Err(raw_window_handle::HandleError::Unavailable);
+    let raw = event_loop_getter!(self, DisplayHandle)
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)??;
+    // SAFETY: the descriptor was produced by the live event loop on its own
+    // thread; the borrowed handle is valid for as long as the runtime is.
+    Ok(unsafe { DisplayHandle::borrow_raw(raw.0) })
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {

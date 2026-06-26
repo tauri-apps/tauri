@@ -49,6 +49,9 @@ use crate::{
 pub(crate) struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
+pub(crate) struct SendRawDisplayHandle(pub raw_window_handle::RawDisplayHandle);
+unsafe impl Send for SendRawDisplayHandle {}
+
 pub(crate) fn tauri_theme_to_winit_theme(theme: Option<Theme>) -> Option<winit::window::Theme> {
   theme.map(|theme| match theme {
     Theme::Light => winit::window::Theme::Light,

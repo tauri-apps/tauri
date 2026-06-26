@@ -399,7 +399,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     webview_id: Option<u32>,
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
     _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
-  ) {
+  ) -> Result<()> {
     let mut attrs = pending.window_builder.attrs.clone();
     if attrs.inner.preferred_theme.is_none() {
       attrs.inner.preferred_theme =
@@ -409,10 +409,10 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     let window = event_loop
       .create_window(attrs.inner.clone())
-      .expect("failed to create winit window");
+      .map_err(|_| Error::CreateWindow)?;
 
     let winit_id = window.id();
-    let appwindow = AppWindow {
+    let mut appwindow = AppWindow {
       id: window_id,
       label: pending.label.clone(),
       window,
@@ -455,20 +455,28 @@ impl<T: UserEvent> WinitCefApp<T> {
       });
     }
 
+    // Build the initial webview against the not-yet-registered window so a
+    // creation failure surfaces to the caller without leaving the window in
+    // state to roll back.
+    if let (Some(webview_id), Some(webview)) = (webview_id, pending.webview) {
+      Self::build_and_attach_webview(
+        &self.context,
+        &self.scheme_registry,
+        &mut self.state.live_browsers,
+        &mut appwindow,
+        webview_id,
+        browser_client::DragDropEventTarget::Window,
+        webview,
+      )?;
+    }
+
     self
       .state
       .winid_id_to_window_id_map
       .insert(winit_id, window_id);
     self.state.windows.insert(window_id, appwindow);
 
-    if let (Some(webview_id), Some(webview)) = (webview_id, pending.webview) {
-      self.create_browser_child(
-        window_id,
-        webview_id,
-        browser_client::DragDropEventTarget::Window,
-        webview,
-      );
-    }
+    Ok(())
   }
 
   pub(crate) fn handle_window_message(
@@ -1314,12 +1322,19 @@ where
     })
     .unwrap_or((None, false, None));
 
+  let (result_tx, result_rx) = mpsc::channel();
   context.send_message(Message::CreateWindow {
     window_id,
     webview_id,
     pending: Box::new(pending),
     after_window_creation: after_window_creation.map(|f| Box::new(f) as _),
+    result_tx,
   })?;
+  // Block until the event loop has created the window so a creation failure is
+  // surfaced to the caller instead of leaving a detached, dead window.
+  result_rx
+    .recv()
+    .map_err(|_| Error::FailedToReceiveMessage)??;
 
   let webview = webview_id.map(|webview_id| DetachedWindowWebview {
     webview: DetachedWebview {

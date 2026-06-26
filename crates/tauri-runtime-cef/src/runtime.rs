@@ -325,11 +325,13 @@ pub(crate) enum Message<T: UserEvent> {
     webview_id: Option<u32>,
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
     after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
+    result_tx: Sender<Result<()>>,
   },
   CreateWebview {
     window_id: WindowId,
     webview_id: u32,
     pending: Box<PendingWebview<T, CefRuntime<T>>>,
+    result_tx: Sender<Result<()>>,
   },
   Window {
     window_id: WindowId,
@@ -506,20 +508,25 @@ impl<T: UserEvent> WinitCefApp<T> {
         webview_id,
         pending,
         after_window_creation,
+        result_tx,
       } => {
-        self.create_window(
+        let result = self.create_window(
           event_loop,
           window_id,
           webview_id,
           pending,
           after_window_creation,
         );
+        let _ = result_tx.send(result);
       }
       Message::CreateWebview {
         window_id,
         webview_id,
         pending,
-      } => self.create_webview(window_id, webview_id, *pending),
+        result_tx,
+      } => {
+        let _ = result_tx.send(self.create_webview(window_id, webview_id, *pending));
+      }
       Message::Window { window_id, message } => {
         self.handle_window_message(event_loop, window_id, message)
       }
@@ -1180,6 +1187,11 @@ impl<T: UserEvent> CefRuntime<T> {
       crate::platform::macos::setup_application();
     }
 
+    // The CEF API version table must be initialized before any other CEF call
+    // (e.g. `args.as_cmd_line()` below), otherwise the process crashes with no
+    // diagnostics.
+    let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+
     // Handle CEF subprocesses (renderer/GPU/utility) before any browser-only
     // setup such as building the event loop, creating cache directories, or the
     // runtime context. The browser (main) process has no `type` switch;
@@ -1190,7 +1202,6 @@ impl<T: UserEvent> CefRuntime<T> {
       .unwrap_or(true);
 
     if !is_browser_process {
-      let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
       let mut helper_app = TauriCefHelperApp::new();
       let ret = cef::execute_process(
         Some(args.as_main_args()),
@@ -1261,7 +1272,6 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_path: Arc::new(cache_path.clone()),
     };
 
-    let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
     command_line_args.push(("--enable-media-stream".to_string(), None));
     let mut app = TauriCefApp::new(
       context.clone(),

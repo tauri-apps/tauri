@@ -24,7 +24,7 @@ use tauri_runtime::{
 use tauri_utils::{Theme, config::Color, html::normalize_script_for_csp};
 use url::Url;
 
-use crate::cef_impl::{client as browser_client, cookie, request_context};
+use crate::cef_impl::{client as browser_client, cookie, request_context, request_handler};
 use crate::runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp};
 use crate::window::AppWindow;
 
@@ -247,33 +247,50 @@ impl<T: UserEvent> WinitCefApp<T> {
     window_id: WindowId,
     webview_id: u32,
     pending: PendingWebview<T, CefRuntime<T>>,
-  ) {
-    self.create_browser_child(
-      window_id,
+  ) -> Result<()> {
+    let Self {
+      context,
+      scheme_registry,
+      state,
+      ..
+    } = self;
+    let Some(appwindow) = state.windows.get_mut(&window_id) else {
+      return Err(Error::CreateWebview(
+        format!("window {window_id:?} does not exist").into(),
+      ));
+    };
+    Self::build_and_attach_webview(
+      context,
+      scheme_registry,
+      &mut state.live_browsers,
+      appwindow,
       webview_id,
       browser_client::DragDropEventTarget::Webview,
       pending,
-    );
+    )
   }
 
-  pub(crate) fn create_browser_child(
-    &mut self,
-    window_id: WindowId,
+  /// Builds a webview and attaches it to `appwindow`, bumping `live_browsers`
+  /// and relaying it out. Works whether `appwindow` already lives in `state` or
+  /// is still being assembled, so window and child creation share one path.
+  pub(crate) fn build_and_attach_webview(
+    context: &RuntimeContext<T>,
+    scheme_registry: &request_handler::SchemeRegistry,
+    live_browsers: &mut usize,
+    appwindow: &mut AppWindow,
     webview_id: u32,
     drag_drop_event_target: browser_client::DragDropEventTarget,
     pending: PendingWebview<T, CefRuntime<T>>,
-  ) {
-    let Some(appwindow) = self.state.windows.get(&window_id) else {
-      return;
-    };
-
+  ) -> Result<()> {
     let parent = appwindow.raw_handle_as_cef_handle();
     let parent_size = appwindow.window.surface_size();
     let scale = appwindow.window.scale_factor();
-    let app_wide_theme = *self.context.app_wide_theme.lock().unwrap();
+    let app_wide_theme = *context.app_wide_theme.lock().unwrap();
     let theme = appwindow.resolved_theme(app_wide_theme);
-    let child = self.build_browser_child(
-      window_id,
+    let Some(child) = Self::build_browser_child(
+      context,
+      scheme_registry,
+      appwindow.id,
       webview_id,
       parent,
       parent_size,
@@ -281,17 +298,21 @@ impl<T: UserEvent> WinitCefApp<T> {
       theme,
       drag_drop_event_target,
       pending,
-    );
+    ) else {
+      return Err(Error::CreateWebview(
+        "failed to create CEF browser".to_string().into(),
+      ));
+    };
 
-    if let Some(appwindow) = self.state.windows.get_mut(&window_id) {
-      self.state.live_browsers += 1;
-      appwindow.children.push(child);
-      layout_app_window(appwindow);
-    }
+    *live_browsers += 1;
+    appwindow.children.push(child);
+    layout_app_window(appwindow);
+    Ok(())
   }
 
-  fn build_browser_child(
-    &mut self,
+  pub(crate) fn build_browser_child(
+    context: &RuntimeContext<T>,
+    scheme_registry: &request_handler::SchemeRegistry,
     window_id: WindowId,
     webview_id: u32,
     parent: cef::sys::cef_window_handle_t,
@@ -300,7 +321,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     theme: Option<Theme>,
     drag_drop_event_target: browser_client::DragDropEventTarget,
     mut pending: PendingWebview<T, CefRuntime<T>>,
-  ) -> AppWebview {
+  ) -> Option<AppWebview> {
     let bounds_rate = compute_child_bounds_rate(
       pending.webview_attributes.bounds.as_ref(),
       pending.webview_attributes.auto_resize,
@@ -342,7 +363,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     };
 
     let mut client = browser_client::TauriCefBrowserClient::new(
-      self.context.clone(),
+      context.clone(),
       window_id,
       webview_id,
       pending.label.clone(),
@@ -352,8 +373,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       drag_drop_handler_enabled,
       drag_drop_state,
       handlers,
-      self.context.proxy.clone(),
-      self.context.sender.clone(),
+      context.proxy.clone(),
+      context.sender.clone(),
     );
 
     // If the bounds are not specified, default to the parent window's size and position.
@@ -402,7 +423,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     let real_initial_url = pending.url.as_str().to_string();
     let (browser_tx, browser_rx) = mpsc::channel();
     let (init_done, on_initialized) = request_context::deferred_init_continuation({
-      let scheme_registry = self.scheme_registry.clone();
+      let scheme_registry = scheme_registry.clone();
       let uri_scheme_protocols = uri_scheme_protocols.clone();
       let initialization_scripts = initialization_scripts.clone();
       let custom_protocol_scheme = custom_protocol_scheme.clone();
@@ -414,16 +435,21 @@ impl<T: UserEvent> WinitCefApp<T> {
         // Create with an inert document so the BrowserHost exists before the real
         // navigation; the real URL is loaded once the document-start script is set.
         let initial_url = CefString::from(INITIAL_LOAD_URL);
-        let browser = cef::browser_host_create_browser_sync(
+        let Some(browser) = cef::browser_host_create_browser_sync(
           Some(&window_info),
           Some(&mut client),
           Some(&initial_url),
           Some(&settings),
           None,
           request_context.as_mut(),
-        )
-        .expect("failed to create CEF browser");
-        let host = browser.host().expect("CEF browser has no host");
+        ) else {
+          log::error!("failed to create CEF browser for webview {label:?}");
+          return;
+        };
+        let Some(host) = browser.host() else {
+          log::error!("CEF browser for webview {label:?} has no host");
+          return;
+        };
         let browser_id = browser.identifier();
 
         {
@@ -473,11 +499,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
     });
     let request_context = request_context::request_context_from_webview_attributes(
-      &self.context.cache_path,
+      &context.cache_path,
       &pending.webview_attributes,
       uri_scheme_protocols.keys(),
       &custom_protocol_scheme,
-      self.scheme_registry.clone(),
+      scheme_registry.clone(),
       on_initialized,
     );
     if request_context.is_none() {
@@ -485,9 +511,10 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
     request_context::wait_for_deferred_init(&init_done);
 
-    browser_rx
-      .recv()
-      .expect("request context initialized without creating CEF browser")
+    // `None` here means browser creation failed (or the request context never
+    // initialized); the continuation logs the reason. Soft-fail instead of
+    // taking down the whole process.
+    browser_rx.recv().ok()
   }
 
   pub(crate) fn handle_webview_message(
@@ -862,11 +889,18 @@ pub(crate) fn create_webview_detached<T: UserEvent>(
 ) -> Result<DetachedWebview<T, CefRuntime<T>>> {
   let label = pending.label.clone();
   let webview_id = context.next_webview_id();
+  let (result_tx, result_rx) = mpsc::channel();
   context.send_message(Message::CreateWebview {
     window_id,
     webview_id,
     pending: Box::new(pending),
+    result_tx,
   })?;
+  // Block until the event loop has created the browser so a creation failure
+  // is surfaced to the caller instead of leaving a detached, dead webview.
+  result_rx
+    .recv()
+    .map_err(|_| Error::FailedToReceiveMessage)??;
   Ok(DetachedWebview {
     label,
     dispatcher: CefWebviewDispatcher {

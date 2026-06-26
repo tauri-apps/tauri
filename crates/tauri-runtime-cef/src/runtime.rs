@@ -840,36 +840,23 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       WinitWindowEvent::CloseRequested => self.request_window_close(window_id, event_loop),
 
       WinitWindowEvent::Destroyed => {
-        let label = (!self.state.exiting).then(|| appwindow.label.clone());
-        if let Some(label) = label {
-          self.run_callback(RunEvent::WindowEvent {
-            label,
-            event: WindowEvent::Destroyed,
-          });
+        if !self.state.exiting {
+          self.emit_window_event(window_id, WindowEvent::Destroyed);
         }
         self.close_window(window_id, event_loop);
       }
       WinitWindowEvent::SurfaceResized(size) => {
         webview::layout_app_window(appwindow);
-        let label = appwindow.label.clone();
-        self.run_callback(RunEvent::WindowEvent {
-          label,
-          event: WindowEvent::Resized(size),
-        });
+        self.emit_window_event(window_id, WindowEvent::Resized(size));
       }
       WinitWindowEvent::Moved(pos) => {
-        let label = appwindow.label.clone();
-        self.run_callback(RunEvent::WindowEvent {
-          label,
-          event: WindowEvent::Moved(PhysicalPosition::new(pos.x, pos.y)),
-        });
+        self.emit_window_event(
+          window_id,
+          WindowEvent::Moved(PhysicalPosition::new(pos.x, pos.y)),
+        );
       }
       WinitWindowEvent::Focused(focused) => {
-        let label = appwindow.label.clone();
-        self.run_callback(RunEvent::WindowEvent {
-          label,
-          event: WindowEvent::Focused(focused),
-        });
+        self.emit_window_event(window_id, WindowEvent::Focused(focused));
       }
       WinitWindowEvent::ThemeChanged(theme) => {
         let system_theme = winit_theme_to_tauri_theme(theme);

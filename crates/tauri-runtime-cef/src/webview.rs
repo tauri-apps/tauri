@@ -365,7 +365,20 @@ impl<T: UserEvent> WinitCefApp<T> {
       height: bounds.size.height as i32,
     };
 
-    let window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
+    // Let CEF pick the runtime style unless overridden per-webview.
+    let cef_runtime_style = pending
+      .platform_specific_attributes
+      .iter()
+      .find_map(|attr| match attr {
+        WebviewAtribute::RuntimeStyle { style } => Some(match style {
+          RuntimeStyle::Alloy => cef::RuntimeStyle::ALLOY,
+          RuntimeStyle::Chrome => cef::RuntimeStyle::CHROME,
+        }),
+      })
+      .unwrap_or(cef::RuntimeStyle::DEFAULT);
+
+    let mut window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
+    window_info.runtime_style = cef_runtime_style;
     let settings = browser_settings_from_webview_attributes(&pending.webview_attributes);
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {

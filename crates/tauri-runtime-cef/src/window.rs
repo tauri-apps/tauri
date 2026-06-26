@@ -174,13 +174,38 @@ fn prepare_window_attributes(event_loop: &dyn ActiveEventLoop, attrs: &mut AppWi
     return;
   };
 
+  // `clamp_surface_size` is the requested client/surface size; the window
+  // winit creates will be larger by the non-client frame (title bar + borders).
+  // To center the *visible* window we have to account for that frame.
   let mut window_size = clamp_surface_size(&attrs.inner, monitor.scale_factor());
+
+  // Left and right borders count toward the outer width (and so toward the
+  // centered x position) but not toward the surface size. The title bar adds to
+  // the visible height. Mirrors `tauri-runtime-wry`'s creation-time centering.
+  #[allow(unused_mut)]
+  let mut shadow_width: u32 = 0;
+  #[cfg(windows)]
+  if attrs.inner.decorations {
+    use windows::Win32::{
+      Foundation::RECT,
+      UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW},
+    };
+
+    let mut rect = RECT::default();
+    if unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) }.is_ok() {
+      shadow_width = (rect.right - rect.left) as u32;
+      // `rect.top` is negative (the title bar above the client area);
+      // `rect.bottom` is the bottom shadow, which we intentionally ignore.
+      window_size.height += (-rect.top) as u32;
+    }
+  }
 
   if let Some(margin) = attrs.prevent_overflow {
     apply_prevent_overflow(&mut attrs.inner, &mut window_size, &monitor, margin);
   }
 
   if attrs.center {
+    window_size.width += shadow_width;
     let position = calculate_window_center_position(window_size, &monitor);
     attrs.inner.position = Some(position.into());
   }
@@ -331,7 +356,20 @@ impl AppWindow {
       return;
     };
 
-    let position = calculate_window_center_position(self.window.outer_size(), &monitor);
+    #[allow(unused_mut)]
+    let mut window_size = self.window.outer_size();
+
+    // On Windows `outer_size` includes the invisible resize/shadow border, so
+    // centering by it pushes the visible window down. Substitute the visible
+    // frame height reported by DWM. Mirrors `tauri-runtime-wry`'s `center`.
+    #[cfg(windows)]
+    if self.window.is_decorated()
+      && let Some(visible_height) = self.dwm_visible_frame_height()
+    {
+      window_size.height = visible_height;
+    }
+
+    let position = calculate_window_center_position(window_size, &monitor);
     self.window.set_outer_position(Position::Physical(position));
   }
 

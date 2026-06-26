@@ -32,6 +32,7 @@ winit = "0.31.0-beta.2"
 [target."cfg(windows)".dependencies]
 windows = { version = "0.61", features = [
   "Win32_Foundation",
+  "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",
   "Win32_System_Com",
   "Win32_System_LibraryLoader",

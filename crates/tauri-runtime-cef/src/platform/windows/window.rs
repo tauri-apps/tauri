@@ -5,7 +5,8 @@
 use tauri_runtime::{Icon, ProgressBarState, ProgressBarStatus};
 use tauri_utils::config::Color;
 use windows::Win32::{
-  Foundation::HWND,
+  Foundation::{HWND, RECT},
+  Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute},
   System::Com::{CLSCTX_SERVER, CoCreateInstance},
   UI::{
     Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled},
@@ -79,5 +80,25 @@ impl AppWindow {
 
   pub(crate) fn set_background_color(&self, _color: Option<Color>) {
     // TODO
+  }
+
+  /// The visible frame height reported by DWM (`DWMWA_EXTENDED_FRAME_BOUNDS`).
+  ///
+  /// winit's `outer_size` includes the invisible resize/shadow border, which
+  /// throws off vertical centering for decorated windows. The DWM extended
+  /// frame bounds describe the actually-visible window rectangle, so its height
+  /// is what should be used when centering. Returns `None` on failure.
+  pub(crate) fn dwm_visible_frame_height(&self) -> Option<u32> {
+    let mut rect = RECT::default();
+    let result = unsafe {
+      DwmGetWindowAttribute(
+        self.hwnd(),
+        DWMWA_EXTENDED_FRAME_BOUNDS,
+        &mut rect as *mut _ as *mut _,
+        std::mem::size_of::<RECT>() as u32,
+      )
+    };
+    result.ok()?;
+    Some((rect.bottom - rect.top) as u32)
   }
 }

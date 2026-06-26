@@ -67,6 +67,46 @@ fn color_to_argb(color: Color) -> u32 {
   ((a as u32) << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
 }
 
+/// Maps the subset of [`WebviewAttributes`] that CEF's `BrowserSettings`
+/// supports.
+///
+/// The following Tauri webview attributes have no per-webview equivalent in CEF
+/// and are intentionally ignored here:
+/// - `user_agent`: CEF only exposes a process-global user agent via
+///   `CefSettings.user_agent`, which is fixed before any webview is created.
+/// - `additional_browser_args`, `scroll_bar_style`, `general_autofill_enabled`:
+///   WebView2 (Windows)-only concepts.
+/// - `allow_link_preview`, `accept_first_mouse`: WKWebView (macOS/iOS)-only.
+/// - `browser_extensions_enabled`, `extensions_path`: CEF dropped extension
+///   support in the Chrome runtime.
+/// - `data_store_identifier`: a WKWebView data-store concept with no CEF analog
+///   (per-webview isolation is done through the request context cache path).
+/// - `zoom_hotkeys_enabled`: handled by Chromium's accelerator table, not a
+///   browser setting.
+///
+/// `proxy_url` is handled separately via the request context preference.
+fn browser_settings_from_webview_attributes(
+  webview_attributes: &WebviewAttributes,
+) -> cef::BrowserSettings {
+  cef::BrowserSettings {
+    javascript: cef::State::from(if webview_attributes.javascript_disabled {
+      cef::sys::cef_state_t::STATE_DISABLED
+    } else {
+      cef::sys::cef_state_t::STATE_ENABLED
+    }),
+    javascript_access_clipboard: cef::State::from(if webview_attributes.clipboard {
+      cef::sys::cef_state_t::STATE_ENABLED
+    } else {
+      cef::sys::cef_state_t::STATE_DISABLED
+    }),
+    background_color: webview_attributes
+      .background_color
+      .map(color_to_argb)
+      .unwrap_or(0),
+    ..Default::default()
+  }
+}
+
 #[derive(Debug, Clone)]
 pub enum DevToolsProtocol {
   Message(Vec<u8>),
@@ -326,14 +366,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     };
 
     let window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
-    let settings = cef::BrowserSettings {
-      background_color: pending
-        .webview_attributes
-        .background_color
-        .map(color_to_argb)
-        .unwrap_or(0),
-      ..Default::default()
-    };
+    let settings = browser_settings_from_webview_attributes(&pending.webview_attributes);
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {
       "https"

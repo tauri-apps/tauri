@@ -1111,6 +1111,8 @@ pub struct CefRuntime<T: UserEvent> {
   receiver: Receiver<Message<T>>,
   context: RuntimeContext<T>,
   scheme_registry: request_handler::SchemeRegistry,
+  #[cfg(target_os = "macos")]
+  _app_delegate: Option<objc2::rc::Retained<crate::platform::macos::AppDelegate>>,
 }
 
 impl<T: UserEvent> fmt::Debug for CefRuntime<T> {
@@ -1248,11 +1250,11 @@ impl<T: UserEvent> CefRuntime<T> {
     }
 
     #[cfg(target_os = "macos")]
-    if !is_helper {
+    let app_delegate = if !is_helper {
       use crate::platform::macos::AppDelegateEvent;
 
       let context_ = context.clone();
-      crate::platform::macos::set_application_event_handler(Box::new(move |event| match event {
+      let handler = Box::new(move |event| match event {
         AppDelegateEvent::TryTerminate => {
           let _ = context_.send_message(Message::RequestExit(0));
         }
@@ -1269,8 +1271,12 @@ impl<T: UserEvent> CefRuntime<T> {
         AppDelegateEvent::OpenURLs { urls } => {
           let _ = context_.send_message(Message::Opened(urls));
         }
-      }));
-    }
+      });
+      let app_delegate = crate::platform::macos::set_application_event_handler(handler);
+      Some(app_delegate)
+    } else {
+      None
+    };
 
     // Wait for the CEF context to initialize before returning, so that the runtime is ready to create browsers.
     while !context_initialized.load(Ordering::SeqCst) {
@@ -1283,6 +1289,8 @@ impl<T: UserEvent> CefRuntime<T> {
       receiver,
       context,
       scheme_registry: Default::default(),
+      #[cfg(target_os = "macos")]
+      _app_delegate: app_delegate,
     })
   }
 }

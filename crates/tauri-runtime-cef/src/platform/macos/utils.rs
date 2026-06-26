@@ -1,3 +1,5 @@
+use std::{sync::OnceLock, time::Instant};
+
 use objc2::rc::Retained;
 use objc2_app_kit::NSColor;
 use objc2_application_services::{
@@ -33,4 +35,9 @@ pub fn ns_color_from_tauri_color(color: Color) -> Retained<NSColor> {
     blue as f64 / scale,
     alpha as f64 / scale,
   )
+}
+
+pub fn instant_epoch() -> Instant {
+  static INSTANT_EPOCH: OnceLock<Instant> = OnceLock::new();
+  *INSTANT_EPOCH.get_or_init(Instant::now)
 }

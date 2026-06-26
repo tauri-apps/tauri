@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  cell::{Cell, RefCell},
-  time::Instant,
+  cell::Cell,
+  time::{Duration, Instant},
 };
 
 use cef::application_mac::{CefAppProtocol, CrAppControlProtocol, CrAppProtocol};
@@ -26,8 +26,8 @@ use super::utils;
 #[derive(Default)]
 pub(crate) struct CefWinitApplicationIvars {
   handling_send_event: Cell<Bool>,
-  last_dock_show: Cell<Option<Instant>>,
-  delegate: RefCell<Option<Retained<AppDelegate>>>,
+  last_dock_show_ms: Cell<u64>,
+  delegate: Cell<*const AppDelegate>,
 }
 
 pub(crate) enum AppDelegateEvent {
@@ -37,7 +37,7 @@ pub(crate) enum AppDelegateEvent {
   OpenURLs { urls: Vec<url::Url> },
 }
 
-struct CefAppDelegateIvars {
+pub(crate) struct CefAppDelegateIvars {
   on_event: Box<dyn Fn(AppDelegateEvent)>,
 }
 
@@ -46,7 +46,7 @@ define_class!(
   #[name = "CefWinitAppDelegate"]
   #[ivars = CefAppDelegateIvars]
   #[thread_kind = MainThreadOnly]
-  struct AppDelegate;
+  pub(crate) struct AppDelegate;
 
   unsafe impl NSObjectProtocol for AppDelegate {}
 
@@ -195,15 +195,29 @@ impl CefWinitApplication {
   }
 
   pub fn last_dock_show(&self) -> Option<Instant> {
-    self.ivars().last_dock_show.get()
+    match self.ivars().last_dock_show_ms.get() {
+      0 => None,
+      // Store elapsed milliseconds + 1 so the zero-initialized ivar can mean
+      // "not set" for AppKit-created NSApplication instances.
+      milliseconds => Some(utils::instant_epoch() + Duration::from_millis(milliseconds - 1)),
+    }
   }
 
   pub fn set_last_dock_show(&self, instant: Instant) {
-    self.ivars().last_dock_show.set(Some(instant));
+    let milliseconds = instant
+      .saturating_duration_since(utils::instant_epoch())
+      .as_millis()
+      .try_into()
+      .unwrap_or(u64::MAX);
+    self
+      .ivars()
+      .last_dock_show_ms
+      // Offset by one so `0` remains the zero-initialized "not set" sentinel.
+      .set(milliseconds.saturating_add(1));
   }
 
-  fn delegate(&self) -> Option<Retained<AppDelegate>> {
-    self.ivars().delegate.borrow().clone()
+  fn delegate(&self) -> Option<&AppDelegate> {
+    unsafe { self.ivars().delegate.get().as_ref() }
   }
 }
 
@@ -213,14 +227,17 @@ pub fn setup_application() {
   assert!(NSApp(mtm).isKindOfClass(CefWinitApplication::class()));
 }
 
-pub(crate) fn set_application_event_handler(on_event: Box<dyn Fn(AppDelegateEvent)>) {
+pub(crate) fn set_application_event_handler(
+  on_event: Box<dyn Fn(AppDelegateEvent)>,
+) -> Retained<AppDelegate> {
   let mtm = MainThreadMarker::new().expect("macOS application must start on the main thread");
   let delegate = AppDelegate::new(mtm, on_event);
   let app = CefWinitApplication::shared_application();
 
-  // `NSApplication.delegate` is weak. Keep our delegate alive on the application
-  // object, and install it after CEF initialization because Chromium may replace
-  // the public delegate while starting the Chrome runtime.
+  // `NSApplication.delegate` is weak. The runtime owns the retained delegate;
+  // the app stores only a non-owning pointer because AppKit creates the
+  // NSApplication singleton and its ivars must stay zero-initialized/no-drop.
+  app.ivars().delegate.set(&*delegate as *const AppDelegate);
   app.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
-  app.ivars().delegate.replace(Some(delegate));
+  delegate
 }

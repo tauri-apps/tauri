@@ -1175,6 +1175,28 @@ impl<T: UserEvent> CefRuntime<T> {
       crate::platform::macos::setup_application();
     }
 
+    // Handle CEF subprocesses (renderer/GPU/utility) before any browser-only
+    // setup such as building the event loop, creating cache directories, or the
+    // runtime context. The browser (main) process has no `type` switch;
+    // subprocesses are launched with one (e.g. `--type=renderer`).
+    let is_browser_process = args
+      .as_cmd_line()
+      .map(|cmd| cmd.has_switch(Some(&CefString::from("type"))) != 1)
+      .unwrap_or(true);
+
+    if !is_browser_process {
+      let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+      let mut helper_app = TauriCefHelperApp::new();
+      let ret = cef::execute_process(
+        Some(args.as_main_args()),
+        Some(&mut helper_app),
+        std::ptr::null_mut(),
+      );
+      // A subprocess finished its work; exit with its exit code instead of
+      // falling through to browser runtime initialization.
+      std::process::exit(ret.max(0));
+    }
+
     let mut command_line_args = Vec::new();
     let mut deep_link_schemes = Vec::new();
     let mut cache_path_override = None::<PathBuf>;
@@ -1242,29 +1264,18 @@ impl<T: UserEvent> CefRuntime<T> {
       deep_link_schemes,
       command_line_args,
     );
-    // The browser (main) process has no `type` switch; renderer/GPU/utility
-    // subprocesses are launched with one (e.g. `--type=renderer`).
-    let is_browser_process = args
-      .as_cmd_line()
-      .map(|cmd| cmd.has_switch(Some(&CefString::from("type"))) != 1)
-      .unwrap_or(true);
 
+    // Subprocesses already exited above, so this must be the browser process;
+    // `execute_process` returns -1 there to signal normal startup should follow.
     let ret = cef::execute_process(
       Some(args.as_main_args()),
       Some(&mut app),
       std::ptr::null_mut(),
     );
-
-    if is_browser_process {
-      assert_eq!(
-        ret, -1,
-        "CEF browser process unexpectedly returned from execute_process"
-      );
-    } else {
-      // A CEF subprocess finished its work. Exit cleanly with its exit code
-      // instead of falling through to browser runtime initialization.
-      std::process::exit(ret.max(0));
-    }
+    assert_eq!(
+      ret, -1,
+      "CEF browser process unexpectedly returned from execute_process"
+    );
 
     let settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,

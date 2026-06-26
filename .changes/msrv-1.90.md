@@ -13,4 +13,4 @@
 "tauri-driver": minor:changes
 ---
 
-Set MSRV to 1.83.
+Set MSRV to 1.90.

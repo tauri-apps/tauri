@@ -33,8 +33,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install Rust 1.83
-        uses: dtolnay/rust-toolchain@1.83
+      - name: install Rust 1.90
+        uses: dtolnay/rust-toolchain@1.90
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'

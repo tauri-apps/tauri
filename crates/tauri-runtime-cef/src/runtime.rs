@@ -1242,15 +1242,29 @@ impl<T: UserEvent> CefRuntime<T> {
       deep_link_schemes,
       command_line_args,
     );
+    // The browser (main) process has no `type` switch; renderer/GPU/utility
+    // subprocesses are launched with one (e.g. `--type=renderer`).
+    let is_browser_process = args
+      .as_cmd_line()
+      .map(|cmd| cmd.has_switch(Some(&CefString::from("type"))) != 1)
+      .unwrap_or(true);
+
     let ret = cef::execute_process(
       Some(args.as_main_args()),
       Some(&mut app),
       std::ptr::null_mut(),
     );
-    assert_eq!(
-      ret, -1,
-      "CEF subprocess reached browser runtime initialization"
-    );
+
+    if is_browser_process {
+      assert_eq!(
+        ret, -1,
+        "CEF browser process unexpectedly returned from execute_process"
+      );
+    } else {
+      // A CEF subprocess finished its work. Exit cleanly with its exit code
+      // instead of falling through to browser runtime initialization.
+      std::process::exit(ret.max(0));
+    }
 
     let settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,

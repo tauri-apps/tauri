@@ -720,7 +720,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         window.set_cursor(cursor_icon.into())
       }
       WindowMessage::SetCursorPosition(value) => _ = window.set_cursor_position(value),
-      WindowMessage::SetIgnoreCursorEvents(value) => _ = window.set_cursor_hittest(value),
+      WindowMessage::SetIgnoreCursorEvents(value) => _ = window.set_cursor_hittest(!value),
 
       WindowMessage::SetTrafficLightPosition(_position) => {
         #[cfg(target_os = "macos")]

@@ -358,8 +358,19 @@ pub(crate) enum Message<T: UserEvent> {
   UserEvent(T),
 }
 
+fn device_event_filter_to_winit(
+  filter: DeviceEventFilter,
+) -> winit::event_loop::DeviceEvents {
+  match filter {
+    DeviceEventFilter::Always => winit::event_loop::DeviceEvents::Never,
+    DeviceEventFilter::Unfocused => winit::event_loop::DeviceEvents::WhenFocused,
+    DeviceEventFilter::Never => winit::event_loop::DeviceEvents::Always,
+  }
+}
+
 pub(crate) enum EventLoopMessage {
   SetTheme(Option<Theme>),
+  SetDeviceEventFilter(DeviceEventFilter),
   PrimaryMonitor(Sender<Option<Monitor>>),
   MonitorFromPoint(Sender<Option<Monitor>>, f64, f64),
   AvailableMonitors(Sender<Vec<Monitor>>),
@@ -598,6 +609,9 @@ impl<T: UserEvent> WinitCefApp<T> {
           .map(|monitor| winit_monitor_to_tauri_monitor(&monitor))
           .collect();
         let _ = tx.send(monitors);
+      }
+      EventLoopMessage::SetDeviceEventFilter(filter) => {
+        event_loop.listen_device_events(device_event_filter_to_winit(filter));
       }
       EventLoopMessage::CursorPosition(tx) => {
         let _ = tx.send(event_loop.cursor_position());
@@ -1115,7 +1129,10 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     self.context.send_message(message)
   }
 
-  fn set_device_event_filter(&self, _filter: DeviceEventFilter) {}
+  fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    let message = Message::EventLoop(EventLoopMessage::SetDeviceEventFilter(filter));
+    let _ = self.context.send_message(message);
+  }
 
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
@@ -1475,11 +1492,9 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
-    self.event_loop.listen_device_events(match filter {
-      DeviceEventFilter::Always => winit::event_loop::DeviceEvents::Never,
-      DeviceEventFilter::Unfocused => winit::event_loop::DeviceEvents::WhenFocused,
-      DeviceEventFilter::Never => winit::event_loop::DeviceEvents::Always,
-    });
+    self
+      .event_loop
+      .listen_device_events(device_event_filter_to_winit(filter));
   }
 
   fn custom_scheme_url(scheme: &str, https: bool) -> String {

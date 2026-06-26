@@ -21,7 +21,7 @@ use tauri_runtime::{
   },
   window::{WebviewEvent, WindowId},
 };
-use tauri_utils::{Theme, config::Color};
+use tauri_utils::{Theme, config::Color, html::normalize_script_for_csp};
 use url::Url;
 
 use crate::cef_impl::{client as browser_client, cookie, request_context};
@@ -788,7 +788,7 @@ pub struct CefInitScript {
 impl CefInitScript {
   fn new(script: InitializationScript) -> Self {
     let mut hasher = Sha256::new();
-    hasher.update(script.script.as_bytes());
+    hasher.update(normalize_script_for_csp(script.script.as_bytes()));
     let hash = format!(
       "'sha256-{}'",
       base64::Engine::encode(

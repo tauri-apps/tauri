@@ -660,12 +660,17 @@ impl<T: UserEvent> WinitCefApp<T> {
     else {
       return;
     };
+    let label = child.label.clone();
     let listeners = child.listeners.clone();
 
-    let listeners = listeners.lock().unwrap();
-    for handler in listeners.values() {
-      handler(&event);
+    {
+      let listeners = listeners.lock().unwrap();
+      for handler in listeners.values() {
+        handler(&event);
+      }
     }
+
+    self.run_callback(RunEvent::WebviewEvent { label, event });
   }
 
   fn request_exit(&mut self, code: Option<i32>) -> bool {

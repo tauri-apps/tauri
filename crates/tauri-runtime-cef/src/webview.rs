@@ -150,6 +150,7 @@ impl Default for BoundsRate {
 
 pub(crate) struct AppWebview {
   pub(crate) webview_id: u32,
+  pub(crate) label: String,
   pub(crate) browser: cef::Browser,
   pub(crate) browser_id: i32,
   pub(crate) host: cef::BrowserHost,
@@ -404,6 +405,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         browser_tx
           .send(AppWebview {
             webview_id,
+            label,
             browser,
             browser_id,
             host,

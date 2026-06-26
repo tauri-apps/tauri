@@ -43,7 +43,8 @@ impl WindowBuilderBase for WindowBuilderWrapper {}
 
 impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
-    Self {
+    #[allow(unused_mut)]
+    let mut builder = Self {
       attrs: AppWindowAttrs {
         inner: WindowAttributes::default()
           .with_title("Tauri App")
@@ -51,6 +52,14 @@ impl WindowBuilder for WindowBuilderWrapper {
         ..Default::default()
       },
     }
+    .focused(true);
+
+    #[cfg(windows)]
+    {
+      builder = builder.window_classname("Tauri Window");
+    }
+
+    builder
   }
 
   fn with_config(config: &WindowConfig) -> Self {

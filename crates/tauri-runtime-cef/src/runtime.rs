@@ -667,14 +667,17 @@ impl<T: UserEvent> WinitCefApp<T> {
     let label = appwindow.label.clone();
     let listeners = appwindow.listeners.clone();
 
+    self.run_callback(RunEvent::WindowEvent {
+      label,
+      event: event.clone(),
+    });
+
     {
       let listeners = listeners.lock().unwrap();
       for handler in listeners.values() {
         handler(&event);
       }
     }
-
-    self.run_callback(RunEvent::WindowEvent { label, event });
   }
 
   fn emit_webview_event(&mut self, window_id: WindowId, webview_id: u32, event: WebviewEvent) {
@@ -691,14 +694,17 @@ impl<T: UserEvent> WinitCefApp<T> {
     let label = child.label.clone();
     let listeners = child.listeners.clone();
 
+    self.run_callback(RunEvent::WebviewEvent {
+      label,
+      event: event.clone(),
+    });
+
     {
       let listeners = listeners.lock().unwrap();
       for handler in listeners.values() {
         handler(&event);
       }
     }
-
-    self.run_callback(RunEvent::WebviewEvent { label, event });
   }
 
   fn request_exit(&mut self, code: Option<i32>) -> bool {
@@ -748,7 +754,26 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
 
     let (tx, rx) = mpsc::channel();
-    self.emit_window_event(window_id, WindowEvent::CloseRequested { signal_tx: tx });
+    let Some(appwindow) = self.state.windows.get(&window_id) else {
+      return;
+    };
+    let label = appwindow.label.clone();
+    let listeners = appwindow.listeners.clone();
+
+    {
+      let listeners = listeners.lock().unwrap();
+      for handler in listeners.values() {
+        handler(&WindowEvent::CloseRequested {
+          signal_tx: tx.clone(),
+        });
+      }
+    }
+
+    self.run_callback(RunEvent::WindowEvent {
+      label,
+      event: WindowEvent::CloseRequested { signal_tx: tx },
+    });
+
     if !matches!(rx.try_recv(), Ok(true)) {
       self.close_window(window_id, event_loop);
     }

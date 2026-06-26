@@ -120,12 +120,7 @@ impl StateManager {
     let already_set = map.contains_key(&type_id);
     if !already_set {
       let state = Box::new(state) as Box<dyn Any + Sync + Send>;
-      map.insert(
-        type_id,
-        // SAFETY: keep the type of the key is the same as the type of the value，
-        // see [try_get] methods for details.
-        state,
-      );
+      map.insert(type_id, state);
     }
     !already_set
   }
@@ -136,12 +131,9 @@ impl StateManager {
     let mut map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
     let state = map.remove(&type_id)?;
-    let value = unsafe {
-      state
-        .downcast::<T>()
-        // SAFETY: the type of the key is the same as the type of the value
-        .unwrap_unchecked()
-    };
+    let value = state
+      .downcast::<T>()
+      .expect("the type of the key should be same as the type of the value");
     Some(*value)
   }
 
@@ -157,12 +149,9 @@ impl StateManager {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
     let state = map.get(&type_id)?;
-    let value = unsafe {
-      state
-        .downcast_ref::<T>()
-        // SAFETY: the type of the key is the same as the type of the value
-        .unwrap_unchecked()
-    };
+    let value = state
+      .downcast_ref::<T>()
+      .expect("the type of the key should be same as the type of the value");
     // SAFETY: We ensure the lifetime of `value` is the same as [StateManager] and `value` will not be mutated/moved.
     let v_ref = unsafe { &*(value as *const T) };
     Some(State(v_ref))

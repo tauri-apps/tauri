@@ -3,14 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use super::{ActionResult, SectionItem};
-use crate::{
-  helpers::cargo_manifest::{
-    crate_latest_version, crate_version, CargoLock, CargoManifest, CrateVersion,
-  },
-  interface::rust::get_workspace_dir,
+use crate::helpers::cargo_manifest::{
+  cargo_manifest_and_lock, crate_latest_version, crate_version, CrateVersion,
 };
 use colored::Colorize;
-use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
 pub fn items(frontend_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
@@ -18,17 +14,7 @@ pub fn items(frontend_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Se
 
   if tauri_dir.is_some() || frontend_dir.is_some() {
     if let Some(tauri_dir) = tauri_dir {
-      let manifest: Option<CargoManifest> =
-        if let Ok(manifest_contents) = read_to_string(tauri_dir.join("Cargo.toml")) {
-          toml::from_str(&manifest_contents).ok()
-        } else {
-          None
-        };
-      let lock: Option<CargoLock> = get_workspace_dir()
-        .ok()
-        .and_then(|p| read_to_string(p.join("Cargo.lock")).ok())
-        .and_then(|s| toml::from_str(&s).ok());
-
+      let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
       for dep in ["tauri", "tauri-build", "wry", "tao"] {
         let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
         let item = rust_section_item(dep, crate_version);

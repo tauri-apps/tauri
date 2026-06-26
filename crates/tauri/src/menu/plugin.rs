@@ -91,6 +91,7 @@ enum Predefined {
   Quit,
   About(Option<AboutMetadata>),
   Services,
+  BringAllToFront,
 }
 
 #[derive(Deserialize)]
@@ -99,6 +100,7 @@ struct SubmenuPayload {
   text: String,
   enabled: Option<bool>,
   items: Vec<MenuItemPayloadKind>,
+  icon: Option<Icon>,
 }
 
 impl SubmenuPayload {
@@ -114,6 +116,14 @@ impl SubmenuPayload {
     };
     if let Some(enabled) = self.enabled {
       builder = builder.enabled(enabled);
+    }
+    if let Some(icon) = self.icon {
+      builder = match icon {
+        Icon::Native(native_icon) => builder.submenu_native_icon(native_icon),
+        Icon::Icon(js_icon) => {
+          builder.submenu_icon(js_icon.into_img(resources_table)?.as_ref().clone())
+        }
+      };
     }
     for item in self.items {
       builder = item.with_item(webview, resources_table, |i| Ok(builder.item(i)))?;
@@ -294,6 +304,9 @@ impl PredefinedMenuItemPayload {
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
       }
       Predefined::Services => PredefinedMenuItem::services(webview, self.text.as_deref()),
+      Predefined::BringAllToFront => {
+        PredefinedMenuItem::bring_all_to_front(webview, self.text.as_deref())
+      }
     }
   }
 }
@@ -380,6 +393,7 @@ fn new<R: Runtime>(
         text: options.text.unwrap_or_default(),
         enabled: options.enabled,
         items: options.items.unwrap_or_default(),
+        icon: options.icon,
       }
       .create_item(&webview, &resources_table)?;
       let id = submenu.id().clone();
@@ -801,7 +815,7 @@ fn set_as_windows_menu_for_nsapp<R: Runtime>(
   {
     let resources_table = webview.resources_table();
     let submenu = resources_table.get::<Submenu<R>>(rid)?;
-    submenu.set_as_help_menu_for_nsapp()?;
+    submenu.set_as_windows_menu_for_nsapp()?;
   }
 
   let _ = rid;
@@ -849,22 +863,27 @@ fn set_checked<R: Runtime>(
 fn set_icon<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
+  kind: ItemKind,
   icon: Option<Icon>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
-  let icon_item = resources_table.get::<IconMenuItem<R>>(rid)?;
-
-  match icon {
-    Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
-    Some(Icon::Icon(icon)) => {
-      icon_item.set_icon(Some(icon.into_img(&resources_table)?.as_ref().clone()))
-    }
-    None => {
-      icon_item.set_icon(None)?;
-      icon_item.set_native_icon(None)?;
-      Ok(())
-    }
-  }
+  do_menu_item!(
+    resources_table,
+    rid,
+    kind,
+    |icon_item| match icon {
+      Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
+      Some(Icon::Icon(icon)) => {
+        icon_item.set_icon(Some(icon.into_img(&resources_table)?.as_ref().clone()))
+      }
+      None => {
+        icon_item.set_icon(None)?;
+        icon_item.set_native_icon(None)?;
+        Ok(())
+      }
+    },
+    Icon | Submenu
+  )
 }
 
 struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);

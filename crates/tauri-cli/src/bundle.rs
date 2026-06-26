@@ -8,19 +8,19 @@ use std::{
   sync::OnceLock,
 };
 
-use anyhow::Context;
 use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
 use tauri_bundler::PackageType;
 use tauri_utils::platform::Target;
 
 use crate::{
+  error::{Context, ErrorExt},
   helpers::{
     self,
-    app_paths::tauri_dir,
-    config::{get as get_config, ConfigMetadata},
+    app_paths::Dirs,
+    config::{get_config, ConfigMetadata},
     updater_signature,
   },
-  interface::{AppInterface, AppSettings, Interface},
+  interface::{AppInterface, AppSettings},
   ConfigValue,
 };
 
@@ -28,11 +28,11 @@ use crate::{
 pub struct BundleFormat(PackageType);
 
 impl FromStr for BundleFormat {
-  type Err = anyhow::Error;
+  type Err = crate::Error;
   fn from_str(s: &str) -> crate::Result<Self> {
     PackageType::from_short_name(s)
       .map(Self)
-      .ok_or_else(|| anyhow::anyhow!("unknown bundle format {s}"))
+      .with_context(|| format!("unknown bundle format {s}"))
   }
 }
 
@@ -43,7 +43,7 @@ impl ValueEnum for BundleFormat {
   }
 
   fn to_possible_value(&self) -> Option<PossibleValue> {
-    let hide = self.0 == PackageType::Updater;
+    let hide = (!cfg!(windows) && self.0 == PackageType::Nsis) || self.0 == PackageType::Updater;
     Some(PossibleValue::new(self.0.short_name()).hide(hide))
   }
 }
@@ -70,8 +70,8 @@ pub struct Options {
   #[clap(short, long)]
   pub config: Vec<ConfigValue>,
   /// Space or comma separated list of features, should be the same features passed to `tauri build` if any.
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
+  pub features: Vec<String>,
   /// Target triple to build against.
   ///
   /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
@@ -82,6 +82,24 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  ///
+  /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
+  /// reaching out to Apple's servers which is helpful in offline environments.
+  ///
+  /// Enabling this option will also result in `tauri build` not waiting for notarization to finish
+  /// which is helpful for the very first time your app is notarized as this can take multiple hours.
+  /// On subsequent runs, it's recommended to disable this setting again.
+  #[clap(long)]
+  pub skip_stapling: bool,
+
+  /// Skip code signing during the build or bundling process.
+  ///
+  /// Useful for local development and CI environments
+  /// where signing certificates or environment variables
+  /// are not available or not needed.
+  #[clap(long)]
+  pub no_sign: bool,
 }
 
 impl From<crate::build::Options> for Options {
@@ -93,12 +111,14 @@ impl From<crate::build::Options> for Options {
       debug: value.debug,
       ci: value.ci,
       config: value.config,
+      skip_stapling: value.skip_stapling,
+      no_sign: value.no_sign,
     }
   }
 }
 
 pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let ci = options.ci;
 
@@ -111,32 +131,30 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   let config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
-  let interface = AppInterface::new(
-    config.lock().unwrap().as_ref().unwrap(),
-    options.target.clone(),
-  )?;
+  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
 
-  let tauri_path = tauri_dir();
-  std::env::set_current_dir(tauri_path)
-    .with_context(|| "failed to change current working directory")?;
+  std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
-  let config_guard = config.lock().unwrap();
-  let config_ = config_guard.as_ref().unwrap();
+  if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
+    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+  }
 
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
 
   bundle(
     &options,
     verbosity,
     ci,
     &interface,
-    &app_settings,
-    config_,
+    &*app_settings,
+    &config,
+    &dirs,
     &out_dir,
   )
 }
@@ -147,8 +165,9 @@ pub fn bundle<A: AppSettings>(
   verbosity: u8,
   ci: bool,
   interface: &AppInterface,
-  app_settings: &std::sync::Arc<A>,
+  app_settings: &A,
   config: &ConfigMetadata,
+  dirs: &Dirs,
   out_dir: &Path,
 ) -> crate::Result<()> {
   let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
@@ -175,13 +194,21 @@ pub fn bundle<A: AppSettings>(
         before_bundle,
         interface,
         options.debug,
+        dirs.frontend,
       )?;
     }
   }
 
   let mut settings = app_settings
-    .get_bundler_settings(options.clone().into(), config, out_dir, package_types)
-    .with_context(|| "failed to build bundler settings")?;
+    .get_bundler_settings(
+      options.clone().into(),
+      config,
+      out_dir,
+      package_types,
+      dirs.tauri,
+    )
+    .context("failed to build bundler settings")?;
+  settings.set_no_sign(options.no_sign);
 
   settings.set_log_level(match verbosity {
     0 => log::Level::Error,
@@ -189,12 +216,7 @@ pub fn bundle<A: AppSettings>(
     _ => log::Level::Trace,
   });
 
-  let bundles = tauri_bundler::bundle_project(&settings)
-    .map_err(|e| match e {
-      tauri_bundler::Error::BundlerError(e) => e,
-      e => anyhow::anyhow!("{e:#}"),
-    })
-    .with_context(|| "failed to bundle project")?;
+  let bundles = tauri_bundler::bundle_project(&settings)?;
 
   sign_updaters(settings, bundles, ci)?;
 
@@ -230,12 +252,18 @@ fn sign_updaters(
     return Ok(());
   }
 
+  if settings.no_sign() {
+    log::warn!("Updater signing is skipped due to --no-sign flag.");
+    return Ok(());
+  }
+
   // get the public key
   let pubkey = &update_settings.pubkey;
   // check if pubkey points to a file...
   let maybe_path = Path::new(pubkey);
   let pubkey = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path)?
+    std::fs::read_to_string(maybe_path)
+      .fs_context("failed to read pubkey from file", maybe_path.to_path_buf())?
   } else {
     pubkey.to_string()
   };
@@ -247,15 +275,21 @@ fn sign_updaters(
 
   // get the private key
   let private_key = std::env::var("TAURI_SIGNING_PRIVATE_KEY")
-    .map_err(|_| anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable."))?;
+    .ok()
+    .context("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")?;
   // check if private_key points to a file...
   let maybe_path = Path::new(&private_key);
   let private_key = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path)
-      .with_context(|| format!("faild to read {}", maybe_path.display()))?
+    std::fs::read_to_string(maybe_path).fs_context(
+      "failed to read private key from file",
+      maybe_path.to_path_buf(),
+    )?
   } else {
     private_key
   };
+  if password.is_none() {
+    log::info!("Decrypting updater signing key, expect a prompt for password")
+  }
   let secret_key =
     updater_signature::secret_key(private_key, password).context("failed to decode secret key")?;
   let public_key = updater_signature::pub_key(pubkey).context("failed to decode pubkey")?;
@@ -290,11 +324,11 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
     };
     let mut printable_paths = String::new();
     for path in output_paths {
-      writeln!(
+      let _ = writeln!(
         printable_paths,
         "        {}",
         tauri_utils::display_path(path)
-      )?;
+      );
     }
     log::info!( action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
   }

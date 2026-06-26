@@ -4,6 +4,7 @@ Categories={{categories}}
 Comment={{comment}}
 {{/if}}
 Exec={{exec}}
+StartupWMClass={{exec}}
 Icon={{icon}}
 Name={{name}}
 Terminal=false

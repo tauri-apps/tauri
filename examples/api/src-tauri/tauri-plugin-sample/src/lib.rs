@@ -56,8 +56,8 @@ fn ping<R: tauri::Runtime>(
   scope: tauri::ipc::CommandScope<PingScope>,
   global_scope: tauri::ipc::GlobalScope<SampleScope>,
 ) -> std::result::Result<PingResponse, String> {
-  println!("local scope {:?}", scope);
-  println!("global scope {:?}", global_scope);
+  println!("local scope {scope:?}");
+  println!("global scope {global_scope:?}");
   app
     .sample()
     .ping(PingRequest {

@@ -15,6 +15,7 @@ use std::{
 };
 
 /// Resources are Rust objects that are stored in [ResourceTable] and managed by tauri.
+///
 /// They are identified in JS by a numeric ID (the resource ID, or rid).
 /// Resources can be created in commands. Resources can also be retrieved in commands by
 /// their rid. Resources are thread-safe.
@@ -79,7 +80,7 @@ pub struct ResourceTable {
 impl ResourceTable {
   fn new_random_rid() -> u32 {
     let mut bytes = [0_u8; 4];
-    getrandom::getrandom(&mut bytes).expect("failed to get random bytes");
+    getrandom::fill(&mut bytes).expect("failed to get random bytes");
     u32::from_ne_bytes(bytes)
   }
 
@@ -139,7 +140,7 @@ impl ResourceTable {
   }
 
   /// Returns a reference counted pointer to the resource of the given `rid`.
-  /// If `rid` is not present, this function returns [`Error::BadResourceId`].
+  /// If `rid` is not present, this function returns [`crate::Error::BadResourceId`].
   pub fn get_any(&self, rid: ResourceId) -> crate::Result<Arc<dyn Resource>> {
     self
       .index

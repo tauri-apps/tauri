@@ -29,6 +29,8 @@ Default permissions for the plugin.
 - `allow-cursor-position`
 - `allow-theme`
 - `allow-is-always-on-top`
+- `allow-activity-name`
+- `allow-scene-identifier`
 - `allow-internal-toggle-maximize`
 
 ## Permission Table
@@ -39,6 +41,32 @@ Default permissions for the plugin.
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`core:window:allow-activity-name`
+
+</td>
+<td>
+
+Enables the activity_name command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-activity-name`
+
+</td>
+<td>
+
+Denies the activity_name command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
@@ -875,6 +903,32 @@ Denies the scale_factor command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-scene-identifier`
+
+</td>
+<td>
+
+Enables the scene_identifier command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-scene-identifier`
+
+</td>
+<td>
+
+Denies the scene_identifier command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-set-always-on-bottom`
 
 </td>
@@ -1265,6 +1319,32 @@ Denies the set_focus command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-set-focusable`
+
+</td>
+<td>
+
+Enables the set_focusable command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-focusable`
+
+</td>
+<td>
+
+Denies the set_focusable command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-set-fullscreen`
 
 </td>
@@ -1570,6 +1650,32 @@ Enables the set_shadow command without any pre-configured scope.
 <td>
 
 Denies the set_shadow command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-set-simple-fullscreen`
+
+</td>
+<td>
+
+Enables the set_simple_fullscreen command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-simple-fullscreen`
+
+</td>
+<td>
+
+Denies the set_simple_fullscreen command without any pre-configured scope.
 
 </td>
 </tr>

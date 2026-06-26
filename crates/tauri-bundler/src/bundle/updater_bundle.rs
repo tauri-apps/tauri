@@ -11,10 +11,11 @@ use crate::{
     },
     Bundle,
   },
+  error::{Context, ErrorExt},
   utils::fs_utils,
   Settings,
 };
-use tauri_utils::display_path;
+use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 use std::{
   fs::{self, File},
@@ -22,19 +23,13 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use anyhow::Context;
 use zip::write::SimpleFileOptions;
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
-  let target_os = settings
-    .target()
-    .split('-')
-    .nth(2)
-    .unwrap_or(std::env::consts::OS)
-    .replace("darwin", "macos");
+  let target_os = settings.target_platform();
 
-  if target_os == "windows" {
+  if matches!(target_os, TargetPlatform::Windows) {
     return bundle_update_windows(settings, bundles);
   }
 
@@ -193,7 +188,7 @@ fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Resu
           p.push(c);
           (p, b)
         });
-    let archived_path = archived_path.with_extension(format!("{}.zip", bundle_name));
+    let archived_path = archived_path.with_extension(format!("{bundle_name}.zip"));
 
     log::info!(action = "Bundling"; "{}", display_path(&archived_path));
 
@@ -221,7 +216,9 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
     .unix_permissions(0o755);
 
   zip.start_file(file_name.to_string_lossy(), options)?;
-  let mut f = File::open(src_file)?;
+  let mut f =
+    File::open(src_file).fs_context("failed to open updater ZIP file", src_file.to_path_buf())?;
+
   let mut buffer = Vec::new();
   f.read_to_end(&mut buffer)?;
   zip.write_all(&buffer)?;

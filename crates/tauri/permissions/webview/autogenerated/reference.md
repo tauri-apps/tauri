@@ -203,6 +203,32 @@ Denies the reparent command without any pre-configured scope.
 <tr>
 <td>
 
+`core:webview:allow-set-webview-auto-resize`
+
+</td>
+<td>
+
+Enables the set_webview_auto_resize command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-set-webview-auto-resize`
+
+</td>
+<td>
+
+Denies the set_webview_auto_resize command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:webview:allow-set-webview-background-color`
 
 </td>

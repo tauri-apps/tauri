@@ -1,7 +1,8 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "2.4.1",
+  "version": "2.11.3",
   "description": "Command line interface for building Tauri apps",
+  "type": "commonjs",
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/tauri"
@@ -24,25 +25,26 @@
   "main": "main.js",
   "types": "main.d.ts",
   "napi": {
-    "name": "cli",
-    "triples": {
-      "additional": [
-        "aarch64-apple-darwin",
-        "aarch64-unknown-linux-gnu",
-        "aarch64-unknown-linux-musl",
-        "armv7-unknown-linux-gnueabihf",
-        "x86_64-unknown-linux-musl",
-        "riscv64gc-unknown-linux-gnu",
-        "i686-pc-windows-msvc",
-        "aarch64-pc-windows-msvc"
-      ]
-    }
+    "binaryName": "cli",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "armv7-unknown-linux-gnueabihf",
+      "x86_64-unknown-linux-musl",
+      "riscv64gc-unknown-linux-gnu",
+      "i686-pc-windows-msvc",
+      "aarch64-pc-windows-msvc"
+    ]
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.18.4",
-    "@types/node": "^22.13.5",
-    "cross-env": "7.0.3",
-    "vitest": "^3.0.7"
+    "@napi-rs/cli": "3.4.1",
+    "@types/node": "^24.11.0",
+    "cross-env": "10.1.0",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">= 10"

@@ -73,6 +73,12 @@ impl FromStr for SafePathBuf {
   }
 }
 
+impl From<SafePathBuf> for PathBuf {
+  fn from(path: SafePathBuf) -> Self {
+    path.0
+  }
+}
+
 impl<'de> Deserialize<'de> for SafePathBuf {
   fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
   where
@@ -124,7 +130,7 @@ pub enum BaseDirectory {
   /// Resolves to [`crate::path::PathResolver::video_dir`].
   Video = 10,
   /// The Resource directory.
-  /// Resolves to the resource directory of this app.
+  /// Resolves to [`crate::path::PathResolver::resource_dir`].
   Resource = 11,
   /// A temporary directory.
   /// Resolves to [`std::env::temp_dir`].

@@ -4,7 +4,10 @@
 
 use clap::Parser;
 
-use crate::{helpers::app_paths::tauri_dir, Result};
+use crate::{
+  error::{Context, ErrorExt},
+  Result,
+};
 use colored::Colorize;
 use tauri_utils::acl::{manifest::Manifest, APP_ACL_KEY};
 
@@ -21,16 +24,19 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let acl_manifests_path = tauri_dir()
+  let acl_manifests_path = dirs
+    .tauri
     .join("gen")
     .join("schemas")
     .join("acl-manifests.json");
 
   if acl_manifests_path.exists() {
-    let plugin_manifest_json = read_to_string(&acl_manifests_path)?;
-    let acl = serde_json::from_str::<BTreeMap<String, Manifest>>(&plugin_manifest_json)?;
+    let plugin_manifest_json = read_to_string(&acl_manifests_path)
+      .fs_context("failed to read plugin manifest", acl_manifests_path)?;
+    let acl = serde_json::from_str::<BTreeMap<String, Manifest>>(&plugin_manifest_json)
+      .context("failed to parse plugin manifest as JSON")?;
 
     for (key, manifest) in acl {
       if options
@@ -147,6 +153,6 @@ pub fn command(options: Options) -> Result<()> {
 
     Ok(())
   } else {
-    anyhow::bail!("permission file not found, please build your application once first")
+    crate::error::bail!("permission file not found, please build your application once first")
   }
 }

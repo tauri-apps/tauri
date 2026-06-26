@@ -27,49 +27,46 @@
       && (canUseCustomProtocol || cmd === fetchChannelDataCommand)
     ) {
       const { contentType, data } = processIpcMessage(payload)
+
+      const headers = new Headers((options && options.headers) || {})
+      headers.set('Content-Type', contentType)
+      headers.set('Tauri-Callback', callback)
+      headers.set('Tauri-Error', error)
+      headers.set('Tauri-Invoke-Key', __TAURI_INVOKE_KEY__)
+
       fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {
         method: 'POST',
         body: data,
-        headers: {
-          'Content-Type': contentType,
-          'Tauri-Callback': callback,
-          'Tauri-Error': error,
-          'Tauri-Invoke-Key': __TAURI_INVOKE_KEY__,
-          ...((options && options.headers) || {})
-        }
+        headers
       })
         .then((response) => {
-          const cb =
+          const callbackId =
             response.headers.get('Tauri-Response') === 'ok' ? callback : error
           // we need to split here because on Android the content-type gets duplicated
           switch ((response.headers.get('content-type') || '').split(',')[0]) {
             case 'application/json':
-              return response.json().then((r) => [cb, r])
+              return response.json().then((r) => [callbackId, r])
             case 'text/plain':
-              return response.text().then((r) => [cb, r])
+              return response.text().then((r) => [callbackId, r])
             default:
-              return response.arrayBuffer().then((r) => [cb, r])
+              return response.arrayBuffer().then((r) => [callbackId, r])
           }
         })
-        .then(([cb, data]) => {
-          if (window[`_${cb}`]) {
-            window[`_${cb}`](data)
-          } else {
+        .then(
+          ([callbackId, data]) => {
+            window.__TAURI_INTERNALS__.runCallback(callbackId, data)
+          },
+          (e) => {
             console.warn(
-              `[TAURI] Couldn't find callback id {cb} in window. This might happen when the app is reloaded while Rust is running an asynchronous operation.`
+              'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
+              e
             )
+            // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
+            // so we need to fallback to the postMessage interface
+            customProtocolIpcFailed = true
+            sendIpcMessage(message)
           }
-        })
-        .catch((e) => {
-          console.warn(
-            'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
-            e
-          )
-          // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
-          // so we need to fallback to the postMessage interface
-          customProtocolIpcFailed = true
-          sendIpcMessage(message)
-        })
+        )
     } else {
       // otherwise use the postMessage interface
       const { data } = processIpcMessage({
@@ -83,6 +80,7 @@
         payload,
         __TAURI_INVOKE_KEY__
       })
+      // `window.ipc.postMessage` came from `tauri-runtime-wry` > `wry` [`with_ipc_handler`](https://github.com/tauri-apps/wry/blob/a0403b9e2f1ff9d73be7dce1184f058afcaa1d82/src/lib.rs#L1130)
       window.ipc.postMessage(data)
     }
   }

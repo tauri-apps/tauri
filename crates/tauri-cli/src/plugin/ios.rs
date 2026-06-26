@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::PluginIosFramework;
-use crate::{helpers::template, Result};
+use crate::{error::Context, helpers::template, Result};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 
@@ -53,13 +53,15 @@ pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => {
       let plugin_name = match options.plugin_name {
-        None => super::infer_plugin_name(std::env::current_dir()?)?,
+        None => super::infer_plugin_name(
+          std::env::current_dir().context("failed to get current directory")?,
+        )?,
         Some(name) => name,
       };
 
       let out_dir = PathBuf::from(options.out_dir);
       if out_dir.join("ios").exists() {
-        return Err(anyhow::anyhow!("ios folder already exists"));
+        crate::error::bail!("iOS folder already exists");
       }
 
       let handlebars = Handlebars::new();
@@ -126,19 +128,18 @@ tauri-build = "{}"
       let init_fn = format!(
         r#"
 #[cfg(target_os = "ios")]
-tauri::ios_plugin_binding!(init_plugin_{name});
+tauri::ios_plugin_binding!(init_plugin_{plugin_name});
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
-  Builder::new("{name}")
+  Builder::new("{plugin_name}")
     .setup(|app| {{
       #[cfg(target_os = "ios")]
-      app.register_ios_plugin(init_plugin_{name})?;
+      app.register_ios_plugin(init_plugin_{plugin_name})?;
       Ok(())
     }})
     .build()
 }}
 "#,
-        name = plugin_name,
       );
 
       log::info!("iOS project added");

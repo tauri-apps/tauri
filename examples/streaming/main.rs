@@ -116,7 +116,7 @@ fn get_stream_response(
         format!("multipart/byteranges; boundary={boundary}"),
       );
 
-      for (end, start) in ranges {
+      for (start, end) in ranges {
         // a new range is being written, write the range boundary
         buf.write_all(boundary_sep.as_bytes())?;
 
@@ -152,7 +152,7 @@ fn get_stream_response(
 
 fn random_boundary() -> String {
   let mut x = [0_u8; 30];
-  getrandom::getrandom(&mut x).expect("failed to get random bytes");
+  getrandom::fill(&mut x).expect("failed to get random bytes");
   (x[..])
     .iter()
     .map(|&x| format!("{x:x}"))

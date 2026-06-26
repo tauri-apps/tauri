@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "2.1.1"
+version = "2.6.3"
 description = "build time code to pair with https://crates.io/crates/tauri"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -22,15 +22,13 @@ targets = [
   "x86_64-linux-android",
   "x86_64-apple-ios",
 ]
-rustc-args = ["--cfg", "docsrs"]
-rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "2.1.1", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "2.3.1", path = "../tauri-utils", features = [
-  "build",
+tauri-codegen = { version = "2.6.3", path = "../tauri-codegen", optional = true }
+tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
+  "build-2",
   "resources",
 ] }
 cargo_toml = "0.22"
@@ -43,9 +41,8 @@ tauri-winres = "0.3"
 semver = "1"
 dirs = "6"
 glob = "0.3"
-toml = "0.8"
-# Our code requires at least 0.8.18 so don't simplify this to 0.8
-schemars = { version = "0.8.18", features = ["preserve_order"] }
+# Our code requires at least 0.8.21 so don't simplify this to 0.8
+schemars = { version = "0.8.21", features = ["preserve_order"] }
 
 [features]
 default = ["config-json"]

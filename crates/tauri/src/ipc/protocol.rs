@@ -183,251 +183,252 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
 }
 
 fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager<R>, label: &str) {
-  if let Some(webview) = manager.get_webview(label) {
-    #[cfg(feature = "tracing")]
-    let _span = tracing::trace_span!(
-      "ipc::request",
-      kind = "post-message",
-      uri = request.uri().to_string(),
-      request = request.body()
-    )
-    .entered();
+  let Some(webview) = manager.get_webview(label) else {
+    return;
+  };
 
-    use serde::{Deserialize, Deserializer};
+  #[cfg(feature = "tracing")]
+  let _span = tracing::trace_span!(
+    "ipc::request",
+    kind = "post-message",
+    uri = request.uri().to_string(),
+    request = request.body()
+  )
+  .entered();
 
-    #[derive(Default)]
-    pub(crate) struct HeaderMap(http::HeaderMap);
+  use serde::{Deserialize, Deserializer};
 
-    impl<'de> Deserialize<'de> for HeaderMap {
-      fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-      where
-        D: Deserializer<'de>,
-      {
-        let map = std::collections::HashMap::<String, String>::deserialize(deserializer)?;
-        let mut headers = http::HeaderMap::default();
-        for (key, value) in map {
-          if let (Ok(key), Ok(value)) = (
-            http::header::HeaderName::from_bytes(key.as_bytes()),
-            http::HeaderValue::from_str(&value),
-          ) {
-            headers.insert(key, value);
-          } else {
-            return Err(serde::de::Error::custom(format!(
-              "invalid header `{key}` `{value}`"
-            )));
-          }
+  #[derive(Default)]
+  pub(crate) struct HeaderMap(http::HeaderMap);
+
+  impl<'de> Deserialize<'de> for HeaderMap {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+      D: Deserializer<'de>,
+    {
+      let map = std::collections::HashMap::<String, String>::deserialize(deserializer)?;
+      let mut headers = http::HeaderMap::default();
+      for (key, value) in map {
+        if let (Ok(key), Ok(value)) = (
+          http::header::HeaderName::from_bytes(key.as_bytes()),
+          http::HeaderValue::from_str(&value),
+        ) {
+          headers.insert(key, value);
+        } else {
+          return Err(serde::de::Error::custom(format!(
+            "invalid header `{key}` `{value}`"
+          )));
         }
-        Ok(Self(headers))
       }
+      Ok(Self(headers))
     }
+  }
 
-    #[derive(Deserialize, Default)]
-    #[serde(rename_all = "camelCase")]
-    struct RequestOptions {
-      #[serde(default)]
-      headers: HeaderMap,
-      #[serde(default)]
-      custom_protocol_ipc_blocked: bool,
-    }
+  #[derive(Deserialize, Default)]
+  #[serde(rename_all = "camelCase")]
+  struct RequestOptions {
+    #[serde(default)]
+    headers: HeaderMap,
+    #[serde(default)]
+    custom_protocol_ipc_blocked: bool,
+  }
 
+  #[derive(Deserialize)]
+  struct Message {
+    cmd: String,
+    callback: CallbackFn,
+    error: CallbackFn,
+    payload: serde_json::Value,
+    options: Option<RequestOptions>,
+    #[serde(rename = "__TAURI_INVOKE_KEY__")]
+    invoke_key: String,
+  }
+
+  #[allow(unused_mut)]
+  let mut invoke_message: Option<crate::Result<Message>> = None;
+
+  #[cfg(feature = "isolation")]
+  {
     #[derive(Deserialize)]
-    struct Message {
+    struct IsolationMessage<'a> {
       cmd: String,
       callback: CallbackFn,
       error: CallbackFn,
-      payload: serde_json::Value,
+      payload: crate::utils::pattern::isolation::RawIsolationPayload<'a>,
       options: Option<RequestOptions>,
       #[serde(rename = "__TAURI_INVOKE_KEY__")]
       invoke_key: String,
     }
 
-    #[allow(unused_mut)]
-    let mut invoke_message: Option<crate::Result<Message>> = None;
-
-    #[cfg(feature = "isolation")]
-    {
-      #[derive(serde::Deserialize)]
-      struct IsolationMessage<'a> {
-        cmd: String,
-        callback: CallbackFn,
-        error: CallbackFn,
-        payload: crate::utils::pattern::isolation::RawIsolationPayload<'a>,
-        options: Option<RequestOptions>,
-        #[serde(rename = "__TAURI_INVOKE_KEY__")]
-        invoke_key: String,
-      }
-
-      if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
-        #[cfg(feature = "tracing")]
-        let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
-
-        invoke_message.replace(
-          serde_json::from_str::<IsolationMessage<'_>>(request.body())
-            .map_err(Into::into)
-            .and_then(|message| {
-              let is_raw =
-                message.payload.content_type() == &mime::APPLICATION_OCTET_STREAM.to_string();
-              let payload = crypto_keys.decrypt(message.payload)?;
-              Ok(Message {
-                cmd: message.cmd,
-                callback: message.callback,
-                error: message.error,
-                payload: if is_raw {
-                  payload.into()
-                } else {
-                  serde_json::from_slice(&payload)?
-                },
-                options: message.options,
-                invoke_key: message.invoke_key,
-              })
-            }),
-        );
-      }
-    }
-
-    let message = invoke_message.unwrap_or_else(|| {
+    if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
       #[cfg(feature = "tracing")]
-      let _span = tracing::trace_span!("ipc::request::deserialize").entered();
-      serde_json::from_str::<Message>(request.body()).map_err(Into::into)
-    });
+      let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
 
-    match message {
-      Ok(message) => {
-        let options = message.options.unwrap_or_default();
+      invoke_message.replace(
+        serde_json::from_str::<IsolationMessage<'_>>(request.body())
+          .map_err(Into::into)
+          .and_then(|message| {
+            let is_raw =
+              message.payload.content_type() == &mime::APPLICATION_OCTET_STREAM.to_string();
+            let payload = crypto_keys.decrypt(message.payload)?;
+            Ok(Message {
+              cmd: message.cmd,
+              callback: message.callback,
+              error: message.error,
+              payload: if is_raw {
+                payload.into()
+              } else {
+                serde_json::from_slice(&payload)?
+              },
+              options: message.options,
+              invoke_key: message.invoke_key,
+            })
+          }),
+      );
+    }
+  }
 
-        let request = InvokeRequest {
-          cmd: message.cmd,
-          callback: message.callback,
-          error: message.error,
-          url: Url::parse(&request.uri().to_string()).expect("invalid IPC request URL"),
-          body: message.payload.into(),
-          headers: options.headers.0,
-          invoke_key: message.invoke_key,
-        };
+  let message = invoke_message.unwrap_or_else(|| {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::trace_span!("ipc::request::deserialize").entered();
+    serde_json::from_str::<Message>(request.body()).map_err(Into::into)
+  });
 
-        #[cfg(feature = "tracing")]
-        let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
+  match message {
+    Ok(message) => {
+      let options = message.options.unwrap_or_default();
 
-        webview.on_message(
-          request,
-          Box::new(move |webview, cmd, response, callback, error| {
-            use crate::ipc::Channel;
+      let request = InvokeRequest {
+        cmd: message.cmd,
+        callback: message.callback,
+        error: message.error,
+        url: Url::parse(&request.uri().to_string()).expect("invalid IPC request URL"),
+        body: message.payload.into(),
+        headers: options.headers.0,
+        invoke_key: message.invoke_key,
+      };
 
-            #[cfg(feature = "tracing")]
-            let _respond_span = tracing::trace_span!(
-              parent: &request_span,
-              "ipc::request::respond"
+      #[cfg(feature = "tracing")]
+      let request_span = tracing::trace_span!("ipc::request::handle", cmd = request.cmd);
+
+      webview.on_message(
+        request,
+        Box::new(move |webview, cmd, response, callback, error| {
+          use crate::ipc::Channel;
+
+          #[cfg(feature = "tracing")]
+          let _respond_span = tracing::trace_span!(
+            parent: &request_span,
+            "ipc::request::respond"
+          )
+          .entered();
+
+          fn responder_eval<R: Runtime>(
+            webview: &crate::Webview<R>,
+            js: crate::Result<String>,
+            error: CallbackFn,
+          ) {
+            let eval_js = match js {
+              Ok(js) => js,
+              Err(e) => crate::ipc::format_callback::format(error, &e.to_string())
+                .expect("unable to serialize response error string to json"),
+            };
+
+            let _ = webview.eval(eval_js);
+          }
+
+          let can_use_channel_for_response = cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+            && !options.custom_protocol_ipc_blocked;
+
+          #[cfg(feature = "tracing")]
+          let mime_type = match &response {
+            InvokeResponse::Ok(InvokeResponseBody::Json(_)) => mime::APPLICATION_JSON,
+            InvokeResponse::Ok(InvokeResponseBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
+            InvokeResponse::Err(_) => mime::APPLICATION_JSON,
+          };
+
+          #[cfg(feature = "tracing")]
+          let _response_span = match &response {
+            InvokeResponse::Ok(InvokeResponseBody::Json(v)) => tracing::trace_span!(
+              "ipc::request::response",
+              response = v,
+              mime_type = mime_type.essence_str()
             )
-            .entered();
+            .entered(),
+            InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => tracing::trace_span!(
+              "ipc::request::response",
+              response = format!("{v:?}"),
+              mime_type = mime_type.essence_str()
+            )
+            .entered(),
+            InvokeResponse::Err(e) => tracing::trace_span!(
+              "ipc::request::response",
+              response = format!("{e:?}"),
+              mime_type = mime_type.essence_str()
+            )
+            .entered(),
+          };
 
-            fn responder_eval<R: Runtime>(
-              webview: &crate::Webview<R>,
-              js: crate::Result<String>,
-              error: CallbackFn,
-            ) {
-              let eval_js = match js {
-                Ok(js) => js,
-                Err(e) => crate::ipc::format_callback::format(error, &e.to_string())
-                  .expect("unable to serialize response error string to json"),
-              };
-
-              let _ = webview.eval(eval_js);
-            }
-
-            let can_use_channel_for_response = cmd
-              != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-              && !options.custom_protocol_ipc_blocked;
-
-            #[cfg(feature = "tracing")]
-            let mime_type = match &response {
-              InvokeResponse::Ok(InvokeResponseBody::Json(_)) => mime::APPLICATION_JSON,
-              InvokeResponse::Ok(InvokeResponseBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
-              InvokeResponse::Err(_) => mime::APPLICATION_JSON,
-            };
-
-            #[cfg(feature = "tracing")]
-            let _response_span = match &response {
-              InvokeResponse::Ok(InvokeResponseBody::Json(v)) => tracing::trace_span!(
-                "ipc::request::response",
-                response = v,
-                mime_type = mime_type.essence_str()
-              )
-              .entered(),
-              InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => tracing::trace_span!(
-                "ipc::request::response",
-                response = format!("{v:?}"),
-                mime_type = mime_type.essence_str()
-              )
-              .entered(),
-              InvokeResponse::Err(e) => tracing::trace_span!(
-                "ipc::request::response",
-                response = format!("{e:?}"),
-                mime_type = mime_type.essence_str()
-              )
-              .entered(),
-            };
-
-            match response {
-              InvokeResponse::Ok(InvokeResponseBody::Json(v)) => {
-                if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
-                  && (v.starts_with('{') || v.starts_with('['))
-                  && can_use_channel_for_response
-                {
-                  let _ =
-                    Channel::from_callback_fn(webview, callback).send(InvokeResponseBody::Json(v));
-                } else {
-                  responder_eval(
-                    &webview,
-                    crate::ipc::format_callback::format_result_raw(
-                      Result::<_, String>::Ok(v),
-                      callback,
-                      error,
-                    ),
+          match response {
+            InvokeResponse::Ok(InvokeResponseBody::Json(v)) => {
+              if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
+                && (v.starts_with('{') || v.starts_with('['))
+                && can_use_channel_for_response
+              {
+                let _ =
+                  Channel::from_callback_fn(webview, callback).send(InvokeResponseBody::Json(v));
+              } else {
+                responder_eval(
+                  &webview,
+                  crate::ipc::format_callback::format_result_raw(
+                    Result::<_, String>::Ok(v),
+                    callback,
                     error,
-                  )
-                }
-              }
-              InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => {
-                if cfg!(target_os = "macos")
-                  || cfg!(target_os = "ios")
-                  || !can_use_channel_for_response
-                {
-                  responder_eval(
-                    &webview,
-                    crate::ipc::format_callback::format_result(
-                      Result::<_, ()>::Ok(v),
-                      callback,
-                      error,
-                    ),
-                    error,
-                  );
-                } else {
-                  let _ =
-                    Channel::from_callback_fn(webview, callback).send(InvokeResponseBody::Raw(v));
-                }
-              }
-              InvokeResponse::Err(e) => responder_eval(
-                &webview,
-                crate::ipc::format_callback::format_result(
-                  Result::<(), _>::Err(&e.0),
-                  callback,
+                  ),
                   error,
-                ),
+                )
+              }
+            }
+            InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => {
+              if cfg!(target_os = "macos")
+                || cfg!(target_os = "ios")
+                || !can_use_channel_for_response
+              {
+                responder_eval(
+                  &webview,
+                  crate::ipc::format_callback::format_result(
+                    Result::<_, ()>::Ok(v),
+                    callback,
+                    error,
+                  ),
+                  error,
+                );
+              } else {
+                let _ =
+                  Channel::from_callback_fn(webview, callback).send(InvokeResponseBody::Raw(v));
+              }
+            }
+            InvokeResponse::Err(e) => responder_eval(
+              &webview,
+              crate::ipc::format_callback::format_result(
+                Result::<(), _>::Err(&e.0),
+                callback,
                 error,
               ),
-            }
-          }),
-        );
-      }
-      Err(e) => {
-        #[cfg(feature = "tracing")]
-        tracing::trace!("ipc.request.error {}", e);
+              error,
+            ),
+          }
+        }),
+      );
+    }
+    Err(e) => {
+      #[cfg(feature = "tracing")]
+      tracing::trace!("ipc.request.error {e}");
 
-        let _ = webview.eval(format!(
-          r#"console.error({})"#,
-          serde_json::Value::String(e.to_string())
-        ));
-      }
+      let _ = webview.eval(format!(
+        r#"console.error({})"#,
+        serde_json::Value::String(e.to_string())
+      ));
     }
   }
 }
@@ -466,15 +467,11 @@ fn parse_invoke_request<R: Runtime>(
 
       (body, content_type) = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
         .and_then(|raw| {
-          let content_type = raw.content_type().clone();
-          crypto_keys.decrypt(raw).map(|decrypted| {
-            (
-              decrypted,
-              content_type
-                .parse()
-                .unwrap_or(mime::APPLICATION_OCTET_STREAM),
-            )
-          })
+          let content_type = raw
+            .content_type()
+            .parse()
+            .unwrap_or(mime::APPLICATION_OCTET_STREAM);
+          Ok((crypto_keys.decrypt(raw)?, content_type))
         })
         .map_err(|e| e.to_string())?;
     }
@@ -571,6 +568,8 @@ mod tests {
       PluginStore::default(),
       Box::new(|_| false),
       None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      None,
       Default::default(),
       StateManager::new(),
       Default::default(),
@@ -589,7 +588,7 @@ mod tests {
     let invoke_key = "1234ahdsjkl123";
     let callback = 12378123;
     let error = 6243;
-    let headers = HeaderMap::from_iter(vec![
+    let mut headers = HeaderMap::from_iter(vec![
       (
         CONTENT_TYPE,
         HeaderValue::from_str(mime::APPLICATION_OCTET_STREAM.as_ref()).unwrap(),
@@ -629,7 +628,6 @@ mod tests {
       "anotherKey": "asda",
     });
 
-    let mut headers = headers;
     headers.insert(
       CONTENT_TYPE,
       HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),
@@ -659,7 +657,7 @@ mod tests {
     };
 
     let mut nonce = [0u8; 12];
-    getrandom::getrandom(&mut nonce).unwrap();
+    getrandom::fill(&mut nonce).unwrap();
 
     let body_raw = vec![1, 41, 65, 12, 78];
     let body_bytes = crypto_keys.aes_gcm().encrypt(&nonce, &body_raw).unwrap();
@@ -687,6 +685,8 @@ mod tests {
       context,
       PluginStore::default(),
       Box::new(|_| false),
+      None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
       Default::default(),
       StateManager::new(),

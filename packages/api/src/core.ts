@@ -59,14 +59,15 @@
 export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
 
 /**
- * Transforms a callback function to a string identifier that can be passed to the backend.
+ * Stores the callback in a known location, and returns an identifier that can be passed to the backend.
  * The backend uses the identifier to `eval()` the callback.
  *
- * @return A unique identifier associated with the callback function.
+ * @return An unique identifier associated with the callback function.
  *
  * @since 1.0.0
  */
 function transformCallback<T = unknown>(
+  // TODO: Make this not optional in v3
   callback?: (response: T) => void,
   once = false
 ): number {
@@ -131,7 +132,7 @@ class Channel<T = unknown> {
   }
 
   private cleanupCallback() {
-    Reflect.deleteProperty(window, `_${this.id}`)
+    window.__TAURI_INTERNALS__.unregisterCallback(this.id)
   }
 
   set onmessage(handler: (response: T) => void) {
@@ -184,9 +185,18 @@ async function addPluginListener<T>(
   cb: (payload: T) => void
 ): Promise<PluginListener> {
   const handler = new Channel<T>(cb)
-  return invoke(`plugin:${plugin}|registerListener`, { event, handler }).then(
-    () => new PluginListener(plugin, event, handler.id)
-  )
+  try {
+    await invoke(`plugin:${plugin}|register_listener`, {
+      event,
+      handler
+    })
+    return new PluginListener(plugin, event, handler.id)
+  } catch {
+    // TODO(v3): remove this fallback
+    // note: we must try with camelCase here for backwards compatibility
+    await invoke(`plugin:${plugin}|registerListener`, { event, handler })
+    return new PluginListener(plugin, event, handler.id)
+  }
 }
 
 type PermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'
@@ -220,7 +230,7 @@ type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array
  * @since 2.0.0
  */
 interface InvokeOptions {
-  headers: Headers | Record<string, string>
+  headers: HeadersInit
 }
 
 /**
@@ -284,7 +294,7 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  * A rust-backed resource stored through `tauri::Manager::resources_table` API.
  *
  * The resource lives in the main process and does not exist
- * in the Javascript world, and thus will not be cleaned up automatiacally
+ * in the Javascript world, and thus will not be cleaned up automatically
  * except on application exit. If you want to clean it up early, call {@linkcode Resource.close}
  *
  * @example
@@ -325,7 +335,7 @@ export class Resource {
 }
 
 function isTauri(): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-member-access
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   return !!((globalThis as any) || window).isTauri
 }
 

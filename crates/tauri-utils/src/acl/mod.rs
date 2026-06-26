@@ -28,7 +28,7 @@ use std::{
   collections::{BTreeMap, HashSet},
   fs,
   num::NonZeroU64,
-  path::{Path, PathBuf},
+  path::PathBuf,
   str::FromStr,
   sync::Arc,
 };
@@ -50,7 +50,7 @@ pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 pub const APP_ACL_KEY: &str = "__app-acl__";
 /// Known acl manifests file
 pub const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
-/// Known capabilityies file
+/// Known capabilities file
 pub const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 /// Allowed commands file name
 pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
@@ -58,7 +58,7 @@ pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
 /// the value is set to the config's directory
 pub const REMOVE_UNUSED_COMMANDS_ENV_VAR: &str = "REMOVE_UNUSED_COMMANDS";
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 pub mod build;
 pub mod capability;
 pub mod identifier;
@@ -104,7 +104,7 @@ pub enum Error {
   CreateDir(std::io::Error, PathBuf),
 
   /// [`cargo_metadata`] was not able to complete successfully
-  #[cfg(feature = "build")]
+  #[cfg(any(feature = "build", feature = "build-2"))]
   #[error("failed to execute: {0}")]
   Metadata(#[from] ::cargo_metadata::Error),
 
@@ -352,19 +352,9 @@ pub fn has_app_manifest(acl: &BTreeMap<String, crate::acl::manifest::Manifest>) 
 /// Get the capabilities from the config file
 pub fn get_capabilities(
   config: &Config,
-  pre_built_capabilities_file_path: Option<&Path>,
+  mut capabilities_from_files: BTreeMap<String, Capability>,
   additional_capability_files: Option<&[PathBuf]>,
 ) -> anyhow::Result<BTreeMap<String, Capability>> {
-  let mut capabilities_from_files: BTreeMap<String, Capability> = BTreeMap::new();
-  if let Some(capabilities_file_path) = pre_built_capabilities_file_path {
-    if capabilities_file_path.exists() {
-      let capabilities_file =
-        std::fs::read_to_string(capabilities_file_path).context("failed to read capabilities")?;
-      capabilities_from_files =
-        serde_json::from_str(&capabilities_file).context("failed to parse capabilities")?;
-    }
-  }
-
   let mut capabilities = if config.app.security.capabilities.is_empty() {
     capabilities_from_files
   } else {
@@ -470,7 +460,7 @@ mod tests {
   }
 }
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 mod build_ {
   use std::convert::identity;
 

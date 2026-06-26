@@ -28,6 +28,9 @@ use crate::{
   EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview, Window,
 };
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use crate::app::OnWebContentProcessTerminate;
+
 use super::{
   window::{DragDropPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT},
   {AppManager, EmitPayload},
@@ -60,7 +63,7 @@ pub(crate) struct IpcJavascript<'a> {
 pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol:
+  pub handler:
     Box<dyn Fn(UriSchemeContext<'_, R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
@@ -70,6 +73,9 @@ pub struct WebviewManager<R: Runtime> {
   pub invoke_handler: Box<InvokeHandler<R>>,
   /// The page load hook, invoked when the webview performs a navigation.
   pub on_page_load: Option<Arc<OnPageLoad<R>>>,
+  /// The web content process termination hook.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  pub on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
   /// The webview protocols available to all webviews.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
   /// Webview event listeners to all webviews.
@@ -143,13 +149,21 @@ impl<R: Runtime> WebviewManager<R> {
         crate::Pattern::Isolation { schema, .. } => {
           crate::pattern::format_real_schema(schema, use_https_scheme)
         }
-        _ => "".to_string(),
+        _ => "".to_owned(),
       },
     }
     .render_default(&Default::default())?;
 
-    let mut all_initialization_scripts: Vec<String> = vec![];
-    all_initialization_scripts.push(
+    let mut all_initialization_scripts: Vec<InitializationScript> = vec![];
+
+    fn main_frame_script(script: String) -> InitializationScript {
+      InitializationScript {
+        script,
+        for_main_frame_only: true,
+      }
+    }
+
+    all_initialization_scripts.push(main_frame_script(
       r"
         Object.defineProperty(window, 'isTauri', {
           value: true,
@@ -163,10 +177,10 @@ impl<R: Runtime> WebviewManager<R> {
           })
         }
       "
-      .to_string(),
-    );
-    all_initialization_scripts.push(self.invoke_initialization_script.to_string());
-    all_initialization_scripts.push(format!(
+      .to_owned(),
+    ));
+    all_initialization_scripts.push(main_frame_script(self.invoke_initialization_script.clone()));
+    all_initialization_scripts.push(main_frame_script(format!(
       r#"
           Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
@@ -177,45 +191,37 @@ impl<R: Runtime> WebviewManager<R> {
         "#,
       current_window_label = serde_json::to_string(window_label)?,
       current_webview_label = serde_json::to_string(&label)?,
-    ));
-    all_initialization_scripts.push(self.initialization_script(
+    )));
+    all_initialization_scripts.push(main_frame_script(self.initialization_script(
       app_manager,
       &ipc_init.into_string(),
       &pattern_init.into_string(),
       use_https_scheme,
-    )?);
+    )?));
 
-    for plugin_init_script in plugin_init_scripts {
-      all_initialization_scripts.push(plugin_init_script.to_string());
-    }
+    all_initialization_scripts.extend(plugin_init_scripts);
 
     #[cfg(feature = "isolation")]
     if let crate::Pattern::Isolation { schema, .. } = &*app_manager.pattern {
-      all_initialization_scripts.push(
+      all_initialization_scripts.push(main_frame_script(
         IsolationJavascript {
           isolation_src: &crate::pattern::format_real_schema(schema, use_https_scheme),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
         .render_default(&Default::default())?
-        .to_string(),
-      );
+        .into_string(),
+      ));
     }
 
     if let Some(plugin_global_api_scripts) = &*app_manager.plugin_global_api_scripts {
-      for script in plugin_global_api_scripts.iter() {
-        all_initialization_scripts.push(script.to_string());
+      for &script in plugin_global_api_scripts.iter() {
+        all_initialization_scripts.push(main_frame_script(script.to_owned()));
       }
     }
 
-    webview_attributes.initialization_scripts.splice(
-      0..0,
-      all_initialization_scripts
-        .into_iter()
-        .map(|script| InitializationScript {
-          script,
-          for_main_frame_only: true,
-        }),
-    );
+    // Prepend `all_initialization_scripts` to `webview_attributes.initialization_scripts`
+    all_initialization_scripts.extend(webview_attributes.initialization_scripts);
+    webview_attributes.initialization_scripts = all_initialization_scripts;
 
     pending.webview_attributes = webview_attributes;
 
@@ -231,7 +237,7 @@ impl<R: Runtime> WebviewManager<R> {
           app_handle: &app_handle,
           webview_label: webview_id,
         };
-        (protocol.protocol)(context, request, UriSchemeResponder(responder))
+        (protocol.handler)(context, request, UriSchemeResponder(responder))
       });
     }
 
@@ -262,7 +268,7 @@ impl<R: Runtime> WebviewManager<R> {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
       let protocol = crate::protocol::tauri::get(
         manager.manager_owned(),
-        &window_origin,
+        window_origin.clone(),
         web_resource_request_handler,
       );
       pending.register_uri_scheme_protocol("tauri", move |webview_id, request, responder| {
@@ -303,6 +309,29 @@ impl<R: Runtime> WebviewManager<R> {
           handler(url, event);
         }
       }));
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    if pending.on_web_content_process_terminate_handler.is_none() {
+      let app_manager_ = manager.manager_owned();
+      if app_manager_
+        .webview
+        .on_web_content_process_terminate
+        .is_some()
+      {
+        let label_ = pending.label.clone();
+        pending
+          .on_web_content_process_terminate_handler
+          .replace(Box::new(move || {
+            if let Some(w) = app_manager_.get_webview(&label_) {
+              if let Some(on_web_content_process_terminate) =
+                &app_manager_.webview.on_web_content_process_terminate
+              {
+                on_web_content_process_terminate(&w);
+              }
+            }
+          }));
+      }
+    }
 
     #[cfg(feature = "protocol-asset")]
     if !registered_scheme_protocols.contains(&"asset".into()) {
@@ -413,10 +442,11 @@ impl<R: Runtime> WebviewManager<R> {
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
-        let url = if PROXY_DEV_SERVER {
+        let app_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
+        let url = if PROXY_DEV_SERVER && is_local_network_url(&app_url) {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
-          app_manager.get_url(pending.webview_attributes.use_https_scheme)
+          app_url
         };
         // ignore "index.html" just to simplify the url
         if path.to_str() != Some("index.html") {
@@ -430,14 +460,14 @@ impl<R: Runtime> WebviewManager<R> {
         }
       }
       WebviewUrl::External(url) => {
-        let config_url = app_manager.get_url(pending.webview_attributes.use_https_scheme);
-        let is_local = config_url.make_relative(url).is_some();
+        let config_url = app_manager.get_app_url(pending.webview_attributes.use_https_scheme);
+        let is_app_url = config_url.make_relative(url).is_some();
         let mut url = url.clone();
-        if is_local && PROXY_DEV_SERVER {
-          url.set_scheme("tauri").unwrap();
-          url.set_host(Some("localhost")).unwrap();
+        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
+          Url::parse("tauri://localhost").unwrap()
+        } else {
+          url
         }
-        url
       }
 
       WebviewUrl::CustomProtocol(url) => url.clone(),
@@ -459,9 +489,9 @@ impl<R: Runtime> WebviewManager<R> {
           let html = String::from_utf8_lossy(&body).into_owned();
           // naive way to check if it's an html
           if html.contains('<') && html.contains('>') {
-            let document = tauri_utils::html::parse(html);
-            tauri_utils::html::inject_csp(&document, &csp.to_string());
-            url.set_path(&format!("{},{}", mime::TEXT_HTML, document.to_string()));
+            let document = tauri_utils::html2::parse_doc(html);
+            tauri_utils::html2::inject_csp(&document, &csp.to_string());
+            url.set_path(&format!("{},{}", mime::TEXT_HTML, document.html()));
           }
         }
       }
@@ -709,4 +739,30 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
   }
 
   Ok(())
+}
+
+fn is_local_network_url(url: &url::Url) -> bool {
+  match url.host() {
+    Some(url::Host::Domain(s)) => s == "localhost",
+    Some(url::Host::Ipv4(_)) | Some(url::Host::Ipv6(_)) => true,
+    None => false,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn local_network_url() {
+    assert!(is_local_network_url(&"http://localhost".parse().unwrap()));
+    assert!(is_local_network_url(
+      &"http://127.0.0.1:8080".parse().unwrap()
+    ));
+    assert!(is_local_network_url(
+      &"https://192.168.3.17".parse().unwrap()
+    ));
+
+    assert!(!is_local_network_url(&"https://tauri.app".parse().unwrap()));
+  }
 }

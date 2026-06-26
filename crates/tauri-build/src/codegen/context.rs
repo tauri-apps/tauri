@@ -120,6 +120,13 @@ impl CodegenContext {
       if info_plist_path.exists() {
         println!("cargo:rerun-if-changed={}", info_plist_path.display());
       }
+
+      if let Some(plist_path) = &config.bundle.macos.info_plist {
+        let info_plist_path = config_parent.join(plist_path);
+        if info_plist_path.exists() {
+          println!("cargo:rerun-if-changed={}", info_plist_path.display());
+        }
+      }
     }
 
     let code = context_codegen(ContextData {

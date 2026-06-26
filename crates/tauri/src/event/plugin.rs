@@ -1,40 +1,15 @@
 // Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
-use serde::{Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
-use tauri_runtime::window::is_label_valid;
+use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
 use crate::plugin::{Builder, TauriPlugin};
 use crate::{command, ipc::CallbackFn, EventId, Result, Runtime};
-use crate::{AppHandle, Emitter, Webview};
+use crate::{AppHandle, Emitter, Manager, Webview};
 
 use super::EventName;
 use super::EventTarget;
-
-pub struct WebviewLabel(String);
-
-impl AsRef<str> for WebviewLabel {
-  fn as_ref(&self) -> &str {
-    &self.0
-  }
-}
-
-impl<'de> Deserialize<'de> for WebviewLabel {
-  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    let event_id = String::deserialize(deserializer)?;
-    if is_label_valid(&event_id) {
-      Ok(WebviewLabel(event_id))
-    } else {
-      Err(serde::de::Error::custom(
-        "Webview label must include only alphanumeric characters, `-`, `/`, `:` and `_`.",
-      ))
-    }
-  }
-}
 
 #[command(root = "crate")]
 async fn listen<R: Runtime>(
@@ -75,11 +50,33 @@ async fn emit_to<R: Runtime>(
 }
 
 /// Initializes the event plugin.
-pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
+pub(crate) fn init<R: Runtime, M: Manager<R>>(manager: &M) -> TauriPlugin<R> {
+  let listeners = manager.manager().listeners();
+
+  #[derive(Template)]
+  #[default_template("./init.js")]
+  struct InitJavascript {
+    #[raw]
+    unregister_listener_function: String,
+  }
+
+  let init_script = InitJavascript {
+    unregister_listener_function: format!(
+      "(event, eventId) => {}",
+      crate::event::unlisten_js_script(listeners.listeners_object_name(), "event", "eventId")
+    ),
+  };
+
   Builder::new("event")
     .invoke_handler(crate::generate_handler![
       #![plugin(event)]
       listen, unlisten, emit, emit_to
     ])
+    .js_init_script(
+      init_script
+        .render_default(&Default::default())
+        .unwrap()
+        .to_string(),
+    )
     .build()
 }

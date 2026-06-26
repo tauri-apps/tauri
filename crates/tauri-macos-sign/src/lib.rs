@@ -8,7 +8,6 @@ use std::{
   process::{Command, ExitStatus},
 };
 
-use anyhow::{Context, Result};
 use serde::Deserialize;
 
 pub mod certificate;
@@ -17,6 +16,63 @@ mod provisioning_profile;
 
 pub use keychain::{Keychain, Team};
 pub use provisioning_profile::ProvisioningProfile;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+  #[error("failed to create temp directory: {0}")]
+  TempDir(std::io::Error),
+  #[error("failed to resolve home dir")]
+  ResolveHomeDir,
+  #[error("failed to resolve signing identity")]
+  ResolveSigningIdentity,
+  #[error("failed to decode provisioning profile")]
+  FailedToDecodeProvisioningProfile,
+  #[error("could not find provisioning profile UUID")]
+  FailedToFindProvisioningProfileUuid,
+  #[error("{context} {path}: {error}")]
+  Plist {
+    context: &'static str,
+    path: PathBuf,
+    error: plist::Error,
+  },
+  #[error("failed to upload app to Apple's notarization servers: {error}")]
+  FailedToUploadApp { error: std::io::Error },
+  #[error("failed to notarize app: {0}")]
+  Notarize(String),
+  #[error("failed to parse notarytool output as JSON: {output}")]
+  ParseNotarytoolOutput { output: String },
+  #[error("failed to run command {command}: {error}")]
+  CommandFailed {
+    command: String,
+    error: std::io::Error,
+  },
+  #[error("{context} {path}: {error}")]
+  Fs {
+    context: &'static str,
+    path: PathBuf,
+    error: std::io::Error,
+  },
+  #[error("failed to parse X509 certificate: {error}")]
+  X509Certificate {
+    error: x509_certificate::X509CertificateError,
+  },
+  #[error("failed to create PFX from self signed certificate")]
+  FailedToCreatePFX,
+  #[error("failed to create self signed certificate: {error}")]
+  FailedToCreateSelfSignedCertificate {
+    error: Box<apple_codesign::AppleCodesignError>,
+  },
+  #[error("failed to encode DER: {error}")]
+  FailedToEncodeDER { error: std::io::Error },
+  #[error("failed to decode base64 certificate: {0}")]
+  Base64Decode(base64::DecodeError),
+  #[error("certificate missing common name")]
+  CertificateMissingCommonName,
+  #[error("certificate missing organization unit for common name {common_name}")]
+  CertificateMissingOrganizationUnit { common_name: String },
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 trait CommandExt {
   // The `pipe` function sets the stdout and stderr to properly
@@ -57,7 +113,8 @@ pub enum AppleNotarizationCredentials {
 #[derive(Deserialize)]
 struct NotarytoolSubmitOutput {
   id: String,
-  status: String,
+  #[serde(default)]
+  status: Option<String>,
   message: String,
 }
 
@@ -66,11 +123,28 @@ pub fn notarize(
   app_bundle_path: &Path,
   auth: &AppleNotarizationCredentials,
 ) -> Result<()> {
+  notarize_inner(keychain, app_bundle_path, auth, true)
+}
+
+pub fn notarize_without_stapling(
+  keychain: &Keychain,
+  app_bundle_path: &Path,
+  auth: &AppleNotarizationCredentials,
+) -> Result<()> {
+  notarize_inner(keychain, app_bundle_path, auth, false)
+}
+
+fn notarize_inner(
+  keychain: &Keychain,
+  app_bundle_path: &Path,
+  auth: &AppleNotarizationCredentials,
+  wait: bool,
+) -> Result<()> {
   let bundle_stem = app_bundle_path
     .file_stem()
     .expect("failed to get bundle filename");
 
-  let tmp_dir = tempfile::tempdir()?;
+  let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
   let zip_path = tmp_dir
     .path()
     .join(format!("{}.zip", bundle_stem.to_string_lossy()));
@@ -92,21 +166,28 @@ pub fn notarize(
   assert_command(
     Command::new("ditto").args(zip_args).piped(),
     "failed to zip app with ditto",
-  )?;
+  )
+  .map_err(|error| Error::CommandFailed {
+    command: "ditto".to_string(),
+    error,
+  })?;
 
   // sign the zip file
   keychain.sign(&zip_path, None, false)?;
 
-  let notarize_args = vec![
+  let mut notarize_args = vec![
     "notarytool",
     "submit",
     zip_path
       .to_str()
       .expect("failed to convert zip_path to string"),
-    "--wait",
     "--output-format",
     "json",
   ];
+  if wait {
+    notarize_args.push("--wait");
+  }
+  let notarize_args = notarize_args;
 
   println!("Notarizing {}", app_bundle_path.display());
 
@@ -114,24 +195,39 @@ pub fn notarize(
     .args(notarize_args)
     .notarytool_args(auth, tmp_dir.path())?
     .output()
-    .context("failed to upload app to Apple's notarization servers.")?;
+    .map_err(|error| Error::FailedToUploadApp { error })?;
 
   if !output.status.success() {
-    return Err(
-      anyhow::anyhow!("failed to notarize app")
-        .context(String::from_utf8_lossy(&output.stderr).into_owned()),
-    );
+    return Err(Error::Notarize(
+      String::from_utf8_lossy(&output.stderr).into_owned(),
+    ));
   }
 
   let output_str = String::from_utf8_lossy(&output.stdout);
   if let Ok(submit_output) = serde_json::from_str::<NotarytoolSubmitOutput>(&output_str) {
     let log_message = format!(
-      "Finished with status {} for id {} ({})",
-      submit_output.status, submit_output.id, submit_output.message
+      "{} with status {} for id {} ({})",
+      if wait { "Finished" } else { "Submitted" },
+      submit_output.status.as_deref().unwrap_or("Pending"),
+      submit_output.id,
+      submit_output.message
     );
-    if submit_output.status == "Accepted" {
-      println!("Notarizing {}", log_message);
-      staple_app(app_bundle_path.to_path_buf())?;
+    // status is empty when not waiting for the notarization to finish
+    if submit_output.status.map_or(!wait, |s| s == "Accepted") {
+      println!("Notarizing {log_message}");
+
+      if wait {
+        println!("Stapling app...");
+        staple_app(app_bundle_path.to_path_buf())?;
+      } else {
+        println!("Not waiting for notarization to finish.");
+        println!("You can use `xcrun notarytool log` to check the notarization progress.");
+        println!(
+          "When it's done you can optionally staple your app via `xcrun stapler staple {}`",
+          app_bundle_path.display()
+        );
+      }
+
       Ok(())
     } else if let Ok(output) = Command::new("xcrun")
       .args(["notarytool", "log"])
@@ -139,17 +235,17 @@ pub fn notarize(
       .notarytool_args(auth, tmp_dir.path())?
       .output()
     {
-      Err(anyhow::anyhow!(
+      Err(Error::Notarize(format!(
         "{log_message}\nLog:\n{}",
         String::from_utf8_lossy(&output.stdout)
-      ))
+      )))
     } else {
-      Err(anyhow::anyhow!("{log_message}"))
+      Err(Error::Notarize(log_message))
     }
   } else {
-    Err(anyhow::anyhow!(
-      "failed to parse notarytool output as JSON: `{output_str}`"
-    ))
+    Err(Error::ParseNotarytoolOutput {
+      output: output_str.into_owned(),
+    })
   }
 }
 
@@ -167,7 +263,10 @@ fn staple_app(mut app_bundle_path: PathBuf) -> Result<()> {
     .args(vec!["stapler", "staple", "-v", filename])
     .current_dir(app_bundle_path)
     .output()
-    .context("failed to staple app.")?;
+    .map_err(|error| Error::CommandFailed {
+      command: "xcrun stapler staple".to_string(),
+      error,
+    })?;
 
   Ok(())
 }
@@ -208,7 +307,11 @@ impl NotarytoolCmdExt for Command {
         let key_path = match key {
           ApiKey::Raw(k) => {
             let key_path = temp_dir.join("AuthKey.p8");
-            std::fs::write(&key_path, k)?;
+            std::fs::write(&key_path, k).map_err(|error| Error::Fs {
+              context: "failed to write notarization API key to temp file",
+              path: key_path.clone(),
+              error,
+            })?;
             key_path
           }
           ApiKey::Path(p) => p.to_owned(),
@@ -228,45 +331,37 @@ impl NotarytoolCmdExt for Command {
   }
 }
 
-fn decode_base64(base64: &OsStr, out_path: &Path) -> Result<()> {
-  let tmp_dir = tempfile::tempdir()?;
+fn decode_base64(base64_input: &OsStr, out_path: &Path) -> Result<()> {
+  use base64::Engine;
 
-  let src_path = tmp_dir.path().join("src");
-  let base64 = base64
+  let input = base64_input
     .to_str()
-    .expect("failed to convert base64 to string")
-    .as_bytes();
+    .expect("failed to convert base64 to string");
 
-  // as base64 contain whitespace decoding may be broken
-  // https://github.com/marshallpierce/rust-base64/issues/105
-  // we'll use builtin base64 command from the OS
-  std::fs::write(&src_path, base64)?;
+  // strip whitespace before decoding
+  let cleaned: String = input.chars().filter(|c| !c.is_ascii_whitespace()).collect();
 
-  assert_command(
-    std::process::Command::new("base64")
-      .arg("--decode")
-      .arg("-i")
-      .arg(&src_path)
-      .arg("-o")
-      .arg(out_path)
-      .piped(),
-    "failed to decode certificate",
-  )?;
+  let decoded = base64::engine::general_purpose::STANDARD
+    .decode(&cleaned)
+    .map_err(Error::Base64Decode)?;
+
+  std::fs::write(out_path, &decoded).map_err(|error| Error::Fs {
+    context: "failed to write decoded certificate",
+    path: out_path.to_path_buf(),
+    error,
+  })?;
 
   Ok(())
 }
 
 fn assert_command(
-  response: Result<std::process::ExitStatus, std::io::Error>,
+  response: std::result::Result<std::process::ExitStatus, std::io::Error>,
   error_message: &str,
 ) -> std::io::Result<()> {
   let status =
     response.map_err(|e| std::io::Error::new(e.kind(), format!("{error_message}: {e}")))?;
   if !status.success() {
-    Err(std::io::Error::new(
-      std::io::ErrorKind::Other,
-      error_message,
-    ))
+    Err(std::io::Error::other(error_message))
   } else {
     Ok(())
   }

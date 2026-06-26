@@ -6,10 +6,9 @@ use std::{
   fs::create_dir_all,
   path::{Path, PathBuf},
 };
-
 use ureq::ResponseExt;
 
-use crate::utils::http_utils::download;
+use crate::utils::http_utils::{base_ureq_agent, download};
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str =
@@ -24,24 +23,18 @@ pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
-  let agent: ureq::Agent = ureq::Agent::config_builder()
-    .proxy(ureq::Proxy::try_from_env())
-    .build()
-    .into();
+  let agent = base_ureq_agent();
   let response = agent.head(url).call().map_err(Box::new)?;
   let final_url = response.get_uri().to_string();
   let remaining_url = final_url.strip_prefix(WEBVIEW2_URL_PREFIX).ok_or_else(|| {
-    anyhow::anyhow!(
-      "WebView2 URL prefix mismatch. Expected `{}`, found `{}`.",
-      WEBVIEW2_URL_PREFIX,
-      final_url
-    )
+    crate::Error::GenericError(format!(
+      "WebView2 URL prefix mismatch. Expected `{WEBVIEW2_URL_PREFIX}`, found `{final_url}`."
+    ))
   })?;
   let (guid, filename) = remaining_url.split_once('/').ok_or_else(|| {
-    anyhow::anyhow!(
-      "WebView2 URL format mismatch. Expected `<GUID>/<FILENAME>`, found `{}`.",
-      remaining_url
-    )
+    crate::Error::GenericError(format!(
+      "WebView2 URL format mismatch. Expected `<GUID>/<FILENAME>`, found `{remaining_url}`."
+    ))
   })?;
   Ok((guid.into(), filename.into()))
 }
@@ -71,9 +64,10 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
 }
 
 #[cfg(target_os = "windows")]
-pub fn os_bitness<'a>() -> Option<&'a str> {
+pub fn processor_architecture<'a>() -> Option<&'a str> {
   use windows_sys::Win32::System::SystemInformation::{
-    GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
+    GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM,
+    PROCESSOR_ARCHITECTURE_ARM64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
   };
 
   let mut system_info: SYSTEM_INFO = unsafe { std::mem::zeroed() };
@@ -81,6 +75,8 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
   match unsafe { system_info.Anonymous.Anonymous.wProcessorArchitecture } {
     PROCESSOR_ARCHITECTURE_INTEL => Some("x86"),
     PROCESSOR_ARCHITECTURE_AMD64 => Some("x64"),
+    PROCESSOR_ARCHITECTURE_ARM => Some("arm"),
+    PROCESSOR_ARCHITECTURE_ARM64 => Some("arm64"),
     _ => None,
   }
 }

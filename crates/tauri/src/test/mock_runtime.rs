@@ -270,6 +270,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     Ok(())
   }
 
+  fn set_device_event_filter(&self, _: DeviceEventFilter) {
+    // no-op
+  }
+
   #[cfg(target_os = "android")]
   fn find_class<'a>(
     &self,
@@ -407,6 +411,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn focusable(self, focusable: bool) -> Self {
+    self
+  }
+
   fn maximized(self, maximized: bool) -> Self {
     self
   }
@@ -526,6 +534,21 @@ impl WindowBuilder for MockWindowBuilder {
   fn background_color(self, _color: tauri_utils::config::Color) -> Self {
     self
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(self, _identifier: S) -> Self {
+    self
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
@@ -570,12 +593,25 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
+    Ok(())
+  }
+
   fn url(&self) -> Result<String> {
     Ok(self.url.lock().unwrap().clone())
   }
 
-  fn bounds(&self) -> Result<tauri_runtime::Rect> {
-    Ok(tauri_runtime::Rect::default())
+  fn bounds(&self) -> Result<tauri_runtime::dpi::Rect> {
+    Ok(tauri_runtime::dpi::Rect::default())
   }
 
   fn position(&self) -> Result<PhysicalPosition<i32>> {
@@ -606,7 +642,7 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
-  fn set_bounds(&self, bounds: tauri_runtime::Rect) -> Result<()> {
+  fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> Result<()> {
     Ok(())
   }
 
@@ -632,6 +668,14 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
 
   fn cookies_for_url(&self, url: Url) -> Result<Vec<tauri_runtime::Cookie<'static>>> {
     Ok(Vec::new())
+  }
+
+  fn set_cookie(&self, cookie: tauri_runtime::Cookie<'_>) -> Result<()> {
+    Ok(())
+  }
+
+  fn delete_cookie(&self, cookie: tauri_runtime::Cookie<'_>) -> Result<()> {
+    Ok(())
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
@@ -777,6 +821,16 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     target_os = "openbsd"
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String> {
     unimplemented!()
   }
 
@@ -981,7 +1035,16 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     Ok(())
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_simple_fullscreen(&self, enable: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn set_focus(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_focusable(&self, focusable: bool) -> Result<()> {
     Ok(())
   }
 
@@ -1121,7 +1184,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     Ok(Self::init())
   }
 
-  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   fn new_any_thread(_args: RuntimeInitArgs) -> Result<Self> {
     Ok(Self::init())
   }

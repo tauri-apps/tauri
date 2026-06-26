@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::{Context, Result};
 use apple_codesign::create_self_signed_code_signing_certificate;
 use x509_certificate::{EcdsaCurve, KeyAlgorithm};
 
 pub use apple_codesign::CertificateProfile;
+
+use crate::{Error, Result};
 
 /// Self signed certificate options.
 pub struct SelfSignedCertificateRequest {
@@ -49,16 +50,21 @@ pub fn generate_self_signed(request: SelfSignedCertificateRequest) -> Result<Vec
     &request.person_name,
     &request.country_name,
     validity_duration,
-  )?;
+  )
+  .map_err(|error| Error::FailedToCreateSelfSignedCertificate {
+    error: Box::new(error),
+  })?;
 
   let pfx = p12::PFX::new(
-    &cert.encode_der()?,
+    &cert
+      .encode_der()
+      .map_err(|error| Error::FailedToEncodeDER { error })?,
     &key_pair.to_pkcs8_one_asymmetric_key_der(),
     None,
     &request.password,
     "code-signing",
   )
-  .context("failed to create PFX structure")?;
+  .ok_or(Error::FailedToCreatePFX)?;
   let der = pfx.to_der();
 
   Ok(der)

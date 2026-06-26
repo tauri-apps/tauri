@@ -1,5 +1,128 @@
 # Changelog
 
+## \[2.11.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+
+## \[2.11.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+
+## \[2.11.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+
+## \[2.11.0]
+
+### New Features
+
+- [`001c8fe3d`](https://www.github.com/tauri-apps/tauri/commit/001c8fe3d288802de9a8c29cfd2f46f9220d97c5) ([#14722](https://www.github.com/tauri-apps/tauri/pull/14722)) Add a WebView option to control browser-level general autofill behavior. This option does not disable password or credit card autofill. On Windows (WebView2), setting it to true disables the general autofill "Suggestions" UI, which may appear even when `autocomplete="off"` is specified on input elements. On Linux, macOS, iOS, and Android, this option is currently unsupported and performs no operation.
+- [`b27be063f`](https://www.github.com/tauri-apps/tauri/commit/b27be063ff3052cb1071ac3ec719cfa104460fa4) ([#14925](https://www.github.com/tauri-apps/tauri/pull/14925)) Add `eval_with_callback` to the Tauri webview APIs and runtime dispatch layers.
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Trigger `RunEvent::Opened` on Android.
+- [`eb0312ea9`](https://www.github.com/tauri-apps/tauri/commit/eb0312ea9e493954298ac0b3fdaae7eafb52750e) ([#15199](https://www.github.com/tauri-apps/tauri/pull/15199)) Propagates the `Event::Suspended` and `Event::Resumed` events from `tao` when they are emitted on mobile targets.
+- [`093e2b47c`](https://www.github.com/tauri-apps/tauri/commit/093e2b47c01361c18783e9ff18750388e41650c5) ([#14484](https://www.github.com/tauri-apps/tauri/pull/14484)) Support creating multiple windows on Android (activity embedding) and iOS (scenes).
+- [`1063c48c5`](https://www.github.com/tauri-apps/tauri/commit/1063c48c5e7d099ad74d28a937edf42e3f5c9f03) ([#14523](https://www.github.com/tauri-apps/tauri/pull/14523)) Add handler for web content process termination on macOS and iOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+
+## \[2.10.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+
+## \[2.10.0]
+
+### Bug Fixes
+
+- [`9b242e40c`](https://www.github.com/tauri-apps/tauri/commit/9b242e40c844189c877a91e513ae6196202d5ae9) ([#14700](https://www.github.com/tauri-apps/tauri/pull/14700) by [@mewi99](https://www.github.com/tauri-apps/tauri/../../mewi99)) Fix compilation errors when targeting BSD.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- [`75057c7c0`](https://www.github.com/tauri-apps/tauri/commit/75057c7c08f0d4d3dd8d10cea4e2217e5d61fe1a) ([#14778](https://www.github.com/tauri-apps/tauri/pull/14778) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) **Breaking Change** for `with_webview` users: Updated webkit2gtk-rs crates to `v2.0.2`.
+
+## \[2.9.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+
+## \[2.9.1]
+
+### Bug Fixes
+
+- [`4b6b8690a`](https://www.github.com/tauri-apps/tauri/commit/4b6b8690ab886ebdf1307951cffbe03e31280baa) ([#14347](https://www.github.com/tauri-apps/tauri/pull/14347) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused docs.rs builds to fail. No user facing changes.
+
+## \[2.9.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scroll_bar_style` option to the Webview and WebviewWindow builders.
+  The possible values for this option are gated behind conditional compilation
+  flags, and will need to be applied using conditional compilation if customised.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+
+## \[2.8.0]
+
+### New Features
+
+- [`68874c68c`](https://www.github.com/tauri-apps/tauri/commit/68874c68c566638b4c21a3aa67844d1bdaeb6dab) ([#13564](https://www.github.com/tauri-apps/tauri/pull/13564) by [@robertrpf](https://www.github.com/tauri-apps/tauri/../../robertrpf)) Add window focusable attribute and set_focusable API.
+- [`22d6bcacb`](https://www.github.com/tauri-apps/tauri/commit/22d6bcacbb2001eb292ebd8c5d021447700f9512) ([#14008](https://www.github.com/tauri-apps/tauri/pull/14008) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Implement `App::set_device_event_filter` for `AppHandle` also.
+- [`33d0b3f0c`](https://www.github.com/tauri-apps/tauri/commit/33d0b3f0c133edebb1c716e2f5942d70509ae347) ([#13876](https://www.github.com/tauri-apps/tauri/pull/13876) by [@thlstsul](https://www.github.com/tauri-apps/tauri/../../thlstsul)) Added `WebviewBuilder::on_document_title_changed` and `WebviewWindowBuilder::on_document_title_changed`.
+- [`33d0b3f0c`](https://www.github.com/tauri-apps/tauri/commit/33d0b3f0c133edebb1c716e2f5942d70509ae347) ([#13876](https://www.github.com/tauri-apps/tauri/pull/13876) by [@thlstsul](https://www.github.com/tauri-apps/tauri/../../thlstsul)) Added `WebviewBuilder::on_new_window` and `WebviewWindowBuilder::on_new_window`.
+- [`dfadcb764`](https://www.github.com/tauri-apps/tauri/commit/dfadcb764bdf84089a5487005a7b4f3b7cf09494) ([#13661](https://www.github.com/tauri-apps/tauri/pull/13661) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Added `WebviewDispatch::set_cookie()` and `WebviewDispatch::delete_cookie()`.
+- [`5110a762e`](https://www.github.com/tauri-apps/tauri/commit/5110a762e9db978a28a15400bf76e3c864da2a86) ([#13830](https://www.github.com/tauri-apps/tauri/pull/13830) by [@Sky-walkerX](https://www.github.com/tauri-apps/tauri/../../Sky-walkerX)) Added `Window::set_simple_fullscreen`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.7.0`
+
+## \[2.7.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.6.0`
+
+## \[2.7.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.5.0`
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629)) Update html5ever to 0.29 and kuchikiki to version 0.8.8-speedreader.
+
+## \[2.6.0]
+
+### New Features
+
+- [`dd4f13ce4`](https://www.github.com/tauri-apps/tauri/commit/dd4f13ce4b3cd89cde2fa3f18a063c272f215621) ([#13185](https://www.github.com/tauri-apps/tauri/pull/13185)) MacOS: Add `set_dock_visibility` method to support setting the visibility of the application in the dock.
+- [`8cf662e34`](https://www.github.com/tauri-apps/tauri/commit/8cf662e34bf738a0d16bb7b9aeb35667e2e4984b) ([#13076](https://www.github.com/tauri-apps/tauri/pull/13076)) -   add API to run initialization scripts on all frames
+  \-   `WebviewBuilder::initialization_script_on_all_frames`
+  \-   `WebviewWindowBuilder::initialization_script_on_all_frames`
+  \-   `WebviewAttributes::initialization_script_on_all_frames`
+- [`ea36294cb`](https://www.github.com/tauri-apps/tauri/commit/ea36294cbca98f7725c91d1464fd92e77c89698a) ([#13208](https://www.github.com/tauri-apps/tauri/pull/13208)) Added `WebviewAttributes::input_accessory_view_builder` on iOS.
+- [`c1cd0a2dd`](https://www.github.com/tauri-apps/tauri/commit/c1cd0a2ddb5bc3e99451cbe399b5fc9f0035f571) ([#13090](https://www.github.com/tauri-apps/tauri/pull/13090)) macOS/iOS: add option to disable or enable link previews when building a webview (the webkit api has it enabled by default)
+
+  - `WebViewBuilder.allow_link_preview(allow_link_preview: bool)`
+  - `WebviewWindowBuilder.allow_link_preview(allow_link_preview: bool)`
+- [`b072e2b29`](https://www.github.com/tauri-apps/tauri/commit/b072e2b2967640ae4fa1af466ae878c156551edd) ([#9687](https://www.github.com/tauri-apps/tauri/pull/9687)) Add `preventOverflow` config option to prevent the window from overflowing the monitor size on creation
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.4.0`
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update windows to 0.61.
+
 ## \[2.5.1]
 
 ### Dependencies

@@ -25,7 +25,7 @@ use tauri_utils::{
   },
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
-  html::{inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef},
+  html2::{inject_nonce_token, parse_doc, serialize_doc, Document},
   platform::Target,
   tokens::{map_lit, str_lit},
 };
@@ -44,25 +44,25 @@ pub struct ContextData {
   pub test: bool,
 }
 
-fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  if let Ok(inline_script_elements) = document.select("script:not(empty)") {
-    let mut scripts = Vec::new();
-    for inline_script_el in inline_script_elements {
-      let script = inline_script_el.as_node().text_contents();
-      let mut hasher = Sha256::new();
-      hasher.update(&script);
-      let hash = hasher.finalize();
-      scripts.push(format!(
-        "'sha256-{}'",
-        base64::engine::general_purpose::STANDARD.encode(hash)
-      ));
-    }
-    csp_hashes
-      .inline_scripts
-      .entry(key.clone().into())
-      .or_default()
-      .append(&mut scripts);
-  }
+fn inject_script_hashes(document: &Document, key: &AssetKey, csp_hashes: &mut CspHashes) {
+  let script_elements = document.select("script:not(:empty)");
+
+  let scripts = script_elements
+    .iter()
+    .map(|element| {
+      let script = tauri_utils::html2::normalize_script_for_csp(element.text().as_bytes());
+      let script_hash = Sha256::digest(script);
+      let hash_base64 = base64::engine::general_purpose::STANDARD.encode(script_hash);
+
+      format!("'sha256-{hash_base64}'")
+    })
+    .collect::<Vec<_>>();
+
+  csp_hashes
+    .inline_scripts
+    .entry(key.clone().into())
+    .or_default()
+    .extend(scripts);
 }
 
 fn map_core_assets(
@@ -75,7 +75,7 @@ fn map_core_assets(
     if path.extension() == Some(OsStr::new("html")) {
       #[allow(clippy::collapsible_if)]
       if csp {
-        let document = parse_html(String::from_utf8_lossy(input).into_owned());
+        let document = parse_doc(String::from_utf8_lossy(input).into_owned());
 
         inject_nonce_token(&document, &dangerous_disable_asset_csp_modification);
 
@@ -83,7 +83,7 @@ fn map_core_assets(
           inject_script_hashes(&document, key, csp_hashes);
         }
 
-        *input = serialize_html_node(&document);
+        *input = serialize_doc(&document);
       }
     }
     Ok(())
@@ -106,13 +106,13 @@ fn map_isolation(
 
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
-      let isolation_html = parse_html(String::from_utf8_lossy(input).into_owned());
+      let isolation_html = parse_doc(String::from_utf8_lossy(input).into_owned());
 
       // this is appended, so no need to reverse order it
-      tauri_utils::html::inject_codegen_isolation_script(&isolation_html);
+      tauri_utils::html2::inject_codegen_isolation_script(&isolation_html);
 
       // temporary workaround for windows not loading assets
-      tauri_utils::html::inline_isolation(&isolation_html, &dir);
+      tauri_utils::html2::inline_isolation(&isolation_html, &dir);
 
       inject_nonce_token(
         &isolation_html,
@@ -123,7 +123,7 @@ fn map_isolation(
 
       csp_hashes.styles.push(iframe_style_csp_hash.clone());
 
-      *input = isolation_html.to_string().as_bytes().to_vec()
+      *input = serialize_doc(&isolation_html)
     }
 
     Ok(())
@@ -309,9 +309,16 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     };
 
     if let Some(plist) = info_plist.as_dictionary_mut() {
-      if let Some(product_name) = &config.product_name {
-        plist.insert("CFBundleName".into(), product_name.clone().into());
+      if let Some(bundle_name) = config
+        .bundle
+        .macos
+        .bundle_name
+        .as_ref()
+        .or(config.product_name.as_ref())
+      {
+        plist.insert("CFBundleName".into(), bundle_name.as_str().into());
       }
+
       if let Some(version) = &config.version {
         let bundle_version = &config.bundle.macos.bundle_version;
         plist.insert("CFBundleShortVersionString".into(), version.clone().into());
@@ -393,9 +400,16 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   };
 
   let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
+  let capabilities_from_files = if capabilities_file_path.exists() {
+    let capabilities_json =
+      std::fs::read_to_string(&capabilities_file_path).expect("failed to read capabilities");
+    serde_json::from_str(&capabilities_json).expect("failed to parse capabilities")
+  } else {
+    Default::default()
+  };
   let capabilities = get_capabilities(
     &config,
-    Some(&capabilities_file_path),
+    capabilities_from_files,
     additional_capabilities.as_deref(),
   )
   .unwrap();
@@ -409,7 +423,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     identity,
   );
 
-  let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
+  let runtime_authority = quote!(#root::runtime_authority!(#acl_tokens, #resolved));
 
   let plugin_global_api_scripts = if config.app.with_global_tauri {
     if let Some(scripts) = tauri_utils::plugin::read_global_api_scripts(&out_dir) {
@@ -437,7 +451,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
       #config,
-      ::std::boxed::Box::new(#assets),
+      ::std::boxed::Box::new(assets),
       #default_window_icon,
       #app_icon,
       #package_info,
@@ -452,21 +466,30 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     context
   });
 
-  Ok(quote!({
-    let thread = ::std::thread::Builder::new()
-      .name(String::from("generated tauri context creation"))
-      .stack_size(8 * 1024 * 1024)
-      .spawn(|| #context)
-      .expect("unable to create thread with 8MiB stack");
+  // Wrapping in a function to make rust analyzer faster,
+  // see https://github.com/tauri-apps/tauri/pull/14457
+  // We take the assets as an argument so when the caller provides custom `assets` the closure
+  // does not capture from the caller's scope ("can't capture dynamic environment in a fn item").
+  let output = quote!({
+    fn inner<R: #root::Runtime, A: #root::Assets<R> + 'static>(assets: A) -> #root::Context<R> {
+      let thread = ::std::thread::Builder::new()
+        .name(String::from("generated tauri context creation"))
+        .stack_size(8 * 1024 * 1024)
+        .spawn(move || #context)
+        .expect("unable to create thread with 8MiB stack");
 
-    match thread.join() {
-      Ok(context) => context,
-      Err(_) => {
-        eprintln!("the generated Tauri `Context` panicked during creation");
-        ::std::process::exit(101);
+      match thread.join() {
+        Ok(context) => context,
+        Err(_) => {
+          eprintln!("the generated Tauri `Context` panicked during creation");
+          ::std::process::exit(101);
+        }
       }
     }
-  }))
+    inner(#assets)
+  });
+
+  Ok(output)
 }
 
 fn find_icon(

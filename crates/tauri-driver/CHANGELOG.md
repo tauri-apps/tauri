@@ -1,5 +1,27 @@
 # Changelog
 
+## \[2.0.6]
+
+### What's Changed
+
+- [`3057eda06`](https://www.github.com/tauri-apps/tauri/commit/3057eda067b87761644209adeec077f232585c5d) ([#15324](https://www.github.com/tauri-apps/tauri/pull/15324)) Support `eq-separator` for `tauri-driver`.
+
+## \[2.0.5]
+
+### Bug Fixes
+
+- [`06f911aaf`](https://www.github.com/tauri-apps/tauri/commit/06f911aaff495121f08ebc77d9d1b41382298a1f) ([#14871](https://www.github.com/tauri-apps/tauri/pull/14871) by [@goosewobbler](https://www.github.com/tauri-apps/tauri/../../goosewobbler)) Prevent native WebDriver stdout from polluting tauri-driver's stdout used by test frameworks.
+
+## \[2.0.4]
+
+### Enhancements
+
+- [`0cf2d9933`](https://www.github.com/tauri-apps/tauri/commit/0cf2d9933f20375349f9f307b4dd7049690030d9) ([#13238](https://www.github.com/tauri-apps/tauri/pull/13238)) Automatically append the `.exe` extension on the application path in `tauri:options`.
+
+### Bug Fixes
+
+- [`577c7ffc4`](https://www.github.com/tauri-apps/tauri/commit/577c7ffc45ef005403cdf698e595614038c7d1e1) ([#10108](https://www.github.com/tauri-apps/tauri/pull/10108)) Ensure the webdriver process is closed when the tauri-driver process finishes.
+
 ## \[2.0.3]
 
 ### Bug Fixes

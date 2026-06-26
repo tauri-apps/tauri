@@ -9,9 +9,12 @@ pub mod config;
 pub mod flock;
 pub mod framework;
 pub mod fs;
+pub mod http;
 pub mod npm;
 #[cfg(target_os = "macos")]
 pub mod pbxproj;
+#[cfg(target_os = "macos")]
+pub mod plist;
 pub mod plugins;
 pub mod prompts;
 pub mod template;
@@ -23,15 +26,11 @@ use std::{
   process::Command,
 };
 
-use anyhow::Context;
 use tauri_utils::config::HookCommand;
 
-use crate::{
-  interface::{AppInterface, Interface},
-  CommandExt,
-};
-
-use self::app_paths::frontend_dir;
+#[cfg(not(target_os = "windows"))]
+use crate::Error;
+use crate::{interface::AppInterface, CommandExt};
 
 pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
@@ -74,13 +73,14 @@ pub fn run_hook(
   hook: HookCommand,
   interface: &AppInterface,
   debug: bool,
+  frontend_dir: &Path,
 ) -> crate::Result<()> {
   let (script, script_cwd) = match hook {
     HookCommand::Script(s) if s.is_empty() => (None, None),
     HookCommand::Script(s) => (Some(s), None),
     HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
   };
-  let cwd = script_cwd.unwrap_or_else(|| frontend_dir().clone());
+  let cwd = script_cwd.unwrap_or_else(|| frontend_dir.to_owned());
   if let Some(script) = script {
     log::info!(action = "Running"; "{} `{}`", name, script);
 
@@ -97,7 +97,10 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
-      .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
+      .map_err(|error| crate::error::Error::CommandFailed {
+        command: script.clone(),
+        error,
+      })?;
     #[cfg(not(target_os = "windows"))]
     let status = Command::new("sh")
       .arg("-c")
@@ -105,10 +108,13 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
-      .with_context(|| format!("failed to run `{script}` with `sh -c`"))?;
+      .map_err(|error| Error::CommandFailed {
+        command: script.clone(),
+        error,
+      })?;
 
     if !status.success() {
-      anyhow::bail!(
+      crate::error::bail!(
         "{} `{}` failed with exit code {}",
         name,
         script,
@@ -122,6 +128,7 @@ pub fn run_hook(
 
 #[cfg(target_os = "macos")]
 pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Result<()> {
+  use crate::error::Context;
   if !version.pre.is_empty() {
     if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
       version.pre = semver::Prerelease::EMPTY;
@@ -133,7 +140,11 @@ pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Resu
           format!(".{}", version.build.as_str())
         }
       ))
-      .with_context(|| format!("bundle version {number:?} prerelease is invalid"))?;
+      .with_context(|| {
+        format!(
+          "failed to parse {version} as semver: bundle version {number:?} prerelease is invalid"
+        )
+      })?;
     }
   }
 

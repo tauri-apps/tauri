@@ -20,7 +20,10 @@ use crate::{
   Manager, Runtime, State, Webview,
 };
 
-use super::{CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, Response};
+use super::{
+  format_callback::format_raw_js, CallbackFn, InvokeError, InvokeResponseBody, IpcResponse,
+  Request, Response,
+};
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
 // TODO: Change this to `channel` in v3
@@ -51,8 +54,9 @@ pub struct Channel<TSend = InvokeResponseBody> {
 #[cfg(feature = "specta")]
 const _: () = {
   #[derive(specta::Type)]
-  #[specta(remote = super::Channel, rename = "TAURI_CHANNEL")]
-  struct Channel<TSend>(std::marker::PhantomData<TSend>);
+  #[specta(remote = super::Channel)]
+  #[allow(dead_code, non_camel_case_types)]
+  struct TAURI_CHANNEL<TSend>(std::marker::PhantomData<TSend>);
 };
 
 impl<TSend> Clone for Channel<TSend> {
@@ -148,16 +152,17 @@ impl JavaScriptChannelId {
 
         match body {
           // Don't go through the fetch process if the payload is small
-          InvokeResponseBody::Json(string) if string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD => {
-            webview.eval(format!(
-              "window['_{callback_id}']({{ message: {string}, index: {current_index} }})"
+          InvokeResponseBody::Json(json_string)
+            if json_string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD =>
+          {
+            webview.eval(format_raw_js(
+              callback_id,
+              format!("{{ message: {json_string}, index: {current_index} }}"),
             ))?;
           }
           InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
-            webview.eval(format!(
-              "window['_{callback_id}']({{ message: {}, index: {current_index} }})",
-              serde_json::to_string(&bytes)?,
-            ))?;
+            let bytes_as_json_array = serde_json::to_string(&bytes)?;
+            webview.eval(format_raw_js(callback_id, format!("{{ message: new Uint8Array({bytes_as_json_array}).buffer, index: {current_index} }}")))?;
           }
           // use the fetch API to speed up larger response payloads
           _ => {
@@ -171,7 +176,7 @@ impl JavaScriptChannelId {
               .insert(data_id, body);
 
             webview.eval(format!(
-              "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}']({{ message: response, index: {current_index} }})).catch(console.error)",
+              "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, {{ message: response, index: {current_index} }})).catch(console.error)",
             ))?;
           }
         }
@@ -180,8 +185,9 @@ impl JavaScriptChannelId {
       }),
       Some(Box::new(move || {
         let current_index = counter_clone.load(Ordering::Relaxed);
-        let _ = webview_clone.eval(format!(
-          "window['_{callback_id}']({{ end: true, index: {current_index} }})",
+        let _ = webview_clone.eval(format_raw_js(
+          callback_id,
+          format!("{{ end: true, index: {current_index} }}"),
         ));
       })),
     )
@@ -242,13 +248,16 @@ impl<TSend> Channel<TSend> {
       Box::new(move |body| {
         match body {
           // Don't go through the fetch process if the payload is small
-          InvokeResponseBody::Json(string) if string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD => {
-            webview.eval(format!("window['_{callback_id}']({string})"))?;
+          InvokeResponseBody::Json(json_string)
+            if json_string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD =>
+          {
+            webview.eval(format_raw_js(callback_id, json_string))?;
           }
           InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
-            webview.eval(format!(
-              "window['_{callback_id}']({})",
-              serde_json::to_string(&bytes)?,
+            let bytes_as_json_array = serde_json::to_string(&bytes)?;
+            webview.eval(format_raw_js(
+              callback_id,
+              format!("new Uint8Array({bytes_as_json_array}).buffer"),
             ))?;
           }
           // use the fetch API to speed up larger response payloads
@@ -263,7 +272,7 @@ impl<TSend> Channel<TSend> {
               .insert(data_id, body);
 
             webview.eval(format!(
-              "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}'](response)).catch(console.error)",
+              "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window.__TAURI_INTERNALS__.runCallback({callback_id}, response)).catch(console.error)",
             ))?;
           }
         }

@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { invoke } from './core'
+import { addPluginListener, invoke, PluginListener } from './core'
 import { Image } from './image'
 import { Theme } from './window'
 
+/**
+ * Identifier type used for data stores on macOS and iOS.
+ *
+ * Represents a 128-bit identifier, commonly expressed as a 16-byte UUID.
+ */
 export type DataStoreIdentifier = [
   number,
   number,
@@ -24,6 +29,24 @@ export type DataStoreIdentifier = [
   number,
   number
 ]
+
+/**
+ * Bundle type of the current application.
+ */
+export enum BundleType {
+  /** Windows NSIS */
+  Nsis = 'nsis',
+  /** Windows MSI */
+  Msi = 'msi',
+  /** Linux Debian package */
+  Deb = 'deb',
+  /** Linux RPM */
+  Rpm = 'rpm',
+  /** Linux AppImage */
+  AppImage = 'appimage',
+  /** macOS app bundle */
+  App = 'app'
+}
 
 /**
  * Application metadata and related APIs.
@@ -60,7 +83,7 @@ async function getName(): Promise<string> {
 }
 
 /**
- * Gets the Tauri version.
+ * Gets the Tauri framework version used by this application.
  *
  * @example
  * ```typescript
@@ -91,7 +114,8 @@ async function getIdentifier(): Promise<string> {
 }
 
 /**
- * Shows the application on macOS. This function does not automatically focus any specific app window.
+ * Shows the application on macOS. This function does not automatically
+ * focus any specific app window.
  *
  * @example
  * ```typescript
@@ -148,29 +172,28 @@ async function fetchDataStoreIdentifiers(): Promise<DataStoreIdentifier[]> {
  * ```typescript
  * import { fetchDataStoreIdentifiers, removeDataStore } from '@tauri-apps/api/app';
  * for (const id of (await fetchDataStoreIdentifiers())) {
- *  await removeDataStore(id);
+ *   await removeDataStore(id);
  * }
  * ```
  *
  * @since 2.4.0
  */
-async function removeDataStore(
-  uuid: DataStoreIdentifier
-): Promise<DataStoreIdentifier[]> {
+async function removeDataStore(uuid: DataStoreIdentifier): Promise<void> {
   return invoke('plugin:app|remove_data_store', { uuid })
 }
 
 /**
- * Get the default window icon.
+ * Gets the default window icon.
  *
  * @example
  * ```typescript
  * import { defaultWindowIcon } from '@tauri-apps/api/app';
- * await defaultWindowIcon();
+ * const icon = await defaultWindowIcon();
  * ```
  *
  * @since 2.0.0
  */
+
 async function defaultWindowIcon(): Promise<Image | null> {
   return invoke<number | null>('plugin:app|default_window_icon').then((rid) =>
     rid ? new Image(rid) : null
@@ -178,7 +201,8 @@ async function defaultWindowIcon(): Promise<Image | null> {
 }
 
 /**
- * Set app's theme, pass in `null` or `undefined` to follow system theme
+ * Sets the application's theme. Pass in `null` or `undefined` to follow
+ * the system theme.
  *
  * @example
  * ```typescript
@@ -199,11 +223,59 @@ async function setTheme(theme?: Theme | null): Promise<void> {
 /**
  * Sets the dock visibility for the application on macOS.
  *
- * @param visible whether the dock should be visible or not
+ * @param visible - Whether the dock should be visible or not.
+ *
+ * @example
+ * ```typescript
+ * import { setDockVisibility } from '@tauri-apps/api/app';
+ * await setDockVisibility(false);
+ * ```
+ *
  * @since 2.5.0
  */
 async function setDockVisibility(visible: boolean): Promise<void> {
   return invoke('plugin:app|set_dock_visibility', { visible })
+}
+
+/**
+ * Gets the application bundle type.
+ *
+ * @example
+ * ```typescript
+ * import { getBundleType } from '@tauri-apps/api/app';
+ * const type = await getBundleType();
+ * ```
+ *
+ * @since 2.5.0
+ */
+async function getBundleType(): Promise<BundleType> {
+  return invoke('plugin:app|bundle_type')
+}
+
+/**
+ * Payload for the onBackButtonPress event.
+ */
+type OnBackButtonPressPayload = {
+  /** Whether the webview canGoBack property is true. */
+  canGoBack: boolean
+}
+
+/**
+ * Listens to the backButton event on Android.
+ * @param handler
+ */
+async function onBackButtonPress(
+  handler: (payload: OnBackButtonPressPayload) => void
+): Promise<PluginListener> {
+  return addPluginListener<OnBackButtonPressPayload>(
+    'app',
+    'back-button',
+    handler
+  )
+}
+
+async function supportsMultipleWindows(): Promise<boolean> {
+  return invoke('plugin:app|supports_multiple_windows')
 }
 
 export {
@@ -217,5 +289,9 @@ export {
   setTheme,
   fetchDataStoreIdentifiers,
   removeDataStore,
-  setDockVisibility
+  setDockVisibility,
+  getBundleType,
+  type OnBackButtonPressPayload,
+  onBackButtonPress,
+  supportsMultipleWindows
 }

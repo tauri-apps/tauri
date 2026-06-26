@@ -45,7 +45,7 @@ pub fn get<R: Runtime>(
             &assets,
             &"index.html".into(),
             &manager,
-            Csp::Policy(format!("default-src 'none'; frame-src {}", frame_src)),
+            Csp::Policy(format!("default-src 'none'; frame-src {frame_src}")),
           );
           let csp = Csp::DirectiveMap(csp_map).to_string();
 

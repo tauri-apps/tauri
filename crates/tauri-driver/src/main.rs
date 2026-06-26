@@ -28,6 +28,16 @@ fn main() {
 fn main() {
   let args = pico_args::Arguments::from_env().into();
 
+  #[cfg(windows)]
+  let _job_handle = {
+    let job = win32job::Job::create().unwrap();
+    let mut info = job.query_extended_limit_info().unwrap();
+    info.limit_kill_on_job_close();
+    job.set_extended_limit_info(&info).unwrap();
+    job.assign_current_process().unwrap();
+    job
+  };
+
   // start the native webdriver on the port specified in args
   let mut driver = webdriver::native(&args);
   let driver = driver
@@ -36,7 +46,7 @@ fn main() {
 
   // start our webdriver intermediary node
   if let Err(e) = server::run(args, driver) {
-    eprintln!("error while running server: {}", e);
+    eprintln!("error while running server: {e}");
     std::process::exit(1);
   }
 }

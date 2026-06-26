@@ -66,15 +66,40 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
-      let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
+      let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .on_document_title_changed(|_window, title| {
+          println!("document title changed: {title}");
+        });
 
       #[cfg(all(desktop, not(test)))]
       {
+        let app_ = app.handle().clone();
+        let mut created_window_count = std::sync::atomic::AtomicUsize::new(0);
+
         window_builder = window_builder
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
-          .menu(tauri::menu::Menu::default(app.handle())?);
+          .menu(tauri::menu::Menu::default(app.handle())?)
+          .on_new_window(move |url, features| {
+            println!("new window requested: {url:?} {features:?}");
+
+            let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+            let builder = WebviewWindowBuilder::new(
+              &app_,
+              format!("new-{number}"),
+              tauri::WebviewUrl::External("about:blank".parse().unwrap()),
+            )
+            .window_features(features)
+            .on_document_title_changed(|window, title| {
+              window.set_title(&title).unwrap();
+            })
+            .title(url.as_str());
+
+            let window = builder.build().unwrap();
+            tauri::webview::NewWindowResponse::Create { window }
+          });
       }
 
       let webview = window_builder.build()?;
@@ -86,39 +111,16 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       let response = app.sample().ping(PingRequest {
         value: value.clone(),
         on_event: Channel::new(|event| {
-          println!("got channel event: {:?}", event);
+          println!("got channel event: {event:?}");
           Ok(())
         }),
       });
       log::info!("got response: {:?}", response);
+      // when #[cfg(desktop)], Rust will detect pattern as irrefutable
+      #[allow(irrefutable_let_patterns)]
       if let Ok(res) = response {
         assert_eq!(res.value, value);
       }
-
-      #[cfg(desktop)]
-      std::thread::spawn(|| {
-        let server = match tiny_http::Server::http("localhost:3003") {
-          Ok(s) => s,
-          Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
-          }
-        };
-        loop {
-          if let Ok(mut request) = server.recv() {
-            let mut body = Vec::new();
-            let _ = request.as_reader().read_to_end(&mut body);
-            let response = tiny_http::Response::new(
-              tiny_http::StatusCode(200),
-              request.headers().to_vec(),
-              std::io::Cursor::new(body),
-              request.body_length(),
-              None,
-            );
-            let _ = request.respond(response);
-          }
-        }
-      });
 
       setup(app);
 
@@ -154,17 +156,19 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
+  #[cfg(target_os = "ios")]
+  let mut counter = 0;
   app.run(move |_app_handle, _event| {
-    #[cfg(all(desktop, not(test)))]
+    #[cfg(not(test))]
     match &_event {
-      RunEvent::ExitRequested { api, code, .. } => {
-        // Keep the event loop running even if all windows are closed
-        // This allow us to catch tray icon events when there is no window
-        // if we manually requested an exit (code is Some(_)) we will let it go through
-        if code.is_none() {
-          api.prevent_exit();
-        }
+      // Keep the event loop running even if all windows are closed
+      // This allow us to catch tray icon events when there is no window
+      // if we manually requested an exit (code is Some(_)) we will let it go through
+      #[cfg(desktop)]
+      RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
+        api.prevent_exit();
       }
+      #[cfg(desktop)]
       RunEvent::WindowEvent {
         event: tauri::WindowEvent::CloseRequested { api, .. },
         label,
@@ -179,6 +183,21 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .unwrap()
           .destroy()
           .unwrap();
+      }
+      #[cfg(target_os = "ios")]
+      RunEvent::SceneRequested { .. } => {
+        counter += 1;
+        WebviewWindowBuilder::new(
+          _app_handle,
+          format!("main-from-scene-{counter}"),
+          WebviewUrl::default(),
+        )
+        .build()
+        .unwrap();
+      }
+      #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+      RunEvent::Opened { urls } => {
+        println!("opened urls: {:?}", urls);
       }
       _ => (),
     }

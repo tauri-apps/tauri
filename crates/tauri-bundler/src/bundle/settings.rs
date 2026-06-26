@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: MIT
 
 use super::category::AppCategory;
-use crate::{bundle::platform::target_triple, utils::fs_utils};
-use anyhow::Context;
+use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{
     BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression,
     RpmCompression,
   },
+  platform::Target as TargetPlatform,
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -126,7 +126,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  #[cfg(target_os = "windows")]
+  // NSIS installers can be built on all platforms but it's hidden in the --help output on macOS/Linux.
   PackageType::Nsis,
   #[cfg(target_os = "macos")]
   PackageType::MacOsBundle,
@@ -231,7 +231,7 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
-  /// the list of of RPM dependencies your application recommends.
+  /// the list of RPM dependencies your application recommends.
   pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
@@ -332,6 +332,10 @@ pub struct MacOsSettings {
   pub files: HashMap<PathBuf, PathBuf>,
   /// The version of the build that identifies an iteration of the bundle.
   pub bundle_version: Option<String>,
+  /// The name of the build that identifies a string of the bundle.
+  ///
+  /// If not set, defaults to the package's product name.
+  pub bundle_name: Option<String>,
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,
@@ -341,16 +345,43 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
+  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  ///
+  /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
+  /// reaching out to Apple's servers which is helpful in offline environments.
+  ///
+  /// Enabling this option will also result in `tauri build` not waiting for notarization to finish
+  /// which is helpful for the very first time your app is notarized as this can take multiple hours.
+  /// On subsequent runs, it's recommended to disable this setting again.
+  pub skip_stapling: bool,
   /// Preserve the hardened runtime version flag, see <https://developer.apple.com/documentation/security/hardened_runtime>
   ///
   /// Settings this to `false` is useful when using an ad-hoc signature, making it less strict.
   pub hardened_runtime: bool,
   /// Provider short name for notarization.
   pub provider_short_name: Option<String>,
+  /// Path or contents of the entitlements.plist file.
+  pub entitlements: Option<Entitlements>,
+  /// Path to the Info.plist file or raw plist value to merge with the bundle Info.plist.
+  pub info_plist: Option<PlistKind>,
+}
+
+/// Entitlements for macOS code signing.
+#[derive(Debug, Clone)]
+pub enum Entitlements {
   /// Path to the entitlements.plist file.
-  pub entitlements: Option<String>,
-  /// Path to the Info.plist file for the bundle.
-  pub info_plist_path: Option<PathBuf>,
+  Path(PathBuf),
+  /// Raw plist::Value.
+  Plist(plist::Value),
+}
+
+/// Plist format.
+#[derive(Debug, Clone)]
+pub enum PlistKind {
+  /// Path to a .plist file.
+  Path(PathBuf),
+  /// Raw plist value.
+  Plist(plist::Value),
 }
 
 /// Configuration for a target language for the WiX build.
@@ -439,11 +470,19 @@ pub struct NsisSettings {
   pub sidebar_image: Option<PathBuf>,
   /// The path to an icon file used as the installer icon.
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   pub install_mode: NSISInstallerMode,
-  /// A list of installer languages.
+  /// A list of installer languages. Default to `["English"]` if not set.
+  ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
-  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  /// To allow the user to select the language, set [`Self::display_language_selector`] to `true`.
   ///
   /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
@@ -452,7 +491,7 @@ pub struct NsisSettings {
   ///
   /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsi` file.
   ///
-  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`]languages array,
+  /// **Note**: the key must be a valid NSIS language and it must be added to the [`Self::languages`] array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
@@ -501,6 +540,10 @@ pub struct NsisSettings {
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.8.0",
+    note = "Use `WindowsSettings::minimum_webview2_version` instead."
+  )]
   pub minimum_webview2_version: Option<String>,
 }
 
@@ -556,6 +599,16 @@ pub struct WindowsSettings {
   /// if you are on another platform and want to cross-compile and sign you will
   /// need to use another tool like `osslsigncode`.
   pub sign_command: Option<CustomSignCommandSettings>,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  pub minimum_webview2_version: Option<String>,
+}
+
+impl WindowsSettings {
+  pub(crate) fn can_sign(&self) -> bool {
+    self.sign_command.is_some() || self.certificate_thumbprint.is_some()
+  }
 }
 
 #[allow(deprecated)]
@@ -575,6 +628,7 @@ mod _default {
         webview_install_mode: Default::default(),
         allow_downgrades: true,
         sign_command: None,
+        minimum_webview2_version: None,
       }
     }
   }
@@ -758,10 +812,16 @@ pub struct Settings {
   local_tools_directory: Option<PathBuf>,
   /// the bundle settings.
   bundle_settings: BundleSettings,
+  /// Same as `bundle_settings.icon`, but without the .icon directory.
+  icon_files: Option<Vec<String>>,
   /// the binaries to bundle.
   binaries: Vec<BundleBinary>,
+  /// The target platform.
+  target_platform: TargetPlatform,
   /// The target triple.
   target: String,
+  /// Whether to disable code signing during the bundling process.
+  no_sign: bool,
 }
 
 /// A builder for [`Settings`].
@@ -775,6 +835,7 @@ pub struct SettingsBuilder {
   binaries: Vec<BundleBinary>,
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
+  no_sign: bool,
 }
 
 impl SettingsBuilder {
@@ -844,6 +905,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets whether to skip code signing.
+  #[must_use]
+  pub fn no_sign(mut self, no_sign: bool) -> Self {
+    self.no_sign = no_sign;
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -855,6 +923,15 @@ impl SettingsBuilder {
     } else {
       target_triple()?
     };
+    let target_platform = TargetPlatform::from_triple(&target);
+
+    let icon_files = self.bundle_settings.icon.as_ref().map(|paths| {
+      paths
+        .iter()
+        .filter(|p| !p.ends_with(".icon"))
+        .cloned()
+        .collect()
+    });
 
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
@@ -872,10 +949,13 @@ impl SettingsBuilder {
           .bundle_settings
           .external_bin
           .as_ref()
-          .map(|bins| external_binaries(bins, &target)),
+          .map(|bins| external_binaries(bins, &target, &target_platform)),
         ..self.bundle_settings
       },
+      icon_files,
+      target_platform,
       target,
+      no_sign: self.no_sign,
     })
   }
 }
@@ -899,6 +979,16 @@ impl Settings {
   /// Returns the target triple.
   pub fn target(&self) -> &str {
     &self.target
+  }
+
+  /// Returns the [`TargetPlatform`].
+  pub fn target_platform(&self) -> &TargetPlatform {
+    &self.target_platform
+  }
+
+  /// Raw list of icons.
+  pub fn icons(&self) -> Option<&Vec<String>> {
+    self.bundle_settings.icon.as_ref()
   }
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
@@ -929,7 +1019,6 @@ impl Settings {
       .iter()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
   }
 
   /// Returns the file name of the binary being bundled.
@@ -939,7 +1028,6 @@ impl Settings {
       .iter_mut()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
   }
 
   /// Returns the file name of the binary being bundled.
@@ -950,24 +1038,27 @@ impl Settings {
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
       .map(|b| b.name())
-      .map_err(Into::into)
   }
 
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
-    let target_os = self
-      .target()
-      .split('-')
-      .nth(2)
-      .unwrap_or(std::env::consts::OS);
+    let target_os = self.target_platform();
 
-    let path = self.project_out_directory.join(binary.name());
+    let mut path = self.project_out_directory.join(binary.name());
 
-    if target_os == "windows" {
-      path.with_extension("exe")
-    } else {
-      path
-    }
+    if matches!(target_os, TargetPlatform::Windows) {
+      // Append the `.exe` extension without overriding the existing extensions
+      let extension = if let Some(extension) = path.extension() {
+        let mut extension = extension.to_os_string();
+        extension.push(".exe");
+        extension
+      } else {
+        "exe".into()
+      };
+      path.set_extension(extension);
+    };
+
+    path
   }
 
   /// Returns the list of binaries to bundle.
@@ -985,18 +1076,13 @@ impl Settings {
   ///
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
-    let target_os = self
-      .target
-      .split('-')
-      .nth(2)
-      .unwrap_or(std::env::consts::OS)
-      .replace("darwin", "macos");
+    let target_os = self.target_platform();
 
-    let platform_types = match target_os.as_str() {
-      "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
-      "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
-      "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],
+    let platform_types = match target_os {
+      TargetPlatform::MacOS => vec![PackageType::MacOsBundle, PackageType::Dmg],
+      TargetPlatform::Ios => vec![PackageType::IosBundle],
+      TargetPlatform::Linux => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
+      TargetPlatform::Windows => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."
@@ -1039,7 +1125,7 @@ impl Settings {
 
   /// Returns an iterator over the icon files to be used for this bundle.
   pub fn icon_files(&self) -> ResourcePaths<'_> {
-    match self.bundle_settings.icon {
+    match self.icon_files {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), false),
       None => ResourcePaths::new(&[], false),
     }
@@ -1219,5 +1305,15 @@ impl Settings {
   /// Returns the Updater settings.
   pub fn updater(&self) -> Option<&UpdaterSettings> {
     self.bundle_settings.updater.as_ref()
+  }
+
+  /// Whether to skip signing.
+  pub fn no_sign(&self) -> bool {
+    self.no_sign
+  }
+
+  /// Set whether to skip signing.
+  pub fn set_no_sign(&mut self, no_sign: bool) {
+    self.no_sign = no_sign;
   }
 }

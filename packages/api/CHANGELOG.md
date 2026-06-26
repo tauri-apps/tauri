@@ -1,5 +1,122 @@
 # Changelog
 
+## \[2.11.1]
+
+### Enhancements
+
+- [`916782601`](https://www.github.com/tauri-apps/tauri/commit/9167826011cc3d114bf12dfb301968fae479891f) ([#15520](https://www.github.com/tauri-apps/tauri/pull/15520) by [@polw1](https://www.github.com/tauri-apps/tauri/../../polw1)) Document that `Monitor.size`, `Monitor.position` and `Monitor.workArea` are in physical pixels, with examples showing how to convert them to the logical pixels expected by window creation options via `toLogical(monitor.scaleFactor)`.
+
+## \[2.11.0]
+
+### New Features
+
+- [`074299c08`](https://www.github.com/tauri-apps/tauri/commit/074299c08dd99d2e1c57796f55ab24bc1d3976cc) ([#14307](https://www.github.com/tauri-apps/tauri/pull/14307)) Add Bring All to Front predefined menu item type
+- [`a12142a48`](https://www.github.com/tauri-apps/tauri/commit/a12142a481f7a19b69e88ee36a438b1db71b36f5) ([#14357](https://www.github.com/tauri-apps/tauri/pull/14357)) Add macos support for setting the icon and icon template state in the same step of the main thread, to prevent flickering.
+- [`001c8fe3d`](https://www.github.com/tauri-apps/tauri/commit/001c8fe3d288802de9a8c29cfd2f46f9220d97c5) ([#14722](https://www.github.com/tauri-apps/tauri/pull/14722)) Add a WebView option to control browser-level general autofill behavior. This option does not disable password or credit card autofill. On Windows (WebView2), setting it to true disables the general autofill "Suggestions" UI, which may appear even when `autocomplete="off"` is specified on input elements. On Linux, macOS, iOS, and Android, this option is currently unsupported and performs no operation.
+- [`eb0312ea9`](https://www.github.com/tauri-apps/tauri/commit/eb0312ea9e493954298ac0b3fdaae7eafb52750e) ([#15199](https://www.github.com/tauri-apps/tauri/pull/15199)) Propagates the `Event::Suspended` and `Event::Resumed` events from `tao` when they are emitted on mobile targets.
+
+## \[2.10.1]
+
+### Bug Fixes
+
+- Re-release of `2.10.0` with working assets.
+
+## \[2.10.0]
+
+### Dependencies
+
+- [`517b81e97`](https://www.github.com/tauri-apps/tauri/commit/517b81e97005d087ca5fc4538d954982fce0f4ac) ([#14876](https://www.github.com/tauri-apps/tauri/pull/14876)) Upgraded to `tauri@2.10`
+
+## \[2.9.1]
+
+### Bug Fixes
+
+- [`ad1dec2e2`](https://www.github.com/tauri-apps/tauri/commit/ad1dec2e2488fe5c0a004b69f1bd290dfc593bf8) ([#14464](https://www.github.com/tauri-apps/tauri/pull/14464) by [@funnydino](https://www.github.com/tauri-apps/tauri/../../funnydino)) Fix `addPluginListener` fallback added in https://github.com/tauri-apps/tauri/pull/14132 didn't work properly
+
+## \[2.9.0]
+
+### New Features
+
+- [`f5851ee00`](https://www.github.com/tauri-apps/tauri/commit/f5851ee00d6d1f4d560a220ca5a728fedd525092) ([#14089](https://www.github.com/tauri-apps/tauri/pull/14089)) Adds the `scrollBarStyle` option to the Webview and WebviewBuilder constructors.
+- [`3397fd9bf`](https://www.github.com/tauri-apps/tauri/commit/3397fd9bfe5f6b1337110149f6c34731b8a44bb3) ([#14133](https://www.github.com/tauri-apps/tauri/pull/14133)) Added `app > onBackButtonPress` for Android back button handling.
+
+### Enhancements
+
+- [`59089723f`](https://www.github.com/tauri-apps/tauri/commit/59089723fc20d66f3f305f2008adeb279bf87462) ([#14091](https://www.github.com/tauri-apps/tauri/pull/14091)) Added a config to set a data_directory relative to the app-specific data dir in JavaScript and `tauri.conf.json`.
+
+### Bug Fixes
+
+- [`08bda64c2`](https://www.github.com/tauri-apps/tauri/commit/08bda64c25008bd45c5b58d06ff14649081a2f5d) ([#14132](https://www.github.com/tauri-apps/tauri/pull/14132)) Fix `core > addPluginListener` failing on command permission check.
+
+## \[2.8.0]
+
+### New Features
+
+- [`68874c68c`](https://www.github.com/tauri-apps/tauri/commit/68874c68c566638b4c21a3aa67844d1bdaeb6dab) ([#13564](https://www.github.com/tauri-apps/tauri/pull/13564) by [@robertrpf](https://www.github.com/tauri-apps/tauri/../../robertrpf)) Add window focusable attribute and set_focusable API.
+- [`5110a762e`](https://www.github.com/tauri-apps/tauri/commit/5110a762e9db978a28a15400bf76e3c864da2a86) ([#13830](https://www.github.com/tauri-apps/tauri/pull/13830) by [@Sky-walkerX](https://www.github.com/tauri-apps/tauri/../../Sky-walkerX)) Added `Window::setSimpleFullscreen`.
+
+### Enhancements
+
+- [`5ba1c3faa`](https://www.github.com/tauri-apps/tauri/commit/5ba1c3faa468073512bdb5035a01f7f99720fcf0) ([#13722](https://www.github.com/tauri-apps/tauri/pull/13722) by [@s00d](https://www.github.com/tauri-apps/tauri/../../s00d)) Added icon (icon and nativeIcon) support for Submenu:
+
+  - In the Rust API (`tauri`), you can now set an icon for submenus via the builder and dedicated methods.
+  - In the JS/TS API (`@tauri-apps/api`), `SubmenuOptions` now has an `icon` field, and the `Submenu` class provides `setIcon` and `setNativeIcon` methods.
+  - Usage examples are added to the documentation and demo app.
+
+  This is a backwards-compatible feature. Submenus can now display icons just like regular menu items.
+
+## \[2.7.0]
+
+### New Features
+
+- [`232265c70`](https://www.github.com/tauri-apps/tauri/commit/232265c70e1c213bbb3f84b5541ddc07d330fce1) ([#13209](https://www.github.com/tauri-apps/tauri/pull/13209) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Added `getBundleType` to the app module.
+
+### Enhancements
+
+- [`96391467e`](https://www.github.com/tauri-apps/tauri/commit/96391467e967c1e3c6475ce75166c58a326116a3) ([#13783](https://www.github.com/tauri-apps/tauri/pull/13783) by [@JosephBrooksbank](https://www.github.com/tauri-apps/tauri/../../JosephBrooksbank)) Allow events emitted with `emit` to be handled correctly by `listen` callbacks when in a mocked environment
+
+### Bug Fixes
+
+- [`152d971bc`](https://www.github.com/tauri-apps/tauri/commit/152d971bcd6c1fdc5716f7d5417dd4df5ce7479f) ([#13744](https://www.github.com/tauri-apps/tauri/pull/13744) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Expose `unregisterCallback`, `runCallback`, `callbacks` in `mockIPC`
+- [`b821796ad`](https://www.github.com/tauri-apps/tauri/commit/b821796add33cca4de72f48882684af487936d02) ([#13810](https://www.github.com/tauri-apps/tauri/pull/13810) by [@asdolo](https://www.github.com/tauri-apps/tauri/../../asdolo)) Add missing `trafficLightPosition` TypeScript type definition
+
+## \[2.6.0]
+
+### New Features
+
+- [`50ebddaa2`](https://www.github.com/tauri-apps/tauri/commit/50ebddaa2d83033a393a176ba07ef28352b98210) ([#13319](https://www.github.com/tauri-apps/tauri/pull/13319) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) Expose the `setAutoResize` API for webviews in `@tauri-apps/api`.
+- [`267368fd4`](https://www.github.com/tauri-apps/tauri/commit/267368fd4f83e0a71dfb1b72a66d56592a2066bc) ([#13276](https://www.github.com/tauri-apps/tauri/pull/13276) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Monitor.workArea` field.
+
+### Bug Fixes
+
+- [`23b9da75b`](https://www.github.com/tauri-apps/tauri/commit/23b9da75b91379cca9520bc53b10fdf39ebae241) ([#13324](https://www.github.com/tauri-apps/tauri/pull/13324) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) Fixed path joining behavior where `path.join('', 'a')` incorrectly returns "/a" instead of "a".
+- [`b985eaf0a`](https://www.github.com/tauri-apps/tauri/commit/b985eaf0a231ea570e36d686c665cddbc76ab4f6) ([#13306](https://www.github.com/tauri-apps/tauri/pull/13306) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Immediately unregister event listener when the unlisten function is called.
+
+### What's Changed
+
+- [`b5c549d18`](https://www.github.com/tauri-apps/tauri/commit/b5c549d1898ecdb712822c02dc665cc6771fbd07) ([#13325](https://www.github.com/tauri-apps/tauri/pull/13325) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `transformCallback` now registers the callbacks inside `window.__TAURI_INTERNALS__.callbacks` instead of directly on `window['_{id}']`
+
+## \[2.5.0]
+
+### New Features
+
+- [`66e6325f4`](https://www.github.com/tauri-apps/tauri/commit/66e6325f43efa49ec2165c45afec911a1a14ecfb) ([#13136](https://www.github.com/tauri-apps/tauri/pull/13136)) Allow passing the callback as the parameter of constructor of `Channel` so you can use it like this `new Channel((message) => console.log(message))`
+- [`ea36294cb`](https://www.github.com/tauri-apps/tauri/commit/ea36294cbca98f7725c91d1464fd92e77c89698a) ([#13208](https://www.github.com/tauri-apps/tauri/pull/13208)) Added `disableInputAccessoryView: bool` config for iOS.
+- [`c1cd0a2dd`](https://www.github.com/tauri-apps/tauri/commit/c1cd0a2ddb5bc3e99451cbe399b5fc9f0035f571) ([#13090](https://www.github.com/tauri-apps/tauri/pull/13090)) macOS/iOS: add option to disable or enable link previews when building a webview (the webkit api has it enabled by default)
+
+  - `WindowOptions::allowLinkPreview`
+  - `WebviewOptions::allowLinkPreview`
+- [`b072e2b29`](https://www.github.com/tauri-apps/tauri/commit/b072e2b2967640ae4fa1af466ae878c156551edd) ([#9687](https://www.github.com/tauri-apps/tauri/pull/9687)) Add `preventOverflow` config option to prevent the window from overflowing the monitor size on creation
+- [`dd4f13ce4`](https://www.github.com/tauri-apps/tauri/commit/dd4f13ce4b3cd89cde2fa3f18a063c272f215621) ([#13185](https://www.github.com/tauri-apps/tauri/pull/13185)) Added `app.setDockVisibility` for macOS.
+
+### Enhancements
+
+- [`b8f86669a`](https://www.github.com/tauri-apps/tauri/commit/b8f86669ab05f7dbdd15839a20999e63dc43bda6) ([#13145](https://www.github.com/tauri-apps/tauri/pull/13145)) `core.isTauri` now leverages `globalThis` instead of `window` in order to be used in unit tests.
+
+### Bug Fixes
+
+- [`66e6325f4`](https://www.github.com/tauri-apps/tauri/commit/66e6325f43efa49ec2165c45afec911a1a14ecfb) ([#13136](https://www.github.com/tauri-apps/tauri/pull/13136)) Fix `Channel`'s callback attached to `window` never cleaned up
+
 ## \[2.4.1]
 
 ### Enhancements

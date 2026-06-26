@@ -5,7 +5,7 @@
 import { MenuItemBase, newMenu } from './base'
 import { type MenuItemOptions } from '../menu'
 import { invoke } from '../core'
-import { Image, transformImage } from '../image'
+import { transformImage, MenuIcon } from '../image'
 
 /**
  * A native Icon to be used for the menu item
@@ -141,7 +141,7 @@ export interface IconMenuItemOptions extends MenuItemOptions {
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
-  icon?: NativeIcon | string | Image | Uint8Array | ArrayBuffer | number[]
+  icon?: MenuIcon
 }
 
 /**
@@ -197,18 +197,10 @@ export class IconMenuItem extends MenuItemBase {
   }
 
   /** Sets an icon for this icon menu item */
-  async setIcon(
-    icon:
-      | NativeIcon
-      | string
-      | Image
-      | Uint8Array
-      | ArrayBuffer
-      | number[]
-      | null
-  ): Promise<void> {
+  async setIcon(icon: MenuIcon | null): Promise<void> {
     return invoke('plugin:menu|set_icon', {
       rid: this.rid,
+      kind: this.kind,
       icon: transformImage(icon)
     })
   }

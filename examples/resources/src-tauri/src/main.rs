@@ -22,7 +22,7 @@ fn main() {
       let content = std::fs::read_to_string(&path).unwrap();
 
       println!("Resource `assets/index.js` path: {}", path.display());
-      println!("Resource `assets/index.js` content:\n{}\n", content);
+      println!("Resource `assets/index.js` content:\n{content}\n");
 
       Ok(())
     })

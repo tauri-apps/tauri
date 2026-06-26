@@ -17,7 +17,7 @@ use crate::{
 /// <https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106>
 fn normalize_path(path: &Path) -> PathBuf {
   let mut components = path.components().peekable();
-  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().copied() {
     components.next();
     PathBuf::from(c.as_os_str())
   } else {
@@ -47,7 +47,7 @@ fn normalize_path(path: &Path) -> PathBuf {
 /// <https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106>
 fn normalize_path_no_absolute(path: &Path) -> PathBuf {
   let mut components = path.components().peekable();
-  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().copied() {
     components.next();
     PathBuf::from(c.as_os_str())
   } else {
@@ -132,19 +132,19 @@ pub fn normalize(path: String) -> String {
 }
 
 #[command(root = "crate")]
-pub fn join(mut paths: Vec<String>) -> String {
+pub fn join(paths: Vec<String>) -> String {
   let path = PathBuf::from(
     paths
-      .iter_mut()
-      .map(|p| {
-        // Add a `MAIN_SEPARATOR` if it doesn't already have one.
+      .into_iter()
+      .map(|mut p| {
+        // Add a `MAIN_SEPARATOR` if it doesn't already have one and is not an empty string.
         // Doing this to ensure that the vector elements are separated in
         // the resulting string so path.components() can work correctly when called
         // in `normalize_path_no_absolute()` later on.
-        if !p.ends_with('/') && !p.ends_with('\\') {
+        if !p.is_empty() && !p.ends_with('/') && !p.ends_with('\\') {
           p.push(MAIN_SEPARATOR);
         }
-        p.to_string()
+        p
       })
       .collect::<String>(),
   );
@@ -286,5 +286,28 @@ mod tests {
       super::basename(app.handle().clone(), path, Some(".json")).unwrap(),
       "some-json-file.json.html"
     );
+  }
+
+  #[test]
+  fn join() {
+    fn check(paths: Vec<&str>, expected_unix: &str, expected_windows: &str) {
+      let expected = if cfg!(windows) {
+        expected_windows
+      } else {
+        expected_unix
+      };
+      let paths = paths.into_iter().map(String::from).collect();
+      assert_eq!(super::join(paths), expected);
+    }
+
+    check(vec![""], ".", ".");
+    check(vec!["", ""], ".", ".");
+    check(vec!["a"], "a", "a");
+    check(vec!["", "a"], "a", "a");
+    check(vec!["a", "b"], "a/b", r"a\b");
+    check(vec!["a", "", "b"], "a/b", r"a\b");
+    check(vec!["a", "/b", "c"], "a/b/c", r"a\b\c");
+    check(vec!["a", "b/c", "d"], "a/b/c/d", r"a\b\c\d");
+    check(vec!["a/", "b"], "a/b", r"a\b");
   }
 }

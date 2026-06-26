@@ -24,8 +24,12 @@
 // generate postinst or prerm files.
 
 use super::freedesktop;
-use crate::{bundle::settings::Arch, utils::fs_utils, Settings};
-use anyhow::Context;
+use crate::{
+  bundle::settings::Arch,
+  error::{Context, ErrorExt},
+  utils::fs_utils,
+  Settings,
+};
 use flate2::{write::GzEncoder, Compression};
 use tar::HeaderMode;
 use walkdir::WalkDir;
@@ -49,8 +53,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     Arch::Riscv64 => "riscv64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "Unsupported architecture: {:?}",
-        target
+        "Unsupported architecture: {target:?}"
       )));
     }
   };
@@ -65,30 +68,32 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let base_dir = settings.project_out_directory().join("bundle/deb");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old {package_base_name}"))?;
+    fs::remove_dir_all(&package_dir).fs_context(
+      "Failed to Remove old package directory",
+      package_dir.clone(),
+    )?;
   }
   let package_path = base_dir.join(&package_name);
 
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let (data_dir, _) = generate_data(settings, &package_dir)
-    .with_context(|| "Failed to build data folders and files")?;
+  let (data_dir, _) =
+    generate_data(settings, &package_dir).context("Failed to build data folders and files")?;
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
-    .with_context(|| "Failed to copy custom files")?;
+    .context("Failed to copy custom files")?;
 
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
-    .with_context(|| "Failed to create control file")?;
-  generate_scripts(settings, &control_dir).with_context(|| "Failed to create control scripts")?;
-  generate_md5sums(&control_dir, &data_dir).with_context(|| "Failed to create md5sums file")?;
+    .context("Failed to create control file")?;
+  generate_scripts(settings, &control_dir).context("Failed to create control scripts")?;
+  generate_md5sums(&control_dir, &data_dir).context("Failed to create md5sums file")?;
 
   // Generate `debian-binary` file; see
   // http://www.tldp.org/HOWTO/Debian-Binary-Package-Building-HOWTO/x60.html#AEN66
   let debian_binary_path = package_dir.join("debian-binary");
   create_file_with_data(&debian_binary_path, "2.0\n")
-    .with_context(|| "Failed to create debian-binary file")?;
+    .context("Failed to create debian-binary file")?;
 
   // Apply tar/gzip/ar to create the final package file.
   let control_tar_gz_path =
@@ -114,8 +119,9 @@ pub fn generate_data(
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    fs_utils::copy_file(&bin_path, &bin_dir.join(bin.name()))
-      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
+    let trgt = bin_dir.join(bin.name());
+    fs_utils::copy_file(&bin_path, &trgt)
+      .with_context(|| format!("Failed to copy binary from {bin_path:?} to {trgt:?}"))?;
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
@@ -164,7 +170,7 @@ fn generate_control_file(
   let dest_path = control_dir.join("control");
   let mut file = fs_utils::create_file(&dest_path)?;
   let package = heck::AsKebabCase(settings.product_name());
-  writeln!(file, "Package: {}", package)?;
+  writeln!(file, "Package: {package}")?;
   writeln!(file, "Version: {}", settings.version_string())?;
   writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
@@ -183,16 +189,16 @@ fn generate_control_file(
 
   writeln!(file, "Maintainer: {authors}")?;
   if let Some(section) = &settings.deb().section {
-    writeln!(file, "Section: {}", section)?;
+    writeln!(file, "Section: {section}")?;
   }
   if let Some(priority) = &settings.deb().priority {
-    writeln!(file, "Priority: {}", priority)?;
+    writeln!(file, "Priority: {priority}")?;
   } else {
     writeln!(file, "Priority: optional")?;
   }
 
   if let Some(homepage) = settings.homepage_url() {
-    writeln!(file, "Homepage: {}", homepage)?;
+    writeln!(file, "Homepage: {homepage}")?;
   }
 
   let dependencies = settings.deb().depends.as_ref().cloned().unwrap_or_default();
@@ -305,7 +311,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
     let mut file = File::open(path)?;
     let mut hash = md5::Context::new();
     io::copy(&mut file, &mut hash)?;
-    for byte in hash.compute().iter() {
+    for byte in hash.finalize().iter() {
       write!(md5sums_file, "{byte:02x}")?;
     }
     let rel_path = path.strip_prefix(data_dir)?;

@@ -19,14 +19,12 @@ use serde::Serialize;
 #[cfg(feature = "isolation")]
 use serialize_to_javascript::DefaultTemplate;
 
-use crate::config::{DisabledCspModificationKind, PatternKind};
 #[cfg(feature = "isolation")]
 use crate::pattern::isolation::IsolationJavascriptCodegen;
-
-/// The token used for script nonces.
-pub const SCRIPT_NONCE_TOKEN: &str = "__TAURI_SCRIPT_NONCE__";
-/// The token used for style nonces.
-pub const STYLE_NONCE_TOKEN: &str = "__TAURI_STYLE_NONCE__";
+use crate::{
+  assets::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
+  config::{DisabledCspModificationKind, PatternKind},
+};
 
 // taken from <https://github.com/kuchiki-rs/kuchiki/blob/57ee6920d835315a498e748ba4b07a851ae5e498/src/serializer.rs#L12>
 fn serialize_node_ref_internal<S: Serializer>(
@@ -114,7 +112,7 @@ pub fn serialize_node(node: &NodeRef) -> Vec<u8> {
 
 /// Parses the given HTML string.
 pub fn parse(html: String) -> NodeRef {
-  kuchiki::parse_html().one(html)
+  kuchiki::parse_html().one(html).document_node
 }
 
 fn with_head<F: FnOnce(&NodeRef)>(document: &NodeRef, f: F) {
@@ -213,19 +211,14 @@ impl From<&PatternKind> for PatternObject {
 }
 
 /// Where the JavaScript is injected to
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum IsolationSide {
   /// Original frame, the Brownfield application
+  #[default]
   Original,
   /// Secure frame, the isolation security application
   Secure,
-}
-
-impl Default for IsolationSide {
-  fn default() -> Self {
-    Self::Original
-  }
 }
 
 /// Injects the Isolation JavaScript to a codegen time document.
@@ -288,9 +281,48 @@ pub fn inline_isolation(document: &NodeRef, dir: &Path) {
   }
 }
 
+// TODO: Verify this, this is not found in the HTML spec, see https://github.com/tauri-apps/tauri/pull/14265#discussion_r2415396842
+/// Normalize line endings in script content to match what the browser uses for CSP hashing.
+///
+/// According to the HTML spec, browsers normalize:
+/// - `\r\n` → `\n`
+/// - `\r`   → `\n`
+pub fn normalize_script_for_csp(input: &[u8]) -> Vec<u8> {
+  let mut output = Vec::with_capacity(input.len());
+
+  let mut i = 0;
+  while i < input.len() {
+    match input[i] {
+      b'\r' => {
+        if i + 1 < input.len() && input[i + 1] == b'\n' {
+          // CRLF → LF
+          output.push(b'\n');
+          i += 2;
+        } else {
+          // Lone CR → LF
+          output.push(b'\n');
+          i += 1;
+        }
+      }
+      _ => {
+        output.push(input[i]);
+        i += 1;
+      }
+    }
+  }
+
+  output
+}
+
 #[cfg(test)]
 mod tests {
-  use kuchiki::traits::*;
+  use std::io::Write;
+
+  use super::*;
+  use crate::{
+    assets::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
+    config,
+  };
 
   #[test]
   fn csp() {
@@ -298,16 +330,113 @@ mod tests {
       "<html><head></head></html>".to_string(),
       "<html></html>".to_string(),
     ];
+
     for html in htmls {
-      let document = kuchiki::parse_html().one(html);
+      let document = parse(html);
       let csp = "csp-string";
-      super::inject_csp(&document, csp);
+      inject_csp(&document, csp);
+
       assert_eq!(
-        document.to_string(),
+        String::from_utf8(serialize_node(&document)).unwrap(),
         format!(
           r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></head><body></body></html>"#,
         )
       );
     }
+  }
+
+  #[test]
+  fn normalize_script_for_csp_test() {
+    let js = "// Copyright 2019-2024 Tauri Programme within The Commons Conservancy\r// SPDX-License-Identifier: Apache-2.0\n// SPDX-License-Identifier: MIT\r\n\r\nwindow.__TAURI_ISOLATION_HOOK__ = (payload, options) => {\r\n  return payload\r\n}\r\n";
+    let expected = "// Copyright 2019-2024 Tauri Programme within The Commons Conservancy\n// SPDX-License-Identifier: Apache-2.0\n// SPDX-License-Identifier: MIT\n\nwindow.__TAURI_ISOLATION_HOOK__ = (payload, options) => {\n  return payload\n}\n";
+
+    assert_eq!(normalize_script_for_csp(js.as_bytes()), expected.as_bytes())
+  }
+
+  #[test]
+  fn parse_and_serialize_roundtrips() {
+    let htmls = [
+      "<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>",
+      "<!DOCTYPE html><html><head></head><body></body></html>",
+    ];
+
+    for html in htmls {
+      let parsed = parse(html.to_string());
+      let serialized = serialize_node(&parsed);
+      let result = String::from_utf8(serialized).unwrap();
+
+      assert_eq!(result, html);
+    }
+  }
+
+  #[test]
+  fn inject_nonce_to_scripts() {
+    let html = r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      format!(
+        r#"<html><head><script src="http://example.com/script.js" nonce="{SCRIPT_NONCE_TOKEN}"></script></head><body></body></html>"#
+      )
+    );
+  }
+
+  #[test]
+  fn inject_nonce_to_styles() {
+    let html = r#"<html><head><style>body { color: red; }</style></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      format!(
+        r#"<html><head><style nonce="{STYLE_NONCE_TOKEN}">body {{ color: red; }}</style></head><body></body></html>"#
+      )
+    );
+  }
+
+  #[test]
+  fn inject_nonce_skips_existing() {
+    let html = r#"<html><head><script src="http://example.com/script.js" nonce="existing"></script></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(false));
+
+    assert_eq!(String::from_utf8(serialize_node(&document)).unwrap(), html);
+  }
+
+  #[test]
+  fn inject_nonce_respects_disabled_modification() {
+    let html = r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#;
+
+    let document = parse(html.to_string());
+    inject_nonce_token(&document, &config::DisabledCspModificationKind::Flag(true));
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      r#"<html><head><script src="http://example.com/script.js"></script></head><body></body></html>"#
+    );
+  }
+
+  #[test]
+  fn inline_isolation_replaces_src_with_content() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let mut file = tempfile::NamedTempFile::with_suffix_in(".js", &temp_dir).unwrap();
+    file.write_all(b"console.log('test');").unwrap();
+    let file_name = file.path().file_name().unwrap().to_str().unwrap();
+
+    let html =
+      format!(r#"<html><head><script src="/{file_name}"></script></head><body></body></html>"#);
+    let document = parse(html);
+    inline_isolation(&document, temp_dir.path());
+
+    assert_eq!(
+      String::from_utf8(serialize_node(&document)).unwrap(),
+      r#"<html><head><script>console.log('test');</script></head><body></body></html>"#
+    );
   }
 }

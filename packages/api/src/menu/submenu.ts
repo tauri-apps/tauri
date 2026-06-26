@@ -16,6 +16,7 @@ import { type LogicalPosition, PhysicalPosition, type Window } from '../window'
 import { type ItemKind, MenuItemBase, newMenu } from './base'
 import { type MenuOptions } from './menu'
 import { Position } from '../dpi'
+import { transformImage, MenuIcon } from '../image'
 
 /** @ignore */
 export function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
@@ -46,8 +47,14 @@ export function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
   /* eslint-enable @typescript-eslint/no-unsafe-return */
 }
 
-export type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'>
-  & MenuOptions
+export type SubmenuOptions = (Omit<MenuItemOptions, 'accelerator' | 'action'>
+  & MenuOptions) & {
+  /**
+   * Icon to be used for the submenu.
+   * Note: you may need the `image-ico` or `image-png` Cargo features to use this API.
+   */
+  icon?: MenuIcon
+}
 
 /** A type that is a submenu inside a {@linkcode Menu} or {@linkcode Submenu}. */
 export class Submenu extends MenuItemBase {
@@ -284,6 +291,15 @@ export class Submenu extends MenuItemBase {
   async setAsHelpMenuForNSApp(): Promise<void> {
     return invoke('plugin:menu|set_as_help_menu_for_nsapp', {
       rid: this.rid
+    })
+  }
+
+  /** Sets an icon for this submenu */
+  async setIcon(icon: MenuIcon | null): Promise<void> {
+    return invoke('plugin:menu|set_icon', {
+      rid: this.rid,
+      kind: this.kind,
+      icon: transformImage(icon)
     })
   }
 }

@@ -1,5 +1,105 @@
 # Changelog
 
+## \[2.6.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+
+## \[2.6.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+- [`df05c0056`](https://www.github.com/tauri-apps/tauri/commit/df05c00563a91fc936bd15c6b10dd2825472f96b) Upgraded to `tauri-utils@2.9.0`
+
+## \[2.5.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+
+## \[2.5.4]
+
+### Bug Fixes
+
+- [`eb5d88427`](https://www.github.com/tauri-apps/tauri/commit/eb5d88427a7dcb347fb0feae9e816db05b101844) ([#14883](https://www.github.com/tauri-apps/tauri/pull/14883) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `tauri::Context` code generation failing with `can't capture dynamic environment in a fn item` when custom assets are provided.
+
+## \[2.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+
+## \[2.5.1]
+
+### Performance Improvements
+
+- [`8e3bd63db`](https://www.github.com/tauri-apps/tauri/commit/8e3bd63db919a4cf72bb3d28028033d8654deb34) ([#14457](https://www.github.com/tauri-apps/tauri/pull/14457) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Wrap the generated context code in a function to make rust analyzer faster
+
+## \[2.5.0]
+
+### Bug Fixes
+
+- [`c5008b829`](https://www.github.com/tauri-apps/tauri/commit/c5008b829dc779f0768089bff9b891fc76b11355) ([#14274](https://www.github.com/tauri-apps/tauri/pull/14274)) Do not hash empty scripts when generating the Content-Security-Policy SHA-256 hashes.
+- [`7b0d4e732`](https://www.github.com/tauri-apps/tauri/commit/7b0d4e73227e42d88732b6d9fe643499dd78ec4e) ([#14265](https://www.github.com/tauri-apps/tauri/pull/14265)) Fix JavaScript SHA256 hash generation on Windows not ignoring carriage return characters.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- [`6aa7f2d85`](https://www.github.com/tauri-apps/tauri/commit/6aa7f2d852870aeba1d4dd0e07f8be2bc9b66286) Upgraded to `tauri-utils@2.8.0`
+
+## \[2.4.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.7.0`.
+
+## \[2.3.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.6.0`
+
+## \[2.3.0]
+
+### New Features
+
+- [`414619c36`](https://www.github.com/tauri-apps/tauri/commit/414619c36e94e21939534dd72c0438b93da75546) ([#13536](https://www.github.com/tauri-apps/tauri/pull/13536) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) Added support for the `bundleName` property in the macOS bundler configuration. This allows specifying the `CFBundleName` value for generated macOS bundles.
+
+### What's Changed
+
+- [`168629646`](https://www.github.com/tauri-apps/tauri/commit/168629646335f24cc7f1c4a61df22688b2198f98) ([#13418](https://www.github.com/tauri-apps/tauri/pull/13418) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Put dynamic ACL into a feature `dynamic-acl`, this is currently enabled by default to align with the previous behaviors, you can disable it through `default-features = false` to reduce the final binary size by not including the ACL references
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.5.0`
+
+## \[2.2.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.4.0`
+- [`48b12b440`](https://www.github.com/tauri-apps/tauri/commit/48b12b440478937c46fdfef9f9d95194be117020) Update to `tauri-utils@2.4.0`
+
 ## \[2.1.1]
 
 ### Dependencies

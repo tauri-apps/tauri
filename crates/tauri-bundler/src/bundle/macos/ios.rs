@@ -14,11 +14,11 @@
 // explanation.
 
 use crate::{
+  error::{Context, ErrorExt},
   utils::{self, fs_utils},
   Settings,
 };
 
-use anyhow::Context;
 use image::{codecs::png::PngDecoder, GenericImageView, ImageDecoder};
 
 use std::{
@@ -45,16 +45,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .with_context(|| format!("Failed to remove old {}", app_product_name))?;
+      .fs_context("failed to remove old app bundle", &app_bundle_path)?;
   }
   fs::create_dir_all(&app_bundle_path)
-    .with_context(|| format!("Failed to create bundle directory at {:?}", app_bundle_path))?;
+    .fs_context("failed to create bundle directory", &app_bundle_path)?;
 
   for src in settings.resource_files() {
     let src = src?;
     let dest = app_bundle_path.join(tauri_utils::resources::resource_relpath(&src));
     fs_utils::copy_file(&src, &dest)
-      .with_context(|| format!("Failed to copy resource file {:?}", src))?;
+      .with_context(|| format!("Failed to copy resource file {src:?}"))?;
   }
 
   let icon_filenames = generate_icon_files(&app_bundle_path, settings)
@@ -65,7 +65,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
     fs_utils::copy_file(&bin_path, &app_bundle_path.join(bin.name()))
-      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
   }
 
   Ok(vec![app_bundle_path])
@@ -106,7 +106,10 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
     // Fall back to non-PNG files for any missing sizes.
     for icon_path in settings.icon_files() {
       let icon_path = icon_path?;
-      if icon_path.extension() == Some(OsStr::new("png")) {
+      if icon_path
+        .extension()
+        .is_some_and(|ext| ext == "png" || ext == "car")
+      {
         continue;
       } else if icon_path.extension() == Some(OsStr::new("icns")) {
         let icon_family = icns::IconFamily::read(File::open(&icon_path)?)?;
@@ -197,7 +200,7 @@ fn generate_info_plist(
   if !icon_filenames.is_empty() {
     writeln!(file, "  <key>CFBundleIconFiles</key>\n  <array>")?;
     for filename in icon_filenames {
-      writeln!(file, "    <string>{}</string>", filename)?;
+      writeln!(file, "    <string>{filename}</string>")?;
     }
     writeln!(file, "  </array>")?;
   }

@@ -1,6 +1,7 @@
 <script>
-  import { Menu, Submenu } from '@tauri-apps/api/menu'
+  import { Menu, Submenu, NativeIcon } from '@tauri-apps/api/menu'
   import MenuBuilder from '../components/MenuBuilder.svelte'
+  import { defaultWindowIcon } from '@tauri-apps/api/app';
 
   let { onMessage } = $props()
   let items = $state([])
@@ -17,8 +18,42 @@
     })
   }
 
+  async function createSubmenuWithNativeIcon() {
+    submenu = await Submenu.new({
+      text: 'Submenu with NativeIcon',
+      icon: NativeIcon.Folder,
+      items: items.map((i) => i.item)
+    })
+  }
+
+  async function createSubmenuWithImageIcon() {
+    submenu = await Submenu.new({
+      text: 'Submenu with Image',
+      icon: await defaultWindowIcon(),
+      items: items.map((i) => i.item)
+    });
+  }
+
   async function create() {
     await createSubmenu()
+    menuItemCount = items.length
+    menu = await Menu.new({
+      items: [submenu]
+    })
+    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
+  }
+
+  async function createWithNativeIcon() {
+    await createSubmenuWithNativeIcon()
+    menuItemCount = items.length
+    menu = await Menu.new({
+      items: [submenu]
+    })
+    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
+  }
+
+  async function createWithImageIcon() {
+    await createSubmenuWithImageIcon()
     menuItemCount = items.length
     menu = await Menu.new({
       items: [submenu]
@@ -45,5 +80,7 @@
   <div>
     <button class="btn" onclick={create}>Create menu</button>
     <button class="btn" onclick={popup}>Popup</button>
+    <button class="btn" onclick={createWithNativeIcon}>Create menu with NativeIcon</button>
+    <button class="btn" onclick={createWithImageIcon}>Create menu with Image icon</button>
   </div>
 </div>

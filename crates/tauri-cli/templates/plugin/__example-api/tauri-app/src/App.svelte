@@ -2,7 +2,7 @@
   import Greet from './lib/Greet.svelte'
   import { ping } from 'tauri-plugin-{{ plugin_name }}-api'
 
-	let response = ''
+	let response = $state('')
 
 	function updateResponse(returnValue) {
 		response += `[${new Date().toLocaleTimeString()}] ` + (typeof returnValue === 'string' ? returnValue : JSON.stringify(returnValue)) + '<br>'
@@ -37,7 +37,7 @@
   </div>
 
   <div>
-    <button on:click="{_ping}">Ping</button>
+    <button onclick="{_ping}">Ping</button>
     <div>{@html response}</div>
   </div>
 

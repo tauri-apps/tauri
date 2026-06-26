@@ -62,6 +62,26 @@ pub enum WindowEvent {
   ///
   /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
   ThemeChanged(Theme),
+
+  /// Emitted when the application has been suspended.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onPause` method of the Activity.
+  /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  #[cfg(mobile)]
+  Suspended,
+
+  /// Emitted when the application has been resumed.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onResume` method of the Activity. The first onResume() is ignored to match the iOS implementation, since that is called on activity creation.
+  /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  #[cfg(mobile)]
+  Resumed,
 }
 
 /// An event from a window.
@@ -247,19 +267,19 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn center(self) -> Self;
 
-  /// The initial position of the window's.
+  /// The initial position of the window in logical pixels.
   #[must_use]
   fn position(self, x: f64, y: f64) -> Self;
 
-  /// Window size.
+  /// Window size in logical pixels.
   #[must_use]
   fn inner_size(self, width: f64, height: f64) -> Self;
 
-  /// Window min inner size.
+  /// Window min inner size in logical pixels.
   #[must_use]
   fn min_inner_size(self, min_width: f64, min_height: f64) -> Self;
 
-  /// Window max inner size.
+  /// Window max inner size in logical pixels.
   #[must_use]
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self;
 
@@ -328,6 +348,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Whether the window will be initially focused or not.
   #[must_use]
   fn focused(self, focused: bool) -> Self;
+
+  /// Whether the window will be focusable or not.
+  #[must_use]
+  fn focusable(self, focusable: bool) -> Self;
 
   /// Whether the window should be maximized upon creation.
   #[must_use]
@@ -473,6 +497,23 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Sets custom name for Windows' window class. **Windows only**.
   #[must_use]
   fn window_classname<S: Into<String>>(self, window_classname: S) -> Self;
+
+  /// The name of the activity to create for this webview window.
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(self, class_name: S) -> Self;
+
+  /// Sets the name of the activity that is creating this webview window.
+  ///
+  /// This is important to determine which stack the activity will belong to.
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(self, class_name: S) -> Self;
+
+  /// Sets the identifier of the UIScene that is requesting the creation of this new scene,
+  /// establishing a relationship between the two scenes.
+  ///
+  /// By default the system uses the foreground scene.
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(self, identifier: S) -> Self;
 }
 
 /// A window that has yet to be built.

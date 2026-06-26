@@ -6,10 +6,10 @@
 use std::{
   env::{var, var_os},
   ffi::OsString,
-  path::{Path, PathBuf},
+  path::PathBuf,
 };
 
-use crate::Settings;
+use crate::{error::NotarizeAuthError, Entitlements, Settings};
 
 pub struct SignTarget {
   pub path: PathBuf,
@@ -21,13 +21,16 @@ pub fn keychain(identity: Option<&str>) -> crate::Result<Option<tauri_macos_sign
     var_os("APPLE_CERTIFICATE"),
     var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    // import user certificate - useful for for CI build
+    // import user certificate - useful for CI build
     let keychain =
-      tauri_macos_sign::Keychain::with_certificate(&certificate_encoded, &certificate_password)?;
+      tauri_macos_sign::Keychain::with_certificate(&certificate_encoded, &certificate_password)
+        .map_err(Box::new)?;
     if let Some(identity) = identity {
       let certificate_identity = keychain.signing_identity();
       if !certificate_identity.contains(identity) {
-        return Err(anyhow::anyhow!("certificate from APPLE_CERTIFICATE \"{certificate_identity}\" environment variable does not match provided identity \"{identity}\"").into());
+        return Err(crate::Error::GenericError(format!(
+          "certificate from APPLE_CERTIFICATE \"{certificate_identity}\" environment variable does not match provided identity \"{identity}\""
+        )));
       }
     }
     Ok(Some(keychain))
@@ -48,16 +51,23 @@ pub fn sign(
   log::info!(action = "Signing"; "with identity \"{}\"", keychain.signing_identity());
 
   for target in targets {
-    let entitlements_path = if target.is_an_executable {
-      settings.macos().entitlements.as_ref().map(Path::new)
-    } else {
-      None
+    let (entitlements_path, _temp_file) = match settings.macos().entitlements.as_ref() {
+      Some(Entitlements::Path(path)) => (Some(path.to_owned()), None),
+      Some(Entitlements::Plist(plist)) => {
+        let mut temp_file = tempfile::NamedTempFile::new()?;
+        plist::to_writer_xml(temp_file.as_file_mut(), &plist)?;
+        (Some(temp_file.path().to_path_buf()), Some(temp_file))
+      }
+      None => (None, None),
     };
-    keychain.sign(
-      &target.path,
-      entitlements_path,
-      target.is_an_executable && settings.macos().hardened_runtime,
-    )?;
+
+    keychain
+      .sign(
+        &target.path,
+        entitlements_path.as_deref(),
+        target.is_an_executable && settings.macos().hardened_runtime,
+      )
+      .map_err(Box::new)?;
   }
 
   Ok(())
@@ -68,17 +78,19 @@ pub fn notarize(
   app_bundle_path: PathBuf,
   credentials: &tauri_macos_sign::AppleNotarizationCredentials,
 ) -> crate::Result<()> {
-  tauri_macos_sign::notarize(keychain, &app_bundle_path, credentials).map_err(Into::into)
+  tauri_macos_sign::notarize(keychain, &app_bundle_path, credentials)
+    .map_err(Box::new)
+    .map_err(Into::into)
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum NotarizeAuthError {
-  #[error(
-    "The team ID is now required for notarization with app-specific password as authentication. Please set the `APPLE_TEAM_ID` environment variable. You can find the team ID in https://developer.apple.com/account#MembershipDetailsCard."
-  )]
-  MissingTeamId,
-  #[error(transparent)]
-  Anyhow(#[from] anyhow::Error),
+pub fn notarize_without_stapling(
+  keychain: &tauri_macos_sign::Keychain,
+  app_bundle_path: PathBuf,
+  credentials: &tauri_macos_sign::AppleNotarizationCredentials,
+) -> crate::Result<()> {
+  tauri_macos_sign::notarize_without_stapling(keychain, &app_bundle_path, credentials)
+    .map_err(Box::new)
+    .map_err(Into::into)
 }
 
 pub fn notarize_auth() -> Result<tauri_macos_sign::AppleNotarizationCredentials, NotarizeAuthError>
@@ -97,10 +109,18 @@ pub fn notarize_auth() -> Result<tauri_macos_sign::AppleNotarizationCredentials,
     }
     (Some(_apple_id), Some(_password), None) => Err(NotarizeAuthError::MissingTeamId),
     _ => {
-      match (var_os("APPLE_API_KEY"), var_os("APPLE_API_ISSUER"), var("APPLE_API_KEY_PATH")) {
+      match (
+        var_os("APPLE_API_KEY"),
+        var_os("APPLE_API_ISSUER"),
+        var("APPLE_API_KEY_PATH"),
+      ) {
         (Some(key_id), Some(issuer), Ok(key_path)) => {
-          Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey { key_id, key: tauri_macos_sign::ApiKey::Path( key_path.into()), issuer })
-        },
+          Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey {
+            key_id,
+            key: tauri_macos_sign::ApiKey::Path(key_path.into()),
+            issuer,
+          })
+        }
         (Some(key_id), Some(issuer), Err(_)) => {
           let mut api_key_file_name = OsString::from("AuthKey_");
           api_key_file_name.push(&key_id);
@@ -122,12 +142,18 @@ pub fn notarize_auth() -> Result<tauri_macos_sign::AppleNotarizationCredentials,
           }
 
           if let Some(key_path) = key_path {
-          Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey { key_id, key: tauri_macos_sign::ApiKey::Path(key_path), issuer })
+            Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey {
+              key_id,
+              key: tauri_macos_sign::ApiKey::Path(key_path),
+              issuer,
+            })
           } else {
-            Err(anyhow::anyhow!("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {api_key_file_name:?} file").into())
+            Err(NotarizeAuthError::MissingApiKey {
+              file_name: api_key_file_name.to_string_lossy().into_owned(),
+            })
           }
         }
-        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
+        _ => Err(NotarizeAuthError::MissingCredentials),
       }
     }
   }

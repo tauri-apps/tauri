@@ -23,15 +23,16 @@
 // files into the `Contents` directory of the bundle.
 
 use super::{
-  icon::create_icns_file,
-  sign::{notarize, notarize_auth, sign, NotarizeAuthError, SignTarget},
+  icon::{app_icon_name_from_assets_car, create_assets_car_file, create_icns_file},
+  sign::{notarize, notarize_auth, notarize_without_stapling, sign, SignTarget},
 };
 use crate::{
+  bundle::settings::PlistKind,
+  error::{Context, ErrorExt, NotarizeAuthError},
   utils::{fs_utils, CommandExt},
+  Error::GenericError,
   Settings,
 };
-
-use anyhow::Context;
 
 use std::{
   ffi::OsStr,
@@ -65,25 +66,29 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .with_context(|| format!("Failed to remove old {}", app_product_name))?;
+      .fs_context("failed to remove old app bundle", &app_bundle_path)?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
-  fs::create_dir_all(&bundle_directory).with_context(|| {
-    format!(
-      "Failed to create bundle directory at {:?}",
-      bundle_directory
-    )
-  })?;
+  fs::create_dir_all(&bundle_directory)
+    .fs_context("failed to create bundle directory", &bundle_directory)?;
 
   let resources_dir = bundle_directory.join("Resources");
   let bin_dir = bundle_directory.join("MacOS");
   let mut sign_paths = Vec::new();
 
-  let bundle_icon_file: Option<PathBuf> =
-    { create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")? };
+  let bundle_icon_file =
+    create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")?;
 
-  create_info_plist(&bundle_directory, bundle_icon_file, settings)
-    .with_context(|| "Failed to create Info.plist")?;
+  let assets_car_file = create_assets_car_file(&resources_dir, settings)
+    .with_context(|| "Failed to create app Assets.car")?;
+
+  create_info_plist(
+    &bundle_directory,
+    bundle_icon_file,
+    assets_car_file,
+    settings,
+  )
+  .with_context(|| "Failed to create Info.plist")?;
 
   let framework_paths = copy_frameworks_to_bundle(&bundle_directory, settings)
     .with_context(|| "Failed to bundle frameworks")?;
@@ -107,7 +112,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
-  if let Some(keychain) = super::sign::keychain(settings.macos().signing_identity.as_deref())? {
+  if settings.no_sign() {
+    log::warn!("Skipping signing due to --no-sign flag.",);
+  } else if let Some(keychain) =
+    super::sign::keychain(settings.macos().signing_identity.as_deref())?
+  {
     // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
     // https://developer.apple.com/forums/thread/701514
     sign_paths.push(SignTarget {
@@ -125,13 +134,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     // notarization is required for distribution
     match notarize_auth() {
       Ok(auth) => {
-        notarize(&keychain, app_bundle_path.clone(), &auth)?;
+        if settings.macos().skip_stapling {
+          notarize_without_stapling(&keychain, app_bundle_path.clone(), &auth)?;
+        } else {
+          notarize(&keychain, app_bundle_path.clone(), &auth)?;
+        }
       }
       Err(e) => {
         if matches!(e, NotarizeAuthError::MissingTeamId) {
-          return Err(anyhow::anyhow!("{e}").into());
+          return Err(e.into());
         } else {
-          log::warn!("skipping app notarization, {}", e.to_string());
+          log::warn!("skipping app notarization, {e}");
         }
       }
     }
@@ -160,7 +173,7 @@ fn copy_binaries_to_bundle(
     let bin_path = settings.binary_path(bin);
     let dest_path = dest_dir.join(bin.name());
     fs_utils::copy_file(&bin_path, &dest_path)
-      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
     paths.push(dest_path);
   }
   Ok(paths)
@@ -169,6 +182,12 @@ fn copy_binaries_to_bundle(
 /// Copies user-defined files to the app under Contents.
 fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   for (contents_path, path) in settings.macos().files.iter() {
+    if !path.try_exists()? {
+      return Err(GenericError(format!(
+        "Failed to copy {path:?} to {contents_path:?}. {path:?} does not exist."
+      )));
+    }
+
     let contents_path = if contents_path.is_absolute() {
       contents_path.strip_prefix("/").unwrap()
     } else {
@@ -176,10 +195,14 @@ fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> 
     };
     if path.is_file() {
       fs_utils::copy_file(path, &bundle_directory.join(contents_path))
-        .with_context(|| format!("Failed to copy file {:?} to {:?}", path, contents_path))?;
-    } else {
+        .with_context(|| format!("Failed to copy file {path:?} to {contents_path:?}"))?;
+    } else if path.is_dir() {
       fs_utils::copy_dir(path, &bundle_directory.join(contents_path))
-        .with_context(|| format!("Failed to copy directory {:?} to {:?}", path, contents_path))?;
+        .with_context(|| format!("Failed to copy directory {path:?} to {contents_path:?}"))?;
+    } else {
+      return Err(GenericError(format!(
+        "{path:?} is not a file or directory."
+      )));
     }
   }
   Ok(())
@@ -189,6 +212,7 @@ fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> 
 fn create_info_plist(
   bundle_dir: &Path,
   bundle_icon_file: Option<PathBuf>,
+  assets_car_file: Option<PathBuf>,
   settings: &Settings,
 ) -> crate::Result<()> {
   let mut plist = plist::Dictionary::new();
@@ -198,23 +222,20 @@ fn create_info_plist(
     "CFBundleExecutable".into(),
     settings.main_binary_name()?.into(),
   );
-  if let Some(path) = bundle_icon_file {
-    plist.insert(
-      "CFBundleIconFile".into(),
-      path
-        .file_name()
-        .expect("No file name")
-        .to_string_lossy()
-        .into_owned()
-        .into(),
-    );
-  }
   plist.insert(
     "CFBundleIdentifier".into(),
     settings.bundle_identifier().into(),
   );
   plist.insert("CFBundleInfoDictionaryVersion".into(), "6.0".into());
-  plist.insert("CFBundleName".into(), settings.product_name().into());
+  if let Some(bundle_name) = settings
+    .macos()
+    .bundle_name
+    .as_deref()
+    .unwrap_or_else(|| settings.product_name())
+    .into()
+  {
+    plist.insert("CFBundleName".into(), bundle_name.into());
+  }
   plist.insert("CFBundlePackageType".into(), "APPL".into());
   plist.insert(
     "CFBundleShortVersionString".into(),
@@ -241,41 +262,36 @@ fn create_info_plist(
   }
 
   if let Some(associations) = settings.file_associations() {
+    if let Some(file_associations_plist) =
+      tauri_utils::config::file_associations_plist(associations)
+    {
+      if let Some(plist_dict) = file_associations_plist.as_dictionary() {
+        for (key, value) in plist_dict {
+          plist.insert(key.clone(), value.clone());
+        }
+      }
+    }
+  }
+
+  if let Some(path) = bundle_icon_file {
     plist.insert(
-      "CFBundleDocumentTypes".into(),
-      plist::Value::Array(
-        associations
-          .iter()
-          .map(|association| {
-            let mut dict = plist::Dictionary::new();
-            dict.insert(
-              "CFBundleTypeExtensions".into(),
-              plist::Value::Array(
-                association
-                  .ext
-                  .iter()
-                  .map(|ext| ext.to_string().into())
-                  .collect(),
-              ),
-            );
-            dict.insert(
-              "CFBundleTypeName".into(),
-              association
-                .name
-                .as_ref()
-                .unwrap_or(&association.ext[0].0)
-                .to_string()
-                .into(),
-            );
-            dict.insert(
-              "CFBundleTypeRole".into(),
-              association.role.to_string().into(),
-            );
-            plist::Value::Dictionary(dict)
-          })
-          .collect(),
-      ),
+      "CFBundleIconFile".into(),
+      path
+        .file_name()
+        .expect("No file name")
+        .to_string_lossy()
+        .into_owned()
+        .into(),
     );
+  }
+
+  if let Some(assets_car_file) = assets_car_file {
+    if let Some(icon_name) = app_icon_name_from_assets_car(&assets_car_file) {
+      // only set CFBundleIconName for the Assets.car, CFBundleIconFile is the fallback icns file
+      plist.insert("CFBundleIconName".into(), icon_name.clone().into());
+    } else {
+      log::warn!("Failed to get icon name from Assets.car file");
+    }
   }
 
   if let Some(protocols) = settings.deep_link_protocols() {
@@ -284,6 +300,7 @@ fn create_info_plist(
       plist::Value::Array(
         protocols
           .iter()
+          .filter(|p| !p.schemes.is_empty())
           .map(|protocol| {
             let mut dict = plist::Dictionary::new();
             dict.insert(
@@ -334,8 +351,11 @@ fn create_info_plist(
     plist.insert("NSAppTransportSecurity".into(), security.into());
   }
 
-  if let Some(user_plist_path) = &settings.macos().info_plist_path {
-    let user_plist = plist::Value::from_file(user_plist_path)?;
+  if let Some(user_plist) = &settings.macos().info_plist {
+    let user_plist = match user_plist {
+      PlistKind::Path(path) => plist::Value::from_file(path)?,
+      PlistKind::Plist(value) => value.clone(),
+    };
     if let Some(dict) = user_plist.into_dictionary() {
       for (key, value) in dict {
         plist.insert(key, value);
@@ -350,7 +370,7 @@ fn create_info_plist(
 
 // Copies the framework under `{src_dir}/{framework}.framework` to `{dest_dir}/{framework}.framework`.
 fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crate::Result<bool> {
-  let src_name = format!("{}.framework", framework);
+  let src_name = format!("{framework}.framework");
   let src_path = src_dir.join(&src_name);
   if src_path.exists() {
     fs_utils::copy_dir(&src_path, &dest_dir.join(&src_name))?;
@@ -367,18 +387,12 @@ fn copy_frameworks_to_bundle(
 ) -> crate::Result<Vec<SignTarget>> {
   let mut paths = Vec::new();
 
-  let frameworks = settings
-    .macos()
-    .frameworks
-    .as_ref()
-    .cloned()
-    .unwrap_or_default();
+  let frameworks = settings.macos().frameworks.clone().unwrap_or_default();
   if frameworks.is_empty() {
     return Ok(paths);
   }
   let dest_dir = bundle_directory.join("Frameworks");
-  fs::create_dir_all(bundle_directory)
-    .with_context(|| format!("Failed to create Frameworks directory at {:?}", dest_dir))?;
+  fs::create_dir_all(&dest_dir).fs_context("failed to create Frameworks directory", &dest_dir)?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
       let src_path = PathBuf::from(framework);
@@ -392,10 +406,7 @@ fn copy_frameworks_to_bundle(
     } else if framework.ends_with(".dylib") {
       let src_path = PathBuf::from(framework);
       if !src_path.exists() {
-        return Err(crate::Error::GenericError(format!(
-          "Library not found: {}",
-          framework
-        )));
+        return Err(GenericError(format!("Library not found: {framework}")));
       }
       let src_name = src_path.file_name().expect("Couldn't get library filename");
       let dest_path = dest_dir.join(src_name);
@@ -406,9 +417,8 @@ fn copy_frameworks_to_bundle(
       });
       continue;
     } else if framework.contains('/') {
-      return Err(crate::Error::GenericError(format!(
-        "Framework path should have .framework extension: {}",
-        framework
+      return Err(GenericError(format!(
+        "Framework path should have .framework extension: {framework}"
       )));
     }
     if let Some(home_dir) = dirs::home_dir() {
@@ -425,9 +435,8 @@ fn copy_frameworks_to_bundle(
     {
       continue;
     }
-    return Err(crate::Error::GenericError(format!(
-      "Could not locate framework: {}",
-      framework
+    return Err(GenericError(format!(
+      "Could not locate framework: {framework}"
     )));
   }
   Ok(paths)
@@ -517,5 +526,155 @@ fn add_nested_code_sign_path(src_path: &Path, dest_path: &Path, sign_paths: &mut
         }
       }
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::bundle::{BundleSettings, MacOsSettings, PackageSettings, SettingsBuilder};
+  use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+  };
+
+  /// Helper that builds a `Settings` instance and bundle directory for tests.
+  /// It receives a mapping of bundle-relative paths to source paths and
+  /// returns the generated bundle directory and settings.
+  fn create_test_bundle(
+    project_dir: &Path,
+    files: HashMap<PathBuf, PathBuf>,
+  ) -> (PathBuf, crate::bundle::Settings) {
+    let macos_settings = MacOsSettings {
+      files,
+      ..Default::default()
+    };
+
+    let settings = SettingsBuilder::new()
+      .project_out_directory(project_dir)
+      .package_settings(PackageSettings {
+        product_name: "TestApp".into(),
+        version: "0.1.0".into(),
+        description: "test".into(),
+        homepage: None,
+        authors: None,
+        default_run: None,
+      })
+      .bundle_settings(BundleSettings {
+        macos: macos_settings,
+        ..Default::default()
+      })
+      .target("x86_64-apple-darwin".into())
+      .build()
+      .expect("failed to build settings");
+
+    let bundle_dir = project_dir.join("TestApp.app/Contents");
+    fs::create_dir_all(&bundle_dir).expect("failed to create bundle dir");
+
+    (bundle_dir, settings)
+  }
+
+  #[test]
+  fn test_copy_custom_file_to_bundle_file() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    // Prepare a single file to copy.
+    let src_file = tmp_dir.path().join("sample.txt");
+    fs::write(&src_file, b"hello tauri").expect("failed to write sample file");
+
+    let files_map = HashMap::from([(PathBuf::from("Resources/sample.txt"), src_file.clone())]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    copy_custom_files_to_bundle(&bundle_dir, &settings)
+      .expect("copy_custom_files_to_bundle failed");
+
+    let dest_file = bundle_dir.join("Resources/sample.txt");
+    assert!(dest_file.exists() && dest_file.is_file());
+    assert_eq!(fs::read_to_string(dest_file).unwrap(), "hello tauri");
+  }
+
+  #[test]
+  fn test_copy_custom_file_to_bundle_dir() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    // Create a source directory with a nested file.
+    let src_dir = tmp_dir.path().join("assets");
+    fs::create_dir_all(&src_dir).expect("failed to create assets directory");
+    let nested_file = src_dir.join("nested.txt");
+    fs::write(&nested_file, b"nested").expect("failed to write nested file");
+
+    let files_map = HashMap::from([(PathBuf::from("MyAssets"), src_dir.clone())]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    copy_custom_files_to_bundle(&bundle_dir, &settings)
+      .expect("copy_custom_files_to_bundle failed");
+
+    let dest_nested_file = bundle_dir.join("MyAssets/nested.txt");
+    assert!(
+      dest_nested_file.exists(),
+      "{dest_nested_file:?} does not exist"
+    );
+    assert!(
+      dest_nested_file.is_file(),
+      "{dest_nested_file:?} is not a file"
+    );
+    assert_eq!(
+      fs::read_to_string(dest_nested_file).unwrap().trim(),
+      "nested"
+    );
+  }
+
+  #[test]
+  fn test_copy_custom_files_to_bundle_missing_source() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    // Intentionally reference a non-existent path.
+    let missing_path = tmp_dir.path().join("does_not_exist.txt");
+
+    let files_map = HashMap::from([(PathBuf::from("Missing.txt"), missing_path)]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
+
+    assert!(result.is_err());
+    assert!(result.err().unwrap().to_string().contains("does not exist"));
+  }
+
+  #[test]
+  fn test_copy_custom_files_to_bundle_invalid_source() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    let files_map = HashMap::from([(PathBuf::from("Invalid.txt"), PathBuf::from("///"))]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
+    assert!(result.is_err());
+    assert!(result
+      .err()
+      .unwrap()
+      .to_string()
+      .contains("Failed to copy directory"));
+  }
+
+  #[test]
+  fn test_copy_custom_files_to_bundle_dev_null() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    let files_map = HashMap::from([(PathBuf::from("Invalid.txt"), PathBuf::from("/dev/null"))]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
+    assert!(result.is_err());
+    assert!(result
+      .err()
+      .unwrap()
+      .to_string()
+      .contains("is not a file or directory."));
   }
 }

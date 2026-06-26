@@ -8,31 +8,31 @@ use std::sync::Mutex;
 
 use tauri::State;
 
-struct Counter(Mutex<usize>);
+struct Counter(Mutex<isize>);
 
 #[tauri::command]
-fn increment(counter: State<'_, Counter>) -> usize {
+fn increment(counter: State<'_, Counter>) -> isize {
   let mut c = counter.0.lock().unwrap();
   *c += 1;
   *c
 }
 
 #[tauri::command]
-fn decrement(counter: State<'_, Counter>) -> usize {
+fn decrement(counter: State<'_, Counter>) -> isize {
   let mut c = counter.0.lock().unwrap();
   *c -= 1;
   *c
 }
 
 #[tauri::command]
-fn reset(counter: State<'_, Counter>) -> usize {
+fn reset(counter: State<'_, Counter>) -> isize {
   let mut c = counter.0.lock().unwrap();
   *c = 0;
   *c
 }
 
 #[tauri::command]
-fn get(counter: State<'_, Counter>) -> usize {
+fn get(counter: State<'_, Counter>) -> isize {
   *counter.0.lock().unwrap()
 }
 

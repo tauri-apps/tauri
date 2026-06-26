@@ -20,6 +20,10 @@ defaults:
   run:
     working-directory: packages/cli/
 
+permissions:
+  contents: write # update release
+  id-token: write # oidc token
+
 jobs:
   build:
     strategy:
@@ -44,7 +48,7 @@ jobs:
             architecture: x64
             target: aarch64-pc-windows-msvc
             build: pnpm build --target aarch64-pc-windows-msvc
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
@@ -52,7 +56,7 @@ jobs:
               cd packages/cli
               pnpm build --target x86_64-unknown-linux-gnu
               strip *.node
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
@@ -64,7 +68,7 @@ jobs:
             build: |
               pnpm build --features native-tls-vendored --target=aarch64-apple-darwin
               strip -x *.node
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
@@ -72,7 +76,7 @@ jobs:
               cd packages/cli
               pnpm build --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             architecture: x64
             target: armv7-unknown-linux-gnueabihf
             setup: |
@@ -81,7 +85,7 @@ jobs:
             build: |
               pnpm build --target=armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip *.node
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             architecture: x64
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -116,7 +120,7 @@ jobs:
         if: ${{ !matrix.settings.docker }}
         with:
           targets: ${{ matrix.settings.target }}
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.settings.target }}
         if: ${{ matrix.settings.docker }}
@@ -208,8 +212,8 @@ jobs:
           - host: windows-latest
             target: x86_64-pc-windows-msvc
         node:
-          - '18'
           - '20'
+          - '22'
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
@@ -239,8 +243,8 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '18'
           - '20'
+          - '22'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -274,8 +278,8 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '18'
           - '20'
+          - '22'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -315,11 +319,10 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '18'
           - '20'
+          - '22'
         image:
           - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
-          - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
     runs-on: ubuntu-latest
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
@@ -367,16 +370,13 @@ jobs:
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
-    permissions:
-      contents: write # update release
-      id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
       - run: npm i -g --force corepack
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts
@@ -391,10 +391,8 @@ jobs:
         shell: bash
       - name: Publish
         run: |
-          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ''
           RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}
-          NPM_CONFIG_PROVENANCE: true

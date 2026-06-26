@@ -137,7 +137,7 @@ impl<'a> Builder<'a> {
 
     let mut permissions_map = BTreeMap::new();
     permissions_map.insert(name.clone(), permissions);
-    tauri_utils::acl::build::generate_allowed_commands(&out_dir, permissions_map)?;
+    tauri_utils::acl::build::generate_allowed_commands(&out_dir, None, permissions_map)?;
 
     if let Some(global_scope_schema) = self.global_scope_schema {
       acl::build::define_global_scope_schema(global_scope_schema, &name, &out_dir)?;

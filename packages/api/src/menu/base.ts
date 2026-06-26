@@ -56,7 +56,7 @@ export async function newMenu(
 
   if (opts && typeof opts === 'object') {
     if ('action' in opts && opts.action) {
-      handler.onmessage = opts.action as () => void
+      handler.onmessage = opts.action
       delete opts.action
     }
 
@@ -107,7 +107,7 @@ export async function newMenu(
 
       // @ts-expect-error the `prepareItem` return doesn't exactly match
       // this is fine, because the difference is in `[number, string]` variant
-      opts.items = (opts.items as []).map(prepareItem)
+      opts.items = opts.items.map(prepareItem)
     }
   }
 

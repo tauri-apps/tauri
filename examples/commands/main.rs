@@ -6,7 +6,7 @@
 
 // we move some basic commands to a separate module just to show it works
 mod commands;
-use commands::{cmd, invoke, message, resolver};
+use commands::{cmd, invoke, message, renamed_command_in_mod, resolver};
 
 use serde::Deserialize;
 use tauri::{
@@ -188,6 +188,11 @@ fn command_arguments_wild(_: Window) {
   println!("we saw the wildcard!")
 }
 
+#[command(rename = "renamed_command_new")]
+fn renamed_command() {
+  println!("renamed command called")
+}
+
 #[derive(Deserialize)]
 struct Person<'a> {
   name: &'a str,
@@ -246,6 +251,8 @@ fn main() {
       future_simple_command,
       async_stateful_command,
       command_arguments_wild,
+      renamed_command,
+      renamed_command_in_mod,
       command_arguments_struct,
       simple_command_with_result,
       async_simple_command_snake,

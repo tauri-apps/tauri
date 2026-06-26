@@ -67,6 +67,9 @@ pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> std::result::Result<(), Box<dyn std::error::Error>> + Send>;
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
+/// A closure that is run when the web content process terminates.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub type OnWebContentProcessTerminate<R> = dyn Fn(&Webview<R>) + Send + Sync + 'static;
 pub type ChannelInterceptor<R> =
   Box<dyn Fn(&Webview<R>, CallbackFn, usize, &InvokeResponseBody) -> bool + Send + Sync + 'static>;
 
@@ -146,6 +149,24 @@ pub enum WindowEvent {
   ///
   /// - **Linux**: Not supported.
   ThemeChanged(Theme),
+  /// Emitted when the application has been suspended.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onPause` method of the Activity.
+  /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  #[cfg(mobile)]
+  Suspended,
+  /// Emitted when the application has been resumed.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onResume` method of the Activity. The first onResume() is ignored to match the iOS implementation, since that is called on activity creation.
+  /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  #[cfg(mobile)]
+  Resumed,
 }
 
 impl From<RuntimeWindowEvent> for WindowEvent {
@@ -167,6 +188,10 @@ impl From<RuntimeWindowEvent> for WindowEvent {
       },
       RuntimeWindowEvent::DragDrop(event) => Self::DragDrop(event),
       RuntimeWindowEvent::ThemeChanged(theme) => Self::ThemeChanged(theme),
+      #[cfg(mobile)]
+      RuntimeWindowEvent::Suspended => Self::Suspended,
+      #[cfg(mobile)]
+      RuntimeWindowEvent::Resumed => Self::Resumed,
     }
   }
 }
@@ -230,8 +255,11 @@ pub enum RunEvent {
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
-  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", feature = "ios"))))]
+  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(target_os = "macos", target_os = "ios", target_os = "android")))
+  )]
   Opened {
     /// The URL of the resources that is being open.
     urls: Vec<url::Url>,
@@ -252,6 +280,20 @@ pub enum RunEvent {
     /// Indicates whether the NSApplication object found any visible windows in your application.
     has_visible_windows: bool,
   },
+  /// Emitted when a scene is requested by the system.
+  ///
+  /// This event is emitted when a scene is requested by the system.
+  /// Scenes created by [`Window::new`] are not emitted with this event.
+  /// It is also not emitted for the main scene.
+  #[cfg(target_os = "ios")]
+  SceneRequested {
+    /// Scene that was requested by the system.
+    scene: objc2::rc::Retained<objc2_ui_kit::UIScene>,
+    /// Options that were used to request the scene.
+    ///
+    /// This lets you determine why the scene was requested.
+    options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -265,7 +307,7 @@ impl From<EventLoopMessage> for RunEvent {
   }
 }
 
-/// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
+/// The asset resolver is a helper to access the [`crate::Assets`] interface.
 #[derive(Debug, Clone)]
 pub struct AssetResolver<R: Runtime> {
   manager: Arc<AppManager<R>>,
@@ -278,12 +320,11 @@ impl<R: Runtime> AssetResolver<R> {
   /// were configured with [`crate::webview::WebviewBuilder::use_https_scheme`] or `tauri.conf.json > app > windows > useHttpsScheme`.
   /// If you are resolving an asset for a webview with a more dynamic configuration, see [`AssetResolver::get_for_scheme`].
   ///
-  /// Resolves to the embedded asset that is part of the app
-  /// in dev when [`devUrl`](https://v2.tauri.app/reference/config/#devurl) points to a folder in your filesystem
-  /// or in production when [`frontendDist`](https://v2.tauri.app/reference/config/#frontenddist)
-  /// points to your frontend assets.
+  /// In production, this resolves to the embedded asset bundled in the app executable
+  /// which contains your frontend assets in [`frontendDist`](https://v2.tauri.app/reference/config/#frontenddist) during build time.
   ///
-  /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.
+  /// In dev mode, if [`devUrl`](https://v2.tauri.app/reference/config/#devurl) is set, we don't bundle the assets to reduce re-builds,
+  /// and this will fall back to read from `frontendDist` directly.
   /// Note that the dist directory must exist so you might need to build your frontend assets first.
   pub fn get(&self, path: String) -> Option<Asset> {
     let use_https_scheme = self
@@ -294,16 +335,15 @@ impl<R: Runtime> AssetResolver<R> {
     self.get_for_scheme(path, use_https_scheme)
   }
 
-  ///  Same as [AssetResolver::get] but resolves the custom protocol scheme based on a parameter.
+  ///  Same as [`AssetResolver::get`] but resolves the custom protocol scheme based on a parameter.
   ///
-  /// - `use_https_scheme`: If `true` when using [`Pattern::Isolation`](tauri::Pattern::Isolation),
+  /// - `use_https_scheme`: If `true` when using [`Pattern::Isolation`](crate::Pattern::Isolation),
   ///   the csp header will contain `https://tauri.localhost` instead of `http://tauri.localhost`
   pub fn get_for_scheme(&self, path: String, use_https_scheme: bool) -> Option<Asset> {
     #[cfg(dev)]
     {
-      // on dev if the devPath is a path to a directory we have the embedded assets
-      // so we can use get_asset() directly
-      // we only fallback to reading from distDir directly if we're using an external URL (which is likely)
+      // We don't bundle the assets when in dev mode and `devUrl` is set, so fall back to read from `frontendDist` directly
+      // TODO: Maybe handle `FrontendDist::Files` as well
       if let (Some(_), Some(crate::utils::config::FrontendDist::Directory(dist_path))) = (
         &self.manager.config().build.dev_url,
         &self.manager.config().build.frontend_dist,
@@ -386,7 +426,7 @@ impl AppHandle<crate::Wry> {
 
 #[cfg(target_vendor = "apple")]
 impl<R: Runtime> AppHandle<R> {
-  /// Fetches all Data Store Indentifiers by this app
+  /// Fetches all Data Store Identifiers by this app
   ///
   /// Needs to be called from Main Thread
   pub async fn fetch_data_store_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
@@ -484,10 +524,16 @@ impl<R: Runtime> AppHandle<R> {
   ///     Ok(())
   ///   });
   /// ```
-  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name())))]
   pub fn plugin<P: Plugin<R> + 'static>(&self, plugin: P) -> crate::Result<()> {
-    let mut plugin = Box::new(plugin) as Box<dyn Plugin<R>>;
+    self.plugin_boxed(Box::new(plugin))
+  }
 
+  /// Adds a Tauri application plugin.
+  ///
+  /// This method is similar to [`Self::plugin`],
+  /// but accepts a boxed trait object instead of a generic type.
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name())))]
+  pub fn plugin_boxed(&self, mut plugin: Box<dyn Plugin<R>>) -> crate::Result<()> {
     let mut store = self.manager().plugins.lock().unwrap();
     store.initialize(&mut plugin, self, &self.config().plugins)?;
     store.register(plugin);
@@ -507,7 +553,7 @@ impl<R: Runtime> AppHandle<R> {
   /// }
   ///
   /// let plugin = init_plugin();
-  /// // `.name()` requires the `PLugin` trait import
+  /// // `.name()` requires the `Plugin` trait import
   /// let plugin_name = plugin.name();
   /// tauri::Builder::default()
   ///   .plugin(plugin)
@@ -520,7 +566,7 @@ impl<R: Runtime> AppHandle<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn remove_plugin(&self, plugin: &'static str) -> bool {
+  pub fn remove_plugin(&self, plugin: &str) -> bool {
     self.manager().plugins.lock().unwrap().unregister(plugin)
   }
 
@@ -617,6 +663,29 @@ impl<R: Runtime> AppHandle<R> {
       .set_dock_visibility(visible)
       .map_err(Into::into)
   }
+
+  /// Change the device event filter mode.
+  ///
+  /// See [App::set_device_event_filter] for details.
+  ///
+  /// ## Platform-specific
+  ///
+  /// See [App::set_device_event_filter] for details.
+  pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    self.runtime_handle.set_device_event_filter(filter);
+  }
+
+  /// Whether the application supports multiple windows.
+  #[cfg(target_os = "ios")]
+  pub fn supports_multiple_windows(&self) -> bool {
+    let (tx, rx) = std::sync::mpsc::channel();
+    self.run_on_main_thread(move || unsafe {
+      let mtm = objc2::MainThreadMarker::new().unwrap();
+      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+      tx.send(ui_application.supportsMultipleScenes()).unwrap();
+    });
+    rx.recv().unwrap()
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {
@@ -640,6 +709,16 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    None
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    None
   }
 }
 
@@ -691,6 +770,16 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   fn managed_app_handle(&self) -> &AppHandle<R> {
     self.handle()
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Option<crate::Result<String>> {
+    None
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Option<crate::Result<String>> {
+    None
+  }
 }
 
 /// APIs specific to the wry runtime.
@@ -741,7 +830,7 @@ macro_rules! shared_app_impl {
         I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
-        self.manager.tray.tray_by_id(id)
+        self.manager.tray.tray_by_id(self.app_handle(), id)
       }
 
       /// Removes a tray icon using the provided id from tauri's internal state and returns it.
@@ -755,7 +844,7 @@ macro_rules! shared_app_impl {
         I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
-        self.manager.tray.remove_tray_by_id(id)
+        self.manager.tray.remove_tray_by_id(self.app_handle(), id)
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
@@ -824,7 +913,11 @@ macro_rules! shared_app_impl {
         })
       }
 
-      /// Set the app theme.
+      /// Sets the app theme.
+      ///
+      /// ## Platform-specific
+      ///
+      /// - **iOS / Android:** Unsupported.
       pub fn set_theme(&self, theme: Option<Theme>) {
         #[cfg(windows)]
         for window in self.manager.windows().values() {
@@ -942,6 +1035,10 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will hide the menu from it.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** Unsupported.
       #[cfg(desktop)]
       pub fn hide_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
@@ -963,6 +1060,10 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will show the menu for it.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** Unsupported.
       #[cfg(desktop)]
       pub fn show_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
@@ -1025,6 +1126,40 @@ macro_rules! shared_app_impl {
       /// DO NOT expose this key to third party scripts as might grant access to the backend from external URLs and iframes.
       pub fn invoke_key(&self) -> &str {
         self.manager.invoke_key()
+      }
+
+      /// Whether the application supports multiple windows.
+      #[cfg(desktop)]
+      pub fn supports_multiple_windows(&self) -> bool {
+        true
+      }
+
+      /// Whether the application supports multiple windows.
+      #[cfg(target_os = "android")]
+      pub fn supports_multiple_windows(&self) -> bool {
+        let runtime_handle = match self.runtime() {
+          RuntimeOrDispatch::Runtime(runtime) => runtime.handle(),
+          RuntimeOrDispatch::RuntimeHandle(handle) => handle,
+          _ => unreachable!(),
+        };
+
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        runtime_handle.run_on_android_context(move |env, _activity, _webview| {
+          let supports = (|| {
+            let version_class = env.find_class("android/os/Build$VERSION")?;
+            let sdk = env
+              .get_static_field(version_class, "SDK_INT", "I")?
+              .i()
+              .unwrap_or_default();
+            crate::Result::Ok(sdk >= 32)
+          })()
+          .unwrap_or(false);
+
+          let _ = tx.send(supports);
+        });
+
+        rx.recv().unwrap_or(false)
       }
     }
 
@@ -1102,7 +1237,7 @@ impl<R: Runtime> App<R> {
   )]
   fn register_core_plugins(&self) -> crate::Result<()> {
     self.handle.plugin(crate::path::plugin::init())?;
-    self.handle.plugin(crate::event::plugin::init())?;
+    self.handle.plugin(crate::event::plugin::init(self))?;
     self.handle.plugin(crate::window::plugin::init())?;
     self.handle.plugin(crate::webview::plugin::init())?;
     self.handle.plugin(crate::app::plugin::init())?;
@@ -1123,6 +1258,16 @@ impl<R: Runtime> App<R> {
   /// Gets a handle to the application instance.
   pub fn handle(&self) -> &AppHandle<R> {
     &self.handle
+  }
+
+  /// Whether the application supports multiple windows.
+  #[cfg(target_os = "ios")]
+  pub fn supports_multiple_windows(&self) -> bool {
+    unsafe {
+      let mtm = objc2::MainThreadMarker::new().unwrap();
+      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+      ui_application.supportsMultipleScenes()
+    }
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -1371,6 +1516,10 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
+  /// Web content process termination hook.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
+
   /// All passed plugins
   plugins: PluginStore<R>,
 
@@ -1457,6 +1606,8 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
@@ -1556,7 +1707,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Append a custom initialization script.
   ///
-  /// Allow to append custom initialization script instend of replacing entire invoke system.
+  /// Allow to append custom initialization script instead of replacing entire invoke system.
   ///
   /// # Examples
   ///
@@ -1611,7 +1762,7 @@ impl<R: Runtime> Builder<R> {
 use tauri::Manager;
 tauri::Builder::default()
   .setup(|app| {
-    let main_window = app.get_window("main").unwrap();
+    let main_window = app.get_webview_window("main").unwrap();
     main_window.set_title("Tauri!")?;
     Ok(())
   });
@@ -1634,6 +1785,23 @@ tauri::Builder::default()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Defines the web content process termination hook.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[must_use]
+  pub fn on_web_content_process_terminate<F>(mut self, on_web_content_process_terminate: F) -> Self
+  where
+    F: Fn(&Webview<R>) + Send + Sync + 'static,
+  {
+    self
+      .on_web_content_process_terminate
+      .replace(Arc::new(on_web_content_process_terminate));
     self
   }
 
@@ -1679,8 +1847,17 @@ tauri::Builder::default()
   ///   .plugin(plugin::init());
   /// ```
   #[must_use]
-  pub fn plugin<P: Plugin<R> + 'static>(mut self, plugin: P) -> Self {
-    self.plugins.register(Box::new(plugin));
+  pub fn plugin<P: Plugin<R> + 'static>(self, plugin: P) -> Self {
+    self.plugin_boxed(Box::new(plugin))
+  }
+
+  /// Adds a Tauri application plugin.
+  ///
+  /// This method is similar to [`Self::plugin`],
+  /// but accepts a boxed trait object instead of a generic type.
+  #[must_use]
+  pub fn plugin_boxed(mut self, plugin: Box<dyn Plugin<R>>) -> Self {
+    self.plugins.register(plugin);
     self
   }
 
@@ -1960,13 +2137,13 @@ tauri::Builder::default()
   >(
     mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(move |ctx, request, responder| {
-          responder.respond(protocol(ctx, request))
+        handler: Box::new(move |ctx, request, responder| {
+          responder.respond(protocol_handler(ctx, request))
         }),
       }),
     );
@@ -2002,8 +2179,8 @@ tauri::Builder::default()
   ///             .body("failed to read file".as_bytes().to_vec())
   ///             .unwrap()
   ///         );
-  ///     }
-  ///   });
+  ///       }
+  ///     });
   ///   });
   /// ```
   ///
@@ -2024,12 +2201,12 @@ tauri::Builder::default()
   >(
     mut self,
     uri_scheme: N,
-    protocol: H,
+    protocol_handler: H,
   ) -> Self {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(protocol),
+        handler: Box::new(protocol_handler),
       }),
     );
     self
@@ -2076,6 +2253,8 @@ tauri::Builder::default()
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
       self.state,
       #[cfg(desktop)]
@@ -2134,6 +2313,26 @@ tauri::Builder::default()
         }))
       },
     };
+
+    // The env var must be set before the Runtime is created so that GetAvailableBrowserVersionString picks it up.
+    #[cfg(windows)]
+    {
+      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } =
+        &manager.config.bundle.windows.webview_install_mode
+      {
+        if let Some(exe_dir) = crate::utils::platform::current_exe()
+          .ok()
+          .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        {
+          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path));
+        } else {
+          #[cfg(debug_assertions)]
+          eprintln!(
+            "failed to resolve resource directory; fallback to the installed Webview2 runtime."
+          );
+        }
+      }
+    }
 
     #[cfg(any(windows, target_os = "linux"))]
     let mut runtime = if self.runtime_any_thread {
@@ -2211,25 +2410,6 @@ tauri::Builder::default()
 
     app.manage(ChannelDataIpcQueue::default());
     app.handle.plugin(crate::ipc::channel::plugin())?;
-
-    #[cfg(windows)]
-    {
-      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } =
-        &app.manager.config().bundle.windows.webview_install_mode
-      {
-        if let Ok(resource_dir) = app.path().resource_dir() {
-          std::env::set_var(
-            "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER",
-            resource_dir.join(path),
-          );
-        } else {
-          #[cfg(debug_assertions)]
-          eprintln!(
-            "failed to resolve resource directory; fallback to the installed Webview2 runtime."
-          );
-        }
-      }
-    }
 
     let handle = app.handle();
 
@@ -2385,9 +2565,9 @@ fn on_event_loop_event<R: Runtime>(
       // set the app icon in development
       #[cfg(all(dev, target_os = "macos"))]
       {
-        use objc2::AllocAnyThread;
+        use objc2::{AllocAnyThread, MainThreadMarker};
         use objc2_app_kit::{NSApplication, NSImage};
-        use objc2_foundation::{MainThreadMarker, NSData};
+        use objc2_foundation::NSData;
 
         if let Some(icon) = app_handle.manager.app_icon.clone() {
           // TODO: Enable this check.
@@ -2446,7 +2626,7 @@ fn on_event_loop_event<R: Runtime>(
       #[allow(unreachable_code)]
       t.into()
     }
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
     RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
     #[cfg(target_os = "macos")]
     RuntimeRunEvent::Reopen {
@@ -2454,6 +2634,10 @@ fn on_event_loop_event<R: Runtime>(
     } => RunEvent::Reopen {
       has_visible_windows,
     },
+    #[cfg(target_os = "ios")]
+    RuntimeRunEvent::SceneRequested { scene, options } => {
+      RunEvent::SceneRequested { scene, options }
+    }
     _ => unimplemented!(),
   };
 

@@ -8,10 +8,10 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = { version = "0.5", features = ['http', 'axum'] }
-worker-macros = { version = "0.5", features = ['http'] }
+worker = { version = "0.8", features = ['http', 'axum'] }
+worker-macros = { version = "0.8", features = ['http'] }
 console_error_panic_hook = { version = "0.1" }
-axum = { version = "0.7", default-features = false }
+axum = { version = "0.8", default-features = false }
 tower-service = "0.3"
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -21,3 +21,7 @@ anyhow = "1"
 unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }
+
+# https://github.com/rustwasm/wasm-pack/issues/1501
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]

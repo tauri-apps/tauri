@@ -12,6 +12,8 @@
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
 //! - **common-controls-v6** *(enabled by default)*: Enables [Common Controls v6](https://learn.microsoft.com/en-us/windows/win32/controls/common-control-versions) support on Windows, mainly for the predefined `about` menu item.
+//! - **x11** *(enabled by default)*: Enables X11 support. Disable this if you only target Wayland.
+//! - **dbus** *(enabled by default)*: Enables dbus dependency for theme support on Linux. Disable this if you do not need theme support or don't want to build the dbus rust crate. The WebView dependencies use dbus either way.
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
@@ -31,10 +33,11 @@
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
-//! - **image-ico**: Adds support to parse `.ico` image, see [`Image`].
-//! - **image-png**: Adds support to parse `.png` image, see [`Image`].
+//! - **image-ico**: Adds support to parse `.ico` image, see [`image::Image`].
+//! - **image-png**: Adds support to parse `.png` image, see [`image::Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
-//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`](crate::State), [`Window`](crate::Window) and [`AppHandle`](crate::AppHandle)
+//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`], [`Window`] and [`AppHandle`]
+//! - **dynamic-acl** *(enabled by default)*: Enables you to add ACLs at runtime, notably it enables the [`Manager::add_capability`] function.
 //!
 //! ## Cargo allowlist features
 //!
@@ -64,7 +67,9 @@ macro_rules! ios_plugin_binding {
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
-use ipc::{RuntimeAuthority, RuntimeCapability};
+use ipc::RuntimeAuthority;
+#[cfg(feature = "dynamic-acl")]
+use ipc::RuntimeCapability;
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -133,14 +138,7 @@ macro_rules! android_binding {
 
     ::tauri::wry::android_binding!($domain, $app_name, $wry);
 
-    ::tauri::tao::android_binding!(
-      $domain,
-      $app_name,
-      WryActivity,
-      android_setup,
-      $main,
-      ::tauri::tao
-    );
+    ::tauri::tao::android_binding!($domain, $app_name, Rust, android_setup, $main, ::tauri::tao);
 
     // be careful when renaming this, the `Java_app_tauri_plugin_PluginManager_handlePluginResponse` symbol is checked by the CLI
     ::tauri::tao::platform::android::prelude::android_fn!(
@@ -205,7 +203,6 @@ pub use tauri_runtime_wry::webview_version;
 #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
 pub use runtime::ActivationPolicy;
 
-#[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
 
 use self::event::EventName;
@@ -218,9 +215,12 @@ pub use {
   },
   self::manager::Asset,
   self::runtime::{
-    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
+    dpi::{
+      LogicalPosition, LogicalRect, LogicalSize, LogicalUnit, PhysicalPosition, PhysicalRect,
+      PhysicalSize, PhysicalUnit, Pixel, PixelUnit, Position, Rect, Size,
+    },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
-    DeviceEventFilter, Rect, UserAttentionType,
+    DeviceEventFilter, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -242,38 +242,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub fn log_stdout() {
-  use std::{
-    ffi::CString,
-    fs::File,
-    io::{BufRead, BufReader},
-    os::unix::prelude::*,
-    thread,
-  };
-
-  let mut logpipe: [RawFd; 2] = Default::default();
+  #[cfg(target_os = "ios")]
   unsafe {
-    libc::pipe(logpipe.as_mut_ptr());
-    libc::dup2(logpipe[1], libc::STDOUT_FILENO);
-    libc::dup2(logpipe[1], libc::STDERR_FILENO);
+    crate::ios::log_stdout();
   }
-  thread::spawn(move || unsafe {
-    let file = File::from_raw_fd(logpipe[0]);
-    let mut reader = BufReader::new(file);
-    let mut buffer = String::new();
-    loop {
-      buffer.clear();
-      if let Ok(len) = reader.read_line(&mut buffer) {
-        if len == 0 {
-          break;
-        } else if let Ok(msg) = CString::new(buffer.as_bytes())
-          .map_err(|_| ())
-          .and_then(|c| c.into_string().map_err(|_| ()))
-        {
-          log::info!("{}", msg);
-        }
-      }
-    }
-  });
 }
 
 /// The user event type.
@@ -290,7 +262,7 @@ pub enum EventLoopMessage {
 
 /// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
 pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
-/// The webview runtime handle. A wrapper arond [`runtime::RuntimeHandle`] with the proper user event type associated.
+/// The webview runtime handle. A wrapper around [`runtime::RuntimeHandle`] with the proper user event type associated.
 pub trait RuntimeHandle: runtime::RuntimeHandle<EventLoopMessage> {}
 
 impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}
@@ -390,12 +362,32 @@ pub struct Context<R: Runtime> {
   pub(crate) plugin_global_api_scripts: Option<&'static [&'static str]>,
 }
 
+/// Temporary struct that overrides the Debug formatting for the `app_icon` field.
+///
+/// It reduces the output size compared to the default, as that would format the binary
+/// data as a slice of numbers `[65, 66, 67]`. This instead shows the length of the Vec.
+///
+/// For example: `Some([u8; 493])`
+pub(crate) struct DebugAppIcon<'a>(&'a Option<Vec<u8>>);
+
+impl std::fmt::Debug for DebugAppIcon<'_> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self.0 {
+      Option::None => f.write_str("None"),
+      Option::Some(icon) => f
+        .debug_tuple("Some")
+        .field(&format_args!("[u8; {}]", icon.len()))
+        .finish(),
+    }
+  }
+}
+
 impl<R: Runtime> fmt::Debug for Context<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
-      .field("app_icon", &self.app_icon)
+      .field("app_icon", &DebugAppIcon(&self.app_icon))
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern)
       .field("plugin_global_api_scripts", &self.plugin_global_api_scripts);
@@ -738,11 +730,12 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self
-      .manager()
-      .state
-      .try_get()
-      .expect("state() called before manage() for given type")
+    self.manager().state.try_get().unwrap_or_else(|| {
+      panic!(
+        "state() called before manage() for {}",
+        std::any::type_name::<T>()
+      )
+    })
   }
 
   /// Attempts to retrieve the managed state for the type `T`.
@@ -816,6 +809,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// [`tauri.conf.json > app > security > capabilities`]: https://tauri.app/reference/config/#capabilities
   /// [tauri_build::Attributes::capabilities_path_pattern]: https://docs.rs/tauri-build/2/tauri_build/struct.Attributes.html#method.capabilities_path_pattern
+  #[cfg(feature = "dynamic-acl")]
   fn add_capability(&self, capability: impl RuntimeCapability) -> Result<()> {
     self
       .manager()
@@ -1067,6 +1061,10 @@ pub(crate) mod sealed {
     fn manager_owned(&self) -> Arc<AppManager<R>>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
     fn managed_app_handle(&self) -> &AppHandle<R>;
+    #[cfg(target_os = "android")]
+    fn activity_name(&self) -> Option<crate::Result<String>>;
+    #[cfg(target_os = "ios")]
+    fn scene_identifier(&self) -> Option<crate::Result<String>>;
   }
 }
 
@@ -1251,6 +1249,6 @@ mod z85 {
 /// [Z85]: https://rfc.zeromq.org/spec/32/
 pub(crate) fn generate_invoke_key() -> Result<String> {
   let mut bytes = [0u8; 16];
-  getrandom::getrandom(&mut bytes)?;
+  getrandom::fill(&mut bytes)?;
   Ok(z85::encode(&bytes))
 }

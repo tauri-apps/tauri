@@ -1,9 +1,12 @@
-// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2026 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::cli::Args;
-use std::{env::current_dir, process::Command};
+use std::{
+  env::current_dir,
+  process::{Command, Stdio},
+};
 
 // the name of the binary to find in $PATH
 #[cfg(target_os = "linux")]
@@ -25,7 +28,7 @@ pub fn native(args: &Args) -> Command {
         );
         match current_dir() {
           Ok(cwd) => eprintln!("current working directory: {}", cwd.display()),
-          Err(error) => eprintln!("can not find current working directory: {}", error),
+          Err(error) => eprintln!("can not find current working directory: {error}"),
         }
         std::process::exit(1);
       }
@@ -34,11 +37,10 @@ pub fn native(args: &Args) -> Command {
       Ok(binary) => binary,
       Err(error) => {
         eprintln!(
-          "can not find binary {} in the PATH. This is currently required.\
-          You can also pass a custom path with --native-driver",
-          DRIVER_BINARY
+          "can not find binary {DRIVER_BINARY} in the PATH. This is currently required.\
+          You can also pass a custom path with --native-driver"
         );
-        eprintln!("{:?}", error);
+        eprintln!("{error:?}");
         std::process::exit(1);
       }
     },
@@ -49,5 +51,11 @@ pub fn native(args: &Args) -> Command {
   cmd.env("TAURI_WEBVIEW_AUTOMATION", "true"); // 2.x
   cmd.arg(format!("--port={}", args.native_port));
   cmd.arg(format!("--host={}", args.native_host));
+
+  // Don't inherit stdout from parent to prevent native WebDriver binary/HTTP protocol data
+  // from corrupting tauri-driver's stdout (which gets captured by the test framework).
+  // Keep stderr inherited so WebDriver logs/errors are still visible.
+  cmd.stdout(Stdio::null());
+
   cmd
 }

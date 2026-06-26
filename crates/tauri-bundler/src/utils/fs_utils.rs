@@ -111,9 +111,6 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
       "{from:?} is not a Directory"
     )));
   }
-  if to.exists() {
-    return Err(crate::Error::GenericError(format!("{to:?} already exists")));
-  }
   let parent = to.parent().expect("No data in parent");
   fs::create_dir_all(parent)?;
   for entry in walkdir::WalkDir::new(from) {
@@ -129,7 +126,7 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
         symlink_file(&target, &dest_path)?;
       }
     } else if entry.file_type().is_dir() {
-      fs::create_dir(dest_path)?;
+      fs::create_dir_all(dest_path)?;
     } else {
       fs::copy(entry.path(), dest_path)?;
     }

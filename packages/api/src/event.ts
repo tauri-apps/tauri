@@ -11,6 +11,14 @@
 
 import { invoke, transformCallback } from './core'
 
+declare global {
+  interface Window {
+    __TAURI_EVENT_PLUGIN_INTERNALS__: {
+      unregisterListener: (event: string, eventId: number) => void
+    }
+  }
+}
+
 type EventTarget =
   | { kind: 'Any' }
   | { kind: 'AnyLabel'; label: string }
@@ -30,6 +38,7 @@ interface Event<T> {
 
 type EventCallback<T> = (event: Event<T>) => void
 
+// TODO(v3): mark this as Promise<void>
 type UnlistenFn = () => void
 
 type EventName = `${TauriEvent}` | (string & Record<never, never>)
@@ -56,6 +65,8 @@ enum TauriEvent {
   WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
   WINDOW_CREATED = 'tauri://window-created',
+  WINDOW_SUSPENDED = 'tauri://suspended',
+  WINDOW_RESUMED = 'tauri://resumed',
   WEBVIEW_CREATED = 'tauri://webview-created',
   DRAG_ENTER = 'tauri://drag-enter',
   DRAG_OVER = 'tauri://drag-over',
@@ -72,6 +83,7 @@ enum TauriEvent {
  * @returns
  */
 async function _unlisten(event: string, eventId: number): Promise<void> {
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener(event, eventId)
   await invoke('plugin:event|unlisten', {
     event,
     eventId
@@ -152,8 +164,7 @@ async function once<T>(
   return listen<T>(
     event,
     (eventData) => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      _unlisten(event, eventData.id)
+      void _unlisten(event, eventData.id)
       handler(eventData)
     },
     options

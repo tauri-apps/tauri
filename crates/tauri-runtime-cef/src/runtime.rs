@@ -459,18 +459,25 @@ impl<T: UserEvent> WinitCefApp<T> {
   fn handle_message(&mut self, event_loop: &dyn ActiveEventLoop, message: Message<T>) {
     match message {
       Message::EventLoop(message) => self.handle_event_loop_message(event_loop, message),
-      Message::BrowserClosed(window_id, webview_id) => {
+      Message::BrowserClosed(_window_id, webview_id) => {
         // Standalone webview.close() keeps the child in state until this
         // callback, so cleanup happens here. Window/app teardown removes child
         // bookkeeping before asking CEF to close; then this message is only the
         // lifecycle acknowledgement that lets live_browsers drain.
-        if let Some(appwindow) = self.state.windows.get_mut(&window_id)
-          && let Some(index) = appwindow
+        //
+        // The window_id baked into the browser's handlers can be stale after a
+        // reparent, so locate the webview by its process-unique id across every
+        // window rather than trusting the message's window_id — otherwise a
+        // reparented webview's scheme-handler entries would leak and its
+        // AppWebview would linger in the target window forever.
+        let child = self.state.windows.values_mut().find_map(|appwindow| {
+          appwindow
             .children
             .iter()
             .position(|child| child.webview_id == webview_id)
-        {
-          let child = appwindow.children.remove(index);
+            .map(|index| appwindow.children.remove(index))
+        });
+        if let Some(child) = child {
           self.remove_scheme_handler_entries(&child);
         }
 

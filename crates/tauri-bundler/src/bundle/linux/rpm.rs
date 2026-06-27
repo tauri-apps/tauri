@@ -92,7 +92,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let build_config = rpm::BuildConfig::default().compression(compression);
 
-  let mut builder = rpm::PackageBuilder::new(&name, &to_rpm_version(version), &license, arch, summary);
+  let mut builder =
+    rpm::PackageBuilder::new(&name, &to_rpm_version(version), &license, arch, summary);
   builder
     .using_config(build_config)
     .epoch(epoch)

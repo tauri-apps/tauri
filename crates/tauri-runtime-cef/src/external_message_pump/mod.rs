@@ -33,10 +33,6 @@ use std::sync::{
   atomic::{AtomicBool, Ordering},
 };
 
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(windows)]
-mod windows;
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -45,11 +41,11 @@ mod windows;
   target_os = "openbsd"
 ))]
 mod linux;
-
 #[cfg(target_os = "macos")]
-use macos::PlatformPump;
+mod macos;
 #[cfg(windows)]
-use windows::PlatformPump;
+mod windows;
+
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -58,6 +54,10 @@ use windows::PlatformPump;
   target_os = "openbsd"
 ))]
 use linux::PlatformPump;
+#[cfg(target_os = "macos")]
+use macos::PlatformPump;
+#[cfg(windows)]
+use windows::PlatformPump;
 
 #[cfg(any(
   target_os = "linux",

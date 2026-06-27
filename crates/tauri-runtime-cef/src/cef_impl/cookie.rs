@@ -59,23 +59,6 @@ fn cef_cookie_from_cookie(cookie: &Cookie<'_>) -> cef::Cookie {
   cef_cookie
 }
 
-fn push_cookie_and_finish_if_done(
-  cookie: Option<&cef::Cookie>,
-  count: ::std::os::raw::c_int,
-  total: ::std::os::raw::c_int,
-  collected: &CollectedCookies,
-  tx: &CookieResultSender,
-) {
-  if let Some(cookie) = cookie {
-    let cookie = cookie_from_cef(cookie);
-    collected.lock().unwrap().push(cookie);
-  }
-
-  if (count + 1) >= total {
-    let _ = tx.send(Ok(collected.lock().unwrap().clone()));
-  }
-}
-
 cef::wrap_cookie_visitor! {
   struct CollectUrlCookiesVisitor {
     tx: CookieResultSender,
@@ -86,11 +69,13 @@ cef::wrap_cookie_visitor! {
     fn visit(
       &self,
       cookie: Option<&cef::Cookie>,
-      count: ::std::os::raw::c_int,
-      total: ::std::os::raw::c_int,
+      _count: ::std::os::raw::c_int,
+      _total: ::std::os::raw::c_int,
       _delete_cookie: Option<&mut ::std::os::raw::c_int>,
     ) -> ::std::os::raw::c_int {
-      push_cookie_and_finish_if_done(cookie, count, total, &self.collected, &self.tx);
+      if let Some(cookie) = cookie {
+        self.collected.lock().unwrap().push(cookie_from_cef(cookie));
+      }
       1
     }
   }
@@ -106,33 +91,52 @@ cef::wrap_cookie_visitor! {
     fn visit(
       &self,
       cookie: Option<&cef::Cookie>,
-      count: ::std::os::raw::c_int,
-      total: ::std::os::raw::c_int,
+      _count: ::std::os::raw::c_int,
+      _total: ::std::os::raw::c_int,
       _delete_cookie: Option<&mut ::std::os::raw::c_int>,
     ) -> ::std::os::raw::c_int {
-      push_cookie_and_finish_if_done(cookie, count, total, &self.collected, &self.tx);
+      if let Some(cookie) = cookie {
+        self.collected.lock().unwrap().push(cookie_from_cef(cookie));
+      }
       1
     }
   }
 }
 
+// CEF never invokes `visit` when the cookie store is empty (and the visitor is
+// also released without a final callback once visiting completes), so the
+// result must be delivered when the visitor is dropped. The visitor's inner
+// state is dropped exactly once, after CEF releases its last reference, which
+// covers the empty, non-empty, and "visit failed to start" cases uniformly —
+// otherwise a query against a URL/store with no matching cookies would never
+// send and the dispatcher's blocking `recv` would hang forever.
+impl Drop for CollectUrlCookiesVisitor {
+  fn drop(&mut self) {
+    let _ = self.tx.send(Ok(self.collected.lock().unwrap().clone()));
+  }
+}
+
+impl Drop for CollectAllCookiesVisitor {
+  fn drop(&mut self) {
+    let _ = self.tx.send(Ok(self.collected.lock().unwrap().clone()));
+  }
+}
+
 pub(crate) fn visit_url_cookies(manager: CookieManager, url: Url, tx: CookieResultSender) {
   let collected = Arc::new(Mutex::new(Vec::new()));
-  let mut visitor = CollectUrlCookiesVisitor::new(tx.clone(), collected);
+  let mut visitor = CollectUrlCookiesVisitor::new(tx, collected);
   let url = cef::CefString::from(url.as_str());
 
-  if manager.visit_url_cookies(Some(&url), 1, Some(&mut visitor)) == 0 {
-    let _ = tx.send(Ok(Vec::new()));
-  }
+  // The result is sent from the visitor's `Drop`, including when this call fails
+  // to start the visit (the visitor is dropped here and sends the empty result).
+  manager.visit_url_cookies(Some(&url), 1, Some(&mut visitor));
 }
 
 pub(crate) fn visit_all_cookies(manager: CookieManager, tx: CookieResultSender) {
   let collected = Arc::new(Mutex::new(Vec::new()));
-  let mut visitor = CollectAllCookiesVisitor::new(tx.clone(), collected);
+  let mut visitor = CollectAllCookiesVisitor::new(tx, collected);
 
-  if manager.visit_all_cookies(Some(&mut visitor)) == 0 {
-    let _ = tx.send(Ok(Vec::new()));
-  }
+  manager.visit_all_cookies(Some(&mut visitor));
 }
 
 pub(crate) fn set_cookie(manager: CookieManager, url: Option<String>, cookie: Cookie<'static>) {

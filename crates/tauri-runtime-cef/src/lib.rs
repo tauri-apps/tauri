@@ -6,8 +6,7 @@
 #![allow(clippy::too_many_arguments)]
 
 mod cef_impl;
-#[cfg(target_os = "macos")]
-mod macos_cef_pump;
+mod external_message_pump;
 mod platform;
 mod runtime;
 mod webview;

@@ -16,7 +16,7 @@ use std::{
     atomic::{AtomicBool, AtomicU32, Ordering},
     mpsc::{self, Receiver, Sender},
   },
-  time::{Duration, Instant},
+  time::Duration,
 };
 
 use cef::*;
@@ -36,14 +36,12 @@ use winit::{
   application::ApplicationHandler,
   event::{StartCause, WindowEvent as WinitWindowEvent},
   event_loop::{
-    ActiveEventLoop, ControlFlow, EventLoop, EventLoopBuilder,
-    EventLoopProxy as WinitEventLoopProxy,
+    ActiveEventLoop, EventLoop, EventLoopBuilder, EventLoopProxy as WinitEventLoopProxy,
   },
   window::WindowId as WinitWindowId,
 };
 
-#[cfg(target_os = "macos")]
-use crate::macos_cef_pump::MacosCefPump;
+use crate::external_message_pump::CefExternalPump;
 use crate::platform::EventLoopExt;
 use crate::{
   cef_impl::{client as browser_client, ipc, request_handler},
@@ -144,8 +142,7 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   next_webview_event_id: Arc<AtomicU32>,
   current_dispatch: Arc<Mutex<Option<MainThreadDispatch<T>>>>,
   pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
-  #[cfg(target_os = "macos")]
-  pub(crate) cef_pump: MacosCefPump,
+  pub(crate) cef_pump: CefExternalPump,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
   /// [`cef::initialize`]. Per-webview `data_directory` profiles must resolve
   /// under this root for CEF request contexts to be accepted.
@@ -227,14 +224,6 @@ impl<T: UserEvent> fmt::Debug for RuntimeContext<T> {
   }
 }
 
-#[cfg(target_os = "linux")]
-fn drain_glib() {
-  let context = gtk::glib::MainContext::default();
-  while context.pending() {
-    context.iteration(false);
-  }
-}
-
 impl<T: UserEvent> RuntimeContext<T> {
   pub(crate) fn send_message(&self, message: Message<T>) -> Result<()> {
     let message = if self.is_main_thread() {
@@ -291,24 +280,9 @@ impl<T: UserEvent> RuntimeContext<T> {
   pub(crate) fn next_webview_event_id(&self) -> u32 {
     self.next_webview_event_id.fetch_add(1, Ordering::Relaxed)
   }
-
-  pub(crate) fn advance_cef(&self) {
-    #[cfg(target_os = "macos")]
-    self.cef_pump.do_message_loop_work();
-    #[cfg(target_os = "linux")]
-    {
-      drain_glib();
-      cef::do_message_loop_work();
-      drain_glib();
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-    cef::do_message_loop_work();
-  }
 }
 
 pub(crate) enum Message<T: UserEvent> {
-  #[cfg_attr(target_os = "macos", allow(dead_code))]
-  CefWork(Duration),
   EventLoop(EventLoopMessage),
   BrowserClosed(WindowId, u32),
   Opened(Vec<url::Url>),
@@ -358,9 +332,7 @@ pub(crate) enum Message<T: UserEvent> {
   UserEvent(T),
 }
 
-fn device_event_filter_to_winit(
-  filter: DeviceEventFilter,
-) -> winit::event_loop::DeviceEvents {
+fn device_event_filter_to_winit(filter: DeviceEventFilter) -> winit::event_loop::DeviceEvents {
   match filter {
     DeviceEventFilter::Always => winit::event_loop::DeviceEvents::Never,
     DeviceEventFilter::Unfocused => winit::event_loop::DeviceEvents::WhenFocused,
@@ -438,12 +410,6 @@ fn is_cef_helper_process() -> bool {
     .unwrap_or_default()
 }
 
-#[derive(Clone, Copy)]
-enum CefPump {
-  Idle,
-  DueAt(Instant),
-}
-
 pub(crate) struct AppState<T: UserEvent> {
   pub(crate) windows: HashMap<WindowId, AppWindow>,
   pub(crate) winid_id_to_window_id_map: HashMap<WinitWindowId, WindowId>,
@@ -456,7 +422,6 @@ pub(crate) struct WinitCefApp<T: UserEvent> {
   pub(crate) context: RuntimeContext<T>,
   receiver: Receiver<Message<T>>,
   pub(crate) state: AppState<T>,
-  cef_pump: CefPump,
   pub(crate) scheme_registry: request_handler::SchemeRegistry,
 }
 
@@ -477,7 +442,6 @@ impl<T: UserEvent> WinitCefApp<T> {
         live_browsers: 0,
         exiting: false,
       },
-      cef_pump: CefPump::Idle,
       scheme_registry,
     }
   }
@@ -494,7 +458,6 @@ impl<T: UserEvent> WinitCefApp<T> {
 
   fn handle_message(&mut self, event_loop: &dyn ActiveEventLoop, message: Message<T>) {
     match message {
-      Message::CefWork(delay) => self.schedule_cef_work(event_loop, delay),
       Message::EventLoop(message) => self.handle_event_loop_message(event_loop, message),
       Message::BrowserClosed(window_id, webview_id) => {
         // Standalone webview.close() keeps the child in state until this
@@ -832,25 +795,26 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
   }
 
-  fn schedule_cef_work(&mut self, event_loop: &dyn ActiveEventLoop, delay: Duration) {
-    let deadline = Instant::now()
-      .checked_add(delay)
-      .unwrap_or_else(|| Instant::now() + Duration::from_secs(60));
-    self.cef_pump = CefPump::DueAt(deadline);
-    event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
-  }
-
-  fn advance_cef_if_due(&mut self, event_loop: &dyn ActiveEventLoop) {
-    if let CefPump::DueAt(deadline) = self.cef_pump {
-      if Instant::now() < deadline {
-        event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
-        return;
-      }
-
-      self.cef_pump = CefPump::Idle;
+  /// Service the default GLib main context so the external message pump's GLib
+  /// timeout (and any GTK work CEF schedules) gets dispatched, then arm winit to
+  /// wake when the next tick is due. CEF is driven by that timeout firing, not
+  /// from here. Windows/macOS need no equivalent: their pump timers live on the
+  /// native loop winit already runs.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn service_glib(&self, event_loop: &dyn ActiveEventLoop) {
+    let context = gtk::glib::MainContext::default();
+    while context.pending() {
+      context.iteration(false);
     }
-
-    self.context.advance_cef();
+    if let Some(deadline) = self.context.cef_pump.next_deadline() {
+      event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(deadline));
+    }
   }
 }
 
@@ -865,7 +829,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     match cause {
       StartCause::Init => {
         self.run_callback(RunEvent::Ready);
-        self.context.advance_cef();
+        self.context.cef_pump.do_message_loop_work();
       }
       // Match wry/tao, which emit `Resumed` on each `Poll` start cause.
       StartCause::Poll => self.run_callback(RunEvent::Resumed),
@@ -876,12 +840,19 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn proxy_wake_up(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = install_current_dispatch(self, event_loop);
     self.drain_messages(event_loop);
-    self.advance_cef_if_due(event_loop);
   }
 
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = install_current_dispatch(self, event_loop);
-    self.advance_cef_if_due(event_loop);
+    // TODO: remove once migrated to winit-gtk4
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    self.service_glib(event_loop);
     self.run_callback(RunEvent::MainEventsCleared);
   }
 
@@ -1297,8 +1268,16 @@ impl<T: UserEvent> CefRuntime<T> {
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
-    #[cfg(target_os = "macos")]
-    let cef_pump = MacosCefPump::new();
+    let cef_pump = CefExternalPump::new(
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      proxy.clone(),
+    );
     let context = RuntimeContext {
       sender: sender.clone(),
       proxy: proxy.clone(),
@@ -1309,7 +1288,6 @@ impl<T: UserEvent> CefRuntime<T> {
       next_webview_event_id: Default::default(),
       current_dispatch: Default::default(),
       app_wide_theme: Default::default(),
-      #[cfg(target_os = "macos")]
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),
     };
@@ -1381,7 +1359,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     // Wait for the CEF context to initialize before returning, so that the runtime is ready to create browsers.
     while !context_initialized.load(Ordering::SeqCst) {
-      context.advance_cef();
+      context.cef_pump.do_message_loop_work();
       std::thread::sleep(Duration::from_millis(1));
     }
 
@@ -1535,7 +1513,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
         callback(RunEvent::UserEvent(event));
       }
     }
-    self.context.advance_cef();
+    self.context.cef_pump.do_message_loop_work();
     callback(RunEvent::MainEventsCleared);
   }
 

@@ -6,8 +6,6 @@ use std::sync::{
   Arc,
   atomic::{AtomicBool, Ordering},
 };
-#[cfg(not(target_os = "macos"))]
-use std::time::Duration;
 
 use cef::*;
 use tauri_runtime::UserEvent;
@@ -28,16 +26,7 @@ wrap_browser_process_handler! {
     }
 
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
-      #[cfg(target_os = "macos")]
-      {
-        self.context.cef_pump.schedule_message_pump_work(delay_ms);
-      }
-      #[cfg(not(target_os = "macos"))]
-      {
-        let delay = Duration::from_millis(delay_ms.max(0) as u64);
-        let _ = self.context.sender.send(Message::CefWork(delay));
-        self.context.proxy.wake_up();
-      }
+      self.context.cef_pump.schedule_message_pump_work(delay_ms);
     }
 
     fn on_already_running_app_relaunch(

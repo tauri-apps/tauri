@@ -148,13 +148,13 @@ impl Drop for PlatformPump {
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
   if msg == WM_TIMER || msg == WM_HAVE_WORK {
     let state = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) } as *const Weak<PumpState>;
-    if !state.is_null() {
-      if let Some(state) = unsafe { &*state }.upgrade() {
-        if msg == WM_HAVE_WORK {
-          state.on_schedule_work(lparam.0 as i64);
-        } else {
-          state.on_timer_timeout();
-        }
+    if !state.is_null()
+      && let Some(state) = unsafe { &*state }.upgrade()
+    {
+      if msg == WM_HAVE_WORK {
+        state.on_schedule_work(lparam.0 as i64);
+      } else {
+        state.on_timer_timeout();
       }
     }
   }

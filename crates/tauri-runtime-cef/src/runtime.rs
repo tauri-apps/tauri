@@ -198,6 +198,7 @@ fn install_current_dispatch<T: UserEvent>(
   }
 }
 
+#[allow(clippy::result_large_err)]
 fn handle_main_thread_message<T: UserEvent>(
   context: &RuntimeContext<T>,
   message: Message<T>,
@@ -282,6 +283,8 @@ impl<T: UserEvent> RuntimeContext<T> {
   }
 }
 
+pub(crate) type AfterWindowCreationCallback = Box<dyn for<'a> Fn(RawWindow<'a>) + Send>;
+
 pub(crate) enum Message<T: UserEvent> {
   EventLoop(EventLoopMessage),
   BrowserClosed(WindowId, u32),
@@ -298,7 +301,7 @@ pub(crate) enum Message<T: UserEvent> {
     window_id: WindowId,
     webview_id: Option<u32>,
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
-    after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
+    after_window_creation: Option<AfterWindowCreationCallback>,
     result_tx: Sender<Result<()>>,
   },
   CreateWebview {

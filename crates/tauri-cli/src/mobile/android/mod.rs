@@ -21,7 +21,7 @@ use clap::{Parser, Subcommand};
 use semver::Version;
 use std::{
   env::set_var,
-  fs::{create_dir, create_dir_all, read_dir, write},
+  fs::{create_dir, create_dir_all, read_dir, read_to_string, write},
   io::Cursor,
   path::{Path, PathBuf},
   process::{exit, Command},
@@ -50,6 +50,8 @@ mod run;
 
 const NDK_VERSION: &str = "29.0.13846066";
 const SDK_VERSION: u8 = 36;
+const ANDROID_TEMPLATE_GRADLE_WRAPPER_PROPERTIES: &str =
+  include_str!("../../../templates/mobile/android/gradle/wrapper/gradle-wrapper.properties");
 
 #[cfg(target_os = "macos")]
 const CMDLINE_TOOLS_URL: &str =
@@ -487,6 +489,155 @@ fn ensure_java() -> Result<()> {
   }
 
   Ok(())
+}
+
+pub(super) fn ensure_gradle_java_compatibility(project_dir: &Path) -> Result<()> {
+  let Some(java_feature) = java_feature_version()? else {
+    return Ok(());
+  };
+  let (gradle_version, gradle_source) = android_gradle_version(project_dir)?;
+
+  if let Some(min_gradle_version) = minimum_gradle_version_for_java(java_feature) {
+    if !gradle_supports_java(java_feature, &gradle_version) {
+      crate::error::bail!(
+        "Java {} cannot run Gradle {} from {}. Use a Java version supported by Gradle {}, or update the Android Gradle wrapper to Gradle {} or newer.",
+        java_feature,
+        gradle_version,
+        gradle_source,
+        gradle_version,
+        min_gradle_version
+      );
+    }
+  }
+
+  Ok(())
+}
+
+fn java_feature_version() -> Result<Option<u64>> {
+  let java = java_binary();
+  let output = Command::new(&java)
+    .arg("-version")
+    .output()
+    .with_context(|| format!("failed to run `{}` to check Java version", java.display()))?;
+
+  let version_output = format!(
+    "{}{}",
+    String::from_utf8_lossy(&output.stderr),
+    String::from_utf8_lossy(&output.stdout)
+  );
+
+  Ok(parse_java_feature_version(&version_output))
+}
+
+fn java_binary() -> PathBuf {
+  if let Some(java_home) = std::env::var_os("JAVA_HOME") {
+    return PathBuf::from(java_home).join("bin").join(if cfg!(windows) {
+      "java.exe"
+    } else {
+      "java"
+    });
+  }
+
+  PathBuf::from("java")
+}
+
+fn parse_java_feature_version(version_output: &str) -> Option<u64> {
+  version_output
+    .split_whitespace()
+    .find_map(|word| parse_java_feature_token(word.trim_matches('"')))
+}
+
+fn parse_java_feature_token(token: &str) -> Option<u64> {
+  let mut version_parts = token
+    .split(|character: char| !(character.is_ascii_digit() || character == '.'))
+    .find(|part| !part.is_empty())?
+    .split('.');
+  let first_part = version_parts.next()?.parse::<u64>().ok()?;
+
+  if first_part == 1 {
+    version_parts.next()?.parse().ok()
+  } else {
+    Some(first_part)
+  }
+}
+
+fn android_gradle_version(project_dir: &Path) -> Result<(Version, String)> {
+  let wrapper_properties_path = project_dir
+    .join("gradle")
+    .join("wrapper")
+    .join("gradle-wrapper.properties");
+  let (wrapper_properties, source) = match read_to_string(&wrapper_properties_path) {
+    Ok(wrapper_properties) => (
+      wrapper_properties,
+      wrapper_properties_path.display().to_string(),
+    ),
+    Err(error) if error.kind() == std::io::ErrorKind::NotFound => (
+      ANDROID_TEMPLATE_GRADLE_WRAPPER_PROPERTIES.to_string(),
+      "the Tauri Android template".to_string(),
+    ),
+    Err(error) => {
+      return Err(error).fs_context(
+        "failed to read Android Gradle wrapper properties",
+        wrapper_properties_path,
+      )
+    }
+  };
+
+  let gradle_version = parse_gradle_distribution_version(&wrapper_properties).ok_or_else(|| {
+    crate::Error::GenericError(format!(
+      "failed to parse Gradle distribution version from {source}"
+    ))
+  })?;
+
+  Ok((gradle_version, source))
+}
+
+fn parse_gradle_distribution_version(wrapper_properties: &str) -> Option<Version> {
+  let distribution_url = wrapper_properties.lines().find_map(|line| {
+    line
+      .trim()
+      .strip_prefix("distributionUrl=")
+      .or_else(|| line.trim().strip_prefix("distributionUrl ="))
+  })?;
+  let version = distribution_url
+    .split("gradle-")
+    .nth(1)?
+    .split('-')
+    .next()?;
+
+  Version::parse(version).ok()
+}
+
+fn minimum_gradle_version_for_java(java_feature: u64) -> Option<Version> {
+  match java_feature {
+    8 => Some(Version::new(2, 0, 0)),
+    9 => Some(Version::new(4, 3, 0)),
+    10 => Some(Version::new(4, 7, 0)),
+    11 => Some(Version::new(5, 0, 0)),
+    12 => Some(Version::new(5, 4, 0)),
+    13 => Some(Version::new(6, 0, 0)),
+    14 => Some(Version::new(6, 3, 0)),
+    15 => Some(Version::new(6, 7, 0)),
+    16 => Some(Version::new(7, 0, 0)),
+    17 => Some(Version::new(7, 3, 0)),
+    18 => Some(Version::new(7, 5, 0)),
+    19 => Some(Version::new(7, 6, 0)),
+    20 => Some(Version::new(8, 3, 0)),
+    21 => Some(Version::new(8, 5, 0)),
+    22 => Some(Version::new(8, 8, 0)),
+    23 => Some(Version::new(8, 10, 0)),
+    24 => Some(Version::new(8, 14, 0)),
+    25 => Some(Version::new(9, 1, 0)),
+    26 => Some(Version::new(9, 4, 0)),
+    _ => None,
+  }
+}
+
+fn gradle_supports_java(java_feature: u64, gradle_version: &Version) -> bool {
+  match minimum_gradle_version_for_java(java_feature) {
+    Some(min_gradle_version) => gradle_version >= &min_gradle_version,
+    None => true,
+  }
 }
 
 fn ensure_sdk(non_interactive: bool) -> Result<()> {
@@ -1081,7 +1232,11 @@ fn generate_tauri_properties(
 
 #[cfg(test)]
 mod tests {
-  use super::{find_matching_brace, set_debug_application_id_suffix};
+  use super::{
+    find_matching_brace, gradle_supports_java, minimum_gradle_version_for_java,
+    parse_gradle_distribution_version, parse_java_feature_version, set_debug_application_id_suffix,
+  };
+  use semver::Version;
 
   #[test]
   fn writes_debug_application_id_suffix() {
@@ -1200,5 +1355,56 @@ android {
             applicationIdSuffix = ".debug"
             val proguardRules = """"#
     ));
+  }
+
+  #[test]
+  fn parses_java_feature_versions() {
+    assert_eq!(
+      parse_java_feature_version(r#"openjdk version "26" 2026-03-17"#),
+      Some(26)
+    );
+    assert_eq!(
+      parse_java_feature_version(r#"java version "21.0.8" 2026-07-15 LTS"#),
+      Some(21)
+    );
+    assert_eq!(
+      parse_java_feature_version(r#"openjdk version "1.8.0_432""#),
+      Some(8)
+    );
+  }
+
+  #[test]
+  fn parses_gradle_distribution_versions() {
+    assert_eq!(
+      parse_gradle_distribution_version(
+        r#"distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.3-bin.zip"#
+      ),
+      Some(Version::new(8, 14, 3))
+    );
+  }
+
+  #[test]
+  fn maps_java_versions_to_minimum_gradle_versions() {
+    assert_eq!(
+      minimum_gradle_version_for_java(24),
+      Some(Version::new(8, 14, 0))
+    );
+    assert_eq!(
+      minimum_gradle_version_for_java(25),
+      Some(Version::new(9, 1, 0))
+    );
+    assert_eq!(
+      minimum_gradle_version_for_java(26),
+      Some(Version::new(9, 4, 0))
+    );
+  }
+
+  #[test]
+  fn detects_java_too_new_for_gradle_wrapper() {
+    let gradle_8_14_3 = Version::new(8, 14, 3);
+
+    assert!(gradle_supports_java(24, &gradle_8_14_3));
+    assert!(!gradle_supports_java(25, &gradle_8_14_3));
+    assert!(!gradle_supports_java(26, &gradle_8_14_3));
   }
 }

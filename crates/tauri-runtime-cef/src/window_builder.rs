@@ -18,7 +18,9 @@ use winit::{
   window::{WindowAttributes, WindowButtons},
 };
 
-use crate::window::{AppWindowAttrs, paired_size_constraint, tauri_theme_to_winit_theme};
+use crate::window::{
+  AppWindowAttrs, paired_size_constraint, tauri_theme_to_winit_theme, winit_theme_to_tauri_theme,
+};
 
 #[cfg(target_os = "macos")]
 use std::ptr::NonNull;
@@ -494,10 +496,11 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn get_theme(&self) -> Option<Theme> {
-    self.attrs.inner.preferred_theme.map(|theme| match theme {
-      winit::window::Theme::Light => Theme::Light,
-      winit::window::Theme::Dark => Theme::Dark,
-    })
+    self
+      .attrs
+      .inner
+      .preferred_theme
+      .map(winit_theme_to_tauri_theme)
   }
 }
 

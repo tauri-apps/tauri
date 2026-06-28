@@ -125,7 +125,8 @@ impl AppWebview {
         width.max(1) as u32,
         height.max(1) as u32,
       );
-      (xlib.XSync)(display, 0);
+      // `with_cef_display` issues an `XFlush` once the closure returns, so a
+      // blocking `XSync` round-trip here just stalls every resize frame.
     });
   }
 }

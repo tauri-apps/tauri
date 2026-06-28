@@ -5,7 +5,10 @@
 use objc2::MainThreadMarker;
 use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSEvent, NSScreen};
 use objc2_foundation::{NSPoint, NSString};
-use tauri_runtime::{Error, ProgressBarState, Result, dpi::PhysicalPosition};
+use tauri_runtime::{
+  Error, ProgressBarState, Result,
+  dpi::{LogicalPosition, PhysicalPosition},
+};
 use winit::event_loop::ActiveEventLoop;
 
 use crate::platform::EventLoopExt;
@@ -77,15 +80,19 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
       return Err(Error::FailedToGetCursorPosition);
     };
 
-    // `NSEvent::mouseLocation` uses a bottom-left origin; flip to top-left.
+    // `NSEvent::mouseLocation` is in global coordinates with a bottom-left
+    // origin, in logical points. The global origin is the bottom-left of the
+    // primary screen, so flip Y against the primary screen height, then scale to
+    // physical pixels to satisfy the trait contract (the Windows/Linux backends
+    // and wry/tao all return physical pixels — returning logical here is off by
+    // the scale factor on HiDPI/Retina displays).
     let location: NSPoint = NSEvent::mouseLocation();
-    let screen_height = NSScreen::mainScreen(mtm)
-      .map(|screen| screen.frame().size.height)
+    let primary = unsafe { NSScreen::screens(mtm).firstObject() }
       .ok_or(Error::FailedToGetCursorPosition)?;
+    let screen_height = primary.frame().size.height;
+    let scale = primary.backingScaleFactor();
 
-    Ok(PhysicalPosition::new(
-      location.x,
-      screen_height - location.y,
-    ))
+    let logical = LogicalPosition::new(location.x, screen_height - location.y);
+    Ok(logical.to_physical(scale))
   }
 }

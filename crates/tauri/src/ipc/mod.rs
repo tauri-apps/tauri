@@ -585,6 +585,31 @@ impl<R: Runtime> InvokeMessage<R> {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CallbackFn(pub u32);
 
+/// Metadata about a command defined with `#[tauri::command]`.
+///
+/// This can be used by frameworks built on Tauri to introspect the registered commands.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct CommandMetadata {
+  /// The name of the command including the prefix if it's defined within a plugin.
+  /// This can be directly passed to `invoke`.
+  pub name: &'static str,
+  /// The Rust-doc comments for the command.
+  pub docs: &'static str,
+  /// Whether the command has a deprecated attribute.
+  pub deprecated: Option<CommandMetadataDeprecated>,
+  /// The name of the arguments for this command.
+  pub arguments: &'static [&'static str],
+}
+
+/// Represents the Rust `#[deprecated]` attribute on a command.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct CommandMetadataDeprecated {
+  /// Deprecation note for the developer.
+  pub note: Option<&'static str>,
+  /// Rust version where the item became deprecated.
+  pub since: Option<&'static str>,
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;

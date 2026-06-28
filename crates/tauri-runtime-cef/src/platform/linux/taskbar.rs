@@ -79,21 +79,21 @@ impl TaskbarIndicator {
   }
 
   fn ensure_entry_load(&mut self) {
-    if let Some(unity_lib) = &self.unity_lib {
-      if let Some(id) = &self.desktop_filename_c_str {
-        let handle = unsafe { unity_lib.unity_launcher_entry_get_for_desktop_id(id.as_ptr()) };
-        if !handle.is_null() {
-          self.unity_entry = Some(handle);
-        }
+    if let Some(unity_lib) = &self.unity_lib
+      && let Some(id) = &self.desktop_filename_c_str
+    {
+      let handle = unsafe { unity_lib.unity_launcher_entry_get_for_desktop_id(id.as_ptr()) };
+      if !handle.is_null() {
+        self.unity_entry = Some(handle);
       }
     }
   }
 
   fn is_unity_running(&self) -> bool {
-    if let Some(inspector) = self.unity_inspector {
-      if let Some(unity_lib) = &self.unity_lib {
-        return unsafe { unity_lib.unity_inspector_get_unity_running(inspector) } == 1;
-      }
+    if let Some(inspector) = self.unity_inspector
+      && let Some(unity_lib) = &self.unity_lib
+    {
+      return unsafe { unity_lib.unity_inspector_get_unity_running(inspector) } == 1;
     }
 
     false
@@ -112,32 +112,30 @@ impl TaskbarIndicator {
       return;
     }
 
-    if self.desktop_filename_c_str.is_none() {
-      if let Some(uri) = &self.desktop_filename {
-        self.desktop_filename_c_str = Some(CString::new(uri.as_str()).unwrap_or_default());
-      }
+    if self.desktop_filename_c_str.is_none()
+      && let Some(uri) = &self.desktop_filename
+    {
+      self.desktop_filename_c_str = Some(CString::new(uri.as_str()).unwrap_or_default());
     }
 
     if self.unity_entry.is_none() {
       self.ensure_entry_load();
     }
 
-    if let Some(unity_lib) = &self.unity_lib {
-      if let Some(unity_entry) = self.unity_entry {
-        if let Some(progress) = progress.progress {
-          let progress = progress.min(100) as f64 / 100.0;
-          unsafe { unity_lib.unity_launcher_entry_set_progress(unity_entry, progress) };
-        }
+    if let Some(unity_lib) = &self.unity_lib
+      && let Some(unity_entry) = self.unity_entry
+    {
+      if let Some(progress) = progress.progress {
+        let progress = progress.min(100) as f64 / 100.0;
+        unsafe { unity_lib.unity_launcher_entry_set_progress(unity_entry, progress) };
+      }
 
-        if let Some(status) = progress.status {
-          let is_visible = !matches!(status, ProgressBarStatus::None);
-          unsafe {
-            unity_lib.unity_launcher_entry_set_progress_visible(
-              unity_entry,
-              if is_visible { 1 } else { 0 },
-            )
-          };
-        }
+      if let Some(status) = progress.status {
+        let is_visible = !matches!(status, ProgressBarStatus::None);
+        unsafe {
+          unity_lib
+            .unity_launcher_entry_set_progress_visible(unity_entry, if is_visible { 1 } else { 0 })
+        };
       }
     }
   }
@@ -155,25 +153,25 @@ impl TaskbarIndicator {
       return;
     }
 
-    if self.desktop_filename_c_str.is_none() {
-      if let Some(uri) = &self.desktop_filename {
-        self.desktop_filename_c_str = Some(CString::new(uri.as_str()).unwrap_or_default());
-      }
+    if self.desktop_filename_c_str.is_none()
+      && let Some(uri) = &self.desktop_filename
+    {
+      self.desktop_filename_c_str = Some(CString::new(uri.as_str()).unwrap_or_default());
     }
 
     if self.unity_entry.is_none() {
       self.ensure_entry_load();
     }
 
-    if let Some(unity_lib) = &self.unity_lib {
-      if let Some(unity_entry) = self.unity_entry {
-        if let Some(count) = count {
-          unsafe { unity_lib.unity_launcher_entry_set_count(unity_entry, count) };
-          unsafe { unity_lib.unity_launcher_entry_set_count_visible(unity_entry, true) };
-        } else {
-          unsafe { unity_lib.unity_launcher_entry_set_count(unity_entry, 0) };
-          unsafe { unity_lib.unity_launcher_entry_set_count_visible(unity_entry, false) };
-        }
+    if let Some(unity_lib) = &self.unity_lib
+      && let Some(unity_entry) = self.unity_entry
+    {
+      if let Some(count) = count {
+        unsafe { unity_lib.unity_launcher_entry_set_count(unity_entry, count) };
+        unsafe { unity_lib.unity_launcher_entry_set_count_visible(unity_entry, true) };
+      } else {
+        unsafe { unity_lib.unity_launcher_entry_set_count(unity_entry, 0) };
+        unsafe { unity_lib.unity_launcher_entry_set_count_visible(unity_entry, false) };
       }
     }
   }

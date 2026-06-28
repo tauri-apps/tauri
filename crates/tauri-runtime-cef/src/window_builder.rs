@@ -14,13 +14,15 @@ use tauri_utils::{
 use winit::{
   dpi::{LogicalPosition, LogicalSize},
   monitor::Fullscreen,
-  raw_window_handle::RawWindowHandle,
   window::{WindowAttributes, WindowButtons},
 };
 
 use crate::window::{
   AppWindowAttrs, paired_size_constraint, tauri_theme_to_winit_theme, winit_theme_to_tauri_theme,
 };
+
+#[cfg(any(windows, target_os = "macos"))]
+use winit::raw_window_handle::RawWindowHandle;
 
 #[cfg(target_os = "macos")]
 use std::ptr::NonNull;
@@ -289,6 +291,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg_attr(windows, allow(unused))]
   fn visible_on_all_workspaces(mut self, visible_on_all_workspaces: bool) -> Self {
     #[cfg(any(
       target_os = "macos",
@@ -346,6 +349,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg_attr(
+    not(any(windows, target_os = "macos")),
+    allow(unused_mut, unused_variables)
+  )]
   fn shadow(mut self, enable: bool) -> Self {
     #[cfg(windows)]
     {
@@ -508,15 +515,8 @@ impl WindowBuilder for WindowBuilderWrapper {
 type PlatformAttributes = winit::platform::windows::WindowAttributesWindows;
 #[cfg(target_os = "macos")]
 type PlatformAttributes = winit::platform::macos::WindowAttributesMacOS;
-#[cfg(any(
-  target_os = "linux",
-  target_os = "freebsd",
-  target_os = "dragonfly",
-  target_os = "openbsd",
-  target_os = "netbsd"
-))]
-type PlatformAttributes = winit::platform::x11::WindowAttributesX11;
 
+#[cfg(any(windows, target_os = "macos"))]
 fn platform_attrs(attrs: &mut WindowAttributes) -> Box<PlatformAttributes> {
   attrs
     .platform

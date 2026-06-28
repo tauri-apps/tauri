@@ -4475,6 +4475,7 @@ mod test {
       features: None,
       remove_unused_commands: false,
       additional_watch_folders: Vec::new(),
+      windows: Default::default(),
     };
 
     // create a bundle config

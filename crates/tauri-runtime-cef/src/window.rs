@@ -41,7 +41,7 @@ use winit::platform::windows::WindowExtWindows;
 
 use crate::{
   cef_impl::{client as browser_client, request_context},
-  runtime::{CefRuntime, Message, RuntimeContext, WinitCefApp},
+  runtime::{AfterWindowCreationCallback, CefRuntime, Message, RuntimeContext, WinitCefApp},
   webview::{AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
 };
@@ -51,6 +51,9 @@ unsafe impl Send for SendRawWindowHandle {}
 
 pub(crate) struct SendRawDisplayHandle(pub raw_window_handle::RawDisplayHandle);
 unsafe impl Send for SendRawDisplayHandle {}
+
+type WindowEventListener = Box<dyn Fn(&WindowEvent) + Send>;
+type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventListener>>>;
 
 pub(crate) fn tauri_theme_to_winit_theme(theme: Option<Theme>) -> Option<winit::window::Theme> {
   theme.map(|theme| match theme {
@@ -235,7 +238,7 @@ pub(crate) fn paired_size_constraint(
 }
 
 pub(crate) enum WindowMessage {
-  AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
+  AddEventListener(WindowEventId, WindowEventListener),
   Close,
   Destroy,
   ScaleFactor(Sender<Result<f64>>),
@@ -291,6 +294,8 @@ pub(crate) enum WindowMessage {
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
+  // TODO: Implement SetFocusable, winit currently doesn't expose an API for it
+  #[allow(unused)]
   SetFocusable(bool),
   SetIcon(Icon<'static>),
   SetSkipTaskbar(bool),
@@ -318,7 +323,7 @@ pub(crate) struct AppWindow {
   pub(crate) window: Box<dyn WinitWindow>,
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
-  pub(crate) listeners: Arc<Mutex<HashMap<WindowEventId, Box<dyn Fn(&WindowEvent) + Send>>>>,
+  pub(crate) listeners: WindowEventListeners,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -436,7 +441,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     window_id: WindowId,
     webview_id: Option<u32>,
     pending: Box<PendingWindow<T, CefRuntime<T>>>,
-    _after_window_creation: Option<Box<dyn Fn(RawWindow) + Send>>,
+    _after_window_creation: Option<AfterWindowCreationCallback>,
   ) -> Result<()> {
     let mut attrs = pending.window_builder.attrs.clone();
     if attrs.inner.preferred_theme.is_none() {
@@ -740,11 +745,11 @@ impl<T: UserEvent> WinitCefApp<T> {
         ))]
         app_window.set_skip_taskbar(_value);
       }
-      WindowMessage::SetShadow(value) => {
+      WindowMessage::SetShadow(_value) => {
         #[cfg(windows)]
-        window.set_undecorated_shadow(value);
+        window.set_undecorated_shadow(_value);
         #[cfg(target_os = "macos")]
-        window.set_has_shadow(value);
+        window.set_has_shadow(_value);
       }
       WindowMessage::SetCursorGrab(value) => {
         let _ = window.set_cursor_grab(match value {

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.9.4]
+
+### Bug Fixes
+
+- [`67ffa192a`](https://www.github.com/tauri-apps/tauri/commit/67ffa192a499131e7e750f164fe61a40ca0fb2e7) ([#15596](https://www.github.com/tauri-apps/tauri/pull/15596) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue in the AppImage bundler that caused the `/.desktop` and `.DirIcon` files to be absolute symlinks instead of relative symlinks which caused problems with AppImage installers like `AppManager`.
+
 ## \[2.9.3]
 
 ### Enhancements

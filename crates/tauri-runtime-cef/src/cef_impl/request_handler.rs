@@ -180,6 +180,14 @@ wrap_request_handler! {
       _request_initiator: Option<&CefString>,
       _disable_default_handling: Option<&mut ::std::os::raw::c_int>,
     ) -> Option<ResourceRequestHandler> {
+      // The handler only intercepts the drag-drop bridge requests; when the
+      // bridge is disabled it would pass every request straight through, so skip
+      // building (and cloning the context + state into) a handler that CEF calls
+      // for every subresource/fetch/XHR the page makes.
+      if !self.drag_drop_handler_enabled {
+        return None;
+      }
+
       Some(WebDragDropResourceRequestHandler::new(
         self.context.clone(),
         self.window_id,

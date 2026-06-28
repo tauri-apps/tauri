@@ -344,12 +344,9 @@ impl EmbeddedAssets {
     // get a hash of the input - allows for caching existing files
     let hash = crate::checksum(&input).map_err(EmbeddedAssetsError::Hex)?;
 
-    // use the content hash to determine filename, keep extensions that exist
-    let out_path = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-      out_dir.join(format!("{hash}.{ext}"))
-    } else {
-      out_dir.join(hash)
-    };
+    // use only the content hash to determine filename; this prevents frontend
+    // dev tools from crawling generated cache files as source files.
+    let out_path = out_dir.join(hash);
 
     // only compress and write to the file if it doesn't already exist.
     if !out_path.exists() {
@@ -443,4 +440,74 @@ pub(crate) fn ensure_out_dir() -> EmbeddedAssetsResult<PathBuf> {
   // make sure that our output directory is created
   std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
   Ok(out_dir)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::{
+    env, fs,
+    sync::{Mutex, OnceLock},
+  };
+
+  fn out_dir_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+  }
+
+  struct OutDirGuard(Option<std::ffi::OsString>);
+
+  impl OutDirGuard {
+    fn set(value: &Path) -> Self {
+      let previous = env::var_os("OUT_DIR");
+      env::set_var("OUT_DIR", value);
+      Self(previous)
+    }
+  }
+
+  impl Drop for OutDirGuard {
+    fn drop(&mut self) {
+      match self.0.take() {
+        Some(value) => env::set_var("OUT_DIR", value),
+        None => env::remove_var("OUT_DIR"),
+      }
+    }
+  }
+
+  #[test]
+  fn generated_asset_cache_files_do_not_preserve_frontend_extensions() {
+    let _guard = out_dir_lock().lock().unwrap();
+
+    let root = env::temp_dir().join(format!(
+      "tauri-codegen-embedded-assets-{}",
+      uuid::Uuid::new_v4()
+    ));
+    let asset_dir = root.join("dist");
+    let out_dir = root.join("out");
+    fs::create_dir_all(&asset_dir).unwrap();
+    fs::create_dir_all(&out_dir).unwrap();
+    let out_dir = out_dir.canonicalize().unwrap();
+
+    let input_path = asset_dir.join("index.html");
+    fs::write(&input_path, b"<!doctype html><title>Tauri</title>").unwrap();
+
+    let _out_dir = OutDirGuard::set(&out_dir);
+
+    let assets = EmbeddedAssets::new(
+      asset_dir,
+      &AssetOptions::new(PatternKind::Brownfield),
+      |_key, _path, _input, _csp_hashes| Ok(()),
+    )
+    .unwrap();
+
+    let (key, (input, output)) = assets.assets.iter().next().unwrap();
+    assert_eq!(assets.assets.len(), 1);
+    assert_eq!(key.as_ref(), "/index.html");
+    assert_eq!(input, &input_path);
+    assert!(output.starts_with(out_dir.join(TARGET_PATH)));
+    assert!(output.extension().is_none());
+    assert!(!output.ends_with("index.html"));
+
+    fs::remove_dir_all(root).unwrap();
+  }
 }

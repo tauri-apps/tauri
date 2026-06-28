@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 napi = "=3.4"
 napi-sys = "=3.0"
 napi-derive-backend = "=3.0.0"
-napi-derive = "=3.3.0"
+napi-derive = "=3.5.7"
 tauri-cli = { path = "../../crates/tauri-cli", default-features = false }
 log = "0.4.21"
 

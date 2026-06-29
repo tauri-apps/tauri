@@ -14,6 +14,22 @@ pub struct Rect {
   pub size: dpi::Size,
 }
 
+impl Rect {
+  pub fn to_physical<P: dpi::Pixel, S: dpi::Pixel>(self, scale: f64) -> PhysicalRect<P, S> {
+    PhysicalRect {
+      position: self.position.to_physical(scale),
+      size: self.size.to_physical(scale),
+    }
+  }
+
+  pub fn to_logical<P: dpi::Pixel, S: dpi::Pixel>(self, scale: f64) -> LogicalRect<P, S> {
+    LogicalRect {
+      position: self.position.to_logical(scale),
+      size: self.size.to_logical(scale),
+    }
+  }
+}
+
 impl Default for Rect {
   fn default() -> Self {
     Self {
@@ -41,6 +57,15 @@ impl<P: dpi::Pixel, S: dpi::Pixel> Default for PhysicalRect<P, S> {
   }
 }
 
+impl<P: dpi::Pixel, S: dpi::Pixel> PhysicalRect<P, S> {
+  pub fn to_logical(self, scale: f64) -> LogicalRect<P, S> {
+    LogicalRect {
+      position: self.position.to_logical(scale),
+      size: self.size.to_logical(scale),
+    }
+  }
+}
+
 /// A rectangular region in logical pixels.
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct LogicalRect<P: dpi::Pixel, S: dpi::Pixel> {
@@ -55,6 +80,15 @@ impl<P: dpi::Pixel, S: dpi::Pixel> Default for LogicalRect<P, S> {
     Self {
       position: (0, 0).into(),
       size: (0, 0).into(),
+    }
+  }
+}
+
+impl<P: dpi::Pixel, S: dpi::Pixel> LogicalRect<P, S> {
+  pub fn to_physical(self, scale: f64) -> PhysicalRect<P, S> {
+    PhysicalRect {
+      position: self.position.to_physical(scale),
+      size: self.size.to_physical(scale),
     }
   }
 }

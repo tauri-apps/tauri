@@ -8,15 +8,21 @@ env:
   APP_NAME: cli
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 on:
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      releaseId:
+        description: 'ID of the `@tauri-apps/cli` release'
+        required: true
+  repository_dispatch:
+    types: [publish-js-cli]
 
 defaults:
   run:
     working-directory: packages/cli/
 
-# permissions:
-#   contents: write # update release
-#   id-token: write # oidc token
+permissions:
+  contents: write # update release
+  id-token: write # oidc token
 
 jobs:
   build:
@@ -277,10 +283,10 @@ jobs:
       - name: List packages
         run: ls -R ./npm
         shell: bash
-  #     - name: Publish
-  #       run: |
-  #         npm publish
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         NODE_AUTH_TOKEN: ''
-  #         RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}
+      - name: Publish
+        run: |
+          npm publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ''
+          RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}

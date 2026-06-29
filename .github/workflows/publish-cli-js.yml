@@ -8,21 +8,15 @@ env:
   APP_NAME: cli
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 on:
-  workflow_dispatch:
-    inputs:
-      releaseId:
-        description: 'ID of the `@tauri-apps/cli` release'
-        required: true
-  repository_dispatch:
-    types: [publish-js-cli]
+  pull_request:
 
 defaults:
   run:
     working-directory: packages/cli/
 
-permissions:
-  contents: write # update release
-  id-token: write # oidc token
+# permissions:
+#   contents: write # update release
+#   id-token: write # oidc token
 
 jobs:
   build:
@@ -281,36 +275,36 @@ jobs:
           name: test-bindings-${{ matrix.target }}
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
           args: pnpm test
-  publish:
-    name: Publish
-    runs-on: ubuntu-latest
-    needs:
-      #- build-freebsd
-      - test-macOS-windows-binding
-      - test-linux-binding
-    steps:
-      - uses: actions/checkout@v7
-      - run: npm i -g --force corepack
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts
-      - name: Download all artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: packages/cli/artifacts
-      - name: Move artifacts
-        run: pnpm artifacts
-      - name: List packages
-        run: ls -R ./npm
-        shell: bash
-      - name: Publish
-        run: |
-          npm publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ''
-          RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}
+  # publish:
+  #   name: Publish
+  #   runs-on: ubuntu-latest
+  #   needs:
+  #     #- build-freebsd
+  #     - test-macOS-windows-binding
+  #     - test-linux-binding
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - run: npm i -g --force corepack
+  #     - name: Setup node
+  #       uses: actions/setup-node@v6
+  #       with:
+  #         node-version: 24
+  #         cache: 'pnpm'
+  #     - name: Install dependencies
+  #       run: pnpm i --frozen-lockfile --ignore-scripts
+  #     - name: Download all artifacts
+  #       uses: actions/download-artifact@v8
+  #       with:
+  #         path: packages/cli/artifacts
+  #     - name: Move artifacts
+  #       run: pnpm artifacts
+  #     - name: List packages
+  #       run: ls -R ./npm
+  #       shell: bash
+  #     - name: Publish
+  #       run: |
+  #         npm publish
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #         NODE_AUTH_TOKEN: ''
+  #         RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}

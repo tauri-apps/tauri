@@ -185,7 +185,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
-          cache: pnpm
       - name: Output docker params
         id: docker
         run: |
@@ -205,8 +204,6 @@ jobs:
               console.log('IMAGE=node:${{ matrix.node }}-slim')
             }
           " >> $GITHUB_OUTPUT
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
@@ -230,6 +227,7 @@ jobs:
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
           args: |
             npm i -g --force corepack
+            pnpm install --frozen-lockfile --ignore-scripts
             pnpm test
   # publish:
   #   name: Publish

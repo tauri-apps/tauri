@@ -1,0 +1,154 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: Udeps
+
+on:
+  push:
+    branches:
+      - dev
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      tauri: ${{ steps.filter.outputs.tauri }}
+      build: ${{ steps.filter.outputs.build }}
+      codegen: ${{ steps.filter.outputs.codegen }}
+      macros: ${{ steps.filter.outputs.macros }}
+      runtime: ${{ steps.filter.outputs.runtime }}
+      wry: ${{ steps.filter.outputs.wry }}
+      utils: ${{ steps.filter.outputs.utils }}
+      bundler: ${{ steps.filter.outputs.bundler }}
+      cli: ${{ steps.filter.outputs.cli }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            tauri:
+              - 'crates/tauri/**'
+              - '!crates/tauri/scripts/**'
+            build:
+              - 'crates/tauri-build/**'
+            codegen:
+              - 'crates/tauri-codegen/**'
+            macros:
+              - 'crates/tauri-macros/**'
+            runtime:
+              - 'crates/tauri-runtime/**'
+            wry:
+              - 'crates/tauri-runtime-wry/**'
+            utils:
+              - 'crates/tauri-utils/**'
+            bundler:
+              - 'crates/tauri-bundler/**'
+            cli:
+              - 'crates/tauri-cli/**'
+            macossign:
+              - 'crates/tauri-macos-sign/**'
+
+  setup:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: |
+      needs.changes.outputs.tauri == 'true' ||
+      needs.changes.outputs.build == 'true' ||
+      needs.changes.outputs.codegen == 'true' ||
+      needs.changes.outputs.macros == 'true' ||
+      needs.changes.outputs.runtime == 'true' ||
+      needs.changes.outputs.wry == 'true' ||
+      needs.changes.outputs.utils == 'true' ||
+      needs.changes.outputs.bundler == 'true' ||
+      needs.changes.outputs.cli == 'true' ||
+      needs.changes.outputs.macossign == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install udeps
+        run: cargo install cargo-udeps --locked --force
+
+      - name: Upload udeps
+        uses: actions/upload-artifact@v4
+        with:
+          name: udeps
+          path: '~/.cargo/bin/cargo-udeps'
+          if-no-files-found: error
+
+      - name: Create udeps matrix
+        id: create-matrix
+        env:
+          TAURI: ${{ needs.changes.outputs.tauri == 'true' }}
+          BUILD: ${{ needs.changes.outputs.build == 'true' }}
+          CODEGEN: ${{ needs.changes.outputs.codegen == 'true' }}
+          MACROS: ${{ needs.changes.outputs.macros == 'true' }}
+          RUNTIME: ${{ needs.changes.outputs.runtime == 'true' }}
+          WRY: ${{ needs.changes.outputs.wry == 'true' }}
+          UTILS: ${{ needs.changes.outputs.utils == 'true' }}
+          BUNDLER: ${{ needs.changes.outputs.bundler == 'true' }}
+          CLI: ${{ needs.changes.outputs.cli == 'true' }}
+          MACOSSIGN: ${{ needs.changes.outputs.macossign == 'true' }}
+        run: |
+          crates=()
+          if [ "${TAURI}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri\""; fi
+          if [ "${BUILD}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-build\""; fi
+          if [ "${CODEGEN}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-codegen\""; fi
+          if [ "${MACROS}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-macros\""; fi
+          if [ "${RUNTIME}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-runtime\""; fi
+          if [ "${WRY}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-runtime-wry\""; fi
+          if [ "${UTILS}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-utils\""; fi
+          if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-bundler\""; fi
+          if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-cli\""; fi
+          if [ "${MACOSSIGN}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-macos-sign\""; fi
+          echo "matrix=[$crates]" >> "$GITHUB_OUTPUT"
+    outputs:
+      matrix: ${{ steps.create-matrix.outputs.matrix }}
+
+  udeps:
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      matrix:
+        path: ${{ fromJson(needs.setup.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Download udeps
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: udeps
+          path: '~/.cargo/bin'
+
+      - run: chmod +x $HOME/.cargo/bin/cargo-udeps
+
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
+
+      - name: Run udeps
+        run: cargo udeps --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features

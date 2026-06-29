@@ -1,0 +1,84 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: check generated files
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/check-generated-files.yml'
+      - 'pnpm-lock.yaml'
+      - 'packages/api/src/**'
+      - 'crates/tauri/scripts/bundle.global.js'
+      - 'crates/tauri-utils/src/config.rs'
+      - 'crates/tauri-cli/config.schema.json'
+      - 'crates/tauri-schema-generator/schemas/*.json'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      schema: ${{ steps.filter.outputs.schema }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'pnpm-lock.yaml'
+              - 'packages/api/src/**'
+              - 'crates/tauri/scripts/bundle.global.js'
+            schema:
+              - 'crates/tauri-utils/src/config.rs'
+              - 'crates/tauri-cli/config.schema.json'
+              - 'crates/tauri-schema-generator/schemas/*.json'
+
+  api:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      - name: install deps
+        run: pnpm i --frozen-lockfile
+      - name: build api
+        run: pnpm build
+        working-directory: packages/api
+      - name: check api
+        run: ./.scripts/ci/has-diff.sh
+
+  schema:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.schema == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: generate schemas
+        run: cargo build --manifest-path ./crates/tauri-schema-generator/Cargo.toml
+
+      - name: check schemas
+        run: ./.scripts/ci/has-diff.sh

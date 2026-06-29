@@ -11,7 +11,7 @@ rust-version.workspace = true
 
 [dependencies]
 base64 = "0.22"
-cef = { version = "=148.4.0", features = ["build-util", "linux-x11"] }
+cef = { version = "=148.0.0", features = ["build-util", "linux-x11"] }
 dirs = "6"
 dioxus-debug-cell = "0.1"
 http = "1"

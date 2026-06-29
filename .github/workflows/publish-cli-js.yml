@@ -245,11 +245,10 @@ jobs:
         if: ${{ contains(matrix.target, 'musl') || contains(matrix.target, 'armv7') }}
         with:
           image: ${{ steps.docker.outputs.IMAGE }}
-          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
+          options: --volume ${{ github.workspace }}:${{ github.workspace }} --workdir ${{ github.workspace }}/packages/cli --platform ${{ steps.docker.outputs.PLATFORM }}
           shell: sh
           run: |
             set -e
-            cd packages/cli
             node tauri.js --help
             ls -la
 

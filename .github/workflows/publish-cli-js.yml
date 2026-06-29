@@ -32,34 +32,37 @@ jobs:
         settings:
           - host: macos-latest
             target: x86_64-apple-darwin
-            build: pnpm build --target x86_64-apple-darwin
+            build: pnpm build --target=x86_64-apple-darwin
           - host: windows-latest
-            build: pnpm build --target x86_64-pc-windows-msvc
+            build: pnpm build --target=x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
           - host: windows-latest
-            build: pnpm build --target i686-pc-windows-msvc
+            build: pnpm build --target=i686-pc-windows-msvc
             target: i686-pc-windows-msvc
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            build: pnpm build --target x86_64-unknown-linux-gnu --use-napi-cross
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            build: pnpm build --target x86_64-unknown-linux-musl -x
-          - host: macos-latest
-            target: aarch64-apple-darwin
-            build: pnpm build --target aarch64-apple-darwin
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            build: pnpm build --target aarch64-unknown-linux-gnu --use-napi-cross
-          - host: ubuntu-latest
-            target: armv7-unknown-linux-gnueabihf
-            build: pnpm build --target armv7-unknown-linux-gnueabihf --use-napi-cross
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-            build: pnpm build --target aarch64-unknown-linux-musl -x
           - host: windows-latest
             target: aarch64-pc-windows-msvc
-            build: pnpm build --target aarch64-pc-windows-msvc
+            build: pnpm build --target=aarch64-pc-windows-msvc
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            build: pnpm build --target=x86_64-unknown-linux-gnu --use-napi-cross
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            build: pnpm build --target=x86_64-unknown-linux-musl -x
+          - host: macos-latest
+            target: aarch64-apple-darwin
+            build: pnpm build --target=aarch64-apple-darwin
+          - host: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            build: pnpm build --target=aarch64-unknown-linux-gnu --use-napi-cross
+          - host: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            build: pnpm build --target=armv7-unknown-linux-gnueabihf --use-napi-cross
+          - host: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            build: pnpm build --target=aarch64-unknown-linux-musl -x
+          - host: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+            build: pnpm build --target=riscv64gc-unknown-linux-gnu
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -186,7 +189,7 @@ jobs:
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v8
         with:
           name: bindings-${{ matrix.settings.target }}
           path: 'packages/cli/'
@@ -217,7 +220,7 @@ jobs:
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v8
         with:
           name: bindings-x86_64-unknown-linux-gnu
           path: 'packages/cli'
@@ -254,7 +257,7 @@ jobs:
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v8
         with:
           name: bindings-x86_64-unknown-linux-musl
           path: 'packages/cli/'
@@ -292,12 +295,12 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Download aarch64-gnu artifacts
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v8
         with:
           name: bindings-aarch64-unknown-linux-gnu
           path: 'packages/cli'
       - name: Download armv7-gnueabihf artifacts
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v8
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
           path: 'packages/cli/'
@@ -341,7 +344,7 @@ jobs:
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download all artifacts
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v8
         with:
           path: packages/cli/artifacts
       - name: Move artifacts

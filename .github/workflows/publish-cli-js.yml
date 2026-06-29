@@ -32,77 +32,34 @@ jobs:
         settings:
           - host: macos-latest
             target: x86_64-apple-darwin
-            architecture: x64
-            build: |
-              pnpm build --target=x86_64-apple-darwin
-              strip -x *.node
+            build: pnpm build --target x86_64-apple-darwin
           - host: windows-latest
-            build: pnpm build
+            build: pnpm build --target x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
-            architecture: x64
           - host: windows-latest
             build: pnpm build --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
-            architecture: x64
-          - host: windows-latest
-            architecture: x64
-            target: aarch64-pc-windows-msvc
-            build: pnpm build --target aarch64-pc-windows-msvc
-          - host: ubuntu-22.04
+          - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
-            build: |
-              npm i -g --force corepack
-              cd packages/cli
-              pnpm build --target x86_64-unknown-linux-gnu
-              strip *.node
-          - host: ubuntu-22.04
+            build: pnpm build --target x86_64-unknown-linux-gnu --use-napi-cross
+          - host: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: |
-              cd packages/cli
-              pnpm build
-              strip *.node
+            build: pnpm build --target x86_64-unknown-linux-musl -x
           - host: macos-latest
             target: aarch64-apple-darwin
-            build: |
-              pnpm build --features native-tls-vendored --target=aarch64-apple-darwin
-              strip -x *.node
-          - host: ubuntu-22.04
+            build: pnpm build --target aarch64-apple-darwin
+          - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
-            build: |
-              npm i -g --force corepack
-              cd packages/cli
-              pnpm build --target aarch64-unknown-linux-gnu
-              aarch64-unknown-linux-gnu-strip *.node
-          - host: ubuntu-22.04
-            architecture: x64
+            build: pnpm build --target aarch64-unknown-linux-gnu --use-napi-cross
+          - host: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
-            setup: |
-              sudo apt-get update
-              sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
-            build: |
-              pnpm build --target=armv7-unknown-linux-gnueabihf
-              arm-linux-gnueabihf-strip *.node
-          - host: ubuntu-22.04
-            architecture: x64
+            build: pnpm build --target armv7-unknown-linux-gnueabihf --use-napi-cross
+          - host: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: |
-              cd packages/cli
-              rustup target add aarch64-unknown-linux-musl
-              pnpm build --target aarch64-unknown-linux-musl
-              /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
-          - host: ubuntu-22.04
-            architecture: x64
-            target: riscv64gc-unknown-linux-gnu
-            setup: |
-              sudo apt-get update
-              sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
-            build: |
-              pnpm build --target=riscv64gc-unknown-linux-gnu
-              riscv64-linux-gnu-strip *.node
+            build: pnpm build --target aarch64-unknown-linux-musl -x
+          - host: windows-latest
+            target: aarch64-pc-windows-msvc
+            build: pnpm build --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:

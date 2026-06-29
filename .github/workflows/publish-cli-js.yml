@@ -227,32 +227,31 @@ jobs:
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
           args: sh -c "npm i -g --force corepack && pnpm install --frozen-lockfile --ignore-scripts && pnpm test"
 
-  # publish:
-  #   name: Publish
-  #   runs-on: ubuntu-latest
-  #   needs:
-  #     #- build-freebsd
-  #     - test-macOS-windows-binding
-  #     - test-linux-binding
-  #   steps:
-  #     - uses: actions/checkout@v7
-  #     - run: npm i -g --force corepack
-  #     - name: Setup node
-  #       uses: actions/setup-node@v6
-  #       with:
-  #         node-version: 24
-  #         cache: 'pnpm'
-  #     - name: Install dependencies
-  #       run: pnpm i --frozen-lockfile --ignore-scripts
-  #     - name: Download all artifacts
-  #       uses: actions/download-artifact@v8
-  #       with:
-  #         path: packages/cli/artifacts
-  #     - name: Move artifacts
-  #       run: pnpm artifacts
-  #     - name: List packages
-  #       run: ls -R ./npm
-  #       shell: bash
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs:
+      - test-macOS-windows-binding
+      - test-linux-binding
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm i -g --force corepack
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm i --frozen-lockfile --ignore-scripts
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: packages/cli/artifacts
+      - name: Move artifacts
+        run: pnpm artifacts
+      - name: List packages
+        run: ls -R ./npm
+        shell: bash
   #     - name: Publish
   #       run: |
   #         npm publish

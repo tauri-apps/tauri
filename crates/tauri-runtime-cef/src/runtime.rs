@@ -9,11 +9,10 @@ use std::{
   collections::HashMap,
   fmt,
   fs::create_dir_all,
-  marker::PhantomData,
   path::PathBuf,
   sync::{
     Arc, Mutex,
-    atomic::{AtomicBool, AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering},
     mpsc::{self, Receiver, Sender},
   },
   time::Duration,
@@ -140,7 +139,7 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
-  current_dispatch: Arc<Mutex<Option<MainThreadDispatch<T>>>>,
+  current_dispatch: Arc<MainThreadDispatchSlot<T>>,
   pub(crate) app_wide_theme: Arc<Mutex<Option<Theme>>>,
   pub(crate) cef_pump: CefExternalPump,
   /// Root cache path passed to [`cef::Settings::cache_path`] during
@@ -154,28 +153,65 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
 /// `ActiveEventLoop` is only borrowed during `ApplicationHandler` callbacks, but
 /// setup-time runtime messages may synchronously need it. While a callback is
 /// active, this slot lets main-thread `send_message` handle work immediately;
-/// other threads still queue and wake the loop. The guard restores the previous
-/// slot so the raw pointers are never treated as valid beyond their callback.
+/// other threads still queue and wake the loop. The slot stores an atomic
+/// pointer to guard-owned state so lookup is lock-free. The guard restores the
+/// previous pointer before dropping that state, so the raw pointers are never
+/// treated as valid beyond their callback.
 #[derive(Clone, Copy)]
 struct MainThreadDispatch<T: UserEvent> {
   app: *mut WinitCefApp<T>,
   event_loop: *const dyn ActiveEventLoop,
-  _marker: PhantomData<fn() -> T>,
 }
 
-// SAFETY: the dispatch slot is installed only while winit is synchronously
-// invoking this runtime on the main event-loop thread. `send_message` only uses
-// the stored pointers when called from that same thread.
-unsafe impl<T: UserEvent> Send for MainThreadDispatch<T> {}
+struct MainThreadDispatchSlot<T: UserEvent> {
+  current: AtomicPtr<MainThreadDispatch<T>>,
+}
+
+impl<T: UserEvent> MainThreadDispatchSlot<T> {
+  fn install(&self, dispatch: &mut MainThreadDispatch<T>) -> *mut MainThreadDispatch<T> {
+    self.current.swap(dispatch, Ordering::AcqRel)
+  }
+
+  fn restore(&self, current: *mut MainThreadDispatch<T>, previous: *mut MainThreadDispatch<T>) {
+    let installed = self.current.swap(previous, Ordering::AcqRel);
+    debug_assert_eq!(installed, current);
+  }
+
+  fn current(&self) -> Option<&MainThreadDispatch<T>> {
+    let current = self.current.load(Ordering::Acquire);
+    if current.is_null() {
+      None
+    } else {
+      // SAFETY: the pointer targets the boxed dispatch state owned by
+      // `MainThreadDispatchGuard`, whose allocation remains stable while the
+      // guard is moved. The slot is restored before that state is dropped, and
+      // it is only read by `send_message` after verifying that it is running on
+      // the runtime main thread.
+      Some(unsafe { &*current })
+    }
+  }
+}
+
+impl<T: UserEvent> Default for MainThreadDispatchSlot<T> {
+  fn default() -> Self {
+    Self {
+      current: AtomicPtr::new(std::ptr::null_mut()),
+    }
+  }
+}
 
 struct MainThreadDispatchGuard<T: UserEvent> {
   context: RuntimeContext<T>,
-  previous: Option<MainThreadDispatch<T>>,
+  dispatch: Box<MainThreadDispatch<T>>,
+  previous: *mut MainThreadDispatch<T>,
 }
 
 impl<T: UserEvent> Drop for MainThreadDispatchGuard<T> {
   fn drop(&mut self) {
-    *self.context.current_dispatch.lock().unwrap() = self.previous.take();
+    self
+      .context
+      .current_dispatch
+      .restore(self.dispatch.as_mut(), self.previous);
   }
 }
 
@@ -186,14 +222,15 @@ fn install_current_dispatch<T: UserEvent>(
   let dispatch = MainThreadDispatch {
     app: app as *mut _,
     event_loop: event_loop as *const _,
-    _marker: PhantomData,
   };
+  // Keep the installed pointer stable even if the guard is moved.
+  let mut dispatch = Box::new(dispatch);
 
-  let mut current_dispatch = app.context.current_dispatch.lock().unwrap();
-  let previous = current_dispatch.replace(dispatch);
+  let previous = app.context.current_dispatch.install(dispatch.as_mut());
 
   MainThreadDispatchGuard {
     context: app.context.clone(),
+    dispatch,
     previous,
   }
 }
@@ -203,8 +240,7 @@ fn handle_main_thread_message<T: UserEvent>(
   context: &RuntimeContext<T>,
   message: Message<T>,
 ) -> std::result::Result<(), Message<T>> {
-  let dispatch = context.current_dispatch.lock().unwrap();
-  let Some(dispatch) = dispatch.as_ref() else {
+  let Some(dispatch) = context.current_dispatch.current() else {
     return Err(message);
   };
 

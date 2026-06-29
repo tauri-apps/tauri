@@ -20,7 +20,6 @@ use super::{
 pub type ScopeKey = u64;
 
 /// Metadata for what referenced a [`ResolvedCommand`].
-#[cfg(debug_assertions)]
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct ResolvedCommandReference {
   /// Identifier of the capability.
@@ -35,7 +34,6 @@ pub struct ResolvedCommand {
   /// The execution context of this command.
   pub context: ExecutionContext,
   /// The capability/permission that referenced this command.
-  #[cfg(debug_assertions)]
   pub referenced_by: ResolvedCommandReference,
   /// The list of window label patterns that was resolved for this command.
   pub windows: Vec<glob::Pattern>,
@@ -104,7 +102,6 @@ impl Resolved {
            key,
            commands,
            scope,
-           #[cfg_attr(not(debug_assertions), allow(unused))]
            permission_name,
          }| {
           if commands.allow.is_empty() && commands.deny.is_empty() {
@@ -137,7 +134,6 @@ impl Resolved {
                 },
                 capability,
                 scope_id,
-                #[cfg(debug_assertions)]
                 permission_name.to_string(),
               )?;
             }
@@ -154,7 +150,6 @@ impl Resolved {
                 },
                 capability,
                 scope_id,
-                #[cfg(debug_assertions)]
                 permission_name.to_string(),
               )?;
             }
@@ -212,7 +207,7 @@ fn resolve_command(
   command: String,
   capability: &Capability,
   scope_id: Option<ScopeKey>,
-  #[cfg(debug_assertions)] referenced_by_permission_identifier: String,
+  referenced_by_permission_identifier: String,
 ) -> Result<(), Error> {
   let mut contexts = Vec::new();
   if capability.local {
@@ -233,7 +228,6 @@ fn resolve_command(
 
     resolved_list.push(ResolvedCommand {
       context,
-      #[cfg(debug_assertions)]
       referenced_by: ResolvedCommandReference {
         capability: capability.identifier.clone(),
         permission: referenced_by_permission_identifier.clone(),
@@ -447,7 +441,6 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
 
-  #[cfg(debug_assertions)]
   impl ToTokens for ResolvedCommandReference {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let capability = str_lit(&self.capability);
@@ -463,7 +456,6 @@ mod build {
 
   impl ToTokens for ResolvedCommand {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      #[cfg(debug_assertions)]
       let referenced_by = &self.referenced_by;
 
       let context = &self.context;
@@ -478,23 +470,11 @@ mod build {
       });
       let scope_id = opt_lit(self.scope_id.as_ref());
 
-      #[cfg(debug_assertions)]
-      {
-        literal_struct!(
-          tokens,
-          ::tauri::utils::acl::resolved::ResolvedCommand,
-          context,
-          referenced_by,
-          windows,
-          webviews,
-          scope_id
-        )
-      }
-      #[cfg(not(debug_assertions))]
       literal_struct!(
         tokens,
         ::tauri::utils::acl::resolved::ResolvedCommand,
         context,
+        referenced_by,
         windows,
         webviews,
         scope_id

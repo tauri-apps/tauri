@@ -86,12 +86,12 @@ jobs:
           key: ${{ matrix.settings.target }}
 
       - uses: mlugg/setup-zig@v2
-        if: ${{ contains(matrix.settings.target, 'musl') }}
+        if: ${{ contains(matrix.settings.target, 'linux') }}
         with:
           version: 0.14.1
       - name: Install cargo-zigbuild
         uses: taiki-e/install-action@v2
-        if: ${{ contains(matrix.settings.target, 'musl') }}
+        if: ${{ contains(matrix.settings.target, 'linux') }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:

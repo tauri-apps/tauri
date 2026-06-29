@@ -63,46 +63,49 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm i -g --force corepack
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         if: ${{ !matrix.settings.docker }}
         with:
           node-version: 20
           cache: 'pnpm'
-          architecture: ${{ matrix.settings.architecture }}
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        if: ${{ !matrix.settings.docker }}
         with:
           targets: ${{ matrix.settings.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.settings.target }}
-        if: ${{ matrix.settings.docker }}
+
+      - uses: mlugg/setup-zig@v2
+        if: ${{ contains(matrix.settings.target, 'musl') }}
+        with:
+          version: 0.14.1
+      - name: Install cargo-zigbuild
+        uses: taiki-e/install-action@v2
+        if: ${{ contains(matrix.settings.target, 'musl') }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tool: cargo-zigbuild
+
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
         shell: bash
+
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts
 
-      - name: Build in docker
-        uses: addnab/docker-run-action@v3
-        if: ${{ matrix.settings.docker }}
-        with:
-          image: ${{ matrix.settings.docker }}
-          options: --user 0:0 -v ${{ github.workspace }}/.cargo-cache/git/db:/root/.cargo/git/db -v ${{ github.workspace }}/.cargo/registry/cache:/root/.cargo/registry/cache -v ${{ github.workspace }}/.cargo/registry/index:/root/.cargo/registry/index -v ${{ github.workspace }}:/build -w /build
-          run: ${{ matrix.settings.build }}
-
       - name: Build
         run: ${{ matrix.settings.build }}
-        if: ${{ !matrix.settings.docker }}
         shell: bash
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bindings-${{ matrix.settings.target }}
           path: packages/cli/${{ env.APP_NAME }}.*.node
@@ -111,7 +114,7 @@ jobs:
   #    runs-on: macos-10.15
   #    name: Build FreeBSD
   #    steps:
-  #      - uses: actions/checkout@v4
+  #      - uses: actions/checkout@v7
   #      - name: Build
   #        id: build
   #        uses: vmactions/freebsd-vm@v0.1.6
@@ -173,10 +176,10 @@ jobs:
           - '22'
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm i -g --force corepack
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: 'pnpm'
@@ -204,10 +207,10 @@ jobs:
           - '22'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm i -g --force corepack
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: 'pnpm'
@@ -241,10 +244,10 @@ jobs:
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm i -g --force corepack
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: 'pnpm'
@@ -284,7 +287,7 @@ jobs:
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: List packages
         run: ls -R .
         shell: bash
@@ -328,7 +331,7 @@ jobs:
       - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm i -g --force corepack
       - name: Setup node
         uses: actions/setup-node@v6

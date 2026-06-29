@@ -251,6 +251,20 @@ impl Listeners {
     }
   }
 
+  /// Removes all JS event listeners registered from the given webview.
+  ///
+  /// Called when a webview is destroyed: its JavaScript runtime no longer
+  /// exists, so the listeners keyed by its label can never be delivered and
+  /// would otherwise leak in the map until the app exits.
+  pub(crate) fn remove_webview_events(&self, webview_label: &str) {
+    self
+      .inner
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .remove(webview_label);
+  }
+
   pub(crate) fn has_js_listener<F: Fn(&EventTarget) -> bool>(
     &self,
     event: crate::EventName<&str>,
@@ -397,5 +411,27 @@ mod test {
     listeners
       .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
       .unwrap();
+  }
+
+  #[test]
+  fn js_listeners_removed_on_webview_close() {
+    let listeners = Listeners::default();
+    let event = crate::EventName::new("some-event".to_owned()).unwrap();
+    let webview_label = "main";
+
+    let id = listeners.next_event_id();
+    listeners.listen_js(
+      event.as_str_event(),
+      webview_label,
+      EventTarget::Webview {
+        label: webview_label.to_owned(),
+      },
+      id,
+    );
+    assert!(listeners.has_js_listener(event.as_str_event(), |_| true));
+
+    // dropping the source webview must drop its JS listeners.
+    listeners.remove_webview_events(webview_label);
+    assert!(!listeners.has_js_listener(event.as_str_event(), |_| true));
   }
 }

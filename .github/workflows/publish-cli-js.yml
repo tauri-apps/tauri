@@ -198,7 +198,7 @@ jobs:
           cache: pnpm
           architecture: ${{ matrix.settings.architecture }}
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
@@ -225,9 +225,6 @@ jobs:
         node:
           - '20'
           - '22'
-        exclude:
-          - target: armv7-unknown-linux-gnueabihf
-            node: '24'
     runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
@@ -257,10 +254,7 @@ jobs:
             }
           " >> $GITHUB_OUTPUT
       - name: Install dependencies
-        run: |
-          pnpm config set --json supportedArchitectures.cpu '["current", "arm64", "x64", "arm"]'
-          pnpm config set --json supportedArchitectures.libc '["current", "musl", "gnu"]'
-          pnpm install
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:

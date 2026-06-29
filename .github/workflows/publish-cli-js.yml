@@ -240,36 +240,14 @@ jobs:
       - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         if: ${{ contains(matrix.target, 'armv7') }}
 
-      - name: Setup and run tests (musl)
+      - name: Setup and run tests (musl | armv7)
         uses: addnab/docker-run-action@v3
-        if: ${{ contains(matrix.target, 'musl') }}
+        if: ${{ contains(matrix.target, 'musl') || contains(matrix.target, 'armv7') }}
         with:
           image: ${{ steps.docker.outputs.IMAGE }}
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
           shell: bash
           run: |
-            node tauri.js --help
-            ls -la
-
-      - name: Setup and run tests (armv7)
-        uses: addnab/docker-run-action@v3
-        if: ${{ contains(matrix.target, 'armv7') }}
-        with:
-          image: ${{ steps.docker.outputs.IMAGE }}
-          options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
-          shell: bash
-          run: |
-            set -e
-            export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip libayatana-appindicator3-dev
-            bash
-            curl https://sh.rustup.rs -sSf | bash -s -- -y
-            curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell
-            eval "$(fnm env --use-on-cd)"
-            fnm install ${{ matrix.node }}
-            fnm use ${{ matrix.node }}
-            cd packages/cli
             node tauri.js --help
             ls -la
 

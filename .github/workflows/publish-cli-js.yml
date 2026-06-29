@@ -248,6 +248,7 @@ jobs:
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
           shell: sh
           run: |
+            cd packages/cli
             node tauri.js --help
             ls -la
 

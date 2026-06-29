@@ -24,45 +24,45 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: macos-latest
-            target: x86_64-apple-darwin
-            build: pnpm build --target=x86_64-apple-darwin
-          - host: windows-latest
-            build: pnpm build --target=x86_64-pc-windows-msvc
-            target: x86_64-pc-windows-msvc
-          - host: windows-latest
-            build: pnpm build --target=i686-pc-windows-msvc
-            target: i686-pc-windows-msvc
-          - host: windows-latest
-            target: aarch64-pc-windows-msvc
-            build: pnpm build --target=aarch64-pc-windows-msvc
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            build: pnpm build --target=x86_64-unknown-linux-gnu --use-napi-cross
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            build: pnpm build --target=x86_64-unknown-linux-musl -x
-          - host: macos-latest
-            target: aarch64-apple-darwin
-            build: pnpm build --target=aarch64-apple-darwin
+          # - host: macos-latest
+          #   target: x86_64-apple-darwin
+          #   build: pnpm build --target=x86_64-apple-darwin
+          # - host: windows-latest
+          #   build: pnpm build --target=x86_64-pc-windows-msvc
+          #   target: x86_64-pc-windows-msvc
+          # - host: windows-latest
+          #   build: pnpm build --target=i686-pc-windows-msvc
+          #   target: i686-pc-windows-msvc
+          # - host: windows-latest
+          #   target: aarch64-pc-windows-msvc
+          #   build: pnpm build --target=aarch64-pc-windows-msvc
+          # - host: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   build: pnpm build --target=x86_64-unknown-linux-gnu --use-napi-cross
+          # - host: ubuntu-latest
+          #   target: x86_64-unknown-linux-musl
+          #   build: pnpm build --target=x86_64-unknown-linux-musl -x
+          # - host: macos-latest
+          #   target: aarch64-apple-darwin
+          #   build: pnpm build --target=aarch64-apple-darwin
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             build: pnpm build --target=aarch64-unknown-linux-gnu --use-napi-cross
             setup: |
               sudo apt-get update
               sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
-          - host: ubuntu-latest
-            target: armv7-unknown-linux-gnueabihf
-            build: pnpm build --target=armv7-unknown-linux-gnueabihf --use-napi-cross
-          - host: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-            build: pnpm build --target=aarch64-unknown-linux-musl -x
-          - host: ubuntu-latest
-            target: riscv64gc-unknown-linux-gnu
-            build: pnpm build --target=riscv64gc-unknown-linux-gnu
-            setup: |
-              sudo apt-get update
-              sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
+          # - host: ubuntu-latest
+          #   target: armv7-unknown-linux-gnueabihf
+          #   build: pnpm build --target=armv7-unknown-linux-gnueabihf --use-napi-cross
+          # - host: ubuntu-latest
+          #   target: aarch64-unknown-linux-musl
+          #   build: pnpm build --target=aarch64-unknown-linux-musl -x
+          # - host: ubuntu-latest
+          #   target: riscv64gc-unknown-linux-gnu
+          #   build: pnpm build --target=riscv64gc-unknown-linux-gnu
+          #   setup: |
+          #     sudo apt-get update
+          #     sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:

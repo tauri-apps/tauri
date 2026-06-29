@@ -172,8 +172,16 @@ jobs:
         settings:
           - host: macos-latest
             target: aarch64-apple-darwin
+            architecture: arm64
           - host: windows-latest
             target: x86_64-pc-windows-msvc
+            architecture: x64
+          - host: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            architecture: arm64
+          - host: macos-latest
+            target: x86_64-apple-darwin
+            architecture: x64
         node:
           - '20'
           - '22'
@@ -185,9 +193,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
-          cache: 'pnpm'
+          cache: pnpm
+          architecture: ${{ matrix.settings.architecture }}
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts
+        run: pnpm install
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
@@ -198,17 +207,26 @@ jobs:
         shell: bash
       - name: Test bindings
         run: pnpm test
-  test-linux-x64-gnu-binding:
-    name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
+  test-linux-binding:
+    name: Test ${{ matrix.target }} - node@${{ matrix.node }}
     needs:
       - build
     strategy:
       fail-fast: false
       matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+          - armv7-unknown-linux-gnueabihf
         node:
           - '20'
           - '22'
-    runs-on: ubuntu-latest
+        exclude:
+          - target: armv7-unknown-linux-gnueabihf
+            node: '24'
+    runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       - run: npm i -g --force corepack
@@ -216,123 +234,60 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
-          cache: 'pnpm'
+          cache: pnpm
+      - name: Output docker params
+        id: docker
+        run: |
+          node -e "
+            if ('${{ matrix.target }}'.startsWith('aarch64')) {
+              console.log('PLATFORM=linux/arm64')
+            } else if ('${{ matrix.target }}'.startsWith('armv7')) {
+              console.log('PLATFORM=linux/arm/v7')
+            } else {
+              console.log('PLATFORM=linux/amd64')
+            }
+          " >> $GITHUB_OUTPUT
+          node -e "
+            if ('${{ matrix.target }}'.endsWith('-musl')) {
+              console.log('IMAGE=node:${{ matrix.node }}-alpine')
+            } else {
+              console.log('IMAGE=node:${{ matrix.node }}-slim')
+            }
+          " >> $GITHUB_OUTPUT
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts
+        run: |
+          pnpm config set --json supportedArchitectures.cpu '["current", "arm64", "x64", "arm"]'
+          pnpm config set --json supportedArchitectures.libc '["current", "musl", "gnu"]'
+          pnpm install
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
-          name: bindings-x86_64-unknown-linux-gnu
-          path: 'packages/cli'
+          name: bindings-${{ matrix.target }}
+          path: 'packages/cli/'
       - name: List packages
         run: ls -R .
         shell: bash
-      - name: install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        if: ${{ contains(matrix.target, 'armv7') }}
+        with:
+          platforms: all
+      - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+        if: ${{ contains(matrix.target, 'armv7') }}
       - name: Test bindings
-        run: pnpm test
-  test-linux-x64-musl-binding:
-    name: Test bindings on x86_64-unknown-linux-musl - node@${{ matrix.node }}
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        node:
-          - '20'
-          - '22'
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-    steps:
-      - uses: actions/checkout@v7
-      - run: npm i -g --force corepack
-      - name: Setup node
-        uses: actions/setup-node@v6
+        uses: tj-actions/docker-run@v2
         with:
-          node-version: ${{ matrix.node }}
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts
-      - name: Download artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: bindings-x86_64-unknown-linux-musl
-          path: 'packages/cli/'
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Setup and run tests
-        run: |
-          pnpm tauri --help
-          ls -la
-      #- name: Setup and run tests
-      #  run: |
-      #    rustup install stable
-      #    rustup default stable
-      #    pnpm test
-      #    ls -la
-  test-linux-arm-bindings:
-    name: Test bindings on ${{ matrix.image }} - node@${{ matrix.node }}
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        node:
-          - '20'
-          - '22'
-        image:
-          - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
-    runs-on: ubuntu-latest
-    steps:
-      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-        working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v7
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Download aarch64-gnu artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: bindings-aarch64-unknown-linux-gnu
-          path: 'packages/cli'
-      - name: Download armv7-gnueabihf artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: bindings-armv7-unknown-linux-gnueabihf
-          path: 'packages/cli/'
-      # TODO: actually run test, blocked by https://github.com/rust-lang/cargo/issues/8719
-      - uses: addnab/docker-run-action@v3
-        with:
-          image: ${{ matrix.image }}
-          options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
-          shell: bash
-          run: |
-            set -e
-            export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip libayatana-appindicator3-dev
-            bash
-            curl https://sh.rustup.rs -sSf | bash -s -- -y
-            curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell
-            eval "$(fnm env --use-on-cd)"
-            fnm install ${{ matrix.node }}
-            fnm use ${{ matrix.node }}
-            cd packages/cli
-            node tauri.js --help
-            ls -la
+          image: ${{ steps.docker.outputs.IMAGE }}
+          name: test-bindings-${{ matrix.target }}
+          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
+          args: pnpm test
   publish:
     name: Publish
     runs-on: ubuntu-latest
     needs:
       #- build-freebsd
       - test-macOS-windows-binding
-      - test-linux-x64-gnu-binding
-      - test-linux-x64-musl-binding
-      #- test-linux-arm-bindings
+      - test-linux-binding
     steps:
       - uses: actions/checkout@v7
       - run: npm i -g --force corepack

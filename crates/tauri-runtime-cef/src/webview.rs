@@ -524,6 +524,11 @@ impl<T: UserEvent> WinitCefApp<T> {
     webview_id: u32,
     message: WebviewMessage,
   ) {
+    // If the runtime is exiting, don't process any more messages to avoid macOS crash on exit.
+    if self.state.exiting {
+      return;
+    }
+
     let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };

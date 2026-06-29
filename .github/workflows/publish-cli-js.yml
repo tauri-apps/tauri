@@ -115,55 +115,7 @@ jobs:
           name: bindings-${{ matrix.settings.target }}
           path: packages/cli/${{ env.APP_NAME }}.*.node
           if-no-files-found: error
-  #  build-freebsd:
-  #    runs-on: macos-10.15
-  #    name: Build FreeBSD
-  #    steps:
-  #      - uses: actions/checkout@v7
-  #      - name: Build
-  #        id: build
-  #        uses: vmactions/freebsd-vm@v0.1.6
-  #        env:
-  #          DEBUG: napi:*
-  #          RUSTUP_HOME: /usr/local/rustup
-  #          CARGO_HOME: /usr/local/cargo
-  #          RUSTUP_IO_THREADS: 1
-  #        with:
-  #          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS
-  #          usesh: true
-  #          mem: 3000
-  #          prepare: |
-  #            pkg install -y curl node14 python2
-  #            curl -qL https://www.npmjs.com/install.sh | sh
-  #            npm install -g pnpm
-  #            curl https://sh.rustup.rs -sSf --output rustup.sh
-  #            sh rustup.sh -y --profile minimal --default-toolchain stable
-  #            export PATH="/usr/local/cargo/bin:$PATH"
-  #            echo "~~~~ rustc --version ~~~~"
-  #            rustc --version
-  #            echo "~~~~ node -v ~~~~"
-  #            node -v
-  #            echo "~~~~ pnpm --version ~~~~"
-  #            pnpm --version
-  #          run: |
-  #            export PATH="/usr/local/cargo/bin:$PATH"
-  #            pwd
-  #            ls -lah
-  #            whoami
-  #            env
-  #            freebsd-version
-  #            cd ./packages/cli/
-  #            pnpm i --frozen-lockfile --ignore-scripts
-  #            pnpm build
-  #            strip -x *.node
-  #            rm -rf node_modules
-  #            rm -rf ../../target
-  #      - name: Upload artifact
-  #        uses: actions/upload-artifact@v4
-  #        with:
-  #          name: bindings-freebsd
-  #          path: packages/cli/${{ env.APP_NAME }}.*.node
-  #          if-no-files-found: error
+
   test-macOS-windows-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
     needs:

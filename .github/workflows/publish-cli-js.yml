@@ -228,7 +228,9 @@ jobs:
           image: ${{ steps.docker.outputs.IMAGE }}
           name: test-bindings-${{ matrix.target }}
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
-          args: pnpm test
+          args: |
+            npm i -g --force corepack
+            pnpm test
   # publish:
   #   name: Publish
   #   runs-on: ubuntu-latest

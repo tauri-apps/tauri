@@ -211,20 +211,9 @@ jobs:
 
       # TODO: Actually run tests on musl and armv7
 
-      - name: Setup and run tests (musl)
-        if: ${{ contains(matrix.target, 'musl') }}
-        run: |
-          pnpm tauri --help
-          ls -la
-
-      - name: Set up QEMU (armv7)
-        uses: docker/setup-qemu-action@v4
-        if: ${{ contains(matrix.target, 'armv7') }}
-        with:
-          platforms: all
-      - name: Output docker params (armv7)
+      - name: Output docker params
         id: docker
-        if: ${{ contains(matrix.target, 'armv7') }}
+        if: ${{ contains(matrix.target, 'musl') || contains(matrix.target, 'armv7') }}
         run: |
           node -e "
             if ('${{ matrix.target }}'.startsWith('aarch64')) {
@@ -242,8 +231,26 @@ jobs:
               console.log('IMAGE=node:${{ matrix.node }}-slim')
             }
           " >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU (armv7)
+        uses: docker/setup-qemu-action@v4
+        if: ${{ contains(matrix.target, 'armv7') }}
+        with:
+          platforms: all
       - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         if: ${{ contains(matrix.target, 'armv7') }}
+
+      - name: Setup and run tests (musl)
+        uses: addnab/docker-run-action@v3
+        if: ${{ contains(matrix.target, 'musl') }}
+        with:
+          image: ${{ steps.docker.outputs.IMAGE }}
+          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
+          shell: bash
+          run: |
+            node tauri.js --help
+            ls -la
+
       - name: Setup and run tests (armv7)
         uses: addnab/docker-run-action@v3
         if: ${{ contains(matrix.target, 'armv7') }}

@@ -48,6 +48,7 @@ jobs:
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             build: pnpm build --target=aarch64-unknown-linux-gnu --use-napi-cross
+            target_cc: clang
           - host: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
             build: pnpm build --target=armv7-unknown-linux-gnueabihf --use-napi-cross
@@ -57,6 +58,9 @@ jobs:
           - host: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
             build: pnpm build --target=riscv64gc-unknown-linux-gnu
+            setup: |
+              sudo apt-get update
+              sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -93,6 +97,8 @@ jobs:
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
         shell: bash
+        env:
+          TARGET_CC: ${{ matrix.settings.target_cc }}
 
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts

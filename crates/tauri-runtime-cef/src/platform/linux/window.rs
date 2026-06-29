@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-use std::os::raw::c_ulong;
+use std::os::raw::{c_int, c_ulong};
 use tauri_runtime::ProgressBarState;
 use tauri_utils::config::Color;
 
@@ -30,6 +30,25 @@ impl AppWindow {
     let _ = self;
     // TODO: query native window enabled state on Linux/BSD.
     true
+  }
+
+  pub(crate) fn set_focusable(&self, focusable: bool) {
+    if let Some(xid) = self.xid() {
+      super::utils::with_x11((), |xlib, display| unsafe {
+        let mut hints = (xlib.XGetWMHints)(display, xid);
+        if hints.is_null() {
+          hints = (xlib.XAllocWMHints)();
+        }
+        if hints.is_null() {
+          return;
+        }
+
+        (*hints).flags |= x11_dl::xlib::InputHint;
+        (*hints).input = focusable as c_int;
+        (xlib.XSetWMHints)(display, xid, hints);
+        (xlib.XFree)(hints.cast());
+      });
+    }
   }
 
   pub(crate) fn set_background_color(&self, color: Option<Color>) {

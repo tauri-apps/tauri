@@ -4,6 +4,10 @@
 
 use tauri_runtime::{Icon, ProgressBarState, ProgressBarStatus};
 use tauri_utils::config::Color;
+use windows::Win32::UI::WindowsAndMessaging::{
+  GWL_EXSTYLE, GetWindowLongW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+  SWP_NOZORDER, SetWindowLongW, SetWindowPos, WS_EX_NOACTIVATE,
+};
 use windows::Win32::{
   Foundation::{HWND, RECT},
   Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute},
@@ -34,6 +38,29 @@ impl AppWindow {
 
   pub(crate) fn set_enabled(&self, enabled: bool) {
     let _ = unsafe { EnableWindow(self.hwnd(), enabled) };
+  }
+
+  pub(crate) fn set_focusable(&self, focusable: bool) {
+    let hwnd = self.hwnd();
+    let mut style = unsafe { GetWindowLongW(hwnd, GWL_EXSTYLE) } as u32;
+    if focusable {
+      style &= !WS_EX_NOACTIVATE.0;
+    } else {
+      style |= WS_EX_NOACTIVATE.0;
+    }
+
+    unsafe {
+      SetWindowLongW(hwnd, GWL_EXSTYLE, style as i32);
+      let _ = SetWindowPos(
+        hwnd,
+        None,
+        0,
+        0,
+        0,
+        0,
+        SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_NOACTIVATE,
+      );
+    }
   }
 
   pub(crate) fn set_overlay_icon(&self, icon: Option<Icon<'static>>) {

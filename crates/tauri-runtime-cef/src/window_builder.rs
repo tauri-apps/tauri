@@ -36,12 +36,18 @@ use std::num::NonZeroIsize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct WindowBuilderWrapper {
   pub(crate) attrs: AppWindowAttrs,
 }
 
 unsafe impl Send for WindowBuilderWrapper {}
+
+impl Default for WindowBuilderWrapper {
+  fn default() -> Self {
+    <Self as WindowBuilder>::new()
+  }
+}
 
 impl WindowBuilderBase for WindowBuilderWrapper {}
 
@@ -53,6 +59,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         inner: WindowAttributes::default()
           .with_title("Tauri App")
           .with_visible(true),
+        focusable: true,
         ..Default::default()
       },
     }
@@ -247,8 +254,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn focusable(self, _focusable: bool) -> Self {
-    // TODO
+  fn focusable(mut self, focusable: bool) -> Self {
+    self.attrs.focusable = focusable;
     self
   }
 

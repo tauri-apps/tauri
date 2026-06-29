@@ -9848,6 +9848,7 @@ dependencies = [
  "cef",
  "dioxus-debug-cell",
  "dirs 6.0.0",
+ "dispatch2",
  "dlopen2",
  "gtk",
  "html5ever 0.29.1",

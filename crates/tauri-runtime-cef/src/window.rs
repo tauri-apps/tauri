@@ -294,8 +294,6 @@ pub(crate) enum WindowMessage {
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
-  // TODO: Implement SetFocusable, winit currently doesn't expose an API for it
-  #[allow(unused)]
   SetFocusable(bool),
   SetIcon(Icon<'static>),
   SetSkipTaskbar(bool),
@@ -330,6 +328,7 @@ pub(crate) struct AppWindow {
 pub(crate) struct AppWindowAttrs {
   pub(crate) inner: WindowAttributes,
   pub(crate) center: bool,
+  pub(crate) focusable: bool,
   pub(crate) background_color: Option<Color>,
   pub(crate) prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
@@ -449,6 +448,12 @@ impl<T: UserEvent> WinitCefApp<T> {
         tauri_theme_to_winit_theme(*self.context.app_wide_theme.lock().unwrap());
     }
     prepare_window_attributes(event_loop, &mut attrs);
+    let initially_visible = attrs.inner.visible;
+    if !attrs.focusable {
+      // Apply native no-focus hints before the first map/show where possible.
+      attrs.inner.visible = false;
+      attrs.inner.active = false;
+    }
 
     let window = event_loop
       .create_window(attrs.inner.clone())
@@ -463,6 +468,10 @@ impl<T: UserEvent> WinitCefApp<T> {
       children: Vec::new(),
       listeners: Default::default(),
     };
+
+    if !appwindow.attrs.focusable {
+      appwindow.set_focusable(false);
+    }
 
     #[cfg(target_os = "macos")]
     {
@@ -511,6 +520,10 @@ impl<T: UserEvent> WinitCefApp<T> {
         browser_client::DragDropEventTarget::Window,
         webview,
       )?;
+    }
+
+    if !appwindow.attrs.focusable && initially_visible {
+      appwindow.window.set_visible(true);
     }
 
     self
@@ -801,8 +814,9 @@ impl<T: UserEvent> WinitCefApp<T> {
         window.set_max_surface_size(max_size);
       }
 
-      WindowMessage::SetFocusable(_) => {
-        // TODO
+      WindowMessage::SetFocusable(value) => {
+        app_window.attrs.focusable = value;
+        app_window.set_focusable(value);
       }
       WindowMessage::SetProgressBar(state) => {
         #[cfg(target_os = "macos")]

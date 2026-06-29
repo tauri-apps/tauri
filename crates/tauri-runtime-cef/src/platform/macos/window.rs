@@ -3,17 +3,134 @@
 // SPDX-License-Identifier: MIT
 
 use cef::ImplBrowserHost;
-use objc2::{MainThreadMarker, rc::Retained};
+use dispatch2::MainThreadBound;
+use objc2::{
+  MainThreadMarker,
+  rc::Retained,
+  runtime::{AnyClass, AnyObject, Bool, Imp, Sel},
+  sel,
+};
 use objc2_app_kit::{
   NSBackingStoreType, NSColor, NSView, NSWindow, NSWindowButton, NSWindowCollectionBehavior,
   NSWindowStyleMask,
 };
+use std::{cell::Cell, ffi::c_void, mem, ptr};
 use tauri_runtime::dpi::Position;
 use tauri_utils::{TitleBarStyle, config::Color};
 
 use crate::window::AppWindow;
 
 use super::utils;
+
+type CanBecomeWindow = extern "C-unwind" fn(&AnyObject, Sel) -> Bool;
+
+static ORIGINAL_WINDOW_CAN_BECOME_KEY: MainThreadBound<Cell<Option<CanBecomeWindow>>> =
+  MainThreadBound::new(
+    Cell::new(None),
+    // SAFETY: This is created in a static, where no thread is associated with the value.
+    unsafe { MainThreadMarker::new_unchecked() },
+  );
+static ORIGINAL_WINDOW_CAN_BECOME_MAIN: MainThreadBound<Cell<Option<CanBecomeWindow>>> =
+  MainThreadBound::new(
+    Cell::new(None),
+    // SAFETY: This is created in a static, where no thread is associated with the value.
+    unsafe { MainThreadMarker::new_unchecked() },
+  );
+static ORIGINAL_PANEL_CAN_BECOME_KEY: MainThreadBound<Cell<Option<CanBecomeWindow>>> =
+  MainThreadBound::new(
+    Cell::new(None),
+    // SAFETY: This is created in a static, where no thread is associated with the value.
+    unsafe { MainThreadMarker::new_unchecked() },
+  );
+
+extern "C-unwind" fn window_can_become_key_window(this: &AnyObject, sel: Sel) -> Bool {
+  can_become_window(this, sel, &ORIGINAL_WINDOW_CAN_BECOME_KEY)
+}
+
+extern "C-unwind" fn window_can_become_main_window(this: &AnyObject, sel: Sel) -> Bool {
+  can_become_window(this, sel, &ORIGINAL_WINDOW_CAN_BECOME_MAIN)
+}
+
+extern "C-unwind" fn panel_can_become_key_window(this: &AnyObject, sel: Sel) -> Bool {
+  can_become_window(this, sel, &ORIGINAL_PANEL_CAN_BECOME_KEY)
+}
+
+fn can_become_window(
+  this: &AnyObject,
+  sel: Sel,
+  original: &MainThreadBound<Cell<Option<CanBecomeWindow>>>,
+) -> Bool {
+  if unsafe { !objc2::ffi::objc_getAssociatedObject(this, focusable_association_key()).is_null() } {
+    return false.into();
+  }
+
+  let mtm = MainThreadMarker::new().expect("NSWindow focusability must be queried on main thread");
+  let original = original
+    .get(mtm)
+    .get()
+    .expect("no existing NSWindow focusability handler set");
+  original(this, sel)
+}
+
+fn focusable_association_key() -> *const c_void {
+  window_can_become_key_window as CanBecomeWindow as *const c_void
+}
+
+fn install_focusable_hooks() {
+  let Some(mtm) = MainThreadMarker::new() else {
+    return;
+  };
+
+  if let Some(class) = AnyClass::get(c"WinitWindow") {
+    override_can_become_window(
+      mtm,
+      class,
+      sel!(canBecomeKeyWindow),
+      window_can_become_key_window,
+      &ORIGINAL_WINDOW_CAN_BECOME_KEY,
+    );
+    override_can_become_window(
+      mtm,
+      class,
+      sel!(canBecomeMainWindow),
+      window_can_become_main_window,
+      &ORIGINAL_WINDOW_CAN_BECOME_MAIN,
+    );
+  }
+
+  if let Some(class) = AnyClass::get(c"WinitPanel") {
+    override_can_become_window(
+      mtm,
+      class,
+      sel!(canBecomeKeyWindow),
+      panel_can_become_key_window,
+      &ORIGINAL_PANEL_CAN_BECOME_KEY,
+    );
+  }
+}
+
+fn override_can_become_window(
+  mtm: MainThreadMarker,
+  class: &AnyClass,
+  selector: Sel,
+  replacement: CanBecomeWindow,
+  original: &MainThreadBound<Cell<Option<CanBecomeWindow>>>,
+) {
+  let Some(method) = class.instance_method(selector) else {
+    return;
+  };
+
+  let overridden = unsafe { mem::transmute::<CanBecomeWindow, Imp>(replacement) };
+
+  #[allow(unknown_lints, unpredictable_function_pointer_comparisons)]
+  if overridden == method.implementation() {
+    return;
+  }
+
+  let previous = unsafe { method.set_implementation(overridden) };
+  let previous = unsafe { mem::transmute::<Imp, CanBecomeWindow>(previous) };
+  original.get(mtm).set(Some(previous));
+}
 
 impl AppWindow {
   pub(crate) fn nsview(&self) -> Option<Retained<NSView>> {
@@ -63,6 +180,27 @@ impl AppWindow {
       .and_then(|nsview| nsview.window())
       .map(|nswindow| nswindow.attachedSheet().is_none())
       .unwrap_or(true)
+  }
+
+  pub(crate) fn set_focusable(&self, focusable: bool) {
+    let Some(nsview) = self.nsview() else {
+      return;
+    };
+    let Some(nswindow) = nsview.window() else {
+      return;
+    };
+
+    install_focusable_hooks();
+    let nswindow = (&*nswindow) as *const NSWindow as *mut AnyObject;
+    let value = if focusable { ptr::null_mut() } else { nswindow };
+    unsafe {
+      objc2::ffi::objc_setAssociatedObject(
+        nswindow,
+        focusable_association_key(),
+        value,
+        objc2::ffi::OBJC_ASSOCIATION_ASSIGN,
+      );
+    }
   }
 
   pub(crate) fn apply_traffic_light_position(&self, position: &Position) {

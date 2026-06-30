@@ -215,26 +215,6 @@ impl<T: UserEvent> Drop for MainThreadDispatchGuard<T> {
   }
 }
 
-fn install_current_dispatch<T: UserEvent>(
-  app: &mut WinitCefApp<T>,
-  event_loop: &dyn ActiveEventLoop,
-) -> MainThreadDispatchGuard<T> {
-  let dispatch = MainThreadDispatch {
-    app: app as *mut _,
-    event_loop: event_loop as *const _,
-  };
-  // Keep the installed pointer stable even if the guard is moved.
-  let mut dispatch = Box::new(dispatch);
-
-  let previous = app.context.current_dispatch.install(dispatch.as_mut());
-
-  MainThreadDispatchGuard {
-    context: app.context.clone(),
-    dispatch,
-    previous,
-  }
-}
-
 #[allow(clippy::result_large_err)]
 fn handle_main_thread_message<T: UserEvent>(
   context: &RuntimeContext<T>,
@@ -244,7 +224,7 @@ fn handle_main_thread_message<T: UserEvent>(
     return Err(message);
   };
 
-  // SAFETY: `install_current_dispatch` stores pointers to the currently
+  // SAFETY: `WinitCefApp::install_current_dispatch` stores pointers to the currently
   // executing winit application handler and event-loop callback. This function
   // is only called on the runtime main thread while that callback is active.
   let app = unsafe { &mut *dispatch.app };
@@ -487,6 +467,25 @@ impl<T: UserEvent> WinitCefApp<T> {
 
   fn run_callback(&mut self, event: RunEvent<T>) {
     (self.state.callback)(event);
+  }
+
+  fn install_current_dispatch(
+    &mut self,
+    event_loop: &dyn ActiveEventLoop,
+  ) -> MainThreadDispatchGuard<T> {
+    let dispatch = MainThreadDispatch {
+      app: self as *mut _,
+      event_loop: event_loop as *const _,
+      _marker: PhantomData,
+    };
+
+    let mut current_dispatch = self.context.current_dispatch.lock().unwrap();
+    let previous = current_dispatch.replace(dispatch);
+
+    MainThreadDispatchGuard {
+      context: self.context.clone(),
+      previous,
+    }
   }
 
   fn drain_messages(&mut self, event_loop: &dyn ActiveEventLoop) {
@@ -866,12 +865,12 @@ impl<T: UserEvent> WinitCefApp<T> {
 
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
-    let _guard = install_current_dispatch(self, event_loop);
+    let _guard = self.install_current_dispatch(event_loop);
     self.drain_messages(event_loop);
   }
 
   fn new_events(&mut self, event_loop: &dyn ActiveEventLoop, cause: StartCause) {
-    let _guard = install_current_dispatch(self, event_loop);
+    let _guard = self.install_current_dispatch(event_loop);
     match cause {
       StartCause::Init => {
         self.run_callback(RunEvent::Ready);
@@ -884,12 +883,12 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   }
 
   fn proxy_wake_up(&mut self, event_loop: &dyn ActiveEventLoop) {
-    let _guard = install_current_dispatch(self, event_loop);
+    let _guard = self.install_current_dispatch(event_loop);
     self.drain_messages(event_loop);
   }
 
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
-    let _guard = install_current_dispatch(self, event_loop);
+    let _guard = self.install_current_dispatch(event_loop);
     // TODO: remove once migrated to winit-gtk4
     #[cfg(any(
       target_os = "linux",
@@ -908,7 +907,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     winit_id: WinitWindowId,
     event: WinitWindowEvent,
   ) {
-    let _guard = install_current_dispatch(self, event_loop);
+    let _guard = self.install_current_dispatch(event_loop);
     let Some(window_id) = self.state.winid_id_to_window_id_map.get(&winit_id).copied() else {
       return;
     };

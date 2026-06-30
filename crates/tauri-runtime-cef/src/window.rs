@@ -11,8 +11,7 @@ use std::{
 };
 
 use cef::ImplBrowserHost;
-use raw_window_handle::HasWindowHandle;
-use raw_window_handle::RawWindowHandle;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri_runtime::{
   Error, Icon, ProgressBarState, Result, UserAttentionType, UserEvent, WindowDispatch,
   WindowEventId,
@@ -39,18 +38,15 @@ use winit::platform::macos::WindowExtMacOS;
 #[cfg(windows)]
 use winit::platform::windows::WindowExtWindows;
 
+#[cfg(windows)]
+use crate::window_handle::SoftbufferWindowHandle;
 use crate::{
   cef_impl::{client as browser_client, request_context},
   runtime::{AfterWindowCreationCallback, CefRuntime, Message, RuntimeContext, WinitCefApp},
   webview::{AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
+  window_handle::SendRawWindowHandle,
 };
-
-pub(crate) struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
-unsafe impl Send for SendRawWindowHandle {}
-
-pub(crate) struct SendRawDisplayHandle(pub raw_window_handle::RawDisplayHandle);
-unsafe impl Send for SendRawDisplayHandle {}
 
 type WindowEventListener = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventListener>>>;
@@ -316,10 +312,15 @@ pub(crate) enum WindowMessage {
   StartResizeDragging(tauri_runtime::ResizeDirection),
 }
 
+#[cfg(windows)]
+type SoftbufferSurface = softbuffer::Surface<SoftbufferWindowHandle, SoftbufferWindowHandle>;
+
 pub(crate) struct AppWindow {
   #[allow(unused)]
   pub(crate) id: WindowId,
   pub(crate) label: String,
+  #[cfg(windows)]
+  pub(crate) background_surface: Option<SoftbufferSurface>,
   pub(crate) window: Box<dyn WinitWindow>,
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
@@ -458,6 +459,8 @@ impl<T: UserEvent> WinitCefApp<T> {
     let mut appwindow = AppWindow {
       id: window_id,
       label: pending.label.clone(),
+      #[cfg(windows)]
+      background_surface: None,
       window,
       attrs,
       children: Vec::new(),
@@ -485,6 +488,12 @@ impl<T: UserEvent> WinitCefApp<T> {
       appwindow.set_skip_taskbar(appwindow.attrs.skip_taskbar);
     }
 
+    #[cfg(windows)]
+    if appwindow.attrs.inner.transparent || appwindow.attrs.background_color.is_some() {
+      appwindow.draw_background_surface();
+    }
+
+    #[cfg(not(windows))]
     if appwindow.attrs.background_color.is_some() {
       appwindow.set_background_color(appwindow.attrs.background_color);
     }

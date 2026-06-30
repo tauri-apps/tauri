@@ -9863,6 +9863,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "softbuffer",
  "tauri-runtime",
  "tauri-utils",
  "url",

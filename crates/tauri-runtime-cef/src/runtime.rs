@@ -49,9 +49,10 @@ use crate::{
     create_webview_detached,
   },
   window::{
-    AppWindow, CefWindowDispatcher, SendRawDisplayHandle, WindowMessage, create_window_detached,
+    AppWindow, CefWindowDispatcher, WindowMessage, create_window_detached,
     winit_monitor_to_tauri_monitor, winit_theme_to_tauri_theme,
   },
+  window_handle::SendRawDisplayHandle,
 };
 #[cfg(any(
   target_os = "linux",
@@ -974,6 +975,10 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
       }
       WinitWindowEvent::DragLeft { .. } => {
         self.emit_window_event(window_id, WindowEvent::DragDrop(DragDropEvent::Leave));
+      }
+      #[cfg(windows)]
+      WinitWindowEvent::RedrawRequested => {
+        appwindow.draw_background_surface();
       }
       #[cfg(target_os = "macos")]
       WinitWindowEvent::RedrawRequested => {

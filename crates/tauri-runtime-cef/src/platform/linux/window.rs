@@ -33,8 +33,30 @@ impl AppWindow {
   }
 
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
-    let _ = (self, color);
-    // TODO: implement native window background color on Linux/BSD.
+    let Some(xid) = self.xid() else {
+      return;
+    };
+    let Some(color) = color else {
+      return;
+    };
+
+    super::utils::with_x11((), |xlib, display| unsafe {
+      let screen = (xlib.XDefaultScreen)(display);
+      let colormap = (xlib.XDefaultColormap)(display, screen);
+      let mut xcolor = x11_dl::xlib::XColor {
+        pixel: 0,
+        red: u16::from(color.0) * 257,
+        green: u16::from(color.1) * 257,
+        blue: u16::from(color.2) * 257,
+        flags: x11_dl::xlib::DoRed | x11_dl::xlib::DoGreen | x11_dl::xlib::DoBlue,
+        pad: 0,
+      };
+
+      if (xlib.XAllocColor)(display, colormap, &mut xcolor) != 0 {
+        (xlib.XSetWindowBackground)(display, xid, xcolor.pixel);
+        (xlib.XClearWindow)(display, xid);
+      }
+    });
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {

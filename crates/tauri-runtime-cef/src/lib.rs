@@ -12,6 +12,7 @@ mod runtime;
 mod webview;
 mod window;
 mod window_builder;
+mod window_handle;
 
 pub use runtime::*;
 pub use webview::*;

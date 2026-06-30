@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.11.4]
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.11.4`
+- [`0299da0d3`](https://www.github.com/tauri-apps/tauri/commit/0299da0d391d6ebcd1c29d4f6de677d5cb586e56) ([#15616](https://www.github.com/tauri-apps/tauri/pull/15616) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Pinning `time` to `<0.3.52` used by `cookie` to mitigate a compilation error, see
+
+  - https://github.com/tauri-apps/tauri/issues/15615
+  - https://github.com/rwf2/cookie-rs/issues/255
+
 ## \[2.11.3]
 
 ### Bug Fixes

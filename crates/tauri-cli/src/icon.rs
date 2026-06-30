@@ -17,7 +17,7 @@ use std::{
   sync::Arc,
 };
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use icns::{IconFamily, IconType};
 use image::{
   codecs::{
@@ -100,6 +100,21 @@ pub struct Options {
   /// The background color of the iOS icon - string as defined in the W3C's CSS Color Module Level 4 <https://www.w3.org/TR/css-color-4/>.
   #[clap(long, default_value = "#fff")]
   ios_color: String,
+
+  /// How to fit a non-square source image into the square icon canvas, similar to the CSS `object-fit` property.
+  ///
+  /// When not set, a non-square source is rejected.
+  #[clap(long, value_enum)]
+  fit: Option<Fit>,
+}
+
+/// How to fit a non-square source image into the square icon canvas.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Fit {
+  /// Scale the source to fill the square, center-cropping the longer side (may clip content).
+  Cover,
+  /// Scale the source to fit inside the square, padding the shorter side with transparency.
+  Contain,
 }
 
 #[derive(Clone)]
@@ -233,6 +248,49 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
   Ok(bg_color)
 }
 
+// Rasterize an SVG tree to a `DynamicImage` at its native size, preserving the aspect ratio.
+fn rasterize_svg(svg: &usvg::Tree) -> DynamicImage {
+  let width = (svg.size().width().ceil() as u32).max(1);
+  let height = (svg.size().height().ceil() as u32).max(1);
+  let mut pixmap = tiny_skia::Pixmap::new(width, height).unwrap();
+  resvg::render(svg, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+  let img_buffer = ImageBuffer::from_par_fn(width, height, |x, y| {
+    let pixel = pixmap.pixel(x, y).unwrap().demultiply();
+    Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])
+  });
+  DynamicImage::ImageRgba8(img_buffer)
+}
+
+// Convert a non-square source into a square one according to the `fit` mode.
+// SVG sources are rasterized at their native size first.
+fn fit_to_square(source: Source, fit: Fit) -> Source {
+  let image = match source {
+    Source::DynamicImage(image) => image,
+    Source::Svg(svg) => rasterize_svg(&svg),
+  };
+
+  let (width, height) = image.dimensions();
+  let squared = match fit {
+    Fit::Cover => {
+      let side = width.min(height);
+      image.crop_imm((width - side) / 2, (height - side) / 2, side, side)
+    }
+    Fit::Contain => {
+      let side = width.max(height);
+      let mut canvas = ImageBuffer::from_pixel(side, side, Rgba([0, 0, 0, 0]));
+      image::imageops::overlay(
+        &mut canvas,
+        &image,
+        ((side - width) / 2) as i64,
+        ((side - height) / 2) as i64,
+      );
+      DynamicImage::ImageRgba8(canvas)
+    }
+  };
+
+  Source::DynamicImage(squared)
+}
+
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| {
@@ -264,10 +322,18 @@ pub fn command(options: Options) -> Result<()> {
     None => input.clone(),
   };
 
-  let source = read_source(default_icon)?;
+  let mut source = read_source(default_icon)?;
 
   if source.height() != source.width() {
-    crate::error::bail!("Source image must be square");
+    match options.fit {
+      Some(fit) => {
+        log::info!(action = "Fit"; "Squaring {}x{} source with `{:?}`", source.width(), source.height(), fit);
+        source = fit_to_square(source, fit);
+      }
+      None => crate::error::bail!(
+        "Source image must be square; pass `--fit cover` or `--fit contain` to convert a non-square source"
+      ),
+    }
   }
 
   if png_icon_sizes.is_empty() {
@@ -983,4 +1049,41 @@ fn apply_round_mask(
   }
 
   DynamicImage::ImageRgba8(out)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn landscape(width: u32, height: u32) -> Source {
+    // opaque red rectangle
+    Source::DynamicImage(DynamicImage::ImageRgba8(ImageBuffer::from_pixel(
+      width,
+      height,
+      Rgba([255, 0, 0, 255]),
+    )))
+  }
+
+  #[test]
+  fn cover_center_crops_to_square() {
+    let out = fit_to_square(landscape(40, 20), Fit::Cover);
+    assert_eq!((out.width(), out.height()), (20, 20));
+    // the cropped region keeps the original content (fully opaque)
+    let Source::DynamicImage(image) = out else {
+      panic!("expected a raster source");
+    };
+    assert_eq!(image.get_pixel(10, 10)[3], 255);
+  }
+
+  #[test]
+  fn contain_pads_shorter_side_with_transparency() {
+    let out = fit_to_square(landscape(40, 20), Fit::Contain);
+    assert_eq!((out.width(), out.height()), (40, 40));
+    let Source::DynamicImage(image) = out else {
+      panic!("expected a raster source");
+    };
+    // top padding band is transparent, the centered content is opaque
+    assert_eq!(image.get_pixel(20, 0)[3], 0);
+    assert_eq!(image.get_pixel(20, 20)[3], 255);
+  }
 }

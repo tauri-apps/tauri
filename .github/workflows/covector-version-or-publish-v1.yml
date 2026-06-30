@@ -54,35 +54,36 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: regen lockfile using cargo >=1.84
-        env:
-          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
-        run: |
-          rm Cargo.lock
-          rm tooling/bundler/Cargo.lock
-          rm tooling/cli/Cargo.lock
-          cargo generate-lockfile
-          cd tooling/bundler
-          cargo generate-lockfile
-          cd ../cli
-          cargo generate-lockfile
+      # We do not care about this in the edition2024 branch
+      # - name: regen lockfile using cargo >=1.84
+      #   env:
+      #     CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      #   run: |
+      #     rm Cargo.lock
+      #     rm tooling/bundler/Cargo.lock
+      #     rm tooling/cli/Cargo.lock
+      #     cargo generate-lockfile
+      #     cd tooling/bundler
+      #     cargo generate-lockfile
+      #     cd ../cli
+      #     cargo generate-lockfile
 
-      - name: Downgrade crates with MSRV conflict (core)
-        if: ${{ matrix.project.name == 'core' }}
-        env:
-          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
-        # The --precise flag can only be used once per invocation.
-        # at least h2 and syn don't need the precise flag here with cargo 1.84
-        run: |
-          cd .
+      # - name: Downgrade crates with MSRV conflict (core)
+      #   if: ${{ matrix.project.name == 'core' }}
+      #   env:
+      #     CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      #   # The --precise flag can only be used once per invocation.
+      #   # at least h2 and syn don't need the precise flag here with cargo 1.84
+      #   run: |
+      #     cd .
 
-      - name: Downgrade crates with MSRV conflict (bundler)
-        if: ${{ matrix.project.name != 'core' }}
-        env:
-          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
-        run: |
-          cd tooling/bundler
-          cd ../cli
+      # - name: Downgrade crates with MSRV conflict (bundler)
+      #   if: ${{ matrix.project.name != 'core' }}
+      #   env:
+      #     CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      #   run: |
+      #     cd tooling/bundler
+      #     cd ../cli
 
       - name: install rust ${{ matrix.project.toolchain || matrix.platform.toolchain }}
         uses: dtolnay/rust-toolchain@master

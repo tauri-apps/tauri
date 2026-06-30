@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "1.5.6"
+version = "1.5.7-edition2024.0"
 authors = ["Tauri Programme within The Commons Conservancy"]
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.7-edition2024.0]
+
+### What's Changed
+
+- [`e6854da4f`](https://www.github.com/tauri-apps/tauri/commit/e6854da4f757975ea835df6b8ef5451ae1809ad3) ([#15207](https://www.github.com/tauri-apps/tauri/pull/15207) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Raise MSRV to 1.85 to support Cargo edition 2024 projects.
+
 ## \[1.5.6]
 
 ### Dependencies

@@ -4702,7 +4702,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.5.6"
+version = "1.5.7-edition2024.0"
 dependencies = [
  "anyhow",
  "cargo_toml",

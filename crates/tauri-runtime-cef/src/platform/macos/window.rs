@@ -2,18 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use objc2::{MainThreadMarker, rc::Retained};
+use std::{cell::Cell, mem, ptr};
+
+use dispatch2::MainThreadBound;
+use objc2::{
+  rc::Retained,
+  runtime::{Imp, Sel},
+  sel,
+};
 use objc2_app_kit::{
   NSBackingStoreType, NSColor, NSView, NSWindow, NSWindowButton, NSWindowCollectionBehavior,
   NSWindowStyleMask,
 };
+use objc2_foundation::{MainThreadMarker, NSPoint, NSRect};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri_runtime::dpi::Position;
 use tauri_utils::{TitleBarStyle, config::Color};
 
 use crate::window::AppWindow;
 
-use super::utils;
+use super::{AppkitState, utils};
 
 impl AppWindow {
   pub(crate) fn raw_cef_handle(&self) -> cef::sys::cef_window_handle_t {
@@ -76,41 +84,29 @@ impl AppWindow {
       .unwrap_or(true)
   }
 
-  pub(crate) fn apply_traffic_light_position(&self, position: &Position) {
+  pub(crate) fn set_traffic_light_position(&self, position: &Position) {
     let nsview = self.nsview();
     let Some(nswindow) = nsview.window() else {
       return;
     };
 
-    let Some(close) = nswindow.standardWindowButton(NSWindowButton::CloseButton) else {
-      return;
-    };
-    let Some(miniaturize) = nswindow.standardWindowButton(NSWindowButton::MiniaturizeButton) else {
-      return;
-    };
-    let Some(zoom) = nswindow.standardWindowButton(NSWindowButton::ZoomButton) else {
-      return;
-    };
-
     let pos = position.to_logical::<f64>(nswindow.backingScaleFactor());
-    let title_bar_container_view = unsafe { close.superview().and_then(|view| view.superview()) };
-    let Some(title_bar_container_view) = title_bar_container_view else {
+    if let Ok(mut state) = self.appkit_state.write() {
+      let pos = NSPoint::new(pos.x, pos.y);
+      state.traffic_light_position = Some(pos);
+    }
+
+    inset_traffic_lights(&nswindow, pos.x, pos.y);
+    swizzle_draw_rect(&nsview);
+  }
+
+  pub(crate) fn associate_appkit_state(&self) {
+    let nsview = self.nsview();
+    let Some(nswindow) = nsview.window() else {
       return;
     };
 
-    let close_rect = close.frame();
-    let title_bar_frame_height = close_rect.size.height + pos.y;
-    let mut title_bar_rect = title_bar_container_view.frame();
-    title_bar_rect.size.height = title_bar_frame_height;
-    title_bar_rect.origin.y = nswindow.frame().size.height - title_bar_frame_height;
-    title_bar_container_view.setFrame(title_bar_rect);
-
-    let space_between = miniaturize.frame().origin.x - close_rect.origin.x;
-    for (index, button) in [close, miniaturize, zoom].into_iter().enumerate() {
-      let mut origin = button.frame().origin;
-      origin.x = pos.x + (index as f64 * space_between);
-      button.setFrameOrigin(origin);
-    }
+    AppkitState::associate(&self.appkit_state, &nswindow);
   }
 
   pub(crate) fn set_title_bar_style(&self, style: TitleBarStyle) {
@@ -165,4 +161,90 @@ impl AppWindow {
     nswindow.setOpaque(color.map(|color| color.3 == u8::MAX).unwrap_or(true));
     nswindow.setBackgroundColor(Some(&nscolor));
   }
+}
+
+fn inset_traffic_lights(nswindow: &NSWindow, x: f64, y: f64) {
+  let Some(close) = nswindow.standardWindowButton(NSWindowButton::CloseButton) else {
+    return;
+  };
+  let Some(miniaturize) = nswindow.standardWindowButton(NSWindowButton::MiniaturizeButton) else {
+    return;
+  };
+  let Some(zoom) = nswindow.standardWindowButton(NSWindowButton::ZoomButton) else {
+    return;
+  };
+
+  let title_bar_container_view = unsafe { close.superview().and_then(|view| view.superview()) };
+  let Some(title_bar_container_view) = title_bar_container_view else {
+    return;
+  };
+
+  let close_rect = close.frame();
+  let title_bar_frame_height = close_rect.size.height + y;
+  let mut title_bar_rect = title_bar_container_view.frame();
+  title_bar_rect.size.height = title_bar_frame_height;
+  title_bar_rect.origin.y = nswindow.frame().size.height - title_bar_frame_height;
+  title_bar_container_view.setFrame(title_bar_rect);
+
+  let space_between = miniaturize.frame().origin.x - close_rect.origin.x;
+  for (index, button) in [close, miniaturize, zoom].into_iter().enumerate() {
+    let mut origin = button.frame().origin;
+    origin.x = x + (index as f64 * space_between);
+    button.setFrameOrigin(origin);
+  }
+}
+
+type DrawRect = extern "C-unwind" fn(&NSView, Sel, NSRect);
+
+static ORIGINAL_DRAW_RECT: MainThreadBound<Cell<Option<DrawRect>>> = {
+  // SAFETY: Creating in a `const` context, where there is no concept of the main thread.
+  MainThreadBound::new(Cell::new(None), unsafe {
+    MainThreadMarker::new_unchecked()
+  })
+};
+
+extern "C-unwind" fn draw_rect(view: &NSView, sel: Sel, rect: NSRect) {
+  let mtm = MainThreadMarker::from(view);
+  let original = ORIGINAL_DRAW_RECT
+    .get(mtm)
+    .get()
+    .expect("no existing drawRect: handler set");
+
+  original(view, sel, rect);
+
+  post_draw_rect(view, rect);
+}
+
+fn post_draw_rect(view: &NSView, _rect: NSRect) {
+  let Some(nswindow) = view.window() else {
+    return;
+  };
+
+  let Some(state) = AppkitState::from_window(&nswindow) else {
+    return;
+  };
+  let Ok(state) = state.read() else {
+    return;
+  };
+
+  if let Some(pos) = state.traffic_light_position {
+    inset_traffic_lights(&nswindow, pos.x, pos.y);
+  }
+}
+
+fn swizzle_draw_rect(nsview: &NSView) {
+  let mtm = MainThreadMarker::from(nsview);
+  let class = nsview.class();
+  let Some(method) = class.instance_method(sel!(drawRect:)) else {
+    return;
+  };
+
+  let overridden = unsafe { mem::transmute::<DrawRect, Imp>(draw_rect) };
+  if ptr::fn_addr_eq(overridden, method.implementation()) {
+    return;
+  }
+
+  let original = unsafe { method.set_implementation(overridden) };
+  let original = unsafe { mem::transmute::<Imp, DrawRect>(original) };
+  ORIGINAL_DRAW_RECT.get(mtm).set(Some(original));
 }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::num::NonZeroU32;
+
 use tauri_runtime::{Icon, ProgressBarState, ProgressBarStatus};
 use tauri_utils::config::Color;
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -22,7 +24,7 @@ use windows::Win32::{
   },
 };
 
-use crate::window::AppWindow;
+use crate::{window::AppWindow, window_handle::SoftbufferWindowHandle};
 
 use super::icon::icon_to_hicon;
 
@@ -105,8 +107,54 @@ impl AppWindow {
     }
   }
 
-  pub(crate) fn set_background_color(&self, _color: Option<Color>) {
-    // TODO
+  pub(crate) fn set_background_color(&mut self, _color: Option<Color>) {
+    // Nothing to do here, the background color is already updated in the window attributes,
+    // and the background surface will be drawn in the next frame.
+    // Just request a redraw.
+    self.window.request_redraw();
+  }
+
+  pub(crate) fn draw_background_surface(&mut self) {
+    if !self.attrs.inner.transparent && self.attrs.background_color.is_none() {
+      self.background_surface = None;
+      return;
+    }
+
+    let size = self.window.surface_size();
+    let (Some(width), Some(height)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
+    else {
+      return;
+    };
+
+    if self.background_surface.is_none() {
+      let Some(handle) = SoftbufferWindowHandle::new(self.window.as_ref()) else {
+        return;
+      };
+      let Ok(context) = softbuffer::Context::new(handle) else {
+        return;
+      };
+      let Ok(surface) = softbuffer::Surface::new(&context, handle) else {
+        return;
+      };
+      self.background_surface = Some(surface);
+    }
+
+    let Some(surface) = &mut self.background_surface else {
+      return;
+    };
+
+    let color = self
+      .attrs
+      .background_color
+      .map(|Color(r, g, b, _)| (b as u32) | ((g as u32) << 8) | ((r as u32) << 16))
+      .unwrap_or(0);
+
+    if surface.resize(width, height).is_ok()
+      && let Ok(mut buffer) = surface.buffer_mut()
+    {
+      buffer.fill(color);
+      let _ = buffer.present();
+    }
   }
 
   /// The visible frame height reported by DWM (`DWMWA_EXTENDED_FRAME_BOUNDS`).

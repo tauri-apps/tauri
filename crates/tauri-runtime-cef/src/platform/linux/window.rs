@@ -40,9 +40,7 @@ impl AppWindow {
   }
 
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
-    let Some(xid) = self.xid() else {
-      return;
-    };
+    let xid = self.xid();
     let Some(color) = color else {
       return;
     };

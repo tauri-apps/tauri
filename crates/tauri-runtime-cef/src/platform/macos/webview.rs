@@ -14,16 +14,14 @@ use crate::{webview::AppWebview, window::AppWindow};
 use super::utils;
 
 impl AppWebview {
-  pub(crate) fn nsview(&self) -> Option<Retained<NSView>> {
+  pub(crate) fn nsview(&self) -> Retained<NSView> {
     let handle = self.host.window_handle();
     let view = handle.cast::<NSView>();
-    unsafe { Retained::<NSView>::retain(view) }
+    unsafe { Retained::<NSView>::retain(view).expect("failed to retain NSView") }
   }
 
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
 
     nsview.setWantsLayer(true);
 
@@ -40,9 +38,7 @@ impl AppWebview {
   }
 
   pub(crate) fn bounds(&self) -> Option<Rect> {
-    let Some(nsview) = self.nsview() else {
-      return None;
-    };
+    let nsview = self.nsview();
 
     let parent = unsafe { nsview.superview()? };
     let parent_frame = parent.frame();
@@ -64,28 +60,20 @@ impl AppWebview {
   }
 
   pub(crate) fn reparent(&self, parent: &AppWindow) {
-    let Some(view) = self.nsview() else {
-      return;
-    };
-    let Some(parent) = parent.nsview() else {
-      return;
-    };
+    let view = self.nsview();
+    let parent = parent.nsview();
 
     parent.addSubview(&view);
   }
 
   pub(crate) fn apply_visible(&self, visible: bool) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
 
     nsview.setHidden(!visible);
   }
 
   pub(crate) fn apply_physical_bounds(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
     let Some(parent) = (unsafe { nsview.superview() }) else {
       return;
     };

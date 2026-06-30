@@ -12,7 +12,6 @@ use std::{
 
 use cef::ImplBrowserHost;
 use raw_window_handle::HasWindowHandle;
-use raw_window_handle::RawWindowHandle;
 use tauri_runtime::{
   Error, Icon, ProgressBarState, Result, UserAttentionType, UserEvent, WindowDispatch,
   WindowEventId,
@@ -400,36 +399,6 @@ impl AppWindow {
     for child in &self.children {
       let request_context = child.host.request_context();
       request_context::apply_theme_scheme(request_context.as_ref(), theme);
-    }
-  }
-
-  pub(crate) fn raw_handle_as_cef_handle(&self) -> cef::sys::cef_window_handle_t {
-    let handle = self
-      .window
-      .window_handle()
-      .expect("failed to get window handle");
-    match handle.as_raw() {
-      #[cfg(windows)]
-      RawWindowHandle::Win32(handle) => cef::sys::HWND(handle.hwnd.get() as *mut _),
-      #[cfg(target_os = "macos")]
-      RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr().cast(),
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      RawWindowHandle::Xlib(handle) => handle.window as cef::sys::cef_window_handle_t,
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      RawWindowHandle::Xcb(handle) => handle.window.get() as cef::sys::cef_window_handle_t,
-      other => panic!("expected platform window handle, got {other:?}"),
     }
   }
 }

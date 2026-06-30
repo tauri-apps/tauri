@@ -12,12 +12,19 @@ use crate::window::AppWindow;
 use super::{taskbar, utils::set_wm_state};
 
 impl AppWindow {
-  fn xid(&self) -> Option<c_ulong> {
-    let handle = self.window.window_handle().ok()?;
+  pub(crate) fn raw_cef_handle(&self) -> cef::sys::cef_window_handle_t {
+    self.xid() as cef::sys::cef_window_handle_t
+  }
+
+  pub(crate) fn xid(&self) -> c_ulong {
+    let handle = self
+      .window
+      .window_handle()
+      .expect("failed to get window handle");
     match handle.as_raw() {
-      RawWindowHandle::Xlib(handle) => Some(handle.window as c_ulong),
-      RawWindowHandle::Xcb(handle) => Some(handle.window.get() as c_ulong),
-      _ => None,
+      RawWindowHandle::Xlib(handle) => handle.window as c_ulong,
+      RawWindowHandle::Xcb(handle) => handle.window.get() as c_ulong,
+      other => panic!("expected X11 window handle, got {other:?}"),
     }
   }
 
@@ -38,15 +45,11 @@ impl AppWindow {
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
-    if let Some(xid) = self.xid() {
-      set_wm_state(xid, skip, "_NET_WM_STATE_SKIP_TASKBAR", None);
-    }
+    set_wm_state(self.xid(), skip, "_NET_WM_STATE_SKIP_TASKBAR", None);
   }
 
   pub(crate) fn set_visible_on_all_workspaces(&self, visible: bool) {
-    if let Some(xid) = self.xid() {
-      set_wm_state(xid, visible, "_NET_WM_STATE_STICKY", None);
-    }
+    set_wm_state(self.xid(), visible, "_NET_WM_STATE_STICKY", None);
   }
 
   pub(crate) fn set_progress_bar(&self, state: ProgressBarState) {

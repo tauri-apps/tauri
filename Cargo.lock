@@ -8806,6 +8806,7 @@ dependencies = [
  "tauri-runtime-wry",
  "tauri-utils",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "tracing",
  "tray-icon",

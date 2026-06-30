@@ -1,4 +1,6 @@
 {
   "tag": "edition2024",
-  "changes": []
+  "changes": [
+    ".changes/edition2024.md"
+  ]
 }

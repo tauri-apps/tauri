@@ -5,7 +5,7 @@
 use std::{
   borrow::Cow,
   collections::HashMap,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, OnceLock},
 };
 
 use http::{Request, Response as HttpResponse, StatusCode, header::CONTENT_TYPE};
@@ -79,15 +79,13 @@ pub fn get<R: Runtime>(
       );
     }
   }
-  let client = client_builder.build().unwrap();
-
   let response_cache = Mutex::new(HashMap::new());
 
   let context = Arc::new(Context {
     manager,
     web_resource_request_handler,
     window_origin,
-    client,
+    client: LazyClient::new(client_builder),
     url,
     response_cache,
   });
@@ -115,8 +113,38 @@ struct Context<R: Runtime> {
   window_origin: String,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   url: String,
-  client: reqwest::Client,
+  client: LazyClient,
   response_cache: Mutex<HashMap<String, CachedResponse>>,
+}
+
+/// Holds the configured [`reqwest::ClientBuilder`] until the [`reqwest::Client`] is actually
+/// needed (only when proxying to the dev server), then builds and caches it for reuse.
+struct LazyClient {
+  builder: Mutex<Option<reqwest::ClientBuilder>>,
+  client: OnceLock<reqwest::Client>,
+}
+
+impl LazyClient {
+  fn new(builder: reqwest::ClientBuilder) -> Self {
+    Self {
+      builder: Mutex::new(Some(builder)),
+      client: OnceLock::new(),
+    }
+  }
+
+  /// Builds the client on first use and caches it for subsequent calls.
+  fn get(&self) -> &reqwest::Client {
+    self.client.get_or_init(|| {
+      self
+        .builder
+        .lock()
+        .unwrap()
+        .take()
+        .expect("HTTP client builder already consumed")
+        .build()
+        .unwrap()
+    })
+  }
 }
 
 async fn get_response<R: Runtime>(
@@ -161,7 +189,7 @@ async fn get_response<R: Runtime>(
     .header("Access-Control-Allow-Origin", window_origin);
 
   let mut response = if proxy_dev_server {
-    proxy_dev_request(client, url, response_cache, path, builder, &request).await?
+    proxy_dev_request(client.get(), url, response_cache, path, builder, &request).await?
   } else {
     let use_https_scheme = request.uri().scheme() == Some(&http::uri::Scheme::HTTPS);
     let asset = manager.get_asset(path, use_https_scheme)?;

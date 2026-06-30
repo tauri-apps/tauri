@@ -147,13 +147,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    if let Err(e) = patch_binary(&main_binary_path, package_type) {
-      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
-    }
+    // Patching rewrites the main binary in place, invalidating any existing code signature.
+    // When disabled, leave the binary untouched and skip the post-patch re-sign (whose only
+    // purpose is to repair that invalidated signature), preserving an already-signed binary.
+    if !settings.disable_binary_patching() {
+      if let Err(e) = patch_binary(&main_binary_path, package_type) {
+        log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+      }
 
-    // sign main binary for every package type after patch
-    if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
-      windows::sign::try_sign(&main_binary_path, settings)?;
+      // sign main binary for every package type after patch
+      if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
+        windows::sign::try_sign(&main_binary_path, settings)?;
+      }
     }
 
     let bundle_paths = match package_type {

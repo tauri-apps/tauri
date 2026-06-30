@@ -722,6 +722,11 @@ pub struct BundleSettings {
   pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
   pub windows: WindowsSettings,
+  /// Whether to disable patching the main binary with bundle type information.
+  ///
+  /// When `true`, the main executable is left untouched during bundling, preserving an
+  /// existing code signature at the cost of per-bundle-type updater support.
+  pub disable_binary_patching: bool,
 }
 
 /// A binary to bundle.
@@ -1313,6 +1318,11 @@ impl Settings {
   /// Returns the Updater settings.
   pub fn updater(&self) -> Option<&UpdaterSettings> {
     self.bundle_settings.updater.as_ref()
+  }
+
+  /// Whether patching the main binary with bundle type information is disabled.
+  pub fn disable_binary_patching(&self) -> bool {
+    self.bundle_settings.disable_binary_patching
   }
 
   /// Whether to skip signing.

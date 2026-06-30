@@ -661,14 +661,34 @@ impl<R: Runtime> AppManager<R> {
         self
           .listeners()
           .remove_webview_js_listeners(webview.label());
+        self
+          .listeners()
+          .remove_listeners_for_target(EventTarget::Webview {
+            label: webview.label().to_string(),
+          });
       }
     }
+    self
+      .listeners()
+      .remove_listeners_for_target(EventTarget::Window {
+        label: label.to_string(),
+      });
+    self
+      .listeners()
+      .remove_listeners_for_target(EventTarget::WebviewWindow {
+        label: label.to_string(),
+      });
   }
 
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
     self.listeners().remove_webview_js_listeners(label);
+    self
+      .listeners()
+      .remove_listeners_for_target(EventTarget::Webview {
+        label: label.to_string(),
+      });
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

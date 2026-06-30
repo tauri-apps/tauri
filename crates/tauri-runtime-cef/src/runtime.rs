@@ -474,17 +474,16 @@ impl<T: UserEvent> WinitCefApp<T> {
     &mut self,
     event_loop: &dyn ActiveEventLoop,
   ) -> MainThreadDispatchGuard<T> {
-    let dispatch = MainThreadDispatch {
+    let mut dispatch = Box::new(MainThreadDispatch {
       app: self as *mut _,
       event_loop: event_loop as *const _,
-      _marker: PhantomData,
-    };
+    });
 
-    let mut current_dispatch = self.context.current_dispatch.lock().unwrap();
-    let previous = current_dispatch.replace(dispatch);
+    let previous = self.context.current_dispatch.install(dispatch.as_mut());
 
     MainThreadDispatchGuard {
       context: self.context.clone(),
+      dispatch,
       previous,
     }
   }

@@ -4,6 +4,7 @@
 
 use std::num::NonZeroU32;
 
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri_runtime::{Icon, ProgressBarState, ProgressBarStatus};
 use tauri_utils::config::Color;
 use windows::Win32::{
@@ -25,9 +26,19 @@ use crate::{window::AppWindow, window_handle::SoftbufferWindowHandle};
 use super::icon::icon_to_hicon;
 
 impl AppWindow {
+  pub(crate) fn raw_cef_handle(&self) -> cef::sys::cef_window_handle_t {
+    cef::sys::HWND(self.hwnd().0 as *mut _)
+  }
+
   pub(crate) fn hwnd(&self) -> HWND {
-    let hwnd = self.raw_handle_as_cef_handle();
-    HWND(hwnd.0 as _)
+    let handle = self
+      .window
+      .window_handle()
+      .expect("failed to get window handle");
+    match handle.as_raw() {
+      RawWindowHandle::Win32(handle) => HWND(handle.hwnd.get() as _),
+      other => panic!("expected Win32 window handle, got {other:?}"),
+    }
   }
 
   pub(crate) fn is_enabled(&self) -> bool {

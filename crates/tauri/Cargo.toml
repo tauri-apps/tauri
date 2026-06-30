@@ -85,6 +85,9 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 # WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
 cookie = "0.18"
 
+# Pinning `time` used by `cookie` here to avoid a compilation error, see
+# - https://github.com/tauri-apps/tauri/issues/15615
+# - https://github.com/rwf2/cookie-rs/issues/255
 time = ">=0.3, <0.3.52"
 
 # desktop

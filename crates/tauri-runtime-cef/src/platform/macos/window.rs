@@ -15,6 +15,7 @@ use objc2_app_kit::{
   NSWindowStyleMask,
 };
 use objc2_foundation::{MainThreadMarker, NSPoint, NSRect};
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri_runtime::dpi::Position;
 use tauri_utils::{TitleBarStyle, config::Color};
 
@@ -23,16 +24,27 @@ use crate::window::AppWindow;
 use super::{AppkitState, utils};
 
 impl AppWindow {
-  pub(crate) fn nsview(&self) -> Option<Retained<NSView>> {
-    let handle = self.raw_handle_as_cef_handle();
-    let view = handle.cast::<NSView>();
-    unsafe { Retained::<NSView>::retain(view) }
+  pub(crate) fn raw_cef_handle(&self) -> cef::sys::cef_window_handle_t {
+    let nsview = self.nsview();
+    Retained::as_ptr(&nsview).cast_mut().cast()
+  }
+
+  pub(crate) fn nsview(&self) -> Retained<NSView> {
+    let handle = self
+      .window
+      .window_handle()
+      .expect("failed to get window handle");
+    match handle.as_raw() {
+      RawWindowHandle::AppKit(handle) => unsafe {
+        Retained::<NSView>::retain(handle.ns_view.as_ptr().cast::<NSView>())
+          .expect("failed to retain NSView")
+      },
+      other => panic!("expected AppKit window handle, got {other:?}"),
+    }
   }
 
   pub(crate) fn set_enabled(&self, enabled: bool) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
     let Some(nswindow) = nsview.window() else {
       return;
     };
@@ -67,15 +79,13 @@ impl AppWindow {
   pub(crate) fn is_enabled(&self) -> bool {
     self
       .nsview()
-      .and_then(|nsview| nsview.window())
+      .window()
       .map(|nswindow| nswindow.attachedSheet().is_none())
       .unwrap_or(true)
   }
 
   pub(crate) fn set_traffic_light_position(&self, position: &Position) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
     let Some(nswindow) = nsview.window() else {
       return;
     };
@@ -91,9 +101,7 @@ impl AppWindow {
   }
 
   pub(crate) fn associate_appkit_state(&self) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
     let Some(nswindow) = nsview.window() else {
       return;
     };
@@ -102,9 +110,7 @@ impl AppWindow {
   }
 
   pub(crate) fn set_title_bar_style(&self, style: TitleBarStyle) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
     let Some(nswindow) = nsview.window() else {
       return;
     };
@@ -133,9 +139,7 @@ impl AppWindow {
   }
 
   pub(crate) fn set_visible_on_all_workspaces(&self, visible: bool) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
     let Some(nswindow) = nsview.window() else {
       return;
     };
@@ -146,9 +150,7 @@ impl AppWindow {
   }
 
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
-    let Some(nsview) = self.nsview() else {
-      return;
-    };
+    let nsview = self.nsview();
     let Some(nswindow) = nsview.window() else {
       return;
     };

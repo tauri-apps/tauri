@@ -282,7 +282,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     drag_drop_event_target: browser_client::DragDropEventTarget,
     pending: PendingWebview<T, CefRuntime<T>>,
   ) -> Result<()> {
-    let parent = appwindow.raw_handle_as_cef_handle();
+    let parent = appwindow.raw_cef_handle();
     let parent_size = appwindow.window.surface_size();
     let scale = appwindow.window.scale_factor();
     let app_wide_theme = *context.app_wide_theme.lock().unwrap();

@@ -13,9 +13,10 @@ use crate::{webview::AppWebview, window::AppWindow};
 use super::utils::{atom, with_cef_display};
 
 impl AppWebview {
-  fn xid(&self) -> Option<xlib::Window> {
+  fn xid(&self) -> xlib::Window {
     let xid = self.host.window_handle();
-    (xid != 0).then_some(xid as xlib::Window)
+    assert_ne!(xid, 0, "failed to get XID");
+    xid as xlib::Window
   }
 
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
@@ -25,7 +26,7 @@ impl AppWebview {
   }
 
   pub(crate) fn bounds(&self) -> Option<Rect> {
-    let xid = self.xid()?;
+    let xid = self.xid();
 
     with_cef_display(None, |xlib, display| unsafe {
       let mut root: xlib::Window = 0;
@@ -59,13 +60,8 @@ impl AppWebview {
   }
 
   pub(crate) fn reparent(&self, parent: &AppWindow) {
-    let Some(xid) = self.xid() else {
-      return;
-    };
-    let parent_xid = parent.raw_handle_as_cef_handle();
-    if parent_xid == 0 {
-      return;
-    }
+    let xid = self.xid();
+    let parent_xid = parent.xid();
 
     with_cef_display((), |xlib, display| unsafe {
       (xlib.XReparentWindow)(display, xid, parent_xid as xlib::Window, 0, 0);
@@ -74,9 +70,7 @@ impl AppWebview {
   }
 
   pub(crate) fn apply_visible(&self, visible: bool) {
-    let Some(xid) = self.xid() else {
-      return;
-    };
+    let xid = self.xid();
 
     with_cef_display((), |xlib, display| unsafe {
       let net_wm_state = atom(xlib, display, "_NET_WM_STATE");
@@ -112,9 +106,7 @@ impl AppWebview {
   }
 
   pub(crate) fn apply_physical_bounds(&self, _scale: f64, x: i32, y: i32, width: i32, height: i32) {
-    let Some(xid) = self.xid() else {
-      return;
-    };
+    let xid = self.xid();
 
     with_cef_display((), |xlib, display| unsafe {
       (xlib.XMoveResizeWindow)(

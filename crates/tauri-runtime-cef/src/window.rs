@@ -5,7 +5,7 @@
 use std::{
   collections::HashMap,
   sync::{
-    Arc, Mutex,
+    Arc, Mutex, RwLock,
     mpsc::{self, Receiver, Sender},
   },
 };
@@ -31,6 +31,8 @@ use winit::{
   window::{Window as WinitWindow, WindowAttributes, WindowLevel},
 };
 
+#[cfg(target_os = "macos")]
+use crate::platform::macos::AppkitState;
 use crate::platform::{EventLoopExt, MonitorExt};
 #[cfg(any(windows, target_os = "macos"))]
 use std::marker::PhantomData;
@@ -324,6 +326,8 @@ pub(crate) struct AppWindow {
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: WindowEventListeners,
+  #[cfg(target_os = "macos")]
+  pub(crate) appkit_state: Arc<RwLock<AppkitState>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -462,15 +466,17 @@ impl<T: UserEvent> WinitCefApp<T> {
       attrs,
       children: Vec::new(),
       listeners: Default::default(),
+      #[cfg(target_os = "macos")]
+      appkit_state: Arc::new(RwLock::new(AppkitState::default())),
     };
 
     #[cfg(target_os = "macos")]
     {
-      if let Some(position) = &appwindow.attrs.traffic_light_position {
-        appwindow.apply_traffic_light_position(position);
-      }
-
+      appwindow.associate_appkit_state();
       appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
+      if let Some(position) = &appwindow.attrs.traffic_light_position {
+        appwindow.set_traffic_light_position(position);
+      }
     }
 
     #[cfg(any(
@@ -769,7 +775,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         #[cfg(target_os = "macos")]
         {
           app_window.attrs.traffic_light_position = Some(_position.clone());
-          app_window.apply_traffic_light_position(&_position);
+          app_window.set_traffic_light_position(&_position);
         }
       }
       WindowMessage::SetTitleBarStyle(_style) => {

@@ -2,13 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{sync::OnceLock, time::Instant};
+use std::{ffi::c_void, sync::OnceLock, time::Instant};
 
-use objc2::rc::Retained;
+use objc2::{
+  ClassType,
+  ffi::{OBJC_ASSOCIATION_RETAIN_NONATOMIC, objc_getAssociatedObject, objc_setAssociatedObject},
+  rc::Retained,
+  runtime::AnyObject,
+};
 use objc2_app_kit::NSColor;
 use objc2_application_services::{
   ProcessApplicationTransformState, TransformProcessType, kCurrentProcess,
 };
+use objc2_foundation::NSValue;
 use tauri_utils::config::Color;
 
 #[repr(C)]
@@ -44,4 +50,33 @@ pub fn ns_color_from_tauri_color(color: Color) -> Retained<NSColor> {
 pub fn instant_epoch() -> Instant {
   static INSTANT_EPOCH: OnceLock<Instant> = OnceLock::new();
   *INSTANT_EPOCH.get_or_init(Instant::now)
+}
+
+pub(crate) fn set_associated_data<T, O: ClassType>(object: &O, key: *const c_void, data: *const T) {
+  let value: Retained<AnyObject> = NSValue::new(data.cast::<c_void>()).into();
+  unsafe {
+    objc_setAssociatedObject(
+      object as *const O as *mut AnyObject,
+      key,
+      Retained::as_ptr(&value) as *mut AnyObject,
+      OBJC_ASSOCIATION_RETAIN_NONATOMIC,
+    );
+  }
+}
+
+pub(crate) unsafe fn associated_data<T, O: ClassType>(
+  object: &O,
+  key: *const c_void,
+) -> Option<&T> {
+  let value = unsafe { objc_getAssociatedObject(object as *const O as *const AnyObject, key) };
+  if value.is_null() {
+    return None;
+  }
+
+  let data = unsafe { (*(value as *const NSValue)).get::<*const c_void>() };
+  if data.is_null() {
+    return None;
+  }
+
+  Some(unsafe { &*(data as *const T) })
 }

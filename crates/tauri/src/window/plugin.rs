@@ -207,9 +207,10 @@ mod desktop_commands {
     label: Option<String>,
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
-    match window.is_maximized()? {
-      true => window.unmaximize()?,
-      false => window.maximize()?,
+    if window.is_maximized()? {
+      window.unmaximize()?
+    } else {
+      window.maximize()?
     };
     Ok(())
   }
@@ -221,9 +222,10 @@ mod desktop_commands {
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
     if window.is_resizable()? {
-      match window.is_maximized()? {
-        true => window.unmaximize()?,
-        false => window.maximize()?,
+      if window.is_maximized()? {
+        window.unmaximize()?
+      } else if window.is_maximizable()? {
+        window.maximize()?
       };
     }
     Ok(())

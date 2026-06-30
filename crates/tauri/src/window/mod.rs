@@ -1331,7 +1331,7 @@ tauri::Builder::<tauri::Wry>::new()
     let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
     // remove from the window
-    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    #[cfg(not(target_os = "macos"))]
     if let Some(menu) = &prev_menu {
       let window = self.clone();
       let menu = menu.clone();
@@ -1361,9 +1361,13 @@ tauri::Builder::<tauri::Wry>::new()
   }
 
   /// Hides the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn hide_menu(&self) -> crate::Result<()> {
     // remove from the window
-    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    #[cfg(not(target_os = "macos"))]
     if let Some(window_menu) = &*self.menu_lock() {
       let window = self.clone();
       let menu_ = window_menu.menu.clone();
@@ -1389,9 +1393,13 @@ tauri::Builder::<tauri::Wry>::new()
   }
 
   /// Shows the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn show_menu(&self) -> crate::Result<()> {
     // remove from the window
-    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    #[cfg(not(target_os = "macos"))]
     if let Some(window_menu) = &*self.menu_lock() {
       let window = self.clone();
       let menu_ = window_menu.menu.clone();
@@ -1417,9 +1425,13 @@ tauri::Builder::<tauri::Wry>::new()
   }
 
   /// Shows the window menu.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS:** Unsupported.
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     // remove from the window
-    #[cfg_attr(target_os = "macos", allow(unused_variables))]
+    #[cfg(not(target_os = "macos"))]
     if let Some(window_menu) = &*self.menu_lock() {
       let (tx, rx) = std::sync::mpsc::channel();
       let window = self.clone();

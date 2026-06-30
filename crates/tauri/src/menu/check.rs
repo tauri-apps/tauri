@@ -36,11 +36,7 @@ impl<R: Runtime> CheckMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::CheckMenuItem::new(text, enabled, checked, accelerator);
-      CheckMenuItemInner {
-        id: item.id().clone(),
-        inner: Some(item),
-        app_handle,
-      }
+      CheckMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -73,11 +69,7 @@ impl<R: Runtime> CheckMenuItem<R> {
 
     let item = run_main_thread!(handle, || {
       let item = muda::CheckMenuItem::with_id(id.clone(), text, enabled, checked, accelerator);
-      CheckMenuItemInner {
-        id,
-        inner: Some(item),
-        app_handle,
-      }
+      CheckMenuItemInner::new(app_handle, item)
     })?;
 
     Ok(Self(Arc::new(item)))
@@ -90,7 +82,7 @@ impl<R: Runtime> CheckMenuItem<R> {
 
   /// Returns a unique identifier associated with this menu item.
   pub fn id(&self) -> &MenuId {
-    &self.0.id
+    self.0.inner.id()
   }
 
   /// Get the text for this menu item.

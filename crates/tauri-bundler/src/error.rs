@@ -14,6 +14,7 @@ use thiserror::Error as DeriveError;
 #[derive(Debug, DeriveError)]
 #[non_exhaustive]
 pub enum Error {
+  // TODO: Change this and the `Context` trait to `Box<dyn std::error::Error + Send + Sync + 'static>` in v3
   /// Error with context. Created by the [`Context`] trait.
   #[error("{0}: {1}")]
   Context(String, Box<Self>),

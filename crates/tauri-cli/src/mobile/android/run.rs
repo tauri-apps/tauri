@@ -10,10 +10,11 @@ use cargo_mobile2::{
 use clap::{ArgAction, Parser};
 use std::path::PathBuf;
 
-use super::{configure_cargo, device_prompt, env};
+use super::{configure_cargo, device_prompt, env, sync_debug_application_id_suffix};
 use crate::{
   error::Context,
-  interface::{DevProcess, Interface, WatcherOptions},
+  helpers::config::ConfigMetadata,
+  interface::{DevProcess, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
 };
@@ -28,8 +29,8 @@ pub struct Options {
   #[clap(short, long)]
   pub release: bool,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
+  pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
@@ -77,7 +78,17 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
-  let mut built_application = super::build::command(
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  let mut tauri_config = crate::helpers::config::get_config(
+    tauri_utils::platform::Target::Android,
+    &options
+      .config
+      .iter()
+      .map(|conf| &conf.0)
+      .collect::<Vec<_>>(),
+    dirs.tauri,
+  )?;
+  let mut built_application = super::build::run(
     super::build::Options {
       debug: !options.release,
       targets: device.as_ref().map(|d| {
@@ -90,8 +101,9 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       features: options.features,
       config: options.config.clone(),
       split_per_abi: true,
-      apk: Some(false),
-      aab: Some(false),
+      apk: false,
+      aab: false,
+      skip_bundle: true,
       open: options.open,
       ci: false,
       args: options.args,
@@ -102,6 +114,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }),
     },
     noise_level,
+    &dirs,
+    &tauri_config,
   )?;
 
   configure_cargo(&mut env, &built_application.config)?;
@@ -111,9 +125,22 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(device) = device {
     let config = built_application.config.clone();
     let release = options.release;
-    let runner = move || {
+
+    let runner = move |tauri_config: &ConfigMetadata| {
+      sync_debug_application_id_suffix(&config, tauri_config)?;
+
+      let application_id_suffix = if !release {
+        tauri_config
+          .bundle
+          .android
+          .debug_application_id_suffix
+          .clone()
+      } else {
+        None
+      };
+
       device
-        .run(
+        .run_with_application_id_suffix(
           &config,
           &env,
           noise_level,
@@ -129,21 +156,24 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
           }),
           false,
           false,
-          ".MainActivity".into(),
+          format!("{}.MainActivity", config.app().identifier()),
+          application_id_suffix,
         )
         .map(|c| Box::new(DevChild::new(c)) as Box<dyn DevProcess + Send>)
         .context("failed to run Android app")
     };
 
     if options.no_watch {
-      runner()?;
+      runner(&tauri_config)?;
     } else {
       built_application.interface.watch(
+        &mut tauri_config,
         WatcherOptions {
           config: options.config,
           additional_watch_folders: options.additional_watch_folders,
         },
         runner,
+        &dirs,
       )?;
     }
   }

@@ -47,16 +47,46 @@ import { Image, transformImage } from './image'
 export interface Monitor {
   /** Human-readable name of the monitor */
   name: string | null
-  /** The monitor's resolution. */
+  /**
+   * The monitor's resolution in physical pixels.
+   *
+   * Use {@linkcode Monitor.scaleFactor} to convert to logical pixels:
+   * ```typescript
+   * const logicalSize = monitor.size.toLogical(monitor.scaleFactor);
+   * ```
+   */
   size: PhysicalSize
-  /** the Top-left corner position of the monitor relative to the larger full screen area. */
+  /**
+   * the Top-left corner position of the monitor relative to the larger full screen area, in physical pixels.
+   *
+   * Note that window creation options such as `x`, `y`, `width` and `height` expect
+   * logical pixels, so convert with {@linkcode Monitor.scaleFactor} first:
+   * ```typescript
+   * import { currentMonitor } from '@tauri-apps/api/window';
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+   *
+   * const monitor = await currentMonitor();
+   * if (monitor) {
+   *   const position = monitor.position.toLogical(monitor.scaleFactor);
+   *   const webview = new WebviewWindow('my-label', { x: position.x, y: position.y });
+   * }
+   * ```
+   */
   position: PhysicalPosition
-  /** The monitor's work area. */
+  /**
+   * The monitor's work area (the monitor area excluding taskbars and docks) in physical pixels.
+   *
+   * Use {@linkcode Monitor.scaleFactor} to convert to logical pixels as shown in
+   * {@linkcode Monitor.position}.
+   */
   workArea: {
     position: PhysicalPosition
     size: PhysicalSize
   }
-  /** The scale factor that can be used to map physical pixels to logical pixels. */
+  /**
+   * The scale factor that can be used to map physical pixels to logical pixels,
+   * e.g. `monitor.position.toLogical(monitor.scaleFactor)`.
+   */
   scaleFactor: number
 }
 
@@ -816,6 +846,18 @@ class Window {
    */
   async isAlwaysOnTop(): Promise<boolean> {
     return invoke('plugin:window|is_always_on_top', {
+      label: this.label
+    })
+  }
+
+  async activityName(): Promise<string> {
+    return invoke('plugin:window|activity_name', {
+      label: this.label
+    })
+  }
+
+  async sceneIdentifier(): Promise<string> {
+    return invoke('plugin:window|scene_identifier', {
       label: this.label
     })
   }
@@ -2321,21 +2363,21 @@ interface PreventOverflowMargin {
 interface WindowOptions {
   /** Show window in the center of the screen.. */
   center?: boolean
-  /** The initial vertical position. Only applies if `y` is also set. */
+  /** The initial vertical position in logical pixels. Only applies if `y` is also set. */
   x?: number
-  /** The initial horizontal position. Only applies if `x` is also set. */
+  /** The initial horizontal position in logical pixels. Only applies if `x` is also set. */
   y?: number
-  /** The initial width. */
+  /** The initial width in logical pixels. */
   width?: number
-  /** The initial height. */
+  /** The initial height in logical pixels. */
   height?: number
-  /** The minimum width. Only applies if `minHeight` is also set. */
+  /** The minimum width in logical pixels. Only applies if `minHeight` is also set. */
   minWidth?: number
-  /** The minimum height. Only applies if `minWidth` is also set. */
+  /** The minimum height in logical pixels. Only applies if `minWidth` is also set. */
   minHeight?: number
-  /** The maximum width. Only applies if `maxHeight` is also set. */
+  /** The maximum width in logical pixels. Only applies if `maxHeight` is also set. */
   maxWidth?: number
-  /** The maximum height. Only applies if `maxWidth` is also set. */
+  /** The maximum height in logical pixels. Only applies if `maxWidth` is also set. */
   maxHeight?: number
   /**
    * Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
@@ -2527,6 +2569,23 @@ interface WindowOptions {
    * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
    */
   scrollBarStyle?: ScrollBarStyle
+  /**
+   * The name of the Android activity to create for this window.
+   */
+  activityName?: string
+  /**
+   * The name of the Android activity that is creating this webview window.
+   *
+   * This is important to determine which stack the activity will belong to.
+   */
+  createdByActivityName?: string
+  /**
+   * Sets the identifier of the UIScene that is requesting the creation of this new scene,
+   * establishing a relationship between the two scenes.
+   *
+   * By default the system uses the foreground scene.
+   */
+  requestedBySceneIdentifier?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

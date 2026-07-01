@@ -26,6 +26,8 @@ pub mod config;
 pub mod config_v1;
 #[cfg(feature = "html-manipulation")]
 pub mod html;
+#[cfg(feature = "html-manipulation-2")]
+pub mod html2;
 pub mod io;
 pub mod mime_type;
 pub mod platform;
@@ -33,10 +35,10 @@ pub mod plugin;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
 pub mod resources;
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 pub mod tokens;
 
-#[cfg(feature = "build")]
+#[cfg(any(feature = "build", feature = "build-2"))]
 pub mod build;
 
 /// Application pattern.

@@ -14,6 +14,7 @@ use thiserror::Error as DeriveError;
 #[derive(Debug, DeriveError)]
 #[non_exhaustive]
 pub enum Error {
+  // TODO: Change this and the `Context` trait to `Box<dyn std::error::Error + Send + Sync + 'static>` in v3
   /// Error with context. Created by the [`Context`] trait.
   #[error("{0}: {1}")]
   Context(String, Box<Self>),
@@ -99,19 +100,13 @@ pub enum Error {
   #[error("Wrong package type {0} for platform {1}")]
   InvalidPackageType(String, String),
   /// Bundle type symbol missing in binary
-  #[cfg_attr(
-    target_os = "linux",
-    error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date and that symbol stripping is disabled (https://doc.rust-lang.org/cargo/reference/profiles.html#strip)")
-  )]
-  #[cfg_attr(
-    not(target_os = "linux"),
-    error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date")
-  )]
+  #[error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date")]
   MissingBundleTypeVar,
   /// Failed to write binary file changed
   #[error("Failed to write binary file changes: `{0}`")]
   BinaryWriteError(String),
   /// Invalid offset while patching binary file
+  #[deprecated]
   #[error("Invalid offset while patching binary file")]
   BinaryOffsetOutOfRange,
   /// Unsupported architecture.

@@ -17,7 +17,7 @@ use crate::{
 /// <https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106>
 fn normalize_path(path: &Path) -> PathBuf {
   let mut components = path.components().peekable();
-  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().copied() {
     components.next();
     PathBuf::from(c.as_os_str())
   } else {
@@ -47,7 +47,7 @@ fn normalize_path(path: &Path) -> PathBuf {
 /// <https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106>
 fn normalize_path_no_absolute(path: &Path) -> PathBuf {
   let mut components = path.components().peekable();
-  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().copied() {
     components.next();
     PathBuf::from(c.as_os_str())
   } else {

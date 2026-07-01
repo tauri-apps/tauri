@@ -64,9 +64,10 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
 }
 
 #[cfg(target_os = "windows")]
-pub fn os_bitness<'a>() -> Option<&'a str> {
+pub fn processor_architecture<'a>() -> Option<&'a str> {
   use windows_sys::Win32::System::SystemInformation::{
-    GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
+    GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM,
+    PROCESSOR_ARCHITECTURE_ARM64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
   };
 
   let mut system_info: SYSTEM_INFO = unsafe { std::mem::zeroed() };
@@ -74,78 +75,8 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
   match unsafe { system_info.Anonymous.Anonymous.wProcessorArchitecture } {
     PROCESSOR_ARCHITECTURE_INTEL => Some("x86"),
     PROCESSOR_ARCHITECTURE_AMD64 => Some("x64"),
+    PROCESSOR_ARCHITECTURE_ARM => Some("arm"),
+    PROCESSOR_ARCHITECTURE_ARM64 => Some("arm64"),
     _ => None,
   }
-}
-
-pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) -> crate::Result<()> {
-  let mut file_data = std::fs::read(binary_path)?;
-
-  let pe = match goblin::Object::parse(&file_data)? {
-    goblin::Object::PE(pe) => pe,
-    _ => {
-      return Err(crate::Error::BinaryParseError(
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, "binary is not a PE file").into(),
-      ));
-    }
-  };
-
-  let tauri_bundle_section = pe
-    .sections
-    .iter()
-    .find(|s| s.name().unwrap_or_default() == ".taubndl")
-    .ok_or(crate::Error::MissingBundleTypeVar)?;
-
-  let data_offset = tauri_bundle_section.pointer_to_raw_data as usize;
-  let pointer_size = if pe.is_64 { 8 } else { 4 };
-  let ptr_bytes = file_data
-    .get(data_offset..data_offset + pointer_size)
-    .ok_or(crate::Error::BinaryOffsetOutOfRange)?;
-  // `try_into` is safe to `unwrap` here because we have already checked the slice's size through `get`
-  let ptr_value = if pe.is_64 {
-    u64::from_le_bytes(ptr_bytes.try_into().unwrap())
-  } else {
-    u32::from_le_bytes(ptr_bytes.try_into().unwrap()).into()
-  };
-
-  let rdata_section = pe
-    .sections
-    .iter()
-    .find(|s| s.name().unwrap_or_default() == ".rdata")
-    .ok_or_else(|| {
-      crate::Error::BinaryParseError(
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, ".rdata section not found").into(),
-      )
-    })?;
-
-  let rva = ptr_value.checked_sub(pe.image_base as u64).ok_or_else(|| {
-    crate::Error::BinaryParseError(
-      std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid RVA offset").into(),
-    )
-  })?;
-
-  // see "Relative virtual address (RVA)" for explanation of offset arithmetic here:
-  // https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#general-concepts
-  let file_offset = rdata_section.pointer_to_raw_data as usize
-    + (rva as usize).saturating_sub(rdata_section.virtual_address as usize);
-
-  // Overwrite the string at that offset
-  let string_bytes = file_data
-    .get_mut(file_offset..file_offset + 3)
-    .ok_or(crate::Error::BinaryOffsetOutOfRange)?;
-  match package_type {
-    crate::PackageType::Nsis => string_bytes.copy_from_slice(b"NSS"),
-    crate::PackageType::WindowsMsi => string_bytes.copy_from_slice(b"MSI"),
-    _ => {
-      return Err(crate::Error::InvalidPackageType(
-        package_type.short_name().to_owned(),
-        "windows".to_owned(),
-      ));
-    }
-  }
-
-  std::fs::write(binary_path, &file_data)
-    .map_err(|e| crate::Error::BinaryWriteError(e.to_string()))?;
-
-  Ok(())
 }

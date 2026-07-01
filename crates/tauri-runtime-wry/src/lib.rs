@@ -529,23 +529,6 @@ impl WindowEventWrapper {
         #[allow(clippy::collapsible_match)]
         if window.has_children.load(Ordering::Relaxed) {
           let mut focused_webview = window.focused_webview.lock().unwrap();
-          // when we focus a webview and the window was previously focused, we get a blur event here
-          // so on blur we should only send events if the current focus is owned by the window
-          // if !*focused
-          //   && focused_webview
-          //     .as_deref()
-          //     .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
-          // {
-          //   return Self(None);
-          // }
-
-          // // reset focused_webview on blur, or set to a dummy value on focus
-          // // (to prevent double focus event when we click a webview after focusing a window)
-          // *focused_webview = if *focused {
-          //   Some(FOCUSED_WEBVIEW_MARKER.to_owned())
-          // } else {
-          //   None
-          // };
 
           if *focused {
             if let FocusState::Blured {
@@ -564,7 +547,6 @@ impl WindowEventWrapper {
             }
           } else {
             if let FocusState::WebviewFocused { ref webview_label } = *focused_webview {
-              // only reset when we lost window focus - otherwise some other webview is focused
               *focused_webview = FocusState::Blured {
                 last_focused_webview_label: Some(webview_label.clone()),
               };
@@ -5336,7 +5318,6 @@ You may have it installed on another user account, but it is not available for t
     if let Err(error) = unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          dbg!("GotFocus");
           let mut focused_webview = focused_webview_.lock().unwrap();
           // when using multiwebview mode, we should check if the focus change is actually a "webview focus change"
           // instead of a window focus change (here we're patching window events, so we only care about the actual window changing focus)
@@ -5377,22 +5358,19 @@ You may have it installed on another user account, but it is not available for t
           // on multiwebview mode if we change focus to a different webview
           // we get the gotFocus event of the other webview before the lostFocus
           // so this check makes sense
-          match *focused_webview {
-            FocusState::WebviewFocused { ref webview_label } => {
-              let lost_window_focus = webview_label == &label_;
-              if lost_window_focus {
-                // only reset when we lost window focus - otherwise some other webview is focused
-                *focused_webview = FocusState::Blured {
-                  last_focused_webview_label: Some(label_.clone()),
-                };
-                let _ = proxy_clone.send_event(Message::Webview(
-                  *window_id_.lock().unwrap(),
-                  id,
-                  WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
-                ));
-              }
+          if let FocusState::WebviewFocused { ref webview_label } = *focused_webview {
+            let lost_window_focus = webview_label == &label_;
+            if lost_window_focus {
+              // only reset when we lost window focus - otherwise some other webview is focused
+              *focused_webview = FocusState::Blured {
+                last_focused_webview_label: Some(label_.clone()),
+              };
+              let _ = proxy_clone.send_event(Message::Webview(
+                *window_id_.lock().unwrap(),
+                id,
+                WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
+              ));
             }
-            _ => {}
           }
 
           Ok(())

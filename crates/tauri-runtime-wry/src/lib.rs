@@ -527,13 +527,12 @@ impl WindowEventWrapper {
         // in this case we must send the focus change event here
         #[cfg(windows)]
         if window.has_children.load(Ordering::Relaxed) {
-          let mut focused_webview = window.focused_webview.lock().unwrap();
-
           if !*focused {
             // Blur events are handled in the webview side (add_LostFocus)
             return Self(None);
           }
 
+          let mut focused_webview = window.focused_webview.lock().unwrap();
           if let FocusState::Blured {
             last_focused_webview_label,
           } = &*focused_webview
@@ -552,7 +551,7 @@ impl WindowEventWrapper {
               drop(focused_webview);
               let _ = should_focus_webview.focus();
             }
-            WindowEvent::Focused(*focused)
+            WindowEvent::Focused(true)
           } else {
             // Already focused
             return Self(None);

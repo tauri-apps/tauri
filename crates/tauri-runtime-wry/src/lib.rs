@@ -557,6 +557,9 @@ impl WindowEventWrapper {
           }
 
           WindowEvent::Focused(*focused)
+        } else if window.webviews.is_empty() {
+          // Raw tao window without webviews, forward the event
+          WindowEvent::Focused(*focused)
         } else {
           // when not on multiwebview mode, wry will set focus to the webview,
           // and we will handle focus change events on the webview (add_GotFocus and add_LostFocus)

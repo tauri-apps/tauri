@@ -4707,6 +4707,11 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let focused_webview = Arc::new(Mutex::new(FocusState::default()));
 
+  #[cfg(feature = "unstable")]
+  let has_children = webview.is_some();
+  #[cfg(not(feature = "unstable"))]
+  let has_children = false;
+
   if let Some(webview) = webview {
     webviews.push(create_webview(
       #[cfg(feature = "unstable")]
@@ -4742,7 +4747,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   Ok(WindowWrapper {
     label,
-    has_children: AtomicBool::new(false),
+    has_children: AtomicBool::new(has_children),
     inner: Some(window),
     webviews,
     window_event_listeners,

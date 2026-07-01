@@ -108,18 +108,18 @@ webkit2gtk = { version = "2", features = ["v2_40"], optional = true }
 
 # darwin
 [target.'cfg(target_vendor = "apple")'.dependencies]
-objc2 = "0.6.3"
+objc2 = "0.6"
 
 # macOS
 [target.'cfg(target_os = "macos")'.dependencies]
 embed_plist = "1.2"
 plist = "1"
-objc2-foundation = { version = "0.3.2", default-features = false, features = [
+objc2-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "NSData",
   "NSThread",
 ] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
   "NSApplication",
   "NSColor",

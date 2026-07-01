@@ -2251,11 +2251,11 @@ enum Effect {
    */
   UnderPageBackground = 'underPageBackground',
   /**
-   *  **macOS 10.14+**
+   *  **macOS 26.0+**
    */
   LiquidGlassRegular = 'liquidGlassRegular',
   /**
-   *  **macOS 10.14+**
+   *  **macOS 26.0+**
    */
   LiquidGlassClear = 'liquidGlassClear',
   /**

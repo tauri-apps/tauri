@@ -526,37 +526,37 @@ impl WindowEventWrapper {
         // (without receiving a webview focus, such as when clicking the taskbar app icon or using Alt + Tab)
         // in this case we must send the focus change event here
         #[cfg(windows)]
-        #[allow(clippy::collapsible_match)]
         if window.has_children.load(Ordering::Relaxed) {
           let mut focused_webview = window.focused_webview.lock().unwrap();
 
-          if *focused {
-            if let FocusState::Blured {
-              last_focused_webview_label: Some(last_focused_webview_label),
-            } = &*focused_webview
-            {
-              if let Some(should_focus_webview) = window
-                .webviews
-                .iter()
-                .find(|w| &w.label == last_focused_webview_label)
-              {
-                *focused_webview = FocusState::WindowFocused;
-                drop(focused_webview);
-                let _ = should_focus_webview.focus();
-              }
-            } else {
-              // Already focused
-              return Self(None);
-            }
-          } else {
-            if let FocusState::WindowFocused = *focused_webview {
-              *focused_webview = FocusState::Blured {
-                last_focused_webview_label: None,
-              };
-            }
+          if !*focused {
+            // Blur events are handled in the webview side (add_LostFocus)
+            return Self(None);
           }
 
-          WindowEvent::Focused(*focused)
+          if let FocusState::Blured {
+            last_focused_webview_label,
+          } = &*focused_webview
+          {
+            let should_focus_webview =
+              last_focused_webview_label
+                .as_deref()
+                .and_then(|last_focused_webview_label| {
+                  window
+                    .webviews
+                    .iter()
+                    .find(|w| w.label == last_focused_webview_label)
+                });
+            *focused_webview = FocusState::WindowFocused;
+            if let Some(should_focus_webview) = should_focus_webview {
+              drop(focused_webview);
+              let _ = should_focus_webview.focus();
+            }
+            WindowEvent::Focused(*focused)
+          } else {
+            // Already focused
+            return Self(None);
+          }
         } else if window.webviews.is_empty() {
           // Raw tao window without webviews, forward the event
           WindowEvent::Focused(*focused)

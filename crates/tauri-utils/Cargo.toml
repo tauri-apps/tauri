@@ -33,7 +33,7 @@ serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }
 serialize-to-javascript = { version = "0.1.2", optional = true }
-ctor = { version = "0.8", default-features = false, features = [
+ctor = { version = "1.0", default-features = false, features = [
   "std",
   "proc_macro",
 ] }

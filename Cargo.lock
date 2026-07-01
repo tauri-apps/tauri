@@ -1278,9 +1278,9 @@ dependencies = [
 
 [[package]]
 name = "cef-dll-sys"
-version = "148.4.0+148.0.10"
+version = "148.0.0+147.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44bb7cd245523541086bc978250e194ceff8d9988de9b81500a01dc195b71c65"
+checksum = "0d32a7c89af6c77688ad58dc75555c9398c5ded2c328a3ff83554fccc840af57"
 dependencies = [
  "anyhow",
  "cmake",
@@ -6466,7 +6466,7 @@ dependencies = [
  "aes-gcm",
  "aes-kw",
  "argon2",
- "base64 0.22.1",
+ "base64 0.21.7",
  "bitfields",
  "block-padding",
  "blowfish",
@@ -8889,7 +8889,7 @@ version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1c97747dbf44bb1ca44a561ece23508e99cb592e862f22222dcf42f51d1e451"
 dependencies = [
- "heck 0.5.0",
+ "heck 0.4.1",
  "proc-macro2",
  "quote",
  "syn 2.0.118",
@@ -9835,6 +9835,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "cef",
+ "cef-dll-sys",
  "dioxus-debug-cell",
  "dirs 6.0.0",
  "dispatch2",

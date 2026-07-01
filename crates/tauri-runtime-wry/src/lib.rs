@@ -50,7 +50,10 @@ use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
-use webview2_com::{ContainsFullScreenElementChangedEventHandler, FocusChangedEventHandler};
+use webview2_com::{
+  ContainsFullScreenElementChangedEventHandler, FocusChangedEventHandler,
+  Microsoft::Web::WebView2::Win32::ICoreWebView2Controller,
+};
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "ios")]
@@ -5321,75 +5324,15 @@ You may have it installed on another user account, but it is not available for t
     let controller = webview.controller();
     let mut token = 0;
 
-    let label_ = label.clone();
-    let window_id_ = window_id.clone();
-    let proxy_clone = context.proxy.clone();
-    let focused_webview_ = focused_webview.clone();
-    if let Err(error) = unsafe {
-      controller.add_GotFocus(
-        &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let mut focused_webview = focused_webview_.lock().unwrap();
-          // when using multiwebview mode, we should check if the focus change is actually a "webview focus change"
-          // instead of a window focus change (here we're patching window events, so we only care about the actual window changing focus)
-          let already_focused = matches!(
-            *focused_webview,
-            FocusState::WindowFocused | FocusState::WebviewFocused { .. }
-          );
-          *focused_webview = FocusState::WebviewFocused {
-            webview_label: label_.clone(),
-          };
-
-          if !already_focused {
-            let _ = proxy_clone.send_event(Message::Webview(
-              *window_id_.lock().unwrap(),
-              id,
-              WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
-            ));
-          }
-          Ok(())
-        })),
-        &mut token,
-      )
-    } {
-      log::error!("Failed to attach WebView2 `add_GotFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
-    }
-
-    let label_ = label.clone();
-    let window_id_ = window_id.clone();
-    let proxy_clone = context.proxy.clone();
-    if let Err(error) = unsafe {
-      controller.add_LostFocus(
-        &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let mut focused_webview = focused_webview.lock().unwrap();
-          // when using multiwebview mode, we should handle webview focus changes
-          // so we check is the currently focused webview matches this webview's
-          // (in this case, it means we lost the window focus)
-          //
-          // on multiwebview mode if we change focus to a different webview
-          // we get the gotFocus event of the other webview before the lostFocus
-          // so this check makes sense
-          if let FocusState::WebviewFocused { ref webview_label } = *focused_webview {
-            let lost_window_focus = webview_label == &label_;
-            if lost_window_focus {
-              // only reset when we lost window focus - otherwise some other webview is focused
-              *focused_webview = FocusState::Blured {
-                last_focused_webview_label: Some(label_.clone()),
-              };
-              let _ = proxy_clone.send_event(Message::Webview(
-                *window_id_.lock().unwrap(),
-                id,
-                WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
-              ));
-            }
-          }
-
-          Ok(())
-        })),
-        &mut token,
-      )
-    } {
-      log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
-    }
+    add_focus_change_listeners(
+      window_id.clone(),
+      id,
+      context.proxy.clone(),
+      focused_webview,
+      label.clone(),
+      &controller,
+      &mut token,
+    );
 
     if let Ok(webview) = unsafe { controller.CoreWebView2() } {
       let proxy_clone = context.proxy.clone();
@@ -5425,6 +5368,87 @@ You may have it installed on another user account, but it is not available for t
     },
     bounds: Arc::new(Mutex::new(webview_bounds)),
   })
+}
+
+/// Used to prevent duplicated [`WindowEvent::Focused`] events,
+/// and to track last focused webview in multi-webview mode for us to restore webview focuses
+#[cfg(windows)]
+fn add_focus_change_listeners<T: UserEvent>(
+  window_id: Arc<Mutex<WindowId>>,
+  id: u32,
+  proxy: TaoEventLoopProxy<Message<T>>,
+  focused_webview: Arc<Mutex<FocusState>>,
+  label: String,
+  controller: &ICoreWebView2Controller,
+  token: &mut i64,
+) {
+  let label_ = label.clone();
+  let window_id_ = window_id.clone();
+  let proxy_clone = proxy.clone();
+  let focused_webview_ = focused_webview.clone();
+  if let Err(error) = unsafe {
+    controller.add_GotFocus(
+      &FocusChangedEventHandler::create(Box::new(move |_, _| {
+        let mut focused_webview = focused_webview_.lock().unwrap();
+        // when using multiwebview mode, we should check if the focus change is actually a "webview focus change"
+        // instead of a window focus change (here we're patching window events, so we only care about the actual window changing focus)
+        let already_focused = matches!(
+          *focused_webview,
+          FocusState::WindowFocused | FocusState::WebviewFocused { .. }
+        );
+        *focused_webview = FocusState::WebviewFocused {
+          webview_label: label_.clone(),
+        };
+
+        if !already_focused {
+          let _ = proxy_clone.send_event(Message::Webview(
+            *window_id_.lock().unwrap(),
+            id,
+            WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
+          ));
+        }
+        Ok(())
+      })),
+      token,
+    )
+  } {
+    log::error!("Failed to attach WebView2 `add_GotFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
+    return;
+  }
+
+  if let Err(error) = unsafe {
+    controller.add_LostFocus(
+      &FocusChangedEventHandler::create(Box::new(move |_, _| {
+        let mut focused_webview = focused_webview.lock().unwrap();
+        // when using multiwebview mode, we should handle webview focus changes
+        // so we check is the currently focused webview matches this webview's
+        // (in this case, it means we lost the window focus)
+        //
+        // on multiwebview mode if we change focus to a different webview
+        // we get the gotFocus event of the other webview before the lostFocus
+        // so this check makes sense
+        if let FocusState::WebviewFocused { ref webview_label } = *focused_webview {
+          let lost_window_focus = webview_label == &label;
+          if lost_window_focus {
+            // only reset when we lost window focus - otherwise some other webview is focused
+            *focused_webview = FocusState::Blured {
+              last_focused_webview_label: Some(label.clone()),
+            };
+            let _ = proxy.send_event(Message::Webview(
+              *window_id.lock().unwrap(),
+              id,
+              WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
+            ));
+          }
+        }
+
+        Ok(())
+      })),
+      token,
+    )
+  } {
+    log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
+  }
 }
 
 /// Create a wry ipc handler from a tauri ipc handler.

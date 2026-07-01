@@ -717,6 +717,8 @@ pub struct WindowBuilderWrapper {
   prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
+  #[cfg(target_os = "macos")]
+  traffic_light_position: Option<Position>,
 }
 
 impl std::fmt::Debug for WindowBuilderWrapper {
@@ -1129,7 +1131,9 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "macos")]
   fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
-    self.inner = self.inner.with_traffic_light_inset(position.into());
+    let position = position.into();
+    self.traffic_light_position = Some(position);
+    self.inner = self.inner.with_traffic_light_inset(position);
     self
   }
 
@@ -2520,6 +2524,10 @@ pub struct WindowWrapper {
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
   focused_webview: Arc<Mutex<Option<String>>>,
+  // Custom traffic light inset from the window config, kept so we can reapply it
+  // after macOS resets it on title changes (#13044) and fullscreen exit (#15451).
+  #[cfg(target_os = "macos")]
+  traffic_light_position: Option<Position>,
 }
 
 impl WindowWrapper {
@@ -3381,7 +3389,20 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
           WindowMessage::SetMinimizable(minimizable) => window.set_minimizable(minimizable),
           WindowMessage::SetClosable(closable) => window.set_closable(closable),
-          WindowMessage::SetTitle(title) => window.set_title(&title),
+          WindowMessage::SetTitle(title) => {
+            window.set_title(&title);
+            // macOS resets the traffic light inset when the title changes, so
+            // reapply the configured position to keep it in place (#13044).
+            #[cfg(target_os = "macos")]
+            if let Some(position) = windows
+              .0
+              .borrow()
+              .get(&id)
+              .and_then(|w| w.traffic_light_position)
+            {
+              window.set_traffic_light_inset(position);
+            }
+          }
           WindowMessage::Maximize => window.set_maximized(true),
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
@@ -3564,7 +3585,12 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::SetTrafficLightPosition(_position) => {
             #[cfg(target_os = "macos")]
-            window.set_traffic_light_inset(_position);
+            {
+              if let Some(w) = windows.0.borrow_mut().get_mut(&id) {
+                w.traffic_light_position = Some(_position);
+              }
+              window.set_traffic_light_inset(_position);
+            }
           }
           WindowMessage::SetTheme(theme) => {
             window.set_theme(to_tao_theme(theme));
@@ -4029,6 +4055,10 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(windows)]
             surface,
             focused_webview: Default::default(),
+            // Raw windows are built directly from a tao builder and don't carry
+            // Tauri's traffic light config, so there's nothing to reapply.
+            #[cfg(target_os = "macos")]
+            traffic_light_position: None,
           },
         );
         sender.send(Ok(Arc::downgrade(&window))).unwrap();
@@ -4247,6 +4277,18 @@ fn handle_event_loop<T: UserEvent>(
                   }
                 }
               }
+            }
+            // Exiting fullscreen (including via the green traffic light) makes
+            // macOS drop the custom inset, and a resize is the only signal tao
+            // emits for it, so reapply the configured position here (#15451).
+            #[cfg(target_os = "macos")]
+            if let Some((Some(window), Some(position))) = windows
+              .0
+              .borrow()
+              .get(&window_id)
+              .map(|w| (w.inner.clone(), w.traffic_light_position))
+            {
+              window.set_traffic_light_inset(position);
             }
           }
           _ => {}
@@ -4521,6 +4563,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   }
 
+  #[cfg(target_os = "macos")]
+  let traffic_light_position = window_builder.traffic_light_position;
+
   let window = window_builder
     .inner
     .build(event_loop)
@@ -4628,6 +4673,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     #[cfg(windows)]
     surface,
     focused_webview,
+    #[cfg(target_os = "macos")]
+    traffic_light_position,
   })
 }
 

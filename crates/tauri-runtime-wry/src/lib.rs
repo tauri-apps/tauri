@@ -528,29 +528,53 @@ impl WindowEventWrapper {
         #[cfg(windows)]
         #[allow(clippy::collapsible_match)]
         if window.has_children.load(Ordering::Relaxed) {
-          const FOCUSED_WEBVIEW_MARKER: &str = "__tauriWindow?";
           let mut focused_webview = window.focused_webview.lock().unwrap();
           // when we focus a webview and the window was previously focused, we get a blur event here
           // so on blur we should only send events if the current focus is owned by the window
-          if !*focused
-            && focused_webview
-              .as_deref()
-              .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
-          {
-            return Self(None);
-          }
+          // if !*focused
+          //   && focused_webview
+          //     .as_deref()
+          //     .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
+          // {
+          //   return Self(None);
+          // }
 
-          // reset focused_webview on blur, or set to a dummy value on focus
-          // (to prevent double focus event when we click a webview after focusing a window)
-          *focused_webview = if *focused {
-            Some(FOCUSED_WEBVIEW_MARKER.to_owned())
+          // // reset focused_webview on blur, or set to a dummy value on focus
+          // // (to prevent double focus event when we click a webview after focusing a window)
+          // *focused_webview = if *focused {
+          //   Some(FOCUSED_WEBVIEW_MARKER.to_owned())
+          // } else {
+          //   None
+          // };
+
+          if *focused {
+            if let FocusState::Blured {
+              last_focused_webview_label: Some(last_focused_webview_label),
+            } = &*focused_webview
+            {
+              if let Some(should_focus_webview) = window
+                .webviews
+                .iter()
+                .find(|w| &w.label == last_focused_webview_label)
+              {
+                *focused_webview = FocusState::WindowFocused;
+                drop(focused_webview);
+                let _ = should_focus_webview.focus();
+              }
+            }
           } else {
-            None
-          };
+            if let FocusState::WebviewFocused { ref webview_label } = *focused_webview {
+              // only reset when we lost window focus - otherwise some other webview is focused
+              *focused_webview = FocusState::Blured {
+                last_focused_webview_label: Some(webview_label.clone()),
+              };
+            }
+          }
 
           WindowEvent::Focused(*focused)
         } else {
-          // when not on multiwebview mode, we handle focus change events on the webview (add_GotFocus and add_LostFocus)
+          // when not on multiwebview mode, wry will set focus to the webview,
+          // and we will handle focus change events on the webview (add_GotFocus and add_LostFocus)
           return Self(None);
         }
       }
@@ -1557,7 +1581,7 @@ pub type CreateWebviewClosure =
   Box<dyn FnOnce(&Window, CreateWebviewOptions) -> Result<WebviewWrapper> + Send>;
 
 pub struct CreateWebviewOptions {
-  pub focused_webview: Arc<Mutex<Option<String>>>,
+  pub focused_webview: Arc<Mutex<FocusState>>,
 }
 
 pub enum Message<T: 'static> {
@@ -2593,6 +2617,25 @@ impl Drop for WebviewWrapper {
   }
 }
 
+#[derive(Debug)]
+pub enum FocusState {
+  WindowFocused,
+  WebviewFocused {
+    webview_label: String,
+  },
+  Blured {
+    last_focused_webview_label: Option<String>,
+  },
+}
+
+impl Default for FocusState {
+  fn default() -> Self {
+    Self::Blured {
+      last_focused_webview_label: None,
+    }
+  }
+}
+
 pub struct WindowWrapper {
   label: String,
   inner: Option<Arc<Window>>,
@@ -2607,7 +2650,7 @@ pub struct WindowWrapper {
   is_window_transparent: bool,
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
-  focused_webview: Arc<Mutex<Option<String>>>,
+  focused_webview: Arc<Mutex<FocusState>>,
 }
 
 impl WindowWrapper {
@@ -4677,7 +4720,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut webviews = Vec::new();
 
-  let focused_webview = Arc::new(Mutex::new(None));
+  let focused_webview = Arc::new(Mutex::new(FocusState::default()));
 
   if let Some(webview) = webview {
     webviews.push(create_webview(
@@ -4752,7 +4795,7 @@ fn create_webview<T: UserEvent>(
   id: WebviewId,
   context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
-  #[allow(unused_variables)] focused_webview: Arc<Mutex<Option<String>>>,
+  #[allow(unused_variables)] focused_webview: Arc<Mutex<FocusState>>,
 ) -> Result<WebviewWrapper> {
   if !context.webview_runtime_installed {
     #[cfg(all(not(debug_assertions), windows))]
@@ -5293,11 +5336,17 @@ You may have it installed on another user account, but it is not available for t
     if let Err(error) = unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
+          dbg!("GotFocus");
           let mut focused_webview = focused_webview_.lock().unwrap();
           // when using multiwebview mode, we should check if the focus change is actually a "webview focus change"
           // instead of a window focus change (here we're patching window events, so we only care about the actual window changing focus)
-          let already_focused = focused_webview.is_some();
-          focused_webview.replace(label_.clone());
+          let already_focused = matches!(
+            *focused_webview,
+            FocusState::WindowFocused | FocusState::WebviewFocused { .. }
+          );
+          *focused_webview = FocusState::WebviewFocused {
+            webview_label: label_.clone(),
+          };
 
           if !already_focused {
             let _ = proxy_clone.send_event(Message::Webview(
@@ -5328,19 +5377,24 @@ You may have it installed on another user account, but it is not available for t
           // on multiwebview mode if we change focus to a different webview
           // we get the gotFocus event of the other webview before the lostFocus
           // so this check makes sense
-          let lost_window_focus = focused_webview.as_ref().map_or(true, |w| w == &label_);
-          // TODO: Use `is_none_or` instead when MSRV gets raised above 1.82
-          // let lost_window_focus = focused_webview.as_ref().is_none_or(|t| t == &label_);
-
-          if lost_window_focus {
-            // only reset when we lost window focus - otherwise some other webview is focused
-            *focused_webview = None;
-            let _ = proxy_clone.send_event(Message::Webview(
-              *window_id_.lock().unwrap(),
-              id,
-              WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
-            ));
+          match *focused_webview {
+            FocusState::WebviewFocused { ref webview_label } => {
+              let lost_window_focus = webview_label == &label_;
+              if lost_window_focus {
+                // only reset when we lost window focus - otherwise some other webview is focused
+                *focused_webview = FocusState::Blured {
+                  last_focused_webview_label: Some(label_.clone()),
+                };
+                let _ = proxy_clone.send_event(Message::Webview(
+                  *window_id_.lock().unwrap(),
+                  id,
+                  WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
+                ));
+              }
+            }
+            _ => {}
           }
+
           Ok(())
         })),
         &mut token,

@@ -5370,6 +5370,67 @@ You may have it installed on another user account, but it is not available for t
   })
 }
 
+/// Create a wry ipc handler from a tauri ipc handler.
+fn create_ipc_handler<T: UserEvent>(
+  window_id: Arc<Mutex<WindowId>>,
+  webview_id: WebviewId,
+  context: Context<T>,
+  label: String,
+  ipc_handler: Option<WebviewIpcHandler<T, Wry<T>>>,
+) -> Box<IpcHandler> {
+  Box::new(move |request| {
+    if let Some(handler) = &ipc_handler {
+      handler(
+        DetachedWebview {
+          label: label.clone(),
+          dispatcher: WryWebviewDispatcher {
+            window_id: window_id.clone(),
+            webview_id,
+            context: context.clone(),
+          },
+        },
+        request,
+      );
+    }
+  })
+}
+
+#[cfg(target_os = "macos")]
+fn inner_size(
+  window: &Window,
+  webviews: &[WebviewWrapper],
+  has_children: bool,
+) -> TaoPhysicalSize<u32> {
+  if !has_children && !webviews.is_empty() {
+    use wry::WebViewExtMacOS;
+    let webview = webviews.first().unwrap();
+    let view = unsafe { Retained::cast_unchecked::<objc2_app_kit::NSView>(webview.webview()) };
+    let view_frame = view.frame();
+    let logical: TaoLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
+    return logical.to_physical(window.scale_factor());
+  }
+
+  window.inner_size()
+}
+
+#[cfg(not(target_os = "macos"))]
+#[allow(unused_variables)]
+fn inner_size(
+  window: &Window,
+  webviews: &[WebviewWrapper],
+  has_children: bool,
+) -> TaoPhysicalSize<u32> {
+  window.inner_size()
+}
+
+fn to_tao_theme(theme: Option<Theme>) -> Option<TaoTheme> {
+  match theme {
+    Some(Theme::Light) => Some(TaoTheme::Light),
+    Some(Theme::Dark) => Some(TaoTheme::Dark),
+    _ => None,
+  }
+}
+
 /// Used to prevent duplicated [`WindowEvent::Focused`] events,
 /// and to track last focused webview in multi-webview mode for us to restore webview focuses
 #[cfg(windows)]
@@ -5448,66 +5509,5 @@ fn add_focus_change_listeners<T: UserEvent>(
     )
   } {
     log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
-  }
-}
-
-/// Create a wry ipc handler from a tauri ipc handler.
-fn create_ipc_handler<T: UserEvent>(
-  window_id: Arc<Mutex<WindowId>>,
-  webview_id: WebviewId,
-  context: Context<T>,
-  label: String,
-  ipc_handler: Option<WebviewIpcHandler<T, Wry<T>>>,
-) -> Box<IpcHandler> {
-  Box::new(move |request| {
-    if let Some(handler) = &ipc_handler {
-      handler(
-        DetachedWebview {
-          label: label.clone(),
-          dispatcher: WryWebviewDispatcher {
-            window_id: window_id.clone(),
-            webview_id,
-            context: context.clone(),
-          },
-        },
-        request,
-      );
-    }
-  })
-}
-
-#[cfg(target_os = "macos")]
-fn inner_size(
-  window: &Window,
-  webviews: &[WebviewWrapper],
-  has_children: bool,
-) -> TaoPhysicalSize<u32> {
-  if !has_children && !webviews.is_empty() {
-    use wry::WebViewExtMacOS;
-    let webview = webviews.first().unwrap();
-    let view = unsafe { Retained::cast_unchecked::<objc2_app_kit::NSView>(webview.webview()) };
-    let view_frame = view.frame();
-    let logical: TaoLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
-    return logical.to_physical(window.scale_factor());
-  }
-
-  window.inner_size()
-}
-
-#[cfg(not(target_os = "macos"))]
-#[allow(unused_variables)]
-fn inner_size(
-  window: &Window,
-  webviews: &[WebviewWrapper],
-  has_children: bool,
-) -> TaoPhysicalSize<u32> {
-  window.inner_size()
-}
-
-fn to_tao_theme(theme: Option<Theme>) -> Option<TaoTheme> {
-  match theme {
-    Some(Theme::Light) => Some(TaoTheme::Light),
-    Some(Theme::Dark) => Some(TaoTheme::Dark),
-    _ => None,
   }
 }

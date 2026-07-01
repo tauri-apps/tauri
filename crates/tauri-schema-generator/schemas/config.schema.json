@@ -45,6 +45,7 @@
       "description": "The App configuration.",
       "default": {
         "enableGTKAppId": false,
+        "macOSLiquidGlass": false,
         "macOSPrivateApi": false,
         "security": {
           "assetProtocol": {
@@ -216,6 +217,11 @@
         },
         "enableGTKAppId": {
           "description": "If set to true \"identifier\" will be set as GTK app ID (on systems that use GTK).",
+          "default": false,
+          "type": "boolean"
+        },
+        "macOSLiquidGlass": {
+          "description": "Enables the macOS specific APIs Liquid Glass window effects. This does not automatically apply the effects, use the windowEffects for that.",
           "default": false,
           "type": "boolean"
         }
@@ -945,20 +951,6 @@
           "type": "string",
           "enum": [
             "underPageBackground"
-          ]
-        },
-        {
-          "description": "*macOS 26.0+**",
-          "type": "string",
-          "enum": [
-            "liquidGlassRegular"
-          ]
-        },
-        {
-          "description": "*macOS 26.0+**",
-          "type": "string",
-          "enum": [
-            "liquidGlassClear"
           ]
         },
         {

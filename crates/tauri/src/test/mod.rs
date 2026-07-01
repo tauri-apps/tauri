@@ -120,6 +120,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
         security: Default::default(),
         tray_icon: None,
         macos_private_api: false,
+        macos_liquid_glass: false,
         enable_gtk_app_id: false,
       },
       bundle: Default::default(),

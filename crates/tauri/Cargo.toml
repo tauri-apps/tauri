@@ -225,6 +225,7 @@ devtools = ["tauri-runtime/devtools", "tauri-runtime-wry?/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
+# TODO: Split this into feature flags per api.
 macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry?/macos-private-api",
@@ -238,6 +239,8 @@ image-png = ["image/png"]
 macos-proxy = ["tauri-runtime-wry?/macos-proxy"]
 dynamic-acl = []
 specta = ["dep:specta"]
+# TODO: Remove in v3 - it's a feature flag because adding enum variants without non_exhaustive is breaking
+macos-liquid-glass = ["tauri-utils/macos-liquid-glass"]
 
 [[example]]
 name = "commands"

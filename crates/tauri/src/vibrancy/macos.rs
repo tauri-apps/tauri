@@ -8,9 +8,7 @@ use crate::utils::config::WindowEffectsConfig;
 use crate::window::{Effect, EffectState};
 use objc2_app_kit::NSAppKitVersionNumber;
 use raw_window_handle::HasWindowHandle;
-use window_vibrancy::{
-  clear_liquid_glass, NSGlassEffectViewStyle, NSVisualEffectMaterial, NSVisualEffectState,
-};
+use window_vibrancy::{clear_liquid_glass, NSVisualEffectMaterial, NSVisualEffectState};
 
 pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig) {
   let WindowEffectsConfig {
@@ -20,6 +18,8 @@ pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig)
     color,
   } = effects;
 
+  // TODO: Remove feature flag in v3
+  #[cfg(feature = "macos-liquid-glass")]
   if unsafe { NSAppKitVersionNumber } >= 2685.0 {
     if let Some(effect) = effects
       .iter()
@@ -28,8 +28,8 @@ pub fn apply_effects(window: impl HasWindowHandle, effects: WindowEffectsConfig)
       window_vibrancy::apply_liquid_glass(
         window,
         match effect {
-          Effect::LiquidGlassRegular => NSGlassEffectViewStyle::Regular,
-          Effect::LiquidGlassClear => NSGlassEffectViewStyle::Clear,
+          Effect::LiquidGlassRegular => window_vibrancy::NSGlassEffectViewStyle::Regular,
+          Effect::LiquidGlassClear => window_vibrancy::NSGlassEffectViewStyle::Clear,
           _ => unreachable!(),
         },
         color.map(|c| (c.0, c.1, c.2, c.3)),

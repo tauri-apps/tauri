@@ -115,8 +115,16 @@ mod window_effects {
     /// **macOS 10.14+**
     UnderPageBackground,
     /// *macOS 26.0+**
+    ///
+    /// Requires `macos-liquid-glass` feature flag.
+    #[cfg(feature = "macos-liquid-glass")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "macos-liquid-glass")))]
     LiquidGlassRegular,
     /// *macOS 26.0+**
+    ///
+    /// Requires `macos-liquid-glass` feature flag.
+    #[cfg(feature = "macos-liquid-glass")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "macos-liquid-glass")))]
     LiquidGlassClear,
     /// Mica effect that matches the system dark preference **Windows 11 Only**
     Mica,

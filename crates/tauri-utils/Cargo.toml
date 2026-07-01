@@ -93,3 +93,5 @@ config-toml = []
 resources = ["walkdir"]
 html-manipulation = ["dep:html5ever", "dep:kuchiki"]
 html-manipulation-2 = ["dep:dom_query"]
+# TODO: Remove in v3 - it's a feature flag because adding enum variants without non_exhaustive is breaking
+macos-liquid-glass = []

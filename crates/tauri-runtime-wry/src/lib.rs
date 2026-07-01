@@ -5284,12 +5284,13 @@ You may have it installed on another user account, but it is not available for t
   #[cfg(windows)]
   {
     let controller = webview.controller();
-    let proxy_clone = context.proxy.clone();
-    let window_id_ = window_id.clone();
     let mut token = 0;
-    unsafe {
-      let label_ = label.clone();
-      let focused_webview_ = focused_webview.clone();
+
+    let label_ = label.clone();
+    let window_id_ = window_id.clone();
+    let proxy_clone = context.proxy.clone();
+    let focused_webview_ = focused_webview.clone();
+    if let Err(error) = unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let mut focused_webview = focused_webview_.lock().unwrap();
@@ -5309,12 +5310,14 @@ You may have it installed on another user account, but it is not available for t
         })),
         &mut token,
       )
+    } {
+      log::error!("Failed to attach WebView2 `add_GotFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
     }
-    .unwrap();
-    unsafe {
-      let label_ = label.clone();
-      let window_id_ = window_id.clone();
-      let proxy_clone = context.proxy.clone();
+
+    let label_ = label.clone();
+    let window_id_ = window_id.clone();
+    let proxy_clone = context.proxy.clone();
+    if let Err(error) = unsafe {
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let mut focused_webview = focused_webview.lock().unwrap();
@@ -5342,8 +5345,9 @@ You may have it installed on another user account, but it is not available for t
         })),
         &mut token,
       )
+    } {
+      log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
     }
-    .unwrap();
 
     if let Ok(webview) = unsafe { controller.CoreWebView2() } {
       let proxy_clone = context.proxy.clone();

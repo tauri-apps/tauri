@@ -544,11 +544,14 @@ impl WindowEventWrapper {
                 drop(focused_webview);
                 let _ = should_focus_webview.focus();
               }
+            } else {
+              // Already focused
+              return Self(None);
             }
           } else {
-            if let FocusState::WebviewFocused { ref webview_label } = *focused_webview {
+            if let FocusState::WindowFocused = *focused_webview {
               *focused_webview = FocusState::Blured {
-                last_focused_webview_label: Some(webview_label.clone()),
+                last_focused_webview_label: None,
               };
             }
           }

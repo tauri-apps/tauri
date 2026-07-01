@@ -99,6 +99,7 @@ impl<'a> ResourcePaths<'a> {
         allow_walk,
         current_dest: None,
         current_iter: None,
+        rerun_if_changed: Vec::new(),
       },
     }
   }
@@ -111,6 +112,7 @@ impl<'a> ResourcePaths<'a> {
         allow_walk,
         current_dest: None,
         current_iter: None,
+        rerun_if_changed: Vec::new(),
       },
     }
   }
@@ -136,6 +138,10 @@ pub struct ResourcePathsIter<'a> {
   /// The iter for the current pattern. The cycle goes like this:
   /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
+  /// Directories that were walked or globbed while iterating. Build scripts
+  /// should emit a `rerun-if-changed` for each so that adding or removing a
+  /// file inside a resource directory re-triggers the resource copy.
+  rerun_if_changed: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -168,6 +174,17 @@ impl Iterator for ResourcePathsInnerIter {
 }
 
 impl ResourcePathsIter<'_> {
+  /// Directories that were walked or globbed while iterating.
+  ///
+  /// A build script should emit a `cargo:rerun-if-changed` for each of these
+  /// after iterating, so that adding or removing a file inside a resource
+  /// directory re-runs the script and copies the new files. Only meaningful
+  /// once iteration has produced the entries (i.e. after the iterator is
+  /// exhausted).
+  pub fn rerun_if_changed(&self) -> &[PathBuf] {
+    &self.rerun_if_changed
+  }
+
   fn next_current_iter(&mut self) -> Option<crate::Result<Resource>> {
     let current_iter = self.current_iter.as_mut().unwrap();
     let entry = current_iter.next()?;
@@ -247,6 +264,20 @@ impl ResourcePathsIter<'_> {
     };
 
     if pattern.contains('*') {
+      // Watch the fixed directory prefix of the glob (everything before the
+      // first wildcard component) so new files matching the glob are noticed.
+      let mut base = PathBuf::new();
+      for component in Path::new(pattern).components() {
+        if component.as_os_str().to_string_lossy().contains('*') {
+          break;
+        }
+        base.push(component);
+      }
+      if base.as_os_str().is_empty() {
+        base.push(".");
+      }
+      self.rerun_if_changed.push(base);
+
       self.current_iter = match glob::glob(pattern) {
         Ok(glob) => Some(ResourcePathsInnerIter::Glob { iter: glob }),
         Err(error) => return Some(Err(error.into())),
@@ -264,6 +295,8 @@ impl ResourcePathsIter<'_> {
         if !self.allow_walk {
           return Some(Err(crate::Error::NotAllowedToWalkDir(path)));
         }
+        // Watch the directory itself so newly added files are picked up.
+        self.rerun_if_changed.push(path.clone());
         self.current_iter = Some(ResourcePathsInnerIter::Walk {
           iter: WalkDir::new(&path).into_iter(),
           current_pattern: if matches!(self.pattern_iter, PatternIter::Map(_)) {
@@ -451,6 +484,44 @@ mod tests {
         panic!("{resource:?} was expected but not found in {resources:?}");
       }
     }
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
+  fn resource_paths_iter_tracks_rerun_dirs() {
+    setup_test_dirs();
+
+    let dir = std::env::current_dir().unwrap().join("src-tauri");
+    let _ = std::env::set_current_dir(dir);
+
+    let patterns = [
+      // single file -> nothing to watch as a directory
+      "../src/script.js".to_string(),
+      // directory -> the directory itself should be watched
+      "../src/assets".to_string(),
+      // glob -> the fixed base directory should be watched
+      "../src/textures/**/*".to_string(),
+    ];
+    let mut iter = ResourcePaths::new(&patterns, true).iter();
+
+    // exhaust the iterator so every pattern is visited
+    for resource in iter.by_ref() {
+      resource.unwrap();
+    }
+
+    let rerun = iter.rerun_if_changed();
+    assert!(
+      rerun.contains(&normalize(Path::new("../src/assets"))),
+      "expected resource directory to be watched, got {rerun:?}"
+    );
+    assert!(
+      rerun.contains(&PathBuf::from("../src/textures")),
+      "expected glob base directory to be watched, got {rerun:?}"
+    );
+    assert!(
+      !rerun.contains(&normalize(Path::new("../src/script.js"))),
+      "single-file pattern should not be watched as a directory, got {rerun:?}"
+    );
   }
 
   #[test]

@@ -256,7 +256,7 @@ impl Listeners {
   /// Called when a webview is destroyed: its JavaScript runtime no longer
   /// exists, so the listeners keyed by its label can never be delivered and
   /// would otherwise leak in the map until the app exits.
-  pub(crate) fn remove_webview_events(&self, webview_label: &str) {
+  pub(crate) fn remove_webview_js_listeners(&self, webview_label: &str) {
     self
       .inner
       .js_event_listeners
@@ -431,7 +431,7 @@ mod test {
     assert!(listeners.has_js_listener(event.as_str_event(), |_| true));
 
     // dropping the source webview must drop its JS listeners.
-    listeners.remove_webview_events(webview_label);
+    listeners.remove_webview_js_listeners(webview_label);
     assert!(!listeners.has_js_listener(event.as_str_event(), |_| true));
   }
 }

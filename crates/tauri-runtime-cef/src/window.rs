@@ -528,14 +528,14 @@ impl<T: UserEvent> WinitCefApp<T> {
       _ => {}
     }
 
-    let Some(app_window) = self.state.windows.get_mut(&window_id) else {
+    let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
-    let window = &app_window.window;
+    let window = &appwindow.window;
 
     match message {
       WindowMessage::AddEventListener(id, listener) => {
-        app_window.listeners.lock().unwrap().insert(id, listener);
+        appwindow.listeners.lock().unwrap().insert(id, listener);
       }
       WindowMessage::Close | WindowMessage::Destroy => unreachable!("handled before borrowing"),
       WindowMessage::ScaleFactor(tx) => _ = tx.send(Ok(window.scale_factor())),
@@ -548,37 +548,33 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::IsDecorated(tx) => _ = tx.send(Ok(window.is_decorated())),
       WindowMessage::IsResizable(tx) => _ = tx.send(Ok(window.is_resizable())),
       WindowMessage::IsMaximizable(tx) => {
-        let is_maximizable = app_window
-          .window
+        let is_maximizable = window
           .enabled_buttons()
           .contains(winit::window::WindowButtons::MAXIMIZE);
         let _ = tx.send(Ok(is_maximizable));
       }
       WindowMessage::IsMinimizable(tx) => {
-        let is_minimizable = app_window
-          .window
+        let is_minimizable = window
           .enabled_buttons()
           .contains(winit::window::WindowButtons::MINIMIZE);
         let _ = tx.send(Ok(is_minimizable));
       }
       WindowMessage::IsClosable(tx) => {
-        let is_closable = app_window
-          .window
+        let is_closable = window
           .enabled_buttons()
           .contains(winit::window::WindowButtons::CLOSE);
         let _ = tx.send(Ok(is_closable));
       }
       WindowMessage::IsVisible(tx) => _ = tx.send(Ok(window.is_visible().unwrap_or(true))),
-      WindowMessage::IsEnabled(tx) => _ = tx.send(Ok(app_window.is_enabled())),
+      WindowMessage::IsEnabled(tx) => _ = tx.send(Ok(appwindow.is_enabled())),
       WindowMessage::IsAlwaysOnTop(tx) => {
-        let is_on_top = app_window.attrs.inner.window_level == WindowLevel::AlwaysOnTop;
+        let is_on_top = appwindow.attrs.inner.window_level == WindowLevel::AlwaysOnTop;
         let _ = tx.send(Ok(is_on_top));
       }
       WindowMessage::Title(tx) => _ = tx.send(Ok(window.title())),
-      WindowMessage::InnerPosition(tx) => _ = tx.send(Ok(app_window.window.surface_position())),
+      WindowMessage::InnerPosition(tx) => _ = tx.send(Ok(window.surface_position())),
       WindowMessage::OuterPosition(tx) => {
-        let pos = app_window
-          .window
+        let pos = window
           .outer_position()
           .map_err(|_| Error::FailedToGetMonitor);
         let _ = tx.send(pos);
@@ -609,8 +605,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         let _ = tx.send(Ok(monitor));
       }
       WindowMessage::AvailableMonitors(tx) => {
-        let monitors = app_window
-          .window
+        let monitors = window
           .available_monitors()
           .map(|m| winit_monitor_to_tauri_monitor(&m))
           .collect();
@@ -630,7 +625,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         let _ = tx.send(Ok(theme));
       }
       WindowMessage::Center => {
-        app_window.center();
+        appwindow.center();
       }
       WindowMessage::RequestUserAttention(attention) => {
         window.request_user_attention(match attention {
@@ -641,7 +636,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           None => None,
         })
       }
-      WindowMessage::SetEnabled(value) => app_window.set_enabled(value),
+      WindowMessage::SetEnabled(value) => appwindow.set_enabled(value),
       WindowMessage::SetResizable(value) => window.set_resizable(value),
       WindowMessage::SetTitle(title) => window.set_title(&title),
       WindowMessage::Maximize => window.set_maximized(true),
@@ -654,9 +649,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetSize(size) => _ = window.request_surface_size(size),
       WindowMessage::SetPosition(position) => window.set_outer_position(position),
       WindowMessage::SetFullscreen(value) => {
-        app_window
-          .window
-          .set_fullscreen(value.then_some(Fullscreen::Borderless(None)));
+        window.set_fullscreen(value.then_some(Fullscreen::Borderless(None)))
       }
       #[cfg(target_os = "macos")]
       WindowMessage::SetSimpleFullscreen(value) => {
@@ -685,7 +678,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           true => WindowLevel::AlwaysOnBottom,
           false => WindowLevel::Normal,
         };
-        app_window.attrs.inner.window_level = level;
+        appwindow.attrs.inner.window_level = level;
         window.set_window_level(level);
       }
       WindowMessage::SetAlwaysOnTop(value) => {
@@ -693,14 +686,14 @@ impl<T: UserEvent> WinitCefApp<T> {
           true => WindowLevel::AlwaysOnTop,
           false => WindowLevel::Normal,
         };
-        app_window.attrs.inner.window_level = level;
+        appwindow.attrs.inner.window_level = level;
         window.set_window_level(level);
       }
       WindowMessage::SetVisibleOnAllWorkspaces(_value) => {
         #[cfg(target_os = "macos")]
         {
-          app_window.attrs.visible_on_all_workspaces = _value;
-          app_window.set_visible_on_all_workspaces(_value);
+          appwindow.attrs.visible_on_all_workspaces = _value;
+          appwindow.set_visible_on_all_workspaces(_value);
         }
         #[cfg(any(
           target_os = "linux",
@@ -710,8 +703,8 @@ impl<T: UserEvent> WinitCefApp<T> {
           target_os = "openbsd"
         ))]
         {
-          app_window.attrs.visible_on_all_workspaces = _value;
-          app_window.set_visible_on_all_workspaces(_value);
+          appwindow.attrs.visible_on_all_workspaces = _value;
+          appwindow.set_visible_on_all_workspaces(_value);
         }
       }
       WindowMessage::SetContentProtected(value) => window.set_content_protected(value),
@@ -730,7 +723,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        app_window.set_skip_taskbar(_value);
+        appwindow.set_skip_taskbar(_value);
       }
       WindowMessage::SetShadow(_value) => {
         #[cfg(windows)]
@@ -755,26 +748,26 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetTrafficLightPosition(_position) => {
         #[cfg(target_os = "macos")]
         {
-          app_window.attrs.traffic_light_position = Some(_position.clone());
-          app_window.set_traffic_light_position(&_position);
+          appwindow.attrs.traffic_light_position = Some(_position.clone());
+          appwindow.set_traffic_light_position(&_position);
         }
       }
       WindowMessage::SetTitleBarStyle(_style) => {
         #[cfg(target_os = "macos")]
-        app_window.set_title_bar_style(_style);
+        appwindow.set_title_bar_style(_style);
       }
       WindowMessage::SetBackgroundColor(color) => {
-        app_window.attrs.background_color = color;
-        app_window.set_background_color(color);
+        appwindow.attrs.background_color = color;
+        appwindow.set_background_color(color);
       }
-      WindowMessage::SetTheme(theme) => app_window.set_theme(theme),
+      WindowMessage::SetTheme(theme) => appwindow.set_theme(theme),
       WindowMessage::SetBadgeCount(count, desktop_filename) => {
         event_loop.set_badge_count(count, desktop_filename)
       }
       WindowMessage::SetBadgeLabel(label) => event_loop.set_badge_label(label),
       WindowMessage::SetOverlayIcon(_icon) => {
         #[cfg(windows)]
-        app_window.set_overlay_icon(_icon);
+        appwindow.set_overlay_icon(_icon);
       }
       WindowMessage::StartDragging => _ = window.drag_window(),
       WindowMessage::StartResizeDragging(direction) => {
@@ -795,7 +788,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         #[cfg(target_os = "macos")]
         event_loop.set_progress_bar(state);
         #[cfg(not(target_os = "macos"))]
-        app_window.set_progress_bar(state);
+        appwindow.set_progress_bar(state);
       }
     }
   }

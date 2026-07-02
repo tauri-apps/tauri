@@ -220,9 +220,15 @@ devtools = ["tauri-runtime/devtools", "tauri-runtime-wry?/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
-macos-private-api = [
+macos-private-api-fullscreen = ["tauri-runtime-wry?/macos-private-api-fullscreen"]
+macos-private-api-transparent = [
   "tauri-runtime/macos-private-api",
-  "tauri-runtime-wry?/macos-private-api",
+  "tauri-runtime-wry?/macos-private-api-transparent",
+]
+# Legacy umbrella feature: enables both fullscreen and transparent capabilities.
+macos-private-api = [
+  "macos-private-api-fullscreen",
+  "macos-private-api-transparent",
 ]
 webview-data-url = ["data-url", "tauri-utils/html-manipulation-2"]
 protocol-asset = ["http-range"]

@@ -1089,10 +1089,10 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
   /// creating a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api-transparent"))]
   #[cfg_attr(
     docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
+    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api-transparent")))
   )]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {

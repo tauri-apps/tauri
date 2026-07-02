@@ -3149,8 +3149,14 @@ pub struct AppConfig {
   #[serde(alias = "tray-icon")]
   pub tray_icon: Option<TrayIconConfig>,
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
+  ///
+  /// Prefer [`AppConfig::macos`] to opt into each capability independently. Enabling this
+  /// is equivalent to enabling both `fullscreenApi` and `transparentBackgroundApi`.
   #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
   pub macos_private_api: bool,
+  /// macOS-specific application configuration.
+  #[serde(rename = "macOS", alias = "macos", default)]
+  pub macos: AppMacConfig,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
@@ -3165,6 +3171,8 @@ impl AppConfig {
     vec![
       "tray-icon",
       "macos-private-api",
+      "macos-private-api-fullscreen",
+      "macos-private-api-transparent",
       "protocol-asset",
       "isolation",
     ]
@@ -3176,8 +3184,12 @@ impl AppConfig {
     if self.tray_icon.is_some() {
       features.push("tray-icon");
     }
-    if self.macos_private_api {
-      features.push("macos-private-api");
+    // `macOSPrivateApi` is the legacy umbrella that enables both capabilities.
+    if self.macos_private_api || self.macos.fullscreen_api {
+      features.push("macos-private-api-fullscreen");
+    }
+    if self.macos_private_api || self.macos.transparent_background_api {
+      features.push("macos-private-api-transparent");
     }
     if self.security.asset_protocol.enable {
       features.push("protocol-asset");
@@ -3190,6 +3202,28 @@ impl AppConfig {
     features.sort_unstable();
     features
   }
+}
+
+/// macOS-specific application configuration.
+///
+/// These options let you opt into the macOS private API capabilities independently,
+/// instead of enabling all of them at once through [`AppConfig::macos_private_api`].
+///
+/// See more: <https://v2.tauri.app/reference/config/#macconfig>
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppMacConfig {
+  /// Enables the WKWebView fullscreen JavaScript API by setting the `fullScreenEnabled` preference to `true`.
+  ///
+  /// This relies on a private API and is only respected on macOS.
+  #[serde(default, alias = "fullscreen-api")]
+  pub fullscreen_api: bool,
+  /// Enables transparent webview backgrounds.
+  ///
+  /// This relies on a private API and is only respected on macOS.
+  #[serde(default, alias = "transparent-background-api")]
+  pub transparent_background_api: bool,
 }
 
 /// Configuration for application tray icon.
@@ -4502,6 +4536,7 @@ mod build {
       let security = &self.security;
       let tray_icon = opt_lit(self.tray_icon.as_ref());
       let macos_private_api = self.macos_private_api;
+      let macos = &self.macos;
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
 
@@ -4512,8 +4547,22 @@ mod build {
         security,
         tray_icon,
         macos_private_api,
+        macos,
         with_global_tauri,
         enable_gtk_app_id
+      );
+    }
+  }
+
+  impl ToTokens for AppMacConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let fullscreen_api = self.fullscreen_api;
+      let transparent_background_api = self.transparent_background_api;
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::AppMacConfig,
+        fullscreen_api,
+        transparent_background_api
       );
     }
   }
@@ -4597,6 +4646,7 @@ mod test {
       },
       tray_icon: None,
       macos_private_api: false,
+      macos: Default::default(),
       with_global_tauri: false,
       enable_gtk_app_id: false,
     };

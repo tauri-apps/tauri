@@ -1015,10 +1015,10 @@ fn main() {
   }
 
   /// Enable or disable transparency for the WebView.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api-transparent"))]
   #[cfg_attr(
     docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
+    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api-transparent")))
   )]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {

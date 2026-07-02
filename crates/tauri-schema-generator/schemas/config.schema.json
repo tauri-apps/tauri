@@ -45,6 +45,10 @@
       "description": "The App configuration.",
       "default": {
         "enableGTKAppId": false,
+        "macOS": {
+          "fullscreenApi": false,
+          "transparentBackgroundApi": false
+        },
         "macOSPrivateApi": false,
         "security": {
           "assetProtocol": {
@@ -209,9 +213,21 @@
           ]
         },
         "macOSPrivateApi": {
-          "description": "MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.",
+          "description": "MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.\n\n Prefer [`AppConfig::macos`] to opt into each capability independently. Enabling this\n is equivalent to enabling both `fullscreenApi` and `transparentBackgroundApi`.",
           "default": false,
           "type": "boolean"
+        },
+        "macOS": {
+          "description": "macOS-specific application configuration.",
+          "default": {
+            "fullscreenApi": false,
+            "transparentBackgroundApi": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppMacConfig"
+            }
+          ]
         },
         "withGlobalTauri": {
           "description": "Whether we should inject the Tauri API on `window.__TAURI__` or not.",
@@ -1892,6 +1908,23 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AppMacConfig": {
+      "description": "macOS-specific application configuration.\n\n These options let you opt into the macOS private API capabilities independently,\n instead of enabling all of them at once through [`AppConfig::macos_private_api`].\n\n See more: <https://v2.tauri.app/reference/config/#macconfig>",
+      "type": "object",
+      "properties": {
+        "fullscreenApi": {
+          "description": "Enables the WKWebView fullscreen JavaScript API by setting the `fullScreenEnabled` preference to `true`.\n\n This relies on a private API and is only respected on macOS.",
+          "default": false,
+          "type": "boolean"
+        },
+        "transparentBackgroundApi": {
+          "description": "Enables transparent webview backgrounds.\n\n This relies on a private API and is only respected on macOS.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

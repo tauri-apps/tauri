@@ -170,7 +170,6 @@ fn migrate_imports<'a>(
 
   for (source_type, js_source, script_start) in sources {
     let allocator = Allocator::default();
-    println!("\n\n{source_type:?}\n\n");
     let ret = Parser::new(&allocator, js_source, source_type).parse();
     if !ret.errors.is_empty() {
       crate::error::bail!(

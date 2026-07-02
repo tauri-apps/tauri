@@ -147,7 +147,12 @@ fn migrate_imports<'a>(
     .is_some_and(|ext| ext == "vue" || ext == "svelte");
 
   let sources = if !has_partial_js {
-    vec![(SourceType::from_path(path).unwrap(), js_source, 0i64)]
+    let mut source_type = SourceType::from_path(path).unwrap();
+    if source_type.is_javascript() {
+      // oxc_span used to do this for us but in 0.70 it was moved into the higher level oxc crates instead.
+      source_type = source_type.with_jsx(true);
+    }
+    vec![(source_type, js_source, 0i64)]
   } else {
     partial_loader::PartialLoader::parse(
       path
@@ -165,6 +170,7 @@ fn migrate_imports<'a>(
 
   for (source_type, js_source, script_start) in sources {
     let allocator = Allocator::default();
+    println!("\n\n{source_type:?}\n\n");
     let ret = Parser::new(&allocator, js_source, source_type).parse();
     if !ret.errors.is_empty() {
       crate::error::bail!(
@@ -363,7 +369,12 @@ mod tests {
       .is_some_and(|ext| ext == "vue" || ext == "svelte");
 
     let sources = if !has_partial_js {
-      vec![(SourceType::from_path(path).unwrap(), source.to_string())]
+      let mut source_type = SourceType::from_path(path).unwrap();
+      if source_type.is_javascript() {
+        // oxc_span used to do this for us but in 0.70 it was moved into the higher level oxc crates instead.
+        source_type = source_type.with_jsx(true);
+      }
+      vec![(source_type, source.to_string())]
     } else {
       partial_loader::PartialLoader::parse(
         path

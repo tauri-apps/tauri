@@ -2735,27 +2735,42 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   fn primary_monitor(&self) -> Option<Monitor> {
     // Query the monitor on the main thread: the event loop's window target is
     // not thread safe and touching it from another thread crashes (#15170).
-    // The closure absorbs the getter's `?` since this method returns a bare Option.
-    (|| event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor))()
+    let (tx, rx) = channel();
+
+    let _ = send_user_message(
+      &self.context,
+      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::PrimaryMonitor(tx)),
+    );
+
+    rx.recv()
       .ok()
       .flatten()
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
-    (|| {
-      event_loop_window_getter!(self, |tx| EventLoopWindowTargetMessage::MonitorFromPoint(
-        tx,
-        (x, y)
-      ))
-    })()
-    .ok()
-    .flatten()
-    .map(|m| MonitorHandleWrapper(m).into())
+    let (tx, rx) = channel();
+
+    let _ = send_user_message(
+      &self.context,
+      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y))),
+    );
+
+    rx.recv()
+      .ok()
+      .flatten()
+      .map(|m| MonitorHandleWrapper(m).into())
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
-    (|| event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors))()
+    let (tx, rx) = channel();
+
+    let _ = send_user_message(
+      &self.context,
+      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::AvailableMonitors(tx)),
+    );
+
+    rx.recv()
       .map(|monitors| {
         monitors
           .into_iter()

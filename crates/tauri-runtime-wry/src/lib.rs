@@ -2737,10 +2737,16 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     // not thread safe and touching it from another thread crashes (#15170).
     let (tx, rx) = channel();
 
-    let _ = send_user_message(
+    // Bail out if the message never reaches the event loop, otherwise recv()
+    // would block forever waiting on a sender that will never send.
+    if send_user_message(
       &self.context,
       Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::PrimaryMonitor(tx)),
-    );
+    )
+    .is_err()
+    {
+      return None;
+    }
 
     rx.recv()
       .ok()
@@ -2751,10 +2757,14 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
     let (tx, rx) = channel();
 
-    let _ = send_user_message(
+    if send_user_message(
       &self.context,
       Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y))),
-    );
+    )
+    .is_err()
+    {
+      return None;
+    }
 
     rx.recv()
       .ok()
@@ -2765,10 +2775,14 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   fn available_monitors(&self) -> Vec<Monitor> {
     let (tx, rx) = channel();
 
-    let _ = send_user_message(
+    if send_user_message(
       &self.context,
       Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::AvailableMonitors(tx)),
-    );
+    )
+    .is_err()
+    {
+      return Vec::new();
+    }
 
     rx.recv()
       .map(|monitors| {

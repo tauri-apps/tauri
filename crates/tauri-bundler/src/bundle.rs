@@ -289,13 +289,52 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         ""
       };
       let path_display = display_path(path);
-      writeln!(printable_paths, "        {path_display}{note}").unwrap();
+      let size = match bundle_size(path) {
+        Some(bytes) => format!(" ({})", human_readable_size(bytes)),
+        None => String::new(),
+      };
+      writeln!(printable_paths, "        {path_display}{note}{size}").unwrap();
     }
   }
 
   log::info!(action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
 
   Ok(bundles)
+}
+
+/// Total size in bytes of a bundle path, recursing into directories (e.g. macOS `.app`).
+///
+/// Returns `None` if the path can't be read.
+fn bundle_size(path: &std::path::Path) -> Option<u64> {
+  let metadata = std::fs::symlink_metadata(path).ok()?;
+  if metadata.is_dir() {
+    let mut total = 0;
+    for entry in walkdir::WalkDir::new(path).into_iter().flatten() {
+      if let Ok(metadata) = entry.metadata() {
+        if metadata.is_file() {
+          total += metadata.len();
+        }
+      }
+    }
+    Some(total)
+  } else {
+    Some(metadata.len())
+  }
+}
+
+/// Formats a byte count into a human-readable string, e.g. `12.3 MB`.
+fn human_readable_size(bytes: u64) -> String {
+  const UNITS: [&str; 6] = ["B", "KB", "MB", "GB", "TB", "PB"];
+  if bytes < 1024 {
+    return format!("{bytes} B");
+  }
+  let mut size = bytes as f64;
+  let mut unit = 0;
+  while size >= 1024.0 && unit < UNITS.len() - 1 {
+    size /= 1024.0;
+    unit += 1;
+  }
+  format!("{size:.1} {}", UNITS[unit])
 }
 
 fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> crate::Result<()> {
@@ -353,5 +392,21 @@ pub fn check_icons(settings: &Settings) -> crate::Result<bool> {
     Ok(false)
   } else {
     Ok(true)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::human_readable_size;
+
+  #[test]
+  fn human_readable_size_formats_units() {
+    assert_eq!(human_readable_size(0), "0 B");
+    assert_eq!(human_readable_size(512), "512 B");
+    assert_eq!(human_readable_size(1024), "1.0 KB");
+    assert_eq!(human_readable_size(1536), "1.5 KB");
+    assert_eq!(human_readable_size(1024 * 1024), "1.0 MB");
+    assert_eq!(human_readable_size(5 * 1024 * 1024 + 512 * 1024), "5.5 MB");
+    assert_eq!(human_readable_size(1024 * 1024 * 1024), "1.0 GB");
   }
 }

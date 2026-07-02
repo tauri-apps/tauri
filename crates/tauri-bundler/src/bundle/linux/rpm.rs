@@ -5,10 +5,9 @@
 
 use crate::{bundle::settings::Arch, error::ErrorExt, Settings};
 
-use rpm::{self, Dependency, FileOptions, signature::pgp};
+use rpm::{self, signature::pgp, Dependency, FileOptions};
 use std::{
-  env,
-  fs,
+  env, fs,
   path::{Path, PathBuf},
 };
 use tauri_utils::config::RpmCompression;
@@ -76,7 +75,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let build_config = rpm::BuildConfig::default().compression(compression);
 
   let mut builder = rpm::PackageBuilder::new(&name, version, &license, arch, summary);
-    builder.using_config(build_config)
+  builder
+    .using_config(build_config)
     .epoch(epoch)
     .release(release);
 
@@ -181,9 +181,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Add resources
   if settings.resource_files().count() > 0 {
     let resource_dir = Path::new("/usr/lib").join(settings.product_name());
-    builder.with_dir_entry(
-      FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755),
-    )?;
+    builder.with_dir_entry(FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755))?;
     // Then add the resources files in that directory
     for resource in settings.resource_files().iter() {
       let resource = resource?;

@@ -66,7 +66,13 @@ heck = "0.5"
 ar = "0.9"
 md5 = "0.8"
 # TODO: xz-compression's `lzma` conflicts with apple-codesign's `xz`
-rpm = { version = "0.25.1", default-features = false, features = ["gzip-compression", "payload", "signature-pgp", "zstd-compression", "bzip2-compression"] }
+rpm = { version = "0.25.1", default-features = false, features = [
+  "gzip-compression",
+  "payload",
+  "signature-pgp",
+  "zstd-compression",
+  "bzip2-compression",
+] }
 
 [target."cfg(unix)".dependencies]
 which = "8"

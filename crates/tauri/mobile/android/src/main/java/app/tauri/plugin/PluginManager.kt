@@ -56,10 +56,12 @@ object PluginManager {
   }
 
   fun onActivityCreate(activity: AppCompatActivity) {
-    // TODO: on destroy, we should change to a different activity
-    if (::activity.isInitialized) {
-      return
-    }
+    // Android can recreate the activity after launch (configuration changes such as
+    // rotation or light/dark mode, the system reclaiming memory, etc.). When that
+    // happens `onActivityCreate` runs again with the new activity, so we must rebind
+    // to it and re-register the launchers. Bailing out early would keep the launchers
+    // tied to the destroyed activity, causing `launch()` to throw
+    // "Attempting to launch an unregistered ActivityResultLauncher".
     this.activity = activity
     startActivityForResultLauncher =
       activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()

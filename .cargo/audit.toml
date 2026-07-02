@@ -21,4 +21,6 @@ ignore = [
   "RUSTSEC-2026-0104",
   # quick-xml, need an update in plist
   "RUSTSEC-2026-0194",
+  # quick-xml, need an update in plist
+  "RUSTSEC-2026-0195",
 ]

@@ -91,7 +91,6 @@
           "minSdkVersion": 24
         },
         "createUpdaterArtifacts": false,
-        "disableBinaryPatching": false,
         "iOS": {
           "minimumSystemVersion": "14.0"
         },
@@ -2250,11 +2249,6 @@
         },
         "useLocalToolsDir": {
           "description": "Whether to use the project's `target` directory, for caching build tools (e.g., Wix and NSIS) when building this application. Defaults to `false`.\n\n If true, tools will be cached in `target/.tauri/`.\n If false, tools will be cached in the current user's platform-specific cache directory.\n\n An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),\n because the Window system's app data directory is restricted.",
-          "default": false,
-          "type": "boolean"
-        },
-        "disableBinaryPatching": {
-          "description": "Whether to disable patching the main executable with bundle type information. Defaults to `false`.\n\n By default Tauri patches the main binary with the bundle type (e.g. `nsis`, `msi`) so the updater\n plugin can pick the matching installer format when several bundle types target the same platform.\n This rewrites the executable after it is built, which invalidates an existing code signature on it.\n\n Set this to `true` to leave the main binary untouched (and skip the post-patch re-signing) when you\n don't need per-bundle-type updates and want to preserve an already-signed binary.",
           "default": false,
           "type": "boolean"
         },

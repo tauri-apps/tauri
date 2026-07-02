@@ -1671,16 +1671,6 @@ pub struct BundleConfig {
   /// because the Window system's app data directory is restricted.
   #[serde(default, alias = "use-local-tools-dir")]
   pub use_local_tools_dir: bool,
-  /// Whether to disable patching the main executable with bundle type information. Defaults to `false`.
-  ///
-  /// By default Tauri patches the main binary with the bundle type (e.g. `nsis`, `msi`) so the updater
-  /// plugin can pick the matching installer format when several bundle types target the same platform.
-  /// This rewrites the executable after it is built, which invalidates an existing code signature on it.
-  ///
-  /// Set this to `true` to leave the main binary untouched (and skip the post-patch re-signing) when you
-  /// don't need per-bundle-type updates and want to preserve an already-signed binary.
-  #[serde(default, alias = "disable-binary-patching")]
-  pub disable_binary_patching: bool,
   /// A list of—either absolute or relative—paths to binaries to embed with your application.
   ///
   /// Note that Tauri will look for system-specific binaries following the pattern "binary-name{-target-triple}{.system-extension}".
@@ -4160,7 +4150,6 @@ mod build {
       let short_description = quote!(None);
       let long_description = quote!(None);
       let use_local_tools_dir = self.use_local_tools_dir;
-      let disable_binary_patching = self.disable_binary_patching;
       let external_bin = opt_vec_lit(self.external_bin.as_ref(), str_lit);
       let windows = &self.windows;
       let license = opt_str_lit(self.license.as_ref());
@@ -4188,7 +4177,6 @@ mod build {
         short_description,
         long_description,
         use_local_tools_dir,
-        disable_binary_patching,
         external_bin,
         windows,
         linux,
@@ -4642,7 +4630,6 @@ mod test {
       short_description: None,
       long_description: None,
       use_local_tools_dir: false,
-      disable_binary_patching: false,
       license: None,
       license_file: None,
       linux: Default::default(),

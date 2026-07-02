@@ -722,11 +722,6 @@ pub struct BundleSettings {
   pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
   pub windows: WindowsSettings,
-  /// Whether to disable patching the main binary with bundle type information.
-  ///
-  /// When `true`, the main executable is left untouched during bundling, preserving an
-  /// existing code signature at the cost of per-bundle-type updater support.
-  pub disable_binary_patching: bool,
 }
 
 /// A binary to bundle.
@@ -835,6 +830,8 @@ pub struct Settings {
   target: String,
   /// Whether to disable code signing during the bundling process.
   no_sign: bool,
+  /// Whether to disable patching the main binary with bundle type information.
+  no_binary_patching: bool,
 }
 
 /// A builder for [`Settings`].
@@ -849,6 +846,7 @@ pub struct SettingsBuilder {
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
   no_sign: bool,
+  no_binary_patching: bool,
 }
 
 impl SettingsBuilder {
@@ -925,6 +923,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets whether to disable patching the main binary with bundle type information.
+  #[must_use]
+  pub fn no_binary_patching(mut self, no_binary_patching: bool) -> Self {
+    self.no_binary_patching = no_binary_patching;
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -969,6 +974,7 @@ impl SettingsBuilder {
       target_platform,
       target,
       no_sign: self.no_sign,
+      no_binary_patching: self.no_binary_patching,
     })
   }
 }
@@ -1320,11 +1326,6 @@ impl Settings {
     self.bundle_settings.updater.as_ref()
   }
 
-  /// Whether patching the main binary with bundle type information is disabled.
-  pub fn disable_binary_patching(&self) -> bool {
-    self.bundle_settings.disable_binary_patching
-  }
-
   /// Whether to skip signing.
   pub fn no_sign(&self) -> bool {
     self.no_sign
@@ -1333,5 +1334,15 @@ impl Settings {
   /// Set whether to skip signing.
   pub fn set_no_sign(&mut self, no_sign: bool) {
     self.no_sign = no_sign;
+  }
+
+  /// Whether patching the main binary with bundle type information is disabled.
+  pub fn no_binary_patching(&self) -> bool {
+    self.no_binary_patching
+  }
+
+  /// Set whether to disable patching the main binary with bundle type information.
+  pub fn set_no_binary_patching(&mut self, no_binary_patching: bool) {
+    self.no_binary_patching = no_binary_patching;
   }
 }

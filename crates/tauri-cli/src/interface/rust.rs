@@ -1696,7 +1696,6 @@ fn tauri_config_to_bundle_settings(
     }),
     license_file: config.license_file.map(|l| tauri_dir.join(l)),
     updater: updater_config,
-    disable_binary_patching: config.disable_binary_patching,
     ..Default::default()
   })
 }

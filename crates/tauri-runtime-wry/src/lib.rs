@@ -5325,9 +5325,7 @@ You may have it installed on another user account, but it is not available for t
           // on multiwebview mode if we change focus to a different webview
           // we get the gotFocus event of the other webview before the lostFocus
           // so this check makes sense
-          let lost_window_focus = focused_webview.as_ref().map_or(true, |w| w == &label_);
-          // TODO: Use `is_none_or` instead when MSRV gets raised above 1.82
-          // let lost_window_focus = focused_webview.as_ref().is_none_or(|t| t == &label_);
+          let lost_window_focus = focused_webview.as_ref().is_none_or(|t| t == &label_);
 
           if lost_window_focus {
             // only reset when we lost window focus - otherwise some other webview is focused

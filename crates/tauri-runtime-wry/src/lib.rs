@@ -66,11 +66,6 @@ use wry::WebViewBuilderExtWindows;
 use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
 
 use tao::{
-  dpi::{
-    LogicalPosition as TaoLogicalPosition, LogicalSize as TaoLogicalSize,
-    PhysicalPosition as TaoPhysicalPosition, PhysicalSize as TaoPhysicalSize,
-    Position as TaoPosition, Size as TaoSize,
-  },
   event::{Event, StartCause, WindowEvent as TaoWindowEvent},
   event_loop::{
     ControlFlow, DeviceEventFilter as TaoDeviceEventFilter, EventLoop, EventLoopBuilder,
@@ -510,17 +505,15 @@ impl WindowEventWrapper {
     #[allow(unused_variables)] window: &WindowWrapper,
   ) -> Self {
     let event = match event {
-      TaoWindowEvent::Resized(size) => WindowEvent::Resized(PhysicalSizeWrapper(*size).into()),
-      TaoWindowEvent::Moved(position) => {
-        WindowEvent::Moved(PhysicalPositionWrapper(*position).into())
-      }
+      TaoWindowEvent::Resized(size) => WindowEvent::Resized(*size),
+      TaoWindowEvent::Moved(position) => WindowEvent::Moved(*position),
       TaoWindowEvent::Destroyed => WindowEvent::Destroyed,
       TaoWindowEvent::ScaleFactorChanged {
         scale_factor,
         new_inner_size,
       } => WindowEvent::ScaleFactorChanged {
         scale_factor: *scale_factor,
-        new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
+        new_inner_size: **new_inner_size,
       },
       TaoWindowEvent::Focused(focused) => {
         #[cfg(not(windows))]
@@ -585,7 +578,7 @@ impl WindowEventWrapper {
             &window.webviews,
             window.has_children.load(Ordering::Relaxed),
           );
-          Self(Some(WindowEvent::Resized(PhysicalSizeWrapper(size).into())))
+          Self(Some(WindowEvent::Resized(size)))
         } else {
           Self(None)
         }
@@ -619,94 +612,10 @@ impl From<MonitorHandleWrapper> for Monitor {
   fn from(monitor: MonitorHandleWrapper) -> Monitor {
     Self {
       name: monitor.0.name(),
-      position: PhysicalPositionWrapper(monitor.0.position()).into(),
-      size: PhysicalSizeWrapper(monitor.0.size()).into(),
+      position: monitor.0.position(),
+      size: monitor.0.size(),
       work_area: monitor.0.work_area(),
       scale_factor: monitor.0.scale_factor(),
-    }
-  }
-}
-
-pub struct PhysicalPositionWrapper<T>(pub TaoPhysicalPosition<T>);
-
-impl<T> From<PhysicalPositionWrapper<T>> for PhysicalPosition<T> {
-  fn from(position: PhysicalPositionWrapper<T>) -> Self {
-    Self {
-      x: position.0.x,
-      y: position.0.y,
-    }
-  }
-}
-
-impl<T> From<PhysicalPosition<T>> for PhysicalPositionWrapper<T> {
-  fn from(position: PhysicalPosition<T>) -> Self {
-    Self(TaoPhysicalPosition {
-      x: position.x,
-      y: position.y,
-    })
-  }
-}
-
-struct LogicalPositionWrapper<T>(TaoLogicalPosition<T>);
-
-impl<T> From<LogicalPosition<T>> for LogicalPositionWrapper<T> {
-  fn from(position: LogicalPosition<T>) -> Self {
-    Self(TaoLogicalPosition {
-      x: position.x,
-      y: position.y,
-    })
-  }
-}
-
-pub struct PhysicalSizeWrapper<T>(pub TaoPhysicalSize<T>);
-
-impl<T> From<PhysicalSizeWrapper<T>> for PhysicalSize<T> {
-  fn from(size: PhysicalSizeWrapper<T>) -> Self {
-    Self {
-      width: size.0.width,
-      height: size.0.height,
-    }
-  }
-}
-
-impl<T> From<PhysicalSize<T>> for PhysicalSizeWrapper<T> {
-  fn from(size: PhysicalSize<T>) -> Self {
-    Self(TaoPhysicalSize {
-      width: size.width,
-      height: size.height,
-    })
-  }
-}
-
-struct LogicalSizeWrapper<T>(TaoLogicalSize<T>);
-
-impl<T> From<LogicalSize<T>> for LogicalSizeWrapper<T> {
-  fn from(size: LogicalSize<T>) -> Self {
-    Self(TaoLogicalSize {
-      width: size.width,
-      height: size.height,
-    })
-  }
-}
-
-pub struct SizeWrapper(pub TaoSize);
-
-impl From<Size> for SizeWrapper {
-  fn from(size: Size) -> Self {
-    match size {
-      Size::Logical(s) => Self(TaoSize::Logical(LogicalSizeWrapper::from(s).0)),
-      Size::Physical(s) => Self(TaoSize::Physical(PhysicalSizeWrapper::from(s).0)),
-    }
-  }
-}
-
-pub struct PositionWrapper(pub TaoPosition);
-
-impl From<Position> for PositionWrapper {
-  fn from(position: Position) -> Self {
-    match position {
-      Position::Logical(s) => Self(TaoPosition::Logical(LogicalPositionWrapper::from(s).0)),
-      Position::Physical(s) => Self(TaoPosition::Physical(PhysicalPositionWrapper::from(s).0)),
     }
   }
 }
@@ -714,7 +623,7 @@ impl From<Position> for PositionWrapper {
 #[cfg(desktop)]
 fn find_monitor_for_position(
   monitors: impl Iterator<Item = MonitorHandle>,
-  window_position: TaoPosition,
+  window_position: Position,
 ) -> Option<MonitorHandle> {
   monitors.into_iter().find(|m| {
     let monitor_pos = m.position();
@@ -1000,8 +909,9 @@ impl WindowBuilder for WindowBuilderWrapper {
     if let Some(prevent_overflow) = &config.prevent_overflow {
       window = match prevent_overflow {
         PreventOverflowConfig::Enable(true) => window.prevent_overflow(),
-        PreventOverflowConfig::Margin(margin) => window
-          .prevent_overflow_with_margin(TaoPhysicalSize::new(margin.width, margin.height).into()),
+        PreventOverflowConfig::Margin(margin) => {
+          window.prevent_overflow_with_margin(PhysicalSize::new(margin.width, margin.height).into())
+        }
         _ => window,
       };
     }
@@ -1015,28 +925,26 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn position(mut self, x: f64, y: f64) -> Self {
-    self.inner = self.inner.with_position(TaoLogicalPosition::new(x, y));
+    self.inner = self.inner.with_position(LogicalPosition::new(x, y));
     self
   }
 
   fn inner_size(mut self, width: f64, height: f64) -> Self {
-    self.inner = self
-      .inner
-      .with_inner_size(TaoLogicalSize::new(width, height));
+    self.inner = self.inner.with_inner_size(LogicalSize::new(width, height));
     self
   }
 
   fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
     self.inner = self
       .inner
-      .with_min_inner_size(TaoLogicalSize::new(min_width, min_height));
+      .with_min_inner_size(LogicalSize::new(min_width, min_height));
     self
   }
 
   fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.inner = self
       .inner
-      .with_max_inner_size(TaoLogicalSize::new(max_width, max_height));
+      .with_max_inner_size(LogicalSize::new(max_width, max_height));
     self
   }
 
@@ -2847,8 +2755,6 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     event_loop_window_getter!(self, EventLoopWindowTargetMessage::CursorPosition)?
-      .map(PhysicalPositionWrapper)
-      .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
 
@@ -3175,8 +3081,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .main_thread
       .window_target
       .cursor_position()
-      .map(PhysicalPositionWrapper)
-      .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
 
@@ -3418,7 +3322,6 @@ fn handle_user_message<T: UserEvent>(
             .send(
               window
                 .inner_position()
-                .map(|p| PhysicalPositionWrapper(p).into())
                 .map_err(|_| Error::FailedToSendMessage),
             )
             .unwrap(),
@@ -3426,16 +3329,13 @@ fn handle_user_message<T: UserEvent>(
             .send(
               window
                 .outer_position()
-                .map(|p| PhysicalPositionWrapper(p).into())
                 .map_err(|_| Error::FailedToSendMessage),
             )
             .unwrap(),
           WindowMessage::InnerSize(tx) => tx
-            .send(PhysicalSizeWrapper(inner_size(&window, &webviews, has_children)).into())
+            .send(inner_size(&window, &webviews, has_children))
             .unwrap(),
-          WindowMessage::OuterSize(tx) => tx
-            .send(PhysicalSizeWrapper(window.outer_size()).into())
-            .unwrap(),
+          WindowMessage::OuterSize(tx) => tx.send(window.outer_size()).unwrap(),
           WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
           WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
           WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
@@ -3557,13 +3457,13 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::SetContentProtected(protected) => window.set_content_protection(protected),
           WindowMessage::SetSize(size) => {
-            window.set_inner_size(SizeWrapper::from(size).0);
+            window.set_inner_size(size);
           }
           WindowMessage::SetMinSize(size) => {
-            window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            window.set_min_inner_size(size);
           }
           WindowMessage::SetMaxSize(size) => {
-            window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            window.set_max_inner_size(size);
           }
           WindowMessage::SetSizeConstraints(constraints) => {
             window.set_inner_size_constraints(tao::window::WindowSizeConstraints {
@@ -3573,9 +3473,7 @@ fn handle_user_message<T: UserEvent>(
               max_height: constraints.max_height,
             });
           }
-          WindowMessage::SetPosition(position) => {
-            window.set_outer_position(PositionWrapper::from(position).0)
-          }
+          WindowMessage::SetPosition(position) => window.set_outer_position(position),
           WindowMessage::SetFullscreen(fullscreen) => {
             if fullscreen {
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
@@ -3620,7 +3518,7 @@ fn handle_user_message<T: UserEvent>(
             window.set_cursor_icon(CursorIconWrapper::from(icon).0);
           }
           WindowMessage::SetCursorPosition(position) => {
-            let _ = window.set_cursor_position(PositionWrapper::from(position).0);
+            let _ = window.set_cursor_position(position);
           }
           WindowMessage::SetIgnoreCursorEvents(ignore) => {
             let _ = window.set_ignore_cursor_events(ignore);
@@ -4577,7 +4475,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .inner
         .window
         .inner_size
-        .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
+        .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
       let mut inner_size = window_builder
         .inner
         .window
@@ -5400,13 +5298,13 @@ fn inner_size(
   window: &Window,
   webviews: &[WebviewWrapper],
   has_children: bool,
-) -> TaoPhysicalSize<u32> {
+) -> PhysicalSize<u32> {
   if !has_children && !webviews.is_empty() {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
     let view = unsafe { Retained::cast_unchecked::<objc2_app_kit::NSView>(webview.webview()) };
     let view_frame = view.frame();
-    let logical: TaoLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
+    let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     return logical.to_physical(window.scale_factor());
   }
 
@@ -5419,7 +5317,7 @@ fn inner_size(
   window: &Window,
   webviews: &[WebviewWrapper],
   has_children: bool,
-) -> TaoPhysicalSize<u32> {
+) -> PhysicalSize<u32> {
   window.inner_size()
 }
 

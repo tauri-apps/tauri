@@ -159,7 +159,7 @@ pub fn build(
   let out_dir = app_settings.out_dir(&options, tauri_dir)?;
   let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
 
-  if !std::env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "false") {
+  if std::env::var_os("STATIC_VCRUNTIME").is_none_or(|v| v != "false") {
     std::env::set_var("STATIC_VCRUNTIME", "true");
   }
 

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(all(desktop, not(test)))]
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   include_image,

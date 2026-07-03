@@ -9,7 +9,6 @@ use crate::{
 };
 use clap::Parser;
 use colored::{ColoredString, Colorize};
-use dialoguer::{theme::ColorfulTheme, Confirm};
 use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
 use tauri_utils::platform::Target;
@@ -125,8 +124,6 @@ pub struct SectionItem {
   /// If description is none, the item is skipped
   description: Option<String>,
   status: Status,
-  action: Option<Box<dyn FnMut() -> ActionResult>>,
-  action_if_err: Option<Box<dyn FnMut() -> ActionResult>>,
 }
 
 impl Display for SectionItem {
@@ -144,46 +141,14 @@ impl Display for SectionItem {
 impl SectionItem {
   fn new() -> Self {
     Self {
-      action: None,
-      action_if_err: None,
       description: None,
       status: Status::Neutral,
     }
   }
 
-  fn action<F: FnMut() -> ActionResult + 'static>(mut self, action: F) -> Self {
-    self.action = Some(Box::new(action));
-    self
-  }
-
-  // fn action_if_err<F: FnMut() -> ActionResult + 'static>(mut self, action: F) -> Self {
-  //   self.action_if_err = Some(Box::new(action));
-  //   self
-  // }
-
-  fn description<S: AsRef<str>>(mut self, description: S) -> Self {
-    self.description = Some(description.as_ref().to_string());
-    self
-  }
-
-  fn run_action(&mut self) {
-    let mut res = ActionResult::None;
-    if let Some(action) = &mut self.action {
-      res = action();
-    }
-    self.apply_action_result(res);
-  }
-
-  fn run_action_if_err(&mut self) {
-    let mut res = ActionResult::None;
-    if let Some(action) = &mut self.action_if_err {
-      res = action();
-    }
-    self.apply_action_result(res);
-  }
-
-  fn apply_action_result(&mut self, result: ActionResult) {
-    match result {
+  /// Applies the result of a (now eagerly evaluated) action to this item.
+  fn action_result<R: Into<ActionResult>>(mut self, result: R) -> Self {
+    match result.into() {
       ActionResult::Full {
         description,
         status,
@@ -196,33 +161,17 @@ impl SectionItem {
       }
       ActionResult::None => {}
     }
+    self
   }
 
-  fn run(&mut self, interactive: bool) -> Status {
-    self.run_action();
-
-    if self.status == Status::Error && interactive && self.action_if_err.is_some() {
-      if let Some(description) = &self.description {
-        let confirmed = Confirm::with_theme(&ColorfulTheme::default())
-          .with_prompt(format!(
-            "{}\n  Run the automatic fix?",
-            description.replace('\n', "\n  ")
-          ))
-          .interact()
-          .unwrap_or(false);
-        if confirmed {
-          self.run_action_if_err()
-        }
-      }
-    }
-
-    self.status
+  fn description<S: AsRef<str>>(mut self, description: S) -> Self {
+    self.description = Some(description.as_ref().to_string());
+    self
   }
 }
 
 struct Section<'a> {
   label: &'a str,
-  interactive: bool,
   items: Vec<SectionItem>,
 }
 
@@ -230,10 +179,9 @@ impl Section<'_> {
   fn display(&mut self) {
     let mut status = Status::Neutral;
 
-    for item in &mut self.items {
-      let s = item.run(self.interactive);
-      if s > status {
-        status = s;
+    for item in &self.items {
+      if item.status > status {
+        status = item.status;
       }
     }
 
@@ -260,58 +208,53 @@ pub struct Options {
   pub interactive: bool,
 }
 
-pub fn command(options: Options) -> Result<()> {
-  let Options { interactive } = options;
+pub async fn command(options: Options) -> Result<()> {
+  let Options { interactive: _ } = options;
 
   let frontend_dir = resolve_frontend_dir();
   let tauri_dir = resolve_tauri_dir();
 
-  let package_manager = frontend_dir
-    .as_ref()
-    .map(packages_nodejs::package_manager)
-    .unwrap_or(crate::helpers::npm::PackageManager::Npm);
+  let package_manager = match frontend_dir.as_ref() {
+    Some(frontend_dir) => packages_nodejs::package_manager(frontend_dir).await,
+    None => crate::helpers::npm::PackageManager::Npm,
+  };
 
   let metadata = version_metadata()?;
 
   let mut environment = Section {
     label: "Environment",
-    interactive,
     items: Vec::new(),
   };
-  environment.items.extend(env_system::items());
-  environment.items.extend(env_rust::items());
-  let items = env_nodejs::items(&metadata);
+  environment.items.extend(env_system::items().await);
+  environment.items.extend(env_rust::items().await);
+  let items = env_nodejs::items(&metadata).await;
   environment.items.extend(items);
 
   let mut packages = Section {
     label: "Packages",
-    interactive,
     items: Vec::new(),
   };
-  packages.items.extend(packages_rust::items(
-    frontend_dir.as_ref(),
-    tauri_dir.as_deref(),
-  ));
-  packages.items.extend(packages_nodejs::items(
-    frontend_dir.as_ref(),
-    package_manager,
-    &metadata,
-  ));
+  packages
+    .items
+    .extend(packages_rust::items(frontend_dir.as_ref(), tauri_dir.as_deref()).await);
+  packages
+    .items
+    .extend(packages_nodejs::items(frontend_dir.as_ref(), package_manager, &metadata).await);
 
   let mut plugins = Section {
     label: "Plugins",
-    interactive,
-    items: plugins::items(frontend_dir.as_ref(), tauri_dir.as_deref(), package_manager),
+    items: plugins::items(frontend_dir.as_ref(), tauri_dir.as_deref(), package_manager).await,
   };
 
   let mut app = Section {
     label: "App",
-    interactive,
     items: Vec::new(),
   };
   if let Some(tauri_dir) = &tauri_dir {
     if let Ok(config) = crate::helpers::config::get_config(Target::current(), &[], tauri_dir) {
-      app.items.extend(app::items(&config, frontend_dir.as_ref()));
+      app
+        .items
+        .extend(app::items(&config, frontend_dir.as_ref()).await);
     };
   }
 
@@ -322,7 +265,7 @@ pub fn command(options: Options) -> Result<()> {
   plugins.display();
 
   if let (Some(frontend_dir), Some(tauri_dir)) = (&frontend_dir, &tauri_dir) {
-    if let Err(error) = plugins::check_mismatched_packages(frontend_dir, tauri_dir) {
+    if let Err(error) = plugins::check_mismatched_packages(frontend_dir, tauri_dir).await {
       println!("\n{}: {error}", "Error".bright_red().bold());
     }
   }
@@ -336,10 +279,9 @@ pub fn command(options: Options) -> Result<()> {
       if p.join("gen/apple").exists() {
         let mut ios = Section {
           label: "iOS",
-          interactive,
           items: Vec::new(),
         };
-        ios.items.extend(ios::items());
+        ios.items.extend(ios::items().await);
         ios.display();
       }
     }

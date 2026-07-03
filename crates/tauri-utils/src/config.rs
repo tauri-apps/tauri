@@ -2034,6 +2034,8 @@ pub struct WindowConfig {
   ///
   /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.
   /// WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+  ///
+  /// On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
   #[serde(default)]
   pub transparent: bool,
   /// Whether the window is maximized or not.
@@ -2066,6 +2068,12 @@ pub struct WindowConfig {
   pub skip_taskbar: bool,
   /// The name of the window class created on Windows to create the window. **Windows only**.
   pub window_classname: Option<String>,
+  /// This sets `WS_EX_NOREDIRECTIONBITMAP`.
+  ///
+  /// This can avoid the white flash that may appear before the webview content is rendered
+  /// when using a transparent window. **Windows only**.
+  #[serde(default, alias = "no-redirection-bitmap")]
+  pub no_redirection_bitmap: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
   /// The style of the macOS title bar.
@@ -2340,6 +2348,7 @@ impl Default for WindowConfig {
       content_protected: false,
       skip_taskbar: false,
       window_classname: None,
+      no_redirection_bitmap: false,
       theme: None,
       title_bar_style: Default::default(),
       traffic_light_position: None,
@@ -3912,6 +3921,7 @@ mod build {
       let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
       let window_classname = opt_str_lit(self.window_classname.as_ref());
+      let no_redirection_bitmap = self.no_redirection_bitmap;
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let traffic_light_position = opt_lit(self.traffic_light_position.as_ref());
@@ -3977,6 +3987,7 @@ mod build {
         content_protected,
         skip_taskbar,
         window_classname,
+        no_redirection_bitmap,
         theme,
         title_bar_style,
         traffic_light_position,

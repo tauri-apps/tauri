@@ -19,7 +19,7 @@
 
 Tauri is a polyglot and generic system that is very composable and allows engineers to make a wide variety of applications. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developers can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.
 
-Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the system's webview. They do not ship a runtime, since the final binary is compiled from rust. This makes the reversing of Tauri apps not a trivial task.
+Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the system's webview. They do not ship a runtime, since the final binary is compiled from Rust. This makes the reversing of Tauri apps not a trivial task.
 
 ## This module
 
@@ -30,7 +30,7 @@ To learn more about the details of how all of these pieces fit together, please 
 
 ## Semver
 
-**tauri** is following [Semantic Versioning 2.0](https://semver.org/).
+**tauri-codegen** is following [Semantic Versioning 2.0](https://semver.org/).
 
 ## Licenses
 

@@ -64,7 +64,14 @@ tauri-macos-sign = { version = "2.3.4", path = "../tauri-macos-sign" }
 heck = "0.5"
 ar = "0.9"
 md5 = "0.8"
-rpm = { version = "0.16", features = ["bzip2-compression"] }
+# TODO: xz-compression's `lzma` conflicts with apple-codesign's `xz`
+rpm = { version = "0.25.1", default-features = false, features = [
+  "gzip-compression",
+  "payload",
+  "signature-pgp",
+  "zstd-compression",
+  "bzip2-compression",
+] }
 
 [target."cfg(any(target_os = \"windows\", target_os = \"macos\", target_os = \"linux\"))".dependencies]
 glob = "0.3"

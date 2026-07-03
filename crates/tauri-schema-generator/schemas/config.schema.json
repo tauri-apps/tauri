@@ -3536,7 +3536,7 @@
           ]
         },
         "compression": {
-          "description": "Compression algorithm and level. Defaults to `Gzip` with level 6.",
+          "description": "Compression algorithm and level. Defaults to Zstd(19).\n The default can change across versions and follows [rpm-rs](<https://github.com/rpm-rs/rpm-rs/blob/master/src/rpm/compressor.rs>).",
           "anyOf": [
             {
               "$ref": "#/definitions/RpmCompression"

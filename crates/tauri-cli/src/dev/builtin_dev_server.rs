@@ -10,7 +10,6 @@ use axum::{
 use std::{
   net::{IpAddr, SocketAddr},
   path::{Path, PathBuf},
-  thread,
   time::Duration,
 };
 use tauri_utils::mime_type::MimeType;
@@ -27,7 +26,11 @@ struct ServerState {
   tx: Sender<()>,
 }
 
-pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Result<SocketAddr> {
+pub async fn start<P: AsRef<Path>>(
+  dir: P,
+  ip: IpAddr,
+  port: Option<u16>,
+) -> crate::Result<SocketAddr> {
   let dir = dir.as_ref();
   let dir =
     dunce::canonicalize(dir).fs_context("failed to canonicalize path", dir.to_path_buf())?;
@@ -37,8 +40,7 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
   let mut port = port.unwrap_or(1430);
   let (tcp_listener, address) = loop {
     let address = SocketAddr::new(ip, port);
-    if let Ok(tcp) = std::net::TcpListener::bind(address) {
-      tcp.set_nonblocking(true).unwrap();
+    if let Ok(tcp) = tokio::net::TcpListener::bind(address).await {
       break (tcp, address);
     }
 
@@ -53,26 +55,25 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
 
   // watch dir for changes
   let tx_c = tx.clone();
-  watch(dir.clone(), move || {
+  let watcher = watch(&dir, move || {
     let _ = tx_c.send(());
   });
 
   let state = ServerState { dir, tx, address };
 
-  // start router thread
-  std::thread::spawn(move || {
-    tokio::runtime::Builder::new_current_thread()
-      .enable_io()
-      .build()
-      .expect("failed to start tokio runtime for builtin dev server")
-      .block_on(async move {
-        let router = axum::Router::new()
-          .fallback(handler)
-          .route("/__tauri_cli", axum::routing::get(ws_handler))
-          .with_state(state);
+  // the server task lives as long as the runtime; when the runtime shuts
+  // down the task is dropped, closing the listener and the fs watcher with it
+  tokio::spawn(async move {
+    // keep the fs watcher alive for as long as the server is running
+    let _watcher = watcher;
 
-        axum::serve(tokio::net::TcpListener::from_std(tcp_listener)?, router).await
-      })
+    let router = axum::Router::new()
+      .fallback(handler)
+      .route("/__tauri_cli", axum::routing::get(ws_handler))
+      .with_state(state);
+
+    axum::serve(tcp_listener, router)
+      .await
       .expect("builtin server errored");
   });
 
@@ -89,10 +90,17 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
     uri.strip_prefix('/').unwrap_or(uri)
   };
 
-  let bytes = fs_read_scoped(state.dir.join(uri), &state.dir)
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}.html", &uri)), &state.dir))
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}/index.html", &uri)), &state.dir))
-    .or_else(|_| std::fs::read(state.dir.join("index.html")));
+  let mut bytes = fs_read_scoped(state.dir.join(uri), &state.dir).await;
+  if bytes.is_err() {
+    bytes = fs_read_scoped(state.dir.join(format!("{}.html", &uri)), &state.dir).await;
+  }
+  if bytes.is_err() {
+    bytes = fs_read_scoped(state.dir.join(format!("{}/index.html", &uri)), &state.dir).await;
+  }
+  let bytes = match bytes {
+    Ok(bytes) => Ok(bytes),
+    Err(_) => tokio::fs::read(state.dir.join("index.html")).await,
+  };
 
   match bytes {
     Ok(mut bytes) => {
@@ -136,34 +144,47 @@ fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
   tauri_utils::html2::serialize_doc(&document)
 }
 
-fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
-  let path = dunce::canonicalize(&path).fs_context("failed to canonicalize path", path)?;
-  if path.starts_with(scope) {
-    std::fs::read(&path).fs_context("failed to read file", &path)
+async fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
+  let path = tokio::fs::canonicalize(&path)
+    .await
+    .fs_context("failed to canonicalize path", path)?;
+  // simplify UNC paths on Windows so they match the dunce-canonicalized scope
+  if dunce::simplified(&path).starts_with(scope) {
+    tokio::fs::read(&path)
+      .await
+      .fs_context("failed to read file", &path)
   } else {
     crate::error::bail!("forbidden path")
   }
 }
 
-fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
-  thread::spawn(move || {
-    let (tx, rx) = std::sync::mpsc::channel();
-
-    let mut watcher = notify_debouncer_full::new_debouncer(Duration::from_secs(1), None, tx)
-      .expect("failed to start builtin server fs watcher");
-
-    watcher
-      .watch(&dir, notify::RecursiveMode::Recursive)
-      .expect("builtin server failed to watch dir");
-
-    loop {
-      if let Ok(Ok(event)) = rx.recv() {
-        if let Some(event) = event.first() {
+fn watch<F: Fn() + Send + 'static>(
+  dir: &Path,
+  handler: F,
+) -> notify_debouncer_full::Debouncer<
+  notify::RecommendedWatcher,
+  notify_debouncer_full::RecommendedCache,
+> {
+  // the handler is called directly on the debouncer's worker thread,
+  // it only signals a tokio broadcast channel so it never blocks
+  let mut watcher = notify_debouncer_full::new_debouncer(
+    Duration::from_secs(1),
+    None,
+    move |r: notify_debouncer_full::DebounceEventResult| {
+      if let Ok(events) = r {
+        if let Some(event) = events.first() {
           if !event.kind.is_access() {
             handler();
           }
         }
       }
-    }
-  });
+    },
+  )
+  .expect("failed to start builtin server fs watcher");
+
+  watcher
+    .watch(dir, notify::RecursiveMode::Recursive)
+    .expect("builtin server failed to watch dir");
+
+  watcher
 }

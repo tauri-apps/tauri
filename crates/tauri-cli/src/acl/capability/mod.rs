@@ -21,8 +21,8 @@ enum Commands {
   New(new::Options),
 }
 
-pub fn command(cli: Cli) -> Result<()> {
+pub async fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::New(options) => new::command(options),
+    Commands::New(options) => new::command(options).await,
   }
 }

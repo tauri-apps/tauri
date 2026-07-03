@@ -118,7 +118,7 @@ pub struct BuiltApplication {
   options_handle: OptionsHandle,
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
+pub async fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
@@ -129,10 +129,10 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       .collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  run(options, noise_level, &dirs, &tauri_config)
+  run(options, noise_level, &dirs, &tauri_config).await
 }
 
-pub fn run(
+pub async fn run(
   options: Options,
   noise_level: NoiseLevel,
   dirs: &Dirs,
@@ -153,7 +153,7 @@ pub fn run(
     .unwrap();
   build_options.target = Some(first_target.triple.into());
 
-  let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(tauri_config, build_options.target.clone(), dirs.tauri).await?;
   interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
   let app = get_app(MobileTarget::Android, tauri_config, &interface, dirs.tauri);
@@ -170,7 +170,8 @@ pub fn run(
       config: build_options.config.clone(),
       target_device: None,
     },
-  );
+  )
+  .await;
 
   let profile = if options.debug {
     Profile::Debug
@@ -186,15 +187,16 @@ pub fn run(
     config.project_dir(),
     MobileTarget::Android,
     options.ci,
-  )?;
+  )
+  .await?;
 
-  let mut env = env(options.ci)?;
+  let mut env = env(options.ci).await?;
   configure_cargo(&mut env, &config)?;
 
-  generate_tauri_properties(&config, tauri_config, false)?;
+  generate_tauri_properties(&config, tauri_config, false).await?;
   sync_debug_application_id_suffix(&config, tauri_config)?;
 
-  crate::build::setup(&interface, &mut build_options, tauri_config, dirs, true)?;
+  crate::build::setup(&interface, &mut build_options, tauri_config, dirs, true).await?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();
@@ -225,7 +227,8 @@ pub fn run(
     &mut env,
     noise_level,
     dirs.tauri,
-  )?;
+  )
+  .await?;
 
   if open {
     open_and_wait(&config, &env);
@@ -239,7 +242,7 @@ pub fn run(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_build(
+async fn run_build(
   interface: &AppInterface,
   mut options: Options,
   build_options: BuildOptions,
@@ -276,7 +279,7 @@ fn run_build(
     config: build_options.config,
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(tauri_config, cli_options)?;
+  let handle = write_options(tauri_config, cli_options).await?;
 
   inject_resources(config, tauri_config)?;
 

@@ -108,13 +108,15 @@ impl TomlOrJson {
   }
 }
 
-fn capability_from_path<P: AsRef<Path>>(path: P) -> Option<TomlOrJson> {
+async fn capability_from_path<P: AsRef<Path>>(path: P) -> Option<TomlOrJson> {
   match path.as_ref().extension().and_then(|o| o.to_str()) {
-    Some("toml") => std::fs::read_to_string(&path)
+    Some("toml") => tokio::fs::read_to_string(&path)
+      .await
       .ok()
       .and_then(|c| c.parse::<toml_edit::DocumentMut>().ok())
       .map(TomlOrJson::Toml),
-    Some("json") => std::fs::read(&path)
+    Some("json") => tokio::fs::read(&path)
+      .await
       .ok()
       .and_then(|c| serde_json::from_slice::<serde_json::Value>(&c).ok())
       .map(TomlOrJson::Json),
@@ -131,7 +133,7 @@ pub struct Options {
   pub capability: Option<String>,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let dir = match resolve_tauri_dir() {
     Some(t) => t,
     None => std::env::current_dir().context("failed to resolve current directory")?,
@@ -151,20 +153,24 @@ pub fn command(options: Options) -> Result<()> {
     .split_once(':')
     .and_then(|(plugin, _permission)| known_plugins.get(&plugin));
 
-  let capabilities_iter = std::fs::read_dir(&capabilities_dir)
-    .fs_context(
-      "failed to read capabilities directory",
-      capabilities_dir.clone(),
-    )?
-    .flatten()
-    .filter(|e| e.file_type().map(|e| e.is_file()).unwrap_or_default())
-    .filter_map(|e| {
-      let path = e.path();
-      capability_from_path(&path).and_then(|capability| match &options.capability {
-        Some(c) => (c == capability.identifier()).then_some((capability, path)),
-        None => Some((capability, path)),
-      })
-    });
+  let mut existing_capabilities = Vec::new();
+  let mut entries = tokio::fs::read_dir(&capabilities_dir).await.fs_context(
+    "failed to read capabilities directory",
+    capabilities_dir.clone(),
+  )?;
+  while let Ok(Some(e)) = entries.next_entry().await {
+    if !e.file_type().await.map(|t| t.is_file()).unwrap_or_default() {
+      continue;
+    }
+    let path = e.path();
+    if let Some(capability) = capability_from_path(&path).await {
+      match &options.capability {
+        Some(c) if c != capability.identifier() => {}
+        _ => existing_capabilities.push((capability, path)),
+      }
+    }
+  }
+  let capabilities_iter = existing_capabilities.into_iter();
 
   let (desktop_only, mobile_only) = known_plugin
     .map(|p| (p.desktop_only, p.mobile_only))
@@ -272,7 +278,8 @@ pub fn command(options: Options) -> Result<()> {
       );
     } else {
       capability.insert_permission(options.identifier.clone());
-      std::fs::write(&*path, capability.to_string()?)
+      tokio::fs::write(&*path, capability.to_string()?)
+        .await
         .fs_context("failed to write capability file", path.clone())?;
       log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
     }

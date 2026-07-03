@@ -6,9 +6,9 @@ use serde::Deserialize;
 
 use std::{
   collections::HashMap,
-  fs,
   path::{Path, PathBuf},
 };
+use tokio::fs;
 
 use crate::interface::rust::get_workspace_dir;
 
@@ -51,15 +51,27 @@ pub struct CargoManifest {
   pub dependencies: HashMap<String, CargoManifestDependency>,
 }
 
-pub fn cargo_manifest_and_lock(tauri_dir: &Path) -> (Option<CargoManifest>, Option<CargoLock>) {
+pub async fn cargo_manifest_and_lock(
+  tauri_dir: &Path,
+) -> (Option<CargoManifest>, Option<CargoLock>) {
   let manifest: Option<CargoManifest> = fs::read_to_string(tauri_dir.join("Cargo.toml"))
+    .await
     .ok()
     .and_then(|manifest_contents| toml::from_str(&manifest_contents).ok());
 
-  let lock: Option<CargoLock> = get_workspace_dir(tauri_dir)
+  // `cargo metadata` can take a while, don't block the runtime on it
+  let tauri_dir_ = tauri_dir.to_path_buf();
+  let workspace_dir = tokio::task::spawn_blocking(move || get_workspace_dir(&tauri_dir_))
+    .await
     .ok()
-    .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
-    .and_then(|s| toml::from_str(&s).ok());
+    .and_then(|r| r.ok());
+  let lock: Option<CargoLock> = match workspace_dir {
+    Some(p) => fs::read_to_string(p.join("Cargo.lock"))
+      .await
+      .ok()
+      .and_then(|s| toml::from_str(&s).ok()),
+    None => None,
+  };
 
   (manifest, lock)
 }
@@ -128,16 +140,16 @@ struct CrateIoGetResponse {
   krate: CrateMetadata,
 }
 
-pub fn crate_latest_version(name: &str) -> Option<String> {
+pub async fn crate_latest_version(name: &str) -> Option<String> {
   // Reference: https://github.com/rust-lang/crates.io/blob/98c83c8231cbcd15d6b8f06d80a00ad462f71585/src/controllers/krate/metadata.rs#L88
   let url = format!("https://crates.io/api/v1/crates/{name}?include");
-  let mut response = super::http::get(&url).ok()?;
+  let mut response = super::http::get(&url).await.ok()?;
   let metadata: CrateIoGetResponse =
     serde_json::from_reader(response.body_mut().as_reader()).unwrap();
   metadata.krate.default_version
 }
 
-pub fn crate_version(
+pub async fn crate_version(
   tauri_dir: &Path,
   manifest: Option<&CargoManifest>,
   lock: Option<&CargoLock>,
@@ -178,6 +190,7 @@ pub fn crate_version(
           } else if let Some(p) = p.path {
             let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
             let v = fs::read_to_string(manifest_path)
+              .await
               .ok()
               .and_then(|m| toml::from_str::<CargoManifest>(&m).ok())
               .map(|m| m.package.version);

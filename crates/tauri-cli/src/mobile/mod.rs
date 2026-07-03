@@ -26,7 +26,6 @@ use std::{
   env::{set_var, temp_dir},
   ffi::OsString,
   fmt::{Display, Write},
-  fs::{read_to_string, write},
   net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
   path::{Path, PathBuf},
   process::{exit, ExitStatus},
@@ -36,7 +35,7 @@ use std::{
     Arc, OnceLock,
   },
 };
-use tokio::runtime::Runtime;
+use tokio::fs::{read_to_string, write};
 
 #[cfg(not(windows))]
 use cargo_mobile2::env::Env;
@@ -65,15 +64,35 @@ impl DevChild {
   }
 }
 
+impl Drop for DevChild {
+  fn drop(&mut self) {
+    // kill the process when the last handle is dropped
+    if Arc::strong_count(&self.child) == 1
+      && !self.manually_killed_process.load(Ordering::SeqCst)
+    {
+      let _ = self.child.kill();
+    }
+  }
+}
+
+#[async_trait::async_trait]
 impl DevProcess for DevChild {
-  fn kill(&self) -> std::io::Result<()> {
-    self.child.kill()?;
+  async fn kill(&self) -> std::io::Result<()> {
+    // set the flag before killing to avoid racing with waiters
     self.manually_killed_process.store(true, Ordering::SeqCst);
+    let child = self.child.clone();
+    // the cargo-mobile2 child handle kill/wait are blocking
+    tokio::task::spawn_blocking(move || child.kill())
+      .await
+      .map_err(std::io::Error::other)??;
     Ok(())
   }
 
-  fn wait(&self) -> std::io::Result<ExitStatus> {
-    self.child.wait().map(|o| o.status)
+  async fn wait(&self) -> std::io::Result<ExitStatus> {
+    let child = self.child.clone();
+    tokio::task::spawn_blocking(move || child.wait().map(|o| o.status))
+      .await
+      .map_err(std::io::Error::other)?
   }
 
   fn manually_killed_process(&self) -> bool {
@@ -328,33 +347,28 @@ fn env() -> std::result::Result<Env, EnvError> {
   Ok(env)
 }
 
-pub struct OptionsHandle(#[allow(unused)] Runtime, #[allow(unused)] ServerHandle);
+/// Keeps the CLI options server alive; the server is stopped when this is dropped.
+pub struct OptionsHandle(#[allow(unused)] ServerHandle);
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
-pub fn write_options(
+pub async fn write_options(
   config: &ConfigMetadata,
   mut options: CliOptions,
 ) -> crate::Result<OptionsHandle> {
   options.vars.extend(env_vars());
 
-  let runtime = Runtime::new().unwrap();
-  let r: crate::Result<(ServerHandle, SocketAddr)> = runtime.block_on(async move {
-    let server = ServerBuilder::default()
-      .build("127.0.0.1:0")
-      .await
-      .context("failed to build WebSocket server")?;
-    let addr = server.local_addr().context("failed to get local address")?;
+  let server = ServerBuilder::default()
+    .build("127.0.0.1:0")
+    .await
+    .context("failed to build WebSocket server")?;
+  let addr = server.local_addr().context("failed to get local address")?;
 
-    let mut module = RpcModule::new(());
-    module
-      .register_method("options", move |_, _, _| Some(options.clone()))
-      .context("failed to register options method")?;
+  let mut module = RpcModule::new(());
+  module
+    .register_method("options", move |_, _, _| Some(options.clone()))
+    .context("failed to register options method")?;
 
-    let handle = server.start(module);
-
-    Ok((handle, addr))
-  });
-  let (handle, addr) = r?;
+  let handle = server.start(module);
 
   let server_addr_path = temp_dir().join(format!(
     "{}-server-addr",
@@ -364,43 +378,43 @@ pub fn write_options(
   ));
 
   write(&server_addr_path, addr.to_string())
+    .await
     .fs_context("failed to write server address file", server_addr_path)?;
 
-  Ok(OptionsHandle(runtime, handle))
+  Ok(OptionsHandle(handle))
 }
 
-fn read_options(config: &ConfigMetadata) -> CliOptions {
-  let runtime = tokio::runtime::Runtime::new().unwrap();
-  let options = runtime
-    .block_on(async move {
-      let addr_path = temp_dir().join(format!(
-        "{}-server-addr",
-        config
-          .original_identifier()
-          .context("app configuration is missing an identifier")?
-      ));
-      let (tx, rx) = WsTransportClientBuilder::default()
-        .build(
-          format!(
-            "ws://{}",
-            read_to_string(&addr_path).unwrap_or_else(|e| panic!(
-              "failed to read missing addr file {}: {e}",
-              addr_path.display()
-            ))
-          )
-          .parse()
-          .unwrap(),
+async fn read_options(config: &ConfigMetadata) -> CliOptions {
+  let options = async move {
+    let addr_path = temp_dir().join(format!(
+      "{}-server-addr",
+      config
+        .original_identifier()
+        .context("app configuration is missing an identifier")?
+    ));
+    let (tx, rx) = WsTransportClientBuilder::default()
+      .build(
+        format!(
+          "ws://{}",
+          read_to_string(&addr_path).await.unwrap_or_else(|e| panic!(
+            "failed to read missing addr file {}: {e}",
+            addr_path.display()
+          ))
         )
-        .await
-        .context("failed to build WebSocket client")?;
-      let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
-      let options: CliOptions = client
-        .request("options", rpc_params![])
-        .await
-        .context("failed to request options")?;
-      Ok::<CliOptions, Error>(options)
-    })
-    .expect("failed to read CLI options");
+        .parse()
+        .unwrap(),
+      )
+      .await
+      .context("failed to build WebSocket client")?;
+    let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
+    let options: CliOptions = client
+      .request("options", rpc_params![])
+      .await
+      .context("failed to request options")?;
+    Ok::<CliOptions, Error>(options)
+  }
+  .await
+  .expect("failed to read CLI options");
 
   for (k, v) in &options.vars {
     set_var(k, v);
@@ -468,7 +482,7 @@ pub fn get_app(
 }
 
 #[allow(unused_variables)]
-fn ensure_init(
+async fn ensure_init(
   tauri_config: &ConfigMetadata,
   app: &App,
   project_dir: PathBuf,
@@ -493,7 +507,7 @@ fn ensure_init(
         .join(tauri_config.identifier.replace('.', "/").replace('-', "_"));
       if java_folder.exists() {
         #[cfg(unix)]
-        ensure_gradlew(&project_dir)?;
+        ensure_gradlew(&project_dir).await?;
       } else {
         project_outdated_reasons
           .push("you have modified your \"identifier\" in the Tauri configuration");
@@ -502,6 +516,7 @@ fn ensure_init(
     #[cfg(target_os = "macos")]
     Target::Ios => {
       let xcodeproj_path = crate::helpers::fs::find_in_directory(&project_dir, "*.xcodeproj")
+        .await
         .with_context(|| format!("failed to locate xcodeproj in {}", project_dir.display()))?;
 
       let xcodeproj_name = xcodeproj_path.file_stem().unwrap().to_str().unwrap();
@@ -543,7 +558,8 @@ fn ensure_init(
           .unwrap_or_default();
           if confirm {
             for (from, to) in rename_targets {
-              std::fs::rename(project_dir.join(&from), project_dir.join(&to))
+              tokio::fs::rename(project_dir.join(&from), project_dir.join(&to))
+                .await
                 .with_context(|| format!("failed to rename {from} to {to}"))?;
             }
 
@@ -551,15 +567,17 @@ fn ensure_init(
             // identifier / product name are synchronized by the dev/build commands
             let pbxproj_path =
               project_dir.join(format!("{}.xcodeproj/project.pbxproj", app.name()));
-            let pbxproj_contents = std::fs::read_to_string(&pbxproj_path)
+            let pbxproj_contents = tokio::fs::read_to_string(&pbxproj_path)
+              .await
               .with_context(|| format!("failed to read {}", pbxproj_path.display()))?;
-            std::fs::write(
+            tokio::fs::write(
               &pbxproj_path,
               pbxproj_contents.replace(
                 &format!("{xcodeproj_name}_iOS"),
                 &format!("{}_iOS", app.name()),
               ),
             )
+            .await
             .with_context(|| format!("failed to write {}", pbxproj_path.display()))?;
           } else {
             project_outdated_reasons
@@ -586,24 +604,27 @@ fn ensure_init(
 }
 
 #[cfg(unix)]
-fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
+async fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
   use std::os::unix::fs::PermissionsExt;
 
   let gradlew_path = project_dir.join("gradlew");
-  if let Ok(metadata) = gradlew_path.metadata() {
+  if let Ok(metadata) = tokio::fs::metadata(&gradlew_path).await {
     let mut permissions = metadata.permissions();
     let is_executable = permissions.mode() & 0o111 != 0;
     if !is_executable {
       permissions.set_mode(permissions.mode() | 0o111);
-      std::fs::set_permissions(&gradlew_path, permissions)
+      tokio::fs::set_permissions(&gradlew_path, permissions)
+        .await
         .fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
     }
-    std::fs::write(
+    tokio::fs::write(
       &gradlew_path,
-      std::fs::read_to_string(&gradlew_path)
+      read_to_string(&gradlew_path)
+        .await
         .fs_context("failed to read gradlew", gradlew_path.clone())?
         .replace("\r\n", "\n"),
     )
+    .await
     .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
   }
 

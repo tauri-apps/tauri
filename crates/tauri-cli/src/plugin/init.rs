@@ -17,7 +17,7 @@ use std::ffi::{OsStr, OsString};
 use std::{
   collections::BTreeMap,
   env::current_dir,
-  fs::{create_dir_all, remove_dir_all, File, OpenOptions},
+  fs::{create_dir_all, File, OpenOptions},
   path::{Component, Path, PathBuf},
 };
 
@@ -79,24 +79,25 @@ impl Options {
   }
 }
 
-pub fn command(mut options: Options) -> Result<()> {
+pub async fn command(mut options: Options) -> Result<()> {
   options.load();
 
   let plugin_name = match options.plugin_name {
-    None => super::infer_plugin_name(&options.directory)?,
+    None => super::infer_plugin_name(&options.directory).await?,
     Some(name) => name,
   };
 
   let template_target_path = PathBuf::from(options.directory);
   let metadata = crates_metadata()?;
-  if std::fs::read_dir(&template_target_path)
-    .fs_context(
-      "failed to read target directory",
-      template_target_path.clone(),
-    )?
-    .count()
-    > 0
-  {
+  let mut target_dir_entry_count = 0;
+  let mut target_dir_entries = tokio::fs::read_dir(&template_target_path).await.fs_context(
+    "failed to read target directory",
+    template_target_path.clone(),
+  )?;
+  while let Ok(Some(_)) = target_dir_entries.next_entry().await {
+    target_dir_entry_count += 1;
+  }
+  if target_dir_entry_count > 0 {
     log::warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
     let (tauri_dep, tauri_example_dep, tauri_build_dep, tauri_plugin_dep) =
@@ -134,7 +135,7 @@ pub fn command(mut options: Options) -> Result<()> {
         )
       };
 
-    let _ = remove_dir_all(&template_target_path);
+    let _ = tokio::fs::remove_dir_all(&template_target_path).await;
     let mut handlebars = Handlebars::new();
     handlebars.register_escape_fn(handlebars::no_escape);
 
@@ -253,7 +254,7 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   let permissions_dir = template_target_path.join("permissions");
-  std::fs::create_dir(&permissions_dir).fs_context(
+  tokio::fs::create_dir(&permissions_dir).await.fs_context(
     "failed to create `permissions` directory",
     permissions_dir.clone(),
   )?;
@@ -262,10 +263,12 @@ pub fn command(mut options: Options) -> Result<()> {
 description = "Default permissions for the plugin"
 permissions = ["allow-ping"]
 "#;
-  std::fs::write(permissions_dir.join("default.toml"), default_permissions).fs_context(
-    "failed to write default permissions file",
-    permissions_dir.join("default.toml"),
-  )?;
+  tokio::fs::write(permissions_dir.join("default.toml"), default_permissions)
+    .await
+    .fs_context(
+      "failed to write default permissions file",
+      permissions_dir.join("default.toml"),
+    )?;
 
   Ok(())
 }

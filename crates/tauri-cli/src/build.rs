@@ -81,7 +81,7 @@ pub struct Options {
   pub no_sign: bool,
 }
 
-pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
+pub async fn command(mut options: Options, verbosity: u8) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
   if options.no_sign {
@@ -102,9 +102,9 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri).await?;
 
-  setup(&interface, &mut options, &config, &dirs, false)?;
+  setup(&interface, &mut options, &config, &dirs, false).await?;
 
   if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
     std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
@@ -115,7 +115,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
 
-  let bin_path = interface.build(interface_options, &dirs)?;
+  let bin_path = interface.build(interface_options, &dirs).await?;
 
   log::info!(action = "Built"; "application at: {}", tauri_utils::display_path(bin_path));
 
@@ -131,13 +131,14 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       &config,
       &dirs,
       &out_dir,
-    )?;
+    )
+    .await?;
   }
 
   Ok(())
 }
 
-pub fn setup(
+pub async fn setup(
   interface: &AppInterface,
   options: &mut Options,
   config: &ConfigMetadata,
@@ -147,7 +148,7 @@ pub fn setup(
   // TODO: Maybe optimize this to run in parallel in the future
   // see https://github.com/tauri-apps/tauri/pull/13993#discussion_r2280697117
   log::info!("Looking up installed tauri packages to check mismatched versions...");
-  if let Err(error) = check_mismatched_packages(dirs.frontend, dirs.tauri) {
+  if let Err(error) = check_mismatched_packages(dirs.frontend, dirs.tauri).await {
     if options.ignore_version_mismatches {
       log::error!("{error}");
     } else {
@@ -192,7 +193,8 @@ pub fn setup(
       interface,
       options.debug,
       dirs.frontend,
-    )?;
+    )
+    .await?;
   }
 
   if let Some(FrontendDist::Directory(web_asset_path)) = &config.build.frontend_dist {

@@ -17,7 +17,7 @@ use crate::{
   Result,
 };
 
-use std::process::Command;
+use tokio::process::Command;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Add a tauri plugin to the project")]
@@ -38,12 +38,12 @@ pub struct Options {
   pub no_fmt: bool,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
-  run(options, &dirs)
+  run(options, &dirs).await
 }
 
-pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
+pub async fn run(options: Options, dirs: &Dirs) -> Result<()> {
   let (plugin, version) = options
     .plugin
     .split_once('@')
@@ -91,10 +91,12 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
     tag: options.tag.as_deref(),
     cwd: Some(dirs.tauri),
     target: target_str,
-  })?;
+  })
+  .await?;
 
   if !metadata.rust_only {
-    if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
+    if let Some(frontend_dir) = frontend_dir {
+      let manager = PackageManager::from_project(frontend_dir).await;
       let npm_version_req = version
         .map(ToString::to_string)
         .or(metadata.version_req.as_ref().map(|v| match manager {
@@ -116,13 +118,14 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
         (None, None, None, None) => npm_name,
         _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
-      manager.install(&[npm_spec], dirs.tauri)?;
+      manager.install(&[npm_spec], dirs.tauri).await?;
     }
 
     let _ = acl::permission::add::command(acl::permission::add::Options {
       identifier: format!("{plugin}:default"),
       capability: None,
-    });
+    })
+    .await;
   }
 
   // add plugin init code to main.rs or lib.rs
@@ -146,8 +149,9 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
     dirs.tauri.join("src/main.rs"),
     dirs.tauri.join("src/lib.rs"),
   ] {
-    let contents =
-      std::fs::read_to_string(&file).fs_context("failed to read Rust entry point", file.clone())?;
+    let contents = tokio::fs::read_to_string(&file)
+      .await
+      .fs_context("failed to read Rust entry point", file.clone())?;
 
     if contents.contains(&plugin_init) {
       log::info!(
@@ -161,7 +165,9 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
       let out = re.replace(&contents, format!("$1$2{plugin_init}$2"));
 
       log::info!("Adding plugin to {}", file.display());
-      std::fs::write(&file, out.as_bytes()).fs_context("failed to write plugin init code", file)?;
+      tokio::fs::write(&file, out.as_bytes())
+        .await
+        .fs_context("failed to write plugin init code", file)?;
 
       if !options.no_fmt {
         // reformat code with rustfmt
@@ -169,7 +175,8 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
         let _ = Command::new("cargo")
           .arg("fmt")
           .current_dir(dirs.tauri)
-          .status();
+          .status()
+          .await;
       }
 
       return Ok(());

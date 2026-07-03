@@ -63,8 +63,8 @@ pub struct Options {
   pub ignore_version_mismatches: bool,
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  let mut env = env(false)?;
+pub async fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  let mut env = env(false).await?;
 
   let device = if options.open {
     None
@@ -116,7 +116,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     noise_level,
     &dirs,
     &tauri_config,
-  )?;
+  )
+  .await?;
 
   configure_cargo(&mut env, &built_application.config)?;
 
@@ -166,15 +167,18 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     if options.no_watch {
       runner(&tauri_config)?;
     } else {
-      built_application.interface.watch(
-        &mut tauri_config,
-        WatcherOptions {
-          config: options.config,
-          additional_watch_folders: options.additional_watch_folders,
-        },
-        runner,
-        &dirs,
-      )?;
+      built_application
+        .interface
+        .watch(
+          &mut tauri_config,
+          WatcherOptions {
+            config: options.config,
+            additional_watch_folders: options.additional_watch_folders,
+          },
+          runner,
+          &dirs,
+        )
+        .await?;
     }
   }
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::process::Command;
+use tokio::process::Command;
 
 use crate::Error;
 
@@ -17,7 +17,7 @@ pub struct CargoInstallOptions<'a> {
   pub target: Option<&'a str>,
 }
 
-pub fn install_one(options: CargoInstallOptions) -> crate::Result<()> {
+pub async fn install_one(options: CargoInstallOptions<'_>) -> crate::Result<()> {
   let mut cargo = Command::new("cargo");
   cargo.arg("add");
 
@@ -54,7 +54,7 @@ pub fn install_one(options: CargoInstallOptions) -> crate::Result<()> {
   }
 
   log::info!("Installing Cargo dependency \"{}\"...", options.name);
-  let status = cargo.status().map_err(|error| Error::CommandFailed {
+  let status = cargo.status().await.map_err(|error| Error::CommandFailed {
     command: "cargo add".to_string(),
     error,
   })?;
@@ -72,7 +72,7 @@ pub struct CargoUninstallOptions<'a> {
   pub target: Option<&'a str>,
 }
 
-pub fn uninstall_one(options: CargoUninstallOptions) -> crate::Result<()> {
+pub async fn uninstall_one(options: CargoUninstallOptions<'_>) -> crate::Result<()> {
   let mut cargo = Command::new("cargo");
   cargo.arg("remove");
 
@@ -87,7 +87,7 @@ pub fn uninstall_one(options: CargoUninstallOptions) -> crate::Result<()> {
   }
 
   log::info!("Uninstalling Cargo dependency \"{}\"...", options.name);
-  let status = cargo.status().map_err(|error| Error::CommandFailed {
+  let status = cargo.status().await.map_err(|error| Error::CommandFailed {
     command: "cargo remove".to_string(),
     error,
   })?;

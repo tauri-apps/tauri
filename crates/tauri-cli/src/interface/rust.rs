@@ -11,7 +11,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
-  sync::{mpsc::sync_channel, Arc, Mutex},
+  sync::{Arc, Mutex},
   time::Duration,
 };
 
@@ -135,9 +135,13 @@ pub struct Rust {
 }
 
 impl Rust {
-  pub fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self> {
+  pub async fn new(
+    config: &Config,
+    target: Option<String>,
+    tauri_dir: &Path,
+  ) -> crate::Result<Self> {
     let manifest = {
-      let (tx, rx) = sync_channel(1);
+      let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
         if let Ok(_events) = r {
           let _ = tx.send(());
@@ -148,10 +152,10 @@ impl Rust {
       watcher
         .watch(&manifest_path, RecursiveMode::NonRecursive)
         .with_context(|| format!("failed to watch {}", manifest_path.display()))?;
-      let (manifest, modified) = rewrite_manifest(config, tauri_dir)?;
+      let (manifest, modified) = rewrite_manifest(config, tauri_dir).await?;
       if modified {
         // Wait for the modified event so we don't trigger a re-build later on
-        let _ = rx.recv_timeout(Duration::from_secs(2));
+        let _ = tokio::time::timeout(Duration::from_secs(2), rx.recv()).await;
       }
       manifest
     };
@@ -166,7 +170,7 @@ impl Rust {
       );
     }
 
-    let app_settings = RustAppSettings::new(config, manifest, target, tauri_dir)?;
+    let app_settings = RustAppSettings::new(config, manifest, target, tauri_dir).await?;
 
     Ok(Self {
       app_settings: Arc::new(app_settings),
@@ -180,7 +184,7 @@ impl Rust {
     self.app_settings.clone()
   }
 
-  pub fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
+  pub async fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
     desktop::build(
       options,
       &self.app_settings,
@@ -189,9 +193,18 @@ impl Rust {
       self.main_binary_name.as_deref(),
       dirs.tauri,
     )
+    .await
   }
 
-  pub fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
+  /// Fetches the available rustup targets once so the dev runner can validate
+  /// the requested target synchronously on every (re)spawn.
+  async fn ensure_available_targets(&mut self, target: Option<&str>) {
+    if target.is_some() && self.available_targets.is_none() {
+      self.available_targets = desktop::fetch_available_targets().await;
+    }
+  }
+
+  pub async fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     config: &mut ConfigMetadata,
     mut options: Options,
@@ -209,35 +222,39 @@ impl Rust {
       &self.app_settings,
     );
 
+    self.ensure_available_targets(options.target.as_deref()).await;
+
     if options.no_watch {
-      let (tx, rx) = sync_channel(1);
+      let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
       self.run_dev(options, &run_args, move |status, reason| {
         on_exit(status, reason);
-        tx.send(()).unwrap();
+        let _ = tx.send(());
       })?;
 
-      rx.recv().unwrap();
+      rx.recv().await.context("app process watcher task is gone")?;
       Ok(())
     } else {
       let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
-      self.run_dev_watcher(
-        config,
-        &options.additional_watch_folders,
-        &merge_configs,
-        |rust: &mut Rust, _config| {
-          let on_exit = on_exit.clone();
-          rust
-            .run_dev(options.clone(), &run_args, move |status, reason| {
-              on_exit(status, reason)
-            })
-            .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
-        },
-        dirs,
-      )
+      self
+        .run_dev_watcher(
+          config,
+          &options.additional_watch_folders,
+          &merge_configs,
+          |rust: &mut Rust, _config| {
+            let on_exit = on_exit.clone();
+            rust
+              .run_dev(options.clone(), &run_args, move |status, reason| {
+                on_exit(status, reason)
+              })
+              .map(|child| Box::new(child) as Box<dyn DevProcess + Send>)
+          },
+          dirs,
+        )
+        .await
     }
   }
 
-  pub fn mobile_dev<
+  pub async fn mobile_dev<
     R: Fn(MobileOptions, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
   >(
     &mut self,
@@ -259,19 +276,21 @@ impl Rust {
       runner(options, config)?;
       Ok(())
     } else {
-      self.watch(
-        config,
-        WatcherOptions {
-          config: options.config.clone(),
-          additional_watch_folders: options.additional_watch_folders.clone(),
-        },
-        move |config| runner(options.clone(), config),
-        dirs,
-      )
+      self
+        .watch(
+          config,
+          WatcherOptions {
+            config: options.config.clone(),
+            additional_watch_folders: options.additional_watch_folders.clone(),
+          },
+          move |config| runner(options.clone(), config),
+          dirs,
+        )
+        .await
     }
   }
 
-  pub fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
+  pub async fn watch<R: Fn(&ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: &mut ConfigMetadata,
     options: WatcherOptions,
@@ -279,13 +298,15 @@ impl Rust {
     dirs: &Dirs,
   ) -> crate::Result<()> {
     let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
-    self.run_dev_watcher(
-      config,
-      &options.additional_watch_folders,
-      &merge_configs,
-      |_rust: &mut Rust, config| runner(config),
-      dirs,
-    )
+    self
+      .run_dev_watcher(
+        config,
+        &options.additional_watch_folders,
+        &merge_configs,
+        |_rust: &mut Rust, config| runner(config),
+        dirs,
+      )
+      .await
   }
 
   pub fn env(&self) -> HashMap<&str, String> {
@@ -450,14 +471,20 @@ fn dev_options(
   }
 }
 
-fn get_watch_folders(
+async fn get_watch_folders(
   additional_watch_folders: &[PathBuf],
   tauri_dir: &Path,
 ) -> crate::Result<Vec<PathBuf>> {
   // We always want to watch the main tauri folder.
   let mut watch_folders = vec![tauri_dir.to_path_buf()];
 
-  watch_folders.extend(get_in_workspace_dependency_paths(tauri_dir)?);
+  // `cargo metadata` can take a while, don't block the runtime on it
+  let tauri_dir_ = tauri_dir.to_path_buf();
+  watch_folders.extend(
+    tokio::task::spawn_blocking(move || get_in_workspace_dependency_paths(&tauri_dir_))
+      .await
+      .context("failed to wait on cargo metadata task")??,
+  );
 
   // Add the additional watch folders, resolving the path from the tauri path if it is relative
   watch_folders.extend(additional_watch_folders.iter().filter_map(|dir| {
@@ -501,13 +528,13 @@ impl Rust {
     desktop::run_dev(
       options,
       run_args,
-      &mut self.available_targets,
+      &self.available_targets,
       self.config_features.clone(),
       on_exit,
     )
   }
 
-  fn run_dev_watcher<
+  async fn run_dev_watcher<
     F: Fn(&mut Rust, &ConfigMetadata) -> crate::Result<Box<dyn DevProcess + Send>>,
   >(
     &mut self,
@@ -518,9 +545,9 @@ impl Rust {
     dirs: &Dirs,
   ) -> crate::Result<()> {
     let mut child = run(self, config)?;
-    let (tx, rx) = sync_channel(1);
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
-    let watch_folders = get_watch_folders(additional_watch_folders, dirs.tauri)?;
+    let watch_folders = get_watch_folders(additional_watch_folders, dirs.tauri).await?;
 
     let common_ancestor = common_path::common_path_all(
       watch_folders
@@ -533,7 +560,7 @@ impl Rust {
 
     let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
       if let Ok(events) = r {
-        tx.send(events).unwrap()
+        let _ = tx.send(events);
       }
     })
     .unwrap();
@@ -556,7 +583,7 @@ impl Rust {
       }
     }
 
-    while let Ok(events) = rx.recv() {
+    while let Some(events) = rx.recv().await {
       let paths: Vec<PathBuf> = events
         .into_iter()
         .filter(|event| !event.kind.is_access())
@@ -568,7 +595,7 @@ impl Rust {
         .iter()
         .any(|path| is_configuration_file(self.app_settings.target_platform, path));
       if config_file_changed && reload_config(config, merge_configs, dirs.tauri).is_ok() {
-        let (manifest, modified) = rewrite_manifest(config, dirs.tauri)?;
+        let (manifest, modified) = rewrite_manifest(config, dirs.tauri).await?;
         if modified {
           *self.app_settings.manifest.lock().unwrap() = manifest;
           // no need to run the watcher logic, the manifest was modified
@@ -590,10 +617,10 @@ impl Rust {
         )
       );
 
-      child.kill().context("failed to kill app process")?;
+      child.kill().await.context("failed to kill app process")?;
       // wait for the process to exit
       // note that on mobile, kill() already waits for the process to exit (duct implementation)
-      let _ = child.wait();
+      let _ = child.wait().await;
       child = run(self, config)?;
     }
     bail!("File watcher exited unexpectedly")
@@ -747,9 +774,10 @@ struct CargoSettings {
 
 impl CargoSettings {
   /// Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory.
-  fn load(dir: &Path) -> crate::Result<Self> {
+  async fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
-    let toml_str = std::fs::read_to_string(&toml_path)
+    let toml_str = tokio::fs::read_to_string(&toml_path)
+      .await
       .fs_context("Failed to read Cargo manifest", toml_path.clone())?;
     toml::from_str(&toml_str).context(format!(
       "failed to parse Cargo manifest at {}",
@@ -1068,13 +1096,15 @@ impl AppSettings for RustAppSettings {
 }
 
 impl RustAppSettings {
-  pub fn new(
+  pub async fn new(
     config: &Config,
     manifest: Manifest,
     target: Option<String>,
     tauri_dir: &Path,
   ) -> crate::Result<Self> {
-    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load Cargo settings")?;
+    let cargo_settings = CargoSettings::load(tauri_dir)
+      .await
+      .context("failed to load Cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
       Some(package_info) => package_info.clone(),
       None => {
@@ -1084,8 +1114,15 @@ impl RustAppSettings {
       }
     };
 
-    let workspace_dir = get_workspace_dir(tauri_dir)?;
+    let workspace_dir = {
+      // `cargo metadata` can take a while, don't block the runtime on it
+      let tauri_dir_ = tauri_dir.to_path_buf();
+      tokio::task::spawn_blocking(move || get_workspace_dir(&tauri_dir_))
+        .await
+        .context("failed to wait on cargo metadata task")??
+    };
     let ws_package_settings = CargoSettings::load(&workspace_dir)
+      .await
       .context("failed to load Cargo settings from workspace root")?
       .workspace
       .and_then(|v| v.package);
@@ -1147,17 +1184,17 @@ impl RustAppSettings {
       default_run: cargo_package_settings.default_run.clone(),
     };
 
-    let cargo_config = CargoConfig::load(tauri_dir)?;
+    let cargo_config = CargoConfig::load(tauri_dir).await?;
 
-    let target_triple = target.unwrap_or_else(|| {
-      cargo_config
-        .build()
-        .target()
-        .map(|t| t.to_string())
-        .unwrap_or_else(|| {
-          let output = Command::new("rustc")
+    let target_triple = match target {
+      Some(target) => target,
+      None => match cargo_config.build().target() {
+        Some(target) => target.to_string(),
+        None => {
+          let output = tokio::process::Command::new("rustc")
             .args(["-vV"])
             .output()
+            .await
             .expect("\"rustc\" could not be found, did you install Rust?");
           let stdout = String::from_utf8_lossy(&output.stdout);
           stdout
@@ -1167,8 +1204,9 @@ impl RustAppSettings {
             .replace("host:", "")
             .trim()
             .to_string()
-        })
-    });
+        }
+      },
+    };
     let target_platform = TargetPlatform::from_triple(&target_triple);
 
     Ok(Self {
@@ -1219,6 +1257,9 @@ struct Dependency {
   path: Option<PathBuf>,
 }
 
+// intentionally synchronous: this must be callable from sync contexts such as
+// the cargo-mobile2 target directory resolver and the `AppSettings` trait methods.
+// async callers should wrap it (or its callers) in `spawn_blocking`.
 pub(crate) fn get_cargo_metadata(tauri_dir: &Path) -> crate::Result<CargoMetadata> {
   let output = Command::new("cargo")
     .args(["metadata", "--no-deps", "--format-version", "1"])
@@ -1749,7 +1790,7 @@ mod tests {
   use super::*;
   use std::fs;
 
-  fn app_settings_with_manifest(cargo_toml: &str) -> (tempfile::TempDir, RustAppSettings) {
+  async fn app_settings_with_manifest(cargo_toml: &str) -> (tempfile::TempDir, RustAppSettings) {
     let temp_dir = tempfile::tempdir().unwrap();
     let tauri_dir = temp_dir.path().to_path_buf();
     fs::create_dir_all(tauri_dir.join("src/bin")).unwrap();
@@ -1757,7 +1798,7 @@ mod tests {
     fs::write(tauri_dir.join("src/main.rs"), "").unwrap();
     fs::write(tauri_dir.join("src/bin/generate-bindings.rs"), "").unwrap();
 
-    let cargo_settings = CargoSettings::load(&tauri_dir).unwrap();
+    let cargo_settings = CargoSettings::load(&tauri_dir).await.unwrap();
     let cargo_package_settings = cargo_settings.package.clone().unwrap();
     let package_settings = PackageSettings {
       product_name: cargo_package_settings.name.clone(),
@@ -1805,8 +1846,8 @@ mod tests {
     assert_eq!(get_cargo_option(&args, "--non-existent"), None);
   }
 
-  #[test]
-  fn get_binaries_ignores_src_bin_with_disabled_required_features() {
+  #[tokio::test]
+  async fn get_binaries_ignores_src_bin_with_disabled_required_features() {
     let cargo_toml = r#"
       [package]
       name = "app"
@@ -1819,7 +1860,7 @@ mod tests {
       required-features = ["bindings"]
     "#;
 
-    let (temp_dir, app_settings) = app_settings_with_manifest(cargo_toml);
+    let (temp_dir, app_settings) = app_settings_with_manifest(cargo_toml).await;
     let tauri_dir = temp_dir.path();
 
     let binaries = app_settings

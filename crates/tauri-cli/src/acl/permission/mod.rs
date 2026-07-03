@@ -29,11 +29,11 @@ enum Commands {
   Ls(ls::Options),
 }
 
-pub fn command(cli: Cli) -> Result<()> {
+pub async fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::New(options) => new::command(options),
-    Commands::Add(options) => add::command(options),
-    Commands::Rm(options) => rm::command(options),
-    Commands::Ls(options) => ls::command(options),
+    Commands::New(options) => new::command(options).await,
+    Commands::Add(options) => add::command(options).await,
+    Commands::Rm(options) => rm::command(options).await,
+    Commands::Ls(options) => ls::command(options).await,
   }
 }

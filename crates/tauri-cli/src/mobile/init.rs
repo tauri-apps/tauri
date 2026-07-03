@@ -23,7 +23,7 @@ use handlebars::{
 
 use std::{env::var_os, path::PathBuf};
 
-pub fn command(
+pub async fn command(
   target: Target,
   ci: bool,
   reinstall_deps: bool,
@@ -41,11 +41,12 @@ pub fn command(
     skip_targets_install,
     config,
     dirs,
-  )?;
+  )
+  .await?;
   Ok(())
 }
 
-fn exec(
+async fn exec(
   target: Target,
   wrapper: &TextWrapper,
   #[allow(unused_variables)] non_interactive: bool,
@@ -63,7 +64,7 @@ fn exec(
   let app = get_app(
     target,
     &tauri_config,
-    &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+    &AppInterface::new(&tauri_config, None, dirs.tauri).await?,
     dirs.tauri,
   );
 
@@ -136,9 +137,9 @@ fn exec(
   let app = match target {
     // Generate Android Studio project
     Target::Android => {
-      let _env = super::android::env(non_interactive)?;
+      let _env = super::android::env(non_interactive).await?;
       let (config, metadata) =
-        super::android::get_config(&app, &tauri_config, &[], &Default::default());
+        super::android::get_config(&app, &tauri_config, &[], &Default::default()).await;
       map.insert("android", &config);
 
       // Add application_id_suffix to the map for template access
@@ -153,7 +154,8 @@ fn exec(
         (handlebars, map),
         wrapper,
         skip_targets_install,
-      )?;
+      )
+      .await?;
       app
     }
     #[cfg(target_os = "macos")]
@@ -171,7 +173,8 @@ fn exec(
         non_interactive,
         reinstall_deps,
         skip_targets_install,
-      )?;
+      )
+      .await?;
       app
     }
   };

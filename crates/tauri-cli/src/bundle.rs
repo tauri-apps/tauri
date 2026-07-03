@@ -117,7 +117,7 @@ impl From<crate::build::Options> for Options {
   }
 }
 
-pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
+pub async fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let ci = options.ci;
@@ -134,7 +134,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     dirs.tauri,
   )?;
 
-  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri).await?;
 
   std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
@@ -157,10 +157,11 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     &dirs,
     &out_dir,
   )
+  .await
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn bundle<A: AppSettings>(
+pub async fn bundle<A: AppSettings>(
   options: &Options,
   verbosity: u8,
   ci: bool,
@@ -195,7 +196,8 @@ pub fn bundle<A: AppSettings>(
         interface,
         options.debug,
         dirs.frontend,
-      )?;
+      )
+      .await?;
     }
   }
 
@@ -216,14 +218,19 @@ pub fn bundle<A: AppSettings>(
     _ => log::Level::Trace,
   });
 
-  let bundles = tauri_bundler::bundle_project(&settings)?;
+  // the bundler is synchronous and can take a long time, don't block the runtime on it
+  let (settings, bundles) = tokio::task::spawn_blocking(move || {
+    tauri_bundler::bundle_project(&settings).map(|bundles| (settings, bundles))
+  })
+  .await
+  .context("failed to wait on bundler task")??;
 
-  sign_updaters(settings, bundles, ci)?;
+  sign_updaters(settings, bundles, ci).await?;
 
   Ok(())
 }
 
-fn sign_updaters(
+async fn sign_updaters(
   settings: tauri_bundler::Settings,
   bundles: Vec<tauri_bundler::Bundle>,
   ci: bool,
@@ -262,7 +269,8 @@ fn sign_updaters(
   // check if pubkey points to a file...
   let maybe_path = Path::new(pubkey);
   let pubkey = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path)
+    tokio::fs::read_to_string(maybe_path)
+      .await
       .fs_context("failed to read pubkey from file", maybe_path.to_path_buf())?
   } else {
     pubkey.to_string()
@@ -280,7 +288,7 @@ fn sign_updaters(
   // check if private_key points to a file...
   let maybe_path = Path::new(&private_key);
   let private_key = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path).fs_context(
+    tokio::fs::read_to_string(maybe_path).await.fs_context(
       "failed to read private key from file",
       maybe_path.to_path_buf(),
     )?
@@ -300,7 +308,7 @@ fn sign_updaters(
     // another type of updater package who require multiple file signature
     for path in &bundle.bundle_paths {
       // sign our path from environment variables
-      let (signature_path, signature) = updater_signature::sign_file(&secret_key, path)?;
+      let (signature_path, signature) = updater_signature::sign_file(&secret_key, path).await?;
       if signature.keynum() != public_key.keynum() {
         log::warn!("The updater secret key from `TAURI_SIGNING_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update.");
       }

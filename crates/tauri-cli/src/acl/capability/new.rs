@@ -31,7 +31,7 @@ pub struct Options {
   out: Option<PathBuf>,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let identifier = match options.identifier {
@@ -122,20 +122,23 @@ pub fn command(options: Options) -> Result<()> {
     );
     let overwrite = prompts::confirm(&format!("{msg}, overwrite?"), Some(false))?;
     if overwrite {
-      std::fs::remove_file(&path).fs_context("failed to remove capability file", path.clone())?;
+      tokio::fs::remove_file(&path)
+        .await
+        .fs_context("failed to remove capability file", path.clone())?;
     } else {
       crate::error::bail!(msg);
     }
   }
 
   if let Some(parent) = path.parent() {
-    std::fs::create_dir_all(parent).fs_context(
+    tokio::fs::create_dir_all(parent).await.fs_context(
       "failed to create capability directory",
       parent.to_path_buf(),
     )?;
   }
 
-  std::fs::write(&path, options.format.serialize(&capability)?)
+  tokio::fs::write(&path, options.format.serialize(&capability)?)
+    .await
     .fs_context("failed to write capability file", path.clone())?;
 
   log::info!(action = "Created"; "capability at {}", dunce::simplified(&path).display());

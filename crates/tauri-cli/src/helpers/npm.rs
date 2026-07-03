@@ -8,12 +8,14 @@ use crate::{
   error::{Context, Error},
   helpers::cross_command,
 };
-use std::{collections::HashMap, fmt::Display, path::Path, process::Command};
+use std::{collections::HashMap, fmt::Display, path::Path};
+use tokio::process::Command;
 
-pub fn manager_version(package_manager: &str) -> Option<String> {
+pub async fn manager_version(package_manager: &str) -> Option<String> {
   cross_command(package_manager)
     .arg("-v")
     .output()
+    .await
     .map(|o| {
       if o.status.success() {
         let v = String::from_utf8_lossy(o.stdout.as_slice()).to_string();
@@ -26,8 +28,9 @@ pub fn manager_version(package_manager: &str) -> Option<String> {
     .unwrap_or_default()
 }
 
-fn detect_yarn_or_berry() -> PackageManager {
+async fn detect_yarn_or_berry() -> PackageManager {
   if manager_version("yarn")
+    .await
     .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
     .unwrap_or(false)
   {
@@ -66,42 +69,43 @@ impl Display for PackageManager {
 
 impl PackageManager {
   /// Detects package manager from the given directory, falls back to [`PackageManager::Npm`].
-  pub fn from_project<P: AsRef<Path>>(path: P) -> Self {
+  pub async fn from_project<P: AsRef<Path>>(path: P) -> Self {
     Self::all_from_project(path)
+      .await
       .first()
       .copied()
       .unwrap_or(Self::Npm)
   }
 
   /// Detects package manager from the `npm_config_user_agent` environment variable
-  fn from_environment_variable() -> Option<Self> {
+  async fn from_environment_variable() -> Option<Self> {
     let npm_config_user_agent = std::env::var("npm_config_user_agent").ok()?;
     match npm_config_user_agent {
       user_agent if user_agent.starts_with("pnpm/") => Some(Self::Pnpm),
       user_agent if user_agent.starts_with("deno/") => Some(Self::Deno),
       user_agent if user_agent.starts_with("bun/") => Some(Self::Bun),
-      user_agent if user_agent.starts_with("yarn/") => Some(detect_yarn_or_berry()),
+      user_agent if user_agent.starts_with("yarn/") => Some(detect_yarn_or_berry().await),
       user_agent if user_agent.starts_with("npm/") => Some(Self::Npm),
       _ => None,
     }
   }
 
   /// Detects all possible package managers from the given directory.
-  pub fn all_from_project<P: AsRef<Path>>(path: P) -> Vec<Self> {
-    if let Some(from_env) = Self::from_environment_variable() {
+  pub async fn all_from_project<P: AsRef<Path>>(path: P) -> Vec<Self> {
+    if let Some(from_env) = Self::from_environment_variable().await {
       return vec![from_env];
     }
 
     let mut found = Vec::new();
 
-    if let Ok(entries) = std::fs::read_dir(path) {
-      for entry in entries.flatten() {
+    if let Ok(mut entries) = tokio::fs::read_dir(path).await {
+      while let Ok(Some(entry)) = entries.next_entry().await {
         let path = entry.path();
         let name = path.file_name().unwrap().to_string_lossy();
         match name.as_ref() {
           "package-lock.json" => found.push(PackageManager::Npm),
           "pnpm-lock.yaml" => found.push(PackageManager::Pnpm),
-          "yarn.lock" => found.push(detect_yarn_or_berry()),
+          "yarn.lock" => found.push(detect_yarn_or_berry().await),
           "bun.lock" | "bun.lockb" => found.push(PackageManager::Bun),
           "deno.lock" => found.push(PackageManager::Deno),
           _ => (),
@@ -123,7 +127,7 @@ impl PackageManager {
     }
   }
 
-  pub fn install<P: AsRef<Path>>(
+  pub async fn install<P: AsRef<Path>>(
     &self,
     dependencies: &[String],
     frontend_dir: P,
@@ -153,6 +157,7 @@ impl PackageManager {
     let status = command
       .current_dir(frontend_dir)
       .status()
+      .await
       .map_err(|error| Error::CommandFailed {
         command: format!("failed to run {self}"),
         error,
@@ -165,7 +170,7 @@ impl PackageManager {
     Ok(())
   }
 
-  pub fn remove<P: AsRef<Path>>(
+  pub async fn remove<P: AsRef<Path>>(
     &self,
     dependencies: &[String],
     frontend_dir: P,
@@ -194,6 +199,7 @@ impl PackageManager {
       .args(dependencies)
       .current_dir(frontend_dir)
       .status()
+      .await
       .map_err(|error| Error::CommandFailed {
         command: format!("failed to run {self}"),
         error,
@@ -207,7 +213,7 @@ impl PackageManager {
   }
 
   // TODO: Use `current_package_versions` as much as possible for better speed
-  pub fn current_package_version<P: AsRef<Path>>(
+  pub async fn current_package_version<P: AsRef<Path>>(
     &self,
     name: &str,
     frontend_dir: P,
@@ -220,6 +226,7 @@ impl PackageManager {
           .args(["--depth", "0"])
           .current_dir(frontend_dir)
           .output()
+          .await
           .map_err(|error| Error::CommandFailed {
             command: "yarn list --pattern".to_string(),
             error,
@@ -233,6 +240,7 @@ impl PackageManager {
           .arg("--json")
           .current_dir(frontend_dir)
           .output()
+          .await
           .map_err(|error| Error::CommandFailed {
             command: "yarn info --json".to_string(),
             error,
@@ -246,6 +254,7 @@ impl PackageManager {
           .args(["--parseable", "--depth", "0"])
           .current_dir(frontend_dir)
           .output()
+          .await
           .map_err(|error| Error::CommandFailed {
             command: "pnpm list --parseable --depth 0".to_string(),
             error,
@@ -260,6 +269,7 @@ impl PackageManager {
           .args(["version", "--depth", "0"])
           .current_dir(frontend_dir)
           .output()
+          .await
           .map_err(|error| Error::CommandFailed {
             command: "npm list --version --depth 0".to_string(),
             error,
@@ -281,20 +291,23 @@ impl PackageManager {
     }
   }
 
-  pub fn current_package_versions(
+  pub async fn current_package_versions(
     &self,
     packages: &[String],
     frontend_dir: &Path,
   ) -> crate::Result<HashMap<String, semver::Version>> {
     let output = match self {
-      PackageManager::Yarn => return yarn_package_versions(packages, frontend_dir),
-      PackageManager::YarnBerry => return yarn_berry_package_versions(packages, frontend_dir),
+      PackageManager::Yarn => return yarn_package_versions(packages, frontend_dir).await,
+      PackageManager::YarnBerry => {
+        return yarn_berry_package_versions(packages, frontend_dir).await
+      }
       PackageManager::Pnpm => cross_command("pnpm")
         .arg("list")
         .args(packages)
         .args(["--json", "--depth", "0"])
         .current_dir(frontend_dir)
         .output()
+        .await
         .map_err(|error| Error::CommandFailed {
           command: "pnpm list --json --depth 0".to_string(),
           error,
@@ -306,6 +319,7 @@ impl PackageManager {
         .args(["--json", "--depth", "0"])
         .current_dir(frontend_dir)
         .output()
+        .await
         .map_err(|error| Error::CommandFailed {
           command: "npm list --json --depth 0".to_string(),
           error,
@@ -352,7 +366,7 @@ impl PackageManager {
   }
 }
 
-fn yarn_package_versions(
+async fn yarn_package_versions(
   packages: &[String],
   frontend_dir: &Path,
 ) -> crate::Result<HashMap<String, semver::Version>> {
@@ -362,6 +376,7 @@ fn yarn_package_versions(
     .args(["--json", "--depth", "0"])
     .current_dir(frontend_dir)
     .output()
+    .await
     .map_err(|error| Error::CommandFailed {
       command: "yarn list --json --depth 0".to_string(),
       error,
@@ -407,7 +422,7 @@ fn yarn_package_versions(
   Ok(versions)
 }
 
-fn yarn_berry_package_versions(
+async fn yarn_berry_package_versions(
   packages: &[String],
   frontend_dir: &Path,
 ) -> crate::Result<HashMap<String, semver::Version>> {
@@ -415,6 +430,7 @@ fn yarn_berry_package_versions(
     .args(["info", "--json"])
     .current_dir(frontend_dir)
     .output()
+    .await
     .map_err(|error| Error::CommandFailed {
       command: "yarn info --json".to_string(),
       error,

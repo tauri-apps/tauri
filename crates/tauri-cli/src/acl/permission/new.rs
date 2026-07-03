@@ -37,7 +37,7 @@ pub struct Options {
   out: Option<PathBuf>,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let identifier = match options.identifier {
     Some(i) => i,
     None => prompts::input("What's the permission identifier?", None, false, false)?.unwrap(),
@@ -92,20 +92,22 @@ pub fn command(options: Options) -> Result<()> {
     );
     let overwrite = prompts::confirm(&format!("{msg}, overwrite?"), Some(false))?;
     if overwrite {
-      std::fs::remove_file(&path).fs_context("failed to remove permission file", path.clone())?;
+      tokio::fs::remove_file(&path)
+        .await
+        .fs_context("failed to remove permission file", path.clone())?;
     } else {
       crate::error::bail!(msg);
     }
   }
 
   if let Some(parent) = path.parent() {
-    std::fs::create_dir_all(parent).fs_context(
+    tokio::fs::create_dir_all(parent).await.fs_context(
       "failed to create permission directory",
       parent.to_path_buf(),
     )?;
   }
 
-  std::fs::write(
+  tokio::fs::write(
     &path,
     options
       .format
@@ -116,6 +118,7 @@ pub fn command(options: Options) -> Result<()> {
       })
       .context("failed to serialize permission")?,
   )
+  .await
   .fs_context("failed to write permission file", path.clone())?;
 
   log::info!(action = "Created"; "permission at {}", dunce::simplified(&path).display());

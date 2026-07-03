@@ -15,23 +15,33 @@ use crate::{
 };
 
 use clap::{ArgAction, Parser};
-use shared_child::SharedChild;
 use tauri_utils::{config::RunnerConfig, platform::Target};
+use tokio::sync::Notify;
 
 use std::{
   env::set_current_dir,
-  net::{IpAddr, Ipv4Addr},
+  net::{IpAddr, Ipv4Addr, SocketAddr},
   path::PathBuf,
-  process::{exit, Command, Stdio},
+  process::{exit, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    OnceLock,
+    Arc, OnceLock,
   },
 };
 
 mod builtin_dev_server;
 
-static BEFORE_DEV: OnceLock<SharedChild> = OnceLock::new();
+/// Handle to the spawned `beforeDevCommand` process.
+///
+/// The process itself is owned by a monitor task; it is killed when
+/// [`kill_before_dev_process`] is called and, as a last resort, by
+/// tokio's kill-on-drop when the runtime shuts down.
+struct BeforeDevChild {
+  pid: u32,
+  kill_signal: Arc<Notify>,
+}
+
+static BEFORE_DEV: OnceLock<BeforeDevChild> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
@@ -96,17 +106,17 @@ pub struct Options {
   pub host: Option<IpAddr>,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let r = command_internal(options, dirs);
+  let r = command_internal(options, dirs).await;
   if r.is_err() {
     kill_before_dev_process();
   }
   r
 }
 
-fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
+async fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
   let target = options
     .target
     .as_deref()
@@ -119,28 +129,31 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri).await?;
 
-  setup(&interface, &mut options, &mut config, &dirs)?;
+  setup(&interface, &mut options, &mut config, &dirs).await?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
-  interface.dev(
-    &mut config,
-    options.into(),
-    move |status, reason| on_app_exit(status, reason, exit_on_panic, no_watch),
-    &dirs,
-  )
+  interface
+    .dev(
+      &mut config,
+      options.into(),
+      move |status, reason| on_app_exit(status, reason, exit_on_panic, no_watch),
+      &dirs,
+    )
+    .await
 }
 
-pub fn setup(
+pub async fn setup(
   interface: &AppInterface,
   options: &mut Options,
   config: &mut ConfigMetadata,
   dirs: &Dirs,
 ) -> Result<()> {
-  std::thread::spawn(|| {
-    if let Err(error) = check_mismatched_packages(dirs.frontend, dirs.tauri) {
+  let (frontend_dir, tauri_dir) = (dirs.frontend, dirs.tauri);
+  tokio::spawn(async move {
+    if let Err(error) = check_mismatched_packages(frontend_dir, tauri_dir).await {
       log::error!("{error}");
     }
   });
@@ -163,7 +176,7 @@ pub fn setup(
 
       #[cfg(windows)]
       let mut command = {
-        let mut command = Command::new("cmd");
+        let mut command = tokio::process::Command::new("cmd");
         command
           .arg("/S")
           .arg("/C")
@@ -174,7 +187,7 @@ pub fn setup(
       };
       #[cfg(not(windows))]
       let mut command = {
-        let mut command = Command::new("sh");
+        let mut command = tokio::process::Command::new("sh");
         command
           .arg("-c")
           .arg(&before_dev)
@@ -184,13 +197,16 @@ pub fn setup(
       };
 
       if wait {
-        let status = command.piped().map_err(|error| Error::CommandFailed {
-          command: format!(
-            "`{before_dev}` with `{}`",
-            if cfg!(windows) { "cmd /S /C" } else { "sh -c" }
-          ),
-          error,
-        })?;
+        let status = command
+          .piped()
+          .await
+          .map_err(|error| Error::CommandFailed {
+            command: format!(
+              "`{before_dev}` with `{}`",
+              if cfg!(windows) { "cmd /S /C" } else { "sh -c" }
+            ),
+            error,
+          })?;
         if !status.success() {
           crate::error::bail!(
             "beforeDevCommand `{}` failed with exit code {}",
@@ -202,24 +218,40 @@ pub fn setup(
         command.stdin(Stdio::piped());
         command.stdout(os_pipe::dup_stdout().unwrap());
         command.stderr(os_pipe::dup_stderr().unwrap());
+        // ensure the process dies with the CLI even if we don't get
+        // a chance to kill it explicitly
+        command.kill_on_drop(true);
 
-        let child = SharedChild::spawn(&mut command)
+        let mut child = command
+          .spawn()
           .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
+        let pid = child.id().expect("beforeDevCommand process already exited");
 
-        let child = BEFORE_DEV.get_or_init(move || child);
-        std::thread::spawn(move || {
-          let status = child
-            .wait()
-            .expect("failed to wait on \"beforeDevCommand\"");
+        let kill_signal = Arc::new(Notify::new());
+        let kill_signal_ = kill_signal.clone();
+        tokio::spawn(async move {
+          let status = loop {
+            tokio::select! {
+              status = child.wait() => break status,
+              _ = kill_signal_.notified() => {
+                let _ = child.start_kill();
+              }
+            }
+          };
+          let status = status.expect("failed to wait on \"beforeDevCommand\"");
           if !(status.success() || KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst)) {
             log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
         });
 
-        let _ = ctrlc::set_handler(move || {
-          kill_before_dev_process();
-          exit(130);
+        let _ = BEFORE_DEV.set(BeforeDevChild { pid, kill_signal });
+
+        tokio::spawn(async {
+          if tokio::signal::ctrl_c().await.is_ok() {
+            kill_before_dev_process();
+            exit(130);
+          }
         });
       }
     }
@@ -237,13 +269,14 @@ pub fn setup(
   if !options.no_dev_server && dev_url.is_none() {
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
       if path.exists() {
-        let path = path
-          .canonicalize()
+        let path = tokio::fs::canonicalize(path)
+          .await
           .fs_context("failed to canonicalize path", path.to_path_buf())?;
 
         let ip = options.host.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into());
 
         let server_url = builtin_dev_server::start(path, ip, options.port)
+          .await
           .context("failed to start builtin dev server")?;
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());
@@ -269,22 +302,13 @@ pub fn setup(
       let port = url
         .port_or_known_default()
         .expect("No port number in the URL");
-      let addrs;
-      let addr;
-      let addrs = match host {
-        url::Host::Domain(domain) => {
-          use std::net::ToSocketAddrs;
-          addrs = (domain, port).to_socket_addrs().unwrap();
-          addrs.as_slice()
-        }
-        url::Host::Ipv4(ip) => {
-          addr = (ip, port).into();
-          std::slice::from_ref(&addr)
-        }
-        url::Host::Ipv6(ip) => {
-          addr = (ip, port).into();
-          std::slice::from_ref(&addr)
-        }
+      let addrs: Vec<SocketAddr> = match host {
+        url::Host::Domain(domain) => tokio::net::lookup_host((domain, port))
+          .await
+          .unwrap()
+          .collect(),
+        url::Host::Ipv4(ip) => vec![(ip, port).into()],
+        url::Host::Ipv6(ip) => vec![(ip, port).into()],
       };
       let mut i = 0;
       let sleep_interval = std::time::Duration::from_secs(2);
@@ -292,7 +316,10 @@ pub fn setup(
       let max_attempts = 90;
       'waiting: loop {
         for addr in addrs.iter() {
-          if std::net::TcpStream::connect_timeout(addr, timeout_duration).is_ok() {
+          if matches!(
+            tokio::time::timeout(timeout_duration, tokio::net::TcpStream::connect(addr)).await,
+            Ok(Ok(_))
+          ) {
             break 'waiting;
           }
         }
@@ -305,7 +332,7 @@ pub fn setup(
           log::error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
           exit(1);
         }
-        std::thread::sleep(sleep_interval);
+        tokio::time::sleep(sleep_interval).await;
       }
     }
   }
@@ -329,6 +356,9 @@ pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, n
   }
 }
 
+// this needs to be callable from synchronous contexts right before the
+// process exits (signal handlers, app exit callbacks), so it kills the
+// process tree by pid using std APIs instead of the tokio child handle.
 pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     if KILL_BEFORE_DEV_FLAG.load(Ordering::SeqCst) {
@@ -341,10 +371,10 @@ pub fn kill_before_dev_process() {
         |_| "powershell.exe".to_string(),
         |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
       );
-      let _ = Command::new(powershell_path)
+      let _ = std::process::Command::new(powershell_path)
       .arg("-NoProfile")
       .arg("-Command")
-      .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.id()))
+      .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.pid))
       .status();
     }
     #[cfg(unix)]
@@ -362,10 +392,13 @@ pub fn kill_before_dev_process() {
           let _ = file.set_permissions(permissions);
         }
       }
-      let _ = Command::new(&kill_children_script_path)
-        .arg(child.id().to_string())
+      let _ = std::process::Command::new(&kill_children_script_path)
+        .arg(child.pid.to_string())
         .output();
+
+      let _ = unsafe { libc::kill(child.pid as libc::pid_t, libc::SIGKILL) };
     }
-    let _ = child.kill();
+    // let the monitor task reap the child handle
+    child.kill_signal.notify_one();
   }
 }

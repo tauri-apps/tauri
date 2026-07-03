@@ -79,8 +79,9 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
   f
 }
 
-pub fn read_manifest(manifest_path: &Path) -> crate::Result<(DocumentMut, String)> {
-  let manifest_str = std::fs::read_to_string(manifest_path)
+pub async fn read_manifest(manifest_path: &Path) -> crate::Result<(DocumentMut, String)> {
+  let manifest_str = tokio::fs::read_to_string(manifest_path)
+    .await
     .fs_context("failed to read Cargo.toml", manifest_path.to_path_buf())?;
 
   let manifest: DocumentMut = manifest_str
@@ -269,9 +270,9 @@ fn inject_features(
   Ok(persist)
 }
 
-pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Manifest, bool)> {
+pub async fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Manifest, bool)> {
   let manifest_path = tauri_dir.join("Cargo.toml");
-  let (mut manifest, original_manifest_str) = read_manifest(&manifest_path)?;
+  let (mut manifest, original_manifest_str) = read_manifest(&manifest_path).await?;
 
   let mut dependencies = Vec::new();
 
@@ -310,7 +311,8 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
   let new_manifest_str = serialize_manifest(&manifest);
 
   if persist && original_manifest_str != new_manifest_str {
-    std::fs::write(&manifest_path, new_manifest_str)
+    tokio::fs::write(&manifest_path, new_manifest_str)
+      .await
       .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
     Ok((
       Manifest {

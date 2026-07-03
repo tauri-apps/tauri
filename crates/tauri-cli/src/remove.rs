@@ -17,7 +17,7 @@ pub struct Options {
   pub plugin: String,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
   let plugin = options.plugin;
 
@@ -41,17 +41,20 @@ pub fn command(options: Options) -> Result<()> {
     name: &crate_name,
     cwd: Some(dirs.tauri),
     target: target_str,
-  })?;
+  })
+  .await?;
 
   if !metadata.rust_only {
-    if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
+    if let Some(frontend_dir) = frontend_dir {
+      let manager = PackageManager::from_project(frontend_dir).await;
       let npm_name = format!("@tauri-apps/plugin-{plugin}");
-      manager.remove(&[npm_name], dirs.tauri)?;
+      manager.remove(&[npm_name], dirs.tauri).await?;
     }
 
     acl::permission::rm::command(acl::permission::rm::Options {
       identifier: format!("{plugin}:*"),
-    })?;
+    })
+    .await?;
   }
 
   log::info!("Now, you must manually remove the plugin from your Rust code.",);

@@ -14,14 +14,26 @@ use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{MobileOptions, Options, Rust as AppInterface, WatcherOptions};
 
+/// A handle to a running development app process.
+///
+/// Implementations must also kill the underlying process (and wind down any
+/// tasks monitoring it) when the handle is dropped.
+#[async_trait::async_trait]
 pub trait DevProcess {
-  fn kill(&self) -> std::io::Result<()>;
+  /// Kills the process and waits for it to exit.
+  async fn kill(&self) -> std::io::Result<()>;
+  /// Waits for the process to exit.
   #[allow(unused)]
-  fn wait(&self) -> std::io::Result<ExitStatus>;
+  async fn wait(&self) -> std::io::Result<ExitStatus>;
   #[allow(unused)]
   fn manually_killed_process(&self) -> bool;
 }
 
+/// Application settings resolution.
+///
+/// These methods are intentionally synchronous: they must be callable from
+/// synchronous callbacks handed to external crates (e.g. the cargo-mobile2
+/// target directory resolver).
 pub trait AppSettings {
   fn get_package_settings(&self) -> tauri_bundler::PackageSettings;
   fn get_bundle_settings(

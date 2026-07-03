@@ -47,13 +47,16 @@ pub struct InitOptions {
   out_dir: String,
 }
 
-pub fn command(cli: Cli) -> Result<()> {
+pub async fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => {
       let plugin_name = match options.plugin_name {
-        None => super::infer_plugin_name(
-          std::env::current_dir().context("failed to get current directory")?,
-        )?,
+        None => {
+          super::infer_plugin_name(
+            std::env::current_dir().context("failed to get current directory")?,
+          )
+          .await?
+        }
         Some(name) => name,
       };
 

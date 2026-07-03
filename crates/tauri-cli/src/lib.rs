@@ -35,17 +35,10 @@ use env_logger::Builder;
 pub use error::{Error, ErrorExt, Result};
 use log::Level;
 use serde::{Deserialize, Serialize};
-use std::io::{BufReader, Write};
-use std::process::{exit, Command, ExitStatus, Output, Stdio};
-use std::{
-  ffi::OsString,
-  fmt::Display,
-  fs::read_to_string,
-  io::BufRead,
-  path::PathBuf,
-  str::FromStr,
-  sync::{Arc, Mutex},
-};
+use std::io::Write;
+use std::process::{exit, ExitStatus, Output, Stdio};
+use std::{ffi::OsString, fmt::Display, fs::read_to_string, path::PathBuf, str::FromStr};
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 use crate::error::Context;
 
@@ -194,6 +187,8 @@ fn get_verbosity(cli_verbose: u8) -> u8 {
 /// The passed `bin_name` parameter should be how you want the help messages to display the command.
 /// This defaults to `cargo-tauri`, but should be set to how the program was called, such as
 /// `cargo tauri`.
+///
+/// This creates a tokio runtime internally. Use [`run_async`] if you already have one.
 pub fn run<I, A>(args: I, bin_name: Option<String>)
 where
   I: IntoIterator<Item = A>,
@@ -208,7 +203,34 @@ where
 /// Run the Tauri CLI with the passed arguments.
 ///
 /// It is similar to [`run`], but instead of exiting on an error, it returns a result.
+///
+/// This creates a tokio runtime internally. Use [`try_run_async`] if you already have one.
 pub fn try_run<I, A>(args: I, bin_name: Option<String>) -> Result<()>
+where
+  I: IntoIterator<Item = A>,
+  A: Into<OsString> + Clone,
+{
+  tokio::runtime::Builder::new_multi_thread()
+    .enable_all()
+    .build()
+    .context("failed to start tokio runtime")?
+    .block_on(try_run_async(args, bin_name))
+}
+
+/// Async version of [`run`], for use within an existing tokio runtime.
+pub async fn run_async<I, A>(args: I, bin_name: Option<String>)
+where
+  I: IntoIterator<Item = A>,
+  A: Into<OsString> + Clone,
+{
+  if let Err(e) = try_run_async(args, bin_name).await {
+    log::error!("{e}");
+    exit(1);
+  }
+}
+
+/// Async version of [`try_run`], for use within an existing tokio runtime.
+pub async fn try_run_async<I, A>(args: I, bin_name: Option<String>) -> Result<()>
 where
   I: IntoIterator<Item = A>,
   A: Into<OsString> + Clone,
@@ -279,24 +301,24 @@ where
   }
 
   match cli.command {
-    Commands::Build(options) => build::command(options, cli.verbose)?,
-    Commands::Bundle(options) => bundle::command(options, cli.verbose)?,
-    Commands::Dev(options) => dev::command(options)?,
-    Commands::Add(options) => add::command(options)?,
-    Commands::Remove(options) => remove::command(options)?,
-    Commands::Icon(options) => icon::command(options)?,
-    Commands::Info(options) => info::command(options)?,
-    Commands::Init(options) => init::command(options)?,
-    Commands::Plugin(cli) => plugin::command(cli)?,
-    Commands::Signer(cli) => signer::command(cli)?,
-    Commands::Completions(options) => completions::command(options, cli_)?,
-    Commands::Permission(options) => acl::permission::command(options)?,
-    Commands::Capability(options) => acl::capability::command(options)?,
-    Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
+    Commands::Build(options) => build::command(options, cli.verbose).await?,
+    Commands::Bundle(options) => bundle::command(options, cli.verbose).await?,
+    Commands::Dev(options) => dev::command(options).await?,
+    Commands::Add(options) => add::command(options).await?,
+    Commands::Remove(options) => remove::command(options).await?,
+    Commands::Icon(options) => icon::command(options).await?,
+    Commands::Info(options) => info::command(options).await?,
+    Commands::Init(options) => init::command(options).await?,
+    Commands::Plugin(cli) => plugin::command(cli).await?,
+    Commands::Signer(cli) => signer::command(cli).await?,
+    Commands::Completions(options) => completions::command(options, cli_).await?,
+    Commands::Permission(options) => acl::permission::command(options).await?,
+    Commands::Capability(options) => acl::capability::command(options).await?,
+    Commands::Android(c) => mobile::android::command(c, cli.verbose).await?,
     #[cfg(target_os = "macos")]
-    Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,
-    Commands::Migrate => migrate::command()?,
-    Commands::Inspect(cli) => inspect::command(cli)?,
+    Commands::Ios(c) => mobile::ios::command(c, cli.verbose).await?,
+    Commands::Migrate => migrate::command().await?,
+    Commands::Inspect(cli) => inspect::command(cli).await?,
   }
 
   Ok(())
@@ -322,33 +344,36 @@ fn prettyprint_level(lvl: Level) -> &'static str {
   }
 }
 
+#[allow(async_fn_in_trait)]
 pub trait CommandExt {
   // The `pipe` function sets the stdout and stderr to properly
   // show the command output in the Node.js wrapper.
-  fn piped(&mut self) -> std::io::Result<ExitStatus>;
-  fn output_ok(&mut self) -> crate::Result<Output>;
+  async fn piped(&mut self) -> std::io::Result<ExitStatus>;
+  async fn output_ok(&mut self) -> crate::Result<Output>;
 }
 
-impl CommandExt for Command {
-  fn piped(&mut self) -> std::io::Result<ExitStatus> {
+impl CommandExt for tokio::process::Command {
+  async fn piped(&mut self) -> std::io::Result<ExitStatus> {
     self.stdin(os_pipe::dup_stdin()?);
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
 
-    let program = self.get_program().to_string_lossy().into_owned();
+    let program = self.as_std().get_program().to_string_lossy().into_owned();
     let args = self
+      .as_std()
       .get_args()
       .map(|a| a.to_string_lossy())
       .collect::<Vec<_>>()
       .join(" ");
 
     log::debug!(action = "Running"; "Command `{program} {args}`");
-    self.status()
+    self.status().await
   }
 
-  fn output_ok(&mut self) -> crate::Result<Output> {
-    let program = self.get_program().to_string_lossy().into_owned();
+  async fn output_ok(&mut self) -> crate::Result<Output> {
+    let program = self.as_std().get_program().to_string_lossy().into_owned();
     let args = self
+      .as_std()
       .get_args()
       .map(|a| a.to_string_lossy())
       .collect::<Vec<_>>()
@@ -364,53 +389,50 @@ impl CommandExt for Command {
       .with_context(|| format!("failed to run command `{cmdline}`"))?;
 
     let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
-    let stdout_lines = Arc::new(Mutex::new(Vec::new()));
-    let stdout_lines_ = stdout_lines.clone();
-    std::thread::spawn(move || {
+    let stdout_task = tokio::spawn(async move {
+      let mut lines = Vec::new();
       let mut line = String::new();
-      if let Ok(mut lines) = stdout_lines_.lock() {
-        loop {
-          line.clear();
-          match stdout.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {
-              log::debug!(action = "stdout"; "{}", line.trim_end());
-              lines.extend(line.as_bytes());
-            }
-            Err(_) => (),
+      loop {
+        line.clear();
+        match stdout.read_line(&mut line).await {
+          Ok(0) => break,
+          Ok(_) => {
+            log::debug!(action = "stdout"; "{}", line.trim_end());
+            lines.extend(line.as_bytes());
           }
+          Err(_) => break,
         }
       }
+      lines
     });
 
     let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
-    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-    let stderr_lines_ = stderr_lines.clone();
-    std::thread::spawn(move || {
+    let stderr_task = tokio::spawn(async move {
+      let mut lines = Vec::new();
       let mut line = String::new();
-      if let Ok(mut lines) = stderr_lines_.lock() {
-        loop {
-          line.clear();
-          match stderr.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {
-              log::debug!(action = "stderr"; "{}", line.trim_end());
-              lines.extend(line.as_bytes());
-            }
-            Err(_) => (),
+      loop {
+        line.clear();
+        match stderr.read_line(&mut line).await {
+          Ok(0) => break,
+          Ok(_) => {
+            log::debug!(action = "stderr"; "{}", line.trim_end());
+            lines.extend(line.as_bytes());
           }
+          Err(_) => break,
         }
       }
+      lines
     });
 
     let status = child
       .wait()
+      .await
       .with_context(|| format!("failed to run command `{cmdline}`"))?;
 
     let output = Output {
       status,
-      stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
-      stderr: std::mem::take(&mut *stderr_lines.lock().unwrap()),
+      stdout: stdout_task.await.unwrap_or_default(),
+      stderr: stderr_task.await.unwrap_or_default(),
     };
 
     if output.status.success() {

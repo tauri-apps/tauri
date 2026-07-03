@@ -130,26 +130,28 @@ impl From<Options> for DevOptions {
   }
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub async fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let result = run_command(options, noise_level, dirs);
+  let result = run_command(options, noise_level, dirs).await;
   if result.is_err() {
     crate::dev::kill_before_dev_process();
   }
   result
 }
 
-fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
+async fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).fs_context(
-        "failed to read certificate file",
-        root_certificate_path.clone(),
-      )?,
+      tokio::fs::read_to_string(root_certificate_path)
+        .await
+        .fs_context(
+          "failed to read certificate file",
+          root_certificate_path.clone(),
+        )?,
     );
   }
 
@@ -163,7 +165,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     dirs.tauri,
   )?;
 
-  let env = env(false)?;
+  let env = env(false).await?;
   let device = if options.open {
     None
   } else {
@@ -184,7 +186,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   dev_options.target = Some(target_triple);
   dev_options.args.push("--lib".into());
 
-  let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
+  let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri).await?;
 
   let app = get_app(MobileTarget::Android, &tauri_config, &interface, dirs.tauri);
   let (config, metadata) = get_config(
@@ -200,7 +202,8 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
       config: dev_options.config.clone(),
       target_device: None,
     },
-  );
+  )
+  .await;
 
   set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
 
@@ -210,7 +213,8 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     config.project_dir(),
     MobileTarget::Android,
     false,
-  )?;
+  )
+  .await?;
   run_dev(
     interface,
     options,
@@ -223,10 +227,11 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     noise_level,
     &dirs,
   )
+  .await
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_dev(
+async fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
@@ -259,7 +264,7 @@ fn run_dev(
     )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs).await?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -273,7 +278,7 @@ fn run_dev(
 
   configure_cargo(&mut env, config)?;
 
-  generate_tauri_properties(config, &tauri_config, true)?;
+  generate_tauri_properties(config, &tauri_config, true).await?;
   sync_debug_application_id_suffix(config, &tauri_config)?;
 
   let installed_targets =
@@ -309,58 +314,63 @@ fn run_dev(
     .context("failed to build Android app")?;
 
   let open = options.open;
-  interface.mobile_dev(
-    &mut tauri_config,
-    MobileOptions {
-      debug: !options.release_mode,
-      features: options.features,
-      args: options.args,
-      config: dev_options.config.clone(),
-      no_watch: options.no_watch,
-      additional_watch_folders: options.additional_watch_folders,
-    },
-    |options, tauri_config| {
-      let cli_options = CliOptions {
-        dev: true,
-        features: options.features.clone(),
-        args: options.args.clone(),
-        noise_level,
-        vars: Default::default(),
+  interface
+    .mobile_dev(
+      &mut tauri_config,
+      MobileOptions {
+        debug: !options.release_mode,
+        features: options.features,
+        args: options.args,
         config: dev_options.config.clone(),
-        target_device: device.as_ref().map(|d| TargetDevice {
-          id: d.serial_no().to_string(),
-          name: d.name().to_string(),
-        }),
-      };
-
-      let _handle = write_options(tauri_config, cli_options)?;
-
-      inject_resources(config, tauri_config)?;
-
-      if open {
-        open_and_wait(config, &env)
-      } else if let Some(device) = &device {
-        match run(
-          device,
-          options,
-          config,
-          &env,
-          metadata,
+        no_watch: options.no_watch,
+        additional_watch_folders: options.additional_watch_folders,
+      },
+      |options, tauri_config| {
+        let cli_options = CliOptions {
+          dev: true,
+          features: options.features.clone(),
+          args: options.args.clone(),
           noise_level,
-          tauri_config,
-        ) {
-          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
-          Err(e) => {
-            crate::dev::kill_before_dev_process();
-            Err(e)
+          vars: Default::default(),
+          config: dev_options.config.clone(),
+          target_device: device.as_ref().map(|d| TargetDevice {
+            id: d.serial_no().to_string(),
+            name: d.name().to_string(),
+          }),
+        };
+
+        // the runner closure is synchronous, so we must block on the async options server setup
+        let _handle = tokio::task::block_in_place(|| {
+          tokio::runtime::Handle::current().block_on(write_options(tauri_config, cli_options))
+        })?;
+
+        inject_resources(config, tauri_config)?;
+
+        if open {
+          open_and_wait(config, &env)
+        } else if let Some(device) = &device {
+          match run(
+            device,
+            options,
+            config,
+            &env,
+            metadata,
+            noise_level,
+            tauri_config,
+          ) {
+            Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
+            Err(e) => {
+              crate::dev::kill_before_dev_process();
+              Err(e)
+            }
           }
+        } else {
+          open_and_wait(config, &env)
         }
-      } else {
-        open_and_wait(config, &env)
-      }
-    },
-    dirs,
-  )
+      },
+      dirs,
+    )
+    .await
 }
 
 fn run(

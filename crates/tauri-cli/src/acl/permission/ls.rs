@@ -11,7 +11,8 @@ use crate::{
 use colored::Colorize;
 use tauri_utils::acl::{manifest::Manifest, APP_ACL_KEY};
 
-use std::{collections::BTreeMap, fs::read_to_string};
+use std::collections::BTreeMap;
+use tokio::fs::read_to_string;
 
 #[derive(Debug, Parser)]
 #[clap(about = "List permissions available to your application")]
@@ -23,7 +24,7 @@ pub struct Options {
   filter: Option<String>,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let acl_manifests_path = dirs
@@ -34,6 +35,7 @@ pub fn command(options: Options) -> Result<()> {
 
   if acl_manifests_path.exists() {
     let plugin_manifest_json = read_to_string(&acl_manifests_path)
+      .await
       .fs_context("failed to read plugin manifest", acl_manifests_path)?;
     let acl = serde_json::from_str::<BTreeMap<String, Manifest>>(&plugin_manifest_json)
       .context("failed to parse plugin manifest as JSON")?;

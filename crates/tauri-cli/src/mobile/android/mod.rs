@@ -21,14 +21,14 @@ use clap::{Parser, Subcommand};
 use semver::Version;
 use std::{
   env::set_var,
-  fs::{create_dir, create_dir_all, read_dir, write},
   io::Cursor,
   path::{Path, PathBuf},
-  process::{exit, Command},
+  process::exit,
   sync::OnceLock,
   thread::sleep,
   time::Duration,
 };
+use tokio::process::Command;
 use sublime_fuzzy::best_match;
 use tauri_utils::resources::ResourcePaths;
 
@@ -104,26 +104,29 @@ enum Commands {
   AndroidStudioScript(android_studio_script::Options),
 }
 
-pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
+pub async fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(
-      MobileTarget::Android,
-      options.ci,
-      false,
-      options.skip_targets_install,
-      options.config,
-    )?,
-    Commands::Dev(options) => dev::command(options, noise_level)?,
-    Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
-    Commands::Run(options) => run::command(options, noise_level)?,
-    Commands::AndroidStudioScript(options) => android_studio_script::command(options)?,
+    Commands::Init(options) => {
+      init_command(
+        MobileTarget::Android,
+        options.ci,
+        false,
+        options.skip_targets_install,
+        options.config,
+      )
+      .await?
+    }
+    Commands::Dev(options) => dev::command(options, noise_level).await?,
+    Commands::Build(options) => build::command(options, noise_level).await.map(|_| ())?,
+    Commands::Run(options) => run::command(options, noise_level).await?,
+    Commands::AndroidStudioScript(options) => android_studio_script::command(options).await?,
   }
 
   Ok(())
 }
 
-pub fn get_config(
+pub async fn get_config(
   app: &App,
   config: &TauriConfig,
   features: &[String],
@@ -172,7 +175,7 @@ pub fn get_config(
     .join(format!("java/{}", app.identifier().replace('.', "/"),));
   if config.project_dir().exists() {
     if src_main_dir.exists() {
-      let _ = create_dir(src_main_dir.join("generated"));
+      let _ = tokio::fs::create_dir(src_main_dir.join("generated")).await;
     } else {
       log::error!(
       "Project directory {} does not exist. Did you update the package name in `Cargo.toml` or the bundle identifier in `tauri.conf.json > identifier`? Save your changes, delete the `gen/android` folder and run `tauri android init` to recreate the Android project.",
@@ -213,7 +216,7 @@ fn sync_debug_application_id_suffix(
   };
 
   if updated_build_gradle != build_gradle {
-    write(&build_gradle_path, updated_build_gradle).fs_context(
+    std::fs::write(&build_gradle_path, updated_build_gradle).fs_context(
       "failed to write Android Gradle build file",
       build_gradle_path,
     )?;
@@ -430,16 +433,19 @@ fn escape_kotlin_string(value: &str) -> String {
   output
 }
 
-pub fn env(non_interactive: bool) -> Result<Env> {
+pub async fn env(non_interactive: bool) -> Result<Env> {
   let env = super::env().context("failed to setup Android environment")?;
-  ensure_env(non_interactive).context("failed to ensure Android environment")?;
+  ensure_env(non_interactive)
+    .await
+    .context("failed to ensure Android environment")?;
   cargo_mobile2::android::env::Env::from_env(env).context("failed to load Android environment")
 }
 
-fn download_cmdline_tools(extract_path: &Path) -> Result<()> {
+async fn download_cmdline_tools(extract_path: &Path) -> Result<()> {
   log::info!("Downloading Android command line tools...");
 
   let mut response = crate::helpers::http::get(CMDLINE_TOOLS_URL)
+    .await
     .context("failed to download Android command line tools")?;
   let body = response
     .body_mut()
@@ -462,10 +468,10 @@ fn download_cmdline_tools(extract_path: &Path) -> Result<()> {
   Ok(())
 }
 
-fn ensure_env(non_interactive: bool) -> Result<()> {
+async fn ensure_env(non_interactive: bool) -> Result<()> {
   ensure_java()?;
-  ensure_sdk(non_interactive)?;
-  ensure_ndk(non_interactive)?;
+  ensure_sdk(non_interactive).await?;
+  ensure_ndk(non_interactive).await?;
   Ok(())
 }
 
@@ -489,7 +495,7 @@ fn ensure_java() -> Result<()> {
   Ok(())
 }
 
-fn ensure_sdk(non_interactive: bool) -> Result<()> {
+async fn ensure_sdk(non_interactive: bool) -> Result<()> {
   let android_home = std::env::var_os("ANDROID_HOME")
     .or_else(|| std::env::var_os("ANDROID_SDK_ROOT"))
     .map(PathBuf::from);
@@ -523,7 +529,7 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
         default_android_home.display()
       );
 
-      let extract_path = if create_dir_all(&default_android_home).is_ok() {
+      let extract_path = if tokio::fs::create_dir_all(&default_android_home).await.is_ok() {
         default_android_home.clone()
       } else {
         std::env::current_dir().context("failed to get current directory")?
@@ -546,7 +552,7 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
           crate::error::bail!("Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
         }
 
-        download_cmdline_tools(&extract_path)?;
+        download_cmdline_tools(&extract_path).await?;
       }
 
       if !granted_permission_to_install {
@@ -569,6 +575,7 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
         .arg(format!("platforms;android-{SDK_VERSION}"))
         .arg(format!("ndk;{NDK_VERSION}"))
         .status()
+        .await
         .map_err(|error| Error::CommandFailed {
           command: format!("{} --sdk_root={} --install platform-tools platforms;android-{SDK_VERSION} ndk;{NDK_VERSION}", sdk_manager_path.display(), default_android_home.display()),
           error,
@@ -585,7 +592,7 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
   Ok(())
 }
 
-fn ensure_ndk(non_interactive: bool) -> Result<()> {
+async fn ensure_ndk(non_interactive: bool) -> Result<()> {
   // re-evaluate ANDROID_HOME
   let android_home = std::env::var_os("ANDROID_HOME")
     .or_else(|| std::env::var_os("ANDROID_SDK_ROOT"))
@@ -603,14 +610,13 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
       );
     }
   } else {
-    read_dir(android_home.join("ndk"))
-      .map(|dir| {
-        dir
-          .into_iter()
-          .flat_map(|e| e.ok().map(|e| e.path()))
-          .collect::<Vec<_>>()
-      })
-      .unwrap_or_default()
+    let mut ndks = Vec::new();
+    if let Ok(mut dir) = tokio::fs::read_dir(android_home.join("ndk")).await {
+      while let Ok(Some(entry)) = dir.next_entry().await {
+        ndks.push(entry.path());
+      }
+    }
+    ndks
   };
   installed_ndks.sort();
 
@@ -637,7 +643,7 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
         crate::error::bail!("Skipping Android Studio command line tools installation. Please go through the manual setup process described in the documentation: https://tauri.app/start/prerequisites/#android");
       }
 
-      download_cmdline_tools(&android_home)?;
+      download_cmdline_tools(&android_home).await?;
     }
 
     if !granted_permission_to_install {
@@ -661,6 +667,7 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
       .arg("--install")
       .arg(format!("ndk;{NDK_VERSION}"))
       .status()
+      .await
       .map_err(|error| Error::CommandFailed {
         command: format!(
           "{} --sdk_root={} --install ndk;{NDK_VERSION}",
@@ -963,14 +970,16 @@ fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
   }
 }
 
+// this must stay synchronous: it is also called from the `mobile_dev` runner closure
 fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Result<()> {
   let asset_dir = config
     .project_dir()
     .join("app/src/main")
     .join(DEFAULT_ASSET_DIR);
-  create_dir_all(&asset_dir).fs_context("failed to create asset directory", asset_dir.clone())?;
+  std::fs::create_dir_all(&asset_dir)
+    .fs_context("failed to create asset directory", asset_dir.clone())?;
 
-  write(
+  std::fs::write(
     asset_dir.join("tauri.conf.json"),
     serde_json::to_string(&tauri_config).with_context(|| "failed to serialize tauri config")?,
   )
@@ -988,7 +997,11 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
     for resource in resources.iter() {
       let resource = resource.context("failed to get resource")?;
       let dest = asset_dir.join(resource.target());
-      crate::helpers::fs::copy_file(resource.path(), dest).context("failed to copy resource")?;
+      let dest_dir = dest.parent().unwrap_or(&asset_dir);
+      std::fs::create_dir_all(dest_dir)
+        .fs_context("failed to create directory", dest_dir.to_path_buf())?;
+      std::fs::copy(resource.path(), &dest)
+        .fs_context("failed to copy resource", resource.path().to_path_buf())?;
     }
   }
 
@@ -1016,7 +1029,7 @@ fn configure_cargo(env: &mut Env, config: &AndroidConfig) -> Result<()> {
   Ok(())
 }
 
-fn generate_tauri_properties(
+async fn generate_tauri_properties(
   config: &AndroidConfig,
   tauri_config: &TauriConfig,
   dev: bool,
@@ -1027,7 +1040,8 @@ fn generate_tauri_properties(
   if let Some(version) = tauri_config.version.as_ref() {
     app_tauri_properties.push(format!("tauri.android.versionName={version}"));
     if tauri_config.bundle.android.auto_increment_version_code && !dev {
-      let last_version_code = std::fs::read_to_string(&app_tauri_properties_path)
+      let last_version_code = tokio::fs::read_to_string(&app_tauri_properties_path)
+        .await
         .ok()
         .and_then(|content| {
           content
@@ -1067,11 +1081,13 @@ fn generate_tauri_properties(
       "// THIS IS AN AUTOGENERATED FILE. DO NOT EDIT THIS FILE DIRECTLY.\n{}",
       app_tauri_properties.join("\n")
     );
-    if std::fs::read_to_string(&app_tauri_properties_path)
+    if tokio::fs::read_to_string(&app_tauri_properties_path)
+      .await
       .map(|o| o != app_tauri_properties_content)
       .unwrap_or(true)
     {
-      write(&app_tauri_properties_path, app_tauri_properties_content)
+      tokio::fs::write(&app_tauri_properties_path, app_tauri_properties_content)
+        .await
         .context("failed to write tauri.properties")?;
     }
   }

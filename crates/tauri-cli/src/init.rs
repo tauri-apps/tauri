@@ -10,12 +10,7 @@ use crate::{
   },
   VersionMetadata,
 };
-use std::{
-  collections::BTreeMap,
-  env::current_dir,
-  fs::{read_to_string, remove_dir_all},
-  path::PathBuf,
-};
+use std::{collections::BTreeMap, env::current_dir, path::PathBuf};
 
 use crate::{
   error::{Context, ErrorExt},
@@ -74,12 +69,13 @@ struct InitDefaults {
 }
 
 impl Options {
-  fn load(mut self) -> Result<Self> {
+  async fn load(mut self) -> Result<Self> {
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
-      let package_json_text =
-        read_to_string(&package_json_path).fs_context("failed to read", &package_json_path)?;
+      let package_json_text = tokio::fs::read_to_string(&package_json_path)
+        .await
+        .fs_context("failed to read", &package_json_path)?;
       let package_json: crate::PackageJson =
         serde_json::from_str(&package_json_text).context("failed to parse JSON")?;
       let (framework, _) = infer_framework(&package_json_text);
@@ -135,7 +131,7 @@ impl Options {
       )
     })?;
 
-    let detected_package_manager = PackageManager::from_project(&self.directory);
+    let detected_package_manager = PackageManager::from_project(&self.directory).await;
 
     self.before_dev_command = self
       .before_dev_command
@@ -187,8 +183,8 @@ fn default_build_command(pm: PackageManager) -> &'static str {
   }
 }
 
-pub fn command(mut options: Options) -> Result<()> {
-  options = options.load()?;
+pub async fn command(mut options: Options) -> Result<()> {
+  options = options.load().await?;
 
   let template_target_path = PathBuf::from(&options.directory).join("src-tauri");
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata-v2.json"))
@@ -229,7 +225,7 @@ pub fn command(mut options: Options) -> Result<()> {
         )
       };
 
-    let _ = remove_dir_all(&template_target_path);
+    let _ = tokio::fs::remove_dir_all(&template_target_path).await;
     let mut handlebars = Handlebars::new();
     handlebars.register_escape_fn(handlebars::no_escape);
 

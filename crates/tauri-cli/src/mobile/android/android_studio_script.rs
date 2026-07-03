@@ -37,7 +37,7 @@ pub struct Options {
   release: bool,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
   let profile = if options.release {
@@ -47,7 +47,7 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[], dirs.tauri)?;
-  let cli_options = read_options(&tauri_config);
+  let cli_options = read_options(&tauri_config).await;
 
   if !cli_options.config.is_empty() {
     // reload config with merges from the android dev|build script
@@ -66,13 +66,14 @@ pub fn command(options: Options) -> Result<()> {
     &get_app(
       MobileTarget::Android,
       &tauri_config,
-      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      &AppInterface::new(&tauri_config, None, dirs.tauri).await?,
       dirs.tauri,
     ),
     &tauri_config,
     &[],
     &cli_options,
-  );
+  )
+  .await;
 
   ensure_init(
     &tauri_config,
@@ -80,7 +81,8 @@ pub fn command(options: Options) -> Result<()> {
     config.project_dir(),
     MobileTarget::Android,
     std::env::var("CI").is_ok(),
-  )?;
+  )
+  .await?;
 
   if !cli_options.config.is_empty() {
     crate::helpers::config::merge_config_with(
@@ -93,7 +95,7 @@ pub fn command(options: Options) -> Result<()> {
     )?;
   }
 
-  let env = env(std::env::var("CI").is_ok())?;
+  let env = env(std::env::var("CI").is_ok()).await?;
 
   if cli_options.dev {
     if let Some(url) = &tauri_config.build.dev_url {
@@ -105,7 +107,7 @@ pub fn command(options: Options) -> Result<()> {
 
       if localhost {
         if let Some(port) = url.port_or_known_default() {
-          adb_forward_port(port, &env, &cli_options)?;
+          adb_forward_port(port, &env, &cli_options).await?;
         }
       }
     }
@@ -186,7 +188,7 @@ fn validate_lib(path: &Path) -> Result<()> {
   Ok(())
 }
 
-fn adb_forward_port(
+async fn adb_forward_port(
   port: u16,
   env: &cargo_mobile2::android::env::Env,
   cli_options: &CliOptions,
@@ -208,7 +210,7 @@ fn adb_forward_port(
     let max = 5;
     let mut count = 0;
     loop {
-      std::thread::sleep(std::time::Duration::from_secs(1));
+      tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
       devices = adb::device_list(env)
         .unwrap_or_default()
@@ -292,7 +294,7 @@ fn adb_forward_port(
             "waiting for the port to be forwarded to {}...",
             target_device_name
           );
-          std::thread::sleep(std::time::Duration::from_secs(1));
+          tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
       }
     }

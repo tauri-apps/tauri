@@ -10,10 +10,11 @@ use std::{
 
 use crate::error::ErrorExt;
 
-pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
+pub async fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
   let path = path.as_ref();
-  let pbxproj =
-    std::fs::read_to_string(path).fs_context("failed to read pbxproj file", path.to_path_buf())?;
+  let pbxproj = tokio::fs::read_to_string(path)
+    .await
+    .fs_context("failed to read pbxproj file", path.to_path_buf())?;
 
   let mut proj = Pbxproj {
     path: path.to_owned(),
@@ -218,8 +219,8 @@ impl Pbxproj {
     proj
   }
 
-  pub fn save(&self) -> std::io::Result<()> {
-    std::fs::write(&self.path, self.serialize())
+  pub async fn save(&self) -> std::io::Result<()> {
+    tokio::fs::write(&self.path, self.serialize()).await
   }
 
   pub fn set_build_settings(&mut self, build_configuration_id: &str, key: &str, value: &str) {
@@ -292,8 +293,8 @@ pub struct BuildConfigurationRef {
 
 #[cfg(test)]
 mod tests {
-  #[test]
-  fn parse() {
+  #[tokio::test]
+  async fn parse() {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixtures_path = manifest_dir.join("tests").join("fixtures").join("pbxproj");
 
@@ -303,12 +304,14 @@ mod tests {
 
     insta::assert_debug_snapshot!(
       "project.pbxproj",
-      super::parse(fixtures_path.join("project.pbxproj")).expect("failed to parse pbxproj")
+      super::parse(fixtures_path.join("project.pbxproj"))
+        .await
+        .expect("failed to parse pbxproj")
     );
   }
 
-  #[test]
-  fn modify() {
+  #[tokio::test]
+  async fn modify() {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixtures_path = manifest_dir.join("tests").join("fixtures").join("pbxproj");
 
@@ -316,8 +319,9 @@ mod tests {
     settings.set_snapshot_path(fixtures_path.join("snapshots"));
     let _guard = settings.bind_to_scope();
 
-    let mut pbxproj =
-      super::parse(fixtures_path.join("project.pbxproj")).expect("failed to parse pbxproj");
+    let mut pbxproj = super::parse(fixtures_path.join("project.pbxproj"))
+      .await
+      .expect("failed to parse pbxproj");
 
     pbxproj.set_build_settings(
       "DB_0E254D0FD84970B57F6410",

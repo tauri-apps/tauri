@@ -54,8 +54,8 @@ serde_json = { version = "1", features = ["preserve_order"] }
 json5 = "0.4"
 notify = "8"
 notify-debouncer-full = "0.6"
-shared_child = "1"
 duct = "1.0"
+async-trait = "0.1"
 toml_edit = { version = "0.25", features = ["serde"] }
 json-patch = "3"
 tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
@@ -83,13 +83,23 @@ dialoguer = "0.11"
 url = { version = "2", features = ["serde"] }
 os_pipe = "1"
 ignore = "0.4"
-ctrlc = "3"
 log = { version = "0.4.21", features = ["kv", "kv_std"] }
 env_logger = "0.11"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.25", default-features = false, features = ["ico"] }
 axum = { version = "0.8", features = ["ws"] }
-tokio = { version = "1", features = ["macros", "sync"] }
+tokio = { version = "1", features = [
+  "macros",
+  "sync",
+  "rt-multi-thread",
+  "process",
+  "fs",
+  "io-util",
+  "io-std",
+  "net",
+  "time",
+  "signal",
+] }
 common-path = "1"
 serde-value = "0.7"
 itertools = "0.13"

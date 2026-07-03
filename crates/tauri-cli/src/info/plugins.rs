@@ -42,7 +42,7 @@ impl InstalledPackages {
   }
 }
 
-pub fn installed_tauri_packages(
+pub async fn installed_tauri_packages(
   frontend_dir: &Path,
   tauri_dir: &Path,
   package_manager: PackageManager,
@@ -63,27 +63,30 @@ pub fn installed_tauri_packages(
     )
     .collect();
 
-  let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
+  let (manifest, lock) = cargo_manifest_and_lock(tauri_dir).await;
 
-  let mut rust_plugins: HashMap<String, semver::Version> = crate_names
-    .iter()
-    .filter_map(|crate_name| {
-      let crate_version =
-        crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), crate_name).version?;
-      let crate_version = semver::Version::parse(&crate_version)
-        .inspect_err(|_| {
-          // On first run there's no lockfile yet so we get the version requirement from Cargo.toml.
-          // In our templates that's `2` which is not a valid semver version but a version requirement.
-          // log::error confused users so we use log::debug to still be able to see this error if needed.
-          log::debug!("Failed to parse version `{crate_version}` for crate `{crate_name}`");
-        })
-        .ok()?;
-      Some((crate_name.clone(), crate_version))
-    })
-    .collect();
+  let mut rust_plugins: HashMap<String, semver::Version> = HashMap::new();
+  for crate_name in &crate_names {
+    let Some(crate_version) = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), crate_name)
+      .await
+      .version
+    else {
+      continue;
+    };
+    let Ok(crate_version) = semver::Version::parse(&crate_version).inspect_err(|_| {
+      // On first run there's no lockfile yet so we get the version requirement from Cargo.toml.
+      // In our templates that's `2` which is not a valid semver version but a version requirement.
+      // log::error confused users so we use log::debug to still be able to see this error if needed.
+      log::debug!("Failed to parse version `{crate_version}` for crate `{crate_name}`");
+    }) else {
+      continue;
+    };
+    rust_plugins.insert(crate_name.clone(), crate_version);
+  }
 
   let mut npm_plugins = package_manager
     .current_package_versions(&npm_names, frontend_dir)
+    .await
     .unwrap_or_default();
 
   let installed_plugins = crate_names
@@ -104,7 +107,7 @@ pub fn installed_tauri_packages(
   InstalledPackages(installed_plugins)
 }
 
-pub fn items(
+pub async fn items(
   frontend_dir: Option<&PathBuf>,
   tauri_dir: Option<&Path>,
   package_manager: PackageManager,
@@ -112,11 +115,11 @@ pub fn items(
   let mut items = Vec::new();
 
   if let Some(tauri_dir) = tauri_dir {
-    let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
+    let (manifest, lock) = cargo_manifest_and_lock(tauri_dir).await;
 
     for p in helpers::plugins::known_plugins().keys() {
       let dep = format!("tauri-plugin-{p}");
-      let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), &dep);
+      let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), &dep).await;
       if !crate_version.has_version() {
         continue;
       }
@@ -138,12 +141,16 @@ pub fn items(
   items
 }
 
-pub fn check_mismatched_packages(frontend_dir: &Path, tauri_path: &Path) -> crate::Result<()> {
+pub async fn check_mismatched_packages(
+  frontend_dir: &Path,
+  tauri_path: &Path,
+) -> crate::Result<()> {
   let installed_packages = installed_tauri_packages(
     frontend_dir,
     tauri_path,
-    PackageManager::from_project(frontend_dir),
-  );
+    PackageManager::from_project(frontend_dir).await,
+  )
+  .await;
   let mismatched_packages = installed_packages.mismatched();
   if mismatched_packages.is_empty() {
     return Ok(());

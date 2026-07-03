@@ -27,10 +27,10 @@ enum Commands {
   Generate(generate::Options),
 }
 
-pub fn command(cli: Cli) -> Result<()> {
+pub async fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::Sign(options) => sign::command(options)?,
-    Commands::Generate(options) => generate::command(options)?,
+    Commands::Sign(options) => sign::command(options).await?,
+    Commands::Generate(options) => generate::command(options).await?,
   }
   Ok(())
 }

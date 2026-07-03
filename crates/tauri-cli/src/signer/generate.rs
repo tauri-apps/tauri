@@ -27,7 +27,7 @@ pub struct Options {
   ci: bool,
 }
 
-pub fn command(mut options: Options) -> Result<()> {
+pub async fn command(mut options: Options) -> Result<()> {
   if options.ci && options.password.is_none() {
     log::warn!("Generating new private key without password. For security reasons, we recommend setting a password instead.");
     options.password.replace("".into());
@@ -37,6 +37,7 @@ pub fn command(mut options: Options) -> Result<()> {
   if let Some(output_path) = options.write_keys {
     let (secret_path, public_path) =
       save_keypair(options.force, output_path, &keypair.sk, &keypair.pk)
+        .await
         .expect("Unable to write keypair");
 
     println!();

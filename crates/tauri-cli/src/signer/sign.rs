@@ -70,11 +70,15 @@ fn backward_env_vars(mut options: Options) -> Options {
   options
 }
 
-pub fn command(mut options: Options) -> Result<()> {
+pub async fn command(mut options: Options) -> Result<()> {
   options = backward_env_vars(options);
 
   options.private_key = if let Some(private_key) = options.private_key_path {
-    Some(std::fs::read_to_string(Path::new(&private_key)).expect("Unable to extract private key"))
+    Some(
+      tokio::fs::read_to_string(Path::new(&private_key))
+        .await
+        .expect("Unable to extract private key"),
+    )
   } else {
     options.private_key
   };
@@ -90,6 +94,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
   let (manifest_dir, signature) =
     sign_file(&secret_key(private_key, options.password)?, options.file)
+      .await
       .with_context(|| "failed to sign file")?;
 
   println!(

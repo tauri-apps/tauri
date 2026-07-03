@@ -32,7 +32,7 @@ use std::{
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile/android");
 
-pub fn gen(
+pub async fn gen(
   config: &Config,
   metadata: &Metadata,
   (handlebars, mut map): (Handlebars, template::JsonMap),
@@ -142,16 +142,21 @@ pub fn gen(
     let source_file = source_src
       .file_name()
       .with_context(|| format!("asset source {} is invalid", source_src.display()))?;
-    fs::copy(&source_src, source_dest.join(source_file))
+    tokio::fs::copy(&source_src, source_dest.join(source_file))
+      .await
       .fs_context("failed to copy asset", source_src)?;
   }
 
   let dest = prefix_path(dest, "app/src/main/");
-  fs::create_dir_all(&dest).fs_context("failed to create directory", dest.clone())?;
+  tokio::fs::create_dir_all(&dest)
+    .await
+    .fs_context("failed to create directory", dest.clone())?;
 
   let asset_dir = dest.join(DEFAULT_ASSET_DIR);
   if !asset_dir.is_dir() {
-    fs::create_dir_all(&asset_dir).fs_context("failed to create asset dir", asset_dir)?;
+    tokio::fs::create_dir_all(&asset_dir)
+      .await
+      .fs_context("failed to create asset dir", asset_dir)?;
   }
 
   Ok(())

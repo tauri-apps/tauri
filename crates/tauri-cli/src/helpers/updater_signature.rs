@@ -7,12 +7,13 @@ use minisign::{
   sign, KeyPair as KP, PublicKey, PublicKeyBox, SecretKey, SecretKeyBox, SignatureBox,
 };
 use std::{
-  fs::{self, File, OpenOptions},
-  io::{BufReader, BufWriter, Write},
+  fs::{File, OpenOptions},
+  io::BufReader,
   path::{Path, PathBuf},
   str,
   time::{SystemTime, UNIX_EPOCH},
 };
+use tokio::fs;
 
 use crate::error::{Context, ErrorExt};
 
@@ -23,12 +24,16 @@ pub struct KeyPair {
   pub sk: String,
 }
 
-fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
+async fn create_file(path: &Path, contents: &str) -> crate::Result<()> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(parent).fs_context("failed to create directory", parent.to_path_buf())?;
+    fs::create_dir_all(parent)
+      .await
+      .fs_context("failed to create directory", parent.to_path_buf())?;
   }
-  let file = File::create(path).fs_context("failed to create file", path.to_path_buf())?;
-  Ok(BufWriter::new(file))
+  fs::write(path, contents)
+    .await
+    .fs_context("failed to create file", path.to_path_buf())?;
+  Ok(())
 }
 
 /// Generate base64 encoded keypair
@@ -58,7 +63,7 @@ pub fn decode_key<S: AsRef<[u8]>>(base64_key: S) -> crate::Result<String> {
 }
 
 /// Save KeyPair to disk
-pub fn save_keypair<P>(
+pub async fn save_keypair<P>(
   force: bool,
   sk_path: P,
   key: &str,
@@ -79,34 +84,27 @@ where
         sk_path.display()
       );
     } else {
-      std::fs::remove_file(sk_path)
+      fs::remove_file(sk_path)
+        .await
         .fs_context("failed to remove secret key file", sk_path.to_path_buf())?;
     }
   }
 
   if pk_path.exists() {
-    std::fs::remove_file(pk_path)
+    fs::remove_file(pk_path)
+      .await
       .fs_context("failed to remove public key file", pk_path.to_path_buf())?;
   }
 
-  let write_file = |mut writer: BufWriter<File>, contents: &str| -> std::io::Result<()> {
-    write!(writer, "{contents:}")?;
-    writer.flush()?;
-    Ok(())
-  };
-
-  write_file(create_file(sk_path)?, key)
-    .fs_context("failed to write secret key", sk_path.to_path_buf())?;
-
-  write_file(create_file(pk_path)?, pubkey)
-    .fs_context("failed to write public key", pk_path.to_path_buf())?;
+  create_file(sk_path, key).await?;
+  create_file(pk_path, pubkey).await?;
 
   Ok((
-    fs::canonicalize(sk_path).fs_context(
+    fs::canonicalize(sk_path).await.fs_context(
       "failed to canonicalize secret key path",
       sk_path.to_path_buf(),
     )?,
-    fs::canonicalize(pk_path).fs_context(
+    fs::canonicalize(pk_path).await.fs_context(
       "failed to canonicalize public key path",
       pk_path.to_path_buf(),
     )?,
@@ -114,7 +112,10 @@ where
 }
 
 /// Sign files
-pub fn sign_file<P>(secret_key: &SecretKey, bin_path: P) -> crate::Result<(PathBuf, SignatureBox)>
+pub async fn sign_file<P>(
+  secret_key: &SecretKey,
+  bin_path: P,
+) -> crate::Result<(PathBuf, SignatureBox)>
 where
   P: AsRef<Path>,
 {
@@ -137,6 +138,7 @@ where
 
   let data_reader = open_data_file(bin_path)?;
 
+  // minisign consumes a synchronous reader; the signing itself is CPU-bound
   let signature_box = sign(
     None,
     secret_key,
@@ -148,10 +150,12 @@ where
 
   let encoded_signature =
     base64::engine::general_purpose::STANDARD.encode(signature_box.to_string());
-  std::fs::write(&signature_path, encoded_signature.as_bytes())
+  fs::write(&signature_path, encoded_signature.as_bytes())
+    .await
     .fs_context("failed to write signature file", signature_path.clone())?;
   Ok((
     fs::canonicalize(&signature_path)
+      .await
       .fs_context("failed to canonicalize signature file", &signature_path)?,
     signature_box,
   ))
@@ -212,14 +216,16 @@ mod tests {
   const PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
 
   // minisign >=0.7.4,<0.8.0 couldn't handle empty passwords if the private key is encrypted with an empty string.
-  #[test]
-  fn empty_password_is_valid() {
+  #[tokio::test]
+  async fn empty_password_is_valid() {
     let path = std::env::temp_dir().join("minisign-password-text.txt");
     std::fs::write(&path, b"TAURI").expect("failed to write test file");
 
     let secret_key =
       secret_key(PRIVATE_KEY, Some("".into())).expect("failed to resolve secret key");
-    sign_file(&secret_key, &path).expect("failed to sign file");
+    sign_file(&secret_key, &path)
+      .await
+      .expect("failed to sign file");
   }
 
   // This tests the newly generated keys with empty string password works

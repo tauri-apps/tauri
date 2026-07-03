@@ -14,17 +14,19 @@ use crate::{
   Result,
 };
 
-fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
-  for entry in std::fs::read_dir(dir)
-    .fs_context("failed to read permissions directory", dir.to_path_buf())?
-    .flatten()
-  {
+async fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
+  let mut entries = tokio::fs::read_dir(dir)
+    .await
+    .fs_context("failed to read permissions directory", dir.to_path_buf())?;
+  while let Ok(Some(entry)) = entries.next_entry().await {
     let file_type = entry
       .file_type()
+      .await
       .fs_context("failed to get permission file type", entry.path())?;
     let path = entry.path();
     if file_type.is_dir() {
-      rm_permission_files(identifier, &path)?;
+      // async recursion requires boxing
+      Box::pin(rm_permission_files(identifier, &path)).await?;
     } else {
       if path
         .file_name()
@@ -37,7 +39,8 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
       let (mut permission_file, format): (PermissionFile, FileFormat) =
         match path.extension().and_then(|o| o.to_str()) {
           Some("toml") => {
-            let content = std::fs::read_to_string(&path)
+            let content = tokio::fs::read_to_string(&path)
+              .await
               .fs_context("failed to read permission file", path.clone())?;
             (
               toml::from_str(&content).context("failed to deserialize permission file")?,
@@ -45,8 +48,9 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
             )
           }
           Some("json") => {
-            let content =
-              std::fs::read(&path).fs_context("failed to read permission file", path.clone())?;
+            let content = tokio::fs::read(&path)
+              .await
+              .fs_context("failed to read permission file", path.clone())?;
             (
               serde_json::from_slice(&content)
                 .context("failed to parse permission file as JSON")?,
@@ -82,15 +86,18 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
         && permission_file.set.is_empty()
         && permission_file.permission.is_empty()
       {
-        std::fs::remove_file(&path).fs_context("failed to remove permission file", path.clone())?;
+        tokio::fs::remove_file(&path)
+          .await
+          .fs_context("failed to remove permission file", path.clone())?;
         log::info!(action = "Removed"; "file {}", dunce::simplified(&path).display());
       } else if updated {
-        std::fs::write(
+        tokio::fs::write(
           &path,
           format
             .serialize(&permission_file)
             .context("failed to serialize permission")?,
         )
+        .await
         .fs_context("failed to write permission file", path.clone())?;
         log::info!(action = "Removed"; "permission {identifier} from {}", dunce::simplified(&path).display());
       }
@@ -100,19 +107,21 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
   Ok(())
 }
 
-fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
-  for entry in std::fs::read_dir(dir)
-    .fs_context("failed to read capabilities directory", dir.to_path_buf())?
-    .flatten()
-  {
+async fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
+  let mut entries = tokio::fs::read_dir(dir)
+    .await
+    .fs_context("failed to read capabilities directory", dir.to_path_buf())?;
+  while let Ok(Some(entry)) = entries.next_entry().await {
     let file_type = entry
       .file_type()
+      .await
       .fs_context("failed to get capability file type", entry.path())?;
     if file_type.is_file() {
       let path = entry.path();
       match path.extension().and_then(|o| o.to_str()) {
         Some("toml") => {
-          let content = std::fs::read_to_string(&path)
+          let content = tokio::fs::read_to_string(&path)
+            .await
             .fs_context("failed to read capability file", path.clone())?;
           if let Ok(mut value) = content.parse::<toml_edit::DocumentMut>() {
             if let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut()) {
@@ -129,7 +138,8 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
                 _ => false,
               });
               if prev_len != permissions.len() {
-                std::fs::write(&path, value.to_string())
+                tokio::fs::write(&path, value.to_string())
+                  .await
                   .fs_context("failed to write capability file", path.clone())?;
                 log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
               }
@@ -137,8 +147,9 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
           }
         }
         Some("json") => {
-          let content =
-            std::fs::read(&path).fs_context("failed to read capability file", path.clone())?;
+          let content = tokio::fs::read(&path)
+            .await
+            .fs_context("failed to read capability file", path.clone())?;
           if let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&content) {
             if let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut()) {
               let prev_len = permissions.len();
@@ -154,11 +165,12 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
                 _ => false,
               });
               if prev_len != permissions.len() {
-                std::fs::write(
+                tokio::fs::write(
                   &path,
                   serde_json::to_vec_pretty(&value)
                     .context("failed to serialize capability JSON")?,
                 )
+                .await
                 .fs_context("failed to write capability file", path.clone())?;
                 log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
               }
@@ -189,18 +201,18 @@ pub struct Options {
   pub identifier: String,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let permissions_dir = std::env::current_dir()
     .context("failed to resolve current directory")?
     .join("permissions");
   if permissions_dir.exists() {
-    rm_permission_files(&options.identifier, &permissions_dir)?;
+    rm_permission_files(&options.identifier, &permissions_dir).await?;
   }
 
   if let Some(tauri_dir) = resolve_tauri_dir() {
     let capabilities_dir = tauri_dir.join("capabilities");
     if capabilities_dir.exists() {
-      rm_permission_from_capabilities(&options.identifier, &capabilities_dir)?;
+      rm_permission_from_capabilities(&options.identifier, &capabilities_dir).await?;
     }
   }
 

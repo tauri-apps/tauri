@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use serde::Deserialize;
-use std::{
-  fs,
-  path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
+use tokio::fs;
 
 use tauri_utils::display_path;
 
@@ -57,21 +55,22 @@ pub struct Config {
 }
 
 impl Config {
-  pub fn load(path: &Path) -> Result<Self> {
+  pub async fn load(path: &Path) -> Result<Self> {
     let mut config = Self::default();
 
-    let get_config = |path: PathBuf| -> Result<ConfigSchema> {
-      let contents =
-        fs::read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
+    async fn get_config(path: PathBuf) -> Result<ConfigSchema> {
+      let contents = fs::read_to_string(&path)
+        .await
+        .fs_context("failed to read configuration file", path.clone())?;
       toml::from_str(&contents).context(format!(
         "could not parse TOML configuration in `{}`",
         display_path(&path)
       ))
-    };
+    }
 
     for current in PathAncestors::new(path) {
-      if let Some(path) = get_file_path(&current.join(".cargo"), "config", true)? {
-        let toml = get_config(path)?;
+      if let Some(path) = get_file_path(&current.join(".cargo"), "config", true).await? {
+        let toml = get_config(path).await?;
         if let Some(target) = toml.build.and_then(|b| b.target) {
           config.build.target = Some(target);
           break;
@@ -81,8 +80,8 @@ impl Config {
 
     if config.build.target.is_none() {
       if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
-        if let Some(path) = get_file_path(&PathBuf::from(cargo_home), "config", true)? {
-          let toml = get_config(path)?;
+        if let Some(path) = get_file_path(&PathBuf::from(cargo_home), "config", true).await? {
+          let toml = get_config(path).await?;
           if let Some(target) = toml.build.and_then(|b| b.target) {
             config.build.target = Some(target);
           }
@@ -109,7 +108,7 @@ impl BuildConfig {
 /// Both 'config.toml' and 'credentials.toml' should be valid with or without extension.
 /// When both exist, we want to prefer the one without an extension for
 /// backwards compatibility, but warn the user appropriately.
-fn get_file_path(
+async fn get_file_path(
   dir: &Path,
   filename_without_extension: &str,
   warn: bool,
@@ -124,7 +123,7 @@ fn get_file_path(
       // WITH an extension, which people may want to do to
       // support multiple Cargo versions at once and not
       // get a warning.
-      let skip_warning = if let Ok(target_path) = fs::read_link(&possible) {
+      let skip_warning = if let Ok(target_path) = fs::read_link(&possible).await {
         target_path == possible_with_extension
       } else {
         false

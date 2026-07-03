@@ -23,10 +23,10 @@ pub mod updater_signature;
 use std::{
   collections::HashMap,
   path::{Path, PathBuf},
-  process::Command,
 };
 
 use tauri_utils::config::HookCommand;
+use tokio::process::Command;
 
 #[cfg(not(target_os = "windows"))]
 use crate::Error;
@@ -68,7 +68,7 @@ pub fn cross_command(bin: &str) -> Command {
   cmd
 }
 
-pub fn run_hook(
+pub async fn run_hook(
   name: &str,
   hook: HookCommand,
   interface: &AppInterface,
@@ -97,6 +97,7 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
+      .await
       .map_err(|error| crate::error::Error::CommandFailed {
         command: script.clone(),
         error,
@@ -108,6 +109,7 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
+      .await
       .map_err(|error| Error::CommandFailed {
         command: script.clone(),
         error,

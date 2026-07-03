@@ -276,7 +276,7 @@ dependencies = [
  "figment",
  "filetime",
  "glob",
- "goblin 0.9.3",
+ "goblin",
  "hex",
  "log",
  "md-5",
@@ -298,7 +298,7 @@ dependencies = [
  "reqwest 0.12.28",
  "ring",
  "rsa",
- "scroll 0.12.0",
+ "scroll",
  "security-framework 2.11.1",
  "security-framework-sys",
  "semver",
@@ -337,7 +337,7 @@ dependencies = [
  "apple-xar",
  "cpio-archive",
  "flate2",
- "scroll 0.12.0",
+ "scroll",
  "serde",
  "serde-xml-rs",
  "thiserror 2.0.12",
@@ -360,7 +360,7 @@ dependencies = [
  "md-5",
  "rand 0.8.6",
  "reqwest 0.12.28",
- "scroll 0.12.0",
+ "scroll",
  "serde",
  "serde-xml-rs",
  "sha1 0.10.6",
@@ -3133,18 +3133,7 @@ checksum = "daa0a64d21a7eb230583b4c5f4e23b7e4e57974f96620f42a7e75e08ae66d745"
 dependencies = [
  "log",
  "plain",
- "scroll 0.12.0",
-]
-
-[[package]]
-name = "goblin"
-version = "0.10.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17582616a7718cca54cec18e534a76c7c4aec11a8b9a85695712f262fd15a4c8"
-dependencies = [
- "log",
- "plain",
- "scroll 0.13.0",
+ "scroll",
 ]
 
 [[package]]
@@ -4040,16 +4029,6 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
-]
-
-[[package]]
-name = "json5"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "733a844dbd6fef128e98cb4487b887cb55454d92cd9994b1bafe004fabbe670c"
-dependencies = [
- "serde",
- "ucd-trie",
 ]
 
 [[package]]
@@ -7580,16 +7559,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ab8598aa408498679922eff7fa985c25d58a90771bd6be794434c5277eab1a6"
 dependencies = [
- "scroll_derive 0.12.0",
-]
-
-[[package]]
-name = "scroll"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1257cd4248b4132760d6524d6dda4e053bc648c9070b960929bf50cfb1e7add"
-dependencies = [
- "scroll_derive 0.13.1",
+ "scroll_derive",
 ]
 
 [[package]]
@@ -7597,17 +7567,6 @@ name = "scroll_derive"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f81c2fde025af7e69b1d1420531c8a8811ca898919db177141a85313b1cb932"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "scroll_derive"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed76efe62313ab6610570951494bdaa81568026e0318eaa55f167de70eeea67d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8877,7 +8836,7 @@ dependencies = [
  "dunce",
  "flate2",
  "glob",
- "goblin 0.10.7",
+ "goblin",
  "handlebars",
  "heck 0.5.0",
  "hex",
@@ -8941,7 +8900,7 @@ dependencies = [
  "insta",
  "itertools 0.15.0",
  "json-patch",
- "json5 1.3.1",
+ "json5",
  "jsonrpsee",
  "jsonrpsee-client-transport",
  "jsonrpsee-core",
@@ -9241,7 +9200,7 @@ dependencies = [
  "http",
  "infer",
  "json-patch",
- "json5 0.4.1",
+ "json5",
  "kuchikiki",
  "log",
  "memchr",

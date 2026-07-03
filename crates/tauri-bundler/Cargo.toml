@@ -43,7 +43,8 @@ dunce = "1"
 url = "2"
 uuid = { version = "1", features = ["v4", "v5"] }
 regex = "1"
-goblin = "0.10"
+# TODO: Remove goblin from public api in v3
+goblin = "0.9"
 plist = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]

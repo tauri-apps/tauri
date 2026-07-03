@@ -54,8 +54,6 @@ use crate::{
   },
   window_handle::SendRawDisplayHandle,
 };
-#[cfg(target_os = "macos")]
-use winit::platform::macos::EventLoopBuilderExtMacOS;
 #[cfg(windows)]
 use winit::platform::windows::EventLoopBuilderExtWindows;
 #[cfg(any(
@@ -1308,9 +1306,6 @@ impl<T: UserEvent> CefRuntime<T> {
       use winit::platform::windows::EventLoopBuilderExtWindows;
       event_loop_builder.with_msg_hook(hook);
     }
-
-    #[cfg(target_os = "macos")]
-    event_loop_builder.with_default_menu(false);
 
     let event_loop = event_loop_builder
       .build()

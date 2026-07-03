@@ -2688,6 +2688,15 @@ fn on_event_loop_event<R: Runtime>(
           unsafe { app.setApplicationIconImage(Some(&app_icon)) };
         }
       }
+
+      #[cfg(all(target_os = "macos", feature = "cef"))]
+      if let Some(menu) = app_handle.manager.menu.menu_lock().clone() {
+        // winit installs a minimal app menu when the macOS event loop starts.
+        // Re-apply Tauri's menu after launch so the Edit submenu and standard
+        // copy/paste accelerators remain available.
+        let _ = init_app_menu(&menu);
+      }
+
       RunEvent::Ready
     }
     RuntimeRunEvent::Resumed => RunEvent::Resumed,

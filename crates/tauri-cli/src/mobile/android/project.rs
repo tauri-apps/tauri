@@ -35,7 +35,7 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile
 pub async fn gen(
   config: &Config,
   metadata: &Metadata,
-  (handlebars, mut map): (Handlebars, template::JsonMap),
+  (handlebars, mut map): (Handlebars<'_>, template::JsonMap),
   wrapper: &TextWrapper,
   skip_targets_install: bool,
 ) -> Result<()> {

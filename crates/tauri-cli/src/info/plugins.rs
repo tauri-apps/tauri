@@ -123,7 +123,7 @@ pub async fn items(
       if !crate_version.has_version() {
         continue;
       }
-      let item = packages_rust::rust_section_item(&dep, crate_version);
+      let item = packages_rust::rust_section_item(&dep, crate_version).await;
       items.push(item);
 
       let Some(frontend_dir) = frontend_dir else {
@@ -133,7 +133,8 @@ pub async fn items(
       let package = format!("@tauri-apps/plugin-{p}");
 
       let item =
-        packages_nodejs::nodejs_section_item(package, None, frontend_dir.clone(), package_manager);
+        packages_nodejs::nodejs_section_item(package, None, frontend_dir.clone(), package_manager)
+          .await;
       items.push(item);
     }
   }

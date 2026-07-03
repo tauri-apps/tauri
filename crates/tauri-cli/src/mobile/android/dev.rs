@@ -236,7 +236,7 @@ async fn run_dev(
   options: Options,
   mut dev_options: DevOptions,
   mut tauri_config: ConfigMetadata,
-  device: Option<Device>,
+  device: Option<Device<'_>>,
   mut env: Env,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,

@@ -54,6 +54,10 @@ use crate::{
   },
   window_handle::SendRawDisplayHandle,
 };
+#[cfg(target_os = "macos")]
+use winit::platform::macos::EventLoopBuilderExtMacOS;
+#[cfg(windows)]
+use winit::platform::windows::EventLoopBuilderExtWindows;
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -1305,6 +1309,9 @@ impl<T: UserEvent> CefRuntime<T> {
       event_loop_builder.with_msg_hook(hook);
     }
 
+    #[cfg(target_os = "macos")]
+    event_loop_builder.with_default_menu(false);
+
     let event_loop = event_loop_builder
       .build()
       .map_err(|_| Error::CreateWindow)?;
@@ -1440,17 +1447,6 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     target_os = "openbsd"
   ))]
   fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
-    #[cfg(windows)]
-    use winit::platform::windows::EventLoopBuilderExtWindows;
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
-    use winit::platform::x11::EventLoopBuilderExtX11;
-
     let mut event_loop_builder = EventLoopBuilder::default();
     event_loop_builder.with_any_thread(true);
     Self::init(event_loop_builder, args)

@@ -1078,6 +1078,19 @@ pub struct WindowsConfig {
   /// need to use another tool like `osslsigncode`.
   #[serde(alias = "sign-command")]
   pub sign_command: Option<CustomSignCommandConfig>,
+  /// Whether to bundle the Visual C++ runtime DLLs alongside the application.
+  ///
+  /// This can be particularly useful when your application includes sidecars or DLLs that do
+  /// not statically link the Visual C++ runtime and require the runtime DLLs at runtime, and
+  /// you do not want to require users to install the Visual C++ Redistributable. This can also
+  /// be useful when `build > windows > staticVCRuntime` is set to `false`.
+  #[serde(
+    default,
+    rename = "bundleVCRuntime",
+    alias = "bundle-vc-runtime",
+    alias = "bundleVcRuntime"
+  )]
+  pub bundle_vc_runtime: bool,
 }
 
 impl Default for WindowsConfig {
@@ -1093,6 +1106,7 @@ impl Default for WindowsConfig {
       wix: None,
       nsis: None,
       sign_command: None,
+      bundle_vc_runtime: false,
     }
   }
 }
@@ -1745,10 +1759,9 @@ impl FromStr for Color {
   fn from_str(mut color: &str) -> Result<Self, Self::Err> {
     color = color.trim().strip_prefix('#').unwrap_or(color);
     let color = match color.len() {
-      // TODO: use repeat_n once our MSRV is bumped to 1.82
       3 => color.chars()
-            .flat_map(|c| std::iter::repeat(c).take(2))
-            .chain(std::iter::repeat('f').take(2))
+            .flat_map(|c| std::iter::repeat_n(c, 2))
+            .chain(std::iter::repeat_n('f', 2))
             .collect(),
       6 => format!("{color}FF"),
       8 => color.to_string(),
@@ -3457,6 +3470,32 @@ pub struct BuildConfig {
   /// Additional paths to watch for changes when running `tauri dev`.
   #[serde(alias = "additional-watch-directories", default)]
   pub additional_watch_folders: Vec<PathBuf>,
+  /// Windows-specific build configuration.
+  #[serde(default)]
+  pub windows: WindowsBuildConfig,
+}
+
+/// Windows-specific build configuration.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowsBuildConfig {
+  /// Whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets.
+  #[serde(
+    default = "default_true",
+    rename = "staticVCRuntime",
+    alias = "static-vc-runtime",
+    alias = "staticVcRuntime"
+  )]
+  pub static_vc_runtime: bool,
+}
+
+impl Default for WindowsBuildConfig {
+  fn default() -> Self {
+    Self {
+      static_vc_runtime: true,
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -4137,6 +4176,7 @@ mod build {
       let features = quote!(None);
       let remove_unused_commands = quote!(false);
       let additional_watch_folders = quote!(Vec::new());
+      let windows = &self.windows;
 
       literal_struct!(
         tokens,
@@ -4149,7 +4189,20 @@ mod build {
         before_bundle_command,
         features,
         remove_unused_commands,
-        additional_watch_folders
+        additional_watch_folders,
+        windows
+      );
+    }
+  }
+
+  impl ToTokens for WindowsBuildConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let static_vc_runtime = self.static_vc_runtime;
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::WindowsBuildConfig,
+        static_vc_runtime
       );
     }
   }
@@ -4493,6 +4546,7 @@ mod test {
       features: None,
       remove_unused_commands: false,
       additional_watch_folders: Vec::new(),
+      windows: WindowsBuildConfig::default(),
     };
 
     // create a bundle config

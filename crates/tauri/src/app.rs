@@ -1035,6 +1035,10 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will hide the menu from it.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** Unsupported.
       #[cfg(desktop)]
       pub fn hide_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
@@ -1056,6 +1060,10 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will show the menu for it.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** Unsupported.
       #[cfg(desktop)]
       pub fn show_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]

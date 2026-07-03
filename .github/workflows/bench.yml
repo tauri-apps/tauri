@@ -30,12 +30,18 @@ jobs:
       matrix:
         rust: [nightly]
         platform:
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          - {
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              runner: 'xvfb-run --auto-servernum '
+            }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, runner: '' }
+          - { target: aarch64-apple-darwin, os: macos-latest, runner: '' }
 
     runs-on: ${{ matrix.platform.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: install Rust ${{ matrix.rust }}
         uses: dtolnay/rust-toolchain@master
@@ -44,54 +50,67 @@ jobs:
           components: rust-src
           targets: ${{ matrix.platform.target }}
 
-      - name: setup python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          architecture: x64
-
-      - name: install dependencies
+      - name: install webkit2gtk and xvfb (ubuntu only)
+        if: contains(matrix.platform.target, 'gnu')
         run: |
-          python -m pip install --upgrade pip
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             webkit2gtk-4.1 libayatana-appindicator3-dev \
             xvfb \
             at-spi2-core
-          wget https://github.com/sharkdp/hyperfine/releases/download/v1.18.0/hyperfine_1.18.0_amd64.deb
-          sudo dpkg -i hyperfine_1.18.0_amd64.deb
+
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: install memory_profiler
+        run: |
+          python -m pip install --upgrade pip
           pip install memory_profiler
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.19.1
+
+      - name: Install hyperfine
+        run: cargo binstall hyperfine@1.20 --no-confirm
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: run benchmarks
+      - name: build benchmark binaries
+        env:
+          RUSTFLAGS: '-Zunstable-options -Cpanic=immediate-abort'
         run: |
-          cargo build --manifest-path bench/tests/cpu_intensive/src-tauri/Cargo.toml --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }}
-          cargo build --manifest-path bench/tests/files_transfer/src-tauri/Cargo.toml --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }}
-          cargo build --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }}
-          xvfb-run --auto-servernum cargo run --manifest-path bench/Cargo.toml --bin run_benchmark
+          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/cpu_intensive/src-tauri/Cargo.toml
+          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/files_transfer/src-tauri/Cargo.toml
+          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml
+
+      - name: run benchmarks
+        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.BENCH_PAT }}
+          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           path: gh-pages
           repository: tauri-apps/benchmark_results
 
       - name: push new benchmarks
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
         run: |
-          cargo run --manifest-path bench/Cargo.toml --bin build_benchmark_jsons
+          cargo run --manifest-path ./bench/Cargo.toml --bin build_benchmark_jsons
           cd gh-pages
           git pull
-          git config user.name "tauri-bench"
-          git config user.email "gh.tauribot@gmail.com"
+          git config user.name "tauri-bot"
+          git config user.email "tauri-bot@tauri.app"
           git add .
           git commit --message "Update Tauri benchmarks"
           git push origin gh-pages
 
       - name: Print worker info
+        # TODO: How to print this info on macOS and Windows
+        if: contains(matrix.platform.target, 'gnu')
         run: |
           cat /proc/cpuinfo
           cat /proc/meminfo

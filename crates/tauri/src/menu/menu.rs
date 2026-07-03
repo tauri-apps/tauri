@@ -96,11 +96,7 @@ impl<R: Runtime> Menu<R> {
 
     let menu = run_main_thread!(handle, || {
       let menu = muda::Menu::new();
-      MenuInner {
-        id: menu.id().clone(),
-        inner: Some(menu),
-        app_handle,
-      }
+      MenuInner::new(app_handle, menu)
     })?;
 
     Ok(Self(Arc::new(menu)))
@@ -114,11 +110,7 @@ impl<R: Runtime> Menu<R> {
     let id = id.into();
     let menu = run_main_thread!(handle, || {
       let menu = muda::Menu::with_id(id.clone());
-      MenuInner {
-        id,
-        inner: Some(menu),
-        app_handle,
-      }
+      MenuInner::new(app_handle, menu)
     })?;
 
     Ok(Self(Arc::new(menu)))
@@ -259,7 +251,7 @@ impl<R: Runtime> Menu<R> {
 
   /// Returns a unique identifier associated with this menu.
   pub fn id(&self) -> &MenuId {
-    &self.0.id
+    self.0.inner.id()
   }
 
   /// Add a menu item to the end of this menu.

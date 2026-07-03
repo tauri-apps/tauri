@@ -31,7 +31,7 @@ tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
   "build-2",
   "resources",
 ] }
-cargo_toml = "0.22"
+cargo_toml = "1.0"
 serde = "1"
 serde_json = "1"
 heck = "0.5"

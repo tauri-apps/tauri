@@ -5,9 +5,10 @@
 use super::SectionItem;
 use crate::helpers::config::ConfigMetadata;
 use crate::helpers::framework;
-use std::{fs::read_to_string, path::PathBuf};
+use std::path::PathBuf;
+use tokio::fs::read_to_string;
 
-pub fn items(config: &ConfigMetadata, frontend_dir: Option<&PathBuf>) -> Vec<SectionItem> {
+pub async fn items(config: &ConfigMetadata, frontend_dir: Option<&PathBuf>) -> Vec<SectionItem> {
   let mut items = Vec::new();
   let bundle_or_build = if config.bundle.active {
     "bundle"
@@ -34,7 +35,7 @@ pub fn items(config: &ConfigMetadata, frontend_dir: Option<&PathBuf>) -> Vec<Sec
   }
 
   if let Some(frontend_dir) = frontend_dir {
-    if let Ok(package_json) = read_to_string(frontend_dir.join("package.json")) {
+    if let Ok(package_json) = read_to_string(frontend_dir.join("package.json")).await {
       let (framework, bundler) = framework::infer_from_package_json(&package_json);
 
       if let Some(framework) = framework {

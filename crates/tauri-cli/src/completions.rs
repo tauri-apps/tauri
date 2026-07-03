@@ -6,7 +6,8 @@ use crate::{error::ErrorExt, Result};
 use clap::{Command, Parser};
 use clap_complete::{generate, Shell};
 
-use std::{fs::write, path::PathBuf};
+use std::path::PathBuf;
+use tokio::fs::write;
 
 const PKG_MANAGERS: &[&str] = &["cargo", "pnpm", "npm", "yarn", "bun", "deno"];
 
@@ -89,12 +90,14 @@ fn get_completions(shell: Shell, cmd: Command) -> Result<String> {
   Ok(completions)
 }
 
-pub fn command(options: Options, cmd: Command) -> Result<()> {
+pub async fn command(options: Options, cmd: Command) -> Result<()> {
   log::info!("Generating completion file for {}...", options.shell);
 
   let completions = get_completions(options.shell, cmd)?;
   if let Some(output) = options.output {
-    write(&output, completions).fs_context("failed to write to completions", output)?;
+    write(&output, completions)
+      .await
+      .fs_context("failed to write to completions", output)?;
   } else {
     print!("{completions}");
   }

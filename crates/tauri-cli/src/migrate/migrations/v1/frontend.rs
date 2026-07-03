@@ -14,7 +14,7 @@ use oxc_ast::ast::*;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 
-use std::{fs, path::Path};
+use std::path::Path;
 
 mod partial_loader;
 
@@ -68,7 +68,7 @@ const MODULES_MAP: phf::Map<&str, &str> = phf::phf_map! {
 const JS_EXTENSIONS: &[&str] = &["js", "mjs", "jsx", "ts", "mts", "tsx", "svelte", "vue"];
 
 /// Returns a list of migrated plugins
-pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
+pub async fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
   let mut new_npm_packages = Vec::new();
   let mut new_plugins = Vec::new();
   let mut npm_packages_to_remove = Vec::new();
@@ -84,11 +84,12 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
     )
   };
 
-  let pm = PackageManager::from_project(frontend_dir);
+  let pm = PackageManager::from_project(frontend_dir).await;
 
   for pkg in ["@tauri-apps/cli", "@tauri-apps/api"] {
     let version = pm
       .current_package_version(pkg, frontend_dir)
+      .await
       .unwrap_or_default()
       .unwrap_or_default();
     if version.starts_with('1') {
@@ -101,8 +102,9 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
       let path = entry.path();
       let ext = path.extension().unwrap_or_default();
       if JS_EXTENSIONS.iter().any(|e| e == &ext) {
-        let js_contents =
-          std::fs::read_to_string(path).fs_context("failed to read JS file", path.to_path_buf())?;
+        let js_contents = tokio::fs::read_to_string(path)
+          .await
+          .fs_context("failed to read JS file", path.to_path_buf())?;
         let new_contents = migrate_imports(
           path,
           &js_contents,
@@ -110,7 +112,8 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
           &mut npm_packages_to_remove,
         )?;
         if new_contents != js_contents {
-          fs::write(path, new_contents)
+          tokio::fs::write(path, new_contents)
+            .await
             .fs_context("failed to write JS file", path.to_path_buf())?;
         }
       }
@@ -121,6 +124,7 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
     npm_packages_to_remove.sort();
     npm_packages_to_remove.dedup();
     pm.remove(&npm_packages_to_remove, frontend_dir)
+      .await
       .context("Error removing npm packages")?;
   }
 
@@ -128,6 +132,7 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
     new_npm_packages.sort();
     new_npm_packages.dedup();
     pm.install(&new_npm_packages, frontend_dir)
+      .await
       .context("Error installing new npm packages")?;
   }
 

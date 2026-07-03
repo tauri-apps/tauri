@@ -8,7 +8,7 @@ use crate::error::Context;
 use colored::Colorize;
 #[cfg(windows)]
 use serde::Deserialize;
-use std::process::Command;
+use tokio::process::Command;
 
 #[cfg(windows)]
 #[derive(Deserialize, Debug)]
@@ -21,7 +21,7 @@ struct VsInstanceInfo {
 const VSWHERE: &[u8] = include_bytes!("../../scripts/vswhere.exe");
 
 #[cfg(windows)]
-fn build_tools_version() -> crate::Result<Vec<String>> {
+async fn build_tools_version() -> crate::Result<Vec<String>> {
   let mut vswhere = std::env::temp_dir();
   vswhere.push("vswhere.exe");
 
@@ -48,6 +48,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "-utf8",
     ])
     .output()
+    .await
     .map_err(|error| crate::error::Error::CommandFailed {
       command: "vswhere -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -requires Microsoft.VisualStudio.Component.Windows10SDK.* -format json -utf8".to_string(),
       error,
@@ -67,6 +68,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "-utf8",
     ])
     .output()
+    .await
     .map_err(|error| crate::error::Error::CommandFailed {
       command: "vswhere -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -requires Microsoft.VisualStudio.Component.Windows11SDK.* -format json -utf8".to_string(),
       error,
@@ -100,7 +102,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
 }
 
 #[cfg(windows)]
-fn webview2_version() -> crate::Result<Option<String>> {
+async fn webview2_version() -> crate::Result<Option<String>> {
   let powershell_path = std::env::var("SYSTEMROOT").map_or_else(
     |_| "powershell.exe".to_string(),
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
@@ -110,6 +112,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
       .args(["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()
+      .await
       .map_err(|error| crate::error::Error::CommandFailed {
         command: "Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}".to_string(),
         error,
@@ -124,6 +127,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
         .args(["-NoProfile", "-Command"])
         .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
         .output()
+        .await
         .map_err(|error| crate::error::Error::CommandFailed {
           command: "Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}".to_string(),
           error,
@@ -138,6 +142,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
       .args(["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()
+      .await
       .map_err(|error| crate::error::Error::CommandFailed {
         command: "Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}".to_string(),
         error,
@@ -158,10 +163,11 @@ fn webview2_version() -> crate::Result<Option<String>> {
   target_os = "openbsd",
   target_os = "netbsd"
 ))]
-fn pkg_conf_version(package: &str) -> Option<String> {
+async fn pkg_conf_version(package: &str) -> Option<String> {
   Command::new("pkg-config")
     .args([package, "--print-provides"])
     .output()
+    .await
     .map(|o| {
       String::from_utf8_lossy(&o.stdout)
         .split('=')
@@ -177,8 +183,8 @@ fn pkg_conf_version(package: &str) -> Option<String> {
   target_os = "openbsd",
   target_os = "netbsd"
 ))]
-fn webkit2gtk_ver() -> Option<String> {
-  pkg_conf_version("webkit2gtk-4.1")
+async fn webkit2gtk_ver() -> Option<String> {
+  pkg_conf_version("webkit2gtk-4.1").await
 }
 #[cfg(any(
   target_os = "linux",
@@ -187,24 +193,26 @@ fn webkit2gtk_ver() -> Option<String> {
   target_os = "openbsd",
   target_os = "netbsd"
 ))]
-fn rsvg2_ver() -> Option<String> {
-  pkg_conf_version("librsvg-2.0")
+async fn rsvg2_ver() -> Option<String> {
+  pkg_conf_version("librsvg-2.0").await
 }
 
 #[cfg(target_os = "macos")]
-fn is_xcode_command_line_tools_installed() -> bool {
+async fn is_xcode_command_line_tools_installed() -> bool {
   Command::new("xcode-select")
     .arg("-p")
     .output()
+    .await
     .map(|o| o.status.success())
     .unwrap_or(false)
 }
 
 #[cfg(target_os = "macos")]
-pub fn xcode_version() -> Option<String> {
+pub async fn xcode_version() -> Option<String> {
   Command::new("xcodebuild")
     .arg("-version")
     .output()
+    .await
     .ok()
     .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
     .and_then(|s| {
@@ -243,9 +251,9 @@ fn de_and_session() -> String {
   String::new()
 }
 
-pub fn items() -> Vec<SectionItem> {
+pub async fn items() -> Vec<SectionItem> {
   vec![
-    SectionItem::new().action(|| {
+    SectionItem::new().action_result({
       let os_info = os_info::get();
       format!(
         "OS: {} {} {} ({:?}){}",
@@ -254,25 +262,26 @@ pub fn items() -> Vec<SectionItem> {
         os_info.architecture().unwrap_or("Unknown Architecture"),
         os_info.bitness(),
         de_and_session(),
-      ).into()
+      )
     }),
     #[cfg(windows)]
-    SectionItem::new().action(|| {
+    SectionItem::new().action_result({
       let error = format!(
           "Webview2: {}\nVisit {}",
           "not installed!".red(),
           "https://developer.microsoft.com/en-us/microsoft-edge/webview2/".cyan()
         );
       webview2_version()
+        .await
         .map(|v| {
           v.map(|v| (format!("WebView2: {v}"), Status::Success))
             .unwrap_or_else(|| (error.clone(), Status::Error))
         })
-        .unwrap_or_else(|_| (error, Status::Error)).into()
+        .unwrap_or_else(|_| (error, Status::Error))
     }),
     #[cfg(windows)]
-    SectionItem::new().action(|| {
-      let build_tools = build_tools_version().unwrap_or_default();
+    SectionItem::new().action_result({
+      let build_tools = build_tools_version().await.unwrap_or_default();
       if build_tools.is_empty() {
         (
             format!(
@@ -280,7 +289,7 @@ pub fn items() -> Vec<SectionItem> {
               "https://aka.ms/vs/17/release/vs_BuildTools.exe".cyan()
             ),
             Status::Error,
-          ).into()
+          )
       } else {
         (
           format!(
@@ -293,7 +302,7 @@ pub fn items() -> Vec<SectionItem> {
             build_tools.join(format!("\n  {} ", "-".cyan()).as_str()),
           ),
           Status::Success,
-        ).into()
+        )
       }
     }),
     #[cfg(any(
@@ -303,20 +312,20 @@ pub fn items() -> Vec<SectionItem> {
       target_os = "openbsd",
       target_os = "netbsd"
     ))]
-    SectionItem::new().action(|| {
-          webkit2gtk_ver()
-            .map(|v| (format!("webkit2gtk-4.1: {v}"), Status::Success))
-            .unwrap_or_else(|| {
-              (
-                format!(
-                  "webkit2gtk-4.1: {}\nVisit {} to learn more about tauri prerequisites",
-                  "not installed".red(),
-                  "https://v2.tauri.app/start/prerequisites/".cyan()
-                ),
-                Status::Error,
-              )
-            }).into()
-      },
+    SectionItem::new().action_result(
+      webkit2gtk_ver()
+        .await
+        .map(|v| (format!("webkit2gtk-4.1: {v}"), Status::Success))
+        .unwrap_or_else(|| {
+          (
+            format!(
+              "webkit2gtk-4.1: {}\nVisit {} to learn more about tauri prerequisites",
+              "not installed".red(),
+              "https://v2.tauri.app/start/prerequisites/".cyan()
+            ),
+            Status::Error,
+          )
+        }),
     ),
     #[cfg(any(
       target_os = "linux",
@@ -325,45 +334,43 @@ pub fn items() -> Vec<SectionItem> {
       target_os = "openbsd",
       target_os = "netbsd"
     ))]
-    SectionItem::new().action(|| {
-          rsvg2_ver()
-            .map(|v| (format!("rsvg2: {v}"), Status::Success))
-            .unwrap_or_else(|| {
-              (
-                format!(
-                  "rsvg2: {}\nVisit {} to learn more about tauri prerequisites",
-                  "not installed".red(),
-                  "https://v2.tauri.app/start/prerequisites/".cyan()
-                ),
-                Status::Error,
-              )
-            }).into()
-      },
-    ),
-    #[cfg(target_os = "macos")]
-    SectionItem::new().action(|| {
-        if is_xcode_command_line_tools_installed() {
-          (
-            "Xcode Command Line Tools: installed".into(),
-            Status::Success,
-          )
-        } else {
+    SectionItem::new().action_result(
+      rsvg2_ver()
+        .await
+        .map(|v| (format!("rsvg2: {v}"), Status::Success))
+        .unwrap_or_else(|| {
           (
             format!(
-              "Xcode Command Line Tools: {}\n Run `{}`",
-              "not installed!".red(),
-              "xcode-select --install".cyan()
+              "rsvg2: {}\nVisit {} to learn more about tauri prerequisites",
+              "not installed".red(),
+              "https://v2.tauri.app/start/prerequisites/".cyan()
             ),
             Status::Error,
           )
-        }.into()
-      },
+        }),
     ),
     #[cfg(target_os = "macos")]
-    SectionItem::new().action(|| {
-      xcode_version().map(|v| (format!("Xcode: {v}"), Status::Success)).unwrap_or_else(|| {
-          (format!("Xcode: {}", "not installed!".red()), Status::Error)
-      }).into()
+    SectionItem::new().action_result(if is_xcode_command_line_tools_installed().await {
+      (
+        "Xcode Command Line Tools: installed".into(),
+        Status::Success,
+      )
+    } else {
+      (
+        format!(
+          "Xcode Command Line Tools: {}\n Run `{}`",
+          "not installed!".red(),
+          "xcode-select --install".cyan()
+        ),
+        Status::Error,
+      )
     }),
+    #[cfg(target_os = "macos")]
+    SectionItem::new().action_result(
+      xcode_version()
+        .await
+        .map(|v| (format!("Xcode: {v}"), Status::Success))
+        .unwrap_or_else(|| (format!("Xcode: {}", "not installed!".red()), Status::Error)),
+    ),
   ]
 }

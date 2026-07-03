@@ -12,11 +12,11 @@ use tauri_utils::acl::{
 
 use std::{
   collections::{BTreeMap, HashSet},
-  fs,
   path::Path,
 };
+use tokio::fs;
 
-pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
+pub async fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
   if let Ok((mut config, config_path)) =
     tauri_utils::config_v1::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
@@ -26,12 +26,14 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
         &config_path,
         toml::to_string_pretty(&config).context("failed to serialize config")?,
       )
+      .await
       .fs_context("failed to write config", config_path.clone())?;
     } else {
       fs::write(
         &config_path,
         serde_json::to_string_pretty(&config).context("failed to serialize config")?,
       )
+      .await
       .fs_context("failed to write config", config_path.clone())?;
     }
 
@@ -42,7 +44,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     permissions.extend(migrated.permissions.clone());
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");
-    fs::create_dir_all(&capabilities_path).fs_context(
+    fs::create_dir_all(&capabilities_path).await.fs_context(
       "failed to create capabilities directory",
       capabilities_path.clone(),
     )?;
@@ -60,6 +62,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
       })
       .context("failed to serialize capabilities")?,
     )
+    .await
     .fs_context(
       "failed to write capabilities",
       capabilities_path.join("migrated.json"),

@@ -21,19 +21,19 @@ enum Commands {
   WixUpgradeCode,
 }
 
-pub fn command(cli: Cli) -> Result<()> {
+pub async fn command(cli: Cli) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
   match cli.command {
-    Commands::WixUpgradeCode => wix_upgrade_code(dirs.tauri),
+    Commands::WixUpgradeCode => wix_upgrade_code(dirs.tauri).await,
   }
 }
 
 // NOTE: if this is ever changed, make sure to also update Wix upgrade code generation in tauri-bundler
-fn wix_upgrade_code(tauri_dir: &Path) -> Result<()> {
+async fn wix_upgrade_code(tauri_dir: &Path) -> Result<()> {
   let target = tauri_utils::platform::Target::Windows;
   let config = crate::helpers::config::get_config(target, &[], tauri_dir)?;
 
-  let interface = AppInterface::new(&config, None, tauri_dir)?;
+  let interface = AppInterface::new(&config, None, tauri_dir).await?;
 
   let product_name = interface.app_settings().get_package_settings().product_name;
 

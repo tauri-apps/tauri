@@ -24,7 +24,7 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgba,
+  DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Pixel, Rgba,
 };
 use rayon::iter::ParallelIterator;
 use resvg::{tiny_skia, usvg};
@@ -176,7 +176,7 @@ fn resize_image(image: &DynamicImage, new_width: u32, new_height: u32) -> Dynami
   DynamicImage::ImageRgba8(resized)
 }
 
-fn read_source(path: PathBuf) -> Result<Source> {
+async fn read_source(path: PathBuf) -> Result<Source> {
   if let Some(extension) = path.extension() {
     if extension == "svg" {
       let rtree = {
@@ -185,21 +185,27 @@ fn read_source(path: PathBuf) -> Result<Source> {
 
         let opt = usvg::Options {
           // Get file's absolute directory.
-          resources_dir: std::fs::canonicalize(&path)
+          resources_dir: tokio::fs::canonicalize(&path)
+            .await
             .ok()
             .and_then(|p| p.parent().map(|p| p.to_path_buf())),
           fontdb: Arc::new(fontdb),
           ..Default::default()
         };
 
-        let svg_data = std::fs::read(&path).fs_context("Failed to read source icon", &path)?;
+        let svg_data = tokio::fs::read(&path)
+          .await
+          .fs_context("Failed to read source icon", &path)?;
         usvg::Tree::from_data(&svg_data, &opt).unwrap()
       };
 
       Ok(Source::Svg(rtree))
     } else {
+      let data = tokio::fs::read(&path)
+        .await
+        .fs_context("Failed to read source icon", &path)?;
       Ok(Source::DynamicImage(DynamicImage::ImageRgba8(
-        open(&path)
+        image::load_from_memory(&data)
           .context(format!(
             "failed to read and decode source image {}",
             path.display()
@@ -232,7 +238,7 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
   Ok(bg_color)
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| {
     let dirs = crate::helpers::app_paths::resolve_dirs();
@@ -240,10 +246,12 @@ pub fn command(options: Options) -> Result<()> {
   });
   let png_icon_sizes = options.png.unwrap_or_default();
 
-  create_dir_all(&out_dir).fs_context("Can't create output directory", &out_dir)?;
+  tokio::fs::create_dir_all(&out_dir)
+    .await
+    .fs_context("Can't create output directory", &out_dir)?;
 
   let manifest = if input.extension().is_some_and(|ext| ext == "json") {
-    parse_manifest(&input).map(Some)?
+    parse_manifest(&input).await.map(Some)?
   } else {
     None
   };
@@ -263,12 +271,14 @@ pub fn command(options: Options) -> Result<()> {
     None => input.clone(),
   };
 
-  let source = read_source(default_icon)?;
+  let source = read_source(default_icon).await?;
 
   if source.height() != source.width() {
     crate::error::bail!("Source image must be square");
   }
 
+  // the icon generators below are CPU-bound (image resizing and encoding)
+  // and rely on synchronous `Write` based encoders
   if png_icon_sizes.is_empty() {
     appx(&source, &out_dir).context("Failed to generate appx icons")?;
     icns(&source, &out_dir).context("Failed to generate .icns file")?;
@@ -276,6 +286,7 @@ pub fn command(options: Options) -> Result<()> {
 
     png(&source, &out_dir, bg_color).context("Failed to generate png icons")?;
     android(&source, &input, manifest, &bg_color_string, &out_dir)
+      .await
       .context("Failed to generate android icons")?;
   } else {
     for target in png_icon_sizes.into_iter().map(|size| {
@@ -295,9 +306,10 @@ pub fn command(options: Options) -> Result<()> {
   Ok(())
 }
 
-fn parse_manifest(manifest_path: &Path) -> Result<Manifest> {
+async fn parse_manifest(manifest_path: &Path) -> Result<Manifest> {
   let manifest: Manifest = serde_json::from_str(
-    &std::fs::read_to_string(manifest_path)
+    &tokio::fs::read_to_string(manifest_path)
+      .await
       .fs_context("cannot read manifest file", manifest_path)?,
   )
   .context(format!(
@@ -403,7 +415,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   Ok(())
 }
 
-fn android(
+async fn android(
   source: &Source,
   input: &Path,
   manifest: Option<Manifest>,
@@ -542,11 +554,12 @@ fn android(
   let entries = android_entries(&out)?;
 
   let fg_source = match manifest {
-    Some(ref manifest) => {
-      Some(read_source(input.parent().unwrap().join(
+    Some(ref manifest) => Some(
+      read_source(input.parent().unwrap().join(
         manifest.android_fg.as_ref().unwrap_or(&manifest.default),
-      ))?)
-    }
+      ))
+      .await?,
+    ),
     None => None,
   };
 
@@ -565,7 +578,7 @@ fn android(
   let mut has_monochrome_image = false;
   if let Some(ref manifest) = manifest {
     if let Some(ref background_path) = manifest.android_bg {
-      let bg = read_source(input.parent().unwrap().join(background_path))?;
+      let bg = read_source(input.parent().unwrap().join(background_path)).await?;
       for entry in entries.background {
         log::info!(action = "Android"; "Creating {}", entry.name);
         resize_and_save_png(&bg, entry.size, &entry.out_path, None, None)?;
@@ -574,7 +587,7 @@ fn android(
     }
     if let Some(ref monochrome_path) = manifest.android_monochrome {
       has_monochrome_image = true;
-      let mc = read_source(input.parent().unwrap().join(monochrome_path))?;
+      let mc = read_source(input.parent().unwrap().join(monochrome_path)).await?;
       for entry in entries.monochrome {
         log::info!(action = "Android"; "Creating {}", entry.name);
         resize_and_save_png(&mc, entry.size, &entry.out_path, None, None)?;

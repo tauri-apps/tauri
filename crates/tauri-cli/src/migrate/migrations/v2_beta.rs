@@ -9,27 +9,29 @@ use crate::{
   Result,
 };
 
-use std::{fs::read_to_string, path::Path};
+use std::path::Path;
+use tokio::fs::read_to_string;
 
 use toml_edit::{DocumentMut, Item, Table, TableLike, Value};
 
-pub fn run(dirs: &Dirs) -> Result<()> {
+pub async fn run(dirs: &Dirs) -> Result<()> {
   let manifest_path = dirs.tauri.join("Cargo.toml");
-  let (mut manifest, _) = read_manifest(&manifest_path)?;
+  let (mut manifest, _) = read_manifest(&manifest_path).await?;
   migrate_manifest(&mut manifest)?;
 
-  migrate_permissions(dirs.tauri)?;
+  migrate_permissions(dirs.tauri).await?;
 
-  migrate_npm_dependencies(dirs.frontend)?;
+  migrate_npm_dependencies(dirs.frontend).await?;
 
-  std::fs::write(&manifest_path, serialize_manifest(&manifest))
+  tokio::fs::write(&manifest_path, serialize_manifest(&manifest))
+    .await
     .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
 
   Ok(())
 }
 
-fn migrate_npm_dependencies(frontend_dir: &Path) -> Result<()> {
-  let pm = PackageManager::from_project(frontend_dir);
+async fn migrate_npm_dependencies(frontend_dir: &Path) -> Result<()> {
+  let pm = PackageManager::from_project(frontend_dir).await;
 
   let mut install_deps = Vec::new();
   for pkg in [
@@ -63,6 +65,7 @@ fn migrate_npm_dependencies(frontend_dir: &Path) -> Result<()> {
   ] {
     let version = pm
       .current_package_version(pkg, frontend_dir)
+      .await
       .unwrap_or_default()
       .unwrap_or_default();
     if version.starts_with('1') {
@@ -71,13 +74,13 @@ fn migrate_npm_dependencies(frontend_dir: &Path) -> Result<()> {
   }
 
   if !install_deps.is_empty() {
-    pm.install(&install_deps, frontend_dir)?;
+    pm.install(&install_deps, frontend_dir).await?;
   }
 
   Ok(())
 }
 
-fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
+async fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
   let core_plugins = [
     "app",
     "event",
@@ -97,12 +100,14 @@ fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
     )?;
     let path = entry.path();
     if path.extension().is_some_and(|ext| ext == "json") {
-      let mut capability =
-        read_to_string(path).fs_context("failed to read capability", path.to_path_buf())?;
+      let mut capability = read_to_string(path)
+        .await
+        .fs_context("failed to read capability", path.to_path_buf())?;
       for plugin in core_plugins {
         capability = capability.replace(&format!("\"{plugin}:"), &format!("\"core:{plugin}:"));
       }
-      std::fs::write(path, capability)
+      tokio::fs::write(path, capability)
+        .await
         .fs_context("failed to rewrite capability", path.to_path_buf())?;
     }
   }

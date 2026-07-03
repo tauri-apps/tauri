@@ -15,12 +15,13 @@ use std::path::Path;
 
 const CRATE_TYPES: [&str; 3] = ["lib", "staticlib", "cdylib"];
 
-pub fn migrate(tauri_dir: &Path) -> Result<()> {
+pub async fn migrate(tauri_dir: &Path) -> Result<()> {
   let manifest_path = tauri_dir.join("Cargo.toml");
-  let (mut manifest, _) = read_manifest(&manifest_path)?;
+  let (mut manifest, _) = read_manifest(&manifest_path).await?;
   migrate_manifest(&mut manifest)?;
 
-  std::fs::write(&manifest_path, serialize_manifest(&manifest))
+  tokio::fs::write(&manifest_path, serialize_manifest(&manifest))
+    .await
     .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
 
   Ok(())

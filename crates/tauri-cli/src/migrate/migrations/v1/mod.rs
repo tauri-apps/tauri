@@ -8,10 +8,14 @@ mod config;
 mod frontend;
 mod manifest;
 
-pub fn run(dirs: &Dirs) -> Result<()> {
-  let mut migrated = config::migrate(dirs.tauri).context("Could not migrate config")?;
-  manifest::migrate(dirs.tauri).context("Could not migrate manifest")?;
-  let plugins = frontend::migrate(dirs.frontend)?;
+pub async fn run(dirs: &Dirs) -> Result<()> {
+  let mut migrated = config::migrate(dirs.tauri)
+    .await
+    .context("Could not migrate config")?;
+  manifest::migrate(dirs.tauri)
+    .await
+    .context("Could not migrate manifest")?;
+  let plugins = frontend::migrate(dirs.frontend).await?;
 
   migrated.plugins.extend(plugins);
 
@@ -27,6 +31,7 @@ pub fn run(dirs: &Dirs) -> Result<()> {
       },
       dirs,
     )
+    .await
     .with_context(|| format!("Could not migrate plugin '{plugin}'"))?;
   }
 

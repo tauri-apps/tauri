@@ -19,7 +19,7 @@ struct YarnVersionInfo {
   data: Vec<String>,
 }
 
-pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<String>> {
+pub async fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<String>> {
   match pm {
     PackageManager::Yarn => {
       let mut cmd = cross_command("yarn");
@@ -29,6 +29,7 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         .arg(name)
         .args(["version", "--json"])
         .output()
+        .await
         .map_err(|error| Error::CommandFailed {
           command: "yarn info --json".to_string(),
           error,
@@ -51,6 +52,7 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         .arg(name)
         .args(["--fields", "version", "--json"])
         .output()
+        .await
         .map_err(|error| Error::CommandFailed {
           command: "yarn npm info --fields version --json".to_string(),
           error,
@@ -72,6 +74,7 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         .arg(name)
         .arg("version")
         .output()
+        .await
         .map_err(|error| Error::CommandFailed {
           command: "npm show --version".to_string(),
           error,
@@ -91,6 +94,7 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         .arg(name)
         .arg("version")
         .output()
+        .await
         .map_err(|error| Error::CommandFailed {
           command: "pnpm info --version".to_string(),
           error,
@@ -105,8 +109,8 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
   }
 }
 
-pub fn package_manager(frontend_dir: &PathBuf) -> PackageManager {
-  let found = PackageManager::all_from_project(frontend_dir);
+pub async fn package_manager(frontend_dir: &PathBuf) -> PackageManager {
+  let found = PackageManager::all_from_project(frontend_dir).await;
 
   if found.is_empty() {
     println!(
@@ -130,7 +134,7 @@ pub fn package_manager(frontend_dir: &PathBuf) -> PackageManager {
   pkg_manager
 }
 
-pub fn items(
+pub async fn items(
   frontend_dir: Option<&PathBuf>,
   package_manager: PackageManager,
   metadata: &VersionMetadata,
@@ -142,7 +146,7 @@ pub fn items(
       ("@tauri-apps/cli", Some(metadata.js_cli.version.clone())),
     ] {
       let frontend_dir = frontend_dir.clone();
-      let item = nodejs_section_item(package.into(), version, frontend_dir, package_manager);
+      let item = nodejs_section_item(package.into(), version, frontend_dir, package_manager).await;
       items.push(item);
     }
   }
@@ -150,46 +154,48 @@ pub fn items(
   items
 }
 
-pub fn nodejs_section_item(
+pub async fn nodejs_section_item(
   package: String,
   version: Option<String>,
   frontend_dir: PathBuf,
   package_manager: PackageManager,
 ) -> SectionItem {
-  SectionItem::new().action(move || {
-    let version = version.clone().unwrap_or_else(|| {
-      package_manager
-        .current_package_version(&package, &frontend_dir)
-        .unwrap_or_default()
-        .unwrap_or_default()
-    });
-
-    let latest_ver = super::packages_nodejs::npm_latest_version(&package_manager, &package)
+  let version = match version {
+    Some(version) => version,
+    None => package_manager
+      .current_package_version(&package, &frontend_dir)
+      .await
       .unwrap_or_default()
-      .unwrap_or_default();
+      .unwrap_or_default(),
+  };
 
-    if version.is_empty() {
-      format!("{} {}: not installed!", package, " ⱼₛ".black().on_yellow())
-    } else {
-      format!(
-        "{} {}: {}{}",
-        package,
-        " ⱼₛ".black().on_yellow(),
-        version,
-        if !(version.is_empty() || latest_ver.is_empty()) {
-          let version = semver::Version::parse(version.as_str()).unwrap();
-          let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
+  let latest_ver = super::packages_nodejs::npm_latest_version(&package_manager, &package)
+    .await
+    .unwrap_or_default()
+    .unwrap_or_default();
 
-          if version < target_version {
-            format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
-          } else {
-            "".into()
-          }
+  let description = if version.is_empty() {
+    format!("{} {}: not installed!", package, " ⱼₛ".black().on_yellow())
+  } else {
+    format!(
+      "{} {}: {}{}",
+      package,
+      " ⱼₛ".black().on_yellow(),
+      version,
+      if !(version.is_empty() || latest_ver.is_empty()) {
+        let version = semver::Version::parse(version.as_str()).unwrap();
+        let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
+
+        if version < target_version {
+          format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
         } else {
           "".into()
         }
-      )
-    }
-    .into()
-  })
+      } else {
+        "".into()
+      }
+    )
+  };
+
+  SectionItem::new().action_result(description)
 }

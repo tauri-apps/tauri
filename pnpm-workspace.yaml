@@ -1,5 +1,6 @@
 packages:
   - packages/api
+  - packages/api-e2e
   - packages/cli
   - crates/tauri-schema-worker
   - examples/api

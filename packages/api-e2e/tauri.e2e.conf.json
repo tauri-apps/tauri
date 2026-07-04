@@ -1,0 +1,6 @@
+{
+  "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "build": {
+    "removeUnusedCommands": false
+  }
+}

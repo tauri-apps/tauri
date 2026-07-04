@@ -1,0 +1,27 @@
+{
+  "name": "@tauri-apps/api-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "End-to-end test suite for @tauri-apps/api, driven against the examples/api app via WebdriverIO.",
+  "license": "Apache-2.0 OR MIT",
+  "type": "module",
+  "scripts": {
+    "e2e": "wdio run ./wdio.conf.ts",
+    "ts:check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@crabnebula/tauri-driver": "^2.0.9",
+    "@crabnebula/test-runner-backend": "^0.2.8",
+    "@tauri-apps/api": "../api/dist",
+    "@types/node": "^22.10.0",
+    "@wdio/cli": "^9.19.0",
+    "@wdio/globals": "^9.19.0",
+    "@wdio/local-runner": "^9.19.0",
+    "@wdio/mocha-framework": "^9.19.0",
+    "@wdio/spec-reporter": "^9.19.0",
+    "expect-webdriverio": "^5.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "webdriverio": "^9.19.0"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    // The specs run through tsx (esbuild), and @tauri-apps/api's published
+    // type definitions use extensionless relative imports, so bundler-style
+    // resolution is what matches the runtime and resolves the api types.
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM"],
+    "types": [
+      "node",
+      "@wdio/globals/types",
+      "@wdio/mocha-framework",
+      "expect-webdriverio"
+    ],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["wdio.conf.ts", "test/**/*.ts"]
+}

@@ -1,0 +1,76 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test `@tauri-apps/api` e2e
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '.github/workflows/test-api-e2e.yml'
+      - 'packages/api/**'
+      - 'packages/api-e2e/**'
+      - 'examples/api/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # keeps the target folder small for better cache efficiency
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            xvfb \
+            fluxbox
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: install dependencies
+        run: pnpm i --frozen-lockfile
+
+      - name: build @tauri-apps/api
+        run: pnpm build:api
+
+      - name: build @tauri-apps/cli
+        run: pnpm build:cli
+
+      - name: run e2e tests
+        timeout-minutes: 45
+        # A real window manager (fluxbox) is started so that window-state tests
+        # (minimize/maximize/fullscreen/position) behave. The tray host is absent
+        # in this environment, so the tray module is skipped.
+        run: |
+          xvfb-run --auto-servernum -- bash -c '
+            fluxbox >/dev/null 2>&1 &
+            sleep 1
+            E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
+          '

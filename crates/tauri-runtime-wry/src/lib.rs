@@ -925,7 +925,10 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn inner_size(mut self, width: f64, height: f64) -> Self {
-    self.inner = self.inner.with_inner_size(LogicalSize::new(width, height));
+    self.inner = self.inner.with_inner_size(LogicalSize::new(
+      width.min(i32::MAX as f64),
+      height.min(i32::MAX as f64),
+    ));
     self
   }
 

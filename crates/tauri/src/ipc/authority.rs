@@ -62,9 +62,23 @@ pub struct RuntimeAuthority {
   /// Materialized authority data. Populated eagerly by [`Self::new`] or lazily by
   /// [`Self::inner`], which joins the background builder on first access.
   inner: OnceLock<RuntimeAuthorityInner>,
-  /// Background builder for [`Self::inner`], joined on first access. `None` for the eager
-  /// [`Self::new`] constructor.
-  pending: Option<Mutex<Option<std::thread::JoinHandle<ResolvedAcl>>>>,
+  /// Lazy builder for [`Self::inner`]. `None` for the eager [`Self::new`] constructor.
+  ///
+  /// For [`Self::new_async`] it holds a *deferred* builder that is not started until
+  /// [`Self::begin_build`] spawns it — after the runtime is created — so ACL construction stays
+  /// off the startup critical path without racing runtime init. [`Self::inner`] consumes it
+  /// (joining the thread, or building inline if it was never spawned) on first access.
+  build: Option<Mutex<Option<AclBuild>>>,
+}
+
+/// Lazy-build state for [`RuntimeAuthority::inner`], held in [`RuntimeAuthority::build`].
+enum AclBuild {
+  /// Builder stored but not yet running. Spawned by [`RuntimeAuthority::begin_build`] once the
+  /// runtime exists, or built inline by [`RuntimeAuthority::inner`] if the authority is read
+  /// first.
+  Deferred(Box<dyn FnOnce() -> ResolvedAcl + Send + 'static>),
+  /// Building on a background thread; joined by [`RuntimeAuthority::inner`].
+  Building(std::thread::JoinHandle<ResolvedAcl>),
 }
 
 /// The origin trying to access the IPC.
@@ -186,13 +200,11 @@ impl RuntimeAuthority {
       acl,
       resolved: resolved_acl,
     }));
-    Self {
-      inner,
-      pending: None,
-    }
+    Self { inner, build: None }
   }
 
-  /// Construct a new [`RuntimeAuthority`], building the resolved ACL on a background thread.
+  /// Construct a new [`RuntimeAuthority`] whose resolved ACL is built lazily on a background
+  /// thread.
   ///
   /// The resolved ACL (and raw ACL) is the dominant cost of `generate_context!`, yet it is only
   /// needed at command-dispatch time. Building it off-thread keeps it off the startup critical
@@ -200,6 +212,14 @@ impl RuntimeAuthority {
   /// result. The [`runtime_authority`] macro passes non-capturing closures over compile-time
   /// literals; the `Send + 'static` bound also lets callers (e.g. tests) pass capturing
   /// closures.
+  ///
+  /// The builder is *stored, not spawned*: the background thread is started later by
+  /// [`Self::begin_build`], once the runtime has been created. Spawning it eagerly here (at
+  /// `generate_context!()` time) would let it allocate *during* runtime init, which is unsafe on
+  /// runtimes that replace the process allocator in `new` — CEF loads the Chromium framework,
+  /// swapping macOS's default `malloc` zone, and an allocation racing that swap corrupts the
+  /// heap and crashes at startup. Deferring the spawn keeps the off-thread win (the build
+  /// overlaps webview creation and frontend boot) without the race.
   ///
   /// The thread spawn + join is pure overhead for trivial ACLs (e.g. tests and small apps), so
   /// this only pays off above a non-trivial resolved-ACL size; the size is not known until the
@@ -216,20 +236,51 @@ impl RuntimeAuthority {
     + 'static,
     resolved_builder: impl FnOnce() -> Resolved + Send + 'static,
   ) -> Self {
-    let handle = std::thread::Builder::new()
+    let builder: Box<dyn FnOnce() -> ResolvedAcl + Send + 'static> =
+      Box::new(move || ResolvedAcl {
+        #[cfg(any(feature = "dynamic-acl", debug_assertions))]
+        acl: acl_builder(),
+        resolved: resolved_builder(),
+      });
+    Self {
+      inner: OnceLock::new(),
+      build: Some(Mutex::new(Some(AclBuild::Deferred(builder)))),
+    }
+  }
+
+  /// Spawns the resolved-ACL builder on a dedicated background thread.
+  fn spawn_builder(
+    builder: Box<dyn FnOnce() -> ResolvedAcl + Send + 'static>,
+  ) -> std::thread::JoinHandle<ResolvedAcl> {
+    std::thread::Builder::new()
       .name(String::from("tauri runtime authority"))
       // The resolved-ACL literal construction is deep; give it the headroom the generated
       // context-creation thread used to need (it no longer constructs the ACL inline).
       .stack_size(8 * 1024 * 1024)
-      .spawn(move || ResolvedAcl {
-        #[cfg(any(feature = "dynamic-acl", debug_assertions))]
-        acl: acl_builder(),
-        resolved: resolved_builder(),
-      })
-      .expect("failed to spawn runtime authority builder thread");
-    Self {
-      inner: OnceLock::new(),
-      pending: Some(Mutex::new(Some(handle))),
+      .spawn(builder)
+      .expect("failed to spawn runtime authority builder thread")
+  }
+
+  /// Starts the deferred resolved-ACL build on a background thread, if it has not started yet.
+  ///
+  /// Called once the runtime has been created (see [`crate::Builder::build`]). Deferring the
+  /// spawn to here — rather than eagerly in [`Self::new_async`] — keeps ACL construction off the
+  /// startup critical path (it overlaps webview creation and frontend boot) while guaranteeing
+  /// no builder thread allocates *during* runtime init, which would race the allocator swap that
+  /// CEF performs when it loads the Chromium framework and crash at startup. No-op for the eager
+  /// [`Self::new`] constructor or once the build has started; [`Self::inner`] joins it on first
+  /// access.
+  pub(crate) fn begin_build(&self) {
+    let Some(build) = self.build.as_ref() else {
+      return;
+    };
+    let mut guard = build.lock().unwrap();
+    match guard.take() {
+      Some(AclBuild::Deferred(builder)) => {
+        *guard = Some(AclBuild::Building(Self::spawn_builder(builder)));
+      }
+      // Already building, or already consumed by `inner()`: put it back untouched.
+      other => *guard = other,
     }
   }
 
@@ -237,17 +288,23 @@ impl RuntimeAuthority {
   /// access if this authority was constructed via [`Self::new_async`].
   fn inner(&self) -> &RuntimeAuthorityInner {
     self.inner.get_or_init(|| {
-      let handle = self
-        .pending
+      let build = self
+        .build
         .as_ref()
-        .expect("runtime authority has neither resolved data nor a pending builder")
+        .expect("runtime authority has neither resolved data nor a builder")
         .lock()
         .unwrap()
         .take()
-        // The handle is taken exactly once. If it is already gone while `inner` is still unset,
-        // a previous `inner()` call took it and panicked joining the builder thread, so report
-        // that cause rather than the misleading "neither data nor builder".
+        // Taken exactly once. If it is already gone while `inner` is still unset, a previous
+        // `inner()` call took it and panicked, so report that rather than the misleading
+        // "neither data nor builder".
         .expect("runtime authority builder thread panicked");
+      let handle = match build {
+        AclBuild::Building(handle) => handle,
+        // `begin_build` never ran (the authority was read before the runtime was created); build
+        // it now on a big-stack thread, matching the deferred path's headroom.
+        AclBuild::Deferred(builder) => Self::spawn_builder(builder),
+      };
       let resolved_acl = handle
         .join()
         .expect("runtime authority builder thread panicked");

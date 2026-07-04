@@ -312,6 +312,7 @@ impl<T: UserEvent> Context<T> {
       })
       .unwrap_or((None, false));
 
+    let (tx, rx) = channel();
     send_user_message(
       self,
       Message::CreateWindow(
@@ -326,8 +327,11 @@ impl<T: UserEvent> Context<T> {
             after_window_creation,
           )
         }),
+        tx,
       ),
     )?;
+    rx.recv()
+      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWindowDispatcher {
       window_id,
@@ -370,6 +374,7 @@ impl<T: UserEvent> Context<T> {
     let window_id_wrapper = Arc::new(Mutex::new(window_id));
     let window_id_wrapper_ = window_id_wrapper.clone();
 
+    let (tx, rx) = channel();
     send_user_message(
       self,
       Message::CreateWebview(
@@ -385,8 +390,11 @@ impl<T: UserEvent> Context<T> {
             options.focused_webview,
           )
         }),
+        tx,
       ),
     )?;
+    rx.recv()
+      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWebviewDispatcher {
       window_id: window_id_wrapper,
@@ -1488,8 +1496,8 @@ pub enum Message<T: 'static> {
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewId, WebviewMessage),
   EventLoopWindowTarget(EventLoopWindowTargetMessage),
-  CreateWebview(WindowId, CreateWebviewClosure),
-  CreateWindow(WindowId, CreateWindowClosure<T>),
+  CreateWebview(WindowId, CreateWebviewClosure, Sender<Result<()>>),
+  CreateWindow(WindowId, CreateWindowClosure<T>, Sender<Result<()>>),
   CreateRawWindow(
     WindowId,
     Box<dyn FnOnce() -> (String, TaoWindowBuilder) + Send>,
@@ -3961,7 +3969,7 @@ fn handle_user_message<T: UserEvent>(
         }
       }
     }
-    Message::CreateWebview(window_id, handler) => {
+    Message::CreateWebview(window_id, handler, sender) => {
       let window = windows
         .0
         .borrow()
@@ -3974,19 +3982,25 @@ fn handle_user_message<T: UserEvent>(
               w.webviews.push(webview);
               w.has_children.store(true, Ordering::Relaxed);
             }
+            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+            sender.send(Ok(())).unwrap();
           }
           Err(e) => {
-            log::error!("{e}");
+            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+            sender.send(Err(e)).unwrap();
           }
         }
       }
     }
-    Message::CreateWindow(window_id, handler) => match handler(event_loop) {
+    Message::CreateWindow(window_id, handler, sender) => match handler(event_loop) {
       Ok(webview) => {
         windows.0.borrow_mut().insert(window_id, webview);
+        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+        sender.send(Ok(())).unwrap();
       }
       Err(e) => {
-        log::error!("{e}");
+        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+        sender.send(Err(e)).unwrap();
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {

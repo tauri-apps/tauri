@@ -2453,6 +2453,15 @@ tauri::Builder::<tauri::Wry>::new()
     #[cfg(not(any(windows, target_os = "linux")))]
     let mut runtime = R::new(runtime_args)?;
 
+    // Start the deferred resolved-ACL build now that the runtime exists. The builder was set up
+    // (not spawned) at `generate_context!()` time; spawning it here keeps ACL construction off
+    // the startup critical path — it overlaps webview creation and frontend boot — while
+    // guaranteeing no builder thread allocates *during* runtime init. That matters for runtimes
+    // that replace the process allocator in `new` (CEF loads the Chromium framework, swapping
+    // macOS's default malloc zone): an allocation racing the swap corrupts the heap and crashes
+    // at startup. See `RuntimeAuthority::new_async` / `begin_build`.
+    manager.runtime_authority.lock().unwrap().begin_build();
+
     #[cfg(desktop)]
     {
       // setup menu event handler

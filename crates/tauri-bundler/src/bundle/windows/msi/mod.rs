@@ -256,6 +256,24 @@ fn generate_guid(key: &[u8]) -> Uuid {
   Uuid::new_v5(&namespace, key)
 }
 
+fn wix_identifier(id: &str) -> String {
+  let mut identifier: String = id
+    .replace('-', "_")
+    .chars()
+    .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '.')
+    .collect();
+
+  if !identifier
+    .chars()
+    .next()
+    .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+  {
+    identifier.insert(0, '_');
+  }
+
+  identifier
+}
+
 // Specifically goes and gets Wix and verifies the download via Sha256
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   log::info!("Verifying wix package");
@@ -899,7 +917,6 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   let mut binaries = Vec::new();
   let cwd = std::env::current_dir()?;
   let tmp_dir = std::env::temp_dir();
-  let regex = Regex::new(r"[^\w\d\.]")?;
   for src in settings.external_binaries() {
     let src = src?;
     let binary_path = cwd.join(&src);
@@ -917,9 +934,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: regex
-        .replace_all(&dest_filename.replace('-', "_"), "")
-        .to_string(),
+      id: wix_identifier(&dest_filename),
     });
   }
 
@@ -932,9 +947,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: regex
-          .replace_all(&bin.name().replace('-', "_"), "")
-          .to_string(),
+        id: wix_identifier(bin.name()),
       })
     }
   }
@@ -1137,5 +1150,15 @@ mod tests {
     assert!(convert_version("1.1.2-alpha").is_err());
     assert!(convert_version("1.1.2-alpha.4").is_err());
     assert!(convert_version("1.1.2+asd.3").is_err());
+  }
+
+  #[test]
+  fn sanitizes_wix_identifiers() {
+    assert_eq!(wix_identifier("7za.exe"), "_7za.exe");
+    assert_eq!(wix_identifier("my-app.exe"), "my_app.exe");
+    assert_eq!(wix_identifier("bad name!.exe"), "badname.exe");
+    assert_eq!(wix_identifier(".bin"), "_.bin");
+    assert_eq!(wix_identifier(""), "_");
+    assert_eq!(wix_identifier("app_1.2"), "app_1.2");
   }
 }

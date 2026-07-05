@@ -3,7 +3,7 @@ name = "tauri-cli"
 version = "2.11.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.90"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -98,7 +98,7 @@ css-color = "0.2"
 resvg = "0.45.0"
 dunce = "1"
 glob = "0.3"
-# 0.39 raised msrv to above 1.78 but 0.37+ can't compile on 1.77.2 either.
+# 0.39 raised msrv to above 1.78 but 0.37+ can't compile on 1.90 either.
 oxc_parser = "0.36"
 oxc_span = "0.36"
 oxc_allocator = "0.36"

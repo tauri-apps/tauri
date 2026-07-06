@@ -249,9 +249,6 @@ pub(crate) fn send_user_message<T: UserEvent>(
   }
 }
 
-unsafe impl<T: UserEvent> Send for Context<T> {}
-unsafe impl<T: UserEvent> Sync for Context<T> {}
-
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
   pub window_id_map: WindowIdStore,
@@ -265,6 +262,9 @@ pub struct Context<T: UserEvent> {
   next_webview_event_id: Arc<AtomicU32>,
   webview_runtime_installed: bool,
 }
+
+unsafe impl<T: UserEvent> Send for Context<T> {}
+unsafe impl<T: UserEvent> Sync for Context<T> {}
 
 impl<T: UserEvent> Context<T> {
   pub fn run_threaded<R, F>(&self, f: F) -> R

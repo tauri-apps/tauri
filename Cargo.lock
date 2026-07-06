@@ -9334,7 +9334,7 @@ dependencies = [
  "kuchikiki",
  "log",
  "memchr",
- "phf 0.13.1",
+ "phf 0.14.0",
  "plist",
  "proc-macro2",
  "quote",

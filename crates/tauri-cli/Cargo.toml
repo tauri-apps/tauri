@@ -96,7 +96,7 @@ serde-value = "0.7"
 itertools = "0.15"
 local-ip-address = "0.6"
 css-color = "0.2"
-resvg = "0.45.0"
+resvg = "0.47"
 dunce = "1"
 glob = "0.3"
 # 0.111 raised msrv to 1.91

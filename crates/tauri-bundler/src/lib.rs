@@ -6,7 +6,12 @@
 //! The Tauri bundler is a tool that generates installers or app bundles for executables.
 //! It supports auto updating through [tauri](https://docs.rs/tauri).
 //!
-//! # Platform support
+//! ## Stability
+//!
+//! As it's intended to be used primarily in `tauri-cli`, the public API does not strictly adhere to SemVer.
+//! Minor releases for example may add new struct fields and change or remove Error enum variants.
+//!
+//! ## Platform support
 //! - macOS
 //!   - DMG and App bundles
 //! - Linux

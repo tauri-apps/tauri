@@ -101,7 +101,7 @@ macro_rules! runtime_authority {
 }
 
 impl RuntimeAuthority {
-  /// Contruct a new [`RuntimeAuthority`] from the ACL
+  /// Construct a new [`RuntimeAuthority`] from the ACL
   ///
   /// **Please prefer using the [`runtime_authority`] macro instead of calling this directly**
   #[doc(hidden)]
@@ -1004,7 +1004,7 @@ mod tests {
   }
 
   #[test]
-  fn denied_command_takes_precendence() {
+  fn denied_command_takes_precedence() {
     let command = "my-command";
     let window = "main";
     let webview = "main";

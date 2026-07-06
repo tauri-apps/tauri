@@ -36,23 +36,21 @@ ureq = { version = "3", default-features = false, features = ["socks-proxy"] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
-sha1 = "0.10"
-sha2 = "0.10"
-zip = { version = "4", default-features = false, features = ["deflate"] }
+sha1 = "0.11"
+sha2 = "0.11"
+zip = { version = "8", default-features = false, features = ["deflate"] }
 dunce = "1"
 url = "2"
 uuid = { version = "1", features = ["v4", "v5"] }
 regex = "1"
-goblin = "0.9"
 plist = "1"
-
 
 [target."cfg(target_os = \"windows\")".dependencies]
 bitness = "0.4"
-windows-registry = "0.5"
+windows-registry = "0.6"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
-version = "0.60"
+version = "0.61"
 features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 
 [target."cfg(target_os = \"macos\")".dependencies]

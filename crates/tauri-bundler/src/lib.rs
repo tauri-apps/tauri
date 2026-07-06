@@ -9,7 +9,7 @@
 //! ## Stability
 //!
 //! As it's intended to be used primarily in `tauri-cli`, the public API does not strictly adhere to SemVer.
-//! Minor releases for example may add new struct fields and change or remove Error enum variants.
+//! For example, minor releases may add new struct fields and change or remove Error enum variants.
 //!
 //! ## Platform support
 //! - macOS

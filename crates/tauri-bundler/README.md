@@ -8,7 +8,7 @@ This is a fork of the awesome [cargo-bundle](https://github.com/burtonageo/cargo
 
 ### Stability
 
-As it's intended to be used primarily in `tauri-cli`, the public API does not strictly adhere to SemVer. Minor releases for example may add new struct fields and change or remove Error enum variants.
+As it's intended to be used primarily in `tauri-cli`, the public API does not strictly adhere to SemVer. For example, minor releases may add new struct fields and change or remove Error enum variants.
 
 ## Configuration
 

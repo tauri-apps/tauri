@@ -107,7 +107,7 @@ oxc_ast = "0.110"
 magic_string = "0.3"
 phf = { version = "0.14", features = ["macros"] }
 walkdir = "2"
-elf = "0.7"
+elf = "0.8"
 memchr = "2"
 tempfile = "3"
 uuid = { version = "1", features = ["v5"] }

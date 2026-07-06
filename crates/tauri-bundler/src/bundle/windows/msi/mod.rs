@@ -35,7 +35,7 @@ use std::{
 use tauri_utils::{config::WebviewInstallMode, display_path};
 use uuid::Uuid;
 
-// URLS for the WIX toolchain.  Can be used for cross-platform compilation.
+// URLs for the WIX toolchain. Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip";
 pub const WIX_SHA256: &str = "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31";
@@ -649,7 +649,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  // Note: `main_binary_name` is not used in our template but we keep it as it is potentially useful for custom temples
+  // Note: `main_binary_name` is not used in our template but we keep it as it is potentially useful for custom templates
   let main_binary_name = settings.main_binary_name()?;
   data.insert("main_binary_name", to_json(main_binary_name));
 
@@ -803,7 +803,7 @@ pub fn build_wix_app_installer(
   }
 
   let mut fragment_extensions = HashSet::new();
-  //Default extensions
+  // Default extensions
   fragment_extensions.insert(wix_toolset_path.join("WixUIExtension.dll"));
   fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
 

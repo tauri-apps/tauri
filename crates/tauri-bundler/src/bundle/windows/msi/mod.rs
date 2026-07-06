@@ -35,7 +35,7 @@ use std::{
 use tauri_utils::{config::WebviewInstallMode, display_path};
 use uuid::Uuid;
 
-// URLS for the WIX toolchain.  Can be used for cross-platform compilation.
+// URLs for the WIX toolchain. Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip";
 pub const WIX_SHA256: &str = "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31";
@@ -254,6 +254,24 @@ fn generate_package_guid(settings: &Settings) -> Uuid {
 fn generate_guid(key: &[u8]) -> Uuid {
   let namespace = Uuid::from_bytes(UUID_NAMESPACE);
   Uuid::new_v5(&namespace, key)
+}
+
+fn wix_identifier(id: &str) -> String {
+  let mut identifier: String = id
+    .replace('-', "_")
+    .chars()
+    .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '.')
+    .collect();
+
+  if !identifier
+    .chars()
+    .next()
+    .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+  {
+    identifier.insert(0, '_');
+  }
+
+  identifier
 }
 
 // Specifically goes and gets Wix and verifies the download via Sha256
@@ -631,7 +649,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  // Note: `main_binary_name` is not used in our template but we keep it as it is potentially useful for custom temples
+  // Note: `main_binary_name` is not used in our template but we keep it as it is potentially useful for custom templates
   let main_binary_name = settings.main_binary_name()?;
   data.insert("main_binary_name", to_json(main_binary_name));
 
@@ -785,7 +803,7 @@ pub fn build_wix_app_installer(
   }
 
   let mut fragment_extensions = HashSet::new();
-  //Default extensions
+  // Default extensions
   fragment_extensions.insert(wix_toolset_path.join("WixUIExtension.dll"));
   fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
 
@@ -899,7 +917,6 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   let mut binaries = Vec::new();
   let cwd = std::env::current_dir()?;
   let tmp_dir = std::env::temp_dir();
-  let regex = Regex::new(r"[^\w\d\.]")?;
   for src in settings.external_binaries() {
     let src = src?;
     let binary_path = cwd.join(&src);
@@ -917,9 +934,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: regex
-        .replace_all(&dest_filename.replace('-', "_"), "")
-        .to_string(),
+      id: wix_identifier(&dest_filename),
     });
   }
 
@@ -932,9 +947,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: regex
-          .replace_all(&bin.name().replace('-', "_"), "")
-          .to_string(),
+        id: wix_identifier(bin.name()),
       })
     }
   }
@@ -1152,5 +1165,15 @@ mod tests {
     assert!(convert_version("1.1.2-alpha").is_err());
     assert!(convert_version("1.1.2-alpha.4").is_err());
     assert!(convert_version("1.1.2+asd.3").is_err());
+  }
+
+  #[test]
+  fn sanitizes_wix_identifiers() {
+    assert_eq!(wix_identifier("7za.exe"), "_7za.exe");
+    assert_eq!(wix_identifier("my-app.exe"), "my_app.exe");
+    assert_eq!(wix_identifier("bad name!.exe"), "badname.exe");
+    assert_eq!(wix_identifier(".bin"), "_.bin");
+    assert_eq!(wix_identifier(""), "_");
+    assert_eq!(wix_identifier("app_1.2"), "app_1.2");
   }
 }

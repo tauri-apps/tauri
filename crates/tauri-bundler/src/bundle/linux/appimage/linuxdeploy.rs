@@ -201,6 +201,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   if settings.appimage().bundle_media_framework {
     cmd.args(["--plugin", "gstreamer"]);
   }
+  append_exclude_library_args(&mut cmd, &settings.appimage().exclude_libraries);
   cmd.args(["--output", "appimage"]);
 
   // Linuxdeploy logs everything into stderr so we have to ignore the output ourselves here
@@ -217,6 +218,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])
+}
+
+fn append_exclude_library_args(cmd: &mut Command, exclude_libraries: &[String]) {
+  for pattern in exclude_libraries {
+    cmd.arg("--exclude-library").arg(pattern);
+  }
 }
 
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
@@ -276,4 +283,32 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
     .output();
 
   Ok(linuxdeploy)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn append_exclude_library_args_adds_repeated_linuxdeploy_pairs() {
+    let mut cmd = Command::new("linuxdeploy");
+    let exclude_libraries = vec!["libwayland-*.so*".to_string(), "libEGL*.so*".to_string()];
+
+    append_exclude_library_args(&mut cmd, &exclude_libraries);
+
+    let args = cmd
+      .get_args()
+      .map(|arg| arg.to_string_lossy().into_owned())
+      .collect::<Vec<_>>();
+
+    assert_eq!(
+      args,
+      [
+        "--exclude-library",
+        "libwayland-*.so*",
+        "--exclude-library",
+        "libEGL*.so*"
+      ]
+    );
+  }
 }

@@ -323,6 +323,11 @@ pub struct AppImageConfig {
   /// This increases the bundle size by ~15-35MB depending on your build system.
   #[serde(default, alias = "bundle-media-framework")]
   pub bundle_media_framework: bool,
+  /// Shared libraries to exclude from the AppImage dependency deployment.
+  ///
+  /// Each value is passed to linuxdeploy's `--exclude-library` option as a glob pattern.
+  #[serde(default, alias = "exclude-libraries")]
+  pub exclude_libraries: Vec<String>,
   /// The files to include in the Appimage Binary.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,

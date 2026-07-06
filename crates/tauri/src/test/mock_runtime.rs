@@ -58,6 +58,7 @@ pub struct RuntimeContext {
   windows: Arc<RefCell<HashMap<WindowId, Window>>>,
   shortcuts: Arc<Mutex<ShortcutMap>>,
   run_tx: SyncSender<Message>,
+  main_thread_id: std::thread::ThreadId,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
@@ -74,6 +75,12 @@ unsafe impl Sync for RuntimeContext {}
 
 impl RuntimeContext {
   fn send_message(&self, message: Message) -> Result<()> {
+    if std::thread::current().id() == self.main_thread_id {
+      if let Message::Task(task) = message {
+        task();
+        return Ok(());
+      }
+    }
     if self.is_running.load(Ordering::Relaxed) {
       self
         .run_tx
@@ -461,6 +468,10 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   fn window_classname<S: Into<String>>(self, classname: S) -> Self {
+    self
+  }
+
+  fn no_redirection_bitmap(self, enable: bool) -> Self {
     self
   }
 
@@ -1161,6 +1172,7 @@ impl MockRuntime {
       windows: Default::default(),
       shortcuts: Default::default(),
       run_tx: tx,
+      main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),

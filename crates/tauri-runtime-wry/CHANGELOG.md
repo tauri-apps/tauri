@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.11.4]
+
+### Bug Fixes
+
+- [`ba865f2ef`](https://www.github.com/tauri-apps/tauri/commit/ba865f2ef5a4c48f14ed00619699e27a90db47c5) ([#15614](https://www.github.com/tauri-apps/tauri/pull/15614) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix getting the DPI internally leaks `HDC` handles on Windows. This also improves the resizing speed on undecorated windows
+
 ## \[2.11.3]
 
 ### Bug Fixes

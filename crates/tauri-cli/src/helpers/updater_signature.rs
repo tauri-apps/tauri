@@ -120,7 +120,7 @@ where
 {
   let bin_path = bin_path.as_ref();
   // We need to append .sig at the end it's where the signature will be stored
-  // TODO: use with_added_extension when we bump MSRV to > 1.91'
+  // TODO: use `with_added_extension` when we bump MSRV to >= 1.91
   let signature_path = if let Some(ext) = bin_path.extension() {
     let mut extension = ext.to_os_string();
     extension.push(".sig");

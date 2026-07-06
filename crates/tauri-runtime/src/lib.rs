@@ -223,7 +223,7 @@ pub enum RunEvent<T: UserEvent> {
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
   Opened { urls: Vec<url::Url> },
   /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
   #[cfg(target_os = "macos")]
@@ -589,6 +589,16 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Executes javascript on the window this [`WindowDispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
+
+  /// Evaluate JavaScript with callback function on the webview this [`WebviewDispatch`] represents.
+  /// The evaluation result will be serialized into a JSON string and passed to the callback function.
+  ///
+  /// Exception is ignored because of the limitation on Windows. You can catch it yourself and return as string as a workaround.
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()>;
 
   /// Moves the webview to the given window.
   fn reparent(&self, window_id: WindowId) -> Result<()>;

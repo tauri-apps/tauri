@@ -39,7 +39,7 @@ use serde_with::skip_serializing_none;
 use url::Url;
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
@@ -857,13 +857,24 @@ pub struct NsisConfig {
   /// The recommended dimensions are 164px x 314px.
   #[serde(alias = "sidebar-image")]
   pub sidebar_image: Option<PathBuf>,
+  // TODO: Change the alias to installer-icon in v3
   /// The path to an icon file used as the installer icon.
   #[serde(alias = "install-icon")]
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  #[serde(alias = "uninstaller-icon")]
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  #[serde(alias = "uninstaller-header-image")]
+  pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   #[serde(default, alias = "install-mode")]
   pub install_mode: NSISInstallerMode,
-  /// A list of installer languages.
+  /// A list of installer languages. Default to `["English"]` if not set.
+  ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
   /// To allow the user to select the language, set `display_language_selector` to `true`.
   ///
@@ -874,7 +885,7 @@ pub struct NsisConfig {
   ///
   /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsh` file.
   ///
-  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
+  /// **Note**: the key must be a valid NSIS language and it must be added to the [`Self::languages`] array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
@@ -926,9 +937,15 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
+  /// Deprecated: use [`WindowsConfig::minimum_webview2_version`] (`bundle >  windows > minimumWebview2Version`) instead.
+  ///
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.10.0",
+    note = "Use `WindowsConfig::minimum_webview2_version` instead."
+  )]
   #[serde(alias = "minimum-webview2-version")]
   pub minimum_webview2_version: Option<String>,
 }
@@ -1043,6 +1060,11 @@ pub struct WindowsConfig {
   /// The default value of this flag is `true`.
   #[serde(default = "default_true", alias = "allow-downgrades")]
   pub allow_downgrades: bool,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  #[serde(alias = "minimum-webview2-version")]
+  pub minimum_webview2_version: Option<String>,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
@@ -1056,6 +1078,19 @@ pub struct WindowsConfig {
   /// need to use another tool like `osslsigncode`.
   #[serde(alias = "sign-command")]
   pub sign_command: Option<CustomSignCommandConfig>,
+  /// Whether to bundle the Visual C++ runtime DLLs alongside the application.
+  ///
+  /// This can be particularly useful when your application includes sidecars or DLLs that do
+  /// not statically link the Visual C++ runtime and require the runtime DLLs at runtime, and
+  /// you do not want to require users to install the Visual C++ Redistributable. This can also
+  /// be useful when `build > windows > staticVCRuntime` is set to `false`.
+  #[serde(
+    default,
+    rename = "bundleVCRuntime",
+    alias = "bundle-vc-runtime",
+    alias = "bundleVcRuntime"
+  )]
+  pub bundle_vc_runtime: bool,
 }
 
 impl Default for WindowsConfig {
@@ -1067,9 +1102,11 @@ impl Default for WindowsConfig {
       tsp: false,
       webview_install_mode: Default::default(),
       allow_downgrades: true,
+      minimum_webview2_version: None,
       wix: None,
       nsis: None,
       sign_command: None,
+      bundle_vc_runtime: false,
     }
   }
 }
@@ -1175,7 +1212,13 @@ pub struct FileAssociation {
   /// The app's role with respect to the type. Maps to `CFBundleTypeRole` on macOS.
   #[serde(default)]
   pub role: BundleTypeRole,
-  /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
+  /// The mime-type of the association, e.g. `'image/png'` or `'text/plain'`.
+  ///
+  /// - **Linux**: written as `MimeType=` in the `.desktop` file.
+  /// - **macOS / iOS**: added as `public.mime-type` in the `UTTypeTagSpecification` dictionary of
+  ///   the `UTExportedTypeDeclarations` entry in `Info.plist`.
+  /// - **Android**: used as `android:mimeType` in the `<data>` element of an `<intent-filter>`
+  ///   in `AndroidManifest.xml`.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<String>,
   /// The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.
@@ -1185,6 +1228,31 @@ pub struct FileAssociation {
   ///
   /// You should define this if the associated file is a custom file type defined by your application.
   pub exported_type: Option<ExportedFileAssociation>,
+  /// Intent action filters for this file association.
+  ///
+  /// By default all filters are used.
+  #[serde(alias = "android-intent-action-filters")]
+  pub android_intent_action_filters: Option<Vec<AndroidIntentAction>>,
+}
+
+/// Android intent action.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Hash)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub enum AndroidIntentAction {
+  /// ACTION_SEND.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>
+  Send,
+  /// ACTION_SEND_MULTIPLE.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND_MULTIPLE>
+  SendMultiple,
+  /// ACTION_VIEW.
+  ///
+  /// <https://developer.android.com/reference/android/content/Intent#ACTION_SEND>
+  View,
 }
 
 /// The exported type definition. Maps to a `UTExportedTypeDeclarations` entry on macOS.
@@ -1199,6 +1267,227 @@ pub struct ExportedFileAssociation {
   /// Examples are `public.data`, `public.image`, `public.json` and `public.database`.
   #[serde(alias = "conforms-to")]
   pub conforms_to: Option<Vec<String>>,
+}
+
+impl FileAssociation {
+  /// Infers UTIs (Uniform Type Identifiers) from file extensions and mime types.
+  /// This is useful for macOS and iOS to automatically populate `LSItemContentTypes`
+  /// in the Info.plist for share sheet and file association support.
+  ///
+  /// Returns a vector of UTIs that should be included in `LSItemContentTypes`.
+  /// Explicitly provided content types are included first, followed by inferred types.
+  pub fn infer_content_types(&self) -> HashSet<String> {
+    let mut content_types = HashSet::new();
+
+    // when we have an exported type, we only reference it
+    if let Some(exported_type) = &self.exported_type {
+      content_types.insert(exported_type.identifier.clone());
+      return content_types;
+    }
+
+    // Start with explicitly provided content types
+    if let Some(explicit_types) = &self.content_types {
+      content_types.extend(explicit_types.iter().cloned());
+    }
+
+    // Infer from extensions and add to content_types (avoiding duplicates)
+    for ext in &self.ext {
+      if let Some(uti) = extension_to_uti(&ext.0) {
+        content_types.insert(uti.to_string());
+      }
+    }
+
+    // Also infer from mime type if available (avoiding duplicates)
+    if let Some(mime_type) = &self.mime_type {
+      if let Some(uti) = mime_type_to_uti(mime_type) {
+        content_types.insert(uti.to_string());
+      }
+    }
+
+    content_types
+  }
+}
+
+/// Generates plist dictionary entries for file associations.
+/// This is used by both macOS and iOS bundlers to populate Info.plist.
+///
+/// Returns a plist dictionary containing `UTExportedTypeDeclarations` and `CFBundleDocumentTypes`
+/// if there are any file associations configured.
+pub fn file_associations_plist(associations: &[FileAssociation]) -> Option<plist::Value> {
+  use plist::{Dictionary, Value};
+
+  if associations.is_empty() {
+    return None;
+  }
+
+  let exported_associations = associations
+    .iter()
+    .filter_map(|association| {
+      association.exported_type.as_ref().map(|exported_type| {
+        let mut dict = Dictionary::new();
+
+        dict.insert(
+          "UTTypeIdentifier".into(),
+          exported_type.identifier.clone().into(),
+        );
+        if let Some(description) = &association.description {
+          dict.insert("UTTypeDescription".into(), description.clone().into());
+        }
+        if let Some(conforms_to) = &exported_type.conforms_to {
+          dict.insert(
+            "UTTypeConformsTo".into(),
+            Value::Array(conforms_to.iter().map(|s| s.clone().into()).collect()),
+          );
+        }
+
+        let mut specification = Dictionary::new();
+        specification.insert(
+          "public.filename-extension".into(),
+          Value::Array(
+            association
+              .ext
+              .iter()
+              .map(|s| s.to_string().into())
+              .collect(),
+          ),
+        );
+        if let Some(mime_type) = &association.mime_type {
+          specification.insert("public.mime-type".into(), mime_type.clone().into());
+        }
+
+        dict.insert("UTTypeTagSpecification".into(), specification.into());
+
+        Value::Dictionary(dict)
+      })
+    })
+    .collect::<Vec<_>>();
+
+  let document_types = associations
+    .iter()
+    .map(|association| {
+      let mut dict = Dictionary::new();
+
+      if !association.ext.is_empty() {
+        dict.insert(
+          "CFBundleTypeExtensions".into(),
+          Value::Array(
+            association
+              .ext
+              .iter()
+              .map(|ext| ext.to_string().into())
+              .collect(),
+          ),
+        );
+      }
+
+      // For macOS/iOS share sheet, we need LSItemContentTypes with standard UTIs
+      let content_types = association.infer_content_types();
+
+      // Add LSItemContentTypes if we have any content types
+      if !content_types.is_empty() {
+        dict.insert(
+          "LSItemContentTypes".into(),
+          Value::Array(content_types.iter().map(|s| s.clone().into()).collect()),
+        );
+      }
+
+      let type_name = association
+        .name
+        .clone()
+        .or_else(|| association.ext.first().map(|ext| ext.0.clone()))
+        .unwrap_or_default();
+      dict.insert("CFBundleTypeName".into(), type_name.into());
+      dict.insert(
+        "CFBundleTypeRole".into(),
+        association.role.to_string().into(),
+      );
+      dict.insert("LSHandlerRank".into(), association.rank.to_string().into());
+
+      Value::Dictionary(dict)
+    })
+    .collect::<Vec<_>>();
+
+  if exported_associations.is_empty() && document_types.is_empty() {
+    return None;
+  }
+
+  let mut plist = Dictionary::new();
+  if !exported_associations.is_empty() {
+    plist.insert(
+      "UTExportedTypeDeclarations".into(),
+      Value::Array(exported_associations),
+    );
+  }
+  if !document_types.is_empty() {
+    plist.insert("CFBundleDocumentTypes".into(), Value::Array(document_types));
+  }
+
+  Some(Value::Dictionary(plist))
+}
+
+/// Maps file extensions to their standard UTIs for macOS/iOS share sheet support
+fn extension_to_uti(ext: &str) -> Option<&'static str> {
+  match ext.to_lowercase().as_str() {
+    // Images
+    "png" => Some("public.png"),
+    "jpg" | "jpeg" => Some("public.jpeg"),
+    "gif" => Some("com.compuserve.gif"),
+    "bmp" => Some("com.microsoft.bmp"),
+    "tiff" | "tif" => Some("public.tiff"),
+    "ico" => Some("com.microsoft.ico"),
+    "heic" | "heif" => Some("public.heif-standard-image"),
+    "webp" => Some("org.webmproject.webp"),
+    "svg" => Some("public.svg-image"),
+    // Videos
+    "mp4" => Some("public.mpeg-4"),
+    "mov" => Some("com.apple.quicktime-movie"),
+    "avi" => Some("public.avi"),
+    "mkv" => Some("public.mpeg-4"),
+    // Audio
+    "mp3" => Some("public.mp3"),
+    "wav" => Some("com.microsoft.waveform-audio"),
+    "aac" => Some("public.aac-audio"),
+    "m4a" => Some("public.mpeg-4-audio"),
+    // Documents
+    "pdf" => Some("com.adobe.pdf"),
+    "txt" => Some("public.plain-text"),
+    "rtf" => Some("public.rtf"),
+    "html" | "htm" => Some("public.html"),
+    "json" => Some("public.json"),
+    "xml" => Some("public.xml"),
+    _ => None,
+  }
+}
+
+/// Infers UTIs from mime type
+fn mime_type_to_uti(mime_type: &str) -> Option<&'static str> {
+  match mime_type {
+    "image/png" => Some("public.png"),
+    "image/jpeg" | "image/jpg" => Some("public.jpeg"),
+    "image/gif" => Some("com.compuserve.gif"),
+    "image/bmp" => Some("com.microsoft.bmp"),
+    "image/tiff" => Some("public.tiff"),
+    "image/heic" | "image/heif" => Some("public.heif-standard-image"),
+    "image/webp" => Some("org.webmproject.webp"),
+    "image/svg+xml" => Some("public.svg-image"),
+    mime if mime.starts_with("image/") => Some("public.image"),
+    "video/mp4" => Some("public.mpeg-4"),
+    "video/quicktime" => Some("com.apple.quicktime-movie"),
+    "video/x-msvideo" => Some("public.avi"),
+    mime if mime.starts_with("video/") => Some("public.movie"),
+    "audio/mpeg" | "audio/mp3" => Some("public.mp3"),
+    "audio/wav" | "audio/wave" => Some("com.microsoft.waveform-audio"),
+    "audio/aac" => Some("public.aac-audio"),
+    "audio/mp4" => Some("public.mpeg-4-audio"),
+    mime if mime.starts_with("audio/") => Some("public.audio"),
+    "application/pdf" => Some("com.adobe.pdf"),
+    "text/plain" => Some("public.plain-text"),
+    "text/rtf" => Some("public.rtf"),
+    "text/html" => Some("public.html"),
+    "application/json" => Some("public.json"),
+    "application/xml" | "text/xml" => Some("public.xml"),
+    _ => None,
+  }
 }
 
 /// Deep link protocol configuration.
@@ -1470,10 +1759,9 @@ impl FromStr for Color {
   fn from_str(mut color: &str) -> Result<Self, Self::Err> {
     color = color.trim().strip_prefix('#').unwrap_or(color);
     let color = match color.len() {
-      // TODO: use repeat_n once our MSRV is bumped to 1.82
       3 => color.chars()
-            .flat_map(|c| std::iter::repeat(c).take(2))
-            .chain(std::iter::repeat('f').take(2))
+            .flat_map(|c| std::iter::repeat_n(c, 2))
+            .chain(std::iter::repeat_n('f', 2))
             .collect(),
       6 => format!("{color}FF"),
       8 => color.to_string(),
@@ -1628,7 +1916,7 @@ pub enum ScrollBarStyle {
   /// Fluent UI style overlay scrollbars. **Windows Only**
   ///
   /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
-  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  /// see <https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541>
   FluentOverlay,
 }
 
@@ -1746,6 +2034,8 @@ pub struct WindowConfig {
   ///
   /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.
   /// WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+  ///
+  /// On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
   #[serde(default)]
   pub transparent: bool,
   /// Whether the window is maximized or not.
@@ -1778,6 +2068,12 @@ pub struct WindowConfig {
   pub skip_taskbar: bool,
   /// The name of the window class created on Windows to create the window. **Windows only**.
   pub window_classname: Option<String>,
+  /// This sets `WS_EX_NOREDIRECTIONBITMAP`.
+  ///
+  /// This can avoid the white flash that may appear before the webview content is rendered
+  /// when using a transparent window. **Windows only**.
+  #[serde(default, alias = "no-redirection-bitmap")]
+  pub no_redirection_bitmap: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
   /// The style of the macOS title bar.
@@ -1920,7 +2216,7 @@ pub struct WindowConfig {
   /// - **iOS**: Supported since version 17.0+.
   /// - **macOS**: Supported since version 14.0+.
   ///
-  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  /// see <https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578>
   #[serde(default, alias = "background-throttling")]
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
   /// Whether we should disable JavaScript code execution on the webview or not.
@@ -1995,6 +2291,25 @@ pub struct WindowConfig {
   /// By default the system uses the foreground scene.
   #[serde(default, alias = "requested-by-scene-identifier")]
   pub requested_by_scene_identifier: Option<String>,
+  /// Controls the WebView's browser-level general autofill behavior.
+  ///
+  /// **This option does not disable password or credit card autofill.**
+  ///
+  /// When set to `false`, the WebView will not automatically populate
+  /// general form fields using previously stored data such as addresses
+  /// or contact information.
+  ///
+  /// If not specified, this is `true` by default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Supported. WebView2's autofill feature (called
+  ///   "Suggestions") may not honor `autocomplete="off"` on input
+  ///   elements in some cases.
+  /// - **Linux / Android / iOS / macOS**: Unsupported and performs no
+  ///   operation.
+  #[serde(default = "default_true", alias = "general-autofill-enabled")]
+  pub general_autofill_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -2033,6 +2348,7 @@ impl Default for WindowConfig {
       content_protected: false,
       skip_taskbar: false,
       window_classname: None,
+      no_redirection_bitmap: false,
       theme: None,
       title_bar_style: Default::default(),
       traffic_light_position: None,
@@ -2060,6 +2376,7 @@ impl Default for WindowConfig {
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
+      general_autofill_enabled: true,
     }
   }
 }
@@ -2965,6 +3282,12 @@ pub struct AndroidConfig {
   /// Note that to use this feature, you should remove `/tauri.properties` from `src-tauri/gen/android/app/.gitignore` so the current versionCode is committed to the repository.
   #[serde(alias = "auto-increment-version-code", default)]
   pub auto_increment_version_code: bool,
+
+  /// Application ID suffix to append for debug builds.
+  /// This allows installing debug and release versions side-by-side on the same device.
+  /// Example: ".debug" will make debug builds use "com.example.app.debug" as the application ID.
+  #[serde(alias = "debug-application-id-suffix")]
+  pub debug_application_id_suffix: Option<String>,
 }
 
 impl Default for AndroidConfig {
@@ -2973,6 +3296,7 @@ impl Default for AndroidConfig {
       min_sdk_version: default_min_sdk_version(),
       version_code: None,
       auto_increment_version_code: false,
+      debug_application_id_suffix: None,
     }
   }
 }
@@ -3174,6 +3498,32 @@ pub struct BuildConfig {
   /// Additional paths to watch for changes when running `tauri dev`.
   #[serde(alias = "additional-watch-directories", default)]
   pub additional_watch_folders: Vec<PathBuf>,
+  /// Windows-specific build configuration.
+  #[serde(default)]
+  pub windows: WindowsBuildConfig,
+}
+
+/// Windows-specific build configuration.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowsBuildConfig {
+  /// Whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets.
+  #[serde(
+    default = "default_true",
+    rename = "staticVCRuntime",
+    alias = "static-vc-runtime",
+    alias = "staticVcRuntime"
+  )]
+  pub static_vc_runtime: bool,
+}
+
+impl Default for WindowsBuildConfig {
+  fn default() -> Self {
+    Self {
+      static_vc_runtime: true,
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -3599,6 +3949,7 @@ mod build {
       let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
       let window_classname = opt_str_lit(self.window_classname.as_ref());
+      let no_redirection_bitmap = self.no_redirection_bitmap;
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let traffic_light_position = opt_lit(self.traffic_light_position.as_ref());
@@ -3625,6 +3976,7 @@ mod build {
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
+      let general_autofill_enabled = self.general_autofill_enabled;
 
       literal_struct!(
         tokens,
@@ -3663,6 +4015,7 @@ mod build {
         content_protected,
         skip_taskbar,
         window_classname,
+        no_redirection_bitmap,
         theme,
         title_bar_style,
         traffic_light_position,
@@ -3688,7 +4041,8 @@ mod build {
         scroll_bar_style,
         activity_name,
         created_by_activity_name,
-        requested_by_scene_identifier
+        requested_by_scene_identifier,
+        general_autofill_enabled
       );
     }
   }
@@ -3850,6 +4204,7 @@ mod build {
       let features = quote!(None);
       let remove_unused_commands = quote!(false);
       let additional_watch_folders = quote!(Vec::new());
+      let windows = &self.windows;
 
       literal_struct!(
         tokens,
@@ -3862,7 +4217,20 @@ mod build {
         before_bundle_command,
         features,
         remove_unused_commands,
-        additional_watch_folders
+        additional_watch_folders,
+        windows
+      );
+    }
+  }
+
+  impl ToTokens for WindowsBuildConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let static_vc_runtime = self.static_vc_runtime;
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::WindowsBuildConfig,
+        static_vc_runtime
       );
     }
   }
@@ -4215,6 +4583,7 @@ mod test {
       features: None,
       remove_unused_commands: false,
       additional_watch_folders: Vec::new(),
+      windows: WindowsBuildConfig::default(),
     };
 
     // create a bundle config

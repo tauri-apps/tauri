@@ -12,6 +12,8 @@ on:
     paths:
       - '.github/workflows/lint-rust.yml'
       - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 env:
   RUST_BACKTRACE: 1

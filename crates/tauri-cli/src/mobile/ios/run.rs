@@ -88,6 +88,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       export_method: None,
       args: options.args,
       ignore_version_mismatches: options.ignore_version_mismatches,
+      no_sign: false,
+      archive_only: false,
       target_device: device.as_ref().map(|d| TargetDevice {
         id: d.id().to_string(),
         name: d.name().to_string(),

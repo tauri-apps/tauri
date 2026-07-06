@@ -12,6 +12,8 @@ on:
     paths:
       - '.github/workflows/test-core.yml'
       - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - '!crates/tauri/scripts/**'
       - '!crates/tauri-cli/**'
       - '!crates/tauri-bundler/**'
@@ -37,36 +39,36 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.77.2',
-              cross: false,
+              toolchain: '1.90',
+              cargo: cargo,
               command: 'test'
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.77.2',
-              cross: false,
+              toolchain: '1.90',
+              cargo: cargo,
               command: 'test'
             }
           - {
               target: aarch64-apple-darwin,
               os: macos-14,
-              toolchain: '1.77.2',
-              cross: false,
+              toolchain: '1.90',
+              cargo: cargo,
               command: 'test'
             }
           - {
               target: aarch64-apple-ios,
               os: macos-latest,
-              toolchain: '1.77.2',
-              cross: false,
+              toolchain: '1.90',
+              cargo: cargo,
               command: 'build'
             }
           - {
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              toolchain: '1.77.2',
-              cross: true,
+              toolchain: '1.90',
+              cargo: cross,
               command: 'build'
             }
         features:
@@ -93,24 +95,19 @@ jobs:
           key: ${{ matrix.platform.target }}
           save-if: ${{ matrix.features.key == 'all' }}
 
-      - name: test tauri-utils
-        if: ${{ !matrix.platform.cross }}
-        # Using --lib --bins --tests to skip doc tests
-        run: cargo ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --lib --bins --tests --manifest-path crates/tauri-utils/Cargo.toml
+      - name: install cross
+        if: ${{ matrix.platform.cargo == 'cross' }}
+        run: cargo install cross --git https://github.com/cross-rs/cross --rev 51f46f296253d8122c927c5bb933e3c4f27cc317 --locked
 
-      - name: test tauri-utils (using cross)
-        if: ${{ matrix.platform.cross }}
+      - name: test tauri-utils
         # Using --lib --bins --tests to skip doc tests
-        run: |
-          cargo install cross --git https://github.com/cross-rs/cross --rev 51f46f296253d8122c927c5bb933e3c4f27cc317 --locked
-          cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --lib --bins --tests --manifest-path crates/tauri-utils/Cargo.toml
+        run: ${{ matrix.platform.cargo }} ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --lib --bins --tests --manifest-path crates/tauri-utils/Cargo.toml
 
       - name: test tauri
-        if: ${{ !matrix.platform.cross }}
-        run: cargo ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri/Cargo.toml
+        run: ${{ matrix.platform.cargo }} ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri/Cargo.toml
 
-      - name: test tauri (using cross)
-        if: ${{ matrix.platform.cross }}
+      - name: test tauri examples
+        if: ${{ matrix.features.key != 'no-default' && matrix.platform.command == 'test' }}
         run: |
-          cargo install cross --git https://github.com/cross-rs/cross --rev 51f46f296253d8122c927c5bb933e3c4f27cc317 --locked
-          cross ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri/Cargo.toml
+          ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --examples --manifest-path crates/tauri/Cargo.toml
+          ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path examples/api/src-tauri/Cargo.toml

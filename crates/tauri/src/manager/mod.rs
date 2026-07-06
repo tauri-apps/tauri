@@ -655,7 +655,9 @@ impl<R: Runtime> AppManager<R> {
     if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
-        self.listeners().remove_webview_js_listeners(webview.label());
+        self
+          .listeners()
+          .remove_webview_js_listeners(webview.label());
       }
     }
   }

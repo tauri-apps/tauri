@@ -1,9 +1,9 @@
 [package]
 name = "tauri-cli"
-version = "2.11.0"
+version = "2.11.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.90"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -47,7 +47,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
 thiserror = "2"
-tauri-bundler = { version = "2.9.0", default-features = false, path = "../tauri-bundler" }
+tauri-bundler = { version = "2.9.4", default-features = false, path = "../tauri-bundler" }
 colored = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
@@ -58,7 +58,7 @@ shared_child = "1"
 duct = "1.0"
 toml_edit = { version = "0.25", features = ["serde"] }
 json-patch = "3"
-tauri-utils = { version = "2.9.0", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
   "isolation",
   "schema",
   "config-json5",
@@ -98,13 +98,13 @@ css-color = "0.2"
 resvg = "0.45.0"
 dunce = "1"
 glob = "0.3"
-# 0.39 raised msrv to above 1.78 but 0.37+ can't compile on 1.77.2 either.
+# 0.39 raised msrv to above 1.78 but 0.37+ can't compile on 1.90 either.
 oxc_parser = "0.36"
 oxc_span = "0.36"
 oxc_allocator = "0.36"
 oxc_ast = "0.36"
 magic_string = "0.3"
-phf = { version = "0.11", features = ["macros"] }
+phf = { version = "0.13", features = ["macros"] }
 walkdir = "2"
 elf = "0.7"
 memchr = "2"

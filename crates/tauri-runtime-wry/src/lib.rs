@@ -925,10 +925,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn inner_size(mut self, width: f64, height: f64) -> Self {
-    self.inner = self.inner.with_inner_size(LogicalSize::new(
-      width.min(i32::MAX as f64),
-      height.min(i32::MAX as f64),
-    ));
+    self.inner = self.inner.with_inner_size(LogicalSize::new(width, height));
     self
   }
 
@@ -4455,6 +4452,18 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   }
 
+  #[cfg(target_os = "macos")]
+  if let Some(size) = window_builder.inner.window.inner_size {
+    let monitor = if let Some(window_position) = &window_builder.inner.window.position {
+      find_monitor_for_position(event_loop.available_monitors(), *window_position)
+    } else {
+      event_loop.primary_monitor()
+    };
+    let scale_factor = monitor.map_or(1., |m| m.scale_factor());
+    window_builder.inner.window.inner_size =
+      Some(clamp_initial_window_size_for_macos(size, scale_factor));
+  }
+
   #[cfg(desktop)]
   if window_builder.prevent_overflow.is_some() || window_builder.center {
     let monitor = if let Some(window_position) = &window_builder.inner.window.position {
@@ -5326,6 +5335,65 @@ fn create_ipc_handler<T: UserEvent>(
       );
     }
   })
+}
+
+#[cfg(target_os = "macos")]
+fn clamp_initial_window_size_for_macos(size: Size, scale_factor: f64) -> Size {
+  let physical_size = size.to_physical::<f64>(scale_factor);
+  if physical_size.width <= i32::MAX as f64 && physical_size.height <= i32::MAX as f64 {
+    return size;
+  }
+
+  PhysicalSize::new(
+    physical_size.width.min(i32::MAX as f64),
+    physical_size.height.min(i32::MAX as f64),
+  )
+  .into()
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn window_builder_inner_size_preserves_input() {
+    let width = i32::MAX as f64 + 1.;
+    let builder = WindowBuilderWrapper::new().inner_size(width, 600.);
+
+    assert_eq!(
+      builder.inner.window.inner_size,
+      Some(LogicalSize::new(width, 600.).into())
+    );
+  }
+
+  #[test]
+  fn initial_window_size_preserves_safe_values_for_macos() {
+    let size = LogicalSize::new(800., 600.).into();
+
+    assert_eq!(clamp_initial_window_size_for_macos(size, 2.), size);
+  }
+
+  #[test]
+  fn initial_window_size_clamps_oversized_values_for_macos() {
+    let size = LogicalSize::new(i32::MAX as f64 + 1., 600.).into();
+    let clamped = clamp_initial_window_size_for_macos(size, 1.);
+
+    assert_eq!(
+      clamped.to_physical::<u32>(1.),
+      PhysicalSize::new(i32::MAX as u32, 600)
+    );
+  }
+
+  #[test]
+  fn initial_window_size_accounts_for_scale_factor_on_macos() {
+    let size = LogicalSize::new(i32::MAX as f64, 600.).into();
+    let clamped = clamp_initial_window_size_for_macos(size, 2.);
+
+    assert_eq!(
+      clamped.to_physical::<u32>(2.),
+      PhysicalSize::new(i32::MAX as u32, 1200)
+    );
+  }
 }
 
 #[cfg(target_os = "macos")]

@@ -914,6 +914,10 @@ impl Window {
     ndk_glue::content_rect()
   }
 
+  pub fn activity_id(&self) -> i32 {
+    self.activity_id
+  }
+
   pub fn activity_name(&self) -> &str {
     &self.activity_name
   }

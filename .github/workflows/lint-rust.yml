@@ -31,19 +31,19 @@ jobs:
         platform:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            cross: ''
+            cargo: 'cargo'
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            cross: ''
+            cargo: 'cargo'
           - target: aarch64-apple-darwin
             os: macos-latest
-            cross: ''
+            cargo: 'cargo'
           - target: aarch64-apple-ios
             os: macos-latest
-            cross: ''
+            cargo: 'cargo'
           - target: aarch64-linux-android
             os: ubuntu-latest
-            cross: 'cross '
+            cargo: 'cross'
 
     runs-on: ${{ matrix.platform.os }}
 
@@ -63,7 +63,7 @@ jobs:
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - name: Install cross
-        if: ${{ matrix.platform.cross != '' }}
+        if: ${{ matrix.platform.cargo == 'cross' }}
         uses: taiki-e/install-action@v2
         with:
           tool: cross@0.2.5
@@ -72,4 +72,4 @@ jobs:
         with:
           key: ${{ matrix.platform.target }}
 
-      - run: ${{ matrix.platform.cross }}cargo clippy --target ${{ matrix.platform.target }} --all-targets --all-features -- -D warnings
+      - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} --all-targets --all-features -- -D warnings

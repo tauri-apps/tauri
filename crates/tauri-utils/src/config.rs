@@ -3106,9 +3106,6 @@ pub struct AppConfig {
   /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
-  /// Enables the macOS specific APIs Liquid Glass window effects. This does not automatically apply the effects, use the windowEffects for that.
-  #[serde(rename = "macOSLiquidGlass", alias = "macos-liquid-glass", default)]
-  pub macos_liquid_glass: bool,
 }
 
 impl AppConfig {
@@ -3117,7 +3114,6 @@ impl AppConfig {
     vec![
       "tray-icon",
       "macos-private-api",
-      "macos-liquid-glass",
       "protocol-asset",
       "isolation",
     ]
@@ -3131,9 +3127,6 @@ impl AppConfig {
     }
     if self.macos_private_api {
       features.push("macos-private-api");
-    }
-    if self.macos_liquid_glass {
-      features.push("macos-liquid-glass");
     }
     if self.security.asset_protocol.enable {
       features.push("protocol-asset");
@@ -3838,9 +3831,7 @@ mod build {
         WindowEffect::ContentBackground => quote! { #prefix::ContentBackground},
         WindowEffect::UnderWindowBackground => quote! { #prefix::UnderWindowBackground},
         WindowEffect::UnderPageBackground => quote! { #prefix::UnderPageBackground},
-        #[cfg(feature = "macos-liquid-glass")]
         WindowEffect::LiquidGlassRegular => quote! { #prefix::LiquidGlassRegular },
-        #[cfg(feature = "macos-liquid-glass")]
         WindowEffect::LiquidGlassClear => quote! { #prefix::LiquidGlassClear },
         WindowEffect::Mica => quote! { #prefix::Mica},
         WindowEffect::MicaDark => quote! { #prefix::MicaDark},
@@ -4552,7 +4543,6 @@ mod test {
       macos_private_api: false,
       with_global_tauri: false,
       enable_gtk_app_id: false,
-      macos_liquid_glass: false,
     };
 
     // create a build config

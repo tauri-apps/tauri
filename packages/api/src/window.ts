@@ -2252,14 +2252,10 @@ enum Effect {
   UnderPageBackground = 'underPageBackground',
   /**
    *  **macOS 26.0+**
-   *
-   * Requires `macos-liquid-glass` feature flag.
    */
   LiquidGlassRegular = 'liquidGlassRegular',
   /**
    *  **macOS 26.0+**
-   *
-   * Requires `macos-liquid-glass` feature flag.
    */
   LiquidGlassClear = 'liquidGlassClear',
   /**

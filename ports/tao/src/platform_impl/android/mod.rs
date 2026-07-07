@@ -882,26 +882,12 @@ impl Window {
 
   #[cfg(feature = "rwh_04")]
   pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
-    // TODO: Use main activity instead?
-    let mut handle = rwh_04::AndroidNdkHandle::empty();
-    if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
-      handle.a_native_window = w.as_obj().as_raw() as *mut _;
-    } else {
-      panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
-    };
-    rwh_04::RawWindowHandle::AndroidNdk(handle)
+    panic!("Android native window handles are unavailable until Tao owns an ANativeWindow surface")
   }
 
   #[cfg(feature = "rwh_05")]
   pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
-    // TODO: Use main activity instead?
-    let mut handle = rwh_05::AndroidNdkWindowHandle::empty();
-    if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
-      handle.a_native_window = w.as_obj().as_raw() as *mut _;
-    } else {
-      panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
-    };
-    rwh_05::RawWindowHandle::AndroidNdk(handle)
+    panic!("Android native window handles are unavailable until Tao owns an ANativeWindow surface")
   }
 
   #[cfg(feature = "rwh_05")]
@@ -911,16 +897,7 @@ impl Window {
 
   #[cfg(feature = "rwh_06")]
   pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
-    // TODO: Use main activity instead?
-    if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
-      let native_window =
-        unsafe { std::ptr::NonNull::new_unchecked(w.as_obj().as_raw() as *mut _) };
-      // native_window shuldn't be null
-      let handle = rwh_06::AndroidNdkWindowHandle::new(native_window);
-      Ok(rwh_06::RawWindowHandle::AndroidNdk(handle))
-    } else {
-      Err(rwh_06::HandleError::Unavailable)
-    }
+    Err(rwh_06::HandleError::Unavailable)
   }
 
   #[cfg(feature = "rwh_06")]

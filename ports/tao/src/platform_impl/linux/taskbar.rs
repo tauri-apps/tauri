@@ -13,12 +13,10 @@ struct UnityLib {
   unity_launcher_entry_get_for_desktop_id: unsafe extern "C" fn(id: *const c_char) -> *const isize,
   unity_inspector_get_default: unsafe extern "C" fn() -> *const isize,
   unity_inspector_get_unity_running: unsafe extern "C" fn(inspector: *const isize) -> i32,
-  unity_launcher_entry_set_progress: unsafe extern "C" fn(entry: *const isize, value: f64) -> i32,
-  unity_launcher_entry_set_progress_visible:
-    unsafe extern "C" fn(entry: *const isize, value: i32) -> i32,
-  unity_launcher_entry_set_count: unsafe extern "C" fn(entry: *const isize, value: i64) -> i32,
-  unity_launcher_entry_set_count_visible:
-    unsafe extern "C" fn(entry: *const isize, value: bool) -> bool,
+  unity_launcher_entry_set_progress: unsafe extern "C" fn(entry: *const isize, value: f64),
+  unity_launcher_entry_set_progress_visible: unsafe extern "C" fn(entry: *const isize, value: i32),
+  unity_launcher_entry_set_count: unsafe extern "C" fn(entry: *const isize, value: i64),
+  unity_launcher_entry_set_count_visible: unsafe extern "C" fn(entry: *const isize, value: bool),
 }
 
 pub struct TaskbarIndicator {

@@ -458,7 +458,20 @@ impl AppState {
         // https://developer.apple.com/library/archive/qa/qa1561/_index.html
         // it is not possible to quit an iOS app gracefully and programatically
         warn!("`ControlFlow::Exit` ignored on iOS");
-        self.control_flow = old
+        self.control_flow = old;
+        match old {
+          ControlFlow::Poll => self.set_state(AppStateImpl::PollFinished {
+            waiting_event_handler,
+          }),
+          ControlFlow::Wait | ControlFlow::WaitUntil(_) => {
+            let start = Instant::now();
+            self.set_state(AppStateImpl::Waiting {
+              waiting_event_handler,
+              start,
+            });
+          }
+          ControlFlow::ExitWithCode(_) => bug!("unexpected `ControlFlow` `Exit`"),
+        }
       }
     }
   }

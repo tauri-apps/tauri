@@ -15,7 +15,7 @@ use super::keycode_from_scancode;
 
 /// Spawn Device event thread. Only works on x11 since wayland doesn't have such global events.
 pub fn spawn(device_tx: async_channel::Sender<DeviceEvent>) {
-  std::thread::spawn(async move || unsafe {
+  std::thread::spawn(move || unsafe {
     let xlib = xlib::Xlib::open().unwrap();
     let xinput2 = xinput2::XInput2::open().unwrap();
     let display = (xlib.XOpenDisplay)(ptr::null());

@@ -24,7 +24,7 @@ use ndk::{
 use once_cell::sync::{Lazy, OnceCell};
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use std::{
-  collections::{BTreeMap, HashSet},
+  collections::{BTreeMap, HashSet, VecDeque},
   ffi::{c_void, CStr, CString},
   fs::File,
   io::{BufRead, BufReader},
@@ -83,7 +83,7 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 #[macro_export]
 macro_rules! android_binding {
   ($domain:ident, $package:ident, $activity:ident, $on_activity_create:path, $main:ident) => {
-    ::tao::android_binding!($domain, $package, $activity, $setup, $main, ::tao)
+    ::tao::android_binding!($domain, $package, $activity, $on_activity_create, $main, ::tao)
   };
   ($domain:ident, $package:ident, $activity:ident, $on_activity_create:path, $main:ident, $tao:path) => {{
     // NOTE: be careful when changing how this use statement is written
@@ -266,15 +266,13 @@ pub static PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
   unsafe { libc::pipe(pipe.as_mut_ptr()) };
   pipe.map(|fd| unsafe { OwnedFd::from_raw_fd(fd) })
 });
+static EVENTS: Lazy<Mutex<VecDeque<Event>>> = Lazy::new(Default::default);
 
 pub fn poll_events() -> Option<Event> {
   unsafe {
-    let size = std::mem::size_of::<Event>();
-    let mut event = Event::Start;
-    if libc::read(PIPE[0].as_raw_fd(), &mut event as *mut _ as *mut _, size)
-      == size as libc::ssize_t
-    {
-      Some(event)
+    let mut wake_byte = 0u8;
+    if libc::read(PIPE[0].as_raw_fd(), &mut wake_byte as *mut _ as *mut _, 1) == 1 {
+      EVENTS.lock().unwrap().pop_front()
     } else {
       None
     }
@@ -287,9 +285,10 @@ pub fn take_intent_urls() -> Vec<url::Url> {
 
 unsafe fn wake(event: Event) {
   log::trace!("{:?}", event);
-  let size = std::mem::size_of::<Event>();
-  let res = libc::write(PIPE[1].as_raw_fd(), &event as *const _ as *const _, size);
-  assert_eq!(res, size as libc::ssize_t);
+  EVENTS.lock().unwrap().push_back(event);
+  let wake_byte = 1u8;
+  let res = libc::write(PIPE[1].as_raw_fd(), &wake_byte as *const _ as *const _, 1);
+  assert_eq!(res, 1);
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]

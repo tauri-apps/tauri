@@ -73,9 +73,6 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
   }
 }
 
-unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}
-unsafe impl Sync for PlatformSpecificWindowBuilderAttributes {}
-
 #[derive(Debug, Clone)]
 pub struct OsError;
 

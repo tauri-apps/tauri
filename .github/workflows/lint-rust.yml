@@ -44,11 +44,11 @@ jobs:
           - target: aarch64-apple-ios
             os: macos-latest
             cargo: 'cargo'
-            exclude: '--exclude tauri-bundler --exclude tauri-cli'
+            exclude: '--exclude tauri-bundler --exclude tauri-cli --exclude tauri-cli-node'
           - target: aarch64-linux-android
             os: ubuntu-latest
             cargo: 'cross'
-            exclude: '--exclude tauri-bundler --exclude tauri-cli'
+            exclude: '--exclude tauri-bundler --exclude tauri-cli --exclude tauri-cli-node'
 
     runs-on: ${{ matrix.platform.os }}
 

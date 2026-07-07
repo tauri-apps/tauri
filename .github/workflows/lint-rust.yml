@@ -36,7 +36,7 @@ jobs:
             os: ubuntu-latest
             cross: ''
           - target: aarch64-apple-darwin
-            os: macos-14
+            os: macos-latest
             cross: ''
           - target: aarch64-apple-ios
             os: macos-latest

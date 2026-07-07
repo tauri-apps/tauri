@@ -1,5 +1,8 @@
-name: CI
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 
+name: CI
 
 on:
   pull_request:
@@ -24,19 +27,19 @@ jobs:
               id: android,
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              cmd: "apk --",
+              cmd: 'apk --'
             }
           # iOS on Ubuntu
           - { id: ios, target: aarch64-apple-ios, os: macos-latest }
         features:
-          - "" # default features
-          - "serde" # serde + default features
-          - "rwh_04,rwh_05,rwh_06" # rwh features
+          - '' # default features
+          - 'serde' # serde + default features
+          - 'rwh_04,rwh_05,rwh_06' # rwh features
 
     env:
       RUST_BACKTRACE: 1
       CARGO_INCREMENTAL: 0
-      RUSTFLAGS: "-C debuginfo=0"
+      RUSTFLAGS: '-C debuginfo=0'
       OPTIONS: ${{ matrix.platform.options }}
       FEATURES: ${{ format(',{0}', matrix.features ) }}
       CMD: ${{ matrix.platform.cmd }}
@@ -65,7 +68,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.92"
+          toolchain: '1.92'
           targets: ${{ matrix.platform.target }}
 
       - name: Check documentation

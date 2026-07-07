@@ -1,3 +1,7 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: benches
 
 on:
@@ -26,7 +30,11 @@ jobs:
       matrix:
         rust: [nightly]
         platform:
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest, runner: 'xvfb-run --auto-servernum ' }
+          - {
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              runner: 'xvfb-run --auto-servernum '
+            }
           - { target: x86_64-pc-windows-msvc, os: windows-latest, runner: '' }
           - { target: aarch64-apple-darwin, os: macos-latest, runner: '' }
 
@@ -75,7 +83,7 @@ jobs:
 
       - name: build benchmark binaries
         env:
-          RUSTFLAGS: "-Zunstable-options -Cpanic=immediate-abort"
+          RUSTFLAGS: '-Zunstable-options -Cpanic=immediate-abort'
         run: cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/Cargo.toml
 
       - name: run benchmarks

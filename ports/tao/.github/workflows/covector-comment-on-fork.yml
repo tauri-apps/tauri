@@ -1,3 +1,7 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: covector comment
 on:
   workflow_run:
@@ -23,4 +27,4 @@ jobs:
         uses: jbolda/covector/packages/action@covector-v0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          command: "status"
+          command: 'status'

@@ -4,7 +4,6 @@ about: Create a report to help us improve wry
 title: ''
 labels: 'type: bug'
 assignees: ''
-
 ---
 
 **Describe the bug**

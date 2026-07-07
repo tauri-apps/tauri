@@ -1,3 +1,7 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: version or publish
 
 on:
@@ -33,7 +37,7 @@ jobs:
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          command: "version-or-publish"
+          command: 'version-or-publish'
           createRelease: true
           recognizeContributors: true
 
@@ -47,9 +51,9 @@ jobs:
         if: steps.covector.outputs.commandRan == 'version'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          title: "Publish New Versions"
-          commit-message: "publish new versions"
-          labels: "version updates"
-          branch: "release"
+          title: 'Publish New Versions'
+          commit-message: 'publish new versions'
+          labels: 'version updates'
+          branch: 'release'
           body: ${{ steps.covector.outputs.change }}
           sign-commits: true

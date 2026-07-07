@@ -1,3 +1,7 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 //! - WebView2 supports non-standard protocols only on Windows 10+, so we have to use a workaround.
 //!   See <https://github.com/MicrosoftEdge/WebView2Feedback/issues/73>
 //! - On Android, there's no API for registering custom protocols, so this workaround is also used.

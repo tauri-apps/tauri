@@ -46,8 +46,12 @@ dpi = "0.1"
 cookie = "0.18"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { package = "gtk4", version = "0.11", optional = true, features = ["v4_10"] }
-webkit = { package = "webkit6", version = "0.6", optional = true, features = ["v2_42"] }
+gtk = { package = "gtk4", version = "0.11", optional = true, features = [
+  "v4_10",
+] }
+webkit = { package = "webkit6", version = "0.6", optional = true, features = [
+  "v2_42",
+] }
 soup3 = { version = "0.9", optional = true }
 percent-encoding = "2.3"
 dirs = "6"

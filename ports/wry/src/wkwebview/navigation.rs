@@ -1,3 +1,7 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use objc2::DeclaredClass;
 use objc2_foundation::{NSObjectProtocol, NSString};
 use objc2_web_kit::{

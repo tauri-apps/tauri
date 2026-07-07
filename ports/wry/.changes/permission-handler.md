@@ -1,9 +1,10 @@
 ---
-"wry": minor
+'wry': minor
 ---
 
 Add an expanded permission handling API for WebView2, WKWebView, WebKitGTK, and Android.
 This includes:
+
 - `PermissionKind` expansion: `DisplayCapture`, `Midi`, `Sensors`, `MediaKeySystemAccess`, `LocalFonts`, `WindowManagement`, `PointerLock`, `AutomaticDownloads`, `FileSystemAccess`, `Autoplay`.
 - Support for `PermissionResponse::Prompt` to trigger native system dialogs.
 - Android support via JNI bridge (`onPermissionRequest` in `RustWebChromeClient`).

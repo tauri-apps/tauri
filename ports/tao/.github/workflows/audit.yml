@@ -1,3 +1,7 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 name: Audit
 
 on:
@@ -6,8 +10,8 @@ on:
     - cron: '0 0 * * *'
   push:
     paths:
-      - "**/Cargo.lock"
-      - "**/Cargo.toml"
+      - '**/Cargo.lock'
+      - '**/Cargo.toml'
 
 jobs:
   audit-rust:

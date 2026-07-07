@@ -1,3 +1,7 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 /// Permission types that can be requested by the webview.
 ///
 /// See [`crate::WebViewBuilder::with_permission_handler`].

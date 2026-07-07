@@ -23,7 +23,6 @@ If you have Android Studio installed, it ships with a version of JDK so you don'
 ##### Linux/WSL
 
 - Install it by running the following command based on your distro to install JDK:
-
   - debian-based
     ```
     sudo apt install default-jdk

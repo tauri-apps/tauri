@@ -1,5 +1,5 @@
 ---
-"tao": patch
+'tao': patch
 ---
 
 On Linux, multiple issues regarding window decoration handling for Wayland have been fixed

@@ -151,7 +151,7 @@ jobs:
         run: |
           sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev libxdo-dev
 
       - name: Run udeps
         run: cargo udeps --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features

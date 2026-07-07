@@ -15,15 +15,16 @@
 //! - Windows
 //! - macOS
 //! - Linux (gtk Only)
+//! - FreeBSD / DragonFly BSD / NetBSD / OpenBSD (gtk Only)
 //!
 //! # Platform-specific notes:
 //!
-//! - On Windows and Linux, an event loop must be running on the thread, on Windows, a win32 event loop and on Linux, a gtk event loop. It doesn't need to be the main thread but you have to create the tray icon on the same thread as the event loop.
+//! - On Windows, Linux, and BSD, an event loop must be running on the thread, on Windows, a win32 event loop and on Linux or BSD, a gtk event loop. It doesn't need to be the main thread but you have to create the tray icon on the same thread as the event loop.
 //! - On macOS, an event loop must be running on the main thread so you also need to create the tray icon on the main thread. You must make sure that the event loop is already running and not just created before creating a TrayIcon to prevent issues with fullscreen apps. In Winit for example the earliest you can create icons is on [`StartCause::Init`](https://docs.rs/winit/latest/winit/event/enum.StartCause.html#variant.Init).
 //!
 //! # Dependencies (Linux Only)
 //!
-//! On Linux, `gtk`, `libxdo` is used to make the predfined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work and `libappindicator` or `libayatnat-appindicator` are used to create the tray icon, so make sure to install them on your system.
+//! On Linux, `gtk`, `libxdo` is used to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work and `libappindicator` or `libayatana-appindicator` are used to create the tray icon, so make sure to install them on your system.
 //!
 //! #### Arch Linux / Manjaro:
 //!
@@ -225,10 +226,15 @@ impl Default for TrayIconAttributes {
 }
 
 /// [`TrayIcon`] builder struct and associated methods.
-#[derive(Default)]
 pub struct TrayIconBuilder {
     id: TrayIconId,
     attrs: TrayIconAttributes,
+}
+
+impl Default for TrayIconBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TrayIconBuilder {
@@ -551,7 +557,7 @@ impl TrayIcon {
 ///
 /// ## Platform-specific:
 ///
-/// - **Linux**: Unsupported. The event is not emmited even though the icon is shown
+/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown
 ///   and will still show a context menu on right click.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -705,6 +711,16 @@ impl TrayIconEvent {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn default_builder_uses_unique_id() {
+        let first = TrayIconBuilder::default();
+        let second = TrayIconBuilder::default();
+
+        assert!(!first.id.as_ref().is_empty());
+        assert_ne!(first.id, second.id);
+    }
 
     #[cfg(feature = "serde")]
     #[test]

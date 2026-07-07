@@ -13,10 +13,13 @@ mod tray;
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     thread,
 };
+
+use crossbeam_channel::{unbounded, Sender};
+use once_cell::sync::Lazy;
 
 pub(crate) use icon::PlatformIcon;
 use tray::Tray;
@@ -26,6 +29,29 @@ use crate::{icon::Icon, TrayIconAttributes, TrayIconId};
 pub struct TrayIcon {
     tray_handle: ksni::Handle<Tray>,
     shutdown: Arc<AtomicBool>,
+}
+
+static MENU_UPDATE_SUBSCRIBERS: Lazy<Mutex<Vec<Sender<()>>>> =
+    Lazy::new(|| Mutex::new(Vec::new()));
+static MENU_UPDATE_DISPATCHER: Lazy<()> = Lazy::new(|| {
+    thread::spawn(|| {
+        while muda::recv_menu_update().is_ok() {
+            let Ok(mut subscribers) = MENU_UPDATE_SUBSCRIBERS.lock() else {
+                continue;
+            };
+            subscribers.retain(|subscriber| subscriber.send(()).is_ok());
+        }
+    });
+});
+
+fn subscribe_menu_updates() -> crossbeam_channel::Receiver<()> {
+    Lazy::force(&MENU_UPDATE_DISPATCHER);
+
+    let (sender, receiver) = unbounded();
+    if let Ok(mut subscribers) = MENU_UPDATE_SUBSCRIBERS.lock() {
+        subscribers.push(sender);
+    }
+    receiver
 }
 
 impl TrayIcon {
@@ -46,8 +72,9 @@ impl TrayIcon {
 
         let update_tray_handle = tray_handle.clone();
         let update_shutdown = shutdown.clone();
+        let update_receiver = subscribe_menu_updates();
         thread::spawn(move || {
-            while muda::recv_menu_update().is_ok() {
+            while update_receiver.recv().is_ok() {
                 if update_shutdown.load(Ordering::Relaxed) {
                     break;
                 }

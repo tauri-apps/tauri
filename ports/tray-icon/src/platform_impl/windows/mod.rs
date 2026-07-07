@@ -233,11 +233,7 @@ impl TrayIcon {
                 ..std::mem::zeroed()
             };
             if let Some(tooltip) = &tooltip {
-                let tip = util::encode_wide(tooltip.as_ref());
-                #[allow(clippy::manual_memcpy)]
-                for i in 0..tip.len().min(128) {
-                    nid.szTip[i] = tip[i];
-                }
+                copy_tooltip_to_buffer(tooltip.as_ref(), &mut nid.szTip);
             }
 
             if Shell_NotifyIconW(NIM_MODIFY, &nid) == 0 {
@@ -581,11 +577,7 @@ unsafe fn register_tray_icon(
 
     if let Some(tooltip) = tooltip {
         flags |= NIF_TIP;
-        let tip = util::encode_wide(tooltip);
-        #[allow(clippy::manual_memcpy)]
-        for i in 0..tip.len().min(128) {
-            sz_tip[i] = tip[i];
-        }
+        copy_tooltip_to_buffer(tooltip, &mut sz_tip);
     }
 
     #[allow(non_snake_case)]
@@ -610,6 +602,26 @@ unsafe fn register_tray_icon(
     };
 
     Shell_NotifyIconW(NIM_ADD, &mut nid as _) == TRUE
+}
+
+fn copy_tooltip_to_buffer(tooltip: &str, buffer: &mut [u16; 128]) {
+    let tip = util::encode_wide(tooltip);
+    let len = tip.len().min(buffer.len() - 1);
+    buffer[..len].copy_from_slice(&tip[..len]);
+    buffer[len] = 0;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::copy_tooltip_to_buffer;
+
+    #[test]
+    fn tooltip_buffer_is_always_null_terminated() {
+        let mut buffer = [1; 128];
+        copy_tooltip_to_buffer(&"a".repeat(128), &mut buffer);
+
+        assert_eq!(buffer[127], 0);
+    }
 }
 
 #[inline]

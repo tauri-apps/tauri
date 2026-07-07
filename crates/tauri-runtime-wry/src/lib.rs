@@ -948,7 +948,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size) on creation
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size) on creation.
+  ///
+  /// On Linux/GTK4, this currently falls back to the full monitor geometry because
+  /// GDK4 no longer exposes a portable taskbar/panel-aware work area.
   ///
   /// ## Platform-specific
   ///
@@ -960,7 +963,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size).
+  ///
+  /// On Linux/GTK4, this currently falls back to the full monitor geometry because
+  /// GDK4 no longer exposes a portable taskbar/panel-aware work area.
   /// on creation with a margin
   ///
   /// ## Platform-specific

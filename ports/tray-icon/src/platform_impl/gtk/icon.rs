@@ -8,7 +8,7 @@
 
 use std::{fs::File, io::BufWriter, path::Path};
 
-use crate::icon::BadIcon;
+use crate::icon::{BadIcon, PIXEL_SIZE};
 
 #[derive(Debug, Clone)]
 pub struct PlatformIcon {
@@ -19,6 +19,23 @@ pub struct PlatformIcon {
 
 impl PlatformIcon {
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
+        if !rgba.len().is_multiple_of(PIXEL_SIZE) {
+            return Err(BadIcon::ByteCountNotDivisibleBy4 {
+                byte_count: rgba.len(),
+            });
+        }
+
+        let pixel_count = rgba.len() / PIXEL_SIZE;
+        let width_x_height = width as usize * height as usize;
+        if pixel_count != width_x_height {
+            return Err(BadIcon::DimensionsVsPixelCount {
+                width,
+                height,
+                width_x_height,
+                pixel_count,
+            });
+        }
+
         Ok(Self {
             rgba,
             width: width as i32,
@@ -38,5 +55,31 @@ impl PlatformIcon {
         writer.write_image_data(&self.rgba)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_rgba_rejects_invalid_byte_count() {
+        assert!(matches!(
+            PlatformIcon::from_rgba(vec![0, 0, 0], 1, 1),
+            Err(BadIcon::ByteCountNotDivisibleBy4 { byte_count: 3 })
+        ));
+    }
+
+    #[test]
+    fn from_rgba_rejects_dimension_mismatch() {
+        assert!(matches!(
+            PlatformIcon::from_rgba(vec![0, 0, 0, 0], 2, 1),
+            Err(BadIcon::DimensionsVsPixelCount {
+                width: 2,
+                height: 1,
+                width_x_height: 2,
+                pixel_count: 1,
+            })
+        ));
     }
 }

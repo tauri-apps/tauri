@@ -46,6 +46,18 @@ pub enum Error {
     ))]
     #[error("This menu has already been initialized for this gtk window`")]
     AlreadyInitialized,
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
+    #[error("Unsupported gtk menu container")]
+    UnsupportedGtkContainer,
     #[error(transparent)]
     AcceleratorParseError(#[from] AcceleratorParseError),
     #[error("Gtk Window doesn't have an application")]

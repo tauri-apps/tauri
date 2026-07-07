@@ -8,6 +8,8 @@ use tauri_runtime::dpi::{LogicalPosition, LogicalSize, PhysicalRect};
 
 impl super::MonitorExt for tao::monitor::MonitorHandle {
   fn work_area(&self) -> PhysicalRect<i32, u32> {
+    // GTK4/GDK4 no longer exposes a portable work-area API, so Linux falls
+    // back to full monitor geometry and does not account for panels/taskbars.
     let rect = self.gdk_monitor().geometry();
     let scale_factor = self.scale_factor();
     PhysicalRect {

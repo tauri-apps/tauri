@@ -165,9 +165,10 @@ impl Menu {
     }
 
     pub fn add_menu_item(&mut self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
+        let child = item.child();
         match op {
-            AddOp::Append => self.children.push(item.child()),
-            AddOp::Insert(i) => self.children.insert(i, item.child()),
+            AddOp::Append => self.children.push(child.clone()),
+            AddOp::Insert(i) => self.children.insert(i, child.clone()),
         }
 
         for (menu_id, menu_bar) in &self.instances {
@@ -177,6 +178,10 @@ impl Menu {
             match op {
                 AddOp::Append => parent_menu.append_item(&gtk_item),
                 AddOp::Insert(position) => parent_menu.insert_item(position as i32, &gtk_item),
+            }
+
+            if let Some((id, row)) = child.borrow().custom_child() {
+                menu_bar.add_custom_child(&id, &row);
             }
         }
 
@@ -303,6 +308,8 @@ impl Menu {
             } else if container.type_().name() == "GtkStack" {
                 let gtk_box = container.dynamic_cast_ref::<gtk::Stack>().unwrap();
                 gtk_box.add_child(menu_bar);
+            } else {
+                return Err(crate::Error::UnsupportedGtkContainer);
             }
         } else {
             window.set_child(Some(menu_bar));
@@ -412,7 +419,12 @@ impl Menu {
 
         // Rebuild the context instance every time so it reflects the current
         // labels, icons, and checked state rather than a stale first build.
-        self.instances.remove(&self.ctx_menu_id);
+        if let Some(old) = self.instances.remove(&self.ctx_menu_id) {
+            let old_context_menu = old.context_menu();
+            if old_context_menu.parent().is_some() {
+                old_context_menu.unparent();
+            }
+        }
 
         {
             let action_group = action_group_from_app(&app);
@@ -508,6 +520,12 @@ impl GtkMenuChild {
         match self {
             GtkMenuChild::ContextMenu { widget, .. } => widget,
             _ => unreachable!("This is a bug report to https://github.com/tauri-apps/muda"),
+        }
+    }
+
+    fn add_custom_child(&self, id: &str, widget: &impl IsA<gtk::Widget>) {
+        if let GtkMenuChild::ContextMenu { widget: w, .. } = self {
+            w.add_child(widget, id);
         }
     }
 }
@@ -666,9 +684,10 @@ impl MenuChild {
     }
 
     pub fn add_menu_item(&mut self, item: &dyn IsMenuItem, op: AddOp) -> crate::Result<()> {
+        let child = item.child();
         match op {
-            AddOp::Append => self.children.push(item.child()),
-            AddOp::Insert(i) => self.children.insert(i, item.child()),
+            AddOp::Append => self.children.push(child.clone()),
+            AddOp::Insert(i) => self.children.insert(i, child.clone()),
         }
 
         #[cfg(all(feature = "linux-ksni", target_os = "linux"))]
@@ -683,6 +702,10 @@ impl MenuChild {
                 match op {
                     AddOp::Append => parent_menu.append_item(&gtk_item),
                     AddOp::Insert(position) => parent_menu.insert_item(position as i32, &gtk_item),
+                }
+
+                if let Some((id, row)) = child.borrow().custom_child() {
+                    gtk_child.add_custom_child(&id, &row);
                 }
             }
         }
@@ -787,24 +810,36 @@ impl MenuChild {
             return false; // TODO: better error
         };
 
-        if !self.instances.contains_key(&self.ctx_menu_id) {
-            let menu = gio::Menu::new();
-            let widget = gtk::PopoverMenu::from_model(Some(&menu));
+        if let Some(old) = self.instances.remove(&self.ctx_menu_id) {
+            if let Some(old) = old.first() {
+                let old_context_menu = old.context_menu();
+                if old_context_menu.parent().is_some() {
+                    old_context_menu.unparent();
+                }
+            }
+        }
 
-            let action_group = action_group_from_app(&app);
-            window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
+        let menu = gio::Menu::new();
+        let widget = gtk::PopoverMenu::from_model(Some(&menu));
 
-            let menu = GtkMenuChild::ContextMenu {
-                id: self.ctx_menu_id,
-                widget,
-                menu,
-                app,
-            };
+        let action_group = action_group_from_app(&app);
+        window.insert_action_group(DEFAULT_ACTION_GROUP, Some(&action_group));
 
-            self.instances.insert(self.ctx_menu_id, vec![menu]);
+        let menu = GtkMenuChild::ContextMenu {
+            id: self.ctx_menu_id,
+            widget,
+            menu,
+            app,
+        };
 
-            for item in self.items() {
-                let _ = self.add_menu_item_with_id(item.as_ref(), self.ctx_menu_id);
+        self.instances.insert(self.ctx_menu_id, vec![menu]);
+
+        for item in self.items() {
+            let _ = self.add_menu_item_with_id(item.as_ref(), self.ctx_menu_id);
+        }
+        if let Some(menus) = self.instances.get(&self.ctx_menu_id) {
+            if let Some(menu) = menus.first() {
+                self.bind_custom_children(menu);
             }
         }
 
@@ -832,6 +867,19 @@ impl MenuChild {
 }
 
 impl MenuChild {
+    fn bind_custom_children(&self, menu: &GtkMenuChild) {
+        fn walk(children: &[Rc<RefCell<MenuChild>>], menu: &GtkMenuChild) {
+            for child in children {
+                let child = child.borrow();
+                if let Some((id, row)) = child.custom_child() {
+                    menu.add_custom_child(&id, &row);
+                }
+                walk(&child.children, menu);
+            }
+        }
+        walk(&self.children, menu);
+    }
+
     pub fn new(
         text: &str,
         enabled: bool,
@@ -912,6 +960,9 @@ impl MenuChild {
 
         // GIO MenuItems are immutable after insertion, so we need to remove and reinsert
         let detailed_action = self.detailed_action();
+        let custom_child_id = self.icon.as_ref().map(|_| self.id.as_ref().to_string());
+        let custom_child_icon = self.icon.clone();
+        let custom_child_text = self.text.clone();
 
         for children in self.instances.values_mut() {
             for child in children.iter_mut() {
@@ -941,8 +992,9 @@ impl MenuChild {
                     );
 
                     // Copy icon if present
-                    if let Some(icon) = &self.icon {
+                    if let (Some(id), Some(icon)) = (&custom_child_id, &custom_child_icon) {
                         new_item.set_icon(&icon.inner.to_bytes_icon());
+                        new_item.set_attribute_value("custom", Some(&id.to_variant()));
                     }
 
                     // Insert at same position
@@ -953,6 +1005,11 @@ impl MenuChild {
                         GtkMenuChild::Item { item, .. } => *item = new_item,
                         GtkMenuChild::Submenu { item, .. } => *item = new_item,
                         _ => {}
+                    }
+
+                    if let (Some(id), Some(icon)) = (&custom_child_id, &custom_child_icon) {
+                        let row = custom_menu_row(icon, &custom_child_text, &detailed_action);
+                        child.add_custom_child(id, &row);
                     }
                 }
             }
@@ -1372,6 +1429,9 @@ impl MenuChild {
 
         // GIO MenuItems are immutable after insertion, so we need to remove and reinsert
         let detailed_action = self.detailed_action();
+        let custom_child_id = self.id.as_ref().to_string();
+        let custom_child_icon = self.icon.clone();
+        let custom_child_text = self.text.clone();
 
         for children in self.instances.values_mut() {
             for child in children.iter_mut() {
@@ -1401,8 +1461,10 @@ impl MenuChild {
                     );
 
                     // Set icon if present
-                    if let Some(icon) = &self.icon {
+                    if let Some(icon) = &custom_child_icon {
                         new_item.set_icon(&icon.inner.to_bytes_icon());
+                        new_item
+                            .set_attribute_value("custom", Some(&custom_child_id.to_variant()));
                     }
 
                     // Insert at same position
@@ -1413,6 +1475,11 @@ impl MenuChild {
                         GtkMenuChild::Item { item, .. } => *item = new_item,
                         GtkMenuChild::Submenu { item, .. } => *item = new_item,
                         _ => {}
+                    }
+
+                    if let Some(icon) = &custom_child_icon {
+                        let row = custom_menu_row(icon, &custom_child_text, &detailed_action);
+                        child.add_custom_child(&custom_child_id, &row);
                     }
                 }
             }

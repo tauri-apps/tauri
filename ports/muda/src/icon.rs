@@ -88,7 +88,21 @@ impl fmt::Display for BadIcon {
 
 impl Error for BadIcon {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self)
+        match self {
+            BadIcon::OsError(e) => Some(e),
+            #[cfg(all(
+                any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ),
+                feature = "gtk"
+            ))]
+            BadIcon::PngEncodingError(e) => Some(e),
+            _ => None,
+        }
     }
 }
 
@@ -97,6 +111,32 @@ pub(crate) struct RgbaIcon {
     pub(crate) rgba: Vec<u8>,
     pub(crate) width: u32,
     pub(crate) height: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bad_icon_validation_errors_have_no_source() {
+        assert!(BadIcon::ByteCountNotDivisibleBy4 { byte_count: 1 }
+            .source()
+            .is_none());
+        assert!(BadIcon::DimensionsVsPixelCount {
+            width: 2,
+            height: 2,
+            width_x_height: 4,
+            pixel_count: 3,
+        }
+        .source()
+        .is_none());
+    }
+
+    #[test]
+    fn bad_icon_os_error_exposes_inner_source() {
+        let error = BadIcon::OsError(io::Error::new(io::ErrorKind::Other, "icon error"));
+        assert!(error.source().is_some());
+    }
 }
 
 /// For platforms which don't have window icons (e.g. web)

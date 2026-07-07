@@ -50,20 +50,8 @@ impl AboutDialog {
                 dialog.set_program_name(Some(name));
             }
 
-            if let Some(ref version) = metadata.version {
-                dialog.set_version(Some(version));
-            }
-
-            if let Some(ref short_version) = metadata.short_version {
-                // GTK4 doesn't have a separate short version, but we can include it
-                // in the version string if both are set
-                if metadata.version.is_some() {
-                    // Version is already set, we could append short_version but
-                    // GTK4's AboutDialog handles this differently than macOS
-                    let _ = short_version; // Acknowledge unused on GTK4
-                } else {
-                    dialog.set_version(Some(short_version));
-                }
+            if let Some(version) = metadata.full_version() {
+                dialog.set_version(Some(&version));
             }
 
             if let Some(ref copyright) = metadata.copyright {

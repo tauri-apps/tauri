@@ -1,11 +1,10 @@
 SPDXVersion: SPDX-2.1
 DataLicense: CC0-1.0
 PackageName: tray-icon
-DataFormat: SPDXRef-1
+SPDXID: SPDXRef-1
 PackageSupplier: Organization: The Tauri Programme in the Commons Conservancy
 PackageHomePage: https://tauri.app
-PackageLicenseDeclared: Apache-2.0
-PackageLicenseDeclared: MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
 PackageCopyrightText: 2020-2022, The Tauri Programme in the Commons Conservancy
 PackageSummary: <text>Create tray icons for desktop applications.
                 </text>

@@ -51,7 +51,7 @@ async fn async_stateful_command(
   the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<(), ()> {
-  println!("{:?} {:?}", the_argument, state.inner());
+  println!("{:?} {:?}", the_argument, *state);
   Ok(())
 }
 // ------------------------ Raw future commands ------------------------
@@ -141,7 +141,7 @@ fn stateful_command_with_result(
   the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
-  println!("{:?} {:?}", the_argument, state.inner());
+  println!("{:?} {:?}", the_argument, *state);
   dbg!(the_argument.ok_or(MyError::FooError))
 }
 
@@ -160,7 +160,7 @@ fn stateful_command_with_result_snake(
   the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
-  println!("{:?} {:?}", the_argument, state.inner());
+  println!("{:?} {:?}", the_argument, *state);
   dbg!(the_argument.ok_or(MyError::FooError))
 }
 
@@ -177,7 +177,7 @@ async fn async_stateful_command_with_result(
   the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
-  println!("{:?} {:?}", the_argument, state.inner());
+  println!("{:?} {:?}", the_argument, *state);
   Ok(the_argument.unwrap_or_default())
 }
 

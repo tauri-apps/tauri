@@ -347,7 +347,7 @@ impl<R: Runtime> AppManager<R> {
 
   /// Get the base app URL for [`WebviewUrl::App`](tauri_utils::config::WebviewUrl::App).
   ///
-  /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exsits.
+  /// * In dev mode, this is the [`devUrl`](tauri_utils::config::BuildConfig::dev_url) configuration value if it exists.
   /// * In production mode, this is the [`frontendDist`](tauri_utils::config::BuildConfig::frontend_dist) configuration value if it's a [`FrontendDist::Url`](tauri_utils::config::FrontendDist::Url).
   /// * Returns [`Self::tauri_protocol_url`] (e.g. `tauri://localhost`) otherwise.
   pub(crate) fn get_app_url(&self, https: bool) -> Cow<'_, Url> {

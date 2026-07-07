@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.11.4"
+version = "2.11.5"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -84,11 +84,6 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 ] }
 # WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
 cookie = "0.18"
-
-# Pinning `time` used by `cookie` here to avoid a compilation error, see
-# - https://github.com/tauri-apps/tauri/issues/15615
-# - https://github.com/rwf2/cookie-rs/issues/255
-time = ">=0.3, <0.3.52"
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
@@ -187,7 +182,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { path = ".", default-features = false, features = ["wry"] }
 tokio = { version = "1", features = ["full"] }
-cargo_toml = "0.22"
+cargo_toml = "1.0"
 http-range = "0.1.5"
 
 [features]

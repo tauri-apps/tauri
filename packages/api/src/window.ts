@@ -2412,6 +2412,8 @@ interface WindowOptions {
    * Whether the window is transparent or not.
    * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.
    * WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
+   *
+   * On Windows, using `noRedirectionBitmap` can help avoid a white flash when creating a transparent window.
    */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
@@ -2428,6 +2430,13 @@ interface WindowOptions {
   contentProtected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   * This sets `WS_EX_NOREDIRECTIONBITMAP`.
+   *
+   * This can avoid the white flash that may appear before the webview content is rendered
+   * when using a transparent window. **Windows only**.
+   */
+  noRedirectionBitmap?: boolean
   /**
    *  Whether or not the window has shadow.
    *

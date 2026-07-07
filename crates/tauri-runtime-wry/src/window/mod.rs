@@ -15,6 +15,7 @@ mod macos;
 #[cfg(windows)]
 mod windows;
 
+#[cfg(desktop)]
 use crate::monitor::MonitorExt;
 
 pub trait WindowExt {

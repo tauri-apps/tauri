@@ -189,6 +189,7 @@ base64 = "0.22"
 jni = "0.21"
 ndk = "0.9"
 tao-macros = "0.1"
+tao = { path = "../tao" }
 libc = "0.2"
 dom_query = { version = "0.28.0", default-features = false }
 

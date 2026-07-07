@@ -1534,7 +1534,18 @@ impl<'a> WebViewBuilder<'a> {
   ///
   /// - Panics if the provided handle was not supported or invalid.
   /// - Panics on Linux, if [`gtk::init`] was not called in this thread.
+  #[cfg(not(target_os = "android"))]
   pub fn build<W: HasWindowHandle>(self, window: &'a W) -> Result<WebView> {
+    self.error?;
+
+    InnerWebView::new(window, self.attrs, self.platform_specific).map(|webview| WebView { webview })
+  }
+
+  #[cfg(target_os = "android")]
+  pub fn build<W>(self, window: &'a W) -> Result<WebView>
+  where
+    W: HasWindowHandle + tao::platform::android::WindowExtAndroid,
+  {
     self.error?;
 
     InnerWebView::new(window, self.attrs, self.platform_specific).map(|webview| WebView { webview })
@@ -1562,7 +1573,19 @@ impl<'a> WebViewBuilder<'a> {
   ///
   /// - Panics if the provided handle was not support or invalid.
   /// - Panics on Linux, if [`gtk::init`] was not called in this thread.
+  #[cfg(not(target_os = "android"))]
   pub fn build_as_child<W: HasWindowHandle>(self, window: &'a W) -> Result<WebView> {
+    self.error?;
+
+    InnerWebView::new_as_child(window, self.attrs, self.platform_specific)
+      .map(|webview| WebView { webview })
+  }
+
+  #[cfg(target_os = "android")]
+  pub fn build_as_child<W>(self, window: &'a W) -> Result<WebView>
+  where
+    W: HasWindowHandle + tao::platform::android::WindowExtAndroid,
+  {
     self.error?;
 
     InnerWebView::new_as_child(window, self.attrs, self.platform_specific)

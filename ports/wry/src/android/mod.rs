@@ -8,7 +8,7 @@
 
 use super::{PageLoadEvent, WebViewAttributes, RGBA};
 use crate::{
-  custom_protocol_workaround, inject_initialization_scripts::inject_scripts_into_html, Error,
+  custom_protocol_workaround, inject_initialization_scripts::inject_scripts_into_html,
   PermissionKind, PermissionResponse, RequestAsyncResponder, Result,
 };
 use crossbeam_channel::*;
@@ -28,12 +28,13 @@ use std::{
   sync::{mpsc::channel, Arc, Mutex},
   time::Duration,
 };
+use tao::platform::android::WindowExtAndroid;
 
 pub(crate) mod binding;
 mod main_pipe;
 use main_pipe::{
-  activity_id_for_window_manager, first_activity_id, register_activity_proxy, ActivityId,
-  CreateWebViewAttributes, MainPipe, WebViewMessage,
+  first_activity_id, register_activity_proxy, ActivityId, CreateWebViewAttributes, MainPipe,
+  WebViewMessage,
 };
 
 use crate::util::Counter;
@@ -154,7 +155,7 @@ pub(crate) struct InnerWebView {
 
 impl InnerWebView {
   pub fn new_as_child(
-    window: &impl HasWindowHandle,
+    window: &(impl HasWindowHandle + WindowExtAndroid),
     attributes: WebViewAttributes,
     pl_attrs: super::PlatformSpecificWebViewAttributes,
   ) -> Result<Self> {
@@ -162,19 +163,11 @@ impl InnerWebView {
   }
 
   pub fn new(
-    window: &impl HasWindowHandle,
+    window: &(impl HasWindowHandle + WindowExtAndroid),
     attributes: WebViewAttributes,
     pl_attrs: super::PlatformSpecificWebViewAttributes,
   ) -> Result<Self> {
-    let window_manager = match window.window_handle()?.as_raw() {
-      raw_window_handle::RawWindowHandle::AndroidNdk(window_manager) => {
-        window_manager.a_native_window
-      }
-      _ => return Err(Error::UnsupportedWindowHandle),
-    };
-    let window_manager = unsafe { JObject::from_raw(window_manager.as_ptr().cast()) };
-    let activity_id =
-      activity_id_for_window_manager(window_manager).expect("no available activity");
+    let activity_id = window.activity_id();
     let WebViewAttributes {
       url,
       html,

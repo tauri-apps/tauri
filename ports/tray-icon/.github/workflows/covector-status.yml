@@ -1,0 +1,20 @@
+# Copyright 2022-2022 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: covector status
+on: [pull_request]
+
+jobs:
+  covector:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: covector status
+        uses: jbolda/covector/packages/action@covector-v0
+        id: covector
+        with:
+          command: "status"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          comment: true

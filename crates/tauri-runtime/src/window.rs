@@ -447,7 +447,7 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Sets the window to be created transient for parent.
   ///
-  /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  /// See <https://docs.gtk.org/gtk4/method.Window.set_transient_for.html>
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -455,7 +455,7 @@ pub trait WindowBuilder: WindowBuilderBase {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self;
+  fn transient_for(self, parent: &impl gtk::glib::object::IsA<gtk::Window>) -> Self;
 
   /// Enables or disables drag and drop support.
   #[cfg(windows)]

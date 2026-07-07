@@ -46,6 +46,27 @@ use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
+#[cfg(any(target_os = "linux", test))]
+const LINUX_DEB_RUNTIME_DEPENDENCIES: &[&str] =
+  &["libwebkitgtk-6.0-4", "libgtk-4-1", "libdbus-1-3"];
+#[cfg(any(target_os = "linux", test))]
+const LINUX_RPM_RUNTIME_LIBRARIES: &[&str] =
+  &["libwebkitgtk-6.0.so.4", "libgtk-4.so.1", "libdbus-1.so.3"];
+
+#[cfg(any(target_os = "linux", test))]
+fn linux_rpm_runtime_dependencies(arch64bits: bool) -> Vec<String> {
+  LINUX_RPM_RUNTIME_LIBRARIES
+    .iter()
+    .map(|lib| {
+      let mut requires = (*lib).to_string();
+      if arch64bits {
+        requires.push_str("()(64bit)");
+      }
+      requires
+    })
+    .collect()
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Options {
   pub runner: Option<RunnerConfig>,
@@ -1371,12 +1392,6 @@ fn tauri_config_to_bundle_settings(
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
-  let enabled_features = settings
-    .manifest
-    .lock()
-    .unwrap()
-    .all_enabled_features(features);
-
   #[allow(unused_mut)]
   let mut resources = config
     .resources
@@ -1393,66 +1408,12 @@ fn tauri_config_to_bundle_settings(
   // set env vars used by the bundler and inject dependencies
   #[cfg(target_os = "linux")]
   {
-    let mut libs: Vec<String> = Vec::new();
-
-    if enabled_features.contains(&"tray-icon".into())
-      || enabled_features.contains(&"tauri/tray-icon".into())
-    {
-      let (tray_kind, path) = std::env::var_os("TAURI_LINUX_AYATANA_APPINDICATOR")
-        .map(|ayatana| {
-          if ayatana == "true" || ayatana == "1" {
-            (
-              pkgconfig_utils::TrayKind::Ayatana,
-              format!(
-                "{}/libayatana-appindicator3.so.1",
-                pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
-                  .expect("failed to get ayatana-appindicator library path using pkg-config.")
-              ),
-            )
-          } else {
-            (
-              pkgconfig_utils::TrayKind::Libappindicator,
-              format!(
-                "{}/libappindicator3.so.1",
-                pkgconfig_utils::get_library_path("appindicator3-0.1")
-                  .expect("failed to get libappindicator-gtk library path using pkg-config.")
-              ),
-            )
-          }
-        })
-        .unwrap_or_else(pkgconfig_utils::get_appindicator_library_path);
-      match tray_kind {
-        pkgconfig_utils::TrayKind::Ayatana => {
-          depends_deb.push("libayatana-appindicator3-1".into());
-          libs.push("libayatana-appindicator3.so.1".into());
-        }
-        pkgconfig_utils::TrayKind::Libappindicator => {
-          depends_deb.push("libappindicator3-1".into());
-          libs.push("libappindicator3.so.1".into());
-        }
-      }
-
-      // conditionally setting it in case the user provided its own version for some reason
-      let path = PathBuf::from(path);
-      if !appimage_files.contains_key(&path) {
-        // manually construct target path, just in case the source path is something unexpected
-        appimage_files.insert(Path::new("/usr/lib/").join(path.file_name().unwrap()), path);
-      }
-    }
-
-    depends_deb.push("libwebkit2gtk-4.1-0".to_string());
-    depends_deb.push("libgtk-3-0".to_string());
-
-    libs.push("libwebkit2gtk-4.1.so.0".into());
-    libs.push("libgtk-3.so.0".into());
-
-    for lib in libs {
-      let mut requires = lib;
-      if arch64bits {
-        requires.push_str("()(64bit)");
-      }
-      depends_rpm.push(requires);
-    }
+    depends_deb.extend(
+      LINUX_DEB_RUNTIME_DEPENDENCIES
+        .iter()
+        .map(|dependency| (*dependency).to_string()),
+    );
+    depends_rpm.extend(linux_rpm_runtime_dependencies(arch64bits));
   }
 
   #[cfg(windows)]
@@ -1700,51 +1661,6 @@ fn tauri_config_to_bundle_settings(
   })
 }
 
-#[cfg(target_os = "linux")]
-mod pkgconfig_utils {
-  use std::process::Command;
-
-  pub enum TrayKind {
-    Ayatana,
-    Libappindicator,
-  }
-
-  pub fn get_appindicator_library_path() -> (TrayKind, String) {
-    match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => (
-        TrayKind::Ayatana,
-        format!("{p}/libayatana-appindicator3.so.1"),
-      ),
-      None => match get_library_path("appindicator3-0.1") {
-        Some(p) => (
-          TrayKind::Libappindicator,
-          format!("{p}/libappindicator3.so.1"),
-        ),
-        None => panic!("Can't detect any appindicator library"),
-      },
-    }
-  }
-
-  /// Gets the folder in which a library is located using `pkg-config`.
-  pub fn get_library_path(name: &str) -> Option<String> {
-    let mut cmd = Command::new("pkg-config");
-    cmd.env("PKG_CONFIG_ALLOW_SYSTEM_LIBS", "1");
-    cmd.arg("--libs-only-L");
-    cmd.arg(name);
-    if let Ok(output) = cmd.output() {
-      if !output.stdout.is_empty() {
-        // output would be "-L/path/to/library\n"
-        let word = output.stdout[2..].to_vec();
-        Some(String::from_utf8_lossy(&word).trim().to_string())
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -1804,6 +1720,40 @@ mod tests {
     assert_eq!(get_cargo_option(&args, "--profile"), Some("holla"));
     assert_eq!(get_cargo_option(&args, "--target-dir"), Some("path/to/dir"));
     assert_eq!(get_cargo_option(&args, "--non-existent"), None);
+  }
+
+  #[test]
+  fn linux_deb_runtime_dependencies_use_gtk4_webkitgtk6_and_ksni() {
+    assert_eq!(
+      LINUX_DEB_RUNTIME_DEPENDENCIES,
+      &["libwebkitgtk-6.0-4", "libgtk-4-1", "libdbus-1-3"]
+    );
+    assert!(!LINUX_DEB_RUNTIME_DEPENDENCIES
+      .iter()
+      .any(|dependency| dependency.contains("webkit2gtk")
+        || dependency.contains("gtk-3")
+        || dependency.contains("appindicator")));
+  }
+
+  #[test]
+  fn linux_rpm_runtime_dependencies_use_gtk4_webkitgtk6_and_ksni() {
+    assert_eq!(
+      linux_rpm_runtime_dependencies(false),
+      ["libwebkitgtk-6.0.so.4", "libgtk-4.so.1", "libdbus-1.so.3"]
+    );
+    assert_eq!(
+      linux_rpm_runtime_dependencies(true),
+      [
+        "libwebkitgtk-6.0.so.4()(64bit)",
+        "libgtk-4.so.1()(64bit)",
+        "libdbus-1.so.3()(64bit)"
+      ]
+    );
+    assert!(!LINUX_RPM_RUNTIME_LIBRARIES
+      .iter()
+      .any(|library| library.contains("webkit2gtk")
+        || library.contains("gtk-3")
+        || library.contains("appindicator")));
   }
 
   #[test]

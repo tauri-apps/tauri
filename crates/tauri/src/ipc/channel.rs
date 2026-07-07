@@ -56,7 +56,7 @@ const _: () = {
   #[derive(specta::Type)]
   #[specta(remote = super::Channel)]
   #[allow(dead_code, non_camel_case_types)]
-  struct TAURI_CHANNEL<TSend>(std::marker::PhantomData<TSend>);
+  struct TAURI_CHANNEL<TSend>(#[specta(skip)] std::marker::PhantomData<TSend>);
 };
 
 impl<TSend> Clone for Channel<TSend> {

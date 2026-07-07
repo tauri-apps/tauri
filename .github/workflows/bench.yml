@@ -50,12 +50,12 @@ jobs:
           components: rust-src
           targets: ${{ matrix.platform.target }}
 
-      - name: install webkit2gtk and xvfb (ubuntu only)
+      - name: install WebKitGTK and xvfb (ubuntu only)
         if: contains(matrix.platform.target, 'gnu')
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            webkit2gtk-4.1 libayatana-appindicator3-dev \
+            libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev \
             xvfb \
             at-spi2-core
 

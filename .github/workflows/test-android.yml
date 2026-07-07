@@ -40,7 +40,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
 
       - run: npm i -g --force corepack
       - name: setup node

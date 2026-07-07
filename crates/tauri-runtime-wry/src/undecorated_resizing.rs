@@ -506,123 +506,83 @@ mod gtk {
   const BORDERLESS_RESIZE_INSET: i32 = 5;
 
   impl HitTestResult {
-    fn to_gtk_edge(self) -> gtk::gdk::WindowEdge {
+    fn to_gtk_edge(self) -> gtk::gdk::SurfaceEdge {
       match self {
-        HitTestResult::Client | HitTestResult::NoWhere => gtk::gdk::WindowEdge::__Unknown(0),
-        HitTestResult::Left => gtk::gdk::WindowEdge::West,
-        HitTestResult::Right => gtk::gdk::WindowEdge::East,
-        HitTestResult::Top => gtk::gdk::WindowEdge::North,
-        HitTestResult::Bottom => gtk::gdk::WindowEdge::South,
-        HitTestResult::TopLeft => gtk::gdk::WindowEdge::NorthWest,
-        HitTestResult::TopRight => gtk::gdk::WindowEdge::NorthEast,
-        HitTestResult::BottomLeft => gtk::gdk::WindowEdge::SouthWest,
-        HitTestResult::BottomRight => gtk::gdk::WindowEdge::SouthEast,
+        HitTestResult::Client | HitTestResult::NoWhere => gtk::gdk::SurfaceEdge::__Unknown(8),
+        HitTestResult::Left => gtk::gdk::SurfaceEdge::West,
+        HitTestResult::Right => gtk::gdk::SurfaceEdge::East,
+        HitTestResult::Top => gtk::gdk::SurfaceEdge::North,
+        HitTestResult::Bottom => gtk::gdk::SurfaceEdge::South,
+        HitTestResult::TopLeft => gtk::gdk::SurfaceEdge::NorthWest,
+        HitTestResult::TopRight => gtk::gdk::SurfaceEdge::NorthEast,
+        HitTestResult::BottomLeft => gtk::gdk::SurfaceEdge::SouthWest,
+        HitTestResult::BottomRight => gtk::gdk::SurfaceEdge::SouthEast,
       }
     }
   }
 
   pub fn attach_resize_handler(webview: &wry::WebView) {
     use gtk::{
-      gdk::{prelude::*, WindowEdge},
-      glib::Propagation,
+      gdk::{self, SurfaceEdge},
       prelude::*,
+      GestureClick,
     };
     use wry::WebViewExtUnix;
 
     let webview = webview.webview();
+    let click_controller = GestureClick::new();
+    click_controller.set_button(gdk::BUTTON_PRIMARY);
 
-    webview.add_events(
-      gtk::gdk::EventMask::BUTTON1_MOTION_MASK
-        | gtk::gdk::EventMask::BUTTON_PRESS_MASK
-        | gtk::gdk::EventMask::TOUCH_MASK,
-    );
+    let webview_ = webview.clone();
+    click_controller.connect_pressed(move |event, _, x, y| {
+      let Some(window) = webview_
+        .root()
+        .and_then(|root| root.downcast::<gtk::Window>().ok())
+      else {
+        return;
+      };
 
-    webview.connect_button_press_event(
-      move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventButton| {
-        if event.button() == 1 {
-          // This one should be GtkBox
-          if let Some(window) = webview.parent().and_then(|w| w.parent()) {
-            // Safe to unwrap unless this is not from tao
-            let window: gtk::Window = window.downcast().unwrap();
-            if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
-              if let Some(window) = window.window() {
-                let (root_x, root_y) = event.root();
-                let (window_x, window_y) = window.position();
-                let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
-                let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
-                let edge = hit_test(
-                  0.0,
-                  0.0,
-                  window.width() as f64,
-                  window.height() as f64,
-                  client_x,
-                  client_y,
-                  border as _,
-                  border as _,
-                )
-                .to_gtk_edge();
+      if window.is_decorated() || !window.is_resizable() || window.is_maximized() {
+        return;
+      }
 
-                // we ignore the `__Unknown` variant so the webview receives the click correctly if it is not on the edges.
-                match edge {
-                  WindowEdge::__Unknown(_) => (),
-                  _ => {
-                    window.begin_resize_drag(edge, 1, root_x as i32, root_y as i32, event.time())
-                  }
-                }
-              }
+      let Some((client_x, client_y)) = webview_.translate_coordinates(&window, x, y) else {
+        return;
+      };
+
+      let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
+      let edge = hit_test(
+        0.0,
+        0.0,
+        window.width() as f64,
+        window.height() as f64,
+        client_x,
+        client_y,
+        border as _,
+        border as _,
+      )
+      .to_gtk_edge();
+
+      // Ignore the `__Unknown` variant so the webview receives the click correctly if it is not on the edges.
+      match edge {
+        SurfaceEdge::__Unknown(_) => (),
+        _ => {
+          if let Some(surface) = window.surface() {
+            if let Ok(toplevel) = surface.downcast::<gdk::Toplevel>() {
+              toplevel.begin_resize(
+                edge,
+                event.device().as_ref(),
+                event.button() as i32,
+                client_x,
+                client_y,
+                event.current_event_time(),
+              );
             }
           }
         }
+      }
+    });
 
-        Propagation::Proceed
-      },
-    );
-
-    webview.connect_touch_event(
-      move |webview: &webkit2gtk::WebView, event: &gtk::gdk::Event| {
-        // This one should be GtkBox
-        if let Some(window) = webview.parent().and_then(|w| w.parent()) {
-          // Safe to unwrap unless this is not from tao
-          let window: gtk::Window = window.downcast().unwrap();
-          if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
-            if let Some(window) = window.window() {
-              if let Some((root_x, root_y)) = event.root_coords() {
-                if let Some(device) = event.device() {
-                  let (window_x, window_y) = window.position();
-                  let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
-                  let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
-                  let edge = hit_test(
-                    0.0,
-                    0.0,
-                    window.width() as f64,
-                    window.height() as f64,
-                    client_x,
-                    client_y,
-                    border as _,
-                    border as _,
-                  )
-                  .to_gtk_edge();
-
-                  // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
-                  match edge {
-                    WindowEdge::__Unknown(_) => (),
-                    _ => window.begin_resize_drag_for_device(
-                      edge,
-                      &device,
-                      0,
-                      root_x as i32,
-                      root_y as i32,
-                      event.time(),
-                    ),
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        Propagation::Proceed
-      },
-    );
+    webview.add_controller(click_controller);
   }
 }

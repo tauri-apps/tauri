@@ -149,11 +149,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for file in [
     "WebKitNetworkProcess",
     "WebKitWebProcess",
-    "injected-bundle/libwebkit2gtkinjectedbundle.so",
+    "injected-bundle/libwebkitgtkinjectedbundle.so",
   ] {
     for source in search_dirs.map(PathBuf::from) {
       // TODO: Check if it's the same dir name on all systems
-      let source = source.join("webkit2gtk-4.1").join(file);
+      let source = source.join("webkitgtk-6.0").join(file);
       if source.exists() {
         fs_utils::copy_file(
           &source,

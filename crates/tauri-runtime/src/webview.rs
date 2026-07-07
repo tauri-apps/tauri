@@ -101,7 +101,7 @@ pub struct NewWindowOpener {
     target_os = "netbsd",
     target_os = "openbsd",
   ))]
-  pub webview: webkit2gtk::WebView,
+  pub webview: webkit::WebView,
   /// The instance of the webview that initiated the new window request.
   ///
   /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::with_environment`].
@@ -417,7 +417,7 @@ pub struct WebviewAttributes {
     target_os = "netbsd",
     target_os = "openbsd",
   ))]
-  pub related_view: Option<webkit2gtk::WebView>,
+  pub related_view: Option<webkit::WebView>,
 
   #[cfg(target_os = "macos")]
   pub webview_configuration: Option<objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>>,

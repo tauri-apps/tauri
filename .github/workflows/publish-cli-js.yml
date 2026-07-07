@@ -209,7 +209,7 @@ jobs:
         if: ${{ endsWith(matrix.target, 'gnu') }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev librsvg2-dev
 
       - name: Setup and run tests (gnu)
         if: ${{ endsWith(matrix.target, 'gnu') }}

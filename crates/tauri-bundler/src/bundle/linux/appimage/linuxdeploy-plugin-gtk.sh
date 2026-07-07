@@ -87,7 +87,7 @@ search_tool() {
 }
 
 #DEPLOY_GTK_VERSION="${DEPLOY_GTK_VERSION:-0}" # When not set by user, this variable use the integer '0' as a sentinel value
-DEPLOY_GTK_VERSION=3 # Force GTK3 for tauri apps
+DEPLOY_GTK_VERSION=4 # Force GTK4 for tauri apps
 APPDIR=
 
 while [ "$1" != "" ]; do
@@ -324,4 +324,3 @@ EOF
 
 #binary patch absolute paths in libwebkit files
 find "$APPDIR"/usr/lib* -name 'libwebkit*' -exec sed -i -e "s|/usr|././|g" '{}' \;
-

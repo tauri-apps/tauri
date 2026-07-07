@@ -34,6 +34,7 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
 ]
+exclude = ["ports/muda", "ports/tao", "ports/tray-icon", "ports/wry"]
 resolver = "2"
 
 [workspace.package]
@@ -68,7 +69,11 @@ opt-level = "s"
 # Temporary patch to schemars to preserve newlines in docstrings for our reference docs schemas
 # See https://github.com/GREsau/schemars/issues/120 for reference
 [patch.crates-io]
+muda = { path = "./ports/muda" }
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
+tao = { path = "./ports/tao" }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
+tray-icon = { path = "./ports/tray-icon" }
+wry = { path = "./ports/wry" }

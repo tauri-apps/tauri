@@ -152,7 +152,7 @@ pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
 #[cfg(feature = "wry")]
 impl PlatformWebview {
-  /// Returns [`webkit2gtk::WebView`] handle.
+  /// Returns [`webkit::WebView`] handle.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -170,7 +170,7 @@ impl PlatformWebview {
       target_os = "openbsd"
     )))
   )]
-  pub fn inner(&self) -> webkit2gtk::WebView {
+  pub fn inner(&self) -> webkit::WebView {
     self.0.clone()
   }
 
@@ -1273,7 +1273,7 @@ fn main() {
       target_os = "openbsd",
     )
   ))]
-  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
+  pub fn with_related_view(mut self, related_view: webkit::WebView) -> Self {
     self.webview_attributes.related_view.replace(related_view);
     self
   }
@@ -1609,7 +1609,7 @@ impl<R: Runtime> Webview<R> {
   ///
   /// The closure is executed on the main thread.
   ///
-  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
+  /// Note that `webview2-com`, `webkit`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
   ///
   /// # Examples
@@ -1626,9 +1626,9 @@ tauri::Builder::default()
     main_webview.with_webview(|webview| {
       #[cfg(target_os = "linux")]
       {
-        // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
-        // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
-        use webkit2gtk::WebViewExt;
+        // see <https://docs.rs/webkit6/latest/webkit6/struct.WebView.html>
+        // and <https://docs.rs/webkit6/latest/webkit6/prelude/trait.WebViewExt.html>
+        use webkit::prelude::WebViewExt;
         webview.inner().set_zoom_level(4.);
       }
 

@@ -759,7 +759,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   #[must_use]
-  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::object::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for(parent);
     self
   }

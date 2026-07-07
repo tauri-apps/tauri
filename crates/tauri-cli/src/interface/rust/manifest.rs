@@ -18,7 +18,6 @@ use std::{
 #[derive(Default)]
 pub struct Manifest {
   pub inner: DocumentMut,
-  pub tauri_features: HashSet<String>,
 }
 
 impl Manifest {
@@ -46,37 +45,6 @@ impl Manifest {
 
     f
   }
-
-  pub fn all_enabled_features(&self, enabled_features: &[String]) -> Vec<String> {
-    let mut all_enabled_features: Vec<String> = self
-      .tauri_features
-      .iter()
-      .map(|f| format!("tauri/{f}"))
-      .collect();
-
-    let manifest_features = self.features();
-    for f in enabled_features {
-      all_enabled_features.extend(get_enabled_features(&manifest_features, f));
-    }
-
-    all_enabled_features
-  }
-}
-
-fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> Vec<String> {
-  let mut f = Vec::new();
-
-  if let Some(enabled_features) = list.get(feature) {
-    for enabled in enabled_features {
-      if list.contains_key(enabled) {
-        f.extend(get_enabled_features(list, enabled));
-      } else {
-        f.push(enabled.clone());
-      }
-    }
-  }
-
-  f
 }
 
 pub fn read_manifest(manifest_path: &Path) -> crate::Result<(DocumentMut, String)> {
@@ -301,32 +269,14 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
 
   let persist = inject_features(&mut manifest, &mut dependencies)?;
 
-  let tauri_features = dependencies
-    .into_iter()
-    .find(|d| d.name == "tauri")
-    .unwrap()
-    .features;
-
   let new_manifest_str = serialize_manifest(&manifest);
 
   if persist && original_manifest_str != new_manifest_str {
     std::fs::write(&manifest_path, new_manifest_str)
       .fs_context("failed to rewrite Cargo manifest", &manifest_path)?;
-    Ok((
-      Manifest {
-        inner: manifest,
-        tauri_features,
-      },
-      true,
-    ))
+    Ok((Manifest { inner: manifest }, true))
   } else {
-    Ok((
-      Manifest {
-        inner: manifest,
-        tauri_features,
-      },
-      false,
-    ))
+    Ok((Manifest { inner: manifest }, false))
   }
 }
 

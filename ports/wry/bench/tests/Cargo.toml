@@ -1,0 +1,31 @@
+workspace = {}
+
+[package]
+name = "hello_world"
+version = "0.1.0"
+description = "A very simple WRY Appplication"
+edition = "2018"
+
+[dependencies]
+wry = { path = "../../" }
+serde = { version = "1.0", features = ["derive"] }
+tao = "0.35"
+
+[[bin]]
+name = "bench_hello_world"
+path = "src/hello_world.rs"
+
+[[bin]]
+name = "bench_cpu_intensive"
+path = "src/cpu_intensive.rs"
+
+[[bin]]
+name = "bench_custom_protocol"
+path = "src/custom_protocol.rs"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "s"

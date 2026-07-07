@@ -1,0 +1,77 @@
+{
+  "gitSiteUrl": "https://github.com/tauri-apps/tao/",
+  "timeout": 3600000,
+  "additionalBumpTypes": ["housekeeping"],
+  "pkgManagers": {
+    "rust": {
+      "version": true,
+      "getPublishedVersion": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://crates.io/api/v1/crates/${ pkg.pkg }/${ pkg.pkgFile.version }"
+        }
+      },
+      "prepublish": [
+        {
+          "command": "cargo install cargo-audit --features=fix",
+          "dryRunCommand": true
+        },
+        {
+          "command": "echo '<details>\n<summary><em><h4>Cargo Audit</h4></em></summary>\n\n```'",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo generate-lockfile",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo audit ${ process.env.CARGO_AUDIT_OPTIONS || '' }",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo '```\n\n</details>\n'",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "publish": [
+        {
+          "command": "echo '<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```'",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo publish --no-verify --allow-dirty",
+          "dryRunCommand": "cargo publish --no-verify --allow-dirty --dry-run",
+          "pipe": true
+        },
+        {
+          "command": "echo '```\n\n</details>\n'",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "postpublish": [
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
+        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
+        "git push --tags -f"
+      ]
+    }
+  },
+  "packages": {
+    "tao-macros": {
+      "path": "./tao-macros",
+      "manager": "rust"
+    },
+    "tao": {
+      "path": "./",
+      "manager": "rust",
+      "dependencies": ["tao-macros"]
+    }
+  }
+}

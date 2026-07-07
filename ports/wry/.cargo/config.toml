@@ -1,0 +1,4 @@
+# [build]
+# target = "aarch64-linux-android"
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-mmacosx-version-min=10.12"]

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <p>Enter a path to a video to play, then hit Enter or click Start</p>
+    <form id="form-el">
+      <input id="input-el" />
+      <button type="submit">Start</button>
+    </form>
+    <video id="video-el" autoplay controls></video>
+  </body>
+
+  <script>
+    function convertFileSrc(filePath) {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const android = userAgent.indexOf("android") > -1;
+      const windows = userAgent.indexOf("windows") > -1;
+
+      const path = encodeURIComponent(filePath);
+      return windows || android
+        ? `http://stream.localhost/${path}`
+        : `stream://localhost/${path}`;
+    }
+
+    const formEl = document.querySelector("#form-el");
+    const inputEl = document.querySelector("#input-el");
+    const videoEl = document.querySelector("#video-el");
+
+    formEl.addEventListener("submit", (e) => {
+      e.preventDefault();
+      videoEl.src = convertFileSrc(inputEl.value);
+    });
+  </script>
+</html>

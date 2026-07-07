@@ -1,0 +1,8 @@
+# Current WG Code Sub Teams:
+# @tauri-apps/wg-webview
+# @tauri-apps/wg-devops
+
+# Order is important; the last matching pattern takes the most precedence.
+* @tauri-apps/wg-webview
+
+.github @tauri-apps/wg-devops

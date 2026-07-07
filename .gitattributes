@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+*.rs text eol=lf
+*.toml text eol=lf
+Cargo.lock text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.svg text eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf

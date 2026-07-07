@@ -1,0 +1,139 @@
+name: CI
+
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          # Windows
+          - { id: windows, target: x86_64-pc-windows-msvc, os: windows-latest }
+          # Ubuntu with default features
+          - { id: ubuntu, target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          # macOS
+          - { id: macos, target: x86_64-apple-darwin, os: macos-latest }
+          # Android on Ubuntu
+          - {
+              id: android,
+              target: aarch64-linux-android,
+              os: ubuntu-latest,
+              cmd: "apk --",
+            }
+          # iOS on Ubuntu
+          - { id: ios, target: aarch64-apple-ios, os: macos-latest }
+        features:
+          - "" # default features
+          - "serde" # serde + default features
+          - "rwh_04,rwh_05,rwh_06" # rwh features
+
+    env:
+      RUST_BACKTRACE: 1
+      CARGO_INCREMENTAL: 0
+      RUSTFLAGS: "-C debuginfo=0"
+      OPTIONS: ${{ matrix.platform.options }}
+      FEATURES: ${{ format(',{0}', matrix.features ) }}
+      CMD: ${{ matrix.platform.cmd }}
+
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Gtk (ubuntu only)
+        if: matrix.platform.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libdbus-1-dev
+
+      - name: Install GCC Multilib
+        if: (matrix.platform.os == 'ubuntu-latest') && contains(matrix.platform.target, 'i686')
+        run: sudo apt-get install gcc-multilib
+
+      - name: Install cargo-apk
+        if: contains(matrix.platform.target, 'android')
+        run: cargo install cargo-apk
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.92"
+          targets: ${{ matrix.platform.target }}
+
+      - name: Check documentation
+        shell: bash
+        run: cargo $CMD doc --no-deps --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+      - name: Build
+        shell: bash
+        run: cargo $CMD build --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+      - name: Build tests
+        shell: bash
+        run: cargo $CMD test --no-run --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+      - name: Run tests
+        shell: bash
+        if: (
+          !contains(matrix.platform.target, 'android') &&
+          !contains(matrix.platform.target, 'ios'))
+        run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+      - name: Build with all features enabled
+        shell: bash
+        run: cargo $CMD build --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+      - name: Build tests with all features enabled
+        shell: bash
+        run: cargo $CMD test --no-run --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+      - name: Run tests with all features enabled
+        shell: bash
+        if: (
+          !contains(matrix.platform.target, 'android') &&
+          !contains(matrix.platform.target, 'ios'))
+        run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+      - uses: dtolnay/rust-toolchain@nightly
+        if: (
+          !contains(matrix.platform.target, 'android') &&
+          !contains(matrix.platform.target, 'ios'))
+        with:
+          targets: ${{ matrix.platform.target }}
+          components: miri
+
+      - name: Run tests with miri
+        if: (
+          !contains(matrix.platform.target, 'android') &&
+          !contains(matrix.platform.target, 'ios'))
+        shell: bash
+        run: cargo +nightly miri test --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+  test_tao_macros:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        shell: bash
+        run: cargo test --package tao-macros --examples
+
+  fmt:
+    name: fmt check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --all -- --check

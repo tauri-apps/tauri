@@ -1,0 +1,64 @@
+name: covector version or publish
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  version-or-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    outputs:
+      change: ${{ steps.covector.outputs.change }}
+      commandRan: ${{ steps.covector.outputs.commandRan }}
+      successfulPublish: ${{ steps.covector.outputs.successfulPublish }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # required for use of git history
+
+      - name: cargo login
+        run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}
+
+      - name: git config
+        run: |
+          git config --global user.name "${{ github.event.pusher.name }}"
+          git config --global user.email "${{ github.event.pusher.email }}"
+
+      - name: covector version or publish (publish when no change files present)
+        uses: jbolda/covector/packages/action@covector-v0
+        id: covector
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          command: "version-or-publish"
+          createRelease: true
+          recognizeContributors: true
+
+      - name: install cargo-readme
+        if: steps.covector.outputs.commandRan == 'version'
+        run: cargo install cargo-readme --locked
+
+      - run: cargo readme --no-title --no-license > README.md
+        if: steps.covector.outputs.commandRan == 'version'
+
+      - name: Sync Cargo.lock
+        if: steps.covector.outputs.commandRan == 'version'
+        run: cargo tree --depth 0
+
+      - name: Create Pull Request With Versions Bumped
+        id: cpr
+        uses: peter-evans/create-pull-request@dd2324fc52d5d43c699a5636bcf19fceaa70c284 # 7.0.7
+        if: steps.covector.outputs.commandRan == 'version'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: Apply Version Updates From Current Changes
+          commit-message: "apply version updates"
+          labels: "version updates"
+          branch: "ci/pending-release"
+          body: ${{ steps.covector.outputs.change }}
+          sign-commits: true

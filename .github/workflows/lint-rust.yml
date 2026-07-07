@@ -32,18 +32,23 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             cargo: 'cargo'
+            exclude: ''
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             cargo: 'cargo'
+            exclude: ''
           - target: aarch64-apple-darwin
             os: macos-latest
             cargo: 'cargo'
+            exclude: ''
           - target: aarch64-apple-ios
             os: macos-latest
             cargo: 'cargo'
+            exclude: '--exclude tauri-bundler --exclude tauri-cli'
           - target: aarch64-linux-android
             os: ubuntu-latest
             cargo: 'cross'
+            exclude: '--exclude tauri-bundler --exclude tauri-cli'
 
     runs-on: ${{ matrix.platform.os }}
 
@@ -72,4 +77,4 @@ jobs:
         with:
           key: ${{ matrix.platform.target }}
 
-      - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} --all-targets --all-features -- -D warnings
+      - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} --workspace ${{ matrix.platform.exclude }} --all-targets --all-features -- -D warnings

@@ -53,6 +53,7 @@ jobs:
       - name: install WebKitGTK and xvfb (ubuntu only)
         if: contains(matrix.platform.target, 'gnu')
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev \

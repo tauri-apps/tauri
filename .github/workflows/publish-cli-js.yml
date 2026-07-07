@@ -57,6 +57,7 @@ jobs:
             target: aarch64-unknown-linux-gnu
             build: pnpm build --target=aarch64-unknown-linux-gnu --cross-compile
             setup: |
+              sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
               sudo apt-get update
               sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
           - host: ubuntu-latest
@@ -69,6 +70,7 @@ jobs:
             target: riscv64gc-unknown-linux-gnu
             build: pnpm build --target=riscv64gc-unknown-linux-gnu --cross-compile
             setup: |
+              sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
               sudo apt-get update
               sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
     name: stable - ${{ matrix.settings.target }} - node@20
@@ -208,6 +210,7 @@ jobs:
       - name: install system dependencies (gnu)
         if: ${{ endsWith(matrix.target, 'gnu') }}
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
           sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev librsvg2-dev
 

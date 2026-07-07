@@ -133,6 +133,7 @@ jobs:
 
       - name: install dependencies
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
           sudo apt-get install -y libgtk-4-dev
 
@@ -148,6 +149,7 @@ jobs:
 
       - name: Install required packages
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
           sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev
 

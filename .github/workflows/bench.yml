@@ -87,6 +87,8 @@ jobs:
           cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml
 
       - name: run benchmarks
+        env:
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: ${{ contains(matrix.platform.target, 'gnu') && '1' || '' }}
         run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark
 
       - name: clone benchmarks_results

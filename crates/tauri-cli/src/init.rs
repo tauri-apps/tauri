@@ -200,34 +200,62 @@ pub fn command(mut options: Options) -> Result<()> {
       template_target_path
     );
   } else {
-    let (tauri_dep, tauri_build_dep, tauri_utils_dep, tauri_plugin_dep) =
-      if let Some(tauri_path) = &options.tauri_path {
-        (
-          format!(
-            r#"{{  path = {:?} }}"#,
-            resolve_tauri_path(tauri_path, "crates/tauri")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-build")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-utils")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-plugin")
-          ),
-        )
-      } else {
-        (
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
-          r#"{{ version = "2" }}"#.to_string(),
-          r#"{{ version = "2" }}"#.to_string(),
-        )
-      };
+    let (
+      tauri_dep,
+      tauri_build_dep,
+      tauri_utils_dep,
+      tauri_plugin_dep,
+      muda_dep,
+      tao_dep,
+      tray_icon_dep,
+      wry_dep,
+    ) = if let Some(tauri_path) = &options.tauri_path {
+      (
+        format!(
+          r#"{{  path = {:?} }}"#,
+          resolve_tauri_path(tauri_path, "crates/tauri")
+        ),
+        format!(
+          "{{  path = {:?} }}",
+          resolve_tauri_path(tauri_path, "crates/tauri-build")
+        ),
+        format!(
+          "{{  path = {:?} }}",
+          resolve_tauri_path(tauri_path, "crates/tauri-utils")
+        ),
+        format!(
+          "{{  path = {:?} }}",
+          resolve_tauri_path(tauri_path, "crates/tauri-plugin")
+        ),
+        format!(
+          "{{  path = {:?} }}",
+          resolve_tauri_path(tauri_path, "ports/muda")
+        ),
+        format!(
+          "{{  path = {:?} }}",
+          resolve_tauri_path(tauri_path, "ports/tao")
+        ),
+        format!(
+          "{{  path = {:?} }}",
+          resolve_tauri_path(tauri_path, "ports/tray-icon")
+        ),
+        format!(
+          "{{  path = {:?} }}",
+          resolve_tauri_path(tauri_path, "ports/wry")
+        ),
+      )
+    } else {
+      (
+        format!(r#"{{ version = "{}" }}"#, metadata.tauri),
+        format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
+        r#"{{ version = "2" }}"#.to_string(),
+        r#"{{ version = "2" }}"#.to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+      )
+    };
 
     let _ = remove_dir_all(&template_target_path);
     let mut handlebars = Handlebars::new();
@@ -241,6 +269,10 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
     data.insert("tauri_utils_dep", to_json(tauri_utils_dep));
     data.insert("tauri_plugin_dep", to_json(tauri_plugin_dep));
+    data.insert("muda_dep", to_json(muda_dep));
+    data.insert("tao_dep", to_json(tao_dep));
+    data.insert("tray_icon_dep", to_json(tray_icon_dep));
+    data.insert("wry_dep", to_json(wry_dep));
     data.insert(
       "frontend_dist",
       to_json(options.frontend_dist.as_deref().unwrap_or("../dist")),

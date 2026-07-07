@@ -25,7 +25,11 @@ tauri = {{  tauri_dep  }}
 tauri-plugin-log = "2"
 {{#if patch_tauri_dep}}
 [patch.crates-io]
+muda = {{ muda_dep }}
+tao = {{ tao_dep }}
 tauri = {{ tauri_dep }}
 tauri-utils = {{ tauri_utils_dep }}
 tauri-plugin = {{ tauri_plugin_dep }}
+tray-icon = {{ tray_icon_dep }}
+wry = {{ wry_dep }}
 {{/if}}

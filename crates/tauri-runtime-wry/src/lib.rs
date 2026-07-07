@@ -5155,7 +5155,7 @@ You may have it installed on another user account, but it is not available for t
       target_os = "ios",
       target_os = "android"
     ))]
-    WebviewKind::WindowChild => webview_builder.build_as_child(&window),
+    WebviewKind::WindowChild => webview_builder.build_as_child(window),
     WebviewKind::WindowContent => {
       #[cfg(any(
         target_os = "windows",
@@ -5163,7 +5163,7 @@ You may have it installed on another user account, but it is not available for t
         target_os = "ios",
         target_os = "android"
       ))]
-      let builder = webview_builder.build(&window);
+      let builder = webview_builder.build(window);
       #[cfg(not(any(
         target_os = "windows",
         target_os = "macos",

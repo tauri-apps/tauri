@@ -44,7 +44,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 ## Development Guide
 
-**NOTE: If you have any question don't hesitate to ask in our Discord server. We try to keep this guide to up guide, but if something doesn't work let us know.**
+**NOTE: If you have any question don't hesitate to ask in our Discord server. We try to keep this guide up to date, but if something doesn't work let us know.**
 
 ### General Setup
 

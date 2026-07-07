@@ -6,7 +6,7 @@
 
 ## Introduction
 
-Tauri is a polyglot and generic toolkit that is very composable and allows engineers to make a wide variety of applications. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developers can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.
+Tauri is a polyglot and generic toolkit that is very composable and allows engineers to make a wide variety of applications. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developrs can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.
 
 Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the OS's webview. They do not ship a runtime, since the final binary is compiled from Rust. This makes the reversing of Tauri apps not a trivial task.
 
@@ -121,7 +121,7 @@ Here are several examples of Tauri Plugins:
 
 ## What does the Development flow look like?
 
-A developer must first install the prerequisite toolchains for creating a Tauri app. At the very least this will entail installing rust & cargo, and most likely also a modern version of node.js and potentially another package manager. Some platforms may also require other tooling and libraries, but this has been documented carefully in the respective platform docs.
+A developr must first install the prerequisite toolchains for creating a Tauri app. At the very least this will entail installing rust & cargo, and most likely also a modern version of node.js and potentially another package manager. Some platforms may also require other tooling and libraries, but this has been documented carefully in the respective platform docs.
 
 Because of the many ways to build front-ends, we will stick with a common node.js based approach for development. (Note: Tauri does not by default ship a node.js runtime.)
 
@@ -164,9 +164,9 @@ pnpm tauri info
 
 ## What does the Release flow look like?
 
-The release flow begins with proper configuration in the `tauri.conf.json` file. In this file, the developer can configure not only the basic behaviour of the application (like window size and decoration), they can also provide settings for signing and updating.
+The release flow begins with proper configuration in the `tauri.conf.json` file. In this file, the developr can configure not only the basic behaviour of the application (like window size and decoration), they can also provide settings for signing and updating.
 
-Depending upon the operating system that the developer (or CI) is building the application on, there will be an app built for them for that system. (Cross compilation is not currently available, however there is an official [GitHub Action](https://github.com/tauri-apps/tauri-action) that can be used to build for all platforms.)
+Depending upon the operating system that the developr (or CI) is building the application on, there will be an app built for them for that system. (Cross compilation is not currently available, however there is an official [GitHub Action](https://github.com/tauri-apps/tauri-action) that can be used to build for all platforms.)
 
 To kick off this process, just:
 
@@ -182,7 +182,7 @@ End users will be provided with binaries in ways that are appropriate for their 
 
 ## What does the Updating flow look like?
 
-When a new version is ready, the developer publishes the new signed artifacts to a server (that they have configured within `tauri.conf.json`).
+When a new version is ready, the developr publishes the new signed artifacts to a server (that they have configured within `tauri.conf.json`).
 
 The application can poll this server to see if there is a new release. When there is a new release, the user is prompted to update. The application update is downloaded, verified (checksum & signature), updated, closed, and restarted.
 

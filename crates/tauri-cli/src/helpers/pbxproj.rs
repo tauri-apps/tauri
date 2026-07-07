@@ -69,7 +69,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
               // multiline value
               let value = if value == "(" {
                 let mut value = value.to_string();
-                while let Some((_next_line_number, next_line)) = iter.next() {
+                for (_next_line_number, next_line) in iter.by_ref() {
                   value.push_str(next_line);
                   value.push('\n');
 

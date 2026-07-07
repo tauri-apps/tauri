@@ -8,7 +8,7 @@
 
 use gtk4::gdk_pixbuf::{Colorspace, Pixbuf};
 
-use crate::window::BadIcon;
+use crate::icon::{BadIcon, RgbaIcon};
 
 /// An icon used for the window titlebar, taskbar, etc.
 #[derive(Debug, Clone)]
@@ -39,13 +39,49 @@ impl PlatformIcon {
   /// The length of `rgba` must be divisible by 4, and `width * height` must equal
   /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
   pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-    let row_stride =
-      Pixbuf::calculate_rowstride(Colorspace::Rgb, true, 8, width as i32, height as i32);
+    let icon = RgbaIcon::from_rgba(rgba, width, height)?;
+    let row_stride = Pixbuf::calculate_rowstride(
+      Colorspace::Rgb,
+      true,
+      8,
+      icon.width as i32,
+      icon.height as i32,
+    );
     Ok(Self {
-      raw: rgba,
-      width: width as i32,
-      height: height as i32,
+      raw: icon.rgba,
+      width: icon.width as i32,
+      height: icon.height as i32,
       row_stride,
     })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn from_rgba_rejects_non_rgba_buffer() {
+    let error = PlatformIcon::from_rgba(vec![0; 3], 1, 1).unwrap_err();
+
+    assert!(matches!(
+      error,
+      BadIcon::ByteCountNotDivisibleBy4 { byte_count: 3 }
+    ));
+  }
+
+  #[test]
+  fn from_rgba_rejects_dimension_mismatch() {
+    let error = PlatformIcon::from_rgba(vec![0; 4], 2, 1).unwrap_err();
+
+    assert!(matches!(
+      error,
+      BadIcon::DimensionsVsPixelCount {
+        width: 2,
+        height: 1,
+        width_x_height: 2,
+        pixel_count: 1,
+      }
+    ));
   }
 }

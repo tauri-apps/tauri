@@ -870,10 +870,16 @@ pub enum WindowRequest {
   BadgeCount(Option<i64>, Option<String>),
   SetTheme(Option<Theme>),
   BackgroundColor(CssProvider, Option<RGBA>),
+  Destroy,
 }
 
 impl Drop for Window {
   fn drop(&mut self) {
-    self.window.destroy();
+    if let Err(e) = self
+      .window_requests_tx
+      .send_blocking((self.window_id, WindowRequest::Destroy))
+    {
+      log::warn!("Fail to send destroy request: {e}");
+    }
   }
 }

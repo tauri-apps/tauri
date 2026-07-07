@@ -444,6 +444,7 @@ impl<T: 'static> EventLoop<T> {
                 );
               }
             }
+            WindowRequest::Destroy => window.destroy(),
             WindowRequest::CursorIcon(cursor) => match cursor {
               Some(cr) => window.set_cursor(Cursor::from_name(cr.to_str(), None).as_ref()),
               None => window.set_cursor(Cursor::from_name("none", None).as_ref()),

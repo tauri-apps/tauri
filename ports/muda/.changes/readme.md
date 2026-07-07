@@ -10,7 +10,7 @@ Use the following format:
 
 ```md
 ---
-"muda": patch
+'muda': patch
 ---
 
 Change summary goes here

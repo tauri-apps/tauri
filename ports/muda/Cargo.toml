@@ -10,7 +10,14 @@ repository = "https://github.com/tauri-apps/muda"
 documentation = "https://docs.rs/muda"
 categories = ["gui"]
 rust-version = "1.92"
-include = ["README.md", "src/**/*.rs", "Cargo.toml", "LICENSE-APACHE", "LICENSE-MIT", "LICENSE.spdx"]
+include = [
+  "README.md",
+  "src/**/*.rs",
+  "Cargo.toml",
+  "LICENSE-APACHE",
+  "LICENSE-MIT",
+  "LICENSE.spdx",
+]
 
 [features]
 default = ["libxdo", "gtk"]

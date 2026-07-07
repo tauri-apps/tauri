@@ -1,3 +1,7 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
 # Copyright 2022-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
@@ -22,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ["windows-latest", "macos-latest", "ubuntu-latest"]
+        platform: ['windows-latest', 'macos-latest', 'ubuntu-latest']
 
     runs-on: ${{ matrix.platform }}
 
@@ -37,7 +41,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.92"
+          toolchain: '1.92'
       - run: cargo build
 
       - uses: dtolnay/rust-toolchain@stable

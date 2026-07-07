@@ -1,3 +1,7 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 //! Types and functions to create [`AboutMetadata`] for the [`PredefinedMenuItem::about`](crate::PredefinedMenuItem::about) dialog.
 
 use crate::icon::Icon;

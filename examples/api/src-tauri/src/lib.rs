@@ -160,13 +160,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   #[cfg(target_os = "ios")]
   let mut counter = 0;
-  app.run(move |_app_handle, _event| {
-    #[cfg(not(test))]
-    match &_event {
+  app.run(move |_app_handle, event| {
+    match event {
       // Keep the event loop running even if all windows are closed
       // This allow us to catch tray icon events when there is no window
       // if we manually requested an exit (code is Some(_)) we will let it go through
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
         api.prevent_exit();
       }
@@ -181,7 +180,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         // usually you'd show a dialog here to ask for confirmation or whatever
         api.prevent_close();
         _app_handle
-          .get_webview_window(label)
+          .get_webview_window(&label)
           .unwrap()
           .destroy()
           .unwrap();

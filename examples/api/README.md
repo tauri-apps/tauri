@@ -21,7 +21,7 @@ pnpm build:debug
 $ pnpm tauri dev
 ```
 
-- Build an run the release app (Run inside of this folder `examples/api/`)
+- Build and run the release app (Run inside of this folder `examples/api/`)
 
 ```bash
 $ pnpm tauri build

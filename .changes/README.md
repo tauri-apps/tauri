@@ -39,6 +39,6 @@ Additionally you could specify a tag for the change file to group it with other 
 Change summary goes here
 ```
 
-which will group this change file with other changes that specify the `bug` tag.
+which will group this change file with other changes that specify the `enhance` tag.
 
 For list of available tags, see the `changeTags` key in [./config.json](./config.json)

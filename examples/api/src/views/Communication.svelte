@@ -2,7 +2,6 @@
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { Channel, invoke } from '@tauri-apps/api/core'
   import { onMount, onDestroy } from 'svelte'
-  import type { Event } from '@tauri-apps/api/event'
   import type { UnlistenFn } from '@tauri-apps/api/event'
   import type { ViewProps } from '../types'
 
@@ -12,9 +11,8 @@
   const webviewWindow = getCurrentWebviewWindow()
 
   onMount(async () => {
-    unlisten = await webviewWindow.listen(
-      'rust-event',
-      (event: Event<unknown>) => onMessage(event)
+    unlisten = await webviewWindow.listen('rust-event', (event) =>
+      onMessage(event)
     )
   })
   onDestroy(() => {
@@ -53,7 +51,7 @@
   }
 
   function spam() {
-    const channel = new Channel<unknown>()
+    const channel = new Channel()
     channel.onmessage = onMessage
     invoke('spam', { channel })
   }

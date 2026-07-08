@@ -133,22 +133,20 @@
     messages.update(() => [])
   }
 
-  let consoleEl = $state<HTMLDivElement>()
+  let consoleEl: HTMLDivElement
   let consoleH = 0
   let cStartY = 0
   const minConsoleHeight = 50
   function startResizingConsole(e: MouseEvent) {
     cStartY = e.clientY
 
-    const el = consoleEl
-    if (!el) return
-    const styles = window.getComputedStyle(el)
+    const styles = window.getComputedStyle(consoleEl)
     consoleH = parseInt(styles.height, 10)
 
     const moveHandler = (e: MouseEvent) => {
       const dy = e.clientY - cStartY
       const newH = consoleH - dy
-      el.style.height = `${newH < minConsoleHeight ? minConsoleHeight : newH}px`
+      consoleEl.style.height = `${newH < minConsoleHeight ? minConsoleHeight : newH}px`
     }
     const upHandler = () => {
       document.removeEventListener('mouseup', upHandler)
@@ -177,7 +175,7 @@
 
   onMount(() => {
     document.addEventListener('click', (e) => {
-      if (!(e.target instanceof Node) || !sidebarToggle || !sidebar) return
+      if (!(e.target instanceof Node)) return
 
       if (sidebarToggle.contains(e.target)) {
         isSideBarOpen = !isSideBarOpen
@@ -187,7 +185,7 @@
     })
 
     document.addEventListener('touchstart', (e) => {
-      if (!(e.target instanceof Node) || !sidebarToggle) return
+      if (!(e.target instanceof Node)) return
       if (sidebarToggle.contains(e.target)) return
 
       const x = e.touches[0].clientX
@@ -198,7 +196,7 @@
     })
 
     document.addEventListener('touchmove', (e) => {
-      if (isDraggingSideBar && sidebar) {
+      if (isDraggingSideBar) {
         const x = e.touches[0].clientX
         draggingEndPosX = x
         const delta = (x - draggingStartPosX) / 10

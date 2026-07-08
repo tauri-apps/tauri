@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import {
     LogicalSize,
     UserAttentionType,
@@ -256,7 +256,7 @@
   }
 
   async function updateProgressBar() {
-    selectedWebview?.setProgressBar({
+    selectedWebview.setProgressBar({
       status: selectedProgressBarStatus,
       progress
     })
@@ -297,90 +297,105 @@
 
   async function updatePosition() {
     if (x && y) {
-      selectedWebview?.setPosition(new PhysicalPosition(x, y))
+      selectedWebview.setPosition(new PhysicalPosition(x, y))
     }
   }
 
   async function updateSize() {
     if (width && height) {
-      selectedWebview?.setSize(new PhysicalSize(width, height))
+      selectedWebview.setSize(new PhysicalSize(width, height))
     }
   }
 
-  $effect(() => {
-    selectedWebview
+  async function refreshSelectedWebview() {
     loadWindowPosition()
     loadWindowSize()
-  })
-  $effect(() => {
-    selectedWebview?.setResizable(resizable)
-  })
-  $effect(() => {
-    selectedWebview?.setMaximizable(maximizable)
-  })
-  $effect(() => {
-    selectedWebview?.setMinimizable(minimizable)
-  })
-  $effect(() => {
-    selectedWebview?.setClosable(closable)
-  })
-  $effect(() => {
-    maximized ? selectedWebview?.maximize() : selectedWebview?.unmaximize()
-  })
-  $effect(() => {
-    selectedWebview?.setDecorations(decorations)
-  })
-  $effect(() => {
-    selectedWebview?.setAlwaysOnTop(alwaysOnTop)
-  })
-  $effect(() => {
-    selectedWebview?.setAlwaysOnBottom(alwaysOnBottom)
-  })
-  $effect(() => {
-    selectedWebview?.setContentProtected(contentProtected)
-  })
-  $effect(() => {
-    selectedWebview?.setFullscreen(fullscreen)
-  })
-  $effect(() => {
-    selectedWebview?.setSimpleFullscreen(simpleFullscreen)
-  })
-
-  $effect(() => {
-    minWidth && minHeight
-      ? selectedWebview?.setMinSize(new LogicalSize(minWidth, minHeight))
-      : selectedWebview?.setMinSize(null)
-  })
-  $effect(() => {
-    maxWidth !== null && maxHeight !== null && maxWidth > 800 && maxHeight > 400
-      ? selectedWebview?.setMaxSize(new LogicalSize(maxWidth, maxHeight))
-      : selectedWebview?.setMaxSize(null)
-  })
-  $effect(() => {
-    selectedWebview?.scaleFactor().then((factor) => (scaleFactor = factor))
-  })
-  $effect(() => {
+    selectedWebview.scaleFactor().then((factor) => (scaleFactor = factor))
     addWindowEventListeners(selectedWebview)
-  })
+  }
 
-  $effect(() => {
-    selectedWebview?.setCursorGrab(cursorGrab)
-  })
-  $effect(() => {
-    selectedWebview?.setCursorVisible(cursorVisible)
-  })
-  $effect(() => {
-    selectedWebview?.setCursorIcon(cursorIcon)
-  })
-  $effect(() => {
+  function updateResizable() {
+    selectedWebview.setResizable(resizable)
+  }
+
+  function updateMaximizable() {
+    selectedWebview.setMaximizable(maximizable)
+  }
+
+  function updateMinimizable() {
+    selectedWebview.setMinimizable(minimizable)
+  }
+
+  function updateClosable() {
+    selectedWebview.setClosable(closable)
+  }
+
+  function updateMaximized() {
+    maximized ? selectedWebview.maximize() : selectedWebview.unmaximize()
+  }
+
+  function updateDecorations() {
+    selectedWebview.setDecorations(decorations)
+  }
+
+  function updateAlwaysOnTop() {
+    selectedWebview.setAlwaysOnTop(alwaysOnTop)
+  }
+
+  function updateAlwaysOnBottom() {
+    selectedWebview.setAlwaysOnBottom(alwaysOnBottom)
+  }
+
+  function updateContentProtected() {
+    selectedWebview.setContentProtected(contentProtected)
+  }
+
+  function updateFullscreen() {
+    selectedWebview.setFullscreen(fullscreen)
+  }
+
+  function updateSimpleFullscreen() {
+    selectedWebview.setSimpleFullscreen(simpleFullscreen)
+  }
+
+  function updateMinSize() {
+    minWidth && minHeight
+      ? selectedWebview.setMinSize(new LogicalSize(minWidth, minHeight))
+      : selectedWebview.setMinSize(null)
+  }
+
+  function updateMaxSize() {
+    maxWidth !== null && maxHeight !== null && maxWidth > 800 && maxHeight > 400
+      ? selectedWebview.setMaxSize(new LogicalSize(maxWidth, maxHeight))
+      : selectedWebview.setMaxSize(null)
+  }
+
+  function updateCursorGrab() {
+    selectedWebview.setCursorGrab(cursorGrab)
+  }
+
+  function updateCursorVisible() {
+    selectedWebview.setCursorVisible(cursorVisible)
+  }
+
+  function updateCursorIgnoreEvents() {
+    selectedWebview.setIgnoreCursorEvents(cursorIgnoreEvents)
+  }
+
+  function updateCursorIcon() {
+    selectedWebview.setCursorIcon(cursorIcon)
+  }
+
+  function updateCursorPosition() {
     cursorX !== null
       && cursorY !== null
-      && selectedWebview?.setCursorPosition(
+      && selectedWebview.setCursorPosition(
         new PhysicalPosition(cursorX, cursorY)
       )
-  })
-  $effect(() => {
-    selectedWebview?.setIgnoreCursorEvents(cursorIgnoreEvents)
+  }
+
+  onMount(() => {
+    refreshSelectedWebview()
   })
 
   onDestroy(() => {
@@ -396,7 +411,11 @@
     {#if Object.keys(webviewMap).length >= 1}
       <div class="grid gap-1">
         <h4 class="my-2">Selected Window</h4>
-        <select class="input" bind:value={selectedWebviewLabel}>
+        <select
+          class="input"
+          bind:value={selectedWebviewLabel}
+          onchange={refreshSelectedWebview}
+        >
           <option value="" disabled selected>Choose a window...</option>
           {#each Object.keys(webviewMap) as label}
             <option value={label}>{label}</option>
@@ -500,31 +519,66 @@
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))]">
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={resizable} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={resizable}
+          onchange={updateResizable}
+        />
         Resizable
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={maximizable} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={maximizable}
+          onchange={updateMaximizable}
+        />
         Maximizable
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={minimizable} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={minimizable}
+          onchange={updateMinimizable}
+        />
         Minimizable
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={closable} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={closable}
+          onchange={updateClosable}
+        />
         Closable
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={decorations} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={decorations}
+          onchange={updateDecorations}
+        />
         Has decorations
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={alwaysOnTop} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={alwaysOnTop}
+          onchange={updateAlwaysOnTop}
+        />
         Always on top
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={alwaysOnBottom} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={alwaysOnBottom}
+          onchange={updateAlwaysOnBottom}
+        />
         Always on bottom
       </label>
       <label>
@@ -532,15 +586,26 @@
           type="checkbox"
           class="checkbox"
           bind:checked={contentProtected}
+          onchange={updateContentProtected}
         />
         Content protected
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={maximized} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={maximized}
+          onchange={updateMaximized}
+        />
         Maximized
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={fullscreen} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={fullscreen}
+          onchange={updateFullscreen}
+        />
         Fullscreen
       </label>
       <label>
@@ -548,6 +613,7 @@
           type="checkbox"
           class="checkbox"
           bind:checked={simpleFullscreen}
+          onchange={updateSimpleFullscreen}
         />
         Simple fullscreen
       </label>
@@ -600,21 +666,43 @@
       <div class="grid gap-1 children:grid">
         <label>
           Min width
-          <input class="input" type="number" bind:value={minWidth} />
+          <input
+            class="input"
+            type="number"
+            bind:value={minWidth}
+            onchange={updateMinSize}
+          />
         </label>
         <label>
           Min height
-          <input class="input" type="number" bind:value={minHeight} />
+          <input
+            class="input"
+            type="number"
+            bind:value={minHeight}
+            onchange={updateMinSize}
+          />
         </label>
       </div>
       <div class="grid gap-1 children:grid">
         <label>
           Max width
-          <input class="input" type="number" bind:value={maxWidth} min="800" />
+          <input
+            class="input"
+            type="number"
+            bind:value={maxWidth}
+            onchange={updateMaxSize}
+            min="800"
+          />
         </label>
         <label>
           Max height
-          <input class="input" type="number" bind:value={maxHeight} min="400" />
+          <input
+            class="input"
+            type="number"
+            bind:value={maxHeight}
+            onchange={updateMaxSize}
+            min="400"
+          />
         </label>
       </div>
     </div>
@@ -682,7 +770,12 @@
       <h4 class="my-2">Cursor</h4>
       <div class="flex gap-2">
         <label>
-          <input type="checkbox" class="checkbox" bind:checked={cursorGrab} />
+          <input
+            type="checkbox"
+            class="checkbox"
+            bind:checked={cursorGrab}
+            onchange={updateCursorGrab}
+          />
           Grab
         </label>
         <label>
@@ -690,6 +783,7 @@
             type="checkbox"
             class="checkbox"
             bind:checked={cursorVisible}
+            onchange={updateCursorVisible}
           />
           Visible
         </label>
@@ -698,6 +792,7 @@
             type="checkbox"
             class="checkbox"
             bind:checked={cursorIgnoreEvents}
+            onchange={updateCursorIgnoreEvents}
           />
           Ignore events
         </label>
@@ -705,7 +800,11 @@
       <div class="flex gap-2">
         <label>
           Icon
-          <select class="input" bind:value={cursorIcon}>
+          <select
+            class="input"
+            bind:value={cursorIcon}
+            onchange={updateCursorIcon}
+          >
             {#each cursorIconOptions as kind}
               <option value={kind}>{kind}</option>
             {/each}
@@ -713,11 +812,21 @@
         </label>
         <label>
           X position
-          <input class="input" type="number" bind:value={cursorX} />
+          <input
+            class="input"
+            type="number"
+            bind:value={cursorX}
+            onchange={updateCursorPosition}
+          />
         </label>
         <label>
           Y position
-          <input class="input" type="number" bind:value={cursorY} />
+          <input
+            class="input"
+            type="number"
+            bind:value={cursorY}
+            onchange={updateCursorPosition}
+          />
         </label>
       </div>
     </div>

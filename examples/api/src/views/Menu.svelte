@@ -39,41 +39,35 @@
     return submenu
   }
 
-  async function create() {
-    const submenu = await createSubmenu()
+  async function setMenu(submenu: Submenu) {
     menuItemCount = items.length
     menu = await Menu.new({
       items: [submenu]
     })
     await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
+  }
+
+  async function create() {
+    await setMenu(await createSubmenu())
   }
 
   async function createWithNativeIcon() {
-    const submenu = await createSubmenuWithNativeIcon()
-    menuItemCount = items.length
-    menu = await Menu.new({
-      items: [submenu]
-    })
-    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
+    await setMenu(await createSubmenuWithNativeIcon())
   }
 
   async function createWithImageIcon() {
-    const submenu = await createSubmenuWithImageIcon()
-    menuItemCount = items.length
-    menu = await Menu.new({
-      items: [submenu]
-    })
-    await (macOS ? menu.setAsAppMenu() : menu.setAsWindowMenu())
+    await setMenu(await createSubmenuWithImageIcon())
   }
 
   async function popup() {
     if (!submenu || menuItemCount !== items.length) {
       await createSubmenu()
     }
-    if (!submenu) return
-    // we can't popup the same menu because it's the app menu (it crashes on macOS)
-    const m = await Menu.new({ items: [submenu] })
-    m.popup()
+    if (submenu) {
+      // we can't popup the same menu because it's the app menu (it crashes on macOS)
+      const m = await Menu.new({ items: [submenu] })
+      m.popup()
+    }
   }
 
   function onItemClick(detail: MenuItemClickDetail) {

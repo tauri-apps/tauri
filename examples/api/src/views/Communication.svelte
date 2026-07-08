@@ -6,19 +6,15 @@
   import type { ViewProps } from '../types'
 
   let { onMessage }: ViewProps = $props()
-  let unlisten: UnlistenFn | undefined
 
   const webviewWindow = getCurrentWebviewWindow()
 
+  let unlisten: UnlistenFn | undefined
   onMount(async () => {
-    unlisten = await webviewWindow.listen('rust-event', (event) =>
-      onMessage(event)
-    )
+    unlisten = await webviewWindow.listen('rust-event', onMessage)
   })
   onDestroy(() => {
-    if (unlisten) {
-      unlisten()
-    }
+    unlisten?.()
   })
 
   function log() {

@@ -356,7 +356,7 @@ tauri::Builder::default()
   /// Creates a new window with an optional webview.
   fn build_internal(
     // mutable on mobile
-    #[allow(unused_mut)] self,
+    #[allow(unused_mut)] mut self,
     webview: Option<PendingWebview<EventLoopMessage, R>>,
   ) -> crate::Result<Window<R>> {
     #[cfg(desktop)]

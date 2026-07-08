@@ -18,10 +18,11 @@
 
   const webview = WebviewWindow.getCurrent()
 
-  let selectedWebview = $state(webview.label)
   const webviewMap = $state<Record<string, WebviewWindow>>({
     [webview.label]: webview
   })
+  let selectedWebviewLabel = $state(webview.label)
+  let selectedWebview = $derived(webviewMap[selectedWebviewLabel])
 
   let focusable = $state(true)
 
@@ -142,50 +143,50 @@
   )
   let progress = $state(0)
 
-  let windowIconPath = $state<string>()
+  let windowIconPath = $state('')
 
   function setTitle() {
-    webviewMap[selectedWebview].setTitle(windowTitle)
+    selectedWebview.setTitle(windowTitle)
   }
 
   async function hide() {
-    let visible = await webviewMap[selectedWebview].isVisible()
+    let visible = await selectedWebview.isVisible()
     onMessage('window is ' + (visible ? 'visible' : 'invisible'))
-    await webviewMap[selectedWebview].hide()
+    await selectedWebview.hide()
 
     setTimeout(async () => {
-      visible = await webviewMap[selectedWebview].isVisible()
+      visible = await selectedWebview.isVisible()
       onMessage('window is ' + (visible ? 'visible' : 'invisible'))
 
-      await webviewMap[selectedWebview].show()
-      visible = await webviewMap[selectedWebview].isVisible()
+      await selectedWebview.show()
+      visible = await selectedWebview.isVisible()
       onMessage('window is ' + (visible ? 'visible' : 'invisible'))
     }, 2000)
   }
 
   async function disable() {
-    let enabled = await webviewMap[selectedWebview].isEnabled()
+    let enabled = await selectedWebview.isEnabled()
     onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
 
-    await webviewMap[selectedWebview].setEnabled(false)
+    await selectedWebview.setEnabled(false)
 
     setTimeout(async () => {
-      enabled = await webviewMap[selectedWebview].isEnabled()
+      enabled = await selectedWebview.isEnabled()
       onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
 
-      await webviewMap[selectedWebview].setEnabled(true)
-      enabled = await webviewMap[selectedWebview].isEnabled()
+      await selectedWebview.setEnabled(true)
+      enabled = await selectedWebview.isEnabled()
       onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
     }, 2000)
   }
 
   function minimize() {
-    webviewMap[selectedWebview].minimize()
-    setTimeout(webviewMap[selectedWebview].unminimize, 2000)
+    selectedWebview.minimize()
+    setTimeout(selectedWebview.unminimize, 2000)
   }
 
   function changeIcon() {
-    webviewMap[selectedWebview].setIcon(windowIconPath ?? null)
+    selectedWebview.setIcon(windowIconPath)
   }
 
   function createWebviewWindow() {
@@ -203,21 +204,21 @@
   }
 
   function loadWindowSize() {
-    webviewMap[selectedWebview].innerSize().then((response) => {
+    selectedWebview.innerSize().then((response) => {
       innerSize = response
       width = innerSize.width
       height = innerSize.height
     })
-    webviewMap[selectedWebview].outerSize().then((response) => {
+    selectedWebview.outerSize().then((response) => {
       outerSize = response
     })
   }
 
   function loadWindowPosition() {
-    webviewMap[selectedWebview].innerPosition().then((response) => {
+    selectedWebview.innerPosition().then((response) => {
       innerPosition = response
     })
-    webviewMap[selectedWebview].outerPosition().then((response) => {
+    selectedWebview.outerPosition().then((response) => {
       outerPosition = response
       x = outerPosition.x
       y = outerPosition.y
@@ -233,12 +234,10 @@
   }
 
   async function requestUserAttention() {
-    await webviewMap[selectedWebview].minimize()
-    await webviewMap[selectedWebview].requestUserAttention(
-      UserAttentionType.Critical
-    )
+    await selectedWebview.minimize()
+    await selectedWebview.requestUserAttention(UserAttentionType.Critical)
     await new Promise<void>((resolve) => setTimeout(resolve, 3000))
-    await webviewMap[selectedWebview].requestUserAttention(null)
+    await selectedWebview.requestUserAttention(null)
   }
 
   async function switchTheme() {
@@ -253,11 +252,11 @@
         theme = 'dark'
         break
     }
-    await webviewMap[selectedWebview].setTheme(theme === 'auto' ? null : theme)
+    await selectedWebview.setTheme(theme === 'auto' ? null : theme)
   }
 
   async function updateProgressBar() {
-    webviewMap[selectedWebview]?.setProgressBar({
+    selectedWebview?.setProgressBar({
       status: selectedProgressBarStatus,
       progress
     })
@@ -280,114 +279,108 @@
       && Number.isInteger(effectB)
       && Number.isInteger(effectA)
     ) {
-      payload.color = [effectR, effectG, effectB, effectA]
+      payload.color = [effectR!, effectG!, effectB!, effectA!]
     }
 
     mainEl?.classList.remove('bg-primary')
     mainEl?.classList.remove('dark:bg-darkPrimary')
-    await webviewMap[selectedWebview].clearEffects()
-    await webviewMap[selectedWebview].setEffects(payload)
+    await selectedWebview.clearEffects()
+    await selectedWebview.setEffects(payload)
   }
 
   async function clearEffects() {
     effects = []
-    await webviewMap[selectedWebview].clearEffects()
+    await selectedWebview.clearEffects()
     mainEl?.classList.add('bg-primary')
     mainEl?.classList.add('dark:bg-darkPrimary')
   }
 
   async function updatePosition() {
-    if (x === null || y === null) return
-    webviewMap[selectedWebview]?.setPosition(new PhysicalPosition(x, y))
+    if (x && y) {
+      selectedWebview?.setPosition(new PhysicalPosition(x, y))
+    }
   }
 
   async function updateSize() {
-    if (width === null || height === null) return
-    webviewMap[selectedWebview]?.setSize(new PhysicalSize(width, height))
+    if (width && height) {
+      selectedWebview?.setSize(new PhysicalSize(width, height))
+    }
   }
 
   $effect(() => {
-    webviewMap[selectedWebview]
+    selectedWebview
     loadWindowPosition()
     loadWindowSize()
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setResizable(resizable)
+    selectedWebview?.setResizable(resizable)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setMaximizable(maximizable)
+    selectedWebview?.setMaximizable(maximizable)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setMinimizable(minimizable)
+    selectedWebview?.setMinimizable(minimizable)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setClosable(closable)
+    selectedWebview?.setClosable(closable)
   })
   $effect(() => {
-    maximized
-      ? webviewMap[selectedWebview]?.maximize()
-      : webviewMap[selectedWebview]?.unmaximize()
+    maximized ? selectedWebview?.maximize() : selectedWebview?.unmaximize()
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setDecorations(decorations)
+    selectedWebview?.setDecorations(decorations)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setAlwaysOnTop(alwaysOnTop)
+    selectedWebview?.setAlwaysOnTop(alwaysOnTop)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setAlwaysOnBottom(alwaysOnBottom)
+    selectedWebview?.setAlwaysOnBottom(alwaysOnBottom)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setContentProtected(contentProtected)
+    selectedWebview?.setContentProtected(contentProtected)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setFullscreen(fullscreen)
+    selectedWebview?.setFullscreen(fullscreen)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setSimpleFullscreen(simpleFullscreen)
+    selectedWebview?.setSimpleFullscreen(simpleFullscreen)
   })
 
   $effect(() => {
     minWidth && minHeight
-      ? webviewMap[selectedWebview]?.setMinSize(
-          new LogicalSize(minWidth, minHeight)
-        )
-      : webviewMap[selectedWebview]?.setMinSize(null)
+      ? selectedWebview?.setMinSize(new LogicalSize(minWidth, minHeight))
+      : selectedWebview?.setMinSize(null)
   })
   $effect(() => {
     maxWidth !== null && maxHeight !== null && maxWidth > 800 && maxHeight > 400
-      ? webviewMap[selectedWebview]?.setMaxSize(
-          new LogicalSize(maxWidth, maxHeight)
-        )
-      : webviewMap[selectedWebview]?.setMaxSize(null)
+      ? selectedWebview?.setMaxSize(new LogicalSize(maxWidth, maxHeight))
+      : selectedWebview?.setMaxSize(null)
   })
   $effect(() => {
-    webviewMap[selectedWebview]
-      ?.scaleFactor()
-      .then((factor) => (scaleFactor = factor))
+    selectedWebview?.scaleFactor().then((factor) => (scaleFactor = factor))
   })
   $effect(() => {
-    addWindowEventListeners(webviewMap[selectedWebview])
+    addWindowEventListeners(selectedWebview)
   })
 
   $effect(() => {
-    webviewMap[selectedWebview]?.setCursorGrab(cursorGrab)
+    selectedWebview?.setCursorGrab(cursorGrab)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setCursorVisible(cursorVisible)
+    selectedWebview?.setCursorVisible(cursorVisible)
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setCursorIcon(cursorIcon)
+    selectedWebview?.setCursorIcon(cursorIcon)
   })
   $effect(() => {
     cursorX !== null
       && cursorY !== null
-      && webviewMap[selectedWebview]?.setCursorPosition(
+      && selectedWebview?.setCursorPosition(
         new PhysicalPosition(cursorX, cursorY)
       )
   })
   $effect(() => {
-    webviewMap[selectedWebview]?.setIgnoreCursorEvents(cursorIgnoreEvents)
+    selectedWebview?.setIgnoreCursorEvents(cursorIgnoreEvents)
   })
 
   onDestroy(() => {
@@ -403,7 +396,7 @@
     {#if Object.keys(webviewMap).length >= 1}
       <div class="grid gap-1">
         <h4 class="my-2">Selected Window</h4>
-        <select class="input" bind:value={selectedWebview}>
+        <select class="input" bind:value={selectedWebviewLabel}>
           <option value="" disabled selected>Choose a window...</option>
           {#each Object.keys(webviewMap) as label}
             <option value={label}>{label}</option>
@@ -430,7 +423,7 @@
       </form>
     </div>
   </div>
-  {#if webviewMap[selectedWebview]}
+  {#if selectedWebview}
     <div class="flex flex-wrap items-center gap-4">
       <div class="grid gap-1 grow">
         <h4 class="my-2">Change Window Icon</h4>
@@ -467,7 +460,7 @@
       <button
         class="btn"
         title="Unminimizes after 2 seconds"
-        onclick={() => webviewMap[selectedWebview].center()}
+        onclick={() => selectedWebview.center()}
       >
         Center
       </button>
@@ -499,7 +492,7 @@
         class="btn"
         onclick={() => {
           focusable = !focusable
-          webviewMap[selectedWebview].setFocusable(!focusable)
+          selectedWebview.setFocusable(!focusable)
         }}
       >
         Set focusable to {!focusable}

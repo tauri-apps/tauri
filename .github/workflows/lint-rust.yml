@@ -26,22 +26,59 @@ concurrency:
 
 jobs:
   clippy:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            cargo: 'cargo'
+            include: ''
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            cargo: 'cargo'
+            include: ''
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            cargo: 'cargo'
+            include: ''
+          - target: aarch64-apple-ios
+            os: macos-latest
+            cargo: 'cargo'
+            # api example crate should pull in every dependency we want to lint on mobile
+            include: '--package api '
+          - target: aarch64-linux-android
+            os: ubuntu-latest
+            cargo: 'cross'
+            # api example crate should pull in every dependency we want to lint on mobile
+            include: '--package api '
+
+    runs-on: ${{ matrix.platform.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: install rust stable and clippy
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+          targets: ${{ matrix.platform.target }}
 
-      - name: install dependencies
+      - name: install Linux dependencies
+        if: contains(matrix.platform.target, 'unknown-linux')
         run: |
           sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
           sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Install cross
+        if: ${{ matrix.platform.cargo == 'cross' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross@0.2.5
 
-      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.target }}
+
+      - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} ${{ matrix.platform.include }}--all-targets --all-features -- -D warnings

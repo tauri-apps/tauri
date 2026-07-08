@@ -1069,16 +1069,19 @@ pub(crate) mod sealed {
   }
 }
 
+#[cfg(desktop)]
 struct UnsafeSend<T>(T);
+#[cfg(desktop)]
 unsafe impl<T> Send for UnsafeSend<T> {}
 
+#[cfg(desktop)]
 impl<T> UnsafeSend<T> {
   fn take(self) -> T {
     self.0
   }
 }
 
-#[allow(unused)]
+#[cfg(desktop)]
 macro_rules! run_main_thread {
   ($handle:ident, $ex:expr) => {{
     use std::sync::mpsc::channel;
@@ -1093,7 +1096,7 @@ macro_rules! run_main_thread {
   }};
 }
 
-#[allow(unused)]
+#[cfg(desktop)]
 pub(crate) use run_main_thread;
 
 #[cfg(any(test, feature = "test"))]

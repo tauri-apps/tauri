@@ -26,19 +26,24 @@ export interface MenuItemClickDetail {
 
 export type MenuItemClickHandler = (detail: MenuItemClickDetail) => void
 
-export type BuiltMenuItemInstance =
-  | MenuItem
-  | IconMenuItem
-  | CheckMenuItem
-  | PredefinedMenuItem
-
-export type BuiltMenuItemOptions =
-  | MenuItemOptions
-  | IconMenuItemOptions
-  | CheckMenuItemOptions
-  | PredefinedMenuItemOptions
-
-export interface BuiltMenuItem {
-  item: BuiltMenuItemInstance
-  options: BuiltMenuItemOptions
-}
+export type BuiltMenuItem =
+  | {
+      kind: 'Normal'
+      item: MenuItem
+      options: MenuItemOptions
+    }
+  | {
+      kind: 'Icon'
+      item: IconMenuItem
+      options: IconMenuItemOptions
+    }
+  | {
+      kind: 'Check'
+      item: CheckMenuItem
+      options: CheckMenuItemOptions
+    }
+  | {
+      kind: 'Predefined'
+      item: PredefinedMenuItem
+      options: PredefinedMenuItemOptions
+    }

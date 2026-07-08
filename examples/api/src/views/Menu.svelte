@@ -85,12 +85,12 @@
   <MenuBuilder bind:items itemClick={onItemClick} />
   <div class="flex gap-2">
     <button class="btn" onclick={create}>Create menu</button>
-    <button class="btn" onclick={popup}>Popup</button>
     <button class="btn" onclick={createWithNativeIcon}
       >Create menu with NativeIcon</button
     >
     <button class="btn" onclick={createWithImageIcon}
       >Create menu with Image icon</button
     >
+    <button class="btn" onclick={popup}>Popup</button>
   </div>
 </div>

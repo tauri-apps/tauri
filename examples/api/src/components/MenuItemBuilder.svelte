@@ -13,7 +13,6 @@
   } from '@tauri-apps/api/menu'
   import type { BuiltMenuItem, MenuItemClickHandler } from '../types'
 
-  type ItemKind = 'Normal' | 'Icon' | 'Check' | 'Predefined'
   type PredefinedItem = PredefinedMenuItemOptions['item']
 
   let {
@@ -24,13 +23,13 @@
     itemClick: MenuItemClickHandler
   } = $props()
 
-  let kind = $state<ItemKind>('Normal')
+  let kind = $state('Normal')
   let text = $state('')
   let icon = $state('')
   let predefinedItem = $state<PredefinedItem>()
   let checked = $state(true)
 
-  const itemKinds: ItemKind[] = ['Normal', 'Icon', 'Check', 'Predefined']
+  const itemKinds = ['Normal', 'Icon', 'Check', 'Predefined']
   const predefinedOptions: PredefinedItem[] = [
     'Separator',
     'Copy',
@@ -51,15 +50,6 @@
     'BringAllToFront'
   ]
 
-  function onKindChange(event: Event) {
-    kind = (event.currentTarget as HTMLInputElement).value as ItemKind
-  }
-
-  function onPredefinedChange(event: Event) {
-    predefinedItem = (event.currentTarget as HTMLInputElement)
-      .value as PredefinedItem
-  }
-
   async function create() {
     const t = text
 
@@ -70,7 +60,7 @@
           action: (id) => itemClick({ id, text: t })
         }
         const item = await MenuItem.new(options)
-        newItem({ item, options })
+        newItem({ kind, item, options })
         break
       }
       case 'Icon': {
@@ -80,7 +70,7 @@
           action: (id) => itemClick({ id, text: t })
         }
         const item = await IconMenuItem.new(options)
-        newItem({ item, options })
+        newItem({ kind, item, options })
         break
       }
       case 'Check': {
@@ -90,16 +80,15 @@
           action: (id) => itemClick({ id, text: t })
         }
         const item = await CheckMenuItem.new(options)
-        newItem({ item, options })
+        newItem({ kind, item, options })
         break
       }
       case 'Predefined': {
-        if (!predefinedItem) return
         const options: PredefinedMenuItemOptions = {
-          item: predefinedItem
+          item: predefinedItem!
         }
         const item = await PredefinedMenuItem.new(options)
-        newItem({ item, options })
+        newItem({ kind, item, options })
         break
       }
     }
@@ -116,7 +105,7 @@
         <input
           id="{itemKind}Input"
           checked={kind === itemKind}
-          onchange={onKindChange}
+          onchange={() => (kind = itemKind)}
           type="radio"
           name="kind"
           value={itemKinds[i]}
@@ -151,7 +140,7 @@
             <input
               id="{predefinedOption}Input"
               checked={predefinedItem === predefinedOption}
-              onchange={onPredefinedChange}
+              onchange={() => (predefinedItem = predefinedOption)}
               type="radio"
               name="predefinedKind"
               value={predefinedOptions[i]}

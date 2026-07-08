@@ -12,6 +12,8 @@
   import App from './views/App.svelte'
   import Menu from './views/Menu.svelte'
   import Tray from './views/Tray.svelte'
+  import type { Theme } from '@tauri-apps/api/window'
+  import { MediaQuery } from 'svelte/reactivity'
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
@@ -71,23 +73,39 @@
 
   let selected = $state.raw(views[0])
 
-  // dark/light
-  let isDark = $state(false)
-  onMount(() => {
-    isDark = localStorage && localStorage.getItem('theme') == 'dark'
-    applyTheme(isDark)
-  })
-  function applyTheme(isDark: boolean) {
+  // dark/light themes
+  const preferDark = new MediaQuery('prefers-color-scheme: dark')
+  let theme = $state<Theme | 'auto'>(
+    (localStorage.getItem('theme') as Theme | null) || 'auto'
+  )
+
+  async function switchTheme() {
+    switch (theme) {
+      case 'dark':
+        theme = 'light'
+        break
+      case 'light':
+        theme = 'auto'
+        break
+      case 'auto':
+        theme = 'dark'
+        break
+    }
+    applyTheme()
+  }
+
+  function applyTheme() {
+    const isDark = theme === 'auto' ? preferDark.current : theme === 'dark'
     isDark
       ? document.documentElement.classList.add('dark')
       : document.documentElement.classList.remove('dark')
-    localStorage && localStorage.setItem('theme', isDark ? 'dark' : '')
+    setTheme(theme === 'auto' ? null : theme)
+    localStorage.setItem('theme', theme)
   }
-  function toggleDark() {
-    isDark = !isDark
-    applyTheme(isDark)
-    setTheme(isDark ? 'dark' : 'light')
-  }
+
+  $effect(() => {
+    applyTheme()
+  })
 
   // Console
   const messages = writable<string[]>([])
@@ -239,13 +257,16 @@
       src="tauri_logo.png"
       alt="Tauri logo"
     />
-    <a href="##" class="nv justify-between" onclick={toggleDark}>
-      {#if isDark}
-        Switch to Light mode
-        <div class="i-ph-sun"></div>
-      {:else}
+    <a href="##" class="nv justify-between" onclick={switchTheme}>
+      {#if theme === 'auto'}
         Switch to Dark mode
+        <div class="i-ph-circle-half-fill"></div>
+      {:else if theme === 'dark'}
+        Switch to Light mode
         <div class="i-ph-moon"></div>
+      {:else if theme === 'light'}
+        Switch to Auto mode
+        <div class="i-ph-sun"></div>
       {/if}
     </a>
     <br />

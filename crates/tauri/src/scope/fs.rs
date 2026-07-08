@@ -417,33 +417,16 @@ impl Scope {
   ///
   /// May return `false` if the path points to a broken symlink.
   pub fn is_allowed<P: AsRef<Path>>(&self, path: P) -> bool {
-    let path = try_resolve_symlink_and_canonicalize(path);
+    self.resolve_allowed_path(path).is_some()
+  }
 
-    if let Ok(path) = path {
-      let path: PathBuf = path.components().collect();
-      let forbidden = self
-        .inner
-        .forbidden_patterns
-        .lock()
-        .unwrap()
-        .iter()
-        .any(|p| p.matches_path_with(&path, self.inner.match_options));
+  pub(crate) fn resolve_allowed_path<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
+    let path = normalize_path_for_scope(path).ok()?;
 
-      if forbidden {
-        false
-      } else {
-        let allowed = self
-          .inner
-          .allowed_patterns
-          .lock()
-          .unwrap()
-          .iter()
-          .any(|p| p.matches_path_with(&path, self.inner.match_options));
-
-        allowed
-      }
+    if self.matches_forbidden(&path) {
+      None
     } else {
-      false
+      self.matches_allowed(&path).then_some(path)
     }
   }
 
@@ -451,21 +434,34 @@ impl Scope {
   ///
   /// May return `true` if the path points to a broken symlink.
   pub fn is_forbidden<P: AsRef<Path>>(&self, path: P) -> bool {
-    let path = try_resolve_symlink_and_canonicalize(path);
-
-    if let Ok(path) = path {
-      let path: PathBuf = path.components().collect();
-      self
-        .inner
-        .forbidden_patterns
-        .lock()
-        .unwrap()
-        .iter()
-        .any(|p| p.matches_path_with(&path, self.inner.match_options))
-    } else {
-      true
-    }
+    normalize_path_for_scope(path)
+      .map(|path| self.matches_forbidden(&path))
+      .unwrap_or(true)
   }
+
+  fn matches_allowed(&self, path: &Path) -> bool {
+    self
+      .inner
+      .allowed_patterns
+      .lock()
+      .unwrap()
+      .iter()
+      .any(|p| p.matches_path_with(path, self.inner.match_options))
+  }
+
+  fn matches_forbidden(&self, path: &Path) -> bool {
+    self
+      .inner
+      .forbidden_patterns
+      .lock()
+      .unwrap()
+      .iter()
+      .any(|p| p.matches_path_with(path, self.inner.match_options))
+  }
+}
+
+fn normalize_path_for_scope<P: AsRef<Path>>(path: P) -> crate::Result<PathBuf> {
+  try_resolve_symlink_and_canonicalize(path).map(|path| path.components().collect())
 }
 
 fn try_resolve_symlink_and_canonicalize<P: AsRef<Path>>(path: P) -> crate::Result<PathBuf> {
@@ -627,6 +623,51 @@ mod tests {
       assert!(!scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
       assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
     }
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn resolve_allowed_path_returns_authorized_symlink_target() {
+    use std::os::unix::fs::symlink;
+
+    let temp = tempfile::tempdir().unwrap();
+    let allowed_dir = temp.path().join("allowed");
+    let target = allowed_dir.join("target.txt");
+    let link = temp.path().join("link.txt");
+
+    std::fs::create_dir(&allowed_dir).unwrap();
+    std::fs::write(&target, "allowed").unwrap();
+    symlink(&target, &link).unwrap();
+
+    let scope = new_scope();
+    scope.allow_directory(&allowed_dir, true).unwrap();
+
+    assert_eq!(
+      scope.resolve_allowed_path(&link),
+      Some(target.canonicalize().unwrap())
+    );
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn resolve_allowed_path_rejects_forbidden_symlink_target() {
+    use std::os::unix::fs::symlink;
+
+    let temp = tempfile::tempdir().unwrap();
+    let allowed_dir = temp.path().join("allowed");
+    let forbidden_dir = temp.path().join("forbidden");
+    let target = forbidden_dir.join("target.txt");
+    let link = allowed_dir.join("link.txt");
+
+    std::fs::create_dir(&allowed_dir).unwrap();
+    std::fs::create_dir(&forbidden_dir).unwrap();
+    std::fs::write(&target, "forbidden").unwrap();
+    symlink(&target, &link).unwrap();
+
+    let scope = new_scope();
+    scope.allow_directory(&allowed_dir, true).unwrap();
+
+    assert!(scope.resolve_allowed_path(&link).is_none());
   }
 
   #[cfg(windows)]

@@ -38,18 +38,22 @@ fn get_response(
 
   let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
 
-  if let Err(e) = SafePathBuf::new(path.clone().into()) {
-    log::error!("asset protocol path \"{path}\" is not valid: {e}");
-    return resp.status(403).body(Vec::new().into()).map_err(Into::into);
-  }
+  let safe_path = match SafePathBuf::new(path.clone().into()) {
+    Ok(path) => path,
+    Err(e) => {
+      log::error!("asset protocol path \"{path}\" is not valid: {e}");
+      return resp.status(403).body(Vec::new().into()).map_err(Into::into);
+    }
+  };
 
-  if !scope.is_allowed(&path) {
+  let Some(resolved_path) = scope.resolve_allowed_path(&safe_path) else {
     log::error!("asset protocol not configured to allow the path: {path}");
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
-  }
+  };
+  let resolved_path_display = resolved_path.to_string_lossy();
 
   // Separate block for easier error handling
-  let mut file = match File::open(path.clone()) {
+  let mut file = match File::open(&resolved_path) {
     Ok(file) => file,
     Err(e) => {
       #[cfg(target_os = "android")]
@@ -78,7 +82,7 @@ fn get_response(
     (&mut file).take(nbytes).read_to_end(&mut magic_buf)?;
     file.rewind()?;
     (
-      MimeType::parse(&magic_buf, &path),
+      MimeType::parse(&magic_buf, &resolved_path_display),
       // return the `magic_bytes` if we read the whole file
       // to avoid reading it again later if this is not a range request
       if len < 8192 { Some(magic_buf) } else { None },

@@ -7,7 +7,11 @@ use super::{super::debian, write_and_make_executable};
 use crate::{
   bundle::settings::Arch,
   error::{Context, ErrorExt},
-  utils::{fs_utils, http_utils::download, CommandExt},
+  utils::{
+    fs_utils,
+    http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
+    CommandExt,
+  },
   Settings,
 };
 use std::{
@@ -219,49 +223,123 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Ok(vec![appimage_path])
 }
 
+fn apprun_sha256(arch: &str) -> crate::Result<&'static str> {
+  match arch {
+    "x86_64" => Ok("f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f"),
+    "i686" => Ok("a573a682b1a4a3e9b5dddbd1f5785749b7bba6013149b51ae99d0f123fe11691"),
+    "aarch64" => Ok("072f17c0895a85c490282fe5395c5007e5fc75da727e553b3b8fb680feb11578"),
+    "armhf" => Ok("b14d89f0762bcf09fc6af2359d936675928b8833ff52a1aeda68cb28a309f6ba"),
+    _ => Err(crate::Error::GenericError(format!(
+      "Unsupported AppRun architecture: {arch}"
+    ))),
+  }
+}
+
+fn linuxdeploy_sha256(arch: &str) -> crate::Result<&'static str> {
+  match arch {
+    "x86_64" => Ok("e762bea85c8eb0d4b3508d46e5c1f037f717d0f9303ae3b4aafc8b04991fa1ef"),
+    "i386" => Ok("de64d95d33beb8d9846128689281d9e01403ea274291b3be8dadac1c33d53bc6"),
+    "aarch64" => Ok("b12b5cc57bd0921e1f98d73f58aa364503bc1a27f54b7a69fd2870bce7fa2f55"),
+    "armhf" => Ok("d533831caec5ec82bf88673c123af42b3776357a972bb3bb673ef71ea7f9e117"),
+    _ => Err(crate::Error::GenericError(format!(
+      "Unsupported linuxdeploy architecture: {arch}"
+    ))),
+  }
+}
+
+fn appimage_plugin_sha256(arch: &str) -> crate::Result<&'static str> {
+  match arch {
+    "x86_64" => Ok("1da16a46fa5e058ae740e7c35ed0d36d86cb869ac9cc8a5fd9a1847d7978d99a"),
+    "i686" => Ok("cae61f394ecef9823a40a9b574663dca4831dc8933be39c408f95468cb748a90"),
+    "aarch64" => Ok("a89f5784a86b6c014898b6bd24c6f4e3cc76727814222099934b72d74df7e4e6"),
+    "armhf" => Ok("977d6d3cbdbe95b604e16fe5ecd0a77f83da1fe57eff03a2971614a6f3603c7b"),
+    _ => Err(crate::Error::GenericError(format!(
+      "Unsupported AppImage plugin architecture: {arch}"
+    ))),
+  }
+}
+
+fn ensure_verified_tool(path: &Path, url: &str, sha256: &str) -> crate::Result<()> {
+  if path.exists() {
+    if verify_file_hash(path, sha256, HashAlgorithm::Sha256).is_ok() {
+      make_executable(path)?;
+      return Ok(());
+    }
+
+    log::warn!(
+      "Cached tool at {} failed integrity verification. Redownloading it.",
+      path.display()
+    );
+    fs::remove_file(path)?;
+  }
+
+  let data = download_and_verify(url, sha256, HashAlgorithm::Sha256)?;
+  write_and_make_executable(path, data)?;
+  Ok(())
+}
+
+fn make_executable(path: &Path) -> std::io::Result<()> {
+  use std::os::unix::fs::PermissionsExt;
+
+  fs::set_permissions(path, fs::Permissions::from_mode(0o770))
+}
+
+fn copy_and_make_executable(source: &Path, destination: &Path) -> crate::Result<()> {
+  fs::copy(source, destination)?;
+  make_executable(destination)?;
+  Ok(())
+}
+
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
 fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<PathBuf> {
   let apprun = tools_path.join(format!("AppRun-{arch}"));
-  if !apprun.exists() {
-    let data = download(&format!(
+  ensure_verified_tool(
+    &apprun,
+    &format!(
       "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-{arch}"
-    ))?;
-    write_and_make_executable(&apprun, data)?;
-  }
+    ),
+    apprun_sha256(arch)?,
+  )?;
 
   let linuxdeploy_arch = if arch == "i686" { "i386" } else { arch };
   let linuxdeploy = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}.AppImage"));
-  if !linuxdeploy.exists() {
-    let data = download(&format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"))?;
-    write_and_make_executable(&linuxdeploy, data)?;
-  }
+  ensure_verified_tool(
+    &linuxdeploy,
+    &format!("https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-{linuxdeploy_arch}.AppImage"),
+    linuxdeploy_sha256(linuxdeploy_arch)?,
+  )?;
 
   let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
-  if !gtk.exists() {
-    let data = download("https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh")?;
-    write_and_make_executable(&gtk, data)?;
-  }
+  write_and_make_executable(&gtk, include_bytes!("linuxdeploy-plugin-gtk.sh").to_vec())?;
 
   let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
-  if !gstreamer.exists() {
-    let data = download("https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh")?;
-    write_and_make_executable(&gstreamer, data)?;
-  }
+  write_and_make_executable(
+    &gstreamer,
+    include_bytes!("linuxdeploy-plugin-gstreamer.sh").to_vec(),
+  )?;
 
   let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");
-  if !appimage.exists() {
-    // This is optional, linuxdeploy will fall back to its built-in version if the download failed.
-    let data = download(&format!("https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"));
-    match data {
-      Ok(data) => write_and_make_executable(&appimage, data)?,
-      Err(err) => {
-        log::error!("Download of AppImage plugin failed. Using older built-in version instead.");
-        if verbose {
-          log::debug!("{err:?}");
-        }
+  if let Err(err) = ensure_verified_tool(
+    &appimage,
+    &format!("https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"),
+    appimage_plugin_sha256(arch)?,
+  ) {
+    log::error!("Download of AppImage plugin failed. Using older built-in version instead.");
+    if verbose {
+      log::debug!("{err:?}");
+    }
+    if appimage.exists() {
+      if let Err(remove_err) = fs::remove_file(&appimage) {
+        log::debug!(
+          "Failed to remove unverified AppImage plugin at {}: {remove_err:?}",
+          appimage.display()
+        );
       }
     }
   }
+
+  let linuxdeploy_run = tools_path.join(format!("linuxdeploy-{linuxdeploy_arch}-run.AppImage"));
+  copy_and_make_executable(&linuxdeploy, &linuxdeploy_run)?;
 
   // This should prevent linuxdeploy to be detected by appimage integration tools
   let _ = Command::new("dd")
@@ -271,9 +349,9 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
       "count=3",
       "seek=8",
       "conv=notrunc",
-      &format!("of={}", linuxdeploy.display()),
+      &format!("of={}", linuxdeploy_run.display()),
     ])
     .output();
 
-  Ok(linuxdeploy)
+  Ok(linuxdeploy_run)
 }

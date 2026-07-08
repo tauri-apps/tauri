@@ -75,6 +75,8 @@ dirs = "6"
 # See https://github.com/tauri-apps/tauri/pull/15022 for example.
 minisign = "0.9"
 base64 = "0.22"
+hex = "0.4"
+sha2 = "0.11"
 ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"
 semver = "1"

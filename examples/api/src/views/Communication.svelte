@@ -3,7 +3,7 @@
   import { Channel, invoke } from '@tauri-apps/api/core'
   import { onMount, onDestroy } from 'svelte'
   import type { UnlistenFn } from '@tauri-apps/api/event'
-  import type { ViewProps } from '../types'
+  import type { ViewProps } from '../App.svelte'
 
   let { onMessage }: ViewProps = $props()
 

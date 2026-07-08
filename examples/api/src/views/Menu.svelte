@@ -1,8 +1,11 @@
 <script lang="ts">
   import { Menu, Submenu, NativeIcon } from '@tauri-apps/api/menu'
-  import MenuBuilder from '../components/MenuBuilder.svelte'
+  import MenuBuilder, {
+    type BuiltMenuItem,
+    type MenuItemClickDetail
+  } from '../components/MenuBuilder.svelte'
   import { defaultWindowIcon } from '@tauri-apps/api/app'
-  import type { BuiltMenuItem, MenuItemClickDetail, ViewProps } from '../types'
+  import type { ViewProps } from '../App.svelte'
 
   let { onMessage }: ViewProps = $props()
   let items = $state<BuiltMenuItem[]>([])

@@ -1,3 +1,9 @@
+<script module lang="ts">
+  export type ViewProps = {
+    onMessage: (value: unknown) => void
+  }
+</script>
+
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import { writable } from 'svelte/store'

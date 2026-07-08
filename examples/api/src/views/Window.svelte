@@ -12,7 +12,7 @@
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
   import type { CursorIcon, Effects, Theme } from '@tauri-apps/api/window'
   import type { UnlistenFn } from '@tauri-apps/api/event'
-  import type { ViewProps } from '../types'
+  import type { ViewProps } from '../App.svelte'
 
   let { onMessage }: ViewProps = $props()
 

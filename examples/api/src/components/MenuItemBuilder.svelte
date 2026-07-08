@@ -11,7 +11,10 @@
     MenuItemOptions,
     PredefinedMenuItemOptions
   } from '@tauri-apps/api/menu'
-  import type { BuiltMenuItem, MenuItemClickHandler } from '../types'
+  import type {
+    BuiltMenuItem,
+    MenuItemClickHandler
+  } from './MenuBuilder.svelte'
 
   type PredefinedItem = PredefinedMenuItemOptions['item']
 

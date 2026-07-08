@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
-  import type { ViewProps } from '../types'
+  import type { ViewProps } from '../App.svelte'
 
   let { onMessage }: ViewProps = $props()
 

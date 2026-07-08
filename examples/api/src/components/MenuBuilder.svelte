@@ -1,10 +1,46 @@
+<script module lang="ts">
+  import type {
+    CheckMenuItem,
+    CheckMenuItemOptions,
+    IconMenuItem,
+    IconMenuItemOptions,
+    MenuItem,
+    MenuItemOptions,
+    PredefinedMenuItem,
+    PredefinedMenuItemOptions
+  } from '@tauri-apps/api/menu'
+
+  export type BuiltMenuItem =
+    | {
+        kind: 'Normal'
+        item: MenuItem
+        options: MenuItemOptions
+      }
+    | {
+        kind: 'Icon'
+        item: IconMenuItem
+        options: IconMenuItemOptions
+      }
+    | {
+        kind: 'Check'
+        item: CheckMenuItem
+        options: CheckMenuItemOptions
+      }
+    | {
+        kind: 'Predefined'
+        item: PredefinedMenuItem
+        options: PredefinedMenuItemOptions
+      }
+
+  export type MenuItemClickDetail = {
+    id: string
+    text: string
+  }
+  export type MenuItemClickHandler = (detail: MenuItemClickDetail) => void
+</script>
+
 <script lang="ts">
   import MenuItemBuilder from './MenuItemBuilder.svelte'
-  import type {
-    BuiltMenuItem,
-    MenuItemClickDetail,
-    MenuItemClickHandler
-  } from '../types'
 
   let {
     items = $bindable<BuiltMenuItem[]>([]),
@@ -13,10 +49,6 @@
 
   function addItem(newItem: BuiltMenuItem) {
     items = [...items, newItem]
-  }
-
-  function onItemClick(detail: MenuItemClickDetail) {
-    itemClick(detail)
   }
 
   function itemIcon(item: BuiltMenuItem) {
@@ -45,7 +77,7 @@
 </script>
 
 <div class="flex flex-col children:grow gap-2">
-  <MenuItemBuilder newItem={addItem} itemClick={onItemClick} />
+  <MenuItemBuilder newItem={addItem} {itemClick} />
 
   <div>
     {#each items as item}

@@ -6,7 +6,7 @@
     getTauriVersion,
     getBundleType
   } from '@tauri-apps/api/app'
-  import type { ViewProps } from '../types'
+  import type { ViewProps } from '../App.svelte'
 
   let { onMessage }: ViewProps = $props()
 

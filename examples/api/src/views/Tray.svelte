@@ -1,8 +1,11 @@
 <script lang="ts">
   import { TrayIcon } from '@tauri-apps/api/tray'
-  import MenuBuilder from '../components/MenuBuilder.svelte'
+  import MenuBuilder, {
+    type BuiltMenuItem,
+    type MenuItemClickDetail
+  } from '../components/MenuBuilder.svelte'
   import { Menu } from '@tauri-apps/api/menu'
-  import type { BuiltMenuItem, MenuItemClickDetail, ViewProps } from '../types'
+  import type { ViewProps } from '../App.svelte'
 
   let { onMessage }: ViewProps = $props()
 

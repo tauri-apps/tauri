@@ -59,7 +59,7 @@ swift-rs = { version = "1", optional = true, features = ["build"] }
 
 [dev-dependencies]
 getrandom = { version = "0.3", features = ["std"] }
-serial_test = "3"
+serial_test = "3.5"
 tauri = { path = "../tauri" }
 tempfile = "3.15.0"
 

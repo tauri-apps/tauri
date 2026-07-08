@@ -4,4 +4,4 @@
 "@tauri-apps/cli": patch:bug
 ---
 
-Fix `build --bundles` to allow `nsis` arg in linux+macOS
+Fix MSI bundling when an external binary filename starts with a digit.

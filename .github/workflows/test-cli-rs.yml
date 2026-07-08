@@ -14,6 +14,8 @@ on:
       - 'crates/tauri-utils/**'
       - 'crates/tauri-bundler/**'
       - 'crates/tauri-cli/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 env:
   RUST_BACKTRACE: 1
@@ -44,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 'Setup Rust'
-        uses: dtolnay/rust-toolchain@1.77.2
+        uses: dtolnay/rust-toolchain@1.90
         with:
           targets: ${{ matrix.platform.target }}
 

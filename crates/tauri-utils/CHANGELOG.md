@@ -1,5 +1,78 @@
 # Changelog
 
+## \[2.9.3]
+
+### Enhancements
+
+- [`c2b8f4783`](https://www.github.com/tauri-apps/tauri/commit/c2b8f4783217d4a8a9e22b2d333727f4de2c57b0) ([#15373](https://www.github.com/tauri-apps/tauri/pull/15373) by [@MavenRain](https://www.github.com/tauri-apps/tauri/../../MavenRain)) Improve diagnostics for invalid plugin and permission identifiers.
+
+  The `Identifier` deserializer now wraps the inner error with the offending identifier string so the message reads `invalid plugin or permission identifier '<value>': ...`, surfacing the bad entry without requiring a grep through the file.
+
+  The previous parse failure (`failed to parse JSON: identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix at line 16 column 23`) now reads `failed to parse JSON: invalid plugin or permission identifier 'sqlite_proxy:allow-foo': identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix at line 16 column 23`.
+
+### Bug Fixes
+
+- [`2783e6079`](https://www.github.com/tauri-apps/tauri/commit/2783e60793cf4d911ca89d950047817ee3367dfb) ([#15481](https://www.github.com/tauri-apps/tauri/pull/15481) by [@thanhtoantnt](https://www.github.com/tauri-apps/tauri/../../thanhtoantnt)) Fix `Number::Int` being silently coerced to `Number::Float` on `serde_json` round-trip.
+
+  `From<serde_json::Value> for Value` was checking `as_f64()` first, which succeeds for every integer that fits in an f64, so integer JSON numbers were always deserialized as `Number::Float`. The check order is now `as_i64()` → `as_u64()` (cast to `i64`, wrapping for values above `i64::MAX`) → `as_f64()`, matching serde_json's own visitor convention.
+
+## \[2.9.2]
+
+### Bug Fixes
+
+- [`b5b72ce51`](https://www.github.com/tauri-apps/tauri/commit/b5b72ce51811e9f95b1f7e9a05ea19c8f12ce694) ([#15383](https://www.github.com/tauri-apps/tauri/pull/15383) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a regression in tauri-utils 2.8.3 that made empty path an invalid resource target, e.g.
+
+  ```json
+  {
+    "bundle": {
+      "resources": {
+        "README.md": "",
+      }
+    }
+  }
+  ```
+
+  (this means `README.md` -> `$RESOURCE/README.md`, note this is a confusing behavior, and will be changed in v3)
+- [`3fd8ba2c0`](https://www.github.com/tauri-apps/tauri/commit/3fd8ba2c022717068ff6a154ce12942c3a672232) ([#15388](https://www.github.com/tauri-apps/tauri/pull/15388) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a regression in tauri-utils 2.8.3 that made an empty directory makes it skip all the following entries, e.g.
+
+  ```json
+  {
+    "bundle": {
+      "resources": [
+        "empty-directory",
+        "README.md"
+      ]
+    }
+  }
+  ```
+
+  if `empty-directory` is empty, the `README.md` will not be copied to the resource directory (skipped)
+
+## \[2.9.1]
+
+### Dependencies
+
+- [`4f548e739`](https://www.github.com/tauri-apps/tauri/commit/4f548e73947b3b06bf2073c822564aed3dd5f948) ([#15308](https://www.github.com/tauri-apps/tauri/pull/15308)) Updated `phf` to 0.13
+
+## \[2.9.0]
+
+### New Features
+
+- [`001c8fe3d`](https://www.github.com/tauri-apps/tauri/commit/001c8fe3d288802de9a8c29cfd2f46f9220d97c5) ([#14722](https://www.github.com/tauri-apps/tauri/pull/14722)) Add a WebView option to control browser-level general autofill behavior. This option does not disable password or credit card autofill. On Windows (WebView2), setting it to true disables the general autofill "Suggestions" UI, which may appear even when `autocomplete="off"` is specified on input elements. On Linux, macOS, iOS, and Android, this option is currently unsupported and performs no operation.
+- [`926a57bb0`](https://www.github.com/tauri-apps/tauri/commit/926a57bb0851e45d47ad1ee68fc96a9c25754c7c) ([#15201](https://www.github.com/tauri-apps/tauri/pull/15201)) Added uninstaller icon and uninstaller header image support for NSIS installer.
+
+  Notes:
+
+  - For `tauri-bundler` lib users, the `NsisSettings` now has 2 new fields `uninstaller_icon` and `uninstaller_header_image` which can be a breaking change
+  - When bundling with NSIS, users can add `uninstallerIcon` and `uninstallerHeaderImage` under `bundle > windows > nsis` to configure them.
+- [`093e2b47c`](https://www.github.com/tauri-apps/tauri/commit/093e2b47c01361c18783e9ff18750388e41650c5) ([#14484](https://www.github.com/tauri-apps/tauri/pull/14484)) Support creating multiple windows on Android (activity embedding) and iOS (scenes).
+
+### Dependencies
+
+- [`e032c3b34`](https://www.github.com/tauri-apps/tauri/commit/e032c3b3421f53bca7b869ffee2be105c5c06ad9) ([#14959](https://www.github.com/tauri-apps/tauri/pull/14959)) Add new `html-manipulation-2` and `build-2` feature flags that use `dom_query` instead of `kuchikiki` for HTML parsing / manipulation.
+  This allows downstream users to remove `kuchikiki` and its dependencies from their dependency tree.
+- [`1ef6a119b`](https://www.github.com/tauri-apps/tauri/commit/1ef6a119b1571d1da0acc08bdb7fd5521a4c6d52) ([#15115](https://www.github.com/tauri-apps/tauri/pull/15115)) Changed `toml` crate version from `0.9` to `">=0.9, <=1"`
+
 ## \[2.8.3]
 
 ### Bug Fixes

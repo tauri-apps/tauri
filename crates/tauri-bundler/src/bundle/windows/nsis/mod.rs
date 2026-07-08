@@ -8,12 +8,12 @@ use crate::{
     windows::{
       sign::{should_sign, sign_command, try_sign},
       util::{
-        download_webview2_bootstrapper, download_webview2_offline_installer,
+        download_webview2_bootstrapper, download_webview2_offline_installer, vc_runtime_dlls,
         NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
       },
     },
   },
-  error::ErrorExt,
+  error::{bail, ErrorExt},
   utils::{
     http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
     CommandExt,
@@ -282,6 +282,13 @@ fn build_nsis_app_installer(
     to_json(&additional_plugins_path),
   );
 
+  if let Some(plugin_copy_path) = &maybe_plugin_copy_path {
+    data.insert(
+      "signed_plugins_path",
+      to_json(plugin_copy_path.join("x86-unicode")),
+    );
+  }
+
   data.insert("arch", to_json(arch));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
@@ -319,7 +326,8 @@ fn build_nsis_app_installer(
   );
 
   if let Some(license_file) = settings.license_file() {
-    let license_file = dunce::canonicalize(license_file)?;
+    let license_file = dunce::canonicalize(&license_file)
+      .fs_context("failed to resolve `bundle > licenseFile`", license_file)?;
     let license_file_with_bom = output_path.join("license_file");
     let content = std::fs::read(license_file)?;
     write_utf8_with_bom(&license_file_with_bom, content)?;
@@ -339,30 +347,70 @@ fn build_nsis_app_installer(
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
         "installer_icon",
-        to_json(dunce::canonicalize(installer_icon)?),
+        to_json(dunce::canonicalize(installer_icon).fs_context(
+          "failed to resolve `bundle > windows > nsis > installerIcon`",
+          installer_icon.to_owned(),
+        )?),
       );
     }
 
     if let Some(header_image) = &nsis.header_image {
-      data.insert("header_image", to_json(dunce::canonicalize(header_image)?));
+      data.insert(
+        "header_image",
+        to_json(dunce::canonicalize(header_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > headerImage`",
+          header_image.to_owned(),
+        )?),
+      );
     }
 
     if let Some(sidebar_image) = &nsis.sidebar_image {
       data.insert(
         "sidebar_image",
-        to_json(dunce::canonicalize(sidebar_image)?),
+        to_json(dunce::canonicalize(sidebar_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > sidebarImage`",
+          sidebar_image.to_owned(),
+        )?),
+      );
+    }
+
+    if let Some(uninstaller_icon) = &nsis.uninstaller_icon {
+      data.insert(
+        "uninstaller_icon",
+        to_json(dunce::canonicalize(uninstaller_icon).fs_context(
+          "failed to resolve `bundle > windows > nsis > uninstallerIcon`",
+          uninstaller_icon.to_owned(),
+        )?),
+      );
+    }
+
+    if let Some(uninstaller_header_image) = &nsis.uninstaller_header_image {
+      data.insert(
+        "uninstaller_header_image",
+        to_json(dunce::canonicalize(uninstaller_header_image).fs_context(
+          "failed to resolve `bundle > windows > nsis > uninstallerHeaderImage`",
+          uninstaller_header_image.to_owned(),
+        )?),
       );
     }
 
     if let Some(installer_hooks) = &nsis.installer_hooks {
-      let installer_hooks = dunce::canonicalize(installer_hooks)?;
+      let installer_hooks = dunce::canonicalize(installer_hooks).fs_context(
+        "failed to resolve `bundle > windows > nsis > installerHooks`",
+        installer_hooks.to_owned(),
+      )?;
       data.insert("installer_hooks", to_json(installer_hooks));
     }
 
     if let Some(start_menu_folder) = &nsis.start_menu_folder {
       data.insert("start_menu_folder", to_json(start_menu_folder));
     }
-    if let Some(minimum_webview2_version) = &nsis.minimum_webview2_version {
+    #[allow(deprecated)]
+    if let Some(minimum_webview2_version) = nsis
+      .minimum_webview2_version
+      .as_ref()
+      .or(settings.windows().minimum_webview2_version.as_ref())
+    {
       data.insert(
         "minimum_webview2_version",
         to_json(minimum_webview2_version),
@@ -609,7 +657,7 @@ fn build_nsis_app_installer(
   );
 
   let nsis_output_path = output_path.join(out_file);
-  let nsis_installer_path = settings.project_out_directory().to_path_buf().join(format!(
+  let nsis_installer_path = settings.project_out_directory().join(format!(
     "bundle/{}/{}.exe",
     if updater {
       NSIS_UPDATER_OUTPUT_FOLDER_NAME
@@ -642,11 +690,7 @@ fn build_nsis_app_installer(
   #[cfg(not(target_os = "windows"))]
   let mut nsis_cmd = Command::new("makensis");
 
-  if let Some(plugins_path) = &maybe_plugin_copy_path {
-    nsis_cmd.env("NSISPLUGINS", plugins_path);
-  }
-
-  nsis_cmd
+  let status = nsis_cmd
     .args(["-INPUTCHARSET", "UTF8", "-OUTPUTCHARSET", "UTF8"])
     .arg(match settings.log_level() {
       log::Level::Error => "-V1",
@@ -663,6 +707,9 @@ fn build_nsis_app_installer(
       command: "makensis.exe".to_string(),
       error,
     })?;
+  if !status.success() {
+    bail!("Failed to bundle app with makensis");
+  }
 
   fs::rename(nsis_output_path, &nsis_installer_path)?;
 
@@ -752,6 +799,22 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
         loader_path,
         (PathBuf::new(), PathBuf::from("WebView2Loader.dll")),
       );
+    }
+  }
+
+  if settings.windows().bundle_vc_runtime {
+    for dll in vc_runtime_dlls(settings.binary_arch())? {
+      let dll = dunce::simplified(&dll).to_path_buf();
+      if added_resources.contains(&dll) {
+        continue;
+      }
+      let target = PathBuf::from(
+        dll
+          .file_name()
+          .expect("failed to extract Visual C++ runtime DLL filename"),
+      );
+      added_resources.push(dll.clone());
+      resources.insert(dll, (PathBuf::new(), target));
     }
   }
 
@@ -868,6 +931,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),
     "ukrainian" => include_bytes!("./languages/Ukrainian.nsh"),
     "norwegian" => include_bytes!("./languages/Norwegian.nsh"),
+    "vietnamese" => include_bytes!("./languages/Vietnamese.nsh"),
     _ => return None,
   };
   Some((path, content))

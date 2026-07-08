@@ -95,12 +95,15 @@ pub fn handle_android_plugin_response(
     (false, false) => unreachable!(),
   };
 
-  if let Some(handler) = PENDING_PLUGIN_CALLS
+  // Drop the lock before invoking the handler: it delivers the command response
+  // to the webview (which can block on the UI thread), and holding
+  // PENDING_PLUGIN_CALLS across that call deadlocks a concurrent `run_command`.
+  let handler = PENDING_PLUGIN_CALLS
     .get_or_init(Default::default)
     .lock()
     .unwrap()
-    .remove(&id)
-  {
+    .remove(&id);
+  if let Some(handler) = handler {
     handler(if is_ok { Ok(payload) } else { Err(payload) });
   }
 }
@@ -115,12 +118,16 @@ pub fn send_channel_data(
   let data: serde_json::Value =
     serde_json::from_str(env.get_string(&data_str).unwrap().to_str().unwrap()).unwrap();
 
-  if let Some(channel) = CHANNELS
+  // Clone the channel out and drop the lock before send(): send() can block
+  // delivering to the webview, and holding CHANNELS across it deadlocks a
+  // concurrent channel registration/send.
+  let channel = CHANNELS
     .get_or_init(Default::default)
     .lock()
     .unwrap()
     .get(&(channel_id as u32))
-  {
+    .cloned();
+  if let Some(channel) = channel {
     let _ = channel.send(data);
   }
 }
@@ -234,7 +241,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
         .l()?;
 
       let plugin_name = env.new_string(plugin_name)?;
-      let config = env.new_string(&serde_json::to_string(plugin_config).unwrap())?;
+      let config = env.new_string(serde_json::to_string(plugin_config).unwrap())?;
       env.call_method(
         plugin_manager,
         "load",
@@ -401,12 +408,16 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
         CStr::from_ptr(payload)
       };
 
-      if let Some(channel) = CHANNELS
+      // Clone the channel out and drop the lock before send(): send() can block
+      // delivering to the webview, and holding CHANNELS across it deadlocks a
+      // concurrent channel registration/send.
+      let channel = CHANNELS
         .get_or_init(Default::default)
         .lock()
         .unwrap()
         .get(&(id as u32))
-      {
+        .cloned();
+      if let Some(channel) = channel {
         let payload: serde_json::Value = serde_json::from_str(payload.to_str().unwrap()).unwrap();
         let _ = channel.send(payload);
       }
@@ -439,7 +450,7 @@ pub(crate) fn run_command<
 ) -> Result<(), PluginInvokeError> {
   use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
 
-  fn run<R: Runtime>(
+  fn run(
     id: i32,
     plugin: &str,
     command: String,
@@ -449,7 +460,7 @@ pub(crate) fn run_command<
   ) -> Result<(), JniError> {
     let plugin = env.new_string(plugin)?;
     let command = env.new_string(&command)?;
-    let data = env.new_string(&serde_json::to_string(payload).unwrap())?;
+    let data = env.new_string(serde_json::to_string(payload).unwrap())?;
     let plugin_manager = env
       .call_method(
         activity,
@@ -491,7 +502,7 @@ pub(crate) fn run_command<
     .insert(id, Box::new(handler.clone()));
 
   handle.run_on_android_context(move |env, activity, _webview| {
-    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, env, activity) {
+    if let Err(e) = run(id, &plugin_name, command, &payload, env, activity) {
       handler(Err(e.to_string().into()));
     }
   });

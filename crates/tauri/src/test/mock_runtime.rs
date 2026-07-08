@@ -58,6 +58,7 @@ pub struct RuntimeContext {
   windows: Arc<RefCell<HashMap<WindowId, Window>>>,
   shortcuts: Arc<Mutex<ShortcutMap>>,
   run_tx: SyncSender<Message>,
+  main_thread_id: std::thread::ThreadId,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
@@ -74,6 +75,12 @@ unsafe impl Sync for RuntimeContext {}
 
 impl RuntimeContext {
   fn send_message(&self, message: Message) -> Result<()> {
+    if std::thread::current().id() == self.main_thread_id {
+      if let Message::Task(task) = message {
+        task();
+        return Ok(());
+      }
+    }
     if self.is_running.load(Ordering::Relaxed) {
       self
         .run_tx
@@ -287,7 +294,9 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   #[cfg(target_os = "android")]
   fn run_on_android_context<F>(&self, f: F)
   where
-    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
+    F: FnOnce(&mut jni::JNIEnv<'_>, &jni::objects::JObject<'_>, &jni::objects::JObject<'_>)
+      + Send
+      + 'static,
   {
     todo!()
   }
@@ -464,6 +473,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn no_redirection_bitmap(self, enable: bool) -> Self {
+    self
+  }
+
   fn shadow(self, enable: bool) -> Self {
     self
   }
@@ -534,6 +547,21 @@ impl WindowBuilder for MockWindowBuilder {
   fn background_color(self, _color: tauri_utils::config::Color) -> Self {
     self
   }
+
+  #[cfg(target_os = "android")]
+  fn activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "android")]
+  fn created_by_activity_name<S: Into<String>>(self, _class_name: S) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "ios")]
+  fn requested_by_scene_identifier<S: Into<String>>(self, _identifier: S) -> Self {
+    self
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
@@ -570,6 +598,19 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    self
+      .last_evaluated_script
+      .lock()
+      .unwrap()
+      .replace(script.into());
+    Ok(())
+  }
+
+  fn eval_script_with_callback<S: Into<String>>(
+    &self,
+    script: S,
+    callback: impl Fn(String) + Send + 'static,
+  ) -> Result<()> {
     self
       .last_evaluated_script
       .lock()
@@ -793,6 +834,16 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     target_os = "openbsd"
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "android")]
+  fn activity_name(&self) -> Result<String> {
+    unimplemented!()
+  }
+
+  #[cfg(target_os = "ios")]
+  fn scene_identifier(&self) -> Result<String> {
     unimplemented!()
   }
 
@@ -1123,6 +1174,7 @@ impl MockRuntime {
       windows: Default::default(),
       shortcuts: Default::default(),
       run_tx: tx,
+      main_thread_id: std::thread::current().id(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),

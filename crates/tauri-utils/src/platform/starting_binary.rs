@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use ctor::ctor;
+use ctor::declarative::ctor;
 use std::{
   io::{Error, ErrorKind, Result},
   path::{Path, PathBuf},
 };
 
-/// A cached version of the current binary using [`ctor`] to cache it before even `main` runs.
-#[ctor]
-#[used]
-pub(super) static STARTING_BINARY: StartingBinary = StartingBinary::new();
+ctor! {
+  /// A cached version of the current binary using [`ctor`] to cache it before even `main` runs.
+  #[ctor(unsafe)]
+  pub(super) static STARTING_BINARY: StartingBinary = unsafe { StartingBinary::new() };
+}
 
 /// Represents a binary path that was cached when the program was loaded.
 pub(super) struct StartingBinary(std::io::Result<PathBuf>);

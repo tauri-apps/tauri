@@ -40,17 +40,27 @@ impl PlatformIcon {
   /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
   pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
     let icon = RgbaIcon::from_rgba(rgba, width, height)?;
-    let row_stride = Pixbuf::calculate_rowstride(
-      Colorspace::Rgb,
-      true,
-      8,
-      icon.width as i32,
-      icon.height as i32,
-    );
+    let width = i32::try_from(icon.width)
+      .map_err(|_| BadIcon::DimensionsMultiplyOverflow { width, height })?;
+    let height = i32::try_from(icon.height).map_err(|_| BadIcon::DimensionsMultiplyOverflow {
+      width: icon.width,
+      height,
+    })?;
+    let row_stride = i32::try_from(icon.width.checked_mul(4).ok_or(
+      BadIcon::DimensionsMultiplyOverflow {
+        width: icon.width,
+        height: icon.height,
+      },
+    )?)
+    .map_err(|_| BadIcon::DimensionsMultiplyOverflow {
+      width: icon.width,
+      height: icon.height,
+    })?;
+
     Ok(Self {
       raw: icon.rgba,
-      width: icon.width as i32,
-      height: icon.height as i32,
+      width,
+      height,
       row_stride,
     })
   }

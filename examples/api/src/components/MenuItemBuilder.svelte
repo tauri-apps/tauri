@@ -1,22 +1,37 @@
-<script>
+<script lang="ts">
   import {
     IconMenuItem,
     CheckMenuItem,
     PredefinedMenuItem,
     MenuItem
   } from '@tauri-apps/api/menu'
+  import type {
+    CheckMenuItemOptions,
+    IconMenuItemOptions,
+    MenuItemOptions,
+    PredefinedMenuItemOptions
+  } from '@tauri-apps/api/menu'
+  import type { BuiltMenuItem, MenuItemClickHandler } from '../types'
 
-  let { newItem, itemClick } = $props()
+  type ItemKind = 'Normal' | 'Icon' | 'Check' | 'Predefined'
+  type PredefinedItem = PredefinedMenuItemOptions['item']
 
-  let kind = $state('Normal')
+  let {
+    newItem,
+    itemClick
+  }: {
+    newItem: (item: BuiltMenuItem) => void
+    itemClick: MenuItemClickHandler
+  } = $props()
+
+  let kind = $state<ItemKind>('Normal')
   let text = $state('')
   let icon = $state('')
-  /** @type {import('@tauri-apps/api/menu').PredefinedMenuItemOptions['item'] | undefined} */
-  let predefinedItem = undefined
+  let predefinedItem = $state<PredefinedItem>()
   let checked = $state(true)
 
-  const itemKinds = ['Normal', 'Icon', 'Check', 'Predefined']
-  const predefinedOptions = [
+  const itemKinds: ItemKind[] = ['Normal', 'Icon', 'Check', 'Predefined']
+  const predefinedOptions: PredefinedItem[] = [
     'Separator',
     'Copy',
     'Cut',
@@ -36,52 +51,58 @@
     'BringAllToFront'
   ]
 
-  function onKindChange(event) {
-    kind = event.currentTarget.value
+  function onKindChange(event: Event) {
+    kind = (event.currentTarget as HTMLInputElement).value as ItemKind
   }
 
-  function onPredefinedChange(event) {
-    predefinedItem = event.currentTarget.value
+  function onPredefinedChange(event: Event) {
+    predefinedItem = (event.currentTarget as HTMLInputElement)
+      .value as PredefinedItem
   }
 
   async function create() {
-    let options = null
-    let item = null
-
     const t = text
 
     switch (kind) {
-      case 'Normal':
-        options = {
+      case 'Normal': {
+        const options: MenuItemOptions = {
           text,
           action: (id) => itemClick({ id, text: t })
         }
-        item = await MenuItem.new(options)
+        const item = await MenuItem.new(options)
+        newItem({ item, options })
         break
-      case 'Icon':
-        options = {
+      }
+      case 'Icon': {
+        const options: IconMenuItemOptions = {
           text,
           icon,
           action: (id) => itemClick({ id, text: t })
         }
-        item = await IconMenuItem.new(options)
+        const item = await IconMenuItem.new(options)
+        newItem({ item, options })
         break
-      case 'Check':
-        options = {
+      }
+      case 'Check': {
+        const options: CheckMenuItemOptions = {
           text,
           checked,
           action: (id) => itemClick({ id, text: t })
         }
-        item = await CheckMenuItem.new(options)
+        const item = await CheckMenuItem.new(options)
+        newItem({ item, options })
         break
-      case 'Predefined':
-        options = {
+      }
+      case 'Predefined': {
+        if (!predefinedItem) return
+        const options: PredefinedMenuItemOptions = {
           item: predefinedItem
         }
-        item = await PredefinedMenuItem.new(options)
+        const item = await PredefinedMenuItem.new(options)
+        newItem({ item, options })
         break
+      }
     }
-    newItem({ item, options })
 
     text = ''
     predefinedItem = undefined
@@ -129,7 +150,7 @@
           <div class="flex gap-1">
             <input
               id="{predefinedOption}Input"
-              checked={kind === predefinedOption}
+              checked={predefinedItem === predefinedOption}
               onchange={onPredefinedChange}
               type="radio"
               name="predefinedKind"

@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { onDestroy } from 'svelte'
   import {
     LogicalSize,
@@ -10,19 +10,22 @@
     ProgressBarStatus
   } from '@tauri-apps/api/window'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
+  import type { CursorIcon, Effects, Theme } from '@tauri-apps/api/window'
+  import type { UnlistenFn } from '@tauri-apps/api/event'
+  import type { MessageHandler } from '../types'
 
-  let { onMessage } = $props()
+  let { onMessage }: { onMessage: MessageHandler } = $props()
 
   const webview = WebviewWindow.getCurrent()
 
   let selectedWebview = $state(webview.label)
-  const webviewMap = $state({
+  const webviewMap = $state<Record<string, WebviewWindow>>({
     [webview.label]: webview
   })
 
   let focusable = $state(true)
 
-  const cursorIconOptions = [
+  const cursorIconOptions: CursorIcon[] = [
     'default',
     'crosshair',
     'hand',
@@ -64,32 +67,30 @@
     'rowResize'
   ]
 
-  const windowsEffects = [
-    'mica',
-    'blur',
-    'acrylic',
-    'tabbed',
-    'tabbedDark',
-    'tabbedLight'
+  const windowsEffects: Effect[] = [
+    Effect.Mica,
+    Effect.Blur,
+    Effect.Acrylic,
+    Effect.Tabbed,
+    Effect.TabbedDark,
+    Effect.TabbedLight
   ]
   const isWindows = navigator.appVersion.includes('Windows')
   const isMacOS = navigator.appVersion.includes('Macintosh')
-  let effectOptions = isWindows
+  const effectOptions: Effect[] = isWindows
     ? windowsEffects
-    : Object.keys(Effect)
-        .map((effect) => Effect[effect])
-        .filter((e) => !windowsEffects.includes(e))
-  const effectStateOptions = Object.keys(EffectState).map(
-    (state) => EffectState[state]
-  )
+    : (Object.values(Effect) as Effect[]).filter(
+        (e) => !windowsEffects.includes(e)
+      )
+  const effectStateOptions = Object.values(EffectState) as EffectState[]
 
-  const progressBarStatusOptions = Object.keys(ProgressBarStatus).map(
-    (s) => ProgressBarStatus[s]
-  )
+  const progressBarStatusOptions = Object.values(
+    ProgressBarStatus
+  ) as ProgressBarStatus[]
 
-  const mainEl = document.querySelector('main')
+  const mainEl = document.querySelector<HTMLElement>('main')
 
-  let newWebviewLabel = $state()
+  let newWebviewLabel = $state<string>()
 
   let resizable = $state(true)
   let maximizable = $state(true)
@@ -102,47 +103,46 @@
   let contentProtected = $state(false)
   let fullscreen = $state(false)
   let simpleFullscreen = $state(false)
-  let width = $state(null)
-  let height = $state(null)
-  let minWidth = $state(null)
-  let minHeight = $state(null)
-  let maxWidth = $state(null)
-  let maxHeight = $state(null)
-  let x = $state(null)
-  let y = $state(null)
+  let width = $state<number | null>(null)
+  let height = $state<number | null>(null)
+  let minWidth = $state<number | null>(null)
+  let minHeight = $state<number | null>(null)
+  let maxWidth = $state<number | null>(null)
+  let maxHeight = $state<number | null>(null)
+  let x = $state<number | null>(null)
+  let y = $state<number | null>(null)
   let scaleFactor = $state(1)
   let innerPosition = $state(new PhysicalPosition(0, 0))
   let outerPosition = $state(new PhysicalPosition(0, 0))
   let innerSize = $state(new PhysicalSize(0, 0))
   let outerSize = $state(new PhysicalSize(0, 0))
-  let resizeEventUnlisten
-  let moveEventUnlisten
+  let resizeEventUnlisten: UnlistenFn | undefined
+  let moveEventUnlisten: UnlistenFn | undefined
   let cursorGrab = $state(false)
   let cursorVisible = $state(true)
-  let cursorX = $state(null)
-  let cursorY = $state(null)
-  /** @type {import('@tauri-apps/api/window').CursorIcon} */
-  let cursorIcon = $state('default')
+  let cursorX = $state<number | null>(null)
+  let cursorY = $state<number | null>(null)
+  let cursorIcon = $state<CursorIcon>('default')
   let cursorIgnoreEvents = $state(false)
   let windowTitle = $state('Awesome Tauri Example!')
 
-  /** @type {import('@tauri-apps/api/window').Theme | 'auto'} */
-  let theme = $state('auto')
+  let theme = $state<Theme | 'auto'>('auto')
 
-  let effects = $state([])
-  let selectedEffect = $state()
-  let effectState = $state()
-  let effectRadius = $state()
-  let effectR = $state(),
-    effectG = $state(),
-    effectB = $state(),
-    effectA = $state()
+  let effects = $state<Effect[]>([])
+  let selectedEffect = $state<Effect>()
+  let effectState = $state<EffectState>()
+  let effectRadius = $state<number>()
+  let effectR = $state<number>(),
+    effectG = $state<number>(),
+    effectB = $state<number>(),
+    effectA = $state<number>()
 
-  /** @type {ProgressBarStatus} */
-  let selectedProgressBarStatus = $state(ProgressBarStatus.None)
+  let selectedProgressBarStatus = $state<ProgressBarStatus>(
+    ProgressBarStatus.None
+  )
   let progress = $state(0)
 
-  let windowIconPath = $state()
+  let windowIconPath = $state<string>()
 
   function setTitle() {
     webviewMap[selectedWebview].setTitle(windowTitle)
@@ -185,7 +185,7 @@
   }
 
   function changeIcon() {
-    webviewMap[selectedWebview].setIcon(windowIconPath)
+    webviewMap[selectedWebview].setIcon(windowIconPath ?? null)
   }
 
   function createWebviewWindow() {
@@ -224,12 +224,12 @@
     })
   }
 
-  async function addWindowEventListeners(window) {
-    if (!window) return
+  async function addWindowEventListeners(target: WebviewWindow | undefined) {
+    if (!target) return
     resizeEventUnlisten?.()
     moveEventUnlisten?.()
-    moveEventUnlisten = await window.listen('tauri://move', loadWindowPosition)
-    resizeEventUnlisten = await window.listen('tauri://resize', loadWindowSize)
+    moveEventUnlisten = await target.listen('tauri://move', loadWindowPosition)
+    resizeEventUnlisten = await target.listen('tauri://resize', loadWindowSize)
   }
 
   async function requestUserAttention() {
@@ -237,7 +237,7 @@
     await webviewMap[selectedWebview].requestUserAttention(
       UserAttentionType.Critical
     )
-    await new Promise((resolve) => setTimeout(resolve, 3000))
+    await new Promise<void>((resolve) => setTimeout(resolve, 3000))
     await webviewMap[selectedWebview].requestUserAttention(null)
   }
 
@@ -264,11 +264,12 @@
   }
 
   async function addEffect() {
+    if (!selectedEffect) return
     if (!effects.includes(selectedEffect)) {
       effects = [...effects, selectedEffect]
     }
 
-    const payload = {
+    const payload: Effects = {
       effects,
       state: effectState,
       radius: effectRadius
@@ -282,8 +283,8 @@
       payload.color = [effectR, effectG, effectB, effectA]
     }
 
-    mainEl.classList.remove('bg-primary')
-    mainEl.classList.remove('dark:bg-darkPrimary')
+    mainEl?.classList.remove('bg-primary')
+    mainEl?.classList.remove('dark:bg-darkPrimary')
     await webviewMap[selectedWebview].clearEffects()
     await webviewMap[selectedWebview].setEffects(payload)
   }
@@ -291,15 +292,17 @@
   async function clearEffects() {
     effects = []
     await webviewMap[selectedWebview].clearEffects()
-    mainEl.classList.add('bg-primary')
-    mainEl.classList.add('dark:bg-darkPrimary')
+    mainEl?.classList.add('bg-primary')
+    mainEl?.classList.add('dark:bg-darkPrimary')
   }
 
   async function updatePosition() {
+    if (x === null || y === null) return
     webviewMap[selectedWebview]?.setPosition(new PhysicalPosition(x, y))
   }
 
   async function updateSize() {
+    if (width === null || height === null) return
     webviewMap[selectedWebview]?.setSize(new PhysicalSize(width, height))
   }
 
@@ -352,7 +355,7 @@
       : webviewMap[selectedWebview]?.setMinSize(null)
   })
   $effect(() => {
-    maxWidth > 800 && maxHeight > 400
+    maxWidth !== null && maxHeight !== null && maxWidth > 800 && maxHeight > 400
       ? webviewMap[selectedWebview]?.setMaxSize(
           new LogicalSize(maxWidth, maxHeight)
         )

@@ -1,33 +1,60 @@
-<script>
+<script lang="ts">
   import { CheckMenuItem } from '@tauri-apps/api/menu'
   import MenuItemBuilder from './MenuItemBuilder.svelte'
+  import type {
+    BuiltMenuItem,
+    BuiltMenuItemOptions,
+    MenuItemClickDetail,
+    MenuItemClickHandler
+  } from '../types'
 
-  let { items = $bindable([]), itemClick } = $props()
+  let {
+    items = $bindable<BuiltMenuItem[]>([]),
+    itemClick
+  }: { items?: BuiltMenuItem[]; itemClick: MenuItemClickHandler } = $props()
 
-  function addItem({ item, options }) {
+  function addItem({ item, options }: BuiltMenuItem) {
     items = [...items, { item, options }]
   }
 
-  function onItemClick(detail) {
+  function onItemClick(detail: MenuItemClickDetail) {
     itemClick(detail)
   }
 
-  function itemIcon(item) {
-    if (item.options.icon) {
+  function hasOption<K extends keyof BuiltMenuItemOptions>(
+    options: BuiltMenuItemOptions,
+    key: K
+  ): options is BuiltMenuItemOptions & Record<K, unknown> {
+    return key in options
+  }
+
+  function itemIcon(item: BuiltMenuItem) {
+    if (hasOption(item.options, 'icon') && item.options.icon) {
       return 'i-ph-images-square'
     }
     if (item.item instanceof CheckMenuItem) {
-      return item.options.checked ? 'i-ph-check-duotone' : 'i-ph-square-duotone'
+      return hasOption(item.options, 'checked') && item.options.checked
+        ? 'i-ph-check-duotone'
+        : 'i-ph-square-duotone'
     }
-    if (item.options.item) {
+    if (hasOption(item.options, 'item') && item.options.item) {
       return 'i-ph-globe-stand'
     }
     return 'i-ph-chat-teardrop-text'
   }
 
-  function itemToString(item) {
+  function itemToString(item: BuiltMenuItem) {
     // icon || check|normal || predefined
-    return item.options.icon || item.options.text || item.options.item
+    if (hasOption(item.options, 'icon') && item.options.icon) {
+      return String(item.options.icon)
+    }
+    if (hasOption(item.options, 'text') && item.options.text) {
+      return item.options.text
+    }
+    if (hasOption(item.options, 'item') && item.options.item) {
+      return String(item.options.item)
+    }
+    return ''
   }
 </script>
 

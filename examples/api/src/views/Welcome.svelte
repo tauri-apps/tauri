@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { invoke } from '@tauri-apps/api/core'
   import {
     getName,
@@ -6,8 +6,9 @@
     getTauriVersion,
     getBundleType
   } from '@tauri-apps/api/app'
+  import type { MessageHandler } from '../types'
 
-  let { onMessage } = $props()
+  let { onMessage }: { onMessage: MessageHandler } = $props()
 
   let version = $state('1.0.0')
   let tauriVersion = $state('1.0.0')

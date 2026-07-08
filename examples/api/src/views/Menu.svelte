@@ -1,41 +1,50 @@
-<script>
+<script lang="ts">
   import { Menu, Submenu, NativeIcon } from '@tauri-apps/api/menu'
   import MenuBuilder from '../components/MenuBuilder.svelte'
-  import { defaultWindowIcon } from '@tauri-apps/api/app';
+  import { defaultWindowIcon } from '@tauri-apps/api/app'
+  import type {
+    BuiltMenuItem,
+    MenuItemClickDetail,
+    MessageHandler
+  } from '../types'
 
-  let { onMessage } = $props()
-  let items = $state([])
-  let menu = null
-  let submenu = null
+  let { onMessage }: { onMessage: MessageHandler } = $props()
+  let items = $state<BuiltMenuItem[]>([])
+  let menu = $state<Menu | null>(null)
+  let submenu = $state<Submenu | null>(null)
   let menuItemCount = 0
 
   const macOS = navigator.userAgent.includes('Macintosh')
 
-  async function createSubmenu() {
+  async function createSubmenu(): Promise<Submenu> {
     submenu = await Submenu.new({
       text: 'app',
       items: items.map((i) => i.item)
     })
+    return submenu
   }
 
-  async function createSubmenuWithNativeIcon() {
+  async function createSubmenuWithNativeIcon(): Promise<Submenu> {
     submenu = await Submenu.new({
       text: 'Submenu with NativeIcon',
       icon: NativeIcon.Folder,
       items: items.map((i) => i.item)
     })
+    return submenu
   }
 
-  async function createSubmenuWithImageIcon() {
+  async function createSubmenuWithImageIcon(): Promise<Submenu> {
+    const icon = await defaultWindowIcon()
     submenu = await Submenu.new({
       text: 'Submenu with Image',
-      icon: await defaultWindowIcon(),
+      ...(icon ? { icon } : {}),
       items: items.map((i) => i.item)
-    });
+    })
+    return submenu
   }
 
   async function create() {
-    await createSubmenu()
+    const submenu = await createSubmenu()
     menuItemCount = items.length
     menu = await Menu.new({
       items: [submenu]
@@ -44,7 +53,7 @@
   }
 
   async function createWithNativeIcon() {
-    await createSubmenuWithNativeIcon()
+    const submenu = await createSubmenuWithNativeIcon()
     menuItemCount = items.length
     menu = await Menu.new({
       items: [submenu]
@@ -53,7 +62,7 @@
   }
 
   async function createWithImageIcon() {
-    await createSubmenuWithImageIcon()
+    const submenu = await createSubmenuWithImageIcon()
     menuItemCount = items.length
     menu = await Menu.new({
       items: [submenu]
@@ -65,12 +74,13 @@
     if (!submenu || menuItemCount !== items.length) {
       await createSubmenu()
     }
+    if (!submenu) return
     // we can't popup the same menu because it's the app menu (it crashes on macOS)
     const m = await Menu.new({ items: [submenu] })
     m.popup()
   }
 
-  function onItemClick(detail) {
+  function onItemClick(detail: MenuItemClickDetail) {
     onMessage(`Item ${detail.text} clicked`)
   }
 </script>
@@ -80,7 +90,11 @@
   <div>
     <button class="btn" onclick={create}>Create menu</button>
     <button class="btn" onclick={popup}>Popup</button>
-    <button class="btn" onclick={createWithNativeIcon}>Create menu with NativeIcon</button>
-    <button class="btn" onclick={createWithImageIcon}>Create menu with Image icon</button>
+    <button class="btn" onclick={createWithNativeIcon}
+      >Create menu with NativeIcon</button
+    >
+    <button class="btn" onclick={createWithImageIcon}
+      >Create menu with Image icon</button
+    >
   </div>
 </div>

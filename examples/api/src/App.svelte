@@ -1,9 +1,10 @@
-<script>
+<script lang="ts">
   import { onMount, tick } from 'svelte'
   import { writable } from 'svelte/store'
   import { invoke } from '@tauri-apps/api/core'
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { setTheme } from '@tauri-apps/api/app'
+  import type { Writable } from 'svelte/store'
 
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
@@ -12,6 +13,11 @@
   import App from './views/App.svelte'
   import Menu from './views/Menu.svelte'
   import Tray from './views/Tray.svelte'
+  import type { View } from './types'
+
+  interface ConsoleMessage {
+    html: string
+  }
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
@@ -27,7 +33,7 @@
   const userAgent = navigator.userAgent.toLowerCase()
   const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
 
-  const desktopViews = [
+  const desktopViews: View[] = [
     {
       label: 'App',
       component: App,
@@ -50,7 +56,7 @@
     }
   ]
 
-  const views = [
+  const views: View[] = [
     {
       label: 'Welcome',
       component: Welcome,
@@ -69,20 +75,21 @@
     }
   ]
 
-  let selected = $state.raw(views[0])
-  function select(view) {
+  let selected = $state.raw<View>(views[0])
+  function select(view: View) {
     selected = view
   }
 
   // dark/light
-  let isDark = $state()
+  let isDark = $state(false)
   onMount(() => {
     isDark = localStorage && localStorage.getItem('theme') == 'dark'
     applyTheme(isDark)
   })
-  function applyTheme(isDark) {
-    const html = document.querySelector('html')
-    isDark ? html.classList.add('dark') : html.classList.remove('dark')
+  function applyTheme(isDark: boolean) {
+    isDark
+      ? document.documentElement.classList.add('dark')
+      : document.documentElement.classList.remove('dark')
     localStorage && localStorage.setItem('theme', isDark ? 'dark' : '')
   }
   function toggleDark() {
@@ -92,12 +99,12 @@
   }
 
   // Console
-  let messages = writable([])
-  let consoleTextEl = $state()
+  const messages: Writable<ConsoleMessage[]> = writable([])
+  let consoleTextEl = $state<HTMLDivElement>()
 
   // this function is renders HTML without sanitizing it so it's insecure
   // we only use it with our own input data
-  async function insecureRenderHtml(html) {
+  async function insecureRenderHtml(html: string) {
     messages.update((r) => [
       ...r,
       {
@@ -108,7 +115,7 @@
     if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight
   }
 
-  async function onMessage(value) {
+  async function onMessage(value: unknown) {
     const valueStr =
       typeof value === 'string'
         ? value
@@ -126,22 +133,22 @@
     messages.update(() => [])
   }
 
-  let consoleEl = $state(),
-    consoleH,
-    cStartY
-  let minConsoleHeight = 50
-  function startResizingConsole(e) {
+  let consoleEl = $state<HTMLDivElement>()
+  let consoleH = 0
+  let cStartY = 0
+  const minConsoleHeight = 50
+  function startResizingConsole(e: MouseEvent) {
     cStartY = e.clientY
 
-    const styles = window.getComputedStyle(consoleEl)
+    const el = consoleEl
+    if (!el) return
+    const styles = window.getComputedStyle(el)
     consoleH = parseInt(styles.height, 10)
 
-    const moveHandler = (e) => {
+    const moveHandler = (e: MouseEvent) => {
       const dy = e.clientY - cStartY
       const newH = consoleH - dy
-      consoleEl.style.height = `${
-        newH < minConsoleHeight ? minConsoleHeight : newH
-      }px`
+      el.style.height = `${newH < minConsoleHeight ? minConsoleHeight : newH}px`
     }
     const upHandler = () => {
       document.removeEventListener('mouseup', upHandler)
@@ -153,14 +160,15 @@
 
   // mobile
   let isSideBarOpen = $state(false)
-  let sidebar
-  let sidebarToggle
+  let sidebar: HTMLElement
+  let sidebarToggle: HTMLElement
   let isDraggingSideBar = false
   let draggingStartPosX = 0
   let draggingEndPosX = 0
-  const clamp = (min, num, max) => Math.min(Math.max(num, min), max)
+  const clamp = (min: number, num: number, max: number) =>
+    Math.min(Math.max(num, min), max)
 
-  function toggleSidebar(sidebar, isSideBarOpen) {
+  function toggleSidebar() {
     sidebar.style.setProperty(
       '--translate-x',
       `${isSideBarOpen ? '0' : '-18.75'}rem`
@@ -168,10 +176,9 @@
   }
 
   onMount(() => {
-    sidebar = document.querySelector('#sidebar')
-    sidebarToggle = document.querySelector('#sidebarToggle')
-
     document.addEventListener('click', (e) => {
+      if (!(e.target instanceof Node) || !sidebarToggle || !sidebar) return
+
       if (sidebarToggle.contains(e.target)) {
         isSideBarOpen = !isSideBarOpen
       } else if (isSideBarOpen && !sidebar.contains(e.target)) {
@@ -180,6 +187,7 @@
     })
 
     document.addEventListener('touchstart', (e) => {
+      if (!(e.target instanceof Node) || !sidebarToggle) return
       if (sidebarToggle.contains(e.target)) return
 
       const x = e.touches[0].clientX
@@ -190,7 +198,7 @@
     })
 
     document.addEventListener('touchmove', (e) => {
-      if (isDraggingSideBar) {
+      if (isDraggingSideBar && sidebar) {
         const x = e.touches[0].clientX
         draggingEndPosX = x
         const delta = (x - draggingStartPosX) / 10
@@ -212,16 +220,14 @@
   })
 
   $effect(() => {
-    const sidebar = document.querySelector('#sidebar')
-    if (sidebar) {
-      toggleSidebar(sidebar, isSideBarOpen)
-    }
+    toggleSidebar()
   })
 </script>
 
 <!-- Sidebar toggle, only visible on small screens -->
 <div
   id="sidebarToggle"
+  bind:this={sidebarToggle}
   class="z-2000 hidden lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8
             bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
 >
@@ -237,6 +243,7 @@
 >
   <aside
     id="sidebar"
+    bind:this={sidebar}
     class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
       bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid grid-rows-[min-content_auto] select-none px-2"
   >

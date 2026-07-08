@@ -1,26 +1,48 @@
-<script>
+<script lang="ts">
   import { onMount, onDestroy } from 'svelte'
-  let { onMessage } = $props()
+  import type { MessageHandler } from '../types'
 
-  const constraints = (window.constraints = {
+  let { onMessage }: { onMessage: MessageHandler } = $props()
+
+  const constraints: MediaStreamConstraints = (window.constraints = {
     audio: true,
     video: true
   })
 
-  function handleSuccess(stream) {
-    const video = document.querySelector('video')
+  function handleSuccess(stream: MediaStream) {
+    const video = document.querySelector<HTMLVideoElement>('video')
     const videoTracks = stream.getVideoTracks()
     onMessage('Got stream with constraints:', constraints)
-    onMessage(`Using video device: ${videoTracks[0].label}`)
+    onMessage(`Using video device: ${videoTracks[0]?.label ?? 'Unknown'}`)
     window.stream = stream // make variable available to browser console
-    video.srcObject = stream
+    if (video) {
+      video.srcObject = stream
+    }
   }
 
-  function handleError(error) {
+  function handleError(error: unknown) {
+    if (!(error instanceof DOMException)) {
+      onMessage('getUserMedia error:', error)
+      return
+    }
+
     if (error.name === 'ConstraintNotSatisfiedError') {
       const v = constraints.video
+      const exact =
+        typeof v === 'object' && 'width' in v && 'height' in v
+          ? {
+              width:
+                typeof v.width === 'object' && 'exact' in v.width
+                  ? v.width.exact
+                  : undefined,
+              height:
+                typeof v.height === 'object' && 'exact' in v.height
+                  ? v.height.exact
+                  : undefined
+            }
+          : undefined
       onMessage(
-        `The resolution ${v.width.exact}x${v.height.exact} px is not supported by your device.`
+        `The resolution ${exact?.width ?? 'requested'}x${exact?.height ?? 'requested'} px is not supported by your device.`
       )
     } else if (error.name === 'PermissionDeniedError') {
       onMessage(

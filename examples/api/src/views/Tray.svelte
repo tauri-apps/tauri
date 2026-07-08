@@ -1,18 +1,23 @@
-<script>
+<script lang="ts">
   import { TrayIcon } from '@tauri-apps/api/tray'
   import MenuBuilder from '../components/MenuBuilder.svelte'
   import { Menu } from '@tauri-apps/api/menu'
+  import type {
+    BuiltMenuItem,
+    MenuItemClickDetail,
+    MessageHandler
+  } from '../types'
 
-  let { onMessage } = $props()
+  let { onMessage }: { onMessage: MessageHandler } = $props()
 
-  let icon = $state(null)
-  let tooltip = $state(null)
-  let title = $state(null)
+  let icon = $state<string>()
+  let tooltip = $state<string>()
+  let title = $state<string>()
   let iconAsTemplate = $state(false)
   let menuOnLeftClick = $state(true)
-  let menuItems = $state([])
+  let menuItems = $state<BuiltMenuItem[]>([])
 
-  function onItemClick(detail) {
+  function onItemClick(detail: MenuItemClickDetail) {
     onMessage(`Item ${detail.text} clicked`)
   }
 

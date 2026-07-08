@@ -902,14 +902,14 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
         // Cloning the channel out in case the menu gets dropped during the channel send through `channel_interceptor`
-        if let Some(channel) = app
+        let channel = app
           .state::<MenuChannels>()
           .0
           .lock()
           .unwrap()
           .get(&e.id)
-          .cloned()
-        {
+          .cloned();
+        if let Some(channel) = channel {
           let _ = channel.send(e.id.clone());
         }
       }

@@ -18,7 +18,9 @@ pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
-pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent, ScrollBarStyle};
+pub use tauri_runtime::webview::{
+  NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse, ScrollBarStyle,
+};
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
@@ -64,6 +66,8 @@ pub(crate) type UriSchemeProtocolHandler =
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 pub(crate) type OnDocumentTitleChanged<R> = dyn Fn(Webview<R>, String) + Send + 'static;
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
+pub(crate) type PermissionRequestHandler<R> =
+  dyn Fn(Webview<R>, PermissionKind) -> PermissionResponse + Send + Sync + 'static;
 
 #[derive(Clone, Serialize)]
 pub(crate) struct CreatedEvent {
@@ -277,6 +281,7 @@ unstable_struct!(
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
     pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
+    pub(crate) permission_request_handler: Option<Box<PermissionRequestHandler<R>>>,
   }
 );
 
@@ -355,6 +360,7 @@ async fn create_window(app: tauri::AppHandle) {
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
+      permission_request_handler: None,
     }
   }
 
@@ -434,6 +440,7 @@ async fn create_window(app: tauri::AppHandle) {
       on_page_load_handler: None,
       document_title_changed_handler: None,
       download_handler: None,
+      permission_request_handler: None,
     }
   }
 
@@ -693,6 +700,52 @@ tauri::Builder::default()
     self
   }
 
+  /// Defines a closure to be executed when a permission is requested.
+  ///
+  /// The handler receives the [`PermissionKind`] and should return
+  /// the desired [`PermissionResponse`].
+  ///
+  /// > [!NOTE]
+  /// > This handler only triggers for new permission requests. If the user has already
+  /// > allowed or denied a permission persistently within the webview, the browser
+  /// > will use the saved preference instead of calling this handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
+  /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
+  /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
+  /// - **Android**: Experimental support implemented via JNI.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::webview::{WebviewBuilder, PermissionKind, PermissionResponse};
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+  ///     let webview_builder = WebviewBuilder::new("core", tauri::WebviewUrl::App("index.html".into()))
+  ///       .on_permission_request(|webview, kind| {
+  ///         match kind {
+  ///           PermissionKind::Geolocation => PermissionResponse::Allow,
+  ///           PermissionKind::Notifications => PermissionResponse::Allow,
+  ///           _ => PermissionResponse::Default,
+  ///         }
+  ///       });
+  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_permission_request<
+    F: Fn(Webview<R>, PermissionKind) -> PermissionResponse + Send + Sync + 'static,
+  >(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.permission_request_handler.replace(Box::new(f));
+    self
+  }
+
   pub(crate) fn into_pending_webview<M: Manager<R>>(
     mut self,
     manager: &M,
@@ -770,6 +823,18 @@ tauri::Builder::default()
           }
         }
       }));
+
+    let label_ = pending.label.clone();
+    let manager_ = manager.manager_owned();
+    if let Some(handler) = self.permission_request_handler {
+      pending.permission_request_handler = Some(Box::new(move |kind| {
+        if let Some(w) = manager_.get_webview(&label_) {
+          handler(w, kind)
+        } else {
+          PermissionResponse::Default
+        }
+      }));
+    }
 
     manager
       .manager()

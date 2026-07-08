@@ -571,6 +571,7 @@ mod tests {
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
       Default::default(),
+      Default::default(),
       StateManager::new(),
       Default::default(),
       #[cfg(all(desktop, feature = "tray-icon"))]
@@ -688,6 +689,7 @@ mod tests {
       None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),

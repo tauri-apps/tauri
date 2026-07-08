@@ -1516,6 +1516,9 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
+  /// Permission request hook.
+  on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
+
   /// Web content process termination hook.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
@@ -1606,6 +1609,7 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
+      on_permission_request: None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
@@ -1785,6 +1789,24 @@ tauri::Builder::default()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Defines a closure to be executed when a permission is requested.
+  ///
+  /// The handler receives the [`crate::webview::PermissionKind`] and should return
+  /// the desired [`crate::webview::PermissionResponse`].
+  #[must_use]
+  pub fn on_permission_request<F>(mut self, on_permission_request: F) -> Self
+  where
+    F: Fn(Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
+      + Send
+      + Sync
+      + 'static,
+  {
+    self
+      .on_permission_request
+      .replace(Arc::new(on_permission_request));
     self
   }
 
@@ -2253,6 +2275,7 @@ tauri::Builder::default()
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      self.on_permission_request,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       self.on_web_content_process_terminate,
       self.uri_scheme_protocols,

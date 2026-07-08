@@ -434,6 +434,20 @@ tauri::Builder::default()
     self
   }
 
+  /// Defines a closure to be executed when a permission is requested.
+  pub fn on_permission_request<
+    F: Fn(Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
+      + Send
+      + Sync
+      + 'static,
+  >(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder = self.webview_builder.on_permission_request(f);
+    self
+  }
+
   /// Creates a new window.
   pub fn build(self) -> crate::Result<WebviewWindow<R>> {
     let (window, webview) = self.window_builder.with_webview(self.webview_builder)?;

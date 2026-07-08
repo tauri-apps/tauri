@@ -41,6 +41,8 @@ type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
+type PermissionRequestHandler = dyn Fn(PermissionKind) -> PermissionResponse + Send + Sync;
+
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 type OnWebContentProcessTerminateHandler = dyn Fn() + Send;
 
@@ -70,6 +72,97 @@ pub enum DownloadEvent<'a> {
     /// Indicates if the download succeeded or not.
     success: bool,
   },
+}
+
+/// Permission request response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum PermissionResponse {
+  /// Permission allowed.
+  Allow,
+  /// Permission denied.
+  Deny,
+  /// Use the platform or browser default behavior.
+  #[default]
+  Default,
+}
+
+impl std::fmt::Display for PermissionResponse {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Allow => write!(f, "allow"),
+      Self::Deny => write!(f, "deny"),
+      Self::Default => write!(f, "default"),
+    }
+  }
+}
+
+/// Permission request kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum PermissionKind {
+  /// Microphone access permission.
+  Microphone,
+  /// Camera access permission.
+  Camera,
+  /// Geolocation access permission.
+  Geolocation,
+  /// Notifications permission.
+  Notifications,
+  /// Clipboard read permission.
+  ClipboardRead,
+  /// Display capture permission (for getDisplayMedia).
+  DisplayCapture,
+  /// Midi access permission.
+  Midi,
+  /// Sensors (accelerometer, gyroscope, etc.) access permission.
+  Sensors,
+  /// Media key system access permission.
+  MediaKeySystemAccess,
+  /// Local fonts access permission.
+  LocalFonts,
+  /// Window management permission.
+  WindowManagement,
+  /// Pointer lock permission.
+  PointerLock,
+  /// Automatic downloads permission (multiple downloads without user interaction).
+  AutomaticDownloads,
+  /// File system access permission (read/write via File System Access API).
+  ///
+  /// ## Platform-specific
+  /// - **Windows**: Supported via `COREWEBVIEW2_PERMISSION_KIND_FILE_READ_WRITE`.
+  /// - **macOS / Linux / Android / iOS**: Not yet supported by platform backends.
+  FileSystemAccess,
+  /// Media autoplay permission.
+  ///
+  /// ## Platform-specific
+  /// - **Windows**: Supported via `COREWEBVIEW2_PERMISSION_KIND_AUTOPLAY`.
+  /// - **macOS / Linux / Android / iOS**: Not yet supported by platform backends.
+  Autoplay,
+  /// Other unrecognized permission type.
+  Other,
+}
+
+impl std::fmt::Display for PermissionKind {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Microphone => write!(f, "microphone"),
+      Self::Camera => write!(f, "camera"),
+      Self::Geolocation => write!(f, "geolocation"),
+      Self::Notifications => write!(f, "notifications"),
+      Self::ClipboardRead => write!(f, "clipboard-read"),
+      Self::DisplayCapture => write!(f, "display-capture"),
+      Self::Midi => write!(f, "midi"),
+      Self::Sensors => write!(f, "sensors"),
+      Self::MediaKeySystemAccess => write!(f, "media-key-system-access"),
+      Self::LocalFonts => write!(f, "local-fonts"),
+      Self::WindowManagement => write!(f, "window-management"),
+      Self::PointerLock => write!(f, "pointer-lock"),
+      Self::AutomaticDownloads => write!(f, "automatic-downloads"),
+      Self::FileSystemAccess => write!(f, "file-system-access"),
+      Self::Autoplay => write!(f, "autoplay"),
+      Self::Other => write!(f, "other"),
+    }
+  }
 }
 
 #[cfg(target_os = "android")]
@@ -229,6 +322,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
 
   pub download_handler: Option<Arc<DownloadHandler>>,
 
+  pub permission_request_handler: Option<Box<PermissionRequestHandler>>,
+
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub on_web_content_process_terminate_handler: Option<Box<OnWebContentProcessTerminateHandler>>,
 }
@@ -257,6 +352,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         web_resource_request_handler: None,
         on_page_load_handler: None,
         download_handler: None,
+        permission_request_handler: None,
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         on_web_content_process_terminate_handler: None,
       })

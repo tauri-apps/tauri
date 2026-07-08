@@ -4872,6 +4872,48 @@ You may have it installed on another user account, but it is not available for t
       webview_builder.with_document_title_changed_handler(document_title_changed_handler)
   }
 
+  if let Some(permission_request_handler) = pending.permission_request_handler {
+    webview_builder = webview_builder.with_permission_handler(move |kind| {
+      let kind = match kind {
+        wry::PermissionKind::Microphone => tauri_runtime::webview::PermissionKind::Microphone,
+        wry::PermissionKind::Camera => tauri_runtime::webview::PermissionKind::Camera,
+        wry::PermissionKind::Geolocation => tauri_runtime::webview::PermissionKind::Geolocation,
+        wry::PermissionKind::Notifications => tauri_runtime::webview::PermissionKind::Notifications,
+        wry::PermissionKind::ClipboardRead => tauri_runtime::webview::PermissionKind::ClipboardRead,
+        wry::PermissionKind::DisplayCapture => {
+          tauri_runtime::webview::PermissionKind::DisplayCapture
+        }
+        wry::PermissionKind::Midi => tauri_runtime::webview::PermissionKind::Midi,
+        wry::PermissionKind::Sensors => tauri_runtime::webview::PermissionKind::Sensors,
+        wry::PermissionKind::MediaKeySystemAccess => {
+          tauri_runtime::webview::PermissionKind::MediaKeySystemAccess
+        }
+        wry::PermissionKind::LocalFonts => tauri_runtime::webview::PermissionKind::LocalFonts,
+        wry::PermissionKind::WindowManagement => {
+          tauri_runtime::webview::PermissionKind::WindowManagement
+        }
+        wry::PermissionKind::PointerLock => tauri_runtime::webview::PermissionKind::PointerLock,
+        wry::PermissionKind::AutomaticDownloads => {
+          tauri_runtime::webview::PermissionKind::AutomaticDownloads
+        }
+        wry::PermissionKind::FileSystemAccess => {
+          tauri_runtime::webview::PermissionKind::FileSystemAccess
+        }
+        wry::PermissionKind::Autoplay => tauri_runtime::webview::PermissionKind::Autoplay,
+        wry::PermissionKind::Other => tauri_runtime::webview::PermissionKind::Other,
+        _ => tauri_runtime::webview::PermissionKind::Other,
+      };
+
+      let response = permission_request_handler(kind);
+
+      match response {
+        tauri_runtime::webview::PermissionResponse::Allow => wry::PermissionResponse::Allow,
+        tauri_runtime::webview::PermissionResponse::Deny => wry::PermissionResponse::Deny,
+        tauri_runtime::webview::PermissionResponse::Default => wry::PermissionResponse::Default,
+      }
+    });
+  }
+
   let webview_bounds = if let Some(bounds) = webview_attributes.bounds {
     let bounds: RectWrapper = bounds.into();
     let bounds = bounds.0;

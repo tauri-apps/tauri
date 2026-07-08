@@ -14,10 +14,6 @@
   import Tray from './views/Tray.svelte'
   import type { View } from './types'
 
-  interface ConsoleMessage {
-    html: string
-  }
-
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
       invoke('plugin:app-menu|toggle')
@@ -98,7 +94,7 @@
   }
 
   // Console
-  const messages = writable<ConsoleMessage[]>([])
+  const messages = writable<string[]>([])
   let consoleTextEl: HTMLDivElement
 
   // this function is renders HTML without sanitizing it so it's insecure
@@ -106,9 +102,7 @@
   async function insecureRenderHtml(html: string) {
     messages.update((r) => [
       ...r,
-      {
-        html: `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ${html}</pre>`
-      }
+      `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ${html}</pre>`
     ])
     await tick()
     consoleTextEl.scrollTop = consoleTextEl.scrollHeight
@@ -347,8 +341,8 @@
         bind:this={consoleTextEl}
         class="px-2 overflow-y-auto all:font-mono code-block all:text-xs select-text mr-2"
       >
-        {#each $messages as r}
-          {@html r.html}
+        {#each $messages as messageHtml}
+          {@html messageHtml}
         {/each}
       </div>
     </div>

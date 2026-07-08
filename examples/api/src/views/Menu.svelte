@@ -83,7 +83,7 @@
 
 <div class="grid gap-4">
   <MenuBuilder bind:items itemClick={onItemClick} />
-  <div>
+  <div class="flex gap-2">
     <button class="btn" onclick={create}>Create menu</button>
     <button class="btn" onclick={popup}>Popup</button>
     <button class="btn" onclick={createWithNativeIcon}

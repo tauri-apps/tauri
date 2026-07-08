@@ -46,7 +46,7 @@
   }
 </script>
 
-<div>
+<div class="flex gap-2">
   <button
     class="btn"
     id="show"

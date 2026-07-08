@@ -63,6 +63,11 @@ use wry::WebViewBuilderExtWindows;
 use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
 
 use tao::{
+  dpi::{
+    LogicalPosition as TaoLogicalPosition, LogicalSize as TaoLogicalSize,
+    PhysicalPosition as TaoPhysicalPosition, PhysicalSize as TaoPhysicalSize,
+    Position as TaoPosition, Size as TaoSize,
+  },
   event::{Event, StartCause, WindowEvent as TaoWindowEvent},
   event_loop::{
     ControlFlow, DeviceEventFilter as TaoDeviceEventFilter, EventLoop, EventLoopBuilder,
@@ -321,16 +326,24 @@ impl<T: UserEvent> Context<T> {
       Message::CreateWindow(
         window_id,
         Box::new(move |event_loop| {
-          create_window(
+          match create_window(
             window_id,
             webview_id.unwrap_or_default(),
             event_loop,
             &context,
             pending,
             after_window_creation,
-          )
+          ) {
+            Ok(window) => {
+              let _ = tx.send(Ok(()));
+              Ok(window)
+            }
+            Err(e) => {
+              let _ = tx.send(Err(Error::CreateWindow));
+              Err(e)
+            }
+          }
         }),
-        tx,
       ),
     )?;
     rx.recv()
@@ -383,7 +396,7 @@ impl<T: UserEvent> Context<T> {
       Message::CreateWebview(
         window_id,
         Box::new(move |window, options| {
-          create_webview(
+          match create_webview(
             WebviewKind::WindowChild,
             window,
             window_id_wrapper_,
@@ -391,9 +404,20 @@ impl<T: UserEvent> Context<T> {
             &context,
             pending,
             options.focused_webview,
-          )
+          ) {
+            Ok(webview) => {
+              let _ = tx.send(Ok(()));
+              Ok(webview)
+            }
+            Err(e) => {
+              let message = e.to_string();
+              let _ = tx.send(Err(e));
+              Err(Error::CreateWebview(Box::new(std::io::Error::other(
+                message,
+              ))))
+            }
+          }
         }),
-        tx,
       ),
     )?;
     rx.recv()
@@ -435,6 +459,13 @@ pub enum ActiveTracingSpan {
 #[derive(Debug)]
 pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
 
+// SAFETY: Kept for public API compatibility. Access to the store is routed
+// through the event loop thread, as in previous releases.
+unsafe impl Send for WindowsStore {}
+
+// SAFETY: See the `Send` impl above.
+unsafe impl Sync for WindowsStore {}
+
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
@@ -444,6 +475,13 @@ pub struct DispatcherMainThreadContext<T: UserEvent> {
   #[cfg(feature = "tracing")]
   pub active_tracing_spans: ActiveTraceSpanStore,
 }
+
+// SAFETY: Kept for public API compatibility. The context is only used to
+// dispatch work back to the main event loop thread.
+unsafe impl<T: UserEvent> Send for DispatcherMainThreadContext<T> {}
+
+// SAFETY: See the `Send` impl above.
+unsafe impl<T: UserEvent> Sync for DispatcherMainThreadContext<T> {}
 
 impl<T: UserEvent> fmt::Debug for Context<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -474,6 +512,90 @@ impl From<tauri_runtime::dpi::Rect> for RectWrapper {
       position: value.position,
       size: value.size,
     })
+  }
+}
+
+pub struct PhysicalPositionWrapper<T>(pub TaoPhysicalPosition<T>);
+
+impl<T> From<PhysicalPositionWrapper<T>> for PhysicalPosition<T> {
+  fn from(position: PhysicalPositionWrapper<T>) -> Self {
+    Self {
+      x: position.0.x,
+      y: position.0.y,
+    }
+  }
+}
+
+impl<T> From<PhysicalPosition<T>> for PhysicalPositionWrapper<T> {
+  fn from(position: PhysicalPosition<T>) -> Self {
+    Self(TaoPhysicalPosition {
+      x: position.x,
+      y: position.y,
+    })
+  }
+}
+
+struct LogicalPositionWrapper<T>(TaoLogicalPosition<T>);
+
+impl<T> From<LogicalPosition<T>> for LogicalPositionWrapper<T> {
+  fn from(position: LogicalPosition<T>) -> Self {
+    Self(TaoLogicalPosition {
+      x: position.x,
+      y: position.y,
+    })
+  }
+}
+
+pub struct PhysicalSizeWrapper<T>(pub TaoPhysicalSize<T>);
+
+impl<T> From<PhysicalSizeWrapper<T>> for PhysicalSize<T> {
+  fn from(size: PhysicalSizeWrapper<T>) -> Self {
+    Self {
+      width: size.0.width,
+      height: size.0.height,
+    }
+  }
+}
+
+impl<T> From<PhysicalSize<T>> for PhysicalSizeWrapper<T> {
+  fn from(size: PhysicalSize<T>) -> Self {
+    Self(TaoPhysicalSize {
+      width: size.width,
+      height: size.height,
+    })
+  }
+}
+
+struct LogicalSizeWrapper<T>(TaoLogicalSize<T>);
+
+impl<T> From<LogicalSize<T>> for LogicalSizeWrapper<T> {
+  fn from(size: LogicalSize<T>) -> Self {
+    Self(TaoLogicalSize {
+      width: size.width,
+      height: size.height,
+    })
+  }
+}
+
+pub struct SizeWrapper(pub TaoSize);
+
+impl From<Size> for SizeWrapper {
+  fn from(size: Size) -> Self {
+    match size {
+      Size::Logical(s) => Self(TaoSize::Logical(LogicalSizeWrapper::from(s).0)),
+      Size::Physical(s) => Self(TaoSize::Physical(PhysicalSizeWrapper::from(s).0)),
+    }
+  }
+}
+
+pub struct PositionWrapper(pub TaoPosition);
+
+impl From<Position> for PositionWrapper {
+  fn from(position: Position) -> Self {
+    match position {
+      Position::Logical(s) => Self(TaoPosition::Logical(LogicalPositionWrapper::from(s).0)),
+      Position::Physical(s) => Self(TaoPosition::Physical(PhysicalPositionWrapper::from(s).0)),
+    }
   }
 }
 
@@ -851,7 +973,6 @@ impl WindowBuilder for WindowBuilderWrapper {
       .content_protected(config.content_protected)
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme)
-      .no_redirection_bitmap(config.no_redirection_bitmap)
       .closable(config.closable)
       .maximizable(config.maximizable)
       .minimizable(config.minimizable)
@@ -1483,8 +1604,8 @@ pub enum Message<T: 'static> {
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewId, WebviewMessage),
   EventLoopWindowTarget(EventLoopWindowTargetMessage),
-  CreateWebview(WindowId, CreateWebviewClosure, Sender<Result<()>>),
-  CreateWindow(WindowId, CreateWindowClosure<T>, Sender<Result<()>>),
+  CreateWebview(WindowId, CreateWebviewClosure),
+  CreateWindow(WindowId, CreateWindowClosure<T>),
   CreateRawWindow(
     WindowId,
     Box<dyn FnOnce() -> (String, TaoWindowBuilder) + Send>,
@@ -3953,7 +4074,7 @@ fn handle_user_message<T: UserEvent>(
         }
       }
     }
-    Message::CreateWebview(window_id, handler, sender) => {
+    Message::CreateWebview(window_id, handler) => {
       let window = windows
         .0
         .borrow()
@@ -3966,25 +4087,19 @@ fn handle_user_message<T: UserEvent>(
               w.webviews.push(webview);
               w.has_children.store(true, Ordering::Relaxed);
             }
-            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-            sender.send(Ok(())).unwrap();
           }
           Err(e) => {
-            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-            sender.send(Err(e)).unwrap();
+            log::error!("{e}");
           }
         }
       }
     }
-    Message::CreateWindow(window_id, handler, sender) => match handler(event_loop) {
+    Message::CreateWindow(window_id, handler) => match handler(event_loop) {
       Ok(webview) => {
         windows.0.borrow_mut().insert(window_id, webview);
-        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Ok(())).unwrap();
       }
       Err(e) => {
-        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Err(e)).unwrap();
+        log::error!("{e}");
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {

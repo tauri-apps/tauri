@@ -8939,6 +8939,7 @@ dependencies = [
  "dunce",
  "flate2",
  "glob",
+ "goblin",
  "handlebars",
  "heck 0.5.0",
  "hex",

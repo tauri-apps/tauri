@@ -72,6 +72,7 @@
       || ('text' in item.options && item.options.text)
       // predefined
       || ('item' in item.options && item.options.item)
+      || ''
     )
   }
 </script>

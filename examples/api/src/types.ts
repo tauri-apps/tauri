@@ -13,7 +13,11 @@ import type {
   PredefinedMenuItemOptions
 } from '@tauri-apps/api/menu'
 
-export type MessageHandler = (value: unknown, ...extra: unknown[]) => void
+export type MessageHandler = (value: unknown) => void
+
+export type ViewProps = {
+  onMessage: MessageHandler
+}
 
 export interface MenuItemClickDetail {
   id: string

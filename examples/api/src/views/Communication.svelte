@@ -4,9 +4,9 @@
   import { onMount, onDestroy } from 'svelte'
   import type { Event } from '@tauri-apps/api/event'
   import type { UnlistenFn } from '@tauri-apps/api/event'
-  import type { MessageHandler } from '../types'
+  import type { ViewProps } from '../types'
 
-  let { onMessage }: { onMessage: MessageHandler } = $props()
+  let { onMessage }: ViewProps = $props()
   let unlisten: UnlistenFn | undefined
 
   const webviewWindow = getCurrentWebviewWindow()

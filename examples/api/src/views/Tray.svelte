@@ -2,13 +2,9 @@
   import { TrayIcon } from '@tauri-apps/api/tray'
   import MenuBuilder from '../components/MenuBuilder.svelte'
   import { Menu } from '@tauri-apps/api/menu'
-  import type {
-    BuiltMenuItem,
-    MenuItemClickDetail,
-    MessageHandler
-  } from '../types'
+  import type { BuiltMenuItem, MenuItemClickDetail, ViewProps } from '../types'
 
-  let { onMessage }: { onMessage: MessageHandler } = $props()
+  let { onMessage }: ViewProps = $props()
 
   let icon = $state<string>()
   let tooltip = $state<string>()

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { show, hide, setTheme, setDockVisibility } from '@tauri-apps/api/app'
   import type { Theme } from '@tauri-apps/api/window'
-  import type { MessageHandler } from '../types'
+  import type { ViewProps } from '../types'
 
-  let { onMessage }: { onMessage: MessageHandler } = $props()
+  let { onMessage }: ViewProps = $props()
   let theme = $state<Theme | 'auto'>('auto')
   let dockVisible = $state(true)
 

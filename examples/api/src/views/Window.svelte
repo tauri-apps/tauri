@@ -12,9 +12,9 @@
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
   import type { CursorIcon, Effects, Theme } from '@tauri-apps/api/window'
   import type { UnlistenFn } from '@tauri-apps/api/event'
-  import type { MessageHandler } from '../types'
+  import type { ViewProps } from '../types'
 
-  let { onMessage }: { onMessage: MessageHandler } = $props()
+  let { onMessage }: ViewProps = $props()
 
   const webview = WebviewWindow.getCurrent()
 

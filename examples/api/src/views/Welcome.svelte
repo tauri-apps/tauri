@@ -6,9 +6,9 @@
     getTauriVersion,
     getBundleType
   } from '@tauri-apps/api/app'
-  import type { MessageHandler } from '../types'
+  import type { ViewProps } from '../types'
 
-  let { onMessage }: { onMessage: MessageHandler } = $props()
+  let { onMessage }: ViewProps = $props()
 
   let version = $state('1.0.0')
   let tauriVersion = $state('1.0.0')

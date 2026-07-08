@@ -62,32 +62,30 @@ impl<R: Runtime> MenuManager<R> {
       .menus_stash_lock()
       .insert(window_menu.menu.id().clone(), window_menu.menu.clone());
 
-    #[cfg(not(target_os = "macos"))]
-    {
-      let menu = window_menu.menu.clone();
-      Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
-        #[cfg(target_os = "windows")]
-        {
-          let theme = theme
-            .map(crate::menu::map_to_menu_theme)
-            .unwrap_or(muda::MenuTheme::Auto);
-          let _ = unsafe { menu.inner().init_for_hwnd_with_theme(raw.hwnd as _, theme) };
-        }
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ))]
-        let _ = menu
-          .inner()
-          .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
-      })
-    }
-
     #[cfg(target_os = "macos")]
-    None
+    return None;
+
+    #[cfg_attr(target_os = "macos", allow(unused_variables, unreachable_code))]
+    let menu = window_menu.menu.clone();
+    Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
+      #[cfg(target_os = "windows")]
+      {
+        let theme = theme
+          .map(crate::menu::map_to_menu_theme)
+          .unwrap_or(muda::MenuTheme::Auto);
+        let _ = unsafe { menu.inner().init_for_hwnd_with_theme(raw.hwnd as _, theme) };
+      }
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      let _ = menu
+        .inner()
+        .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
+    })
   }
 
   pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(&self, handler: F) {

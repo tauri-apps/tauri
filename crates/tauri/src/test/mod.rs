@@ -314,7 +314,13 @@ pub fn get_ipc_response<W: AsRef<Webview<MockRuntime>>>(
 
 #[cfg(test)]
 mod tests {
-  use std::time::Duration;
+  use std::{
+    sync::{
+      atomic::{AtomicBool, Ordering},
+      Arc, Mutex,
+    },
+    time::Duration,
+  };
 
   use super::mock_app;
 
@@ -334,5 +340,154 @@ mod tests {
     app.run(|_app, event| {
       println!("{event:?}");
     });
+  }
+
+  #[test]
+  fn window_getters_reflect_setters() {
+    let app = mock_app();
+    let window = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    window.set_title("Hello Tauri").unwrap();
+    assert_eq!(window.title().unwrap(), "Hello Tauri");
+
+    window
+      .set_position(crate::PhysicalPosition::new(50, 60))
+      .unwrap();
+    let position = window.outer_position().unwrap();
+    assert_eq!((position.x, position.y), (50, 60));
+
+    window
+      .set_size(crate::PhysicalSize::new(400u32, 300u32))
+      .unwrap();
+    let size = window.inner_size().unwrap();
+    assert_eq!((size.width, size.height), (400, 300));
+
+    window.set_fullscreen(true).unwrap();
+    assert!(window.is_fullscreen().unwrap());
+    assert_ne!(window.inner_size().unwrap().width, 400);
+    window.set_fullscreen(false).unwrap();
+    assert_eq!(window.inner_size().unwrap().width, 400);
+
+    window.maximize().unwrap();
+    assert!(window.is_maximized().unwrap());
+    window.unmaximize().unwrap();
+    assert!(!window.is_maximized().unwrap());
+    assert_eq!(window.inner_size().unwrap().width, 400);
+
+    window.hide().unwrap();
+    assert!(!window.is_visible().unwrap());
+    window.show().unwrap();
+    assert!(window.is_visible().unwrap());
+
+    window.set_resizable(false).unwrap();
+    assert!(!window.is_resizable().unwrap());
+    // the maximize button is disabled when the window is not resizable
+    assert!(!window.is_maximizable().unwrap());
+  }
+
+  #[test]
+  fn webview_records_evaluated_scripts() {
+    let app = mock_app();
+    let webview_window = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    webview_window.eval("console.log('first')").unwrap();
+    webview_window.eval("console.log('second')").unwrap();
+
+    let dispatcher = &webview_window.webview.webview.dispatcher;
+    assert_eq!(
+      dispatcher.last_evaluated_script().unwrap(),
+      "console.log('second')"
+    );
+    assert!(dispatcher
+      .evaluated_scripts()
+      .contains(&"console.log('first')".into()));
+  }
+
+  #[test]
+  fn window_events_dispatch_synchronously() {
+    let app = mock_app();
+    let window = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let events_ = events.clone();
+    window.on_window_event(move |event| {
+      let name = match event {
+        crate::WindowEvent::Resized(_) => "resized",
+        crate::WindowEvent::Moved(_) => "moved",
+        crate::WindowEvent::CloseRequested { .. } => "close-requested",
+        crate::WindowEvent::Destroyed => "destroyed",
+        crate::WindowEvent::Focused(_) => "focused",
+        crate::WindowEvent::ThemeChanged(_) => "theme-changed",
+        _ => "other",
+      };
+      events_.lock().unwrap().push(name);
+    });
+
+    window
+      .set_size(crate::LogicalSize::new(600.0, 500.0))
+      .unwrap();
+    window
+      .set_position(crate::LogicalPosition::new(10.0, 10.0))
+      .unwrap();
+    window.close().unwrap();
+
+    assert_eq!(
+      *events.lock().unwrap(),
+      vec!["resized", "moved", "close-requested", "destroyed"]
+    );
+  }
+
+  #[test]
+  fn close_can_be_prevented() {
+    let app = mock_app();
+    let window = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    let destroyed = Arc::new(AtomicBool::new(false));
+    let destroyed_ = destroyed.clone();
+    window.on_window_event(move |event| match event {
+      crate::WindowEvent::CloseRequested { api, .. } => api.prevent_close(),
+      crate::WindowEvent::Destroyed => destroyed_.store(true, Ordering::Relaxed),
+      _ => {}
+    });
+
+    window.close().unwrap();
+
+    assert!(!destroyed.load(Ordering::Relaxed));
+    // the window is still alive and functional
+    assert!(window.is_visible().unwrap());
+  }
+
+  #[test]
+  fn app_theme_applies_to_windows() {
+    let app = mock_app();
+    let window = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    assert_eq!(window.theme().unwrap(), crate::Theme::Light);
+    app.set_theme(Some(crate::Theme::Dark));
+    assert_eq!(window.theme().unwrap(), crate::Theme::Dark);
+  }
+
+  #[test]
+  fn exit_code_is_propagated() {
+    let app = mock_app();
+    let handle = app.handle().clone();
+
+    std::thread::spawn(move || {
+      std::thread::sleep(Duration::from_millis(50));
+      handle.exit(5);
+    });
+
+    let code = app.run_return(|_app, _event| {});
+    assert_eq!(code, 5);
   }
 }

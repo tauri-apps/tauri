@@ -12,7 +12,6 @@
   import App from './views/App.svelte'
   import Menu from './views/Menu.svelte'
   import Tray from './views/Tray.svelte'
-  import type { View } from './types'
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
@@ -28,7 +27,7 @@
   const userAgent = navigator.userAgent.toLowerCase()
   const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
 
-  const desktopViews: View[] = [
+  const desktopViews = [
     {
       label: 'App',
       component: App,
@@ -51,7 +50,7 @@
     }
   ]
 
-  const views: View[] = [
+  const views = [
     {
       label: 'Welcome',
       component: Welcome,
@@ -70,10 +69,7 @@
     }
   ]
 
-  let selected = $state.raw<View>(views[0])
-  function select(view: View) {
-    selected = view
-  }
+  let selected = $state.raw(views[0])
 
   // dark/light
   let isDark = $state(false)
@@ -289,7 +285,7 @@
           href="##"
           class="nv {selected === view ? 'nv_selected' : ''}"
           onclick={() => {
-            select(view)
+            selected = view
             isSideBarOpen = false
           }}
         >

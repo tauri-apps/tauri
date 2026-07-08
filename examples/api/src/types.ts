@@ -1,4 +1,3 @@
-import type { Component } from 'svelte'
 import type {
   CheckMenuItem,
   CheckMenuItemOptions,
@@ -11,12 +10,6 @@ import type {
 } from '@tauri-apps/api/menu'
 
 export type MessageHandler = (value: unknown, ...extra: unknown[]) => void
-
-export interface View {
-  label: string
-  component: Component<{ onMessage: MessageHandler }>
-  icon: string
-}
 
 export interface MenuItemClickDetail {
   id: string

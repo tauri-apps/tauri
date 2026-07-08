@@ -104,14 +104,14 @@
   let contentProtected = $state(false)
   let fullscreen = $state(false)
   let simpleFullscreen = $state(false)
-  let width = $state<number | null>(null)
-  let height = $state<number | null>(null)
+  let width = $state(100)
+  let height = $state(100)
   let minWidth = $state<number | null>(null)
   let minHeight = $state<number | null>(null)
   let maxWidth = $state<number | null>(null)
   let maxHeight = $state<number | null>(null)
-  let x = $state<number | null>(null)
-  let y = $state<number | null>(null)
+  let x = $state(0)
+  let y = $state(0)
   let scaleFactor = $state(1)
   let innerPosition = $state(new PhysicalPosition(0, 0))
   let outerPosition = $state(new PhysicalPosition(0, 0))
@@ -296,9 +296,7 @@
   }
 
   async function updatePosition() {
-    if (x && y) {
-      selectedWebview.setPosition(new PhysicalPosition(x, y))
-    }
+    selectedWebview.setPosition(new PhysicalPosition(x, y))
   }
 
   async function updateSize() {
@@ -365,7 +363,7 @@
   }
 
   function updateMaxSize() {
-    maxWidth !== null && maxHeight !== null && maxWidth > 800 && maxHeight > 400
+    maxWidth && maxHeight && maxWidth > 800 && maxHeight > 400
       ? selectedWebview.setMaxSize(new LogicalSize(maxWidth, maxHeight))
       : selectedWebview.setMaxSize(null)
   }

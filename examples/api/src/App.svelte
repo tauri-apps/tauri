@@ -4,7 +4,6 @@
   import { invoke } from '@tauri-apps/api/core'
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { setTheme } from '@tauri-apps/api/app'
-  import type { Writable } from 'svelte/store'
 
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
@@ -99,8 +98,8 @@
   }
 
   // Console
-  const messages: Writable<ConsoleMessage[]> = writable([])
-  let consoleTextEl = $state<HTMLDivElement>()
+  const messages = writable<ConsoleMessage[]>([])
+  let consoleTextEl: HTMLDivElement
 
   // this function is renders HTML without sanitizing it so it's insecure
   // we only use it with our own input data
@@ -112,7 +111,7 @@
       }
     ])
     await tick()
-    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight
+    consoleTextEl.scrollTop = consoleTextEl.scrollHeight
   }
 
   async function onMessage(value: unknown) {

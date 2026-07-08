@@ -18,7 +18,7 @@
 
   const webview = WebviewWindow.getCurrent()
 
-  const webviewMap = $state<Record<string, WebviewWindow>>({
+  const webviewMap = $state({
     [webview.label]: webview
   })
   let selectedWebviewLabel = $state(webview.label)
@@ -85,11 +85,9 @@
       )
   const effectStateOptions = Object.values(EffectState) as EffectState[]
 
-  const progressBarStatusOptions = Object.values(
-    ProgressBarStatus
-  ) as ProgressBarStatus[]
+  const progressBarStatusOptions = Object.values(ProgressBarStatus)
 
-  const mainEl = document.querySelector<HTMLElement>('main')
+  const mainEl = document.querySelector('main')!
 
   let newWebviewLabel = $state<string>()
 
@@ -225,18 +223,18 @@
     })
   }
 
-  async function addWindowEventListeners(target: WebviewWindow | undefined) {
-    if (!target) return
+  async function addWindowEventListeners(window: WebviewWindow | undefined) {
+    if (!window) return
     resizeEventUnlisten?.()
     moveEventUnlisten?.()
-    moveEventUnlisten = await target.listen('tauri://move', loadWindowPosition)
-    resizeEventUnlisten = await target.listen('tauri://resize', loadWindowSize)
+    moveEventUnlisten = await window.listen('tauri://move', loadWindowPosition)
+    resizeEventUnlisten = await window.listen('tauri://resize', loadWindowSize)
   }
 
   async function requestUserAttention() {
     await selectedWebview.minimize()
     await selectedWebview.requestUserAttention(UserAttentionType.Critical)
-    await new Promise<void>((resolve) => setTimeout(resolve, 3000))
+    await new Promise((resolve) => setTimeout(resolve, 3000))
     await selectedWebview.requestUserAttention(null)
   }
 
@@ -263,8 +261,7 @@
   }
 
   async function addEffect() {
-    if (!selectedEffect) return
-    if (!effects.includes(selectedEffect)) {
+    if (selectedEffect && !effects.includes(selectedEffect)) {
       effects = [...effects, selectedEffect]
     }
 
@@ -282,8 +279,8 @@
       payload.color = [effectR!, effectG!, effectB!, effectA!]
     }
 
-    mainEl?.classList.remove('bg-primary')
-    mainEl?.classList.remove('dark:bg-darkPrimary')
+    mainEl.classList.remove('bg-primary')
+    mainEl.classList.remove('dark:bg-darkPrimary')
     await selectedWebview.clearEffects()
     await selectedWebview.setEffects(payload)
   }
@@ -291,8 +288,8 @@
   async function clearEffects() {
     effects = []
     await selectedWebview.clearEffects()
-    mainEl?.classList.add('bg-primary')
-    mainEl?.classList.add('dark:bg-darkPrimary')
+    mainEl.classList.add('bg-primary')
+    mainEl.classList.add('dark:bg-darkPrimary')
   }
 
   async function updatePosition() {
@@ -305,7 +302,7 @@
     }
   }
 
-  async function refreshSelectedWebview() {
+  function refreshSelectedWebview() {
     loadWindowPosition()
     loadWindowSize()
     selectedWebview.scaleFactor().then((factor) => (scaleFactor = factor))
@@ -392,7 +389,8 @@
       )
   }
 
-  onMount(() => {
+  $effect(() => {
+    selectedWebview
     refreshSelectedWebview()
   })
 

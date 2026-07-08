@@ -7,14 +7,8 @@ import './app.css'
 import App from './App.svelte'
 import { mount } from 'svelte'
 
-const target = document.querySelector<HTMLElement>('#app')
-
-if (!target) {
-  throw new Error('App target element not found')
-}
-
 const app = mount(App, {
-  target
+  target: document.querySelector('#app')!
 })
 
 export default app

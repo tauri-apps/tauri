@@ -248,7 +248,13 @@ pub enum RunEvent {
   },
   /// Application ready.
   Ready,
-  /// Sent if the event loop is being resumed.
+  /// Emitted when the application has been resumed.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onResume` method of the Activity. The first `onResume()` is ignored to match the iOS implementation, since that is called on activity creation.
+  /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the `UIApplicationDelegate`.
+  /// - **Linux / macOS / Windows**: Only emitted when the event loop is woken while running in poll mode, which is not used by default.
   Resumed,
   /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
@@ -2578,7 +2584,25 @@ fn on_event_loop_event<R: Runtime>(
       }
       RunEvent::Ready
     }
-    RuntimeRunEvent::Resumed => RunEvent::Resumed,
+    RuntimeRunEvent::Resumed => {
+      // On Android a foreground service can keep the process alive after the
+      // activity is destroyed, so a relaunch resumes with no webviews and the
+      // activity would stay blank. Re-create the configured windows so the
+      // relaunch behaves like a cold start.
+      #[cfg(target_os = "android")]
+      if manager.window.windows_lock().is_empty() && manager.webview.webviews_lock().is_empty() {
+        for window_config in app_handle.config().app.windows.iter().filter(|w| w.create) {
+          let result = WebviewWindowBuilder::from_config(app_handle, window_config)
+            .and_then(|builder| builder.build());
+
+          if let Err(e) = result {
+            let label = &window_config.label;
+            panic!("Failed to re-create window `{label}` on resume: {e}");
+          }
+        }
+      }
+      RunEvent::Resumed
+    }
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => {
       match t {

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tauri FFI fixture</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Tauri FFI &mdash; Node.js fixture</h1>
+      <p id="status">checking bridge&hellip;</p>
+
+      <section>
+        <h2>invoke round-trip</h2>
+        <input id="name" placeholder="your name" value="Lucas" />
+        <button id="greet">greet</button>
+        <p id="greeting"></p>
+      </section>
+
+      <section>
+        <h2>events</h2>
+        <p>host tick: <strong id="ticks">&ndash;</strong></p>
+        <button id="ping">ping the host</button>
+      </section>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>

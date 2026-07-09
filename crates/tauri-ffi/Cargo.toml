@@ -1,0 +1,22 @@
+[package]
+name = "tauri-ffi"
+version = "0.1.0"
+description = "Experimental C ABI for embedding Tauri from non-Rust hosts (see /ffi-bindings-plan.md)"
+edition = "2021"
+publish = false
+license = "Apache-2.0 OR MIT"
+
+[lib]
+name = "tauri_ffi"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+# `dynamic-acl` (default) is required for runtime capability resolution.
+tauri = { path = "../tauri" }
+serde_json = "1"
+
+[build-dependencies]
+# `build-2` exposes tauri_utils::acl::build, used to collect the core plugin
+# permission manifests advertised by tauri's build script (DEP_TAURI_*).
+tauri-utils = { path = "../tauri-utils", features = ["build-2"] }
+serde_json = "1"

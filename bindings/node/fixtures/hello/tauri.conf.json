@@ -1,0 +1,17 @@
+{
+  "productName": "tauri-ffi-hello",
+  "version": "0.1.0",
+  "identifier": "com.tauri.ffi.hello",
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Tauri FFI — Node.js",
+        "url": "index.html",
+        "width": 600,
+        "height": 440
+      }
+    ]
+  }
+}

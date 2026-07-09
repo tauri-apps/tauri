@@ -9673,6 +9673,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-ffi"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tauri",
+ "tauri-utils",
+]
+
+[[package]]
 name = "tauri-file-associations-demo"
 version = "0.1.0"
 dependencies = [

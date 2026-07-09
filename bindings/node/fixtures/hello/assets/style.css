@@ -1,0 +1,31 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+body {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+main {
+  width: min(32rem, 90vw);
+}
+section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 8px;
+}
+h1 {
+  font-size: 1.3rem;
+}
+h2 {
+  font-size: 1rem;
+  margin-top: 0;
+}
+input,
+button {
+  font: inherit;
+  padding: 0.4rem 0.7rem;
+}

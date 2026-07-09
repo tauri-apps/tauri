@@ -1,0 +1,18 @@
+{
+  "name": "@tauri-apps/node",
+  "version": "0.1.0",
+  "description": "Experimental Node.js bindings to Tauri over the tauri-ffi C ABI (no native glue code)",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./worker": "./src/worker.js",
+    "./ffi": "./src/ffi.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "koffi": "^2.9.0"
+  }
+}

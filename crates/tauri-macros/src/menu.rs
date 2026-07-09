@@ -75,7 +75,18 @@ impl Parse for DoMenuItemInput {
   }
 }
 
-pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
+/// How the generated `match` should handle a `kind` that falls outside the
+/// accepted set.
+pub enum UnexpectedKind {
+  /// Emit `unreachable!()`. Kept for callers that have already narrowed `kind`
+  /// and treat any other value as a programming error.
+  Unreachable,
+  /// Return a recoverable `crate::Error`. Used when `kind` comes from untrusted
+  /// input (e.g. the IPC payload) and must not be able to abort the process.
+  Error,
+}
+
+pub fn do_menu_item(input: DoMenuItemInput, on_unexpected: UnexpectedKind) -> TokenStream {
   let DoMenuItemInput {
     rid,
     resources_table,
@@ -122,6 +133,14 @@ pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
     })
     .unzip();
 
+  let unexpected = match on_unexpected {
+    UnexpectedKind::Unreachable => quote!(unreachable!()),
+    // `kind` comes straight from the (untrusted) IPC payload, so a kind outside
+    // the accepted set is reachable and must be a recoverable error rather than
+    // a panic. See tauri-apps/tauri#15686.
+    UnexpectedKind::Error => quote!(Err(anyhow::anyhow!("unexpected menu item kind").into())),
+  };
+
   quote! {
     match #kind {
       #(
@@ -130,7 +149,7 @@ pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
         #expr
       }
       )*
-      _ => unreachable!(),
+      _ => #unexpected,
     }
   }
 }

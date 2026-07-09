@@ -17,7 +17,7 @@ use crate::{
   sealed::ManagerBase,
   Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window,
 };
-use tauri_macros::do_menu_item;
+use tauri_macros::do_menu_item_checked as do_menu_item;
 
 #[derive(Deserialize, Serialize)]
 pub(crate) enum ItemKind {
@@ -927,4 +927,40 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_icon,
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{is_enabled, set_icon, text, ItemKind};
+  use crate::{test::mock_app, WebviewWindowBuilder};
+
+  // Regression test for tauri-apps/tauri#15686.
+  //
+  // Menu command handlers receive `kind` straight from the (untrusted) IPC
+  // payload and dispatch through `do_menu_item_checked!`. A `kind` outside the
+  // set a given command accepts used to hit `unreachable!()` and abort the
+  // whole process; it must now return a recoverable error instead.
+  #[test]
+  fn unexpected_item_kind_errors_instead_of_panicking() {
+    let app = mock_app();
+    let window = WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+    let webview = window.as_ref().clone();
+
+    // The resource id is irrelevant: the error arm is selected by the `kind`
+    // match, before any resource lookup happens.
+    let rid = 0;
+
+    // `Menu` (the root menu) is accepted by no command — it is absent from the
+    // macro's default kind set.
+    assert!(text(webview.clone(), rid, ItemKind::Menu).is_err());
+
+    // A kind explicitly excluded at a call site: `is_enabled` uses `!Predefined`.
+    assert!(is_enabled(webview.clone(), rid, ItemKind::Predefined).is_err());
+
+    // A kind outside a positively-restricted call site: `set_icon` accepts only
+    // `Icon | Submenu`.
+    assert!(set_icon(webview, rid, ItemKind::MenuItem, None).is_err());
+  }
 }

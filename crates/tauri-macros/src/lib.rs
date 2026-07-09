@@ -157,7 +157,26 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 #[proc_macro]
 pub fn do_menu_item(input: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(input as menu::DoMenuItemInput);
-  menu::do_menu_item(tokens).into()
+  menu::do_menu_item(tokens, menu::UnexpectedKind::Unreachable).into()
+}
+
+/// Same as [`do_menu_item!`], but returns a recoverable `crate::Error` instead
+/// of `unreachable!()` when `kind` is outside the accepted set.
+///
+/// Use this at call sites where `kind` originates from untrusted input (such as
+/// the IPC payload), where an unexpected value must not be allowed to panic and
+/// abort the process. See tauri-apps/tauri#15686.
+///
+/// The expansion is identical to [`do_menu_item!`] except for the fallback arm:
+/// ```ignore
+///  _ => Err(anyhow::anyhow!("unexpected menu item kind").into()),
+/// ```
+/// so the invoking scope must have `anyhow` available and an error type that is
+/// `From<anyhow::Error>`.
+#[proc_macro]
+pub fn do_menu_item_checked(input: TokenStream) -> TokenStream {
+  let tokens = parse_macro_input!(input as menu::DoMenuItemInput);
+  menu::do_menu_item(tokens, menu::UnexpectedKind::Error).into()
 }
 
 /// Convert a .png or .ico icon to an Image

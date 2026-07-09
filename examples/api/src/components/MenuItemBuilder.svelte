@@ -15,6 +15,9 @@
     BuiltMenuItem,
     MenuItemClickHandler
   } from './MenuBuilder.svelte'
+  import Sortable from 'sortablejs'
+  import { onMount } from 'svelte'
+  import MenuItemComponent from './MenuItemComponent.svelte'
 
   type PredefinedItem = PredefinedMenuItemOptions['item']
 
@@ -99,9 +102,100 @@
     text = ''
     predefinedItem = undefined
   }
+
+  // function reorder<T>(
+  //   array: T[],
+  //   evt: Sortable.SortableEvent
+  // ): $state.Snapshot<T>[] {
+  //   // should have no effect on stores or regular array
+  //   const workArray = $state.snapshot(array)
+
+  //   // get changes
+  //   const { oldIndex, newIndex } = evt
+
+  //   if (oldIndex === undefined || newIndex === undefined) {
+  //     return workArray
+  //   }
+  //   if (newIndex === oldIndex) {
+  //     return workArray
+  //   }
+
+  //   // move elements
+  //   const target = workArray[oldIndex]
+  //   const increment = newIndex < oldIndex ? -1 : 1
+
+  //   for (let k = oldIndex; k !== newIndex; k += increment) {
+  //     workArray[k] = workArray[k + increment]
+  //   }
+  //   workArray[newIndex] = target
+  //   return workArray
+  // }
+
+  let sourceSortableEl1: HTMLElement
+  let sourceSortableEl2: HTMLElement
+  let targetSortableEl: HTMLElement
+
+  function makeSourceSortable(sourceSortableEl: HTMLElement) {
+    return new Sortable(sourceSortableEl, {
+      draggable: 'div.menu-item',
+      group: {
+        name: 'shared',
+        pull: 'clone',
+        put: false
+      },
+      sort: false,
+      delayOnTouchOnly: true,
+      delay: 500
+    })
+  }
+
+  onMount(() => {
+    const sourceSortable1 = makeSourceSortable(sourceSortableEl1)
+    const sourceSortable2 = makeSourceSortable(sourceSortableEl2)
+    const targetSortable = new Sortable(targetSortableEl, {
+      group: {
+        name: 'shared'
+      },
+      delayOnTouchOnly: true,
+      delay: 500,
+      animation: 200
+    })
+    return () => {
+      targetSortable.destroy()
+      sourceSortable1.destroy()
+      sourceSortable2.destroy()
+    }
+  })
 </script>
 
-<div class="flex flex-row gap-2 flex-grow-0">
+<div class="grid gap-4">
+  <div class="grid gap-2">
+    <div>
+      <h3>Custom</h3>
+      <div class="flex flex-wrap gap-2" bind:this={sourceSortableEl1}>
+        <MenuItemComponent kind="Normal" text />
+        <MenuItemComponent kind="Icon" text icon />
+        <MenuItemComponent kind="Check" text check />
+      </div>
+    </div>
+    <div>
+      <h3>Predefined</h3>
+      <div class="flex flex-wrap gap-2 max-w-5xl" bind:this={sourceSortableEl2}>
+        {#each predefinedOptions as predefinedOption}
+          <MenuItemComponent kind={predefinedOption} />
+        {/each}
+      </div>
+    </div>
+  </div>
+  <div class="h-1px bg-neutral/20"></div>
+  <div
+    bind:this={targetSortableEl}
+    class="p-2 border border-solid border-neutral-300 rounded-md max-w-lg min-h-24 grid items-start gap-1"
+  ></div>
+  <div class="h-1px bg-neutral/20"></div>
+</div>
+
+<!-- <div class="flex flex-row gap-2 flex-grow-0">
   <div class="flex flex-col">
     {#each itemKinds as itemKind, i}
       <div class="flex gap-1">
@@ -160,4 +254,4 @@
   <div class="flex flex-col">
     <button class="btn" onclick={create}>Create</button>
   </div>
-</div>
+</div> -->

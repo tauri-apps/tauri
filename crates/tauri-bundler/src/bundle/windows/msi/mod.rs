@@ -612,7 +612,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_else(|| {
       Uuid::new_v5(
         &Uuid::NAMESPACE_DNS,
-        format!("{}.exe.app.x64", &settings.product_name()).as_bytes(),
+        format!("{}.exe.app.x64", settings.product_name()).as_bytes(),
       )
     });
   data.insert("upgrade_code", to_json(upgrade_code.to_string()));

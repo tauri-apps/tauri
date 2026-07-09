@@ -16,6 +16,12 @@
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
   let customProtocolIpcFailed = false
 
+  // tracks whether the document is unloading (navigation/reload)
+  let pageUnloading = false
+  window.addEventListener('pagehide', () => {
+    pageUnloading = true
+  })
+
   // on Android we never use it because Android does not have support to reading the request body
   const canUseCustomProtocol = osName !== 'android'
 
@@ -57,6 +63,12 @@
             window.__TAURI_INTERNALS__.runCallback(callbackId, data)
           },
           (e) => {
+            // fetch rejects the same way on a page-unload abort as on a blocked
+            // protocol; don't resend or the still-running command executes twice
+            if (pageUnloading) {
+              return
+            }
+
             console.warn(
               'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
               e

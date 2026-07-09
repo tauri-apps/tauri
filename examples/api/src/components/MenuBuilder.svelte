@@ -72,33 +72,36 @@
 
     switch (kind) {
       case 'Normal': {
-        const options: MenuItemOptions = {
+        return await MenuItem.new({
           text,
           action: (id) => itemClick({ id, text: text })
-        }
-        return await MenuItem.new(options)
+        })
       }
       case 'Icon': {
-        const options: IconMenuItemOptions = {
+        return await IconMenuItem.new({
           text,
           icon: iconPath,
           action: (id) => itemClick({ id, text: text })
-        }
-        return await IconMenuItem.new(options)
+        })
       }
       case 'Check': {
-        const options: CheckMenuItemOptions = {
+        const checkItem = await CheckMenuItem.new({
           text,
           checked,
-          action: (id) => itemClick({ id, text: text })
-        }
-        return await CheckMenuItem.new(options)
+          action: async (id) => {
+            itemClick({ id, text: text })
+            const item = items.find((item) => item.id === options.id)
+            if (item) {
+              item.checked = await checkItem.isChecked()
+            }
+          }
+        })
+        return checkItem
       }
       default: {
-        const options: PredefinedMenuItemOptions = {
+        return await PredefinedMenuItem.new({
           item: kind
-        }
-        return await PredefinedMenuItem.new(options)
+        })
       }
     }
   }

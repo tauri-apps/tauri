@@ -87,7 +87,8 @@ fn copy_binaries(
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   let path = path.canonicalize()?;
-  for resource in resources.iter() {
+  let mut resources = resources.iter();
+  for resource in resources.by_ref() {
     let resource = resource?;
 
     println!("cargo:rerun-if-changed={}", resource.path().display());
@@ -99,6 +100,13 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
       copy_file(src, target)?;
     }
   }
+
+  // Watch each resource directory so adding or removing files inside it
+  // re-runs the build script. Individual file watches miss newly added files.
+  for dir in resources.rerun_if_changed() {
+    println!("cargo:rerun-if-changed={}", dir.display());
+  }
+
   Ok(())
 }
 

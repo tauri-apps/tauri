@@ -135,9 +135,9 @@ switch (language) {
   case 'node': {
     const pkgDir = path.join(bindingsDir, 'node')
     if (!existsSync(path.join(pkgDir, 'node_modules', 'koffi'))) {
-      console.log('› npm install (bindings/node)')
-      if (run('npm', ['install', '--no-fund', '--no-audit'], { cwd: pkgDir }) !== 0) {
-        fail('npm install failed')
+      console.log('› pnpm install --filter @tauri-apps/node')
+      if (run('pnpm', ['install', '--filter', '@tauri-apps/node'], { cwd: repoRoot }) !== 0) {
+        fail('pnpm install failed (enable pnpm via `corepack enable`)')
       }
     }
     status = run(process.execPath, [entry])

@@ -21,11 +21,11 @@ No native callbacks into JS anywhere — everything is plain C ABI + JSON.
 # 1. build the cdylib (repo root)
 cargo build -p tauri-ffi
 
-# 2. install koffi
-cd bindings/node && npm install
+# 2. install koffi (workspace package — run from the repo root)
+pnpm install --filter @tauri-apps/node
 
 # 3. run
-node examples/hello/main.js
+node bindings/node/examples/hello/main.js
 ```
 
 A window opens serving `examples/hello/assets/`; it exercises an invoke round-trip

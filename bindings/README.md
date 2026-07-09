@@ -23,13 +23,20 @@ node bindings/run-example.mjs deno
 node bindings/run-example.mjs c
 ```
 
-The runner builds `tauri-ffi`, handles per-language prerequisites (koffi install, cffi
-check, C compilation) and runs the example. Any example path works too:
+The runner builds `tauri-ffi`, handles per-language prerequisites (koffi install via
+pnpm, cffi check, C compilation) and runs the example. Any example path works too:
 `node bindings/run-example.mjs bindings/python/examples/hello`.
 
 Environment: `TAURI_FFI_LIB` (library override), `PYTHON` (interpreter, default
 `python3`), `CC` (C compiler, default `cc`), `FIXTURE_STATUS` (examples append their
 smoke-test trace to this file).
+
+## Publishing
+
+`.github/workflows/publish-ffi.yml` builds every target and publishes all packages
+(dry-run by default).
+
+PyPI and JSR trusted publishers are configured on the respective registry sites.
 
 ## Regenerating after an ABI change
 

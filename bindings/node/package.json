@@ -13,6 +13,6 @@
     "node": ">=18"
   },
   "dependencies": {
-    "koffi": "^2.9.0"
+    "koffi": "^3.0.0"
   }
 }

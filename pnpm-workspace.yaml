@@ -5,9 +5,11 @@ packages:
   - examples/api
   - examples/resources
   - examples/file-associations
+  - bindings/node
 
 allowBuilds:
   esbuild: true
+  koffi: true
   sharp: true
   workerd: true
 

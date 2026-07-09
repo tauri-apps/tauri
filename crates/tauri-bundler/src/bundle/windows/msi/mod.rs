@@ -129,6 +129,8 @@ struct ResourceFile {
   guid: String,
   /// the id to use on the WIX XML.
   id: String,
+  /// the file name to use in the installer.
+  name: String,
   /// the file path.
   path: PathBuf,
 }
@@ -161,9 +163,10 @@ impl ResourceDirectory {
       file_ids.push(file.id.clone());
       files.push_str(
         format!(
-          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{path}" /></Component>"#,
+          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Name="{name}" Source="{path}" /></Component>"#,
           id = file.id,
           guid = file.guid,
+          name = html_escape(&file.name),
           path = html_escape(&file.path.display().to_string())
         ).as_str()
       );
@@ -1000,6 +1003,12 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let resource_entry = ResourceFile {
       id: format!("I{}", Uuid::new_v4().as_simple()),
       guid: Uuid::new_v4().to_string(),
+      name: resource
+        .target()
+        .file_name()
+        .expect("failed to read resource file name")
+        .to_string_lossy()
+        .into_owned(),
       path: resource_path.clone(),
     };
 
@@ -1088,6 +1097,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       dlls.push(ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),
         guid: Uuid::new_v4().to_string(),
+        name: resource_path
+          .file_name()
+          .expect("failed to extract DLL filename")
+          .to_string_lossy()
+          .into_owned(),
         path: resource_path.to_path_buf(),
       });
     }
@@ -1137,5 +1151,26 @@ mod tests {
     assert!(convert_version("1.1.2-alpha").is_err());
     assert!(convert_version("1.1.2-alpha.4").is_err());
     assert!(convert_version("1.1.2+asd.3").is_err());
+  }
+
+  #[test]
+  fn includes_mapped_resource_file_name_in_wix_data() {
+    let directory = ResourceDirectory {
+      path: String::new(),
+      name: String::new(),
+      files: vec![ResourceFile {
+        id: "Iresource".into(),
+        guid: "resource-guid".into(),
+        name: "myFileRenamed".into(),
+        path: PathBuf::from("MyFile"),
+      }],
+      directories: vec![],
+    };
+
+    let (wix_data, file_ids) = directory.get_wix_data().unwrap();
+
+    assert_eq!(file_ids, vec!["Iresource"]);
+    assert!(wix_data.contains(r#"Name="myFileRenamed""#));
+    assert!(wix_data.contains(r#"Source="MyFile""#));
   }
 }

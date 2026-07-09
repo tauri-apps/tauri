@@ -4043,7 +4043,7 @@ mod build {
         data_directory,
         data_store_identifier,
         scroll_bar_style,
-        limit_navigations_to_app_bound_domains
+        limit_navigations_to_app_bound_domains,
         activity_name,
         created_by_activity_name,
         requested_by_scene_identifier,

@@ -17,7 +17,9 @@
   } from './MenuBuilder.svelte'
   import Sortable from 'sortablejs'
   import { onMount } from 'svelte'
-  import MenuItemComponent from './MenuItemComponent.svelte'
+  import MenuItemComponent, {
+    type MenuItemComponentKind
+  } from './MenuItemComponent.svelte'
 
   type PredefinedItem = PredefinedMenuItemOptions['item']
 
@@ -131,6 +133,17 @@
   //   return workArray
   // }
 
+  const targetList: {
+    kind: MenuItemComponentKind
+    text: string | undefined
+    iconPath: string | undefined
+    checked: boolean | undefined
+  }[] = $state([])
+
+  $effect(() => {
+    $inspect(targetList)
+  })
+
   let sourceSortableEl1: HTMLElement
   let sourceSortableEl2: HTMLElement
   let targetSortableEl: HTMLElement
@@ -156,6 +169,25 @@
       group: {
         name: 'shared'
       },
+      onAdd(event) {
+        const item = event.item
+        const kind = item.dataset.kind as MenuItemComponentKind
+        const text = item.dataset.text
+        const iconPath = item.dataset.iconPath
+        const checked = item.dataset.checked
+        const newItem = {
+          kind,
+          text,
+          iconPath,
+          checked: checked !== undefined ? checked === 'true' : checked
+        }
+        if (event.newIndex !== undefined) {
+          targetList.splice(event.newIndex, 0, newItem)
+        } else {
+          targetList.push(newItem)
+        }
+        item.remove()
+      },
       delayOnTouchOnly: true,
       delay: 500,
       animation: 200
@@ -173,9 +205,9 @@
     <div>
       <h3>Custom</h3>
       <div class="flex flex-wrap gap-2" bind:this={sourceSortableEl1}>
-        <MenuItemComponent kind="Normal" text />
-        <MenuItemComponent kind="Icon" text icon />
-        <MenuItemComponent kind="Check" text check />
+        <MenuItemComponent kind="Normal" text="" />
+        <MenuItemComponent kind="Icon" text="" iconPath="" />
+        <MenuItemComponent kind="Check" text="" checked={false} />
       </div>
     </div>
     <div>
@@ -191,67 +223,15 @@
   <div
     bind:this={targetSortableEl}
     class="p-2 border border-solid border-neutral-300 rounded-md max-w-lg min-h-24 grid items-start gap-1"
-  ></div>
-  <div class="h-1px bg-neutral/20"></div>
-</div>
-
-<!-- <div class="flex flex-row gap-2 flex-grow-0">
-  <div class="flex flex-col">
-    {#each itemKinds as itemKind, i}
-      <div class="flex gap-1">
-        <input
-          id="{itemKind}Input"
-          checked={kind === itemKind}
-          onchange={() => (kind = itemKind)}
-          type="radio"
-          name="kind"
-          value={itemKinds[i]}
-        />
-        <label for="{itemKind}Input">{itemKind}</label>
-      </div>
+  >
+    {#each targetList as item}
+      <MenuItemComponent
+        kind={item.kind}
+        bind:text={item.text}
+        bind:iconPath={item.iconPath}
+        bind:checked={item.checked}
+      />
     {/each}
   </div>
-
-  <div class="bg-gray/30 dark:bg-white/5 w-1px flex-shrink-0"></div>
-
-  <div class="flex flex-col gap-2">
-    {#if kind == 'Normal' || kind == 'Icon' || kind == 'Check'}
-      <input class="input" type="text" placeholder="Text" bind:value={text} />
-    {/if}
-    {#if kind == 'Icon'}
-      <input class="input" type="icon" placeholder="Icon" bind:value={icon} />
-    {:else if kind == 'Check'}
-      <div class="flex gap-1">
-        <input
-          id="checkItemCheckedInput"
-          type="checkbox"
-          class="checkbox"
-          bind:checked
-        />
-        <label for="checkItemCheckedInput">Enabled</label>
-      </div>
-    {:else if kind == 'Predefined'}
-      <div class="flex gap-2 flex-wrap">
-        {#each predefinedOptions as predefinedOption, i}
-          <div class="flex gap-1">
-            <input
-              id="{predefinedOption}Input"
-              checked={predefinedItem === predefinedOption}
-              onchange={() => (predefinedItem = predefinedOption)}
-              type="radio"
-              name="predefinedKind"
-              value={predefinedOptions[i]}
-            />
-            <label for="{predefinedOption}Input">{predefinedOption}</label>
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </div>
-
-  <div class="grow"></div>
-
-  <div class="flex flex-col">
-    <button class="btn" onclick={create}>Create</button>
-  </div>
-</div> -->
+  <div class="h-1px bg-neutral/20"></div>
+</div>

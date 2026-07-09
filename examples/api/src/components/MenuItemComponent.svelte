@@ -1,42 +1,55 @@
-<script lang="ts">
+<script module lang="ts">
   import type { PredefinedMenuItemOptions } from '@tauri-apps/api/menu'
 
   type PredefinedItem = PredefinedMenuItemOptions['item']
+  export type MenuItemComponentKind =
+    | PredefinedItem
+    | 'Normal'
+    | 'Icon'
+    | 'Check'
+</script>
 
-  const {
+<script lang="ts">
+  let {
     kind,
-    text,
-    icon,
-    check
+    text = $bindable(),
+    iconPath = $bindable(),
+    checked = $bindable()
   }: {
-    kind: PredefinedItem | 'Normal' | 'Icon' | 'Check'
-    text?: boolean
-    icon?: boolean
-    check?: boolean
+    kind: MenuItemComponentKind
+    text?: string
+    iconPath?: string
+    checked?: boolean
   } = $props()
 </script>
 
 <div
   class="flex gap-2 border border-solid border-neutral-200 bg-neutral-100 p-inline-2 p-block-1 rounded-md menu-item"
+  data-kind={kind}
+  data-text={text}
+  data-icon-path={iconPath}
+  data-checked={checked}
 >
   {kind}
-  {#if text}
+  {#if text !== undefined}
     <input
       type="text"
       title="text"
       placeholder="text"
       class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-sm"
+      bind:value={text}
     />
   {/if}
-  {#if icon}
+  {#if iconPath !== undefined}
     <input
       type="text"
       title="icon path"
       placeholder="icon path"
       class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-sm"
+      bind:value={iconPath}
     />
   {/if}
-  {#if check}
-    <input type="checkbox" title="checked" />
+  {#if checked !== undefined}
+    <input type="checkbox" title="checked" bind:checked />
   {/if}
 </div>

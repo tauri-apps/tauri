@@ -15,18 +15,20 @@
     kind,
     text = $bindable(),
     iconPath = $bindable(),
-    checked = $bindable()
+    checked = $bindable(),
+    onRemove
   }: {
     id?: number
     kind: MenuItemComponentKind
     text?: string
     iconPath?: string
     checked?: boolean
+    onRemove?: () => void
   } = $props()
 </script>
 
 <div
-  class="flex gap-2 border border-solid border-neutral-200 bg-neutral-100 p-inline-2 p-block-1 rounded-md menu-item"
+  class="flex items-center gap-2 border border-solid border-neutral-200 bg-neutral-100 p-inline-2 p-block-1 rounded-md menu-item"
   data-kind={kind}
   data-text={text}
   data-icon-path={iconPath}
@@ -54,5 +56,11 @@
   {/if}
   {#if checked !== undefined}
     <input type="checkbox" title="checked" bind:checked />
+  {/if}
+
+  {#if onRemove !== undefined}
+    <button onclick={onRemove} title="remove" class="btn m-l-auto">
+      <div class="i-ph-trash"></div>
+    </button>
   {/if}
 </div>

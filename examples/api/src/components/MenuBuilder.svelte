@@ -45,14 +45,13 @@
   import MenuItemComponent, {
     type MenuItemComponentKind
   } from './MenuItemComponent.svelte'
+  import type { MenuItemBase } from '@tauri-apps/api/menu/base'
 
   type PredefinedItem = PredefinedMenuItemOptions['item']
 
   let {
-    newItem,
     itemClick
   }: {
-    newItem: (item: BuiltMenuItem) => void
     itemClick: MenuItemClickHandler
   } = $props()
 
@@ -86,9 +85,7 @@
           text,
           action: (id) => itemClick({ id, text: text })
         }
-        const item = await MenuItem.new(options)
-        newItem({ kind, item, options })
-        break
+        return await MenuItem.new(options)
       }
       case 'Icon': {
         const options: IconMenuItemOptions = {
@@ -96,9 +93,7 @@
           icon: iconPath,
           action: (id) => itemClick({ id, text: text })
         }
-        const item = await IconMenuItem.new(options)
-        newItem({ kind, item, options })
-        break
+        return await IconMenuItem.new(options)
       }
       case 'Check': {
         const options: CheckMenuItemOptions = {
@@ -106,17 +101,13 @@
           checked,
           action: (id) => itemClick({ id, text: text })
         }
-        const item = await CheckMenuItem.new(options)
-        newItem({ kind, item, options })
-        break
+        return await CheckMenuItem.new(options)
       }
       default: {
         const options: PredefinedMenuItemOptions = {
           item: kind
         }
-        const item = await PredefinedMenuItem.new(options)
-        newItem({ kind: 'Predefined', item, options })
-        break
+        return await PredefinedMenuItem.new(options)
       }
     }
   }
@@ -131,7 +122,9 @@
     checked: boolean | undefined
   }
 
-  const targetList: MenuOptions[] = $state([])
+  type Target = MenuOptions & { menu?: MenuItemBase }
+
+  const targetList: Target[] = $state([])
 
   $effect(() => {
     $inspect(targetList)
@@ -163,20 +156,22 @@
       group: {
         name: 'shared'
       },
-      onAdd(event) {
+      async onAdd(event) {
         const item = event.item
         const kind = item.dataset.kind as MenuItemComponentKind
         const text = item.dataset.text
         const iconPath = item.dataset.iconPath
         const checked = item.dataset.checked
+
         const newItem = {
           id: currentId,
           kind,
           text,
           iconPath,
           checked: checked !== undefined ? checked === 'true' : checked
-        }
+        } as Target
         currentId += 1
+
         if (event.newIndex !== undefined) {
           targetList.splice(event.newIndex, 0, newItem)
         } else {
@@ -185,6 +180,8 @@
         // HACK: We can't track the element created by Sortable,
         // just make a new one and delete the one from Sortable
         item.remove()
+
+        newItem.menu = await create(newItem)
       },
       onUpdate(event) {
         // HACK: Svelte `#each` can't track external changes,
@@ -231,13 +228,17 @@
     bind:this={targetSortableEl}
     class="p-2 border border-solid border-neutral-300 rounded-md max-w-lg min-h-24 grid items-start gap-1"
   >
-    {#each targetList as item (item.id)}
+    {#each targetList as item, i (item.id)}
       <MenuItemComponent
         kind={item.kind}
         id={item.id}
         bind:text={item.text}
         bind:iconPath={item.iconPath}
         bind:checked={item.checked}
+        onRemove={() => {
+          targetList.splice(i, 1)
+          item.menu?.close()
+        }}
       />
     {/each}
   </div>

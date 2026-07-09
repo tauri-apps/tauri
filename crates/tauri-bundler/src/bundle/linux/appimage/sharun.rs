@@ -110,6 +110,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .map(|b| format!(" \"{}\"", b.to_string_lossy()))
     .collect::<String>();
 
+  let needs_tty = !dbg!(Command::new("/bin/sh").arg("-c").arg("set -m").status())?.success();
+
   let mut cmd = Command::new("/bin/sh");
   cmd
     .current_dir(&output_path)
@@ -126,11 +128,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .args([
       "-c",
       &format!(
-        r#""{}" "{}" {bins}"#,
+        r#"{}"{}" "{}" {bins}{}"#,
+        if needs_tty {"script -q -c '"} else {""},
         quick_sharun.to_string_lossy(),
         data_dir
           .join(format!("usr/bin/{}", main_binary.name()))
           .to_string_lossy(),
+          if needs_tty {"'"} else {""},
       ),
     ]);
 

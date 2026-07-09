@@ -31,7 +31,7 @@
 
 <script lang="ts">
   import Sortable from 'sortablejs'
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import MenuItemComponent, {
     type MenuItemComponentKind
   } from './MenuItemComponent.svelte'
@@ -185,6 +185,13 @@
       sourceSortable1.destroy()
       sourceSortable2.destroy()
     }
+  })
+
+  onDestroy(() => {
+    for (const item of items) {
+      item.menu?.close()
+    }
+    items = []
   })
 </script>
 

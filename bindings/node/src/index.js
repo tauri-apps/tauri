@@ -30,19 +30,19 @@ export function launch(appEntry, { config, assetsDir, commands = [], capabilitie
   const { api, check, libPath } = open()
 
   const outBuilder = [0]
-  check(api.builderNew(JSON.stringify(config ?? {}), outBuilder), 'builder_new')
+  check(api.appBuilderNew(JSON.stringify(config ?? {}), outBuilder), 'builder_new')
   const builder = outBuilder[0]
 
   if (assetsDir) {
     const dir = assetsDir instanceof URL ? fileURLToPath(assetsDir) : assetsDir
-    check(api.builderSetAssetsDir(builder, dir), 'set_assets_dir')
+    check(api.appBuilderSetAssetsDir(builder, dir), 'set_assets_dir')
   }
   for (const name of commands) {
-    check(api.builderRegisterCommand(builder, name), `register_command(${name})`)
+    check(api.appBuilderRegisterCommand(builder, name), `register_command(${name})`)
   }
   for (const capability of capabilities) {
     const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
-    check(api.builderAddCapability(builder, json), 'add_capability')
+    check(api.appBuilderAddCapability(builder, json), 'add_capability')
   }
 
   const outApp = [0]

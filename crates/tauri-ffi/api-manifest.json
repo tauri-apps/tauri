@@ -1,0 +1,556 @@
+{
+  "$comment": "Single source of truth for the tauri-ffi C ABI. bindings/bindgen/generate.mjs renders the C header, koffi declarations, Deno symbols and Python cffi cdef from this file, and cross-checks it against the extern fns in src/. Param types: handle (u64 id), str (borrowed UTF-8 in), owned_str (ownership transferred back, e.g. tauri_string_free), bool, u32, i32, f64, out_handle, out_bool, out_u32, out_i32, out_f64, out_owned_str (caller frees via tauri_string_free). Results: status (i32 error code), u32, borrowed_str (do not free), void. thread: 'any' | 'main' (the thread that builds/runs the loop). blocking: call blocks the calling thread (dynamic FFI hosts should use async/nonblocking call modes).",
+  "abiVersion": 2,
+  "errors": [
+    { "name": "OK", "value": 0, "doc": "Success." },
+    { "name": "ERR_GENERIC", "value": -1, "doc": "Operation failed; details via tauri_last_error_message." },
+    { "name": "ERR_INVALID_HANDLE", "value": -2, "doc": "Unknown, closed or wrong-type handle." },
+    { "name": "ERR_TIMEOUT", "value": -3, "doc": "tauri_events_next timed out with no message." },
+    { "name": "ERR_CLOSED", "value": -4, "doc": "The app has shut down; no more messages." },
+    { "name": "ERR_INVALID_ARG", "value": -5, "doc": "Null pointer, invalid UTF-8 or malformed JSON argument." },
+    { "name": "ERR_PANIC", "value": -7, "doc": "Rust panic caught at the FFI boundary." },
+    { "name": "ERR_NOT_FOUND", "value": -8, "doc": "No object with the requested label/name." }
+  ],
+  "functions": [
+    {
+      "name": "tauri_ffi_version",
+      "doc": "Semver of the tauri-ffi crate. Borrowed static string, do not free.",
+      "thread": "any",
+      "params": [],
+      "result": "borrowed_str"
+    },
+    {
+      "name": "tauri_ffi_abi_version",
+      "doc": "Monotonic ABI version; bumped on breaking changes.",
+      "thread": "any",
+      "params": [],
+      "result": "u32"
+    },
+    {
+      "name": "tauri_last_error_message",
+      "doc": "Message for the last error on this thread, or NULL. Borrowed pointer, valid until the next failing call on the same thread.",
+      "thread": "any",
+      "params": [],
+      "result": "borrowed_str"
+    },
+    {
+      "name": "tauri_string_free",
+      "doc": "Releases a string returned through a char** out param.",
+      "thread": "any",
+      "params": [{ "name": "str", "type": "owned_str" }],
+      "result": "void"
+    },
+    {
+      "name": "tauri_handle_close",
+      "doc": "Drops any handle (builder, app, window, resolver). Closing a window handle does not affect the window itself.",
+      "thread": "any",
+      "params": [{ "name": "handle", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_new",
+      "doc": "Creates an app builder from a tauri.conf.json-shaped JSON string (unknown fields rejected).",
+      "thread": "any",
+      "params": [
+        { "name": "config_json", "type": "str" },
+        { "name": "out_builder", "type": "out_handle" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_assets_dir",
+      "doc": "Serves `WebviewUrl::App` paths (e.g. \"index.html\") from this directory.",
+      "thread": "any",
+      "params": [
+        { "name": "builder", "type": "handle" },
+        { "name": "path", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_register_command",
+      "doc": "Registers a command name; its invokes arrive on the event queue as {\"type\":\"invoke\",\"id\":<resolver>,\"command\":...,\"payload\":...,\"webview\":...}.",
+      "thread": "any",
+      "params": [
+        { "name": "builder", "type": "handle" },
+        { "name": "name", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_add_capability",
+      "doc": "Adds a capability (JSON or TOML string, capability file format). If none is added, a default granting core:default to all windows is applied.",
+      "thread": "any",
+      "params": [
+        { "name": "builder", "type": "handle" },
+        { "name": "capability", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_build",
+      "doc": "Consumes the builder and builds the app. Windows declared in the config are created when the app runs.",
+      "thread": "main",
+      "params": [
+        { "name": "builder", "type": "handle" },
+        { "name": "out_app", "type": "out_handle" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_run",
+      "doc": "Runs the event loop until the app exits; out_exit_code receives the requested exit code. Must be called on the thread that called tauri_app_build. Run events are also delivered through the event queue.",
+      "thread": "main",
+      "blocking": true,
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "out_exit_code", "type": "out_i32" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_exit",
+      "doc": "Requests app exit from any thread.",
+      "thread": "any",
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "code", "type": "i32" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_events_next",
+      "doc": "Waits up to timeout_ms for the next queued message (run events, subscribed events, invokes). On OK, *out_json is an owned JSON string — free with tauri_string_free. Returns ERR_TIMEOUT on timeout and ERR_CLOSED after shutdown. Message types: {\"type\":\"ready\"} | {\"type\":\"exit\"} | {\"type\":\"exit-requested\",\"code\":N} | {\"type\":\"window-event\",\"label\":L,\"event\":{\"kind\":...}} | {\"type\":\"event\",\"event\":E,\"id\":N,\"payload\":...} | {\"type\":\"invoke\",\"id\":R,\"command\":C,\"payload\":...,\"webview\":L}",
+      "thread": "any",
+      "blocking": true,
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "timeout_ms", "type": "u32" },
+        { "name": "out_json", "type": "out_owned_str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_emit",
+      "doc": "Emits an event to all listeners (Rust, frontend and FFI subscribers). payload_json must be valid JSON.",
+      "thread": "any",
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "event", "type": "str" },
+        { "name": "payload_json", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_emit_to",
+      "doc": "Emits an event to every target with the given label.",
+      "thread": "any",
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "label", "type": "str" },
+        { "name": "event", "type": "str" },
+        { "name": "payload_json", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_listen",
+      "doc": "Subscribes to an event (any target). Deliveries arrive on the event queue as {\"type\":\"event\",\"event\":...,\"id\":...,\"payload\":...}.",
+      "thread": "any",
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "event", "type": "str" },
+        { "name": "out_listener", "type": "out_u32" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_unlisten",
+      "doc": "Removes an event subscription.",
+      "thread": "any",
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "listener", "type": "u32" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_invoke_resolve",
+      "doc": "Resolves a pending invoke with a JSON value. Consumes the resolver handle. Callable from any thread, any time after the invoke was delivered.",
+      "thread": "any",
+      "params": [
+        { "name": "resolver", "type": "handle" },
+        { "name": "json", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_invoke_reject",
+      "doc": "Rejects a pending invoke with a JSON value. Consumes the resolver handle.",
+      "thread": "any",
+      "params": [
+        { "name": "resolver", "type": "handle" },
+        { "name": "json", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_create",
+      "doc": "Creates a webview window from a WindowConfig JSON object (same shape as entries of app.windows in tauri.conf.json). Blocks until the running event loop has created the window — call only while the app runs (e.g. after the ready event). On OK, *out_window is a window handle; release with tauri_handle_close.",
+      "thread": "any",
+      "blocking": true,
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "config_json", "type": "str" },
+        { "name": "out_window", "type": "out_handle" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_get_window",
+      "doc": "Looks up the webview window with the given label. Returns ERR_NOT_FOUND if no such window exists. On OK, *out_window is a window handle; release with tauri_handle_close.",
+      "thread": "any",
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "label", "type": "str" },
+        { "name": "out_window", "type": "out_handle" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_window_labels",
+      "doc": "Labels of all webview windows, as an owned JSON string array.",
+      "thread": "any",
+      "params": [
+        { "name": "app", "type": "handle" },
+        { "name": "out_labels_json", "type": "out_owned_str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_label",
+      "doc": "The window's label, as an owned string.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_label", "type": "out_owned_str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_title",
+      "doc": "The window's current title, as an owned string.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_title", "type": "out_owned_str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_url",
+      "doc": "The webview's current URL, as an owned string.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_url", "type": "out_owned_str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_scale_factor",
+      "doc": "The window's DPI scale factor.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_scale", "type": "out_f64" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_inner_size",
+      "doc": "The window's client-area size, in physical pixels.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_width", "type": "out_u32" },
+        { "name": "out_height", "type": "out_u32" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_outer_size",
+      "doc": "The window's outer size (including decorations), in physical pixels.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_width", "type": "out_u32" },
+        { "name": "out_height", "type": "out_u32" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_inner_position",
+      "doc": "The position of the window's client area, in physical pixels.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_x", "type": "out_i32" },
+        { "name": "out_y", "type": "out_i32" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_outer_position",
+      "doc": "The position of the window's top-left corner, in physical pixels.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_x", "type": "out_i32" },
+        { "name": "out_y", "type": "out_i32" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_is_visible",
+      "doc": "Whether the window is currently visible.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_visible", "type": "out_bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_is_focused",
+      "doc": "Whether the window currently has focus.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_focused", "type": "out_bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_is_fullscreen",
+      "doc": "Whether the window is in fullscreen mode.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_fullscreen", "type": "out_bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_is_maximized",
+      "doc": "Whether the window is maximized.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_maximized", "type": "out_bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_is_minimized",
+      "doc": "Whether the window is minimized.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_minimized", "type": "out_bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_is_resizable",
+      "doc": "Whether the window is resizable.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "out_resizable", "type": "out_bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_title",
+      "doc": "Sets the window title.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "title", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_size",
+      "doc": "Resizes the window. physical=true interprets width/height as physical pixels, otherwise as logical (DPI-scaled) pixels.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "width", "type": "f64" },
+        { "name": "height", "type": "f64" },
+        { "name": "physical", "type": "bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_position",
+      "doc": "Moves the window. physical=true interprets x/y as physical pixels, otherwise as logical (DPI-scaled) pixels.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "x", "type": "f64" },
+        { "name": "y", "type": "f64" },
+        { "name": "physical", "type": "bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_fullscreen",
+      "doc": "Enters or leaves fullscreen mode.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "fullscreen", "type": "bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_resizable",
+      "doc": "Enables or disables window resizing.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "resizable", "type": "bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_always_on_top",
+      "doc": "Keeps the window above all other windows, or stops doing so.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "always_on_top", "type": "bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_decorations",
+      "doc": "Shows or hides the window decorations (title bar, borders).",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "decorations", "type": "bool" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_focus",
+      "doc": "Brings the window to front and focuses it.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_set_zoom",
+      "doc": "Sets the webview zoom level (1.0 = 100%).",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "scale", "type": "f64" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_show",
+      "doc": "Makes the window visible.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_hide",
+      "doc": "Hides the window.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_center",
+      "doc": "Centers the window on its current monitor.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_maximize",
+      "doc": "Maximizes the window.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_unmaximize",
+      "doc": "Restores the window from the maximized state.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_minimize",
+      "doc": "Minimizes the window.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_unminimize",
+      "doc": "Restores the window from the minimized state.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_close",
+      "doc": "Requests the window to close (triggers close-requested handling). The window handle stays valid until released with tauri_handle_close.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_destroy",
+      "doc": "Destroys the window unconditionally (no close-requested event). The window handle stays valid until released with tauri_handle_close.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_eval",
+      "doc": "Evaluates JavaScript in the window's webview.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "js", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_navigate",
+      "doc": "Navigates the webview to the given URL.",
+      "thread": "any",
+      "params": [
+        { "name": "window", "type": "handle" },
+        { "name": "url", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_window_reload",
+      "doc": "Reloads the webview's current page.",
+      "thread": "any",
+      "params": [{ "name": "window", "type": "handle" }],
+      "result": "status"
+    }
+  ]
+}

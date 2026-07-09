@@ -25,10 +25,10 @@ cargo build -p tauri-ffi
 cd bindings/node && npm install
 
 # 3. run
-node fixtures/hello/main.js
+node examples/hello/main.js
 ```
 
-A window opens serving `fixtures/hello/assets/`; it exercises an invoke round-trip
+A window opens serving `examples/hello/assets/`; it exercises an invoke round-trip
 (`greet` command handled in `app.js`), host→frontend events (`tick`), and
 frontend→host events (`frontend-ping`). Close the window to exit.
 

@@ -18,6 +18,7 @@ pub const ERR_TIMEOUT: i32 = -3;
 pub const ERR_CLOSED: i32 = -4;
 pub const ERR_INVALID_ARG: i32 = -5;
 pub const ERR_PANIC: i32 = -7;
+pub const ERR_NOT_FOUND: i32 = -8;
 
 thread_local! {
   static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };

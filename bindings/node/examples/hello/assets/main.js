@@ -27,6 +27,11 @@ if (!window.__TAURI__) {
     emit('frontend-ping', { at: new Date().toISOString() })
   })
 
+  document.querySelector('#open-window').addEventListener('click', async () => {
+    const { label } = await invoke('open-window')
+    document.querySelector('#opened').textContent = `opened ${label}`
+  })
+
   // Auto-exercise the bridge once on load so smoke tests can assert on the
   // host-side FIXTURE_STATUS file without clicking anything.
   invoke('greet', { name: 'smoke-test' })

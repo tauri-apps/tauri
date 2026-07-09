@@ -36,6 +36,7 @@ pub struct AppState {
 pub enum Entry {
   Builder(BuilderState),
   App(Arc<AppState>),
+  Window(tauri::WebviewWindow<Wry>),
   Resolver(InvokeResolver<Wry>),
 }
 
@@ -59,6 +60,13 @@ pub fn remove(id: u64) -> Option<Entry> {
 pub fn app(id: u64) -> Option<Arc<AppState>> {
   match registry().lock().unwrap().get(&id) {
     Some(Entry::App(state)) => Some(Arc::clone(state)),
+    _ => None,
+  }
+}
+
+pub fn window(id: u64) -> Option<tauri::WebviewWindow<Wry>> {
+  match registry().lock().unwrap().get(&id) {
+    Some(Entry::Window(window)) => Some(window.clone()),
     _ => None,
   }
 }

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tauri FFI fixture</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+      body { margin: 0; display: grid; place-items: center; min-height: 100vh; }
+      main { width: min(32rem, 90vw); }
+      section { margin-top: 1.5rem; padding: 1rem; border-radius: 8px;
+                border: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+      h1 { font-size: 1.3rem; } h2 { font-size: 1rem; margin-top: 0; }
+      input, button { font: inherit; padding: 0.4rem 0.7rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tauri FFI fixture</h1>
+      <p id="status">checking bridge&hellip;</p>
+
+      <section>
+        <h2>invoke round-trip</h2>
+        <input id="name" placeholder="your name" value="Lucas" />
+        <button id="greet">greet</button>
+        <p id="greeting"></p>
+      </section>
+
+      <section>
+        <h2>events</h2>
+        <p>host tick: <strong id="ticks">&ndash;</strong></p>
+        <button id="ping">ping the host</button>
+      </section>
+
+      <section>
+        <h2>windows</h2>
+        <button id="open-window">open child window</button>
+        <span id="opened"></span>
+      </section>
+    </main>
+    <script>
+      const status = document.querySelector('#status')
+      if (!window.__TAURI__) {
+        status.textContent = 'window.__TAURI__ missing — global API script was not injected'
+      } else {
+        status.textContent = `bridge ok (${Object.keys(window.__TAURI__).length} modules)`
+        const { invoke } = window.__TAURI__.core
+        const { listen, emit } = window.__TAURI__.event
+
+        document.querySelector('#greet').addEventListener('click', async () => {
+          const name = document.querySelector('#name').value
+          try {
+            const response = await invoke('greet', { name })
+            document.querySelector('#greeting').textContent = response.message
+          } catch (error) {
+            document.querySelector('#greeting').textContent = `error: ${error}`
+          }
+        })
+
+        listen('tick', (event) => {
+          document.querySelector('#ticks').textContent = event.payload.count
+        })
+
+        document.querySelector('#ping').addEventListener('click', () => {
+          emit('frontend-ping', { at: new Date().toISOString() })
+        })
+
+        document.querySelector('#open-window').addEventListener('click', async () => {
+          const { label } = await invoke('open-window')
+          document.querySelector('#opened').textContent = `opened ${label}`
+        })
+
+        // Auto-exercise the bridge once on load so smoke tests can assert on
+        // the host-side FIXTURE_STATUS file without clicking anything.
+        invoke('greet', { name: 'smoke-test' })
+          .then((response) => {
+            document.querySelector('#greeting').textContent = response.message
+          })
+          .catch((error) => {
+            document.querySelector('#greeting').textContent = `error: ${error}`
+          })
+        emit('frontend-ping', { smoke: true })
+      }
+    </script>
+  </body>
+</html>

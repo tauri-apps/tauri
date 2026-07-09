@@ -22,6 +22,22 @@ use std::{collections::BTreeMap, env, fs, path::PathBuf};
 fn main() {
   let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR not set"));
 
+  // ---- ABI version from the manifest ---------------------------------------
+  // api-manifest.json is the single source of truth for the ABI; the exported
+  // tauri_ffi_abi_version() must always match what the generators emitted.
+  println!("cargo:rerun-if-changed=api-manifest.json");
+  let manifest: serde_json::Value =
+    serde_json::from_str(&fs::read_to_string("api-manifest.json").expect("missing api-manifest.json"))
+      .expect("invalid api-manifest.json");
+  let abi_version = manifest["abiVersion"]
+    .as_u64()
+    .expect("api-manifest.json: abiVersion must be a number");
+  fs::write(
+    out_dir.join("abi_version.rs"),
+    format!("const ABI_VERSION: u32 = {abi_version};\n"),
+  )
+  .expect("failed to write abi_version.rs");
+
   // ---- ACL manifests -------------------------------------------------------
   let permissions =
     tauri_utils::acl::build::read_permissions().expect("failed to read permission metadata");

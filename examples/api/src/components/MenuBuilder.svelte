@@ -4,9 +4,6 @@
     IconMenuItem,
     MenuItem,
     PredefinedMenuItem,
-    type CheckMenuItemOptions,
-    type IconMenuItemOptions,
-    type MenuItemOptions,
     type PredefinedMenuItemOptions
   } from '@tauri-apps/api/menu'
 
@@ -200,9 +197,13 @@
     <div>
       <h3>Custom</h3>
       <div class="flex flex-wrap gap-2" bind:this={sourceSortableEl1}>
-        <MenuItemComponent kind="Normal" text="" />
-        <MenuItemComponent kind="Icon" text="" iconPath="" />
-        <MenuItemComponent kind="Check" text="" checked={false} />
+        <MenuItemComponent kind="Normal" text="A menu item" />
+        <MenuItemComponent
+          kind="Icon"
+          text="Menu item with icon"
+          iconPath="../../.icons/icon.png"
+        />
+        <MenuItemComponent kind="Check" text="A check menu" checked={false} />
       </div>
     </div>
     <div>

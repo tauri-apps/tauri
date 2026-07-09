@@ -9,7 +9,7 @@
 
   let { onMessage }: ViewProps = $props()
 
-  let icon = $state<string>()
+  let icon = $state<string>('../../.icons/tray_icon.png')
   let tooltip = $state<string>()
   let title = $state<string>()
   let iconAsTemplate = $state(false)

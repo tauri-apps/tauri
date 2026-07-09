@@ -34,7 +34,7 @@
 </script>
 
 <div
-  class="flex items-center gap-2 border border-solid border-neutral-200 bg-neutral-100 p-inline-2 p-block-1 rounded-md menu-item"
+  class="flex items-center gap-2 border border-solid border-neutral-200 bg-neutral-100 p-inline-2 p-block-1 rounded-md select-none menu-item"
   data-kind={kind}
   data-text={text}
   data-icon-path={iconPath}

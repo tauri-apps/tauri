@@ -47,7 +47,7 @@
       type="text"
       title="text"
       placeholder="text"
-      class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-sm"
+      class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-1"
       bind:value={text}
       onchange={onTextChange}
     />
@@ -57,7 +57,7 @@
       type="text"
       title="icon path"
       placeholder="icon path"
-      class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-sm"
+      class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-1"
       bind:value={iconPath}
       onchange={onIconPathChange}
     />

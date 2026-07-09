@@ -74,14 +74,20 @@
       case 'Normal': {
         return await MenuItem.new({
           text,
-          action: (id) => itemClick({ id, text: text })
+          action: (id) => {
+            const item = items.find((item) => item.id === options.id)
+            itemClick({ id, text: item?.text ?? text })
+          }
         })
       }
       case 'Icon': {
         return await IconMenuItem.new({
           text,
           icon: iconPath,
-          action: (id) => itemClick({ id, text: text })
+          action: (id) => {
+            const item = items.find((item) => item.id === options.id)
+            itemClick({ id, text: item?.text ?? text })
+          }
         })
       }
       case 'Check': {
@@ -89,8 +95,8 @@
           text,
           checked,
           action: async (id) => {
-            itemClick({ id, text: text })
             const item = items.find((item) => item.id === options.id)
+            itemClick({ id, text: item?.text ?? text })
             if (item) {
               item.checked = await checkItem.isChecked()
             }

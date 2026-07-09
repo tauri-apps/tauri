@@ -248,12 +248,23 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
   Ok(bg_color)
 }
 
-// Rasterize an SVG tree to a `DynamicImage` at its native size, preserving the aspect ratio.
+// Rasterize an SVG tree to a `DynamicImage`, preserving the aspect ratio.
+// An SVG can declare a tiny intrinsic size (e.g. `width="16"`), so scale the
+// longest side up to at least `MIN_SVG_RASTER_SIZE` before rasterizing to keep
+// the generated icons crisp — SVG is vector, so rendering larger is lossless.
+// Sources already larger than that are left untouched (never downscaled here).
 fn rasterize_svg(svg: &usvg::Tree) -> DynamicImage {
-  let width = (svg.size().width().ceil() as u32).max(1);
-  let height = (svg.size().height().ceil() as u32).max(1);
+  const MIN_SVG_RASTER_SIZE: f32 = 1024.0;
+  let size = svg.size();
+  let scale = (MIN_SVG_RASTER_SIZE / size.width().max(size.height())).max(1.0);
+  let width = ((size.width() * scale).ceil() as u32).max(1);
+  let height = ((size.height() * scale).ceil() as u32).max(1);
   let mut pixmap = tiny_skia::Pixmap::new(width, height).unwrap();
-  resvg::render(svg, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+  resvg::render(
+    svg,
+    tiny_skia::Transform::from_scale(scale, scale),
+    &mut pixmap.as_mut(),
+  );
   let img_buffer = ImageBuffer::from_par_fn(width, height, |x, y| {
     let pixel = pixmap.pixel(x, y).unwrap().demultiply();
     Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])

@@ -830,8 +830,8 @@ pub struct Settings {
   target: String,
   /// Whether to disable code signing during the bundling process.
   no_sign: bool,
-  /// Whether to disable patching the main binary with bundle type information.
-  no_binary_patching: bool,
+  /// Whether to patch the main binary with bundle type information.
+  binary_patching: bool,
 }
 
 /// A builder for [`Settings`].
@@ -846,13 +846,16 @@ pub struct SettingsBuilder {
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
   no_sign: bool,
-  no_binary_patching: bool,
+  binary_patching: bool,
 }
 
 impl SettingsBuilder {
   /// Creates the default settings builder.
   pub fn new() -> Self {
-    Default::default()
+    Self {
+      binary_patching: true,
+      ..Default::default()
+    }
   }
 
   /// Sets the project output directory. It's used as current working directory.
@@ -923,10 +926,10 @@ impl SettingsBuilder {
     self
   }
 
-  /// Sets whether to disable patching the main binary with bundle type information.
+  /// Sets whether to patch the main binary with bundle type information. Defaults to `true`.
   #[must_use]
-  pub fn no_binary_patching(mut self, no_binary_patching: bool) -> Self {
-    self.no_binary_patching = no_binary_patching;
+  pub fn binary_patching(mut self, binary_patching: bool) -> Self {
+    self.binary_patching = binary_patching;
     self
   }
 
@@ -974,7 +977,7 @@ impl SettingsBuilder {
       target_platform,
       target,
       no_sign: self.no_sign,
-      no_binary_patching: self.no_binary_patching,
+      binary_patching: self.binary_patching,
     })
   }
 }
@@ -1336,13 +1339,13 @@ impl Settings {
     self.no_sign = no_sign;
   }
 
-  /// Whether patching the main binary with bundle type information is disabled.
-  pub fn no_binary_patching(&self) -> bool {
-    self.no_binary_patching
+  /// Whether the main binary is patched with bundle type information.
+  pub fn binary_patching(&self) -> bool {
+    self.binary_patching
   }
 
-  /// Set whether to disable patching the main binary with bundle type information.
-  pub fn set_no_binary_patching(&mut self, no_binary_patching: bool) {
-    self.no_binary_patching = no_binary_patching;
+  /// Set whether to patch the main binary with bundle type information.
+  pub fn set_binary_patching(&mut self, binary_patching: bool) {
+    self.binary_patching = binary_patching;
   }
 }

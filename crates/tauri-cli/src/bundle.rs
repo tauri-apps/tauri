@@ -219,7 +219,7 @@ pub fn bundle<A: AppSettings>(
     )
     .context("failed to build bundler settings")?;
   settings.set_no_sign(options.no_sign);
-  settings.set_no_binary_patching(options.no_binary_patching);
+  settings.set_binary_patching(!options.no_binary_patching);
 
   settings.set_log_level(match verbosity {
     0 => log::Level::Error,

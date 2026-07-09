@@ -105,35 +105,10 @@
     predefinedItem = undefined
   }
 
-  // function reorder<T>(
-  //   array: T[],
-  //   evt: Sortable.SortableEvent
-  // ): $state.Snapshot<T>[] {
-  //   // should have no effect on stores or regular array
-  //   const workArray = $state.snapshot(array)
-
-  //   // get changes
-  //   const { oldIndex, newIndex } = evt
-
-  //   if (oldIndex === undefined || newIndex === undefined) {
-  //     return workArray
-  //   }
-  //   if (newIndex === oldIndex) {
-  //     return workArray
-  //   }
-
-  //   // move elements
-  //   const target = workArray[oldIndex]
-  //   const increment = newIndex < oldIndex ? -1 : 1
-
-  //   for (let k = oldIndex; k !== newIndex; k += increment) {
-  //     workArray[k] = workArray[k + increment]
-  //   }
-  //   workArray[newIndex] = target
-  //   return workArray
-  // }
+  let currentId = 0
 
   const targetList: {
+    id: number
     kind: MenuItemComponentKind
     text: string | undefined
     iconPath: string | undefined
@@ -166,6 +141,7 @@
     const sourceSortable1 = makeSourceSortable(sourceSortableEl1)
     const sourceSortable2 = makeSourceSortable(sourceSortableEl2)
     const targetSortable = new Sortable(targetSortableEl, {
+      dataIdAttr: 'data-id',
       group: {
         name: 'shared'
       },
@@ -176,17 +152,30 @@
         const iconPath = item.dataset.iconPath
         const checked = item.dataset.checked
         const newItem = {
+          id: currentId,
           kind,
           text,
           iconPath,
           checked: checked !== undefined ? checked === 'true' : checked
         }
+        currentId += 1
         if (event.newIndex !== undefined) {
           targetList.splice(event.newIndex, 0, newItem)
         } else {
           targetList.push(newItem)
         }
+        // HACK: We can't track the element created by Sortable,
+        // just make a new one and delete the one from Sortable
         item.remove()
+      },
+      onUpdate(event) {
+        // HACK: Svelte `#each` can't track external changes,
+        // and will revert changes made by Sortable,
+        // so we store the order and restore it after updating the svelte state
+        const order = targetSortable.toArray()
+        const [item] = targetList.splice(event.oldIndex!, 1)
+        targetList.splice(event.newIndex!, 0, item!)
+        targetSortable.sort(order)
       },
       delayOnTouchOnly: true,
       delay: 500,
@@ -224,9 +213,10 @@
     bind:this={targetSortableEl}
     class="p-2 border border-solid border-neutral-300 rounded-md max-w-lg min-h-24 grid items-start gap-1"
   >
-    {#each targetList as item}
+    {#each targetList as item (item.id)}
       <MenuItemComponent
         kind={item.kind}
+        id={item.id}
         bind:text={item.text}
         bind:iconPath={item.iconPath}
         bind:checked={item.checked}

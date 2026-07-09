@@ -11,11 +11,13 @@
 
 <script lang="ts">
   let {
+    id,
     kind,
     text = $bindable(),
     iconPath = $bindable(),
     checked = $bindable()
   }: {
+    id?: number
     kind: MenuItemComponentKind
     text?: string
     iconPath?: string
@@ -29,6 +31,7 @@
   data-text={text}
   data-icon-path={iconPath}
   data-checked={checked}
+  data-id={id}
 >
   {kind}
   {#if text !== undefined}

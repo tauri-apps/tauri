@@ -1,14 +1,14 @@
 <script lang="ts">
   import { Menu, Submenu, NativeIcon } from '@tauri-apps/api/menu'
   import MenuBuilder, {
-    type BuiltMenuItem,
+    type Item,
     type MenuItemClickDetail
   } from '../components/MenuBuilder.svelte'
   import { defaultWindowIcon } from '@tauri-apps/api/app'
   import type { ViewProps } from '../App.svelte'
 
   let { onMessage }: ViewProps = $props()
-  let items = $state<BuiltMenuItem[]>([])
+  let items = $state<Item[]>([])
   let menu = $state<Menu | null>(null)
   let submenu = $state<Submenu | null>(null)
   let menuItemCount = 0
@@ -18,7 +18,9 @@
   async function createSubmenu(): Promise<Submenu> {
     submenu = await Submenu.new({
       text: 'app',
-      items: items.map((i) => i.item)
+      items: items.map((i) => i.menu).filter(Boolean) as NonNullable<
+        Item['menu']
+      >[]
     })
     return submenu
   }
@@ -27,7 +29,9 @@
     submenu = await Submenu.new({
       text: 'Submenu with NativeIcon',
       icon: NativeIcon.Folder,
-      items: items.map((i) => i.item)
+      items: items.map((i) => i.menu).filter(Boolean) as NonNullable<
+        Item['menu']
+      >[]
     })
     return submenu
   }
@@ -37,7 +41,9 @@
     submenu = await Submenu.new({
       text: 'Submenu with Image',
       ...(icon ? { icon } : {}),
-      items: items.map((i) => i.item)
+      items: items.map((i) => i.menu).filter(Boolean) as NonNullable<
+        Item['menu']
+      >[]
     })
     return submenu
   }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { TrayIcon } from '@tauri-apps/api/tray'
   import MenuBuilder, {
-    type BuiltMenuItem,
+    type Item,
     type MenuItemClickDetail
   } from '../components/MenuBuilder.svelte'
   import { Menu } from '@tauri-apps/api/menu'
@@ -14,7 +14,7 @@
   let title = $state<string>()
   let iconAsTemplate = $state(false)
   let menuOnLeftClick = $state(true)
-  let menuItems = $state<BuiltMenuItem[]>([])
+  let menuItems = $state<Item[]>([])
 
   function onItemClick(detail: MenuItemClickDetail) {
     onMessage(`Item ${detail.text} clicked`)
@@ -28,7 +28,9 @@
       iconAsTemplate,
       menuOnLeftClick,
       menu: await Menu.new({
-        items: menuItems.map((i) => i.item)
+        items: menuItems.map((i) => i.menu).filter(Boolean) as NonNullable<
+          Item['menu']
+        >[]
       }),
       action: (event) => onMessage(event)
     }).catch(onMessage)

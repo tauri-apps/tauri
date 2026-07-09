@@ -10,27 +10,17 @@
     type PredefinedMenuItemOptions
   } from '@tauri-apps/api/menu'
 
-  export type BuiltMenuItem =
-    | {
-        kind: 'Normal'
-        item: MenuItem
-        options: MenuItemOptions
-      }
-    | {
-        kind: 'Icon'
-        item: IconMenuItem
-        options: IconMenuItemOptions
-      }
-    | {
-        kind: 'Check'
-        item: CheckMenuItem
-        options: CheckMenuItemOptions
-      }
-    | {
-        kind: 'Predefined'
-        item: PredefinedMenuItem
-        options: PredefinedMenuItemOptions
-      }
+  export type MenuOptions = {
+    id: number
+    kind: MenuItemComponentKind
+    text: string | undefined
+    iconPath: string | undefined
+    checked: boolean | undefined
+  }
+
+  export type Item = MenuOptions & {
+    menu?: MenuItem | IconMenuItem | CheckMenuItem | PredefinedMenuItem
+  }
 
   export type MenuItemClickDetail = {
     id: string
@@ -45,13 +35,14 @@
   import MenuItemComponent, {
     type MenuItemComponentKind
   } from './MenuItemComponent.svelte'
-  import type { MenuItemBase } from '@tauri-apps/api/menu/base'
 
   type PredefinedItem = PredefinedMenuItemOptions['item']
 
   let {
+    items = $bindable(),
     itemClick
   }: {
+    items: Item[]
     itemClick: MenuItemClickHandler
   } = $props()
 
@@ -114,22 +105,6 @@
 
   let currentId = 0
 
-  type MenuOptions = {
-    id: number
-    kind: MenuItemComponentKind
-    text: string | undefined
-    iconPath: string | undefined
-    checked: boolean | undefined
-  }
-
-  type Target = MenuOptions & { menu?: MenuItemBase }
-
-  const targetList: Target[] = $state([])
-
-  $effect(() => {
-    $inspect(targetList)
-  })
-
   let sourceSortableEl1: HTMLElement
   let sourceSortableEl2: HTMLElement
   let targetSortableEl: HTMLElement
@@ -169,13 +144,13 @@
           text,
           iconPath,
           checked: checked !== undefined ? checked === 'true' : checked
-        } as Target
+        } as Item
         currentId += 1
 
         if (event.newIndex !== undefined) {
-          targetList.splice(event.newIndex, 0, newItem)
+          items.splice(event.newIndex, 0, newItem)
         } else {
-          targetList.push(newItem)
+          items.push(newItem)
         }
         // HACK: We can't track the element created by Sortable,
         // just make a new one and delete the one from Sortable
@@ -188,8 +163,8 @@
         // and will revert changes made by Sortable,
         // so we store the order and restore it after updating the svelte state
         const order = targetSortable.toArray()
-        const [item] = targetList.splice(event.oldIndex!, 1)
-        targetList.splice(event.newIndex!, 0, item!)
+        const [item] = items.splice(event.oldIndex!, 1)
+        items.splice(event.newIndex!, 0, item!)
         targetSortable.sort(order)
       },
       delayOnTouchOnly: true,
@@ -228,7 +203,7 @@
     bind:this={targetSortableEl}
     class="p-2 border border-solid border-neutral-300 rounded-md max-w-lg min-h-24 grid items-start gap-1"
   >
-    {#each targetList as item, i (item.id)}
+    {#each items as item, i (item.id)}
       <MenuItemComponent
         kind={item.kind}
         id={item.id}
@@ -236,7 +211,7 @@
         bind:iconPath={item.iconPath}
         bind:checked={item.checked}
         onRemove={() => {
-          targetList.splice(i, 1)
+          items.splice(i, 1)
           item.menu?.close()
         }}
       />

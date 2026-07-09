@@ -235,6 +235,10 @@
           item.menu?.close()
         }}
       />
+    {:else}
+      <div class="place-self-center color-neutral-600">
+        Drag and drop the menu items above to start building
+      </div>
     {/each}
   </div>
   <div class="h-1px bg-neutral/20"></div>

@@ -37,7 +37,7 @@
   }
 </script>
 
-<div class="flex flex-col children:grow gap-2">
+<div class="flex flex-col children:grow gap-2 mb-4">
   <div class="flex gap-1">
     <input
       class="input grow"

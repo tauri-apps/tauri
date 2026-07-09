@@ -1,13 +1,13 @@
 <script module lang="ts">
-  import type {
+  import {
     CheckMenuItem,
-    CheckMenuItemOptions,
     IconMenuItem,
-    IconMenuItemOptions,
     MenuItem,
-    MenuItemOptions,
     PredefinedMenuItem,
-    PredefinedMenuItemOptions
+    type CheckMenuItemOptions,
+    type IconMenuItemOptions,
+    type MenuItemOptions,
+    type PredefinedMenuItemOptions
   } from '@tauri-apps/api/menu'
 
   export type BuiltMenuItem =
@@ -40,52 +40,206 @@
 </script>
 
 <script lang="ts">
-  import MenuItemBuilder from './MenuItemBuilder.svelte'
+  import Sortable from 'sortablejs'
+  import { onMount } from 'svelte'
+  import MenuItemComponent, {
+    type MenuItemComponentKind
+  } from './MenuItemComponent.svelte'
+
+  type PredefinedItem = PredefinedMenuItemOptions['item']
 
   let {
-    items = $bindable<BuiltMenuItem[]>([]),
+    newItem,
     itemClick
-  }: { items?: BuiltMenuItem[]; itemClick: MenuItemClickHandler } = $props()
+  }: {
+    newItem: (item: BuiltMenuItem) => void
+    itemClick: MenuItemClickHandler
+  } = $props()
 
-  function addItem(newItem: BuiltMenuItem) {
-    items = [...items, newItem]
+  const predefinedOptions: PredefinedItem[] = [
+    'Separator',
+    'Copy',
+    'Cut',
+    'Paste',
+    'SelectAll',
+    'Undo',
+    'Redo',
+    'Minimize',
+    'Maximize',
+    'Fullscreen',
+    'Hide',
+    'HideOthers',
+    'ShowAll',
+    'CloseWindow',
+    'Quit',
+    'Services',
+    'BringAllToFront'
+  ]
+
+  async function create(options: MenuOptions) {
+    let { kind, text, iconPath, checked } = options
+    text ??= ''
+
+    switch (kind) {
+      case 'Normal': {
+        const options: MenuItemOptions = {
+          text,
+          action: (id) => itemClick({ id, text: text })
+        }
+        const item = await MenuItem.new(options)
+        newItem({ kind, item, options })
+        break
+      }
+      case 'Icon': {
+        const options: IconMenuItemOptions = {
+          text,
+          icon: iconPath,
+          action: (id) => itemClick({ id, text: text })
+        }
+        const item = await IconMenuItem.new(options)
+        newItem({ kind, item, options })
+        break
+      }
+      case 'Check': {
+        const options: CheckMenuItemOptions = {
+          text,
+          checked,
+          action: (id) => itemClick({ id, text: text })
+        }
+        const item = await CheckMenuItem.new(options)
+        newItem({ kind, item, options })
+        break
+      }
+      default: {
+        const options: PredefinedMenuItemOptions = {
+          item: kind
+        }
+        const item = await PredefinedMenuItem.new(options)
+        newItem({ kind: 'Predefined', item, options })
+        break
+      }
+    }
   }
 
-  function itemIcon(item: BuiltMenuItem) {
-    if (item.kind === 'Icon' && item.options.icon) {
-      return 'i-ph-images-square'
-    }
-    if (item.kind === 'Check') {
-      return item.options.checked ? 'i-ph-check-duotone' : 'i-ph-square-duotone'
-    }
-    if (item.kind === 'Predefined' && item.options.item) {
-      return 'i-ph-globe-stand'
-    }
-    return 'i-ph-chat-teardrop-text'
+  let currentId = 0
+
+  type MenuOptions = {
+    id: number
+    kind: MenuItemComponentKind
+    text: string | undefined
+    iconPath: string | undefined
+    checked: boolean | undefined
   }
 
-  function itemToString(item: BuiltMenuItem) {
-    return (
-      // icon
-      ('icon' in item.options && item.options.icon)
-      // check|normal
-      || ('text' in item.options && item.options.text)
-      // predefined
-      || ('item' in item.options && item.options.item)
-      || ''
-    )
+  const targetList: MenuOptions[] = $state([])
+
+  $effect(() => {
+    $inspect(targetList)
+  })
+
+  let sourceSortableEl1: HTMLElement
+  let sourceSortableEl2: HTMLElement
+  let targetSortableEl: HTMLElement
+
+  function makeSourceSortable(sourceSortableEl: HTMLElement) {
+    return new Sortable(sourceSortableEl, {
+      draggable: 'div.menu-item',
+      group: {
+        name: 'shared',
+        pull: 'clone',
+        put: false
+      },
+      sort: false,
+      delayOnTouchOnly: true,
+      delay: 500
+    })
   }
+
+  onMount(() => {
+    const sourceSortable1 = makeSourceSortable(sourceSortableEl1)
+    const sourceSortable2 = makeSourceSortable(sourceSortableEl2)
+    const targetSortable = new Sortable(targetSortableEl, {
+      dataIdAttr: 'data-id',
+      group: {
+        name: 'shared'
+      },
+      onAdd(event) {
+        const item = event.item
+        const kind = item.dataset.kind as MenuItemComponentKind
+        const text = item.dataset.text
+        const iconPath = item.dataset.iconPath
+        const checked = item.dataset.checked
+        const newItem = {
+          id: currentId,
+          kind,
+          text,
+          iconPath,
+          checked: checked !== undefined ? checked === 'true' : checked
+        }
+        currentId += 1
+        if (event.newIndex !== undefined) {
+          targetList.splice(event.newIndex, 0, newItem)
+        } else {
+          targetList.push(newItem)
+        }
+        // HACK: We can't track the element created by Sortable,
+        // just make a new one and delete the one from Sortable
+        item.remove()
+      },
+      onUpdate(event) {
+        // HACK: Svelte `#each` can't track external changes,
+        // and will revert changes made by Sortable,
+        // so we store the order and restore it after updating the svelte state
+        const order = targetSortable.toArray()
+        const [item] = targetList.splice(event.oldIndex!, 1)
+        targetList.splice(event.newIndex!, 0, item!)
+        targetSortable.sort(order)
+      },
+      delayOnTouchOnly: true,
+      delay: 500,
+      animation: 200
+    })
+    return () => {
+      targetSortable.destroy()
+      sourceSortable1.destroy()
+      sourceSortable2.destroy()
+    }
+  })
 </script>
 
-<div class="flex flex-col children:grow gap-2">
-  <MenuItemBuilder newItem={addItem} {itemClick} />
-
-  <div>
-    {#each items as item}
-      <div class="flex flex-row gap-1 items-center">
-        <div class={itemIcon(item)}></div>
-        <p>{itemToString(item)}</p>
+<div class="grid gap-4">
+  <div class="grid gap-2">
+    <div>
+      <h3>Custom</h3>
+      <div class="flex flex-wrap gap-2" bind:this={sourceSortableEl1}>
+        <MenuItemComponent kind="Normal" text="" />
+        <MenuItemComponent kind="Icon" text="" iconPath="" />
+        <MenuItemComponent kind="Check" text="" checked={false} />
       </div>
+    </div>
+    <div>
+      <h3>Predefined</h3>
+      <div class="flex flex-wrap gap-2 max-w-5xl" bind:this={sourceSortableEl2}>
+        {#each predefinedOptions as predefinedOption}
+          <MenuItemComponent kind={predefinedOption} />
+        {/each}
+      </div>
+    </div>
+  </div>
+  <div class="h-1px bg-neutral/20"></div>
+  <div
+    bind:this={targetSortableEl}
+    class="p-2 border border-solid border-neutral-300 rounded-md max-w-lg min-h-24 grid items-start gap-1"
+  >
+    {#each targetList as item (item.id)}
+      <MenuItemComponent
+        kind={item.kind}
+        id={item.id}
+        bind:text={item.text}
+        bind:iconPath={item.iconPath}
+        bind:checked={item.checked}
+      />
     {/each}
   </div>
+  <div class="h-1px bg-neutral/20"></div>
 </div>

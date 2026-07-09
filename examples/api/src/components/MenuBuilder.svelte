@@ -188,7 +188,7 @@
   })
 </script>
 
-<div class="grid gap-4">
+<div class="grid gap-4 max-w-5xl">
   <div class="grid gap-2">
     <div>
       <h3>Custom</h3>
@@ -200,17 +200,17 @@
     </div>
     <div>
       <h3>Predefined</h3>
-      <div class="flex flex-wrap gap-2 max-w-5xl" bind:this={sourceSortableEl2}>
+      <div class="flex flex-wrap gap-2" bind:this={sourceSortableEl2}>
         {#each predefinedOptions as predefinedOption}
           <MenuItemComponent kind={predefinedOption} />
         {/each}
       </div>
     </div>
   </div>
-  <div class="h-1px bg-neutral/20"></div>
+  <div class="h-1px bg-neutral/20 m-inline-4"></div>
   <div
     bind:this={targetSortableEl}
-    class="p-2 border border-solid border-neutral-300 rounded-md max-w-lg min-h-24 grid items-start gap-1"
+    class="p-2 border border-solid border-neutral-300 rounded-md min-h-24 grid items-start gap-1"
   >
     {#each items as item, i (item.id)}
       <MenuItemComponent
@@ -247,5 +247,4 @@
       </div>
     {/each}
   </div>
-  <div class="h-1px bg-neutral/20"></div>
 </div>

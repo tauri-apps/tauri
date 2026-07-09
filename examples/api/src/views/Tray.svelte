@@ -37,49 +37,51 @@
   }
 </script>
 
-<div class="flex flex-col children:grow gap-2 mb-4">
-  <div class="flex gap-1">
-    <input
-      class="input grow"
-      type="text"
-      placeholder="Title"
-      bind:value={title}
-    />
+<div class="grid gap-8 mb-4">
+  <MenuBuilder bind:items={menuItems} itemClick={onItemClick} />
 
-    <input
-      class="input grow"
-      type="text"
-      placeholder="Tooltip"
-      bind:value={tooltip}
-    />
+  <div class="flex items-center gap-8">
+    <div class="grid gap-2 grid-cols-3 items-center">
+      <input
+        class="input grow"
+        type="text"
+        placeholder="Title"
+        bind:value={title}
+      />
 
-    <label>
-      <input type="checkbox" class="checkbox" bind:checked={menuOnLeftClick} />
-      Menu on left click
-    </label>
-  </div>
+      <input
+        class="input grow"
+        type="text"
+        placeholder="Tooltip"
+        bind:value={tooltip}
+      />
 
-  <div class="flex gap-1">
-    <input
-      class="input grow"
-      type="text"
-      placeholder="Icon path"
-      bind:value={icon}
-    />
+      <label>
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={menuOnLeftClick}
+        />
+        Menu on left click
+      </label>
 
-    <label>
-      <input type="checkbox" class="checkbox" bind:checked={iconAsTemplate} />
-      Icon as template
-    </label>
-  </div>
+      <input
+        class="input col-span-2"
+        type="text"
+        placeholder="Icon path"
+        bind:value={icon}
+      />
 
-  <div class="flex children:grow">
-    <MenuBuilder bind:items={menuItems} itemClick={onItemClick} />
-  </div>
+      <label>
+        <input type="checkbox" class="checkbox" bind:checked={iconAsTemplate} />
+        Icon as template
+      </label>
+    </div>
 
-  <div class="flex">
-    <button class="btn" onclick={create} title="Creates the tray icon"
-      >Create tray</button
-    >
+    <div class="flex">
+      <button class="btn" onclick={create} title="Creates the tray icon"
+        >Create tray</button
+      >
+    </div>
   </div>
 </div>

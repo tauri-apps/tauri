@@ -84,7 +84,7 @@
   }
 </script>
 
-<div class="grid gap-4 mb-4">
+<div class="grid gap-8 mb-4">
   <MenuBuilder bind:items itemClick={onItemClick} />
   <div class="flex gap-2">
     <button class="btn" onclick={create}>Create menu</button>

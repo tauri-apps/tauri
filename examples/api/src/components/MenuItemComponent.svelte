@@ -16,6 +16,9 @@
     text = $bindable(),
     iconPath = $bindable(),
     checked = $bindable(),
+    onTextChange,
+    onIconPathChange,
+    onCheckedChange,
     onRemove
   }: {
     id?: number
@@ -23,6 +26,9 @@
     text?: string
     iconPath?: string
     checked?: boolean
+    onTextChange?: () => void
+    onIconPathChange?: () => void
+    onCheckedChange?: () => void
     onRemove?: () => void
   } = $props()
 </script>
@@ -43,6 +49,7 @@
       placeholder="text"
       class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-sm"
       bind:value={text}
+      onchange={onTextChange}
     />
   {/if}
   {#if iconPath !== undefined}
@@ -52,10 +59,16 @@
       placeholder="icon path"
       class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-sm"
       bind:value={iconPath}
+      onchange={onIconPathChange}
     />
   {/if}
   {#if checked !== undefined}
-    <input type="checkbox" title="checked" bind:checked />
+    <input
+      type="checkbox"
+      title="checked"
+      bind:checked
+      onchange={onCheckedChange}
+    />
   {/if}
 
   {#if onRemove !== undefined}

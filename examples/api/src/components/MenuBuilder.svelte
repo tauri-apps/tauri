@@ -210,6 +210,23 @@
         bind:text={item.text}
         bind:iconPath={item.iconPath}
         bind:checked={item.checked}
+        onTextChange={item.text !== undefined
+          ? () => {
+              item.menu?.setText(item.text ?? '')
+            }
+          : undefined}
+        onIconPathChange={item.iconPath !== undefined
+          ? () => {
+              ;(item.menu as IconMenuItem | undefined)?.setIcon(item.iconPath!)
+            }
+          : undefined}
+        onCheckedChange={item.checked !== undefined
+          ? () => {
+              ;(item.menu as CheckMenuItem | undefined)?.setChecked(
+                item.checked!
+              )
+            }
+          : undefined}
         onRemove={() => {
           items.splice(i, 1)
           item.menu?.close()

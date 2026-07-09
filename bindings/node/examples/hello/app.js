@@ -1,6 +1,7 @@
 // Fixture app code — runs in a worker_thread with a live event loop.
 import { appendFileSync } from 'node:fs'
 import { app } from '../../src/worker.js'
+import demoPlugin from './demo-plugin.js'
 
 // Smoke tests set FIXTURE_STATUS to a file path and assert on its contents.
 function log(...args) {
@@ -9,6 +10,10 @@ function log(...args) {
     appendFileSync(process.env.FIXTURE_STATUS, `${args.join(' ')}\n`)
   }
 }
+
+// Wire up the plugin's command handlers (its native side + ACL were set up by
+// launch() on the main thread). No `plugin:demo|echo` strings in app code.
+app.plugin(demoPlugin)
 
 app.command('greet', ({ name }) => {
   log('greet:', name)
@@ -60,6 +65,8 @@ app.on('exit', () => log('exit'))
 
 // Frontend -> host events.
 app.listen('frontend-ping', (payload) => log('frontend-ping:', JSON.stringify(payload)))
+app.listen('plugin-init-ran', (payload) => log('plugin-init:', payload.ran ? 'ran' : 'missing'))
+app.listen('plugin-echo-ok', (payload) => log('plugin-echo:', JSON.stringify(payload)))
 
 // Host -> frontend events, once a second.
 let count = 0

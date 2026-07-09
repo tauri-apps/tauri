@@ -191,6 +191,16 @@ export const app = {
     return app
   },
 
+  /** Applies a plugin (from `definePlugin()`) in this worker, wiring up its
+   * command handlers. Pass the same plugin to `launch({ plugins })` on the main
+   * thread so its native side and ACL are set up. */
+  plugin(plugin) {
+    for (const [name, handler] of plugin.handlers) {
+      commands.set(`plugin:${plugin.name}|${name}`, handler)
+    }
+    return app
+  },
+
   /** Lifecycle events: 'ready' | 'exit' | 'exit-requested' | 'window-event'. */
   on(type, handler) {
     if (!lifecycleListeners.has(type)) lifecycleListeners.set(type, new Set())
@@ -262,9 +272,11 @@ function fire(type, message) {
 }
 
 async function handleInvoke(message) {
-  const handler = commands.get(message.command)
+  // Plugin invokes are keyed by the full `plugin:<name>|<command>` string.
+  const key = message.plugin ? `plugin:${message.plugin}|${message.command}` : message.command
+  const handler = commands.get(key)
   if (!handler) {
-    api.invokeReject(message.id, JSON.stringify(`command ${message.command} not found`))
+    api.invokeReject(message.id, JSON.stringify(`command ${key} not found`))
     return
   }
   try {

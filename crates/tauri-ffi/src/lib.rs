@@ -38,6 +38,7 @@ use tauri::{Emitter, EventTarget, Listener, Manager, Pattern, RunEvent, WindowEv
 
 mod assets;
 mod error;
+mod plugins;
 mod state;
 mod window;
 
@@ -152,6 +153,7 @@ pub unsafe extern "C" fn tauri_app_builder_new(
       assets_dir: None,
       commands: Default::default(),
       capabilities: Vec::new(),
+      plugins: Vec::new(),
     }));
     unsafe { *out_builder = id };
     OK
@@ -233,11 +235,17 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
     assets_dir,
     commands,
     capabilities,
+    plugins,
   } = builder_state;
 
-  // ACL: embedded manifests + runtime-resolved capabilities (`dynamic-acl`).
-  let acl: BTreeMap<String, Manifest> = serde_json::from_str(ACL_MANIFESTS_JSON)
+  // ACL: embedded core manifests + a synthesized manifest per host plugin so
+  // its `plugin:<name>|<command>` invokes resolve at runtime (`dynamic-acl`).
+  let mut acl: BTreeMap<String, Manifest> = serde_json::from_str(ACL_MANIFESTS_JSON)
     .map_err(|e| format!("corrupt embedded ACL manifests: {e}"))?;
+  for plugin in &plugins {
+    acl.insert(plugin.name.clone(), plugin_manifest(plugin));
+  }
+  let plugin_names: Vec<String> = plugins.iter().map(|p| p.name.clone()).collect();
   let authority = tauri::runtime_authority!(acl, Resolved::default());
 
   let assets: Box<dyn tauri::Assets<Wry>> = match assets_dir {
@@ -280,38 +288,76 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let (tx, rx) = mpsc::channel::<String>();
 
   let invoke_tx = tx.clone();
-  let app = tauri::Builder::default()
-    .invoke_handler(move |invoke: tauri::ipc::Invoke<Wry>| {
+  let mut builder = tauri::Builder::default().invoke_handler(
+    move |invoke: tauri::ipc::Invoke<Wry>| {
       let command = invoke.message.command();
       if !commands.contains(command) {
         return false; // tauri reports "command not found" to the frontend
       }
-      let payload = match invoke.message.payload() {
-        InvokeBody::Json(value) => value.clone(),
-        // TODO(M1): raw (binary) payloads
-        InvokeBody::Raw(_) => serde_json::Value::Null,
-      };
-      let resolver_id = state::insert(Entry::Resolver(invoke.resolver.clone()));
-      let message = serde_json::json!({
-        "type": "invoke",
-        "id": resolver_id,
-        "command": command,
-        "payload": payload,
-        "webview": invoke.message.webview_ref().label(),
-      });
-      let _ = invoke_tx.send(message.to_string());
+      let _ = invoke_tx.send(invoke_message_json(&invoke, command, None));
       true
-    })
+    },
+  );
+
+  // Each plugin gets a `tauri::plugin::Builder` whose invoke handler funnels
+  // into the same event queue, tagged with the plugin name.
+  for plugin in plugins {
+    let state::PluginState {
+      name,
+      init_script,
+      commands: plugin_commands,
+    } = plugin;
+    let plugin_tx = tx.clone();
+    let plugin_name = name.clone();
+    // `plugin::Builder::new` wants a `&'static str`; a plugin is created once
+    // for the life of the app, so a one-time leak is acceptable.
+    let leaked_name: &'static str = Box::leak(name.into_boxed_str());
+    let mut plugin_builder = tauri::plugin::Builder::<Wry>::new(leaked_name).invoke_handler(
+      move |invoke: tauri::ipc::Invoke<Wry>| {
+        // tauri strips the `plugin:<name>|` prefix before dispatch, so
+        // `command()` is the bare command name here.
+        let command = invoke.message.command();
+        if !plugin_commands.contains(command) {
+          return false;
+        }
+        let _ = plugin_tx.send(invoke_message_json(&invoke, command, Some(&plugin_name)));
+        true
+      },
+    );
+    if let Some(js) = init_script {
+      plugin_builder = plugin_builder.js_init_script(js);
+    }
+    let plugin = plugin_builder
+      .try_build()
+      .map_err(|e| format!("invalid plugin `{leaked_name}`: {e}"))?;
+    builder = builder.plugin(plugin);
+  }
+
+  let app = builder
     .build(context)
     .map_err(|e| format!("failed to build app: {e}"))?;
 
   let handle = app.handle().clone();
 
-  let capabilities = if capabilities.is_empty() {
+  let mut capabilities = if capabilities.is_empty() {
     vec![DEFAULT_CAPABILITY.to_string()]
   } else {
     capabilities
   };
+  // Grant every registered plugin's default permission to all windows — the
+  // host opted in by registering the plugin's commands.
+  if !plugin_names.is_empty() {
+    let permissions: Vec<String> = plugin_names.iter().map(|n| format!("{n}:default")).collect();
+    capabilities.push(
+      serde_json::json!({
+        "identifier": "tauri-ffi-plugins-default",
+        "description": "Grants FFI-registered plugin default permissions to all windows.",
+        "windows": ["*"],
+        "permissions": permissions,
+      })
+      .to_string(),
+    );
+  }
   for capability in capabilities {
     handle
       .add_capability(capability)
@@ -325,6 +371,59 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   })));
   state::LOCAL_APPS.with(|apps| apps.borrow_mut().insert(id, app));
   Ok(id)
+}
+
+/// Registers the invoke's resolver and serializes it into a queue message.
+/// `plugin` is `Some` for plugin commands (adds a `"plugin"` field).
+fn invoke_message_json(invoke: &tauri::ipc::Invoke<Wry>, command: &str, plugin: Option<&str>) -> String {
+  let payload = match invoke.message.payload() {
+    InvokeBody::Json(value) => value.clone(),
+    // TODO(M1): raw (binary) payloads
+    InvokeBody::Raw(_) => serde_json::Value::Null,
+  };
+  let resolver_id = state::insert(Entry::Resolver(invoke.resolver.clone()));
+  let mut message = serde_json::json!({
+    "type": "invoke",
+    "id": resolver_id,
+    "command": command,
+    "payload": payload,
+    "webview": invoke.message.webview_ref().label(),
+  });
+  if let Some(plugin) = plugin {
+    message["plugin"] = serde_json::Value::String(plugin.to_string());
+  }
+  message.to_string()
+}
+
+/// Synthesizes an ACL manifest granting a host plugin's commands. The default
+/// permission `<name>:default` (referenced by the default capability) allows
+/// every registered command, so `plugin:<name>|<command>` resolves at runtime.
+fn plugin_manifest(plugin: &state::PluginState) -> Manifest {
+  use tauri::utils::acl::manifest::{DefaultPermission, PermissionFile};
+  use tauri::utils::acl::{Commands, Permission};
+
+  let commands = plugin.commands.iter().cloned().collect();
+  let permission = Permission {
+    version: None,
+    identifier: "allow-all".to_string(),
+    description: None,
+    commands: Commands {
+      allow: commands,
+      deny: Vec::new(),
+    },
+    scope: Default::default(),
+    platforms: None,
+  };
+  let file = PermissionFile {
+    default: Some(DefaultPermission {
+      version: None,
+      description: None,
+      permissions: vec!["allow-all".to_string()],
+    }),
+    set: Vec::new(),
+    permission: vec![permission],
+  };
+  Manifest::new(vec![file], None)
 }
 
 // ---------------------------------------------------------------------------

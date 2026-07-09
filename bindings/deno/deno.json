@@ -5,6 +5,7 @@
   "exports": {
     ".": "./mod.ts",
     "./worker": "./worker.ts",
+    "./plugin": "./plugin.ts",
     "./ffi": "./ffi.ts",
     "./symbols": "./symbols.ts"
   },

@@ -25,8 +25,14 @@ import { open } from './ffi.js'
  * @param {string[]} [options.commands] command names handled by the worker
  * @param {(object | string)[]} [options.capabilities] capability definitions;
  *   defaults to granting core:default to all windows
+ * @param {import('./plugin.js').Plugin[]} [options.plugins] plugins created with
+ *   `definePlugin()`; pass the same objects to `app.plugin()` in the worker so
+ *   their handlers run there. See '@tauri-apps/node/plugin'.
  */
-export function launch(appEntry, { config, assetsDir, commands = [], capabilities = [] } = {}) {
+export function launch(
+  appEntry,
+  { config, assetsDir, commands = [], capabilities = [], plugins = [] } = {}
+) {
   const { api, check, libPath } = open()
 
   const outBuilder = [0]
@@ -43,6 +49,18 @@ export function launch(appEntry, { config, assetsDir, commands = [], capabilitie
   for (const capability of capabilities) {
     const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
     check(api.appBuilderAddCapability(builder, json), 'add_capability')
+  }
+  for (const plugin of plugins) {
+    const outPlugin = [0]
+    check(api.pluginNew(plugin.name, outPlugin), `plugin_new(${plugin.name})`)
+    const handle = outPlugin[0]
+    if (plugin.script) {
+      check(api.pluginSetInitScript(handle, plugin.script), `plugin_set_init_script(${plugin.name})`)
+    }
+    for (const command of plugin.commandNames) {
+      check(api.pluginRegisterCommand(handle, command), `plugin_register_command(${plugin.name}|${command})`)
+    }
+    check(api.appBuilderAddPlugin(builder, handle), `add_plugin(${plugin.name})`)
   }
 
   const outApp = [0]

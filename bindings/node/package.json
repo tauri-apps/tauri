@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.js",
     "./worker": "./src/worker.js",
+    "./plugin": "./src/plugin.js",
     "./ffi": "./src/ffi.js"
   },
   "engines": {

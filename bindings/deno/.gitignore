@@ -1,0 +1,5 @@
+# lockfile is committed by apps, not by a published library
+deno.lock
+
+# prebuilt cdylib fetched by ensureLibrary() when run outside the repo
+.tauri-ffi-cache/

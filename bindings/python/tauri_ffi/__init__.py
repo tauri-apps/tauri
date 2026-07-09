@@ -26,6 +26,9 @@ from typing import Any, Callable, Optional
 from cffi import FFI
 
 from ._cdef import ABI_VERSION, CDEF, CODES
+from .plugin import Plugin
+
+__all__ = ["App", "WebviewWindow", "Plugin", "TauriError"]
 
 _ffi = FFI()
 _ffi.cdef(CDEF)
@@ -255,6 +258,8 @@ class App:
         self._lifecycle: dict[str, list[Callable]] = {}
         self._listeners: dict[int, Callable] = {}
         self._pending_listens: list[tuple] = []
+        self._plugins: list[Plugin] = []
+        self._plugin_handlers: dict[tuple, Callable] = {}
         self._lib = None
         self._app = 0
 
@@ -277,6 +282,14 @@ class App:
             return handler
 
         return register
+
+    def plugin(self, plugin: Plugin) -> None:
+        """Registers a plugin (from ``Plugin``) before ``run()`` — its native
+        side and ACL are set up at build, and its command handlers are wired up.
+        The ``plugin:<name>|<command>`` wire format never appears in app code."""
+        self._plugins.append(plugin)
+        for name, handler in plugin.commands.items():
+            self._plugin_handlers[(plugin.name, name)] = handler
 
     def listen(self, event: str, handler: Callable) -> Optional[int]:
         """Listens to a Tauri event; returns the listener id (None pre-run)."""
@@ -354,6 +367,23 @@ class App:
         for capability in self._capabilities:
             value = capability if isinstance(capability, str) else json.dumps(capability)
             _check(lib, lib.tauri_app_builder_add_capability(builder, _s(value)), "add_capability")
+        for plugin in self._plugins:
+            out_plugin = _ffi.new("uint64_t *")
+            _check(lib, lib.tauri_plugin_new(_s(plugin.name), out_plugin), f"plugin_new({plugin.name})")
+            handle = out_plugin[0]
+            if plugin.script:
+                _check(
+                    lib,
+                    lib.tauri_plugin_set_init_script(handle, _s(plugin.script)),
+                    f"plugin_set_init_script({plugin.name})",
+                )
+            for command in plugin.commands:
+                _check(
+                    lib,
+                    lib.tauri_plugin_register_command(handle, _s(command)),
+                    f"plugin_register_command({plugin.name}|{command})",
+                )
+            _check(lib, lib.tauri_app_builder_add_plugin(builder, handle), f"add_plugin({plugin.name})")
 
         out_app = _ffi.new("uint64_t *")
         _check(lib, lib.tauri_app_build(builder, out_app), "app_build")
@@ -404,10 +434,16 @@ class App:
                 handler(message)
 
     def _handle_invoke(self, message: dict) -> None:
-        handler = self._commands.get(message["command"])
+        plugin = message.get("plugin")
+        if plugin is not None:
+            handler = self._plugin_handlers.get((plugin, message["command"]))
+            label = f"plugin:{plugin}|{message['command']}"
+        else:
+            handler = self._commands.get(message["command"])
+            label = message["command"]
         if handler is None:
             self._lib.tauri_invoke_reject(
-                message["id"], _s(json.dumps(f"command {message['command']} not found"))
+                message["id"], _s(json.dumps(f"command {label} not found"))
             )
             return
         try:

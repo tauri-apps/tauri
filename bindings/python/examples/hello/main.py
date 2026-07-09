@@ -12,7 +12,9 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tauri_ffi import App  # noqa: E402
+from demo_plugin import demo  # noqa: E402
 
 STATUS = os.environ.get("FIXTURE_STATUS")
 
@@ -45,6 +47,10 @@ app = App(
     },
     assets_dir=Path(__file__).parent / "assets",
 )
+
+# Register the plugin — its native side + ACL are set up at run(), and its
+# command handlers are wired up. No `plugin:demo|echo` strings in app code.
+app.plugin(demo)
 
 child_counter = itertools.count(1)
 
@@ -105,5 +111,10 @@ def window_event(message):
 
 
 app.listen("frontend-ping", lambda payload, _message: log("frontend-ping:", json.dumps(payload)))
+app.listen(
+    "plugin-init-ran",
+    lambda payload, _message: log("plugin-init:", "ran" if payload.get("ran") else "missing"),
+)
+app.listen("plugin-echo-ok", lambda payload, _message: log("plugin-echo:", json.dumps(payload)))
 
 sys.exit(app.run())

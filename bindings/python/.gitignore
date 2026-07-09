@@ -1,0 +1,11 @@
+# Python bytecode caches (package + examples)
+__pycache__/
+*.pyc
+
+# setuptools / wheel build output
+build/
+dist/
+*.egg-info/
+
+# prebuilt cdylib — bundled into wheels at publish time, copied in for dev
+tauri_ffi/_native/

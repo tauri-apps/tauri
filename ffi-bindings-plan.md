@@ -176,7 +176,11 @@ int32_t  tauri_app_builder_set_assets_callback(uint64_t b, TauriAssetGetFn get, 
 // dev-server URL comes via config (build.devUrl / window url), no special API
 int32_t  tauri_app_builder_set_icon_rgba(uint64_t b, const uint8_t* rgba, uint32_t w, uint32_t h);
 int32_t  tauri_app_builder_add_capability(uint64_t b, const char* capability_json);
-int32_t  tauri_app_builder_enable_plugin(uint64_t b, const char* name); // compiled-in, feature-gated
+// host-defined plugins (implemented; see 4.5): create, configure, attach
+uint64_t tauri_plugin_new(const char* name, uint64_t* out_plugin);
+int32_t  tauri_plugin_set_init_script(uint64_t plugin, const char* js);
+int32_t  tauri_plugin_register_command(uint64_t plugin, const char* name);
+int32_t  tauri_app_builder_add_plugin(uint64_t b, uint64_t plugin); // consumes the plugin handle
 int32_t  tauri_app_build(uint64_t b, uint64_t* out_app);        // main thread; creates event loop
 int32_t  tauri_app_run(uint64_t app, TauriRunEventFn cb /*nullable*/, void* user_data,
                        int32_t* out_exit_code);                 // main thread; blocks
@@ -248,6 +252,19 @@ no synchronous reentry.
   (`dynamic-acl` is a default feature).
 - Host-registered commands ride on `has_app_acl = false` (app commands ungated), same as
   a macro-built app that defines no app permissions.
+- **Host-defined plugins (implemented 2026-07-09).** A host builds a plugin from its own
+  language — a name, an optional JS init script injected into every webview, and a set of
+  commands invoked from the frontend as `plugin:<name>|<command>`. Unlike app commands,
+  plugin commands are *always* ACL-gated (tauri rejects `plugin:*` invokes whose access
+  doesn't resolve). Since host plugins have no build-time manifest, `tauri-ffi` synthesizes
+  one at runtime: a `Manifest` with an `allow-all` permission (`commands.allow` = every
+  registered command) under a `default` set, inserted into the acl map keyed by plugin
+  name *before* `RuntimeAuthority::new`; the default capability is then extended with
+  `<name>:default` for windows `["*"]`. Each plugin attaches a `tauri::plugin::Builder`
+  (name `Box::leak`ed to `&'static str`) whose `invoke_handler` funnels into the same event
+  queue with an added `"plugin"` field; language shims route handlers by the composite
+  `plugin:<name>|<command>` key. `core`/`tauri` are reserved names (surfaced as a build
+  error). Lifecycle hooks (`on_page_load`, `on_navigation`, …) deliberately deferred.
 
 ### 4.6 Windows & webviews (initial op set)
 
@@ -423,6 +440,30 @@ irritation back into ABI tweaks *before* codegen freezes patterns.
 > `blocking && thread == main` must NOT be `nonblocking`. The ABI version constant
 > is now generated into the Rust crate from the manifest by build.rs — the
 > per-language `tauri_ffi_abi_version()` startup check caught it drifting.
+
+> **Update (2026-07-09): host-defined plugin system landed (ABI v3).** Four new ABI
+> fns (`tauri_plugin_new` / `tauri_plugin_set_init_script` /
+> `tauri_plugin_register_command` / `tauri_app_builder_add_plugin`) let a host define a
+> plugin from its own language: a name, an optional JS init script (injected into every
+> webview before page scripts run), and commands invoked as `plugin:<name>|<command>`.
+> Rust side (`crates/tauri-ffi/src/plugins.rs` + `build_app`): a `tauri::plugin::Builder`
+> per plugin whose `invoke_handler` funnels into the shared event queue with a `"plugin"`
+> field, plus a runtime-synthesized ACL `Manifest` (`allow-all` permission) so the
+> always-gated plugin invokes resolve — see §4.5. The minimal C example stays plugin-free.
+>
+> **Higher-level wrapper (same day).** Each scripting language ships a dependency-free
+> `definePlugin(name)` / `Plugin(name)` builder (`@tauri-apps/node/plugin`,
+> `@tauri-apps/deno/plugin`, `tauri_ffi.Plugin`) that bundles the name, init script and
+> `command(name, handler)` handlers into one packageable object — mirroring
+> `tauri::plugin::Builder`, so a plugin can live in its own npm/JSR/PyPI package. Apps
+> pass the object to `launch({ plugins })` (metadata + ACL, main thread) and `app.plugin(p)`
+> (handlers, worker) — Python's single call does both. The `plugin:<name>|<command>` wire
+> format is fully internal: the worker keys handlers by it, and the plugin's own init
+> script installs a frontend guest API (`window.demo.echo(...)`) so app + frontend code
+> never type it. The `demo` plugin (init script installing `window.demo` + `echo` command)
+> lives in a separate `demo-plugin` module in all three `hello` fixtures and is exercised
+> end-to-end — the frontend reads `window.__DEMO_PLUGIN__` (proves injection) and calls
+> `window.demo.echo()` (proves ACL resolution through the guest API).
 
 **M3 — Manifest + codegen + Deno.** Decided and partially landed early (§6, 2026-07-09):
 hand-authored manifest + in-house generator now produce the C header, koffi

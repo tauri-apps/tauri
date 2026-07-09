@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#define TAURI_FFI_ABI_VERSION 2
+#define TAURI_FFI_ABI_VERSION 3
 
 #define TAURI_OK 0 /* Success. */
 #define TAURI_ERR_GENERIC -1 /* Operation failed; details via tauri_last_error_message. */
@@ -92,6 +92,33 @@ int32_t tauri_app_builder_register_command(uint64_t builder, const char *name);
  * added, a default granting core:default to all windows is applied.
  */
 int32_t tauri_app_builder_add_capability(uint64_t builder, const char *capability);
+
+/*
+ * Creates a plugin definition with the given name. Plugin commands are invoked
+ * from the frontend as `plugin:<name>|<command>`; their invokes arrive on the
+ * event queue with an extra `"plugin"` field. `core` and `tauri` are reserved
+ * names. Attach with tauri_app_builder_add_plugin.
+ */
+int32_t tauri_plugin_new(const char *name, uint64_t *out_plugin);
+
+/*
+ * Sets JavaScript injected into every webview before page scripts run (wrapped
+ * in its own function scope — assign globals to `window`). Overrides any
+ * previously set script.
+ */
+int32_t tauri_plugin_set_init_script(uint64_t plugin, const char *js);
+
+/*
+ * Registers a command handled by this plugin. The default capability grants
+ * every registered plugin command to all windows.
+ */
+int32_t tauri_plugin_register_command(uint64_t plugin, const char *name);
+
+/*
+ * Attaches a plugin to the builder, consuming the plugin handle. Its
+ * permissions are synthesized into the ACL so its commands resolve at runtime.
+ */
+int32_t tauri_app_builder_add_plugin(uint64_t builder, uint64_t plugin);
 
 /*
  * Consumes the builder and builds the app. Windows declared in the config are

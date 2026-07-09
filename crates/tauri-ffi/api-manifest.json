@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for the tauri-ffi C ABI. bindings/bindgen/generate.mjs renders the C header, koffi declarations, Deno symbols and Python cffi cdef from this file, and cross-checks it against the extern fns in src/. Param types: handle (u64 id), str (borrowed UTF-8 in), owned_str (ownership transferred back, e.g. tauri_string_free), bool, u32, i32, f64, out_handle, out_bool, out_u32, out_i32, out_f64, out_owned_str (caller frees via tauri_string_free). Results: status (i32 error code), u32, borrowed_str (do not free), void. thread: 'any' | 'main' (the thread that builds/runs the loop). blocking: call blocks the calling thread (dynamic FFI hosts should use async/nonblocking call modes).",
-  "abiVersion": 2,
+  "abiVersion": 3,
   "errors": [
     { "name": "OK", "value": 0, "doc": "Success." },
     { "name": "ERR_GENERIC", "value": -1, "doc": "Operation failed; details via tauri_last_error_message." },
@@ -84,6 +84,46 @@
       "params": [
         { "name": "builder", "type": "handle" },
         { "name": "capability", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_plugin_new",
+      "doc": "Creates a plugin definition with the given name. Plugin commands are invoked from the frontend as `plugin:<name>|<command>`; their invokes arrive on the event queue with an extra `\"plugin\"` field. `core` and `tauri` are reserved names. Attach with tauri_app_builder_add_plugin.",
+      "thread": "any",
+      "params": [
+        { "name": "name", "type": "str" },
+        { "name": "out_plugin", "type": "out_handle" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_plugin_set_init_script",
+      "doc": "Sets JavaScript injected into every webview before page scripts run (wrapped in its own function scope — assign globals to `window`). Overrides any previously set script.",
+      "thread": "any",
+      "params": [
+        { "name": "plugin", "type": "handle" },
+        { "name": "js", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_plugin_register_command",
+      "doc": "Registers a command handled by this plugin. The default capability grants every registered plugin command to all windows.",
+      "thread": "any",
+      "params": [
+        { "name": "plugin", "type": "handle" },
+        { "name": "name", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_add_plugin",
+      "doc": "Attaches a plugin to the builder, consuming the plugin handle. Its permissions are synthesized into the ACL so its commands resolve at runtime.",
+      "thread": "any",
+      "params": [
+        { "name": "builder", "type": "handle" },
+        { "name": "plugin", "type": "handle" }
       ],
       "result": "status"
     },

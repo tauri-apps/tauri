@@ -1,0 +1,7 @@
+# compiled objects and binaries (examples build into target/ffi-examples/,
+# but ignore in-place builds too)
+*.o
+*.obj
+*.a
+*.exe
+*.out

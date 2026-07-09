@@ -2,11 +2,13 @@
 // runs ./app.js in a worker. Run with: node bindings/node/examples/hello/main.js
 import { readFileSync } from 'node:fs'
 import { launch } from '../../src/index.js'
+import demoPlugin from './demo-plugin.js'
 
 const config = JSON.parse(readFileSync(new URL('./tauri.conf.json', import.meta.url), 'utf8'))
 
 launch(new URL('./app.js', import.meta.url), {
   config,
   assetsDir: new URL('./assets/', import.meta.url),
-  commands: ['greet', 'open-window']
+  commands: ['greet', 'open-window'],
+  plugins: [demoPlugin]
 })

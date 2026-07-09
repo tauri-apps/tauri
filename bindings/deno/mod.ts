@@ -9,6 +9,7 @@
 // `tauri_app_run`. See /ffi-bindings-plan.md §3.
 
 import { cstr, ensureLibrary, open } from './ffi.ts'
+import type { Plugin } from './plugin.ts'
 
 export interface LaunchOptions {
   /** tauri.conf.json-shaped configuration. */
@@ -19,6 +20,9 @@ export interface LaunchOptions {
   commands?: string[]
   /** Capability definitions; defaults to granting core:default to all windows. */
   capabilities?: (object | string)[]
+  /** Plugins created with `definePlugin()`; pass the same objects to
+   * `app.plugin()` in the worker so their handlers run there. */
+  plugins?: Plugin[]
 }
 
 /**
@@ -53,6 +57,18 @@ export async function launch(appEntry: URL | string, options: LaunchOptions): Pr
   for (const capability of options.capabilities ?? []) {
     const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
     check(sym.tauri_app_builder_add_capability(builder, cstr(json)), 'add_capability')
+  }
+  for (const plugin of options.plugins ?? []) {
+    const outPlugin = new BigUint64Array(1)
+    check(sym.tauri_plugin_new(cstr(plugin.name), new Uint8Array(outPlugin.buffer)), `plugin_new(${plugin.name})`)
+    const handle = outPlugin[0]
+    if (plugin.script) {
+      check(sym.tauri_plugin_set_init_script(handle, cstr(plugin.script)), `plugin_set_init_script(${plugin.name})`)
+    }
+    for (const command of plugin.commandNames) {
+      check(sym.tauri_plugin_register_command(handle, cstr(command)), `plugin_register_command(${plugin.name}|${command})`)
+    }
+    check(sym.tauri_app_builder_add_plugin(builder, handle), `add_plugin(${plugin.name})`)
   }
 
   const outApp = new BigUint64Array(1)

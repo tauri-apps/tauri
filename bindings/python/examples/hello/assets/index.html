@@ -36,6 +36,13 @@
         <button id="open-window">open child window</button>
         <span id="opened"></span>
       </section>
+
+      <section>
+        <h2>plugin</h2>
+        <p>init script: <strong id="plugin-init">&ndash;</strong></p>
+        <button id="plugin-echo">plugin:demo|echo</button>
+        <span id="echoed"></span>
+      </section>
     </main>
     <script>
       const status = document.querySelector('#status')
@@ -69,6 +76,15 @@
           document.querySelector('#opened').textContent = `opened ${label}`
         })
 
+        // The demo plugin's init script ran before this page script, installing
+        // window.__DEMO_PLUGIN__ and the window.demo frontend API — so the
+        // plugin:demo|echo wire format stays hidden.
+        document.querySelector('#plugin-init').textContent = window.__DEMO_PLUGIN__ ?? 'missing'
+        document.querySelector('#plugin-echo').addEventListener('click', async () => {
+          const result = await window.demo.echo({ hello: 'from frontend' })
+          document.querySelector('#echoed').textContent = JSON.stringify(result)
+        })
+
         // Auto-exercise the bridge once on load so smoke tests can assert on
         // the host-side FIXTURE_STATUS file without clicking anything.
         invoke('greet', { name: 'smoke-test' })
@@ -79,6 +95,11 @@
             document.querySelector('#greeting').textContent = `error: ${error}`
           })
         emit('frontend-ping', { smoke: true })
+        emit('plugin-init-ran', { ran: Boolean(window.__DEMO_PLUGIN__) })
+        window.demo
+          .echo({ smoke: true })
+          .then((result) => emit('plugin-echo-ok', result))
+          .catch((error) => emit('plugin-init-ran', { echoError: String(error) }))
       }
     </script>
   </body>

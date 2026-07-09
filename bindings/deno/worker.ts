@@ -7,6 +7,7 @@
 // serialized event queue (tauri_events_next) — no native callbacks into JS.
 
 import { CODES, cstr, open } from './ffi.ts'
+import type { Plugin } from './plugin.ts'
 
 const params = new URL(self.location.href).searchParams
 const appParam = params.get('tauri-app')
@@ -185,6 +186,9 @@ export class WebviewWindow {
 export interface AppApi {
   /** Handle a command registered in launch(): `handler(payload, { webview })`. */
   command(name: string, handler: CommandHandler): AppApi
+  /** Applies a plugin (from `definePlugin()`) in this worker, wiring up its
+   * command handlers. Pass the same plugin to `launch({ plugins })`. */
+  plugin(plugin: Plugin): AppApi
   /** Lifecycle events: 'ready' | 'exit' | 'exit-requested' | 'window-event'. */
   on(type: string, handler: (message: Json) => void): AppApi
   /** Listen to a Tauri event from any source (frontend `emit`, host `emit`). */
@@ -206,6 +210,15 @@ export const app: AppApi = {
   /** Handle a command registered in launch(): `handler(payload, { webview })`. */
   command(name: string, handler: CommandHandler) {
     commands.set(name, handler)
+    return app
+  },
+
+  /** Applies a plugin (from `definePlugin()`) in this worker, wiring up its
+   * command handlers. Pass the same plugin to `launch({ plugins })`. */
+  plugin(plugin: Plugin) {
+    for (const [name, handler] of plugin.handlers) {
+      commands.set(`plugin:${plugin.name}|${name}`, handler)
+    }
     return app
   },
 
@@ -285,9 +298,11 @@ function fire(type: string, message: Json) {
 }
 
 async function handleInvoke(message: Json) {
-  const handler = commands.get(message.command)
+  // Plugin invokes are keyed by the full `plugin:<name>|<command>` string.
+  const key = message.plugin ? `plugin:${message.plugin}|${message.command}` : message.command
+  const handler = commands.get(key)
   if (!handler) {
-    sym.tauri_invoke_reject(message.id, cstr(JSON.stringify(`command ${message.command} not found`)))
+    sym.tauri_invoke_reject(message.id, cstr(JSON.stringify(`command ${key} not found`)))
     return
   }
   try {

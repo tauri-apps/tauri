@@ -34,8 +34,29 @@ frontend→host events (`frontend-ping`). Close the window to exit.
 
 Use `TAURI_FFI_LIB=/path/to/libtauri_ffi.dylib` to point at a non-default build.
 
+## Plugins
+
+A plugin bundles a name, an init script (injected into every webview) and
+commands — mirroring `tauri::plugin::Builder`. It has no dependencies, so it can
+ship as its own npm package:
+
+```js
+// @acme/tauri-plugin-greet
+import { definePlugin } from '@tauri-apps/node/plugin'
+
+export default definePlugin('greet')
+  // install a frontend API so callers never write the plugin:greet|hello wire format
+  .initScript("window.greet = { hello: (n) => window.__TAURI__.core.invoke('plugin:greet|hello', { name: n }) }")
+  .command('hello', ({ name }) => `Hello ${name}!`)
+```
+
+Pass it to `launch({ plugins: [greet] })` on the main thread (native side + ACL)
+and `app.plugin(greet)` in the worker (handlers). The frontend then calls
+`window.greet.hello('Lucas')`. See `examples/hello/demo-plugin.js`.
+
 ## Files
 
-- `src/ffi.js` — low-level koffi declarations (generated from the API manifest from M3)
+- `src/ffi.js` — low-level koffi declarations (generated from the API manifest)
 - `src/index.js` — `launch()`: main-thread bootstrap
-- `src/worker.js` — worker-side `app` API: `command`, `on`, `listen`, `emit`, `eval`, `exit`
+- `src/worker.js` — worker-side `app` API: `command`, `plugin`, `on`, `listen`, `emit`, `emitTo`, windows, `exit`
+- `src/plugin.js` — `definePlugin()`: packageable plugin wrapper

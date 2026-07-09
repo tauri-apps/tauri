@@ -22,6 +22,15 @@ pub struct BuilderState {
   pub assets_dir: Option<PathBuf>,
   pub commands: HashSet<String>,
   pub capabilities: Vec<String>,
+  pub plugins: Vec<PluginState>,
+}
+
+/// A host-defined plugin, mutated by `tauri_plugin_*` and moved into a
+/// `BuilderState` by `tauri_app_builder_add_plugin`.
+pub struct PluginState {
+  pub name: String,
+  pub init_script: Option<String>,
+  pub commands: HashSet<String>,
 }
 
 /// Post-build app state. Everything here is `Send + Sync` and callable from
@@ -35,6 +44,7 @@ pub struct AppState {
 
 pub enum Entry {
   Builder(BuilderState),
+  Plugin(PluginState),
   App(Arc<AppState>),
   Window(tauri::WebviewWindow<Wry>),
   Resolver(InvokeResolver<Wry>),
@@ -75,6 +85,13 @@ pub fn with_builder(id: u64, f: impl FnOnce(&mut BuilderState) -> i32) -> i32 {
   match registry().lock().unwrap().get_mut(&id) {
     Some(Entry::Builder(builder)) => f(builder),
     _ => crate::error::fail(crate::error::ERR_INVALID_HANDLE, "invalid builder handle"),
+  }
+}
+
+pub fn with_plugin(id: u64, f: impl FnOnce(&mut PluginState) -> i32) -> i32 {
+  match registry().lock().unwrap().get_mut(&id) {
+    Some(Entry::Plugin(plugin)) => f(plugin),
+    _ => crate::error::fail(crate::error::ERR_INVALID_HANDLE, "invalid plugin handle"),
   }
 }
 

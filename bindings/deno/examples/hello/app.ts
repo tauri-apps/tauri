@@ -1,5 +1,6 @@
 // Example app code — runs in a Worker with a live event loop.
 import { app } from '../../worker.ts'
+import demoPlugin from './demo-plugin.ts'
 
 const STATUS = Deno.env.get('FIXTURE_STATUS')
 
@@ -8,6 +9,10 @@ function log(...args: unknown[]) {
   console.log('[app]', line)
   if (STATUS) Deno.writeTextFileSync(STATUS, line + '\n', { append: true })
 }
+
+// Wire up the plugin's command handlers (its native side + ACL were set up by
+// launch() on the main thread). No `plugin:demo|echo` strings in app code.
+app.plugin(demoPlugin)
 
 app.command('greet', ({ name }) => {
   log('greet:', name)
@@ -58,6 +63,8 @@ app.on('ready', async () => {
 app.on('window-event', (message) => log('window-event:', message.label, message.event.kind))
 
 app.listen('frontend-ping', (payload) => log('frontend-ping:', JSON.stringify(payload)))
+app.listen('plugin-init-ran', (payload) => log('plugin-init:', payload.ran ? 'ran' : 'missing'))
+app.listen('plugin-echo-ok', (payload) => log('plugin-echo:', JSON.stringify(payload)))
 
 let count = 0
 setInterval(() => app.emit('tick', { count: ++count }), 1000)

@@ -7,7 +7,7 @@
 // (new TextEncoder().encode(s + '\0')). Blocking calls are declared
 // nonblocking so they run off Deno's main thread and resolve promises.
 
-export const ABI_VERSION = 2
+export const ABI_VERSION = 3
 
 export const CODES = {
   OK: 0,
@@ -32,6 +32,10 @@ export const SYMBOLS = {
   tauri_app_builder_set_assets_dir: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_app_builder_register_command: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_app_builder_add_capability: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_plugin_new: { parameters: ['buffer', 'buffer'], result: 'i32' },
+  tauri_plugin_set_init_script: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_plugin_register_command: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_app_builder_add_plugin: { parameters: ['u64', 'u64'], result: 'i32' },
   tauri_app_build: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_app_run: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_app_exit: { parameters: ['u64', 'i32'], result: 'i32' },

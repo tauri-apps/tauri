@@ -3,6 +3,7 @@
 // launch() parks the OS main thread in the Tauri event loop and runs
 // ./app.ts in a worker.
 import { launch } from '../../mod.ts'
+import demoPlugin from './demo-plugin.ts'
 
 await launch(new URL('./app.ts', import.meta.url), {
   config: {
@@ -23,5 +24,6 @@ await launch(new URL('./app.ts', import.meta.url), {
     }
   },
   assetsDir: new URL('./assets/', import.meta.url),
-  commands: ['greet', 'open-window']
+  commands: ['greet', 'open-window'],
+  plugins: [demoPlugin]
 })

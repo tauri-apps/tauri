@@ -2,7 +2,8 @@
   import { TrayIcon } from '@tauri-apps/api/tray'
   import MenuBuilder, {
     type Item,
-    type MenuItemClickDetail
+    type MenuItemClickDetail,
+    type MenuItems
   } from '../components/MenuBuilder.svelte'
   import { Menu } from '@tauri-apps/api/menu'
   import type { ViewProps } from '../App.svelte'
@@ -28,9 +29,7 @@
       iconAsTemplate,
       menuOnLeftClick,
       menu: await Menu.new({
-        items: menuItems.map((i) => i.menu).filter(Boolean) as NonNullable<
-          Item['menu']
-        >[]
+        items: menuItems.map((i) => i.menu).filter(Boolean) as MenuItems[]
       }),
       action: (event) => onMessage(event)
     }).catch(onMessage)

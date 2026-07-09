@@ -2,7 +2,8 @@
   import { Menu, Submenu, NativeIcon } from '@tauri-apps/api/menu'
   import MenuBuilder, {
     type Item,
-    type MenuItemClickDetail
+    type MenuItemClickDetail,
+    type MenuItems
   } from '../components/MenuBuilder.svelte'
   import { defaultWindowIcon } from '@tauri-apps/api/app'
   import type { ViewProps } from '../App.svelte'
@@ -15,14 +16,12 @@
   let popupMenu: Menu | undefined
   let submenu: Submenu | null
 
-  type MenuItems = NonNullable<Item['menu']>[]
-
   const macOS = navigator.userAgent.includes('Macintosh')
 
   async function createSubmenu(): Promise<Submenu> {
     submenu = await Submenu.new({
       text: 'app',
-      items: items.map((i) => i.menu).filter(Boolean) as MenuItems
+      items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
     return submenu
   }
@@ -31,7 +30,7 @@
     submenu = await Submenu.new({
       text: 'Submenu with NativeIcon',
       icon: NativeIcon.Folder,
-      items: items.map((i) => i.menu).filter(Boolean) as MenuItems
+      items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
     return submenu
   }
@@ -41,7 +40,7 @@
     submenu = await Submenu.new({
       text: 'Submenu with Image',
       ...(icon ? { icon } : {}),
-      items: items.map((i) => i.menu).filter(Boolean) as MenuItems
+      items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
     return submenu
   }
@@ -71,7 +70,7 @@
     popupMenu?.close()
     popupMenu = undefined
     popupMenu = await Menu.new({
-      items: items.map((i) => i.menu).filter(Boolean) as MenuItems
+      items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
     await popupMenu.popup()
   }

@@ -16,8 +16,14 @@
   }
 
   export type Item = MenuOptions & {
-    menu?: MenuItem | IconMenuItem | CheckMenuItem | PredefinedMenuItem
+    menu?: MenuItems
   }
+
+  export type MenuItems =
+    | MenuItem
+    | IconMenuItem
+    | CheckMenuItem
+    | PredefinedMenuItem
 
   export type MenuItemClickDetail = {
     id: string

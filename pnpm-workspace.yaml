@@ -6,6 +6,10 @@ packages:
   - examples/resources
   - examples/file-associations
 
+trustPolicy: no-downgrade
+blockExoticSubdeps: true
+minimumReleaseAge: 10080
+
 onlyBuiltDependencies:
   - esbuild
   - workerd

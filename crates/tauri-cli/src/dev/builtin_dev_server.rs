@@ -90,8 +90,8 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
   };
 
   let bytes = fs_read_scoped(state.dir.join(uri), &state.dir)
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}.html", uri)), &state.dir))
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}/index.html", uri)), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}.html")), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}/index.html")), &state.dir))
     .or_else(|_| std::fs::read(state.dir.join("index.html")));
 
   match bytes {

@@ -219,7 +219,7 @@ fn acquire(
     }
   }
   let msg = format!("waiting for file lock on {msg}");
-  log::info!(action = "Blocking"; "{}", msg);
+  log::info!(action = "Blocking"; "{msg}");
 
   lock_block().fs_context("failed to lock file", path.to_path_buf())?;
   return Ok(());

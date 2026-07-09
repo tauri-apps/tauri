@@ -4,7 +4,7 @@
 // ./app.ts in a worker.
 import { launch } from '../../mod.ts'
 
-launch(new URL('./app.ts', import.meta.url), {
+await launch(new URL('./app.ts', import.meta.url), {
   config: {
     productName: 'tauri-ffi-hello-deno',
     version: '0.1.0',

@@ -262,9 +262,11 @@ export const CODES = {
 ${codes}
 } as const
 
+// Plain \`as const\` (no \`satisfies\`) so JSR's no-slow-types check accepts it;
+// Deno.dlopen validates the interface shape at load time anyway.
 export const SYMBOLS = {
 ${symbols}
-} as const satisfies Deno.ForeignLibraryInterface
+} as const
 `
 }
 
@@ -303,7 +305,7 @@ const outputs = {
   'bindings/c/tauri_ffi.h': renderHeader(),
   'bindings/node/src/ffi-decls.js': renderKoffi(),
   'bindings/deno/symbols.ts': renderDeno(),
-  'bindings/python/tauri_ffi_cdef.py': renderPython()
+  'bindings/python/tauri_ffi/_cdef.py': renderPython()
 }
 
 let stale = 0

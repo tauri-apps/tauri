@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tauri-ffi"
+description = "Experimental Python bindings to Tauri over the tauri-ffi C ABI (cffi, no compiler needed)"
+readme = "README.md"
+license = "Apache-2.0 OR MIT"
+requires-python = ">=3.9"
+dependencies = ["cffi>=1.15"]
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/tauri-apps/tauri"
+
+[tool.setuptools]
+packages = ["tauri_ffi"]
+
+[tool.setuptools.package-data]
+tauri_ffi = ["_native/*"]

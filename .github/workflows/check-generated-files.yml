@@ -14,6 +14,13 @@ on:
       - 'crates/tauri-utils/src/config.rs'
       - 'crates/tauri-cli/config.schema.json'
       - 'crates/tauri-schema-generator/schemas/*.json'
+      - 'crates/tauri-ffi/api-manifest.json'
+      - 'crates/tauri-ffi/src/**'
+      - 'bindings/bindgen/generate.mjs'
+      - 'bindings/c/tauri_ffi.h'
+      - 'bindings/node/src/ffi-decls.js'
+      - 'bindings/deno/symbols.ts'
+      - 'bindings/python/tauri_ffi/_cdef.py'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +32,7 @@ jobs:
     outputs:
       api: ${{ steps.filter.outputs.api }}
       schema: ${{ steps.filter.outputs.schema }}
+      ffi: ${{ steps.filter.outputs.ffi }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
@@ -39,6 +47,14 @@ jobs:
               - 'crates/tauri-utils/src/config.rs'
               - 'crates/tauri-cli/config.schema.json'
               - 'crates/tauri-schema-generator/schemas/*.json'
+            ffi:
+              - 'crates/tauri-ffi/api-manifest.json'
+              - 'crates/tauri-ffi/src/**'
+              - 'bindings/bindgen/generate.mjs'
+              - 'bindings/c/tauri_ffi.h'
+              - 'bindings/node/src/ffi-decls.js'
+              - 'bindings/deno/symbols.ts'
+              - 'bindings/python/tauri_ffi/_cdef.py'
 
   api:
     runs-on: ubuntu-latest
@@ -58,6 +74,17 @@ jobs:
         run: pnpm build
         working-directory: packages/api
       - name: check api
+        run: ./.scripts/ci/has-diff.sh
+
+  ffi-bindings:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.ffi == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: regenerate ffi bindings
+        run: node bindings/bindgen/generate.mjs
+      - name: check ffi bindings
         run: ./.scripts/ci/has-diff.sh
 
   schema:

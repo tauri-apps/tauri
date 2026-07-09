@@ -1,0 +1,14 @@
+{
+  "name": "@tauri-apps/deno",
+  "version": "0.0.0",
+  "license": "Apache-2.0 OR MIT",
+  "exports": {
+    ".": "./mod.ts",
+    "./worker": "./worker.ts",
+    "./ffi": "./ffi.ts",
+    "./symbols": "./symbols.ts"
+  },
+  "publish": {
+    "exclude": ["examples/"]
+  }
+}

@@ -7,6 +7,7 @@
 // library discovery, error checking and the async event-queue poll.
 
 import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import koffi from 'koffi'
@@ -14,13 +15,21 @@ import { CODES, declare } from './ffi-decls.js'
 
 export { CODES }
 
+const require = createRequire(import.meta.url)
+
 export function libraryPath() {
   if (process.env.TAURI_FFI_LIB) return process.env.TAURI_FFI_LIB
-  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
   const name = { darwin: 'libtauri_ffi.dylib', linux: 'libtauri_ffi.so', win32: 'tauri_ffi.dll' }[
     process.platform
   ]
   if (!name) throw new Error(`unsupported platform: ${process.platform}`)
+  // Installed platform package (optionalDependencies of @tauri-apps/node).
+  try {
+    return require.resolve(`@tauri-apps/node-${process.platform}-${process.arch}/${name}`)
+  } catch {
+    // not installed — fall through to the repo dev build
+  }
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
   for (const profile of ['debug', 'release']) {
     const candidate = path.join(repoRoot, 'target', profile, name)
     if (existsSync(candidate)) return candidate

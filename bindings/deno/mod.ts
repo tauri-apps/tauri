@@ -8,7 +8,7 @@
 // with a live event loop, while this thread parks inside the blocking
 // `tauri_app_run`. See /ffi-bindings-plan.md §3.
 
-import { cstr, open } from './ffi.ts'
+import { cstr, ensureLibrary, open } from './ffi.ts'
 
 export interface LaunchOptions {
   /** tauri.conf.json-shaped configuration. */
@@ -27,8 +27,8 @@ export interface LaunchOptions {
  * exits with the app's exit code. Use
  * `import { app } from '../../worker.ts'` inside the worker module.
  */
-export function launch(appEntry: URL | string, options: LaunchOptions): never {
-  const { sym, check, libPath } = open()
+export async function launch(appEntry: URL | string, options: LaunchOptions): Promise<never> {
+  const { sym, check, libPath } = open(await ensureLibrary())
 
   const outBuilder = new BigUint64Array(1)
   check(

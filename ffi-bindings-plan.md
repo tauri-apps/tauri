@@ -437,6 +437,23 @@ binaries for {macOS, Windows, Linux} × {x64, arm64} published per release; npm/
 publishing pipelines; docs (generated API reference + per-language guides); ABI
 versioning policy in effect. From here, surface expansion is routine one-PR work.
 
+> **Status (2026-07-09): distribution pipeline landed** —
+> `.github/workflows/publish-ffi.yml` builds the cdylib once per target
+> ({macOS, Windows, Linux} × {x64, arm64}) and fans out to every channel from the
+> same artifacts (vs. publish-cli-js.yml where each language would need its own
+> native build): C archives (header + lib + licenses + SHA256SUMS) attached to a
+> GitHub release via `bindings/scripts/dist.mjs`; npm `@tauri-apps/node` +
+> per-platform optionalDependencies packages generated at publish time (loader
+> resolves them first, falls back to the repo dev build); PyPI `tauri-ffi`
+> py3-none platform wheels bundling the lib in `tauri_ffi/_native/` (Linux tagged
+> manylinux with the documented webkit2gtk runtime requirement); JSR
+> `@tauri-apps/deno` with a first-run download of the raw lib asset from the
+> GitHub release into a per-version cache. Gates: headless FFI smoke test on 4
+> platforms (`bindings/scripts/smoke.mjs`) + `generate.mjs --check`. All
+> publishes use OIDC trusted publishing (registry-side configuration required);
+> runs default to dry-run. Deferred: covector integration once the packages
+> stabilize, Windows C example linking, macOS codesigning of the dylib.
+
 ---
 
 ## 9. Risks & open questions

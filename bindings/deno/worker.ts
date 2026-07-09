@@ -17,8 +17,11 @@ const appId = BigInt(appParam)
 const { sym, check, takeString, eventsNext } = open(params.get('tauri-lib') ?? undefined)
 
 // deno-lint-ignore no-explicit-any
-type Json = any
-type CommandHandler = (payload: Json, context: { webview: string }) => Json | Promise<Json>
+export type Json = any
+export type CommandHandler = (
+  payload: Json,
+  context: { webview: string }
+) => Json | Promise<Json>
 
 const commands = new Map<string, CommandHandler>()
 const eventListeners = new Map<number, (payload: Json, message: Json) => void>()
@@ -178,7 +181,28 @@ export class WebviewWindow {
   }
 }
 
-export const app = {
+/** The worker-side app API — see {@linkcode app}. */
+export interface AppApi {
+  /** Handle a command registered in launch(): `handler(payload, { webview })`. */
+  command(name: string, handler: CommandHandler): AppApi
+  /** Lifecycle events: 'ready' | 'exit' | 'exit-requested' | 'window-event'. */
+  on(type: string, handler: (message: Json) => void): AppApi
+  /** Listen to a Tauri event from any source (frontend `emit`, host `emit`). */
+  listen(event: string, handler: (payload: Json, message: Json) => void): number
+  unlisten(id: number): void
+  emit(event: string, payload?: Json): void
+  emitTo(label: string, event: string, payload?: Json): void
+  /** Creates a webview window from a WindowConfig object (async: creation
+   * blocks on the event loop, declared nonblocking in symbols.ts). */
+  createWindow(config: { label?: string } & Json): Promise<WebviewWindow>
+  /** The window with the given label, or null. */
+  getWindow(label: string): WebviewWindow | null
+  /** Labels of all webview windows. */
+  windowLabels(): string[]
+  exit(code?: number): void
+}
+
+export const app: AppApi = {
   /** Handle a command registered in launch(): `handler(payload, { webview })`. */
   command(name: string, handler: CommandHandler) {
     commands.set(name, handler)

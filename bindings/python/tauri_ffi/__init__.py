@@ -25,7 +25,7 @@ from typing import Any, Callable, Optional
 
 from cffi import FFI
 
-from tauri_ffi_cdef import ABI_VERSION, CDEF, CODES
+from ._cdef import ABI_VERSION, CDEF, CODES
 
 _ffi = FFI()
 _ffi.cdef(CDEF)
@@ -41,7 +41,6 @@ def library_path() -> Path:
     env = os.environ.get("TAURI_FFI_LIB")
     if env:
         return Path(env)
-    repo_root = Path(__file__).resolve().parents[2]
     name = {
         "darwin": "libtauri_ffi.dylib",
         "linux": "libtauri_ffi.so",
@@ -49,6 +48,12 @@ def library_path() -> Path:
     }.get(sys.platform)
     if name is None:
         raise TauriError(-1, f"unsupported platform: {sys.platform}")
+    # Installed wheels bundle the library next to the package.
+    bundled = Path(__file__).resolve().parent / "_native" / name
+    if bundled.exists():
+        return bundled
+    # Development fallback: cargo build output in the repo.
+    repo_root = Path(__file__).resolve().parents[3]
     for profile in ("debug", "release"):
         candidate = repo_root / "target" / profile / name
         if candidate.exists():

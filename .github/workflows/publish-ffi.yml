@@ -1,0 +1,286 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+# Builds the tauri-ffi cdylib for every supported target once, then fans out
+# to all distribution channels from the same artifacts:
+#   - C archives (header + library) attached to a GitHub release
+#   - npm: @tauri-apps/node + per-platform optionalDependencies packages
+#   - PyPI: tauri-ffi platform wheels (cffi ABI mode, library bundled)
+#   - JSR: @tauri-apps/deno (library downloaded from the GitHub release at runtime)
+
+name: publish tauri-ffi
+env:
+  MACOSX_DEPLOYMENT_TARGET: '10.13'
+  TAURI_FFI_TARGETS: >-
+    x86_64-apple-darwin aarch64-apple-darwin
+    x86_64-pc-windows-msvc aarch64-pc-windows-msvc
+    x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'version for all packages (e.g. 0.1.0)'
+        required: true
+      releaseTag:
+        description: 'existing GitHub release tag for the C archives (e.g. tauri-ffi-v0.1.0); leave empty to skip'
+        required: false
+        default: ''
+      dryRun:
+        description: 'stage everything but do not publish or upload'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # upload release assets
+  id-token: write # OIDC trusted publishing (npm, PyPI, JSR)
+
+jobs:
+  # Fail fast on a stale manifest/bindings state before burning six builders.
+  check-generated:
+    name: generated bindings are current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: node bindings/bindgen/generate.mjs --check
+
+  build:
+    name: build ${{ matrix.settings.target }}
+    needs: check-generated
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: macos-latest
+            target: x86_64-apple-darwin
+          - host: macos-latest
+            target: aarch64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+          - host: windows-latest
+            target: aarch64-pc-windows-msvc
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - host: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.settings.host }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install linux system dependencies
+        if: ${{ contains(matrix.settings.target, 'linux') }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libxdo-dev
+
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.settings.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ffi-${{ matrix.settings.target }}
+
+      - name: build
+        run: cargo build -p tauri-ffi --release --target ${{ matrix.settings.target }}
+
+      - name: stage artifact
+        shell: bash
+        run: |
+          mkdir -p dist-lib
+          case '${{ matrix.settings.target }}' in
+            *windows*)
+              cp 'target/${{ matrix.settings.target }}/release/tauri_ffi.dll' dist-lib/
+              cp 'target/${{ matrix.settings.target }}/release/tauri_ffi.dll.lib' dist-lib/ ;;
+            *apple*)
+              cp 'target/${{ matrix.settings.target }}/release/libtauri_ffi.dylib' dist-lib/ ;;
+            *)
+              cp 'target/${{ matrix.settings.target }}/release/libtauri_ffi.so' dist-lib/ ;;
+          esac
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lib-${{ matrix.settings.target }}
+          path: dist-lib/*
+          if-no-files-found: error
+
+  smoke:
+    name: smoke ${{ matrix.settings.target }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: macos-latest
+            target: aarch64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - host: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.settings.host }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: install linux runtime dependencies
+        if: ${{ contains(matrix.settings.target, 'linux') }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.1 libxdo-dev
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - uses: actions/download-artifact@v8
+        with:
+          name: lib-${{ matrix.settings.target }}
+          path: artifact
+      - name: install koffi
+        run: pnpm install --frozen-lockfile --filter @tauri-apps/node
+      - name: run smoke test
+        shell: bash
+        run: |
+          case '${{ matrix.settings.target }}' in
+            *windows*) lib=artifact/tauri_ffi.dll ;;
+            *apple*)   lib=artifact/libtauri_ffi.dylib ;;
+            *)         lib=artifact/libtauri_ffi.so ;;
+          esac
+          TAURI_FFI_LIB="$PWD/$lib" node bindings/scripts/smoke.mjs
+
+  dist-c:
+    name: C release archives
+    needs: [build, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - name: stage archives
+        run: node bindings/scripts/dist.mjs c --version ${{ inputs.version }} --artifacts artifacts --out dist --require-all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: c-dist
+          path: dist/*
+      - name: upload to GitHub release
+        if: ${{ !inputs.dryRun && inputs.releaseTag != '' }}
+        run: gh release upload '${{ inputs.releaseTag }}' dist/* --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish-npm:
+    name: publish npm packages
+    needs: [build, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - name: stage packages
+        run: node bindings/scripts/dist.mjs npm --version ${{ inputs.version }} --artifacts artifacts --out dist --require-all
+      - name: pack (dry run)
+        if: ${{ inputs.dryRun }}
+        run: |
+          for dir in dist/npm/*/; do (cd "$dir" && pnpm pack); done
+      - uses: actions/upload-artifact@v7
+        if: ${{ inputs.dryRun }}
+        with:
+          name: npm-dist
+          path: dist/npm/*/*.tgz
+      - name: publish
+        if: ${{ !inputs.dryRun }}
+        run: |
+          # platform packages first so the base's optionalDependencies resolve
+          for dir in dist/npm/node-*/; do
+            (cd "$dir" && pnpm publish --provenance --access public --no-git-checks)
+          done
+          (cd dist/npm/node && pnpm publish --provenance --access public --no-git-checks)
+        env:
+          NODE_AUTH_TOKEN: '' # OIDC trusted publishing
+
+  publish-pypi:
+    name: publish PyPI wheels
+    needs: [build, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - name: build platform wheels
+        shell: bash
+        run: |
+          python -m pip install --quiet setuptools wheel
+          declare -A TAGS=(
+            [x86_64-apple-darwin]=macosx_10_13_x86_64
+            [aarch64-apple-darwin]=macosx_11_0_arm64
+            [x86_64-pc-windows-msvc]=win_amd64
+            [aarch64-pc-windows-msvc]=win_arm64
+            [x86_64-unknown-linux-gnu]=manylinux_2_39_x86_64
+            [aarch64-unknown-linux-gnu]=manylinux_2_39_aarch64
+          )
+          declare -A LIBS=(
+            [x86_64-apple-darwin]=libtauri_ffi.dylib
+            [aarch64-apple-darwin]=libtauri_ffi.dylib
+            [x86_64-pc-windows-msvc]=tauri_ffi.dll
+            [aarch64-pc-windows-msvc]=tauri_ffi.dll
+            [x86_64-unknown-linux-gnu]=libtauri_ffi.so
+            [aarch64-unknown-linux-gnu]=libtauri_ffi.so
+          )
+          cd bindings/python
+          for target in $TAURI_FFI_TARGETS; do
+            mkdir -p tauri_ffi/_native
+            cp "$GITHUB_WORKSPACE/artifacts/lib-$target/${LIBS[$target]}" tauri_ffi/_native/
+            TAURI_FFI_VERSION='${{ inputs.version }}' python setup.py bdist_wheel --plat-name "${TAGS[$target]}"
+            rm -rf tauri_ffi/_native build
+          done
+          ls -l dist/
+      - uses: actions/upload-artifact@v7
+        if: ${{ inputs.dryRun }}
+        with:
+          name: pypi-dist
+          path: bindings/python/dist/*.whl
+      - name: publish
+        if: ${{ !inputs.dryRun }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: bindings/python/dist
+
+  publish-jsr:
+    name: publish JSR package
+    needs: [build, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: stamp version
+        run: |
+          node -e "
+            const fs = require('fs')
+            const file = 'bindings/deno/deno.json'
+            const config = JSON.parse(fs.readFileSync(file, 'utf8'))
+            config.version = '${{ inputs.version }}'
+            fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n')
+          "
+      - name: publish
+        working-directory: bindings/deno
+        run: deno publish --allow-dirty ${{ inputs.dryRun && '--dry-run' || '' }}

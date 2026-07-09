@@ -20,6 +20,8 @@ export const CODES = {
   NOT_FOUND: -8
 } as const
 
+// Plain `as const` (no `satisfies`) so JSR's no-slow-types check accepts it;
+// Deno.dlopen validates the interface shape at load time anyway.
 export const SYMBOLS = {
   tauri_ffi_version: { parameters: [], result: 'pointer' },
   tauri_ffi_abi_version: { parameters: [], result: 'u32' },
@@ -78,4 +80,4 @@ export const SYMBOLS = {
   tauri_window_eval: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_window_navigate: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_window_reload: { parameters: ['u64'], result: 'i32' }
-} as const satisfies Deno.ForeignLibraryInterface
+} as const

@@ -24,6 +24,12 @@ bun.lockb
 # rust compiled folders
 target/
 
+# tauri-ffi bindings build artifacts
+bindings/python/build/
+bindings/python/dist/
+bindings/python/*.egg-info/
+bindings/python/tauri_ffi/_native/
+
 # test video for streaming example
 streaming_example_test_video.mp4
 

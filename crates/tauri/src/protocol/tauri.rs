@@ -26,11 +26,9 @@ struct CachedResponse {
 
 pub fn get<R: Runtime>(
   manager: Arc<AppManager<R>>,
-  window_origin: &str,
+  window_origin: String,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
-  let window_origin = window_origin.to_string();
-
   #[cfg(all(dev, mobile))]
   let (url, client, response_cache) = {
     let use_https = window_origin.starts_with("https");
@@ -152,7 +150,7 @@ async fn get_response<R: Runtime>(
     request
       .uri()
       .to_string()
-      .split(&['?', '#'][..])
+      .split(&['?', '#'])
       .next()
       .unwrap()
       .into()

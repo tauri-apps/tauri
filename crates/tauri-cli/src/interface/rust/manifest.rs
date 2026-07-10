@@ -241,6 +241,7 @@ fn inject_features(
   for dependency in dependencies {
     let name = dependency.name.clone();
     let items = find_dependency(manifest, &dependency.name, dependency.kind);
+    let desired_features = dependency.features.clone();
 
     for item in items {
       // do not rewrite if dependency uses workspace inheritance
@@ -258,8 +259,9 @@ fn inject_features(
         let is_managed_feature: Box<dyn Fn(&str) -> bool> =
           Box::new(move |feature| all_cli_managed_features.contains(&feature));
 
-        let should_write =
-          write_features(&name, item, is_managed_feature, &mut dependency.features)?;
+        let mut item_features = desired_features.clone();
+        let should_write = write_features(&name, item, is_managed_feature, &mut item_features)?;
+        dependency.features.extend(item_features);
 
         if !persist {
           persist = should_write;
@@ -344,8 +346,9 @@ mod tests {
 
     let mut expected = HashMap::new();
     for dep in &dependencies {
-      let mut features = dep.features.clone();
+      let mut dependency_features = Vec::new();
       for item in super::find_dependency(&mut manifest, &dep.name, dep.kind) {
+        let mut features = dep.features.clone();
         let item_table = if let Some(table) = item.as_table() {
           Some(table.clone())
         } else if let Some(toml_edit::Value::InlineTable(table)) = item.as_value() {
@@ -361,15 +364,24 @@ mod tests {
             }
           }
         }
+        dependency_features.push(features);
       }
-      expected.insert(dep.name.clone(), features);
+      expected.insert(dep.name.clone(), dependency_features);
     }
 
     super::inject_features(&mut manifest, &mut dependencies).expect("failed to migrate manifest");
 
     for dep in dependencies {
       let expected_features = expected.get(&dep.name).unwrap();
-      for item in super::find_dependency(&mut manifest, &dep.name, dep.kind) {
+      let items = super::find_dependency(&mut manifest, &dep.name, dep.kind);
+      assert_eq!(
+        items.len(),
+        expected_features.len(),
+        "unexpected number of {} dependency entries",
+        dep.name
+      );
+
+      for (item, expected_features) in items.into_iter().zip(expected_features) {
         let item_table = if let Some(table) = item.as_table() {
           table.clone()
         } else if let Some(toml_edit::Value::InlineTable(table)) = item.as_value() {
@@ -385,17 +397,16 @@ mod tests {
           .expect("features must be an array")
           .clone();
 
-        let mut features = Vec::new();
+        let mut features = HashSet::new();
         for feature in features_array.iter() {
           let feature = feature.as_str().expect("feature must be a string");
-          features.push(feature);
+          features.insert(feature.to_string());
         }
-        for expected in expected_features {
-          assert!(
-            features.contains(&expected.as_str()),
-            "feature {expected} should have been injected"
-          );
-        }
+        assert_eq!(
+          &features, expected_features,
+          "unexpected features for {} dependency",
+          dep.name
+        );
       }
     }
   }
@@ -459,6 +470,58 @@ mod tests {
         tauri_dependency(Default::default()),
         tauri_build_dependency(HashSet::from_iter(vec!["isolation".into()])),
       ],
+    );
+  }
+
+  #[test]
+  fn inject_features_target_unmanaged_features_do_not_leak() {
+    inject_features(
+      r#"
+    [target."cfg(target_os = \"linux\")".dependencies.tauri]
+    version = "1"
+    features = ["cef"]
+
+    [target."cfg(not(target_os = \"linux\"))".dependencies.tauri]
+    version = "1"
+    features = []
+"#,
+      vec![tauri_dependency(Default::default())],
+    );
+  }
+
+  #[test]
+  fn inject_features_target_managed_features_are_injected_everywhere() {
+    inject_features(
+      r#"
+    [target."cfg(target_os = \"linux\")".dependencies.tauri]
+    version = "1"
+    features = []
+
+    [target."cfg(not(target_os = \"linux\"))".dependencies.tauri]
+    version = "1"
+    features = ["dummy"]
+"#,
+      vec![tauri_dependency(HashSet::from_iter(vec![
+        "isolation".into(),
+      ]))],
+    );
+  }
+
+  #[test]
+  fn inject_features_target_unmanaged_features_are_preserved_per_entry() {
+    inject_features(
+      r#"
+    [target."cfg(target_os = \"linux\")".dependencies.tauri]
+    version = "1"
+    features = ["cef"]
+
+    [target."cfg(not(target_os = \"linux\"))".dependencies.tauri]
+    version = "1"
+    features = ["dummy"]
+"#,
+      vec![tauri_dependency(HashSet::from_iter(vec![
+        "isolation".into(),
+      ]))],
     );
   }
 

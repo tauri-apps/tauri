@@ -1224,6 +1224,7 @@ fn main() {
   ///
   /// Note: If you pass in `true` make sure to add the following to Info.plist
   /// in the iOS project:
+  ///
   /// ```xml
   /// <plist>
   /// <dict>
@@ -1234,6 +1235,7 @@ fn main() {
   /// </dict>
   /// </plist>
   /// ```
+  ///
   /// You should also add any additional domains which your app requests assets from.
   /// Assets served through custom protocols like Tauri's IPC are added to the
   /// list automatically. Available on iOS only.
@@ -1244,6 +1246,7 @@ fn main() {
   /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
   ///
   /// ## Platform-specific
+  ///
   /// - **iOS**: Supported since version 14.0+.
   /// - **Linux / Windows / Android / MacOS:** Unsupported.
   #[must_use]

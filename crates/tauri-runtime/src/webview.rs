@@ -543,33 +543,6 @@ impl WebviewAttributes {
       general_autofill_enabled: true,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
-      /// Whether to limit navigations to App-Bound Domains. This is necessary
-      /// to enable Service Workers on iOS according to [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
-      ///
-      /// Note: If you pass in `true` make sure to add the following to Info.plist
-      /// in the iOS project:
-      /// ```xml
-      /// <plist>
-      /// <dict>
-      ///     <key>WKAppBoundDomains</key>
-      ///     <array>
-      ///         <string>localhost</string>
-      ///     </array>
-      /// </dict>
-      /// </plist>
-      /// ```
-      /// You should also add any additional domains which your app requests assets from.
-      /// Assets served through custom protocols like Tauri's IPC are added to the
-      /// list automatically. Available on iOS only.
-      ///
-      /// Default is false.
-      ///
-      /// See https://webkit.org/blog/10882/app-bound-domains/ and
-      /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
-      ///
-      /// ## Platform-specific
-      /// - **iOS**: Supported since version 14.0+.
-      /// - **Linux / Windows / Android / MacOS:** Unsupported.
       #[cfg(target_os = "ios")]
       limit_navigations_to_app_bound_domains: false,
       #[cfg(windows)]
@@ -827,6 +800,7 @@ impl WebviewAttributes {
   ///
   /// Note: If you pass in `true` make sure to add the following to Info.plist
   /// in the iOS project:
+  ///
   /// ```xml
   /// <plist>
   /// <dict>
@@ -837,6 +811,7 @@ impl WebviewAttributes {
   /// </dict>
   /// </plist>
   /// ```
+  ///
   /// You should also add any additional domains which your app requests assets from.
   /// Assets served through custom protocols like Tauri's IPC are added to the
   /// list automatically. Available on iOS only.
@@ -847,6 +822,7 @@ impl WebviewAttributes {
   /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
   ///
   /// ## Platform-specific
+  ///
   /// - **iOS**: Supported since version 14.0+.
   /// - **Linux / Windows / Android / MacOS:** Unsupported.
   #[must_use]

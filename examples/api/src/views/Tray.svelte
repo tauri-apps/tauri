@@ -7,6 +7,7 @@
   } from '../components/MenuBuilder.svelte'
   import { Menu } from '@tauri-apps/api/menu'
   import type { ViewProps } from '../App.svelte'
+  import { onDestroy } from 'svelte'
 
   let { onMessage }: ViewProps = $props()
 
@@ -17,23 +18,33 @@
   let menuOnLeftClick = $state(true)
   let menuItems = $state<Item[]>([])
 
+  let tray = $state<TrayIcon | undefined>()
+
   function onItemClick(detail: MenuItemClickDetail) {
     onMessage(`Item ${detail.text} clicked`)
   }
 
   async function create() {
-    TrayIcon.new({
-      icon,
-      tooltip,
-      title,
-      iconAsTemplate,
-      menuOnLeftClick,
-      menu: await Menu.new({
-        items: menuItems.map((i) => i.menu).filter(Boolean) as MenuItems[]
-      }),
-      action: (event) => onMessage(event)
-    }).catch(onMessage)
+    try {
+      tray = await TrayIcon.new({
+        icon,
+        tooltip,
+        title,
+        iconAsTemplate,
+        menuOnLeftClick,
+        menu: await Menu.new({
+          items: menuItems.map((i) => i.menu).filter(Boolean) as MenuItems[]
+        }),
+        action: (event) => onMessage(event)
+      })
+    } catch (error) {
+      onMessage(error)
+    }
   }
+
+  onDestroy(() => {
+    tray?.close()
+  })
 </script>
 
 <div class="grid gap-8 mb-4">
@@ -78,9 +89,20 @@
     </div>
 
     <div class="flex">
-      <button class="btn" onclick={create} title="Creates the tray icon"
-        >Create tray</button
-      >
+      {#if tray}
+        <button
+          class="btn"
+          onclick={() => {
+            tray?.close()
+            tray = undefined
+          }}
+          title="Remove the tray icon">Remove tray</button
+        >
+      {:else}
+        <button class="btn" onclick={create} title="Creates the tray icon"
+          >Create tray</button
+        >
+      {/if}
     </div>
   </div>
 </div>

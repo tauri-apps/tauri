@@ -2277,31 +2277,49 @@ pub struct WindowConfig {
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
 
-  /// Whether to limit navigations to App-Bound Domains. This is necessary
-  /// to enable Service Workers on iOS according to [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
   ///
-  /// Note: If you pass in `true` make sure to add the following to Info.plist
-  /// in the iOS project:
+  /// Default is false.add
+  ///
+  /// Note: If you set this to `true` make sure to add any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain
+  /// used in your project's webviews to your Info.plist:
   ///
   /// ```xml
   /// <plist>
   /// <dict>
   ///     <key>WKAppBoundDomains</key>
   ///     <array>
-  ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
+  ///         <string>anotherregistrabledomain.example</string>
   ///     </array>
   /// </dict>
   /// </plist>
   /// ```
   ///
-  /// You should also add any additional domains which your app requests assets from.
-  /// Assets served through custom protocols like Tauri's IPC are added to the
-  /// list automatically. Available on iOS only.
+  /// If this is set to `true` then `localhost` is automatically added to the
+  /// `WKAppBoundDomains` list in Info.plist because Tauri uses the `localhost`
+  /// domain for hosting the application webpage, the IPC protocol, and the
+  /// isolation pattern's iframe.
   ///
-  /// Default is false.
+  /// Assets served through custom protocols are allowed so long as they use a
+  /// registrable domain specified in the `WKAppBoundDomains` array, including
+  /// the localhost domain that is added by Tauri automatically at build-time.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review because this
+  /// feature is not mentioned in [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
   ///
   /// See https://webkit.org/blog/10882/app-bound-domains/ and
   /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
   ///
   /// ## Platform-specific
   ///

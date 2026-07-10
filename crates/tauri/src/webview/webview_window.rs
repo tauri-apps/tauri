@@ -1319,10 +1319,14 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   }
 
   /// Whether to limit navigations to App-Bound Domains. This is necessary
-  /// to enable Service Workers on iOS according to [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  /// to enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
   ///
-  /// Note: If you pass in `true` make sure to add the following to Info.plist
-  /// in the iOS project:
+  /// Default is false.
+  ///
+  /// Note: If you pass in `true` make sure to add localhost and any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to your Info.plist:
   ///
   /// ```xml
   /// <plist>
@@ -1330,19 +1334,33 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///     <key>WKAppBoundDomains</key>
   ///     <array>
   ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
   ///     </array>
   /// </dict>
   /// </plist>
   /// ```
   ///
-  /// You should also add any additional domains which your app requests assets from.
-  /// Assets served through custom protocols like Tauri's IPC are added to the
-  /// list automatically. Available on iOS only.
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
   ///
-  /// Default is false.
+  /// Assets served through custom uri schemes are allowed so long as they use a
+  /// registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including the `localhost` domain.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review because this
+  /// feature is not mentioned in [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
   ///
   /// See https://webkit.org/blog/10882/app-bound-domains/ and
   /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
   ///
   /// ## Platform-specific
   ///

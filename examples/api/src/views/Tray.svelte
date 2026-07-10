@@ -1,6 +1,7 @@
 <script lang="ts">
   import { TrayIcon } from '@tauri-apps/api/tray'
   import MenuBuilder, {
+    reorderMenuItems,
     type Item,
     type MenuItemClickDetail,
     type MenuItems
@@ -18,6 +19,7 @@
   let menuOnLeftClick = $state(true)
   let menuItems = $state<Item[]>([])
 
+  let menu: Menu | undefined
   let tray = $state<TrayIcon | undefined>()
 
   function onItemClick(detail: MenuItemClickDetail) {
@@ -26,29 +28,53 @@
 
   async function create() {
     try {
+      menu = await Menu.new({
+        items: menuItems.map((i) => i.menu).filter(Boolean) as MenuItems[]
+      })
       tray = await TrayIcon.new({
         icon,
         tooltip,
         title,
         iconAsTemplate,
         menuOnLeftClick,
-        menu: await Menu.new({
-          items: menuItems.map((i) => i.menu).filter(Boolean) as MenuItems[]
-        }),
+        menu,
         action: (event) => onMessage(event)
       })
     } catch (error) {
+      menu?.close()
+      menu = undefined
+      tray?.close()
+      tray = undefined
       onMessage(error)
     }
   }
 
   onDestroy(() => {
+    menu?.close()
     tray?.close()
   })
 </script>
 
 <div class="grid gap-8 mb-4">
-  <MenuBuilder bind:items={menuItems} itemClick={onItemClick} />
+  <MenuBuilder
+    bind:items={menuItems}
+    itemClick={onItemClick}
+    onItemAdded={async (item) => {
+      if (item.menu) {
+        await menu?.append(item.menu)
+      }
+    }}
+    onItemRemoved={async (item) => {
+      if (item.menu) {
+        await menu?.remove(item.menu)
+      }
+    }}
+    onItemMoved={(item, toIndex) => {
+      if (menu) {
+        reorderMenuItems(menu, item, toIndex)
+      }
+    }}
+  />
 
   <div class="flex items-center gap-8">
     <div class="grid gap-2 grid-cols-3 items-center">

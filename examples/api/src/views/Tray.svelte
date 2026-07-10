@@ -92,7 +92,7 @@
         bind:value={tooltip}
       />
 
-      <label>
+      <label class="flex gap-2">
         <input
           type="checkbox"
           class="checkbox"
@@ -108,7 +108,7 @@
         bind:value={icon}
       />
 
-      <label>
+      <label class="flex gap-2">
         <input type="checkbox" class="checkbox" bind:checked={iconAsTemplate} />
         Icon as template
       </label>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Menu, Submenu, NativeIcon } from '@tauri-apps/api/menu'
   import MenuBuilder, {
+    reorderMenuItems,
     type Item,
     type MenuItemClickDetail,
     type MenuItems
@@ -87,7 +88,15 @@
 </script>
 
 <div class="grid gap-8 mb-4">
-  <MenuBuilder bind:items itemClick={onItemClick} />
+  <MenuBuilder
+    bind:items
+    itemClick={onItemClick}
+    onItemMoved={(item, toIndex) => {
+      if (submenu) {
+        reorderMenuItems(submenu, item, toIndex)
+      }
+    }}
+  />
   <div class="flex gap-2">
     <button class="btn" onclick={create}>Create menu</button>
     <button class="btn" onclick={createWithNativeIcon}

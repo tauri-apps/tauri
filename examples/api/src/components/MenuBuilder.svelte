@@ -2,8 +2,10 @@
   import {
     CheckMenuItem,
     IconMenuItem,
+    Menu,
     MenuItem,
     PredefinedMenuItem,
+    Submenu,
     type PredefinedMenuItemOptions
   } from '@tauri-apps/api/menu'
 
@@ -30,6 +32,18 @@
     text: string
   }
   export type MenuItemClickHandler = (detail: MenuItemClickDetail) => void
+
+  export async function reorderMenuItems(
+    menu: Menu | Submenu,
+    reorderItem: Item,
+    toIndex: number
+  ) {
+    if (!reorderItem.menu) {
+      return
+    }
+    await menu.remove(reorderItem.menu)
+    menu.insert(reorderItem.menu, toIndex)
+  }
 </script>
 
 <script lang="ts">
@@ -43,10 +57,12 @@
 
   let {
     items = $bindable(),
-    itemClick
+    itemClick,
+    onItemMoved
   }: {
     items: Item[]
     itemClick: MenuItemClickHandler
+    onItemMoved?: (item: Item, toIndex: number) => void
   } = $props()
 
   const predefinedOptions: PredefinedItem[] = [
@@ -177,6 +193,8 @@
         // so we recreate all the nodes on order changes...
         // This must be `toSpliced` to trigger the `#key` block re-render
         items = items.toSpliced(event.newIndex!, 0, item!)
+
+        onItemMoved?.(item, event.newIndex!)
       },
       delayOnTouchOnly: true,
       delay: 500,

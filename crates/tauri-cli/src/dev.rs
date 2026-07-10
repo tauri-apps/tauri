@@ -11,7 +11,9 @@ use crate::{
     config::{BeforeDevCommand, ConfigMetadata, FrontendDist, get_config, reload_config},
   },
   info::plugins::check_mismatched_packages,
-  interface::{AppInterface, ExitReason},
+  interface::{
+    detect_interface_kind, AppInterface, BindingsInterface, ExitReason, Interface, InterfaceKind,
+  },
 };
 
 use clap::{ArgAction, Parser};
@@ -106,20 +108,33 @@ pub fn command(options: Options) -> Result<()> {
   r
 }
 
-fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
+fn command_internal(options: Options, dirs: Dirs) -> Result<()> {
   let target = options
     .target
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let mut config = get_config(
+  let config = get_config(
     target,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
 
-  let mut interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+  // dispatch to the project interface — anything that is not a Rust (cargo)
+  // project is driven by the tauri-ffi bindings interface
+  match detect_interface_kind(dirs.tauri) {
+    InterfaceKind::Rust => run_dev::<AppInterface>(options, config, dirs),
+    InterfaceKind::Bindings => run_dev::<BindingsInterface>(options, config, dirs),
+  }
+}
+
+fn run_dev<I: Interface>(
+  mut options: Options,
+  mut config: ConfigMetadata,
+  dirs: Dirs,
+) -> Result<()> {
+  let mut interface = I::new(&config, options.target.clone(), dirs.tauri)?;
 
   setup(&interface, &mut options, &mut config, &dirs)?;
 
@@ -133,8 +148,8 @@ fn command_internal(mut options: Options, dirs: Dirs) -> Result<()> {
   )
 }
 
-pub fn setup(
-  interface: &AppInterface,
+pub fn setup<I: Interface>(
+  interface: &I,
   options: &mut Options,
   config: &mut ConfigMetadata,
   dirs: &Dirs,

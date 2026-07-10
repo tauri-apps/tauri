@@ -34,6 +34,25 @@ frontend→host events (`frontend-ping`). Close the window to exit.
 
 Use `TAURI_FFI_LIB=/path/to/libtauri_ffi.dylib` to point at a non-default build.
 
+## Building a distributable
+
+`tauri build` compiles the app into a self-contained binary — a [Node Single
+Executable Application](https://nodejs.org/api/single-executable-applications.html)
+that runs without Node installed — and packages it with `tauri-bundler`
+(see [/bindings/README.md](../README.md)):
+
+```sh
+cd examples/hello && tauri build   # -> dist/release/bundle/macos/tauri-ffi-hello.app
+```
+
+Requires Node >= 20.12; uses `esbuild` and `postject` (project installation or
+`npx --yes`). The CLI runs your entry once in trace mode to discover the worker
+module, bundles the main thread and worker into two CJS scripts (`koffi` is
+rewritten to dlopen the `koffi.node` staged in the bundle's resource dir, since
+native addons can't be embedded), embeds the worker bundle as a SEA asset —
+`launch()` starts it with `new Worker(source, { eval: true })` — and injects the
+blob into a copy of the node executable with postject.
+
 ## Plugins
 
 A plugin bundles a name, an init script (injected into every webview) and

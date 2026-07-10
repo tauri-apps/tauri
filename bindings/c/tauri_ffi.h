@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#define TAURI_FFI_ABI_VERSION 3
+#define TAURI_FFI_ABI_VERSION 4
 
 #define TAURI_OK 0 /* Success. */
 #define TAURI_ERR_GENERIC -1 /* Operation failed; details via tauri_last_error_message. */
@@ -80,6 +80,21 @@ int32_t tauri_app_builder_new(const char *config_json, uint64_t *out_builder);
  * Serves `WebviewUrl::App` paths (e.g. "index.html") from this directory.
  */
 int32_t tauri_app_builder_set_assets_dir(uint64_t builder, const char *path);
+
+/*
+ * Serves `WebviewUrl::App` paths from a tauri-ffi assets archive (created by
+ * `tauri build` for bindings projects). Takes precedence over
+ * tauri_app_builder_set_assets_dir.
+ */
+int32_t tauri_app_builder_set_assets_archive(uint64_t builder, const char *path);
+
+/*
+ * Enables dev mode: `WebviewUrl::App` windows load from the config's
+ * `build.devUrl` (when set) instead of the bundled assets, mirroring a Rust
+ * dev build. The Tauri CLI sets TAURI_DEV=true when running bindings projects;
+ * language bindings translate it into this call.
+ */
+int32_t tauri_app_builder_set_dev(uint64_t builder, bool dev);
 
 /*
  * Registers a command name; its invokes arrive on the event queue as

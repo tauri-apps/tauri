@@ -1,0 +1,10 @@
+{
+  "name": "app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tauri backend (Node.js, over tauri-ffi)",
+  "dependencies": {
+    "@tauri-apps/node": "^0.1.0"
+  }
+}

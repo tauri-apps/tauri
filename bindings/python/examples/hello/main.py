@@ -27,26 +27,8 @@ def log(*args):
             f.write(line + "\n")
 
 
-app = App(
-    {
-        "productName": "tauri-ffi-hello-py",
-        "version": "0.1.0",
-        "identifier": "com.tauri.ffi.hello.python",
-        "app": {
-            "withGlobalTauri": True,
-            "windows": [
-                {
-                    "label": "main",
-                    "title": "Tauri FFI — Python",
-                    "url": "index.html",
-                    "width": 600,
-                    "height": 440,
-                }
-            ],
-        },
-    },
-    assets_dir=Path(__file__).parent / "assets",
-)
+# Configuration comes from ./tauri.conf.json; assets from `build > frontendDist`.
+app = App()
 
 # Register the plugin — its native side + ACL are set up at run(), and its
 # command handlers are wired up. No `plugin:demo|echo` strings in app code.
@@ -87,6 +69,7 @@ def ready(_message):
     # Exercise the window API against the config-declared main window.
     main = app.get_window("main")
     log("main-title:", main.title())
+    log("main-url:", main.url())  # dev server URL under `tauri dev`, tauri://localhost in production
     width, height = main.inner_size()
     log("main-size:", "ok" if width > 0 and height > 0 else f"bad {width}x{height}")
     log("labels:", json.dumps(app.window_labels()))

@@ -13,6 +13,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 # `dynamic-acl` (default) is required for runtime capability resolution.
 tauri = { path = "../tauri" }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [build-dependencies]

@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for the tauri-ffi C ABI. bindings/bindgen/generate.mjs renders the C header, koffi declarations, Deno symbols and Python cffi cdef from this file, and cross-checks it against the extern fns in src/. Param types: handle (u64 id), str (borrowed UTF-8 in), owned_str (ownership transferred back, e.g. tauri_string_free), bool, u32, i32, f64, out_handle, out_bool, out_u32, out_i32, out_f64, out_owned_str (caller frees via tauri_string_free). Results: status (i32 error code), u32, borrowed_str (do not free), void. thread: 'any' | 'main' (the thread that builds/runs the loop). blocking: call blocks the calling thread (dynamic FFI hosts should use async/nonblocking call modes).",
-  "abiVersion": 3,
+  "abiVersion": 4,
   "errors": [
     { "name": "OK", "value": 0, "doc": "Success." },
     { "name": "ERR_GENERIC", "value": -1, "doc": "Operation failed; details via tauri_last_error_message." },
@@ -64,6 +64,26 @@
       "params": [
         { "name": "builder", "type": "handle" },
         { "name": "path", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_assets_archive",
+      "doc": "Serves `WebviewUrl::App` paths from a tauri-ffi assets archive (created by `tauri build` for bindings projects). Takes precedence over tauri_app_builder_set_assets_dir.",
+      "thread": "any",
+      "params": [
+        { "name": "builder", "type": "handle" },
+        { "name": "path", "type": "str" }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_dev",
+      "doc": "Enables dev mode: `WebviewUrl::App` windows load from the config's `build.devUrl` (when set) instead of the bundled assets, mirroring a Rust dev build. The Tauri CLI sets TAURI_DEV=true when running bindings projects; language bindings translate it into this call.",
+      "thread": "any",
+      "params": [
+        { "name": "builder", "type": "handle" },
+        { "name": "dev", "type": "bool" }
       ],
       "result": "status"
     },

@@ -3,3 +3,6 @@ node_modules/
 
 # npm pack / publish tarballs
 *.tgz
+
+# tauri build output (self-contained binary + bundles)
+dist/

@@ -45,6 +45,25 @@ pub fn confirm(prompt: &str, default: Option<bool>) -> Result<bool> {
   builder.interact().context("failed to prompt confirm")
 }
 
+pub fn select<T: Display>(
+  prompt: &str,
+  items: &[T],
+  default: usize,
+  skip: bool,
+) -> Result<usize> {
+  if skip {
+    Ok(default)
+  } else {
+    let theme = dialoguer::theme::ColorfulTheme::default();
+    dialoguer::Select::with_theme(&theme)
+      .with_prompt(prompt)
+      .items(items)
+      .default(default)
+      .interact()
+      .context("failed to prompt select")
+  }
+}
+
 pub fn multiselect<T: ToString, I: IntoIterator<Item = T>>(
   prompt: &str,
   items: I,

@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@tauri-apps/deno": "jsr:@tauri-apps/deno@^0.1.0",
+    "@tauri-apps/deno/worker": "jsr:@tauri-apps/deno@^0.1.0/worker"
+  }
+}

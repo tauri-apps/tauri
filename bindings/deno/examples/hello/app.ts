@@ -39,6 +39,7 @@ app.on('ready', async () => {
   // Exercise the window API against the config-declared main window.
   const main = app.getWindow('main')!
   log('main-title:', main.title())
+  log('main-url:', main.url()) // dev server URL under `tauri dev`, tauri://localhost in production
   const { width, height } = main.innerSize()
   log('main-size:', width > 0 && height > 0 ? 'ok' : `bad ${width}x${height}`)
   log('labels:', JSON.stringify(app.windowLabels()))

@@ -20,6 +20,8 @@ use tauri::Wry;
 pub struct BuilderState {
   pub config: Config,
   pub assets_dir: Option<PathBuf>,
+  pub assets_archive: Option<PathBuf>,
+  pub dev: bool,
   pub commands: HashSet<String>,
   pub capabilities: Vec<String>,
   pub plugins: Vec<PluginState>,

@@ -1,0 +1,25 @@
+{
+  "productName": "tauri-ffi-hello-py",
+  "version": "0.1.0",
+  "identifier": "com.tauri.ffi.hello.python",
+  "build": {
+    "runner": { "cmd": "python3", "args": ["main.py"] },
+    "frontendDist": "./assets"
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"]
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Tauri FFI — Python",
+        "url": "index.html",
+        "width": 600,
+        "height": 440
+      }
+    ]
+  }
+}

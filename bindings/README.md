@@ -15,21 +15,60 @@ node-gyp — every package is pure script + the prebuilt cdylib.
 
 ## Running the examples
 
+Use the Tauri CLI to run an example:
+
 ```sh
-node bindings/run-example.mjs --list     # what's available
-node bindings/run-example.mjs node       # bindings/node/examples/hello
-node bindings/run-example.mjs python
-node bindings/run-example.mjs deno
-node bindings/run-example.mjs c
+cargo build -p tauri-cli
+cd bindings/node/examples/hello
+../../../../target/debug/cargo-tauri dev
 ```
 
-The runner builds `tauri-ffi`, handles per-language prerequisites (koffi install via
-pnpm, cffi check, C compilation) and runs the example. Any example path works too:
-`node bindings/run-example.mjs bindings/python/examples/hello`.
+## Tauri CLI (`tauri dev` / `tauri build`)
 
-Environment: `TAURI_FFI_LIB` (library override), `PYTHON` (interpreter, default
-`python3`), `CC` (C compiler, default `cc`), `FIXTURE_STATUS` (examples append their
-smoke-test trace to this file).
+Bindings projects are full Tauri CLI projects: a `tauri.conf.json` with a
+`build > runner` command makes `tauri dev` and `tauri build` work like they do for
+Rust apps (the CLI detects non-cargo projects by the missing `Cargo.toml`):
+
+```jsonc
+// tauri.conf.json
+{
+  "build": {
+    "runner": { "cmd": "node", "args": ["main.js"] },
+    "frontendDist": "./assets"
+  }
+}
+```
+
+- `tauri dev` runs the `beforeDevCommand`, serves `frontendDist` on the built-in dev
+  server (or waits for your `devUrl`), spawns the runner and restarts it on file
+  changes. The fully merged config reaches the app through `TAURI_CONFIG`, and
+  `TAURI_DEV=true` makes windows load from the dev URL — no Rust toolchain involved.
+- `tauri build` compiles the app into a **self-contained native binary** with the
+  runner's native compiler (`deno compile`, PyInstaller, Node Single Executable
+  Applications), so it runs on a machine without the language runtime installed —
+  just like a Rust `tauri build`. It stages the packed frontend assets, the
+  `tauri-ffi` cdylib and the config as bundle resources next to the binary, then
+  hands everything to `tauri-bundler` for `.app`/`.msi`/`.appimage` packaging.
+  Output goes under `dist/` (not `target/`).
+
+  ```sh
+  tauri build                       # -> dist/release/bundle/macos/<App>.app
+  ```
+
+  The compiled app finds its resources next to the executable (the bundle's resource
+  dir), so both `dist/release/<App>` and the packaged bundle run standalone. Set
+  `TAURI_FFI_LIB` to point the CLI at the cdylib to embed.
+
+  The Node build needs Node >= 20.12 and uses `esbuild` and `postject` (a project
+  installation when present, `npx --yes` otherwise): the CLI runs your entry once in
+  trace mode to learn the worker module, bundles both into self-contained CJS
+  scripts (the worker rides along as a SEA asset and is started from source via
+  `new Worker(code, { eval: true })`), and injects the blob into a copy of the node
+  executable. koffi's native addon can't live inside the executable, so it is
+  staged as a bundle resource and dlopen'd from there.
+
+`launch()` (and Python's `App()`) auto-discovers `tauri.conf.json` next to the app
+entry, so the same project runs identically with `node main.js` or `tauri dev`.
 
 ## Publishing
 

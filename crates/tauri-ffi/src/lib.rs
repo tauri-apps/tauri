@@ -151,6 +151,8 @@ pub unsafe extern "C" fn tauri_app_builder_new(
     let id = state::insert(Entry::Builder(BuilderState {
       config,
       assets_dir: None,
+      assets_archive: None,
+      dev: false,
       commands: Default::default(),
       capabilities: Vec::new(),
       plugins: Vec::new(),
@@ -170,6 +172,34 @@ pub unsafe extern "C" fn tauri_app_builder_set_assets_dir(
     let path = try_cstr!(path);
     state::with_builder(builder, |b| {
       b.assets_dir = Some(path.into());
+      OK
+    })
+  })
+}
+
+/// Serves the app frontend from a tauri-ffi assets archive (packed by
+/// `tauri build`). Takes precedence over `tauri_app_builder_set_assets_dir`.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_builder_set_assets_archive(
+  builder: u64,
+  path: *const c_char,
+) -> i32 {
+  catch(|| {
+    let path = try_cstr!(path);
+    state::with_builder(builder, |b| {
+      b.assets_archive = Some(path.into());
+      OK
+    })
+  })
+}
+
+/// Enables dev mode: `WebviewUrl::App` windows load from `build.devUrl`
+/// (when set), mirroring a Rust dev build.
+#[no_mangle]
+pub extern "C" fn tauri_app_builder_set_dev(builder: u64, dev: bool) -> i32 {
+  catch(|| {
+    state::with_builder(builder, |b| {
+      b.dev = dev;
       OK
     })
   })
@@ -231,12 +261,24 @@ pub unsafe extern "C" fn tauri_app_build(builder: u64, out_app: *mut u64) -> i32
 
 fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let BuilderState {
-    config,
+    mut config,
     assets_dir,
+    assets_archive,
+    dev,
     commands,
     capabilities,
     plugins,
   } = builder_state;
+
+  // Dev-mode emulation: the prebuilt cdylib is not compiled with the `dev`
+  // cfg, but the runtime resolves `WebviewUrl::App` (and the Local origin for
+  // ACL checks) against `frontend_dist` when it is a URL — so pointing it at
+  // `devUrl` reproduces exactly what a Rust dev build does.
+  if dev {
+    if let Some(dev_url) = config.build.dev_url.clone() {
+      config.build.frontend_dist = Some(tauri::utils::config::FrontendDist::Url(dev_url));
+    }
+  }
 
   // ACL: embedded core manifests + a synthesized manifest per host plugin so
   // its `plugin:<name>|<command>` invokes resolve at runtime (`dynamic-acl`).
@@ -248,9 +290,12 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let plugin_names: Vec<String> = plugins.iter().map(|p| p.name.clone()).collect();
   let authority = tauri::runtime_authority!(acl, Resolved::default());
 
-  let assets: Box<dyn tauri::Assets<Wry>> = match assets_dir {
-    Some(dir) => Box::new(assets::DirAssets::new(dir)),
-    None => Box::new(assets::EmptyAssets),
+  let assets: Box<dyn tauri::Assets<Wry>> = if let Some(archive) = assets_archive {
+    Box::new(assets::ArchiveAssets::load(&archive)?)
+  } else if let Some(dir) = assets_dir {
+    Box::new(assets::DirAssets::new(dir))
+  } else {
+    Box::new(assets::EmptyAssets)
   };
 
   let package_info = PackageInfo {

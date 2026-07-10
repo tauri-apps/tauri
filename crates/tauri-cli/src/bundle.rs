@@ -21,7 +21,9 @@ use crate::{
     config::{ConfigMetadata, get_config},
     updater_signature,
   },
-  interface::{AppInterface, AppSettings},
+  interface::{
+    detect_interface_kind, AppInterface, AppSettings, BindingsInterface, Interface, InterfaceKind,
+  },
 };
 
 #[derive(Debug, Clone)]
@@ -120,6 +122,15 @@ impl From<crate::build::Options> for Options {
 pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
+  // dispatch to the project interface — bundling reuses the same tauri-bundler
+  // pipeline for Rust and bindings projects, differing only in AppSettings
+  match detect_interface_kind(dirs.tauri) {
+    InterfaceKind::Rust => run_bundle::<AppInterface>(options, verbosity, dirs),
+    InterfaceKind::Bindings => run_bundle::<BindingsInterface>(options, verbosity, dirs),
+  }
+}
+
+fn run_bundle<I: Interface>(options: Options, verbosity: u8, dirs: Dirs) -> crate::Result<()> {
   let ci = options.ci;
 
   let target = options
@@ -134,7 +145,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     dirs.tauri,
   )?;
 
-  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+  let interface = I::new(&config, options.target.clone(), dirs.tauri)?;
 
   std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
@@ -160,11 +171,11 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn bundle<A: AppSettings>(
+pub fn bundle<A: AppSettings, I: Interface>(
   options: &Options,
   verbosity: u8,
   ci: bool,
-  interface: &AppInterface,
+  interface: &I,
   app_settings: &A,
   config: &ConfigMetadata,
   dirs: &Dirs,

@@ -1,0 +1,25 @@
+{
+  "productName": "tauri-ffi-hello-deno",
+  "version": "0.1.0",
+  "identifier": "com.tauri.ffi.hello.deno",
+  "build": {
+    "runner": { "cmd": "deno", "args": ["run", "-A", "main.ts"] },
+    "frontendDist": "./assets"
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"]
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Tauri FFI — Deno",
+        "url": "index.html",
+        "width": 600,
+        "height": 440
+      }
+    ]
+  }
+}

@@ -8,14 +8,25 @@
 // with a live event loop, while this thread parks inside the blocking
 // `tauri_app_run`. See /ffi-bindings-plan.md §3.
 
+import { isBundled, resolveAssets, resolveConfig } from './config.ts'
 import { cstr, ensureLibrary, open } from './ffi.ts'
 import type { Plugin } from './plugin.ts'
 
 export interface LaunchOptions {
-  /** tauri.conf.json-shaped configuration. */
-  config: unknown
-  /** Directory serving app:// assets. */
+  /** tauri.conf.json-shaped configuration; when omitted, a `tauri.conf.json`
+   * next to the app entry (or in the working directory) is used. The
+   * `TAURI_CONFIG` environment variable (set by the Tauri CLI) is deep-merged
+   * on top in either case. */
+  config?: unknown
+  /** Directory serving app:// assets; defaults to the config's
+   * `build.frontendDist` when it is a directory. */
   assetsDir?: URL | string
+  /** Assets archive packed by `tauri build`; defaults to a `.assets`
+   * `build.frontendDist`. */
+  assetsArchive?: URL | string
+  /** Dev mode — `WebviewUrl::App` windows load from `build.devUrl`; defaults
+   * to the `TAURI_DEV` environment variable (set by `tauri dev`). */
+  dev?: boolean
   /** Command names handled by the worker. */
   commands?: string[]
   /** Capability definitions; defaults to granting core:default to all windows. */
@@ -25,31 +36,50 @@ export interface LaunchOptions {
   plugins?: Plugin[]
 }
 
+function toPath(value: URL | string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const url = value instanceof URL ? value : null
+  return url?.protocol === 'file:' ? decodeURIComponent(url.pathname) : String(value)
+}
+
 /**
  * Builds the app, spawns `appEntry` as a worker, then blocks this thread in
  * the Tauri event loop until the app exits. Never returns — the process
  * exits with the app's exit code. Use
  * `import { app } from '../../worker.ts'` inside the worker module.
  */
-export async function launch(appEntry: URL | string, options: LaunchOptions): Promise<never> {
+export async function launch(appEntry: URL | string, options: LaunchOptions = {}): Promise<never> {
+  const entryUrl = new URL(appEntry instanceof URL ? appEntry.href : appEntry, `file://${Deno.cwd()}/`)
+  const entryDir =
+    entryUrl.protocol === 'file:'
+      ? decodeURIComponent(new URL('.', entryUrl).pathname).replace(/\/$/, '')
+      : null
+  // a compiled bundle ignores the TAURI_DEV env override (hermetic in production)
+  const dev = options.dev ?? (!isBundled() && Deno.env.get('TAURI_DEV') === 'true')
+
+  const { config, configDir } = resolveConfig(entryDir, options.config)
+  const assets = resolveAssets(
+    { assetsDir: toPath(options.assetsDir), assetsArchive: toPath(options.assetsArchive) },
+    config,
+    configDir
+  )
+
   const { sym, check, libPath } = open(await ensureLibrary())
 
   const outBuilder = new BigUint64Array(1)
   check(
-    sym.tauri_app_builder_new(
-      cstr(JSON.stringify(options.config ?? {})),
-      new Uint8Array(outBuilder.buffer)
-    ),
+    sym.tauri_app_builder_new(cstr(JSON.stringify(config)), new Uint8Array(outBuilder.buffer)),
     'builder_new'
   )
   const builder = outBuilder[0]
 
-  if (options.assetsDir) {
-    const dir =
-      options.assetsDir instanceof URL
-        ? decodeURIComponent(options.assetsDir.pathname)
-        : options.assetsDir
-    check(sym.tauri_app_builder_set_assets_dir(builder, cstr(dir)), 'set_assets_dir')
+  if (dev) {
+    check(sym.tauri_app_builder_set_dev(builder, true), 'set_dev')
+  }
+  if (assets.archive) {
+    check(sym.tauri_app_builder_set_assets_archive(builder, cstr(assets.archive)), 'set_assets_archive')
+  } else if (assets.dir) {
+    check(sym.tauri_app_builder_set_assets_dir(builder, cstr(assets.dir)), 'set_assets_dir')
   }
   for (const name of options.commands ?? []) {
     check(sym.tauri_app_builder_register_command(builder, cstr(name)), `register_command(${name})`)

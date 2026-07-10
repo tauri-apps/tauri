@@ -30,7 +30,7 @@ use tauri_utils::config::HookCommand;
 
 #[cfg(not(target_os = "windows"))]
 use crate::Error;
-use crate::{CommandExt, interface::AppInterface};
+use crate::{interface::Interface, CommandExt};
 
 pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
@@ -68,10 +68,10 @@ pub fn cross_command(bin: &str) -> Command {
   cmd
 }
 
-pub fn run_hook(
+pub fn run_hook<I: Interface>(
   name: &str,
   hook: HookCommand,
-  interface: &AppInterface,
+  interface: &I,
   debug: bool,
   frontend_dir: &Path,
 ) -> crate::Result<()> {

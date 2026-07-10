@@ -25,9 +25,9 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{DeepLinkProtocol, RunnerConfig, Updater, parse::is_configuration_file};
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
 
-use super::{AppSettings, DevProcess, ExitReason};
+use super::{AppSettings, DevProcess, ExitReason, MobileOptions, Options, WatcherOptions};
 use crate::{
   ConfigValue,
   error::{Context, Error, ErrorExt, bail},
@@ -50,81 +50,6 @@ use manifest::{Manifest, rewrite_manifest};
 
 #[cfg(target_os = "macos")]
 pub use desktop::{DevChild, cargo_command};
-
-#[derive(Debug, Default, Clone)]
-pub struct Options {
-  pub runner: Option<RunnerConfig>,
-  pub debug: bool,
-  pub target: Option<String>,
-  pub features: Vec<String>,
-  pub args: Vec<String>,
-  pub config: Vec<ConfigValue>,
-  pub no_watch: bool,
-  pub skip_stapling: bool,
-  pub additional_watch_folders: Vec<PathBuf>,
-}
-
-impl From<crate::build::Options> for Options {
-  fn from(options: crate::build::Options) -> Self {
-    Self {
-      runner: options.runner,
-      debug: options.debug,
-      target: options.target,
-      features: options.features,
-      args: options.args,
-      config: options.config,
-      no_watch: true,
-      skip_stapling: options.skip_stapling,
-      additional_watch_folders: Vec::new(),
-    }
-  }
-}
-
-impl From<crate::bundle::Options> for Options {
-  fn from(options: crate::bundle::Options) -> Self {
-    Self {
-      debug: options.debug,
-      config: options.config,
-      target: options.target,
-      features: options.features,
-      no_watch: true,
-      skip_stapling: options.skip_stapling,
-      ..Default::default()
-    }
-  }
-}
-
-impl From<crate::dev::Options> for Options {
-  fn from(options: crate::dev::Options) -> Self {
-    Self {
-      runner: options.runner,
-      debug: !options.release_mode,
-      target: options.target,
-      features: options.features,
-      args: options.args,
-      config: options.config,
-      no_watch: options.no_watch,
-      skip_stapling: false,
-      additional_watch_folders: options.additional_watch_folders,
-    }
-  }
-}
-
-#[derive(Debug, Clone)]
-pub struct MobileOptions {
-  pub debug: bool,
-  pub features: Vec<String>,
-  pub args: Vec<String>,
-  pub config: Vec<ConfigValue>,
-  pub no_watch: bool,
-  pub additional_watch_folders: Vec<PathBuf>,
-}
-
-#[derive(Debug, Clone)]
-pub struct WatcherOptions {
-  pub config: Vec<ConfigValue>,
-  pub additional_watch_folders: Vec<PathBuf>,
-}
 
 #[derive(Debug)]
 pub struct RustupTarget {
@@ -337,6 +262,40 @@ impl Rust {
     );
 
     env
+  }
+}
+
+impl super::Interface for Rust {
+  type AppSettings = RustAppSettings;
+
+  fn new(config: &Config, target: Option<String>, tauri_dir: &Path) -> crate::Result<Self> {
+    Rust::new(config, target, tauri_dir)
+  }
+
+  fn app_settings(&self) -> Arc<RustAppSettings> {
+    Rust::app_settings(self)
+  }
+
+  fn env(&self) -> HashMap<&str, String> {
+    Rust::env(self)
+  }
+
+  fn build_options(&self, args: &mut Vec<String>, features: &mut Vec<String>, mobile: bool) {
+    Rust::build_options(self, args, features, mobile)
+  }
+
+  fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
+    Rust::build(self, options, dirs)
+  }
+
+  fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
+    &mut self,
+    config: &mut ConfigMetadata,
+    options: Options,
+    on_exit: F,
+    dirs: &Dirs,
+  ) -> crate::Result<()> {
+    Rust::dev(self, config, options, on_exit, dirs)
   }
 }
 
@@ -863,6 +822,12 @@ pub struct UpdaterWindowsConfig {
 impl AppSettings for RustAppSettings {
   fn get_package_settings(&self) -> PackageSettings {
     self.package_settings.clone()
+  }
+
+  fn out_dir(&self, options: &Options, tauri_dir: &Path) -> crate::Result<PathBuf> {
+    // delegates to the inherent method (inherent methods take precedence in
+    // resolution, so this does not recurse)
+    RustAppSettings::out_dir(self, options, tauri_dir)
   }
 
   fn get_bundle_settings(

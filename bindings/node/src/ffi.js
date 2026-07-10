@@ -11,6 +11,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import koffi from 'koffi'
+import { bundledResourceDir, isBundled } from './config.js'
 import { CODES, declare } from './ffi-decls.js'
 
 export { CODES }
@@ -18,11 +19,16 @@ export { CODES }
 const require = createRequire(import.meta.url)
 
 export function libraryPath() {
-  if (process.env.TAURI_FFI_LIB) return process.env.TAURI_FFI_LIB
+  // a compiled bundle ignores the TAURI_FFI_LIB env override — it must load
+  // only its own bundled cdylib, never an arbitrary library named by the env
+  if (!isBundled() && process.env.TAURI_FFI_LIB) return process.env.TAURI_FFI_LIB
   const name = { darwin: 'libtauri_ffi.dylib', linux: 'libtauri_ffi.so', win32: 'tauri_ffi.dll' }[
     process.platform
   ]
   if (!name) throw new Error(`unsupported platform: ${process.platform}`)
+  // a compiled bundle loads the cdylib staged in its resource dir
+  const resourceDir = bundledResourceDir()
+  if (resourceDir) return path.join(resourceDir, name)
   // Installed platform package (optionalDependencies of @tauri-apps/node).
   try {
     return require.resolve(`@tauri-apps/node-${process.platform}-${process.arch}/${name}`)

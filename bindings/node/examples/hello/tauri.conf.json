@@ -2,6 +2,14 @@
   "productName": "tauri-ffi-hello",
   "version": "0.1.0",
   "identifier": "com.tauri.ffi.hello",
+  "build": {
+    "runner": { "cmd": "node", "args": ["main.js"] },
+    "frontendDist": "./assets"
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"]
+  },
   "app": {
     "withGlobalTauri": true,
     "windows": [

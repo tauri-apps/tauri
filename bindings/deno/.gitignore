@@ -1,3 +1,6 @@
+# tauri build output (self-contained binary + bundles)
+dist/
+
 # lockfile is committed by apps, not by a published library
 deno.lock
 

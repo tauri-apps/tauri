@@ -6,6 +6,7 @@
 // crates/tauri-ffi/api-manifest.json). Only hand-written sugar lives here:
 // library discovery, string encoding, error checking and the event-queue poll.
 
+import { bundledResourceDir, isBundled } from './config.ts'
 import { ABI_VERSION, CODES, SYMBOLS } from './symbols.ts'
 import denoConfig from './deno.json' with { type: 'json' }
 
@@ -52,9 +53,22 @@ function cachedLibraryPath(): string {
 }
 
 export function libraryPath(): string {
-  const env = Deno.env.get('TAURI_FFI_LIB')
+  // a compiled bundle ignores the TAURI_FFI_LIB env override — it must load
+  // only its own bundled cdylib, never an arbitrary library named by the env
+  const env = isBundled() ? undefined : Deno.env.get('TAURI_FFI_LIB')
   if (env) return env
   const name = libraryName()
+  // Bundled next to the executable (deno compile binary in a Tauri bundle).
+  const resourceDir = bundledResourceDir()
+  if (resourceDir) {
+    const bundled = `${resourceDir}/${name}`
+    try {
+      Deno.statSync(bundled)
+      return bundled
+    } catch {
+      // not a bundle — keep looking
+    }
+  }
   // Development fallback: cargo build output in the repo.
   for (const profile of ['debug', 'release']) {
     const url = new URL(`../../target/${profile}/${name}`, import.meta.url)

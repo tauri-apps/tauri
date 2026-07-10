@@ -176,6 +176,8 @@ int32_t  tauri_app_builder_set_assets_callback(uint64_t b, TauriAssetGetFn get, 
 // dev-server URL comes via config (build.devUrl / window url), no special API
 int32_t  tauri_app_builder_set_icon_rgba(uint64_t b, const uint8_t* rgba, uint32_t w, uint32_t h);
 int32_t  tauri_app_builder_add_capability(uint64_t b, const char* capability_json);
+int32_t  tauri_app_builder_set_assets_archive(uint64_t b, const char* path); // packed by `tauri build`
+int32_t  tauri_app_builder_set_dev(uint64_t b, bool dev); // WebviewUrl::App -> devUrl (CLI dev mode)
 // host-defined plugins (implemented; see 4.5): create, configure, attach
 uint64_t tauri_plugin_new(const char* name, uint64_t* out_plugin);
 int32_t  tauri_plugin_set_init_script(uint64_t plugin, const char* js);
@@ -464,6 +466,98 @@ irritation back into ABI tweaks *before* codegen freezes patterns.
 > lives in a separate `demo-plugin` module in all three `hello` fixtures and is exercised
 > end-to-end — the frontend reads `window.__DEMO_PLUGIN__` (proves injection) and calls
 > `window.demo.echo()` (proves ACL resolution through the guest API).
+
+> **Update (2026-07-09): Tauri CLI `dev`/`build` for bindings projects (ABI v4).**
+> The CLI's project interface is now a real trait (`interface::Interface` +
+> `AppSettings::out_dir`, `crates/tauri-cli/src/interface/mod.rs`): `dev.rs`/`build.rs`
+> are generic over it, `run_hook`/`bundle()` take any `Interface`, and the only leaked
+> Rust-specific (the cargo target-dir check in `build::setup`) is gated on project kind.
+> Dispatch: `Cargo.toml` present → `Rust` (unchanged, now a trait impl by delegation);
+> otherwise → new `interface/bindings.rs`, which is language-agnostic — it spawns the
+> `build > runner` command (e.g. `{"cmd":"node","args":["main.js"]}`) with the fully
+> merged config in `TAURI_CONFIG` + `TAURI_DEV=true`, restarts on file changes
+> (`.taurignore` + builtin ignores + frontendDist excluded), and on `build` packs
+> `frontendDist` into `target/{debug,release}/<productName>.assets` (magic `TAURIPK1`,
+> JSON index + blob). FFI: `tauri_app_builder_set_assets_archive` (`ArchiveAssets`) and
+> `tauri_app_builder_set_dev` — the dev flag rewrites `frontend_dist = Url(devUrl)`,
+> which reproduces a Rust dev build exactly because the runtime resolves
+> `WebviewUrl::App` *and* the Local ACL origin via `get_app_url()` (manager/mod.rs)
+> from that value; no dev-flavored cdylib needed. Bindings runtime gained
+> tauri.conf.json auto-discovery (next to the app entry, then cwd) + RFC-7396-style
+> `TAURI_CONFIG` merging + `assetsArchive` and `dev` options in
+> all three languages (the asset source is intentionally not env-overridable —
+> the frontend is trusted content). Validated on macOS: `tauri dev` on Node/Deno/Python examples
+> (window URL `http://127.0.0.1:1430/` from the built-in dev server, IPC + plugins
+> working), watcher restart, `tauri build` + archive-only serving (assets dir removed,
+> everything from the pack).
+
+> **Update (2026-07-10): `tauri build` produces self-contained bundles.** `tauri build`
+> on a bindings project now compiles a **true no-deps native binary** (embeds the
+> language runtime) via the runner's native compiler and wraps it into real
+> `.app`/`.msi`/`.appimage` through `tauri-bundler` — the same pipeline as Rust, just a
+> different `AppSettings`. Output moved from `target/` to **`dist/{debug,release}/`**.
+> `interface/bindings.rs::build()` detects the runner (`Runner::{Deno,Node,Python}`),
+> compiles the binary (`deno compile --include . --exclude dist,tauri.conf.json`;
+> PyInstaller `--onefile` honoring `PYTHONPATH` as `--paths`; Node bails — SEA can't host
+> worker_threads), and stages three resources next to it: the packed `app.assets`, the
+> `tauri-ffi` cdylib (located via `TAURI_FFI_LIB` or a `target/{release,debug}` search),
+> and the merged config with `frontendDist` rewritten to `app.assets`.
+> `get_bundle_settings` returns a `resources_map` of `dist/<profile>/resources/*` → flat
+> names in the bundle resource dir (macOS `Contents/Resources`), plus icon/identifier
+> from config. `get_binaries`/`app_binary_path` name the binary after `productName`.
+> `bundle.rs` un-gated for bindings (generic `run_bundle::<I>`). Runtime resource
+> resolution added to Deno (`bundledResourceDir()` in config.ts → config discovery +
+> `libraryPath`) and Python (`_bundled_resource_dir()` via `sys.frozen`/`sys.executable`
+> → config discovery + `library_path`): the compiled app reads config/lib/assets from
+> `Contents/Resources` computed off the executable path. VALIDATED on macOS: `tauri build`
+> on the Deno and Python examples produced `.app`s that run with **no Deno/Python on
+> `PATH`** (scrubbed-PATH launch from `/tmp` — frontend served from the packed archive,
+> cdylib dlopen'd from Resources, plugin ACL + IPC working), with both the debug and
+> release cdylib. Rust `tauri dev` regression re-checked (dispatches to cargo via the
+> trait). Not done: single-file binary (cdylib is a sibling resource, not embedded +
+> extracted); Linux/Windows bundle validation; icon defaults.
+
+> **Update (2026-07-10): Node self-contained build landed (SEA).** `tauri build` on a
+> Node runner now produces a Single Executable Application. The two SEA blockers —
+> one embedded CJS script (no worker files on disk) and koffi's native addon — are
+> solved in `compile_node` (`interface/bindings.rs`): (1) the CLI runs the entry once
+> in **trace mode** (`TAURI_SEA_TRACE=<file>`; `launch()` writes the resolved worker
+> module path and exits before any FFI work — ignored when `isBundled()`), (2)
+> esbuild (project-local or `npx --yes`) bundles the main entry and the worker module
+> into two self-contained CJS scripts, with `--alias:koffi=` a generated shim that
+> `process.dlopen`s a `koffi.node` staged as a bundle resource (the bindings only use
+> koffi's native surface — `load`/`func`/`decode` — so the raw addon exports are a
+> drop-in; the addon is located by a resolver script: the `@koromix/koffi-*` prebuilt
+> package, else koffi's local cnoke build) and `import.meta.url` defined to the
+> executable's file URL, (3) `node --experimental-sea-config` builds the blob with
+> the worker bundle as the `worker.js` **SEA asset** — in a bundle, `launch()` starts
+> it with `new Worker(sea.getAsset('worker.js','utf8'), { eval: true })` — and
+> postject injects it into a copy of the node executable (macOS: codesign strip +
+> ad-hoc re-sign). Node bindings gained `bundledResourceDir()` (config/cdylib
+> resolution from `Contents/Resources`, mirroring Deno/Python). Requires Node >=
+> 20.12 (checked upfront). VALIDATED on macOS: the `.app` passes the full fixture
+> trace with **no node on `PATH`** and ignores malicious `TAURI_CONFIG` / `TAURI_DEV`
+> / `TAURI_FFI_LIB` / `TAURI_SEA_TRACE` env (stays on `tauri://localhost`, loads only
+> its bundled cdylib); `tauri dev` regression re-checked. All three runners now build
+> self-contained bundles.
+
+> **Security (2026-07-10): env overrides are dev-only.** The frontend is trusted content
+> (it can `invoke` commands under the app's ACL), so its origin — and the whole config —
+> must never come from the ambient environment in a shipped build. `TAURI_ASSETS_ARCHIVE`
+> was removed outright (redundant with the config's `frontendDist`). `TAURI_CONFIG` and
+> `TAURI_DEV` remain the Tauri CLI→app channel in dev but are now **ignored by a compiled/
+> frozen binary**: `isBundled()` (Deno `Deno.build.standalone`, Python `sys.frozen`, Node
+> `require('node:sea').isSea()`) gates the `TAURI_CONFIG` merge and the `TAURI_DEV`
+> default. Explicit `config`/`dev`/`assetsArchive` launch options are code (trusted) and
+> still honored. VALIDATED: a compiled Deno/Python `.app` launched with a malicious
+> `TAURI_CONFIG` (frontendDist/devUrl → `http://evil.test`) + `TAURI_DEV=true` ignored
+> both — stayed on `tauri://localhost` serving its bundled assets — while `tauri dev`
+> still picked up the CLI's `TAURI_CONFIG` dev-server URL. `TAURI_FFI_LIB` (which cdylib
+> to `dlopen`) is gated the same way — a bundle loads only its own Resources cdylib,
+> verified by launching the Deno and Python `.app`s with
+> `TAURI_FFI_LIB=/nonexistent/evil.dylib` (ignored; loaded the bundled lib). So every
+> ambient-env override is now dev-only; only explicit launch-option arguments (code) can
+> steer a shipped bundle.
 
 **M3 — Manifest + codegen + Deno.** Decided and partially landed early (§6, 2026-07-09):
 hand-authored manifest + in-house generator now produce the C header, koffi

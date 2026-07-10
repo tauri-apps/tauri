@@ -1,0 +1,6 @@
+# Compiled binary
+/app
+
+# Tauri build output
+/dist
+/target

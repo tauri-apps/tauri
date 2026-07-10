@@ -58,10 +58,14 @@
   let {
     items = $bindable(),
     itemClick,
+    onItemAdded,
+    onItemRemoved,
     onItemMoved
   }: {
     items: Item[]
     itemClick: MenuItemClickHandler
+    onItemAdded?: (item: Item) => Promise<void>
+    onItemRemoved?: (item: Item) => Promise<void>
     onItemMoved?: (item: Item, toIndex: number) => void
   } = $props()
 
@@ -186,6 +190,8 @@
         }
 
         newItem.menu = await create(newItem)
+
+        await onItemAdded?.(newItem)
       },
       onUpdate(event) {
         const [item] = items.splice(event.oldIndex!, 1)
@@ -270,9 +276,11 @@
                 )
               }
             : undefined}
-          onRemove={() => {
+          onRemove={async () => {
             items.splice(i, 1)
-            item.menu?.close()
+            await onItemRemoved?.(item).finally(() => {
+              item.menu?.close()
+            })
           }}
         />
       {:else}

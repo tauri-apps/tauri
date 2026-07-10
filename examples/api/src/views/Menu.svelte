@@ -91,6 +91,16 @@
   <MenuBuilder
     bind:items
     itemClick={onItemClick}
+    onItemAdded={async (item) => {
+      if (item.menu) {
+        await submenu?.append(item.menu)
+      }
+    }}
+    onItemRemoved={async (item) => {
+      if (item.menu) {
+        await submenu?.remove(item.menu)
+      }
+    }}
     onItemMoved={(item, toIndex) => {
       if (submenu) {
         reorderMenuItems(submenu, item, toIndex)

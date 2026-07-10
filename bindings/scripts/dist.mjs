@@ -186,6 +186,12 @@ function distNpm(targets) {
   manifest.optionalDependencies = Object.fromEntries(
     targets.map((target) => [platformPackageName(target), version])
   )
+  // The workspace manifest points @tauri-apps/api at the local built dist
+  // (packages/api/dist) for dev; publish needs a real semver range instead.
+  if (manifest.dependencies?.['@tauri-apps/api']) {
+    const apiPkg = JSON.parse(readFileSync(path.join(repoRoot, 'packages/api/package.json'), 'utf8'))
+    manifest.dependencies['@tauri-apps/api'] = `^${apiPkg.version}`
+  }
   writeFileSync(path.join(baseDir, 'package.json'), JSON.stringify(manifest, null, 2) + '\n')
 
   const staged = readdirSync(npmDir)

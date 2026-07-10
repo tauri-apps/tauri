@@ -8,12 +8,21 @@
     ".": "./src/index.js",
     "./worker": "./src/worker.js",
     "./plugin": "./src/plugin.js",
-    "./ffi": "./src/ffi.js"
+    "./ffi": "./src/ffi.js",
+    "./api": {
+      "types": "./src/api/index.d.ts",
+      "default": "./src/api/index.js"
+    },
+    "./api/*": {
+      "types": "./src/api/*.d.ts",
+      "default": "./src/api/*.js"
+    }
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@tauri-apps/api": "../../packages/api/dist",
     "koffi": "^3.0.0"
   }
 }

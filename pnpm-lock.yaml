@@ -18,6 +18,9 @@ importers:
 
   bindings/node:
     dependencies:
+      '@tauri-apps/api':
+        specifier: ../../packages/api/dist
+        version: link:../../packages/api/dist
       koffi:
         specifier: ^3.0.0
         version: 3.1.0

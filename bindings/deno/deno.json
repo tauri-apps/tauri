@@ -2,12 +2,29 @@
   "name": "@tauri-apps/deno",
   "version": "0.0.0",
   "license": "Apache-2.0 OR MIT",
+  "imports": {
+    "@tauri-apps/api": "npm:@tauri-apps/api@^2.11.1",
+    "@tauri-apps/api/": "npm:/@tauri-apps/api@^2.11.1/"
+  },
   "exports": {
     ".": "./mod.ts",
     "./worker": "./worker.ts",
     "./plugin": "./plugin.ts",
     "./ffi": "./ffi.ts",
-    "./symbols": "./symbols.ts"
+    "./symbols": "./symbols.ts",
+    "./api": "./api/index.ts",
+    "./api/app": "./api/app.ts",
+    "./api/core": "./api/core.ts",
+    "./api/dpi": "./api/dpi.ts",
+    "./api/event": "./api/event.ts",
+    "./api/image": "./api/image.ts",
+    "./api/menu": "./api/menu.ts",
+    "./api/mocks": "./api/mocks.ts",
+    "./api/path": "./api/path.ts",
+    "./api/tray": "./api/tray.ts",
+    "./api/webview": "./api/webview.ts",
+    "./api/webviewWindow": "./api/webviewWindow.ts",
+    "./api/window": "./api/window.ts"
   },
   "publish": {
     "exclude": ["examples/"]

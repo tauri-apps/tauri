@@ -159,25 +159,24 @@
         } as Item
         currentId += 1
 
+        // HACK: We can't track the element created by Sortable,
+        // just make a new one and delete the one from Sortable
+        item.remove()
+
         if (event.newIndex !== undefined) {
           items.splice(event.newIndex, 0, newItem)
         } else {
           items.push(newItem)
         }
-        // HACK: We can't track the element created by Sortable,
-        // just make a new one and delete the one from Sortable
-        item.remove()
 
         newItem.menu = await create(newItem)
       },
       onUpdate(event) {
-        // HACK: Svelte `#each` can't track external changes,
-        // and will revert changes made by Sortable,
-        // so we store the order and restore it after updating the svelte state
-        const order = targetSortable.toArray()
         const [item] = items.splice(event.oldIndex!, 1)
-        items.splice(event.newIndex!, 0, item!)
-        targetSortable.sort(order)
+        // Sortable's DOM manipulation doesn't work with Svelte,
+        // so we recreate all the nodes on order changes...
+        // This must be `toSpliced` to trigger the `#key` block re-render
+        items = items.toSpliced(event.newIndex!, 0, item!)
       },
       delayOnTouchOnly: true,
       delay: 500,
@@ -226,39 +225,43 @@
     bind:this={targetSortableEl}
     class="p-2 border border-solid border-neutral-300 rounded-md min-h-24 grid items-start gap-1"
   >
-    {#each items as item, i (item.id)}
-      <MenuItemComponent
-        kind={item.kind}
-        id={item.id}
-        bind:text={item.text}
-        bind:iconPath={item.iconPath}
-        bind:checked={item.checked}
-        onTextChange={item.text !== undefined
-          ? () => {
-              item.menu?.setText(item.text ?? '')
-            }
-          : undefined}
-        onIconPathChange={item.iconPath !== undefined
-          ? () => {
-              ;(item.menu as IconMenuItem | undefined)?.setIcon(item.iconPath!)
-            }
-          : undefined}
-        onCheckedChange={item.checked !== undefined
-          ? () => {
-              ;(item.menu as CheckMenuItem | undefined)?.setChecked(
-                item.checked!
-              )
-            }
-          : undefined}
-        onRemove={() => {
-          items.splice(i, 1)
-          item.menu?.close()
-        }}
-      />
-    {:else}
-      <div class="place-self-center color-neutral-600">
-        Drag and drop the menu items above to start building
-      </div>
-    {/each}
+    {#key items}
+      {#each items as item, i (item.id)}
+        <MenuItemComponent
+          kind={item.kind}
+          id={item.id}
+          bind:text={item.text}
+          bind:iconPath={item.iconPath}
+          bind:checked={item.checked}
+          onTextChange={item.text !== undefined
+            ? () => {
+                item.menu?.setText(item.text ?? '')
+              }
+            : undefined}
+          onIconPathChange={item.iconPath !== undefined
+            ? () => {
+                ;(item.menu as IconMenuItem | undefined)?.setIcon(
+                  item.iconPath!
+                )
+              }
+            : undefined}
+          onCheckedChange={item.checked !== undefined
+            ? () => {
+                ;(item.menu as CheckMenuItem | undefined)?.setChecked(
+                  item.checked!
+                )
+              }
+            : undefined}
+          onRemove={() => {
+            items.splice(i, 1)
+            item.menu?.close()
+          }}
+        />
+      {:else}
+        <div class="place-self-center color-neutral-600">
+          Drag and drop the menu items above to start building
+        </div>
+      {/each}
+    {/key}
   </div>
 </div>

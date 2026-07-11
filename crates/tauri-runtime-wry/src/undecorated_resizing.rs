@@ -611,7 +611,8 @@ mod gtk {
         }
 
         window.begin_resize_drag(edge, 1, root_x as i32, root_y as i32, event.time());
-        Propagation::Proceed
+        // Prevent the webview from handling an event claimed by the resize inset
+        Propagation::Stop
       },
     );
 

@@ -23,3 +23,8 @@ against `lib/tauri_ffi.dll.lib` and ship `tauri_ffi.dll` next to your binary.
 A minimal example lives at
 [`bindings/c/examples/hello.c`](https://github.com/tauri-apps/tauri/blob/dev/bindings/c/examples/hello.c);
 in the repository you can run it with `node bindings/run-example.mjs c`.
+
+[`bindings/c/examples/api.c`](https://github.com/tauri-apps/tauri/blob/dev/bindings/c/examples/api.c)
+embeds Tauri's shared [`examples/api`](https://github.com/tauri-apps/tauri/tree/dev/examples/api)
+validation frontend (referenced, not copied) — build instructions are in the
+file header.

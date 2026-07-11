@@ -1,0 +1,30 @@
+{
+  "productName": "tauri-ffi-api-py",
+  "version": "1.0.0",
+  "identifier": "com.tauri.ffi.api.python",
+  "build": {
+    "runner": { "cmd": "python3", "args": ["main.py"] },
+    "beforeDevCommand": { "script": "pnpm dev", "cwd": "../../../../examples/api" },
+    "beforeBuildCommand": { "script": "pnpm build", "cwd": "../../../../examples/api" },
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../../../../examples/api/dist"
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"]
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Tauri API — Python",
+        "url": "index.html",
+        "width": 1000,
+        "height": 800,
+        "minWidth": 600,
+        "minHeight": 400
+      }
+    ]
+  }
+}

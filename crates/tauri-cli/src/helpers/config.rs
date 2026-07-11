@@ -190,7 +190,7 @@ fn load_config(
     let mut errors = CONFIG_SCHEMA_VALIDATOR.iter_errors(&config).peekable();
     if errors.peek().is_some() {
       for error in errors {
-        let path = error.instance_path.into_iter().join(" > ");
+        let path = error.instance_path().into_iter().join(" > ");
         if path.is_empty() {
           log::error!("`{config_file_name:?}` error: {error}");
         } else {

@@ -239,8 +239,8 @@ pub(crate) fn send_user_message<T: UserEvent>(
       &context.main_thread.window_target,
       message,
       UserMessageContext {
-        window_id_map: context.window_id_map.clone(),
-        windows: context.main_thread.windows.clone(),
+        window_id_map: &context.window_id_map,
+        windows: &context.main_thread.windows,
       },
     );
     Ok(())
@@ -265,6 +265,9 @@ pub struct Context<T: UserEvent> {
   next_webview_event_id: Arc<AtomicU32>,
   webview_runtime_installed: bool,
 }
+
+unsafe impl<T: UserEvent> Send for Context<T> {}
+unsafe impl<T: UserEvent> Sync for Context<T> {}
 
 impl<T: UserEvent> Context<T> {
   pub fn run_threaded<R, F>(&self, f: F) -> R
@@ -315,6 +318,7 @@ impl<T: UserEvent> Context<T> {
       })
       .unwrap_or((None, false));
 
+    let (tx, rx) = channel();
     send_user_message(
       self,
       Message::CreateWindow(
@@ -329,8 +333,11 @@ impl<T: UserEvent> Context<T> {
             after_window_creation,
           )
         }),
+        tx,
       ),
     )?;
+    rx.recv()
+      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWindowDispatcher {
       window_id,
@@ -373,6 +380,7 @@ impl<T: UserEvent> Context<T> {
     let window_id_wrapper = Arc::new(Mutex::new(window_id));
     let window_id_wrapper_ = window_id_wrapper.clone();
 
+    let (tx, rx) = channel();
     send_user_message(
       self,
       Message::CreateWebview(
@@ -388,8 +396,11 @@ impl<T: UserEvent> Context<T> {
             options.focused_webview,
           )
         }),
+        tx,
       ),
     )?;
+    rx.recv()
+      .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWebviewDispatcher {
       window_id: window_id_wrapper,
@@ -427,14 +438,6 @@ pub enum ActiveTracingSpan {
 #[derive(Debug)]
 pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
 
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for WindowsStore {}
-
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Sync for WindowsStore {}
-
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
@@ -444,14 +447,6 @@ pub struct DispatcherMainThreadContext<T: UserEvent> {
   #[cfg(feature = "tracing")]
   pub active_tracing_spans: ActiveTraceSpanStore,
 }
-
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: UserEvent> Send for DispatcherMainThreadContext<T> {}
-
-// SAFETY: we ensure this type is only used on the main thread.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: UserEvent> Sync for DispatcherMainThreadContext<T> {}
 
 impl<T: UserEvent> fmt::Debug for Context<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -870,6 +865,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       .content_protected(config.content_protected)
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme)
+      .no_redirection_bitmap(config.no_redirection_bitmap)
       .closable(config.closable)
       .maximizable(config.maximizable)
       .minimizable(config.minimizable)
@@ -1228,6 +1224,14 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  fn no_redirection_bitmap(#[allow(unused_mut)] mut self, _enable: bool) -> Self {
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_no_redirection_bitmap(_enable);
+    }
+    self
+  }
+
   #[cfg(target_os = "android")]
   fn activity_name<S: Into<String>>(mut self, class_name: S) -> Self {
     self.inner = self.inner.with_activity_name(class_name.into());
@@ -1493,8 +1497,8 @@ pub enum Message<T: 'static> {
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewId, WebviewMessage),
   EventLoopWindowTarget(EventLoopWindowTargetMessage),
-  CreateWebview(WindowId, CreateWebviewClosure),
-  CreateWindow(WindowId, CreateWindowClosure<T>),
+  CreateWebview(WindowId, CreateWebviewClosure, Sender<Result<()>>),
+  CreateWindow(WindowId, CreateWindowClosure<T>, Sender<Result<()>>),
   CreateRawWindow(
     WindowId,
     Box<dyn FnOnce() -> (String, TaoWindowBuilder) + Send>,
@@ -2801,7 +2805,9 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   #[cfg(target_os = "android")]
   fn run_on_android_context<F>(&self, f: F)
   where
-    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
+    F: FnOnce(&mut jni::JNIEnv<'_>, &jni::objects::JObject<'_>, &jni::objects::JObject<'_>)
+      + Send
+      + 'static,
   {
     dispatch(f)
   }
@@ -2859,6 +2865,7 @@ impl<T: UserEvent> Wry<T> {
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
+    #[allow(clippy::arc_with_non_send_sync)]
     let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
     let window_id_map = WindowIdStore::default();
 
@@ -3119,13 +3126,13 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
     use tao::platform::run_return::EventLoopExtRunReturn;
-    let windows = self.context.main_thread.windows.clone();
-    let window_id_map = self.context.window_id_map.clone();
+    let windows = &self.context.main_thread.windows;
+    let window_id_map = &self.context.window_id_map;
     let web_context = &self.context.main_thread.web_context;
-    let plugins = self.context.plugins.clone();
+    let plugins = &self.context.plugins;
 
     #[cfg(feature = "tracing")]
-    let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
+    let active_tracing_spans = &self.context.main_thread.active_tracing_spans;
 
     let proxy = self.event_loop.create_proxy();
 
@@ -3145,10 +3152,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             control_flow,
             EventLoopIterationContext {
               callback: &mut callback,
-              window_id_map: window_id_map.clone(),
-              windows: windows.clone(),
+              window_id_map,
+              windows,
               #[cfg(feature = "tracing")]
-              active_tracing_spans: active_tracing_spans.clone(),
+              active_tracing_spans,
             },
             web_context,
           );
@@ -3163,18 +3170,17 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           control_flow,
           EventLoopIterationContext {
             callback: &mut callback,
-            windows: windows.clone(),
-            window_id_map: window_id_map.clone(),
+            windows,
+            window_id_map,
             #[cfg(feature = "tracing")]
-            active_tracing_spans: active_tracing_spans.clone(),
+            active_tracing_spans,
           },
         );
       });
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
-    let event_handler = make_event_handler(&self, callback);
-
+    let event_handler = make_event_handler(self.context, callback);
     self.event_loop.run(event_handler)
   }
 
@@ -3182,8 +3188,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(mut self, callback: F) -> i32 {
     use tao::platform::run_return::EventLoopExtRunReturn;
 
-    let event_handler = make_event_handler(&self, callback);
-
+    let event_handler = make_event_handler(self.context, callback);
     self.event_loop.run_return(event_handler)
   }
 
@@ -3194,22 +3199,18 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 }
 
-fn make_event_handler<T, F>(
-  runtime: &Wry<T>,
+fn make_event_handler<T: UserEvent, F: FnMut(RunEvent<T>) + 'static>(
+  context: Context<T>,
   mut callback: F,
-) -> impl FnMut(Event<'_, Message<T>>, &EventLoopWindowTarget<Message<T>>, &mut ControlFlow)
-where
-  T: UserEvent,
-  F: FnMut(RunEvent<T>) + 'static,
-{
-  let windows = runtime.context.main_thread.windows.clone();
-  let window_id_map = runtime.context.window_id_map.clone();
-  let web_context = runtime.context.main_thread.web_context.clone();
-  let plugins = runtime.context.plugins.clone();
+) -> impl FnMut(Event<'_, Message<T>>, &EventLoopWindowTarget<Message<T>>, &mut ControlFlow) {
+  let windows = context.main_thread.windows;
+  let window_id_map = context.window_id_map;
+  let web_context = context.main_thread.web_context;
+  let plugins = context.plugins;
 
   #[cfg(feature = "tracing")]
-  let active_tracing_spans = runtime.context.main_thread.active_tracing_spans.clone();
-  let proxy = runtime.event_loop.create_proxy();
+  let active_tracing_spans = context.main_thread.active_tracing_spans;
+  let proxy = context.proxy;
 
   move |event, event_loop, control_flow| {
     for p in plugins.lock().unwrap().iter_mut() {
@@ -3220,10 +3221,10 @@ where
         control_flow,
         EventLoopIterationContext {
           callback: &mut callback,
-          window_id_map: window_id_map.clone(),
-          windows: windows.clone(),
+          window_id_map: &window_id_map,
+          windows: &windows,
           #[cfg(feature = "tracing")]
-          active_tracing_spans: active_tracing_spans.clone(),
+          active_tracing_spans: &active_tracing_spans,
         },
         &web_context,
       );
@@ -3237,10 +3238,10 @@ where
       control_flow,
       EventLoopIterationContext {
         callback: &mut callback,
-        window_id_map: window_id_map.clone(),
-        windows: windows.clone(),
+        window_id_map: &window_id_map,
+        windows: &windows,
         #[cfg(feature = "tracing")]
-        active_tracing_spans: active_tracing_spans.clone(),
+        active_tracing_spans: &active_tracing_spans,
       },
     );
   }
@@ -3248,15 +3249,15 @@ where
 
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
-  pub window_id_map: WindowIdStore,
-  pub windows: Arc<WindowsStore>,
+  pub window_id_map: &'a WindowIdStore,
+  pub windows: &'a WindowsStore,
   #[cfg(feature = "tracing")]
-  pub active_tracing_spans: ActiveTraceSpanStore,
+  pub active_tracing_spans: &'a ActiveTraceSpanStore,
 }
 
-struct UserMessageContext {
-  windows: Arc<WindowsStore>,
-  window_id_map: WindowIdStore,
+struct UserMessageContext<'a> {
+  windows: &'a WindowsStore,
+  window_id_map: &'a WindowIdStore,
 }
 
 fn handle_user_message<T: UserEvent>(
@@ -3935,26 +3936,24 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(target_os = "macos")]
             {
               use wry::WebViewExtMacOS;
+              let platform_webview = webview.webview();
+              let manager = webview.manager();
+              let ns_window = webview.ns_window();
               f(Webview {
-                webview: Retained::into_raw(webview.webview()) as *mut objc2::runtime::AnyObject
-                  as *mut std::ffi::c_void,
-                manager: Retained::into_raw(webview.manager()) as *mut objc2::runtime::AnyObject
-                  as *mut std::ffi::c_void,
-                ns_window: Retained::into_raw(webview.ns_window()) as *mut objc2::runtime::AnyObject
-                  as *mut std::ffi::c_void,
+                webview: Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
+                manager: Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
+                ns_window: Retained::as_ptr(&ns_window).cast_mut() as *mut std::ffi::c_void,
               });
             }
             #[cfg(target_os = "ios")]
             {
               use wry::WebViewExtIOS;
+              let platform_webview = webview.inner.webview();
+              let manager = webview.inner.manager();
 
               f(Webview {
-                webview: Retained::into_raw(webview.inner.webview())
-                  as *mut objc2::runtime::AnyObject
-                  as *mut std::ffi::c_void,
-                manager: Retained::into_raw(webview.inner.manager())
-                  as *mut objc2::runtime::AnyObject
-                  as *mut std::ffi::c_void,
+                webview: Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
+                manager: Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
                 view_controller: window.ui_view_controller(),
               });
             }
@@ -3985,7 +3984,7 @@ fn handle_user_message<T: UserEvent>(
         }
       }
     }
-    Message::CreateWebview(window_id, handler) => {
+    Message::CreateWebview(window_id, handler, sender) => {
       let window = windows
         .0
         .borrow()
@@ -3998,19 +3997,25 @@ fn handle_user_message<T: UserEvent>(
               w.webviews.push(webview);
               w.has_children.store(true, Ordering::Relaxed);
             }
+            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+            sender.send(Ok(())).unwrap();
           }
           Err(e) => {
-            log::error!("{e}");
+            // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+            sender.send(Err(e)).unwrap();
           }
         }
       }
     }
-    Message::CreateWindow(window_id, handler) => match handler(event_loop) {
+    Message::CreateWindow(window_id, handler, sender) => match handler(event_loop) {
       Ok(webview) => {
         windows.0.borrow_mut().insert(window_id, webview);
+        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+        sender.send(Ok(())).unwrap();
       }
       Err(e) => {
-        log::error!("{e}");
+        // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
+        sender.send(Err(e)).unwrap();
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {
@@ -4369,7 +4374,7 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WindowId,
-  windows: Arc<WindowsStore>,
+  windows: &WindowsStore,
 ) {
   let (tx, rx) = channel();
   let windows_ref = windows.0.borrow();
@@ -4397,7 +4402,7 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WindowId, windows: Arc<WindowsStore>) {
+fn on_window_close(window_id: WindowId, windows: &WindowsStore) {
   if let Some(window_wrapper) = windows.0.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
     #[cfg(windows)]

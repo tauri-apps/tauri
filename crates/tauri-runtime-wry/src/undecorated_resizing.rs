@@ -222,7 +222,7 @@ mod windows {
             SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOMOVE,
           );
         } else {
-          // otherwise updat the cutout region
+          // otherwise update the cutout region
           let mut rect = RECT::default();
           if GetClientRect(parent, &mut rect).is_ok() {
             let width = rect.right - rect.left;

@@ -14,7 +14,7 @@ import { writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { open } from './ffi.js'
-import { isBundled, resolveAssets, resolveConfig } from './config.js'
+import { bundledResourceDir, isBundled, resolveAssets, resolveCapabilities, resolveConfig } from './config.js'
 
 /**
  * Builds the app, spawns `appEntry` as a worker, then blocks this thread in
@@ -37,7 +37,9 @@ import { isBundled, resolveAssets, resolveConfig } from './config.js'
  *   (set by `tauri dev`)
  * @param {string[]} [options.commands] command names handled by the worker
  * @param {(object | string)[]} [options.capabilities] capability definitions;
- *   defaults to granting core:default to all windows
+ *   merged with any files found in a `capabilities/` directory next to the
+ *   config (mirroring a Rust app's compile-time capability discovery). When
+ *   none are supplied, core:default is granted to all windows
  * @param {import('./plugin.js').Plugin[]} [options.plugins] plugins created with
  *   `definePlugin()`; pass the same objects to `app.plugin()` in the worker so
  *   their handlers run there. See '@tauri-apps/node/plugin'.
@@ -56,7 +58,8 @@ export function launch(appEntry, options = {}) {
   // a compiled bundle ignores the TAURI_DEV env override (hermetic in production)
   const dev = options.dev ?? (!isBundled() && process.env.TAURI_DEV === 'true')
 
-  const { config, configDir } = resolveConfig(path.dirname(path.resolve(entry)), options.config)
+  const entryDir = path.dirname(path.resolve(entry))
+  const { config, configDir } = resolveConfig(entryDir, options.config)
   const assets = resolveAssets(
     {
       assetsDir: options.assetsDir instanceof URL ? fileURLToPath(options.assetsDir) : options.assetsDir,
@@ -86,7 +89,10 @@ export function launch(appEntry, options = {}) {
   for (const name of commands) {
     check(api.appBuilderRegisterCommand(builder, name), `register_command(${name})`)
   }
-  for (const capability of capabilities) {
+  // Inline capabilities plus any discovered in a `capabilities/` directory
+  // next to the config (compile-time capability files, read at launch).
+  const allCapabilities = [...capabilities, ...resolveCapabilities([bundledResourceDir(), configDir, entryDir])]
+  for (const capability of allCapabilities) {
     const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
     check(api.appBuilderAddCapability(builder, json), 'add_capability')
   }

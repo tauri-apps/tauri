@@ -107,6 +107,48 @@ export function resolveConfig(
   return { config, configDir }
 }
 
+// Capability files carry these extensions; a `schemas/` subfolder holds JSON
+// schema files, not capabilities, so it is skipped (mirrors tauri-build).
+const CAPABILITY_EXTENSIONS = ['.json', '.json5', '.toml']
+
+function walkCapabilityFiles(dir: string, files: string[] = []): string[] {
+  for (const entry of Deno.readDirSync(dir)) {
+    const full = `${dir}/${entry.name}`
+    if (entry.isDirectory) {
+      if (entry.name !== 'schemas') walkCapabilityFiles(full, files)
+    } else if (CAPABILITY_EXTENSIONS.some((ext) => entry.name.toLowerCase().endsWith(ext))) {
+      files.push(full)
+    }
+  }
+  return files
+}
+
+/**
+ * Reads capability files from a `capabilities/` directory next to the config,
+ * mirroring the compile-time discovery a Rust app gets from tauri-build
+ * (`capabilities/**` glob). Each file's raw content is a capability-file string
+ * (JSON or TOML; a single capability or a list) handed to `add_capability`.
+ *
+ * The directory is looked up next to the resolved config (then the app entry,
+ * then the bundled resource dir). Returns `[]` when there is none — the app
+ * then falls back to the built-in `core:default` capability.
+ */
+export function resolveCapabilities(dirs: (string | null)[]): string[] {
+  for (const base of dirs) {
+    if (!base) continue
+    const capDir = `${base}/capabilities`
+    try {
+      if (!Deno.statSync(capDir).isDirectory) continue
+    } catch {
+      continue
+    }
+    return walkCapabilityFiles(capDir)
+      .sort()
+      .map((file) => Deno.readTextFileSync(file))
+  }
+  return []
+}
+
 /**
  * Resolves where frontend assets come from, in precedence order: explicit
  * launch options, then the config's `build.frontendDist` (a `.assets` archive

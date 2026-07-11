@@ -208,7 +208,11 @@ impl Interface for Bindings {
     //    rewritten to the bundled archive so it resolves from the resource dir)
     stage_config(dirs.tauri, &options, &resources_dir)?;
 
-    // 4. compile the self-contained binary
+    // 4. stage the capabilities/ directory so the compiled binary keeps its ACL
+    //    grants (the bindings auto-discover it in the resource dir at startup)
+    stage_capabilities(dirs.tauri, &resources_dir)?;
+
+    // 5. compile the self-contained binary
     let bin_path = self.app_settings.app_binary_path(&options, dirs.tauri)?;
     log::info!(action = "Compiling"; "{} app into {}", runner_label(runner), display_path(&bin_path));
     compile_binary(runner, &entry, &bin_path, dirs.tauri)?;
@@ -674,6 +678,38 @@ fn stage_config(tauri_dir: &Path, options: &Options, resources_dir: &Path) -> cr
   Ok(())
 }
 
+/// Stages the `capabilities/` directory (next to the config) into the bundle
+/// resources, so the compiled binary carries the same capabilities it reads in
+/// dev. The bindings auto-discover `<resources>/capabilities/` at startup — the
+/// standalone-binary equivalent of a Rust app embedding its resolved ACL into
+/// the executable. The generic tauri-ffi cdylib stays app-agnostic, so the
+/// capabilities travel beside it as bundle resources, like the config and
+/// packed assets. No `capabilities/` directory means the app falls back to the
+/// built-in `core:default` grant.
+fn stage_capabilities(tauri_dir: &Path, resources_dir: &Path) -> crate::Result<()> {
+  let src = tauri_dir.join("capabilities");
+  if !src.is_dir() {
+    return Ok(());
+  }
+  let dest_root = resources_dir.join("capabilities");
+  for entry in walkdir::WalkDir::new(&src) {
+    let entry = entry.context("failed to read capabilities directory")?;
+    let dest = dest_root.join(entry.path().strip_prefix(&src).unwrap());
+    if entry.file_type().is_dir() {
+      fs::create_dir_all(&dest).fs_context("failed to create capability directory", dest.clone())?;
+    } else {
+      if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)
+          .fs_context("failed to create capability directory", parent.to_path_buf())?;
+      }
+      fs::copy(entry.path(), &dest)
+        .fs_context("failed to stage capability file", entry.path().to_path_buf())?;
+    }
+  }
+  log::info!(action = "Bundling"; "capabilities from {}", display_path(&src));
+  Ok(())
+}
+
 /// Compiles the app into a self-contained binary at `bin_path`.
 fn compile_binary(
   runner: Runner,
@@ -691,8 +727,8 @@ fn compile_binary(
 fn compile_deno(entry: &Path, bin_path: &Path, tauri_dir: &Path) -> crate::Result<()> {
   // Embed the whole project directory so the dynamically-loaded worker module
   // is included (deno compile only auto-follows static imports). Exclude the
-  // build output, packed assets and config so they resolve from the resource
-  // dir at runtime rather than the embedded (stale) copies.
+  // build output, packed assets, config and capabilities so they resolve from
+  // the resource dir at runtime rather than the embedded (stale) copies.
   let mut cmd = Command::new("deno");
   cmd
     .current_dir(tauri_dir)
@@ -702,6 +738,7 @@ fn compile_deno(entry: &Path, bin_path: &Path, tauri_dir: &Path) -> crate::Resul
     .args(["--include", "."])
     .args(["--exclude", "dist"])
     .args(["--exclude", "tauri.conf.json"])
+    .args(["--exclude", "capabilities"])
     .arg(entry);
   run_compiler("deno compile", &mut cmd)
 }

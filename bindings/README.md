@@ -47,9 +47,9 @@ Rust apps (the CLI detects non-cargo projects by the missing `Cargo.toml`):
   runner's native compiler (`deno compile`, PyInstaller, Node Single Executable
   Applications), so it runs on a machine without the language runtime installed —
   just like a Rust `tauri build`. It stages the packed frontend assets, the
-  `tauri-ffi` cdylib and the config as bundle resources next to the binary, then
-  hands everything to `tauri-bundler` for `.app`/`.msi`/`.appimage` packaging.
-  Output goes under `dist/` (not `target/`).
+  `tauri-ffi` cdylib, the config and the `capabilities/` directory as bundle
+  resources next to the binary, then hands everything to `tauri-bundler` for
+  `.app`/`.msi`/`.appimage` packaging. Output goes under `dist/` (not `target/`).
 
   ```sh
   tauri build                       # -> dist/release/bundle/macos/<App>.app
@@ -69,6 +69,18 @@ Rust apps (the CLI detects non-cargo projects by the missing `Cargo.toml`):
 
 `launch()` (and Python's `App()`) auto-discovers `tauri.conf.json` next to the app
 entry, so the same project runs identically with `node main.js` or `tauri dev`.
+
+## Capabilities
+
+Like a Rust app, a bindings project declares its ACL in a `capabilities/` directory
+next to the config. `launch()` / `App()` reads every `*.json`/`*.json5`/`*.toml`
+file there (a `schemas/` subfolder is ignored) and applies it — the runtime
+equivalent of the compile-time discovery `tauri-build` does for a Rust app.
+`tauri build` stages the directory into the bundle resources, so a compiled binary
+keeps the exact same grants; there is nothing to embed at compile time because the
+`tauri-ffi` cdylib is app-agnostic. When no `capabilities/` directory exists, the
+app falls back to granting `core:default` to every window. Inline capabilities
+passed in code (`launch({ capabilities })`) are merged on top.
 
 ## Publishing
 

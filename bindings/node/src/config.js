@@ -6,7 +6,7 @@
 // TAURI_CONFIG environment merging (set by the Tauri CLI in dev mode with the
 // fully merged config) and frontendDist-based asset resolution.
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
@@ -99,6 +99,45 @@ export function resolveConfig(entryDir, explicit) {
   }
 
   return { config, configDir }
+}
+
+// Capability files carry these extensions; a `schemas/` subfolder holds JSON
+// schema files, not capabilities, so it is skipped (mirrors tauri-build).
+const CAPABILITY_EXTENSIONS = new Set(['.json', '.json5', '.toml'])
+
+function walkCapabilityFiles(dir, files = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name !== 'schemas') walkCapabilityFiles(full, files)
+    } else if (CAPABILITY_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+      files.push(full)
+    }
+  }
+  return files
+}
+
+/**
+ * Reads capability files from a `capabilities/` directory next to the config,
+ * mirroring the compile-time discovery a Rust app gets from tauri-build
+ * (`capabilities/**` glob). Each file's raw content is a capability-file string
+ * (JSON or TOML; a single capability or a list) handed to `add_capability`.
+ *
+ * The directory is looked up next to the resolved config (then the app entry,
+ * then the bundled resource dir). Returns `[]` when there is none — the app
+ * then falls back to the built-in `core:default` capability.
+ */
+export function resolveCapabilities(dirs) {
+  for (const base of dirs) {
+    if (!base) continue
+    const capDir = path.join(base, 'capabilities')
+    if (existsSync(capDir) && statSync(capDir).isDirectory()) {
+      return walkCapabilityFiles(capDir)
+        .sort()
+        .map((file) => readFileSync(file, 'utf8'))
+    }
+  }
+  return []
 }
 
 /**

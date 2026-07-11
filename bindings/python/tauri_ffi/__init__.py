@@ -178,6 +178,38 @@ def _resolve_config(explicit: Optional[dict]) -> tuple:
     return config, config_dir
 
 
+# Capability files carry these extensions; a ``schemas/`` subfolder holds JSON
+# schema files, not capabilities, so it is skipped (mirrors tauri-build).
+_CAPABILITY_EXTENSIONS = (".json", ".json5", ".toml")
+
+
+def _resolve_capabilities(dirs) -> list:
+    """Reads capability files from a ``capabilities/`` directory next to the
+    config, mirroring the compile-time discovery a Rust app gets from
+    tauri-build (``capabilities/**`` glob). Each file's raw content is a
+    capability-file string (JSON or TOML; a single capability or a list) handed
+    to ``add_capability``.
+
+    The directory is looked up next to the resolved config (then the main
+    module, then the bundled resource dir). Returns ``[]`` when there is none —
+    the app then falls back to the built-in ``core:default`` capability."""
+    for base in dirs:
+        if base is None:
+            continue
+        cap_dir = Path(base) / "capabilities"
+        if not cap_dir.is_dir():
+            continue
+        files = [
+            p
+            for p in sorted(cap_dir.rglob("*"))
+            if p.is_file()
+            and p.suffix.lower() in _CAPABILITY_EXTENSIONS
+            and "schemas" not in p.relative_to(cap_dir).parts
+        ]
+        return [p.read_text() for p in files]
+    return []
+
+
 def _resolve_assets(
     assets_dir: Optional[os.PathLike],
     assets_archive: Optional[os.PathLike],
@@ -856,7 +888,12 @@ class App:
     ``config`` is optional: when omitted, a ``tauri.conf.json`` next to the
     main module (or in the working directory) is used. The ``TAURI_CONFIG``
     environment variable (set by the Tauri CLI) is deep-merged on top in
-    either case, and ``TAURI_DEV`` enables dev mode."""
+    either case, and ``TAURI_DEV`` enables dev mode.
+
+    ``capabilities`` are merged with any files found in a ``capabilities/``
+    directory next to the config (mirroring a Rust app's compile-time
+    capability discovery); when none are supplied, core:default is granted to
+    all windows."""
 
     def __init__(
         self,
@@ -872,12 +909,16 @@ class App:
         self._assets_dir, self._assets_archive = _resolve_assets(
             assets_dir, assets_archive, self._config, config_dir
         )
+        # Inline capabilities plus any discovered in a `capabilities/` directory
+        # next to the config (compile-time capability files, read at construction).
+        entry_dir = Path(sys.argv[0]).resolve().parent if sys.argv and sys.argv[0] else None
+        discovered = _resolve_capabilities([_bundled_resource_dir(), config_dir, entry_dir])
         # a frozen bundle ignores the TAURI_DEV env override (hermetic in production)
         if dev is not None:
             self._dev = dev
         else:
             self._dev = not _is_bundled() and os.environ.get("TAURI_DEV") == "true"
-        self._capabilities = capabilities or []
+        self._capabilities = list(capabilities or []) + discovered
         self._library = library
         self._commands: dict[str, Callable] = {}
         self._lifecycle: dict[str, list[Callable]] = {}

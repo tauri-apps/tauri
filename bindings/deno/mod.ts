@@ -8,7 +8,7 @@
 // with a live event loop, while this thread parks inside the blocking
 // `tauri_app_run`. See /ffi-bindings-plan.md §3.
 
-import { isBundled, resolveAssets, resolveConfig } from './config.ts'
+import { bundledResourceDir, isBundled, resolveAssets, resolveCapabilities, resolveConfig } from './config.ts'
 import { cstr, ensureLibrary, open } from './ffi.ts'
 import type { Plugin } from './plugin.ts'
 
@@ -29,7 +29,10 @@ export interface LaunchOptions {
   dev?: boolean
   /** Command names handled by the worker. */
   commands?: string[]
-  /** Capability definitions; defaults to granting core:default to all windows. */
+  /** Capability definitions; merged with any files found in a `capabilities/`
+   * directory next to the config (mirroring a Rust app's compile-time
+   * capability discovery). When none are supplied, core:default is granted to
+   * all windows. */
   capabilities?: (object | string)[]
   /** Plugins created with `definePlugin()`; pass the same objects to
    * `app.plugin()` in the worker so their handlers run there. */
@@ -84,7 +87,13 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
   for (const name of options.commands ?? []) {
     check(sym.tauri_app_builder_register_command(builder, cstr(name)), `register_command(${name})`)
   }
-  for (const capability of options.capabilities ?? []) {
+  // Inline capabilities plus any discovered in a `capabilities/` directory
+  // next to the config (compile-time capability files, read at launch).
+  const allCapabilities = [
+    ...(options.capabilities ?? []),
+    ...resolveCapabilities([bundledResourceDir(), configDir, entryDir])
+  ]
+  for (const capability of allCapabilities) {
     const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
     check(sym.tauri_app_builder_add_capability(builder, cstr(json)), 'add_capability')
   }

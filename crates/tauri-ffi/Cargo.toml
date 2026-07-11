@@ -18,6 +18,13 @@ devtools = ["tauri/devtools"]
 [dependencies]
 tauri = { path = "../tauri", features = [
   "unstable",
+  # Compile in "production" mode: tauri decides dev-vs-prod at build time via
+  # the `dev` cfg (`dev = !custom-protocol`, see tauri/build.rs). Without this,
+  # the cdylib is permanently in dev mode and `get_app_url` always serves
+  # `build.devUrl` (blank in a shipped app whose config has a devUrl). We build
+  # once and drive dev-vs-prod at runtime instead: `tauri_app_builder_set_dev`
+  # rewrites `frontend_dist` to the devUrl, which `get_app_url` then uses.
+  "custom-protocol",
   "tray-icon",
   "protocol-asset",
   # `dynamic-acl` is required for runtime capability resolution.

@@ -45,8 +45,9 @@ that runs without Node installed — and packages it with `tauri-bundler`
 cd examples/hello && tauri build   # -> dist/release/bundle/macos/tauri-ffi-hello.app
 ```
 
-Requires Node >= 20.12; uses `esbuild` and `postject` (project installation or
-`npx --yes`). The CLI runs your entry once in trace mode to discover the worker
+Requires Node >= 20.12; uses `esbuild` and `postject`, which ship as
+dependencies of this package (the CLI resolves them from `node_modules/.bin`,
+falling back to `npx --yes`). The CLI runs your entry once in trace mode to discover the worker
 module, bundles the main thread and worker into two CJS scripts (`koffi` is
 rewritten to dlopen the `koffi.node` staged in the bundle's resource dir, since
 native addons can't be embedded), embeds the worker bundle as a SEA asset —

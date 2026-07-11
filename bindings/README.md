@@ -59,8 +59,9 @@ Rust apps (the CLI detects non-cargo projects by the missing `Cargo.toml`):
   dir), so both `dist/release/<App>` and the packaged bundle run standalone. Set
   `TAURI_FFI_LIB` to point the CLI at the cdylib to embed.
 
-  The Node build needs Node >= 20.12 and uses `esbuild` and `postject` (a project
-  installation when present, `npx --yes` otherwise): the CLI runs your entry once in
+  The Node build needs Node >= 20.12 and uses `esbuild` and `postject`, which ship
+  as dependencies of `@tauri-apps/node` (the CLI resolves them from
+  `node_modules/.bin`, falling back to `npx --yes`): the CLI runs your entry once in
   trace mode to learn the worker module, bundles both into self-contained CJS
   scripts (the worker rides along as a SEA asset and is started from source via
   `new Worker(code, { eval: true })`), and injects the blob into a copy of the node

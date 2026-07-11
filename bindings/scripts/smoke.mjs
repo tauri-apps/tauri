@@ -37,4 +37,18 @@ check(api.appBuilderRegisterCommand(outBuilder[0], 'ping'), 'register_command')
 check(api.handleClose(outBuilder[0]), 'handle_close')
 assert.equal(api.handleClose(0), CODES.OK, 'closing an unknown handle is a no-op')
 
+// Platform-gated functions: loading above already proved the symbols resolve
+// on this platform; off-platform they must fail fast with UNSUPPORTED (before
+// even looking at the handle), on-platform with INVALID_HANDLE for handle 0.
+assert.equal(
+  api.appSetDockVisibility(0, true),
+  process.platform === 'darwin' ? CODES.INVALID_HANDLE : CODES.UNSUPPORTED,
+  'macOS-gated function follows its platform contract'
+)
+assert.equal(
+  api.webviewWindowHwnd(0, [0]),
+  process.platform === 'win32' ? CODES.INVALID_HANDLE : CODES.UNSUPPORTED,
+  'Windows-gated function follows its platform contract'
+)
+
 console.log(`smoke ok: tauri-ffi ${version} (abi ${abi}) at ${libPath}`)

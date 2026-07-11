@@ -10,9 +10,22 @@ license = "Apache-2.0 OR MIT"
 name = "tauri_ffi"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+[features]
+# Exposes tauri_window_open_devtools/close_devtools/is_devtools_open in release
+# builds (they are always available in debug builds). Mirrors `tauri/devtools`.
+devtools = ["tauri/devtools"]
+
 [dependencies]
-# `dynamic-acl` (default) is required for runtime capability resolution.
-tauri = { path = "../tauri" }
+tauri = { path = "../tauri", features = [
+  "unstable",
+  "tray-icon",
+  "protocol-asset",
+  # `dynamic-acl` is required for runtime capability resolution.
+  "dynamic-acl",
+  # image decoding for tray icons loaded from a file path (tauri_tray_set_icon).
+  "image-png",
+  "image-ico",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

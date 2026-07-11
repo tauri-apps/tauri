@@ -38,6 +38,14 @@ const rustSource = readdirSync(srcDir)
 const implemented = new Set(
   [...rustSource.matchAll(/extern "C" fn (tauri_\w+)/g)].map((m) => m[1])
 )
+// Also recognize functions produced by the winsupport ffi_* codegen macros
+// (getter/setter/action shims for bare Window and Webview), which the plain
+// `extern "C" fn` scan cannot see because they are macro-expanded.
+for (const m of rustSource.matchAll(
+  /ffi_(?:getter_bool|setter_bool|action|getter_string)!\((tauri_\w+)/g
+)) {
+  implemented.add(m[1])
+}
 const declared = new Set(manifest.functions.map((f) => f.name))
 const missing = [...implemented].filter((name) => !declared.has(name))
 const extra = [...declared].filter((name) => !implemented.has(name))
@@ -54,6 +62,7 @@ const C_PARAM = {
   handle: 'uint64_t',
   str: 'const char *',
   owned_str: 'char *',
+  bytes: 'const uint8_t *', // borrowed byte buffer; may be NULL where documented
   bool: 'bool',
   u32: 'uint32_t',
   i32: 'int32_t',
@@ -61,6 +70,7 @@ const C_PARAM = {
   out_handle: 'uint64_t *',
   out_bool: 'bool *',
   out_u32: 'uint32_t *',
+  out_u64: 'uint64_t *',
   out_i32: 'int32_t *',
   out_f64: 'double *',
   out_owned_str: 'char **'
@@ -74,6 +84,7 @@ const KOFFI_PARAM = {
   out_handle: '_Out_ uint64_t *',
   out_bool: '_Out_ bool *',
   out_u32: '_Out_ uint32_t *',
+  out_u64: '_Out_ uint64_t *',
   out_i32: '_Out_ int32_t *',
   out_f64: '_Out_ double *',
   out_owned_str: '_Out_ void **' // decoded + freed manually (see ffi.js takeString)
@@ -83,6 +94,7 @@ const DENO_PARAM = {
   handle: 'u64',
   str: 'buffer', // null-terminated Uint8Array
   owned_str: 'pointer',
+  bytes: 'buffer', // raw Uint8Array (or null where documented)
   bool: 'bool',
   u32: 'u32',
   i32: 'i32',
@@ -90,6 +102,7 @@ const DENO_PARAM = {
   out_handle: 'buffer',
   out_bool: 'buffer',
   out_u32: 'buffer',
+  out_u64: 'buffer',
   out_i32: 'buffer',
   out_f64: 'buffer',
   out_owned_str: 'buffer'
@@ -124,8 +137,14 @@ const wrap = (text, width, prefix) => {
   return lines.map((l) => `${prefix}${l}`).join('\n')
 }
 
+const PLATFORM_NAMES = { macos: 'macOS', windows: 'Windows', linux: 'Linux' }
+
 const contractNote = (fn) => {
   const notes = []
+  if (fn.platforms) {
+    const names = fn.platforms.map((p) => PLATFORM_NAMES[p] ?? p).join(', ')
+    notes.push(`Platform-specific: ${names} only — the symbol exists everywhere but returns TAURI_ERR_UNSUPPORTED on other platforms.`)
+  }
   if (fn.thread === 'main') notes.push('Thread: same thread as tauri_app_build (process main thread on macOS).')
   if (fn.blocking) notes.push('Blocks the calling thread.')
   return notes.join(' ')

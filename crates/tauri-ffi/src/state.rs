@@ -49,6 +49,11 @@ pub enum Entry {
   Plugin(PluginState),
   App(Arc<AppState>),
   Window(tauri::WebviewWindow<Wry>),
+  BareWindow(tauri::Window<Wry>),
+  Webview(tauri::Webview<Wry>),
+  Menu(tauri::menu::Menu<Wry>),
+  MenuItem(tauri::menu::MenuItemKind<Wry>),
+  Tray(tauri::tray::TrayIcon<Wry>),
   Resolver(InvokeResolver<Wry>),
 }
 
@@ -79,6 +84,41 @@ pub fn app(id: u64) -> Option<Arc<AppState>> {
 pub fn window(id: u64) -> Option<tauri::WebviewWindow<Wry>> {
   match registry().lock().unwrap().get(&id) {
     Some(Entry::Window(window)) => Some(window.clone()),
+    _ => None,
+  }
+}
+
+pub fn bare_window(id: u64) -> Option<tauri::Window<Wry>> {
+  match registry().lock().unwrap().get(&id) {
+    Some(Entry::BareWindow(window)) => Some(window.clone()),
+    _ => None,
+  }
+}
+
+pub fn webview(id: u64) -> Option<tauri::Webview<Wry>> {
+  match registry().lock().unwrap().get(&id) {
+    Some(Entry::Webview(webview)) => Some(webview.clone()),
+    _ => None,
+  }
+}
+
+pub fn menu(id: u64) -> Option<tauri::menu::Menu<Wry>> {
+  match registry().lock().unwrap().get(&id) {
+    Some(Entry::Menu(menu)) => Some(menu.clone()),
+    _ => None,
+  }
+}
+
+pub fn menu_item(id: u64) -> Option<tauri::menu::MenuItemKind<Wry>> {
+  match registry().lock().unwrap().get(&id) {
+    Some(Entry::MenuItem(item)) => Some(item.clone()),
+    _ => None,
+  }
+}
+
+pub fn tray(id: u64) -> Option<tauri::tray::TrayIcon<Wry>> {
+  match registry().lock().unwrap().get(&id) {
+    Some(Entry::Tray(tray)) => Some(tray.clone()),
     _ => None,
   }
 }

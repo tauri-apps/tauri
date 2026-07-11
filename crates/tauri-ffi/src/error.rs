@@ -17,8 +17,20 @@ pub const ERR_INVALID_HANDLE: i32 = -2;
 pub const ERR_TIMEOUT: i32 = -3;
 pub const ERR_CLOSED: i32 = -4;
 pub const ERR_INVALID_ARG: i32 = -5;
+pub const ERR_UNSUPPORTED: i32 = -6;
 pub const ERR_PANIC: i32 = -7;
 pub const ERR_NOT_FOUND: i32 = -8;
+
+/// Standard failure for a platform-gated function called on a platform it
+/// does not support. Every gated function still exists on every platform, so
+/// the exported symbol table — and therefore the ABI — is identical across
+/// targets; only the behavior differs.
+pub fn unsupported(function: &str, platforms: &str) -> i32 {
+  fail(
+    ERR_UNSUPPORTED,
+    format!("{function} is only supported on {platforms}"),
+  )
+}
 
 thread_local! {
   static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };

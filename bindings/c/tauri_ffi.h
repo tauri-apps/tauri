@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#define TAURI_FFI_ABI_VERSION 4
+#define TAURI_FFI_ABI_VERSION 8
 
 #define TAURI_OK 0 /* Success. */
 #define TAURI_ERR_GENERIC -1 /* Operation failed; details via tauri_last_error_message. */
@@ -40,6 +40,7 @@ extern "C" {
 #define TAURI_ERR_TIMEOUT -3 /* tauri_events_next timed out with no message. */
 #define TAURI_ERR_CLOSED -4 /* The app has shut down; no more messages. */
 #define TAURI_ERR_INVALID_ARG -5 /* Null pointer, invalid UTF-8 or malformed JSON argument. */
+#define TAURI_ERR_UNSUPPORTED -6 /* The function is not supported on the current platform (see its `platforms` contract). */
 #define TAURI_ERR_PANIC -7 /* Rust panic caught at the FFI boundary. */
 #define TAURI_ERR_NOT_FOUND -8 /* No object with the requested label/name. */
 
@@ -209,198 +210,1242 @@ int32_t tauri_invoke_reject(uint64_t resolver, const char *json);
  * ready event). On OK, *out_window is a window handle; release with
  * tauri_handle_close. Blocks the calling thread.
  */
-int32_t tauri_window_create(uint64_t app, const char *config_json, uint64_t *out_window);
+int32_t tauri_webview_window_create(uint64_t app, const char *config_json, uint64_t *out_window);
 
 /*
  * Looks up the webview window with the given label. Returns ERR_NOT_FOUND if
  * no such window exists. On OK, *out_window is a window handle; release with
  * tauri_handle_close.
  */
-int32_t tauri_app_get_window(uint64_t app, const char *label, uint64_t *out_window);
+int32_t tauri_app_get_webview_window(uint64_t app, const char *label, uint64_t *out_window);
 
 /*
  * Labels of all webview windows, as an owned JSON string array.
  */
-int32_t tauri_app_window_labels(uint64_t app, char **out_labels_json);
+int32_t tauri_app_webview_window_labels(uint64_t app, char **out_labels_json);
 
 /*
  * The window's label, as an owned string.
  */
-int32_t tauri_window_label(uint64_t window, char **out_label);
+int32_t tauri_webview_window_label(uint64_t window, char **out_label);
 
 /*
  * The window's current title, as an owned string.
  */
-int32_t tauri_window_title(uint64_t window, char **out_title);
+int32_t tauri_webview_window_title(uint64_t window, char **out_title);
 
 /*
  * The webview's current URL, as an owned string.
  */
-int32_t tauri_window_url(uint64_t window, char **out_url);
+int32_t tauri_webview_window_url(uint64_t window, char **out_url);
 
 /*
  * The window's DPI scale factor.
  */
-int32_t tauri_window_scale_factor(uint64_t window, double *out_scale);
+int32_t tauri_webview_window_scale_factor(uint64_t window, double *out_scale);
 
 /*
  * The window's client-area size, in physical pixels.
  */
-int32_t tauri_window_inner_size(uint64_t window, uint32_t *out_width, uint32_t *out_height);
+int32_t tauri_webview_window_inner_size(uint64_t window, uint32_t *out_width, uint32_t *out_height);
 
 /*
  * The window's outer size (including decorations), in physical pixels.
  */
-int32_t tauri_window_outer_size(uint64_t window, uint32_t *out_width, uint32_t *out_height);
+int32_t tauri_webview_window_outer_size(uint64_t window, uint32_t *out_width, uint32_t *out_height);
 
 /*
  * The position of the window's client area, in physical pixels.
  */
-int32_t tauri_window_inner_position(uint64_t window, int32_t *out_x, int32_t *out_y);
+int32_t tauri_webview_window_inner_position(uint64_t window, int32_t *out_x, int32_t *out_y);
 
 /*
  * The position of the window's top-left corner, in physical pixels.
  */
-int32_t tauri_window_outer_position(uint64_t window, int32_t *out_x, int32_t *out_y);
+int32_t tauri_webview_window_outer_position(uint64_t window, int32_t *out_x, int32_t *out_y);
 
 /*
  * Whether the window is currently visible.
  */
-int32_t tauri_window_is_visible(uint64_t window, bool *out_visible);
+int32_t tauri_webview_window_is_visible(uint64_t window, bool *out_visible);
 
 /*
  * Whether the window currently has focus.
  */
-int32_t tauri_window_is_focused(uint64_t window, bool *out_focused);
+int32_t tauri_webview_window_is_focused(uint64_t window, bool *out_focused);
 
 /*
  * Whether the window is in fullscreen mode.
  */
-int32_t tauri_window_is_fullscreen(uint64_t window, bool *out_fullscreen);
+int32_t tauri_webview_window_is_fullscreen(uint64_t window, bool *out_fullscreen);
 
 /*
  * Whether the window is maximized.
  */
-int32_t tauri_window_is_maximized(uint64_t window, bool *out_maximized);
+int32_t tauri_webview_window_is_maximized(uint64_t window, bool *out_maximized);
 
 /*
  * Whether the window is minimized.
  */
-int32_t tauri_window_is_minimized(uint64_t window, bool *out_minimized);
+int32_t tauri_webview_window_is_minimized(uint64_t window, bool *out_minimized);
 
 /*
  * Whether the window is resizable.
  */
-int32_t tauri_window_is_resizable(uint64_t window, bool *out_resizable);
+int32_t tauri_webview_window_is_resizable(uint64_t window, bool *out_resizable);
 
 /*
  * Sets the window title.
  */
-int32_t tauri_window_set_title(uint64_t window, const char *title);
+int32_t tauri_webview_window_set_title(uint64_t window, const char *title);
 
 /*
  * Resizes the window. physical=true interprets width/height as physical
  * pixels, otherwise as logical (DPI-scaled) pixels.
  */
-int32_t tauri_window_set_size(uint64_t window, double width, double height, bool physical);
+int32_t tauri_webview_window_set_size(uint64_t window, double width, double height, bool physical);
 
 /*
  * Moves the window. physical=true interprets x/y as physical pixels, otherwise
  * as logical (DPI-scaled) pixels.
  */
-int32_t tauri_window_set_position(uint64_t window, double x, double y, bool physical);
+int32_t tauri_webview_window_set_position(uint64_t window, double x, double y, bool physical);
 
 /*
  * Enters or leaves fullscreen mode.
  */
-int32_t tauri_window_set_fullscreen(uint64_t window, bool fullscreen);
+int32_t tauri_webview_window_set_fullscreen(uint64_t window, bool fullscreen);
 
 /*
  * Enables or disables window resizing.
  */
-int32_t tauri_window_set_resizable(uint64_t window, bool resizable);
+int32_t tauri_webview_window_set_resizable(uint64_t window, bool resizable);
 
 /*
  * Keeps the window above all other windows, or stops doing so.
  */
-int32_t tauri_window_set_always_on_top(uint64_t window, bool always_on_top);
+int32_t tauri_webview_window_set_always_on_top(uint64_t window, bool always_on_top);
 
 /*
  * Shows or hides the window decorations (title bar, borders).
  */
-int32_t tauri_window_set_decorations(uint64_t window, bool decorations);
+int32_t tauri_webview_window_set_decorations(uint64_t window, bool decorations);
 
 /*
  * Brings the window to front and focuses it.
  */
-int32_t tauri_window_set_focus(uint64_t window);
+int32_t tauri_webview_window_set_focus(uint64_t window);
 
 /*
  * Sets the webview zoom level (1.0 = 100%).
  */
-int32_t tauri_window_set_zoom(uint64_t window, double scale);
+int32_t tauri_webview_window_set_zoom(uint64_t window, double scale);
 
 /*
  * Makes the window visible.
  */
-int32_t tauri_window_show(uint64_t window);
+int32_t tauri_webview_window_show(uint64_t window);
 
 /*
  * Hides the window.
  */
-int32_t tauri_window_hide(uint64_t window);
+int32_t tauri_webview_window_hide(uint64_t window);
 
 /*
  * Centers the window on its current monitor.
  */
-int32_t tauri_window_center(uint64_t window);
+int32_t tauri_webview_window_center(uint64_t window);
 
 /*
  * Maximizes the window.
  */
-int32_t tauri_window_maximize(uint64_t window);
+int32_t tauri_webview_window_maximize(uint64_t window);
 
 /*
  * Restores the window from the maximized state.
  */
-int32_t tauri_window_unmaximize(uint64_t window);
+int32_t tauri_webview_window_unmaximize(uint64_t window);
 
 /*
  * Minimizes the window.
  */
-int32_t tauri_window_minimize(uint64_t window);
+int32_t tauri_webview_window_minimize(uint64_t window);
 
 /*
  * Restores the window from the minimized state.
  */
-int32_t tauri_window_unminimize(uint64_t window);
+int32_t tauri_webview_window_unminimize(uint64_t window);
 
 /*
  * Requests the window to close (triggers close-requested handling). The window
  * handle stays valid until released with tauri_handle_close.
  */
-int32_t tauri_window_close(uint64_t window);
+int32_t tauri_webview_window_close(uint64_t window);
 
 /*
  * Destroys the window unconditionally (no close-requested event). The window
  * handle stays valid until released with tauri_handle_close.
  */
-int32_t tauri_window_destroy(uint64_t window);
+int32_t tauri_webview_window_destroy(uint64_t window);
 
 /*
  * Evaluates JavaScript in the window's webview.
  */
-int32_t tauri_window_eval(uint64_t window, const char *js);
+int32_t tauri_webview_window_eval(uint64_t window, const char *js);
 
 /*
  * Navigates the webview to the given URL.
  */
-int32_t tauri_window_navigate(uint64_t window, const char *url);
+int32_t tauri_webview_window_navigate(uint64_t window, const char *url);
 
 /*
  * Reloads the webview's current page.
  */
-int32_t tauri_window_reload(uint64_t window);
+int32_t tauri_webview_window_reload(uint64_t window);
+
+/*
+ * Whether the window has decorations (title bar, borders).
+ */
+int32_t tauri_webview_window_is_decorated(uint64_t window, bool *out_decorated);
+
+/*
+ * Whether the window's native close button is enabled.
+ */
+int32_t tauri_webview_window_is_closable(uint64_t window, bool *out_closable);
+
+/*
+ * Whether the window's native maximize button is enabled.
+ */
+int32_t tauri_webview_window_is_maximizable(uint64_t window, bool *out_maximizable);
+
+/*
+ * Whether the window's native minimize button is enabled.
+ */
+int32_t tauri_webview_window_is_minimizable(uint64_t window, bool *out_minimizable);
+
+/*
+ * Whether the window is set to always stay above other windows.
+ */
+int32_t tauri_webview_window_is_always_on_top(uint64_t window, bool *out_always_on_top);
+
+/*
+ * Whether the window is enabled (accepts user input).
+ */
+int32_t tauri_webview_window_is_enabled(uint64_t window, bool *out_enabled);
+
+/*
+ * Whether the window menu is currently visible. Unsupported on macOS.
+ */
+int32_t tauri_webview_window_is_menu_visible(uint64_t window, bool *out_visible);
+
+/*
+ * Whether the webview devtools window is open. Requires a debug build or the
+ * tauri-ffi `devtools` feature; otherwise fails.
+ */
+int32_t tauri_webview_window_is_devtools_open(uint64_t window, bool *out_open);
+
+/*
+ * The window's current theme ("light" or "dark"), as an owned string.
+ */
+int32_t tauri_webview_window_theme(uint64_t window, char **out_theme);
+
+/*
+ * Enables or disables the window's native close button.
+ */
+int32_t tauri_webview_window_set_closable(uint64_t window, bool closable);
+
+/*
+ * Enables or disables the window's native maximize button.
+ */
+int32_t tauri_webview_window_set_maximizable(uint64_t window, bool maximizable);
+
+/*
+ * Enables or disables the window's native minimize button.
+ */
+int32_t tauri_webview_window_set_minimizable(uint64_t window, bool minimizable);
+
+/*
+ * Keeps the window below all other windows, or stops doing so.
+ */
+int32_t tauri_webview_window_set_always_on_bottom(uint64_t window, bool always_on_bottom);
+
+/*
+ * Prevents the window content from being captured by other apps (screenshots,
+ * screen recording).
+ */
+int32_t tauri_webview_window_set_content_protected(uint64_t window, bool protected);
+
+/*
+ * Whether to keep the window out of the taskbar / dock.
+ */
+int32_t tauri_webview_window_set_skip_taskbar(uint64_t window, bool skip);
+
+/*
+ * Enables or disables the window shadow.
+ */
+int32_t tauri_webview_window_set_shadow(uint64_t window, bool enable);
+
+/*
+ * Whether the window is shown on all workspaces / virtual desktops.
+ */
+int32_t tauri_webview_window_set_visible_on_all_workspaces(uint64_t window, bool visible);
+
+/*
+ * When enabled, the window ignores mouse events and passes them to windows
+ * underneath.
+ */
+int32_t tauri_webview_window_set_ignore_cursor_events(uint64_t window, bool ignore);
+
+/*
+ * Shows or hides the cursor over the window.
+ */
+int32_t tauri_webview_window_set_cursor_visible(uint64_t window, bool visible);
+
+/*
+ * Grabs or releases the cursor, confining it to the window when grabbed.
+ */
+int32_t tauri_webview_window_set_cursor_grab(uint64_t window, bool grab);
+
+/*
+ * Enables or disables the window (whether it accepts user input).
+ */
+int32_t tauri_webview_window_set_enabled(uint64_t window, bool enabled);
+
+/*
+ * Whether the window can receive focus.
+ */
+int32_t tauri_webview_window_set_focusable(uint64_t window, bool focusable);
+
+/*
+ * Enters or leaves simple fullscreen mode. On macOS uses native simple
+ * fullscreen; other platforms fall back to regular fullscreen.
+ */
+int32_t tauri_webview_window_set_simple_fullscreen(uint64_t window, bool enable);
+
+/*
+ * Sets the window's minimum size. physical=true interprets width/height as
+ * physical pixels, otherwise as logical (DPI-scaled) pixels. width<=0 or
+ * height<=0 clears the constraint.
+ */
+int32_t tauri_webview_window_set_min_size(uint64_t window, double width, double height, bool physical);
+
+/*
+ * Sets the window's maximum size. physical=true interprets width/height as
+ * physical pixels, otherwise as logical (DPI-scaled) pixels. width<=0 or
+ * height<=0 clears the constraint.
+ */
+int32_t tauri_webview_window_set_max_size(uint64_t window, double width, double height, bool physical);
+
+/*
+ * Moves the cursor to the given position, relative to the window's top-left
+ * corner. physical=true interprets x/y as physical pixels, otherwise as
+ * logical (DPI-scaled) pixels.
+ */
+int32_t tauri_webview_window_set_cursor_position(uint64_t window, double x, double y, bool physical);
+
+/*
+ * Sets the window theme. Pass "light" or "dark"; an empty string follows the
+ * system theme.
+ */
+int32_t tauri_webview_window_set_theme(uint64_t window, const char *theme);
+
+/*
+ * Sets the cursor icon (e.g. "default", "pointer", "crosshair", "grab",
+ * "wait"; unknown names fall back to the default).
+ */
+int32_t tauri_webview_window_set_cursor_icon(uint64_t window, const char *icon);
+
+/*
+ * Requests the user's attention on the window. Pass "critical" or
+ * "informational"; an empty string cancels the request.
+ */
+int32_t tauri_webview_window_request_user_attention(uint64_t window, const char *kind);
+
+/*
+ * Sets the taskbar/dock progress bar from a ProgressBarState JSON object, e.g.
+ * {"status":"normal","progress":42}.
+ */
+int32_t tauri_webview_window_set_progress_bar(uint64_t window, const char *state_json);
+
+/*
+ * Applies window effects from a WindowEffectsConfig JSON object (requires a
+ * transparent window). Pass "null" or an empty string to clear effects.
+ */
+int32_t tauri_webview_window_set_effects(uint64_t window, const char *effects_json);
+
+/*
+ * Sets the window size constraints from a WindowSizeConstraints JSON object,
+ * e.g. {"minWidth":{"Logical":400}}.
+ */
+int32_t tauri_webview_window_set_size_constraints(uint64_t window, const char *constraints_json);
+
+/*
+ * Sets the window background color. Each channel is 0-255 (values above 255
+ * are clamped).
+ */
+int32_t tauri_webview_window_set_background_color(uint64_t window, uint32_t r, uint32_t g, uint32_t b, uint32_t a);
+
+/*
+ * Sets the app badge count shown on this window's taskbar/dock icon. A
+ * negative count clears the badge. Unsupported on Windows (use a badge label).
+ */
+int32_t tauri_webview_window_set_badge_count(uint64_t window, int32_t count);
+
+/*
+ * Sets the badge label shown on the app's dock icon. An empty string clears
+ * the label. Platform-specific: macOS only — the symbol exists everywhere but
+ * returns TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_webview_window_set_badge_label(uint64_t window, const char *label);
+
+/*
+ * Sets the title bar style. Pass "visible", "transparent" or "overlay".
+ * Platform-specific: macOS only — the symbol exists everywhere but returns
+ * TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_webview_window_set_title_bar_style(uint64_t window, const char *style);
+
+/*
+ * Sets the taskbar overlay icon from RGBA pixel data (width*height*4 bytes).
+ * Pass NULL rgba to clear it. Platform-specific: Windows only — the symbol
+ * exists everywhere but returns TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_webview_window_set_overlay_icon(uint64_t window, const uint8_t *rgba, uint32_t width, uint32_t height);
+
+/*
+ * The NSWindow pointer backing the window, as an integer. Platform-specific:
+ * macOS only — the symbol exists everywhere but returns TAURI_ERR_UNSUPPORTED
+ * on other platforms.
+ */
+int32_t tauri_webview_window_ns_window(uint64_t window, uint64_t *out_ns_window);
+
+/*
+ * The NSView pointer backing the window's content view, as an integer.
+ * Platform-specific: macOS only — the symbol exists everywhere but returns
+ * TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_webview_window_ns_view(uint64_t window, uint64_t *out_ns_view);
+
+/*
+ * The window's HWND, as an integer. Platform-specific: Windows only — the
+ * symbol exists everywhere but returns TAURI_ERR_UNSUPPORTED on other
+ * platforms.
+ */
+int32_t tauri_webview_window_hwnd(uint64_t window, uint64_t *out_hwnd);
+
+/*
+ * Starts dragging the window (call from a mouse-down handler).
+ */
+int32_t tauri_webview_window_start_dragging(uint64_t window);
+
+/*
+ * Opens the print dialog for the webview.
+ */
+int32_t tauri_webview_window_print(uint64_t window);
+
+/*
+ * Clears all browsing data (cookies, storage, cache) for this webview.
+ */
+int32_t tauri_webview_window_clear_all_browsing_data(uint64_t window);
+
+/*
+ * Hides the window menu. Unsupported on macOS.
+ */
+int32_t tauri_webview_window_hide_menu(uint64_t window);
+
+/*
+ * Shows the window menu. Unsupported on macOS.
+ */
+int32_t tauri_webview_window_show_menu(uint64_t window);
+
+/*
+ * Opens the webview devtools window. Requires a debug build or the tauri-ffi
+ * `devtools` feature; otherwise fails.
+ */
+int32_t tauri_webview_window_open_devtools(uint64_t window);
+
+/*
+ * Closes the webview devtools window. Requires a debug build or the tauri-ffi
+ * `devtools` feature; otherwise fails.
+ */
+int32_t tauri_webview_window_close_devtools(uint64_t window);
+
+/*
+ * The monitor the window is currently on, as an owned Monitor JSON object (or
+ * "null" if it could not be detected).
+ */
+int32_t tauri_webview_window_current_monitor(uint64_t window, char **out_monitor_json);
+
+/*
+ * The primary monitor, as an owned Monitor JSON object (or "null" if none).
+ */
+int32_t tauri_webview_window_primary_monitor(uint64_t window, char **out_monitor_json);
+
+/*
+ * All available monitors, as an owned JSON array of Monitor objects.
+ */
+int32_t tauri_webview_window_available_monitors(uint64_t window, char **out_monitors_json);
+
+/*
+ * The monitor containing the given physical point, as an owned Monitor JSON
+ * object (or "null" if none).
+ */
+int32_t tauri_webview_window_monitor_from_point(uint64_t window, double x, double y, char **out_monitor_json);
+
+/*
+ * The current cursor position, in physical pixels.
+ */
+int32_t tauri_webview_window_cursor_position(uint64_t window, double *out_x, double *out_y);
+
+/*
+ * The app's resolved configuration, as an owned JSON string (tauri.conf.json
+ * shape).
+ */
+int32_t tauri_app_config(uint64_t app, char **out_config_json);
+
+/*
+ * The app package info, as an owned JSON object {name, version, authors,
+ * description, crateName}.
+ */
+int32_t tauri_app_package_info(uint64_t app, char **out_info_json);
+
+/*
+ * Resolves a platform base directory by name (Manager::path). kind mirrors the
+ * PathResolver methods in camelCase: appConfig, appData, appLocalData,
+ * appCache, appLog, audio, cache, config, data, localData, desktop, document,
+ * download, executable, font, home, picture, public, resource, runtime,
+ * template, video, temp. On OK, *out_path is an owned path string.
+ */
+int32_t tauri_app_path(uint64_t app, const char *kind, char **out_path);
+
+/*
+ * The webview window that currently has focus. Returns ERR_NOT_FOUND if none.
+ * On OK, *out_window is a window handle; release with tauri_handle_close.
+ */
+int32_t tauri_app_get_focused_window(uint64_t app, uint64_t *out_window);
+
+/*
+ * Adds a capability to the running app (JSON or TOML string, capability file
+ * format). Requires the dynamic-acl feature.
+ */
+int32_t tauri_app_add_capability(uint64_t app, const char *capability);
+
+/*
+ * Subscribes to an event and removes the subscription after the first
+ * delivery. Deliveries arrive on the event queue as {"type":"event",...}.
+ */
+int32_t tauri_app_once(uint64_t app, const char *event, uint32_t *out_listener);
+
+/*
+ * Sets the app-wide theme. Pass "light" or "dark"; an empty string follows the
+ * system theme.
+ */
+int32_t tauri_app_set_theme(uint64_t app, const char *theme);
+
+/*
+ * The current cursor position, in physical pixels (screen coordinates).
+ */
+int32_t tauri_app_cursor_position(uint64_t app, double *out_x, double *out_y);
+
+/*
+ * Requests an app restart (triggers exit-requested with the restart exit code,
+ * then exits and relaunches). Delivered through the event queue like a normal
+ * exit.
+ */
+int32_t tauri_app_request_restart(uint64_t app);
+
+/*
+ * Sets the macOS activation policy: "regular" (normal app with a Dock icon),
+ * "accessory" (no Dock icon — menu-bar style apps) or "prohibited".
+ * Platform-specific: macOS only — the symbol exists everywhere but returns
+ * TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_app_set_activation_policy(uint64_t app, const char *policy);
+
+/*
+ * Shows or hides the app's Dock icon. Platform-specific: macOS only — the
+ * symbol exists everywhere but returns TAURI_ERR_UNSUPPORTED on other
+ * platforms.
+ */
+int32_t tauri_app_set_dock_visibility(uint64_t app, bool visible);
+
+/*
+ * Shows the application (all windows), without automatically focusing it.
+ * Platform-specific: macOS only — the symbol exists everywhere but returns
+ * TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_app_show(uint64_t app);
+
+/*
+ * Hides the application (all windows), like Cmd+H. Platform-specific: macOS
+ * only — the symbol exists everywhere but returns TAURI_ERR_UNSUPPORTED on
+ * other platforms.
+ */
+int32_t tauri_app_hide(uint64_t app);
+
+/*
+ * Creates a system tray icon while the app runs. id names the tray (empty =
+ * auto-assigned). Tray events arrive on the event queue as
+ * {"type":"tray-event","id":...,"event":{...}}. On OK, *out_tray is a tray
+ * handle; release with tauri_handle_close (dropping the last handle removes
+ * the icon).
+ */
+int32_t tauri_tray_new(uint64_t app, const char *id, uint64_t *out_tray);
+
+/*
+ * The tray's id, as an owned string.
+ */
+int32_t tauri_tray_id(uint64_t tray, char **out_id);
+
+/*
+ * Sets the tray icon from an image file (PNG or ICO). An empty path clears it.
+ */
+int32_t tauri_tray_set_icon(uint64_t tray, const char *path);
+
+/*
+ * Whether the icon is treated as a macOS template image (auto-recolored for
+ * light/dark menu bars).
+ */
+int32_t tauri_tray_set_icon_as_template(uint64_t tray, bool is_template);
+
+/*
+ * Sets the tray tooltip. An empty string clears it.
+ */
+int32_t tauri_tray_set_tooltip(uint64_t tray, const char *tooltip);
+
+/*
+ * Sets the tray title (shown next to the icon on macOS/Linux). An empty string
+ * clears it.
+ */
+int32_t tauri_tray_set_title(uint64_t tray, const char *title);
+
+/*
+ * Shows or hides the tray icon.
+ */
+int32_t tauri_tray_set_visible(uint64_t tray, bool visible);
+
+/*
+ * Whether a left click opens the tray menu (when one is attached).
+ */
+int32_t tauri_tray_set_show_menu_on_left_click(uint64_t tray, bool enable);
+
+/*
+ * Removes the tray with the given id from the app, if present. Idempotent.
+ */
+int32_t tauri_app_remove_tray_by_id(uint64_t app, const char *id);
+
+/*
+ * Window create. Blocks the calling thread.
+ */
+int32_t tauri_window_create(uint64_t app, const char *config_json, uint64_t *out_window);
+
+/*
+ * Window add webview. Blocks the calling thread.
+ */
+int32_t tauri_window_add_webview(uint64_t window, const char *config_json, double x, double y, double width, double height, bool physical, uint64_t *out_webview);
+
+/*
+ * Window webviews.
+ */
+int32_t tauri_window_webviews(uint64_t window, char **out_labels_json);
+
+/*
+ * App get window.
+ */
+int32_t tauri_app_get_window(uint64_t app, const char *label, uint64_t *out_window);
+
+/*
+ * App window labels.
+ */
+int32_t tauri_app_window_labels(uint64_t app, char **out_labels_json);
+
+/*
+ * Window label.
+ */
+int32_t tauri_window_label(uint64_t window, char **out_label);
+
+/*
+ * Window title.
+ */
+int32_t tauri_window_title(uint64_t window, char **out);
+
+/*
+ * Window theme.
+ */
+int32_t tauri_window_theme(uint64_t window, char **out_theme);
+
+/*
+ * Window scale factor.
+ */
+int32_t tauri_window_scale_factor(uint64_t window, double *out_scale);
+
+/*
+ * Window inner size.
+ */
+int32_t tauri_window_inner_size(uint64_t window, uint32_t *out_w, uint32_t *out_h);
+
+/*
+ * Window outer size.
+ */
+int32_t tauri_window_outer_size(uint64_t window, uint32_t *out_w, uint32_t *out_h);
+
+/*
+ * Window inner position.
+ */
+int32_t tauri_window_inner_position(uint64_t window, int32_t *out_x, int32_t *out_y);
+
+/*
+ * Window outer position.
+ */
+int32_t tauri_window_outer_position(uint64_t window, int32_t *out_x, int32_t *out_y);
+
+/*
+ * Window cursor position.
+ */
+int32_t tauri_window_cursor_position(uint64_t window, double *out_x, double *out_y);
+
+/*
+ * Window is visible.
+ */
+int32_t tauri_window_is_visible(uint64_t window, bool *out);
+
+/*
+ * Window is focused.
+ */
+int32_t tauri_window_is_focused(uint64_t window, bool *out);
+
+/*
+ * Window is fullscreen.
+ */
+int32_t tauri_window_is_fullscreen(uint64_t window, bool *out);
+
+/*
+ * Window is maximized.
+ */
+int32_t tauri_window_is_maximized(uint64_t window, bool *out);
+
+/*
+ * Window is minimized.
+ */
+int32_t tauri_window_is_minimized(uint64_t window, bool *out);
+
+/*
+ * Window is resizable.
+ */
+int32_t tauri_window_is_resizable(uint64_t window, bool *out);
+
+/*
+ * Window is decorated.
+ */
+int32_t tauri_window_is_decorated(uint64_t window, bool *out);
+
+/*
+ * Window is closable.
+ */
+int32_t tauri_window_is_closable(uint64_t window, bool *out);
+
+/*
+ * Window is maximizable.
+ */
+int32_t tauri_window_is_maximizable(uint64_t window, bool *out);
+
+/*
+ * Window is minimizable.
+ */
+int32_t tauri_window_is_minimizable(uint64_t window, bool *out);
+
+/*
+ * Window is always on top.
+ */
+int32_t tauri_window_is_always_on_top(uint64_t window, bool *out);
+
+/*
+ * Window is enabled.
+ */
+int32_t tauri_window_is_enabled(uint64_t window, bool *out);
+
+/*
+ * Window is menu visible.
+ */
+int32_t tauri_window_is_menu_visible(uint64_t window, bool *out);
+
+/*
+ * Window set fullscreen.
+ */
+int32_t tauri_window_set_fullscreen(uint64_t window, bool value);
+
+/*
+ * Window set resizable.
+ */
+int32_t tauri_window_set_resizable(uint64_t window, bool value);
+
+/*
+ * Window set always on top.
+ */
+int32_t tauri_window_set_always_on_top(uint64_t window, bool value);
+
+/*
+ * Window set decorations.
+ */
+int32_t tauri_window_set_decorations(uint64_t window, bool value);
+
+/*
+ * Window set closable.
+ */
+int32_t tauri_window_set_closable(uint64_t window, bool value);
+
+/*
+ * Window set maximizable.
+ */
+int32_t tauri_window_set_maximizable(uint64_t window, bool value);
+
+/*
+ * Window set minimizable.
+ */
+int32_t tauri_window_set_minimizable(uint64_t window, bool value);
+
+/*
+ * Window set always on bottom.
+ */
+int32_t tauri_window_set_always_on_bottom(uint64_t window, bool value);
+
+/*
+ * Window set content protected.
+ */
+int32_t tauri_window_set_content_protected(uint64_t window, bool value);
+
+/*
+ * Window set skip taskbar.
+ */
+int32_t tauri_window_set_skip_taskbar(uint64_t window, bool value);
+
+/*
+ * Window set shadow.
+ */
+int32_t tauri_window_set_shadow(uint64_t window, bool value);
+
+/*
+ * Window set visible on all workspaces.
+ */
+int32_t tauri_window_set_visible_on_all_workspaces(uint64_t window, bool value);
+
+/*
+ * Window set ignore cursor events.
+ */
+int32_t tauri_window_set_ignore_cursor_events(uint64_t window, bool value);
+
+/*
+ * Window set cursor visible.
+ */
+int32_t tauri_window_set_cursor_visible(uint64_t window, bool value);
+
+/*
+ * Window set cursor grab.
+ */
+int32_t tauri_window_set_cursor_grab(uint64_t window, bool value);
+
+/*
+ * Window set enabled.
+ */
+int32_t tauri_window_set_enabled(uint64_t window, bool value);
+
+/*
+ * Window set focusable.
+ */
+int32_t tauri_window_set_focusable(uint64_t window, bool value);
+
+/*
+ * Window set simple fullscreen.
+ */
+int32_t tauri_window_set_simple_fullscreen(uint64_t window, bool value);
+
+/*
+ * Window set focus.
+ */
+int32_t tauri_window_set_focus(uint64_t window);
+
+/*
+ * Window show.
+ */
+int32_t tauri_window_show(uint64_t window);
+
+/*
+ * Window hide.
+ */
+int32_t tauri_window_hide(uint64_t window);
+
+/*
+ * Window center.
+ */
+int32_t tauri_window_center(uint64_t window);
+
+/*
+ * Window maximize.
+ */
+int32_t tauri_window_maximize(uint64_t window);
+
+/*
+ * Window unmaximize.
+ */
+int32_t tauri_window_unmaximize(uint64_t window);
+
+/*
+ * Window minimize.
+ */
+int32_t tauri_window_minimize(uint64_t window);
+
+/*
+ * Window unminimize.
+ */
+int32_t tauri_window_unminimize(uint64_t window);
+
+/*
+ * Window close.
+ */
+int32_t tauri_window_close(uint64_t window);
+
+/*
+ * Window destroy.
+ */
+int32_t tauri_window_destroy(uint64_t window);
+
+/*
+ * Window start dragging.
+ */
+int32_t tauri_window_start_dragging(uint64_t window);
+
+/*
+ * Window hide menu.
+ */
+int32_t tauri_window_hide_menu(uint64_t window);
+
+/*
+ * Window show menu.
+ */
+int32_t tauri_window_show_menu(uint64_t window);
+
+/*
+ * Window set title.
+ */
+int32_t tauri_window_set_title(uint64_t window, const char *title);
+
+/*
+ * Window set size.
+ */
+int32_t tauri_window_set_size(uint64_t window, double width, double height, bool physical);
+
+/*
+ * Window set position.
+ */
+int32_t tauri_window_set_position(uint64_t window, double x, double y, bool physical);
+
+/*
+ * Window set min size.
+ */
+int32_t tauri_window_set_min_size(uint64_t window, double width, double height, bool physical);
+
+/*
+ * Window set max size.
+ */
+int32_t tauri_window_set_max_size(uint64_t window, double width, double height, bool physical);
+
+/*
+ * Window set cursor position.
+ */
+int32_t tauri_window_set_cursor_position(uint64_t window, double x, double y, bool physical);
+
+/*
+ * Window set theme.
+ */
+int32_t tauri_window_set_theme(uint64_t window, const char *theme);
+
+/*
+ * Window set cursor icon.
+ */
+int32_t tauri_window_set_cursor_icon(uint64_t window, const char *icon);
+
+/*
+ * Window request user attention.
+ */
+int32_t tauri_window_request_user_attention(uint64_t window, const char *kind);
+
+/*
+ * Window set progress bar.
+ */
+int32_t tauri_window_set_progress_bar(uint64_t window, const char *state_json);
+
+/*
+ * Window set effects.
+ */
+int32_t tauri_window_set_effects(uint64_t window, const char *effects_json);
+
+/*
+ * Window set size constraints.
+ */
+int32_t tauri_window_set_size_constraints(uint64_t window, const char *constraints_json);
+
+/*
+ * Window set background color.
+ */
+int32_t tauri_window_set_background_color(uint64_t window, uint32_t r, uint32_t g, uint32_t b, uint32_t a);
+
+/*
+ * Window set badge count.
+ */
+int32_t tauri_window_set_badge_count(uint64_t window, int32_t count);
+
+/*
+ * Window set badge label. An empty string clears the label. Platform-specific:
+ * macOS only — the symbol exists everywhere but returns TAURI_ERR_UNSUPPORTED
+ * on other platforms.
+ */
+int32_t tauri_window_set_badge_label(uint64_t window, const char *label);
+
+/*
+ * Window: Sets the title bar style. Pass "visible", "transparent" or
+ * "overlay". Platform-specific: macOS only — the symbol exists everywhere but
+ * returns TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_window_set_title_bar_style(uint64_t window, const char *style);
+
+/*
+ * Window: Sets the taskbar overlay icon from RGBA pixel data (width*height*4
+ * bytes). Pass NULL rgba to clear it. Platform-specific: Windows only — the
+ * symbol exists everywhere but returns TAURI_ERR_UNSUPPORTED on other
+ * platforms.
+ */
+int32_t tauri_window_set_overlay_icon(uint64_t window, const uint8_t *rgba, uint32_t width, uint32_t height);
+
+/*
+ * Window: The NSWindow pointer backing the window, as an integer.
+ * Platform-specific: macOS only — the symbol exists everywhere but returns
+ * TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_window_ns_window(uint64_t window, uint64_t *out_ns_window);
+
+/*
+ * Window: The NSView pointer backing the window's content view, as an integer.
+ * Platform-specific: macOS only — the symbol exists everywhere but returns
+ * TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_window_ns_view(uint64_t window, uint64_t *out_ns_view);
+
+/*
+ * Window: The window's HWND, as an integer. Platform-specific: Windows only —
+ * the symbol exists everywhere but returns TAURI_ERR_UNSUPPORTED on other
+ * platforms.
+ */
+int32_t tauri_window_hwnd(uint64_t window, uint64_t *out_hwnd);
+
+/*
+ * Window current monitor.
+ */
+int32_t tauri_window_current_monitor(uint64_t window, char **out_json);
+
+/*
+ * Window primary monitor.
+ */
+int32_t tauri_window_primary_monitor(uint64_t window, char **out_json);
+
+/*
+ * Window available monitors.
+ */
+int32_t tauri_window_available_monitors(uint64_t window, char **out_json);
+
+/*
+ * Window monitor from point.
+ */
+int32_t tauri_window_monitor_from_point(uint64_t window, double x, double y, char **out_json);
+
+/*
+ * Webview label.
+ */
+int32_t tauri_webview_label(uint64_t webview, char **out_label);
+
+/*
+ * Webview url.
+ */
+int32_t tauri_webview_url(uint64_t webview, char **out_url);
+
+/*
+ * Webview position.
+ */
+int32_t tauri_webview_position(uint64_t webview, int32_t *out_x, int32_t *out_y);
+
+/*
+ * Webview size.
+ */
+int32_t tauri_webview_size(uint64_t webview, uint32_t *out_w, uint32_t *out_h);
+
+/*
+ * Webview get window.
+ */
+int32_t tauri_webview_get_window(uint64_t webview, uint64_t *out_window);
+
+/*
+ * Webview reload.
+ */
+int32_t tauri_webview_reload(uint64_t webview);
+
+/*
+ * Webview print.
+ */
+int32_t tauri_webview_print(uint64_t webview);
+
+/*
+ * Webview set focus.
+ */
+int32_t tauri_webview_set_focus(uint64_t webview);
+
+/*
+ * Webview show.
+ */
+int32_t tauri_webview_show(uint64_t webview);
+
+/*
+ * Webview hide.
+ */
+int32_t tauri_webview_hide(uint64_t webview);
+
+/*
+ * Webview close.
+ */
+int32_t tauri_webview_close(uint64_t webview);
+
+/*
+ * Webview clear all browsing data.
+ */
+int32_t tauri_webview_clear_all_browsing_data(uint64_t webview);
+
+/*
+ * Webview eval.
+ */
+int32_t tauri_webview_eval(uint64_t webview, const char *js);
+
+/*
+ * Webview navigate.
+ */
+int32_t tauri_webview_navigate(uint64_t webview, const char *url);
+
+/*
+ * Webview set zoom.
+ */
+int32_t tauri_webview_set_zoom(uint64_t webview, double scale);
+
+/*
+ * Webview set auto resize.
+ */
+int32_t tauri_webview_set_auto_resize(uint64_t webview, bool auto_resize);
+
+/*
+ * Webview set size.
+ */
+int32_t tauri_webview_set_size(uint64_t webview, double width, double height, bool physical);
+
+/*
+ * Webview set position.
+ */
+int32_t tauri_webview_set_position(uint64_t webview, double x, double y, bool physical);
+
+/*
+ * Webview set background color.
+ */
+int32_t tauri_webview_set_background_color(uint64_t webview, uint32_t r, uint32_t g, uint32_t b, uint32_t a);
+
+/*
+ * Webview reparent.
+ */
+int32_t tauri_webview_reparent(uint64_t webview, uint64_t window);
+
+/*
+ * Webview open devtools.
+ */
+int32_t tauri_webview_open_devtools(uint64_t webview);
+
+/*
+ * Webview close devtools.
+ */
+int32_t tauri_webview_close_devtools(uint64_t webview);
+
+/*
+ * Webview is devtools open.
+ */
+int32_t tauri_webview_is_devtools_open(uint64_t webview, bool *out_open);
+
+/*
+ * Menu new.
+ */
+int32_t tauri_menu_new(uint64_t app, uint64_t *out_menu);
+
+/*
+ * Menu item new.
+ */
+int32_t tauri_menu_item_new(uint64_t app, const char *id, const char *text, bool enabled, const char *accelerator, uint64_t *out_item);
+
+/*
+ * Menu check item new.
+ */
+int32_t tauri_menu_check_item_new(uint64_t app, const char *id, const char *text, bool enabled, bool checked, const char *accelerator, uint64_t *out_item);
+
+/*
+ * Menu predefined item new.
+ */
+int32_t tauri_menu_predefined_item_new(uint64_t app, const char *kind, const char *text, uint64_t *out_item);
+
+/*
+ * Submenu new.
+ */
+int32_t tauri_submenu_new(uint64_t app, const char *id, const char *text, bool enabled, uint64_t *out_submenu);
+
+/*
+ * Menu append.
+ */
+int32_t tauri_menu_append(uint64_t menu, uint64_t item);
+
+/*
+ * Submenu append.
+ */
+int32_t tauri_submenu_append(uint64_t submenu, uint64_t item);
+
+/*
+ * Menu set as app menu.
+ */
+int32_t tauri_menu_set_as_app_menu(uint64_t menu);
+
+/*
+ * Menu set as window menu.
+ */
+int32_t tauri_menu_set_as_window_menu(uint64_t window, uint64_t menu);
+
+/*
+ * Tray set menu.
+ */
+int32_t tauri_tray_set_menu(uint64_t tray, uint64_t menu);
+
+/*
+ * Menu item id.
+ */
+int32_t tauri_menu_item_id(uint64_t item, char **out_id);
+
+/*
+ * Menu item set text.
+ */
+int32_t tauri_menu_item_set_text(uint64_t item, const char *text);
+
+/*
+ * Menu item set enabled.
+ */
+int32_t tauri_menu_item_set_enabled(uint64_t item, bool enabled);
+
+/*
+ * Menu item set checked.
+ */
+int32_t tauri_menu_item_set_checked(uint64_t item, bool checked);
+
+/*
+ * Menu item set accelerator.
+ */
+int32_t tauri_menu_item_set_accelerator(uint64_t item, const char *accelerator);
 
 #ifdef __cplusplus
 }

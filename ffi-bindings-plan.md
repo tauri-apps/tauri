@@ -559,6 +559,32 @@ irritation back into ABI tweaks *before* codegen freezes patterns.
 > ambient-env override is now dev-only; only explicit launch-option arguments (code) can
 > steer a shipped bundle.
 
+> **Update (2026-07-11): target-specific APIs with a platform-stable ABI (ABI v8).**
+> Policy decided and implemented: **every function is exported on every platform** —
+> the symbol table (and thus the dlopen maps, which Deno resolves eagerly) never
+> varies across targets. Functions that only exist on some OS get a `platforms`
+> array in the manifest; on other platforms the extern fn still compiles (real body
+> under `#[cfg(target_os = ...)]`, stub otherwise) and returns the new
+> `ERR_UNSUPPORTED` (-6, filling the reserved gap) with a "only supported on X"
+> message — an error, deliberately not a silent no-op. The generator renders the
+> contract into the header docs ("Platform-specific: macOS only — the symbol exists
+> everywhere but returns TAURI_ERR_UNSUPPORTED on other platforms"); two new param
+> kinds landed with it (`bytes` = const uint8_t*, `out_u64`). New surface — macOS:
+> `tauri_app_set_activation_policy` (regular/accessory/prohibited),
+> `tauri_app_set_dock_visibility`, `tauri_app_show`/`tauri_app_hide`,
+> `set_title_bar_style`, `ns_window`/`ns_view` (pointers as u64); Windows:
+> `set_overlay_icon` (RGBA bytes, NULL clears), `hwnd` — window fns on both
+> `tauri_webview_window_*` and `tauri_window_*`. Also fixed: `set_badge_label` FFI
+> called a macOS-only tauri method unconditionally, so the crate didn't even
+> *compile* off-macOS — now gated the same way. Language sugar added in all three
+> packages (`app.setActivationPolicy()`, `win.setTitleBarStyle()`, `win.nsWindow()`,
+> …). Validation: headless smoke asserts the gate per platform (macOS-only fn →
+> INVALID_HANDLE on darwin / UNSUPPORTED elsewhere; runs on all 4 CI targets); all
+> three hello fixtures exercise a supported macOS call + a gated `hwnd()` failure;
+> `cargo check --target x86_64-pc-windows-msvc` passes from macOS (it didn't before
+> the badge fix). GTK native handles (`gtk_window`) deliberately skipped — GObject
+> refs don't reduce to a plain pointer; revisit if a Linux embedder asks.
+
 **M3 — Manifest + codegen + Deno.** Decided and partially landed early (§6, 2026-07-09):
 hand-authored manifest + in-house generator now produce the C header, koffi
 declarations, Deno symbol map and Python cffi cdef, with a lib.rs drift guard and a

@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from tauri_ffi import App  # noqa: E402
+from tauri_ffi import App, TauriError  # noqa: E402
 from demo_plugin import demo  # noqa: E402
 
 STATUS = os.environ.get("FIXTURE_STATUS")
@@ -74,6 +74,18 @@ def ready(_message):
     log("main-size:", "ok" if width > 0 and height > 0 else f"bad {width}x{height}")
     log("labels:", json.dumps(app.window_labels()))
     main.set_title("Tauri FFI — Python (ready)")
+
+    # Platform-gated APIs: same symbols on every platform, ERR_UNSUPPORTED (-6)
+    # where the feature does not exist.
+    if sys.platform == "darwin":
+        app.set_activation_policy("regular")
+        main.set_title_bar_style("visible")
+        log("platform-api:", "ok" if main.ns_window() > 0 else "bad ns_window")
+    try:
+        main.hwnd()
+        log("platform-gate:", "ok" if sys.platform == "win32" else "hwnd unexpectedly succeeded")
+    except TauriError as e:
+        log("platform-gate:", "ok" if "only supported on Windows" in str(e) else f"bad {e}")
 
     # Runtime window creation: hidden child, checked and torn down again.
     child = app.create_window(

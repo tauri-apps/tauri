@@ -46,6 +46,20 @@ app.on('ready', () => {
   log('labels:', JSON.stringify(app.windowLabels()))
   main.setTitle('Tauri FFI — Node.js (ready)')
 
+  // Platform-gated APIs: same symbols on every platform, ERR_UNSUPPORTED (-6)
+  // where the feature does not exist.
+  if (process.platform === 'darwin') {
+    app.setActivationPolicy('regular')
+    main.setTitleBarStyle('visible')
+    log('platform-api:', main.nsWindow() > 0 ? 'ok' : 'bad ns_window')
+  }
+  try {
+    main.hwnd()
+    log('platform-gate:', process.platform === 'win32' ? 'ok' : 'hwnd unexpectedly succeeded')
+  } catch (e) {
+    log('platform-gate:', /only supported on Windows/.test(e.message) ? 'ok' : `bad ${e.message}`)
+  }
+
   // Runtime window creation: hidden child, checked and torn down again.
   const child = app.createWindow({
     label: 'child',

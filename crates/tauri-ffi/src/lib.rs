@@ -36,11 +36,17 @@ use tauri::utils::config::Config;
 use tauri::utils::PackageInfo;
 use tauri::{Emitter, EventTarget, Listener, Manager, Pattern, RunEvent, WindowEvent, Wry};
 
+mod app;
 mod assets;
 mod error;
+mod menu;
 mod plugins;
 mod state;
+mod tray;
+mod webview;
+mod webview_window;
 mod window;
+mod winsupport;
 
 use error::{catch, fail, ERR_CLOSED, ERR_GENERIC, ERR_INVALID_ARG, ERR_INVALID_HANDLE, ERR_TIMEOUT, OK};
 use state::{AppState, BuilderState, Entry};
@@ -333,16 +339,21 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let (tx, rx) = mpsc::channel::<String>();
 
   let invoke_tx = tx.clone();
-  let mut builder = tauri::Builder::default().invoke_handler(
-    move |invoke: tauri::ipc::Invoke<Wry>| {
+  let menu_tx = tx.clone();
+  let mut builder = tauri::Builder::default()
+    .invoke_handler(move |invoke: tauri::ipc::Invoke<Wry>| {
       let command = invoke.message.command();
       if !commands.contains(command) {
         return false; // tauri reports "command not found" to the frontend
       }
       let _ = invoke_tx.send(invoke_message_json(&invoke, command, None));
       true
-    },
-  );
+    })
+    // All menu clicks (app, window and tray menus) funnel into the event queue.
+    .on_menu_event(move |_app, event| {
+      let message = serde_json::json!({ "type": "menu-event", "id": event.id().0.clone() });
+      let _ = menu_tx.send(message.to_string());
+    });
 
   // Each plugin gets a `tauri::plugin::Builder` whose invoke handler funnels
   // into the same event queue, tagged with the plugin name.
@@ -513,6 +524,46 @@ pub extern "C" fn tauri_app_exit(app: u64, code: i32) -> i32 {
       return fail(ERR_INVALID_HANDLE, "invalid app handle");
     };
     app_state.handle.exit(code);
+    OK
+  })
+}
+
+/// The app's resolved configuration, as an owned JSON string.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_config(app: u64, out_config_json: *mut *mut c_char) -> i32 {
+  catch(|| {
+    if out_config_json.is_null() {
+      return fail(ERR_INVALID_ARG, "out_config_json is null");
+    }
+    let Some(app_state) = state::app(app) else {
+      return fail(ERR_INVALID_HANDLE, "invalid app handle");
+    };
+    let json = serde_json::to_string(app_state.handle.config()).unwrap_or_else(|_| "null".into());
+    write_owned_str(out_config_json, json);
+    OK
+  })
+}
+
+/// The app package info, as an owned JSON object.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_package_info(app: u64, out_info_json: *mut *mut c_char) -> i32 {
+  catch(|| {
+    if out_info_json.is_null() {
+      return fail(ERR_INVALID_ARG, "out_info_json is null");
+    }
+    let Some(app_state) = state::app(app) else {
+      return fail(ERR_INVALID_HANDLE, "invalid app handle");
+    };
+    let info = app_state.handle.package_info();
+    let json = serde_json::json!({
+      "name": info.name,
+      "version": info.version.to_string(),
+      "authors": info.authors,
+      "description": info.description,
+      "crateName": info.crate_name,
+    })
+    .to_string();
+    write_owned_str(out_info_json, json);
     OK
   })
 }

@@ -579,10 +579,7 @@ mod gtk {
 
     webview.connect_motion_notify_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventMotion| {
-        if resizable_window(webview).is_none() {
-          return Propagation::Proceed;
-        }
-        let Some(window) = webview.window() else {
+        let Some(window) = resizable_window(webview).and_then(|_| webview.window()) else {
           return Propagation::Proceed;
         };
 

@@ -259,6 +259,21 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
       }
     }
   }
+
+  // Check if any window has limit_navigations_to_app_bound_domains set to true
+  if tauri_config
+    .app
+    .windows
+    .iter()
+    .any(|w| w.limit_navigations_to_app_bound_domains)
+  {
+    // Create a plist source with WKAppBoundDomains containing localhost
+    let domains = vec![plist::Value::String("localhost".into())];
+    let mut wk_domains_dict = plist::Dictionary::new();
+    wk_domains_dict.insert("WKAppBoundDomains".into(), plist::Value::Array(domains));
+    src_plists.push(plist::Value::Dictionary(wk_domains_dict).into());
+  }
+
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist
     .to_file_xml(&info_plist_path)

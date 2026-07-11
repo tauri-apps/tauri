@@ -33,6 +33,16 @@ pub fn merge_plist(src: Vec<PlistKind>) -> crate::Result<plist::Value> {
     };
     if let Some(dict) = src_plist.into_dictionary() {
       for (key, value) in dict {
+        if let Some(new) = value.as_array() {
+          if let Some(merged) = merged_plist.get_mut(&key).and_then(|v| v.as_array_mut()) {
+            for item in new {
+              if !merged.contains(item) {
+                merged.push(item.clone());
+              }
+            }
+            continue; // array merged in place, skip insert
+          }
+        }
         merged_plist.insert(key, value);
       }
     }

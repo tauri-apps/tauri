@@ -521,18 +521,22 @@ mod gtk {
       }
     }
 
-    fn to_cursor_name(self) -> &'static str {
-      match self {
-        HitTestResult::Left => "w-resize",
-        HitTestResult::Right => "e-resize",
-        HitTestResult::Top => "n-resize",
-        HitTestResult::Bottom => "s-resize",
-        HitTestResult::TopLeft => "nw-resize",
-        HitTestResult::TopRight => "ne-resize",
-        HitTestResult::BottomLeft => "sw-resize",
-        HitTestResult::BottomRight => "se-resize",
-        HitTestResult::Client | HitTestResult::NoWhere => "default",
-      }
+    fn to_cursor(self, display: &gtk::gdk::Display) -> Option<gtk::gdk::Cursor> {
+      use gtk::gdk::CursorType;
+
+      let cursor_type = match self {
+        HitTestResult::Left => CursorType::LeftSide,
+        HitTestResult::Right => CursorType::RightSide,
+        HitTestResult::Top => CursorType::TopSide,
+        HitTestResult::Bottom => CursorType::BottomSide,
+        HitTestResult::TopLeft => CursorType::TopLeftCorner,
+        HitTestResult::TopRight => CursorType::TopRightCorner,
+        HitTestResult::BottomLeft => CursorType::BottomLeftCorner,
+        HitTestResult::BottomRight => CursorType::BottomRightCorner,
+        HitTestResult::Client | HitTestResult::NoWhere => return None,
+      };
+
+      gtk::gdk::Cursor::for_display(display, cursor_type)
     }
   }
 
@@ -588,7 +592,7 @@ mod gtk {
           return Propagation::Proceed;
         }
 
-        let cursor = gtk::gdk::Cursor::from_name(&window.display(), result.to_cursor_name());
+        let cursor = result.to_cursor(&window.display());
         window.set_cursor(cursor.as_ref());
         Propagation::Stop
       },

@@ -21,6 +21,8 @@ To learn more about the details of how all of these pieces fit together, please 
 
 If you are interested in making a tauri app, please visit the [documentation website](https://tauri.app).
 
+> **Windows Note:** WebView2 is required for Tauri on Windows. It comes pre-installed on Windows 10/11. If using Windows 7 or 8, download [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
 The quickest way to get started is to install the [prerequisites](https://v2.tauri.app/start/prerequisites/) for your system and create a new project with [`create-tauri-app`](https://github.com/tauri-apps/create-tauri-app/#usage). For example with `npm`:
 
 ```sh

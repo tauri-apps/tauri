@@ -43,6 +43,24 @@ export function bundledResourceDir() {
   return path.dirname(exec)
 }
 
+/**
+ * Reads a payload file embedded in the Single Executable Application as a SEA
+ * asset (`app.assets`, `config.json`, `capabilities.json`), or `null` in dev /
+ * when absent. This is how a shipped bundle carries its assets/config/ACL
+ * *inside* the executable rather than as sibling files. `encoding` 'utf8'
+ * returns a string; otherwise a `Buffer`.
+ */
+export function readEmbedded(name, encoding) {
+  if (!isBundled()) return null
+  try {
+    const sea = createRequire(import.meta.url)('node:sea')
+    if (encoding === 'utf8') return sea.getAsset(name, 'utf8')
+    return Buffer.from(sea.getRawAsset(name))
+  } catch {
+    return null
+  }
+}
+
 /** JSON merge patch (like the CLI's config merging): objects merge
  * recursively, null removes the key, everything else replaces. */
 export function mergeConfig(target, source) {

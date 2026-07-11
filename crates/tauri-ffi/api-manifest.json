@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for the tauri-ffi C ABI. bindings/bindgen/generate.mjs renders the C header, koffi declarations, Deno symbols and Python cffi cdef from this file, and cross-checks it against the extern fns in src/. Param types: handle (u64 id), str (borrowed UTF-8 in), owned_str (ownership transferred back, e.g. tauri_string_free), bytes (borrowed byte buffer; may be NULL where documented), bool, u32, i32, f64, out_handle, out_bool, out_u32, out_u64, out_i32, out_f64, out_owned_str (caller frees via tauri_string_free). Results: status (i32 error code), u32, borrowed_str (do not free), void. thread: 'any' | 'main' (the thread that builds/runs the loop). blocking: call blocks the calling thread (dynamic FFI hosts should use async/nonblocking call modes). platforms: the targets the function actually works on — the symbol is exported on every platform (the ABI never varies across targets), but calling it elsewhere returns ERR_UNSUPPORTED without side effects.",
-  "abiVersion": 8,
+  "abiVersion": 9,
   "errors": [
     {
       "name": "OK",
@@ -138,6 +138,26 @@
         {
           "name": "path",
           "type": "str"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_assets_archive_bytes",
+      "doc": "Serves `WebviewUrl::App` paths from an in-memory tauri-ffi assets archive (same format as tauri_app_builder_set_assets_archive, but the bytes are passed directly instead of read from a file). For hosts that embed the archive in their own binary (Deno `--include`, Node SEA asset, PyInstaller data). The bytes are copied; the caller may free them after the call returns. Takes precedence over the dir/path asset variants. `len` is the byte length of `bytes`.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "bytes",
+          "type": "bytes"
+        },
+        {
+          "name": "len",
+          "type": "u32"
         }
       ],
       "result": "status"

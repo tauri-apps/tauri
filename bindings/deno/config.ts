@@ -42,6 +42,41 @@ export function bundledResourceDir(): string | null {
   return slash === -1 ? null : exec.slice(0, slash)
 }
 
+/**
+ * The `file://` URL of the payload embedded in a `deno compile` binary
+ * (`app.assets`, `config.json`, `capabilities.json`), or `null` in dev. The
+ * CLI stages it beside the app entry as `.tauri-embed/` and `deno compile`
+ * maps it into a virtual FS rooted at the main module, so it is read back
+ * relative to {@linkcode Deno.mainModule}. This is how a shipped bundle carries
+ * its assets/config/ACL *inside* the executable rather than as sibling files.
+ */
+export function embeddedDir(): string | null {
+  if (!isBundled()) return null
+  try {
+    return new URL('./.tauri-embed/', Deno.mainModule).href
+  } catch {
+    return null
+  }
+}
+
+/** Reads an embedded payload file as bytes (see {@linkcode embeddedDir}), or
+ * `null` when not bundled or the file is absent. */
+export function readEmbeddedBytes(name: string): Uint8Array | null {
+  const dir = embeddedDir()
+  if (!dir) return null
+  try {
+    return Deno.readFileSync(new URL(name, dir))
+  } catch {
+    return null
+  }
+}
+
+/** Reads an embedded payload file as UTF-8 text, or `null`. */
+export function readEmbeddedText(name: string): string | null {
+  const bytes = readEmbeddedBytes(name)
+  return bytes === null ? null : new TextDecoder().decode(bytes)
+}
+
 /** JSON merge patch (like the CLI's config merging): objects merge
  * recursively, null removes the key, everything else replaces. */
 export function mergeConfig(target: Record<string, Json>, source: Record<string, Json>): Record<string, Json> {

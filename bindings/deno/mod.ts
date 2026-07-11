@@ -8,7 +8,15 @@
 // with a live event loop, while this thread parks inside the blocking
 // `tauri_app_run`. See /ffi-bindings-plan.md §3.
 
-import { bundledResourceDir, isBundled, resolveAssets, resolveCapabilities, resolveConfig } from './config.ts'
+import {
+  embeddedDir,
+  isBundled,
+  readEmbeddedBytes,
+  readEmbeddedText,
+  resolveAssets,
+  resolveCapabilities,
+  resolveConfig,
+} from './config.ts'
 import { cstr, ensureLibrary, open } from './ffi.ts'
 import type { Plugin } from './plugin.ts'
 
@@ -60,12 +68,32 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
   // a compiled bundle ignores the TAURI_DEV env override (hermetic in production)
   const dev = options.dev ?? (!isBundled() && Deno.env.get('TAURI_DEV') === 'true')
 
-  const { config, configDir } = resolveConfig(entryDir, options.config)
-  const assets = resolveAssets(
-    { assetsDir: toPath(options.assetsDir), assetsArchive: toPath(options.assetsArchive) },
-    config,
-    configDir
-  )
+  // When bundled, assets/config/capabilities are embedded *inside* the binary
+  // (see config.ts embeddedDir); in dev they come from disk. Explicit launch
+  // options always win.
+  const embedded = embeddedDir()
+
+  let config: Record<string, unknown>
+  let configDir: string | null = null
+  if (embedded && !options.config) {
+    const text = readEmbeddedText('config.json')
+    if (!text) throw new Error('bundled app is missing its embedded config.json')
+    config = JSON.parse(text)
+  } else {
+    ;({ config, configDir } = resolveConfig(entryDir, options.config))
+  }
+
+  // Embedded archive bytes (bundled) take precedence over disk-based resolution.
+  const embeddedAssets = embedded && !options.assetsDir && !options.assetsArchive
+    ? readEmbeddedBytes('app.assets')
+    : null
+  const assets = embeddedAssets
+    ? {}
+    : resolveAssets(
+        { assetsDir: toPath(options.assetsDir), assetsArchive: toPath(options.assetsArchive) },
+        config,
+        configDir
+      )
 
   const { sym, check, libPath } = open(await ensureLibrary())
 
@@ -79,7 +107,12 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
   if (dev) {
     check(sym.tauri_app_builder_set_dev(builder, true), 'set_dev')
   }
-  if (assets.archive) {
+  if (embeddedAssets) {
+    check(
+      sym.tauri_app_builder_set_assets_archive_bytes(builder, embeddedAssets, embeddedAssets.length),
+      'set_assets_archive_bytes'
+    )
+  } else if (assets.archive) {
     check(sym.tauri_app_builder_set_assets_archive(builder, cstr(assets.archive)), 'set_assets_archive')
   } else if (assets.dir) {
     check(sym.tauri_app_builder_set_assets_dir(builder, cstr(assets.dir)), 'set_assets_dir')
@@ -87,12 +120,14 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
   for (const name of options.commands ?? []) {
     check(sym.tauri_app_builder_register_command(builder, cstr(name)), `register_command(${name})`)
   }
-  // Inline capabilities plus any discovered in a `capabilities/` directory
-  // next to the config (compile-time capability files, read at launch).
-  const allCapabilities = [
-    ...(options.capabilities ?? []),
-    ...resolveCapabilities([bundledResourceDir(), configDir, entryDir])
-  ]
+  // Inline capabilities plus those embedded in the binary (bundled) or found in
+  // a `capabilities/` directory next to the config (dev) — the compile-time
+  // capability files, read at launch.
+  const embeddedCapabilities = embedded ? readEmbeddedText('capabilities.json') : null
+  const discoveredCapabilities: (object | string)[] = embeddedCapabilities
+    ? JSON.parse(embeddedCapabilities)
+    : resolveCapabilities([configDir, entryDir])
+  const allCapabilities = [...(options.capabilities ?? []), ...discoveredCapabilities]
   for (const capability of allCapabilities) {
     const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
     check(sym.tauri_app_builder_add_capability(builder, cstr(json)), 'add_capability')

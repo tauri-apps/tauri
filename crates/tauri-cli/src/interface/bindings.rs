@@ -16,14 +16,17 @@
 //! - `build` compiles the app into a self-contained native binary using the
 //!   runner's native compiler (`deno compile`, PyInstaller, Node SEA) so it
 //!   runs on a machine without the language runtime installed — the
-//!   embedded-binary equivalent of a Rust `tauri build`. It stages the
-//!   `tauri-ffi` cdylib, the packed frontend assets and the config as bundle
-//!   resources next to the binary, then hands everything to `tauri-bundler`
-//!   for `.app`/`.msi`/`.appimage` packaging, exactly like a Rust app.
+//!   embedded-binary equivalent of a Rust `tauri build`. The frontend assets,
+//!   merged config and capabilities are embedded *inside* the binary through
+//!   the runner's own mechanism (Deno `--include`, Node SEA assets, PyInstaller
+//!   data); only the `tauri-ffi` cdylib is staged as a sibling bundle resource,
+//!   since a native library must live on disk to be `dlopen`'d. Everything is
+//!   then handed to `tauri-bundler` for `.app`/`.msi`/`.appimage` packaging.
 //!
 //! Output goes under `<tauri_dir>/dist/` (not `target/`). The compiled app
-//! finds its resources next to the executable (in the bundle's resource dir),
-//! so `dist/<name>` and the packaged bundle both run standalone.
+//! reads its assets/config/capabilities from inside the executable and loads
+//! the cdylib from the bundle's resource dir, so `dist/<name>` and the packaged
+//! bundle both run standalone.
 
 use std::{
   collections::HashMap,
@@ -174,8 +177,11 @@ impl Interface for Bindings {
     env
   }
 
-  /// Compiles the app into a self-contained binary in `dist/` and stages its
-  /// runtime resources (cdylib, packed assets, config) alongside it.
+  /// Compiles the app into a self-contained binary in `dist/`. The frontend
+  /// assets, config and capabilities are embedded *inside* the binary through
+  /// the runner's native mechanism (Deno `--include`, Node SEA assets,
+  /// PyInstaller data); only the `tauri-ffi` cdylib remains a sibling resource,
+  /// since a native library must live on disk to be `dlopen`'d.
   fn build(&mut self, options: Options, dirs: &Dirs) -> crate::Result<PathBuf> {
     let Some(runner_config) = options.runner.clone() else {
       bail!(
@@ -188,15 +194,18 @@ impl Interface for Bindings {
 
     let out_dir = self.app_settings.out_dir(&options, dirs.tauri)?;
     let resources_dir = out_dir.join("resources");
+    // Start clean so a prior build's staged files (older assets/config that are
+    // now embedded, not resources) don't linger and get bundled. Everything the
+    // bundler picks up from here is re-staged below (cdylib) or during compile
+    // (Node's koffi.node).
+    let _ = fs::remove_dir_all(&resources_dir);
     fs::create_dir_all(&resources_dir).fs_context(
       "failed to create resources directory",
       resources_dir.clone(),
     )?;
 
-    // 1. stage the frontend assets archive
-    stage_assets_archive(&self.app_settings.frontend_dist, dirs.tauri, &resources_dir)?;
-
-    // 2. stage the tauri-ffi cdylib the compiled app loads over FFI
+    // 1. stage the tauri-ffi cdylib the compiled app loads over FFI (the only
+    //    sibling resource — a native library can't be embedded and dlopen'd)
     let lib_name = cdylib_name(&self.app_settings.target_triple);
     let lib_src = resolve_cdylib(&lib_name, dirs.tauri)?;
     let lib_dest = resources_dir.join(&lib_name);
@@ -204,18 +213,22 @@ impl Interface for Bindings {
       .fs_context("failed to stage tauri-ffi library", lib_src.clone())?;
     log::info!(action = "Bundling"; "tauri-ffi library from {}", display_path(&lib_src));
 
-    // 3. stage the config the compiled app reads at startup (frontendDist
-    //    rewritten to the bundled archive so it resolves from the resource dir)
-    stage_config(dirs.tauri, &options, &resources_dir)?;
+    // 2. build the payload embedded *into* the binary: the packed frontend
+    //    archive, the merged config (frontendDist rewritten to the archive) and
+    //    the packed capabilities — the standalone equivalent of the assets and
+    //    resolved ACL a Rust `tauri build` bakes into the executable.
+    let embed_dir = out_dir.join(".embed");
+    let payload = stage_embed_payload(
+      &self.app_settings.frontend_dist,
+      dirs.tauri,
+      &options,
+      &embed_dir,
+    )?;
 
-    // 4. stage the capabilities/ directory so the compiled binary keeps its ACL
-    //    grants (the bindings auto-discover it in the resource dir at startup)
-    stage_capabilities(dirs.tauri, &resources_dir)?;
-
-    // 5. compile the self-contained binary
+    // 3. compile the self-contained binary, embedding the payload
     let bin_path = self.app_settings.app_binary_path(&options, dirs.tauri)?;
     log::info!(action = "Compiling"; "{} app into {}", runner_label(runner), display_path(&bin_path));
-    compile_binary(runner, &entry, &bin_path, dirs.tauri)?;
+    compile_binary(runner, &entry, &bin_path, dirs.tauri, &payload)?;
 
     Ok(bin_path)
   }
@@ -456,8 +469,9 @@ impl AppSettings for BindingsAppSettings {
     let bundle = config.bundle.clone();
     let resources_dir = self.out_dir(options, tauri_dir)?.join("resources");
 
-    // Stage the cdylib, packed assets and config next to the binary in the
-    // bundle's resource dir; the compiled app resolves them at startup.
+    // The cdylib is the only staged resource (assets/config/capabilities live
+    // inside the binary); copy it — and any user-declared resources — into the
+    // bundle's resource dir, where the compiled app loads the cdylib at startup.
     let mut resources_map = HashMap::new();
     for entry in fs::read_dir(&resources_dir)
       .fs_context("failed to read staged resources", resources_dir.clone())?
@@ -619,13 +633,51 @@ fn runner_label(runner: Runner) -> &'static str {
   }
 }
 
-/// Packs `frontend_dist` into `<resources>/app.assets` (the compiled app's
-/// config points `frontendDist` there, resolved from the resource dir).
-fn stage_assets_archive(
+/// The frontend assets, merged config and capabilities the compiled binary
+/// embeds inside itself. `assets`/`capabilities` are `None` when the project
+/// has none (remote frontend / no `capabilities/` directory). File names are a
+/// fixed contract the language runtimes read back (`app.assets`, `config.json`,
+/// `capabilities.json`).
+struct EmbedPayload {
+  /// Packed frontend archive, or `None` for a remote (URL) frontend.
+  assets: Option<PathBuf>,
+  /// Merged config (`frontendDist` rewritten to `app.assets` when packed).
+  config: PathBuf,
+  /// Capabilities packed as a JSON array of capability-file strings, or `None`.
+  capabilities: Option<PathBuf>,
+}
+
+/// Builds the [`EmbedPayload`] in `embed_dir` — the assets/config/capabilities
+/// baked into the standalone binary, the equivalent of what a Rust `tauri
+/// build` embeds into its executable.
+fn stage_embed_payload(
   frontend_dist: &Option<FrontendDist>,
   tauri_dir: &Path,
-  resources_dir: &Path,
-) -> crate::Result<()> {
+  options: &Options,
+  embed_dir: &Path,
+) -> crate::Result<EmbedPayload> {
+  let _ = fs::remove_dir_all(embed_dir);
+  fs::create_dir_all(embed_dir)
+    .fs_context("failed to create embed directory", embed_dir.to_path_buf())?;
+
+  let assets = pack_assets(frontend_dist, tauri_dir, embed_dir)?;
+  let config = write_embed_config(tauri_dir, options, embed_dir, assets.is_some())?;
+  let capabilities = pack_capabilities(tauri_dir, embed_dir)?;
+
+  Ok(EmbedPayload {
+    assets,
+    config,
+    capabilities,
+  })
+}
+
+/// Packs `frontend_dist` into `<embed_dir>/app.assets`. Returns `None` for a
+/// remote (URL) frontend or when no `frontendDist` is configured.
+fn pack_assets(
+  frontend_dist: &Option<FrontendDist>,
+  tauri_dir: &Path,
+  embed_dir: &Path,
+) -> crate::Result<Option<PathBuf>> {
   let dir = match frontend_dist {
     Some(FrontendDist::Directory(dir)) => {
       if dir.is_absolute() {
@@ -636,7 +688,7 @@ fn stage_assets_archive(
     }
     Some(FrontendDist::Url(url)) => {
       log::info!("frontendDist is the URL {url}; no assets to pack");
-      return Ok(());
+      return Ok(None);
     }
     Some(FrontendDist::Files(_)) => {
       bail!("`frontendDist` file lists are not supported for bindings projects — use a directory")
@@ -644,19 +696,25 @@ fn stage_assets_archive(
     Some(_) => bail!("unsupported frontendDist configuration for bindings projects"),
     None => {
       log::info!("no frontendDist configured; no assets to pack");
-      return Ok(());
+      return Ok(None);
     }
   };
-  let archive = resources_dir.join("app.assets");
+  let archive = embed_dir.join("app.assets");
   let count = write_assets_archive(&dir, &archive)?;
   log::info!(action = "Packed"; "{count} assets into {}", display_path(&archive));
-  Ok(())
+  Ok(Some(archive))
 }
 
-/// Writes `<resources>/tauri.conf.json` — the merged config with
-/// `frontendDist` rewritten to the bundled archive, which the compiled app
-/// discovers in its resource dir at startup.
-fn stage_config(tauri_dir: &Path, options: &Options, resources_dir: &Path) -> crate::Result<()> {
+/// Writes `<embed_dir>/config.json` — the merged config with `frontendDist`
+/// rewritten to `app.assets` when a frontend archive was packed (a sentinel
+/// keeping the custom-protocol origin; the runtime serves the embedded archive
+/// bytes directly, not this path).
+fn write_embed_config(
+  tauri_dir: &Path,
+  options: &Options,
+  embed_dir: &Path,
+  packed_assets: bool,
+) -> crate::Result<PathBuf> {
   let target = TargetPlatform::current();
   let config = get_config(
     target,
@@ -664,86 +722,150 @@ fn stage_config(tauri_dir: &Path, options: &Options, resources_dir: &Path) -> cr
     tauri_dir,
   )?;
   let mut value = serde_json::to_value(&*config).context("failed to serialize config")?;
-  if resources_dir.join("app.assets").is_file() {
+  if packed_assets {
     value["build"]["frontendDist"] = serde_json::Value::String("app.assets".into());
   }
+  let out = embed_dir.join("config.json");
   fs::write(
-    resources_dir.join("tauri.conf.json"),
+    &out,
     serde_json::to_string(&value).context("failed to serialize config")?,
   )
-  .fs_context(
-    "failed to write bundled config",
-    resources_dir.join("tauri.conf.json"),
-  )?;
-  Ok(())
+  .fs_context("failed to write embedded config", out.clone())?;
+  Ok(out)
 }
 
-/// Stages the `capabilities/` directory (next to the config) into the bundle
-/// resources, so the compiled binary carries the same capabilities it reads in
-/// dev. The bindings auto-discover `<resources>/capabilities/` at startup — the
-/// standalone-binary equivalent of a Rust app embedding its resolved ACL into
-/// the executable. The generic tauri-ffi cdylib stays app-agnostic, so the
-/// capabilities travel beside it as bundle resources, like the config and
-/// packed assets. No `capabilities/` directory means the app falls back to the
-/// built-in `core:default` grant.
-fn stage_capabilities(tauri_dir: &Path, resources_dir: &Path) -> crate::Result<()> {
+/// Packs the `capabilities/` directory into `<embed_dir>/capabilities.json` — a
+/// JSON array of each capability file's raw content (JSON or TOML), which the
+/// runtime hands to `add_capability` one by one. This is the standalone-binary
+/// equivalent of the resolved ACL a Rust app bakes into its executable. The
+/// filtering mirrors the runtimes' dev-mode discovery (extensions `.json`,
+/// `.json5`, `.toml`; the `schemas/` subfolder is skipped). Returns `None` when
+/// there is no `capabilities/` directory, so the app falls back to the built-in
+/// `core:default` grant.
+fn pack_capabilities(tauri_dir: &Path, embed_dir: &Path) -> crate::Result<Option<PathBuf>> {
   let src = tauri_dir.join("capabilities");
   if !src.is_dir() {
-    return Ok(());
+    return Ok(None);
   }
-  let dest_root = resources_dir.join("capabilities");
-  for entry in walkdir::WalkDir::new(&src) {
+  let mut files: Vec<PathBuf> = Vec::new();
+  for entry in walkdir::WalkDir::new(&src)
+    .into_iter()
+    .filter_entry(|e| e.file_name() != "schemas")
+  {
     let entry = entry.context("failed to read capabilities directory")?;
-    let dest = dest_root.join(entry.path().strip_prefix(&src).unwrap());
-    if entry.file_type().is_dir() {
-      fs::create_dir_all(&dest).fs_context("failed to create capability directory", dest.clone())?;
-    } else {
-      if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent)
-          .fs_context("failed to create capability directory", parent.to_path_buf())?;
-      }
-      fs::copy(entry.path(), &dest)
-        .fs_context("failed to stage capability file", entry.path().to_path_buf())?;
+    if !entry.file_type().is_file() {
+      continue;
+    }
+    let ext = entry
+      .path()
+      .extension()
+      .and_then(|e| e.to_str())
+      .map(str::to_lowercase);
+    if matches!(ext.as_deref(), Some("json" | "json5" | "toml")) {
+      files.push(entry.path().to_path_buf());
     }
   }
-  log::info!(action = "Bundling"; "capabilities from {}", display_path(&src));
-  Ok(())
+  if files.is_empty() {
+    return Ok(None);
+  }
+  files.sort();
+
+  let mut capabilities: Vec<String> = Vec::with_capacity(files.len());
+  for file in &files {
+    capabilities
+      .push(fs::read_to_string(file).fs_context("failed to read capability file", file.clone())?);
+  }
+  let out = embed_dir.join("capabilities.json");
+  fs::write(
+    &out,
+    serde_json::to_string(&capabilities).context("failed to serialize capabilities")?,
+  )
+  .fs_context("failed to write embedded capabilities", out.clone())?;
+  log::info!(action = "Packed"; "{} capabilities from {}", files.len(), display_path(&src));
+  Ok(Some(out))
 }
 
-/// Compiles the app into a self-contained binary at `bin_path`.
+/// Compiles the app into a self-contained binary at `bin_path`, embedding the
+/// [`EmbedPayload`] via the runner's native mechanism.
 fn compile_binary(
   runner: Runner,
   entry: &Path,
   bin_path: &Path,
   tauri_dir: &Path,
+  payload: &EmbedPayload,
 ) -> crate::Result<()> {
   match runner {
-    Runner::Deno => compile_deno(entry, bin_path, tauri_dir),
-    Runner::Python => compile_python(entry, bin_path, tauri_dir),
-    Runner::Node => compile_node(entry, bin_path, tauri_dir),
+    Runner::Deno => compile_deno(entry, bin_path, tauri_dir, payload),
+    Runner::Python => compile_python(entry, bin_path, tauri_dir, payload),
+    Runner::Node => compile_node(entry, bin_path, tauri_dir, payload),
   }
 }
 
-fn compile_deno(entry: &Path, bin_path: &Path, tauri_dir: &Path) -> crate::Result<()> {
-  // Embed the whole project directory so the dynamically-loaded worker module
-  // is included (deno compile only auto-follows static imports). Exclude the
-  // build output, packed assets, config and capabilities so they resolve from
-  // the resource dir at runtime rather than the embedded (stale) copies.
-  let mut cmd = Command::new("deno");
-  cmd
-    .current_dir(tauri_dir)
-    .arg("compile")
-    .args(["--output".as_ref(), bin_path.as_os_str()])
-    .arg("--allow-all")
-    .args(["--include", "."])
-    .args(["--exclude", "dist"])
-    .args(["--exclude", "tauri.conf.json"])
-    .args(["--exclude", "capabilities"])
-    .arg(entry);
-  run_compiler("deno compile", &mut cmd)
+/// Copies the payload files into `<dir>` under their runtime-contract names
+/// (`app.assets`, `config.json`, `capabilities.json`). Used by the runners that
+/// embed a directory (Deno `--include`, PyInstaller `--add-data`).
+fn copy_payload_into(payload: &EmbedPayload, dir: &Path) -> crate::Result<()> {
+  fs::create_dir_all(dir).fs_context("failed to create embed staging dir", dir.to_path_buf())?;
+  fs::copy(&payload.config, dir.join("config.json"))
+    .fs_context("failed to stage embedded config", payload.config.clone())?;
+  if let Some(assets) = &payload.assets {
+    fs::copy(assets, dir.join("app.assets"))
+      .fs_context("failed to stage embedded assets", assets.clone())?;
+  }
+  if let Some(capabilities) = &payload.capabilities {
+    fs::copy(capabilities, dir.join("capabilities.json"))
+      .fs_context("failed to stage embedded capabilities", capabilities.clone())?;
+  }
+  Ok(())
 }
 
-fn compile_python(entry: &Path, bin_path: &Path, tauri_dir: &Path) -> crate::Result<()> {
+/// Fixed subdirectory (beside the app entry) holding the embedded payload in a
+/// `deno compile` binary. The Deno runtime reads it back relative to
+/// `Deno.mainModule` (see `bindings/deno/config.ts`).
+const DENO_EMBED_SUBDIR: &str = ".tauri-embed";
+
+fn compile_deno(
+  entry: &Path,
+  bin_path: &Path,
+  tauri_dir: &Path,
+  payload: &EmbedPayload,
+) -> crate::Result<()> {
+  // `deno compile` maps `--include`d files into a virtual FS rooted at the main
+  // module, so we stage the payload beside the entry (`<entry_dir>/.tauri-embed`)
+  // and the runtime reads it relative to `Deno.mainModule`. Clean it up after.
+  let entry_dir = entry.parent().expect("entry has no parent directory");
+  let embed_in_tree = entry_dir.join(DENO_EMBED_SUBDIR);
+  copy_payload_into(payload, &embed_in_tree)?;
+
+  let result = (|| {
+    // Embed the whole project directory so the dynamically-loaded worker module
+    // is included (deno compile only auto-follows static imports). Exclude the
+    // build output and the source config/capabilities — the runtime reads the
+    // embedded payload, not those (potentially unmerged) copies.
+    let mut cmd = Command::new("deno");
+    cmd
+      .current_dir(tauri_dir)
+      .arg("compile")
+      .args(["--output".as_ref(), bin_path.as_os_str()])
+      .arg("--allow-all")
+      .args(["--include", "."])
+      .args(["--exclude", "dist"])
+      .args(["--exclude", "tauri.conf.json"])
+      .args(["--exclude", "capabilities"])
+      .arg(entry);
+    run_compiler("deno compile", &mut cmd)
+  })();
+
+  let _ = fs::remove_dir_all(&embed_in_tree);
+  result
+}
+
+fn compile_python(
+  entry: &Path,
+  bin_path: &Path,
+  tauri_dir: &Path,
+  payload: &EmbedPayload,
+) -> crate::Result<()> {
   let name = bin_path.file_name().expect("binary path has no file name");
   let dist = bin_path.parent().expect("binary path has no parent");
   let work = dist.join(".pyinstaller");
@@ -757,6 +879,23 @@ fn compile_python(entry: &Path, bin_path: &Path, tauri_dir: &Path) -> crate::Res
     .args(["--specpath".as_ref(), work.as_os_str()])
     .args(["--paths".as_ref(), tauri_dir.as_os_str()])
     .arg("--noconfirm");
+  // Embed the payload as data files, extracted to `sys._MEIPASS` at runtime.
+  // PyInstaller's `--add-data` uses `<src><os-sep><dest-dir>`; `.` places the
+  // files at the _MEIPASS root, where the runtime reads them back.
+  let sep = if cfg!(windows) { ";" } else { ":" };
+  let mut add_data = |src: &Path| {
+    let mut spec = src.as_os_str().to_os_string();
+    spec.push(sep);
+    spec.push(".");
+    cmd.arg("--add-data").arg(spec);
+  };
+  add_data(&payload.config);
+  if let Some(assets) = &payload.assets {
+    add_data(assets);
+  }
+  if let Some(capabilities) = &payload.capabilities {
+    add_data(capabilities);
+  }
   // let PyInstaller resolve the tauri_ffi package (and any dev sys.path entries)
   if let Some(python_path) = std::env::var_os("PYTHONPATH") {
     for path in std::env::split_paths(&python_path) {
@@ -853,7 +992,12 @@ process.stdout.write(file)
 /// 3. build the SEA blob with the worker bundle embedded as the `worker.js`
 ///    asset — `launch()` runs it via `new Worker(source, { eval: true })` —
 ///    and inject it into a copy of the node executable with postject.
-fn compile_node(entry: &Path, bin_path: &Path, tauri_dir: &Path) -> crate::Result<()> {
+fn compile_node(
+  entry: &Path,
+  bin_path: &Path,
+  tauri_dir: &Path,
+  payload: &EmbedPayload,
+) -> crate::Result<()> {
   let dist = bin_path.parent().expect("binary path has no parent");
   let work = dist.join(".sea");
   fs::create_dir_all(&work).fs_context("failed to create work directory", work.clone())?;
@@ -933,14 +1077,34 @@ fn compile_node(entry: &Path, bin_path: &Path, tauri_dir: &Path) -> crate::Resul
     run_compiler("esbuild", &mut cmd)?;
   }
 
-  // 4. build the SEA blob (paths in sea-config.json resolve from the cwd)
+  // 4. build the SEA blob (paths in sea-config.json resolve from the cwd). The
+  //    worker bundle plus the embedded payload (assets/config/capabilities) all
+  //    ride along as SEA assets, read back at runtime via `sea.getAsset`.
+  let mut assets = serde_json::Map::new();
+  assets.insert("worker.js".into(), "worker.cjs".into());
+  assets.insert(
+    "config.json".into(),
+    payload.config.to_string_lossy().into_owned().into(),
+  );
+  if let Some(app_assets) = &payload.assets {
+    assets.insert(
+      "app.assets".into(),
+      app_assets.to_string_lossy().into_owned().into(),
+    );
+  }
+  if let Some(capabilities) = &payload.capabilities {
+    assets.insert(
+      "capabilities.json".into(),
+      capabilities.to_string_lossy().into_owned().into(),
+    );
+  }
   fs::write(
     work.join("sea-config.json"),
     serde_json::to_string_pretty(&serde_json::json!({
       "main": "main.cjs",
       "output": "sea-prep.blob",
       "disableExperimentalSEAWarning": true,
-      "assets": { "worker.js": "worker.cjs" }
+      "assets": assets
     }))
     .context("failed to serialize sea-config.json")?,
   )

@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#define TAURI_FFI_ABI_VERSION 8
+#define TAURI_FFI_ABI_VERSION 9
 
 #define TAURI_OK 0 /* Success. */
 #define TAURI_ERR_GENERIC -1 /* Operation failed; details via tauri_last_error_message. */
@@ -88,6 +88,17 @@ int32_t tauri_app_builder_set_assets_dir(uint64_t builder, const char *path);
  * tauri_app_builder_set_assets_dir.
  */
 int32_t tauri_app_builder_set_assets_archive(uint64_t builder, const char *path);
+
+/*
+ * Serves `WebviewUrl::App` paths from an in-memory tauri-ffi assets archive
+ * (same format as tauri_app_builder_set_assets_archive, but the bytes are
+ * passed directly instead of read from a file). For hosts that embed the
+ * archive in their own binary (Deno `--include`, Node SEA asset, PyInstaller
+ * data). The bytes are copied; the caller may free them after the call
+ * returns. Takes precedence over the dir/path asset variants. `len` is the
+ * byte length of `bytes`.
+ */
+int32_t tauri_app_builder_set_assets_archive_bytes(uint64_t builder, const uint8_t *bytes, uint32_t len);
 
 /*
  * Enables dev mode: `WebviewUrl::App` windows load from the config's

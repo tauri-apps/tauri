@@ -107,6 +107,13 @@ impl ArchiveAssets {
   pub fn load(path: &Path) -> Result<Self, String> {
     let bytes =
       std::fs::read(path).map_err(|e| format!("failed to read assets archive: {e}"))?;
+    Self::from_bytes(bytes)
+  }
+
+  /// Parses an archive already held in memory — the embedded-in-binary path,
+  /// where the host reads the archive from its own executable (Deno
+  /// `--include`, Node SEA asset, PyInstaller data) and hands over the bytes.
+  pub fn from_bytes(bytes: Vec<u8>) -> Result<Self, String> {
     if bytes.len() < 16 || &bytes[..8] != Self::MAGIC {
       return Err("not a tauri-ffi assets archive (bad magic)".into());
     }

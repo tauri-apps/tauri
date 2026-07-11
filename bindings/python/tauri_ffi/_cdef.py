@@ -7,7 +7,7 @@
 #   from cffi import FFI
 #   ffi = FFI(); ffi.cdef(CDEF); lib = ffi.dlopen(path_to_tauri_ffi)
 
-ABI_VERSION = 8
+ABI_VERSION = 9
 
 CODES = {
     "OK": 0,
@@ -30,6 +30,7 @@ int32_t tauri_handle_close(uint64_t handle);
 int32_t tauri_app_builder_new(const char *config_json, uint64_t *out_builder);
 int32_t tauri_app_builder_set_assets_dir(uint64_t builder, const char *path);
 int32_t tauri_app_builder_set_assets_archive(uint64_t builder, const char *path);
+int32_t tauri_app_builder_set_assets_archive_bytes(uint64_t builder, const uint8_t *bytes, uint32_t len);
 int32_t tauri_app_builder_set_dev(uint64_t builder, bool dev);
 int32_t tauri_app_builder_register_command(uint64_t builder, const char *name);
 int32_t tauri_app_builder_add_capability(uint64_t builder, const char *capability);

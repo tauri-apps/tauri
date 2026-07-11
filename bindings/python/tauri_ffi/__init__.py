@@ -123,6 +123,17 @@ def _bundled_resource_dir() -> Optional[Path]:
     return exe.parent
 
 
+def _embedded_dir() -> Optional[Path]:
+    """The directory of the payload embedded in a frozen (PyInstaller) binary —
+    ``app.assets``, ``config.json`` and ``capabilities.json`` extracted to
+    ``sys._MEIPASS`` at startup — or None in dev. This is how a shipped bundle
+    carries its assets/config/ACL *inside* the executable rather than as sibling
+    files. Unlike Node/Deno, PyInstaller extracts to a real filesystem path, so
+    the assets archive is read back by path (the cdylib reads it directly)."""
+    meipass = getattr(sys, "_MEIPASS", None)
+    return Path(meipass) if meipass else None
+
+
 def _merge_config(target: dict, source: dict) -> dict:
     """JSON merge patch (like the CLI's config merging): objects merge
     recursively, None removes the key, everything else replaces."""
@@ -905,14 +916,37 @@ class App:
         capabilities: Optional[list] = None,
         library: Optional[Path] = None,
     ):
-        self._config, config_dir = _resolve_config(config)
-        self._assets_dir, self._assets_archive = _resolve_assets(
-            assets_dir, assets_archive, self._config, config_dir
-        )
-        # Inline capabilities plus any discovered in a `capabilities/` directory
-        # next to the config (compile-time capability files, read at construction).
+        # When frozen, assets/config/capabilities are embedded *inside* the
+        # binary (extracted to sys._MEIPASS); in dev they come from disk.
+        # Explicit arguments always win.
+        embedded = _embedded_dir()
+
+        if config is None and embedded is not None:
+            cfg_file = embedded / "config.json"
+            if not cfg_file.is_file():
+                raise TauriError(-1, "bundled app is missing its embedded config.json")
+            self._config = json.loads(cfg_file.read_text())
+            config_dir = None
+        else:
+            self._config, config_dir = _resolve_config(config)
+
+        if embedded is not None and assets_dir is None and assets_archive is None:
+            archive = embedded / "app.assets"
+            self._assets_dir, self._assets_archive = None, (archive if archive.is_file() else None)
+        else:
+            self._assets_dir, self._assets_archive = _resolve_assets(
+                assets_dir, assets_archive, self._config, config_dir
+            )
+
+        # Inline capabilities plus those embedded in the binary (frozen) or
+        # discovered in a `capabilities/` directory next to the config (dev) —
+        # compile-time capability files, read at construction.
         entry_dir = Path(sys.argv[0]).resolve().parent if sys.argv and sys.argv[0] else None
-        discovered = _resolve_capabilities([_bundled_resource_dir(), config_dir, entry_dir])
+        cap_file = embedded / "capabilities.json" if embedded is not None else None
+        if cap_file is not None and cap_file.is_file():
+            discovered = json.loads(cap_file.read_text())
+        else:
+            discovered = _resolve_capabilities([config_dir, entry_dir])
         # a frozen bundle ignores the TAURI_DEV env override (hermetic in production)
         if dev is not None:
             self._dev = dev

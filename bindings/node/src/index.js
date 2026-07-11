@@ -14,7 +14,7 @@ import { writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { open } from './ffi.js'
-import { bundledResourceDir, isBundled, resolveAssets, resolveCapabilities, resolveConfig } from './config.js'
+import { isBundled, readEmbedded, resolveAssets, resolveCapabilities, resolveConfig } from './config.js'
 
 /**
  * Builds the app, spawns `appEntry` as a worker, then blocks this thread in
@@ -59,18 +59,28 @@ export function launch(appEntry, options = {}) {
   const dev = options.dev ?? (!isBundled() && process.env.TAURI_DEV === 'true')
 
   const entryDir = path.dirname(path.resolve(entry))
-  const { config, configDir } = resolveConfig(entryDir, options.config)
-  const assets = resolveAssets(
-    {
-      assetsDir: options.assetsDir instanceof URL ? fileURLToPath(options.assetsDir) : options.assetsDir,
-      assetsArchive:
-        options.assetsArchive instanceof URL
-          ? fileURLToPath(options.assetsArchive)
-          : options.assetsArchive
-    },
-    config,
-    configDir
-  )
+
+  // When bundled (SEA), assets/config/capabilities are embedded *inside* the
+  // binary as SEA assets; in dev they come from disk. Explicit options win.
+  const embeddedConfig = options.config ? null : readEmbedded('config.json', 'utf8')
+  const { config, configDir } = embeddedConfig
+    ? { config: JSON.parse(embeddedConfig), configDir: null }
+    : resolveConfig(entryDir, options.config)
+
+  const embeddedAssets = !options.assetsDir && !options.assetsArchive ? readEmbedded('app.assets') : null
+  const assets = embeddedAssets
+    ? {}
+    : resolveAssets(
+        {
+          assetsDir: options.assetsDir instanceof URL ? fileURLToPath(options.assetsDir) : options.assetsDir,
+          assetsArchive:
+            options.assetsArchive instanceof URL
+              ? fileURLToPath(options.assetsArchive)
+              : options.assetsArchive
+        },
+        config,
+        configDir
+      )
 
   const { api, check, libPath } = open()
 
@@ -81,7 +91,12 @@ export function launch(appEntry, options = {}) {
   if (dev) {
     check(api.appBuilderSetDev(builder, true), 'set_dev')
   }
-  if (assets.archive) {
+  if (embeddedAssets) {
+    check(
+      api.appBuilderSetAssetsArchiveBytes(builder, embeddedAssets, embeddedAssets.length),
+      'set_assets_archive_bytes'
+    )
+  } else if (assets.archive) {
     check(api.appBuilderSetAssetsArchive(builder, assets.archive), 'set_assets_archive')
   } else if (assets.dir) {
     check(api.appBuilderSetAssetsDir(builder, assets.dir), 'set_assets_dir')
@@ -89,9 +104,14 @@ export function launch(appEntry, options = {}) {
   for (const name of commands) {
     check(api.appBuilderRegisterCommand(builder, name), `register_command(${name})`)
   }
-  // Inline capabilities plus any discovered in a `capabilities/` directory
-  // next to the config (compile-time capability files, read at launch).
-  const allCapabilities = [...capabilities, ...resolveCapabilities([bundledResourceDir(), configDir, entryDir])]
+  // Inline capabilities plus those embedded in the binary (SEA) or discovered
+  // in a `capabilities/` directory next to the config (dev) — compile-time
+  // capability files, read at launch.
+  const embeddedCapabilities = readEmbedded('capabilities.json', 'utf8')
+  const discoveredCapabilities = embeddedCapabilities
+    ? JSON.parse(embeddedCapabilities)
+    : resolveCapabilities([configDir, entryDir])
+  const allCapabilities = [...capabilities, ...discoveredCapabilities]
   for (const capability of allCapabilities) {
     const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
     check(api.appBuilderAddCapability(builder, json), 'add_capability')

@@ -158,6 +158,7 @@ pub unsafe extern "C" fn tauri_app_builder_new(
       config,
       assets_dir: None,
       assets_archive: None,
+      assets_archive_bytes: None,
       dev: false,
       commands: Default::default(),
       capabilities: Vec::new(),
@@ -194,6 +195,31 @@ pub unsafe extern "C" fn tauri_app_builder_set_assets_archive(
     let path = try_cstr!(path);
     state::with_builder(builder, |b| {
       b.assets_archive = Some(path.into());
+      OK
+    })
+  })
+}
+
+/// Serves the app frontend from an in-memory assets archive (same format as
+/// `tauri_app_builder_set_assets_archive`, but the bytes are passed directly).
+/// For hosts that embed the archive in their own binary (Deno `--include`,
+/// Node SEA asset, PyInstaller data) rather than shipping it as a sibling file.
+/// The bytes are copied; the caller may free them after the call returns. Takes
+/// precedence over the dir/path asset variants.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_builder_set_assets_archive_bytes(
+  builder: u64,
+  bytes: *const u8,
+  len: u32,
+) -> i32 {
+  catch(|| {
+    if bytes.is_null() {
+      return fail(ERR_INVALID_ARG, "bytes is null");
+    }
+    let data = unsafe { std::slice::from_raw_parts(bytes, len as usize) }.to_vec();
+    let mut data = Some(data);
+    state::with_builder(builder, |b| {
+      b.assets_archive_bytes = data.take();
       OK
     })
   })
@@ -270,6 +296,7 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
     mut config,
     assets_dir,
     assets_archive,
+    assets_archive_bytes,
     dev,
     commands,
     capabilities,
@@ -296,7 +323,9 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let plugin_names: Vec<String> = plugins.iter().map(|p| p.name.clone()).collect();
   let authority = tauri::runtime_authority!(acl, Resolved::default());
 
-  let assets: Box<dyn tauri::Assets<Wry>> = if let Some(archive) = assets_archive {
+  let assets: Box<dyn tauri::Assets<Wry>> = if let Some(bytes) = assets_archive_bytes {
+    Box::new(assets::ArchiveAssets::from_bytes(bytes)?)
+  } else if let Some(archive) = assets_archive {
     Box::new(assets::ArchiveAssets::load(&archive)?)
   } else if let Some(dir) = assets_dir {
     Box::new(assets::DirAssets::new(dir))

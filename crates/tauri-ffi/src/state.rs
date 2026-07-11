@@ -21,6 +21,10 @@ pub struct BuilderState {
   pub config: Config,
   pub assets_dir: Option<PathBuf>,
   pub assets_archive: Option<PathBuf>,
+  /// In-memory assets archive (same format as `assets_archive`), handed over by
+  /// hosts that embed the archive in their own binary instead of shipping it as
+  /// a sibling file. Takes precedence over `assets_archive`/`assets_dir`.
+  pub assets_archive_bytes: Option<Vec<u8>>,
   pub dev: bool,
   pub commands: HashSet<String>,
   pub capabilities: Vec<String>,

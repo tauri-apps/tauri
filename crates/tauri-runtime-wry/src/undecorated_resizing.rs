@@ -519,6 +519,20 @@ mod gtk {
         HitTestResult::BottomRight => gtk::gdk::WindowEdge::SouthEast,
       }
     }
+
+    fn to_cursor_name(self) -> &'static str {
+      match self {
+        HitTestResult::Left => "w-resize",
+        HitTestResult::Right => "e-resize",
+        HitTestResult::Top => "n-resize",
+        HitTestResult::Bottom => "s-resize",
+        HitTestResult::TopLeft => "nw-resize",
+        HitTestResult::TopRight => "ne-resize",
+        HitTestResult::BottomLeft => "sw-resize",
+        HitTestResult::BottomRight => "se-resize",
+        HitTestResult::Client | HitTestResult::NoWhere => "default",
+      }
+    }
   }
 
   pub fn attach_resize_handler(webview: &wry::WebView) {
@@ -532,9 +546,43 @@ mod gtk {
     let webview = webview.webview();
 
     webview.add_events(
-      gtk::gdk::EventMask::BUTTON1_MOTION_MASK
+      gtk::gdk::EventMask::POINTER_MOTION_MASK
+        | gtk::gdk::EventMask::BUTTON1_MOTION_MASK
         | gtk::gdk::EventMask::BUTTON_PRESS_MASK
         | gtk::gdk::EventMask::TOUCH_MASK,
+    );
+
+    webview.connect_motion_notify_event(
+      move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventMotion| {
+        if let Some(window) = webview.parent().and_then(|w| w.parent()) {
+          let window: gtk::Window = window.downcast().unwrap();
+          if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
+            if let Some(gdk_window) = webview.window() {
+              let (x, y) = event.position();
+              let border = gdk_window.scale_factor() * BORDERLESS_RESIZE_INSET;
+              let result = hit_test(
+                0.0,
+                0.0,
+                gdk_window.width() as f64,
+                gdk_window.height() as f64,
+                x,
+                y,
+                border as _,
+                border as _,
+              );
+
+              if !matches!(result, HitTestResult::Client | HitTestResult::NoWhere) {
+                let cursor =
+                  gtk::gdk::Cursor::from_name(&gdk_window.display(), result.to_cursor_name());
+                gdk_window.set_cursor(cursor.as_ref());
+                return Propagation::Stop;
+              }
+            }
+          }
+        }
+
+        Propagation::Proceed
+      },
     );
 
     webview.connect_button_press_event(

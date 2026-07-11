@@ -36,6 +36,41 @@ tauri = { path = "../tauri", features = [
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Official first-party plugins bundled into the cdylib so non-Rust hosts get the
+# standard app capabilities (the `@tauri-apps/plugin-*` JS packages talk to these).
+# Every desktop-capable plugin is included; the 5 mobile-only plugins (barcode-scanner,
+# biometric, geolocation, haptics, nfc) are excluded for the desktop-only v0 scope.
+# Pulled from crates.io; each depends on `tauri`/`tauri-plugin`/`tauri-utils` (also from
+# crates.io), which the workspace-root `[patch.crates-io]` redirects to this repo's local
+# crates so there is a single `tauri`. Their permission manifests + global API scripts
+# surface through `build.rs`'s DEP_TAURI_* collection automatically.
+tauri-plugin-autostart = "2"
+tauri-plugin-cli = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-http = "2"
+tauri-plugin-localhost = "2"
+tauri-plugin-log = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-os = "2"
+tauri-plugin-persisted-scope = "2"
+tauri-plugin-positioner = "2"
+tauri-plugin-process = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-single-instance = "2"
+# `sql` has no default features; a driver must be selected. Enable SQLite (the common default).
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-store = "2"
+tauri-plugin-stronghold = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-upload = "2"
+tauri-plugin-websocket = "2"
+tauri-plugin-window-state = "2"
+
 [build-dependencies]
 # `build-2` exposes tauri_utils::acl::build, used to collect the core plugin
 # permission manifests advertised by tauri's build script (DEP_TAURI_*).

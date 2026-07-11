@@ -313,6 +313,13 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
     }
   }
 
+  // `cli` and `updater` read a required `plugins.<name>` config section and
+  // fail app startup if it is absent (their config deserializes from `null`
+  // and errors), so they are only registered when the host configured them.
+  // Captured here because `config` is moved into the `Context` below.
+  let cli_configured = config.plugins.0.contains_key("cli");
+  let updater_configured = config.plugins.0.contains_key("updater");
+
   // ACL: embedded core manifests + a synthesized manifest per host plugin so
   // its `plugin:<name>|<command>` invokes resolve at runtime (`dynamic-acl`).
   let mut acl: BTreeMap<String, Manifest> = serde_json::from_str(ACL_MANIFESTS_JSON)
@@ -383,6 +390,68 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
       let message = serde_json::json!({ "type": "menu-event", "id": event.id().0.clone() });
       let _ = menu_tx.send(message.to_string());
     });
+
+  // Compiled-in first-party plugins (declared in Cargo.toml). Registering them
+  // wires `plugin:<name>|<command>` invokes to the real Rust handlers and injects
+  // each plugin's `window.__TAURI__.<name>` API script. Permissions are NOT granted
+  // here: the host opts in per plugin via capabilities, and the manifests embedded by
+  // build.rs make identifiers like `fs:default` resolvable at runtime (`dynamic-acl`).
+  //
+  // Two plugins are compiled in but intentionally not auto-activated because they need
+  // host-supplied arguments and change process-wide behavior, so they belong behind a
+  // dedicated FFI entry point rather than being forced on every app:
+  //   * localhost       — `Builder::new(port)` requires a port to serve the frontend on.
+  //   * single-instance — `init(callback)` requires a new-instance callback and makes the
+  //                        process refuse to launch a second instance.
+  builder = builder
+    .plugin(tauri_plugin_fs::init())
+    .plugin(tauri_plugin_clipboard_manager::init())
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_http::init())
+    .plugin(tauri_plugin_notification::init())
+    .plugin(tauri_plugin_os::init())
+    .plugin(tauri_plugin_process::init())
+    .plugin(tauri_plugin_opener::init())
+    .plugin(tauri_plugin_shell::init())
+    .plugin(tauri_plugin_upload::init())
+    .plugin(tauri_plugin_websocket::init())
+    .plugin(tauri_plugin_positioner::init())
+    .plugin(tauri_plugin_persisted_scope::init())
+    .plugin(tauri_plugin_deep_link::init())
+    .plugin(tauri_plugin_sql::Builder::new().build())
+    .plugin(tauri_plugin_store::Builder::new().build())
+    .plugin(tauri_plugin_log::Builder::new().build())
+    .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+    .plugin(tauri_plugin_window_state::Builder::new().build())
+    .plugin(tauri_plugin_autostart::Builder::new().build())
+    // stronghold's password KDF needs a salt path, only known once the app has
+    // resolved its data directory — register it from the setup hook like a normal app.
+    // Best-effort: stronghold is opt-in (via capability), so a failure to resolve the
+    // data dir or attach the plugin must not prevent the app from starting.
+    .setup(|app| {
+      use tauri::Manager;
+      match app.path().app_local_data_dir() {
+        Ok(dir) => {
+          let salt_path = dir.join("stronghold-salt.txt");
+          if let Err(e) = app
+            .handle()
+            .plugin(tauri_plugin_stronghold::Builder::with_argon2(&salt_path).build())
+          {
+            eprintln!("tauri-ffi: stronghold plugin unavailable: {e}");
+          }
+        }
+        Err(e) => eprintln!("tauri-ffi: stronghold disabled, no app data dir: {e}"),
+      }
+      Ok(())
+    });
+
+  // Config-gated (see `cli_configured` / `updater_configured` above).
+  if updater_configured {
+    builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+  }
+  if cli_configured {
+    builder = builder.plugin(tauri_plugin_cli::init());
+  }
 
   // Each plugin gets a `tauri::plugin::Builder` whose invoke handler funnels
   // into the same event queue, tagged with the plugin name.

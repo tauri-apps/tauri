@@ -162,8 +162,7 @@ impl CheckMenuItemPayload {
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
       webview
-        .state::<MenuChannels>()
-        .0
+        .state::<Mutex<MenuChannels>>()
         .lock()
         .unwrap()
         .insert(item.id().clone(), handler);
@@ -218,8 +217,7 @@ impl IconMenuItemPayload {
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
       webview
-        .state::<MenuChannels>()
-        .0
+        .state::<Mutex<MenuChannels>>()
         .lock()
         .unwrap()
         .insert(item.id().clone(), handler);
@@ -257,8 +255,7 @@ impl MenuItemPayload {
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
       webview
-        .state::<MenuChannels>()
-        .0
+        .state::<Mutex<MenuChannels>>()
         .lock()
         .unwrap()
         .insert(item.id().clone(), handler);
@@ -362,7 +359,7 @@ fn new<R: Runtime>(
   webview: Webview<R>,
   kind: ItemKind,
   options: Option<NewOptions>,
-  channels: State<'_, MenuChannels>,
+  channels: State<'_, Mutex<MenuChannels>>,
   handler: Channel<MenuId>,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
@@ -460,7 +457,7 @@ fn new<R: Runtime>(
     }
   };
 
-  channels.0.lock().unwrap().insert(id.clone(), handler);
+  channels.lock().unwrap().insert(id.clone(), handler);
 
   Ok((rid, id))
 }
@@ -885,32 +882,34 @@ fn set_icon<R: Runtime>(
   )
 }
 
-struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);
+#[derive(Default)]
+pub(crate) struct MenuChannels(HashMap<MenuId, Channel<MenuId>>);
 
-// Called in `Menu`'s `Drop` to clean up the event handlers
-pub(crate) fn remove_menu_channel<R: Runtime>(app: &AppHandle<R>, id: &MenuId) {
-  app.state::<MenuChannels>().0.lock().unwrap().remove(id);
+impl MenuChannels {
+  fn insert(&mut self, id: MenuId, channel: Channel<MenuId>) -> Option<Channel<MenuId>> {
+    self.0.insert(id, channel)
+  }
+  fn get(&self, id: &MenuId) -> Option<&Channel<MenuId>> {
+    self.0.get(id)
+  }
+  pub(crate) fn remove(&mut self, id: &MenuId) -> Option<Channel<MenuId>> {
+    self.0.remove(id)
+  }
 }
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("menu")
     .setup(|app, _api| {
-      app.manage(MenuChannels(Mutex::default()));
+      app.manage(Mutex::new(MenuChannels::default()));
       Ok(())
     })
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
+        let menu_channels = app.state::<Mutex<MenuChannels>>();
         // Cloning the channel out in case the menu gets dropped during the channel send through `channel_interceptor`
-        let channel = app
-          .state::<MenuChannels>()
-          .0
-          .lock()
-          .unwrap()
-          .get(&e.id)
-          .cloned();
-        if let Some(channel) = channel {
+        if let Some(channel) = menu_channels.lock().unwrap().get(&e.id).cloned() {
           let _ = channel.send(e.id.clone());
-        }
+        };
       }
     })
     .invoke_handler(crate::generate_handler![

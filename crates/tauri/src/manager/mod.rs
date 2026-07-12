@@ -25,6 +25,7 @@ use crate::{
   },
   event::{EmitArgs, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
+  menu::plugin::MenuChannels,
   plugin::PluginStore,
   resources::ResourceTable,
   utils::{config::Config, PackageInfo},
@@ -693,6 +694,10 @@ impl<R: Runtime> AppManager<R> {
 
   pub(crate) fn invoke_key(&self) -> &str {
     &self.invoke_key
+  }
+
+  pub(crate) fn menu_channels(&self) -> &Mutex<MenuChannels> {
+    self.state.menu_channels()
   }
 }
 

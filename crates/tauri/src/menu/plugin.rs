@@ -162,7 +162,8 @@ impl CheckMenuItemPayload {
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
       webview
-        .state::<Mutex<MenuChannels>>()
+        .manager
+        .menu_channels()
         .lock()
         .unwrap()
         .insert(item.id().clone(), handler);
@@ -217,7 +218,8 @@ impl IconMenuItemPayload {
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
       webview
-        .state::<Mutex<MenuChannels>>()
+        .manager
+        .menu_channels()
         .lock()
         .unwrap()
         .insert(item.id().clone(), handler);
@@ -255,7 +257,8 @@ impl MenuItemPayload {
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
       webview
-        .state::<Mutex<MenuChannels>>()
+        .manager
+        .menu_channels()
         .lock()
         .unwrap()
         .insert(item.id().clone(), handler);
@@ -899,13 +902,9 @@ impl MenuChannels {
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("menu")
-    .setup(|app, _api| {
-      app.manage(Mutex::new(MenuChannels::default()));
-      Ok(())
-    })
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
-        let menu_channels = app.state::<Mutex<MenuChannels>>();
+        let menu_channels = app.manager().menu_channels();
         // Cloning the channel out in case the menu gets dropped during the channel send through `channel_interceptor`
         if let Some(channel) = menu_channels.lock().unwrap().get(&e.id).cloned() {
           let _ = channel.send(e.id.clone());

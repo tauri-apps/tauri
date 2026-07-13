@@ -125,19 +125,19 @@ struct ResourceFile {
   guid: String,
   /// the id to use on the WIX XML.
   id: String,
-  /// the target file name.
-  target_name: String,
   /// the source file path.
   source_path: PathBuf,
+  /// file name override, defaulting to the file name of [`Self::source_path`].
+  target_name_override: Option<String>,
 }
 
 impl ResourceFile {
-  fn new(source_path: PathBuf, target_name: String) -> Self {
+  fn new(source_path: PathBuf, target_name_override: Option<String>) -> Self {
     Self {
       id: format!("I{}", Uuid::new_v4().as_simple()),
       guid: Uuid::new_v4().to_string(),
-      target_name,
       source_path,
+      target_name_override,
     }
   }
 }
@@ -163,16 +163,22 @@ impl ResourceDirectory {
     let mut files = String::from("");
     let mut file_ids = Vec::new();
     for file in self.files {
+      let ResourceFile {
+        id,
+        guid,
+        source_path,
+        target_name_override,
+      } = file;
+      let name_attribute = target_name_override
+        .map(|name| format!(r#"Name="{}" "#, html_escape(&name)))
+        .unwrap_or_default();
+      let source_path = html_escape(&source_path.to_string_lossy());
       files.push_str(
         &format!(
-          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Name="{name}" Source="{source_path}" /></Component>"#,
-          id = file.id,
-          guid = file.guid,
-          name = html_escape(&file.target_name),
-          source_path = html_escape(&file.source_path.to_string_lossy())
+          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{source_path}" {name_attribute}/></Component>"#,
         )
       );
-      file_ids.push(file.id);
+      file_ids.push(id);
     }
     let mut directories = String::from("");
     for (directory_name, directory) in self.directories {
@@ -1010,12 +1016,14 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
 
     let resource_entry = ResourceFile::new(
       resource_path,
-      resource
-        .target()
-        .file_name()
-        .expect("failed to read resource file name")
-        .to_string_lossy()
-        .into_owned(),
+      Some(
+        resource
+          .target()
+          .file_name()
+          .expect("failed to read resource file name")
+          .to_string_lossy()
+          .into_owned(),
+      ),
     );
 
     // Store the target directory components. The complete list is grouped
@@ -1053,14 +1061,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
         continue;
       }
       added_resources.insert(resource_path.to_path_buf());
-      dlls.push(ResourceFile::new(
-        resource_path.to_path_buf(),
-        resource_path
-          .file_name()
-          .expect("failed to read vr runtime DLL file name")
-          .to_string_lossy()
-          .into_owned(),
-      ));
+      dlls.push(ResourceFile::new(resource_path.to_path_buf(), None));
     }
   }
 
@@ -1083,14 +1084,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
         try_sign(resource_path, settings)?;
       }
 
-      dlls.push(ResourceFile::new(
-        resource_path.to_path_buf(),
-        resource_path
-          .file_name()
-          .expect("failed to extract DLL filename")
-          .to_string_lossy()
-          .into_owned(),
-      ));
+      dlls.push(ResourceFile::new(resource_path.to_path_buf(), None));
     }
   }
 
@@ -1142,7 +1136,7 @@ mod tests {
 
   #[test]
   fn includes_mapped_resource_file_name_in_wix_data() {
-    let resource = ResourceFile::new("MyFile".into(), "myFileRenamed".into());
+    let resource = ResourceFile::new("MyFile".into(), Some("myFileRenamed".into()));
     let resource_id = resource.id.clone();
     let directory = ResourceDirectory {
       files: vec![resource],

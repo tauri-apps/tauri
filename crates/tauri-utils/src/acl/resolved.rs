@@ -48,7 +48,7 @@ impl ResolvedCommand {
   /// Internal helper for tauri-macros to avoid compile errors on different `debug_assertions` settings,
   /// see https://github.com/tauri-apps/tauri/issues/13865
   #[doc(hidden)]
-  pub const fn new(
+  pub fn new(
     context: ExecutionContext,
     #[cfg_attr(not(debug_assertions), allow(unused))] referenced_by: ResolvedCommandReference,
     windows: Vec<glob::Pattern>,

@@ -20,7 +20,6 @@ use super::{
 pub type ScopeKey = u64;
 
 /// Metadata for what referenced a [`ResolvedCommand`].
-#[cfg(debug_assertions)]
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct ResolvedCommandReference {
   /// Identifier of the capability.

@@ -142,12 +142,6 @@ impl ResourceFile {
   }
 }
 
-/// A resource file and the target directories that contain it.
-struct ResourceFileEntry {
-  directories: Vec<String>,
-  file: ResourceFile,
-}
-
 /// A resource directory to bundle with WIX.
 /// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
 struct ResourceDirectory {
@@ -156,29 +150,21 @@ struct ResourceDirectory {
   /// the files of the described resource directory.
   files: Vec<ResourceFile>,
   /// the directories that are children of the described resource directory.
-  directories: Vec<ResourceDirectory>,
+  directories: HashMap<String, ResourceDirectory>,
 }
 
 impl ResourceDirectory {
-  fn from_files(name: String, files: Vec<ResourceFileEntry>) -> Self {
-    let (files, nested_files): (Vec<_>, Vec<_>) = files
-      .into_iter()
-      .partition(|entry| entry.directories.is_empty());
-
-    let mut files_by_directory: BTreeMap<String, Vec<_>> = BTreeMap::new();
-    for mut entry in nested_files {
-      let directory = entry.directories.remove(0);
-      files_by_directory.entry(directory).or_default().push(entry);
-    }
-
+  fn new(name: String) -> Self {
     Self {
       name,
-      files: files.into_iter().map(|entry| entry.file).collect(),
-      directories: files_by_directory
-        .into_iter()
-        .map(|(name, files)| Self::from_files(name, files))
-        .collect(),
+      files: Vec::new(),
+      directories: HashMap::new(),
     }
+  }
+
+  /// Adds a file to this directory descriptor.
+  fn add_file(&mut self, file: ResourceFile) {
+    self.files.push(file);
   }
 
   /// Generates the wix XML string to bundle this directory resources recursively
@@ -198,7 +184,7 @@ impl ResourceDirectory {
       file_ids.push(file.id);
     }
     let mut directories = String::from("");
-    for directory in self.directories {
+    for directory in self.directories.into_values() {
       let (wix_string, ids) = directory.render_wix()?;
       for id in ids {
         file_ids.push(id)
@@ -1009,7 +995,7 @@ fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
 
 /// Generates the data required for the resource bundling on wix
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirectory> {
-  let mut resource_files = Vec::new();
+  let mut root_resource_directory = ResourceDirectory::new(String::from(""));
   let cwd = std::env::current_dir()?;
 
   let mut added_resources = HashSet::new();
@@ -1048,12 +1034,23 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
     let directories = target_path
       .components()
       .take(components_count - 1) // the last component is the file
-      .map(|component| component.as_os_str().to_string_lossy().into_owned())
-      .collect();
-    resource_files.push(ResourceFileEntry {
-      directories,
-      file: resource_entry,
-    });
+      .collect::<Vec<_>>();
+
+    let mut directory_entry = &mut root_resource_directory;
+
+    for directory in directories {
+      let directory_name = directory
+        .as_os_str()
+        .to_os_string()
+        .into_string()
+        .expect("failed to read resource folder name");
+
+      directory_entry = directory_entry
+        .directories
+        .entry(directory_name.clone())
+        .or_insert_with(|| ResourceDirectory::new(directory_name));
+    }
+    directory_entry.add_file(resource_entry);
   }
 
   let mut dlls = Vec::new();
@@ -1106,10 +1103,9 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
     }
   }
 
-  let mut resources = ResourceDirectory::from_files(String::new(), resource_files);
-  resources.files.extend(dlls);
+  root_resource_directory.files.extend(dlls);
 
-  Ok(resources)
+  Ok(root_resource_directory)
 }
 
 #[cfg(test)]

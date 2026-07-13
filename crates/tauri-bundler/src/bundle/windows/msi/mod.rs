@@ -986,7 +986,6 @@ fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
 
 /// Generates the data required for the resource bundling on wix
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirectory> {
-  let mut root_resource_directory = ResourceDirectory::default();
   let cwd = std::env::current_dir()?;
 
   let mut added_resources = HashSet::new();
@@ -1142,15 +1141,14 @@ mod tests {
 
   #[test]
   fn includes_mapped_resource_file_name_in_wix_data() {
-    let resource = ResourceFile::new("MyFile", "myFileRenamed");
+    let resource = ResourceFile::new("MyFile".into(), "myFileRenamed".into());
     let resource_id = resource.id.clone();
     let directory = ResourceDirectory {
-      name: String::new(),
       files: vec![resource],
-      directories: vec![],
+      directories: HashMap::new(),
     };
 
-    let (wix_data, file_ids) = directory.render_wix().unwrap();
+    let (wix_data, file_ids) = directory.render_wix(None).unwrap();
 
     assert_eq!(file_ids, vec![resource_id]);
     assert!(wix_data.contains(r#"Name="myFileRenamed""#));

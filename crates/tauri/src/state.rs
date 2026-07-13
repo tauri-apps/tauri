@@ -12,7 +12,7 @@ use std::{
 use crate::{
   ipc::{CommandArg, CommandItem, InvokeError},
   menu::plugin::MenuChannels,
-  Runtime,
+  Env, Runtime,
 };
 
 /// A guard for a state value.
@@ -108,6 +108,7 @@ pub struct StateManager {
   map: Mutex<TypeIdMap>,
   // state of some required plugins
   menu_channels: Mutex<MenuChannels>,
+  env: Env,
 }
 
 impl std::fmt::Debug for StateManager {
@@ -123,6 +124,7 @@ impl StateManager {
     Self {
       map: Default::default(),
       menu_channels: Default::default(),
+      env: Env::default(),
     }
   }
 
@@ -169,6 +171,13 @@ impl StateManager {
             .unwrap(),
         ))
       }
+      tyid if tyid == TypeId::of::<Env>() => {
+        return Some(State(
+          (&self.env as &(dyn Any + Send + Sync))
+            .downcast_ref()
+            .unwrap(),
+        ))
+      }
       _ => {}
     }
     let state = map.get(&type_id)?;
@@ -181,6 +190,9 @@ impl StateManager {
   }
   pub(crate) fn menu_channels(&self) -> &Mutex<MenuChannels> {
     &self.menu_channels
+  }
+  pub(crate) fn env(&self) -> &Env {
+    &self.env
   }
 }
 

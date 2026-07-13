@@ -699,6 +699,10 @@ impl<R: Runtime> AppManager<R> {
   pub(crate) fn menu_channels(&self) -> &Mutex<MenuChannels> {
     self.state.menu_channels()
   }
+
+  pub(crate) fn env(&self) -> &crate::Env {
+    self.state.env()
+  }
 }
 
 #[cfg(desktop)]

@@ -16,7 +16,7 @@ use crate::{
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::{config::Config, Env},
+  utils::config::Config,
   webview::PageLoadPayload,
   Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
   Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
@@ -2441,9 +2441,6 @@ tauri::Builder::default()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
-    let env = Env::default();
-    app.manage(env);
 
     app.manage(Scopes {
       #[cfg(feature = "protocol-asset")]

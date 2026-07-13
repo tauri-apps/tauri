@@ -97,9 +97,6 @@ const UUID_NAMESPACE: [u8; 16] = [
   0xfd, 0x85, 0x95, 0xa8, 0x17, 0xa3, 0x47, 0x4e, 0xa6, 0x16, 0x76, 0x14, 0x8d, 0xfa, 0x0c, 0x7b,
 ];
 
-/// Mapper between a resource directory name and its ResourceDirectory descriptor.
-type ResourceMap = BTreeMap<String, ResourceDirectory>;
-
 #[derive(Debug, Deserialize)]
 struct LanguageMetadata {
   #[serde(rename = "asciiCode")]
@@ -123,7 +120,6 @@ struct Binary {
 
 /// A Resource file to bundle with WIX.
 /// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
-#[derive(Serialize, Clone)]
 struct ResourceFile {
   /// the GUID to use on the WIX XML.
   guid: String,
@@ -135,12 +131,15 @@ struct ResourceFile {
   path: PathBuf,
 }
 
+/// A resource file and the target directories that contain it.
+struct ResourceFileEntry {
+  directories: Vec<String>,
+  file: ResourceFile,
+}
+
 /// A resource directory to bundle with WIX.
 /// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
-#[derive(Serialize)]
 struct ResourceDirectory {
-  /// the directory path.
-  path: String,
   /// the directory name of the described resource.
   name: String,
   /// the files of the described resource directory.
@@ -150,30 +149,46 @@ struct ResourceDirectory {
 }
 
 impl ResourceDirectory {
-  /// Adds a file to this directory descriptor.
-  fn add_file(&mut self, file: ResourceFile) {
-    self.files.push(file);
+  fn from_files(name: String, files: Vec<ResourceFileEntry>) -> Self {
+    let (files, nested_files): (Vec<_>, Vec<_>) = files
+      .into_iter()
+      .partition(|entry| entry.directories.is_empty());
+
+    let mut files_by_directory: BTreeMap<String, Vec<_>> = BTreeMap::new();
+    for mut entry in nested_files {
+      let directory = entry.directories.remove(0);
+      files_by_directory.entry(directory).or_default().push(entry);
+    }
+
+    Self {
+      name,
+      files: files.into_iter().map(|entry| entry.file).collect(),
+      directories: files_by_directory
+        .into_iter()
+        .map(|(name, files)| Self::from_files(name, files))
+        .collect(),
+    }
   }
 
   /// Generates the wix XML string to bundle this directory resources recursively
-  fn get_wix_data(self) -> crate::Result<(String, Vec<String>)> {
+  fn render_wix(self) -> crate::Result<(String, Vec<String>)> {
     let mut files = String::from("");
     let mut file_ids = Vec::new();
     for file in self.files {
-      file_ids.push(file.id.clone());
       files.push_str(
-        format!(
+        &format!(
           r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Name="{name}" Source="{path}" /></Component>"#,
           id = file.id,
           guid = file.guid,
           name = html_escape(&file.name),
-          path = html_escape(&file.path.display().to_string())
-        ).as_str()
+          path = html_escape(&file.path.to_string_lossy())
+        )
       );
+      file_ids.push(file.id);
     }
     let mut directories = String::from("");
     for directory in self.directories {
-      let (wix_string, ids) = directory.get_wix_data()?;
+      let (wix_string, ids) = directory.render_wix()?;
       for id in ids {
         file_ids.push(id)
       }
@@ -636,15 +651,7 @@ pub fn build_wix_app_installer(
   data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(settings)?;
-  let mut resources_wix_string = String::from("");
-  let mut files_ids = Vec::new();
-  for (_, dir) in resources {
-    let (wix_string, ids) = dir.get_wix_data()?;
-    resources_wix_string.push_str(wix_string.as_str());
-    for id in ids {
-      files_ids.push(id);
-    }
-  }
+  let (resources_wix_string, files_ids) = resources.render_wix()?;
 
   data.insert("resources", to_json(resources_wix_string));
   data.insert("resource_file_ids", to_json(files_ids));
@@ -990,11 +997,11 @@ fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
 }
 
 /// Generates the data required for the resource bundling on wix
-fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
-  let mut resources = ResourceMap::new();
+fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirectory> {
+  let mut resource_files = Vec::new();
   let cwd = std::env::current_dir()?;
 
-  let mut added_resources = Vec::new();
+  let mut added_resources = HashSet::new();
 
   for resource in settings.resource_files().iter() {
     let resource = resource?;
@@ -1007,7 +1014,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     if added_resources.contains(&resource_path) {
       continue;
     }
-    added_resources.push(resource_path.clone());
+    added_resources.insert(resource_path.clone());
 
     if settings.windows().can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
@@ -1025,65 +1032,19 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       path: resource_path.clone(),
     };
 
-    // split the resource path directories
+    // Store the target directory components. The complete list is grouped
+    // into a directory tree after all resource paths have been collected.
     let target_path = resource.target();
     let components_count = target_path.components().count();
     let directories = target_path
       .components()
       .take(components_count - 1) // the last component is the file
-      .collect::<Vec<_>>();
-
-    // transform the directory structure to a chained vec structure
-    let first_directory = directories
-      .first()
-      .map(|d| d.as_os_str().to_string_lossy().into_owned())
-      .unwrap_or_else(String::new);
-
-    if !resources.contains_key(&first_directory) {
-      resources.insert(
-        first_directory.clone(),
-        ResourceDirectory {
-          path: first_directory.clone(),
-          name: first_directory.clone(),
-          directories: vec![],
-          files: vec![],
-        },
-      );
-    }
-
-    let mut directory_entry = resources
-      .get_mut(&first_directory)
-      .expect("Unable to handle resources");
-
-    let mut path = String::new();
-    // the first component is already parsed on `first_directory` so we skip(1)
-    for directory in directories.into_iter().skip(1) {
-      let directory_name = directory
-        .as_os_str()
-        .to_os_string()
-        .into_string()
-        .expect("failed to read resource folder name");
-      path.push_str(directory_name.as_str());
-      path.push(std::path::MAIN_SEPARATOR);
-
-      let index = directory_entry
-        .directories
-        .iter()
-        .position(|f| f.path == path);
-      match index {
-        Some(i) => directory_entry = directory_entry.directories.get_mut(i).unwrap(),
-        None => {
-          directory_entry.directories.push(ResourceDirectory {
-            path: path.clone(),
-            name: directory_name,
-            directories: vec![],
-            files: vec![],
-          });
-          directory_entry = directory_entry.directories.iter_mut().last().unwrap();
-        }
-      }
-    }
-    directory_entry.add_file(resource_entry);
+      .map(|component| component.as_os_str().to_string_lossy().into_owned())
+      .collect();
+    resource_files.push(ResourceFileEntry {
+      directories,
+      file: resource_entry,
+    });
   }
 
   let mut dlls = Vec::new();
@@ -1094,11 +1055,16 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       if added_resources.contains(&resource_path.to_path_buf()) {
         continue;
       }
-      added_resources.push(resource_path.to_path_buf());
+      added_resources.insert(resource_path.to_path_buf());
       dlls.push(ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),
         guid: Uuid::new_v4().to_string(),
         path: resource_path.to_path_buf(),
+        name: resource_path
+          .file_name()
+          .expect("failed to read resource file name")
+          .to_string_lossy()
+          .into_owned(),
       });
     }
   }
@@ -1135,17 +1101,8 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     }
   }
 
-  if !dlls.is_empty() {
-    resources
-      .entry("".to_string())
-      .and_modify(|r| r.files.append(&mut dlls))
-      .or_insert(ResourceDirectory {
-        path: "".to_string(),
-        name: "".to_string(),
-        directories: vec![],
-        files: dlls,
-      });
-  }
+  let mut resources = ResourceDirectory::from_files(String::new(), resource_files);
+  resources.files.extend(dlls);
 
   Ok(resources)
 }
@@ -1194,7 +1151,6 @@ mod tests {
   #[test]
   fn includes_mapped_resource_file_name_in_wix_data() {
     let directory = ResourceDirectory {
-      path: String::new(),
       name: String::new(),
       files: vec![ResourceFile {
         id: "Iresource".into(),
@@ -1205,7 +1161,7 @@ mod tests {
       directories: vec![],
     };
 
-    let (wix_data, file_ids) = directory.get_wix_data().unwrap();
+    let (wix_data, file_ids) = directory.render_wix().unwrap();
 
     assert_eq!(file_ids, vec!["Iresource"]);
     assert!(wix_data.contains(r#"Name="myFileRenamed""#));

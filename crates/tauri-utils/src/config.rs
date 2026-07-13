@@ -2281,9 +2281,9 @@ pub struct WindowConfig {
   /// enable Service Workers on iOS according to
   /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
   ///
-  /// Default is false.add
+  /// Default is false.
   ///
-  /// Note: If you set this to `true` make sure to add any [`registrable
+  /// Note: If you set this to `true` make sure to add localhost and any [`registrable
   /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain
   /// used in your project's webviews to your Info.plist:
   ///
@@ -2292,17 +2292,20 @@ pub struct WindowConfig {
   /// <dict>
   ///     <key>WKAppBoundDomains</key>
   ///     <array>
+  ///         <string>localhost</string>
   ///         <string>aregistrabledomain.example</string>
-  ///         <string>anotherregistrabledomain.example</string>
   ///     </array>
   /// </dict>
   /// </plist>
   /// ```
   ///
-  /// If this is set to `true` then `localhost` is automatically added to the
-  /// `WKAppBoundDomains` list in Info.plist because Tauri uses the `localhost`
-  /// domain for hosting the application webpage, the IPC protocol, and the
-  /// isolation pattern's iframe.
+  /// If this is set to `true` then all windows' domain names specified in this
+  /// config are automatically added to the `WKAppBoundDomains` list in
+  /// Info.plist, including "localhost" if you have specified any relative paths
+  /// for the local Tauri server. If you make IPC calls and you don't have any
+  /// app windows specified in this config and you make IPC calls then be sure
+  /// to add "localhost" to the list of domains as well because Tauri's IPC
+  /// framework makes network calls to `ipc://localhost` for the IPC protocol.
   ///
   /// Assets served through custom protocols are allowed so long as they use a
   /// registrable domain specified in the `WKAppBoundDomains` array, including
@@ -2313,8 +2316,9 @@ pub struct WindowConfig {
   /// using a custom "stream" uri scheme (see [this tauri
   /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
   /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
-  /// sure whether Apple would let your app through app review because this
-  /// feature is not mentioned in [their blog post on App-Bound
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
   /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
   ///
   /// See https://webkit.org/blog/10882/app-bound-domains/ and

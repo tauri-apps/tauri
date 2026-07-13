@@ -19,12 +19,17 @@ use super::{
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
 pub type ScopeKey = u64;
 
+// All the fields are marked with `#[cfg(debug_assertions)]` but not the struct itself is because
+// we want to avoid compilation errors on different `debug_assertions` settings,
+// see https://github.com/tauri-apps/tauri/issues/13865
 /// Metadata for what referenced a [`ResolvedCommand`].
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct ResolvedCommandReference {
   /// Identifier of the capability.
+  #[cfg(debug_assertions)]
   pub capability: String,
   /// Identifier of the permission.
+  #[cfg(debug_assertions)]
   pub permission: String,
 }
 
@@ -45,7 +50,7 @@ pub struct ResolvedCommand {
 }
 
 impl ResolvedCommand {
-  /// Internal helper for tauri-macros to avoid compile errors on different `debug_assertions` settings,
+  /// Internal helper for tauri-macros to avoid compilation errors on different `debug_assertions` settings,
   /// see https://github.com/tauri-apps/tauri/issues/13865
   #[doc(hidden)]
   pub fn new(
@@ -468,6 +473,7 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
 
+  #[cfg(debug_assertions)]
   impl ToTokens for ResolvedCommandReference {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let capability = str_lit(&self.capability);
@@ -486,7 +492,8 @@ mod build {
       #[cfg(debug_assertions)]
       let referenced_by = &self.referenced_by;
       #[cfg(not(debug_assertions))]
-      let referenced_by = &ResolvedCommandReference::default();
+      let referenced_by =
+        quote!(::tauri::utils::acl::resolved::ResolvedCommandReference::default());
 
       let context = &self.context;
 

@@ -468,7 +468,6 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
 
-  #[cfg(debug_assertions)]
   impl ToTokens for ResolvedCommandReference {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let capability = str_lit(&self.capability);

@@ -125,10 +125,21 @@ struct ResourceFile {
   guid: String,
   /// the id to use on the WIX XML.
   id: String,
-  /// the file name to use in the installer.
-  name: String,
-  /// the file path.
-  path: PathBuf,
+  /// the target file name.
+  target_name: String,
+  /// the source file path.
+  source_path: PathBuf,
+}
+
+impl ResourceFile {
+  fn new(source_path: PathBuf, target_name: String) -> Self {
+    Self {
+      id: format!("I{}", Uuid::new_v4().as_simple()),
+      guid: Uuid::new_v4().to_string(),
+      target_name,
+      source_path,
+    }
+  }
 }
 
 /// A resource file and the target directories that contain it.
@@ -177,11 +188,11 @@ impl ResourceDirectory {
     for file in self.files {
       files.push_str(
         &format!(
-          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Name="{name}" Source="{path}" /></Component>"#,
+          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Name="{name}" Source="{source_path}" /></Component>"#,
           id = file.id,
           guid = file.guid,
-          name = html_escape(&file.name),
-          path = html_escape(&file.path.to_string_lossy())
+          name = html_escape(&file.target_name),
+          source_path = html_escape(&file.source_path.to_string_lossy())
         )
       );
       file_ids.push(file.id);
@@ -1020,17 +1031,15 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
       try_sign(&resource_path, settings)?;
     }
 
-    let resource_entry = ResourceFile {
-      id: format!("I{}", Uuid::new_v4().as_simple()),
-      guid: Uuid::new_v4().to_string(),
-      name: resource
+    let resource_entry = ResourceFile::new(
+      resource_path,
+      resource
         .target()
         .file_name()
         .expect("failed to read resource file name")
         .to_string_lossy()
         .into_owned(),
-      path: resource_path.clone(),
-    };
+    );
 
     // Store the target directory components. The complete list is grouped
     // into a directory tree after all resource paths have been collected.
@@ -1056,16 +1065,14 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
         continue;
       }
       added_resources.insert(resource_path.to_path_buf());
-      dlls.push(ResourceFile {
-        id: format!("I{}", Uuid::new_v4().as_simple()),
-        guid: Uuid::new_v4().to_string(),
-        path: resource_path.to_path_buf(),
-        name: resource_path
+      dlls.push(ResourceFile::new(
+        resource_path.to_path_buf(),
+        resource_path
           .file_name()
-          .expect("failed to read resource file name")
+          .expect("failed to read vr runtime DLL file name")
           .to_string_lossy()
           .into_owned(),
-      });
+      ));
     }
   }
 
@@ -1088,16 +1095,14 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
         try_sign(resource_path, settings)?;
       }
 
-      dlls.push(ResourceFile {
-        id: format!("I{}", Uuid::new_v4().as_simple()),
-        guid: Uuid::new_v4().to_string(),
-        name: resource_path
+      dlls.push(ResourceFile::new(
+        resource_path.to_path_buf(),
+        resource_path
           .file_name()
           .expect("failed to extract DLL filename")
           .to_string_lossy()
           .into_owned(),
-        path: resource_path.to_path_buf(),
-      });
+      ));
     }
   }
 
@@ -1150,20 +1155,17 @@ mod tests {
 
   #[test]
   fn includes_mapped_resource_file_name_in_wix_data() {
+    let resource = ResourceFile::new("MyFile", "myFileRenamed");
+    let resource_id = resource.id.clone();
     let directory = ResourceDirectory {
       name: String::new(),
-      files: vec![ResourceFile {
-        id: "Iresource".into(),
-        guid: "resource-guid".into(),
-        name: "myFileRenamed".into(),
-        path: PathBuf::from("MyFile"),
-      }],
+      files: vec![resource],
       directories: vec![],
     };
 
     let (wix_data, file_ids) = directory.render_wix().unwrap();
 
-    assert_eq!(file_ids, vec!["Iresource"]);
+    assert_eq!(file_ids, vec![resource_id]);
     assert!(wix_data.contains(r#"Name="myFileRenamed""#));
     assert!(wix_data.contains(r#"Source="MyFile""#));
   }

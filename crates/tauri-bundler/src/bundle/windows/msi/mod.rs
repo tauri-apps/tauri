@@ -1026,8 +1026,6 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
       ),
     );
 
-    // Store the target directory components. The complete list is grouped
-    // into a directory tree after all resource paths have been collected.
     let target_path = resource.target();
     let components_count = target_path.components().count();
     let directories = target_path
@@ -1046,7 +1044,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
 
       directory_entry = directory_entry
         .directories
-        .entry(directory_name.clone())
+        .entry(directory_name)
         .or_default();
     }
     directory_entry.add_file(resource_entry);

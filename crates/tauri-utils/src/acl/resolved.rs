@@ -45,6 +45,28 @@ pub struct ResolvedCommand {
   pub scope_id: Option<ScopeKey>,
 }
 
+impl ResolvedCommand {
+  /// Internal helper for tauri-macros to avoid compile errors on different `debug_assertions` settings,
+  /// see https://github.com/tauri-apps/tauri/issues/13865
+  #[doc(hidden)]
+  pub const fn new(
+    context: ExecutionContext,
+    #[cfg_attr(not(debug_assertions), allow(unused))] referenced_by: ResolvedCommandReference,
+    windows: Vec<glob::Pattern>,
+    webviews: Vec<glob::Pattern>,
+    scope_id: Option<ScopeKey>,
+  ) -> Self {
+    Self {
+      context,
+      #[cfg(debug_assertions)]
+      referenced_by,
+      windows,
+      webviews,
+      scope_id,
+    }
+  }
+}
+
 impl fmt::Debug for ResolvedCommand {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("ResolvedCommand")
@@ -465,6 +487,8 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       #[cfg(debug_assertions)]
       let referenced_by = &self.referenced_by;
+      #[cfg(not(debug_assertions))]
+      let referenced_by = &ResolvedCommandReference::default();
 
       let context = &self.context;
 
@@ -478,27 +502,15 @@ mod build {
       });
       let scope_id = opt_lit(self.scope_id.as_ref());
 
-      #[cfg(debug_assertions)]
-      {
-        literal_struct!(
-          tokens,
-          ::tauri::utils::acl::resolved::ResolvedCommand,
-          context,
-          referenced_by,
-          windows,
-          webviews,
-          scope_id
+      tokens.append_all(quote! {
+        ::tauri::utils::acl::resolved::ResolvedCommand::new(
+          #context,
+          #referenced_by,
+          #windows,
+          #webviews,
+          #scope_id
         )
-      }
-      #[cfg(not(debug_assertions))]
-      literal_struct!(
-        tokens,
-        ::tauri::utils::acl::resolved::ResolvedCommand,
-        context,
-        windows,
-        webviews,
-        scope_id
-      )
+      })
     }
   }
 

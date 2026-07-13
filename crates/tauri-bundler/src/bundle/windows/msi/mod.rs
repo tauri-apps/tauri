@@ -988,6 +988,7 @@ fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirectory> {
   let cwd = std::env::current_dir()?;
 
+  let mut root_resource_directory = ResourceDirectory::default();
   let mut added_resources = HashSet::new();
 
   for resource in settings.resource_files().iter() {

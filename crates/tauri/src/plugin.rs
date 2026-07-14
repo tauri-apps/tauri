@@ -104,6 +104,15 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
 
+  /// Callback invoked when the application is performing cleanup before exit.
+  ///
+  /// Plugins can use this hook to perform any process shutdown/cleanup they need
+  /// to do before the runtime exits (for example, killing sidecars or stopping
+  /// background tasks). This hook is executed inside `App::cleanup_before_exit` during application shutdown.
+
+  #[allow(unused_variables)]
+  fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {}
+
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
   fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
@@ -977,6 +986,15 @@ impl<R: Runtime> PluginStore<R> {
       .store
       .iter_mut()
       .for_each(|plugin| plugin.on_event(app, event))
+  }
+
+  /// Runs the cleanup_before_exit hook for all plugins in the store.
+  pub(crate) fn cleanup_before_exit(&mut self, app: &AppHandle<R>) {
+    self.store.iter_mut().for_each(|plugin| {
+      #[cfg(feature = "tracing")]
+      let _span = tracing::trace_span!("plugin::hooks::cleanup_before_exit", name = plugin.name()).entered();
+      plugin.cleanup_before_exit(app)
+    })
   }
 
   /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.

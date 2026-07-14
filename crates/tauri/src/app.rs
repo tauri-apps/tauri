@@ -541,6 +541,8 @@ impl<R: Runtime> AppHandle<R> {
     Ok(())
   }
 
+
+
   /// Removes the plugin with the given name.
   ///
   /// # Examples
@@ -1117,6 +1119,13 @@ macro_rules! shared_app_impl {
         for (_, webview) in self.manager.webviews() {
           webview.resources_table().clear();
         }
+        // run plugin cleanup hooks so plugins can perform shutdown tasks (e.g. stop sidecars)
+        self
+          .manager
+          .plugins
+          .lock()
+          .unwrap()
+          .cleanup_before_exit(self.app_handle());
       }
 
       /// Gets the invoke key that must be referenced when using [`crate::webview::InvokeRequest`].

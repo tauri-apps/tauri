@@ -128,3 +128,98 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
     }
   }
 }
+
+/// Kill a process and its descendant process tree (best-effort).
+///
+/// On Windows this function prefers the built-in `taskkill /T /PID <pid> /F`
+/// utility which can terminate a process tree. If `taskkill` is unavailable
+/// or returns a non-zero exit status (for example due to permissions), the
+/// function falls back to a PowerShell-based recursive traversal which mirrors
+/// the previous implementation.
+///
+/// On Unix-like systems a small shell function using `pgrep -P` is used to
+/// collect child PIDs and send `SIGKILL` to descendants and the root PID.
+///
+/// Note: terminating processes is inherently best-effort and may fail for
+/// protected or system processes, or when the caller lacks sufficient
+/// privileges. Callers should handle and log any errors returned by this
+/// function.
+
+// TODO: Move this helper into the `process` plugin in the plugins-workspace repo.
+pub fn kill_process_tree(pid: u32) -> std::io::Result<()> {
+  #[cfg(windows)]
+  {
+    use std::process::Command;
+
+    // Prefer the built-in `taskkill` utility on Windows which can terminate a process
+    // tree with `/T`. If that fails (permissions, not found, or non-zero exit), fall
+    // back to a PowerShell-based recursive stop that mirrors the previous behavior.
+    let pid_s = pid.to_string();
+
+    if let Ok(status) = Command::new("taskkill")
+      .args(&["/T", "/PID", &pid_s, "/F"]) // /F to force termination
+      .status()
+    {
+      if status.success() {
+        return Ok(());
+      }
+      // If taskkill returned non-zero, fall through to try PowerShell.
+    }
+
+    // Fallback: Use PowerShell to recursively find and stop child processes, then stop the root.
+    // This mirrors the approach used elsewhere in the project (tauri-cli) and preserves
+    // behavior on systems where taskkill isn't available or failed due to permissions.
+    let ps = format!(
+      "function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}",
+      pid
+    );
+
+    let status = Command::new("powershell")
+      .arg("-NoProfile")
+      .arg("-Command")
+      .arg(ps)
+      .status()?;
+
+    if status.success() {
+      Ok(())
+    } else {
+      Err(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        format!("kill-tree failed: powershell exited with status: {}", status),
+      ))
+    }
+  }
+
+  #[cfg(not(windows))]
+  {
+    use std::process::Command;
+
+    // On Unix, recursively collect children via pgrep -P and kill them. We use a small
+    // shell function to traverse descendants and then kill them. Use SIGKILL to ensure
+    // termination (best effort).
+    let sh = format!(r#"
+getcpid() {{
+  for cpid in $(pgrep -P "$1" 2>/dev/null || true); do
+    getcpid "$cpid"
+    echo "$cpid"
+  done
+}}
+for p in $(getcpid {pid}); do
+  kill -9 "$p" 2>/dev/null || true
+done
+kill -9 {pid} 2>/dev/null || true
+"#, pid = pid);
+
+    let status = Command::new("sh").arg("-c").arg(sh).status()?;
+
+    if status.success() {
+      Ok(())
+    } else {
+      Err(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        format!("sh kill-tree failed with status: {}", status),
+      ))
+    }
+  }
+}
+

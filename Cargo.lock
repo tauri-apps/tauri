@@ -1258,9 +1258,9 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "148.0.0+147.0.10"
+version = "150.0.0+150.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2445d2f1e820efc064c511faa3a07c3ee79e565fdae026ca62ed3c80d0459223"
+checksum = "8dd6aaa08e30ced80c7c18445807984243a06b7f4004c264922302b7e05d5c41"
 dependencies = [
  "anyhow",
  "cargo_metadata 0.23.1",
@@ -1278,9 +1278,9 @@ dependencies = [
 
 [[package]]
 name = "cef-dll-sys"
-version = "148.0.0+147.0.10"
+version = "150.0.0+150.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d32a7c89af6c77688ad58dc75555c9398c5ded2c328a3ff83554fccc840af57"
+checksum = "d0ec349898441a7e9f91add53716d9c40f6fc381c9b41818241e4f63fb73f0b8"
 dependencies = [
  "anyhow",
  "cmake",
@@ -6466,7 +6466,7 @@ dependencies = [
  "aes-gcm",
  "aes-kw",
  "argon2",
- "base64 0.21.7",
+ "base64 0.22.1",
  "bitfields",
  "block-padding",
  "blowfish",
@@ -8889,7 +8889,7 @@ version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1c97747dbf44bb1ca44a561ece23508e99cb592e862f22222dcf42f51d1e451"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.118",

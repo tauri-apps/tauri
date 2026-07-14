@@ -33,6 +33,23 @@ pub struct ResolvedCommandReference {
   pub permission: String,
 }
 
+impl ResolvedCommandReference {
+  /// Internal helper for tauri-macros to avoid compilation errors on different `debug_assertions` settings,
+  /// see https://github.com/tauri-apps/tauri/issues/13865
+  #[doc(hidden)]
+  pub fn new(
+    #[cfg_attr(not(debug_assertions), allow(unused))] capability: String,
+    #[cfg_attr(not(debug_assertions), allow(unused))] permission: String,
+  ) -> Self {
+    Self {
+      #[cfg(debug_assertions)]
+      capability,
+      #[cfg(debug_assertions)]
+      permission,
+    }
+  }
+}
+
 /// A resolved command permission.
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct ResolvedCommand {
@@ -478,12 +495,9 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let capability = str_lit(&self.capability);
       let permission = str_lit(&self.permission);
-      literal_struct!(
-        tokens,
-        ::tauri::utils::acl::resolved::ResolvedCommandReference,
-        capability,
-        permission
-      )
+      tokens.append_all(quote! {
+        ::tauri::utils::acl::resolved::ResolvedCommandReference::new(#capability, #permission)
+      });
     }
   }
 

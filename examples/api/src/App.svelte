@@ -1,4 +1,10 @@
-<script>
+<script module lang="ts">
+  export type ViewProps = {
+    onMessage: (value: unknown) => void
+  }
+</script>
+
+<script lang="ts">
   import { onMount, tick } from 'svelte'
   import { writable } from 'svelte/store'
   import { invoke } from '@tauri-apps/api/core'
@@ -12,6 +18,8 @@
   import App from './views/App.svelte'
   import Menu from './views/Menu.svelte'
   import Tray from './views/Tray.svelte'
+  import type { Theme } from '@tauri-apps/api/window'
+  import { MediaQuery } from 'svelte/reactivity'
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
@@ -70,45 +78,57 @@
   ]
 
   let selected = $state.raw(views[0])
-  function select(view) {
-    selected = view
+
+  // dark/light themes
+  const preferDark = new MediaQuery('prefers-color-scheme: dark')
+  let theme = $state<Theme | 'auto'>(
+    (localStorage.getItem('theme') as Theme | null) || 'auto'
+  )
+
+  async function switchTheme() {
+    switch (theme) {
+      case 'dark':
+        theme = 'light'
+        break
+      case 'light':
+        theme = 'auto'
+        break
+      case 'auto':
+        theme = 'dark'
+        break
+    }
+    applyTheme()
   }
 
-  // dark/light
-  let isDark = $state()
-  onMount(() => {
-    isDark = localStorage && localStorage.getItem('theme') == 'dark'
-    applyTheme(isDark)
+  function applyTheme() {
+    const isDark = theme === 'auto' ? preferDark.current : theme === 'dark'
+    isDark
+      ? document.documentElement.classList.add('dark')
+      : document.documentElement.classList.remove('dark')
+    setTheme(theme === 'auto' ? null : theme)
+    localStorage.setItem('theme', theme)
+  }
+
+  $effect(() => {
+    applyTheme()
   })
-  function applyTheme(isDark) {
-    const html = document.querySelector('html')
-    isDark ? html.classList.add('dark') : html.classList.remove('dark')
-    localStorage && localStorage.setItem('theme', isDark ? 'dark' : '')
-  }
-  function toggleDark() {
-    isDark = !isDark
-    applyTheme(isDark)
-    setTheme(isDark ? 'dark' : 'light')
-  }
 
   // Console
-  let messages = writable([])
-  let consoleTextEl = $state()
+  const messages = writable<string[]>([])
+  let consoleTextEl: HTMLDivElement
 
   // this function is renders HTML without sanitizing it so it's insecure
   // we only use it with our own input data
-  async function insecureRenderHtml(html) {
+  async function insecureRenderHtml(html: string) {
     messages.update((r) => [
       ...r,
-      {
-        html: `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ${html}</pre>`
-      }
+      `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ${html}</pre>`
     ])
     await tick()
-    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight
+    consoleTextEl.scrollTop = consoleTextEl.scrollHeight
   }
 
-  async function onMessage(value) {
+  async function onMessage(value: unknown) {
     const valueStr =
       typeof value === 'string'
         ? value
@@ -126,22 +146,20 @@
     messages.update(() => [])
   }
 
-  let consoleEl = $state(),
-    consoleH,
-    cStartY
-  let minConsoleHeight = 50
-  function startResizingConsole(e) {
+  let consoleEl: HTMLDivElement
+  let consoleH = 0
+  let cStartY = 0
+  const minConsoleHeight = 50
+  function startResizingConsole(e: MouseEvent) {
     cStartY = e.clientY
 
     const styles = window.getComputedStyle(consoleEl)
     consoleH = parseInt(styles.height, 10)
 
-    const moveHandler = (e) => {
+    const moveHandler = (e: MouseEvent) => {
       const dy = e.clientY - cStartY
       const newH = consoleH - dy
-      consoleEl.style.height = `${
-        newH < minConsoleHeight ? minConsoleHeight : newH
-      }px`
+      consoleEl.style.height = `${newH < minConsoleHeight ? minConsoleHeight : newH}px`
     }
     const upHandler = () => {
       document.removeEventListener('mouseup', upHandler)
@@ -153,14 +171,15 @@
 
   // mobile
   let isSideBarOpen = $state(false)
-  let sidebar
-  let sidebarToggle
+  let sidebar: HTMLElement
+  let sidebarToggle: HTMLElement
   let isDraggingSideBar = false
   let draggingStartPosX = 0
   let draggingEndPosX = 0
-  const clamp = (min, num, max) => Math.min(Math.max(num, min), max)
+  const clamp = (min: number, num: number, max: number) =>
+    Math.min(Math.max(num, min), max)
 
-  function toggleSidebar(sidebar, isSideBarOpen) {
+  function toggleSidebar() {
     sidebar.style.setProperty(
       '--translate-x',
       `${isSideBarOpen ? '0' : '-18.75'}rem`
@@ -168,10 +187,9 @@
   }
 
   onMount(() => {
-    sidebar = document.querySelector('#sidebar')
-    sidebarToggle = document.querySelector('#sidebarToggle')
-
     document.addEventListener('click', (e) => {
+      if (!(e.target instanceof Node)) return
+
       if (sidebarToggle.contains(e.target)) {
         isSideBarOpen = !isSideBarOpen
       } else if (isSideBarOpen && !sidebar.contains(e.target)) {
@@ -180,6 +198,7 @@
     })
 
     document.addEventListener('touchstart', (e) => {
+      if (!(e.target instanceof Node)) return
       if (sidebarToggle.contains(e.target)) return
 
       const x = e.touches[0].clientX
@@ -212,16 +231,14 @@
   })
 
   $effect(() => {
-    const sidebar = document.querySelector('#sidebar')
-    if (sidebar) {
-      toggleSidebar(sidebar, isSideBarOpen)
-    }
+    toggleSidebar()
   })
 </script>
 
 <!-- Sidebar toggle, only visible on small screens -->
 <div
   id="sidebarToggle"
+  bind:this={sidebarToggle}
   class="z-2000 hidden lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8
             bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
 >
@@ -237,6 +254,7 @@
 >
   <aside
     id="sidebar"
+    bind:this={sidebar}
     class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
       bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid grid-rows-[min-content_auto] select-none px-2"
   >
@@ -245,13 +263,16 @@
       src="tauri_logo.png"
       alt="Tauri logo"
     />
-    <a href="##" class="nv justify-between" onclick={toggleDark}>
-      {#if isDark}
-        Switch to Light mode
-        <div class="i-ph-sun"></div>
-      {:else}
+    <a href="##" class="nv justify-between" onclick={switchTheme}>
+      {#if theme === 'auto'}
         Switch to Dark mode
+        <div class="i-ph-circle-half-fill"></div>
+      {:else if theme === 'dark'}
+        Switch to Light mode
         <div class="i-ph-moon"></div>
+      {:else if theme === 'light'}
+        Switch to Auto mode
+        <div class="i-ph-sun"></div>
       {/if}
     </a>
     <br />
@@ -291,7 +312,7 @@
           href="##"
           class="nv {selected === view ? 'nv_selected' : ''}"
           onclick={() => {
-            select(view)
+            selected = view
             isSideBarOpen = false
           }}
         >
@@ -343,8 +364,8 @@
         bind:this={consoleTextEl}
         class="px-2 overflow-y-auto all:font-mono code-block all:text-xs select-text mr-2"
       >
-        {#each $messages as r}
-          {@html r.html}
+        {#each $messages as messageHtml}
+          {@html messageHtml}
         {/each}
       </div>
     </div>

@@ -9,46 +9,52 @@
   import { defaultWindowIcon } from '@tauri-apps/api/app'
   import type { ViewProps } from '../App.svelte'
   import { onDestroy } from 'svelte'
+  import type { Image } from '@tauri-apps/api/image'
 
   let { onMessage }: ViewProps = $props()
   let items = $state<Item[]>([])
 
   let menu: Menu | undefined
   let popupMenu: Menu | undefined
-  let submenu: Submenu | null
+  let submenu: Submenu | undefined
 
   const macOS = navigator.userAgent.includes('Macintosh')
 
   async function createSubmenu(): Promise<Submenu> {
-    submenu = await Submenu.new({
+    return await Submenu.new({
       text: 'app',
       items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
-    return submenu
   }
 
   async function createSubmenuWithNativeIcon(): Promise<Submenu> {
-    submenu = await Submenu.new({
+    return await Submenu.new({
       text: 'Submenu with NativeIcon',
       icon: NativeIcon.Folder,
       items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
     })
-    return submenu
   }
 
   async function createSubmenuWithImageIcon(): Promise<Submenu> {
-    const icon = await defaultWindowIcon()
-    submenu = await Submenu.new({
-      text: 'Submenu with Image',
-      ...(icon ? { icon } : {}),
-      items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
-    })
-    return submenu
+    let icon: Image | undefined
+    try {
+      icon = (await defaultWindowIcon())!
+      return await Submenu.new({
+        text: 'Submenu with Image',
+        icon,
+        items: items.map((i) => i.menu).filter(Boolean) as MenuItems[]
+      })
+    } finally {
+      icon?.close()
+    }
   }
 
-  async function setMenu(submenu: Submenu) {
+  async function setMenu(newSubmenu: Submenu) {
     menu?.close()
     menu = undefined
+    submenu?.close()
+    submenu = newSubmenu
+
     menu = await Menu.new({
       items: [submenu]
     })

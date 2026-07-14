@@ -304,6 +304,13 @@ impl<T: UserEvent> WinitCefApp<T> {
       ));
     };
 
+    // On Windows a window's webviews are sibling child HWNDs. Put each new one
+    // on top of the ones already there — the order they were created in — and
+    // pin it, so Chromium's focus raise cannot reshuffle them behind our back
+    // and bury an overlay webview under the one that fills the window.
+    #[cfg(windows)]
+    child.raise_to_top();
+
     *live_browsers += 1;
     appwindow.children.push(child);
     layout_app_window(appwindow);
@@ -748,6 +755,11 @@ impl<T: UserEvent> WinitCefApp<T> {
           target_appwindow.window.scale_factor(),
           bounds,
         );
+        // Re-parenting does not preserve z-order: a view docked back into a
+        // window that already owns a full-window main webview must be put back
+        // on top, or it lands behind it and renders nothing.
+        #[cfg(windows)]
+        child.raise_to_top();
 
         target_appwindow.children.push(child);
         let _ = tx.send(Ok(()));

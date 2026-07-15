@@ -35,6 +35,7 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
 ]
+exclude = ["crates/cef-helper"]
 resolver = "2"
 
 [workspace.package]

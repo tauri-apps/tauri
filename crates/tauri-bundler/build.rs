@@ -29,7 +29,6 @@ fn main() {
 
   let helper_root = bundler_manifest_dir
     .parent() // crates/
-    .and_then(|p| p.parent()) // repo root
     .map(|p| p.join("cef-helper"))
     .expect("failed to compute cef-helper path");
 

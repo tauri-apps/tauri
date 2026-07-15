@@ -359,7 +359,6 @@ struct NewOptions {
 
 #[command(root = "crate")]
 fn new<R: Runtime>(
-  app: Webview<R>,
   webview: Webview<R>,
   kind: ItemKind,
   options: Option<NewOptions>,
@@ -367,11 +366,11 @@ fn new<R: Runtime>(
   handler: Channel<MenuId>,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
 
   let (rid, id) = match kind {
     ItemKind::Menu => {
-      let mut builder = MenuBuilder::new(&app);
+      let mut builder = MenuBuilder::new(&webview);
       if let Some(id) = options.id {
         builder = builder.id(id);
       }

@@ -257,7 +257,7 @@
           ]
         },
         "dragDropEnabled": {
-          "description": "Whether the drag and drop is enabled or not on the webview. By default it is enabled.\n\n Disabling it is required to use HTML5 drag and drop on the frontend on Windows.",
+          "description": "Whether the drag and drop handlers used internally to generate [`DragDropEvent`]s are enabled on the webview. By default it is enabled.\n\n Disabling it is required to use HTML5 drag and drop on the frontend on Windows since we replace the drag drop handler of WebView2.\n\n Note: this setting maps to [`WebviewBuilder::disable_drag_drop_handler`], not [`WindowBuilder::drag_and_drop`].\n\n [`DragDropEvent`]: https://docs.rs/tauri/latest/tauri/enum.DragDropEvent.html\n [`WebviewBuilder::disable_drag_drop_handler`]: https://docs.rs/tauri/latest/tauri/webview/struct.WebviewBuilder.html#method.disable_drag_drop_handler\n [`WindowBuilder::drag_and_drop`]: https://docs.rs/tauri/latest/x86_64-pc-windows-msvc/tauri/window/struct.WindowBuilder.html#method.drag_and_drop",
           "default": true,
           "type": "boolean"
         },

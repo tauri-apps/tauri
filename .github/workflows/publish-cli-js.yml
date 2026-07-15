@@ -71,7 +71,7 @@ jobs:
             setup: |
               sudo apt-get update
               sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
-    name: stable - ${{ matrix.settings.target }} - node@20
+    name: stable - ${{ matrix.settings.target }} - node@22
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v7
@@ -80,7 +80,7 @@ jobs:
         uses: actions/setup-node@v7
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install Rust

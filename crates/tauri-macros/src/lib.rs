@@ -157,27 +157,27 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 ///  let kind = ItemKind::Check;
 ///  let resources_table = app.resources_table();
 ///  match kind {
-///  ItemKind::Submenu => {
-///    let i = resources_table.get::<Submenu<R>>(rid)?;
-///    i.set_text(text)
-///  }
-///  ItemKind::MenuItem => {
-///    let i = resources_table.get::<MenuItem<R>>(rid)?;
-///    i.set_text(text)
-///  }
-///  ItemKind::Predefined => {
-///    let i = resources_table.get::<PredefinedMenuItem<R>>(rid)?;
-///    i.set_text(text)
-///  }
-///  ItemKind::Check => {
-///    let i = resources_table.get::<CheckMenuItem<R>>(rid)?;
-///    i.set_text(text)
-///  }
-///  ItemKind::Icon => {
-///    let i = resources_table.get::<IconMenuItem<R>>(rid)?;
-///    i.set_text(text)
-///  }
-///  _ => unreachable!(),
+///    ItemKind::Submenu => {
+///      let i = resources_table.get::<Submenu<R>>(rid)?;
+///      i.set_text(text)
+///    }
+///    ItemKind::MenuItem => {
+///      let i = resources_table.get::<MenuItem<R>>(rid)?;
+///      i.set_text(text)
+///    }
+///    ItemKind::Predefined => {
+///      let i = resources_table.get::<PredefinedMenuItem<R>>(rid)?;
+///      i.set_text(text)
+///    }
+///    ItemKind::Check => {
+///      let i = resources_table.get::<CheckMenuItem<R>>(rid)?;
+///      i.set_text(text)
+///    }
+///    ItemKind::Icon => {
+///      let i = resources_table.get::<IconMenuItem<R>>(rid)?;
+///      i.set_text(text)
+///    }
+///    _ => unreachable!(),
 ///  }
 /// ```
 #[proc_macro]

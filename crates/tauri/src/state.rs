@@ -6,7 +6,6 @@ use std::{
   any::{Any, TypeId},
   collections::HashMap,
   hash::BuildHasherDefault,
-  pin::Pin,
   sync::Mutex,
 };
 
@@ -18,9 +17,9 @@ use crate::{
 /// A guard for a state value.
 ///
 /// See [`Manager::manage`](`crate::Manager::manage`) for usage examples.
-pub struct State<'r, T: Send + Sync + 'static>(&'r T);
+pub struct State<'r, T>(&'r T);
 
-impl<'r, T: Send + Sync + 'static> State<'r, T> {
+impl<'r, T> State<'r, T> {
   /// Retrieve a borrow to the underlying value with a lifetime of `'r`.
   /// Using this method is typically unnecessary as `State` implements
   /// [`std::ops::Deref`] with a [`std::ops::Deref::Target`] of `T`.
@@ -30,7 +29,7 @@ impl<'r, T: Send + Sync + 'static> State<'r, T> {
   }
 }
 
-impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
+impl<T> std::ops::Deref for State<'_, T> {
   type Target = T;
 
   #[inline(always)]
@@ -39,25 +38,25 @@ impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
   }
 }
 
-impl<T: Send + Sync + 'static> Clone for State<'_, T> {
+impl<T> Clone for State<'_, T> {
   fn clone(&self) -> Self {
     State(self.0)
   }
 }
 
-impl<T: Send + Sync + 'static + PartialEq> PartialEq for State<'_, T> {
+impl<T: PartialEq> PartialEq for State<'_, T> {
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0
   }
 }
 
-impl<T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'_, T> {
+impl<T: std::fmt::Debug> std::fmt::Debug for State<'_, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_tuple("State").field(&self.0).finish()
   }
 }
 
-impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
+impl<'r, 'de: 'r, T: 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     command.message.state_ref().try_get().ok_or_else(|| {
@@ -100,7 +99,7 @@ impl std::hash::Hasher for IdentHash {
 /// Safety:
 /// - The `key` must equal to `(*value).type_id()`, see the safety doc in methods of [StateManager] for details.
 /// - Once you insert a value, you can't remove/mutated/move it anymore, see [StateManager::try_get] for details.
-type TypeIdMap = HashMap<TypeId, Pin<Box<dyn Any + Sync + Send>>, BuildHasherDefault<IdentHash>>;
+type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
 #[derive(Debug)]
@@ -120,14 +119,8 @@ impl StateManager {
     let type_id = TypeId::of::<T>();
     let already_set = map.contains_key(&type_id);
     if !already_set {
-      let ptr = Box::new(state) as Box<dyn Any + Sync + Send>;
-      let pinned_ptr = Box::into_pin(ptr);
-      map.insert(
-        type_id,
-        // SAFETY: keep the type of the key is the same as the type of the value，
-        // see [try_get] methods for details.
-        pinned_ptr,
-      );
+      let state = Box::new(state) as Box<dyn Any + Sync + Send>;
+      map.insert(type_id, state);
     }
     !already_set
   }
@@ -137,36 +130,28 @@ impl StateManager {
   pub(crate) unsafe fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
     let mut map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
-    let pinned_ptr = map.remove(&type_id)?;
-    // SAFETY: The caller decides to break the immovability/safety here, then OK, just let it go.
-    let ptr = unsafe { Pin::into_inner_unchecked(pinned_ptr) };
-    let value = unsafe {
-      ptr
-        .downcast::<T>()
-        // SAFETY: the type of the key is the same as the type of the value
-        .unwrap_unchecked()
-    };
+    let state = map.remove(&type_id)?;
+    let value = state
+      .downcast::<T>()
+      .expect("the type of the key should be same as the type of the value");
     Some(*value)
   }
 
   /// Gets the state associated with the specified type.
-  pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
+  pub fn get<T: 'static>(&self) -> State<'_, T> {
     self
       .try_get()
       .unwrap_or_else(|| panic!("state not found for type {}", std::any::type_name::<T>()))
   }
 
   /// Gets the state associated with the specified type.
-  pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
+  pub fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
-    let ptr = map.get(&type_id)?;
-    let value = unsafe {
-      ptr
-        .downcast_ref::<T>()
-        // SAFETY: the type of the key is the same as the type of the value
-        .unwrap_unchecked()
-    };
+    let state = map.get(&type_id)?;
+    let value = state
+      .downcast_ref::<T>()
+      .expect("the type of the key should be same as the type of the value");
     // SAFETY: We ensure the lifetime of `value` is the same as [StateManager] and `value` will not be mutated/moved.
     let v_ref = unsafe { &*(value as *const T) };
     Some(State(v_ref))

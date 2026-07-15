@@ -363,6 +363,9 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
+  ///
+  /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
+  /// creating a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
     docsrs,
@@ -497,6 +500,13 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Sets custom name for Windows' window class. **Windows only**.
   #[must_use]
   fn window_classname<S: Into<String>>(self, window_classname: S) -> Self;
+
+  /// This sets `WS_EX_NOREDIRECTIONBITMAP`.
+  ///
+  /// This can avoid the white flash that may appear before the webview content is rendered
+  /// when using a transparent window. **Windows only**.
+  #[must_use]
+  fn no_redirection_bitmap(self, enable: bool) -> Self;
 
   /// The name of the activity to create for this webview window.
   #[cfg(target_os = "android")]

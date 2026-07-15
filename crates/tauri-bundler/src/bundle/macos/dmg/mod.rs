@@ -53,7 +53,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
       }
     }
   );
-  let dmg_name = format!("{}.dmg", &package_base_name);
+  let dmg_name = format!("{package_base_name}.dmg");
   let dmg_path = output_path.join(&dmg_name);
 
   let product_name = settings.product_name();

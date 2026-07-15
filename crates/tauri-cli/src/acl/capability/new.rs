@@ -42,7 +42,7 @@ pub fn command(options: Options) -> Result<()> {
   let description = match options.description {
     Some(d) => Some(d),
     None => prompts::input::<String>("What's the capability description?", None, false, true)?
-      .and_then(|d| if d.is_empty() { None } else { Some(d) }),
+      .filter(|d| !d.is_empty()),
   };
 
   let windows = match options.windows.map(FromIterator::from_iter) {

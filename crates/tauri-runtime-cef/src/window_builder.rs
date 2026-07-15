@@ -498,6 +498,11 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  // TODO
+  fn no_redirection_bitmap(#[allow(unused_mut)] mut self, _enable: bool) -> Self {
+    self
+  }
+
   fn has_icon(&self) -> bool {
     self.attrs.inner.window_icon.is_some()
   }

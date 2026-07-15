@@ -633,6 +633,16 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// This sets `WS_EX_NOREDIRECTIONBITMAP`.
+  ///
+  /// This can avoid the white flash that may appear before the webview content is rendered
+  /// when using a transparent window. **Windows only**.
+  #[must_use]
+  pub fn no_redirection_bitmap(mut self, enable: bool) -> Self {
+    self.window_builder = self.window_builder.no_redirection_bitmap(enable);
+    self
+  }
+
   /// Sets whether or not the window has shadow.
   ///
   /// ## Platform-specific
@@ -746,7 +756,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// Enables or disables drag and drop support.
+  /// Enables or disables drag and drop support of this window.
+  ///
+  /// Note: this is a different config from [`Self::disable_drag_drop_handler`]
   #[cfg(windows)]
   #[must_use]
   pub fn drag_and_drop(mut self, enabled: bool) -> Self {
@@ -1064,7 +1076,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
-  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
+  /// Disables the webview drag and drop handler used internally to generate [`DragDropEvent`](crate::DragDropEvent)s.
+  ///
+  /// This is required to use HTML5 drag and drop APIs on the frontend on Windows since we replace the drag drop handler of WebView2.
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.webview_builder = self.webview_builder.disable_drag_drop_handler();
@@ -1110,6 +1124,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
 
   /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
+  ///
+  /// On Windows, using `no_redirection_bitmap` can help avoid a white flash when
+  /// creating a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
     docsrs,
@@ -1304,26 +1321,24 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// # Examples
   ///
   /// ```
-  /// fn main() {
-  ///   tauri::Builder::<tauri::Wry>::new()
-  ///     .setup(|app| {
-  ///       let mut builder = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()));
-  ///       #[cfg(target_os = "ios")]
-  ///       {
-  ///         window_builder = window_builder.with_input_accessory_view_builder(|_webview| unsafe {
-  ///           let mtm = objc2::MainThreadMarker::new_unchecked();
-  ///           let button = objc2_ui_kit::UIButton::buttonWithType(objc2_ui_kit::UIButtonType(1), mtm);
-  ///           button.setTitle_forState(
-  ///             Some(&objc2_foundation::NSString::from_str("Tauri")),
-  ///             objc2_ui_kit::UIControlState(0),
-  ///           );
-  ///           Some(button.downcast().unwrap())
-  ///         });
-  ///       }
-  ///       let webview = builder.build()?;
-  ///       Ok(())
-  ///     });
-  /// }
+  /// tauri::Builder::<tauri::Wry>::new()
+  ///   .setup(|app| {
+  ///     let mut builder = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()));
+  ///     #[cfg(target_os = "ios")]
+  ///     {
+  ///       window_builder = window_builder.with_input_accessory_view_builder(|_webview| unsafe {
+  ///         let mtm = objc2::MainThreadMarker::new_unchecked();
+  ///         let button = objc2_ui_kit::UIButton::buttonWithType(objc2_ui_kit::UIButtonType(1), mtm);
+  ///         button.setTitle_forState(
+  ///           Some(&objc2_foundation::NSString::from_str("Tauri")),
+  ///           objc2_ui_kit::UIControlState(0),
+  ///         );
+  ///         Some(button.downcast().unwrap())
+  ///       });
+  ///     }
+  ///     let webview = builder.build()?;
+  ///     Ok(())
+  ///   });
   /// ```
   ///
   /// # Stability

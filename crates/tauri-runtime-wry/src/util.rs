@@ -68,10 +68,6 @@ mod imp {
 
   #[allow(non_snake_case)]
   pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
-    let hdc = GetDC(Some(hwnd));
-    if hdc.is_invalid() {
-      return USER_DEFAULT_SCREEN_DPI;
-    }
     if let Some(GetDpiForWindow) = *GET_DPI_FOR_WINDOW {
       // We are on Windows 10 Anniversary Update (1607) or later.
       match GetDpiForWindow(hwnd) {
@@ -95,9 +91,15 @@ mod imp {
     } else {
       // We are on Vista or later.
       if IsProcessDPIAware().as_bool() {
+        let hdc = GetDC(Some(hwnd));
+        if hdc.is_invalid() {
+          return USER_DEFAULT_SCREEN_DPI;
+        }
         // If the process is DPI aware, then scaling must be handled by the application using
         // this DPI value.
-        GetDeviceCaps(Some(hdc), LOGPIXELSX) as u32
+        let dpi = GetDeviceCaps(Some(hdc), LOGPIXELSX) as u32;
+        ReleaseDC(Some(hwnd), hdc);
+        dpi
       } else {
         // If the process is DPI unaware, then scaling is performed by the OS; we thus return
         // 96 (scale factor 1.0) to prevent the window from being re-scaled by both the

@@ -19,14 +19,35 @@ use super::{
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
 pub type ScopeKey = u64;
 
+// All the fields are marked with `#[cfg(debug_assertions)]` but not the struct itself is because
+// we want to avoid compilation errors on different `debug_assertions` settings,
+// see https://github.com/tauri-apps/tauri/issues/13865
 /// Metadata for what referenced a [`ResolvedCommand`].
-#[cfg(debug_assertions)]
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct ResolvedCommandReference {
   /// Identifier of the capability.
+  #[cfg(debug_assertions)]
   pub capability: String,
   /// Identifier of the permission.
+  #[cfg(debug_assertions)]
   pub permission: String,
+}
+
+impl ResolvedCommandReference {
+  /// Internal helper for tauri-macros to avoid compilation errors on different `debug_assertions` settings,
+  /// see https://github.com/tauri-apps/tauri/issues/13865
+  #[doc(hidden)]
+  pub fn new(
+    #[cfg_attr(not(debug_assertions), allow(unused))] capability: String,
+    #[cfg_attr(not(debug_assertions), allow(unused))] permission: String,
+  ) -> Self {
+    Self {
+      #[cfg(debug_assertions)]
+      capability,
+      #[cfg(debug_assertions)]
+      permission,
+    }
+  }
 }
 
 /// A resolved command permission.
@@ -43,6 +64,28 @@ pub struct ResolvedCommand {
   pub webviews: Vec<glob::Pattern>,
   /// The reference of the scope that is associated with this command. See [`Resolved#structfield.command_scopes`].
   pub scope_id: Option<ScopeKey>,
+}
+
+impl ResolvedCommand {
+  /// Internal helper for tauri-macros to avoid compilation errors on different `debug_assertions` settings,
+  /// see https://github.com/tauri-apps/tauri/issues/13865
+  #[doc(hidden)]
+  pub fn new(
+    context: ExecutionContext,
+    #[cfg_attr(not(debug_assertions), allow(unused))] referenced_by: ResolvedCommandReference,
+    windows: Vec<glob::Pattern>,
+    webviews: Vec<glob::Pattern>,
+    scope_id: Option<ScopeKey>,
+  ) -> Self {
+    Self {
+      context,
+      #[cfg(debug_assertions)]
+      referenced_by,
+      windows,
+      webviews,
+      scope_id,
+    }
+  }
 }
 
 impl fmt::Debug for ResolvedCommand {
@@ -470,12 +513,9 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let capability = str_lit(&self.capability);
       let permission = str_lit(&self.permission);
-      literal_struct!(
-        tokens,
-        ::tauri::utils::acl::resolved::ResolvedCommandReference,
-        capability,
-        permission
-      )
+      tokens.append_all(quote! {
+        ::tauri::utils::acl::resolved::ResolvedCommandReference::new(#capability, #permission)
+      });
     }
   }
 
@@ -483,6 +523,9 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       #[cfg(debug_assertions)]
       let referenced_by = &self.referenced_by;
+      #[cfg(not(debug_assertions))]
+      let referenced_by =
+        quote!(::tauri::utils::acl::resolved::ResolvedCommandReference::default());
 
       let context = &self.context;
 
@@ -496,27 +539,15 @@ mod build {
       });
       let scope_id = opt_lit(self.scope_id.as_ref());
 
-      #[cfg(debug_assertions)]
-      {
-        literal_struct!(
-          tokens,
-          ::tauri::utils::acl::resolved::ResolvedCommand,
-          context,
-          referenced_by,
-          windows,
-          webviews,
-          scope_id
+      tokens.append_all(quote! {
+        ::tauri::utils::acl::resolved::ResolvedCommand::new(
+          #context,
+          #referenced_by,
+          #windows,
+          #webviews,
+          #scope_id
         )
-      }
-      #[cfg(not(debug_assertions))]
-      literal_struct!(
-        tokens,
-        ::tauri::utils::acl::resolved::ResolvedCommand,
-        context,
-        windows,
-        webviews,
-        scope_id
-      )
+      })
     }
   }
 

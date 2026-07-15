@@ -147,7 +147,12 @@ fn migrate_imports<'a>(
     .is_some_and(|ext| ext == "vue" || ext == "svelte");
 
   let sources = if !has_partial_js {
-    vec![(SourceType::from_path(path).unwrap(), js_source, 0i64)]
+    let mut source_type = SourceType::from_path(path).unwrap();
+    if source_type.is_javascript() {
+      // oxc_span used to do this for us but in 0.70 it was moved into the higher level oxc crates instead.
+      source_type = source_type.with_jsx(true);
+    }
+    vec![(source_type, js_source, 0i64)]
   } else {
     partial_loader::PartialLoader::parse(
       path
@@ -363,7 +368,12 @@ mod tests {
       .is_some_and(|ext| ext == "vue" || ext == "svelte");
 
     let sources = if !has_partial_js {
-      vec![(SourceType::from_path(path).unwrap(), source.to_string())]
+      let mut source_type = SourceType::from_path(path).unwrap();
+      if source_type.is_javascript() {
+        // oxc_span used to do this for us but in 0.70 it was moved into the higher level oxc crates instead.
+        source_type = source_type.with_jsx(true);
+      }
+      vec![(source_type, source.to_string())]
     } else {
       partial_loader::PartialLoader::parse(
         path

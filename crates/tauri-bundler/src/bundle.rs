@@ -23,6 +23,8 @@ use std::{
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
+#[cfg(windows)]
+pub use windows::vswhere_path;
 pub use {
   category::AppCategory,
   settings::{
@@ -136,9 +138,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   // TODO: change this to work on a copy while preserving the main binary unchanged
   let mut main_binary_copy =
     tempfile::tempfile().context("failed to create temp file for main binary copy")?;
-  let mut main_binary_orignal = std::fs::File::open(&main_binary_path)
+  let mut main_binary_original = std::fs::File::open(&main_binary_path)
     .fs_context("can't open main binary", &main_binary_path)?;
-  std::io::copy(&mut main_binary_orignal, &mut main_binary_copy)?;
+  std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
 
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {

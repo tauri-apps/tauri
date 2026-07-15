@@ -410,12 +410,28 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "macos")]
   fn parent(mut self, parent: *mut std::ffi::c_void) -> Self {
-    if let Some(ns_view) = NonNull::new(parent) {
-      let handle =
-        RawWindowHandle::AppKit(winit::raw_window_handle::AppKitWindowHandle::new(ns_view));
-      // SAFETY: Tauri passes a live parent NSView owned by the application.
-      self.attrs.inner = unsafe { self.attrs.inner.with_parent_window(Some(handle)) };
-    }
+    use objc2::rc::Retained;
+    use objc2_app_kit::{NSView, NSWindow};
+
+    let Some(nswindow) = NonNull::new(parent) else {
+      return self;
+    };
+    let Some(nswindow) = (unsafe { Retained::<NSWindow>::from_raw(nswindow.as_ptr() as _) }) else {
+      return self;
+    };
+
+    let Some(nsview) = nswindow.contentView() else {
+      return self;
+    };
+    let nsview = Retained::<NSView>::into_raw(nsview);
+    let Some(nsview) = NonNull::new(nsview as _) else {
+      return self;
+    };
+
+    let handle = winit::raw_window_handle::AppKitWindowHandle::new(nsview);
+    let handle = RawWindowHandle::AppKit(handle);
+    self.attrs.inner = unsafe { self.attrs.inner.with_parent_window(Some(handle)) };
+
     self
   }
 

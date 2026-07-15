@@ -88,6 +88,7 @@ fn activate_dock() {
   let dock_apps = NSRunningApplication::runningApplicationsWithBundleIdentifier(&dock_id);
   if dock_apps.count() > 0 {
     let app = dock_apps.objectAtIndex(0);
+    #[allow(deprecated)]
     app.activateWithOptions(NSApplicationActivationOptions::ActivateIgnoringOtherApps);
   }
 }

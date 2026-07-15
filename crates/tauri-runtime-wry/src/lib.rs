@@ -4014,11 +4014,11 @@ fn handle_user_message<T: UserEvent>(
               let platform_webview = webview.webview();
               let manager = webview.manager();
               let ns_window = webview.ns_window();
-              f(Webview {
-                webview: Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
-                manager: Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
-                ns_window: Retained::as_ptr(&ns_window).cast_mut() as *mut std::ffi::c_void,
-              });
+              f(Webview::new(
+                Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
+                Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
+                Retained::as_ptr(&ns_window).cast_mut() as *mut std::ffi::c_void,
+              ));
             }
             #[cfg(target_os = "ios")]
             {
@@ -4026,11 +4026,11 @@ fn handle_user_message<T: UserEvent>(
               let platform_webview = webview.inner.webview();
               let manager = webview.inner.manager();
 
-              f(Webview {
-                webview: Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
-                manager: Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
-                view_controller: window.ui_view_controller(),
-              });
+              f(Webview::new(
+                Retained::as_ptr(&platform_webview).cast_mut() as *mut std::ffi::c_void,
+                Retained::as_ptr(&manager).cast_mut() as *mut std::ffi::c_void,
+                window.ui_view_controller(),
+              ));
             }
             #[cfg(windows)]
             {

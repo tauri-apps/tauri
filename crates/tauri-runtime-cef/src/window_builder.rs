@@ -341,6 +341,9 @@ impl WindowBuilder for WindowBuilderWrapper {
       self.attrs.skip_taskbar = skip;
     }
 
+    #[cfg(target_os = "macos")]
+    let _skip = skip;
+
     self
   }
 

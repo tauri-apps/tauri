@@ -88,7 +88,7 @@ impl EventLoopExt for dyn ActiveEventLoop + '_ {
     // the scale factor on HiDPI/Retina displays).
     let location: NSPoint = NSEvent::mouseLocation();
     let primary =
-      unsafe { NSScreen::screens(mtm).firstObject() }.ok_or(Error::FailedToGetCursorPosition)?;
+      NSScreen::screens(mtm).firstObject().ok_or(Error::FailedToGetCursorPosition)?;
     let screen_height = primary.frame().size.height;
     let scale = primary.backingScaleFactor();
 

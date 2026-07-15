@@ -6,9 +6,10 @@ packages:
   - examples/resources
   - examples/file-associations
 
-onlyBuiltDependencies:
-  - esbuild
-  - workerd
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
 
 overrides:
   esbuild@>=0.27.3 <0.28.1: '>=0.28.1'

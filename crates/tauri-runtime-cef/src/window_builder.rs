@@ -21,7 +21,7 @@ use crate::window::{
   AppWindowAttrs, paired_size_constraint, tauri_theme_to_winit_theme, winit_theme_to_tauri_theme,
 };
 
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(windows)]
 use winit::raw_window_handle::RawWindowHandle;
 
 #[cfg(target_os = "macos")]
@@ -407,12 +407,10 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "macos")]
   fn parent(mut self, parent: *mut std::ffi::c_void) -> Self {
-    if let Some(ns_view) = NonNull::new(parent) {
-      let handle =
-        RawWindowHandle::AppKit(winit::raw_window_handle::AppKitWindowHandle::new(ns_view));
-      // SAFETY: Tauri passes a live parent NSView owned by the application.
-      self.attrs.inner = unsafe { self.attrs.inner.with_parent_window(Some(handle)) };
-    }
+    // Tauri's macOS WindowBuilder contract passes an NSWindow pointer. Keep it
+    // separate from winit's AppKitWindowHandle until create_window runs on the
+    // AppKit thread and can resolve the window's content NSView safely.
+    self.attrs.parent_ns_window = NonNull::new(parent);
     self
   }
 

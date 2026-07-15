@@ -33,10 +33,18 @@ use winit::{
 #[cfg(target_os = "macos")]
 use crate::platform::macos::AppkitState;
 use crate::platform::{EventLoopExt, MonitorExt};
+#[cfg(target_os = "macos")]
+use objc2::MainThreadMarker;
+#[cfg(target_os = "macos")]
+use objc2_app_kit::NSWindow;
+#[cfg(target_os = "macos")]
+use raw_window_handle::{AppKitWindowHandle, RawWindowHandle};
 #[cfg(any(windows, target_os = "macos"))]
 use std::marker::PhantomData;
 #[cfg(target_os = "macos")]
 use std::sync::RwLock;
+#[cfg(target_os = "macos")]
+use std::{ffi::c_void, ptr::NonNull};
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowExtMacOS;
 #[cfg(windows)]
@@ -336,6 +344,8 @@ pub(crate) struct AppWindow {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct AppWindowAttrs {
   pub(crate) inner: WindowAttributes,
+  #[cfg(target_os = "macos")]
+  pub(crate) parent_ns_window: Option<NonNull<c_void>>,
   pub(crate) center: bool,
   pub(crate) background_color: Option<Color>,
   pub(crate) prevent_overflow: Option<Size>,
@@ -358,6 +368,29 @@ pub(crate) struct AppWindowAttrs {
     target_os = "openbsd"
   ))]
   pub(crate) skip_taskbar: bool,
+}
+
+#[cfg(target_os = "macos")]
+fn install_macos_parent_view(
+  attrs: WindowAttributes,
+  parent_ns_window: NonNull<c_void>,
+) -> Result<WindowAttributes> {
+  // Window creation is handled by winit's main-thread event loop. Refuse to
+  // message AppKit if that invariant is ever broken.
+  let Some(_main_thread_marker) = MainThreadMarker::new() else {
+    return Err(Error::CreateWindow);
+  };
+
+  // SAFETY: Tauri passes a live NSWindow owned by the application for the
+  // duration of child-window creation.
+  let parent_window = unsafe { parent_ns_window.cast::<NSWindow>().as_ref() };
+  let parent_view = parent_window.contentView().ok_or(Error::CreateWindow)?;
+  let parent_view_ptr = NonNull::from(&*parent_view).cast::<c_void>();
+  let parent_handle = RawWindowHandle::AppKit(AppKitWindowHandle::new(parent_view_ptr));
+
+  // SAFETY: parent_view is installed in the live parent NSWindow, and winit
+  // retains the view while establishing the native child-window relationship.
+  Ok(unsafe { attrs.with_parent_window(Some(parent_handle)) })
 }
 
 impl AppWindow {
@@ -426,6 +459,11 @@ impl<T: UserEvent> WinitCefApp<T> {
         tauri_theme_to_winit_theme(*self.context.app_wide_theme.lock().unwrap());
     }
     prepare_window_attributes(event_loop, &mut attrs);
+
+    #[cfg(target_os = "macos")]
+    if let Some(parent_ns_window) = attrs.parent_ns_window {
+      attrs.inner = install_macos_parent_view(attrs.inner, parent_ns_window)?;
+    }
 
     let window = event_loop
       .create_window(attrs.inner.clone())

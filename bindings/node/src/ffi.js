@@ -18,26 +18,50 @@ export { CODES }
 
 const require = createRequire(import.meta.url)
 
+// The runtime this package loads a library for. Distributed base packages are
+// stamped with their runtime (dist.mjs); dev/source defaults to wry. Overridable
+// via TAURI_FFI_RUNTIME.
+const DEFAULT_RUNTIME = 'wry'
+
+/** Which runtime's prebuilt library to load (wry, cef, …). */
+export function ffiRuntime() {
+  return process.env.TAURI_FFI_RUNTIME || DEFAULT_RUNTIME
+}
+
+// Every runtime's library shares the same tauri_ffi C ABI, so it differs only by
+// file name: `tauri_<base>` (libtauri_wry.so, tauri_cef.dll, …). `ffi` is the
+// crate's own output name, used for the dev build and the name the CLI stages
+// into a bundle.
+function platformLibraryName(base) {
+  const spec = { darwin: ['lib', '.dylib'], linux: ['lib', '.so'], win32: ['', '.dll'] }[
+    process.platform
+  ]
+  if (!spec) throw new Error(`unsupported platform: ${process.platform}`)
+  return `${spec[0]}tauri_${base}${spec[1]}`
+}
+
 export function libraryPath() {
   // a compiled bundle ignores the TAURI_FFI_LIB env override — it must load
   // only its own bundled cdylib, never an arbitrary library named by the env
   if (!isBundled() && process.env.TAURI_FFI_LIB) return process.env.TAURI_FFI_LIB
-  const name = { darwin: 'libtauri_ffi.dylib', linux: 'libtauri_ffi.so', win32: 'tauri_ffi.dll' }[
-    process.platform
-  ]
-  if (!name) throw new Error(`unsupported platform: ${process.platform}`)
-  // a compiled bundle loads the cdylib staged in its resource dir
+  const runtime = ffiRuntime()
+  // a compiled bundle loads the cdylib staged in its resource dir under the
+  // crate's own name (a bundle only ever carries one runtime's library)
   const resourceDir = bundledResourceDir()
-  if (resourceDir) return path.join(resourceDir, name)
-  // Installed platform package (optionalDependencies of @tauri-apps/node).
+  if (resourceDir) return path.join(resourceDir, platformLibraryName('ffi'))
+  // Installed platform package (optionalDependencies of the runtime's base package).
+  const distName = platformLibraryName(runtime)
   try {
-    return require.resolve(`@tauri-apps/node-${process.platform}-${process.arch}/${name}`)
+    return require.resolve(`@tauri-apps/node-${runtime}-${process.platform}-${process.arch}/${distName}`)
   } catch {
     // not installed — fall through to the repo dev build
   }
+  // Repo dev build: `cargo build -p tauri-ffi` emits the crate's own name,
+  // regardless of the selected runtime feature.
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
+  const devName = platformLibraryName('ffi')
   for (const profile of ['debug', 'release']) {
-    const candidate = path.join(repoRoot, 'target', profile, name)
+    const candidate = path.join(repoRoot, 'target', profile, devName)
     if (existsSync(candidate)) return candidate
   }
   throw new Error(

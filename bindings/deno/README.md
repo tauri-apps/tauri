@@ -36,4 +36,6 @@ A window opens serving the example's assets; it exercises an invoke round-trip,
 host↔frontend events, and runtime window creation (`app.createWindow` — async in
 Deno — `app.getWindow`, `WebviewWindow` getters/setters). Close the window to exit.
 
-Use `TAURI_FFI_LIB=/path/to/libtauri_ffi.dylib` to point at a non-default build.
+Use `TAURI_FFI_LIB=/path/to/libtauri_wry.dylib` to point at a non-default build.
+Set `TAURI_FFI_RUNTIME` (`wry` by default) to pick which runtime's prebuilt
+library to download and load.

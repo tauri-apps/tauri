@@ -19,14 +19,24 @@ export function cstr(text: string): Uint8Array {
   return encoder.encode(text + '\0')
 }
 
-function libraryName(): string {
-  const name = {
-    darwin: 'libtauri_ffi.dylib',
-    linux: 'libtauri_ffi.so',
-    windows: 'tauri_ffi.dll'
-  }[Deno.build.os as string]
-  if (!name) throw new Error(`unsupported platform: ${Deno.build.os}`)
-  return name
+// The runtime this package loads a library for (wry, cef, …), overridable via
+// TAURI_FFI_RUNTIME.
+const DEFAULT_RUNTIME = 'wry'
+
+function ffiRuntime(): string {
+  return Deno.env.get('TAURI_FFI_RUNTIME') || DEFAULT_RUNTIME
+}
+
+// Every runtime's library shares the same tauri_ffi C ABI, so it differs only by
+// file name: `tauri_<base>` (libtauri_wry.so, tauri_cef.dll, …). `ffi` is the
+// crate's own output name, used for the dev build and the name staged into a
+// bundle; the runtime name is what the prebuilt download/cache uses.
+function platformLibraryName(base: string): string {
+  const spec = { darwin: ['lib', '.dylib'], linux: ['lib', '.so'], windows: ['', '.dll'] }[
+    Deno.build.os as string
+  ]
+  if (!spec) throw new Error(`unsupported platform: ${Deno.build.os}`)
+  return `${spec[0]}tauri_${base}${spec[1]}`
 }
 
 function targetTriple(): string {
@@ -49,7 +59,7 @@ function cachedLibraryPath(): string {
       windows: Deno.env.get('LOCALAPPDATA')
     }[Deno.build.os as string]
   if (!base) throw new Error('cannot determine a cache directory — set TAURI_FFI_CACHE')
-  return `${base}/tauri-ffi/${denoConfig.version}/${libraryName()}`
+  return `${base}/tauri-ffi/${denoConfig.version}/${platformLibraryName(ffiRuntime())}`
 }
 
 export function libraryPath(): string {
@@ -57,7 +67,9 @@ export function libraryPath(): string {
   // only its own bundled cdylib, never an arbitrary library named by the env
   const env = isBundled() ? undefined : Deno.env.get('TAURI_FFI_LIB')
   if (env) return env
-  const name = libraryName()
+  // The bundle and the dev build carry the crate's own library name (a bundle
+  // only ever holds one runtime's library, and `cargo build` ignores the runtime).
+  const name = platformLibraryName('ffi')
   // Bundled next to the executable (deno compile binary in a Tauri bundle).
   const resourceDir = bundledResourceDir()
   if (resourceDir) {
@@ -110,7 +122,8 @@ export async function ensureLibrary(): Promise<string> {
       'tauri_ffi library not found and this is an unpublished checkout — run `cargo build -p tauri-ffi` or set TAURI_FFI_LIB'
     )
   }
-  const asset = `tauri_ffi-${targetTriple()}${libraryName().slice(libraryName().lastIndexOf('.'))}`
+  const distName = platformLibraryName(ffiRuntime())
+  const asset = `tauri_${ffiRuntime()}-${targetTriple()}${distName.slice(distName.lastIndexOf('.'))}`
   const url = `https://github.com/tauri-apps/tauri/releases/download/tauri-ffi-v${version}/${asset}`
   const destination = cachedLibraryPath()
   console.error(`[tauri-ffi] downloading ${url}`)

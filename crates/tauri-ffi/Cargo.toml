@@ -11,6 +11,20 @@ name = "tauri_ffi"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
+default = ["runtime-wry"]
+
+# Runtime backend compiled into the cdylib. Exactly one is selected; the exported
+# C ABI (`tauri_ffi.h`, the `tauri_ffi_*`/`tauri_*` symbols) is identical across
+# runtimes, so only the *produced library* differs and is distributed per runtime
+# — `libtauri_wry`, `libtauri_cef`, … (dropping the redundant `_ffi` suffix). The
+# publish workflow builds `--features runtime-<name>` and stages the output under
+# the runtime's library name; see bindings/scripts/targets.mjs (RUNTIMES).
+#
+# `runtime-cef` (and `tauri = { default-features = false }` so `wry` isn't forced
+# in alongside it) is added on the feat/cef branch:
+#   runtime-cef = ["tauri/cef"]
+runtime-wry = ["tauri/wry"]
+
 # Exposes tauri_window_open_devtools/close_devtools/is_devtools_open in release
 # builds (they are always available in debug builds). Mirrors `tauri/devtools`.
 devtools = ["tauri/devtools"]

@@ -32,7 +32,9 @@ A window opens serving `examples/hello/assets/`; it exercises an invoke round-tr
 (`greet` command handled in `app.js`), host→frontend events (`tick`), and
 frontend→host events (`frontend-ping`). Close the window to exit.
 
-Use `TAURI_FFI_LIB=/path/to/libtauri_ffi.dylib` to point at a non-default build.
+Use `TAURI_FFI_LIB=/path/to/libtauri_wry.dylib` to point at a non-default build.
+Set `TAURI_FFI_RUNTIME` (`wry` by default) to pick which runtime's prebuilt
+library to load; installed platform packages ship one library per runtime.
 
 ## Building a distributable
 

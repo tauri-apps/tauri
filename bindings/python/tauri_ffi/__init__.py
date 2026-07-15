@@ -40,31 +40,52 @@ class TauriError(RuntimeError):
         self.code = code
 
 
+# The runtime this package loads a library for (wry, cef, …), overridable via
+# TAURI_FFI_RUNTIME. Wheels bundle a single runtime's library.
+DEFAULT_RUNTIME = "wry"
+
+
+def ffi_runtime() -> str:
+    """Which runtime's prebuilt library to load (wry, cef, …)."""
+    return os.environ.get("TAURI_FFI_RUNTIME") or DEFAULT_RUNTIME
+
+
+def _platform_library_name(base: str) -> str:
+    # Every runtime's library shares the same tauri_ffi C ABI, so it differs only
+    # by file name: `tauri_<base>`. `ffi` is the crate's own output name (dev build
+    # and the name staged into a bundle); the runtime name is what a wheel bundles.
+    spec = {
+        "darwin": ("lib", ".dylib"),
+        "linux": ("lib", ".so"),
+        "win32": ("", ".dll"),
+    }.get(sys.platform)
+    if spec is None:
+        raise TauriError(-1, f"unsupported platform: {sys.platform}")
+    return f"{spec[0]}tauri_{base}{spec[1]}"
+
+
 def library_path() -> Path:
     # a frozen bundle ignores the TAURI_FFI_LIB env override — it must load only
     # its own bundled cdylib, never an arbitrary library named by the env
     env = None if _is_bundled() else os.environ.get("TAURI_FFI_LIB")
     if env:
         return Path(env)
-    name = {
-        "darwin": "libtauri_ffi.dylib",
-        "linux": "libtauri_ffi.so",
-        "win32": "tauri_ffi.dll",
-    }.get(sys.platform)
-    if name is None:
-        raise TauriError(-1, f"unsupported platform: {sys.platform}")
-    # Bundled next to the executable (frozen binary in a Tauri bundle).
+    crate_name = _platform_library_name("ffi")
+    dist_name = _platform_library_name(ffi_runtime())
+    # Bundled next to the executable (frozen binary in a Tauri bundle), under the
+    # crate's own name (a bundle only ever holds one runtime's library).
     resource_dir = _bundled_resource_dir()
-    if resource_dir is not None and (resource_dir / name).exists():
-        return resource_dir / name
-    # Installed wheels bundle the library next to the package.
-    bundled = Path(__file__).resolve().parent / "_native" / name
+    if resource_dir is not None and (resource_dir / crate_name).exists():
+        return resource_dir / crate_name
+    # Installed wheels bundle the runtime-specific library next to the package.
+    bundled = Path(__file__).resolve().parent / "_native" / dist_name
     if bundled.exists():
         return bundled
-    # Development fallback: cargo build output in the repo.
+    # Development fallback: `cargo build -p tauri-ffi` output in the repo (the
+    # crate's own name, regardless of the selected runtime feature).
     repo_root = Path(__file__).resolve().parents[3]
     for profile in ("debug", "release"):
-        candidate = repo_root / "target" / profile / name
+        candidate = repo_root / "target" / profile / crate_name
         if candidate.exists():
             return candidate
     raise TauriError(

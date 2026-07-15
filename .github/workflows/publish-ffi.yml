@@ -2,12 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-# Builds the tauri-ffi cdylib for every supported target once, then fans out
-# to all distribution channels from the same artifacts:
+# Builds the tauri-ffi cdylib for every supported (runtime × target) once, then
+# fans out to all distribution channels from the same artifacts. Each runtime
+# (wry today; cef is added on feat/cef) produces its own library — libtauri_wry,
+# libtauri_cef, … — while the exported C ABI (tauri_ffi.h) is identical, so the
+# runtimes are distributed side by side:
 #   - C archives (header + library) attached to a GitHub release
-#   - npm: @tauri-apps/node + per-platform optionalDependencies packages
+#   - npm: @tauri-apps/node(-<runtime>) base + per-(runtime,platform) packages
 #   - PyPI: tauri-ffi platform wheels (cffi ABI mode, library bundled)
 #   - JSR: @tauri-apps/deno (library downloaded from the GitHub release at runtime)
+#
+# Adding a runtime = add it to the `runtime` matrices below and to RUNTIMES in
+# bindings/scripts/targets.mjs; the build recipe is `--features runtime-<name>`.
 
 name: publish tauri-ffi
 env:
@@ -37,7 +43,7 @@ permissions:
   id-token: write # OIDC trusted publishing (npm, PyPI, JSR)
 
 jobs:
-  # Fail fast on a stale manifest/bindings state before burning six builders.
+  # Fail fast on a stale manifest/bindings state before burning builders.
   check-generated:
     name: generated bindings are current
     runs-on: ubuntu-latest
@@ -49,11 +55,14 @@ jobs:
       - run: node bindings/bindgen/generate.mjs --check
 
   build:
-    name: build ${{ matrix.settings.target }}
+    name: build ${{ matrix.runtime }} ${{ matrix.settings.target }}
     needs: check-generated
     strategy:
       fail-fast: false
       matrix:
+        # cef is added on feat/cef (it may also need target-specific `include`
+        # entries for its extra system deps / framework download).
+        runtime: [wry]
         settings:
           - host: macos-latest
             target: x86_64-apple-darwin
@@ -83,37 +92,43 @@ jobs:
           targets: ${{ matrix.settings.target }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ffi-${{ matrix.settings.target }}
+          key: ffi-${{ matrix.runtime }}-${{ matrix.settings.target }}
 
       - name: build
-        run: cargo build -p tauri-ffi --release --target ${{ matrix.settings.target }}
+        run: cargo build -p tauri-ffi --release --target ${{ matrix.settings.target }} --no-default-features --features runtime-${{ matrix.runtime }}
 
+      # cargo emits the crate's own name (tauri_ffi); stage it under the runtime's
+      # distribution name (tauri_<runtime>) — that is what dist.mjs and the
+      # language loaders expect for a published library.
       - name: stage artifact
         shell: bash
         run: |
           mkdir -p dist-lib
-          case '${{ matrix.settings.target }}' in
+          t='${{ matrix.settings.target }}'
+          r='${{ matrix.runtime }}'
+          case "$t" in
             *windows*)
-              cp 'target/${{ matrix.settings.target }}/release/tauri_ffi.dll' dist-lib/
-              cp 'target/${{ matrix.settings.target }}/release/tauri_ffi.dll.lib' dist-lib/ ;;
+              cp "target/$t/release/tauri_ffi.dll"     "dist-lib/tauri_$r.dll"
+              cp "target/$t/release/tauri_ffi.dll.lib" "dist-lib/tauri_$r.dll.lib" ;;
             *apple*)
-              cp 'target/${{ matrix.settings.target }}/release/libtauri_ffi.dylib' dist-lib/ ;;
+              cp "target/$t/release/libtauri_ffi.dylib" "dist-lib/libtauri_$r.dylib" ;;
             *)
-              cp 'target/${{ matrix.settings.target }}/release/libtauri_ffi.so' dist-lib/ ;;
+              cp "target/$t/release/libtauri_ffi.so"    "dist-lib/libtauri_$r.so" ;;
           esac
 
       - uses: actions/upload-artifact@v7
         with:
-          name: lib-${{ matrix.settings.target }}
+          name: lib-${{ matrix.runtime }}-${{ matrix.settings.target }}
           path: dist-lib/*
           if-no-files-found: error
 
   smoke:
-    name: smoke ${{ matrix.settings.target }}
+    name: smoke ${{ matrix.runtime }} ${{ matrix.settings.target }}
     needs: build
     strategy:
       fail-fast: false
       matrix:
+        runtime: [wry]
         settings:
           - host: macos-latest
             target: aarch64-apple-darwin
@@ -138,23 +153,29 @@ jobs:
           cache: 'pnpm'
       - uses: actions/download-artifact@v8
         with:
-          name: lib-${{ matrix.settings.target }}
+          name: lib-${{ matrix.runtime }}-${{ matrix.settings.target }}
           path: artifact
       - name: install koffi
         run: pnpm install --frozen-lockfile --filter @tauri-apps/node
       - name: run smoke test
         shell: bash
         run: |
-          case '${{ matrix.settings.target }}' in
-            *windows*) lib=artifact/tauri_ffi.dll ;;
-            *apple*)   lib=artifact/libtauri_ffi.dylib ;;
-            *)         lib=artifact/libtauri_ffi.so ;;
+          t='${{ matrix.settings.target }}'
+          r='${{ matrix.runtime }}'
+          case "$t" in
+            *windows*) lib="artifact/tauri_$r.dll" ;;
+            *apple*)   lib="artifact/libtauri_$r.dylib" ;;
+            *)         lib="artifact/libtauri_$r.so" ;;
           esac
           TAURI_FFI_LIB="$PWD/$lib" node bindings/scripts/smoke.mjs
 
   dist-c:
-    name: C release archives
+    name: C release archives (${{ matrix.runtime }})
     needs: [build, smoke]
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [wry]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -163,13 +184,15 @@ jobs:
           node-version: 22
       - uses: actions/download-artifact@v8
         with:
+          pattern: lib-${{ matrix.runtime }}-*
           path: artifacts
       - name: stage archives
-        run: node bindings/scripts/dist.mjs c --version ${{ inputs.version }} --artifacts artifacts --out dist --require-all
+        run: node bindings/scripts/dist.mjs c --version ${{ inputs.version }} --runtime ${{ matrix.runtime }} --artifacts artifacts --out dist --require-all
       - uses: actions/upload-artifact@v7
         with:
-          name: c-dist
+          name: c-dist-${{ matrix.runtime }}
           path: dist/*
+      # Per-runtime asset names (incl. SHA256SUMS-<runtime>) never clobber across runtimes.
       - name: upload to GitHub release
         if: ${{ !inputs.dryRun && inputs.releaseTag != '' }}
         run: gh release upload '${{ inputs.releaseTag }}' dist/* --clobber
@@ -177,8 +200,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   publish-npm:
-    name: publish npm packages
+    name: publish npm packages (${{ matrix.runtime }})
     needs: [build, smoke]
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [wry]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -189,9 +216,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - uses: actions/download-artifact@v8
         with:
+          pattern: lib-${{ matrix.runtime }}-*
           path: artifacts
       - name: stage packages
-        run: node bindings/scripts/dist.mjs npm --version ${{ inputs.version }} --artifacts artifacts --out dist --require-all
+        run: node bindings/scripts/dist.mjs npm --version ${{ inputs.version }} --runtime ${{ matrix.runtime }} --artifacts artifacts --out dist --require-all
       - name: pack (dry run)
         if: ${{ inputs.dryRun }}
         run: |
@@ -199,22 +227,31 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: ${{ inputs.dryRun }}
         with:
-          name: npm-dist
+          name: npm-dist-${{ matrix.runtime }}
           path: dist/npm/*/*.tgz
       - name: publish
         if: ${{ !inputs.dryRun }}
         run: |
           # platform packages first so the base's optionalDependencies resolve
-          for dir in dist/npm/node-*/; do
+          for dir in dist/npm/platform-*/; do
             (cd "$dir" && pnpm publish --provenance --access public --no-git-checks)
           done
-          (cd dist/npm/node && pnpm publish --provenance --access public --no-git-checks)
+          for dir in dist/npm/base-*/; do
+            (cd "$dir" && pnpm publish --provenance --access public --no-git-checks)
+          done
         env:
           NODE_AUTH_TOKEN: '' # OIDC trusted publishing
 
   publish-pypi:
-    name: publish PyPI wheels
+    name: publish PyPI wheels (${{ matrix.runtime }})
     needs: [build, smoke]
+    strategy:
+      fail-fast: false
+      matrix:
+        # NOTE: every runtime currently builds the same `tauri_ffi` package; a
+        # non-default runtime needs its own package name (decided on feat/cef)
+        # to coexist on PyPI.
+        runtime: [wry]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -223,10 +260,12 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v8
         with:
+          pattern: lib-${{ matrix.runtime }}-*
           path: artifacts
       - name: build platform wheels
         shell: bash
         run: |
+          r='${{ matrix.runtime }}'
           python -m pip install --quiet setuptools wheel
           declare -A TAGS=(
             [x86_64-apple-darwin]=macosx_10_13_x86_64
@@ -236,18 +275,18 @@ jobs:
             [x86_64-unknown-linux-gnu]=manylinux_2_39_x86_64
             [aarch64-unknown-linux-gnu]=manylinux_2_39_aarch64
           )
-          declare -A LIBS=(
-            [x86_64-apple-darwin]=libtauri_ffi.dylib
-            [aarch64-apple-darwin]=libtauri_ffi.dylib
-            [x86_64-pc-windows-msvc]=tauri_ffi.dll
-            [aarch64-pc-windows-msvc]=tauri_ffi.dll
-            [x86_64-unknown-linux-gnu]=libtauri_ffi.so
-            [aarch64-unknown-linux-gnu]=libtauri_ffi.so
-          )
+          lib_name() {
+            case "$1" in
+              *windows*) echo "tauri_$r.dll" ;;
+              *apple*)   echo "libtauri_$r.dylib" ;;
+              *)         echo "libtauri_$r.so" ;;
+            esac
+          }
           cd bindings/python
           for target in $TAURI_FFI_TARGETS; do
+            lib="$(lib_name "$target")"
             mkdir -p tauri_ffi/_native
-            cp "$GITHUB_WORKSPACE/artifacts/lib-$target/${LIBS[$target]}" tauri_ffi/_native/
+            cp "$GITHUB_WORKSPACE/artifacts/lib-$r-$target/$lib" tauri_ffi/_native/
             TAURI_FFI_VERSION='${{ inputs.version }}' python setup.py bdist_wheel --plat-name "${TAGS[$target]}"
             rm -rf tauri_ffi/_native build
           done
@@ -255,7 +294,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: ${{ inputs.dryRun }}
         with:
-          name: pypi-dist
+          name: pypi-dist-${{ matrix.runtime }}
           path: bindings/python/dist/*.whl
       - name: publish
         if: ${{ !inputs.dryRun }}

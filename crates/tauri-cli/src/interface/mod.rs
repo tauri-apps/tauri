@@ -13,12 +13,12 @@ use std::{
 };
 
 use crate::{
+  ConfigValue,
   error::Context,
   helpers::{
     app_paths::Dirs,
     config::{Config, ConfigMetadata},
   },
-  ConfigValue,
 };
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 use tauri_utils::config::RunnerConfig;
@@ -169,8 +169,6 @@ pub trait AppSettings {
     options: &Options,
     tauri_dir: &Path,
   ) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
-  #[allow(dead_code)]
-  fn out_dir(&self, options: &Options, tauri_dir: &Path) -> crate::Result<PathBuf>;
   fn app_name(&self) -> Option<String>;
   fn lib_name(&self) -> Option<String>;
   /// The directory build artifacts land in.

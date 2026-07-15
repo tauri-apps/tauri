@@ -22,7 +22,7 @@ use crate::{
     updater_signature,
   },
   interface::{
-    detect_interface_kind, AppInterface, AppSettings, BindingsInterface, Interface, InterfaceKind,
+    AppInterface, AppSettings, BindingsInterface, Interface, InterfaceKind, detect_interface_kind,
   },
 };
 

@@ -13,8 +13,8 @@ use crate::{
   },
   info::plugins::check_mismatched_packages,
   interface::{
-    detect_interface_kind, rust::get_cargo_target_dir, AppInterface, AppSettings,
-    BindingsInterface, Interface, InterfaceKind,
+    AppInterface, AppSettings, BindingsInterface, Interface, InterfaceKind, detect_interface_kind,
+    rust::get_cargo_target_dir,
   },
 };
 use clap::{ArgAction, Parser};

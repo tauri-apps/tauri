@@ -36,9 +36,9 @@ use std::{
   process::{Command, ExitStatus},
   str::FromStr,
   sync::{
+    Arc,
     atomic::{AtomicBool, Ordering},
     mpsc::sync_channel,
-    Arc,
   },
   time::Duration,
 };
@@ -49,20 +49,20 @@ use notify_debouncer_full::new_debouncer;
 use shared_child::SharedChild;
 use tauri_bundler::{AppCategory, BundleBinary, BundleSettings, PackageSettings};
 use tauri_utils::{
-  config::{parse::is_configuration_file, FrontendDist},
+  config::{FrontendDist, parse::is_configuration_file},
   display_path,
   platform::Target as TargetPlatform,
 };
 
 use super::{AppSettings, DevProcess, ExitReason, Interface, Options};
 use crate::{
-  error::{bail, Context, ErrorExt},
+  CommandExt,
+  error::{Context, ErrorExt, bail},
   helpers::{
     app_paths::Dirs,
     command_env,
-    config::{get_config, reload_config, BundleResources, Config, ConfigMetadata},
+    config::{BundleResources, Config, ConfigMetadata, get_config, reload_config},
   },
-  CommandExt,
 };
 
 /// Magic bytes prefixing a tauri-ffi assets archive. Format (all
@@ -813,8 +813,10 @@ fn copy_payload_into(payload: &EmbedPayload, dir: &Path) -> crate::Result<()> {
       .fs_context("failed to stage embedded assets", assets.clone())?;
   }
   if let Some(capabilities) = &payload.capabilities {
-    fs::copy(capabilities, dir.join("capabilities.json"))
-      .fs_context("failed to stage embedded capabilities", capabilities.clone())?;
+    fs::copy(capabilities, dir.join("capabilities.json")).fs_context(
+      "failed to stage embedded capabilities",
+      capabilities.clone(),
+    )?;
   }
   Ok(())
 }

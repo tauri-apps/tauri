@@ -309,8 +309,13 @@ pub fn command(mut options: Options) -> Result<()> {
   let config = render_config(&handlebars, config_template(language), &data)?;
   data.insert("tauri_config", to_json(config));
 
-  template::render(&handlebars, &data, template_dir(language), &options.directory)
-    .with_context(|| "failed to render Tauri template")?;
+  template::render(
+    &handlebars,
+    &data,
+    template_dir(language),
+    &options.directory,
+  )
+  .with_context(|| "failed to render Tauri template")?;
 
   Ok(())
 }
@@ -338,10 +343,7 @@ fn template_dir(language: Language) -> &'static Dir<'static> {
 /// Inserts the `tauri`/`tauri-build`/… dependency specs a Rust project's
 /// `Cargo.toml` template expects, resolving to local paths when `--tauri-path`
 /// is given.
-fn insert_rust_deps(
-  data: &mut BTreeMap<&str, serde_json::Value>,
-  options: &Options,
-) -> Result<()> {
+fn insert_rust_deps(data: &mut BTreeMap<&str, serde_json::Value>, options: &Options) -> Result<()> {
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata-v2.json"))
     .context("failed to parse version metadata")?;
 
@@ -463,9 +465,8 @@ mod tests {
 
       let rendered = render_config(&handlebars, config_template(language), &data)
         .unwrap_or_else(|e| panic!("{language} config failed to render: {e}"));
-      let config =
-        tauri_utils::config::parse::parse_json(&rendered, Path::new("tauri.conf.json"))
-          .unwrap_or_else(|e| panic!("{language} config failed to parse: {e}\n{rendered}"));
+      let config = tauri_utils::config::parse::parse_json(&rendered, Path::new("tauri.conf.json"))
+        .unwrap_or_else(|e| panic!("{language} config failed to parse: {e}\n{rendered}"));
 
       // Node/Deno/Python are driven by `build > runner`; Rust and C are not.
       assert_eq!(

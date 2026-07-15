@@ -45,12 +45,7 @@ pub fn confirm(prompt: &str, default: Option<bool>) -> Result<bool> {
   builder.interact().context("failed to prompt confirm")
 }
 
-pub fn select<T: Display>(
-  prompt: &str,
-  items: &[T],
-  default: usize,
-  skip: bool,
-) -> Result<usize> {
+pub fn select<T: Display>(prompt: &str, items: &[T], default: usize, skip: bool) -> Result<usize> {
   if skip {
     Ok(default)
   } else {

@@ -30,7 +30,7 @@ use tauri_utils::config::HookCommand;
 
 #[cfg(not(target_os = "windows"))]
 use crate::Error;
-use crate::{interface::Interface, CommandExt};
+use crate::{CommandExt, interface::Interface};
 
 pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();

@@ -12,7 +12,7 @@ use crate::{
   },
   info::plugins::check_mismatched_packages,
   interface::{
-    detect_interface_kind, AppInterface, BindingsInterface, ExitReason, Interface, InterfaceKind,
+    AppInterface, BindingsInterface, ExitReason, Interface, InterfaceKind, detect_interface_kind,
   },
 };
 

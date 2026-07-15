@@ -25,11 +25,10 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
+use tauri_utils::config::{DeepLinkProtocol, Updater, parse::is_configuration_file};
 
 use super::{AppSettings, DevProcess, ExitReason, MobileOptions, Options, WatcherOptions};
 use crate::{
-  ConfigValue,
   error::{Context, Error, ErrorExt, bail},
   helpers::{
     app_paths::Dirs,
@@ -1024,10 +1023,6 @@ impl AppSettings for RustAppSettings {
     }
 
     Ok(binaries)
-  }
-
-  fn out_dir(&self, options: &Options, tauri_dir: &Path) -> crate::Result<PathBuf> {
-    get_target_dir(self.target(options), options, tauri_dir)
   }
 
   fn app_name(&self) -> Option<String> {

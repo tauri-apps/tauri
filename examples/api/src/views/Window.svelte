@@ -400,7 +400,7 @@
   })
 </script>
 
-<div class="flex flex-col children:grow gap-8 mb-4">
+<div class="flex flex-col *:grow gap-8 mb-4">
   <div
     class="flex flex-wrap items-center gap-4 pb-6 border-b-solid border-b-1 border-code"
   >
@@ -513,7 +513,7 @@
         Set focusable to {!focusable}
       </button>
     </div>
-    <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))]">
+    <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))] *:flex *:gap-2">
       <label>
         <input
           type="checkbox"
@@ -614,8 +614,8 @@
         Simple fullscreen
       </label>
     </div>
-    <div class="flex flex-wrap children:flex-basis-30 gap-2">
-      <div class="grid gap-1 children:grid">
+    <div class="flex flex-wrap *:flex-basis-30 gap-2">
+      <div class="grid gap-1 *:grid">
         <label>
           X
           <input
@@ -637,7 +637,7 @@
           />
         </label>
       </div>
-      <div class="grid gap-1 children:grid">
+      <div class="grid gap-1 *:grid">
         <label>
           Width
           <input
@@ -659,7 +659,7 @@
           />
         </div>
       </div>
-      <div class="grid gap-1 children:grid">
+      <div class="grid gap-1 *:grid">
         <label>
           Min width
           <input
@@ -679,7 +679,7 @@
           />
         </label>
       </div>
-      <div class="grid gap-1 children:grid">
+      <div class="grid gap-1 *:grid">
         <label>
           Max width
           <input
@@ -764,7 +764,7 @@
     </div>
     <div class="grid gap-2">
       <h4 class="my-2">Cursor</h4>
-      <div class="flex gap-2">
+      <div class="flex gap-4 *:flex *:gap-2">
         <label>
           <input
             type="checkbox"
@@ -894,7 +894,7 @@
         <div class="flex">
           <label>
             Color
-            <div class="flex gap-2 children:flex-basis-30">
+            <div class="flex gap-2 *:flex-basis-30">
               <input
                 class="input"
                 type="number"

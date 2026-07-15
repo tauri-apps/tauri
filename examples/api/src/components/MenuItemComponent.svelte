@@ -34,7 +34,7 @@
 </script>
 
 <div
-  class="flex items-center gap-2 border border-solid border-neutral-200 bg-neutral-100 p-inline-2 p-block-1 rounded-md select-none menu-item"
+  class="flex items-center gap-2 border border-solid border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-700 p-inline-2 p-block-1 rounded-md select-none menu-item"
   data-kind={kind}
   data-text={text}
   data-icon-path={iconPath}
@@ -47,7 +47,7 @@
       type="text"
       title="text"
       placeholder="text"
-      class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-1"
+      class="border border-solid dark:bg-neutral-800 dark:color-neutral-100 border-neutral-200 dark:border-neutral-700 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-1"
       bind:value={text}
       onchange={onTextChange}
     />
@@ -57,7 +57,7 @@
       type="text"
       title="icon path"
       placeholder="icon path"
-      class="border border-solid border-neutral-200 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-1"
+      class="border border-solid dark:bg-neutral-800 dark:color-neutral-100 border-neutral-200 dark:border-neutral-700 focus-visible:border-accent outline-none p-inline-2 p-block-1 rounded-1"
       bind:value={iconPath}
       onchange={onIconPathChange}
     />

@@ -247,7 +247,7 @@
   <div class="h-1px bg-neutral/20 m-inline-4"></div>
   <div
     bind:this={targetSortableEl}
-    class="p-2 border border-solid border-neutral-300 rounded-md min-h-24 grid items-start gap-1"
+    class="p-2 border border-solid border-neutral-300 dark:border-neutral-700 rounded-md min-h-24 grid items-start gap-1"
   >
     {#key items}
       {#each items as item, i (item.id)}
@@ -284,7 +284,7 @@
           }}
         />
       {:else}
-        <div class="place-self-center color-neutral-600">
+        <div class="place-self-center color-secondaryText">
           Drag and drop the menu items above to start building
         </div>
       {/each}

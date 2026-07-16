@@ -47,17 +47,17 @@ pub fn installed_tauri_packages(
   tauri_dir: &Path,
   package_manager: PackageManager,
 ) -> InstalledPackages {
-  let know_plugins = helpers::plugins::known_plugins();
+  let known_plugins = helpers::plugins::known_plugins();
   let crate_names: Vec<String> = iter::once("tauri".to_owned())
     .chain(
-      know_plugins
+      known_plugins
         .keys()
         .map(|plugin_name| format!("tauri-plugin-{plugin_name}")),
     )
     .collect();
   let npm_names: Vec<String> = iter::once("@tauri-apps/api".to_owned())
     .chain(
-      know_plugins
+      known_plugins
         .keys()
         .map(|plugin_name| format!("@tauri-apps/plugin-{plugin_name}")),
     )
@@ -114,8 +114,8 @@ pub fn items(
   if let Some(tauri_dir) = tauri_dir {
     let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
 
-    for p in helpers::plugins::known_plugins().keys() {
-      let dep = format!("tauri-plugin-{p}");
+    for (name, metadata) in helpers::plugins::known_plugins() {
+      let dep = format!("tauri-plugin-{name}");
       let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), &dep);
       if !crate_version.has_version() {
         continue;
@@ -123,11 +123,15 @@ pub fn items(
       let item = packages_rust::rust_section_item(&dep, crate_version);
       items.push(item);
 
+      if metadata.rust_only {
+        continue;
+      }
+
       let Some(frontend_dir) = frontend_dir else {
         continue;
       };
 
-      let package = format!("@tauri-apps/plugin-{p}");
+      let package = format!("@tauri-apps/plugin-{name}");
 
       let item =
         packages_nodejs::nodejs_section_item(package, None, frontend_dir.clone(), package_manager);

@@ -11,16 +11,4 @@ ignore = [
   "RUSTSEC-2026-0097",
   # glib 0.18.5 unsoundness, fixed by updating to gtk4
   "RUSTSEC-2024-0429",
-  # rustls, fixed when updating to apple-codesign 0.28.0
-  "RUSTSEC-2026-0049",
-  # rustls, fixed when updating to apple-codesign 0.28.0
-  "RUSTSEC-2026-0098",
-  # rustls, fixed when updating to apple-codesign 0.28.0
-  "RUSTSEC-2026-0099",
-  # rustls, fixed when updating to apple-codesign 0.28.0
-  "RUSTSEC-2026-0104",
-  # quick-xml, need an update in plist
-  "RUSTSEC-2026-0194",
-  # quick-xml, need an update in plist
-  "RUSTSEC-2026-0195",
 ]

@@ -76,7 +76,7 @@ jobs:
           - { args: --all-features, key: all }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: install Rust
         uses: dtolnay/rust-toolchain@master

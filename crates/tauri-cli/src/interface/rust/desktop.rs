@@ -79,7 +79,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
 
-  log::info!(action = "Running"; "DevCommand (`{} {}`)", &dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+  log::info!(action = "Running"; "DevCommand (`{} {}`)", dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
   let dev_child = match SharedChild::spawn(&mut dev_cmd) {
     Ok(c) => Ok(c),
@@ -158,10 +158,6 @@ pub fn build(
 ) -> crate::Result<PathBuf> {
   let out_dir = app_settings.out_dir(&options, tauri_dir)?;
   let bin_path = app_settings.app_binary_path(&options, tauri_dir)?;
-
-  if std::env::var_os("STATIC_VCRUNTIME").is_none_or(|v| v != "false") {
-    std::env::set_var("STATIC_VCRUNTIME", "true");
-  }
 
   if options.target == Some("universal-apple-darwin".into()) {
     std::fs::create_dir_all(&out_dir)

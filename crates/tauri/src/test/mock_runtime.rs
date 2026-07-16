@@ -294,7 +294,9 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   #[cfg(target_os = "android")]
   fn run_on_android_context<F>(&self, f: F)
   where
-    F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
+    F: FnOnce(&mut jni::JNIEnv<'_>, &jni::objects::JObject<'_>, &jni::objects::JObject<'_>)
+      + Send
+      + 'static,
   {
     todo!()
   }
@@ -468,6 +470,10 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   fn window_classname<S: Into<String>>(self, classname: S) -> Self {
+    self
+  }
+
+  fn no_redirection_bitmap(self, enable: bool) -> Self {
     self
   }
 

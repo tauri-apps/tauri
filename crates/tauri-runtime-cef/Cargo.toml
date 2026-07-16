@@ -24,12 +24,14 @@ raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-tauri-runtime = { version = "2.11.2", path = "../tauri-runtime" }
+tauri-runtime = { version = "2.11.2", path = "../tauri-runtime", default-features = false, features = [
+  "gtk4",
+] }
 tauri-utils = { version = "2.9.2", path = "../tauri-utils", features = [
   "html-manipulation",
 ] }
 url = "2"
-winit = { version = "0.31.0-beta.2", path = "../../../winit-gtk4/winit", default-features = false, features = [
+winit = { version = "0.31.0-beta.2", git = "https://github.com/tauri-apps/winit-gtk4", branch = "master", default-features = false, features = [
   "gtk4",
 ] }
 

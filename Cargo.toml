@@ -72,3 +72,4 @@ tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+dpi = { git = "https://github.com/tauri-apps/winit-gtk4", branch = "master" }

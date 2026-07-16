@@ -56,7 +56,7 @@ uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1"
 thiserror = "2"
-tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
+tauri-runtime = { version = "2.11.3", path = "../tauri-runtime", default-features = false }
 tauri-macros = { version = "2.6.3", path = "../tauri-macros" }
 tauri-utils = { version = "2.9.3", features = [
   "resources",
@@ -98,10 +98,14 @@ rustls = { version = "0.23", default-features = false, features = [
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.19", default-features = false, features = [
+muda_gtk3 = { package = "muda", version = "0.19", default-features = false, features = [
   "serde",
   "gtk",
-] }
+], optional = true }
+muda_gtk4 = { package = "muda", git = "https://github.com/tauri-apps/muda", branch = "feat/gtk4", default-features = false, features = [
+  "serde",
+  "gtk",
+], optional = true }
 tray-icon = { version = "0.24", default-features = false, features = [
   "serde",
   "gtk",
@@ -109,7 +113,10 @@ tray-icon = { version = "0.24", default-features = false, features = [
 
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
-gtk = { version = "0.18", features = ["v3_24"] }
+gtk3 = { package = "gtk", version = "0.18", features = [
+  "v3_24",
+], optional = true }
+gtk4 = { package = "gtk4", version = "0.11.4", optional = true }
 webkit2gtk = { version = "2", features = ["v2_40"], optional = true }
 
 # darwin
@@ -199,18 +206,31 @@ x11 = ["tauri-runtime-wry?/x11"]
 dbus = ["tauri-runtime-wry?/dbus"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
-  "muda/common-controls-v6",
+  "muda_gtk3?/common-controls-v6",
+  "muda_gtk4?/common-controls-v6",
   "tauri-runtime-wry?/common-controls-v6",
 ]
 tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]
-test = []
+test = ["dep:gtk3", "dep:muda_gtk3", "tauri-runtime/gtk3"]
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
-wry = ["dep:webview2-com", "dep:webkit2gtk", "dep:tauri-runtime-wry"]
-cef = ["dep:tauri-runtime-cef"]
+wry = [
+  "dep:gtk3",
+  "dep:muda_gtk3",
+  "dep:webview2-com",
+  "dep:webkit2gtk",
+  "dep:tauri-runtime-wry",
+  "tauri-runtime/gtk3",
+]
+cef = [
+  "dep:gtk4",
+  "dep:muda_gtk4",
+  "dep:tauri-runtime-cef",
+  "tauri-runtime/gtk4",
+]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
-linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
+linux-libxdo = ["tray-icon/libxdo", "muda_gtk3?/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 # TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384

@@ -13,6 +13,31 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[cfg(all(
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ),
+  feature = "gtk3"
+))]
+extern crate gtk3 as gtk;
+
+#[cfg(all(
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ),
+  feature = "gtk4",
+  not(feature = "gtk3")
+))]
+extern crate gtk4 as gtk;
+
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};

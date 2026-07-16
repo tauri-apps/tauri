@@ -19,7 +19,7 @@ wry = { version = "0.55.0", default-features = false, features = [
   "linux-body",
 ] }
 tao = { version = "0.35.0", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
+tauri-runtime = { version = "2.11.3", path = "../tauri-runtime", features = ["gtk3"] }
 tauri-utils = { version = "2.9.3", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1"

@@ -7,9 +7,12 @@ packages:
   - examples/resources
   - examples/file-associations
 
-onlyBuiltDependencies:
-  - esbuild
-  - workerd
+allowBuilds:
+  edgedriver: set this to true or false
+  esbuild: true
+  geckodriver: set this to true or false
+  sharp: true
+  workerd: true
 
 overrides:
   esbuild@>=0.27.3 <0.28.1: '>=0.28.1'

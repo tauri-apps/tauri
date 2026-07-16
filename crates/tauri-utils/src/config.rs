@@ -1953,9 +1953,15 @@ pub struct WindowConfig {
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
-  /// Whether the drag and drop is enabled or not on the webview. By default it is enabled.
+  /// Whether the drag and drop handlers used internally to generate [`DragDropEvent`]s are enabled on the webview. By default it is enabled.
   ///
-  /// Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
+  /// Disabling it is required to use HTML5 drag and drop on the frontend on Windows since we replace the drag drop handler of WebView2.
+  ///
+  /// Note: this setting maps to [`WebviewBuilder::disable_drag_drop_handler`], not [`WindowBuilder::drag_and_drop`].
+  ///
+  /// [`DragDropEvent`]: https://docs.rs/tauri/latest/tauri/enum.DragDropEvent.html
+  /// [`WebviewBuilder::disable_drag_drop_handler`]: https://docs.rs/tauri/latest/tauri/webview/struct.WebviewBuilder.html#method.disable_drag_drop_handler
+  /// [`WindowBuilder::drag_and_drop`]: https://docs.rs/tauri/latest/x86_64-pc-windows-msvc/tauri/window/struct.WindowBuilder.html#method.drag_and_drop
   #[serde(default = "default_true", alias = "drag-drop-enabled")]
   pub drag_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
@@ -3153,13 +3159,18 @@ pub struct TrayIconConfig {
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
   #[serde(default, alias = "icon-as-template")]
   pub icon_as_template: bool,
+  /// **No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**
+  ///
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
   ///
   /// ## Platform-specific:
   ///
   /// - **Linux**: Unsupported.
   #[serde(default = "default_true", alias = "menu-on-left-click")]
-  #[deprecated(since = "2.2.0", note = "Use `show_menu_on_left_click` instead.")]
+  #[deprecated(
+    since = "2.2.0",
+    note = "No longer works, use `show_menu_on_left_click` instead."
+  )]
   pub menu_on_left_click: bool,
   /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
   ///

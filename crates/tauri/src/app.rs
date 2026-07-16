@@ -2380,6 +2380,8 @@ tauri::Builder::default()
       ran_setup: false,
     };
 
+    app.register_core_plugins()?;
+
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
       let menu = menu(&app.handle)?;
@@ -2394,8 +2396,6 @@ tauri::Builder::default()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
-    app.register_core_plugins()?;
 
     let env = Env::default();
     app.manage(env);

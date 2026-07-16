@@ -845,10 +845,9 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   /// Service the default GLib main context so the external message pump's GLib
-  /// timeout (and any GTK work CEF schedules) gets dispatched, then arm winit to
-  /// wake when the next tick is due. CEF is driven by that timeout firing, not
-  /// from here. Windows/macOS need no equivalent: their pump timers live on the
-  /// native loop winit already runs.
+  /// source (and any GTK work CEF schedules) gets dispatched, then arm winit to
+  /// wake when the next GLib pump deadline is due. Windows/macOS need no
+  /// equivalent: their pump timers live on the native loop winit already runs.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -878,7 +877,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     match cause {
       StartCause::Init => {
         self.run_callback(RunEvent::Ready);
-        self.context.cef_pump.do_message_loop_work();
+        self.context.cef_pump.do_work();
       }
       // Match wry/tao, which emit `Resumed` on each `Poll` start cause.
       StartCause::Poll => self.run_callback(RunEvent::Resumed),
@@ -1318,16 +1317,7 @@ impl<T: UserEvent> CefRuntime<T> {
     let proxy = event_loop.create_proxy();
     let (sender, receiver) = mpsc::channel();
     let context_initialized = Arc::new(AtomicBool::new(false));
-    let cef_pump = CefExternalPump::new(
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
-      proxy.clone(),
-    );
+    let cef_pump = CefExternalPump::new();
     let context = RuntimeContext {
       sender: sender.clone(),
       proxy: proxy.clone(),
@@ -1409,7 +1399,7 @@ impl<T: UserEvent> CefRuntime<T> {
 
     // Wait for the CEF context to initialize before returning, so that the runtime is ready to create browsers.
     while !context_initialized.load(Ordering::SeqCst) {
-      context.cef_pump.do_message_loop_work();
+      context.cef_pump.do_work();
       std::thread::sleep(Duration::from_millis(1));
     }
 
@@ -1552,7 +1542,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
         callback(RunEvent::UserEvent(event));
       }
     }
-    self.context.cef_pump.do_message_loop_work();
+    self.context.cef_pump.do_work();
     callback(RunEvent::MainEventsCleared);
   }
 

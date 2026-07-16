@@ -54,10 +54,6 @@ use crate::{
   },
   window_handle::SendRawDisplayHandle,
 };
-#[cfg(target_os = "macos")]
-use winit::platform::macos::EventLoopBuilderExtMacOS;
-#[cfg(windows)]
-use winit::platform::windows::EventLoopBuilderExtWindows;
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -65,7 +61,11 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-use winit::platform::x11::EventLoopBuilderExtX11;
+use winit::platform::gtk4::EventLoopBuilderExtGtk4;
+#[cfg(target_os = "macos")]
+use winit::platform::macos::EventLoopBuilderExtMacOS;
+#[cfg(windows)]
+use winit::platform::windows::EventLoopBuilderExtWindows;
 
 /// The `cef` crate used by this runtime, re-exported for convenience.
 ///
@@ -844,26 +844,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
   }
 
-  /// Service the default GLib main context so the external message pump's GLib
-  /// source (and any GTK work CEF schedules) gets dispatched, then arm winit to
-  /// wake when the next GLib pump deadline is due. Windows/macOS need no
-  /// equivalent: their pump timers live on the native loop winit already runs.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  fn service_glib(&self, event_loop: &dyn ActiveEventLoop) {
-    let context = gtk::glib::MainContext::default();
-    while context.pending() {
-      context.iteration(false);
-    }
-    if let Some(deadline) = self.context.cef_pump.next_deadline() {
-      event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(deadline));
-    }
-  }
 }
 
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
@@ -892,15 +872,6 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
 
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
-    // TODO: remove once migrated to winit-gtk4
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
-    self.service_glib(event_loop);
     self.run_callback(RunEvent::MainEventsCleared);
   }
 
@@ -1289,7 +1260,8 @@ impl<T: UserEvent> CefRuntime<T> {
     });
     let _ = create_dir_all(&cache_path);
 
-    // Force X11 usage on Linux
+    // CEF's Linux implementation in this runtime is still X11-based, while
+    // winit-gtk4 owns GLib/GTK event dispatch for us.
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1299,7 +1271,11 @@ impl<T: UserEvent> CefRuntime<T> {
     ))]
     {
       command_line_args.push(("ozone-platform".to_string(), Some("x11".to_string())));
-      event_loop_builder.with_x11();
+      // CEF integration below uses XIDs for child windows/reparenting, so GDK
+      // must not honor an inherited `GDK_BACKEND=wayland`.
+      unsafe { std::env::set_var("GDK_BACKEND", "x11") };
+      gtk::gdk::set_allowed_backends("x11");
+      event_loop_builder.with_gtk4();
     }
 
     #[cfg(windows)]

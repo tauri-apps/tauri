@@ -282,8 +282,10 @@ impl<T: UserEvent> WinitCefApp<T> {
     drag_drop_event_target: browser_client::DragDropEventTarget,
     pending: PendingWebview<T, CefRuntime<T>>,
   ) -> Result<()> {
-    let parent = appwindow.raw_cef_handle();
-    let parent_size = appwindow.window.surface_size();
+    // Windows/macOS use the native window/view; Linux uses the GTK content-area
+    // X11 host so CEF children cannot cover GTK UI like menus.
+    let parent = appwindow.cef_host_handle();
+    let parent_size = appwindow.safe_surface_size();
     let scale = appwindow.window.scale_factor();
     let app_wide_theme = *context.app_wide_theme.lock().unwrap();
     let theme = appwindow.resolved_theme(app_wide_theme);
@@ -536,17 +538,158 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     }
 
+    // Parent-dependent messages must read window metrics like safe_surface_size.
+    // Route them before borrowing a child mutably so those parent reads do not
+    // overlap with the child borrow.
+    match message {
+      WebviewMessage::SetBounds(_)
+      | WebviewMessage::SetSize(_)
+      | WebviewMessage::SetPosition(_)
+      | WebviewMessage::Position(_)
+      | WebviewMessage::Size(_)
+      | WebviewMessage::SetAutoResize(_)
+      | WebviewMessage::Reparent(_, _) => {
+        self.handle_parent_webview_message(window_id, webview_id, message);
+      }
+      message => {
+        let context = &self.context;
+        let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
+          return;
+        };
+        let Some(child) = appwindow
+          .children
+          .iter_mut()
+          .find(|child| child.webview_id == webview_id)
+        else {
+          return;
+        };
+
+        Self::handle_child_webview_message(context, child, message);
+      }
+    }
+  }
+
+  fn handle_parent_webview_message(
+    &mut self,
+    window_id: WindowId,
+    webview_id: u32,
+    message: WebviewMessage,
+  ) {
     let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
-    let Some(child) = appwindow
+    let Some(child_index) = appwindow
       .children
       .iter_mut()
-      .find(|child| child.webview_id == webview_id)
+      .position(|child| child.webview_id == webview_id)
     else {
       return;
     };
 
+    match message {
+      WebviewMessage::SetBounds(bounds) => {
+        let parent_size = appwindow.safe_surface_size();
+        let scale = appwindow.window.scale_factor();
+        let child = &mut appwindow.children[child_index];
+        child.set_bounds(parent_size, scale, bounds);
+      }
+      WebviewMessage::SetSize(size) => {
+        let parent_size = appwindow.safe_surface_size();
+        let scale = appwindow.window.scale_factor();
+        let child = &mut appwindow.children[child_index];
+        let bounds = child.bounds().unwrap_or_default();
+        let new_bounds = Rect {
+          position: bounds.position,
+          size,
+        };
+        child.set_bounds(parent_size, scale, new_bounds);
+      }
+      WebviewMessage::SetPosition(position) => {
+        let parent_size = appwindow.safe_surface_size();
+        let scale = appwindow.window.scale_factor();
+        let child = &mut appwindow.children[child_index];
+        let bounds = child.bounds().unwrap_or_default();
+        let new_bounds = Rect {
+          position,
+          size: bounds.size,
+        };
+        child.set_bounds(parent_size, scale, new_bounds);
+      }
+      WebviewMessage::Position(tx) => {
+        let scale = appwindow.window.scale_factor();
+        let child = &mut appwindow.children[child_index];
+        let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
+        let position = bounds.map(|b| b.position);
+        let position = position.map(|p| p.to_physical::<i32>(scale));
+        let _ = tx.send(position);
+      }
+      WebviewMessage::Size(tx) => {
+        let scale = appwindow.window.scale_factor();
+        let child = &mut appwindow.children[child_index];
+        let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
+        let size = bounds.map(|b| b.size.to_physical::<u32>(scale));
+        let _ = tx.send(size);
+      }
+      WebviewMessage::SetAutoResize(auto_resize) => {
+        if auto_resize {
+          let parent_size = appwindow.safe_surface_size();
+          let scale = appwindow.window.scale_factor();
+          let child = &mut appwindow.children[child_index];
+          let bounds = child.bounds();
+          child.bounds_rate = compute_child_bounds_rate(bounds.as_ref(), true, parent_size, scale);
+        } else {
+          let child = &mut appwindow.children[child_index];
+          child.bounds_rate = None;
+        }
+      }
+      WebviewMessage::Reparent(target_window_id, tx) => {
+        if window_id == target_window_id {
+          let _ = tx.send(Ok(()));
+          return;
+        }
+
+        if !self.state.windows.contains_key(&target_window_id) {
+          let _ = tx.send(Err(Error::WindowNotFound));
+          return;
+        }
+
+        let source_window = self.state.windows.get_mut(&window_id).unwrap();
+        let Some(mut child) = source_window.remove_child_webview(webview_id) else {
+          let _ = tx.send(Err(Error::WindowNotFound));
+          return;
+        };
+
+        // SAFETY: we already checked that the target window exists.
+        let target_appwindow = self.state.windows.get_mut(&target_window_id).unwrap();
+
+        let bounds = child.bounds().unwrap_or_else(|| Rect {
+          position: PhysicalPosition::new(0, 0).into(),
+          size: target_appwindow.safe_surface_size().into(),
+        });
+        child.reparent(target_appwindow);
+        child.set_bounds(
+          target_appwindow.safe_surface_size(),
+          target_appwindow.window.scale_factor(),
+          bounds,
+        );
+        // Re-parenting does not preserve z-order: a view docked back into a
+        // window that already owns a full-window main webview must be put back
+        // on top, or it lands behind it and renders nothing.
+        #[cfg(windows)]
+        child.raise_to_top();
+
+        target_appwindow.children.push(child);
+        let _ = tx.send(Ok(()));
+      }
+      _ => unreachable!("child-only webview message routed to parent handler"),
+    }
+  }
+
+  fn handle_child_webview_message(
+    context: &RuntimeContext<T>,
+    child: &mut AppWebview,
+    message: WebviewMessage,
+  ) {
     match message {
       WebviewMessage::EvaluateScript(script) => {
         if let Some(frame) = child.browser.main_frame() {
@@ -557,7 +700,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
         let host = &child.host;
-        let message_id = self.context.next_webview_event_id() as i32 + 1;
+        let message_id = context.next_webview_event_id() as i32 + 1;
         let message_id = Arc::new(AtomicI32::new(message_id));
         let callback = Arc::new(Mutex::new(Some(callback)));
         let registration = Arc::new(Mutex::new(None));
@@ -603,31 +746,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::GoForward => child.browser.go_forward(),
       WebviewMessage::CanGoForward(tx) => _ = tx.send(Ok(child.browser.can_go_forward() == 1)),
       WebviewMessage::Close => child.host.close_browser(0),
-      WebviewMessage::SetBounds(bounds) => {
-        let parent_size = appwindow.window.surface_size();
-        let scale = appwindow.window.scale_factor();
-        child.set_bounds(parent_size, scale, bounds);
-      }
-      WebviewMessage::SetSize(size) => {
-        let parent_size = appwindow.window.surface_size();
-        let scale = appwindow.window.scale_factor();
-        let bounds = child.bounds().unwrap_or_default();
-        let new_bounds = Rect {
-          position: bounds.position,
-          size,
-        };
-        child.set_bounds(parent_size, scale, new_bounds);
-      }
-      WebviewMessage::SetPosition(position) => {
-        let parent_size = appwindow.window.surface_size();
-        let scale = appwindow.window.scale_factor();
-        let bounds = child.bounds().unwrap_or_default();
-        let new_bounds = Rect {
-          position,
-          size: bounds.size,
-        };
-        child.set_bounds(parent_size, scale, new_bounds);
-      }
       WebviewMessage::SetFocus => child.host.set_focus(1),
       WebviewMessage::Url(tx) => {
         let url = child.url().unwrap_or_default();
@@ -636,17 +754,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       WebviewMessage::Bounds(tx) => {
         let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
         let _ = tx.send(bounds);
-      }
-      WebviewMessage::Position(tx) => {
-        let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
-        let position = bounds.map(|b| b.position);
-        let position = position.map(|p| p.to_physical::<i32>(appwindow.window.scale_factor()));
-        let _ = tx.send(position);
-      }
-      WebviewMessage::Size(tx) => {
-        let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
-        let size = bounds.map(|b| b.size.to_physical::<u32>(appwindow.window.scale_factor()));
-        let _ = tx.send(size);
       }
       WebviewMessage::WithWebview(f) => f(Webview::new(child.browser.clone())),
       WebviewMessage::Print => child.host.print(),
@@ -666,16 +773,6 @@ impl<T: UserEvent> WinitCefApp<T> {
           0.0
         };
         child.host.set_zoom_level(zoom_level);
-      }
-      WebviewMessage::SetAutoResize(auto_resize) => {
-        if auto_resize {
-          let bounds = child.bounds();
-          let parent_size = appwindow.window.surface_size();
-          let scale = appwindow.window.scale_factor();
-          child.bounds_rate = compute_child_bounds_rate(bounds.as_ref(), true, parent_size, scale);
-        } else {
-          child.bounds_rate = None;
-        }
       }
       WebviewMessage::SetBackgroundColor(color) => child.set_background_color(color),
       WebviewMessage::ClearAllBrowsingData => {
@@ -712,57 +809,6 @@ impl<T: UserEvent> WinitCefApp<T> {
           let url = child.url();
           cookie::delete_cookie(manager, url, cookie);
         }
-      }
-      WebviewMessage::Reparent(target_window_id, tx) => {
-        if window_id == target_window_id {
-          let _ = tx.send(Ok(()));
-          return;
-        }
-
-        if !self.state.windows.contains_key(&target_window_id) {
-          let _ = tx.send(Err(Error::WindowNotFound));
-          return;
-        }
-
-        let Some(mut child) = self
-          .state
-          .windows
-          .get_mut(&window_id)
-          .and_then(|appwindow| {
-            appwindow
-              .children
-              .iter()
-              .position(|child| child.webview_id == webview_id)
-              .map(|index| appwindow.children.remove(index))
-          })
-        else {
-          let _ = tx.send(Err(Error::WindowNotFound));
-          return;
-        };
-
-        let Some(target_appwindow) = self.state.windows.get_mut(&target_window_id) else {
-          let _ = tx.send(Err(Error::WindowNotFound));
-          return;
-        };
-
-        let bounds = child.bounds().unwrap_or_else(|| Rect {
-          position: PhysicalPosition::new(0, 0).into(),
-          size: target_appwindow.window.surface_size().into(),
-        });
-        child.reparent(target_appwindow);
-        child.set_bounds(
-          target_appwindow.window.surface_size(),
-          target_appwindow.window.scale_factor(),
-          bounds,
-        );
-        // Re-parenting does not preserve z-order: a view docked back into a
-        // window that already owns a full-window main webview must be put back
-        // on top, or it lands behind it and renders nothing.
-        #[cfg(windows)]
-        child.raise_to_top();
-
-        target_appwindow.children.push(child);
-        let _ = tx.send(Ok(()));
       }
       #[cfg(any(debug_assertions, feature = "devtools"))]
       WebviewMessage::OpenDevTools => child.host.show_dev_tools(None, None, None, None),
@@ -804,6 +850,15 @@ impl<T: UserEvent> WinitCefApp<T> {
         } else {
           let _ = tx.send(Ok(()));
         }
+      }
+      WebviewMessage::SetBounds(_)
+      | WebviewMessage::SetSize(_)
+      | WebviewMessage::SetPosition(_)
+      | WebviewMessage::Position(_)
+      | WebviewMessage::Size(_)
+      | WebviewMessage::SetAutoResize(_)
+      | WebviewMessage::Reparent(_, _) => {
+        unreachable!("parent webview message routed to child handler")
       }
     }
   }
@@ -1233,7 +1288,7 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
 /// from the current window size; children with fixed bounds keep whatever bounds
 /// they were last given.
 pub(crate) fn layout_app_window(appwindow: &AppWindow) {
-  let parent_size = appwindow.window.surface_size();
+  let parent_size = appwindow.safe_surface_size();
   let win_w = parent_size.width as f32;
   let win_h = parent_size.height as f32;
   let scale = appwindow.window.scale_factor();

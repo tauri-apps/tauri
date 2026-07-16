@@ -24,7 +24,7 @@ use crate::window::AppWindow;
 use super::{AppkitState, utils};
 
 impl AppWindow {
-  pub(crate) fn raw_cef_handle(&self) -> cef::sys::cef_window_handle_t {
+  pub(crate) fn cef_host_handle(&self) -> cef::sys::cef_window_handle_t {
     let nsview = self.nsview();
     Retained::as_ptr(&nsview).cast_mut().cast()
   }

@@ -16,7 +16,7 @@ mod windows;
 
 use crate::error::ErrorExt;
 use anyhow::Context;
-use human_bytes::human_bytes;
+use bytesize::ByteSize;
 use std::{
   fmt::Write,
   io::{Seek, SeekFrom},
@@ -291,10 +291,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         ""
       };
       let path_display = display_path(path);
-      let size = match bundle_size(path) {
-        Some(bytes) => format!(" ({})", human_bytes(bytes as f64)),
-        None => String::new(),
-      };
+      let size = bundle_size(path)
+        .map(|bytes| format!(" ({:.2})", ByteSize::b(bytes).display()))
+        .unwrap_or_default();
       writeln!(printable_paths, "        {path_display}{note}{size}").unwrap();
     }
   }
@@ -305,22 +304,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 }
 
 /// Total size in bytes of a bundle path, recursing into directories (e.g. macOS `.app`).
-///
-/// Returns `None` if the path can't be read.
-fn bundle_size(path: &std::path::Path) -> Option<u64> {
-  let metadata = std::fs::symlink_metadata(path).ok()?;
+fn bundle_size(path: &std::path::Path) -> crate::Result<u64> {
+  let metadata = std::fs::symlink_metadata(path)?;
   if metadata.is_dir() {
     let mut total = 0;
-    for entry in walkdir::WalkDir::new(path).into_iter().flatten() {
-      if let Ok(metadata) = entry.metadata() {
-        if metadata.is_file() {
-          total += metadata.len();
-        }
-      }
+    for entry in walkdir::WalkDir::new(path) {
+      total += entry?.metadata()?.len();
     }
-    Some(total)
+    Ok(total)
   } else {
-    Some(metadata.len())
+    Ok(metadata.len())
   }
 }
 

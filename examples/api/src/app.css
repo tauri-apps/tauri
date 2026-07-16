@@ -2,6 +2,13 @@
   line-height: 1.5;
 }
 
+:root.dark {
+  color-scheme: dark;
+}
+:root.light {
+  color-scheme: light;
+}
+
 input,
 select {
   min-width: 0;

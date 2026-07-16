@@ -63,7 +63,7 @@ main {
 }
 
 #sidebarToggle {
-  margin-top: calc(env(safe-area-inset-top) + 1rem);
+  margin-top: calc(env(safe-area-inset-top) + 0.5rem);
   margin-left: calc(env(safe-area-inset-left) + 0.5rem);
 }
 

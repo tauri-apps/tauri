@@ -8,9 +8,11 @@ packages:
   - examples/file-associations
 
 allowBuilds:
-  edgedriver: set this to true or false
+  # transitive deps of @wdio/utils; their postinstall downloads browser drivers
+  # the Tauri suite never uses (it drives the app via tauri-driver)
+  edgedriver: false
   esbuild: true
-  geckodriver: set this to true or false
+  geckodriver: false
   sharp: true
   workerd: true
 

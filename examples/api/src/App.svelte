@@ -256,7 +256,7 @@
     id="sidebar"
     bind:this={sidebar}
     class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
-      bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid grid-rows-[min-content_auto] select-none px-2"
+      bg-darkPrimaryLighter transition-colors-250 overflow-hidden grid grid-rows-[min-content_auto] content-start select-none px-2"
   >
     <img
       class="self-center p-7 cursor-pointer"

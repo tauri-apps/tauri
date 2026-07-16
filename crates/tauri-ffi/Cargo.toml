@@ -20,17 +20,24 @@ default = ["runtime-wry"]
 # publish workflow builds `--features runtime-<name>` and stages the output under
 # the runtime's library name; see bindings/scripts/targets.mjs (RUNTIMES).
 #
-# `runtime-cef` (and `tauri = { default-features = false }` so `wry` isn't forced
-# in alongside it) is added on the feat/cef branch:
-#   runtime-cef = ["tauri/cef"]
-runtime-wry = ["tauri/wry"]
+# The tauri dep sets `default-features = false` so exactly one runtime is linked
+# into the cdylib; each `runtime-*` feature re-adds its runtime backend plus the
+# runtime-specific tauri defaults (wry uses x11/dbus on Linux). Build the desired
+# library with e.g. `--no-default-features --features runtime-cef`.
+runtime-wry = ["tauri/wry", "tauri/x11", "tauri/dbus"]
+runtime-cef = ["tauri/cef"]
 
 # Exposes tauri_window_open_devtools/close_devtools/is_devtools_open in release
 # builds (they are always available in debug builds). Mirrors `tauri/devtools`.
 devtools = ["tauri/devtools"]
 
 [dependencies]
-tauri = { path = "../tauri", features = [
+# default-features disabled so the runtime backend comes solely from the selected
+# `runtime-*` feature. tauri's non-runtime defaults (compression, common-controls-v6,
+# dynamic-acl) are re-added here; wry/x11/dbus move to the `runtime-wry` feature.
+tauri = { path = "../tauri", default-features = false, features = [
+  "compression",
+  "common-controls-v6",
   "unstable",
   # Compile in "production" mode: tauri decides dev-vs-prod at build time via
   # the `dev` cfg (`dev = !custom-protocol`, see tauri/build.rs). Without this,

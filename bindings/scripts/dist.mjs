@@ -43,7 +43,7 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
-const LICENSES = ['LICENSE.spdx', 'LICENSE_APACHE-2.0', 'LICENSE_MIT']
+const LICENSES = ['LICENSE.spdx', 'LICENSE-APACHE-2.0', 'LICENSE-MIT']
 
 // ---------------------------------------------------------------------------
 

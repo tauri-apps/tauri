@@ -34,7 +34,16 @@ use tauri::utils::acl::manifest::Manifest;
 use tauri::utils::acl::resolved::Resolved;
 use tauri::utils::config::Config;
 use tauri::utils::PackageInfo;
-use tauri::{Emitter, EventTarget, Listener, Manager, Pattern, RunEvent, WindowEvent, Wry};
+use tauri::{Emitter, EventTarget, Listener, Manager, Pattern, RunEvent, WindowEvent};
+
+// The runtime the cdylib is monomorphized to, selected by the `runtime-*` feature.
+// The exported tauri_ffi C ABI is identical across runtimes; only the linked
+// runtime (and thus the distributed library) differs.
+#[cfg(feature = "runtime-cef")]
+pub(crate) type Rt = tauri::Cef;
+#[cfg(not(feature = "runtime-cef"))]
+pub(crate) type Rt = tauri::Wry;
+use crate::Rt as TauriRuntime;
 
 mod app;
 mod assets;
@@ -330,7 +339,7 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let plugin_names: Vec<String> = plugins.iter().map(|p| p.name.clone()).collect();
   let authority = tauri::runtime_authority!(acl, Resolved::default());
 
-  let assets: Box<dyn tauri::Assets<Wry>> = if let Some(bytes) = assets_archive_bytes {
+  let assets: Box<dyn tauri::Assets<TauriRuntime>> = if let Some(bytes) = assets_archive_bytes {
     Box::new(assets::ArchiveAssets::from_bytes(bytes)?)
   } else if let Some(archive) = assets_archive {
     Box::new(assets::ArchiveAssets::load(&archive)?)
@@ -359,7 +368,7 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let global_api_scripts = (config.app.with_global_tauri && !GLOBAL_API_SCRIPTS.is_empty())
     .then_some(GLOBAL_API_SCRIPTS);
 
-  let context = tauri::Context::<Wry>::new(
+  let context = tauri::Context::<TauriRuntime>::new(
     config,
     assets,
     None, // default window icon — TODO(M1): tauri_app_builder_set_icon_rgba
@@ -377,7 +386,7 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let invoke_tx = tx.clone();
   let menu_tx = tx.clone();
   let mut builder = tauri::Builder::default()
-    .invoke_handler(move |invoke: tauri::ipc::Invoke<Wry>| {
+    .invoke_handler(move |invoke: tauri::ipc::Invoke<TauriRuntime>| {
       let command = invoke.message.command();
       if !commands.contains(command) {
         return false; // tauri reports "command not found" to the frontend
@@ -466,8 +475,8 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
     // `plugin::Builder::new` wants a `&'static str`; a plugin is created once
     // for the life of the app, so a one-time leak is acceptable.
     let leaked_name: &'static str = Box::leak(name.into_boxed_str());
-    let mut plugin_builder = tauri::plugin::Builder::<Wry>::new(leaked_name).invoke_handler(
-      move |invoke: tauri::ipc::Invoke<Wry>| {
+    let mut plugin_builder = tauri::plugin::Builder::<TauriRuntime>::new(leaked_name).invoke_handler(
+      move |invoke: tauri::ipc::Invoke<TauriRuntime>| {
         // tauri strips the `plugin:<name>|` prefix before dispatch, so
         // `command()` is the bare command name here.
         let command = invoke.message.command();
@@ -529,7 +538,7 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
 
 /// Registers the invoke's resolver and serializes it into a queue message.
 /// `plugin` is `Some` for plugin commands (adds a `"plugin"` field).
-fn invoke_message_json(invoke: &tauri::ipc::Invoke<Wry>, command: &str, plugin: Option<&str>) -> String {
+fn invoke_message_json(invoke: &tauri::ipc::Invoke<TauriRuntime>, command: &str, plugin: Option<&str>) -> String {
   let payload = match invoke.message.payload() {
     InvokeBody::Json(value) => value.clone(),
     // TODO(M1): raw (binary) payloads

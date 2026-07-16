@@ -13,8 +13,9 @@ use tauri::utils::config::{WindowConfig, WindowEffectsConfig};
 use tauri::window::{Color, ProgressBarState};
 use tauri::{
   CursorIcon, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Position, Size,
-  Theme, UserAttentionType, WebviewWindow, WindowSizeConstraints, Wry,
+  Theme, UserAttentionType, WebviewWindow, WindowSizeConstraints,
 };
+use crate::Rt as TauriRuntime;
 
 use crate::error::{
   catch, fail, unsupported, ERR_GENERIC, ERR_INVALID_ARG, ERR_INVALID_HANDLE, ERR_NOT_FOUND, OK,
@@ -25,7 +26,7 @@ use crate::{try_cstr, write_owned_str};
 // ---------------------------------------------------------------------------
 // helpers
 
-fn with_window(window: u64, f: impl FnOnce(&WebviewWindow<Wry>) -> tauri::Result<()>) -> i32 {
+fn with_window(window: u64, f: impl FnOnce(&WebviewWindow<TauriRuntime>) -> tauri::Result<()>) -> i32 {
   let Some(window) = state::window(window) else {
     return fail(ERR_INVALID_HANDLE, "invalid window handle");
   };
@@ -38,7 +39,7 @@ fn with_window(window: u64, f: impl FnOnce(&WebviewWindow<Wry>) -> tauri::Result
 fn window_get<T>(
   window: u64,
   out: *mut T,
-  f: impl FnOnce(&WebviewWindow<Wry>) -> tauri::Result<T>,
+  f: impl FnOnce(&WebviewWindow<TauriRuntime>) -> tauri::Result<T>,
 ) -> i32 {
   if out.is_null() {
     return fail(ERR_INVALID_ARG, "output pointer is null");
@@ -58,7 +59,7 @@ fn window_get<T>(
 fn window_get_string(
   window: u64,
   out: *mut *mut c_char,
-  f: impl FnOnce(&WebviewWindow<Wry>) -> tauri::Result<String>,
+  f: impl FnOnce(&WebviewWindow<TauriRuntime>) -> tauri::Result<String>,
 ) -> i32 {
   if out.is_null() {
     return fail(ERR_INVALID_ARG, "output pointer is null");
@@ -79,7 +80,7 @@ fn window_get_pair<T: Copy>(
   window: u64,
   out_a: *mut T,
   out_b: *mut T,
-  f: impl FnOnce(&WebviewWindow<Wry>) -> tauri::Result<(T, T)>,
+  f: impl FnOnce(&WebviewWindow<TauriRuntime>) -> tauri::Result<(T, T)>,
 ) -> i32 {
   if out_a.is_null() || out_b.is_null() {
     return fail(ERR_INVALID_ARG, "output pointer is null");

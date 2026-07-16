@@ -14,7 +14,7 @@ use std::sync::{mpsc, Arc, Mutex, OnceLock};
 
 use tauri::ipc::InvokeResolver;
 use tauri::utils::config::Config;
-use tauri::Wry;
+use crate::Rt as TauriRuntime;
 
 /// Pre-build app state, mutated by `tauri_app_builder_*`.
 pub struct BuilderState {
@@ -42,7 +42,7 @@ pub struct PluginState {
 /// Post-build app state. Everything here is `Send + Sync` and callable from
 /// any thread while the event loop occupies the main thread.
 pub struct AppState {
-  pub handle: tauri::AppHandle<Wry>,
+  pub handle: tauri::AppHandle<TauriRuntime>,
   /// Serialized event stream consumed by `tauri_events_next`.
   pub rx: Mutex<mpsc::Receiver<String>>,
   pub tx: mpsc::Sender<String>,
@@ -52,13 +52,13 @@ pub enum Entry {
   Builder(BuilderState),
   Plugin(PluginState),
   App(Arc<AppState>),
-  Window(tauri::WebviewWindow<Wry>),
-  BareWindow(tauri::Window<Wry>),
-  Webview(tauri::Webview<Wry>),
-  Menu(tauri::menu::Menu<Wry>),
-  MenuItem(tauri::menu::MenuItemKind<Wry>),
-  Tray(tauri::tray::TrayIcon<Wry>),
-  Resolver(InvokeResolver<Wry>),
+  Window(tauri::WebviewWindow<TauriRuntime>),
+  BareWindow(tauri::Window<TauriRuntime>),
+  Webview(tauri::Webview<TauriRuntime>),
+  Menu(tauri::menu::Menu<TauriRuntime>),
+  MenuItem(tauri::menu::MenuItemKind<TauriRuntime>),
+  Tray(tauri::tray::TrayIcon<TauriRuntime>),
+  Resolver(InvokeResolver<TauriRuntime>),
 }
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
@@ -85,42 +85,42 @@ pub fn app(id: u64) -> Option<Arc<AppState>> {
   }
 }
 
-pub fn window(id: u64) -> Option<tauri::WebviewWindow<Wry>> {
+pub fn window(id: u64) -> Option<tauri::WebviewWindow<TauriRuntime>> {
   match registry().lock().unwrap().get(&id) {
     Some(Entry::Window(window)) => Some(window.clone()),
     _ => None,
   }
 }
 
-pub fn bare_window(id: u64) -> Option<tauri::Window<Wry>> {
+pub fn bare_window(id: u64) -> Option<tauri::Window<TauriRuntime>> {
   match registry().lock().unwrap().get(&id) {
     Some(Entry::BareWindow(window)) => Some(window.clone()),
     _ => None,
   }
 }
 
-pub fn webview(id: u64) -> Option<tauri::Webview<Wry>> {
+pub fn webview(id: u64) -> Option<tauri::Webview<TauriRuntime>> {
   match registry().lock().unwrap().get(&id) {
     Some(Entry::Webview(webview)) => Some(webview.clone()),
     _ => None,
   }
 }
 
-pub fn menu(id: u64) -> Option<tauri::menu::Menu<Wry>> {
+pub fn menu(id: u64) -> Option<tauri::menu::Menu<TauriRuntime>> {
   match registry().lock().unwrap().get(&id) {
     Some(Entry::Menu(menu)) => Some(menu.clone()),
     _ => None,
   }
 }
 
-pub fn menu_item(id: u64) -> Option<tauri::menu::MenuItemKind<Wry>> {
+pub fn menu_item(id: u64) -> Option<tauri::menu::MenuItemKind<TauriRuntime>> {
   match registry().lock().unwrap().get(&id) {
     Some(Entry::MenuItem(item)) => Some(item.clone()),
     _ => None,
   }
 }
 
-pub fn tray(id: u64) -> Option<tauri::tray::TrayIcon<Wry>> {
+pub fn tray(id: u64) -> Option<tauri::tray::TrayIcon<TauriRuntime>> {
   match registry().lock().unwrap().get(&id) {
     Some(Entry::Tray(tray)) => Some(tray.clone()),
     _ => None,
@@ -145,5 +145,5 @@ thread_local! {
   /// `tauri::App` owns the event loop and is `!Send`: it never leaves the
   /// thread that built it. `tauri_app_run` must therefore be called from the
   /// same thread as `tauri_app_build` (the process main thread on macOS).
-  pub static LOCAL_APPS: RefCell<HashMap<u64, tauri::App<Wry>>> = RefCell::new(HashMap::new());
+  pub static LOCAL_APPS: RefCell<HashMap<u64, tauri::App<TauriRuntime>>> = RefCell::new(HashMap::new());
 }

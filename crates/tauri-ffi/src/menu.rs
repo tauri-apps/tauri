@@ -23,12 +23,12 @@ fn opt(s: &str) -> Option<&str> {
   (!s.is_empty()).then_some(s)
 }
 
-fn store_item(item: MenuItemKind<Wry>, out: *mut u64) -> i32 {
+fn store_item(item: MenuItemKind<TauriRuntime>, out: *mut u64) -> i32 {
   unsafe { *out = state::insert(Entry::MenuItem(item)) };
   OK
 }
 
-use tauri::Wry;
+use crate::Rt as TauriRuntime;
 
 // ---------------------------------------------------------------------------
 // construction
@@ -203,7 +203,7 @@ pub unsafe extern "C" fn tauri_submenu_new(
 
 fn append_item<F>(item: u64, append: F) -> i32
 where
-  F: FnOnce(&MenuItemKind<Wry>) -> tauri::Result<()>,
+  F: FnOnce(&MenuItemKind<TauriRuntime>) -> tauri::Result<()>,
 {
   let Some(kind) = state::menu_item(item) else {
     return fail(ERR_INVALID_HANDLE, "invalid menu item handle");
@@ -290,7 +290,7 @@ pub extern "C" fn tauri_tray_set_menu(tray: u64, menu: u64) -> i32 {
       return fail(ERR_INVALID_HANDLE, "invalid tray handle");
     };
     let result = if menu == 0 {
-      tray.set_menu(None::<Menu<Wry>>)
+      tray.set_menu(None::<Menu<TauriRuntime>>)
     } else {
       let Some(menu) = state::menu(menu) else {
         return fail(ERR_INVALID_HANDLE, "invalid menu handle");
@@ -322,7 +322,7 @@ pub unsafe extern "C" fn tauri_menu_item_id(item: u64, out_id: *mut *mut c_char)
   })
 }
 
-fn item_op(item: u64, f: impl FnOnce(&MenuItemKind<Wry>) -> tauri::Result<()>) -> i32 {
+fn item_op(item: u64, f: impl FnOnce(&MenuItemKind<TauriRuntime>) -> tauri::Result<()>) -> i32 {
   let Some(kind) = state::menu_item(item) else {
     return fail(ERR_INVALID_HANDLE, "invalid menu item handle");
   };

@@ -15,13 +15,13 @@ use std::os::raw::c_char;
 
 use tauri::image::Image;
 use tauri::tray::{TrayIcon, TrayIconBuilder};
-use tauri::Wry;
+use crate::Rt as TauriRuntime;
 
 use crate::error::{catch, fail, ERR_GENERIC, ERR_INVALID_ARG, ERR_INVALID_HANDLE, OK};
 use crate::state::{self, Entry};
 use crate::{try_cstr, write_owned_str};
 
-fn with_tray(tray: u64, f: impl FnOnce(&TrayIcon<Wry>) -> tauri::Result<()>) -> i32 {
+fn with_tray(tray: u64, f: impl FnOnce(&TrayIcon<TauriRuntime>) -> tauri::Result<()>) -> i32 {
   let Some(tray) = state::tray(tray) else {
     return fail(ERR_INVALID_HANDLE, "invalid tray handle");
   };
@@ -47,9 +47,9 @@ pub unsafe extern "C" fn tauri_tray_new(app: u64, id: *const c_char, out_tray: *
     };
     let tx = app_state.tx.clone();
     let builder = if id.is_empty() {
-      TrayIconBuilder::<Wry>::new()
+      TrayIconBuilder::<TauriRuntime>::new()
     } else {
-      TrayIconBuilder::<Wry>::with_id(id.to_string())
+      TrayIconBuilder::<TauriRuntime>::with_id(id.to_string())
     };
     let builder = builder.on_tray_icon_event(move |tray, event| {
       let message = serde_json::json!({

@@ -10,8 +10,8 @@
 //   - TARGETS: the platform/arch build matrix.
 // Keep both in sync with the build matrix in .github/workflows/publish-ffi.yml.
 
-/** Runtimes we build and distribute a library for. `cef` is added on feat/cef. */
-export const RUNTIMES = ['wry']
+/** Runtimes we build and distribute a library for. */
+export const RUNTIMES = ['wry', 'cef']
 
 /** The default runtime a language package loads when none is selected. */
 export const DEFAULT_RUNTIME = 'wry'

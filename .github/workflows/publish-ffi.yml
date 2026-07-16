@@ -60,9 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # cef is added on feat/cef (it may also need target-specific `include`
-        # entries for its extra system deps / framework download).
-        runtime: [wry]
+        runtime: [wry, cef]
         settings:
           - host: macos-latest
             target: x86_64-apple-darwin
@@ -80,11 +78,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: install linux system dependencies
-        if: ${{ contains(matrix.settings.target, 'linux') }}
+      # wry links the system webview; cef links the downloaded CEF framework (GTK/X11).
+      - name: install linux system dependencies (wry)
+        if: ${{ contains(matrix.settings.target, 'linux') && matrix.runtime == 'wry' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libxdo-dev
+      - name: install linux system dependencies (cef)
+        if: ${{ contains(matrix.settings.target, 'linux') && matrix.runtime == 'cef' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libnss3 libasound2t64 libxdo-dev
 
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -94,6 +98,11 @@ jobs:
         with:
           key: ffi-${{ matrix.runtime }}-${{ matrix.settings.target }}
 
+      # cef: `cef-dll-sys` downloads the CEF framework at build time (set CEF_PATH
+      # to pre-provide it). NOTE: libtauri_cef links libcef and is NOT
+      # self-contained — the CEF runtime files (libcef, *.pak, chrome-sandbox,
+      # locales; see tauri-bundler's sharun_cef) must be staged into the dist
+      # artifacts and located at load time for the cef packages to be functional.
       - name: build
         run: cargo build -p tauri-ffi --release --target ${{ matrix.settings.target }} --no-default-features --features runtime-${{ matrix.runtime }}
 
@@ -128,6 +137,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # wry only: the smoke test loads the library, which for cef requires the CEF framework
         runtime: [wry]
         settings:
           - host: macos-latest
@@ -175,7 +185,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [wry]
+        # NOTE: cef archives ship libtauri_cef only; the CEF framework it links
+        # (libcef, *.pak, chrome-sandbox, locales) must be added for a usable package.
+        runtime: [wry, cef]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -205,7 +217,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [wry]
+        # cef publishes @tauri-apps/node-cef + platform packages; the CEF framework
+        # still needs to be bundled into (or fetched by) those packages to be usable.
+        runtime: [wry, cef]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -248,9 +262,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # NOTE: every runtime currently builds the same `tauri_ffi` package; a
-        # non-default runtime needs its own package name (decided on feat/cef)
-        # to coexist on PyPI.
+        # wry only: every runtime currently builds the same `tauri_ffi` wheel, so a
+        # non-default runtime would collide on PyPI. Give cef its own package name
+        # (and bundle/fetch the CEF framework) before adding it here.
         runtime: [wry]
     runs-on: ubuntu-latest
     steps:

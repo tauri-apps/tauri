@@ -14,8 +14,9 @@ use tauri::webview::WebviewBuilder;
 use tauri::window::{Color, ProgressBarState, WindowBuilder};
 use tauri::{
   CursorIcon, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition, PhysicalSize,
-  Position, Size, Theme, UserAttentionType, Window, WindowSizeConstraints, Wry,
+  Position, Size, Theme, UserAttentionType, Window, WindowSizeConstraints,
 };
+use crate::Rt as TauriRuntime;
 
 use crate::error::{
   catch, fail, unsupported, ERR_GENERIC, ERR_INVALID_ARG, ERR_INVALID_HANDLE, ERR_NOT_FOUND, OK,
@@ -24,7 +25,7 @@ use crate::state::{self, Entry};
 use crate::winsupport::{act, get, get_pair, get_string, ffi_action, ffi_getter_bool, ffi_getter_string, ffi_setter_bool};
 use crate::{try_cstr, write_owned_str};
 
-const RESOLVE: fn(u64) -> Option<Window<Wry>> = state::bare_window;
+const RESOLVE: fn(u64) -> Option<Window<TauriRuntime>> = state::bare_window;
 
 fn optional_size(width: f64, height: f64, physical: bool) -> Option<Size> {
   if width <= 0.0 || height <= 0.0 {

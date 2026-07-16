@@ -11,15 +11,16 @@ use std::os::raw::c_char;
 
 use tauri::window::Color;
 use tauri::{
-  LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Webview, Wry,
+  LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Webview,
 };
+use crate::Rt as TauriRuntime;
 
 use crate::error::{catch, fail, ERR_INVALID_ARG, ERR_INVALID_HANDLE, OK};
 use crate::state::{self, Entry};
 use crate::try_cstr;
 use crate::winsupport::{act, get_pair, get_string, ffi_action};
 
-const RESOLVE: fn(u64) -> Option<Webview<Wry>> = state::webview;
+const RESOLVE: fn(u64) -> Option<Webview<TauriRuntime>> = state::webview;
 
 #[cfg(not(any(debug_assertions, feature = "devtools")))]
 const DEVTOOLS_UNAVAILABLE: &str =

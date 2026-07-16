@@ -1041,6 +1041,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a3e368af43e418a04d52505cf3dbc23dda4e3407ae2fa99fd0e4f308ce546acc"
 
 [[package]]
+name = "bytesize"
+version = "2.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d7c8918969267b2932ffd5655509bbbea0833823058c378876953217f5fc50e"
+
+[[package]]
 name = "bzip2"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6049,7 +6055,7 @@ dependencies = [
  "aes-gcm",
  "aes-kw",
  "argon2",
- "base64 0.21.7",
+ "base64 0.22.1",
  "bitfield",
  "block-padding",
  "blowfish",
@@ -9007,6 +9013,7 @@ dependencies = [
  "anyhow",
  "ar",
  "bitness",
+ "bytesize 2.4.2",
  "dirs 6.0.0",
  "dunce",
  "flate2",
@@ -11626,7 +11633,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce824a6bfffe8942820fa36d24973b7c83a40896749a42e33de0abdd11750ee5"
 dependencies = [
  "byteorder",
- "bytesize",
+ "bytesize 1.3.0",
  "thiserror 1.0.69",
 ]
 

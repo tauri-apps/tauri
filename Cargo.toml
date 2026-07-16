@@ -71,4 +71,30 @@ opt-level = "s"
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
 tauri-utils = { path = "./crates/tauri-utils" }
+# tauri-ffi bundles every desktop plugin; point them all at the feat/cef branch
+# so they build against this repo's cef runtime work.
+tauri-plugin-autostart = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-clipboard-manager = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-deep-link = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-dialog = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-fs = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-global-shortcut = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-http = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-localhost = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-notification = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-opener = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-os = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-persisted-scope = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-positioner = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-process = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-shell = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-sql = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-stronghold = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-updater = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-upload = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-websocket = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }
+tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "feat/cef" }

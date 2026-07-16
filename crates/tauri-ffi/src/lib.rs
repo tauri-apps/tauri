@@ -585,6 +585,7 @@ fn plugin_manifest(plugin: &state::PluginState) -> Manifest {
     }),
     set: Vec::new(),
     permission: vec![permission],
+    commands: Vec::new(),
   };
   Manifest::new(vec![file], None)
 }

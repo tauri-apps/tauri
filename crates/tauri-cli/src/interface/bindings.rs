@@ -316,10 +316,10 @@ impl Bindings {
       }
     } else if let Ok(lib) = resolve_cdylib(&self.target_triple, self.app_settings.runtime, dirs.tauri)
     {
-      let (libcef, helper) = if self.target_triple.contains("windows") {
-        ("libcef.dll", "tauri-cef-helper.exe")
+      let libcef = if self.target_triple.contains("windows") {
+        "libcef.dll"
       } else {
-        ("libcef.so", "tauri-cef-helper")
+        "libcef.so"
       };
       if let Some(dir) = lib.parent() {
         if dir.join(libcef).exists() {
@@ -327,12 +327,14 @@ impl Bindings {
           // CEF is multi-process: it spawns renderer/GPU/utility subprocesses by
           // executing a helper with a `--type=` switch. The host process here is
           // node/deno/python, which can't act as a CEF subprocess, so point CEF
-          // at the helper binary staged next to the library (built alongside the
-          // cdylib by `cargo build -p tauri-ffi --features runtime-cef`). Without
-          // it CEF re-executes the host and aborts in the zygote host.
-          let helper_path = dir.join(helper);
-          if helper_path.exists() {
-            command.env("TAURI_CEF_SUBPROCESS_PATH", helper_path);
+          // at a dedicated `tauri-cef-helper` (built from the `cef-helper` crate)
+          // via TAURI_CEF_SUBPROCESS_PATH. Without it CEF re-executes the host
+          // and aborts in the zygote host.
+          match cef_subprocess_helper(dir, &self.target_triple) {
+            Ok(helper) => {
+              command.env("TAURI_CEF_SUBPROCESS_PATH", helper);
+            }
+            Err(e) => log::warn!("could not prepare the CEF subprocess helper: {e:#}"),
           }
         }
       }
@@ -656,6 +658,108 @@ fn prepend_library_search_path(command: &mut Command, dir: &Path) {
   if let Ok(joined) = std::env::join_paths(paths) {
     command.env(var, joined);
   }
+}
+
+/// Resolves the CEF subprocess helper (`tauri-cef-helper`) CEF launches for its
+/// renderer/GPU/utility subprocesses. A bindings host (node/deno/python) can't
+/// act as a CEF subprocess, so CEF's `browser_subprocess_path` must point at
+/// this dedicated executable, built from the standalone `cef-helper` crate (the
+/// same source the macOS bundler embeds).
+///
+/// It is distributed next to `libtauri_cef`/`libcef`, so a helper already staged
+/// in `lib_dir` (a published dist, or a previous build) is used as-is. Otherwise
+/// — the local/in-repo case, where `lib_dir` is `<workspace>/target/<profile>` —
+/// it is built from `<workspace>/cef-helper` and cached into `lib_dir`.
+fn cef_subprocess_helper(lib_dir: &Path, target_triple: &str) -> crate::Result<PathBuf> {
+  let helper_name = if target_triple.contains("windows") {
+    "tauri-cef-helper.exe"
+  } else {
+    "tauri-cef-helper"
+  };
+  let staged = lib_dir.join(helper_name);
+  if staged.is_file() {
+    return Ok(staged);
+  }
+
+  // Not staged: build it from the `cef-helper` crate. `lib_dir` is
+  // `<workspace>/target/<profile>`, so the crate is `<workspace>/cef-helper`.
+  let src_root = match lib_dir.parent().and_then(Path::parent) {
+    Some(root) => root.join("cef-helper"),
+    None => bail!("could not locate the `cef-helper` crate from {}", lib_dir.display()),
+  };
+  if !src_root.join("Cargo.toml").is_file() {
+    bail!(
+      "no `{helper_name}` is staged next to `{}` and the `cef-helper` crate was not found at `{}` to build one",
+      lib_dir.display(),
+      src_root.display()
+    );
+  }
+
+  // Build out-of-tree (like the macOS bundler) so `tauri dev` never writes a
+  // Cargo.lock / target dir into the repo checkout. The crate's own workspace
+  // and target dir also keep its pinned crates.io `cef` separate from this
+  // repo's git `cef`. It caches across runs, so the build only happens once.
+  let build_dir = dirs::cache_dir()
+    .unwrap_or_else(std::env::temp_dir)
+    .join("tauri")
+    .join("cef-helper-build");
+  fs::create_dir_all(build_dir.join("src"))
+    .with_context(|| format!("failed to create {}", build_dir.display()))?;
+  let manifest = build_dir.join("Cargo.toml");
+  fs::copy(src_root.join("Cargo.toml"), &manifest)
+    .context("failed to copy cef-helper Cargo.toml")?;
+  fs::copy(
+    src_root.join("src").join("main.rs"),
+    build_dir.join("src").join("main.rs"),
+  )
+  .context("failed to copy cef-helper main.rs")?;
+
+  log::info!(action = "Building"; "CEF subprocess helper (tauri-cef-helper)");
+  let mut cmd = Command::new("cargo");
+  cmd
+    .arg("build")
+    .arg("--release")
+    .arg("--manifest-path")
+    .arg(&manifest)
+    .arg("--bin")
+    .arg("tauri-cef-helper")
+    .arg("--target")
+    .arg(target_triple);
+  // The `sandbox` default feature only gates macOS CEF sandbox setup.
+  if !target_triple.contains("apple") {
+    cmd.arg("--no-default-features");
+  }
+  if std::env::var_os("CEF_PATH").is_none() {
+    cmd.env("CEF_PATH", crate::interface::rust::default_cef_path());
+  }
+  let status = cmd
+    .status()
+    .context("failed to run cargo to build the CEF subprocess helper")?;
+  if !status.success() {
+    bail!("cargo failed to build the CEF subprocess helper (tauri-cef-helper)");
+  }
+
+  let built = build_dir
+    .join("target")
+    .join(target_triple)
+    .join("release")
+    .join(helper_name);
+  if !built.is_file() {
+    bail!(
+      "the CEF subprocess helper was not produced at {}",
+      built.display()
+    );
+  }
+  // Cache it next to the library (the distributed layout; skips the rebuild next
+  // run and lets the helper resolve the sibling libcef via the runner's search
+  // path).
+  fs::copy(&built, &staged).with_context(|| {
+    format!(
+      "failed to stage the CEF subprocess helper at {}",
+      staged.display()
+    )
+  })?;
+  Ok(staged)
 }
 
 /// Locates the prebuilt tauri-ffi cdylib to bundle. Checks `TAURI_FFI_LIB`, then

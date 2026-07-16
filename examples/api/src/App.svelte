@@ -250,7 +250,7 @@
 </div>
 
 <div
-  class="flex h-screen w-screen overflow-hidden children-pt4 children-pb-2 text-primaryText dark:text-darkPrimaryText"
+  class="flex h-screen w-screen overflow-hidden text-primaryText dark:text-darkPrimaryText"
 >
   <aside
     id="sidebar"

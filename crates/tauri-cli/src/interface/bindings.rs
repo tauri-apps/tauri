@@ -298,29 +298,32 @@ impl Bindings {
     );
     command.env("TAURI_DEV", "true");
 
-    // cef: libtauri_cef dynamically links libcef (and CEF loads its resource
-    // files from next to that library), which cef-dll-sys stages next to the
-    // build output. The prebuilt cdylib has no rpath, so point the runner's
-    // dynamic loader at that directory or its `dlopen` of the library fails with
-    // `libcef.so: cannot open shared object file`.
-    if self.app_settings.runtime == WebviewRuntime::Cef {
-      if cfg!(target_os = "macos") {
-        // macOS CEF needs the .app framework/helper layout (and SIP strips
-        // DYLD_* from a signed runner like node), so a library-search path is
-        // not enough — dev must bundle-and-run like `crate::cef::macos_dev`.
+    // A cef tauri-ffi build dynamically links libcef (and CEF loads its resource
+    // files from next to it); cef-dll-sys stages both next to the build output.
+    // The prebuilt cdylib has no rpath, so the runner's `dlopen` fails with
+    // `libcef.so: cannot open shared object file` unless we point its dynamic
+    // loader at that directory. Detect a cef build by the staged libcef (rather
+    // than `app.runtime`) so it also works when the config wasn't set — in dev
+    // the runner loads whatever was built — and is a no-op for a wry build.
+    if cfg!(target_os = "macos") {
+      // macOS CEF needs the .app framework/helper layout (and SIP strips DYLD_*
+      // from a signed runner like node), so a library-search path is not enough
+      // — dev must bundle-and-run like `crate::cef::macos_dev`.
+      if self.app_settings.runtime == WebviewRuntime::Cef {
         log::warn!(
           "`tauri dev` with the cef runtime is not yet supported for bindings apps on macOS (the CEF framework must be staged in an .app bundle)"
         );
+      }
+    } else if let Ok(lib) = resolve_cdylib(&self.target_triple, self.app_settings.runtime, dirs.tauri)
+    {
+      let libcef = if self.target_triple.contains("windows") {
+        "libcef.dll"
       } else {
-        match resolve_cdylib(&self.target_triple, WebviewRuntime::Cef, dirs.tauri) {
-          Ok(lib) => {
-            if let Some(dir) = lib.parent() {
-              prepend_library_search_path(&mut command, dir);
-            }
-          }
-          Err(error) => log::warn!(
-            "cef runtime selected but the tauri-ffi library could not be located to set its library search path: {error}"
-          ),
+        "libcef.so"
+      };
+      if let Some(dir) = lib.parent() {
+        if dir.join(libcef).exists() {
+          prepend_library_search_path(&mut command, dir);
         }
       }
     }

@@ -239,7 +239,7 @@
 <div
   id="sidebarToggle"
   bind:this={sidebarToggle}
-  class="z-2000 hidden lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8
+  class="z-2000 hidden lt-sm:flex justify-center absolute items-center w-8 h-8 rd-8
             bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
 >
   {#if isSideBarOpen}
@@ -250,7 +250,7 @@
 </div>
 
 <div
-  class="flex h-screen w-screen overflow-hidden children-pt4 children-pb-2 text-primaryText dark:text-darkPrimaryText"
+  class="flex h-screen w-screen overflow-hidden text-primaryText dark:text-darkPrimaryText"
 >
   <aside
     id="sidebar"

@@ -980,7 +980,7 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
-  /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
   pub(crate) fn run_invoke_handler(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {

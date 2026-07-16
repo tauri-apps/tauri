@@ -18,9 +18,9 @@ export { CODES }
 
 const require = createRequire(import.meta.url)
 
-// The runtime this package loads a library for. Distributed base packages are
-// stamped with their runtime (dist.mjs); dev/source defaults to wry. Overridable
-// via TAURI_FFI_RUNTIME.
+// The runtime the app loads a library for, when none is given. Comes from the
+// resolved config's `app.runtime` (passed by launch()); this default only
+// applies to a bare open() (e.g. the smoke test). Overridable via TAURI_FFI_RUNTIME.
 const DEFAULT_RUNTIME = 'wry'
 
 /** Which runtime's prebuilt library to load (wry, cef, …). */
@@ -30,8 +30,8 @@ export function ffiRuntime() {
 
 // Every runtime's library shares the same tauri_ffi C ABI, so it differs only by
 // file name: `tauri_<base>` (libtauri_wry.so, tauri_cef.dll, …). `ffi` is the
-// crate's own output name, used for the dev build and the name the CLI stages
-// into a bundle.
+// crate's own output name, used for the local dev build (cargo emits it
+// regardless of the selected runtime feature).
 function platformLibraryName(base) {
   const spec = { darwin: ['lib', '.dylib'], linux: ['lib', '.so'], win32: ['', '.dll'] }[
     process.platform
@@ -40,17 +40,16 @@ function platformLibraryName(base) {
   return `${spec[0]}tauri_${base}${spec[1]}`
 }
 
-export function libraryPath() {
+export function libraryPath(runtime = ffiRuntime()) {
   // a compiled bundle ignores the TAURI_FFI_LIB env override — it must load
   // only its own bundled cdylib, never an arbitrary library named by the env
   if (!isBundled() && process.env.TAURI_FFI_LIB) return process.env.TAURI_FFI_LIB
-  const runtime = ffiRuntime()
-  // a compiled bundle loads the cdylib staged in its resource dir under the
-  // crate's own name (a bundle only ever carries one runtime's library)
-  const resourceDir = bundledResourceDir()
-  if (resourceDir) return path.join(resourceDir, platformLibraryName('ffi'))
-  // Installed platform package (optionalDependencies of the runtime's base package).
   const distName = platformLibraryName(runtime)
+  // a compiled bundle loads the per-runtime cdylib the CLI staged in its
+  // resource dir (selected there from `app.runtime`)
+  const resourceDir = bundledResourceDir()
+  if (resourceDir) return path.join(resourceDir, distName)
+  // Installed platform package (optionalDependencies of the runtime's base package).
   try {
     return require.resolve(`@tauri-apps/node-${runtime}-${process.platform}-${process.arch}/${distName}`)
   } catch {

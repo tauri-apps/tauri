@@ -9,11 +9,15 @@ it is not run by `tauri dev`. Build it directly and run the produced binary.
 
 ## Requirements
 
-You need the `tauri-ffi` distribution for your platform:
+You need the `tauri-ffi` distribution for your platform. Pick the library for the
+webview runtime you want — set `app > runtime` in `tauri.conf.json` (`"wry"`, the
+default, or `"cef"`) and link the matching library. The header and C ABI are the
+same for every runtime.
 
 - the header `tauri_ffi.h`
-- the library `libtauri_ffi.dylib` (macOS), `libtauri_ffi.so` (Linux) or
-  `tauri_ffi.dll` (Windows)
+- the library for your runtime, e.g. for `wry`:
+  - `libtauri_wry.dylib` (macOS), `libtauri_wry.so` (Linux) or `tauri_wry.dll` (Windows)
+  - (for `cef`: `libtauri_cef.dylib` / `libtauri_cef.so` / `tauri_cef.dll`)
 
 Point the Makefile at wherever those live:
 

@@ -49,7 +49,7 @@ use notify_debouncer_full::new_debouncer;
 use shared_child::SharedChild;
 use tauri_bundler::{AppCategory, BundleBinary, BundleSettings, PackageSettings};
 use tauri_utils::{
-  config::{FrontendDist, parse::is_configuration_file},
+  config::{FrontendDist, WebviewRuntime, parse::is_configuration_file},
   display_path,
   platform::Target as TargetPlatform,
 };
@@ -80,6 +80,8 @@ pub struct BindingsAppSettings {
   package_settings: PackageSettings,
   frontend_dist: Option<FrontendDist>,
   target_triple: String,
+  /// The webview runtime (`app > runtime`) whose `tauri-ffi` library is staged.
+  runtime: WebviewRuntime,
 }
 
 /// The native compiler used to produce the self-contained binary, detected
@@ -143,6 +145,7 @@ impl Interface for Bindings {
         package_settings,
         frontend_dist: config.build.frontend_dist.clone(),
         target_triple: target_triple.clone(),
+        runtime: config.app.runtime,
       }),
       target_triple,
     })
@@ -205,13 +208,15 @@ impl Interface for Bindings {
     )?;
 
     // 1. stage the tauri-ffi cdylib the compiled app loads over FFI (the only
-    //    sibling resource — a native library can't be embedded and dlopen'd)
-    let lib_name = cdylib_name(&self.app_settings.target_triple);
-    let lib_src = resolve_cdylib(&lib_name, dirs.tauri)?;
+    //    sibling resource — a native library can't be embedded and dlopen'd).
+    //    The library is per-runtime (`app > runtime`): `libtauri_<runtime>`.
+    let runtime = self.app_settings.runtime;
+    let lib_name = cdylib_name(&self.app_settings.target_triple, runtime);
+    let lib_src = resolve_cdylib(&self.app_settings.target_triple, runtime, dirs.tauri)?;
     let lib_dest = resources_dir.join(&lib_name);
     fs::copy(&lib_src, &lib_dest)
       .fs_context("failed to stage tauri-ffi library", lib_src.clone())?;
-    log::info!(action = "Bundling"; "tauri-ffi library from {}", display_path(&lib_src));
+    log::info!(action = "Bundling"; "tauri-ffi ({runtime}) library from {}", display_path(&lib_src));
 
     // 2. build the payload embedded *into* the binary: the packed frontend
     //    archive, the merged config (frontendDist rewritten to the archive) and
@@ -574,8 +579,22 @@ fn binary_name(product_name: &str) -> String {
     .collect()
 }
 
-/// The tauri-ffi cdylib file name for a target triple.
-fn cdylib_name(target_triple: &str) -> String {
+/// The distributed tauri-ffi cdylib file name for a target triple and runtime:
+/// `libtauri_<runtime>` (`tauri_<runtime>.dll` on Windows).
+fn cdylib_name(target_triple: &str, runtime: WebviewRuntime) -> String {
+  let kind = runtime.as_str();
+  if target_triple.contains("windows") {
+    format!("tauri_{kind}.dll")
+  } else if target_triple.contains("apple") {
+    format!("libtauri_{kind}.dylib")
+  } else {
+    format!("libtauri_{kind}.so")
+  }
+}
+
+/// The crate's own cdylib output name (`cargo build -p tauri-ffi`), which is
+/// runtime-agnostic — the local dev-build fallback in [`resolve_cdylib`].
+fn crate_cdylib_name(target_triple: &str) -> String {
   if target_triple.contains("windows") {
     "tauri_ffi.dll".into()
   } else if target_triple.contains("apple") {
@@ -585,9 +604,15 @@ fn cdylib_name(target_triple: &str) -> String {
   }
 }
 
-/// Locates the prebuilt tauri-ffi cdylib to bundle. Checks `TAURI_FFI_LIB`,
-/// then a `target/{release,debug}` build in this repo/workspace.
-fn resolve_cdylib(lib_name: &str, tauri_dir: &Path) -> crate::Result<PathBuf> {
+/// Locates the prebuilt tauri-ffi cdylib to bundle. Checks `TAURI_FFI_LIB`, then
+/// a `target/{release,debug}` build in this repo/workspace — first the
+/// runtime-specific distribution name (`libtauri_<runtime>`), then the crate's
+/// own output name (`libtauri_ffi`, what `cargo build -p tauri-ffi` emits).
+fn resolve_cdylib(
+  target_triple: &str,
+  runtime: WebviewRuntime,
+  tauri_dir: &Path,
+) -> crate::Result<PathBuf> {
   if let Some(env) = std::env::var_os("TAURI_FFI_LIB") {
     let path = PathBuf::from(env);
     if path.is_file() {
@@ -598,18 +623,22 @@ fn resolve_cdylib(lib_name: &str, tauri_dir: &Path) -> crate::Result<PathBuf> {
       path.display()
     );
   }
+  let dist_name = cdylib_name(target_triple, runtime);
+  let crate_name = crate_cdylib_name(target_triple);
   let mut dir = Some(tauri_dir);
   while let Some(current) = dir {
     for profile in ["release", "debug"] {
-      let candidate = current.join("target").join(profile).join(lib_name);
-      if candidate.is_file() {
-        return Ok(candidate);
+      for name in [dist_name.as_str(), crate_name.as_str()] {
+        let candidate = current.join("target").join(profile).join(name);
+        if candidate.is_file() {
+          return Ok(candidate);
+        }
       }
     }
     dir = current.parent();
   }
   bail!(
-    "could not find the tauri-ffi library `{lib_name}` — set the `TAURI_FFI_LIB` environment variable to its path"
+    "could not find the tauri-ffi library `{dist_name}` for the `{runtime}` runtime — set the `TAURI_FFI_LIB` environment variable to its path"
   )
 }
 

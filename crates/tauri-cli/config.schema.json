@@ -56,7 +56,8 @@
         },
         "macOSPrivateApi": false,
         "withGlobalTauri": false,
-        "enableGTKAppId": false
+        "enableGTKAppId": false,
+        "runtime": "wry"
       },
       "allOf": [
         {
@@ -222,6 +223,15 @@
           "description": "If set to true \"identifier\" will be set as GTK app ID (on systems that use GTK).",
           "type": "boolean",
           "default": false
+        },
+        "runtime": {
+          "description": "The webview runtime the app uses.\n\nOnly affects bindings (Node.js/Deno/Python/C) apps, which load a prebuilt\n`tauri-ffi` library — one per runtime (`libtauri_wry`, `libtauri_cef`) — so\nthis selects which library the CLI stages/bundles and the runtimes load.\nRust apps select the runtime with a Cargo feature and ignore this field.",
+          "default": "wry",
+          "allOf": [
+            {
+              "$ref": "#/definitions/WebviewRuntime"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1808,6 +1818,21 @@
       "additionalProperties": false,
       "required": [
         "iconPath"
+      ]
+    },
+    "WebviewRuntime": {
+      "description": "The webview runtime a [bindings](AppConfig#structfield.runtime) app loads.",
+      "oneOf": [
+        {
+          "description": "The Wry runtime — the operating system's webview (WebView2/WKWebView/WebKitGTK).",
+          "type": "string",
+          "const": "wry"
+        },
+        {
+          "description": "The CEF (Chromium Embedded Framework) runtime.",
+          "type": "string",
+          "const": "cef"
+        }
       ]
     },
     "BuildConfig": {

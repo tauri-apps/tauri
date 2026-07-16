@@ -95,7 +95,9 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
         configDir
       )
 
-  const { sym, check, libPath } = open(await ensureLibrary())
+  // `app.runtime` selects which prebuilt tauri-ffi library to load (wry/cef).
+  const runtime = (config.app as { runtime?: string } | undefined)?.runtime
+  const { sym, check, libPath } = open(await ensureLibrary(runtime))
 
   const outBuilder = new BigUint64Array(1)
   check(

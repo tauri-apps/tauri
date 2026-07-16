@@ -64,19 +64,19 @@ def _platform_library_name(base: str) -> str:
     return f"{spec[0]}tauri_{base}{spec[1]}"
 
 
-def library_path() -> Path:
+def library_path(runtime: Optional[str] = None) -> Path:
     # a frozen bundle ignores the TAURI_FFI_LIB env override — it must load only
     # its own bundled cdylib, never an arbitrary library named by the env
     env = None if _is_bundled() else os.environ.get("TAURI_FFI_LIB")
     if env:
         return Path(env)
     crate_name = _platform_library_name("ffi")
-    dist_name = _platform_library_name(ffi_runtime())
-    # Bundled next to the executable (frozen binary in a Tauri bundle), under the
-    # crate's own name (a bundle only ever holds one runtime's library).
+    dist_name = _platform_library_name(runtime or ffi_runtime())
+    # Bundled next to the executable (frozen binary in a Tauri bundle): the CLI
+    # staged the per-runtime library selected from `app.runtime`.
     resource_dir = _bundled_resource_dir()
-    if resource_dir is not None and (resource_dir / crate_name).exists():
-        return resource_dir / crate_name
+    if resource_dir is not None and (resource_dir / dist_name).exists():
+        return resource_dir / dist_name
     # Installed wheels bundle the runtime-specific library next to the package.
     bundled = Path(__file__).resolve().parent / "_native" / dist_name
     if bundled.exists():
@@ -93,8 +93,8 @@ def library_path() -> Path:
     )
 
 
-def _open_lib(path: Optional[Path] = None):
-    lib = _ffi.dlopen(str(path or library_path()))
+def _open_lib(path: Optional[Path] = None, runtime: Optional[str] = None):
+    lib = _ffi.dlopen(str(path or library_path(runtime)))
     abi = lib.tauri_ffi_abi_version()
     if abi != ABI_VERSION:
         raise TauriError(-1, f"ABI mismatch: library has v{abi}, bindings expect v{ABI_VERSION}")
@@ -1210,7 +1210,9 @@ class App:
     def run(self) -> int:
         """Builds the app and runs the event loop on the calling thread (must
         be the process main thread). Blocks until exit; returns the exit code."""
-        lib = self._lib = _open_lib(self._library)
+        # `app.runtime` selects which prebuilt tauri-ffi library to load (wry/cef).
+        runtime = (self._config.get("app") or {}).get("runtime")
+        lib = self._lib = _open_lib(self._library, runtime)
 
         out_builder = _ffi.new("uint64_t *")
         _check(lib, lib.tauri_app_builder_new(_s(json.dumps(self._config)), out_builder), "builder_new")

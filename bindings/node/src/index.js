@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { open } from './ffi.js'
+import { libraryPath, open } from './ffi.js'
 import { isBundled, readEmbedded, resolveAssets, resolveCapabilities, resolveConfig } from './config.js'
 
 /**
@@ -82,7 +82,8 @@ export function launch(appEntry, options = {}) {
         configDir
       )
 
-  const { api, check, libPath } = open()
+  // `app.runtime` selects which prebuilt tauri-ffi library to load (wry/cef).
+  const { api, check, libPath } = open(libraryPath(config?.app?.runtime))
 
   const outBuilder = [0]
   check(api.appBuilderNew(JSON.stringify(config), outBuilder), 'builder_new')

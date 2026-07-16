@@ -3043,6 +3043,44 @@ pub struct AppConfig {
   /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
+  /// The webview runtime the app uses.
+  ///
+  /// Only affects bindings (Node.js/Deno/Python/C) apps, which load a prebuilt
+  /// `tauri-ffi` library — one per runtime (`libtauri_wry`, `libtauri_cef`) — so
+  /// this selects which library the CLI stages/bundles and the runtimes load.
+  /// Rust apps select the runtime with a Cargo feature and ignore this field.
+  #[serde(default)]
+  pub runtime: WebviewRuntime,
+}
+
+/// The webview runtime a [bindings](AppConfig#structfield.runtime) app loads.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "schema", schemars(rename_all = "lowercase"))]
+pub enum WebviewRuntime {
+  /// The Wry runtime — the operating system's webview (WebView2/WKWebView/WebKitGTK).
+  #[default]
+  Wry,
+  /// The CEF (Chromium Embedded Framework) runtime.
+  Cef,
+}
+
+impl WebviewRuntime {
+  /// The runtime's library-name component (`wry`, `cef`): the compiled library
+  /// is `libtauri_<kind>` (`tauri_<kind>.dll` on Windows).
+  pub fn as_str(&self) -> &'static str {
+    match self {
+      Self::Wry => "wry",
+      Self::Cef => "cef",
+    }
+  }
+}
+
+impl std::fmt::Display for WebviewRuntime {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.write_str(self.as_str())
+  }
 }
 
 impl AppConfig {
@@ -4380,6 +4418,17 @@ mod build {
     }
   }
 
+  impl ToTokens for WebviewRuntime {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::WebviewRuntime };
+
+      tokens.append_all(match self {
+        Self::Wry => quote! { #prefix::Wry },
+        Self::Cef => quote! { #prefix::Cef },
+      })
+    }
+  }
+
   impl ToTokens for AppConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
@@ -4388,6 +4437,7 @@ mod build {
       let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
+      let runtime = &self.runtime;
 
       literal_struct!(
         tokens,
@@ -4397,7 +4447,8 @@ mod build {
         tray_icon,
         macos_private_api,
         with_global_tauri,
-        enable_gtk_app_id
+        enable_gtk_app_id,
+        runtime
       );
     }
   }

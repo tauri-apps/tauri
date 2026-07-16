@@ -50,7 +50,10 @@ use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
-use webview2_com::{ContainsFullScreenElementChangedEventHandler, FocusChangedEventHandler};
+use webview2_com::{
+  ContainsFullScreenElementChangedEventHandler, FocusChangedEventHandler,
+  Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
+};
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "ios")]
@@ -163,9 +166,22 @@ use window::WindowExt as _;
 pub struct WebContext {
   pub inner: WryWebContext,
   pub referenced_by_webviews: HashSet<String>,
+  #[cfg(windows)]
+  environment: Option<ICoreWebView2Environment>,
+  #[cfg(windows)]
+  environment_options: WebView2EnvironmentOptions,
   // on Linux the custom protocols are associated with the context
   // and you cannot register a URI scheme more than once
   pub registered_custom_protocols: HashSet<String>,
+}
+
+#[cfg(windows)]
+#[derive(Debug, PartialEq, Eq)]
+struct WebView2EnvironmentOptions {
+  proxy_url: Option<Url>,
+  additional_browser_args: Option<String>,
+  browser_extensions_enabled: bool,
+  // TODO: scroll_bar_style
 }
 
 pub type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
@@ -4685,6 +4701,13 @@ You may have it installed on another user account, but it is not available for t
     ..
   } = pending;
 
+  #[cfg(windows)]
+  let environment_options = WebView2EnvironmentOptions {
+    proxy_url: webview_attributes.proxy_url.clone(),
+    additional_browser_args: webview_attributes.additional_browser_args.clone(),
+    browser_extensions_enabled: webview_attributes.browser_extensions_enabled,
+  };
+
   let mut web_context = context
     .main_thread
     .web_context
@@ -4698,7 +4721,22 @@ You may have it installed on another user account, but it is not available for t
   let web_context = match entry {
     Occupied(occupied) => {
       let occupied = occupied.into_mut();
+
+      #[cfg(windows)]
+      if cfg!(debug_assertions) && occupied.environment_options != environment_options {
+        let message = format!(
+          "environment options {environment_options:?} for {} do not match previously defined options for the same data directory on webviews {:?}, expected {:?}. Since this results in a crash, we are going to force the previously defined environment options",
+          web_context_key.as_ref().map(|p| p.to_string_lossy()).unwrap_or_else(|| "".into()), 
+          occupied.referenced_by_webviews, occupied.environment_options
+        );
+        #[cfg(feature = "tracing")]
+        tracing::warn!("{message}");
+        #[cfg(not(feature = "tracing"))]
+        eprintln!("{message}");
+      }
+
       occupied.referenced_by_webviews.insert(label.clone());
+
       occupied
     }
     Vacant(vacant) => {
@@ -4712,6 +4750,10 @@ You may have it installed on another user account, but it is not available for t
         inner: web_context,
         referenced_by_webviews: [label.clone()].into(),
         registered_custom_protocols: HashSet::new(),
+        #[cfg(windows)]
+        environment: None,
+        #[cfg(windows)]
+        environment_options,
       })
     }
   };
@@ -4725,6 +4767,11 @@ You may have it installed on another user account, but it is not available for t
     .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled)
     .with_general_autofill_enabled(webview_attributes.general_autofill_enabled);
+
+  #[cfg(windows)]
+  if let Some(environment) = &web_context.environment {
+    webview_builder = webview_builder.with_environment(environment.clone());
+  }
 
   if url != "about:blank" {
     webview_builder = webview_builder.with_url(&url);
@@ -5186,6 +5233,11 @@ You may have it installed on another user account, but it is not available for t
 
   #[cfg(windows)]
   {
+    // set the environment on the web context
+    // important so the next webview with the same context can reuse the environment instance
+    // to ensure its options matches
+    web_context.environment.replace(webview.environment());
+
     let controller = webview.controller();
     let proxy_clone = context.proxy.clone();
     let window_id_ = window_id.clone();

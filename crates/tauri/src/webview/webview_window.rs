@@ -1326,7 +1326,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// Note: If you pass in `true` make sure to add localhost and any [`registrable
   /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
-  /// used in this webview to your Info.plist:
+  /// used in this webview to tauri-src/Info.ios.plist:
   ///
   /// ```xml
   /// <plist>

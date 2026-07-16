@@ -2285,7 +2285,7 @@ pub struct WindowConfig {
   ///
   /// Note: If you set this to `true` make sure to add localhost and any [`registrable
   /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
-  /// used in this webview to your Info.plist:
+  /// used in this webview to tauri-src/Info.ios.plist:
   ///
   /// ```xml
   /// <plist>

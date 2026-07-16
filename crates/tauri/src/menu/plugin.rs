@@ -889,7 +889,11 @@ struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);
 
 // Called in `Menu`'s `Drop` to clean up the event handlers
 pub(crate) fn remove_menu_channel<R: Runtime>(app: &AppHandle<R>, id: &MenuId) {
-  app.state::<MenuChannels>().0.lock().unwrap().remove(id);
+  // The state is only managed once this plugin is initialized, which happens after
+  // the `Builder::menu` closure runs, so menus dropped before that have no channel to remove.
+  if let Some(channels) = app.try_state::<MenuChannels>() {
+    channels.0.lock().unwrap().remove(id);
+  }
 }
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {

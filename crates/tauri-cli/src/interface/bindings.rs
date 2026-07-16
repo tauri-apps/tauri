@@ -316,14 +316,24 @@ impl Bindings {
       }
     } else if let Ok(lib) = resolve_cdylib(&self.target_triple, self.app_settings.runtime, dirs.tauri)
     {
-      let libcef = if self.target_triple.contains("windows") {
-        "libcef.dll"
+      let (libcef, helper) = if self.target_triple.contains("windows") {
+        ("libcef.dll", "tauri-cef-helper.exe")
       } else {
-        "libcef.so"
+        ("libcef.so", "tauri-cef-helper")
       };
       if let Some(dir) = lib.parent() {
         if dir.join(libcef).exists() {
           prepend_library_search_path(&mut command, dir);
+          // CEF is multi-process: it spawns renderer/GPU/utility subprocesses by
+          // executing a helper with a `--type=` switch. The host process here is
+          // node/deno/python, which can't act as a CEF subprocess, so point CEF
+          // at the helper binary staged next to the library (built alongside the
+          // cdylib by `cargo build -p tauri-ffi --features runtime-cef`). Without
+          // it CEF re-executes the host and aborts in the zygote host.
+          let helper_path = dir.join(helper);
+          if helper_path.exists() {
+            command.env("TAURI_CEF_SUBPROCESS_PATH", helper_path);
+          }
         }
       }
     }

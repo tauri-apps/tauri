@@ -10,6 +10,17 @@ license = "Apache-2.0 OR MIT"
 name = "tauri_ffi"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+# CEF subprocess helper. CEF is multi-process: the browser process launches its
+# renderer/GPU/utility subprocesses by executing a helper program with a
+# `--type=` switch. A Rust app re-executes itself (see `#[cef_entry_point]`), but
+# a bindings host (node/deno/python) can't act as a CEF subprocess, so the cef
+# library points CEF's `browser_subprocess_path` at this dedicated executable.
+# Only built for the cef runtime and distributed next to `libtauri_cef`/`libcef`.
+[[bin]]
+name = "tauri-cef-helper"
+path = "src/bin/cef_helper.rs"
+required-features = ["runtime-cef"]
+
 [features]
 default = ["runtime-wry"]
 

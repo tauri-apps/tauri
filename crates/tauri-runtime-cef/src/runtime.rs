@@ -1362,12 +1362,19 @@ impl<T: UserEvent> CefRuntime<T> {
       "CEF browser process unexpectedly returned from execute_process"
     );
 
-    let settings = cef::Settings {
+    let mut settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       external_message_pump: 1,
       ..Default::default()
     };
+    // Embedders whose browser process can't re-execute itself as a CEF
+    // subprocess (e.g. the tauri-ffi bindings, hosted by node/deno/python) point
+    // CEF at a dedicated helper executable via this env var. A Rust app leaves it
+    // unset: CEF then re-executes the app binary, handled by `#[cef_entry_point]`.
+    if let Some(path) = std::env::var_os("TAURI_CEF_SUBPROCESS_PATH") {
+      settings.browser_subprocess_path = path.to_string_lossy().as_ref().into();
+    }
     if cef::initialize(
       Some(args.as_main_args()),
       Some(&settings),

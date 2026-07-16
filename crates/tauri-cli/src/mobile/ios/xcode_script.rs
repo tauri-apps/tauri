@@ -52,7 +52,7 @@ pub struct Options {
   arches: Vec<String>,
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub async fn command(options: Options) -> Result<()> {
   fn macos_from_platform(platform: &str) -> bool {
     platform == "macOS"
   }
@@ -95,7 +95,7 @@ pub fn command(options: Options) -> Result<()> {
   let macos = macos_from_platform(&options.platform);
 
   let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[], dirs.tauri)?;
-  let cli_options = read_options(&tauri_config);
+  let cli_options = read_options(&tauri_config).await;
   if !cli_options.config.is_empty() {
     // reload config with merges from the ios dev|build script
     reload_tauri_config(
@@ -113,7 +113,7 @@ pub fn command(options: Options) -> Result<()> {
     &get_app(
       MobileTarget::Ios,
       &tauri_config,
-      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      &AppInterface::new(&tauri_config, None, dirs.tauri).await?,
       dirs.tauri,
     ),
     &tauri_config,
@@ -128,7 +128,8 @@ pub fn command(options: Options) -> Result<()> {
     config.project_dir(),
     MobileTarget::Ios,
     std::env::var("CI").is_ok(),
-  )?;
+  )
+  .await?;
 
   if !cli_options.config.is_empty() {
     crate::helpers::config::merge_config_with(
@@ -226,7 +227,7 @@ pub fn command(options: Options) -> Result<()> {
       }
     };
 
-    let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri)?;
+    let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri).await?;
 
     let cflags = format!("CFLAGS_{env_triple}");
     let cxxflags = format!("CFLAGS_{env_triple}");

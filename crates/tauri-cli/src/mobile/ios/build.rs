@@ -173,12 +173,12 @@ pub struct BuiltApplication {
   options_handle: OptionsHandle,
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
+pub async fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
-  run(options, noise_level, &dirs)
+  run(options, noise_level, &dirs).await
 }
 
-pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<BuiltApplication> {
+pub async fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<BuiltApplication> {
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -200,7 +200,8 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
+  let interface =
+    AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri).await?;
   interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
   let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
@@ -228,8 +229,9 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     config.project_dir(),
     MobileTarget::Ios,
     options.ci,
-  )?;
-  inject_resources(&config, &tauri_config)?;
+  )
+  .await?;
+  inject_resources(&config, &tauri_config).await?;
 
   let mut plist = plist::Dictionary::new();
   plist.insert(
@@ -273,8 +275,9 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
 
   let mut export_options_plist = plist::Dictionary::new();
   if let Some(method) = options.export_method {
-    let xcode_version =
-      crate::info::env_system::xcode_version().context("failed to determine Xcode version")?;
+    let xcode_version = crate::info::env_system::xcode_version()
+      .await
+      .context("failed to determine Xcode version")?;
     let mut iter = xcode_version.split('.');
     let major = iter.next().context(format!(
       "failed to parse Xcode version `{xcode_version}` as semver"
@@ -298,7 +301,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
 
   let (keychain, provisioning_profile) = super::signing_from_env()?;
   let project_config = project_config(keychain.as_ref(), provisioning_profile.as_ref())?;
-  let mut pbxproj = load_pbxproj(&config)?;
+  let mut pbxproj = load_pbxproj(&config).await?;
 
   // synchronize pbxproj and exportoptions
   synchronize_project_config(
@@ -312,6 +315,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
   if pbxproj.has_changes() {
     pbxproj
       .save()
+      .await
       .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
@@ -350,7 +354,8 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
     &mut env,
     noise_level,
     dirs,
-  )?;
+  )
+  .await?;
 
   if open {
     open_and_wait(&config, &env);
@@ -364,7 +369,7 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_build(
+async fn run_build(
   interface: &AppInterface,
   options: Options,
   mut build_options: BuildOptions,
@@ -380,7 +385,7 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(interface, &mut build_options, &tauri_config, dirs, true)?;
+  crate::build::setup(interface, &mut build_options, &tauri_config, dirs, true).await?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(
@@ -403,7 +408,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(&tauri_config, cli_options)?;
+  let handle = write_options(&tauri_config, cli_options).await?;
 
   if options.open {
     return Ok(handle);

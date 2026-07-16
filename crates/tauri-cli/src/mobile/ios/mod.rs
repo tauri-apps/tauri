@@ -100,20 +100,23 @@ enum Commands {
   XcodeScript(xcode_script::Options),
 }
 
-pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
+pub async fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(
-      MobileTarget::Ios,
-      options.ci,
-      options.reinstall_deps,
-      options.skip_targets_install,
-      options.config,
-    )?,
-    Commands::Dev(options) => dev::command(options, noise_level)?,
-    Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
-    Commands::Run(options) => run::command(options, noise_level)?,
-    Commands::XcodeScript(options) => xcode_script::command(options)?,
+    Commands::Init(options) => {
+      init_command(
+        MobileTarget::Ios,
+        options.ci,
+        options.reinstall_deps,
+        options.skip_targets_install,
+        options.config,
+      )
+      .await?
+    }
+    Commands::Dev(options) => dev::command(options, noise_level).await?,
+    Commands::Build(options) => build::command(options, noise_level).await.map(|_| ())?,
+    Commands::Run(options) => run::command(options, noise_level).await?,
+    Commands::XcodeScript(options) => xcode_script::command(options).await?,
   }
 
   Ok(())
@@ -461,7 +464,7 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
   }
 }
 
-fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<()> {
+async fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<()> {
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
   create_dir_all(&asset_dir).fs_context("failed to create asset directory", asset_dir.clone())?;
 
@@ -474,7 +477,7 @@ fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<
     for resource in resources.iter() {
       let resource = resource.context("failed to get resource")?;
       let dest = asset_dir.join(resource.target());
-      crate::helpers::fs::copy_file(resource.path(), dest)?;
+      crate::helpers::fs::copy_file(resource.path(), dest).await?;
     }
   }
 
@@ -533,13 +536,14 @@ pub fn project_config(
   })
 }
 
-pub fn load_pbxproj(config: &AppleConfig) -> Result<pbxproj::Pbxproj> {
+pub async fn load_pbxproj(config: &AppleConfig) -> Result<pbxproj::Pbxproj> {
   pbxproj::parse(
     config
       .project_dir()
       .join(format!("{}.xcodeproj", config.app().name()))
       .join("project.pbxproj"),
   )
+  .await
 }
 
 pub fn synchronize_project_config(

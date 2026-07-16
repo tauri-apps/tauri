@@ -137,25 +137,27 @@ impl From<Options> for DevOptions {
   }
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub async fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let result = run_command(options, noise_level, dirs);
+  let result = run_command(options, noise_level, dirs).await;
   if result.is_err() {
     crate::dev::kill_before_dev_process();
   }
   result
 }
 
-fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
+async fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).fs_context(
-        "failed to read root certificate file",
-        root_certificate_path.clone(),
-      )?,
+      tokio::fs::read_to_string(root_certificate_path)
+        .await
+        .fs_context(
+          "failed to read root certificate file",
+          root_certificate_path.clone(),
+        )?,
     );
   }
 
@@ -189,7 +191,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
     dirs.tauri,
   )?;
-  let interface = AppInterface::new(&tauri_config, Some(target_triple), dirs.tauri)?;
+  let interface = AppInterface::new(&tauri_config, Some(target_triple), dirs.tauri).await?;
 
   let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
   let (config, _) = get_config(
@@ -216,8 +218,9 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     config.project_dir(),
     MobileTarget::Ios,
     false,
-  )?;
-  inject_resources(&config, &tauri_config)?;
+  )
+  .await?;
+  inject_resources(&config, &tauri_config).await?;
 
   let info_plist_path = config
     .project_dir()
@@ -246,7 +249,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     .map_err(std::io::Error::other)
     .fs_context("failed to save merged Info.plist file", info_plist_path)?;
 
-  let mut pbxproj = load_pbxproj(&config)?;
+  let mut pbxproj = load_pbxproj(&config).await?;
 
   // synchronize pbxproj
   synchronize_project_config(
@@ -264,6 +267,7 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
   if pbxproj.has_changes() {
     pbxproj
       .save()
+      .await
       .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
@@ -278,15 +282,16 @@ fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<
     noise_level,
     &dirs,
   )
+  .await
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_dev(
+async fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
   mut tauri_config: ConfigMetadata,
-  device: Option<Device>,
+  device: Option<Device<'_>>,
   env: Env,
   config: &AppleConfig,
   noise_level: NoiseLevel,
@@ -313,7 +318,7 @@ fn run_dev(
     )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs)?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs).await?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(
@@ -329,55 +334,60 @@ fn run_dev(
   let set_host = options.host.0.is_some();
 
   let open = options.open;
-  interface.mobile_dev(
-    &mut tauri_config,
-    MobileOptions {
-      debug: true,
-      features: options.features,
-      args: options.args,
-      config: dev_options.config.clone(),
-      no_watch: options.no_watch,
-      additional_watch_folders: options.additional_watch_folders,
-    },
-    |options, tauri_config| {
-      let cli_options = CliOptions {
-        dev: true,
-        features: options.features.clone(),
-        args: options.args.clone(),
-        noise_level,
-        vars: Default::default(),
+  interface
+    .mobile_dev(
+      &mut tauri_config,
+      MobileOptions {
+        debug: true,
+        features: options.features,
+        args: options.args,
         config: dev_options.config.clone(),
-        target_device: None,
-      };
-      let _handle = write_options(tauri_config, cli_options)?;
+        no_watch: options.no_watch,
+        additional_watch_folders: options.additional_watch_folders,
+      },
+      |options, tauri_config| {
+        let cli_options = CliOptions {
+          dev: true,
+          features: options.features.clone(),
+          args: options.args.clone(),
+          noise_level,
+          vars: Default::default(),
+          config: dev_options.config.clone(),
+          target_device: None,
+        };
+        // the runner closure is synchronous, so we must block on the async options server setup
+        let _handle = tokio::task::block_in_place(|| {
+          tokio::runtime::Handle::current().block_on(write_options(tauri_config, cli_options))
+        })?;
 
-      let open_xcode = || {
-        if !set_host {
-          log::warn!("{PHYSICAL_IPHONE_DEV_WARNING}");
-        }
-        open_and_wait(config, &env)
-      };
+        let open_xcode = || {
+          if !set_host {
+            log::warn!("{PHYSICAL_IPHONE_DEV_WARNING}");
+          }
+          open_and_wait(config, &env)
+        };
 
-      if open {
-        open_xcode()
-      } else if let Some(device) = &device {
-        match run(device, options, config, noise_level, &env) {
-          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
-          Err(RunError::BuildFailed(BuildError::Sdk(sdk_err))) => {
-            log::warn!("{sdk_err}");
-            open_xcode()
+        if open {
+          open_xcode()
+        } else if let Some(device) = &device {
+          match run(device, options, config, noise_level, &env) {
+            Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
+            Err(RunError::BuildFailed(BuildError::Sdk(sdk_err))) => {
+              log::warn!("{sdk_err}");
+              open_xcode()
+            }
+            Err(e) => {
+              crate::dev::kill_before_dev_process();
+              crate::error::bail!("failed to run iOS app: {}", e)
+            }
           }
-          Err(e) => {
-            crate::dev::kill_before_dev_process();
-            crate::error::bail!("failed to run iOS app: {}", e)
-          }
+        } else {
+          open_xcode()
         }
-      } else {
-        open_xcode()
-      }
-    },
-    dirs,
-  )
+      },
+      dirs,
+    )
+    .await
 }
 
 fn run(

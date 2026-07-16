@@ -60,7 +60,7 @@ pub struct Options {
   pub ignore_version_mismatches: bool,
 }
 
-pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub async fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let env = env().context("failed to load iOS environment")?;
   let device = if options.open {
     None
@@ -97,7 +97,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     },
     noise_level,
     &dirs,
-  )?;
+  )
+  .await?;
 
   let mut tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
@@ -128,15 +129,18 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     if options.no_watch {
       runner(&tauri_config)?;
     } else {
-      built_application.interface.watch(
-        &mut tauri_config,
-        WatcherOptions {
-          config: options.config,
-          additional_watch_folders: options.additional_watch_folders,
-        },
-        runner,
-        &dirs,
-      )?;
+      built_application
+        .interface
+        .watch(
+          &mut tauri_config,
+          WatcherOptions {
+            config: options.config,
+            additional_watch_folders: options.additional_watch_folders,
+          },
+          runner,
+          &dirs,
+        )
+        .await?;
     }
   }
 

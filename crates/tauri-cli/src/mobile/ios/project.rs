@@ -31,11 +31,11 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile
 // unprefixed app_root seems pretty dangerous!!
 // TODO: figure out what cargo-mobile meant by that
 #[allow(clippy::too_many_arguments)]
-pub fn gen(
+pub async fn gen(
   tauri_config: &TauriConfig,
   config: &Config,
   metadata: &Metadata,
-  (handlebars, mut map): (Handlebars, template::JsonMap),
+  (handlebars, mut map): (Handlebars<'_>, template::JsonMap),
   wrapper: &TextWrapper,
   non_interactive: bool,
   reinstall_deps: bool,
@@ -177,7 +177,7 @@ pub fn gen(
   .with_context(|| "failed to process template")?;
 
   if let Some(template_path) = tauri_config.bundle.ios.template.as_ref() {
-    let template = std::fs::read_to_string(template_path).fs_context(
+    let template = tokio::fs::read_to_string(template_path).await.fs_context(
       "failed to read custom Xcode project template",
       template_path.to_path_buf(),
     )?;
@@ -197,7 +197,9 @@ pub fn gen(
 
   // Create all required project directories if they don't already exist
   for dir in &dirs_to_create {
-    std::fs::create_dir_all(dir).fs_context("failed to create directory", dir.to_path_buf())?;
+    tokio::fs::create_dir_all(dir)
+      .await
+      .fs_context("failed to create directory", dir.to_path_buf())?;
   }
 
   // Note that Xcode doesn't always reload the project nicely; reopening is

@@ -472,12 +472,12 @@ impl<R: Runtime> AppManager<R> {
     (self.webview.invoke_handler)(invoke)
   }
 
-  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
+  pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(plugin, invoke)
+      .run_invoke_handler(plugin, invoke)
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {

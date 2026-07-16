@@ -1862,7 +1862,7 @@ tauri::Builder::default()
       let message = invoke.message.clone();
 
       #[allow(unused_mut)]
-      let mut handled = manager.extend_api(plugin, invoke);
+      let mut handled = manager.run_plugin_invoke_handler(plugin, invoke);
 
       #[cfg(mobile)]
       {

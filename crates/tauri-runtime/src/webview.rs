@@ -796,8 +796,8 @@ impl WebviewAttributes {
     self.allow_link_preview = allow_link_preview;
     self
   }
-  /// Whether to limit navigations to App-Bound Domains. This is necessary
-  /// to enable Service Workers on iOS according to
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
   /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
   ///
   /// Default is false.
@@ -823,17 +823,18 @@ impl WebviewAttributes {
   /// because Tauri uses the `localhost` domain for hosting the application
   /// webpage, the IPC protocol, and the isolation pattern's iframe.
   ///
-  /// Assets served through custom uri schemes are allowed so long as they use a
-  /// registrable domain specified in the `WKAppBoundDomains` array for all the
-  /// requests from the app, including the `localhost` domain.
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
   ///
   /// In theory, you can whitelist an entire uri scheme by including the
   /// protocol name followed by a colon. For example, to allow all requests
   /// using a custom "stream" uri scheme (see [this tauri
   /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
   /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
-  /// sure whether Apple would let your app through app review because this
-  /// feature is not mentioned in [their blog post on App-Bound
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
   /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
   ///
   /// See https://webkit.org/blog/10882/app-bound-domains/ and

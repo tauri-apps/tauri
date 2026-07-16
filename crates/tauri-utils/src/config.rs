@@ -2284,8 +2284,8 @@ pub struct WindowConfig {
   /// Default is false.
   ///
   /// Note: If you set this to `true` make sure to add localhost and any [`registrable
-  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain
-  /// used in your project's webviews to your Info.plist:
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to your Info.plist:
   ///
   /// ```xml
   /// <plist>
@@ -2299,17 +2299,14 @@ pub struct WindowConfig {
   /// </plist>
   /// ```
   ///
-  /// If this is set to `true` then all windows' domain names specified in this
-  /// config are automatically added to the `WKAppBoundDomains` list in
-  /// Info.plist, including "localhost" if you have specified any relative paths
-  /// for the local Tauri server. If you make IPC calls and you don't have any
-  /// app windows specified in this config and you make IPC calls then be sure
-  /// to add "localhost" to the list of domains as well because Tauri's IPC
-  /// framework makes network calls to `ipc://localhost` for the IPC protocol.
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
   ///
-  /// Assets served through custom protocols are allowed so long as they use a
-  /// registrable domain specified in the `WKAppBoundDomains` array, including
-  /// the localhost domain that is added by Tauri automatically at build-time.
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
   ///
   /// In theory, you can whitelist an entire uri scheme by including the
   /// protocol name followed by a colon. For example, to allow all requests

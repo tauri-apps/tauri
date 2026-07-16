@@ -259,45 +259,6 @@ pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<Bui
       }
     }
   }
-  // if any windows have limit_navigations_to_app_bound_domains set to true
-  // then extract all domains known statically from tauri.conf.json to put
-  // into the WKAppBoundDomains array in Info.plist
-  if tauri_config
-    .app
-    .windows
-    .iter()
-    .any(|w| w.limit_navigations_to_app_bound_domains)
-  {
-    let mut domains: Vec<plist::Value> = Vec::new();
-    for window in tauri_config
-      .app
-      .windows
-      .iter()
-      .filter(|w| w.limit_navigations_to_app_bound_domains)
-    {
-      use tauri_utils::config::WebviewUrl;
-      let url: &WebviewUrl = &window.url;
-      match url {
-        WebviewUrl::External(url) if let Some(domain) = url.domain() => {
-          domains.push(domain.into())
-        }
-        // domain is localhost since served via tauri://localhost/{path_buf}
-        WebviewUrl::App(_path_buf) => domains.push("localhost".into()),
-        // could possibly do "{scheme}:" but might not get approved by app store
-        WebviewUrl::CustomProtocol(url) if let Some(domain) = url.domain() => {
-          domains.push(domain.into())
-        }
-        webview_url => log::warn!(
-          "{} could not be automatically added to WKAppBoundDomains list. Add the domain of the window manually to Info.ios.plist",
-          webview_url
-        ),
-      }
-    }
-    let mut wk_domains_dict = plist::Dictionary::new();
-    wk_domains_dict.insert("WKAppBoundDomains".into(), plist::Value::Array(domains));
-    src_plists.push(plist::Value::Dictionary(wk_domains_dict).into());
-  }
-
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist
     .to_file_xml(&info_plist_path)

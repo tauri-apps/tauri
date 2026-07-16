@@ -19,6 +19,7 @@ pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
+use crate::menu::plugin::remove_menu_channel;
 use crate::{image::Image, AppHandle, Runtime};
 pub use muda::MenuId;
 
@@ -94,6 +95,7 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
+          remove_menu_channel(&self.app_handle, self.inner.id());
           // SAFETY: we will not access `self.inner` after this
           let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
           // SAFETY: inner was created on main thread and is being dropped on main thread

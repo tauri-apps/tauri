@@ -12,8 +12,8 @@
 //   node bindings/scripts/dist.mjs c   --version 0.1.0 --runtime wry --artifacts <dir> --out <dir> [--require-all]
 //   node bindings/scripts/dist.mjs npm --version 0.1.0 --runtime wry --artifacts <dir> --out <dir> [--require-all]
 //
-// `c` emits per-target archives (header + library + licenses), raw library
-// assets (consumed by the Deno bindings' downloader) and a SHA256SUMS-<runtime>.
+// `c` emits per-target archives (header + library + licenses) and a
+// SHA256SUMS-<runtime>.
 // `npm` stages the base package plus one platform package per target
 // (optionalDependencies model, like esbuild/napi-rs). Each runtime ships its own
 // library (libtauri_<runtime>); the shared C ABI (tauri_ffi.h) is runtime-agnostic.
@@ -114,7 +114,6 @@ function distC(targets) {
   const assets = []
 
   for (const target of targets) {
-    const { lib } = libraryFiles(target, runtime)
     const stageName = `tauri-ffi-${version}-${runtime}-${target}`
     const stage = path.join(outDir, stageName)
     rmSync(stage, { recursive: true, force: true })
@@ -138,15 +137,6 @@ function distC(targets) {
     execFileSync('tar', ['-czf', path.join(outDir, archive), '-C', outDir, stageName])
     rmSync(stage, { recursive: true, force: true })
     assets.push(archive)
-
-    // Raw library asset — consumed by the Deno bindings' first-run download.
-    const extension = lib.slice(lib.lastIndexOf('.'))
-    const raw = `tauri_${runtime}-${target}${extension}`
-    copyFileSync(
-      path.join(artifactsDir, artifactName(target, runtime), lib),
-      path.join(outDir, raw)
-    )
-    assets.push(raw)
   }
 
   // Per-runtime checksums so multiple runtimes can share one GitHub release
@@ -171,15 +161,19 @@ function distNpm(targets) {
     rmSync(dir, { recursive: true, force: true })
     mkdirSync(dir, { recursive: true })
     // The run-loop addon rides along with the library it is used against, so the
-    // package the app resolves always has both (see RUN_ADDON_FILE).
-    const files = [lib, ...extra, RUN_ADDON_FILE].filter((f) =>
-      existsSync(path.join(artifactsDir, artifactName(target, runtime), f))
-    )
-    for (const file of files) {
-      copyFileSync(
-        path.join(artifactsDir, artifactName(target, runtime), file),
-        path.join(dir, file)
+    // package the app resolves always has both (see RUN_ADDON_FILE). It is
+    // required, not optional: a Node app aborts inside JavaScriptCore without it,
+    // so a missing addon is a hard error rather than a silently lib-only package.
+    const artifactDir = path.join(artifactsDir, artifactName(target, runtime))
+    if (!existsSync(path.join(artifactDir, RUN_ADDON_FILE))) {
+      console.error(
+        `error: ${RUN_ADDON_FILE} missing for ${artifactName(target, runtime)} — a Node app cannot drive a webview without it`
       )
+      process.exit(1)
+    }
+    const files = [lib, ...extra, RUN_ADDON_FILE].filter((f) => existsSync(path.join(artifactDir, f)))
+    for (const file of files) {
+      copyFileSync(path.join(artifactDir, file), path.join(dir, file))
     }
     for (const license of LICENSES) copyFileSync(path.join(repoRoot, license), path.join(dir, license))
     writeFileSync(

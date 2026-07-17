@@ -1409,6 +1409,54 @@ fn resolve_cef_path_for_bundle(
   Ok(resolved)
 }
 
+/// Ensures the CEF distribution for `cef_version` (the download-cef cache key,
+/// e.g. `150.0.10`) is present in the shared cache, downloading it on first use,
+/// and returns the directory holding `libcef` and its resources.
+///
+/// The layout mirrors what `cef-dll-sys` produces at build time
+/// (`<cache>/<version>/cef_<os>_<arch>`), so a Rust cef app and a bindings app
+/// share one cache. This is for the *bindings* interface only: a Rust cef app's
+/// `cargo build` already downloads CEF through `cef-dll-sys`, but a prebuilt
+/// tauri-ffi cef library ships without the CEF runtime it links (libcef is
+/// ~1.4GB), and nothing downloads it otherwise. `cef_version` comes from the
+/// library itself (an ELF section the CLI reads) since a bindings project has no
+/// Cargo.lock to resolve it from.
+pub(crate) fn ensure_cef_distribution(target: &str, cef_version: &str) -> crate::Result<PathBuf> {
+  let os_arch = OsAndArch::try_from(target)
+    .map_err(|e| Error::GenericError(format!("invalid CEF target {target}: {e}")))?;
+  let location = default_cef_path().join(cef_version);
+  let cef_dir = location.join(os_arch.to_string());
+  let marker = cef_marker_file(target)?;
+  if cef_dir.join(marker).exists() {
+    return Ok(cef_dir);
+  }
+
+  std::fs::create_dir_all(&location).map_err(|e| {
+    Error::GenericError(format!(
+      "failed to create CEF cache directory {}: {e}",
+      location.display()
+    ))
+  })?;
+  log::info!(action = "Downloading"; "CEF distribution {cef_version} for {target} (first run only)");
+  let archive = download_cef::download_target_archive(target, cef_version, &location, true)
+    .map_err(|e| {
+      Error::GenericError(format!(
+        "failed to download CEF {cef_version} for {target}: {e}"
+      ))
+    })?;
+  download_cef::extract_target_archive(target, &archive, &location, true)
+    .map_err(|e| Error::GenericError(format!("failed to extract CEF archive: {e}")))?;
+  let _ = std::fs::remove_file(&archive);
+
+  if !cef_dir.join(marker).exists() {
+    bail!(
+      "CEF distribution is missing `{marker}` after download at {}",
+      cef_dir.display()
+    );
+  }
+  Ok(cef_dir)
+}
+
 #[allow(unused_variables, deprecated)]
 pub(crate) fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,

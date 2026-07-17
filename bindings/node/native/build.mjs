@@ -38,7 +38,10 @@ const flag = (name, fallback) => {
   return i === -1 ? fallback : args[i + 1]
 }
 
-const out = flag('--out', path.join(here, 'tauri_node.node'))
+// Absolute so the Windows branch, which runs `cl` with `cwd` set to the output
+// directory, doesn't re-resolve a relative `--out` (e.g. `dist-lib/…`) against
+// that cwd and land the addon — and its `node_api.lib` — one level too deep.
+const out = path.resolve(flag('--out', path.join(here, 'tauri_node.node')))
 const target = flag('--target', null)
 mkdirSync(path.dirname(out), { recursive: true })
 

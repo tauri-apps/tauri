@@ -44,6 +44,12 @@ function bundledProductName(): string | null {
   }
 }
 
+// Empty marker file the CLI stages into the resource dir, so we can pick it out
+// among the candidate locations below — and not mistake a user's own
+// `resources/` directory for it. Kept in sync with the Tauri CLI's
+// `RESOURCE_MARKER`.
+const RESOURCE_MARKER = '.tauri-resources'
+
 /**
  * The directory holding this app's bundled resources (cdylib, libcef and its
  * pak/locale files for a cef build) when running as a `deno compile` binary
@@ -51,7 +57,10 @@ function bundledProductName(): string | null {
  *
  * Resolved from `Deno.execPath()`, mirroring what `tauri_utils::platform`'s
  * `resource_dir` does for a Rust app — each packaging format puts resources
- * somewhere different relative to the binary:
+ * somewhere different relative to the binary. We return the first candidate
+ * holding the `.tauri-resources` marker; a flat layout with no marker falls
+ * back to the executable's own directory, which {@link libraryPath} verifies
+ * before use:
  * - macOS `.app`: `Contents/MacOS/<bin>` → `Contents/Resources`
  * - `tauri build` output, run from `dist/<profile>` without packaging: the
  *   sibling `resources/` the CLI stages into
@@ -60,31 +69,38 @@ function bundledProductName(): string | null {
  * - Linux AppImage: the same, under `$APPDIR`
  */
 export function bundledResourceDir(): string | null {
+  if (!isBundled()) return null
   let exec: string
   try {
     exec = Deno.execPath()
   } catch {
     return null
   }
+  const candidates: string[] = []
   const macos = exec.indexOf('/Contents/MacOS/')
-  if (macos !== -1) return exec.slice(0, macos) + '/Contents/Resources'
+  if (macos !== -1) candidates.push(exec.slice(0, macos) + '/Contents/Resources')
   const slash = Math.max(exec.lastIndexOf('/'), exec.lastIndexOf('\\'))
   if (slash === -1) return null
   const dir = exec.slice(0, slash)
+  candidates.push(`${dir}/resources`) // unpackaged `tauri build` output
+  candidates.push(dir) // installers that stage flat next to the exe (Windows)
 
-  const staged = `${dir}/resources`
-  if (exists(staged)) return staged
-  if (Deno.build.os !== 'linux') return dir
+  if (Deno.build.os === 'linux') {
+    const name = bundledProductName()
+    if (name) {
+      // `../lib/<name>` covers deb/rpm (/usr/bin → /usr/lib/<name>) and an
+      // AppImage whose AppRun did not export APPDIR.
+      candidates.push(`${dir.slice(0, dir.lastIndexOf('/'))}/lib/${name}`)
+      const appdir = Deno.env.get('APPDIR')
+      if (appdir) candidates.push(`${appdir}/usr/lib/${name}`)
+      candidates.push(`/usr/lib/${name}`)
+    }
+  }
 
-  const name = bundledProductName()
-  if (!name) return dir
-  // `../lib/<name>` covers deb/rpm (/usr/bin → /usr/lib/<name>) and an AppImage
-  // whose AppRun did not export APPDIR.
-  const sibling = `${dir.slice(0, dir.lastIndexOf('/'))}/lib/${name}`
-  if (exists(sibling)) return sibling
-  const appdir = Deno.env.get('APPDIR')
-  if (appdir) return `${appdir}/usr/lib/${name}`
-  return `/usr/lib/${name}`
+  for (const candidate of candidates) {
+    if (exists(`${candidate}/${RESOURCE_MARKER}`)) return candidate
+  }
+  return macos !== -1 ? candidates[0] : dir // best guess: a flat layout with no marker
 }
 
 /**

@@ -23,6 +23,7 @@
 #include <node_api.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -52,12 +53,28 @@ static void throw_last_error(napi_env env, const char *what, const char *path) {
 /// which matters: the app handle `run` is given lives in that instance's state.
 static tauri_app_run_fn resolve_app_run(napi_env env, const char *path) {
 #ifdef _WIN32
-  HMODULE handle = LoadLibraryA(path);
+  // LoadLibraryA interprets `path` in the active ANSI code page; koffi loaded
+  // this very file through the wide API, so convert the UTF-8 path to UTF-16 and
+  // do the same, or a non-ASCII install path would fail to load here.
+  int wlen = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
+  wchar_t *wpath = wlen > 0 ? (wchar_t *)malloc((size_t)wlen * sizeof(wchar_t)) : NULL;
+  if (!wpath || MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, wlen) == 0) {
+    free(wpath);
+    throw_last_error(env, "failed to load the tauri-ffi library", path);
+    return NULL;
+  }
+  HMODULE handle = LoadLibraryW(wpath);
+  free(wpath);
   if (!handle) {
     throw_last_error(env, "failed to load the tauri-ffi library", path);
     return NULL;
   }
   tauri_app_run_fn run = (tauri_app_run_fn)GetProcAddress(handle, "tauri_app_run");
+  if (!run) {
+    throw_last_error(env, "tauri_app_run not found in", path);
+    FreeLibrary(handle);  // release the reference this lookup took
+    return NULL;
+  }
 #else
   void *handle = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
   if (!handle) {
@@ -65,11 +82,12 @@ static tauri_app_run_fn resolve_app_run(napi_env env, const char *path) {
     return NULL;
   }
   tauri_app_run_fn run = (tauri_app_run_fn)dlsym(handle, "tauri_app_run");
-#endif
   if (!run) {
     throw_last_error(env, "tauri_app_run not found in", path);
+    dlclose(handle);  // release the reference this lookup took
     return NULL;
   }
+#endif
   return run;
 }
 
@@ -88,9 +106,21 @@ static napi_value run(napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  char path[4096];
+  // Size the buffer to the actual path length rather than a fixed cap —
+  // napi_get_value_string_utf8 silently truncates on overflow, and a truncated
+  // path would load (or fail to load) the wrong file.
   size_t path_len = 0;
-  if (napi_get_value_string_utf8(env, argv[0], path, sizeof(path), &path_len) != napi_ok) {
+  if (napi_get_value_string_utf8(env, argv[0], NULL, 0, &path_len) != napi_ok) {
+    napi_throw_type_error(env, NULL, "libPath must be a string");
+    return NULL;
+  }
+  char *path = (char *)malloc(path_len + 1);
+  if (!path) {
+    napi_throw_error(env, NULL, "out of memory allocating the library path");
+    return NULL;
+  }
+  if (napi_get_value_string_utf8(env, argv[0], path, path_len + 1, NULL) != napi_ok) {
+    free(path);
     napi_throw_type_error(env, NULL, "libPath must be a string");
     return NULL;
   }
@@ -101,17 +131,20 @@ static napi_value run(napi_env env, napi_callback_info info) {
   uint64_t app = 0;
   napi_valuetype type;
   if (napi_typeof(env, argv[1], &type) != napi_ok) {
+    free(path);
     return NULL;
   }
   if (type == napi_bigint) {
     bool lossless = false;
     if (napi_get_value_bigint_uint64(env, argv[1], &app, &lossless) != napi_ok || !lossless) {
+      free(path);
       napi_throw_type_error(env, NULL, "app handle does not fit in a uint64");
       return NULL;
     }
   } else {
     int64_t signed_app = 0;
     if (napi_get_value_int64(env, argv[1], &signed_app) != napi_ok || signed_app < 0) {
+      free(path);
       napi_throw_type_error(env, NULL, "app handle must be a non-negative number or bigint");
       return NULL;
     }
@@ -119,6 +152,7 @@ static napi_value run(napi_env env, napi_callback_info info) {
   }
 
   tauri_app_run_fn app_run = resolve_app_run(env, path);
+  free(path);  // no longer needed; the resolved image stays referenced
   if (!app_run) {
     return NULL;  // resolve_app_run threw
   }

@@ -38,4 +38,6 @@ Deno — `app.getWindow`, `WebviewWindow` getters/setters). Close the window to 
 
 Use `TAURI_FFI_LIB=/path/to/libtauri_wry.dylib` to point at a non-default build.
 Set `TAURI_FFI_RUNTIME` (`wry` by default) to pick which runtime's prebuilt
-library to download and load.
+library to load — it is installed on first use from the matching npm platform
+package (`@tauri-apps/node-<runtime>-<platform>-<arch>`, the same one the Node
+bindings use).

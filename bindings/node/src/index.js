@@ -82,8 +82,9 @@ export function launch(appEntry, options = {}) {
         configDir
       )
 
-  // `app.runtime` selects which prebuilt tauri-ffi library to load (wry/cef).
-  const { api, check, runApp, libPath } = open(libraryPath(config?.app?.runtime))
+  // `app.runtime` selects which prebuilt tauri-ffi library to load (wry/cef),
+  // and which platform package's run-loop addon runApp() loads.
+  const { api, check, runApp, libPath } = open(libraryPath(config?.app?.runtime), config?.app?.runtime)
 
   const outBuilder = [0]
   check(api.appBuilderNew(JSON.stringify(config), outBuilder), 'builder_new')

@@ -38,6 +38,12 @@ function bundledProductName() {
   }
 }
 
+// Empty marker file the CLI stages into the resource dir, so we can pick it out
+// among the candidate locations below — and not mistake a user's own
+// `resources/` directory for it. Kept in sync with the Tauri CLI's
+// `RESOURCE_MARKER` (and the generated koffi SEA shim).
+const RESOURCE_MARKER = '.tauri-resources'
+
 /**
  * The directory holding this app's bundled resources (cdylib, koffi native
  * module, libcef and its pak/locale files for a cef build) when running as a
@@ -45,7 +51,10 @@ function bundledProductName() {
  *
  * Resolved from the executable path, mirroring what `tauri_utils::platform`'s
  * `resource_dir` does for a Rust app — each packaging format puts resources
- * somewhere different relative to the binary:
+ * somewhere different relative to the binary. We return the first candidate
+ * holding the `.tauri-resources` marker; a flat layout with no marker (a
+ * hand-relocated binary) falls back to the executable's own directory, which
+ * {@link libraryPath} still verifies before use:
  * - macOS `.app`: `Contents/MacOS/<bin>` → `Contents/Resources`
  * - `tauri build` output, run from `dist/<profile>` without packaging: the
  *   sibling `resources/` the CLI stages into
@@ -56,23 +65,29 @@ function bundledProductName() {
 export function bundledResourceDir() {
   if (!isBundled()) return null
   const exec = process.execPath
+  const candidates = []
   const macos = exec.indexOf('/Contents/MacOS/')
-  if (macos !== -1) return exec.slice(0, macos) + '/Contents/Resources'
+  if (macos !== -1) candidates.push(exec.slice(0, macos) + '/Contents/Resources')
 
   const dir = path.dirname(exec)
-  const staged = path.join(dir, 'resources')
-  if (existsSync(staged)) return staged
-  if (process.platform !== 'linux') return dir
+  candidates.push(path.join(dir, 'resources')) // unpackaged `tauri build` output
+  candidates.push(dir) // installers that stage flat next to the exe (Windows)
+  if (process.platform === 'linux') {
+    const name = bundledProductName()
+    if (name) {
+      // `../lib/<name>` covers deb/rpm (/usr/bin → /usr/lib/<name>) and an
+      // AppImage whose AppDir mirrors that layout; the APPDIR and absolute
+      // fallbacks match the order tauri_utils falls back through.
+      candidates.push(path.resolve(dir, '..', 'lib', name))
+      if (process.env.APPDIR) candidates.push(path.join(process.env.APPDIR, 'usr', 'lib', name))
+      candidates.push(path.join('/usr', 'lib', name))
+    }
+  }
 
-  const name = bundledProductName()
-  if (!name) return dir
-  // `../lib/<name>` covers deb/rpm (/usr/bin → /usr/lib/<name>) and an AppImage,
-  // whose AppDir mirrors that layout; the APPDIR and absolute fallbacks below
-  // match the order tauri_utils falls back through.
-  const sibling = path.resolve(dir, '..', 'lib', name)
-  if (existsSync(sibling)) return sibling
-  if (process.env.APPDIR) return path.join(process.env.APPDIR, 'usr', 'lib', name)
-  return path.join('/usr', 'lib', name)
+  for (const candidate of candidates) {
+    if (existsSync(path.join(candidate, RESOURCE_MARKER))) return candidate
+  }
+  return macos !== -1 ? candidates[0] : dir // best guess: a flat layout with no marker
 }
 
 /**

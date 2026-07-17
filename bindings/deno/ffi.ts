@@ -31,7 +31,7 @@ function ffiRuntime(): string {
 // file name: `tauri_<base>` (libtauri_wry.so, tauri_cef.dll, …). `ffi` is the
 // crate's own output name, used for the local dev build (cargo emits it
 // regardless of the selected runtime feature); the runtime name is what the
-// bundle, prebuilt download/cache and installed packages use.
+// bundle and the published npm platform packages use.
 function platformLibraryName(base: string): string {
   const spec = { darwin: ['lib', '.dylib'], linux: ['lib', '.so'], windows: ['', '.dll'] }[
     Deno.build.os as string
@@ -202,16 +202,26 @@ export function open(libPath: string = libraryPath()): FfiLibrary {
   // CEF is multi-process: it launches renderer/GPU/utility subprocesses by
   // executing a helper program. A Deno host can't act as one, so point CEF at
   // the helper staged next to the library. A wry library never reads this.
+  // A compiled bundle must point at its own staged helper (hermetic, like
+  // TAURI_FFI_LIB); in dev an explicit env value wins.
   const helper = `${dir}/${cefHelperName()}`
-  if (exists(helper) && !Deno.env.get('TAURI_CEF_SUBPROCESS_PATH')) {
+  if (exists(helper) && (isBundled() || !Deno.env.get('TAURI_CEF_SUBPROCESS_PATH'))) {
     Deno.env.set('TAURI_CEF_SUBPROCESS_PATH', helper)
   }
   let lib: Deno.DynamicLibrary<typeof SYMBOLS>
   try {
     lib = Deno.dlopen(libPath, SYMBOLS)
   } catch (error) {
-    // A cef library links libcef; preload it and retry before giving up.
-    if (!preloadCef(dir)) throw error
+    // A cef library links libcef; preload it and retry. If the preload finds no
+    // libcef (a wry library that failed for another reason) or itself throws,
+    // report the original load error, not the preload's.
+    let preloaded = false
+    try {
+      preloaded = preloadCef(dir)
+    } catch {
+      // keep the original error
+    }
+    if (!preloaded) throw error
     lib = Deno.dlopen(libPath, SYMBOLS)
   }
   const sym = lib.symbols

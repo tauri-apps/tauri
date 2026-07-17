@@ -10,7 +10,8 @@
 #   - C archives (header + library) attached to a GitHub release
 #   - npm: @tauri-apps/node(-<runtime>) base + per-(runtime,platform) packages
 #   - PyPI: tauri-ffi platform wheels (cffi ABI mode, library bundled)
-#   - JSR: @tauri-apps/deno (library downloaded from the GitHub release at runtime)
+#   - JSR: @tauri-apps/deno (loads the library from its npm platform package,
+#     installed on first use — the same package the Node bindings use)
 #
 # Adding a runtime = add it to the `runtime` matrices below and to RUNTIMES in
 # bindings/scripts/targets.mjs; the build recipe is `--features runtime-<name>`.
@@ -137,6 +138,15 @@ jobs:
           cache: 'pnpm'
       - name: install node build deps
         run: pnpm install --frozen-lockfile --filter @tauri-apps/node
+      # build.mjs shells out to `cl`/`lib`, which the Rust build finds on its own
+      # (via vswhere) but are not on PATH — put them there. `amd64_arm64` selects
+      # the x64-hosted arm64 cross toolchain so the aarch64 job cross-compiles
+      # (matching the arm64 import lib build.mjs generates).
+      - name: set up MSVC for the run-loop addon
+        if: contains(matrix.settings.target, 'windows')
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ contains(matrix.settings.target, 'aarch64') && 'amd64_arm64' || 'x64' }}
       - name: build run-loop addon
         shell: bash
         run: node bindings/node/native/build.mjs --target '${{ matrix.settings.target }}' --out dist-lib/tauri_node.node
@@ -334,7 +344,9 @@ jobs:
 
   publish-jsr:
     name: publish JSR package
-    needs: [build, smoke]
+    # After publish-npm: the deno package loads the library from the npm platform
+    # packages at runtime, so they must exist before it is published.
+    needs: [build, smoke, publish-npm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

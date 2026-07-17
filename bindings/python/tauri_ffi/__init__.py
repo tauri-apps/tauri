@@ -129,15 +129,23 @@ def _open_lib(path: Optional[Path] = None, runtime: Optional[str] = None):
     # CEF is multi-process: it launches renderer/GPU/utility subprocesses by
     # executing a helper program. A Python host can't act as one, so point CEF at
     # the helper staged next to the library. A wry library never reads this.
+    # A frozen bundle must point at its own staged helper (hermetic, like
+    # TAURI_FFI_LIB); in dev an explicit env value wins.
     helper = directory / _cef_helper_name()
-    if helper.exists():
-        os.environ.setdefault("TAURI_CEF_SUBPROCESS_PATH", str(helper))
+    if helper.exists() and (_is_bundled() or "TAURI_CEF_SUBPROCESS_PATH" not in os.environ):
+        os.environ["TAURI_CEF_SUBPROCESS_PATH"] = str(helper)
     try:
         lib = _ffi.dlopen(str(resolved))
-    except OSError:
-        # A cef library links libcef; preload it and retry before giving up.
-        if not _preload_cef(directory):
-            raise
+    except OSError as error:
+        # A cef library links libcef; preload it and retry. If the preload finds
+        # no libcef (a wry library that failed for another reason) or itself
+        # raises, report the original load error, not the preload's.
+        try:
+            preloaded = _preload_cef(directory)
+        except OSError:
+            preloaded = False
+        if not preloaded:
+            raise error
         lib = _ffi.dlopen(str(resolved))
     abi = lib.tauri_ffi_abi_version()
     if abi != ABI_VERSION:
@@ -185,6 +193,13 @@ def _bundled_product_name() -> Optional[str]:
         return None
 
 
+# Empty marker file the CLI stages into the resource dir, so we can pick it out
+# among the candidate locations below — and not mistake a user's own
+# ``resources/`` directory for it. Kept in sync with the Tauri CLI's
+# ``RESOURCE_MARKER``.
+_RESOURCE_MARKER = ".tauri-resources"
+
+
 def _bundled_resource_dir() -> Optional[Path]:
     """The directory holding this app's bundled resources (cdylib, libcef and
     its pak/locale files for a cef build) when running as a frozen PyInstaller
@@ -192,7 +207,10 @@ def _bundled_resource_dir() -> Optional[Path]:
 
     Resolved from ``sys.executable``, mirroring what ``tauri_utils::platform``'s
     ``resource_dir`` does for a Rust app — each packaging format puts resources
-    somewhere different relative to the binary:
+    somewhere different relative to the binary. We return the first candidate
+    holding the ``.tauri-resources`` marker; a flat layout with no marker falls
+    back to the executable's own directory, which ``library_path`` verifies
+    before use:
 
     - macOS ``.app``: ``Contents/MacOS/<bin>`` -> ``Contents/Resources``
     - ``tauri build`` output, run from ``dist/<profile>`` without packaging: the
@@ -204,29 +222,32 @@ def _bundled_resource_dir() -> Optional[Path]:
     if not getattr(sys, "frozen", False):
         return None
     exe = Path(sys.executable).resolve()
+    directory = exe.parent
+    candidates = []
     for parent in exe.parents:
         if parent.name == "MacOS" and parent.parent.name == "Contents":
-            return parent.parent / "Resources"
+            candidates.append(parent.parent / "Resources")
+            break
+    candidates.append(directory / "resources")  # unpackaged `tauri build` output
+    candidates.append(directory)  # installers that stage flat next to the exe (Windows)
 
-    directory = exe.parent
-    staged = directory / "resources"
-    if staged.exists():
-        return staged
-    if not sys.platform.startswith("linux"):
-        return directory
+    if sys.platform.startswith("linux"):
+        name = _bundled_product_name()
+        if name:
+            # `../lib/<name>` covers deb/rpm (/usr/bin -> /usr/lib/<name>) and an
+            # AppImage whose AppRun did not export APPDIR.
+            candidates.append(directory.parent / "lib" / name)
+            appdir = os.environ.get("APPDIR")
+            if appdir:
+                candidates.append(Path(appdir) / "usr" / "lib" / name)
+            candidates.append(Path("/usr/lib") / name)
 
-    name = _bundled_product_name()
-    if not name:
-        return directory
-    # `../lib/<name>` covers deb/rpm (/usr/bin -> /usr/lib/<name>) and an
-    # AppImage whose AppRun did not export APPDIR.
-    sibling = directory.parent / "lib" / name
-    if sibling.exists():
-        return sibling
-    appdir = os.environ.get("APPDIR")
-    if appdir:
-        return Path(appdir) / "usr" / "lib" / name
-    return Path("/usr/lib") / name
+    for candidate in candidates:
+        if (candidate / _RESOURCE_MARKER).exists():
+            return candidate
+    # best guess: a flat layout with no marker (library_path verifies it)
+    macos_resources = next((c for c in candidates if c.name == "Resources"), None)
+    return macos_resources or directory
 
 
 def _embedded_dir() -> Optional[Path]:

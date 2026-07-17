@@ -51,7 +51,11 @@ export function libraryPath(runtime = ffiRuntime()) {
   // a compiled bundle loads the per-runtime cdylib the CLI staged in its
   // resource dir (selected there from `app.runtime`)
   const resourceDir = bundledResourceDir()
-  if (resourceDir) return path.join(resourceDir, distName)
+  if (resourceDir) {
+    const bundled = path.join(resourceDir, distName)
+    if (existsSync(bundled)) return bundled
+    throw new Error(`bundled ${distName} not found in ${resourceDir}`)
+  }
   // Installed platform package (optionalDependencies of the runtime's base package).
   try {
     return require.resolve(`@tauri-apps/node-${runtime}-${process.platform}-${process.arch}/${distName}`)
@@ -77,17 +81,6 @@ function cefLibraryName() {
 
 function cefHelperName() {
   return process.platform === 'win32' ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
-}
-
-/**
- * The runtime a resolved library belongs to (`libtauri_wry.so` -> `wry`), used
- * to find artifacts shipped beside it in the same platform package. The repo's
- * own dev build is runtime-agnostic (`libtauri_ffi`), and resolves to `ffi` —
- * harmless, since that path never looks in a platform package.
- */
-function runtimeOf(libPath) {
-  const match = /tauri_([a-z0-9]+)\.(?:so|dylib|dll)$/.exec(path.basename(libPath))
-  return match ? match[1] : ffiRuntime()
 }
 
 /**
@@ -141,21 +134,31 @@ function preloadCef(dir) {
   return true
 }
 
-export function open(libPath = libraryPath()) {
+export function open(libPath = libraryPath(), runtime = ffiRuntime()) {
   const dir = path.dirname(libPath)
   // CEF is multi-process: it launches renderer/GPU/utility subprocesses by
   // executing a helper program. A Node host can't act as one, so point CEF at
   // the helper staged next to the library. A wry library never reads this.
+  // A compiled bundle must point at its own staged helper (hermetic, like
+  // TAURI_FFI_LIB); in dev an explicit env value wins.
   const helper = path.join(dir, cefHelperName())
-  if (existsSync(helper) && !process.env.TAURI_CEF_SUBPROCESS_PATH) {
+  if (existsSync(helper) && (isBundled() || !process.env.TAURI_CEF_SUBPROCESS_PATH)) {
     process.env.TAURI_CEF_SUBPROCESS_PATH = helper
   }
   let lib
   try {
     lib = koffi.load(libPath)
   } catch (error) {
-    // A cef library links libcef; preload it and retry before giving up.
-    if (!preloadCef(dir)) throw error
+    // A cef library links libcef; preload it and retry. If the preload finds no
+    // libcef (a wry library that failed for another reason) or itself throws,
+    // report the original load error, not the preload's.
+    let preloaded = false
+    try {
+      preloaded = preloadCef(dir)
+    } catch {
+      // keep the original error
+    }
+    if (!preloaded) throw error
     lib = koffi.load(libPath)
   }
   const api = declare(lib)
@@ -201,7 +204,7 @@ export function open(libPath = libraryPath()) {
    * which is the only reason this is a warning rather than an error.
    */
   function runApp(app) {
-    const addon = loadRunAddon(runtimeOf(libPath))
+    const addon = loadRunAddon(runtime)
     if (addon) {
       const { status, exitCode } = addon.run(libPath, app)
       check(status, 'app_run')

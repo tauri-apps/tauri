@@ -26,5 +26,8 @@
     "esbuild": "^0.25.0",
     "koffi": "^3.0.0",
     "postject": "^1.0.0-alpha.6"
+  },
+  "devDependencies": {
+    "node-api-headers": "^1.9.0"
   }
 }

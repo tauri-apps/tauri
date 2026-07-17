@@ -142,6 +142,11 @@ pub type CefHandle = tauri_runtime_cef::CefRuntimeHandle<EventLoopMessage>;
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub use tauri_runtime_cef::run_cef_helper_process;
 
+/// The CEF distribution version this build links against (e.g. `150.0.10`).
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub use tauri_runtime_cef::CEF_VERSION;
+
 /// DevTools protocol message type for the CEF runtime.
 #[cfg(feature = "cef")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]

@@ -28,19 +28,51 @@ export function isBundled() {
   }
 }
 
+/** `productName` from the embedded config — the directory name Linux packages
+ * derive their resource path from (`/usr/lib/<productName>`). */
+function bundledProductName() {
+  try {
+    return JSON.parse(readEmbedded('config.json', 'utf8')).productName ?? null
+  } catch {
+    return null
+  }
+}
+
 /**
  * The directory holding this app's bundled resources (cdylib, koffi native
- * module, packed assets, config) when running as a Single Executable
- * Application inside a Tauri bundle, or `null` in dev (`node main.js`).
- * Resolved from the executable path: `.app/Contents/Resources` on macOS, the
- * executable's directory elsewhere.
+ * module, libcef and its pak/locale files for a cef build) when running as a
+ * Single Executable Application, or `null` in dev (`node main.js`).
+ *
+ * Resolved from the executable path, mirroring what `tauri_utils::platform`'s
+ * `resource_dir` does for a Rust app — each packaging format puts resources
+ * somewhere different relative to the binary:
+ * - macOS `.app`: `Contents/MacOS/<bin>` → `Contents/Resources`
+ * - `tauri build` output, run from `dist/<profile>` without packaging: the
+ *   sibling `resources/` the CLI stages into
+ * - Windows installers: next to the executable
+ * - Linux deb/rpm: binary in `/usr/bin`, resources in `/usr/lib/<productName>`
+ * - Linux AppImage: the same, under `$APPDIR`
  */
 export function bundledResourceDir() {
   if (!isBundled()) return null
   const exec = process.execPath
   const macos = exec.indexOf('/Contents/MacOS/')
   if (macos !== -1) return exec.slice(0, macos) + '/Contents/Resources'
-  return path.dirname(exec)
+
+  const dir = path.dirname(exec)
+  const staged = path.join(dir, 'resources')
+  if (existsSync(staged)) return staged
+  if (process.platform !== 'linux') return dir
+
+  const name = bundledProductName()
+  if (!name) return dir
+  // `../lib/<name>` covers deb/rpm (/usr/bin → /usr/lib/<name>) and an AppImage,
+  // whose AppDir mirrors that layout; the APPDIR and absolute fallbacks below
+  // match the order tauri_utils falls back through.
+  const sibling = path.resolve(dir, '..', 'lib', name)
+  if (existsSync(sibling)) return sibling
+  if (process.env.APPDIR) return path.join(process.env.APPDIR, 'usr', 'lib', name)
+  return path.join('/usr', 'lib', name)
 }
 
 /**

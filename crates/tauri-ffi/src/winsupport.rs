@@ -124,9 +124,7 @@ macro_rules! ffi_getter_bool {
   ($fn:ident, $resolve:path, $method:ident) => {
     #[no_mangle]
     pub unsafe extern "C" fn $fn(handle: u64, out: *mut bool) -> i32 {
-      $crate::error::catch(|| {
-        $crate::winsupport::get(handle, out, $resolve, |o| o.$method())
-      })
+      $crate::error::catch(|| $crate::winsupport::get(handle, out, $resolve, |o| o.$method()))
     }
   };
 }
@@ -136,7 +134,9 @@ macro_rules! ffi_getter_string {
   ($fn:ident, $resolve:path, $method:ident) => {
     #[no_mangle]
     pub unsafe extern "C" fn $fn(handle: u64, out: *mut *mut std::os::raw::c_char) -> i32 {
-      $crate::error::catch(|| $crate::winsupport::get_string(handle, out, $resolve, |o| o.$method()))
+      $crate::error::catch(|| {
+        $crate::winsupport::get_string(handle, out, $resolve, |o| o.$method())
+      })
     }
   };
 }

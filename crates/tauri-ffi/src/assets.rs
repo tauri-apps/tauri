@@ -105,8 +105,7 @@ impl ArchiveAssets {
   const MAGIC: &'static [u8; 8] = b"TAURIPK1";
 
   pub fn load(path: &Path) -> Result<Self, String> {
-    let bytes =
-      std::fs::read(path).map_err(|e| format!("failed to read assets archive: {e}"))?;
+    let bytes = std::fs::read(path).map_err(|e| format!("failed to read assets archive: {e}"))?;
     Self::from_bytes(bytes)
   }
 

@@ -9,16 +9,16 @@
 
 use std::os::raw::c_char;
 
+use crate::Rt as TauriRuntime;
 use tauri::window::Color;
 use tauri::{
   LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Webview,
 };
-use crate::Rt as TauriRuntime;
 
 use crate::error::{catch, fail, ERR_INVALID_ARG, ERR_INVALID_HANDLE, OK};
 use crate::state::{self, Entry};
 use crate::try_cstr;
-use crate::winsupport::{act, get_pair, get_string, ffi_action};
+use crate::winsupport::{act, ffi_action, get_pair, get_string};
 
 const RESOLVE: fn(u64) -> Option<Webview<TauriRuntime>> = state::webview;
 
@@ -36,17 +36,33 @@ pub unsafe extern "C" fn tauri_webview_label(webview: u64, out_label: *mut *mut 
 
 #[no_mangle]
 pub unsafe extern "C" fn tauri_webview_url(webview: u64, out_url: *mut *mut c_char) -> i32 {
-  catch(|| get_string(webview, out_url, RESOLVE, |w| w.url().map(|u| u.to_string())))
+  catch(|| {
+    get_string(webview, out_url, RESOLVE, |w| {
+      w.url().map(|u| u.to_string())
+    })
+  })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_position(webview: u64, out_x: *mut i32, out_y: *mut i32) -> i32 {
-  catch(|| get_pair(webview, out_x, out_y, RESOLVE, |w| w.position().map(|p| (p.x, p.y))))
+pub unsafe extern "C" fn tauri_webview_position(
+  webview: u64,
+  out_x: *mut i32,
+  out_y: *mut i32,
+) -> i32 {
+  catch(|| {
+    get_pair(webview, out_x, out_y, RESOLVE, |w| {
+      w.position().map(|p| (p.x, p.y))
+    })
+  })
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn tauri_webview_size(webview: u64, out_w: *mut u32, out_h: *mut u32) -> i32 {
-  catch(|| get_pair(webview, out_w, out_h, RESOLVE, |w| w.size().map(|s| (s.width, s.height))))
+  catch(|| {
+    get_pair(webview, out_w, out_h, RESOLVE, |w| {
+      w.size().map(|s| (s.width, s.height))
+    })
+  })
 }
 
 /// The parent window of this webview. On OK, `*out_window` is a bare window
@@ -74,7 +90,11 @@ ffi_action!(tauri_webview_set_focus, RESOLVE, set_focus);
 ffi_action!(tauri_webview_show, RESOLVE, show);
 ffi_action!(tauri_webview_hide, RESOLVE, hide);
 ffi_action!(tauri_webview_close, RESOLVE, close);
-ffi_action!(tauri_webview_clear_all_browsing_data, RESOLVE, clear_all_browsing_data);
+ffi_action!(
+  tauri_webview_clear_all_browsing_data,
+  RESOLVE,
+  clear_all_browsing_data
+);
 
 #[no_mangle]
 pub unsafe extern "C" fn tauri_webview_eval(webview: u64, js: *const c_char) -> i32 {
@@ -107,7 +127,12 @@ pub extern "C" fn tauri_webview_set_auto_resize(webview: u64, auto_resize: bool)
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_set_size(webview: u64, width: f64, height: f64, physical: bool) -> i32 {
+pub extern "C" fn tauri_webview_set_size(
+  webview: u64,
+  width: f64,
+  height: f64,
+  physical: bool,
+) -> i32 {
   catch(|| {
     let size: Size = if physical {
       PhysicalSize::new(width.round() as u32, height.round() as u32).into()
@@ -131,9 +156,20 @@ pub extern "C" fn tauri_webview_set_position(webview: u64, x: f64, y: f64, physi
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_set_background_color(webview: u64, r: u32, g: u32, b: u32, a: u32) -> i32 {
+pub extern "C" fn tauri_webview_set_background_color(
+  webview: u64,
+  r: u32,
+  g: u32,
+  b: u32,
+  a: u32,
+) -> i32 {
   catch(|| {
-    let color = Color(r.min(255) as u8, g.min(255) as u8, b.min(255) as u8, a.min(255) as u8);
+    let color = Color(
+      r.min(255) as u8,
+      g.min(255) as u8,
+      b.min(255) as u8,
+      a.min(255) as u8,
+    );
     act(webview, RESOLVE, |w| w.set_background_color(Some(color)))
   })
 }

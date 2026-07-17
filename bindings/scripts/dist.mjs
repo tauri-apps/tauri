@@ -36,6 +36,7 @@ import {
   TARGETS,
   RUNTIMES,
   DEFAULT_RUNTIME,
+  RUN_ADDON_FILE,
   libraryFiles,
   platformPackageName,
   artifactName
@@ -169,7 +170,9 @@ function distNpm(targets) {
     const dir = path.join(npmDir, `platform-${runtime}-${platform}-${arch}`)
     rmSync(dir, { recursive: true, force: true })
     mkdirSync(dir, { recursive: true })
-    const files = [lib, ...extra].filter((f) =>
+    // The run-loop addon rides along with the library it is used against, so the
+    // package the app resolves always has both (see RUN_ADDON_FILE).
+    const files = [lib, ...extra, RUN_ADDON_FILE].filter((f) =>
       existsSync(path.join(artifactsDir, artifactName(target, runtime), f))
     )
     for (const file of files) {

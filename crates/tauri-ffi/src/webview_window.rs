@@ -9,13 +9,13 @@
 
 use std::os::raw::c_char;
 
+use crate::Rt as TauriRuntime;
 use tauri::utils::config::{WindowConfig, WindowEffectsConfig};
 use tauri::window::{Color, ProgressBarState};
 use tauri::{
-  CursorIcon, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Position, Size,
-  Theme, UserAttentionType, WebviewWindow, WindowSizeConstraints,
+  CursorIcon, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Position,
+  Size, Theme, UserAttentionType, WebviewWindow, WindowSizeConstraints,
 };
-use crate::Rt as TauriRuntime;
 
 use crate::error::{
   catch, fail, unsupported, ERR_GENERIC, ERR_INVALID_ARG, ERR_INVALID_HANDLE, ERR_NOT_FOUND, OK,
@@ -26,7 +26,10 @@ use crate::{try_cstr, write_owned_str};
 // ---------------------------------------------------------------------------
 // helpers
 
-fn with_window(window: u64, f: impl FnOnce(&WebviewWindow<TauriRuntime>) -> tauri::Result<()>) -> i32 {
+fn with_window(
+  window: u64,
+  f: impl FnOnce(&WebviewWindow<TauriRuntime>) -> tauri::Result<()>,
+) -> i32 {
   let Some(window) = state::window(window) else {
     return fail(ERR_INVALID_HANDLE, "invalid window handle");
   };
@@ -167,13 +170,19 @@ pub unsafe extern "C" fn tauri_app_get_webview_window(
         unsafe { *out_window = state::insert(Entry::Window(window)) };
         OK
       }
-      None => fail(ERR_NOT_FOUND, format!("no webview window labeled `{label}`")),
+      None => fail(
+        ERR_NOT_FOUND,
+        format!("no webview window labeled `{label}`"),
+      ),
     }
   })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_app_webview_window_labels(app: u64, out_labels_json: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_app_webview_window_labels(
+  app: u64,
+  out_labels_json: *mut *mut c_char,
+) -> i32 {
   catch(|| {
     if out_labels_json.is_null() {
       return fail(ERR_INVALID_ARG, "out_labels_json is null");
@@ -194,12 +203,18 @@ pub unsafe extern "C" fn tauri_app_webview_window_labels(app: u64, out_labels_js
 // getters
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_label(window: u64, out_label: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_label(
+  window: u64,
+  out_label: *mut *mut c_char,
+) -> i32 {
   catch(|| window_get_string(window, out_label, |w| Ok(w.label().to_string())))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_title(window: u64, out_title: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_title(
+  window: u64,
+  out_title: *mut *mut c_char,
+) -> i32 {
   catch(|| window_get_string(window, out_title, |w| w.title()))
 }
 
@@ -209,7 +224,10 @@ pub unsafe extern "C" fn tauri_webview_window_url(window: u64, out_url: *mut *mu
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_scale_factor(window: u64, out_scale: *mut f64) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_scale_factor(
+  window: u64,
+  out_scale: *mut f64,
+) -> i32 {
   catch(|| window_get(window, out_scale, |w| w.scale_factor()))
 }
 
@@ -266,32 +284,50 @@ pub unsafe extern "C" fn tauri_webview_window_outer_position(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_visible(window: u64, out_visible: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_visible(
+  window: u64,
+  out_visible: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_visible, |w| w.is_visible()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_focused(window: u64, out_focused: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_focused(
+  window: u64,
+  out_focused: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_focused, |w| w.is_focused()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_fullscreen(window: u64, out_fullscreen: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_fullscreen(
+  window: u64,
+  out_fullscreen: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_fullscreen, |w| w.is_fullscreen()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_maximized(window: u64, out_maximized: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_maximized(
+  window: u64,
+  out_maximized: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_maximized, |w| w.is_maximized()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_minimized(window: u64, out_minimized: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_minimized(
+  window: u64,
+  out_minimized: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_minimized, |w| w.is_minimized()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_resizable(window: u64, out_resizable: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_resizable(
+  window: u64,
+  out_resizable: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_resizable, |w| w.is_resizable()))
 }
 
@@ -307,7 +343,12 @@ pub unsafe extern "C" fn tauri_webview_window_set_title(window: u64, title: *con
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_window_set_size(window: u64, width: f64, height: f64, physical: bool) -> i32 {
+pub extern "C" fn tauri_webview_window_set_size(
+  window: u64,
+  width: f64,
+  height: f64,
+  physical: bool,
+) -> i32 {
   catch(|| {
     let size: Size = if physical {
       PhysicalSize::new(width.round() as u32, height.round() as u32).into()
@@ -319,7 +360,12 @@ pub extern "C" fn tauri_webview_window_set_size(window: u64, width: f64, height:
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_window_set_position(window: u64, x: f64, y: f64, physical: bool) -> i32 {
+pub extern "C" fn tauri_webview_window_set_position(
+  window: u64,
+  x: f64,
+  y: f64,
+  physical: bool,
+) -> i32 {
   catch(|| {
     let position: Position = if physical {
       PhysicalPosition::new(x.round() as i32, y.round() as i32).into()
@@ -437,37 +483,58 @@ pub extern "C" fn tauri_webview_window_reload(window: u64) -> i32 {
 // additional getters
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_decorated(window: u64, out_decorated: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_decorated(
+  window: u64,
+  out_decorated: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_decorated, |w| w.is_decorated()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_closable(window: u64, out_closable: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_closable(
+  window: u64,
+  out_closable: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_closable, |w| w.is_closable()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_maximizable(window: u64, out_maximizable: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_maximizable(
+  window: u64,
+  out_maximizable: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_maximizable, |w| w.is_maximizable()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_minimizable(window: u64, out_minimizable: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_minimizable(
+  window: u64,
+  out_minimizable: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_minimizable, |w| w.is_minimizable()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_always_on_top(window: u64, out_always_on_top: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_always_on_top(
+  window: u64,
+  out_always_on_top: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_always_on_top, |w| w.is_always_on_top()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_enabled(window: u64, out_enabled: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_enabled(
+  window: u64,
+  out_enabled: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_enabled, |w| w.is_enabled()))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_menu_visible(window: u64, out_visible: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_menu_visible(
+  window: u64,
+  out_visible: *mut bool,
+) -> i32 {
   catch(|| window_get(window, out_visible, |w| w.is_menu_visible()))
 }
 
@@ -489,12 +556,18 @@ fn window_is_devtools_open(window: u64, out_open: *mut bool) -> i32 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_is_devtools_open(window: u64, out_open: *mut bool) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_is_devtools_open(
+  window: u64,
+  out_open: *mut bool,
+) -> i32 {
   catch(|| window_is_devtools_open(window, out_open))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_theme(window: u64, out_theme: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_theme(
+  window: u64,
+  out_theme: *mut *mut c_char,
+) -> i32 {
   catch(|| window_get_string(window, out_theme, |w| w.theme().map(|t| t.to_string())))
 }
 
@@ -517,7 +590,10 @@ pub extern "C" fn tauri_webview_window_set_minimizable(window: u64, minimizable:
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_window_set_always_on_bottom(window: u64, always_on_bottom: bool) -> i32 {
+pub extern "C" fn tauri_webview_window_set_always_on_bottom(
+  window: u64,
+  always_on_bottom: bool,
+) -> i32 {
   catch(|| with_window(window, |w| w.set_always_on_bottom(always_on_bottom)))
 }
 
@@ -537,7 +613,10 @@ pub extern "C" fn tauri_webview_window_set_shadow(window: u64, enable: bool) -> 
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_window_set_visible_on_all_workspaces(window: u64, visible: bool) -> i32 {
+pub extern "C" fn tauri_webview_window_set_visible_on_all_workspaces(
+  window: u64,
+  visible: bool,
+) -> i32 {
   catch(|| with_window(window, |w| w.set_visible_on_all_workspaces(visible)))
 }
 
@@ -575,7 +654,12 @@ pub extern "C" fn tauri_webview_window_set_simple_fullscreen(window: u64, enable
 // size / position setters
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_window_set_min_size(window: u64, width: f64, height: f64, physical: bool) -> i32 {
+pub extern "C" fn tauri_webview_window_set_min_size(
+  window: u64,
+  width: f64,
+  height: f64,
+  physical: bool,
+) -> i32 {
   catch(|| {
     let size = optional_size(width, height, physical);
     with_window(window, |w| w.set_min_size(size))
@@ -583,7 +667,12 @@ pub extern "C" fn tauri_webview_window_set_min_size(window: u64, width: f64, hei
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_window_set_max_size(window: u64, width: f64, height: f64, physical: bool) -> i32 {
+pub extern "C" fn tauri_webview_window_set_max_size(
+  window: u64,
+  width: f64,
+  height: f64,
+  physical: bool,
+) -> i32 {
   catch(|| {
     let size = optional_size(width, height, physical);
     with_window(window, |w| w.set_max_size(size))
@@ -591,7 +680,12 @@ pub extern "C" fn tauri_webview_window_set_max_size(window: u64, width: f64, hei
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_webview_window_set_cursor_position(window: u64, x: f64, y: f64, physical: bool) -> i32 {
+pub extern "C" fn tauri_webview_window_set_cursor_position(
+  window: u64,
+  x: f64,
+  y: f64,
+  physical: bool,
+) -> i32 {
   catch(|| {
     let position: Position = if physical {
       PhysicalPosition::new(x.round() as i32, y.round() as i32).into()
@@ -615,14 +709,22 @@ pub unsafe extern "C" fn tauri_webview_window_set_theme(window: u64, theme: *con
       lower @ ("light" | "dark") => {
         Some(serde_json::from_value(serde_json::Value::String(lower.to_string())).unwrap())
       }
-      _ => return fail(ERR_INVALID_ARG, "invalid theme (expected \"light\", \"dark\" or \"\")"),
+      _ => {
+        return fail(
+          ERR_INVALID_ARG,
+          "invalid theme (expected \"light\", \"dark\" or \"\")",
+        )
+      }
     };
     with_window(window, |w| w.set_theme(theme))
   })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_set_cursor_icon(window: u64, icon: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_set_cursor_icon(
+  window: u64,
+  icon: *const c_char,
+) -> i32 {
   catch(|| {
     let icon = try_cstr!(icon);
     // Unknown names fall back to `CursorIcon::Default` (via its Deserialize impl).
@@ -633,7 +735,10 @@ pub unsafe extern "C" fn tauri_webview_window_set_cursor_icon(window: u64, icon:
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_request_user_attention(window: u64, kind: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_request_user_attention(
+  window: u64,
+  kind: *const c_char,
+) -> i32 {
   catch(|| {
     let kind = try_cstr!(kind);
     let request_type = match kind.to_lowercase().as_str() {
@@ -652,7 +757,10 @@ pub unsafe extern "C" fn tauri_webview_window_request_user_attention(window: u64
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_set_progress_bar(window: u64, state_json: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_set_progress_bar(
+  window: u64,
+  state_json: *const c_char,
+) -> i32 {
   catch(|| {
     let json = try_cstr!(state_json);
     let state: ProgressBarState = match serde_json::from_str(json) {
@@ -664,7 +772,10 @@ pub unsafe extern "C" fn tauri_webview_window_set_progress_bar(window: u64, stat
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_set_effects(window: u64, effects_json: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_set_effects(
+  window: u64,
+  effects_json: *const c_char,
+) -> i32 {
   catch(|| {
     let json = try_cstr!(effects_json);
     let trimmed = json.trim();
@@ -723,12 +834,19 @@ pub extern "C" fn tauri_webview_window_set_badge_count(window: u64, count: i32) 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_set_badge_label(window: u64, label: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_set_badge_label(
+  window: u64,
+  label: *const c_char,
+) -> i32 {
   catch(|| {
     let label = try_cstr!(label);
     #[cfg(target_os = "macos")]
     {
-      let label = if label.is_empty() { None } else { Some(label.to_string()) };
+      let label = if label.is_empty() {
+        None
+      } else {
+        Some(label.to_string())
+      };
       with_window(window, |w| w.set_badge_label(label))
     }
     #[cfg(not(target_os = "macos"))]
@@ -747,7 +865,10 @@ pub unsafe extern "C" fn tauri_webview_window_set_badge_label(window: u64, label
 
 /// Sets the title bar style ("visible", "transparent" or "overlay"). macOS only.
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_set_title_bar_style(window: u64, style: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_set_title_bar_style(
+  window: u64,
+  style: *const c_char,
+) -> i32 {
   catch(|| {
     let style = try_cstr!(style);
     #[cfg(target_os = "macos")]
@@ -807,7 +928,10 @@ pub unsafe extern "C" fn tauri_webview_window_set_overlay_icon(
 
 /// The NSWindow pointer backing the window, as an integer. macOS only.
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_ns_window(window: u64, out_ns_window: *mut u64) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_ns_window(
+  window: u64,
+  out_ns_window: *mut u64,
+) -> i32 {
   catch(|| {
     #[cfg(target_os = "macos")]
     {
@@ -922,7 +1046,10 @@ pub extern "C" fn tauri_webview_window_close_devtools(window: u64) -> i32 {
 // monitors
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_current_monitor(window: u64, out_monitor_json: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_current_monitor(
+  window: u64,
+  out_monitor_json: *mut *mut c_char,
+) -> i32 {
   catch(|| {
     window_get_string(window, out_monitor_json, |w| {
       Ok(serde_json::to_string(&w.current_monitor()?).unwrap_or_else(|_| "null".into()))
@@ -931,7 +1058,10 @@ pub unsafe extern "C" fn tauri_webview_window_current_monitor(window: u64, out_m
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_primary_monitor(window: u64, out_monitor_json: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_primary_monitor(
+  window: u64,
+  out_monitor_json: *mut *mut c_char,
+) -> i32 {
   catch(|| {
     window_get_string(window, out_monitor_json, |w| {
       Ok(serde_json::to_string(&w.primary_monitor()?).unwrap_or_else(|_| "null".into()))
@@ -940,7 +1070,10 @@ pub unsafe extern "C" fn tauri_webview_window_primary_monitor(window: u64, out_m
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_available_monitors(window: u64, out_monitors_json: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_webview_window_available_monitors(
+  window: u64,
+  out_monitors_json: *mut *mut c_char,
+) -> i32 {
   catch(|| {
     window_get_string(window, out_monitors_json, |w| {
       Ok(serde_json::to_string(&w.available_monitors()?).unwrap_or_else(|_| "[]".into()))
@@ -963,6 +1096,14 @@ pub unsafe extern "C" fn tauri_webview_window_monitor_from_point(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_webview_window_cursor_position(window: u64, out_x: *mut f64, out_y: *mut f64) -> i32 {
-  catch(|| window_get_pair(window, out_x, out_y, |w| w.cursor_position().map(|p| (p.x, p.y))))
+pub unsafe extern "C" fn tauri_webview_window_cursor_position(
+  window: u64,
+  out_x: *mut f64,
+  out_y: *mut f64,
+) -> i32 {
+  catch(|| {
+    window_get_pair(window, out_x, out_y, |w| {
+      w.cursor_position().map(|p| (p.x, p.y))
+    })
+  })
 }

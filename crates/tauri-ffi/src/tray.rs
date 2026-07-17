@@ -13,9 +13,9 @@
 
 use std::os::raw::c_char;
 
+use crate::Rt as TauriRuntime;
 use tauri::image::Image;
 use tauri::tray::{TrayIcon, TrayIconBuilder};
-use crate::Rt as TauriRuntime;
 
 use crate::error::{catch, fail, ERR_GENERIC, ERR_INVALID_ARG, ERR_INVALID_HANDLE, OK};
 use crate::state::{self, Entry};
@@ -94,7 +94,12 @@ pub unsafe extern "C" fn tauri_tray_set_icon(tray: u64, path: *const c_char) -> 
     }
     let image = match Image::from_path(path) {
       Ok(image) => image,
-      Err(e) => return fail(ERR_INVALID_ARG, format!("failed to load tray icon `{path}`: {e}")),
+      Err(e) => {
+        return fail(
+          ERR_INVALID_ARG,
+          format!("failed to load tray icon `{path}`: {e}"),
+        )
+      }
     };
     with_tray(tray, |t| t.set_icon(Some(image)))
   })

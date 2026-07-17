@@ -9,6 +9,7 @@
 
 use std::os::raw::c_char;
 
+use crate::Rt as TauriRuntime;
 use tauri::utils::config::{WindowConfig, WindowEffectsConfig};
 use tauri::webview::WebviewBuilder;
 use tauri::window::{Color, ProgressBarState, WindowBuilder};
@@ -16,13 +17,14 @@ use tauri::{
   CursorIcon, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition, PhysicalSize,
   Position, Size, Theme, UserAttentionType, Window, WindowSizeConstraints,
 };
-use crate::Rt as TauriRuntime;
 
 use crate::error::{
   catch, fail, unsupported, ERR_GENERIC, ERR_INVALID_ARG, ERR_INVALID_HANDLE, ERR_NOT_FOUND, OK,
 };
 use crate::state::{self, Entry};
-use crate::winsupport::{act, get, get_pair, get_string, ffi_action, ffi_getter_bool, ffi_getter_string, ffi_setter_bool};
+use crate::winsupport::{
+  act, ffi_action, ffi_getter_bool, ffi_getter_string, ffi_setter_bool, get, get_pair, get_string,
+};
 use crate::{try_cstr, write_owned_str};
 
 const RESOLVE: fn(u64) -> Option<Window<TauriRuntime>> = state::bare_window;
@@ -121,7 +123,10 @@ pub unsafe extern "C" fn tauri_window_add_webview(
 
 /// Labels of the window's child webviews, as an owned JSON string array.
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_webviews(window: u64, out_labels_json: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_window_webviews(
+  window: u64,
+  out_labels_json: *mut *mut c_char,
+) -> i32 {
   catch(|| {
     if out_labels_json.is_null() {
       return fail(ERR_INVALID_ARG, "out_labels_json is null");
@@ -129,15 +134,26 @@ pub unsafe extern "C" fn tauri_window_webviews(window: u64, out_labels_json: *mu
     let Some(window) = state::bare_window(window) else {
       return fail(ERR_INVALID_HANDLE, "invalid window handle");
     };
-    let labels: Vec<String> = window.webviews().iter().map(|w| w.label().to_string()).collect();
-    write_owned_str(out_labels_json, serde_json::to_string(&labels).unwrap_or_else(|_| "[]".into()));
+    let labels: Vec<String> = window
+      .webviews()
+      .iter()
+      .map(|w| w.label().to_string())
+      .collect();
+    write_owned_str(
+      out_labels_json,
+      serde_json::to_string(&labels).unwrap_or_else(|_| "[]".into()),
+    );
     OK
   })
 }
 
 /// Looks up a bare window by label. Returns ERR_NOT_FOUND if none.
 #[no_mangle]
-pub unsafe extern "C" fn tauri_app_get_window(app: u64, label: *const c_char, out_window: *mut u64) -> i32 {
+pub unsafe extern "C" fn tauri_app_get_window(
+  app: u64,
+  label: *const c_char,
+  out_window: *mut u64,
+) -> i32 {
   catch(|| {
     let label = try_cstr!(label);
     if out_window.is_null() {
@@ -158,7 +174,10 @@ pub unsafe extern "C" fn tauri_app_get_window(app: u64, label: *const c_char, ou
 
 /// Labels of all bare windows, as an owned JSON string array.
 #[no_mangle]
-pub unsafe extern "C" fn tauri_app_window_labels(app: u64, out_labels_json: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_app_window_labels(
+  app: u64,
+  out_labels_json: *mut *mut c_char,
+) -> i32 {
   catch(|| {
     if out_labels_json.is_null() {
       return fail(ERR_INVALID_ARG, "out_labels_json is null");
@@ -167,7 +186,10 @@ pub unsafe extern "C" fn tauri_app_window_labels(app: u64, out_labels_json: *mut
       return fail(ERR_INVALID_HANDLE, "invalid app handle");
     };
     let labels: Vec<String> = app_state.handle.windows().keys().cloned().collect();
-    write_owned_str(out_labels_json, serde_json::to_string(&labels).unwrap_or_else(|_| "[]".into()));
+    write_owned_str(
+      out_labels_json,
+      serde_json::to_string(&labels).unwrap_or_else(|_| "[]".into()),
+    );
     OK
   })
 }
@@ -182,7 +204,11 @@ pub unsafe extern "C" fn tauri_window_label(window: u64, out_label: *mut *mut c_
 ffi_getter_string!(tauri_window_title, RESOLVE, title);
 #[no_mangle]
 pub unsafe extern "C" fn tauri_window_theme(window: u64, out_theme: *mut *mut c_char) -> i32 {
-  catch(|| get_string(window, out_theme, RESOLVE, |w| w.theme().map(|t| t.to_string())))
+  catch(|| {
+    get_string(window, out_theme, RESOLVE, |w| {
+      w.theme().map(|t| t.to_string())
+    })
+  })
 }
 
 #[no_mangle]
@@ -191,24 +217,64 @@ pub unsafe extern "C" fn tauri_window_scale_factor(window: u64, out_scale: *mut 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_inner_size(window: u64, out_w: *mut u32, out_h: *mut u32) -> i32 {
-  catch(|| get_pair(window, out_w, out_h, RESOLVE, |w| w.inner_size().map(|s| (s.width, s.height))))
+pub unsafe extern "C" fn tauri_window_inner_size(
+  window: u64,
+  out_w: *mut u32,
+  out_h: *mut u32,
+) -> i32 {
+  catch(|| {
+    get_pair(window, out_w, out_h, RESOLVE, |w| {
+      w.inner_size().map(|s| (s.width, s.height))
+    })
+  })
 }
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_outer_size(window: u64, out_w: *mut u32, out_h: *mut u32) -> i32 {
-  catch(|| get_pair(window, out_w, out_h, RESOLVE, |w| w.outer_size().map(|s| (s.width, s.height))))
+pub unsafe extern "C" fn tauri_window_outer_size(
+  window: u64,
+  out_w: *mut u32,
+  out_h: *mut u32,
+) -> i32 {
+  catch(|| {
+    get_pair(window, out_w, out_h, RESOLVE, |w| {
+      w.outer_size().map(|s| (s.width, s.height))
+    })
+  })
 }
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_inner_position(window: u64, out_x: *mut i32, out_y: *mut i32) -> i32 {
-  catch(|| get_pair(window, out_x, out_y, RESOLVE, |w| w.inner_position().map(|p| (p.x, p.y))))
+pub unsafe extern "C" fn tauri_window_inner_position(
+  window: u64,
+  out_x: *mut i32,
+  out_y: *mut i32,
+) -> i32 {
+  catch(|| {
+    get_pair(window, out_x, out_y, RESOLVE, |w| {
+      w.inner_position().map(|p| (p.x, p.y))
+    })
+  })
 }
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_outer_position(window: u64, out_x: *mut i32, out_y: *mut i32) -> i32 {
-  catch(|| get_pair(window, out_x, out_y, RESOLVE, |w| w.outer_position().map(|p| (p.x, p.y))))
+pub unsafe extern "C" fn tauri_window_outer_position(
+  window: u64,
+  out_x: *mut i32,
+  out_y: *mut i32,
+) -> i32 {
+  catch(|| {
+    get_pair(window, out_x, out_y, RESOLVE, |w| {
+      w.outer_position().map(|p| (p.x, p.y))
+    })
+  })
 }
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_cursor_position(window: u64, out_x: *mut f64, out_y: *mut f64) -> i32 {
-  catch(|| get_pair(window, out_x, out_y, RESOLVE, |w| w.cursor_position().map(|p| (p.x, p.y))))
+pub unsafe extern "C" fn tauri_window_cursor_position(
+  window: u64,
+  out_x: *mut f64,
+  out_y: *mut f64,
+) -> i32 {
+  catch(|| {
+    get_pair(window, out_x, out_y, RESOLVE, |w| {
+      w.cursor_position().map(|p| (p.x, p.y))
+    })
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -238,17 +304,37 @@ ffi_setter_bool!(tauri_window_set_decorations, RESOLVE, set_decorations);
 ffi_setter_bool!(tauri_window_set_closable, RESOLVE, set_closable);
 ffi_setter_bool!(tauri_window_set_maximizable, RESOLVE, set_maximizable);
 ffi_setter_bool!(tauri_window_set_minimizable, RESOLVE, set_minimizable);
-ffi_setter_bool!(tauri_window_set_always_on_bottom, RESOLVE, set_always_on_bottom);
-ffi_setter_bool!(tauri_window_set_content_protected, RESOLVE, set_content_protected);
+ffi_setter_bool!(
+  tauri_window_set_always_on_bottom,
+  RESOLVE,
+  set_always_on_bottom
+);
+ffi_setter_bool!(
+  tauri_window_set_content_protected,
+  RESOLVE,
+  set_content_protected
+);
 ffi_setter_bool!(tauri_window_set_skip_taskbar, RESOLVE, set_skip_taskbar);
 ffi_setter_bool!(tauri_window_set_shadow, RESOLVE, set_shadow);
-ffi_setter_bool!(tauri_window_set_visible_on_all_workspaces, RESOLVE, set_visible_on_all_workspaces);
-ffi_setter_bool!(tauri_window_set_ignore_cursor_events, RESOLVE, set_ignore_cursor_events);
+ffi_setter_bool!(
+  tauri_window_set_visible_on_all_workspaces,
+  RESOLVE,
+  set_visible_on_all_workspaces
+);
+ffi_setter_bool!(
+  tauri_window_set_ignore_cursor_events,
+  RESOLVE,
+  set_ignore_cursor_events
+);
 ffi_setter_bool!(tauri_window_set_cursor_visible, RESOLVE, set_cursor_visible);
 ffi_setter_bool!(tauri_window_set_cursor_grab, RESOLVE, set_cursor_grab);
 ffi_setter_bool!(tauri_window_set_enabled, RESOLVE, set_enabled);
 ffi_setter_bool!(tauri_window_set_focusable, RESOLVE, set_focusable);
-ffi_setter_bool!(tauri_window_set_simple_fullscreen, RESOLVE, set_simple_fullscreen);
+ffi_setter_bool!(
+  tauri_window_set_simple_fullscreen,
+  RESOLVE,
+  set_simple_fullscreen
+);
 
 // ---------------------------------------------------------------------------
 // unit actions
@@ -279,7 +365,12 @@ pub unsafe extern "C" fn tauri_window_set_title(window: u64, title: *const c_cha
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_window_set_size(window: u64, width: f64, height: f64, physical: bool) -> i32 {
+pub extern "C" fn tauri_window_set_size(
+  window: u64,
+  width: f64,
+  height: f64,
+  physical: bool,
+) -> i32 {
   catch(|| {
     let size: Size = if physical {
       PhysicalSize::new(width.round() as u32, height.round() as u32).into()
@@ -303,16 +394,39 @@ pub extern "C" fn tauri_window_set_position(window: u64, x: f64, y: f64, physica
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_window_set_min_size(window: u64, width: f64, height: f64, physical: bool) -> i32 {
-  catch(|| act(window, RESOLVE, |w| w.set_min_size(optional_size(width, height, physical))))
+pub extern "C" fn tauri_window_set_min_size(
+  window: u64,
+  width: f64,
+  height: f64,
+  physical: bool,
+) -> i32 {
+  catch(|| {
+    act(window, RESOLVE, |w| {
+      w.set_min_size(optional_size(width, height, physical))
+    })
+  })
 }
 #[no_mangle]
-pub extern "C" fn tauri_window_set_max_size(window: u64, width: f64, height: f64, physical: bool) -> i32 {
-  catch(|| act(window, RESOLVE, |w| w.set_max_size(optional_size(width, height, physical))))
+pub extern "C" fn tauri_window_set_max_size(
+  window: u64,
+  width: f64,
+  height: f64,
+  physical: bool,
+) -> i32 {
+  catch(|| {
+    act(window, RESOLVE, |w| {
+      w.set_max_size(optional_size(width, height, physical))
+    })
+  })
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_window_set_cursor_position(window: u64, x: f64, y: f64, physical: bool) -> i32 {
+pub extern "C" fn tauri_window_set_cursor_position(
+  window: u64,
+  x: f64,
+  y: f64,
+  physical: bool,
+) -> i32 {
   catch(|| {
     let position: Position = if physical {
       PhysicalPosition::new(x.round() as i32, y.round() as i32).into()
@@ -332,7 +446,12 @@ pub unsafe extern "C" fn tauri_window_set_theme(window: u64, theme: *const c_cha
       lower @ ("light" | "dark") => {
         Some(serde_json::from_value(serde_json::Value::String(lower.to_string())).unwrap())
       }
-      _ => return fail(ERR_INVALID_ARG, "invalid theme (expected \"light\", \"dark\" or \"\")"),
+      _ => {
+        return fail(
+          ERR_INVALID_ARG,
+          "invalid theme (expected \"light\", \"dark\" or \"\")",
+        )
+      }
     };
     act(window, RESOLVE, |w| w.set_theme(theme))
   })
@@ -349,7 +468,10 @@ pub unsafe extern "C" fn tauri_window_set_cursor_icon(window: u64, icon: *const 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_request_user_attention(window: u64, kind: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_window_request_user_attention(
+  window: u64,
+  kind: *const c_char,
+) -> i32 {
   catch(|| {
     let kind = try_cstr!(kind);
     let request_type = match kind.to_lowercase().as_str() {
@@ -363,7 +485,10 @@ pub unsafe extern "C" fn tauri_window_request_user_attention(window: u64, kind: 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_set_progress_bar(window: u64, state_json: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_window_set_progress_bar(
+  window: u64,
+  state_json: *const c_char,
+) -> i32 {
   catch(|| {
     let json = try_cstr!(state_json);
     let state: ProgressBarState = match serde_json::from_str(json) {
@@ -392,7 +517,10 @@ pub unsafe extern "C" fn tauri_window_set_effects(window: u64, effects_json: *co
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_set_size_constraints(window: u64, constraints_json: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_window_set_size_constraints(
+  window: u64,
+  constraints_json: *const c_char,
+) -> i32 {
   catch(|| {
     let json = try_cstr!(constraints_json);
     let constraints: WindowSizeConstraints = match serde_json::from_str(json) {
@@ -404,9 +532,20 @@ pub unsafe extern "C" fn tauri_window_set_size_constraints(window: u64, constrai
 }
 
 #[no_mangle]
-pub extern "C" fn tauri_window_set_background_color(window: u64, r: u32, g: u32, b: u32, a: u32) -> i32 {
+pub extern "C" fn tauri_window_set_background_color(
+  window: u64,
+  r: u32,
+  g: u32,
+  b: u32,
+  a: u32,
+) -> i32 {
   catch(|| {
-    let color = Color(r.min(255) as u8, g.min(255) as u8, b.min(255) as u8, a.min(255) as u8);
+    let color = Color(
+      r.min(255) as u8,
+      g.min(255) as u8,
+      b.min(255) as u8,
+      a.min(255) as u8,
+    );
     act(window, RESOLVE, |w| w.set_background_color(Some(color)))
   })
 }
@@ -444,7 +583,10 @@ pub unsafe extern "C" fn tauri_window_set_badge_label(window: u64, label: *const
 
 /// Sets the title bar style ("visible", "transparent" or "overlay"). macOS only.
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_set_title_bar_style(window: u64, style: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_window_set_title_bar_style(
+  window: u64,
+  style: *const c_char,
+) -> i32 {
   catch(|| {
     let style = try_cstr!(style);
     #[cfg(target_os = "macos")]
@@ -495,7 +637,9 @@ pub unsafe extern "C" fn tauri_window_ns_window(window: u64, out_ns_window: *mut
   catch(|| {
     #[cfg(target_os = "macos")]
     {
-      get(window, out_ns_window, RESOLVE, |w| w.ns_window().map(|p| p as u64))
+      get(window, out_ns_window, RESOLVE, |w| {
+        w.ns_window().map(|p| p as u64)
+      })
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -512,7 +656,9 @@ pub unsafe extern "C" fn tauri_window_ns_view(window: u64, out_ns_view: *mut u64
   catch(|| {
     #[cfg(target_os = "macos")]
     {
-      get(window, out_ns_view, RESOLVE, |w| w.ns_view().map(|p| p as u64))
+      get(window, out_ns_view, RESOLVE, |w| {
+        w.ns_view().map(|p| p as u64)
+      })
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -546,15 +692,32 @@ fn monitor_json(m: Option<Monitor>) -> String {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_current_monitor(window: u64, out_json: *mut *mut c_char) -> i32 {
-  catch(|| get_string(window, out_json, RESOLVE, |w| Ok(monitor_json(w.current_monitor()?))))
+pub unsafe extern "C" fn tauri_window_current_monitor(
+  window: u64,
+  out_json: *mut *mut c_char,
+) -> i32 {
+  catch(|| {
+    get_string(window, out_json, RESOLVE, |w| {
+      Ok(monitor_json(w.current_monitor()?))
+    })
+  })
 }
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_primary_monitor(window: u64, out_json: *mut *mut c_char) -> i32 {
-  catch(|| get_string(window, out_json, RESOLVE, |w| Ok(monitor_json(w.primary_monitor()?))))
+pub unsafe extern "C" fn tauri_window_primary_monitor(
+  window: u64,
+  out_json: *mut *mut c_char,
+) -> i32 {
+  catch(|| {
+    get_string(window, out_json, RESOLVE, |w| {
+      Ok(monitor_json(w.primary_monitor()?))
+    })
+  })
 }
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_available_monitors(window: u64, out_json: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_window_available_monitors(
+  window: u64,
+  out_json: *mut *mut c_char,
+) -> i32 {
   catch(|| {
     get_string(window, out_json, RESOLVE, |w| {
       Ok(serde_json::to_string(&w.available_monitors()?).unwrap_or_else(|_| "[]".into()))
@@ -562,6 +725,15 @@ pub unsafe extern "C" fn tauri_window_available_monitors(window: u64, out_json: 
   })
 }
 #[no_mangle]
-pub unsafe extern "C" fn tauri_window_monitor_from_point(window: u64, x: f64, y: f64, out_json: *mut *mut c_char) -> i32 {
-  catch(|| get_string(window, out_json, RESOLVE, |w| Ok(monitor_json(w.monitor_from_point(x, y)?))))
+pub unsafe extern "C" fn tauri_window_monitor_from_point(
+  window: u64,
+  x: f64,
+  y: f64,
+  out_json: *mut *mut c_char,
+) -> i32 {
+  catch(|| {
+    get_string(window, out_json, RESOLVE, |w| {
+      Ok(monitor_json(w.monitor_from_point(x, y)?))
+    })
+  })
 }

@@ -23,11 +23,41 @@ export function isBundled(): boolean {
   return (Deno.build as { standalone?: boolean }).standalone === true
 }
 
+function exists(path: string): boolean {
+  try {
+    Deno.statSync(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** `productName` from the embedded config — the directory name Linux packages
+ * derive their resource path from (`/usr/lib/<productName>`). */
+function bundledProductName(): string | null {
+  const text = readEmbeddedText('config.json')
+  if (!text) return null
+  try {
+    return JSON.parse(text).productName ?? null
+  } catch {
+    return null
+  }
+}
+
 /**
- * The directory holding this app's bundled resources (cdylib, packed assets,
- * config) when running as a `deno compile` binary inside a Tauri bundle, or
- * `null` in dev (`deno run`). Resolved from `Deno.execPath()`:
- * `.app/Contents/Resources` on macOS, the executable's directory elsewhere.
+ * The directory holding this app's bundled resources (cdylib, libcef and its
+ * pak/locale files for a cef build) when running as a `deno compile` binary
+ * inside a Tauri bundle, or `null` in dev (`deno run`).
+ *
+ * Resolved from `Deno.execPath()`, mirroring what `tauri_utils::platform`'s
+ * `resource_dir` does for a Rust app — each packaging format puts resources
+ * somewhere different relative to the binary:
+ * - macOS `.app`: `Contents/MacOS/<bin>` → `Contents/Resources`
+ * - `tauri build` output, run from `dist/<profile>` without packaging: the
+ *   sibling `resources/` the CLI stages into
+ * - Windows installers: next to the executable
+ * - Linux deb/rpm: binary in `/usr/bin`, resources in `/usr/lib/<productName>`
+ * - Linux AppImage: the same, under `$APPDIR`
  */
 export function bundledResourceDir(): string | null {
   let exec: string
@@ -39,7 +69,22 @@ export function bundledResourceDir(): string | null {
   const macos = exec.indexOf('/Contents/MacOS/')
   if (macos !== -1) return exec.slice(0, macos) + '/Contents/Resources'
   const slash = Math.max(exec.lastIndexOf('/'), exec.lastIndexOf('\\'))
-  return slash === -1 ? null : exec.slice(0, slash)
+  if (slash === -1) return null
+  const dir = exec.slice(0, slash)
+
+  const staged = `${dir}/resources`
+  if (exists(staged)) return staged
+  if (Deno.build.os !== 'linux') return dir
+
+  const name = bundledProductName()
+  if (!name) return dir
+  // `../lib/<name>` covers deb/rpm (/usr/bin → /usr/lib/<name>) and an AppImage
+  // whose AppRun did not export APPDIR.
+  const sibling = `${dir.slice(0, dir.lastIndexOf('/'))}/lib/${name}`
+  if (exists(sibling)) return sibling
+  const appdir = Deno.env.get('APPDIR')
+  if (appdir) return `${appdir}/usr/lib/${name}`
+  return `/usr/lib/${name}`
 }
 
 /**

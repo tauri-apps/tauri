@@ -83,7 +83,7 @@ export function launch(appEntry, options = {}) {
       )
 
   // `app.runtime` selects which prebuilt tauri-ffi library to load (wry/cef).
-  const { api, check, libPath } = open(libraryPath(config?.app?.runtime))
+  const { api, check, runApp, libPath } = open(libraryPath(config?.app?.runtime))
 
   const outBuilder = [0]
   check(api.appBuilderNew(JSON.stringify(config), outBuilder), 'builder_new')
@@ -148,7 +148,5 @@ export function launch(appEntry, options = {}) {
   // 'error') are not dispatched here — the worker logs its own failures.
   worker.unref()
 
-  const outCode = [0]
-  check(api.appRun(app, outCode), 'app_run') // blocks until the app exits
-  process.exit(outCode[0])
+  process.exit(runApp(app)) // blocks until the app exits
 }

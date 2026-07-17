@@ -30,6 +30,10 @@ importers:
       postject:
         specifier: ^1.0.0-alpha.6
         version: 1.0.0-alpha.6
+    devDependencies:
+      node-api-headers:
+        specifier: ^1.9.0
+        version: 1.9.0
 
   crates/tauri-schema-worker:
     devDependencies:
@@ -2554,6 +2558,9 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
+  node-api-headers@1.9.0:
+    resolution: {integrity: sha512-2oNILP4jXwRB4ywnYKjVk1YyJ96n2D4EOVJO6S3oYZ5PtbJrw3Yt9TpAuX3nBLMuzn74rnfGQrv13pS9vC+YiA==}
+
   node-fetch-native@1.6.7:
     resolution: {integrity: sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==}
 
@@ -5008,6 +5015,8 @@ snapshots:
   nanoid@3.3.12: {}
 
   natural-compare@1.4.0: {}
+
+  node-api-headers@1.9.0: {}
 
   node-fetch-native@1.6.7: {}
 

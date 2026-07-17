@@ -18,3 +18,9 @@ pub use runtime::*;
 pub use webview::*;
 pub use window::CefWindowDispatcher;
 pub use window_builder::WindowBuilderWrapper;
+
+/// The CEF distribution version this crate links against (the download-cef cache
+/// key, e.g. `150.0.10`), captured from `cef-dll-sys` by the build script. Used
+/// to fetch the matching CEF for a prebuilt cef library. Empty if it could not
+/// be determined at build time.
+pub const CEF_VERSION: &str = env!("TAURI_RUNTIME_CEF_VERSION");

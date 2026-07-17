@@ -40,27 +40,25 @@ function platformLibraryName(base: string): string {
   return `${spec[0]}tauri_${base}${spec[1]}`
 }
 
-function targetTriple(): string {
-  const os = {
-    darwin: 'apple-darwin',
-    linux: 'unknown-linux-gnu',
-    windows: 'pc-windows-msvc'
-  }[Deno.build.os as string]
-  if (!os) throw new Error(`unsupported platform: ${Deno.build.os}`)
-  return `${Deno.build.arch}-${os}`
+// The npm platform package that ships this runtime's library for the current
+// target: `@tauri-apps/node-<runtime>-<platform>-<arch>`. The suffix follows
+// Node's `process.platform`/`process.arch` naming (see bindings/scripts/
+// targets.mjs), which is what the packages are published under — so Deno maps
+// its own `Deno.build` names onto that.
+function platformPackage(runtime: string): string {
+  const platform = { darwin: 'darwin', linux: 'linux', windows: 'win32' }[Deno.build.os as string]
+  const arch = { x86_64: 'x64', aarch64: 'arm64' }[Deno.build.arch as string]
+  if (!platform || !arch) {
+    throw new Error(`unsupported platform: ${Deno.build.os}-${Deno.build.arch}`)
+  }
+  return `@tauri-apps/node-${runtime}-${platform}-${arch}`
 }
 
-function cachedLibraryPath(runtime: string = ffiRuntime()): string {
-  const override = Deno.env.get('TAURI_FFI_CACHE')
-  const base =
-    override ??
-    {
-      darwin: `${Deno.env.get('HOME')}/Library/Caches`,
-      linux: Deno.env.get('XDG_CACHE_HOME') ?? `${Deno.env.get('HOME')}/.cache`,
-      windows: Deno.env.get('LOCALAPPDATA')
-    }[Deno.build.os as string]
-  if (!base) throw new Error('cannot determine a cache directory — set TAURI_FFI_CACHE')
-  return `${base}/tauri-ffi/${denoConfig.version}/${platformLibraryName(runtime)}`
+/** Converts a `file://` URL string to a filesystem path (handles a Windows
+ * drive-letter path like `/C:/…`). */
+function fromFileUrl(url: string): string {
+  const path = decodeURIComponent(new URL(url).pathname)
+  return Deno.build.os === 'windows' && /^\/[A-Za-z]:/.test(path) ? path.slice(1) : path
 }
 
 export function libraryPath(runtime: string = ffiRuntime()): string {
@@ -95,27 +93,28 @@ export function libraryPath(runtime: string = ffiRuntime()): string {
       }
     }
   }
-  // Previously downloaded by ensureLibrary().
-  const cached = cachedLibraryPath(runtime)
-  try {
-    Deno.statSync(cached)
-    return cached
-  } catch {
-    throw new Error(
-      'tauri_ffi library not found — run `cargo build -p tauri-ffi`, set TAURI_FFI_LIB, or use launch() (which downloads a prebuilt library)'
-    )
-  }
+  throw new Error(
+    'tauri_ffi library not found — run `cargo build -p tauri-ffi`, set TAURI_FFI_LIB, or call launch()/ensureLibrary() (which installs the prebuilt library from npm)'
+  )
 }
 
 /**
- * Resolves the library, downloading the prebuilt cdylib for this platform
- * from the matching GitHub release into the cache on first use.
+ * Resolves the library, installing the prebuilt cdylib from its npm platform
+ * package (`@tauri-apps/node-<runtime>-<platform>-<arch>`) on first use.
+ *
+ * This is the same package — and the same library file — the Node bindings load:
+ * reusing it means the prebuilt is published once, as npm platform packages that
+ * bundle the library, and both runtimes share it rather than the Deno bindings
+ * fetching a separate copy from a GitHub release. Deno installs an npm package
+ * into its module cache the first time it is imported, so importing the package
+ * makes `import.meta.resolve` hand back the on-disk path of the bundled library
+ * to `dlopen` — no bespoke download, checksum or cache handling of our own.
  */
 export async function ensureLibrary(runtime: string = ffiRuntime()): Promise<string> {
   try {
     return libraryPath(runtime)
   } catch {
-    // not present locally — fetch the prebuilt
+    // not present locally — install the prebuilt from npm below
   }
   const version = denoConfig.version
   if (version === '0.0.0') {
@@ -123,19 +122,28 @@ export async function ensureLibrary(runtime: string = ffiRuntime()): Promise<str
       'tauri_ffi library not found and this is an unpublished checkout — run `cargo build -p tauri-ffi` or set TAURI_FFI_LIB'
     )
   }
+  const spec = `npm:${platformPackage(runtime)}@${version}`
   const distName = platformLibraryName(runtime)
-  const asset = `tauri_${runtime}-${targetTriple()}${distName.slice(distName.lastIndexOf('.'))}`
-  const url = `https://github.com/tauri-apps/tauri/releases/download/tauri-ffi-v${version}/${asset}`
-  const destination = cachedLibraryPath(runtime)
-  console.error(`[tauri-ffi] downloading ${url}`)
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`failed to download ${url}: HTTP ${response.status}`)
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  await Deno.mkdir(destination.slice(0, destination.lastIndexOf('/')), { recursive: true })
-  const temp = `${destination}.download`
-  await Deno.writeFile(temp, bytes)
-  await Deno.rename(temp, destination)
-  return destination
+  // Importing anything from the package triggers Deno's npm install; the
+  // package.json import is otherwise unused — the platform package ships no code,
+  // only the library — but it is always present and safe to load as JSON.
+  try {
+    await import(`${spec}/package.json`, { with: { type: 'json' } })
+  } catch (error) {
+    throw new Error(
+      `failed to install the ${runtime} tauri-ffi library from npm (${spec}) — ${
+        error instanceof Error ? error.message : error
+      }`
+    )
+  }
+  // Now installed: resolve the bundled library file to a real path. import.meta
+  // .resolve only yields a `file:` URL once the package is in the cache (before
+  // that it echoes the `npm:` specifier), which is why it follows the import.
+  const url = import.meta.resolve(`${spec}/${distName}`)
+  if (!url.startsWith('file:')) {
+    throw new Error(`could not resolve ${distName} from the npm package ${spec} (resolved to ${url})`)
+  }
+  return fromFileUrl(url)
 }
 
 /** Bound library runtime returned by {@linkcode open}. */

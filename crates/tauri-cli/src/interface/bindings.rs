@@ -212,11 +212,27 @@ impl Interface for Bindings {
     //    The library is per-runtime (`app > runtime`): `libtauri_<runtime>`.
     let runtime = self.app_settings.runtime;
     let lib_name = cdylib_name(&self.app_settings.target_triple, runtime);
-    let lib_src = resolve_cdylib(&self.app_settings.target_triple, runtime, dirs.tauri)?;
+    let lib_src = resolve_cdylib(
+      &self.app_settings.target_triple,
+      runtime,
+      dirs.tauri,
+      Some(&runner_config),
+    )?;
+    verify_cdylib_runtime(&lib_src, runtime, &self.app_settings.target_triple)?;
     let lib_dest = resources_dir.join(&lib_name);
     fs::copy(&lib_src, &lib_dest)
       .fs_context("failed to stage tauri-ffi library", lib_src.clone())?;
     log::info!(action = "Bundling"; "tauri-ffi ({runtime}) library from {}", display_path(&lib_src));
+
+    // 1b. a cef cdylib needs the CEF distribution (libcef plus the pak/locale
+    //     data it loads) and a subprocess helper alongside it — see
+    //     `stage_cef_runtime`.
+    if runtime == WebviewRuntime::Cef {
+      let lib_dir = lib_src
+        .parent()
+        .expect("resolved cdylib path has no parent directory");
+      stage_cef_runtime(lib_dir, &resources_dir, &self.app_settings.target_triple)?;
+    }
 
     // 2. build the payload embedded *into* the binary: the packed frontend
     //    archive, the merged config (frontendDist rewritten to the archive) and
@@ -233,7 +249,7 @@ impl Interface for Bindings {
     // 3. compile the self-contained binary, embedding the payload
     let bin_path = self.app_settings.app_binary_path(&options, dirs.tauri)?;
     log::info!(action = "Compiling"; "{} app into {}", runner_label(runner), display_path(&bin_path));
-    compile_binary(runner, &entry, &bin_path, dirs.tauri, &payload)?;
+    compile_binary(runner, &entry, &bin_path, dirs.tauri, &payload, runtime)?;
 
     Ok(bin_path)
   }
@@ -314,8 +330,18 @@ impl Bindings {
           "`tauri dev` with the cef runtime is not yet supported for bindings apps on macOS (the CEF framework must be staged in an .app bundle)"
         );
       }
-    } else if let Ok(lib) = resolve_cdylib(&self.target_triple, self.app_settings.runtime, dirs.tauri)
-    {
+    } else if let Ok(Some(lib)) = locate_cdylib(
+      &self.target_triple,
+      self.app_settings.runtime,
+      dirs.tauri,
+      // No bindings-package lookup: this only probes for a libcef *staged next
+      // to a locally built cdylib*, which is the one layout where that sibling
+      // exists (cef-dll-sys puts it in the cargo target dir). A published cef
+      // library ships on its own, and the bindings resolve — and preload — their
+      // own copy in dev anyway, so asking the runner here would buy nothing and
+      // cost a subprocess on every watch restart.
+      None,
+    ) {
       let libcef = if self.target_triple.contains("windows") {
         "libcef.dll"
       } else {
@@ -567,6 +593,19 @@ impl AppSettings for BindingsAppSettings {
         .clone()
         .or_else(|| config.product_name.clone()),
       long_description: bundle.long_description.clone(),
+      // `stage_cef_runtime` already put a full CEF distribution in the resource
+      // dir, so it doubles as the bundler's `cef_path` — there is no CEF cache
+      // directory to resolve by version the way the Rust interface does (a
+      // bindings project has no Cargo.lock to read the `cef` version from).
+      //
+      // Setting this is what routes the AppImage through `sharun_cef`, and only
+      // sharun produces a working CEF AppImage: linuxdeploy's AppRun exports an
+      // LD_LIBRARY_PATH over the AppDir's bundled system libraries that CEF dies
+      // initializing under. The cost is that libcef is then staged twice — once
+      // here next to the cdylib that links it, once by the bundler next to the
+      // binary. See `stage_cef_runtime` for why deduplicating needs sharun_cef
+      // to change.
+      cef_path: (config.app.runtime == WebviewRuntime::Cef).then(|| resources_dir.clone()),
       ..Default::default()
     })
   }
@@ -650,7 +689,11 @@ fn crate_cdylib_name(target_triple: &str) -> String {
 /// `PATH` on Windows) of `command`, so a cef runner's `dlopen` of the tauri-ffi
 /// library resolves the `libcef` staged next to it.
 fn prepend_library_search_path(command: &mut Command, dir: &Path) {
-  let var = if cfg!(windows) { "PATH" } else { "LD_LIBRARY_PATH" };
+  let var = if cfg!(windows) {
+    "PATH"
+  } else {
+    "LD_LIBRARY_PATH"
+  };
   let mut paths = vec![dir.to_path_buf()];
   if let Some(existing) = std::env::var_os(var) {
     paths.extend(std::env::split_paths(&existing));
@@ -658,6 +701,177 @@ fn prepend_library_search_path(command: &mut Command, dir: &Path) {
   if let Ok(joined) = std::env::join_paths(paths) {
     command.env(var, joined);
   }
+}
+
+/// Whether `lib` links libcef, i.e. it is a cef build of tauri-ffi. `None` when
+/// that can't be determined (a non-ELF target, or an unreadable/odd file).
+fn cdylib_links_libcef(lib: &Path) -> Option<bool> {
+  let bytes = fs::read(lib).ok()?;
+  let elf = elf::ElfBytes::<elf::endian::AnyEndian>::minimal_parse(&bytes).ok()?;
+  // the dynamic symbol table's string table is `.dynstr`, which is also what
+  // DT_NEEDED entries index into
+  let (_, strings) = elf.dynamic_symbol_table().ok()??;
+  let dynamic = elf.dynamic().ok()??;
+  Some(dynamic.iter().any(|entry| {
+    entry.d_tag == elf::abi::DT_NEEDED
+      && strings
+        .get(entry.d_val() as usize)
+        .is_ok_and(|name| name.starts_with("libcef"))
+  }))
+}
+
+/// Fails when `lib` was built for a different runtime than the app configured.
+///
+/// `cargo build -p tauri-ffi` emits one runtime-agnostic file name
+/// (`libtauri_ffi.so`) whatever `runtime-*` feature it was built with, and the
+/// bindings' own library lookup hands that back for either runtime — so the file
+/// a library is resolved *from* says nothing about what is inside it. Staging a
+/// mismatched one fails far away from the cause: a cef library staged under the
+/// wry name leaves the bundler (told the app is wry, so it stages no CEF
+/// distribution) emitting a bundle whose `libcef.so` resolves nowhere, and the
+/// error names linuxdeploy or a missing shared library rather than the library
+/// that is actually wrong.
+fn verify_cdylib_runtime(
+  lib: &Path,
+  runtime: WebviewRuntime,
+  target_triple: &str,
+) -> crate::Result<()> {
+  if !target_triple.contains("linux") {
+    return Ok(());
+  }
+  let Some(links_libcef) = cdylib_links_libcef(lib) else {
+    return Ok(());
+  };
+  let actual = if links_libcef {
+    WebviewRuntime::Cef
+  } else {
+    WebviewRuntime::Wry
+  };
+  if actual != runtime {
+    bail!(
+      "{} is a `{actual}` build of tauri-ffi, but this app is configured for the `{runtime}` runtime (`app > runtime`).\n  Build the library for that runtime — `cargo build -p tauri-ffi --release --no-default-features --features runtime-{runtime}` — or point `TAURI_FFI_LIB` at one that is.\n  Note that `cargo build -p tauri-ffi` names its output `{}` for every runtime, so a stale build of the other runtime is indistinguishable by file name.",
+      display_path(lib),
+      crate_cdylib_name(target_triple)
+    );
+  }
+  Ok(())
+}
+
+/// The CEF distribution files a packaged app needs beside `libcef`, mirroring
+/// the list the bundler ships for a Rust cef app (see the `cef_files` in
+/// `tauri-bundler`'s `linux/debian.rs`). `locales/` is copied separately.
+const CEF_LINUX_FILES: &[&str] = &[
+  // required
+  "libcef.so",
+  "icudtl.dat",
+  "v8_context_snapshot.bin",
+  // "optional" — but not really, since we want support for all of this
+  "chrome_100_percent.pak",
+  "chrome_200_percent.pak",
+  "resources.pak",
+  // ANGLE support
+  "libEGL.so",
+  "libGLESv2.so",
+  // SwANGLE support
+  "libvk_swiftshader.so",
+  "vk_swiftshader_icd.json",
+  "libvulkan.so.1",
+  // sandbox
+  "chrome-sandbox",
+];
+
+/// Locales CEF loads from `locales/` next to its module. Only en-US is shipped,
+/// matching what the bundler stages for a Rust cef app.
+const CEF_LOCALES: &[&str] = &[
+  "en-US.pak",
+  "en-US_FEMININE.pak",
+  "en-US_MASCULINE.pak",
+  "en-US_NEUTER.pak",
+];
+
+/// Stages the CEF distribution and the subprocess helper into a bindings app's
+/// resource dir, from `lib_dir` — where the tauri-ffi cdylib was resolved and
+/// where `cef-dll-sys` staged the CEF distribution it linked against.
+///
+/// Unlike a Rust cef app — whose *executable* links libcef, so the bundler ships
+/// CEF next to the binary — a bindings app's executable is a stock
+/// node/deno/python interpreter and it is the *cdylib* that links libcef. So CEF
+/// belongs next to the cdylib instead: the cdylib carries a `$ORIGIN` RUNPATH
+/// (see `tauri-ffi`'s build script) to resolve `libcef` there, and CEF finds its
+/// own pak/locale data by looking next to its module. That makes the resource
+/// dir self-contained, and is what deb/rpm ship.
+///
+/// The resource dir is *also* handed to the bundler as `cef_path`, so libcef
+/// ends up in a bundle twice: once here, once staged next to the binary. That is
+/// deliberate for now — `cef_path` is what routes the AppImage through
+/// `sharun_cef` rather than linuxdeploy, whose AppRun CEF cannot start under.
+/// Dropping the second copy needs `sharun_cef` to change, and neither obvious
+/// route works today:
+/// - handing quick-sharun this directory as its lib dir gets it deployed, but
+///   quick-sharun `ldd`s everything it is given, and the cdylib pulls a system
+///   ICU into `shared/lib` that Chromium then loads over its own ("Invalid file
+///   descriptor to ICU data received");
+/// - not handing it over leaves it out of the AppDir entirely — sharun builds
+///   the AppDir from what it is given, it does not copy the deb data tree.
+///
+/// Fixing it likely means splitting quick-sharun's deploy and pack steps so the
+/// resource dir can be copied in between, untouched.
+fn stage_cef_runtime(
+  lib_dir: &Path,
+  resources_dir: &Path,
+  target_triple: &str,
+) -> crate::Result<()> {
+  if !target_triple.contains("linux") {
+    // Windows needs its own file list, and macOS needs the CEF framework staged
+    // into an .app (plus a helper .app per subprocess type) — neither is wired
+    // up yet, matching the `dev` restriction in `spawn_app`.
+    bail!(
+      "the cef runtime is not yet supported for bindings apps on this target ({target_triple}) — only linux is"
+    );
+  }
+
+  for name in CEF_LINUX_FILES {
+    let src = lib_dir.join(name);
+    if !src.is_file() {
+      bail!(
+        "the cef runtime needs `{name}` next to the tauri-ffi library, but {} does not exist — the CEF distribution is staged there by `cef-dll-sys` when the library is built with `--features runtime-cef`",
+        display_path(&src)
+      );
+    }
+    let dest = resources_dir.join(name);
+    fs::copy(&src, &dest).fs_context("failed to stage CEF file", src)?;
+    // libcef is ~1.4GB unstripped and ~250MB stripped, and it is shipped in
+    // every bundle — strip it like the bundler does for a Rust cef app. Best
+    // effort: a missing `strip` only costs size.
+    if name.ends_with(".so") {
+      let _ = Command::new("strip").arg(&dest).output_ok();
+    }
+  }
+
+  let locales_dest = resources_dir.join("locales");
+  fs::create_dir_all(&locales_dest).fs_context(
+    "failed to create CEF locales directory",
+    locales_dest.clone(),
+  )?;
+  for name in CEF_LOCALES {
+    let src = lib_dir.join("locales").join(name);
+    fs::copy(&src, locales_dest.join(name)).fs_context("failed to stage CEF locale", src)?;
+  }
+  log::info!(action = "Bundling"; "CEF distribution from {}", display_path(lib_dir));
+
+  // CEF re-executes a helper for its renderer/GPU/utility subprocesses; the
+  // bindings point it at ours through TAURI_CEF_SUBPROCESS_PATH, which the
+  // bindings set from this staged copy at launch (see `spawn_app` for the dev
+  // equivalent).
+  let helper = cef_subprocess_helper(lib_dir, target_triple)?;
+  let helper_name = helper
+    .file_name()
+    .expect("cef helper path has no file name");
+  fs::copy(&helper, resources_dir.join(helper_name))
+    .fs_context("failed to stage the CEF subprocess helper", helper.clone())?;
+  log::info!(action = "Bundling"; "CEF subprocess helper from {}", display_path(&helper));
+
+  Ok(())
 }
 
 /// Resolves the CEF subprocess helper (`tauri-cef-helper`) CEF launches for its
@@ -685,7 +899,10 @@ fn cef_subprocess_helper(lib_dir: &Path, target_triple: &str) -> crate::Result<P
   // `<workspace>/target/<profile>`, so the crate is `<workspace>/cef-helper`.
   let src_root = match lib_dir.parent().and_then(Path::parent) {
     Some(root) => root.join("cef-helper"),
-    None => bail!("could not locate the `cef-helper` crate from {}", lib_dir.display()),
+    None => bail!(
+      "could not locate the `cef-helper` crate from {}",
+      lib_dir.display()
+    ),
   };
   if !src_root.join("Cargo.toml").is_file() {
     bail!(
@@ -725,6 +942,20 @@ fn cef_subprocess_helper(lib_dir: &Path, target_triple: &str) -> crate::Result<P
     .arg("tauri-cef-helper")
     .arg("--target")
     .arg(target_triple);
+  if target_triple.contains("linux") {
+    // The helper links libcef and is executed by CEF as a bare subprocess, so it
+    // resolves libcef through its own search path — it does not inherit the
+    // browser process's preloaded copy. It is always distributed next to libcef
+    // (both in the cargo target dir and in a bundle's resource dir), so point it
+    // there. Appended to any ambient RUSTFLAGS rather than set through
+    // `target.*.rustflags`, which cargo would drop entirely if RUSTFLAGS is set.
+    let mut flags = std::env::var("RUSTFLAGS").unwrap_or_default();
+    if !flags.is_empty() {
+      flags.push(' ');
+    }
+    flags.push_str("-C link-arg=-Wl,-rpath,$ORIGIN");
+    cmd.env("RUSTFLAGS", flags);
+  }
   // The `sandbox` default feature only gates macOS CEF sandbox setup.
   if !target_triple.contains("apple") {
     cmd.arg("--no-default-features");
@@ -762,42 +993,184 @@ fn cef_subprocess_helper(lib_dir: &Path, target_triple: &str) -> crate::Result<P
   Ok(staged)
 }
 
-/// Locates the prebuilt tauri-ffi cdylib to bundle. Checks `TAURI_FFI_LIB`, then
-/// a `target/{release,debug}` build in this repo/workspace — first the
-/// runtime-specific distribution name (`libtauri_<runtime>`), then the crate's
-/// own output name (`libtauri_ffi`, what `cargo build -p tauri-ffi` emits).
+/// Locates the prebuilt tauri-ffi cdylib to stage, erroring when there is none.
+/// See [`locate_cdylib`] for the sources searched.
 fn resolve_cdylib(
   target_triple: &str,
   runtime: WebviewRuntime,
   tauri_dir: &Path,
+  runner: Option<&tauri_utils::config::RunnerConfig>,
 ) -> crate::Result<PathBuf> {
+  match locate_cdylib(target_triple, runtime, tauri_dir, runner)? {
+    Some(path) => Ok(path),
+    None => bail!(
+      "could not find a `{runtime}` tauri-ffi library for {target_triple}.\n  The library comes from your bindings package, so it is normally resolved by asking the runner for the very library your app loads — check that the project's dependencies are installed and that the bindings publish a `{runtime}` library for this target.\n  Otherwise build one — `cargo build -p tauri-ffi --release --no-default-features --features runtime-{runtime}` — or point `TAURI_FFI_LIB` at a library path."
+    ),
+  }
+}
+
+/// Locates the tauri-ffi cdylib, in precedence order:
+///
+/// 1. `TAURI_FFI_LIB` — an explicit override, always wins.
+/// 2. A `target/release` build in this repo/workspace (plus `target/debug` when
+///    this CLI is itself a debug build), for a checkout where `cargo build -p
+///    tauri-ffi` was run. Ahead of the bindings package because it is strictly
+///    more specific — it only ever matches inside this repo.
+/// 3. The app's own bindings package, via [`discover_cdylib_from_bindings`].
+///
+/// Steps 1 and 2 are all a repo checkout ever needs. A *distributed* CLI (`cargo
+/// install tauri-cli`, the npm/GitHub-release binaries) has no `target/` dir to
+/// walk, and is why 3 exists.
+///
+/// `None` means nothing on this machine holds a library: [`resolve_cdylib`]
+/// turns that into an error, while callers that merely *inspect* an existing
+/// library (rather than needing one to stage) treat it as "nothing to look at".
+fn locate_cdylib(
+  target_triple: &str,
+  runtime: WebviewRuntime,
+  tauri_dir: &Path,
+  runner: Option<&tauri_utils::config::RunnerConfig>,
+) -> crate::Result<Option<PathBuf>> {
   if let Some(env) = std::env::var_os("TAURI_FFI_LIB") {
     let path = PathBuf::from(env);
     if path.is_file() {
-      return Ok(path);
+      return Ok(Some(path));
     }
     bail!(
       "TAURI_FFI_LIB points at {}, which does not exist",
       path.display()
     );
   }
+
   let dist_name = cdylib_name(target_triple, runtime);
   let crate_name = crate_cdylib_name(target_triple);
+  // A `target/debug` library is only ever a local `cargo build -p tauri-ffi`,
+  // which is exactly what a CLI running from that same checkout (`cargo run -p
+  // tauri-cli`) should pick up. A released CLI must not: it would stage an
+  // unrelated debug artifact from some parent workspace over the library the
+  // app's bindings actually load — and ship it, since this is what `tauri build`
+  // puts in the bundle.
+  let profiles: &[&str] = if cfg!(debug_assertions) {
+    &["release", "debug"]
+  } else {
+    &["release"]
+  };
   let mut dir = Some(tauri_dir);
   while let Some(current) = dir {
-    for profile in ["release", "debug"] {
+    for profile in profiles {
       for name in [dist_name.as_str(), crate_name.as_str()] {
         let candidate = current.join("target").join(profile).join(name);
         if candidate.is_file() {
-          return Ok(candidate);
+          return Ok(Some(candidate));
         }
       }
     }
     dir = current.parent();
   }
-  bail!(
-    "could not find the tauri-ffi library `{dist_name}` for the `{runtime}` runtime — set the `TAURI_FFI_LIB` environment variable to its path"
-  )
+
+  if let Some(runner) = runner
+    && let Some(path) = discover_cdylib_from_bindings(runner, runtime, target_triple, tauri_dir)
+  {
+    return Ok(Some(path));
+  }
+
+  Ok(None)
+}
+
+/// Asks the app's own bindings package for the `tauri_<runtime>` library it
+/// would load, by running the package's own library resolution — the very code
+/// the app runs at startup — in the configured runner.
+///
+/// The library ships *with the bindings* (the
+/// `@tauri-apps/node-<runtime>-<platform>-<arch>` npm package, the `tauri_ffi`
+/// wheel's `_native/`, Deno's download cache), so the app has the exact copy it
+/// loads as soon as its dependencies are installed. Asking it — rather than
+/// fetching a library of our own — is what keeps `tauri build` from staging a
+/// *differently versioned* library than the one the app runs against, and is why
+/// the CLI needs no downloader: the bindings are the only thing that has to know
+/// how to obtain a library.
+///
+/// Skipped when cross-compiling: the runner only ever answers for its own host.
+/// Best-effort otherwise — a missing package, a runner we have no script for, or
+/// a package too old to export the entry point all yield `None`, with the
+/// runner's own diagnosis logged for the error the caller then reports.
+fn discover_cdylib_from_bindings(
+  runner: &tauri_utils::config::RunnerConfig,
+  runtime: WebviewRuntime,
+  target_triple: &str,
+  tauri_dir: &Path,
+) -> Option<PathBuf> {
+  if tauri_utils::platform::target_triple().ok()? != target_triple {
+    return None;
+  }
+
+  let kind = runtime.as_str();
+  // Each script prints the resolved path and nothing else, and exits non-zero
+  // when the package cannot resolve a library. The bare specifiers resolve from
+  // the project (node_modules / the active virtualenv / the deno import map),
+  // which is why these run in the runner's own working directory.
+  let runner_kind = Runner::detect(runner.cmd()).ok()?;
+  let args = match runner_kind {
+    Runner::Node => vec![
+      "-e".to_string(),
+      format!(
+        "import('@tauri-apps/node/ffi').then(m => process.stdout.write(m.libraryPath('{kind}')))"
+      ),
+    ],
+    Runner::Deno => vec![
+      "eval".to_string(),
+      // `ensureLibrary` rather than `libraryPath`: the npm and PyPI packages
+      // *ship* the library, so installing the project's dependencies is enough,
+      // but the deno package downloads it on first use into a cache that
+      // `libraryPath` only reads. Probing with `libraryPath` would make a
+      // `tauri build` that never ran `launch()` — i.e. every CI job — fail on a
+      // library the app would have fetched for itself. `--allow-net` and
+      // `--allow-write` are what that fetch needs.
+      "--allow-read".to_string(),
+      "--allow-env".to_string(),
+      "--allow-net".to_string(),
+      "--allow-write".to_string(),
+      format!(
+        "const m = await import('@tauri-apps/deno/ffi'); await Deno.stdout.write(new TextEncoder().encode(await m.ensureLibrary('{kind}')))"
+      ),
+    ],
+    Runner::Python => vec![
+      "-c".to_string(),
+      format!("import sys, tauri_ffi; sys.stdout.write(str(tauri_ffi.library_path('{kind}')))"),
+    ],
+  };
+
+  // The configured command, not the canonical interpreter name: `build > runner`
+  // may well be `python3` or a venv/nvm path, and the library the app loads is
+  // whatever *that* interpreter resolves.
+  let mut command = Command::new(runner.cmd());
+  command.args(args);
+  command.current_dir(
+    runner
+      .cwd()
+      .map(|cwd| tauri_dir.join(cwd))
+      .unwrap_or_else(|| tauri_dir.to_path_buf()),
+  );
+
+  let output = command.output().ok()?;
+  if !output.status.success() {
+    // This is the last source of a library, so the caller is about to fail —
+    // and it can only say *that* nothing resolved. The reason lives here: the
+    // package isn't installed, the deno download 404'd, the bindings don't
+    // publish this (runtime, target). Log it rather than leave a CI job with a
+    // "not found" and no cause.
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = stderr.trim();
+    if !stderr.is_empty() {
+      log::warn!(
+        "the {} bindings could not resolve a `{kind}` tauri-ffi library:\n{stderr}",
+        runner_label(runner_kind)
+      );
+    }
+    return None;
+  }
+  let path = PathBuf::from(String::from_utf8(output.stdout).ok()?.trim());
+  path.is_file().then_some(path)
 }
 
 /// The runner script entry (the last argument of the runner command).
@@ -980,11 +1353,12 @@ fn compile_binary(
   bin_path: &Path,
   tauri_dir: &Path,
   payload: &EmbedPayload,
+  runtime: WebviewRuntime,
 ) -> crate::Result<()> {
   match runner {
     Runner::Deno => compile_deno(entry, bin_path, tauri_dir, payload),
     Runner::Python => compile_python(entry, bin_path, tauri_dir, payload),
-    Runner::Node => compile_node(entry, bin_path, tauri_dir, payload),
+    Runner::Node => compile_node(entry, bin_path, tauri_dir, payload, runtime),
   }
 }
 
@@ -1099,27 +1473,93 @@ fn compile_python(
 /// injection point — a constant of Node's SEA implementation, not ours.
 const NODE_SEA_FUSE: &str = "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2";
 
+/// The Node-API addon the bindings run the app's event loop through.
+const RUN_ADDON_NAME: &str = "tauri_node.node";
+
+/// Locates the run-loop addon (`tauri_node.node`) to stage, by asking the app's
+/// own bindings package where it would load it from — the same
+/// `@tauri-apps/node` lookup [`discover_cdylib_from_bindings`] uses for the
+/// library, so the app ships the addon it was developed against.
+///
+/// The addon exists because koffi runs calls on a private stack that WebKit
+/// aborts on; see `bindings/node/native/tauri_node.c`. A Node bindings app
+/// cannot run a wry webview without it, so this is a hard error rather than a
+/// best-effort lookup.
+fn run_addon_path(tauri_dir: &Path, runtime: WebviewRuntime) -> crate::Result<PathBuf> {
+  let kind = runtime.as_str();
+  let output = Command::new("node")
+    .current_dir(tauri_dir)
+    .args([
+      "-e",
+      &format!(
+        "import('@tauri-apps/node/ffi').then(m => process.stdout.write(m.runAddonPath('{kind}') ?? ''))"
+      ),
+    ])
+    .output_ok()
+    .context("failed to ask the bindings package for the run-loop addon")?;
+  let path = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+  if !path.is_file() {
+    bail!(
+      "the `{RUN_ADDON_NAME}` run-loop addon was not found — the app cannot drive a webview without it.\n  In this repo, build it with `node bindings/node/native/build.mjs`; otherwise reinstall so the `@tauri-apps/node-{kind}-<platform>-<arch>` package is present."
+    );
+  }
+  Ok(path)
+}
+
 /// Replaces the `koffi` import in the SEA bundles: a native addon cannot be
 /// embedded in a Node Single Executable Application, so the compiled app
 /// dlopens the `koffi.node` staged in its bundle resource dir. The bindings
 /// only use koffi's native surface (`load`/`func`/`decode`), so the raw
 /// addon exports are a drop-in for the package.
+///
+/// It resolves the resource dir itself — it cannot import the bindings'
+/// `bundledResourceDir()` (config.js), being the very module they load koffi
+/// through — so the two must stay in sync; config.js documents each candidate.
 const KOFFI_SEA_SHIM: &str = r#"// Generated by `tauri build` for the Node SEA bundle — do not edit.
+// Keep in sync with bundledResourceDir() in @tauri-apps/node's config.js.
 'use strict'
+const fs = require('node:fs')
 const path = require('node:path')
-const exec = process.execPath
-const macos = exec.indexOf('/Contents/MacOS/')
-const dir = macos !== -1 ? exec.slice(0, macos) + '/Contents/Resources' : path.dirname(exec)
+
+function resourceDir() {
+  const exec = process.execPath
+  const macos = exec.indexOf('/Contents/MacOS/')
+  if (macos !== -1) return exec.slice(0, macos) + '/Contents/Resources'
+  const dir = path.dirname(exec)
+  const staged = path.join(dir, 'resources')
+  if (fs.existsSync(staged)) return staged
+  if (process.platform !== 'linux') return dir
+  let name = null
+  try {
+    name = JSON.parse(require('node:sea').getAsset('config.json', 'utf8')).productName
+  } catch {}
+  if (!name) return dir
+  const sibling = path.resolve(dir, '..', 'lib', name)
+  if (fs.existsSync(sibling)) return sibling
+  if (process.env.APPDIR) return path.join(process.env.APPDIR, 'usr', 'lib', name)
+  return path.join('/usr', 'lib', name)
+}
+
 const mod = { exports: {} }
-process.dlopen(mod, path.join(dir, 'koffi.node'))
+process.dlopen(mod, path.join(resourceDir(), 'koffi.node'))
 module.exports = mod.exports
 "#;
 
-/// Prints the path of koffi's native addon (`koffi.node`), resolving the
-/// `koffi` package the way the bindings would at runtime: from
-/// `@tauri-apps/node` when installed, else from the working directory. The
-/// addon comes from the `@koromix/koffi-<platform>-<arch>` prebuilt package
-/// (koffi's optional dependency) or a local cnoke build inside koffi itself.
+/// Prints the path of koffi's native addon (`koffi.node`) for the host, to be
+/// staged next to the compiled binary.
+///
+/// It loads `koffi` — resolved the way the bindings would at runtime: from
+/// `@tauri-apps/node` when installed, else from the working directory — and
+/// reports the addon koffi itself ended up mapping. koffi picks between several
+/// builds shipped for one platform (`@koromix/koffi-<platform>-<arch>` carries
+/// both a glibc and a musl `x64` addon, and a local cnoke build may sit in
+/// `koffi/build/koffi/<triplet>`), so letting it choose and observing the result
+/// is what keeps this in step with its selection rules rather than guessing at
+/// them — picking by directory order stages the musl addon on a glibc host,
+/// which then fails to `dlopen` in the built app.
+///
+/// This resolves for the *host*: cross-compiling a Node bindings app to another
+/// platform is not supported (the SEA is built from the host `node` too).
 const KOFFI_NATIVE_RESOLVE_SCRIPT: &str = r#"
 const path = require('node:path')
 const fs = require('node:fs')
@@ -1128,43 +1568,30 @@ const anchor = (dir) => createRequire(path.join(dir, '_resolve_.js'))
 // koffi's require entry (index.cjs) sits at its package root; resolve it the
 // way the bindings would — from inside @tauri-apps/node when installed, else
 // from the working directory
-let koffiDir = null
+let koffiEntry = null
 for (const via of ['@tauri-apps/node', null]) {
   try {
     let dir = process.cwd()
     if (via) dir = path.dirname(fs.realpathSync(anchor(dir).resolve(via)))
-    koffiDir = path.dirname(fs.realpathSync(anchor(dir).resolve('koffi')))
+    koffiEntry = anchor(dir).resolve('koffi')
     break
   } catch {}
 }
-if (!koffiDir) {
+if (!koffiEntry) {
   console.error('cannot resolve the koffi package from ' + process.cwd())
   process.exit(1)
 }
-let file = null
-try {
-  const main = anchor(koffiDir).resolve(`@koromix/koffi-${process.platform}-${process.arch}`)
-  const stack = [path.dirname(fs.realpathSync(main))]
-  while (stack.length && !file) {
-    const dir = stack.pop()
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory()) stack.push(path.join(dir, entry.name))
-      else if (entry.name === 'koffi.node') file = path.join(dir, entry.name)
-    }
-  }
-} catch {}
-if (!file) {
-  const build = path.join(koffiDir, 'build', 'koffi')
-  for (const triplet of fs.existsSync(build) ? fs.readdirSync(build) : []) {
-    const candidate = path.join(build, triplet, 'koffi.node')
-    if (fs.existsSync(candidate)) { file = candidate; break }
-  }
-}
+require(koffiEntry)
+// the diagnostic report lists every shared object mapped into this process —
+// after the require above, exactly one of them is koffi's addon
+const file = process.report
+  .getReport()
+  .sharedObjects.find((entry) => /[\\/]koffi\.node$/.test(entry))
 if (!file) {
   console.error('koffi native module (koffi.node) not found')
   process.exit(1)
 }
-process.stdout.write(file)
+process.stdout.write(fs.realpathSync(file))
 "#;
 
 /// Compiles the app into a Node.js Single Executable Application.
@@ -1186,6 +1613,7 @@ fn compile_node(
   bin_path: &Path,
   tauri_dir: &Path,
   payload: &EmbedPayload,
+  runtime: WebviewRuntime,
 ) -> crate::Result<()> {
   let dist = bin_path.parent().expect("binary path has no parent");
   let work = dist.join(".sea");
@@ -1248,6 +1676,14 @@ fn compile_node(
   log::info!(action = "Bundling"; "koffi native module from {}", display_path(&koffi_node));
   let shim = work.join("koffi-sea.cjs");
   fs::write(&shim, KOFFI_SEA_SHIM).fs_context("failed to write koffi shim", shim.clone())?;
+
+  // 2b. stage the run-loop addon beside it. The compiled app loads it by path
+  //     from its resource dir (`runAddonPath`), the same way it loads the
+  //     cdylib — a native addon can no more live inside the SEA than koffi's can.
+  let addon = run_addon_path(tauri_dir, runtime)?;
+  fs::copy(&addon, resources_dir.join(RUN_ADDON_NAME))
+    .fs_context("failed to stage the tauri-ffi run-loop addon", addon.clone())?;
+  log::info!(action = "Bundling"; "run-loop addon from {}", display_path(&addon));
 
   // 3. bundle the main-thread entry and the worker module into two
   //    self-contained CJS scripts
@@ -1482,3 +1918,4 @@ fn collect_assets(
   }
   Ok(())
 }
+

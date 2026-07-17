@@ -1,0 +1,6 @@
+# Build output of build.mjs — the addon is compiled per platform, in CI for a
+# release and on demand for a repo checkout. Never committed.
+*.node
+*.lib
+*.obj
+*.exp

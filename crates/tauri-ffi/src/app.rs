@@ -21,7 +21,11 @@ use crate::{try_cstr, write_owned_str};
 /// `PathResolver` method names in camelCase (e.g. "appData", "home", "temp").
 /// On OK, `*out_path` is an owned UTF-8 path — free with `tauri_string_free`.
 #[no_mangle]
-pub unsafe extern "C" fn tauri_app_path(app: u64, kind: *const c_char, out_path: *mut *mut c_char) -> i32 {
+pub unsafe extern "C" fn tauri_app_path(
+  app: u64,
+  kind: *const c_char,
+  out_path: *mut *mut c_char,
+) -> i32 {
   catch(|| {
     let kind = try_cstr!(kind);
     if out_path.is_null() {
@@ -88,7 +92,10 @@ pub unsafe extern "C" fn tauri_app_get_focused_window(app: u64, out_window: *mut
         unsafe { *out_window = state::insert(Entry::Window(webview)) };
         OK
       }
-      None => fail(ERR_NOT_FOUND, format!("focused window `{label}` has no webview")),
+      None => fail(
+        ERR_NOT_FOUND,
+        format!("focused window `{label}` has no webview"),
+      ),
     }
   })
 }
@@ -113,7 +120,11 @@ pub unsafe extern "C" fn tauri_app_add_capability(app: u64, capability: *const c
 /// delivery. Deliveries arrive on the event queue as
 /// `{"type":"event","event":...,"id":...,"payload":...}`.
 #[no_mangle]
-pub unsafe extern "C" fn tauri_app_once(app: u64, event: *const c_char, out_listener: *mut u32) -> i32 {
+pub unsafe extern "C" fn tauri_app_once(
+  app: u64,
+  event: *const c_char,
+  out_listener: *mut u32,
+) -> i32 {
   catch(|| {
     let event = try_cstr!(event);
     if out_listener.is_null() {
@@ -151,7 +162,12 @@ pub unsafe extern "C" fn tauri_app_set_theme(app: u64, theme: *const c_char) -> 
       lower @ ("light" | "dark") => {
         Some(serde_json::from_value(serde_json::Value::String(lower.to_string())).unwrap())
       }
-      _ => return fail(ERR_INVALID_ARG, "invalid theme (expected \"light\", \"dark\" or \"\")"),
+      _ => {
+        return fail(
+          ERR_INVALID_ARG,
+          "invalid theme (expected \"light\", \"dark\" or \"\")",
+        )
+      }
     };
     let Some(app_state) = state::app(app) else {
       return fail(ERR_INVALID_HANDLE, "invalid app handle");
@@ -163,7 +179,11 @@ pub unsafe extern "C" fn tauri_app_set_theme(app: u64, theme: *const c_char) -> 
 
 /// The current cursor position, in physical pixels (screen coordinates).
 #[no_mangle]
-pub unsafe extern "C" fn tauri_app_cursor_position(app: u64, out_x: *mut f64, out_y: *mut f64) -> i32 {
+pub unsafe extern "C" fn tauri_app_cursor_position(
+  app: u64,
+  out_x: *mut f64,
+  out_y: *mut f64,
+) -> i32 {
   catch(|| {
     if out_x.is_null() || out_y.is_null() {
       return fail(ERR_INVALID_ARG, "output pointer is null");

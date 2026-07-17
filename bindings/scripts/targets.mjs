@@ -40,6 +40,17 @@ export function libraryFiles(target, runtime) {
   return { lib: `libtauri_${runtime}.so`, extra: [] }
 }
 
+/**
+ * The Node-API addon the Node bindings run the app's event loop through, shipped
+ * in every npm platform package (see `bindings/node/native/tauri_node.c` for why
+ * it exists — koffi cannot host a webview's event loop).
+ *
+ * It is Node-specific and runtime-agnostic, so it is deliberately not part of
+ * `libraryFiles`: the C/Deno distributions have no use for it, and each runtime's
+ * platform package simply carries its own copy.
+ */
+export const RUN_ADDON_FILE = 'tauri_node.node'
+
 /** npm platform package for a (target, runtime): @tauri-apps/node-<runtime>-<platform>-<arch>. */
 export function platformPackageName(target, runtime) {
   const { platform, arch } = TARGETS[target]

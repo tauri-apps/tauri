@@ -11,9 +11,7 @@
 
 use std::os::raw::c_char;
 
-use tauri::menu::{
-  CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu,
-};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 
 use crate::error::{catch, fail, ERR_GENERIC, ERR_INVALID_ARG, ERR_INVALID_HANDLE, OK};
 use crate::state::{self, Entry};
@@ -158,11 +156,19 @@ pub unsafe extern "C" fn tauri_menu_predefined_item_new(
       "quit" => PredefinedMenuItem::quit(m, t),
       "about" => PredefinedMenuItem::about(m, t, None),
       "services" => PredefinedMenuItem::services(m, t),
-      other => return fail(ERR_INVALID_ARG, format!("unknown predefined item `{other}`")),
+      other => {
+        return fail(
+          ERR_INVALID_ARG,
+          format!("unknown predefined item `{other}`"),
+        )
+      }
     };
     match item {
       Ok(item) => store_item(MenuItemKind::Predefined(item), out_item),
-      Err(e) => fail(ERR_GENERIC, format!("failed to create predefined item: {e}")),
+      Err(e) => fail(
+        ERR_GENERIC,
+        format!("failed to create predefined item: {e}"),
+      ),
     }
   })
 }
@@ -372,7 +378,10 @@ pub extern "C" fn tauri_menu_item_set_checked(item: u64, checked: bool) -> i32 {
 
 /// Sets the accelerator (empty string clears it; no-op on unsupported items).
 #[no_mangle]
-pub unsafe extern "C" fn tauri_menu_item_set_accelerator(item: u64, accelerator: *const c_char) -> i32 {
+pub unsafe extern "C" fn tauri_menu_item_set_accelerator(
+  item: u64,
+  accelerator: *const c_char,
+) -> i32 {
   catch(|| {
     let accel = try_cstr!(accelerator);
     let accel = opt(accel);

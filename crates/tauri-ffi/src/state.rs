@@ -12,9 +12,9 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex, OnceLock};
 
+use crate::Rt as TauriRuntime;
 use tauri::ipc::InvokeResolver;
 use tauri::utils::config::Config;
-use crate::Rt as TauriRuntime;
 
 /// Pre-build app state, mutated by `tauri_app_builder_*`.
 pub struct BuilderState {

@@ -177,6 +177,7 @@ pub fn setup<I: Interface>(
   let bundle_identifier_source = config
     .find_bundle_identifier_overwriter()
     .unwrap_or_else(|| "tauri.conf.json".into());
+  let bundle_identifier_source = bundle_identifier_source.to_string_lossy();
 
   if config.identifier == "com.tauri.dev" {
     crate::error::bail!(

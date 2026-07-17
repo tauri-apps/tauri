@@ -22,13 +22,28 @@ use std::{collections::BTreeMap, env, fs, path::PathBuf};
 fn main() {
   let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR not set"));
 
+  // ---- libcef lookup path (cef runtime, Linux) -----------------------------
+  // A cef build links libcef.so, which the host (node/deno/python) `dlopen`s us
+  // by absolute path — so the loader resolves our DT_NEEDED against the process
+  // search path, not ours, and finds nothing. libcef.so is always distributed
+  // *next to* this library (cef-dll-sys stages it into the cargo target dir;
+  // the CLI stages both into the bundle's resource dir), so `$ORIGIN` makes the
+  // loader look there. Mirrors what tauri-build does for a Rust cef app's
+  // executable, applied to the cdylib instead.
+  if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
+    && env::var("DEP_TAURI_RUNTIME").as_deref() == Ok("cef")
+  {
+    println!("cargo:rustc-cdylib-link-arg=-Wl,-rpath,$ORIGIN");
+  }
+
   // ---- ABI version from the manifest ---------------------------------------
   // api-manifest.json is the single source of truth for the ABI; the exported
   // tauri_ffi_abi_version() must always match what the generators emitted.
   println!("cargo:rerun-if-changed=api-manifest.json");
-  let manifest: serde_json::Value =
-    serde_json::from_str(&fs::read_to_string("api-manifest.json").expect("missing api-manifest.json"))
-      .expect("invalid api-manifest.json");
+  let manifest: serde_json::Value = serde_json::from_str(
+    &fs::read_to_string("api-manifest.json").expect("missing api-manifest.json"),
+  )
+  .expect("invalid api-manifest.json");
   let abi_version = manifest["abiVersion"]
     .as_u64()
     .expect("api-manifest.json: abiVersion must be a number");
@@ -48,7 +63,10 @@ fn main() {
     .into_iter()
     .map(|(name, files)| {
       let schema = scope_schemas.remove(&name);
-      (name, tauri_utils::acl::manifest::Manifest::new(files, schema))
+      (
+        name,
+        tauri_utils::acl::manifest::Manifest::new(files, schema),
+      )
     })
     .collect();
 

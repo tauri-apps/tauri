@@ -91,8 +91,11 @@ impl<T> ErrorExt<T> for std::result::Result<T, std::io::Error> {
 }
 
 macro_rules! bail {
+   // `format!` rather than `.into()` so a lone literal still captures inline
+   // arguments — `bail!("{name} not found")` otherwise reached the user with a
+   // literal `{name}` in it.
    ($msg:literal $(,)?) => {
-      return Err(crate::Error::GenericError($msg.into()))
+      return Err(crate::Error::GenericError(format!($msg)))
    };
     ($err:expr $(,)?) => {
        return Err(crate::Error::GenericError($err))

@@ -23,6 +23,9 @@ const require = createRequire(import.meta.url)
 // applies to a bare open() (e.g. the smoke test). Overridable via TAURI_FFI_RUNTIME.
 const DEFAULT_RUNTIME = 'wry'
 
+/** The Node-API addon carrying the run loop — see {@link loadRunAddon}. */
+const RUN_ADDON_NAME = 'tauri_node.node'
+
 /** Which runtime's prebuilt library to load (wry, cef, …). */
 export function ffiRuntime() {
   return process.env.TAURI_FFI_RUNTIME || DEFAULT_RUNTIME
@@ -68,8 +71,93 @@ export function libraryPath(runtime = ffiRuntime()) {
   )
 }
 
+function cefLibraryName() {
+  return { darwin: 'libcef.dylib', linux: 'libcef.so', win32: 'libcef.dll' }[process.platform] ?? 'libcef.so'
+}
+
+function cefHelperName() {
+  return process.platform === 'win32' ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
+}
+
+/**
+ * The runtime a resolved library belongs to (`libtauri_wry.so` -> `wry`), used
+ * to find artifacts shipped beside it in the same platform package. The repo's
+ * own dev build is runtime-agnostic (`libtauri_ffi`), and resolves to `ffi` —
+ * harmless, since that path never looks in a platform package.
+ */
+function runtimeOf(libPath) {
+  const match = /tauri_([a-z0-9]+)\.(?:so|dylib|dll)$/.exec(path.basename(libPath))
+  return match ? match[1] : ffiRuntime()
+}
+
+/**
+ * Path to the Node-API addon that owns the blocking run loop, or `null` when it
+ * was neither shipped nor built. See `native/tauri_node.c`: koffi runs every
+ * call on a private stack, and WebKit aborts if its stack is not the thread's
+ * real one — so the loop cannot go through koffi.
+ *
+ * Resolved like the library itself: from the bundle's resource dir (where
+ * `tauri build` stages it), else the installed platform package, else the repo's
+ * own build. The Tauri CLI calls this to find the addon to stage.
+ */
+export function runAddonPath(runtime = ffiRuntime()) {
+  const resourceDir = bundledResourceDir()
+  if (resourceDir) {
+    const bundled = path.join(resourceDir, RUN_ADDON_NAME)
+    return existsSync(bundled) ? bundled : null
+  }
+  try {
+    const installed = require.resolve(
+      `@tauri-apps/node-${runtime}-${process.platform}-${process.arch}/${RUN_ADDON_NAME}`
+    )
+    if (existsSync(installed)) return installed
+  } catch {
+    // not installed — fall through to the repo build
+  }
+  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'native', RUN_ADDON_NAME)
+  return existsSync(repo) ? repo : null
+}
+
+/** Loads the run-loop addon, or `null` when there is none. */
+function loadRunAddon(runtime) {
+  const file = runAddonPath(runtime)
+  if (!file) return null
+  const mod = { exports: {} }
+  process.dlopen(mod, file)
+  return mod.exports
+}
+
+/**
+ * Preloads the `libcef` staged next to a cef library so that library's own
+ * (rpath-less) dependency on it resolves. The dynamic loader reads its search
+ * path (LD_LIBRARY_PATH/PATH) once at process start, so it can't be pointed at
+ * `dir` from in here; loading libcef by absolute path instead puts it in the
+ * process's link map and the subsequent load resolves the dependency by name.
+ */
+function preloadCef(dir) {
+  const libcef = path.join(dir, cefLibraryName())
+  if (!existsSync(libcef)) return false
+  koffi.load(libcef)
+  return true
+}
+
 export function open(libPath = libraryPath()) {
-  const lib = koffi.load(libPath)
+  const dir = path.dirname(libPath)
+  // CEF is multi-process: it launches renderer/GPU/utility subprocesses by
+  // executing a helper program. A Node host can't act as one, so point CEF at
+  // the helper staged next to the library. A wry library never reads this.
+  const helper = path.join(dir, cefHelperName())
+  if (existsSync(helper) && !process.env.TAURI_CEF_SUBPROCESS_PATH) {
+    process.env.TAURI_CEF_SUBPROCESS_PATH = helper
+  }
+  let lib
+  try {
+    lib = koffi.load(libPath)
+  } catch (error) {
+    // A cef library links libcef; preload it and retry before giving up.
+    if (!preloadCef(dir)) throw error
+    lib = koffi.load(libPath)
+  }
   const api = declare(lib)
 
   function check(code, what = 'tauri-ffi call') {
@@ -102,5 +190,32 @@ export function open(libPath = libraryPath()) {
     })
   }
 
-  return { api, check, takeString, eventsNext, libPath }
+  /**
+   * Runs the app, blocking this thread until it exits, and returns its exit
+   * code.
+   *
+   * Goes through the Node-API addon rather than koffi: the loop drives every
+   * webview, and koffi's private call stack makes WebKit abort (see
+   * {@link loadRunAddon} and `native/tauri_node.c`). Falling back to koffi
+   * keeps a broken install usable for engines that bring their own JS (cef),
+   * which is the only reason this is a warning rather than an error.
+   */
+  function runApp(app) {
+    const addon = loadRunAddon(runtimeOf(libPath))
+    if (addon) {
+      const { status, exitCode } = addon.run(libPath, app)
+      check(status, 'app_run')
+      return exitCode
+    }
+    console.warn(
+      `[tauri] ${RUN_ADDON_NAME} not found — falling back to a koffi run loop. ` +
+        'A webkit-based (wry) app will abort in JavaScriptCore; build the addon with ' +
+        '`node native/build.mjs`, or reinstall so the platform package is present.'
+    )
+    const outCode = [0]
+    check(api.appRun(app, outCode), 'app_run')
+    return outCode[0]
+  }
+
+  return { api, check, takeString, eventsNext, runApp, libPath }
 }

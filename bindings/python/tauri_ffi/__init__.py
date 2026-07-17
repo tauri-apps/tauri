@@ -41,7 +41,8 @@ class TauriError(RuntimeError):
 
 
 # The runtime this package loads a library for (wry, cef, …), overridable via
-# TAURI_FFI_RUNTIME. Wheels bundle a single runtime's library.
+# TAURI_FFI_RUNTIME. A wheel bundles every runtime's library under _native/
+# (the loader picks one); run() passes the resolved config's app.runtime.
 DEFAULT_RUNTIME = "wry"
 
 
@@ -93,8 +94,51 @@ def library_path(runtime: Optional[str] = None) -> Path:
     )
 
 
+def _cef_library_name() -> str:
+    return {"darwin": "libcef.dylib", "linux": "libcef.so", "win32": "libcef.dll"}.get(
+        sys.platform, "libcef.so"
+    )
+
+
+def _cef_helper_name() -> str:
+    return "tauri-cef-helper.exe" if sys.platform == "win32" else "tauri-cef-helper"
+
+
+def _preload_cef(directory: Path) -> bool:
+    """Preloads the ``libcef`` staged next to a cef library, so that library's
+    own (rpath-less) dependency on it resolves.
+
+    The dynamic loader reads its search path (``LD_LIBRARY_PATH``/``PATH``) once
+    at process start, so it can't be pointed at ``directory`` from in here.
+    Loading libcef by absolute path instead puts it in the process's link map,
+    and the subsequent dlopen resolves the dependency to it by name.
+
+    Returns whether a libcef was found and loaded."""
+    libcef = directory / _cef_library_name()
+    if not libcef.exists():
+        return False
+    import ctypes
+
+    ctypes.CDLL(str(libcef), mode=ctypes.RTLD_GLOBAL)
+    return True
+
+
 def _open_lib(path: Optional[Path] = None, runtime: Optional[str] = None):
-    lib = _ffi.dlopen(str(path or library_path(runtime)))
+    resolved = Path(path or library_path(runtime))
+    directory = resolved.parent
+    # CEF is multi-process: it launches renderer/GPU/utility subprocesses by
+    # executing a helper program. A Python host can't act as one, so point CEF at
+    # the helper staged next to the library. A wry library never reads this.
+    helper = directory / _cef_helper_name()
+    if helper.exists():
+        os.environ.setdefault("TAURI_CEF_SUBPROCESS_PATH", str(helper))
+    try:
+        lib = _ffi.dlopen(str(resolved))
+    except OSError:
+        # A cef library links libcef; preload it and retry before giving up.
+        if not _preload_cef(directory):
+            raise
+        lib = _ffi.dlopen(str(resolved))
     abi = lib.tauri_ffi_abi_version()
     if abi != ABI_VERSION:
         raise TauriError(-1, f"ABI mismatch: library has v{abi}, bindings expect v{ABI_VERSION}")
@@ -129,19 +173,60 @@ def _is_bundled() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def _bundled_product_name() -> Optional[str]:
+    """``productName`` from the embedded config — the directory name Linux
+    packages derive their resource path from (``/usr/lib/<productName>``)."""
+    embedded = _embedded_dir()
+    if embedded is None:
+        return None
+    try:
+        return json.loads((embedded / "config.json").read_text()).get("productName")
+    except Exception:
+        return None
+
+
 def _bundled_resource_dir() -> Optional[Path]:
-    """The directory holding this app's bundled resources (cdylib, packed
-    assets, config) when running as a frozen PyInstaller binary inside a Tauri
-    bundle, or None in dev. Resolved from ``sys.executable``:
-    ``.app/Contents/Resources`` on macOS, the executable's directory
-    elsewhere."""
+    """The directory holding this app's bundled resources (cdylib, libcef and
+    its pak/locale files for a cef build) when running as a frozen PyInstaller
+    binary inside a Tauri bundle, or None in dev.
+
+    Resolved from ``sys.executable``, mirroring what ``tauri_utils::platform``'s
+    ``resource_dir`` does for a Rust app — each packaging format puts resources
+    somewhere different relative to the binary:
+
+    - macOS ``.app``: ``Contents/MacOS/<bin>`` -> ``Contents/Resources``
+    - ``tauri build`` output, run from ``dist/<profile>`` without packaging: the
+      sibling ``resources/`` the CLI stages into
+    - Windows installers: next to the executable
+    - Linux deb/rpm: binary in ``/usr/bin``, resources in ``/usr/lib/<productName>``
+    - Linux AppImage: the same, under ``$APPDIR``
+    """
     if not getattr(sys, "frozen", False):
         return None
     exe = Path(sys.executable).resolve()
     for parent in exe.parents:
         if parent.name == "MacOS" and parent.parent.name == "Contents":
             return parent.parent / "Resources"
-    return exe.parent
+
+    directory = exe.parent
+    staged = directory / "resources"
+    if staged.exists():
+        return staged
+    if not sys.platform.startswith("linux"):
+        return directory
+
+    name = _bundled_product_name()
+    if not name:
+        return directory
+    # `../lib/<name>` covers deb/rpm (/usr/bin -> /usr/lib/<name>) and an
+    # AppImage whose AppRun did not export APPDIR.
+    sibling = directory.parent / "lib" / name
+    if sibling.exists():
+        return sibling
+    appdir = os.environ.get("APPDIR")
+    if appdir:
+        return Path(appdir) / "usr" / "lib" / name
+    return Path("/usr/lib") / name
 
 
 def _embedded_dir() -> Optional[Path]:

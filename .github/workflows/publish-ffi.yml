@@ -125,6 +125,22 @@ jobs:
               cp "target/$t/release/libtauri_ffi.so"    "dist-lib/libtauri_$r.so" ;;
           esac
 
+      # The Node bindings drive the event loop through this addon instead of
+      # koffi, whose private call stack WebKit aborts on — see
+      # bindings/node/native/tauri_node.c. It is runtime-agnostic, but rides in
+      # each runtime's platform package so the library and the addon an app
+      # resolves always come from the same place.
+      - run: npm i -g --force corepack
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: install node build deps
+        run: pnpm install --frozen-lockfile --filter @tauri-apps/node
+      - name: build run-loop addon
+        shell: bash
+        run: node bindings/node/native/build.mjs --target '${{ matrix.settings.target }}' --out dist-lib/tauri_node.node
+
       - uses: actions/upload-artifact@v7
         with:
           name: lib-${{ matrix.runtime }}-${{ matrix.settings.target }}
@@ -257,15 +273,8 @@ jobs:
           NODE_AUTH_TOKEN: '' # OIDC trusted publishing
 
   publish-pypi:
-    name: publish PyPI wheels (${{ matrix.runtime }})
+    name: publish PyPI wheels
     needs: [build, smoke]
-    strategy:
-      fail-fast: false
-      matrix:
-        # wry only: every runtime currently builds the same `tauri_ffi` wheel, so a
-        # non-default runtime would collide on PyPI. Give cef its own package name
-        # (and bundle/fetch the CEF framework) before adding it here.
-        runtime: [wry]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -274,12 +283,17 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v8
         with:
-          pattern: lib-${{ matrix.runtime }}-*
+          pattern: lib-*
           path: artifacts
       - name: build platform wheels
         shell: bash
         run: |
-          r='${{ matrix.runtime }}'
+          # Python has no per-runtime package name (unlike npm's @tauri-apps/node-cef),
+          # so one `tauri-ffi` wheel per platform bundles *every* runtime's library
+          # under _native/ (libtauri_wry, libtauri_cef, …); the loader selects one at
+          # runtime from `app.runtime`/TAURI_FFI_RUNTIME. Keep RUNTIMES in sync with
+          # the build matrix and bindings/scripts/targets.mjs.
+          RUNTIMES='wry cef'
           python -m pip install --quiet setuptools wheel
           declare -A TAGS=(
             [x86_64-apple-darwin]=macosx_10_13_x86_64
@@ -289,18 +303,20 @@ jobs:
             [x86_64-unknown-linux-gnu]=manylinux_2_39_x86_64
             [aarch64-unknown-linux-gnu]=manylinux_2_39_aarch64
           )
-          lib_name() {
+          lib_name() { # $1 = target, $2 = runtime
             case "$1" in
-              *windows*) echo "tauri_$r.dll" ;;
-              *apple*)   echo "libtauri_$r.dylib" ;;
-              *)         echo "libtauri_$r.so" ;;
+              *windows*) echo "tauri_$2.dll" ;;
+              *apple*)   echo "libtauri_$2.dylib" ;;
+              *)         echo "libtauri_$2.so" ;;
             esac
           }
           cd bindings/python
           for target in $TAURI_FFI_TARGETS; do
-            lib="$(lib_name "$target")"
             mkdir -p tauri_ffi/_native
-            cp "$GITHUB_WORKSPACE/artifacts/lib-$r-$target/$lib" tauri_ffi/_native/
+            for r in $RUNTIMES; do
+              src="$GITHUB_WORKSPACE/artifacts/lib-$r-$target/$(lib_name "$target" "$r")"
+              [ -f "$src" ] && cp "$src" tauri_ffi/_native/
+            done
             TAURI_FFI_VERSION='${{ inputs.version }}' python setup.py bdist_wheel --plat-name "${TAGS[$target]}"
             rm -rf tauri_ffi/_native build
           done
@@ -308,7 +324,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: ${{ inputs.dryRun }}
         with:
-          name: pypi-dist-${{ matrix.runtime }}
+          name: pypi-dist
           path: bindings/python/dist/*.whl
       - name: publish
         if: ${{ !inputs.dryRun }}

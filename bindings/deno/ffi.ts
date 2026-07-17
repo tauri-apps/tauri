@@ -149,8 +149,63 @@ export interface FfiLibrary {
   libPath: string
 }
 
+function cefLibraryName(): string {
+  return (
+    { darwin: 'libcef.dylib', linux: 'libcef.so', windows: 'libcef.dll' }[Deno.build.os as string] ??
+    'libcef.so'
+  )
+}
+
+function cefHelperName(): string {
+  return Deno.build.os === 'windows' ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
+}
+
+/** The directory holding `file`. */
+function parentDir(file: string): string {
+  const slash = Math.max(file.lastIndexOf('/'), file.lastIndexOf('\\'))
+  return slash === -1 ? '.' : file.slice(0, slash)
+}
+
+function exists(path: string): boolean {
+  try {
+    Deno.statSync(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Preloads the `libcef` staged next to a cef library so that library's own
+ * (rpath-less) dependency on it resolves. The dynamic loader reads its search
+ * path once at process start, so it can't be pointed at `dir` from in here;
+ * loading libcef by absolute path instead puts it in the process's link map and
+ * the subsequent dlopen resolves the dependency to it by name.
+ */
+function preloadCef(dir: string): boolean {
+  const libcef = `${dir}/${cefLibraryName()}`
+  if (!exists(libcef)) return false
+  Deno.dlopen(libcef, {})
+  return true
+}
+
 export function open(libPath: string = libraryPath()): FfiLibrary {
-  const lib = Deno.dlopen(libPath, SYMBOLS)
+  const dir = parentDir(libPath)
+  // CEF is multi-process: it launches renderer/GPU/utility subprocesses by
+  // executing a helper program. A Deno host can't act as one, so point CEF at
+  // the helper staged next to the library. A wry library never reads this.
+  const helper = `${dir}/${cefHelperName()}`
+  if (exists(helper) && !Deno.env.get('TAURI_CEF_SUBPROCESS_PATH')) {
+    Deno.env.set('TAURI_CEF_SUBPROCESS_PATH', helper)
+  }
+  let lib: Deno.DynamicLibrary<typeof SYMBOLS>
+  try {
+    lib = Deno.dlopen(libPath, SYMBOLS)
+  } catch (error) {
+    // A cef library links libcef; preload it and retry before giving up.
+    if (!preloadCef(dir)) throw error
+    lib = Deno.dlopen(libPath, SYMBOLS)
+  }
   const sym = lib.symbols
 
   const abi = sym.tauri_ffi_abi_version()

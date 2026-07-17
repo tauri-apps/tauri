@@ -795,6 +795,7 @@ impl WebviewAttributes {
     self.allow_link_preview = allow_link_preview;
     self
   }
+
   /// Whether to limit navigations to App-Bound Domains. This is necessary to
   /// enable Service Workers on iOS according to
   /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).

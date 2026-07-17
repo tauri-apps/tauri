@@ -722,7 +722,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// Enables or disables drag and drop support.
+  /// Enables or disables drag and drop support of this window.
+  ///
+  /// Note: this is a different config from [`Self::disable_drag_drop_handler`]
   #[cfg(windows)]
   #[must_use]
   pub fn drag_and_drop(mut self, enabled: bool) -> Self {
@@ -1036,7 +1038,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
-  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
+  /// Disables the webview drag and drop handler used internally to generate [`DragDropEvent`](crate::DragDropEvent)s.
+  ///
+  /// This is required to use HTML5 drag and drop APIs on the frontend on Windows since we replace the drag drop handler of WebView2.
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.webview_builder = self.webview_builder.disable_drag_drop_handler();

@@ -27,6 +27,7 @@ serde = { version = "1", features = ["derive"] }
 strsim = "0.11"
 tar = "0.4"
 walkdir = "2"
+bytesize = "2"
 handlebars = "6"
 tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }

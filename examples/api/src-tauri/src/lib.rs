@@ -67,6 +67,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       #[allow(unused_mut)]
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .disable_drag_drop_handler()
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
         });
@@ -118,8 +119,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         }),
       });
       log::info!("got response: {response:?}");
-      // when #[cfg(desktop)], Rust will detect pattern as irrefutable
-      #[allow(irrefutable_let_patterns)]
       if let Ok(res) = response {
         assert_eq!(res.value, value);
       }

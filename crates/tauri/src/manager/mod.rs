@@ -472,12 +472,15 @@ impl<R: Runtime> AppManager<R> {
     (self.webview.invoke_handler)(invoke)
   }
 
-  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
+  /// Runs the plugin [`crate::plugin::Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  ///
+  /// The message is not handled when the plugin exists **and** the command does not.
+  pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(plugin, invoke)
+      .run_invoke_handler(plugin, invoke)
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
@@ -655,6 +658,9 @@ impl<R: Runtime> AppManager<R> {
     if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
+        self
+          .listeners()
+          .remove_webview_js_listeners(webview.label());
       }
     }
   }
@@ -662,6 +668,7 @@ impl<R: Runtime> AppManager<R> {
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
+    self.listeners().remove_webview_js_listeners(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

@@ -627,7 +627,9 @@ impl WebviewAttributes {
     self
   }
 
-  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
+  /// Disables the drag and drop handler used internally to generate [`DragDropEvent`](crate::window::DragDropEvent)s.
+  ///
+  /// This is required to use HTML5 drag and drop APIs on the frontend on Windows since we replace the drag drop handler of WebView2.
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.drag_drop_handler_enabled = false;

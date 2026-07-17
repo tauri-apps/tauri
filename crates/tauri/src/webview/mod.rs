@@ -968,7 +968,9 @@ fn main() {
     self
   }
 
-  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
+  /// Disables the drag and drop handler used internally to generate [`DragDropEvent`](crate::DragDropEvent)s.
+  ///
+  /// This is required to use HTML5 drag and drop APIs on the frontend on Windows since we replace the drag drop handler of WebView2.
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.webview_attributes.drag_drop_handler_enabled = false;
@@ -1916,7 +1918,7 @@ tauri::Builder::default()
       let message = invoke.message.clone();
 
       #[allow(unused_mut)]
-      let mut handled = manager.extend_api(plugin, invoke);
+      let mut handled = manager.run_plugin_invoke_handler(plugin, invoke);
 
       #[cfg(mobile)]
       {

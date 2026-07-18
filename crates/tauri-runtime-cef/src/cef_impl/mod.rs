@@ -5,5 +5,6 @@
 pub(crate) mod client;
 pub(crate) mod cookie;
 pub(crate) mod ipc;
+pub(crate) mod mapped_scheme;
 pub(crate) mod request_context;
 pub(crate) mod request_handler;

@@ -357,13 +357,26 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
   *rc_holder.lock().unwrap() = request_context.clone();
 
   if let Some(request_context) = request_context.as_ref() {
-    for scheme in custom_schemes {
+    // Logical custom-protocol URLs (`scheme://authority/…`) are mapped onto the
+    // built-in `https`/`http` scheme as `https://scheme.authority/…`, mirroring
+    // Wry's WebView2/Android workaround while preserving the logical authority
+    // as a browser-visible subdomain.
+    //
+    // CEF cannot match the reserved `<scheme>.*.localhost` namespace with a
+    // fixed domain, and registering one entry per authority is impractical when
+    // authorities are created dynamically. So a single factory is registered
+    // against the whole mapped scheme with a NULL domain — which for a standard
+    // scheme matches every host. The factory then routes only the reserved
+    // namespace to a registered handler and returns `None` for everything else;
+    // because `https`/`http` is a built-in scheme, that `None` falls through to
+    // CEF's normal network handler, so unrelated HTTPS is never intercepted.
+    // See [`super::mapped_scheme`].
+    if custom_schemes.into_iter().next().is_some() {
       request_context.register_scheme_handler_factory(
         Some(&custom_protocol_scheme.into()),
-        Some(&format!("{scheme}.localhost").as_str().into()),
+        None,
         Some(&mut request_handler::UriSchemeHandlerFactory::new(
           scheme_registry.clone(),
-          scheme.clone(),
         )),
       );
     }

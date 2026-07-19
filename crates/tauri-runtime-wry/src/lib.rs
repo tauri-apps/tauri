@@ -5051,6 +5051,10 @@ You may have it installed on another user account, but it is not available for t
 
   #[cfg(target_os = "ios")]
   {
+    webview_builder = webview_builder.with_limit_navigations_to_app_bound_domains(
+      webview_attributes.limit_navigations_to_app_bound_domains,
+    );
+
     if let Some(input_accessory_view_builder) = webview_attributes.input_accessory_view_builder {
       webview_builder = webview_builder
         .with_input_accessory_view_builder(move |webview| input_accessory_view_builder.0(webview));

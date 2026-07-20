@@ -120,48 +120,58 @@ enum Fit {
 #[derive(Clone)]
 #[allow(clippy::large_enum_variant)]
 enum Source {
-  Svg(resvg::usvg::Tree),
+  // An SVG stays a vector until the very last step. `fit` records how a
+  // non-square source should be squared; it is applied as a render transform
+  // when rasterizing at each target size (see `resize_exact`), so the icons are
+  // rendered directly from the vector tree rather than from an intermediate
+  // bitmap.
+  Svg {
+    tree: resvg::usvg::Tree,
+    fit: Option<Fit>,
+  },
   DynamicImage(DynamicImage),
 }
 
 impl Source {
   fn width(&self) -> u32 {
     match self {
-      Self::Svg(svg) => svg.size().width() as u32,
+      Self::Svg { tree, fit } => svg_fitted_size(tree, *fit).0 as u32,
       Self::DynamicImage(i) => i.width(),
     }
   }
 
   fn height(&self) -> u32 {
     match self {
-      Self::Svg(svg) => svg.size().height() as u32,
+      Self::Svg { tree, fit } => svg_fitted_size(tree, *fit).1 as u32,
       Self::DynamicImage(i) => i.height(),
     }
   }
 
   fn resize_exact(&self, size: u32) -> DynamicImage {
     match self {
-      Self::Svg(svg) => {
-        let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
-        let scale = size as f32 / svg.size().height();
-        resvg::render(
-          svg,
-          tiny_skia::Transform::from_scale(scale, scale),
-          &mut pixmap.as_mut(),
-        );
-        // Switch to use `Pixmap::take_demultiplied` in the future when it's published
-        // https://github.com/linebender/tiny-skia/blob/624257c0feb394bf6c4d0d688f8ea8030aae320f/src/pixmap.rs#L266
-        let img_buffer = ImageBuffer::from_par_fn(size, size, |x, y| {
-          let pixel = pixmap.pixel(x, y).unwrap().demultiply();
-          Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])
-        });
-        DynamicImage::ImageRgba8(img_buffer)
-      }
+      Self::Svg { tree, fit } => rasterize_svg(tree, *fit, size),
       Self::DynamicImage(image) => {
         // image.resize_exact(size, size, FilterType::Lanczos3)
         resize_image(image, size, size)
       }
     }
+  }
+}
+
+// The output size, in SVG user units, once `fit` squares a non-square tree.
+fn svg_fitted_size(tree: &usvg::Tree, fit: Option<Fit>) -> (f32, f32) {
+  let size = tree.size();
+  let (w, h) = (size.width(), size.height());
+  match fit {
+    Some(Fit::Cover) => {
+      let side = w.min(h);
+      (side, side)
+    }
+    Some(Fit::Contain) => {
+      let side = w.max(h);
+      (side, side)
+    }
+    None => (w, h),
   }
 }
 
@@ -212,7 +222,10 @@ fn read_source(path: PathBuf) -> Result<Source> {
         usvg::Tree::from_data(&svg_data, &opt).unwrap()
       };
 
-      Ok(Source::Svg(rtree))
+      Ok(Source::Svg {
+        tree: rtree,
+        fit: None,
+      })
     } else {
       Ok(Source::DynamicImage(DynamicImage::ImageRgba8(
         open(&path)
@@ -248,24 +261,42 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
   Ok(bg_color)
 }
 
-// Rasterize an SVG tree to a `DynamicImage`, preserving the aspect ratio.
-// An SVG can declare a tiny intrinsic size (e.g. `width="16"`), so scale the
-// longest side up to at least `MIN_SVG_RASTER_SIZE` before rasterizing to keep
-// the generated icons crisp — SVG is vector, so rendering larger is lossless.
-// Sources already larger than that are left untouched (never downscaled here).
-fn rasterize_svg(svg: &usvg::Tree) -> DynamicImage {
-  const MIN_SVG_RASTER_SIZE: f32 = 1024.0;
-  let size = svg.size();
-  let scale = (MIN_SVG_RASTER_SIZE / size.width().max(size.height())).max(1.0);
-  let width = ((size.width() * scale).ceil() as u32).max(1);
-  let height = ((size.height() * scale).ceil() as u32).max(1);
-  let mut pixmap = tiny_skia::Pixmap::new(width, height).unwrap();
-  resvg::render(
-    svg,
-    tiny_skia::Transform::from_scale(scale, scale),
-    &mut pixmap.as_mut(),
-  );
-  let img_buffer = ImageBuffer::from_par_fn(width, height, |x, y| {
+// Rasterize an SVG tree to a square `size`x`size` `DynamicImage`, applying the
+// `fit` mode as a render transform. Because the vector tree is rendered at the
+// final resolution, there is no intermediate bitmap and no quality loss — a
+// source declaring a tiny intrinsic size (e.g. `width="16"`) is just as crisp
+// as a large one.
+fn rasterize_svg(tree: &usvg::Tree, fit: Option<Fit>, size: u32) -> DynamicImage {
+  let native = tree.size();
+  let (nw, nh) = (native.width(), native.height());
+
+  // `side` is the square edge (in user units) we crop/pad the source to; the
+  // offsets recenter the content within that square.
+  let (side, off_x, off_y) = match fit {
+    // Crop to the shorter side, centered.
+    Some(Fit::Cover) => {
+      let side = nw.min(nh);
+      (side, (nw - side) / 2.0, (nh - side) / 2.0)
+    }
+    // Pad the shorter side, centered (offsets are negative → transparent bands).
+    Some(Fit::Contain) => {
+      let side = nw.max(nh);
+      (side, (nw - side) / 2.0, (nh - side) / 2.0)
+    }
+    // Already square (or squaring not requested): scale to fit as-is.
+    None => (nh, 0.0, 0.0),
+  };
+
+  let scale = size as f32 / side;
+  let transform =
+    tiny_skia::Transform::from_scale(scale, scale).post_translate(-off_x * scale, -off_y * scale);
+
+  let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
+  resvg::render(tree, transform, &mut pixmap.as_mut());
+
+  // Switch to use `Pixmap::take_demultiplied` in the future when it's published
+  // https://github.com/linebender/tiny-skia/blob/624257c0feb394bf6c4d0d688f8ea8030aae320f/src/pixmap.rs#L266
+  let img_buffer = ImageBuffer::from_par_fn(size, size, |x, y| {
     let pixel = pixmap.pixel(x, y).unwrap().demultiply();
     Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])
   });
@@ -273,11 +304,17 @@ fn rasterize_svg(svg: &usvg::Tree) -> DynamicImage {
 }
 
 // Convert a non-square source into a square one according to the `fit` mode.
-// SVG sources are rasterized at their native size first.
+// SVG sources stay vector — the fit is recorded and applied at render time; only
+// raster sources are cropped/padded here.
 fn fit_to_square(source: Source, fit: Fit) -> Source {
   let image = match source {
     Source::DynamicImage(image) => image,
-    Source::Svg(svg) => rasterize_svg(&svg),
+    Source::Svg { tree, .. } => {
+      return Source::Svg {
+        tree,
+        fit: Some(fit),
+      }
+    }
   };
 
   let (width, height) = image.dimensions();
@@ -1075,6 +1112,12 @@ mod tests {
     )))
   }
 
+  fn svg_landscape() -> usvg::Tree {
+    // 40x20 opaque red rectangle
+    let data = br#"<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="red"/></svg>"#;
+    usvg::Tree::from_data(data, &usvg::Options::default()).unwrap()
+  }
+
   #[test]
   fn cover_center_crops_to_square() {
     let out = fit_to_square(landscape(40, 20), Fit::Cover);
@@ -1096,5 +1139,34 @@ mod tests {
     // top padding band is transparent, the centered content is opaque
     assert_eq!(image.get_pixel(20, 0)[3], 0);
     assert_eq!(image.get_pixel(20, 20)[3], 255);
+  }
+
+  #[test]
+  fn svg_cover_renders_square_from_vector() {
+    let source = Source::Svg {
+      tree: svg_landscape(),
+      fit: Some(Fit::Cover),
+    };
+    // the fit squares the reported size to the shorter side
+    assert_eq!((source.width(), source.height()), (20, 20));
+    // rendered directly from the vector tree at the requested size
+    let image = source.resize_exact(64);
+    assert_eq!(image.dimensions(), (64, 64));
+    // center of the cropped region stays opaque
+    assert_eq!(image.get_pixel(32, 32)[3], 255);
+  }
+
+  #[test]
+  fn svg_contain_pads_shorter_side_with_transparency() {
+    let source = Source::Svg {
+      tree: svg_landscape(),
+      fit: Some(Fit::Contain),
+    };
+    assert_eq!((source.width(), source.height()), (40, 40));
+    let image = source.resize_exact(64);
+    assert_eq!(image.dimensions(), (64, 64));
+    // top band is transparent padding, the centered content is opaque
+    assert_eq!(image.get_pixel(32, 2)[3], 0);
+    assert_eq!(image.get_pixel(32, 32)[3], 255);
   }
 }

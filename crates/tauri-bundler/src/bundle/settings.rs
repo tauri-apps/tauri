@@ -835,7 +835,6 @@ pub struct Settings {
 }
 
 /// A builder for [`Settings`].
-#[derive(Default)]
 pub struct SettingsBuilder {
   log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
@@ -849,13 +848,28 @@ pub struct SettingsBuilder {
   binary_patching: bool,
 }
 
+impl Default for SettingsBuilder {
+  fn default() -> Self {
+    Self {
+      log_level: None,
+      project_out_directory: None,
+      package_types: None,
+      package_settings: None,
+      bundle_settings: BundleSettings::default(),
+      binaries: Vec::new(),
+      target: None,
+      local_tools_directory: None,
+      no_sign: false,
+      // Binary patching is on by default; disabled via `--no-binary-patching`.
+      binary_patching: true,
+    }
+  }
+}
+
 impl SettingsBuilder {
   /// Creates the default settings builder.
   pub fn new() -> Self {
-    Self {
-      binary_patching: true,
-      ..Default::default()
-    }
+    Self::default()
   }
 
   /// Sets the project output directory. It's used as current working directory.

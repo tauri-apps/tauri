@@ -140,6 +140,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     .fs_context("can't open main binary", &main_binary_path)?;
   std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
 
+  if !settings.binary_patching() {
+    log::warn!("Skipping binary patching due to --no-binary-patching flag.");
+  }
+
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
@@ -147,9 +151,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    // Patching rewrites the main binary in place, invalidating any existing code signature.
-    // When disabled, leave the binary untouched and skip the post-patch re-sign (whose only
-    // purpose is to repair that invalidated signature), preserving an already-signed binary.
     if settings.binary_patching() {
       if let Err(e) = patch_binary(&main_binary_path, package_type) {
         log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");

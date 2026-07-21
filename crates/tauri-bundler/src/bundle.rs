@@ -16,6 +16,7 @@ mod windows;
 
 use crate::error::ErrorExt;
 use anyhow::Context;
+use bytesize::ByteSize;
 use std::{
   fmt::Write,
   io::{Seek, SeekFrom},
@@ -31,6 +32,7 @@ pub use {
     PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
     UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
   },
+  windows::vswhere_path,
 };
 
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
@@ -134,9 +136,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   // TODO: change this to work on a copy while preserving the main binary unchanged
   let mut main_binary_copy =
     tempfile::tempfile().context("failed to create temp file for main binary copy")?;
-  let mut main_binary_orignal = std::fs::File::open(&main_binary_path)
+  let mut main_binary_original = std::fs::File::open(&main_binary_path)
     .fs_context("can't open main binary", &main_binary_path)?;
-  std::io::copy(&mut main_binary_orignal, &mut main_binary_copy)?;
+  std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
 
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
@@ -289,13 +291,30 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         ""
       };
       let path_display = display_path(path);
-      writeln!(printable_paths, "        {path_display}{note}").unwrap();
+      let size = bundle_size(path)
+        .map(|bytes| format!(" ({:.2})", ByteSize::b(bytes).display()))
+        .unwrap_or_default();
+      writeln!(printable_paths, "        {path_display}{note}{size}").unwrap();
     }
   }
 
   log::info!(action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
 
   Ok(bundles)
+}
+
+/// Total size in bytes of a bundle path, recursing into directories (e.g. macOS `.app`).
+fn bundle_size(path: &std::path::Path) -> crate::Result<u64> {
+  let metadata = std::fs::symlink_metadata(path)?;
+  if metadata.is_dir() {
+    let mut total = 0;
+    for entry in walkdir::WalkDir::new(path) {
+      total += entry?.metadata()?.len();
+    }
+    Ok(total)
+  } else {
+    Ok(metadata.len())
+  }
 }
 
 fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> crate::Result<()> {

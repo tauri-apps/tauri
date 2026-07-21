@@ -80,11 +80,11 @@ pub enum Error {
   #[error("`{0}`")]
   HttpError(#[from] Box<ureq::Error>),
   /// Invalid glob pattern.
-  #[cfg(windows)]
+  #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
   #[error("{0}")]
   GlobPattern(#[from] glob::PatternError),
   /// Failed to use glob pattern.
-  #[cfg(windows)]
+  #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
   #[error("`{0}`")]
   Glob(#[from] glob::GlobError),
   /// Failed to parse the URL
@@ -93,9 +93,6 @@ pub enum Error {
   /// Failed to validate downloaded file hash.
   #[error("hash mismatch of downloaded file")]
   HashError,
-  /// Failed to parse binary
-  #[error("Binary parse error: `{0}`")]
-  BinaryParseError(#[from] goblin::error::Error),
   /// Package type is not supported by target platform
   #[error("Wrong package type {0} for platform {1}")]
   InvalidPackageType(String, String),

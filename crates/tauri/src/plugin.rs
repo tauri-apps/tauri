@@ -104,6 +104,7 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
 
+  // TODO: Change this to `run_invoke_handler` in v3
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
   fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
@@ -979,10 +980,10 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
-  /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
-  pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
+  pub(crate) fn run_invoke_handler(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
     for p in self.store.iter_mut() {
       if p.name() == plugin {
         #[cfg(feature = "tracing")]

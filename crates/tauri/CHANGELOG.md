@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.11.5]
+
+### Dependencies
+
+- [`44594d6f1`](https://www.github.com/tauri-apps/tauri/commit/44594d6f1b83856c2c0aec9c5021d7bb9db51a42) ([#15631](https://www.github.com/tauri-apps/tauri/pull/15631) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Unpin `time` as a new fixed version `0.3.53` has been published
+
 ## \[2.11.4]
 
 ### Dependencies

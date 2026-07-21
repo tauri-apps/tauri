@@ -478,15 +478,10 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Brings the application to the foreground.
   ///
-  /// The API is PRE-RUN-ONLY.
+  /// This API must be called before the event loop starts.
   ///
   /// If `false`, the app activates only if no other app is currently active.
   /// If `true`, the app activates regardless.
-  ///
-  /// # Platform-specific
-  ///
-  /// - **macOS**: Supported.
-  /// - **iOS / Android / Windows / Linux**: Unsupported.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activate_ignoring_other_apps(&mut self, active: bool);

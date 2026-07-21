@@ -1293,31 +1293,26 @@ impl<R: Runtime> App<R> {
 
   /// Brings the application to the foreground.
   ///
-  /// The API is PRE-RUN-ONLY.
+  /// This API must be called before [`Self::run`] or [`Self::run_return`].
   ///
   /// If `false`, the app activates only if no other app is currently active.
   /// If `true`, the app activates regardless.
   ///
-  /// # Platform-specific
-  ///
-  /// - **macOS**: Supported.
-  /// - **iOS / Android / Windows / Linux**: Unsupported.
-  ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::default()
-  ///   .setup(move |app| {
-  ///     #[cfg(target_os = "macos")]
-  ///     app.set_activate_ignoring_other_apps(true);
-  ///     Ok(())
-  ///   });
+  /// let mut app = tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application");
+  /// app.set_activate_ignoring_other_apps(false);
+  /// app.run(|_app_handle, _event| {});
   /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   pub fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
-    self
-      .runtime
-      .as_mut()
-      .unwrap()
-      .set_activate_ignoring_other_apps(ignore);
+    if let Some(runtime) = self.runtime.as_mut() {
+      runtime.set_activate_ignoring_other_apps(ignore);
+    }
   }
 
   /// Sets the dock visibility for the application.

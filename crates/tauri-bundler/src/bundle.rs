@@ -140,10 +140,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     .fs_context("can't open main binary", &main_binary_path)?;
   std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
 
-  if !settings.binary_patching() {
-    log::warn!("Skipping binary patching due to --no-binary-patching flag.");
-  }
-
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
@@ -155,11 +151,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       if let Err(e) = patch_binary(&main_binary_path, package_type) {
         log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
       }
+    } else {
+      log::warn!(
+        "Skipping binary patching for {} due to --no-binary-patching flag.",
+        main_binary_path.display()
+      );
+    }
 
-      // sign main binary for every package type after patch
-      if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
-        windows::sign::try_sign(&main_binary_path, settings)?;
-      }
+    // sign main binary for every package type after patch
+    if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
+      windows::sign::try_sign(&main_binary_path, settings)?;
     }
 
     let bundle_paths = match package_type {

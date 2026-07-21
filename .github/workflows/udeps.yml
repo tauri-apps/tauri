@@ -31,7 +31,7 @@ jobs:
       bundler: ${{ steps.filter.outputs.bundler }}
       cli: ${{ steps.filter.outputs.cli }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -74,7 +74,7 @@ jobs:
       needs.changes.outputs.macossign == 'true'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
@@ -125,7 +125,7 @@ jobs:
       matrix:
         path: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly

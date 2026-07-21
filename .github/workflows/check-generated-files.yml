@@ -26,7 +26,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       schema: ${{ steps.filter.outputs.schema }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -45,9 +45,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.api == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm i -g --force corepack
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
           cache: 'pnpm'
@@ -65,7 +65,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.schema == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: install stable
         uses: dtolnay/rust-toolchain@stable

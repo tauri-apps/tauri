@@ -679,7 +679,7 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    self.run_on_main_thread(move || unsafe {
+    let _ = self.run_on_main_thread(move || unsafe {
       let mtm = objc2::MainThreadMarker::new().unwrap();
       let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
       tx.send(ui_application.supportsMultipleScenes()).unwrap();
@@ -2380,6 +2380,8 @@ tauri::Builder::default()
       ran_setup: false,
     };
 
+    app.register_core_plugins()?;
+
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
       let menu = menu(&app.handle)?;
@@ -2394,8 +2396,6 @@ tauri::Builder::default()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
-    app.register_core_plugins()?;
 
     let env = Env::default();
     app.manage(env);
@@ -2418,11 +2418,9 @@ tauri::Builder::default()
     {
       let config = app.config();
       if let Some(tray_config) = &config.app.tray_icon {
-        #[allow(deprecated)]
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
             .icon_as_template(tray_config.icon_as_template)
-            .menu_on_left_click(tray_config.menu_on_left_click)
             .show_menu_on_left_click(tray_config.show_menu_on_left_click);
         if let Some(icon) = &app.manager.tray.icon {
           tray = tray.icon(icon.clone());

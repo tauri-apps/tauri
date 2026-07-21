@@ -487,6 +487,37 @@ mod tests {
 
   #[test]
   #[serial_test::serial(resources)]
+  fn resource_paths_iter_rerun_if_changed() {
+    setup_test_dirs();
+
+    let dir = std::env::current_dir().unwrap().join("src-tauri");
+    let _ = std::env::set_current_dir(dir);
+
+    let patterns = [
+      "../src/script.js".into(),
+      "../src/assets".into(),
+      "../src/textures/**/*".into(),
+      "*.toml".into(),
+    ];
+    let mut resources = ResourcePaths::new(&patterns, true).iter();
+
+    for resource in resources.by_ref() {
+      resource.unwrap();
+    }
+
+    assert_eq!(
+      resources.rerun_if_changed(),
+      &[
+        normalize(Path::new("../src/script.js")),
+        normalize(Path::new("../src/assets")),
+        normalize(Path::new("../src/textures")),
+        PathBuf::from("."),
+      ]
+    );
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
   fn resource_paths_iter_slice_no_walk() {
     setup_test_dirs();
 

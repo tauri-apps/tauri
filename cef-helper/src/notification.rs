@@ -50,10 +50,12 @@ wrap_render_process_handler! {
       // Capture the frame URL early as the origin string.
       let origin = CefString::from(&frame.url()).to_string();
       let browser_id = browser.map(|b| b.identifier()).unwrap_or(-1);
-      eprintln!(
-        "[cef-helper-notify] on_context_created browser_id={} origin={}",
-        browser_id, origin
-      );
+      if crate::verbose() {
+        eprintln!(
+          "[cef-helper-notify] on_context_created browser_id={} origin={}",
+          browser_id, origin
+        );
+      }
 
       let Some(global) = context.global() else { return; };
 
@@ -74,10 +76,12 @@ wrap_render_process_handler! {
       // itself works — it replaces the getter on the JS-visible navigator
       // wrapper, which is the same mechanism ua_spoof.js uses for userAgent.
       install_permissions_query_shim(context);
-      eprintln!(
-        "[cef-helper-notify] installed shims browser_id={} origin={}",
-        browser_id, origin
-      );
+      if crate::verbose() {
+        eprintln!(
+          "[cef-helper-notify] installed shims browser_id={} origin={}",
+          browser_id, origin
+        );
+      }
     }
   }
 }
@@ -166,8 +170,7 @@ fn install_notification_shim(global: &V8Value, origin: &str, source: Notificatio
 /// Replace `ServiceWorkerRegistration.prototype.showNotification` if available.
 fn install_sw_shim(global: &V8Value, origin: &str) {
   // Guard: if this context doesn't expose ServiceWorkerRegistration, skip.
-  let Some(sw_reg) = global.value_bykey(Some(&CefString::from("ServiceWorkerRegistration")))
-  else {
+  let Some(sw_reg) = global.value_bykey(Some(&CefString::from("ServiceWorkerRegistration"))) else {
     return;
   };
   if sw_reg.is_object() == 0 {
@@ -181,9 +184,10 @@ fn install_sw_shim(global: &V8Value, origin: &str) {
   }
 
   let mut handler = NotifyV8Handler::new(NotificationSource::ServiceWorker, origin.to_owned());
-  let Some(mut shim) =
-    v8_value_create_function(Some(&CefString::from("showNotification")), Some(&mut handler))
-  else {
+  let Some(mut shim) = v8_value_create_function(
+    Some(&CefString::from("showNotification")),
+    Some(&mut handler),
+  ) else {
     return;
   };
 
@@ -234,15 +238,17 @@ wrap_v8_handler! {
         .map(|v| v.bool_value() != 0)
         .unwrap_or(false);
 
-      eprintln!(
-        "[cef-helper-notify] execute source={} title={:?} body={:?} tag={:?} origin={} silent={}",
-        self.source as i32,
-        title,
-        body,
-        tag,
-        self.origin,
-        silent
-      );
+      if crate::verbose() {
+        eprintln!(
+          "[cef-helper-notify] execute source={} title={:?} body={:?} tag={:?} origin={} silent={}",
+          self.source as i32,
+          title,
+          body,
+          tag,
+          self.origin,
+          silent
+        );
+      }
 
       // Build and send the IPC.
       if let Some(mut msg) = process_message_create(Some(&CefString::from(IPC_NAME))) {

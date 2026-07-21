@@ -715,7 +715,9 @@ tauri::Builder::default()
   /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
   /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
   /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
-  /// - **Android**: Experimental support implemented via JNI.
+  /// - **Android**: Supported via JNI bridge for geolocation, microphone, camera,
+  ///   protected media, and MIDI requests. Android runtime permissions may still
+  ///   trigger native OS prompts before access is granted.
   ///
   /// # Examples
   ///
@@ -2420,6 +2422,18 @@ impl<T: ScopeObject> ResolvedScope<T> {
 #[cfg(test)]
 mod tests {
   use url::Url;
+
+  #[test]
+  fn no_permission_handler_preserves_runtime_default() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    let pending = super::WebviewBuilder::new("test", crate::WebviewUrl::default())
+      .into_pending_webview(&app, "test")
+      .unwrap();
+
+    assert!(pending.permission_request_handler.is_none());
+  }
 
   fn test_webview_window() -> crate::WebviewWindow<crate::test::MockRuntime> {
     use crate::test::{mock_builder, mock_context, noop_assets};

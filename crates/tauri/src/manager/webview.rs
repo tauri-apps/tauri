@@ -312,36 +312,29 @@ impl<R: Runtime> WebviewManager<R> {
         }
       }));
 
-    let label_ = pending.label.clone();
-    let app_manager_ = manager.manager_owned();
     let permission_request_handler = pending.permission_request_handler.take();
-    pending
-      .permission_request_handler
-      .replace(Box::new(move |kind| {
-        let mut response = crate::webview::PermissionResponse::Default;
-
-        if let Some(handler) = &permission_request_handler {
-          response = handler(kind);
-        }
-
-        if let Some(w) = app_manager_.get_webview(&label_) {
-          if response == crate::webview::PermissionResponse::Default {
-            if let Some(on_permission_request) = &app_manager_.webview.on_permission_request {
-              response = on_permission_request(w.clone(), kind);
+    if permission_request_handler.is_some() || self.on_permission_request.is_some() {
+      let label_ = pending.label.clone();
+      let app_manager_ = manager.manager_owned();
+      pending
+        .permission_request_handler
+        .replace(Box::new(move |kind| {
+          if let Some(handler) = &permission_request_handler {
+            let response = handler(kind);
+            if response != crate::webview::PermissionResponse::Default {
+              return response;
             }
           }
 
-          if response == crate::webview::PermissionResponse::Default {
-            response = app_manager_
-              .plugins
-              .lock()
-              .unwrap()
-              .on_permission_request(&w, kind);
+          if let Some(w) = app_manager_.get_webview(&label_) {
+            if let Some(on_permission_request) = &app_manager_.webview.on_permission_request {
+              return on_permission_request(w, kind);
+            }
           }
-        }
 
-        response
-      }));
+          crate::webview::PermissionResponse::Default
+        }));
+    }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     if pending.on_web_content_process_terminate_handler.is_none() {

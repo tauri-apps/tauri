@@ -100,16 +100,6 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_page_load(&mut self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {}
 
-  /// Callback invoked when the webview requests a permission.
-  #[allow(unused_variables)]
-  fn on_permission_request(
-    &mut self,
-    webview: &Webview<R>,
-    kind: crate::webview::PermissionKind,
-  ) -> crate::webview::PermissionResponse {
-    crate::webview::PermissionResponse::Default
-  }
-
   /// Callback invoked when the event loop receives a new event.
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
@@ -128,8 +118,6 @@ type OnWebviewReady<R> = dyn FnMut(Webview<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
 type OnNavigation<R> = dyn Fn(&Webview<R>, &Url) -> bool + Send;
 type OnPageLoad<R> = dyn FnMut(&Webview<R>, &PageLoadPayload<'_>) + Send;
-type OnPermissionRequest<R> = dyn FnMut(&Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
-  + Send;
 type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// A handle to a plugin.
@@ -280,7 +268,6 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   js_init_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
-  on_permission_request: Box<OnPermissionRequest<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
@@ -298,7 +285,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       invoke_handler: Box::new(|_| false),
       on_navigation: Box::new(|_, _| true),
       on_page_load: Box::new(|_, _| ()),
-      on_permission_request: Box::new(|_, _| crate::webview::PermissionResponse::Default),
       on_window_ready: Box::new(|_| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
@@ -498,33 +484,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     F: FnMut(&Webview<R>, &PageLoadPayload<'_>) + Send + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
-    self
-  }
-
-  /// Callback invoked when the webview requests a permission.
-  ///
-  /// # Examples
-  ///
-  /// ```rust
-  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
-  ///
-  /// fn init<R: Runtime>() -> TauriPlugin<R> {
-  ///   Builder::new("example")
-  ///     .on_permission_request(|webview, kind| {
-  ///       println!("Permission {} requested in webview {}", kind, webview.label());
-  ///       tauri::webview::PermissionResponse::Default
-  ///     })
-  ///     .build()
-  /// }
-  /// ```
-  #[must_use]
-  pub fn on_permission_request<F>(mut self, on_permission_request: F) -> Self
-  where
-    F: FnMut(&Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
-      + Send
-      + 'static,
-  {
-    self.on_permission_request = Box::new(on_permission_request);
     self
   }
 
@@ -778,7 +737,6 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       js_init_script: self.js_init_script,
       on_navigation: self.on_navigation,
       on_page_load: self.on_page_load,
-      on_permission_request: self.on_permission_request,
       on_window_ready: self.on_window_ready,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
@@ -806,7 +764,6 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   js_init_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
-  on_permission_request: Box<OnPermissionRequest<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
@@ -884,14 +841,6 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
 
   fn on_page_load(&mut self, webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
     (self.on_page_load)(webview, payload)
-  }
-
-  fn on_permission_request(
-    &mut self,
-    webview: &Webview<R>,
-    kind: crate::webview::PermissionKind,
-  ) -> crate::webview::PermissionResponse {
-    (self.on_permission_request)(webview, kind)
   }
 
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
@@ -1020,25 +969,6 @@ impl<R: Runtime> PluginStore<R> {
         tracing::trace_span!("plugin::hooks::on_page_load", name = plugin.name()).entered();
       plugin.on_page_load(webview, payload)
     })
-  }
-
-  /// Runs the on_permission_request hook for all plugins in the store.
-  pub(crate) fn on_permission_request(
-    &mut self,
-    webview: &Webview<R>,
-    kind: crate::webview::PermissionKind,
-  ) -> crate::webview::PermissionResponse {
-    for plugin in self.store.iter_mut() {
-      #[cfg(feature = "tracing")]
-      let _span =
-        tracing::trace_span!("plugin::hooks::on_permission_request", name = plugin.name())
-          .entered();
-      let res = plugin.on_permission_request(webview, kind);
-      if res != crate::webview::PermissionResponse::Default {
-        return res;
-      }
-    }
-    crate::webview::PermissionResponse::Default
   }
 
   /// Runs the on_event hook for all plugins in the store.

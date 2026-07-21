@@ -119,13 +119,9 @@ enum Fit {
 #[derive(Clone)]
 #[allow(clippy::large_enum_variant)]
 enum Source {
-  // An SVG stays a vector until the very last step. `fit` records how a
-  // non-square source should be squared; it is applied as a render transform
-  // when rasterizing at each target size (see `resize_exact`), so the icons are
-  // rendered directly from the vector tree rather than from an intermediate
-  // bitmap.
   Svg {
     tree: resvg::usvg::Tree,
+    /// Records how a non-square source should be squared
     fit: Option<Fit>,
   },
   DynamicImage(DynamicImage),

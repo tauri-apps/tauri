@@ -87,10 +87,9 @@ fn copy_binaries(
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   let path = path.canonicalize()?;
-  for resource in resources.iter() {
+  let mut resources = resources.iter();
+  for resource in resources.by_ref() {
     let resource = resource?;
-
-    println!("cargo:rerun-if-changed={}", resource.path().display());
 
     // avoid copying the resource if target is the same as source
     let src = resource.path().canonicalize()?;
@@ -99,6 +98,11 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
       copy_file(src, target)?;
     }
   }
+
+  for path in resources.rerun_if_changed() {
+    println!("cargo:rerun-if-changed={}", path.display());
+  }
+
   Ok(())
 }
 

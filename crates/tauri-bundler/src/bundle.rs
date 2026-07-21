@@ -147,8 +147,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    if let Err(e) = patch_binary(&main_binary_path, package_type) {
-      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+    if settings.binary_patching() {
+      if let Err(e) = patch_binary(&main_binary_path, package_type) {
+        log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+      }
+    } else {
+      log::warn!(
+        "Skipping binary patching for {} due to --no-binary-patching flag.",
+        main_binary_path.display()
+      );
     }
 
     // sign main binary for every package type after patch

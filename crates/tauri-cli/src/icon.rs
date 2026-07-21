@@ -239,12 +239,12 @@ fn rasterize_svg(tree: &usvg::Tree, fit: Option<Fit>, size: u32) -> DynamicImage
   let (side, off_x, off_y) = match fit {
     // Crop to the shorter side, centered.
     Some(Fit::Cover) => {
-      let side = nw.min(nh);
+      let side = f32::min(nw, nh);
       (side, (nw - side) / 2.0, (nh - side) / 2.0)
     }
     // Pad the shorter side, centered (offsets are negative → transparent bands).
     Some(Fit::Contain) => {
-      let side = nw.max(nh);
+      let side = f32::max(nw, nh);
       (side, (nw - side) / 2.0, (nh - side) / 2.0)
     }
     // Already square (or squaring not requested): scale to fit as-is.
@@ -284,11 +284,11 @@ fn fit_to_square(source: Source, fit: Fit) -> Source {
   let (width, height) = image.dimensions();
   let squared = match fit {
     Fit::Cover => {
-      let side = width.min(height);
+      let side = u32::min(width, height);
       image.crop_imm((width - side) / 2, (height - side) / 2, side, side)
     }
     Fit::Contain => {
-      let side = width.max(height);
+      let side = u32::max(width, height);
       let mut canvas = ImageBuffer::from_pixel(side, side, Rgba([0, 0, 0, 0]));
       image::imageops::overlay(
         &mut canvas,

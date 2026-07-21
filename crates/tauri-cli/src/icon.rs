@@ -132,20 +132,6 @@ enum Source {
 }
 
 impl Source {
-  fn width(&self) -> u32 {
-    match self {
-      Self::Svg { tree, fit } => svg_fitted_size(tree, *fit).0 as u32,
-      Self::DynamicImage(i) => i.width(),
-    }
-  }
-
-  fn height(&self) -> u32 {
-    match self {
-      Self::Svg { tree, fit } => svg_fitted_size(tree, *fit).1 as u32,
-      Self::DynamicImage(i) => i.height(),
-    }
-  }
-
   fn resize_exact(&self, size: u32) -> DynamicImage {
     match self {
       Self::Svg { tree, fit } => rasterize_svg(tree, *fit, size),
@@ -154,23 +140,6 @@ impl Source {
         resize_image(image, size, size)
       }
     }
-  }
-}
-
-// The output size, in SVG user units, once `fit` squares a non-square tree.
-fn svg_fitted_size(tree: &usvg::Tree, fit: Option<Fit>) -> (f32, f32) {
-  let size = tree.size();
-  let (w, h) = (size.width(), size.height());
-  match fit {
-    Some(Fit::Cover) => {
-      let side = w.min(h);
-      (side, side)
-    }
-    Some(Fit::Contain) => {
-      let side = w.max(h);
-      (side, side)
-    }
-    None => (w, h),
   }
 }
 
@@ -371,9 +340,13 @@ pub fn command(options: Options) -> Result<()> {
 
   let mut source = read_source(default_icon)?;
 
-  if source.height() != source.width() {
+  let (width, height) = match &source {
+    Source::Svg { tree, .. } => (tree.size().width() as u32, tree.size().height() as u32),
+    Source::DynamicImage(i) => (i.width(), i.height()),
+  };
+  if width != height {
     if let Some(fit) = options.fit {
-      log::info!(action = "Fit"; "Squaring {}x{} source with `{:?}`", source.width(), source.height(), fit);
+      log::info!(action = "Fit"; "Squaring {width}x{height} source with `{fit:?}`");
       source = fit_to_square(source, fit);
     } else {
       crate::error::bail!(

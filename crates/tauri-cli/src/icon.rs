@@ -1087,21 +1087,21 @@ mod tests {
   #[test]
   fn cover_center_crops_to_square() {
     let out = fit_to_square(landscape(40, 20), Fit::Cover);
-    assert_eq!((out.width(), out.height()), (20, 20));
-    // the cropped region keeps the original content (fully opaque)
     let Source::DynamicImage(image) = out else {
       panic!("expected a raster source");
     };
+    assert_eq!((image.width(), image.height()), (20, 20));
+    // the cropped region keeps the original content (fully opaque)
     assert_eq!(image.get_pixel(10, 10)[3], 255);
   }
 
   #[test]
   fn contain_pads_shorter_side_with_transparency() {
     let out = fit_to_square(landscape(40, 20), Fit::Contain);
-    assert_eq!((out.width(), out.height()), (40, 40));
     let Source::DynamicImage(image) = out else {
       panic!("expected a raster source");
     };
+    assert_eq!((image.width(), image.height()), (40, 40));
     // top padding band is transparent, the centered content is opaque
     assert_eq!(image.get_pixel(20, 0)[3], 0);
     assert_eq!(image.get_pixel(20, 20)[3], 255);
@@ -1113,11 +1113,9 @@ mod tests {
       tree: svg_landscape(),
       fit: Some(Fit::Cover),
     };
-    // the fit squares the reported size to the shorter side
-    assert_eq!((source.width(), source.height()), (20, 20));
     // rendered directly from the vector tree at the requested size
     let image = source.resize_exact(64);
-    assert_eq!(image.dimensions(), (64, 64));
+    assert_eq!((image.width(), image.height()), (64, 64));
     // center of the cropped region stays opaque
     assert_eq!(image.get_pixel(32, 32)[3], 255);
   }
@@ -1128,9 +1126,8 @@ mod tests {
       tree: svg_landscape(),
       fit: Some(Fit::Contain),
     };
-    assert_eq!((source.width(), source.height()), (40, 40));
     let image = source.resize_exact(64);
-    assert_eq!(image.dimensions(), (64, 64));
+    assert_eq!((image.width(), image.height()), (64, 64));
     // top band is transparent padding, the centered content is opaque
     assert_eq!(image.get_pixel(32, 2)[3], 0);
     assert_eq!(image.get_pixel(32, 32)[3], 255);

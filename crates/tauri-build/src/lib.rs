@@ -91,8 +91,6 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   for resource in resources.by_ref() {
     let resource = resource?;
 
-    println!("cargo:rerun-if-changed={}", resource.path().display());
-
     // avoid copying the resource if target is the same as source
     let src = resource.path().canonicalize()?;
     let target = path.join(resource.target());
@@ -101,12 +99,8 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
     }
   }
 
-  // Watch each resource directory so that adding or removing a file inside it
-  // re-runs the build script and copies the new files. Emitting a
-  // rerun-if-changed only for the individual files that existed at build time
-  // means newly added files are never noticed.
-  for dir in resources.rerun_if_changed() {
-    println!("cargo:rerun-if-changed={}", dir.display());
+  for path in resources.rerun_if_changed() {
+    println!("cargo:rerun-if-changed={}", path.display());
   }
 
   Ok(())

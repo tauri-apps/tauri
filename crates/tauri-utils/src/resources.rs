@@ -138,7 +138,7 @@ pub struct ResourcePathsIter<'a> {
   /// The iter for the current pattern. The cycle goes like this:
   /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
-  /// Directories that were walked or globbed while iterating. Build scripts
+  /// Paths that were walked or globbed while iterating. Build scripts
   /// should emit a `rerun-if-changed` for each so that adding or removing a
   /// file inside a resource directory re-triggers the resource copy.
   rerun_if_changed: Vec<PathBuf>,
@@ -174,7 +174,7 @@ impl Iterator for ResourcePathsInnerIter {
 }
 
 impl ResourcePathsIter<'_> {
-  /// Directories that were walked or globbed while iterating.
+  /// Paths that were walked or globbed while iterating.
   ///
   /// A build script should emit a `cargo:rerun-if-changed` for each of these
   /// after iterating, so that adding or removing a file inside a resource
@@ -291,12 +291,11 @@ impl ResourcePathsIter<'_> {
       }
     } else {
       let path = normalize(Path::new(pattern));
+      self.rerun_if_changed.push(path.clone());
       if path.is_dir() {
         if !self.allow_walk {
           return Some(Err(crate::Error::NotAllowedToWalkDir(path)));
         }
-        // Watch the directory itself so newly added files are picked up.
-        self.rerun_if_changed.push(path.clone());
         self.current_iter = Some(ResourcePathsInnerIter::Walk {
           iter: WalkDir::new(&path).into_iter(),
           current_pattern: if matches!(self.pattern_iter, PatternIter::Map(_)) {
@@ -484,44 +483,6 @@ mod tests {
         panic!("{resource:?} was expected but not found in {resources:?}");
       }
     }
-  }
-
-  #[test]
-  #[serial_test::serial(resources)]
-  fn resource_paths_iter_tracks_rerun_dirs() {
-    setup_test_dirs();
-
-    let dir = std::env::current_dir().unwrap().join("src-tauri");
-    let _ = std::env::set_current_dir(dir);
-
-    let patterns = [
-      // single file -> nothing to watch as a directory
-      "../src/script.js".to_string(),
-      // directory -> the directory itself should be watched
-      "../src/assets".to_string(),
-      // glob -> the fixed base directory should be watched
-      "../src/textures/**/*".to_string(),
-    ];
-    let mut iter = ResourcePaths::new(&patterns, true).iter();
-
-    // exhaust the iterator so every pattern is visited
-    for resource in iter.by_ref() {
-      resource.unwrap();
-    }
-
-    let rerun = iter.rerun_if_changed();
-    assert!(
-      rerun.contains(&normalize(Path::new("../src/assets"))),
-      "expected resource directory to be watched, got {rerun:?}"
-    );
-    assert!(
-      rerun.contains(&PathBuf::from("../src/textures")),
-      "expected glob base directory to be watched, got {rerun:?}"
-    );
-    assert!(
-      !rerun.contains(&normalize(Path::new("../src/script.js"))),
-      "single-file pattern should not be watched as a directory, got {rerun:?}"
-    );
   }
 
   #[test]

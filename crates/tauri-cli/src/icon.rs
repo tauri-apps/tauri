@@ -372,14 +372,13 @@ pub fn command(options: Options) -> Result<()> {
   let mut source = read_source(default_icon)?;
 
   if source.height() != source.width() {
-    match options.fit {
-      Some(fit) => {
-        log::info!(action = "Fit"; "Squaring {}x{} source with `{:?}`", source.width(), source.height(), fit);
-        source = fit_to_square(source, fit);
-      }
-      None => crate::error::bail!(
+    if let Some(fit) = options.fit {
+      log::info!(action = "Fit"; "Squaring {}x{} source with `{:?}`", source.width(), source.height(), fit);
+      source = fit_to_square(source, fit);
+    } else {
+      crate::error::bail!(
         "Source image must be square; pass `--fit cover` or `--fit contain` to convert a non-square source"
-      ),
+      )
     }
   }
 

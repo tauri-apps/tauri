@@ -106,6 +106,7 @@ pub fn noop_assets() -> NoopAsset {
 }
 
 /// Creates a new [`crate::Context`] for testing.
+#[allow(deprecated)]
 pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
   Context {
     config: Config {
@@ -120,7 +121,8 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
         security: Default::default(),
         tray_icon: None,
         macos_private_api: false,
-        macos: Default::default(),
+        private_api_fullscreen: false,
+        private_api_transparent: false,
         enable_gtk_app_id: false,
       },
       bundle: Default::default(),

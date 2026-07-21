@@ -465,7 +465,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       .limit_navigations_to_app_bound_domains(config.limit_navigations_to_app_bound_domains)
       .general_autofill_enabled(config.general_autofill_enabled);
 
-    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api-transparent"))]
     {
       builder = builder.transparent(config.transparent);
     }
@@ -672,7 +672,7 @@ impl WebviewAttributes {
   }
 
   /// Enable or disable transparency for the WebView.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api-transparent"))]
   #[must_use]
   pub fn transparent(mut self, transparent: bool) -> Self {
     self.transparent = transparent;

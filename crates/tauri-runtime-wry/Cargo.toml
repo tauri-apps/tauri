@@ -63,7 +63,7 @@ default = ["x11", "dbus"]
 devtools = ["wry/devtools", "tauri-runtime/devtools"]
 x11 = ["tao/x11", "wry/x11"]
 macos-private-api-fullscreen = ["wry/fullscreen"]
-macos-private-api-transparent = ["wry/transparent", "tauri-runtime/macos-private-api"]
+macos-private-api-transparent = ["wry/transparent", "tauri-runtime/macos-private-api-transparent"]
 # Legacy umbrella feature: enables both fullscreen and transparent capabilities.
 macos-private-api = [
   "macos-private-api-fullscreen",

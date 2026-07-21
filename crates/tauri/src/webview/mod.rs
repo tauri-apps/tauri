@@ -968,7 +968,9 @@ fn main() {
     self
   }
 
-  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
+  /// Disables the drag and drop handler used internally to generate [`DragDropEvent`](crate::DragDropEvent)s.
+  ///
+  /// This is required to use HTML5 drag and drop APIs on the frontend on Windows since we replace the drag drop handler of WebView2.
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.webview_attributes.drag_drop_handler_enabled = false;
@@ -1217,6 +1219,62 @@ fn main() {
     self.webview_attributes = self
       .webview_attributes
       .allow_link_preview(allow_link_preview);
+    self
+  }
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  ///
+  /// Default is false.
+  ///
+  /// Note: If you pass in `true` make sure to add localhost and any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to tauri-src/Info.ios.plist:
+  ///
+  /// ```xml
+  /// <plist>
+  /// <dict>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
+  ///     </array>
+  /// </dict>
+  /// </plist>
+  /// ```
+  ///
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  ///
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  ///
+  /// See https://webkit.org/blog/10882/app-bound-domains/ and
+  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: Supported since version 14.0+.
+  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  #[must_use]
+  pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
+    self.webview_attributes = self
+      .webview_attributes
+      .limit_navigations_to_app_bound_domains(limit_navigations);
     self
   }
 
@@ -1724,14 +1782,14 @@ tauri::Builder::default()
         // so we check using the first part of the domain
         #[cfg(any(windows, target_os = "android"))]
         let local = {
-          let protocol_url = self.manager().tauri_protocol_url(uses_https);
-          let maybe_protocol = current_url
+          let scheme = scheme == self.manager().tauri_protocol_url(uses_https).scheme();
+          let protocol = current_url
             .domain()
-            .and_then(|d| d .split_once('.'))
-            .unwrap_or_default()
-            .0;
+            .and_then(|d| d.strip_suffix(".localhost"))
+            .map(|protocol| protocols.contains_key(protocol))
+            .unwrap_or_default();
 
-          protocols.contains_key(maybe_protocol) && scheme == protocol_url.scheme()
+          scheme && protocol
         };
 
         local
@@ -1816,8 +1874,11 @@ tauri::Builder::default()
       (plugin, command)
     });
 
-    // we only check ACL on plugin commands or if the app defined its ACL manifest
-    if (plugin_command.is_some() || has_app_acl_manifest)
+    // Check ACL on plugin commands, when the app defined its ACL manifest,
+    // or when the request comes from a non-local (remote) origin.  This
+    // ensures remote content can never reach custom commands unless an
+    // explicit `remote` capability has been configured for them.
+    if (plugin_command.is_some() || has_app_acl_manifest || !is_local)
       // TODO: Remove this special check in v3
       && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
       && invoke.acl.is_none()
@@ -1857,7 +1918,7 @@ tauri::Builder::default()
       let message = invoke.message.clone();
 
       #[allow(unused_mut)]
-      let mut handled = manager.extend_api(plugin, invoke);
+      let mut handled = manager.run_plugin_invoke_handler(plugin, invoke);
 
       #[cfg(mobile)]
       {
@@ -2351,25 +2412,132 @@ impl<T: ScopeObject> ResolvedScope<T> {
 
 #[cfg(test)]
 mod tests {
+  use url::Url;
+
+  fn test_webview_window() -> crate::WebviewWindow<crate::test::MockRuntime> {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    // Create a mock app with proper context
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+
+    // Create a webview window
+    crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
+      .build()
+      .unwrap()
+  }
+
   #[test]
   fn webview_is_send_sync() {
     crate::test_utils::assert_send::<super::Webview>();
     crate::test_utils::assert_sync::<super::Webview>();
   }
 
+  #[test]
+  fn tauri_protocol_is_local() {
+    let webview = test_webview_window().webview;
+
+    #[cfg(all(not(windows), not(target_os = "android")))]
+    assert!(webview.is_local_url(&Url::parse("tauri://localhost/").unwrap()));
+
+    #[cfg(any(windows, target_os = "android"))]
+    assert!(webview.is_local_url(&Url::parse("https://tauri.localhost/").unwrap()));
+  }
+
+  // On Windows/Android, custom protocols are served as `https://<name>.localhost/`.
+  // We ensure only `.localhost` domains are accepted to prevent a subdomain being able to
+  // impersonate a protocol name.
+  #[cfg(any(windows, target_os = "android"))]
+  #[test]
+  fn windows_custom_protocol_rejects_spoofed_domain() {
+    use crate::test::{mock_builder, mock_context, noop_assets};
+
+    let app = mock_builder()
+      .register_uri_scheme_protocol("myproto", |_, _| {
+        http::Response::builder().body(Vec::new()).unwrap()
+      })
+      .build(mock_context(noop_assets()))
+      .unwrap();
+    let webview = crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
+      .build()
+      .unwrap()
+      .webview;
+
+    let url = |s| Url::parse(s).unwrap();
+
+    // Legitimate Windows custom protocol URL
+    assert!(webview.is_local_url(&url("https://myproto.localhost/")));
+
+    // Attacker domain that starts with a registered protocol name — must NOT be local.
+    assert!(!webview.is_local_url(&url("https://myproto.evil.com/")));
+
+    // Subdomain of .localhost with unregistered name — must NOT be local
+    assert!(!webview.is_local_url(&url("https://notregistered.localhost/")));
+  }
+
+  /// Custom (non-plugin) commands must be rejected when the IPC request
+  /// originates from a remote URL, even when no `AppManifest` has been
+  /// configured.  Only local (bundled) origins should be able to reach
+  /// custom commands.
+  #[test]
+  fn remote_origin_blocked_for_custom_commands_without_app_manifest() {
+    use crate::test::{mock_builder, mock_context, noop_assets, INVOKE_KEY};
+    use crate::webview::InvokeRequest;
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+
+    let webview = crate::WebviewWindowBuilder::new(&app, "main", Default::default())
+      .build()
+      .unwrap();
+
+    // Request from a remote origin for a custom (non-plugin) command
+    // - should be rejected even without an AppManifest.
+    let remote_result = crate::test::get_ipc_response(
+      &webview,
+      InvokeRequest {
+        cmd: "any_custom_command".into(),
+        callback: crate::ipc::CallbackFn(0),
+        error: crate::ipc::CallbackFn(1),
+        url: "https://evil.com".parse().unwrap(),
+        body: crate::ipc::InvokeBody::default(),
+        headers: Default::default(),
+        invoke_key: INVOKE_KEY.to_string(),
+      },
+    );
+    assert!(
+      remote_result.is_err(),
+      "custom command should be rejected from a remote origin"
+    );
+
+    // Same command from the local origin - should NOT be rejected by the
+    // remote-origin guard (it may still fail because the command doesn't
+    // exist, but the error message will be different).
+    let local_result = crate::test::get_ipc_response(
+      &webview,
+      InvokeRequest {
+        cmd: "any_custom_command".into(),
+        callback: crate::ipc::CallbackFn(0),
+        error: crate::ipc::CallbackFn(1),
+        url: "tauri://localhost".parse().unwrap(),
+        body: crate::ipc::InvokeBody::default(),
+        headers: Default::default(),
+        invoke_key: INVOKE_KEY.to_string(),
+      },
+    );
+    // The local request should either succeed or fail for a reason OTHER
+    // than "not allowed from remote context".
+    if let Err(e) = &local_result {
+      let msg = e.to_string();
+      assert!(
+        !msg.contains("not allowed from remote context"),
+        "local origin should not be blocked by the remote-origin guard, got: {msg}"
+      );
+    }
+  }
+
   #[cfg(target_os = "macos")]
   #[test]
   fn test_webview_window_has_set_simple_fullscreen_method() {
-    use crate::test::{mock_builder, mock_context, noop_assets};
-
-    // Create a mock app with proper context
-    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
-
-    // Get or create a webview window
-    let webview_window =
-      crate::WebviewWindowBuilder::new(&app, "test", crate::WebviewUrl::default())
-        .build()
-        .unwrap();
+    let webview_window = test_webview_window();
 
     // This should compile if set_simple_fullscreen exists
     let result = webview_window.set_simple_fullscreen(true);

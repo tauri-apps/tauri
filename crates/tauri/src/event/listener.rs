@@ -168,11 +168,11 @@ impl Listeners {
 
     self.listen(event, target, move |event| {
       let id = event.id;
+      self_.unlisten(id);
       let handler = handler
         .take()
         .expect("attempted to call handler more than once");
       handler(event);
-      self_.unlisten(id);
     })
   }
 
@@ -249,6 +249,20 @@ impl Listeners {
         }
       }
     }
+  }
+
+  /// Removes all JS event listeners registered from the given webview.
+  ///
+  /// Called when a webview is destroyed: its JavaScript runtime no longer
+  /// exists, so the listeners keyed by its label can never be delivered and
+  /// would otherwise leak in the map until the app exits.
+  pub(crate) fn remove_webview_js_listeners(&self, webview_label: &str) {
+    self
+      .inner
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .remove(webview_label);
   }
 
   pub(crate) fn has_js_listener<F: Fn(&EventTarget) -> bool>(
@@ -381,5 +395,43 @@ mod test {
       // assert that the key is contained in the listeners map
       assert!(l.contains_key(&key));
     }
+  }
+
+  #[test]
+  fn event_no_deadlocks() {
+    let listeners = Listeners::default();
+    let listeners_clone = listeners.clone();
+    let event = crate::EventName::new("test-event".to_owned()).unwrap();
+    let event_clone = event.clone();
+    listeners.once(event.clone(), EventTarget::Any, move |_event| {
+      listeners_clone
+        .emit(EmitArgs::new(event_clone.as_str_event(), &()).unwrap())
+        .unwrap();
+    });
+    listeners
+      .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
+      .unwrap();
+  }
+
+  #[test]
+  fn js_listeners_removed_on_webview_close() {
+    let listeners = Listeners::default();
+    let event = crate::EventName::new("some-event".to_owned()).unwrap();
+    let webview_label = "main";
+
+    let id = listeners.next_event_id();
+    listeners.listen_js(
+      event.as_str_event(),
+      webview_label,
+      EventTarget::Webview {
+        label: webview_label.to_owned(),
+      },
+      id,
+    );
+    assert!(listeners.has_js_listener(event.as_str_event(), |_| true));
+
+    // dropping the source webview must drop its JS listeners.
+    listeners.remove_webview_js_listeners(webview_label);
+    assert!(!listeners.has_js_listener(event.as_str_event(), |_| true));
   }
 }

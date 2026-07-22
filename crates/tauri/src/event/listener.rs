@@ -192,7 +192,7 @@ impl Listeners {
   ///
   /// Called when a window or webview is destroyed so its listeners don't leak.
   /// Global targets such as [`EventTarget::App`], [`EventTarget::Any`] and [`EventTarget::AnyLabel`] are never matched here.
-  pub(crate) fn remove_listeners_for_target(&self, target: EventTarget) {
+  fn remove_listeners_for_target(&self, target: EventTarget) {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::RemoveForTarget(target)),
       Ok(mut lock) => {
@@ -270,17 +270,25 @@ impl Listeners {
   }
 
   /// Removes all JS event listeners registered from the given webview.
-  ///
-  /// Called when a webview is destroyed: its JavaScript runtime no longer
-  /// exists, so the listeners keyed by its label can never be delivered and
-  /// would otherwise leak in the map until the app exits.
-  pub(crate) fn remove_webview_js_listeners(&self, webview_label: &str) {
+  fn remove_webview_js_listeners(&self, webview_label: &str) {
     self
       .inner
       .js_event_listeners
       .lock()
       .unwrap()
       .remove(webview_label);
+  }
+
+  /// Removes all event listeners associated with a destroyed webview.
+  pub(crate) fn remove_webview_listeners(&self, label: &str) {
+    self.remove_webview_js_listeners(label);
+    self.remove_listeners_for_target(EventTarget::webview(label));
+  }
+
+  /// Removes all event listeners associated with a destroyed window.
+  pub(crate) fn remove_window_listeners(&self, label: &str) {
+    self.remove_listeners_for_target(EventTarget::window(label));
+    self.remove_listeners_for_target(EventTarget::webview_window(label));
   }
 
   pub(crate) fn has_js_listener<F: Fn(&EventTarget) -> bool>(
@@ -459,8 +467,7 @@ mod test {
     );
     assert!(listeners.has_js_listener(event.as_str_event(), |_| true));
 
-    listeners.remove_webview_js_listeners(webview_label);
-    listeners.remove_listeners_for_target(EventTarget::webview(webview_label));
+    listeners.remove_webview_listeners(webview_label);
 
     assert!(!listeners.has_js_listener(event.as_str_event(), |_| true));
 

@@ -190,11 +190,8 @@ impl Listeners {
 
   /// Removes every Rust-side event listener registered for the exact given target.
   ///
-  /// Called when a window or webview is destroyed so its listeners don't leak. Matching
-  /// is done on the full [`EventTarget`] (kind + label) rather than the label alone,
-  /// since in multi-webview mode a window and its webviews can carry the same label while
-  /// referring to different targets. Global targets such as [`EventTarget::App`],
-  /// [`EventTarget::Any`] and [`EventTarget::AnyLabel`] are never matched here.
+  /// Called when a window or webview is destroyed so its listeners don't leak.
+  /// Global targets such as [`EventTarget::App`], [`EventTarget::Any`] and [`EventTarget::AnyLabel`] are never matched here.
   pub(crate) fn remove_listeners_for_target(&self, target: EventTarget) {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::RemoveForTarget(target)),

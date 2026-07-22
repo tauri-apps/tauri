@@ -27,6 +27,7 @@ use crate::{CommandExt, error::Context, error::ErrorExt};
 use shared_child::SharedChild;
 use std::fs;
 use std::io::{BufReader, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str::FromStr;
@@ -256,10 +257,21 @@ pub fn stage_bindings_dev_app(
   // runner takes that place. Copied rather than symlinked: the bundle's own copy
   // is what gets signed, and a language runtime resolves its standard library
   // from its compiled-in prefix, not from where it is executed.
+  //
+  // A previous run's copy is removed rather than overwritten, and the fresh one
+  // made writable, because `fs::copy` carries the source's mode over and package
+  // managers install their runtimes read-only (Homebrew's `deno` is `r-xr-xr-x`):
+  // overwriting that copy — here or when the bundler copies it into the `.app`,
+  // or when codesign rewrites it — fails with a permission error.
   let staged_runner = project_out_directory.join(&bin_name);
+  let _ = fs::remove_file(&staged_runner);
   fs::copy(runner_exe, &staged_runner).fs_context(
     "failed to stage the runner executable for the dev app bundle",
     runner_exe.to_path_buf(),
+  )?;
+  fs::set_permissions(&staged_runner, fs::Permissions::from_mode(0o755)).fs_context(
+    "failed to make the staged runner executable writable",
+    staged_runner.clone(),
   )?;
 
   let bundle_settings = BundleSettings {

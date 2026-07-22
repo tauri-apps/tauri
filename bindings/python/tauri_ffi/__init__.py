@@ -16,6 +16,7 @@ progress.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sys
@@ -28,7 +29,19 @@ from cffi import FFI
 from ._cdef import ABI_VERSION, CDEF, CODES
 from .plugin import Plugin
 
-__all__ = ["App", "WebviewWindow", "Window", "Webview", "Menu", "MenuItem", "Tray", "Plugin", "TauriError"]
+__all__ = [
+    "App",
+    "WebviewWindow",
+    "Window",
+    "Webview",
+    "Menu",
+    "MenuItem",
+    "Tray",
+    "Plugin",
+    "Request",
+    "Response",
+    "TauriError",
+]
 
 _ffi = FFI()
 _ffi.cdef(CDEF)
@@ -38,6 +51,35 @@ class TauriError(RuntimeError):
     def __init__(self, code: int, message: str):
         super().__init__(message)
         self.code = code
+
+
+class Request:
+    """A custom-protocol request, handed to a ``@app.protocol`` handler."""
+
+    __slots__ = ("scheme", "webview", "method", "uri", "headers", "body")
+
+    def __init__(self, message: dict):
+        self.scheme: str = message["scheme"]
+        self.webview: str = message["webview"]
+        self.method: str = message["method"]
+        self.uri: str = message["uri"]
+        self.headers: dict = message.get("headers") or {}
+        self.body: bytes = base64.b64decode(message.get("body") or "")
+
+    def __repr__(self) -> str:
+        return f"Request({self.method} {self.uri})"
+
+
+class Response:
+    """A custom-protocol response. A handler may also return plain ``bytes``/
+    ``str`` (a 200 with that body) or None (204)."""
+
+    __slots__ = ("body", "status", "headers")
+
+    def __init__(self, body: Any = b"", status: int = 200, headers: Optional[dict] = None):
+        self.body: bytes = body.encode() if isinstance(body, str) else bytes(body or b"")
+        self.status = status
+        self.headers = headers or {}
 
 
 # The runtime this package loads a library for (wry, cef, …), overridable via
@@ -1056,6 +1098,15 @@ class App:
         dev: Optional[bool] = None,
         capabilities: Optional[list] = None,
         library: Optional[Path] = None,
+        page_load_events: bool = False,
+        webview_events: bool = False,
+        single_instance: bool = False,
+        localhost: Optional[int] = None,
+        window_icon: Optional[Any] = None,
+        app_icon: Optional[Any] = None,
+        invoke_initialization_script: Optional[Any] = None,
+        device_event_filter: Optional[str] = None,
+        macos_default_menu: Optional[bool] = None,
     ):
         # When frozen, assets/config/capabilities are embedded *inside* the
         # binary (extracted to sys._MEIPASS); in dev they come from disk.
@@ -1095,7 +1146,18 @@ class App:
             self._dev = not _is_bundled() and os.environ.get("TAURI_DEV") == "true"
         self._capabilities = list(capabilities or []) + discovered
         self._library = library
+        self._page_load_events = page_load_events
+        self._webview_events = webview_events
+        self._single_instance = single_instance
+        self._localhost = localhost
+        self._window_icon = window_icon
+        self._app_icon = app_icon
+        scripts = invoke_initialization_script
+        self._invoke_scripts = [scripts] if isinstance(scripts, str) else list(scripts or [])
+        self._device_event_filter = device_event_filter
+        self._macos_default_menu = macos_default_menu
         self._commands: dict[str, Callable] = {}
+        self._protocols: dict[str, Callable] = {}
         self._lifecycle: dict[str, list[Callable]] = {}
         self._listeners: dict[int, Callable] = {}
         self._pending_listens: list[tuple] = []
@@ -1115,8 +1177,29 @@ class App:
 
         return register
 
+    def protocol(self, scheme: str):
+        """Decorator: serves a custom URI scheme. ``handler(request)`` receives a
+        :class:`Request` and returns a :class:`Response`, plain ``bytes``/``str``
+        (a 200 with that body) or None (204). Raising produces a 500 — a request
+        must always be answered or the webview waits forever.
+
+        The scheme is registered natively at ``run()``::
+
+            @app.protocol("acme")
+            def serve(request):
+                return Response(b"<h1>hi</h1>", headers={"content-type": "text/html"})
+        """
+
+        def register(handler):
+            self._protocols[scheme] = handler
+            return handler
+
+        return register
+
     def on(self, event_type: str):
-        """Decorator for lifecycle events: 'ready' | 'exit' | 'exit-requested' | 'window-event'."""
+        """Decorator for lifecycle events: 'ready' | 'exit' | 'exit-requested' |
+        'window-event' | 'page-load' | 'webview-event' | 'menu-event' |
+        'tray-event' | 'single-instance' (some require the matching App option)."""
 
         def register(handler):
             self._lifecycle.setdefault(event_type, []).append(handler)
@@ -1350,6 +1433,50 @@ class App:
             _check(lib, lib.tauri_app_builder_set_assets_dir(builder, _s(str(self._assets_dir))), "set_assets_dir")
         for name in self._commands:
             _check(lib, lib.tauri_app_builder_register_command(builder, _s(name)), f"register_command({name})")
+        for scheme in self._protocols:
+            _check(
+                lib,
+                lib.tauri_app_builder_register_uri_scheme_protocol(builder, _s(scheme)),
+                f"register_protocol({scheme})",
+            )
+        if self._page_load_events:
+            _check(lib, lib.tauri_app_builder_set_page_load_events(builder, True), "set_page_load_events")
+        if self._webview_events:
+            _check(lib, lib.tauri_app_builder_set_webview_events(builder, True), "set_webview_events")
+        if self._single_instance:
+            _check(lib, lib.tauri_app_builder_enable_single_instance(builder), "enable_single_instance")
+        if self._localhost is not None:
+            _check(lib, lib.tauri_app_builder_enable_localhost(builder, self._localhost), "enable_localhost")
+        if self._window_icon is not None:
+            # a path (PNG/ICO, decoded natively) or (rgba, width, height) pixels
+            if isinstance(self._window_icon, (str, os.PathLike)):
+                code = lib.tauri_app_builder_set_default_window_icon_path(builder, _s(str(self._window_icon)))
+            else:
+                rgba, width, height = self._window_icon
+                code = lib.tauri_app_builder_set_default_window_icon(builder, rgba, width, height)
+            _check(lib, code, "set_default_window_icon")
+        if self._app_icon is not None:
+            icon = self._app_icon
+            data = Path(icon).read_bytes() if isinstance(icon, (str, os.PathLike)) else bytes(icon)
+            _check(lib, lib.tauri_app_builder_set_app_icon(builder, data, len(data)), "set_app_icon")
+        for script in self._invoke_scripts:
+            _check(
+                lib,
+                lib.tauri_app_builder_append_invoke_initialization_script(builder, _s(script)),
+                "append_invoke_init_script",
+            )
+        if self._device_event_filter is not None:
+            _check(
+                lib,
+                lib.tauri_app_builder_set_device_event_filter(builder, _s(self._device_event_filter)),
+                "set_device_event_filter",
+            )
+        if self._macos_default_menu is not None:
+            _check(
+                lib,
+                lib.tauri_app_builder_set_macos_default_menu(builder, self._macos_default_menu),
+                "set_macos_default_menu",
+            )
         for capability in self._capabilities:
             value = capability if isinstance(capability, str) else json.dumps(capability)
             _check(lib, lib.tauri_app_builder_add_capability(builder, _s(value)), "add_capability")
@@ -1411,6 +1538,8 @@ class App:
         kind = message.get("type")
         if kind == "invoke":
             self._handle_invoke(message)
+        elif kind == "uri-scheme-request":
+            self._handle_protocol_request(message)
         elif kind == "event":
             handler = self._listeners.get(message.get("id"))
             if handler:
@@ -1418,6 +1547,36 @@ class App:
         else:
             for handler in self._lifecycle.get(kind, []):
                 handler(message)
+
+    def _handle_protocol_request(self, message: dict) -> None:
+        scheme = message.get("scheme")
+        handler = self._protocols.get(scheme)
+        try:
+            if handler is None:
+                response = Response(f"no handler for {scheme}://", status=404)
+            else:
+                result = handler(Request(message))
+                if isinstance(result, Response):
+                    response = result
+                elif result is None:
+                    response = Response(b"", status=204)
+                else:
+                    response = Response(result)
+        except Exception as error:  # a 500 still answers the request
+            print(f"[tauri-ffi] protocol {scheme!r} handler error: {error!r}", file=sys.stderr)
+            response = Response(str(error), status=500)
+        # Always responds: an unanswered request hangs the webview forever.
+        _check(
+            self._lib,
+            self._lib.tauri_uri_scheme_respond(
+                message["id"],
+                response.status,
+                _s(json.dumps(response.headers)),
+                response.body,
+                len(response.body),
+            ),
+            "uri_scheme_respond",
+        )
 
     def _handle_invoke(self, message: dict) -> None:
         plugin = message.get("plugin")

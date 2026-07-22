@@ -56,6 +56,9 @@ tauri = { path = "../tauri", default-features = false, features = [
 ] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Custom-protocol request bodies are arbitrary bytes, but the event queue carries
+# JSON — they cross the boundary base64-encoded (responses take raw bytes).
+base64 = "0.22"
 
 # Official first-party plugins bundled into the cdylib so non-Rust hosts get the
 # standard app capabilities (the `@tauri-apps/plugin-*` JS packages talk to these).

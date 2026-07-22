@@ -1,6 +1,6 @@
 {
   "$comment": "Single source of truth for the tauri-ffi C ABI. bindings/bindgen/generate.mjs renders the C header, koffi declarations, Deno symbols and Python cffi cdef from this file, and cross-checks it against the extern fns in src/. Param types: handle (u64 id), str (borrowed UTF-8 in), owned_str (ownership transferred back, e.g. tauri_string_free), bytes (borrowed byte buffer; may be NULL where documented), bool, u32, i32, f64, out_handle, out_bool, out_u32, out_u64, out_i32, out_f64, out_owned_str (caller frees via tauri_string_free). Results: status (i32 error code), u32, borrowed_str (do not free), void. thread: 'any' | 'main' (the thread that builds/runs the loop). blocking: call blocks the calling thread (dynamic FFI hosts should use async/nonblocking call modes). platforms: the targets the function actually works on — the symbol is exported on every platform (the ABI never varies across targets), but calling it elsewhere returns ERR_UNSUPPORTED without side effects.",
-  "abiVersion": 9,
+  "abiVersion": 10,
   "errors": [
     {
       "name": "OK",
@@ -211,6 +211,210 @@
       "result": "status"
     },
     {
+      "name": "tauri_app_builder_register_uri_scheme_protocol",
+      "doc": "Registers a custom URI scheme served to every webview. Requests arrive on the event queue as {\"type\":\"uri-scheme-request\",\"id\":R,\"scheme\":S,\"webview\":L,\"method\":M,\"uri\":U,\"headers\":{...},\"body\":\"<base64>\"} and must be answered with tauri_uri_scheme_respond — an unanswered request leaves the webview waiting forever.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "scheme",
+          "type": "str"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_append_invoke_initialization_script",
+      "doc": "Appends JavaScript to the IPC initialization script, injected into every webview before page scripts run.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "js",
+          "type": "str"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_device_event_filter",
+      "doc": "Sets the device event filter: \"always\", \"unfocused\" (the default) or \"never\". Only Windows reports device events; elsewhere this has no effect.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "filter",
+          "type": "str"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_macos_default_menu",
+      "doc": "Whether macOS gets the default application menu when the app declares none. Enabled by default.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_default_window_icon",
+      "doc": "Sets the icon windows are created with, from RGBA pixel data (width*height*4 bytes, row-major from the top). The bytes are copied; pass NULL rgba to clear it.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "rgba",
+          "type": "bytes"
+        },
+        {
+          "name": "width",
+          "type": "u32"
+        },
+        {
+          "name": "height",
+          "type": "u32"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_default_window_icon_path",
+      "doc": "Sets the icon windows are created with, decoded from a PNG or ICO file. An empty path clears it. The counterpart to tauri_app_builder_set_default_window_icon for hosts that have an image file rather than raw pixels.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "path",
+          "type": "str"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_app_icon",
+      "doc": "Sets the application icon from encoded image bytes (PNG or ICO) — the icon plugins such as notification present as the app's own. `len` is the byte length of `bytes`; the bytes are copied and NULL clears the icon.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "bytes",
+          "type": "bytes"
+        },
+        {
+          "name": "len",
+          "type": "u32"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_any_thread",
+      "doc": "Allows the event loop to run off the process main thread, lifting the main-thread requirement of tauri_app_build/tauri_app_run (they still have to share a thread).",
+      "thread": "any",
+      "platforms": [
+        "windows",
+        "linux"
+      ],
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "any_thread",
+          "type": "bool"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_page_load_events",
+      "doc": "Enables page load events: every webview navigation posts {\"type\":\"page-load\",\"webview\":L,\"url\":U,\"event\":\"started\"|\"finished\"} to the event queue. Off by default.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_set_webview_events",
+      "doc": "Enables webview events: drag & drop and web content process termination post {\"type\":\"webview-event\",\"label\":L,\"event\":{\"kind\":\"drag-enter\"|\"drag-over\"|\"drag-drop\"|\"drag-leave\"|\"process-terminated\",...}} to the event queue. Off by default — dragging emits a message per cursor move.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_enable_localhost",
+      "doc": "Serves the app frontend over http://localhost:<port> instead of the custom protocol, for webviews that need a real HTTP origin. The host still points its windows at that URL.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        },
+        {
+          "name": "port",
+          "type": "u32"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_app_builder_enable_single_instance",
+      "doc": "Makes the process refuse to launch a second instance: a later launch hands its command line to the running app and exits, and the running app receives {\"type\":\"single-instance\",\"args\":[...],\"cwd\":C} on the event queue.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "builder",
+          "type": "handle"
+        }
+      ],
+      "result": "status"
+    },
+    {
       "name": "tauri_plugin_new",
       "doc": "Creates a plugin definition with the given name. Plugin commands are invoked from the frontend as `plugin:<name>|<command>`; their invokes arrive on the event queue with an extra `\"plugin\"` field. `core` and `tauri` are reserved names. Attach with tauri_app_builder_add_plugin.",
       "thread": "any",
@@ -325,7 +529,7 @@
     },
     {
       "name": "tauri_events_next",
-      "doc": "Waits up to timeout_ms for the next queued message (run events, subscribed events, invokes). On OK, *out_json is an owned JSON string — free with tauri_string_free. Returns ERR_TIMEOUT on timeout and ERR_CLOSED after shutdown. Message types: {\"type\":\"ready\"} | {\"type\":\"exit\"} | {\"type\":\"exit-requested\",\"code\":N} | {\"type\":\"window-event\",\"label\":L,\"event\":{\"kind\":...}} | {\"type\":\"event\",\"event\":E,\"id\":N,\"payload\":...} | {\"type\":\"invoke\",\"id\":R,\"command\":C,\"payload\":...,\"webview\":L}",
+      "doc": "Waits up to timeout_ms for the next queued message (run events, subscribed events, invokes). On OK, *out_json is an owned JSON string — free with tauri_string_free. Returns ERR_TIMEOUT on timeout and ERR_CLOSED after shutdown. Message types: {\"type\":\"ready\"} | {\"type\":\"exit\"} | {\"type\":\"exit-requested\",\"code\":N} | {\"type\":\"window-event\",\"label\":L,\"event\":{\"kind\":...}} | {\"type\":\"event\",\"event\":E,\"id\":N,\"payload\":...} | {\"type\":\"invoke\",\"id\":R,\"command\":C,\"payload\":...,\"webview\":L} | {\"type\":\"menu-event\",\"id\":I} | {\"type\":\"tray-event\",\"id\":I,\"event\":{...}} | {\"type\":\"uri-scheme-request\",\"id\":R,...} | {\"type\":\"page-load\",...} | {\"type\":\"webview-event\",...} | {\"type\":\"single-instance\",\"args\":[...],\"cwd\":C}",
       "thread": "any",
       "blocking": true,
       "params": [
@@ -452,6 +656,34 @@
         {
           "name": "json",
           "type": "str"
+        }
+      ],
+      "result": "status"
+    },
+    {
+      "name": "tauri_uri_scheme_respond",
+      "doc": "Answers a pending custom-protocol request, consuming its handle. `status` is an HTTP status code, `headers_json` a JSON object mapping header names to a string or an array of strings (NULL or empty for none), and `body`/`body_len` the raw response body (`body` may be NULL). An error status is still an answer; a request that is never answered leaves the webview waiting forever.",
+      "thread": "any",
+      "params": [
+        {
+          "name": "request",
+          "type": "handle"
+        },
+        {
+          "name": "status",
+          "type": "u32"
+        },
+        {
+          "name": "headers_json",
+          "type": "str"
+        },
+        {
+          "name": "body",
+          "type": "bytes"
+        },
+        {
+          "name": "body_len",
+          "type": "u32"
         }
       ],
       "result": "status"

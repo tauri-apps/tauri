@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#define TAURI_FFI_ABI_VERSION 9
+#define TAURI_FFI_ABI_VERSION 10
 
 #define TAURI_OK 0 /* Success. */
 #define TAURI_ERR_GENERIC -1 /* Operation failed; details via tauri_last_error_message. */
@@ -121,6 +121,92 @@ int32_t tauri_app_builder_register_command(uint64_t builder, const char *name);
 int32_t tauri_app_builder_add_capability(uint64_t builder, const char *capability);
 
 /*
+ * Registers a custom URI scheme served to every webview. Requests arrive on
+ * the event queue as
+ * {"type":"uri-scheme-request","id":R,"scheme":S,"webview":L,"method":M,"uri":U,"headers":{...},"body":"<base64>"}
+ * and must be answered with tauri_uri_scheme_respond — an unanswered request
+ * leaves the webview waiting forever.
+ */
+int32_t tauri_app_builder_register_uri_scheme_protocol(uint64_t builder, const char *scheme);
+
+/*
+ * Appends JavaScript to the IPC initialization script, injected into every
+ * webview before page scripts run.
+ */
+int32_t tauri_app_builder_append_invoke_initialization_script(uint64_t builder, const char *js);
+
+/*
+ * Sets the device event filter: "always", "unfocused" (the default) or
+ * "never". Only Windows reports device events; elsewhere this has no effect.
+ */
+int32_t tauri_app_builder_set_device_event_filter(uint64_t builder, const char *filter);
+
+/*
+ * Whether macOS gets the default application menu when the app declares none.
+ * Enabled by default.
+ */
+int32_t tauri_app_builder_set_macos_default_menu(uint64_t builder, bool enable);
+
+/*
+ * Sets the icon windows are created with, from RGBA pixel data (width*height*4
+ * bytes, row-major from the top). The bytes are copied; pass NULL rgba to
+ * clear it.
+ */
+int32_t tauri_app_builder_set_default_window_icon(uint64_t builder, const uint8_t *rgba, uint32_t width, uint32_t height);
+
+/*
+ * Sets the icon windows are created with, decoded from a PNG or ICO file. An
+ * empty path clears it. The counterpart to
+ * tauri_app_builder_set_default_window_icon for hosts that have an image file
+ * rather than raw pixels.
+ */
+int32_t tauri_app_builder_set_default_window_icon_path(uint64_t builder, const char *path);
+
+/*
+ * Sets the application icon from encoded image bytes (PNG or ICO) — the icon
+ * plugins such as notification present as the app's own. `len` is the byte
+ * length of `bytes`; the bytes are copied and NULL clears the icon.
+ */
+int32_t tauri_app_builder_set_app_icon(uint64_t builder, const uint8_t *bytes, uint32_t len);
+
+/*
+ * Allows the event loop to run off the process main thread, lifting the
+ * main-thread requirement of tauri_app_build/tauri_app_run (they still have to
+ * share a thread). Platform-specific: Windows, Linux only — the symbol exists
+ * everywhere but returns TAURI_ERR_UNSUPPORTED on other platforms.
+ */
+int32_t tauri_app_builder_set_any_thread(uint64_t builder, bool any_thread);
+
+/*
+ * Enables page load events: every webview navigation posts
+ * {"type":"page-load","webview":L,"url":U,"event":"started"|"finished"} to the
+ * event queue. Off by default.
+ */
+int32_t tauri_app_builder_set_page_load_events(uint64_t builder, bool enable);
+
+/*
+ * Enables webview events: drag & drop and web content process termination post
+ * {"type":"webview-event","label":L,"event":{"kind":"drag-enter"|"drag-over"|"drag-drop"|"drag-leave"|"process-terminated",...}}
+ * to the event queue. Off by default — dragging emits a message per cursor
+ * move.
+ */
+int32_t tauri_app_builder_set_webview_events(uint64_t builder, bool enable);
+
+/*
+ * Serves the app frontend over http://localhost:<port> instead of the custom
+ * protocol, for webviews that need a real HTTP origin. The host still points
+ * its windows at that URL.
+ */
+int32_t tauri_app_builder_enable_localhost(uint64_t builder, uint32_t port);
+
+/*
+ * Makes the process refuse to launch a second instance: a later launch hands
+ * its command line to the running app and exits, and the running app receives
+ * {"type":"single-instance","args":[...],"cwd":C} on the event queue.
+ */
+int32_t tauri_app_builder_enable_single_instance(uint64_t builder);
+
+/*
  * Creates a plugin definition with the given name. Plugin commands are invoked
  * from the frontend as `plugin:<name>|<command>`; their invokes arrive on the
  * event queue with an extra `"plugin"` field. `core` and `tauri` are reserved
@@ -176,8 +262,11 @@ int32_t tauri_app_exit(uint64_t app, int32_t code);
  * {"type":"exit-requested","code":N} |
  * {"type":"window-event","label":L,"event":{"kind":...}} |
  * {"type":"event","event":E,"id":N,"payload":...} |
- * {"type":"invoke","id":R,"command":C,"payload":...,"webview":L} Blocks the
- * calling thread.
+ * {"type":"invoke","id":R,"command":C,"payload":...,"webview":L} |
+ * {"type":"menu-event","id":I} | {"type":"tray-event","id":I,"event":{...}} |
+ * {"type":"uri-scheme-request","id":R,...} | {"type":"page-load",...} |
+ * {"type":"webview-event",...} |
+ * {"type":"single-instance","args":[...],"cwd":C} Blocks the calling thread.
  */
 int32_t tauri_events_next(uint64_t app, uint32_t timeout_ms, char **out_json);
 
@@ -213,6 +302,16 @@ int32_t tauri_invoke_resolve(uint64_t resolver, const char *json);
  * Rejects a pending invoke with a JSON value. Consumes the resolver handle.
  */
 int32_t tauri_invoke_reject(uint64_t resolver, const char *json);
+
+/*
+ * Answers a pending custom-protocol request, consuming its handle. `status` is
+ * an HTTP status code, `headers_json` a JSON object mapping header names to a
+ * string or an array of strings (NULL or empty for none), and
+ * `body`/`body_len` the raw response body (`body` may be NULL). An error
+ * status is still an answer; a request that is never answered leaves the
+ * webview waiting forever.
+ */
+int32_t tauri_uri_scheme_respond(uint64_t request, uint32_t status, const char *headers_json, const uint8_t *body, uint32_t body_len);
 
 /*
  * Creates a webview window from a WindowConfig JSON object (same shape as

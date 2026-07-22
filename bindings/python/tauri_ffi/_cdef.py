@@ -7,7 +7,7 @@
 #   from cffi import FFI
 #   ffi = FFI(); ffi.cdef(CDEF); lib = ffi.dlopen(path_to_tauri_ffi)
 
-ABI_VERSION = 9
+ABI_VERSION = 10
 
 CODES = {
     "OK": 0,
@@ -34,6 +34,18 @@ int32_t tauri_app_builder_set_assets_archive_bytes(uint64_t builder, const uint8
 int32_t tauri_app_builder_set_dev(uint64_t builder, bool dev);
 int32_t tauri_app_builder_register_command(uint64_t builder, const char *name);
 int32_t tauri_app_builder_add_capability(uint64_t builder, const char *capability);
+int32_t tauri_app_builder_register_uri_scheme_protocol(uint64_t builder, const char *scheme);
+int32_t tauri_app_builder_append_invoke_initialization_script(uint64_t builder, const char *js);
+int32_t tauri_app_builder_set_device_event_filter(uint64_t builder, const char *filter);
+int32_t tauri_app_builder_set_macos_default_menu(uint64_t builder, bool enable);
+int32_t tauri_app_builder_set_default_window_icon(uint64_t builder, const uint8_t *rgba, uint32_t width, uint32_t height);
+int32_t tauri_app_builder_set_default_window_icon_path(uint64_t builder, const char *path);
+int32_t tauri_app_builder_set_app_icon(uint64_t builder, const uint8_t *bytes, uint32_t len);
+int32_t tauri_app_builder_set_any_thread(uint64_t builder, bool any_thread);
+int32_t tauri_app_builder_set_page_load_events(uint64_t builder, bool enable);
+int32_t tauri_app_builder_set_webview_events(uint64_t builder, bool enable);
+int32_t tauri_app_builder_enable_localhost(uint64_t builder, uint32_t port);
+int32_t tauri_app_builder_enable_single_instance(uint64_t builder);
 int32_t tauri_plugin_new(const char *name, uint64_t *out_plugin);
 int32_t tauri_plugin_set_init_script(uint64_t plugin, const char *js);
 int32_t tauri_plugin_register_command(uint64_t plugin, const char *name);
@@ -48,6 +60,7 @@ int32_t tauri_app_listen(uint64_t app, const char *event, uint32_t *out_listener
 int32_t tauri_app_unlisten(uint64_t app, uint32_t listener);
 int32_t tauri_invoke_resolve(uint64_t resolver, const char *json);
 int32_t tauri_invoke_reject(uint64_t resolver, const char *json);
+int32_t tauri_uri_scheme_respond(uint64_t request, uint32_t status, const char *headers_json, const uint8_t *body, uint32_t body_len);
 int32_t tauri_webview_window_create(uint64_t app, const char *config_json, uint64_t *out_window);
 int32_t tauri_app_get_webview_window(uint64_t app, const char *label, uint64_t *out_window);
 int32_t tauri_app_webview_window_labels(uint64_t app, char **out_labels_json);

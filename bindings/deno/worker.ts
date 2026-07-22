@@ -24,7 +24,29 @@ export type CommandHandler = (
   context: { webview: string }
 ) => Json | Promise<Json>
 
+/** A custom-protocol request, as delivered to a {@linkcode ProtocolHandler}. */
+export interface ProtocolRequest {
+  scheme: string
+  webview: string
+  method: string
+  uri: string
+  headers: Record<string, string>
+  body: Uint8Array
+}
+
+/** A custom-protocol response; a bare string or Uint8Array means a plain 200. */
+export interface ProtocolResponse {
+  status?: number
+  headers?: Record<string, string | string[]>
+  body?: string | Uint8Array
+}
+
+export type ProtocolHandler = (
+  request: ProtocolRequest
+) => string | Uint8Array | ProtocolResponse | null | Promise<string | Uint8Array | ProtocolResponse | null>
+
 const commands = new Map<string, CommandHandler>()
+const protocols = new Map<string, ProtocolHandler>()
 const eventListeners = new Map<number, (payload: Json, message: Json) => void>()
 const lifecycleListeners = new Map<string, Set<(message: Json) => void>>()
 
@@ -643,7 +665,13 @@ export interface AppApi {
   /** Applies a plugin (from `definePlugin()`) in this worker, wiring up its
    * command handlers. Pass the same plugin to `launch({ plugins })`. */
   plugin(plugin: Plugin): AppApi
-  /** Lifecycle events: 'ready' | 'exit' | 'exit-requested' | 'window-event'. */
+  /** Serves a custom URI scheme registered in `launch({ protocols })`. Throwing
+   * produces a 500 and an unhandled scheme a 404 — a request must always be
+   * answered or the webview waits forever. */
+  protocol(scheme: string, handler: ProtocolHandler): AppApi
+  /** Lifecycle events: 'ready' | 'exit' | 'exit-requested' | 'window-event' |
+   * 'page-load' | 'webview-event' | 'menu-event' | 'tray-event' |
+   * 'single-instance' (the last four require the matching launch() option). */
   on(type: string, handler: (message: Json) => void): AppApi
   /** Listen to a Tauri event from any source (frontend `emit`, host `emit`). */
   listen(event: string, handler: (payload: Json, message: Json) => void): number
@@ -720,6 +748,12 @@ export const app: AppApi = {
     for (const [name, handler] of plugin.handlers) {
       commands.set(`plugin:${plugin.name}|${name}`, handler)
     }
+    return app
+  },
+
+  /** Serves a custom URI scheme registered in `launch({ protocols })`. */
+  protocol(scheme: string, handler: ProtocolHandler) {
+    protocols.set(scheme, handler)
     return app
   },
 
@@ -964,6 +998,50 @@ async function handleInvoke(message: Json) {
   }
 }
 
+const encoder = new TextEncoder()
+
+function base64Bytes(value: string): Uint8Array {
+  const binary = atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes
+}
+
+/** Normalizes a handler's return value into a status/headers/body triple. */
+function toResponse(
+  value: string | Uint8Array | ProtocolResponse | null
+): { status: number; headers: Record<string, string | string[]>; body: Uint8Array } {
+  if (value == null) return { status: 204, headers: {}, body: new Uint8Array() }
+  if (typeof value === 'string') return { status: 200, headers: {}, body: encoder.encode(value) }
+  if (value instanceof Uint8Array) return { status: 200, headers: {}, body: value }
+  const { status = 200, headers = {}, body = '' } = value
+  return { status, headers, body: typeof body === 'string' ? encoder.encode(body) : body }
+}
+
+async function handleProtocolRequest(message: Json) {
+  const handler = protocols.get(message.scheme)
+  let response
+  try {
+    response = handler
+      ? toResponse(await handler({ ...message, body: base64Bytes(message.body ?? '') }))
+      : toResponse({ status: 404, body: `no handler for ${message.scheme}://` })
+  } catch (error) {
+    console.error(`[tauri-ffi] protocol '${message.scheme}' handler threw:`, error)
+    response = toResponse({ status: 500, body: error instanceof Error ? error.message : String(error) })
+  }
+  // Always responds: an unanswered request hangs the webview forever.
+  check(
+    sym.tauri_uri_scheme_respond(
+      message.id,
+      response.status,
+      cstr(JSON.stringify(response.headers)),
+      response.body,
+      response.body.length
+    ),
+    'uri_scheme_respond'
+  )
+}
+
 async function pump() {
   for (;;) {
     const { code, json } = await eventsNext(appId, 1000)
@@ -975,6 +1053,9 @@ async function pump() {
     switch (message.type) {
       case 'invoke':
         handleInvoke(message) // deliberately not awaited: handlers may be slow
+        break
+      case 'uri-scheme-request':
+        handleProtocolRequest(message) // likewise
         break
       case 'event':
         eventListeners.get(message.id)?.(message.payload, message)

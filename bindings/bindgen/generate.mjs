@@ -40,9 +40,10 @@ const implemented = new Set(
 )
 // Also recognize functions produced by the winsupport ffi_* codegen macros
 // (getter/setter/action shims for bare Window and Webview), which the plain
-// `extern "C" fn` scan cannot see because they are macro-expanded.
+// `extern "C" fn` scan cannot see because they are macro-expanded. `\s*` because
+// rustfmt breaks the longer invocations onto their own lines.
 for (const m of rustSource.matchAll(
-  /ffi_(?:getter_bool|setter_bool|action|getter_string)!\((tauri_\w+)/g
+  /ffi_(?:getter_bool|setter_bool|action|getter_string)!\(\s*(tauri_\w+)/g
 )) {
   implemented.add(m[1])
 }

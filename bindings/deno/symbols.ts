@@ -7,7 +7,7 @@
 // (new TextEncoder().encode(s + '\0')). Blocking calls are declared
 // nonblocking so they run off Deno's main thread and resolve promises.
 
-export const ABI_VERSION = 9
+export const ABI_VERSION = 10
 
 export const CODES = {
   OK: 0,
@@ -36,6 +36,18 @@ export const SYMBOLS = {
   tauri_app_builder_set_dev: { parameters: ['u64', 'bool'], result: 'i32' },
   tauri_app_builder_register_command: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_app_builder_add_capability: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_app_builder_register_uri_scheme_protocol: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_app_builder_append_invoke_initialization_script: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_app_builder_set_device_event_filter: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_app_builder_set_macos_default_menu: { parameters: ['u64', 'bool'], result: 'i32' },
+  tauri_app_builder_set_default_window_icon: { parameters: ['u64', 'buffer', 'u32', 'u32'], result: 'i32' },
+  tauri_app_builder_set_default_window_icon_path: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_app_builder_set_app_icon: { parameters: ['u64', 'buffer', 'u32'], result: 'i32' },
+  tauri_app_builder_set_any_thread: { parameters: ['u64', 'bool'], result: 'i32' },
+  tauri_app_builder_set_page_load_events: { parameters: ['u64', 'bool'], result: 'i32' },
+  tauri_app_builder_set_webview_events: { parameters: ['u64', 'bool'], result: 'i32' },
+  tauri_app_builder_enable_localhost: { parameters: ['u64', 'u32'], result: 'i32' },
+  tauri_app_builder_enable_single_instance: { parameters: ['u64'], result: 'i32' },
   tauri_plugin_new: { parameters: ['buffer', 'buffer'], result: 'i32' },
   tauri_plugin_set_init_script: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_plugin_register_command: { parameters: ['u64', 'buffer'], result: 'i32' },
@@ -50,6 +62,7 @@ export const SYMBOLS = {
   tauri_app_unlisten: { parameters: ['u64', 'u32'], result: 'i32' },
   tauri_invoke_resolve: { parameters: ['u64', 'buffer'], result: 'i32' },
   tauri_invoke_reject: { parameters: ['u64', 'buffer'], result: 'i32' },
+  tauri_uri_scheme_respond: { parameters: ['u64', 'u32', 'buffer', 'buffer', 'u32'], result: 'i32' },
   tauri_webview_window_create: { parameters: ['u64', 'buffer', 'buffer'], result: 'i32', nonblocking: true },
   tauri_app_get_webview_window: { parameters: ['u64', 'buffer', 'buffer'], result: 'i32' },
   tauri_app_webview_window_labels: { parameters: ['u64', 'buffer'], result: 'i32' },

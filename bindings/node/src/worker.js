@@ -28,6 +28,7 @@ const appId = Number(workerData.app)
 const { api, check, takeString, eventsNext } = open(workerData.libPath)
 
 const commands = new Map() // command name -> handler
+const protocols = new Map() // uri scheme -> handler
 const eventListeners = new Map() // listener id -> handler
 const lifecycleListeners = new Map() // message type -> Set<handler>
 
@@ -653,7 +654,23 @@ export const app = {
     return app
   },
 
-  /** Lifecycle events: 'ready' | 'exit' | 'exit-requested' | 'window-event'. */
+  /**
+   * Serves a custom URI scheme registered in `launch({ protocols })`.
+   *
+   * `handler(request)` receives `{ scheme, webview, method, uri, headers, body }`
+   * (body is a Buffer) and returns the response: a string or Buffer for a plain
+   * 200, or `{ status, headers, body }`. Throwing produces a 500, and an
+   * unhandled scheme a 404 — a request must always be answered or the webview
+   * waits forever.
+   */
+  protocol(scheme, handler) {
+    protocols.set(scheme, handler)
+    return app
+  },
+
+  /** Lifecycle events: 'ready' | 'exit' | 'exit-requested' | 'window-event' |
+   * 'page-load' | 'webview-event' | 'menu-event' | 'tray-event' |
+   * 'single-instance' (the last four require the matching launch() option). */
   on(type, handler) {
     if (!lifecycleListeners.has(type)) lifecycleListeners.set(type, new Set())
     lifecycleListeners.get(type).add(handler)
@@ -907,6 +924,40 @@ async function handleInvoke(message) {
   }
 }
 
+/** Normalizes a handler's return value into { status, headers, body }. */
+function toResponse(value) {
+  if (value == null) return { status: 204, headers: {}, body: Buffer.alloc(0) }
+  if (typeof value === 'string' || Buffer.isBuffer(value) || value instanceof Uint8Array) {
+    return { status: 200, headers: {}, body: Buffer.from(value) }
+  }
+  const { status = 200, headers = {}, body = '' } = value
+  return { status, headers, body: Buffer.from(body) }
+}
+
+async function handleProtocolRequest(message) {
+  const handler = protocols.get(message.scheme)
+  let response
+  try {
+    response = handler
+      ? toResponse(await handler({ ...message, body: Buffer.from(message.body ?? '', 'base64') }))
+      : { status: 404, headers: {}, body: Buffer.from(`no handler for ${message.scheme}://`) }
+  } catch (error) {
+    console.error(`[tauri-ffi] protocol '${message.scheme}' handler threw:`, error)
+    response = { status: 500, headers: {}, body: Buffer.from(String(error?.message ?? error)) }
+  }
+  // Always responds: an unanswered request hangs the webview forever.
+  check(
+    api.uriSchemeRespond(
+      message.id,
+      response.status,
+      JSON.stringify(response.headers ?? {}),
+      response.body,
+      response.body.length
+    ),
+    'uri_scheme_respond'
+  )
+}
+
 async function pump() {
   for (;;) {
     const { code, json } = await eventsNext(appId, 1000)
@@ -918,6 +969,9 @@ async function pump() {
     switch (message.type) {
       case 'invoke':
         handleInvoke(message) // deliberately not awaited: handlers may be slow
+        break
+      case 'uri-scheme-request':
+        handleProtocolRequest(message) // likewise
         break
       case 'event':
         eventListeners.get(message.id)?.(message.payload, message)

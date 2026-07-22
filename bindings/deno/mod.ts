@@ -45,6 +45,32 @@ export interface LaunchOptions {
   /** Plugins created with `definePlugin()`; pass the same objects to
    * `app.plugin()` in the worker so their handlers run there. */
   plugins?: Plugin[]
+  /** Custom URI schemes served by the worker; handle each with
+   * `app.protocol(scheme, handler)` there. */
+  protocols?: string[]
+  /** Deliver 'page-load' events to the worker (off by default — navigations
+   * are frequent). */
+  pageLoadEvents?: boolean
+  /** Deliver 'webview-event' messages (drag & drop, web content process
+   * termination) to the worker. */
+  webviewEvents?: boolean
+  /** Refuse to launch a second instance; the running app gets a
+   * 'single-instance' event with the new argv and cwd. */
+  singleInstance?: boolean
+  /** Serve the frontend over `http://localhost:<port>` instead of the custom
+   * protocol. */
+  localhost?: number
+  /** Default window icon — a PNG/ICO path, or raw RGBA pixels. */
+  windowIcon?: string | { rgba: Uint8Array; width: number; height: number }
+  /** App icon (PNG/ICO path or encoded bytes) presented by plugins such as
+   * notification. */
+  appIcon?: string | Uint8Array
+  /** JavaScript appended to the IPC init script, injected into every webview. */
+  invokeInitializationScript?: string | string[]
+  deviceEventFilter?: 'always' | 'unfocused' | 'never'
+  /** Whether macOS gets the default application menu when the app declares
+   * none (default true). */
+  macosDefaultMenu?: boolean
 }
 
 function toPath(value: URL | string | undefined): string | undefined {
@@ -121,6 +147,55 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
   }
   for (const name of options.commands ?? []) {
     check(sym.tauri_app_builder_register_command(builder, cstr(name)), `register_command(${name})`)
+  }
+  for (const scheme of options.protocols ?? []) {
+    check(
+      sym.tauri_app_builder_register_uri_scheme_protocol(builder, cstr(scheme)),
+      `register_protocol(${scheme})`
+    )
+  }
+  if (options.pageLoadEvents) {
+    check(sym.tauri_app_builder_set_page_load_events(builder, true), 'set_page_load_events')
+  }
+  if (options.webviewEvents) {
+    check(sym.tauri_app_builder_set_webview_events(builder, true), 'set_webview_events')
+  }
+  if (options.singleInstance) {
+    check(sym.tauri_app_builder_enable_single_instance(builder), 'enable_single_instance')
+  }
+  if (options.localhost !== undefined) {
+    check(sym.tauri_app_builder_enable_localhost(builder, options.localhost), 'enable_localhost')
+  }
+  if (options.windowIcon !== undefined) {
+    const icon = options.windowIcon
+    check(
+      typeof icon === 'string'
+        ? sym.tauri_app_builder_set_default_window_icon_path(builder, cstr(icon))
+        : sym.tauri_app_builder_set_default_window_icon(builder, icon.rgba, icon.width, icon.height),
+      'set_default_window_icon'
+    )
+  }
+  if (options.appIcon !== undefined) {
+    const bytes = typeof options.appIcon === 'string' ? Deno.readFileSync(options.appIcon) : options.appIcon
+    check(sym.tauri_app_builder_set_app_icon(builder, bytes, bytes.length), 'set_app_icon')
+  }
+  for (const script of [options.invokeInitializationScript ?? []].flat()) {
+    check(
+      sym.tauri_app_builder_append_invoke_initialization_script(builder, cstr(script)),
+      'append_invoke_init_script'
+    )
+  }
+  if (options.deviceEventFilter !== undefined) {
+    check(
+      sym.tauri_app_builder_set_device_event_filter(builder, cstr(options.deviceEventFilter)),
+      'set_device_event_filter'
+    )
+  }
+  if (options.macosDefaultMenu !== undefined) {
+    check(
+      sym.tauri_app_builder_set_macos_default_menu(builder, options.macosDefaultMenu),
+      'set_macos_default_menu'
+    )
   }
   // Inline capabilities plus those embedded in the binary (bundled) or found in
   // a `capabilities/` directory next to the config (dev) — the compile-time

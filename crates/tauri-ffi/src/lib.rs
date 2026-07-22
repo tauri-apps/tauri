@@ -78,6 +78,7 @@ mod assets;
 mod error;
 mod menu;
 mod plugins;
+mod protocol;
 mod state;
 mod tray;
 mod webview;
@@ -193,16 +194,7 @@ pub unsafe extern "C" fn tauri_app_builder_new(
       Ok(config) => config,
       Err(e) => return fail(ERR_INVALID_ARG, format!("invalid config: {e}")),
     };
-    let id = state::insert(Entry::Builder(BuilderState {
-      config,
-      assets_dir: None,
-      assets_archive: None,
-      assets_archive_bytes: None,
-      dev: false,
-      commands: Default::default(),
-      capabilities: Vec::new(),
-      plugins: Vec::new(),
-    }));
+    let id = state::insert(Entry::Builder(Box::new(BuilderState::new(config))));
     unsafe { *out_builder = id };
     OK
   })
@@ -308,6 +300,192 @@ pub unsafe extern "C" fn tauri_app_builder_add_capability(
   })
 }
 
+/// Appends JavaScript to the IPC initialization script, injected into every
+/// webview before page scripts run. Mirrors
+/// `Builder::append_invoke_initialization_script`.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_builder_append_invoke_initialization_script(
+  builder: u64,
+  js: *const c_char,
+) -> i32 {
+  catch(|| {
+    let js = try_cstr!(js);
+    state::with_builder(builder, |b| {
+      b.invoke_initialization_scripts.push(js.to_string());
+      OK
+    })
+  })
+}
+
+/// Sets the device event filter: "always", "unfocused" (the default) or
+/// "never". Only Windows reports device events; elsewhere this has no effect.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_builder_set_device_event_filter(
+  builder: u64,
+  filter: *const c_char,
+) -> i32 {
+  catch(|| {
+    let filter = match try_cstr!(filter).to_lowercase().as_str() {
+      "always" => tauri::DeviceEventFilter::Always,
+      "unfocused" => tauri::DeviceEventFilter::Unfocused,
+      "never" => tauri::DeviceEventFilter::Never,
+      other => {
+        return fail(
+          ERR_INVALID_ARG,
+          format!(
+          "invalid device event filter `{other}` (expected \"always\", \"unfocused\" or \"never\")"
+        ),
+        )
+      }
+    };
+    state::with_builder(builder, |b| {
+      b.device_event_filter = Some(filter);
+      OK
+    })
+  })
+}
+
+/// Whether macOS gets the default application menu when the app declares none.
+/// Enabled by default, like `tauri::Builder`.
+#[no_mangle]
+pub extern "C" fn tauri_app_builder_set_macos_default_menu(builder: u64, enable: bool) -> i32 {
+  catch(|| {
+    state::with_builder(builder, |b| {
+      b.macos_default_menu = enable;
+      OK
+    })
+  })
+}
+
+/// Sets the icon windows are created with, from RGBA pixel data
+/// (`width * height * 4` bytes, row-major from the top). The bytes are copied;
+/// a null `rgba` clears the icon.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_builder_set_default_window_icon(
+  builder: u64,
+  rgba: *const u8,
+  width: u32,
+  height: u32,
+) -> i32 {
+  catch(|| {
+    let mut icon = if rgba.is_null() {
+      None
+    } else {
+      let Some(len) = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .filter(|len| *len > 0)
+      else {
+        return fail(ERR_INVALID_ARG, "invalid icon dimensions");
+      };
+      Some((
+        unsafe { std::slice::from_raw_parts(rgba, len) }.to_vec(),
+        width,
+        height,
+      ))
+    };
+    state::with_builder(builder, |b| {
+      b.default_window_icon = icon.take();
+      OK
+    })
+  })
+}
+
+/// Sets the icon windows are created with, decoded from a PNG or ICO file. An
+/// empty path clears it. The counterpart to
+/// `tauri_app_builder_set_default_window_icon` for hosts that have an image
+/// file rather than raw pixels — scripting languages have no image decoder.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_builder_set_default_window_icon_path(
+  builder: u64,
+  path: *const c_char,
+) -> i32 {
+  catch(|| {
+    let path = try_cstr!(path);
+    let mut icon = if path.is_empty() {
+      None
+    } else {
+      match tauri::image::Image::from_path(path) {
+        Ok(image) => Some((image.rgba().to_vec(), image.width(), image.height())),
+        Err(e) => return fail(ERR_INVALID_ARG, format!("failed to load icon `{path}`: {e}")),
+      }
+    };
+    state::with_builder(builder, |b| {
+      b.default_window_icon = icon.take();
+      OK
+    })
+  })
+}
+
+/// Sets the application icon from encoded image bytes (PNG or ICO) — the icon
+/// plugins such as `notification` present as the app's own. The bytes are
+/// copied; a null `bytes` clears it.
+#[no_mangle]
+pub unsafe extern "C" fn tauri_app_builder_set_app_icon(
+  builder: u64,
+  bytes: *const u8,
+  len: u32,
+) -> i32 {
+  catch(|| {
+    let mut icon = if bytes.is_null() {
+      None
+    } else {
+      Some(unsafe { std::slice::from_raw_parts(bytes, len as usize) }.to_vec())
+    };
+    state::with_builder(builder, |b| {
+      b.app_icon = icon.take();
+      OK
+    })
+  })
+}
+
+/// Allows the event loop to run off the process main thread, lifting the
+/// `tauri_app_build`/`tauri_app_run` main-thread requirement (they still have to
+/// share a thread). Windows and Linux only — macOS requires the main thread.
+#[no_mangle]
+pub extern "C" fn tauri_app_builder_set_any_thread(builder: u64, any_thread: bool) -> i32 {
+  catch(|| {
+    #[cfg(any(windows, target_os = "linux"))]
+    {
+      state::with_builder(builder, |b| {
+        b.any_thread = any_thread;
+        OK
+      })
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    {
+      let _ = (builder, any_thread);
+      crate::error::unsupported("tauri_app_builder_set_any_thread", "Windows and Linux")
+    }
+  })
+}
+
+/// Enables page load events: every webview navigation posts
+/// `{"type":"page-load","webview":L,"url":U,"event":"started"|"finished"}` to
+/// the event queue. Off by default — navigations are frequent.
+#[no_mangle]
+pub extern "C" fn tauri_app_builder_set_page_load_events(builder: u64, enable: bool) -> i32 {
+  catch(|| {
+    state::with_builder(builder, |b| {
+      b.page_load_events = enable;
+      OK
+    })
+  })
+}
+
+/// Enables webview events: drag & drop and web content process termination post
+/// `{"type":"webview-event","label":L,"event":{"kind":...}}` to the event queue.
+/// Off by default — dragging emits a message per cursor move.
+#[no_mangle]
+pub extern "C" fn tauri_app_builder_set_webview_events(builder: u64, enable: bool) -> i32 {
+  catch(|| {
+    state::with_builder(builder, |b| {
+      b.webview_events = enable;
+      OK
+    })
+  })
+}
+
 /// Consumes the builder and builds the app. Must be called on the thread that
 /// will run the event loop (the process main thread on macOS). Windows
 /// declared in the config are created when the app runs.
@@ -320,7 +498,7 @@ pub unsafe extern "C" fn tauri_app_build(builder: u64, out_app: *mut u64) -> i32
     let Some(Entry::Builder(builder_state)) = state::remove(builder) else {
       return fail(ERR_INVALID_HANDLE, "invalid builder handle");
     };
-    match build_app(builder_state) {
+    match build_app(*builder_state) {
       Ok(id) => {
         unsafe { *out_app = id };
         OK
@@ -340,6 +518,17 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
     commands,
     capabilities,
     plugins,
+    uri_scheme_protocols,
+    invoke_initialization_scripts,
+    device_event_filter,
+    macos_default_menu,
+    default_window_icon,
+    app_icon,
+    any_thread,
+    localhost_port,
+    single_instance,
+    page_load_events,
+    webview_events,
   } = builder_state;
 
   // Dev-mode emulation: the prebuilt cdylib is not compiled with the `dev`
@@ -398,11 +587,17 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   let global_api_scripts =
     (config.app.with_global_tauri && !GLOBAL_API_SCRIPTS.is_empty()).then_some(GLOBAL_API_SCRIPTS);
 
+  // `Image::new` borrows the pixels; the context needs a `'static` icon, so the
+  // host-provided copy is handed over with `to_owned`.
+  let default_window_icon = default_window_icon
+    .as_ref()
+    .map(|(rgba, width, height)| tauri::image::Image::new(rgba, *width, *height).to_owned());
+
   let context = tauri::Context::<TauriRuntime>::new(
     config,
     assets,
-    None, // default window icon — TODO(M1): tauri_app_builder_set_icon_rgba
-    None, // app icon
+    default_window_icon,
+    app_icon,
     package_info,
     Pattern::Brownfield,
     authority,
@@ -428,7 +623,83 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
     .on_menu_event(move |_app, event| {
       let message = serde_json::json!({ "type": "menu-event", "id": event.id().0.clone() });
       let _ = menu_tx.send(message.to_string());
+    })
+    .enable_macos_default_menu(macos_default_menu);
+
+  #[cfg(any(windows, target_os = "linux"))]
+  if any_thread {
+    builder = builder.any_thread();
+  }
+  #[cfg(not(any(windows, target_os = "linux")))]
+  let _ = any_thread; // rejected at `tauri_app_builder_set_any_thread` time
+
+  for script in invoke_initialization_scripts {
+    builder = builder.append_invoke_initialization_script(script);
+  }
+  if let Some(filter) = device_event_filter {
+    builder = builder.device_event_filter(filter);
+  }
+
+  // Custom protocols. The asynchronous variant is the only one that fits the
+  // queue: the request is posted with an opaque responder handle and the webview
+  // thread returns immediately, while the host answers whenever it is ready
+  // (`tauri_uri_scheme_respond`).
+  for scheme in uri_scheme_protocols {
+    let protocol_tx = tx.clone();
+    let scheme_name = scheme.clone();
+    builder =
+      builder.register_asynchronous_uri_scheme_protocol(scheme, move |ctx, request, responder| {
+        let _ = protocol_tx.send(protocol::uri_scheme_request_json(
+          &scheme_name,
+          &ctx,
+          request,
+          responder,
+        ));
+      });
+  }
+
+  if page_load_events {
+    let page_load_tx = tx.clone();
+    builder = builder.on_page_load(move |webview, payload| {
+      let message = serde_json::json!({
+        "type": "page-load",
+        "webview": webview.label(),
+        "url": payload.url().to_string(),
+        "event": match payload.event() {
+          tauri::webview::PageLoadEvent::Started => "started",
+          tauri::webview::PageLoadEvent::Finished => "finished",
+        },
+      });
+      let _ = page_load_tx.send(message.to_string());
     });
+  }
+
+  if webview_events {
+    let webview_tx = tx.clone();
+    builder = builder.on_webview_event(move |webview, event| {
+      if let Some(event) = webview_event_json(event) {
+        let message = serde_json::json!({
+          "type": "webview-event",
+          "label": webview.label(),
+          "event": event,
+        });
+        let _ = webview_tx.send(message.to_string());
+      }
+    });
+    // Only the macOS/iOS webviews report a content process death.
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+      let terminate_tx = tx.clone();
+      builder = builder.on_web_content_process_terminate(move |webview| {
+        let message = serde_json::json!({
+          "type": "webview-event",
+          "label": webview.label(),
+          "event": { "kind": "process-terminated" },
+        });
+        let _ = terminate_tx.send(message.to_string());
+      });
+    }
+  }
 
   // Compiled-in first-party plugins (declared in Cargo.toml). Registering them
   // wires `plugin:<name>|<command>` invokes to the real Rust handlers and injects
@@ -436,12 +707,28 @@ fn build_app(builder_state: BuilderState) -> Result<u64, String> {
   // here: the host opts in per plugin via capabilities, and the manifests embedded by
   // build.rs make identifiers like `fs:default` resolvable at runtime (`dynamic-acl`).
   //
-  // Two plugins are compiled in but intentionally not auto-activated because they need
-  // host-supplied arguments and change process-wide behavior, so they belong behind a
-  // dedicated FFI entry point rather than being forced on every app:
+  // Two plugins are compiled in but not auto-activated because they need host-supplied
+  // arguments and change process-wide behavior, so each sits behind its own FFI entry
+  // point (`tauri_app_builder_enable_localhost` / `_enable_single_instance`) instead of
+  // being forced on every app:
   //   * localhost       — `Builder::new(port)` requires a port to serve the frontend on.
   //   * single-instance — `init(callback)` requires a new-instance callback and makes the
   //                        process refuse to launch a second instance.
+  // single-instance must be the first plugin registered: it aborts the launch of a second
+  // instance, and no other plugin should have initialized by then.
+  if single_instance {
+    let instance_tx = tx.clone();
+    builder = builder.plugin(tauri_plugin_single_instance::init(
+      move |_app, args, cwd| {
+        let message = serde_json::json!({ "type": "single-instance", "args": args, "cwd": cwd });
+        let _ = instance_tx.send(message.to_string());
+      },
+    ));
+  }
+  if let Some(port) = localhost_port {
+    builder = builder.plugin(tauri_plugin_localhost::Builder::new(port).build());
+  }
+
   builder = builder
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_clipboard_manager::init())
@@ -592,6 +879,28 @@ fn invoke_message_json(
     message["plugin"] = serde_json::Value::String(plugin.to_string());
   }
   message.to_string()
+}
+
+/// Serializes a webview event for the queue, or `None` for variants added to
+/// the (non-exhaustive) tauri enums after this was written.
+fn webview_event_json(event: &tauri::WebviewEvent) -> Option<serde_json::Value> {
+  let tauri::WebviewEvent::DragDrop(event) = event else {
+    return None;
+  };
+  let value = match event {
+    tauri::DragDropEvent::Enter { paths, position } => serde_json::json!({
+      "kind": "drag-enter", "paths": paths, "x": position.x, "y": position.y
+    }),
+    tauri::DragDropEvent::Over { position } => serde_json::json!({
+      "kind": "drag-over", "x": position.x, "y": position.y
+    }),
+    tauri::DragDropEvent::Drop { paths, position } => serde_json::json!({
+      "kind": "drag-drop", "paths": paths, "x": position.x, "y": position.y
+    }),
+    tauri::DragDropEvent::Leave => serde_json::json!({ "kind": "drag-leave" }),
+    _ => return None,
+  };
+  Some(value)
 }
 
 /// Synthesizes an ACL manifest granting a host plugin's commands. The default

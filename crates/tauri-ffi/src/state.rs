@@ -29,6 +29,51 @@ pub struct BuilderState {
   pub commands: HashSet<String>,
   pub capabilities: Vec<String>,
   pub plugins: Vec<PluginState>,
+  /// Custom URI schemes served to every webview; requests are delivered on the
+  /// event queue and answered with `tauri_uri_scheme_respond`.
+  pub uri_scheme_protocols: HashSet<String>,
+  /// Scripts appended to the IPC initialization script (see
+  /// `Builder::append_invoke_initialization_script`).
+  pub invoke_initialization_scripts: Vec<String>,
+  pub device_event_filter: Option<tauri::DeviceEventFilter>,
+  /// `Builder::enable_macos_default_menu`; on by default, like tauri.
+  pub macos_default_menu: bool,
+  /// RGBA pixels + dimensions of the default window icon.
+  pub default_window_icon: Option<(Vec<u8>, u32, u32)>,
+  /// Encoded (PNG/ICO) app icon, used by plugins such as notification.
+  pub app_icon: Option<Vec<u8>>,
+  pub any_thread: bool,
+  /// Port for the compiled-in `localhost` plugin, when the host enabled it.
+  pub localhost_port: Option<u16>,
+  pub single_instance: bool,
+  pub page_load_events: bool,
+  pub webview_events: bool,
+}
+
+impl BuilderState {
+  pub fn new(config: Config) -> Self {
+    Self {
+      config,
+      assets_dir: None,
+      assets_archive: None,
+      assets_archive_bytes: None,
+      dev: false,
+      commands: Default::default(),
+      capabilities: Vec::new(),
+      plugins: Vec::new(),
+      uri_scheme_protocols: Default::default(),
+      invoke_initialization_scripts: Vec::new(),
+      device_event_filter: None,
+      macos_default_menu: true,
+      default_window_icon: None,
+      app_icon: None,
+      any_thread: false,
+      localhost_port: None,
+      single_instance: false,
+      page_load_events: false,
+      webview_events: false,
+    }
+  }
 }
 
 /// A host-defined plugin, mutated by `tauri_plugin_*` and moved into a
@@ -49,7 +94,9 @@ pub struct AppState {
 }
 
 pub enum Entry {
-  Builder(BuilderState),
+  /// Boxed: a `BuilderState` embeds the whole `Config` and would otherwise set
+  /// the size of every entry in the registry (windows, menu items, resolvers…).
+  Builder(Box<BuilderState>),
   Plugin(PluginState),
   App(Arc<AppState>),
   Window(tauri::WebviewWindow<TauriRuntime>),
@@ -59,6 +106,8 @@ pub enum Entry {
   MenuItem(tauri::menu::MenuItemKind<TauriRuntime>),
   Tray(tauri::tray::TrayIcon<TauriRuntime>),
   Resolver(InvokeResolver<TauriRuntime>),
+  /// A pending custom-protocol request, consumed by `tauri_uri_scheme_respond`.
+  UriSchemeResponder(tauri::UriSchemeResponder),
 }
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
@@ -129,7 +178,7 @@ pub fn tray(id: u64) -> Option<tauri::tray::TrayIcon<TauriRuntime>> {
 
 pub fn with_builder(id: u64, f: impl FnOnce(&mut BuilderState) -> i32) -> i32 {
   match registry().lock().unwrap().get_mut(&id) {
-    Some(Entry::Builder(builder)) => f(builder),
+    Some(Entry::Builder(builder)) => f(&mut *builder),
     _ => crate::error::fail(crate::error::ERR_INVALID_HANDLE, "invalid builder handle"),
   }
 }

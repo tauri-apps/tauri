@@ -62,6 +62,42 @@ pub unsafe extern "C" fn tauri_plugin_register_command(plugin: u64, name: *const
   })
 }
 
+// ---------------------------------------------------------------------------
+// compiled-in plugins that need host arguments
+//
+// Every other first-party plugin is registered unconditionally by
+// [`crate::build_app`]; these two are opt-in because they take arguments and
+// change process-wide behavior (see the comment there).
+
+/// Serves the app frontend over `http://localhost:<port>` instead of the custom
+/// protocol, for webviews that need a real HTTP origin. The host still points
+/// its windows at that URL (`app.windows[].url` in the config).
+#[no_mangle]
+pub extern "C" fn tauri_app_builder_enable_localhost(builder: u64, port: u32) -> i32 {
+  catch(|| {
+    let Ok(port) = u16::try_from(port) else {
+      return fail(ERR_INVALID_ARG, format!("invalid port {port}"));
+    };
+    state::with_builder(builder, |b| {
+      b.localhost_port = Some(port);
+      OK
+    })
+  })
+}
+
+/// Makes the process refuse to launch a second instance: a later launch hands
+/// its command line to the running app and exits, and the running app receives
+/// `{"type":"single-instance","args":[...],"cwd":...}` on the event queue.
+#[no_mangle]
+pub extern "C" fn tauri_app_builder_enable_single_instance(builder: u64) -> i32 {
+  catch(|| {
+    state::with_builder(builder, |b| {
+      b.single_instance = true;
+      OK
+    })
+  })
+}
+
 /// Attaches a plugin to the builder, consuming the plugin handle.
 #[no_mangle]
 pub extern "C" fn tauri_app_builder_add_plugin(builder: u64, plugin: u64) -> i32 {

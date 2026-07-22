@@ -14,7 +14,7 @@ Resolved {
                                 pattern_string: "https",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^https$",
+                                        "^https$",
                                     ),
                                 ),
                                 group_name_list: [],
@@ -32,7 +32,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -53,7 +53,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -74,7 +74,7 @@ Resolved {
                                 pattern_string: "tauri.app",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^tauri\\.app$",
+                                        "^tauri\\.app$",
                                     ),
                                 ),
                                 group_name_list: [],
@@ -92,7 +92,7 @@ Resolved {
                                 pattern_string: "",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^$",
+                                        "^$",
                                     ),
                                 ),
                                 group_name_list: [],
@@ -110,7 +110,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -131,7 +131,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -152,7 +152,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -206,7 +206,7 @@ Resolved {
                                 pattern_string: "https",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^https$",
+                                        "^https$",
                                     ),
                                 ),
                                 group_name_list: [],
@@ -224,7 +224,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -245,7 +245,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -266,7 +266,7 @@ Resolved {
                                 pattern_string: "tauri.app",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^tauri\\.app$",
+                                        "^tauri\\.app$",
                                     ),
                                 ),
                                 group_name_list: [],
@@ -284,7 +284,7 @@ Resolved {
                                 pattern_string: "",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^$",
+                                        "^$",
                                     ),
                                 ),
                                 group_name_list: [],
@@ -302,7 +302,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -323,7 +323,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [
@@ -344,7 +344,7 @@ Resolved {
                                 pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "(?u)^(.*)$",
+                                        "^(.*)$",
                                     ),
                                 ),
                                 group_name_list: [

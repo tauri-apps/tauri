@@ -103,6 +103,10 @@ jobs:
         # Using --lib --bins --tests to skip doc tests
         run: ${{ matrix.platform.cargo }} ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --lib --bins --tests --manifest-path crates/tauri-utils/Cargo.toml
 
+      - name: run acl-tests
+        if: ${{ matrix.features.key != 'no-default' && matrix.platform.command == 'test' }}
+        run: ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tests/acl/Cargo.toml
+
       - name: test tauri
         run: ${{ matrix.platform.cargo }} ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri/Cargo.toml
 

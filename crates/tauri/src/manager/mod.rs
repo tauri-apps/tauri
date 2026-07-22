@@ -658,17 +658,16 @@ impl<R: Runtime> AppManager<R> {
     if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
-        self
-          .listeners()
-          .remove_webview_js_listeners(webview.label());
+        self.listeners().remove_webview_listeners(webview.label());
       }
     }
+    self.listeners().remove_window_listeners(label);
   }
 
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
-    self.listeners().remove_webview_js_listeners(label);
+    self.listeners().remove_webview_listeners(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

@@ -179,7 +179,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         r#""{}" "{}" "{}""#,
         quick_sharun.to_string_lossy(),
         data_dir
-          .join("usr/bin/*")
+          .join("usr/bin/")
           .to_string_lossy(),
         // TODO: check if we have to search for binaries/libraries in this folder and manually enter them here
         data_dir.join("usr/lib/").to_string_lossy()

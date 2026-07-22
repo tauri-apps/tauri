@@ -79,22 +79,21 @@ export function libraryPath(runtime: string = ffiRuntime()): string {
       // not a bundle — keep looking
     }
   }
-  // Development fallback: `cargo build -p tauri-ffi` output (crate's own name).
-  const crateName = platformLibraryName('ffi')
-  for (const profile of ['debug', 'release']) {
-    const url = new URL(`../../target/${profile}/${crateName}`, import.meta.url)
-    if (url.protocol === 'file:') {
-      const path = decodeURIComponent(url.pathname)
-      try {
-        Deno.statSync(path)
-        return path
-      } catch {
-        // keep looking
-      }
+  // Dev checkout: the library staged into this package's `_native/` by
+  // bindings/scripts/stage-dev.mjs — the in-repo stand-in for the npm platform
+  // package `ensureLibrary()` would install, resolved the same way.
+  const staged = new URL(`./_native/${distName}`, import.meta.url)
+  if (staged.protocol === 'file:') {
+    const p = fromFileUrl(staged.href)
+    try {
+      Deno.statSync(p)
+      return p
+    } catch {
+      // not staged
     }
   }
   throw new Error(
-    'tauri_ffi library not found — run `cargo build -p tauri-ffi`, set TAURI_FFI_LIB, or call launch()/ensureLibrary() (which installs the prebuilt library from npm)'
+    `tauri_ffi ${runtime} library not found — in the repo run \`node bindings/scripts/stage-dev.mjs --lang deno --runtime ${runtime}\`, set TAURI_FFI_LIB, or call launch()/ensureLibrary() (which installs the prebuilt library from npm)`
   )
 }
 
@@ -184,17 +183,29 @@ function exists(path: string): boolean {
 }
 
 /**
- * Preloads the `libcef` staged next to a cef library so that library's own
- * (rpath-less) dependency on it resolves. The dynamic loader reads its search
- * path once at process start, so it can't be pointed at `dir` from in here;
- * loading libcef by absolute path instead puts it in the process's link map and
- * the subsequent dlopen resolves the dependency to it by name.
+ * Preloads the `libcef` a cef library links so that library's own (rpath-less)
+ * dependency on it resolves. The dynamic loader reads its search path once at
+ * process start, so it can't be pointed at the directory from in here; loading
+ * libcef by absolute path instead puts it in the process's link map and the
+ * subsequent dlopen resolves the dependency to it by name.
+ *
+ * It looks next to the library first (a repo checkout / a bundle stage libcef
+ * there), then — in dev only — at the `TAURI_CEF_PATH` the Tauri CLI sets to the
+ * shared CEF cache it downloaded, since an installed platform package ships the
+ * library without the ~1.4GB CEF runtime. A bundle is hermetic and ignores it.
  */
 function preloadCef(dir: string): boolean {
-  const libcef = `${dir}/${cefLibraryName()}`
-  if (!exists(libcef)) return false
-  Deno.dlopen(libcef, {})
-  return true
+  const dirs = [dir]
+  const cachePath = Deno.env.get('TAURI_CEF_PATH')
+  if (!isBundled() && cachePath) dirs.push(cachePath)
+  for (const d of dirs) {
+    const libcef = `${d}/${cefLibraryName()}`
+    if (exists(libcef)) {
+      Deno.dlopen(libcef, {})
+      return true
+    }
+  }
+  return false
 }
 
 export function open(libPath: string = libraryPath()): FfiLibrary {

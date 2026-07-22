@@ -71,26 +71,25 @@ def library_path(runtime: Optional[str] = None) -> Path:
     env = None if _is_bundled() else os.environ.get("TAURI_FFI_LIB")
     if env:
         return Path(env)
-    crate_name = _platform_library_name("ffi")
     dist_name = _platform_library_name(runtime or ffi_runtime())
     # Bundled next to the executable (frozen binary in a Tauri bundle): the CLI
     # staged the per-runtime library selected from `app.runtime`.
     resource_dir = _bundled_resource_dir()
     if resource_dir is not None and (resource_dir / dist_name).exists():
         return resource_dir / dist_name
-    # Installed wheels bundle the runtime-specific library next to the package.
+    # `_native/` beside the package: an installed wheel bundles the runtime's
+    # library (and cef distribution/helper) here, and in a checkout
+    # bindings/scripts/stage-dev.mjs stages it here too — so a dev checkout
+    # resolves it the same way an installed wheel does.
     bundled = Path(__file__).resolve().parent / "_native" / dist_name
     if bundled.exists():
         return bundled
-    # Development fallback: `cargo build -p tauri-ffi` output in the repo (the
-    # crate's own name, regardless of the selected runtime feature).
-    repo_root = Path(__file__).resolve().parents[3]
-    for profile in ("debug", "release"):
-        candidate = repo_root / "target" / profile / crate_name
-        if candidate.exists():
-            return candidate
+    selected = runtime or ffi_runtime()
     raise TauriError(
-        -1, "tauri_ffi library not found — run `cargo build -p tauri-ffi` or set TAURI_FFI_LIB"
+        -1,
+        f"tauri_ffi {selected} library not found — in the repo run "
+        f"`node bindings/scripts/stage-dev.mjs --lang python --runtime {selected}`, "
+        "install the wheel, or set TAURI_FFI_LIB",
     )
 
 
@@ -105,22 +104,32 @@ def _cef_helper_name() -> str:
 
 
 def _preload_cef(directory: Path) -> bool:
-    """Preloads the ``libcef`` staged next to a cef library, so that library's
-    own (rpath-less) dependency on it resolves.
+    """Preloads the ``libcef`` a cef library links, so that library's own
+    (rpath-less) dependency on it resolves.
 
     The dynamic loader reads its search path (``LD_LIBRARY_PATH``/``PATH``) once
-    at process start, so it can't be pointed at ``directory`` from in here.
+    at process start, so it can't be pointed at the directory from in here.
     Loading libcef by absolute path instead puts it in the process's link map,
     and the subsequent dlopen resolves the dependency to it by name.
 
+    It looks next to the library first (a repo checkout / a bundle stage libcef
+    there), then — in dev only — at the ``TAURI_CEF_PATH`` the Tauri CLI sets to
+    the shared CEF cache it downloaded, since an installed wheel ships the library
+    without the ~1.4GB CEF runtime. A frozen bundle is hermetic and ignores it.
+
     Returns whether a libcef was found and loaded."""
-    libcef = directory / _cef_library_name()
-    if not libcef.exists():
-        return False
     import ctypes
 
-    ctypes.CDLL(str(libcef), mode=ctypes.RTLD_GLOBAL)
-    return True
+    directories = [directory]
+    cache_path = os.environ.get("TAURI_CEF_PATH")
+    if not _is_bundled() and cache_path:
+        directories.append(Path(cache_path))
+    for candidate in directories:
+        libcef = candidate / _cef_library_name()
+        if libcef.exists():
+            ctypes.CDLL(str(libcef), mode=ctypes.RTLD_GLOBAL)
+            return True
+    return False
 
 
 def _open_lib(path: Optional[Path] = None, runtime: Optional[str] = None):

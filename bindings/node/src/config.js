@@ -60,6 +60,7 @@ const RESOURCE_MARKER = '.tauri-resources'
  *   sibling `resources/` the CLI stages into
  * - Windows installers: next to the executable
  * - Linux deb/rpm: binary in `/usr/bin`, resources in `/usr/lib/<productName>`
+ *   (a cef build moves the binary to `/usr/share/<productName>/<bin>`)
  * - Linux AppImage: the same, under `$APPDIR`
  */
 export function bundledResourceDir() {
@@ -76,9 +77,12 @@ export function bundledResourceDir() {
     const name = bundledProductName()
     if (name) {
       // `../lib/<name>` covers deb/rpm (/usr/bin → /usr/lib/<name>) and an
-      // AppImage whose AppDir mirrors that layout; the APPDIR and absolute
-      // fallbacks match the order tauri_utils falls back through.
+      // AppImage whose AppDir mirrors that layout; `../../lib/<name>` covers a
+      // cef build, whose bundler moves the binary to /usr/share/<name>/<bin> so
+      // libcef resolves via $ORIGIN. The APPDIR and absolute fallbacks match the
+      // order tauri_utils falls back through.
       candidates.push(path.resolve(dir, '..', 'lib', name))
+      candidates.push(path.resolve(dir, '..', '..', 'lib', name))
       if (process.env.APPDIR) candidates.push(path.join(process.env.APPDIR, 'usr', 'lib', name))
       candidates.push(path.join('/usr', 'lib', name))
     }

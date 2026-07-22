@@ -6,3 +6,7 @@ node_modules/
 
 # tauri build output (self-contained binary + bundles)
 dist/
+
+# prebuilt cdylib + cef distribution + helper + addon — shipped in the platform
+# package at publish time, staged in for dev by bindings/scripts/stage-dev.mjs
+_native/

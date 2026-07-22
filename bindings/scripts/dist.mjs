@@ -37,6 +37,7 @@ import {
   RUNTIMES,
   DEFAULT_RUNTIME,
   RUN_ADDON_FILE,
+  cefHelperFile,
   libraryFiles,
   platformPackageName,
   artifactName
@@ -98,8 +99,13 @@ function availableTargets() {
 
 function binaries(target) {
   const { lib, extra } = libraryFiles(target, runtime)
+  // The cef subprocess helper rides in the distribution beside the library (see
+  // cefHelperFile); it is null for every other runtime.
+  const helper = cefHelperFile(target, runtime)
   const dir = path.join(artifactsDir, artifactName(target, runtime))
-  const files = [lib, ...extra].filter((f) => existsSync(path.join(dir, f)))
+  const files = [lib, ...extra, ...(helper ? [helper] : [])].filter((f) =>
+    existsSync(path.join(dir, f))
+  )
   return files.map((f) => path.join(dir, f))
 }
 
@@ -171,7 +177,18 @@ function distNpm(targets) {
       )
       process.exit(1)
     }
-    const files = [lib, ...extra, RUN_ADDON_FILE].filter((f) => existsSync(path.join(artifactDir, f)))
+    // The cef subprocess helper is required for a cef package: CEF re-executes it
+    // for its renderer/GPU/utility subprocesses, which a Node host cannot be.
+    const helper = cefHelperFile(target, runtime)
+    if (helper && !existsSync(path.join(artifactDir, helper))) {
+      console.error(
+        `error: ${helper} missing for ${artifactName(target, runtime)} — CEF cannot spawn its subprocesses without it`
+      )
+      process.exit(1)
+    }
+    const files = [lib, ...extra, ...(helper ? [helper] : []), RUN_ADDON_FILE].filter((f) =>
+      existsSync(path.join(artifactDir, f))
+    )
     for (const file of files) {
       copyFileSync(path.join(artifactDir, file), path.join(dir, file))
     }

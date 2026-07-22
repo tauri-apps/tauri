@@ -39,6 +39,14 @@ path = "src/main.rs"
 cargo-mobile2 = { version = "0.22.4", default-features = false }
 
 [dependencies]
+# reads the linked CEF version from a cef tauri-ffi library's ELF section (see
+# interface/bindings.rs) and runtime symbols from mobile libs (mobile scripts)
+object = { version = "0.39", default-features = false, features = [
+  "elf",
+  "macho",
+  "read_core",
+  "std",
+] }
 jsonrpsee = { version = "0.26", features = ["server"] }
 jsonrpsee-core = "0.26"
 jsonrpsee-client-transport = { version = "0.26", features = ["ws"] }
@@ -136,11 +144,6 @@ libc = "0.2"
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
 tauri-macos-sign = { version = "2.3.4", path = "../tauri-macos-sign" }
-object = { version = "0.39", default-features = false, features = [
-  "macho",
-  "read_core",
-  "std",
-] }
 ar = "0.9"
 
 [features]

@@ -1,5 +1,9 @@
 # tauri build output (self-contained binary + bundles)
 dist/
 
+# prebuilt cdylib + cef distribution + helper — installed from npm at publish
+# time, staged in for dev by bindings/scripts/stage-dev.mjs
+_native/
+
 # lockfile is committed by apps, not by a published library
 deno.lock

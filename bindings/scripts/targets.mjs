@@ -51,6 +51,20 @@ export function libraryFiles(target, runtime) {
  */
 export const RUN_ADDON_FILE = 'tauri_node.node'
 
+/**
+ * The CEF subprocess helper (`tauri-cef-helper`) executable that ships beside the
+ * `cef` library. CEF is multi-process and re-executes a helper for its
+ * renderer/GPU/utility subprocesses; a bindings host (node/deno/python) cannot
+ * act as one, so every language points CEF at this executable staged next to the
+ * library (built from the `cef-helper` crate). It is cef-only and
+ * language-agnostic, so — like `RUN_ADDON_FILE` — it is not part of
+ * `libraryFiles`; `cefHelperFile` returns it only for the `cef` runtime.
+ */
+export function cefHelperFile(target, runtime) {
+  if (runtime !== 'cef') return null
+  return target.includes('windows') ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
+}
+
 /** npm platform package for a (target, runtime): @tauri-apps/node-<runtime>-<platform>-<arch>. */
 export function platformPackageName(target, runtime) {
   const { platform, arch } = TARGETS[target]

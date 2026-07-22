@@ -151,6 +151,24 @@ jobs:
         shell: bash
         run: node bindings/node/native/build.mjs --target '${{ matrix.settings.target }}' --out dist-lib/tauri_node.node
 
+      # cef is multi-process and re-executes a helper for its renderer/GPU/utility
+      # subprocesses; a bindings host (node/deno/python) can't be one, so every
+      # cef platform package ships this `tauri-cef-helper` (from the `cef-helper`
+      # crate) beside the library, which the loaders point CEF at. The `sandbox`
+      # default feature is macOS-only, so drop it elsewhere. cef-dll-sys reuses
+      # the CEF download the library build already resolved.
+      - name: build cef subprocess helper
+        if: ${{ matrix.runtime == 'cef' }}
+        shell: bash
+        run: |
+          t='${{ matrix.settings.target }}'
+          case "$t" in *apple*) flags='' ;; *) flags='--no-default-features' ;; esac
+          cargo build --release --manifest-path cef-helper/Cargo.toml --target "$t" $flags
+          case "$t" in
+            *windows*) cp "cef-helper/target/$t/release/tauri-cef-helper.exe" dist-lib/ ;;
+            *)         cp "cef-helper/target/$t/release/tauri-cef-helper"     dist-lib/ ;;
+          esac
+
       - uses: actions/upload-artifact@v7
         with:
           name: lib-${{ matrix.runtime }}-${{ matrix.settings.target }}
@@ -327,6 +345,13 @@ jobs:
               src="$GITHUB_WORKSPACE/artifacts/lib-$r-$target/$(lib_name "$target" "$r")"
               [ -f "$src" ] && cp "$src" tauri_ffi/_native/
             done
+            # The cef subprocess helper rides beside the cef library (see targets.mjs).
+            case "$target" in
+              *windows*) helper='tauri-cef-helper.exe' ;;
+              *)         helper='tauri-cef-helper' ;;
+            esac
+            hsrc="$GITHUB_WORKSPACE/artifacts/lib-cef-$target/$helper"
+            [ -f "$hsrc" ] && cp "$hsrc" tauri_ffi/_native/
             TAURI_FFI_VERSION='${{ inputs.version }}' python setup.py bdist_wheel --plat-name "${TAGS[$target]}"
             rm -rf tauri_ffi/_native build
           done

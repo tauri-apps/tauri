@@ -43,6 +43,19 @@ function platformLibraryName(base) {
   return `${spec[0]}tauri_${base}${spec[1]}`
 }
 
+/**
+ * This package's dev staging directory (`_native/`), populated by
+ * `bindings/scripts/stage-dev.mjs` with the freshly built cdylib, cef
+ * distribution, subprocess helper and run-loop addon. It is the in-repo stand-in
+ * for an installed platform package — a checkout resolves its assets from here
+ * exactly the way a published app resolves them from the platform package, so no
+ * `target/` discovery or wry-vs-cef probing is needed. A published base package
+ * carries only `src`, so this directory is absent there and simply skipped.
+ */
+function baseNativeDir() {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '_native')
+}
+
 export function libraryPath(runtime = ffiRuntime()) {
   // a compiled bundle ignores the TAURI_FFI_LIB env override — it must load
   // only its own bundled cdylib, never an arbitrary library named by the env
@@ -56,22 +69,17 @@ export function libraryPath(runtime = ffiRuntime()) {
     if (existsSync(bundled)) return bundled
     throw new Error(`bundled ${distName} not found in ${resourceDir}`)
   }
+  // Dev checkout: the library staged into this package's `_native/`.
+  const staged = path.join(baseNativeDir(), distName)
+  if (existsSync(staged)) return staged
   // Installed platform package (optionalDependencies of the runtime's base package).
   try {
     return require.resolve(`@tauri-apps/node-${runtime}-${process.platform}-${process.arch}/${distName}`)
   } catch {
-    // not installed — fall through to the repo dev build
-  }
-  // Repo dev build: `cargo build -p tauri-ffi` emits the crate's own name,
-  // regardless of the selected runtime feature.
-  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
-  const devName = platformLibraryName('ffi')
-  for (const profile of ['debug', 'release']) {
-    const candidate = path.join(repoRoot, 'target', profile, devName)
-    if (existsSync(candidate)) return candidate
+    // not installed
   }
   throw new Error(
-    'tauri_ffi library not found — run `cargo build -p tauri-ffi` or set TAURI_FFI_LIB'
+    `tauri_ffi ${runtime} library not found — in the repo run \`node bindings/scripts/stage-dev.mjs --lang node --runtime ${runtime}\`, otherwise install the app's dependencies or set TAURI_FFI_LIB`
   )
 }
 
@@ -90,8 +98,8 @@ function cefHelperName() {
  * real one — so the loop cannot go through koffi.
  *
  * Resolved like the library itself: from the bundle's resource dir (where
- * `tauri build` stages it), else the installed platform package, else the repo's
- * own build. The Tauri CLI calls this to find the addon to stage.
+ * `tauri build` stages it), else this package's dev `_native/`, else the
+ * installed platform package. The Tauri CLI calls this to find the addon to stage.
  */
 export function runAddonPath(runtime = ffiRuntime()) {
   const resourceDir = bundledResourceDir()
@@ -99,16 +107,17 @@ export function runAddonPath(runtime = ffiRuntime()) {
     const bundled = path.join(resourceDir, RUN_ADDON_NAME)
     return existsSync(bundled) ? bundled : null
   }
+  const staged = path.join(baseNativeDir(), RUN_ADDON_NAME)
+  if (existsSync(staged)) return staged
   try {
     const installed = require.resolve(
       `@tauri-apps/node-${runtime}-${process.platform}-${process.arch}/${RUN_ADDON_NAME}`
     )
     if (existsSync(installed)) return installed
   } catch {
-    // not installed — fall through to the repo build
+    // not installed
   }
-  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'native', RUN_ADDON_NAME)
-  return existsSync(repo) ? repo : null
+  return null
 }
 
 /** Loads the run-loop addon, or `null` when there is none. */
@@ -121,17 +130,28 @@ function loadRunAddon(runtime) {
 }
 
 /**
- * Preloads the `libcef` staged next to a cef library so that library's own
- * (rpath-less) dependency on it resolves. The dynamic loader reads its search
- * path (LD_LIBRARY_PATH/PATH) once at process start, so it can't be pointed at
- * `dir` from in here; loading libcef by absolute path instead puts it in the
+ * Preloads the `libcef` a cef library links so that library's own (rpath-less)
+ * dependency on it resolves. The dynamic loader reads its search path
+ * (LD_LIBRARY_PATH/PATH) once at process start, so it can't be pointed at the
+ * directory from in here; loading libcef by absolute path instead puts it in the
  * process's link map and the subsequent load resolves the dependency by name.
+ *
+ * It looks next to the library first (a repo checkout / a bundle stage libcef
+ * there), then — in dev only — at the `TAURI_CEF_PATH` the Tauri CLI sets to the
+ * shared CEF cache it downloaded, since an installed platform package ships the
+ * library without the ~1.4GB CEF runtime. A bundle is hermetic and ignores it.
  */
 function preloadCef(dir) {
-  const libcef = path.join(dir, cefLibraryName())
-  if (!existsSync(libcef)) return false
-  koffi.load(libcef)
-  return true
+  const dirs = [dir]
+  if (!isBundled() && process.env.TAURI_CEF_PATH) dirs.push(process.env.TAURI_CEF_PATH)
+  for (const d of dirs) {
+    const libcef = path.join(d, cefLibraryName())
+    if (existsSync(libcef)) {
+      koffi.load(libcef)
+      return true
+    }
+  }
+  return false
 }
 
 export function open(libPath = libraryPath(), runtime = ffiRuntime()) {

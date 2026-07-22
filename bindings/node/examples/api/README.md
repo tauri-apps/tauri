@@ -27,5 +27,17 @@ from this directory:
 
 ```sh
 cargo build -p tauri-cli
-../../../../target/debug/cargo-tauri dev
+
+# wry — the OS webview (default)
+node ../../../scripts/dev.mjs dev
+
+# cef — Chromium Embedded Framework (linux only for now)
+TAURI_RUNTIME=cef node ../../../scripts/dev.mjs dev
 ```
+
+[`dev.mjs`](../../../scripts/dev.mjs) is a thin wrapper around the freshly built
+`cargo-tauri`. Swap `dev` for `build` to bundle instead. `TAURI_RUNTIME` is the single
+webview switch: it sets `app.runtime` (via `--config`) so the CLI loads the
+matching `libtauri_<runtime>`, and the same value reaches `stage-dev.mjs` in
+`beforeDevCommand` so that library gets staged. Leave it unset to use the
+config's own `app.runtime`.

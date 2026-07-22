@@ -22,7 +22,13 @@
     "build:cli": "pnpm run --filter \"@tauri-apps/cli\" build",
     "build:cli:debug": "pnpm run --filter \"@tauri-apps/cli\" build:debug",
     "test": "pnpm run -r test",
-    "example:api:dev": "pnpm run --filter \"api\" tauri dev"
+    "example:api:dev": "pnpm run --filter \"api\" tauri dev",
+    "node:example:api": "cd bindings/node/examples/api && node ../../../scripts/dev.mjs",
+    "node:example:hello": "cd bindings/node/examples/hello && node ../../../scripts/dev.mjs",
+    "deno:example:api": "cd bindings/deno/examples/api && node ../../../scripts/dev.mjs",
+    "deno:example:hello": "cd bindings/deno/examples/hello && node ../../../scripts/dev.mjs",
+    "python:example:api": "cd bindings/python/examples/api && node ../../../scripts/dev.mjs",
+    "python:example:hello": "cd bindings/python/examples/hello && node ../../../scripts/dev.mjs"
   },
   "devDependencies": {
     "prettier": "^3.8.1"

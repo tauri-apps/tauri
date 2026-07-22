@@ -62,6 +62,19 @@ if (!['node', 'deno', 'python'].includes(lang)) {
   )
 }
 
+// Python has no node_modules/import-map equivalent: `tauri_ffi` is resolved off
+// sys.path. The example's `main.py` puts the package there for itself, but the
+// CLI's cdylib probe imports `tauri_ffi` directly (`python -c`, without running
+// main.py), so expose the package on PYTHONPATH for the CLI to inherit — the
+// probe and the spawned app runner both pick it up. Prepended so a repo checkout
+// resolves its own package ahead of any installed one.
+if (lang === 'python') {
+  const pkgParent = path.join(repoRoot, 'bindings', 'python')
+  process.env.PYTHONPATH = process.env.PYTHONPATH
+    ? `${pkgParent}${path.delimiter}${process.env.PYTHONPATH}`
+    : pkgParent
+}
+
 // Stage the matching library (and, for cef, its CEF distribution + helper) into
 // this binding's `_native/` before spawning the CLI, so the CLI's cdylib probe and
 // the app itself both resolve it. Synchronous, so nothing races the probe;

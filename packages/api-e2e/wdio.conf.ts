@@ -118,7 +118,10 @@ export const config: WebdriverIO.Config = {
       testRunnerBackend = spawn('pnpm', ['exec', 'test-runner-backend'], {
         cwd: dirname,
         stdio: 'inherit',
-        shell: true
+        shell: true,
+        // Lead a new process group so the whole tree (sh -> pnpm ->
+        // test-runner-backend) can be torn down together. See killProcessTree.
+        detached: process.platform !== 'win32'
       })
       testRunnerBackend.on('error', (error) => {
         console.error('test-runner-backend error:', error)
@@ -144,10 +147,16 @@ export const config: WebdriverIO.Config = {
     if (process.env.E2E_NATIVE_DRIVER) {
       args.push('--native-driver', process.env.E2E_NATIVE_DRIVER)
     }
+    // Reset before each (re)spawn so the `exit` handler below still treats an
+    // unexpected driver crash as fatal on retried spec files.
+    killedTauriDriver = false
     tauriDriver = spawn('pnpm', args, {
       cwd: dirname,
       stdio: [null, process.stdout, process.stderr],
-      shell: true
+      shell: true,
+      // Lead a new process group so the whole tree (sh -> pnpm -> tauri-driver
+      // -> native webdriver) can be torn down together. See killProcessTree.
+      detached: process.platform !== 'win32'
     })
     tauriDriver.on('error', (error) => {
       console.error('tauri-driver error:', error)
@@ -162,8 +171,10 @@ export const config: WebdriverIO.Config = {
     await waitTauriDriverReady()
   },
 
-  afterSession: () => {
-    closeTauriDriver()
+  // Awaited so the driver (and its port) is fully gone before the next spec's
+  // beforeSession spawns a new one on the same port.
+  afterSession: async () => {
+    await closeTauriDriver()
   },
 
   onComplete: () => {
@@ -171,15 +182,66 @@ export const config: WebdriverIO.Config = {
   }
 }
 
-function closeTauriDriver() {
+/**
+ * Kills a shell-spawned child and everything it started. `child.kill()` only
+ * signals the `sh`/`cmd` wrapper, orphaning the real process (which keeps
+ * holding the WebDriver port and poisons every later spec), so we take down the
+ * whole process group/tree instead.
+ */
+function killProcessTree(
+  child: ChildProcess | undefined,
+  signal: NodeJS.Signals = 'SIGTERM'
+): void {
+  const pid = child?.pid
+  if (!pid || child?.exitCode !== null) return
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
+      stdio: 'ignore'
+    })
+  } else {
+    try {
+      // Negative pid targets the whole process group (see `detached` above).
+      process.kill(-pid, signal)
+    } catch {
+      try {
+        child!.kill(signal)
+      } catch {
+        // already gone
+      }
+    }
+  }
+}
+
+async function closeTauriDriver(): Promise<void> {
   killedTauriDriver = true
-  tauriDriver?.kill()
+  const driver = tauriDriver
+  tauriDriver = undefined
+  if (!driver || driver.exitCode !== null) return
+  const exited = new Promise<void>((resolve) =>
+    driver.once('exit', () => resolve())
+  )
+  killProcessTree(driver)
+  // Give it a moment to release the port, then escalate to SIGKILL.
+  let timer: ReturnType<typeof setTimeout> | undefined
+  await Promise.race([
+    exited,
+    new Promise<void>((resolve) => {
+      timer = setTimeout(() => {
+        killProcessTree(driver, 'SIGKILL')
+        resolve()
+      }, 5000)
+    })
+  ])
+  if (timer) clearTimeout(timer)
 }
 
 function closeAll() {
-  closeTauriDriver()
+  killedTauriDriver = true
+  killProcessTree(tauriDriver)
+  tauriDriver = undefined
   killedTestRunnerBackend = true
-  testRunnerBackend?.kill()
+  killProcessTree(testRunnerBackend)
+  testRunnerBackend = undefined
 }
 
 function onShutdown(fn: () => void) {

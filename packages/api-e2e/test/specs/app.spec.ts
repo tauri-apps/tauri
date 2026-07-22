@@ -36,12 +36,21 @@ describeApi('app', () => {
 
   it('setTheme applies a theme and can be reset to the system default', async () => {
     await tauri((api) => api.app.setTheme('dark'))
-    await eventually(async () => {
-      const theme = await tauri((api) => api.window.getCurrentWindow().theme())
-      if (theme !== 'dark') {
-        throw new Error(`expected theme "dark", got "${theme}"`)
-      }
-    })
+    // On Linux the app-level theme is not observable through `window.theme()`:
+    // tao's event-loop `set_theme` only flips the GTK `prefer-dark` setting and
+    // never updates the window's stored theme, so `theme()` keeps reporting the
+    // portal/system value (and blocks on a 5s dbus timeout when no portal runs,
+    // as in headless CI). Elsewhere the change is reflected on the window.
+    if (process.platform !== 'linux') {
+      await eventually(async () => {
+        const theme = await tauri((api) =>
+          api.window.getCurrentWindow().theme()
+        )
+        if (theme !== 'dark') {
+          throw new Error(`expected theme "dark", got "${theme}"`)
+        }
+      })
+    }
     // restore
     await tauri((api) => api.app.setTheme(null))
   })

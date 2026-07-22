@@ -1,15 +1,38 @@
+//! Running a cef app from `tauri dev` on macOS.
+//!
+//! CEF resolves its framework relative to the running executable
+//! (`<exe>/../Frameworks/Chromium Embedded Framework.framework`) and launches
+//! its renderer/GPU/utility subprocesses through helper executables that must
+//! themselves be nested `.app`s — so a cef app only runs from inside an `.app`
+//! bundle, and `tauri dev` cannot just execute the binary it built. Both dev
+//! flows therefore bundle an `.app` first and run the executable inside it:
+//!
+//! - a Rust app builds with cargo and bundles the result ([`run_dev_cef_macos`]);
+//! - a bindings app (node/deno/python) has no binary to build — its executable is
+//!   the language runtime — so it bundles an `.app` *around* a copy of that
+//!   runtime ([`stage_bindings_dev_app`]).
+//!
+//! Both go through [`bundle_dev_app`], which is what stages the CEF framework and
+//! the helper `.app`s (the bundler embeds the helper binary, so neither flow has
+//! to build or ship one).
+
 use crate::helpers::app_paths::Dirs;
+use crate::helpers::config::Config;
 use crate::interface::{
   AppInterface, AppSettings, ExitReason, Options,
   rust::{DevChild, RustAppSettings, RustupTarget, tauri_config_to_bundle_settings},
 };
-use crate::{CommandExt, error::Context};
+use crate::{CommandExt, error::Context, error::ErrorExt};
 
 use shared_child::SharedChild;
+use std::fs;
 use std::io::{BufReader, Write};
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use tauri_bundler::{AppCategory, BundleBinary, BundleSettings, PackageSettings};
 
 pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   app_settings: &RustAppSettings,
@@ -108,15 +131,7 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
   settings.set_log_level(log::Level::Info);
 
   // Bundle the app
-  let bundles = tauri_bundler::bundle_project(&settings)
-    .map_err(Box::new)
-    .context("failed to bundle app")?;
-
-  let app_bundle_path = bundles
-    .first()
-    .and_then(|b| b.bundle_paths.first())
-    .ok_or_else(|| crate::Error::GenericError("no bundle created".into()))?
-    .clone();
+  let app_bundle_path = bundle_dev_app(&settings)?;
 
   // Launch the app executable from inside the .app
   let mut exec_cmd = Command::new(app_bundle_path.join("Contents/MacOS").join(exec_name));
@@ -171,5 +186,126 @@ pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>
   Ok(DevChild {
     manually_killed_app,
     dev_child,
+  })
+}
+
+/// Bundles the `.app` a dev run executes from, returning its path.
+///
+/// This is where CEF actually gets staged: with `cef_path` set on the bundle
+/// settings, the macOS bundler copies the framework into `Contents/Frameworks`
+/// and creates the helper `.app`s next to it from the helper binary it embeds at
+/// build time.
+fn bundle_dev_app(settings: &tauri_bundler::Settings) -> crate::Result<PathBuf> {
+  let bundles = tauri_bundler::bundle_project(settings)
+    .map_err(Box::new)
+    .context("failed to bundle app")?;
+
+  bundles
+    .first()
+    .and_then(|b| b.bundle_paths.first())
+    .cloned()
+    .ok_or_else(|| crate::Error::GenericError("no bundle created".into()))
+}
+
+/// The dev `.app` staged for a bindings app, and the two paths its runner is
+/// started with.
+pub struct BindingsDevApp {
+  /// The executable to spawn instead of the runner: a copy of the runner inside
+  /// `Contents/MacOS`, so CEF (and AppKit) see a bundled app.
+  pub executable: PathBuf,
+  /// The helper executable to point CEF at through `TAURI_CEF_SUBPROCESS_PATH`.
+  pub subprocess_helper: PathBuf,
+}
+
+/// Stages the dev `.app` a cef bindings app (node/deno/python) runs from.
+///
+/// A bindings app has no binary of its own — the app *is* the language runtime
+/// executing a script — so there is nothing to build here, only an `.app` to
+/// bundle around it. `runner_exe` (the resolved `node`/`deno`/`python`) is copied
+/// in as the bundle's main binary and spawned from there with the same script
+/// arguments, which is what puts the CEF framework and the helper `.app`s within
+/// reach of the running process.
+///
+/// The bundle is staged in its own `dev-app/` directory so it never collides with
+/// the standalone binary and bundles `tauri build` writes to the same out dir.
+/// It is deliberately *not* the app's real bundle: no frontend assets, config or
+/// capabilities are staged into it (dev reads those from disk and the config env)
+/// and `beforeBundleCommand` is not run, since nothing here ships.
+pub fn stage_bindings_dev_app(
+  package_settings: PackageSettings,
+  binaries: Vec<BundleBinary>,
+  config: &Config,
+  runner_exe: &Path,
+  cef_dir: &Path,
+  out_dir: &Path,
+  target: String,
+) -> crate::Result<BindingsDevApp> {
+  let bin_name = binaries
+    .iter()
+    .find(|bin| bin.main())
+    .map(|bin| bin.name().to_string())
+    .ok_or_else(|| crate::Error::GenericError("no main binary to bundle".into()))?;
+
+  let project_out_directory = out_dir.join("dev-app");
+  fs::create_dir_all(&project_out_directory).fs_context(
+    "failed to create the dev app directory",
+    project_out_directory.clone(),
+  )?;
+
+  // The bundler bundles what it finds at `<project out>/<main binary>`, so the
+  // runner takes that place. Copied rather than symlinked: the bundle's own copy
+  // is what gets signed, and a language runtime resolves its standard library
+  // from its compiled-in prefix, not from where it is executed.
+  let staged_runner = project_out_directory.join(&bin_name);
+  fs::copy(runner_exe, &staged_runner).fs_context(
+    "failed to stage the runner executable for the dev app bundle",
+    runner_exe.to_path_buf(),
+  )?;
+
+  let bundle_settings = BundleSettings {
+    identifier: Some(config.identifier.clone()),
+    publisher: config.bundle.publisher.clone(),
+    icon: (!config.bundle.icon.is_empty()).then(|| config.bundle.icon.clone()),
+    category: config
+      .bundle
+      .category
+      .as_deref()
+      .and_then(|category| AppCategory::from_str(category).ok()),
+    short_description: config
+      .bundle
+      .short_description
+      .clone()
+      .or_else(|| config.product_name.clone()),
+    long_description: config.bundle.long_description.clone(),
+    // What routes the bundler through its CEF staging: the framework is copied
+    // out of this directory and the helper `.app`s are created beside it.
+    cef_path: Some(cef_dir.to_path_buf()),
+    ..Default::default()
+  };
+
+  let mut settings = tauri_bundler::bundle::SettingsBuilder::new()
+    .package_settings(package_settings)
+    .bundle_settings(bundle_settings)
+    .binaries(binaries)
+    .project_out_directory(&project_out_directory)
+    .target(target)
+    .package_types(vec![tauri_bundler::bundle::PackageType::MacOsBundle])
+    .build()
+    .context("failed to build bundler settings")?;
+  settings.set_log_level(log::Level::Info);
+
+  let app_bundle_path = bundle_dev_app(&settings)?;
+
+  // The helper `.app`s the bundler creates are named after the main binary; CEF
+  // finds them by that convention, but the bindings point it at one explicitly so
+  // the dev run does not depend on the bundle's naming matching what CEF derives.
+  let helper_name = format!("{bin_name} Helper");
+  Ok(BindingsDevApp {
+    executable: app_bundle_path.join("Contents/MacOS").join(&bin_name),
+    subprocess_helper: app_bundle_path
+      .join("Contents/Frameworks")
+      .join(format!("{helper_name}.app"))
+      .join("Contents/MacOS")
+      .join(&helper_name),
   })
 }

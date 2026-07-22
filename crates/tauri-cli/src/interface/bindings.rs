@@ -291,20 +291,20 @@ impl Interface for Bindings {
     let on_exit = Arc::new(on_exit);
 
     // Ensure the CEF runtime is available before spawning (downloading it once
-    // when the installed library ships without it), so every restart just reuses
-    // the resolved distribution.
-    let cef_env = self.cef_dev_env(&options, dirs)?;
+    // when the installed library ships without it, bundling the dev `.app` once
+    // on macOS), so every restart just reuses what was resolved here.
+    let cef = self.cef_dev_setup(config, &options, dirs)?;
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      let _child = self.spawn_app(config, &options, &cef_env, dirs, move |status, reason| {
+      let _child = self.spawn_app(config, &options, &cef, dirs, move |status, reason| {
         on_exit(status, reason);
         tx.send(()).unwrap();
       })?;
       rx.recv().unwrap();
       Ok(())
     } else {
-      self.run_dev_watcher(config, options, &cef_env, on_exit, dirs)
+      self.run_dev_watcher(config, options, &cef, on_exit, dirs)
     }
   }
 }
@@ -314,7 +314,7 @@ impl Bindings {
     &self,
     config: &ConfigMetadata,
     options: &Options,
-    cef_env: &HashMap<&'static str, String>,
+    cef: &CefDev,
     dirs: &Dirs,
     on_exit: F,
   ) -> crate::Result<BindingsDevChild> {
@@ -325,7 +325,13 @@ impl Bindings {
       );
     };
 
-    let mut command = std::process::Command::new(runner.cmd());
+    // A cef app on macOS runs the copy of the runner inside the dev `.app`
+    // instead — same executable, same arguments, in a bundle CEF can start in.
+    let program = cef
+      .app_exec
+      .clone()
+      .unwrap_or_else(|| PathBuf::from(runner.cmd()));
+    let mut command = std::process::Command::new(&program);
     let cwd = runner
       .cwd()
       .map(|cwd| dirs.tauri.join(cwd))
@@ -352,27 +358,22 @@ impl Bindings {
     // (via TAURI_CEF_SUBPROCESS_PATH) for its renderer/GPU/utility subprocesses —
     // both resolved from the same `_native/` the runner loads the library from.
     // An installed app ships the library without the ~1.4GB CEF runtime, so the
-    // loader can't find `libcef` beside it; `cef_dev_env` downloaded it and points
-    // the loader at the shared cache through TAURI_CEF_PATH (empty for wry, or when
-    // CEF is already staged beside the library in a repo checkout).
-    command.envs(cef_env.iter().map(|(k, v)| (*k, v)));
-    // Only macOS is called out, where the CEF framework must live in an .app and
-    // dev can't just run the runner (see `crate::cef::macos_dev`).
-    if cfg!(target_os = "macos") && self.app_settings.runtime == WebviewRuntime::Cef {
-      log::warn!(
-        "`tauri dev` with the cef runtime is not yet supported for bindings apps on macOS (the CEF framework must be staged in an .app bundle)"
-      );
-    }
+    // loader can't find `libcef` beside it; `cef_dev_setup` downloaded it and
+    // points the loader at the shared cache through TAURI_CEF_PATH (empty for wry,
+    // or when CEF is already staged beside the library in a repo checkout). On
+    // macOS neither is staged beside the library — the dev `.app` carries the
+    // framework and the helper `.app`s, and this names the helper inside it.
+    command.envs(cef.env.iter().map(|(k, v)| (*k, v)));
 
     log::info!(
       action = "Running";
       "`{} {}`",
-      runner.cmd(),
+      program.display(),
       command.get_args().map(|arg| arg.to_string_lossy()).collect::<Vec<_>>().join(" ")
     );
 
     let child = SharedChild::spawn(&mut command).map_err(|error| crate::Error::CommandFailed {
-      command: runner.cmd().into(),
+      command: program.to_string_lossy().into_owned(),
       error,
     })?;
     let child = Arc::new(child);
@@ -402,12 +403,12 @@ impl Bindings {
     &mut self,
     config: &mut ConfigMetadata,
     options: Options,
-    cef_env: &HashMap<&'static str, String>,
+    cef: &CefDev,
     on_exit: Arc<F>,
     dirs: &Dirs,
   ) -> crate::Result<()> {
     let on_exit_ = on_exit.clone();
-    let mut child = self.spawn_app(config, &options, cef_env, dirs, move |status, reason| {
+    let mut child = self.spawn_app(config, &options, cef, dirs, move |status, reason| {
       on_exit_(status, reason)
     })?;
 
@@ -498,47 +499,106 @@ impl Bindings {
       child.kill().context("failed to kill app process")?;
       let _ = child.wait();
       let on_exit_ = on_exit.clone();
-      child = self.spawn_app(config, &options, cef_env, dirs, move |status, reason| {
+      child = self.spawn_app(config, &options, cef, dirs, move |status, reason| {
         on_exit_(status, reason)
       })?;
     }
     bail!("File watcher exited unexpectedly")
   }
 
-  /// Ensures the CEF runtime is available for a cef bindings app in dev and
-  /// returns the env pointing the loader at it. Empty for a wry app, a
-  /// non-linux target (cef bindings are linux-only — see [`stage_cef_runtime`]),
-  /// a project with no runner (`spawn_app` reports that), or when CEF is already
-  /// staged beside the library in a repo checkout (the loader finds it there).
+  /// Ensures the CEF runtime is available for a cef bindings app in dev, and
+  /// returns what running it takes. Empty for a wry app, a target with no cef
+  /// support ([`cef_supported_target`]) or a project with no runner (`spawn_app`
+  /// reports that).
   ///
-  /// Otherwise it downloads the CEF distribution the installed library links but
-  /// does not ship (libcef is ~1.4GB) via [`resolve_cef_distribution`] and sets
-  /// `TAURI_CEF_PATH` to it, which the loaders preload libcef from — a dev-only
-  /// channel a compiled bundle ignores (it loads only its own staged libcef).
-  fn cef_dev_env(
+  /// The distribution comes from [`resolve_cef_distribution`], which downloads
+  /// the CEF the installed library links but does not ship (libcef is ~1.4GB)
+  /// unless a repo checkout already staged it beside the library. From there the
+  /// platforms diverge:
+  ///
+  /// - linux/windows load libcef from a directory, so it is enough to tell the
+  ///   loaders where it is: `TAURI_CEF_PATH` is a dev-only channel they preload
+  ///   libcef from, unset when the distribution already sits beside the library
+  ///   (the loaders find it there on their own). A compiled bundle ignores it and
+  ///   loads only its own staged libcef.
+  /// - macOS cannot load it from anywhere: the process has to *be* a bundled app
+  ///   for CEF to find its framework and helpers, so the runner is bundled into a
+  ///   dev `.app` and spawned from inside it (see [`crate::cef::macos_dev`]).
+  ///
+  /// Called once per `tauri dev`, not per restart: the dev `.app` is bundled here
+  /// and the watcher only re-spawns the executable inside it.
+  fn cef_dev_setup(
     &self,
+    config: &Config,
     options: &Options,
     dirs: &Dirs,
-  ) -> crate::Result<HashMap<&'static str, String>> {
+  ) -> crate::Result<CefDev> {
     let runtime = self.app_settings.runtime;
     let target = &self.app_settings.target_triple;
-    let mut env = HashMap::new();
-    if runtime != WebviewRuntime::Cef || !target.contains("linux") {
-      return Ok(env);
+    let mut cef = CefDev::default();
+    if runtime != WebviewRuntime::Cef || !cef_supported_target(target) {
+      return Ok(cef);
     }
     let Some(runner) = options.runner.clone() else {
       // No runner to probe the library with; `spawn_app` raises the clear error.
-      return Ok(env);
+      return Ok(cef);
     };
     let lib = resolve_cdylib(target, runtime, dirs.tauri, &runner)?;
     let cef_dir = resolve_cef_distribution(&lib, target)?;
+
+    if target.contains("darwin") {
+      #[cfg(target_os = "macos")]
+      {
+        // The runner is copied into the bundle, so it has to be a real path — the
+        // `node`/`python3`/`deno` in `build > runner` is usually just a command.
+        let runner_exe = which::which(runner.cmd()).map_err(|e| {
+          crate::Error::GenericError(format!(
+            "failed to locate the `{}` runner executable to bundle the dev app around: {e}",
+            runner.cmd()
+          ))
+        })?;
+        let app = crate::cef::macos_dev::stage_bindings_dev_app(
+          self.app_settings.get_package_settings(),
+          self.app_settings.get_binaries(options, dirs.tauri)?,
+          config,
+          &runner_exe,
+          &cef_dir,
+          &self.app_settings.out_dir(options, dirs.tauri)?,
+          target.clone(),
+        )?;
+        cef.env.insert(
+          "TAURI_CEF_SUBPROCESS_PATH",
+          app.subprocess_helper.to_string_lossy().into_owned(),
+        );
+        cef.app_exec = Some(app.executable);
+      }
+      #[cfg(not(target_os = "macos"))]
+      let _ = config;
+      return Ok(cef);
+    }
+
     // Skip the env when the distribution already sits beside the library (a repo
     // checkout): the loader finds libcef there without it.
     if Some(cef_dir.as_path()) != lib.parent() {
-      env.insert("TAURI_CEF_PATH", cef_dir.to_string_lossy().into_owned());
+      cef
+        .env
+        .insert("TAURI_CEF_PATH", cef_dir.to_string_lossy().into_owned());
     }
-    Ok(env)
+    Ok(cef)
   }
+}
+
+/// What a cef bindings app needs to run in dev, from [`Bindings::cef_dev_setup`].
+/// Empty for every non-cef app, which runs its runner with no extra env.
+#[derive(Default)]
+struct CefDev {
+  /// Where the loaders resolve the CEF runtime from, when it is not already
+  /// beside the library.
+  env: HashMap<&'static str, String>,
+  /// macOS: the executable inside the staged dev `.app` to spawn in place of the
+  /// runner. The runner's own arguments are unchanged — this *is* the runner,
+  /// copied into a bundle CEF can work in.
+  app_exec: Option<PathBuf>,
 }
 
 pub struct BindingsDevChild {
@@ -711,6 +771,15 @@ fn cdylib_name(target_triple: &str, runtime: WebviewRuntime) -> String {
   }
 }
 
+/// Whether a target can run a cef bindings app in dev. Wider than what
+/// [`stage_cef_runtime`] can package: macOS has no `tauri build` support yet, but
+/// `tauri dev` runs there through a dev `.app` (see [`Bindings::cef_dev_setup`]).
+fn cef_supported_target(target_triple: &str) -> bool {
+  target_triple.contains("linux")
+    || target_triple.contains("windows")
+    || target_triple.contains("darwin")
+}
+
 /// The CEF distribution files a packaged app needs beside `libcef`, mirroring
 /// the list the bundler ships for a Rust cef app (see the `cef_files` in
 /// `tauri-bundler`'s `linux/debian.rs`). `locales/` is copied separately.
@@ -734,6 +803,43 @@ const CEF_LINUX_FILES: &[&str] = &[
   "chrome-sandbox",
 ];
 
+/// The CEF distribution files a packaged Windows app needs beside `libcef.dll`,
+/// mirroring the bundler's NSIS/MSI list (which follows CEF's own
+/// `README.redistrib.txt`). `locales/` is copied separately.
+const CEF_WINDOWS_FILES: &[&str] = &[
+  // required
+  "libcef.dll",
+  "chrome_elf.dll",
+  "icudtl.dat",
+  "v8_context_snapshot.bin",
+  // "optional" — but not really, since we want support for all of this
+  "chrome_100_percent.pak",
+  "chrome_200_percent.pak",
+  "resources.pak",
+];
+
+/// Windows CEF files only some distributions carry (the DirectX compiler is not
+/// shipped for every arch, and the sandbox bootstrap only exists in recent
+/// versions). Staged when present — missing ones cost graphics fallbacks, not the
+/// ability to start.
+const CEF_WINDOWS_OPTIONAL_FILES: &[&str] = &[
+  // Direct3D support
+  "d3dcompiler_47.dll",
+  // DirectX compiler support
+  "dxil.dll",
+  "dxcompiler.dll",
+  // ANGLE support
+  "libEGL.dll",
+  "libGLESv2.dll",
+  // SwANGLE support
+  "vk_swiftshader.dll",
+  "vk_swiftshader_icd.json",
+  "vulkan-1.dll",
+  // sandbox
+  "bootstrap.exe",
+  "bootstrapc.exe",
+];
+
 /// Locales CEF loads from `locales/` next to its module. Only en-US is shipped,
 /// matching what the bundler stages for a Rust cef app.
 const CEF_LOCALES: &[&str] = &[
@@ -743,13 +849,15 @@ const CEF_LOCALES: &[&str] = &[
   "en-US_NEUTER.pak",
 ];
 
-/// The `libcef` file name for a target. Bindings cef is linux-only for now (see
-/// [`stage_cef_runtime`]), but this keeps the platform mapping in one place.
-fn cef_library_name(target_triple: &str) -> &'static str {
+/// The file that identifies an extracted CEF distribution for a target, matching
+/// the Rust interface's `cef_marker_file`. macOS ships CEF as a framework rather
+/// than a plain `libcef`, which is also why it can only be loaded from inside an
+/// `.app` (see [`crate::cef::macos_dev`]).
+fn cef_marker_file(target_triple: &str) -> &'static str {
   if target_triple.contains("windows") {
     "libcef.dll"
   } else if target_triple.contains("apple") {
-    "libcef.dylib"
+    "Chromium Embedded Framework.framework"
   } else {
     "libcef.so"
   }
@@ -787,17 +895,37 @@ fn read_linked_cef_version(lib_path: &Path) -> Option<String> {
 /// - download the version the library embeds (see [`read_linked_cef_version`])
 ///   into the shared cache, the same one a Rust cef app fills, via
 ///   [`ensure_cef_distribution`](crate::interface::rust::ensure_cef_distribution).
+///
+/// What is staged next to the library on macOS is a *symlink* to the framework
+/// in the shared cache — the framework is only ever used by copying it into an
+/// `.app`, so `stage-dev.mjs` does not duplicate ~300MB to put it there. The real
+/// distribution directory is what callers want, so the marker is resolved before
+/// its parent is returned.
 fn resolve_cef_distribution(lib_path: &Path, target_triple: &str) -> crate::Result<PathBuf> {
   let lib_dir = lib_path
     .parent()
     .expect("resolved cdylib path has no parent directory");
-  if lib_dir.join(cef_library_name(target_triple)).is_file() {
+  let marker = cef_marker_file(target_triple);
+  let staged = lib_dir.join(marker);
+  if staged.is_file() {
     return Ok(lib_dir.to_path_buf());
+  }
+  if staged.is_dir() {
+    // The macOS framework, staged as a symlink into the shared cache: hand back
+    // the distribution it points at rather than the directory holding the link,
+    // so the bundler copies a real tree out of it.
+    let resolved = dunce::canonicalize(&staged)
+      .fs_context("failed to resolve the staged CEF distribution", staged)?;
+    return Ok(
+      resolved
+        .parent()
+        .expect("CEF distribution marker has no parent directory")
+        .to_path_buf(),
+    );
   }
   let Some(version) = read_linked_cef_version(lib_path) else {
     bail!(
-      "the cef runtime needs the CEF distribution, but no `{}` is staged next to {} and the library carries no `{CEF_VERSION_SECTION}` version to download it by — reinstall the app's dependencies (or rebuild the library in a repo checkout) so it provides a cef library",
-      cef_library_name(target_triple),
+      "the cef runtime needs the CEF distribution, but no `{marker}` is staged next to {} and the library carries no `{CEF_VERSION_SECTION}` version to download it by — reinstall the app's dependencies (or rebuild the library in a repo checkout) so it provides a cef library",
       display_path(lib_path),
     );
   };
@@ -813,10 +941,11 @@ fn resolve_cef_distribution(lib_path: &Path, target_triple: &str) -> crate::Resu
 /// Unlike a Rust cef app — whose *executable* links libcef, so the bundler ships
 /// CEF next to the binary — a bindings app's executable is a stock
 /// node/deno/python interpreter and it is the *cdylib* that links libcef. So CEF
-/// belongs next to the cdylib instead: the cdylib carries a `$ORIGIN` RUNPATH
-/// (see `tauri-ffi`'s build script) to resolve `libcef` there, and CEF finds its
-/// own pak/locale data by looking next to its module. That makes the resource
-/// dir self-contained, and is what deb/rpm ship.
+/// belongs next to the cdylib instead: on linux the cdylib carries a `$ORIGIN`
+/// RUNPATH (see `tauri-ffi`'s build script) to resolve `libcef` there, on Windows
+/// the loaders preload it from there by absolute path, and CEF finds its own
+/// pak/locale data by looking next to its module either way. That makes the
+/// resource dir self-contained, and is what deb/rpm ship.
 ///
 /// The resource dir is *also* handed to the bundler as `cef_path`, so libcef
 /// ends up in a bundle twice: once here, once staged next to the binary. That is
@@ -839,18 +968,28 @@ fn stage_cef_runtime(
   resources_dir: &Path,
   target_triple: &str,
 ) -> crate::Result<()> {
-  if !target_triple.contains("linux") {
-    // Windows needs its own file list, and macOS needs the CEF framework staged
-    // into an .app (plus a helper .app per subprocess type) — neither is wired
-    // up yet, matching the `dev` restriction in `spawn_app`.
+  let (required, optional) = if target_triple.contains("linux") {
+    (CEF_LINUX_FILES, &[][..])
+  } else if target_triple.contains("windows") {
+    (CEF_WINDOWS_FILES, CEF_WINDOWS_OPTIONAL_FILES)
+  } else {
+    // macOS ships CEF as a framework that only loads from inside an `.app`, with
+    // a helper `.app` per subprocess type — `tauri dev` bundles that (see
+    // [`crate::cef::macos_dev`]), but staging it into a *built* app's resource
+    // dir, where the compiled binary is the bundle's main executable, is not
+    // wired up yet.
     bail!(
-      "the cef runtime is not yet supported for bindings apps on this target ({target_triple}) — only linux is"
+      "the cef runtime is not yet supported for `tauri build` on this target ({target_triple}) — only linux and windows are"
     );
-  }
+  };
 
-  for name in CEF_LINUX_FILES {
+  for name in required.iter().chain(optional) {
     let src = cef_dir.join(name);
     if !src.is_file() {
+      if optional.contains(name) {
+        log::debug!("skipping optional CEF file `{name}`, this distribution does not ship it");
+        continue;
+      }
       bail!(
         "the cef runtime needs `{name}` in the CEF distribution, but {} does not exist",
         display_path(&src)

@@ -32,7 +32,7 @@ cargo build -p tauri-cli
 # wry — the OS webview (default)
 node ../../../scripts/dev.mjs dev
 
-# cef — Chromium Embedded Framework (linux only for now)
+# cef — Chromium Embedded Framework
 TAURI_RUNTIME=cef node ../../../scripts/dev.mjs dev
 ```
 

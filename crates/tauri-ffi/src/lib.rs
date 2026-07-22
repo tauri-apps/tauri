@@ -49,8 +49,12 @@ use crate::Rt as TauriRuntime;
 // embedded in a dedicated ELF section so the bindings CLI can read it *from the
 // library file* — it can't `dlopen` a cef library to call an ABI function before
 // the matching libcef is present, which is the chicken-and-egg the CLI resolves
-// by downloading that CEF version. Only a cef build carries it; cef bindings are
-// linux-only for now (see the CLI's `stage_cef_runtime`).
+// by downloading that CEF version. Only a linux cef build carries it: a PE image
+// drops section names longer than 8 bytes and Mach-O caps them at 16, so macOS
+// and Windows would each need their own encoding — and neither needs one yet,
+// their cef support being `tauri dev` from a repo checkout, where the CEF
+// distribution is staged next to the library and no download is required (see
+// the CLI's `resolve_cef_distribution`).
 #[cfg(all(feature = "runtime-cef", target_os = "linux"))]
 #[used]
 #[link_section = ".tauri_cef_version"]

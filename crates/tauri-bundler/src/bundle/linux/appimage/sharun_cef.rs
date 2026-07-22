@@ -81,8 +81,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .with_context(|| "Failed to copy custom files")?;
 
   fs::create_dir_all(data_dir.join("usr/bin/"))?;
+  fs::create_dir_all(data_dir.join("usr/bin/locales"))?;
   fs::create_dir_all(data_dir.join("usr/lib/"))?;
-  fs::create_dir_all(data_dir.join("usr/lib/locales"))?;
 
   let cef_path = settings
     .bundle_settings()
@@ -113,11 +113,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   ];
 
   for f in cef_files {
-    let dest = if f == "chrome-sandbox" {
-      data_dir.join("usr/bin/").join(f)
-    } else {
-      data_dir.join("usr/lib/").join(f)
-    };
+    let dest = data_dir.join("usr/bin/").join(f);
     fs::copy(cef_path.join(f), &dest)?;
     let _ = Command::new("strip").arg(&dest).output_ok();
   }
@@ -131,7 +127,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for f in locales {
     fs::copy(
       cef_path.join("locales").join(f),
-      data_dir.join("usr/lib/locales").join(f),
+      data_dir.join("usr/bin/locales").join(f),
     )?;
   }
 
@@ -161,18 +157,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     _ => "",
   };
 
-  let bins = settings.copy_binaries(&app_dir_path.join("usr/bin/"))?;
-  let bins = bins
-    .iter()
-    .map(|b| format!(" \"{}\"", b.to_string_lossy()))
-    .collect::<String>();
-
-  // quick-sharun checks the main binary with ldd so even though we manually add the cef files,
-  // we'll add them to LD_LIBRARY_PATH to pass the pre-bundle checks
-  let mut ld_lib_path = data_dir.join("usr/lib/").to_string_lossy().to_string();
-  if let Ok(ld_env) = std::env::var("LD_LIBRARY_PATH") {
-    ld_lib_path = format!("{}:{}", ld_lib_path, ld_env);
-  }
+  settings.copy_binaries(&app_dir_path.join("usr/bin/"))?;
 
   // TODO: Consider to not rely on quick-sharun when we have more time
   Command::new("/bin/sh")
@@ -188,27 +173,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .env("HOOKSRC", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/hooks")
     .env("DEPLOY_CHROMIUM", "1")
     .env("ADD_HOOKS", "fix-namespaces.hook")
-    .env("LD_LIBRARY_PATH", ld_lib_path)
     .args([
       "-c",
       &format!(
-        r#""{}" "{}" {bins} "{}" "{}""#,
+        r#""{}" "{}" "{}""#,
         quick_sharun.to_string_lossy(),
         data_dir
-          .join(format!("usr/bin/{}", main_binary.name()))
+          .join("usr/bin/*")
           .to_string_lossy(),
-        // TODO: This may have to be in lib instead
-        data_dir.join("usr/bin/chrome-sandbox").to_string_lossy(),
+        // TODO: check if we have to search for binaries/libraries in this folder and manually enter them here
         data_dir.join("usr/lib/").to_string_lossy()
       ),
     ])
     .output_ok()
     .context("quick-sharun command failed to run.")?;
-
-  {
-    use std::os::unix::fs::PermissionsExt;
-    fs::set_permissions(&appimage_path, fs::Permissions::from_mode(0o770)).expect("perms");
-  }
 
   fs::remove_dir_all(package_dir).expect("rmdir");
   Ok(vec![appimage_path])

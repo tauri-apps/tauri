@@ -226,6 +226,7 @@ def _bundled_resource_dir() -> Optional[Path]:
       sibling ``resources/`` the CLI stages into
     - Windows installers: next to the executable
     - Linux deb/rpm: binary in ``/usr/bin``, resources in ``/usr/lib/<productName>``
+      (a cef build moves the binary to ``/usr/share/<productName>/<bin>``)
     - Linux AppImage: the same, under ``$APPDIR``
     """
     if not getattr(sys, "frozen", False):
@@ -244,8 +245,12 @@ def _bundled_resource_dir() -> Optional[Path]:
         name = _bundled_product_name()
         if name:
             # `../lib/<name>` covers deb/rpm (/usr/bin -> /usr/lib/<name>) and an
-            # AppImage whose AppRun did not export APPDIR.
+            # AppImage whose AppDir mirrors that layout; `../../lib/<name>` covers
+            # a cef build, whose bundler moves the binary to /usr/share/<name>/<bin>
+            # so libcef resolves via $ORIGIN (sys.executable resolves the /usr/bin
+            # symlink back to it).
             candidates.append(directory.parent / "lib" / name)
+            candidates.append(directory.parent.parent / "lib" / name)
             appdir = os.environ.get("APPDIR")
             if appdir:
                 candidates.append(Path(appdir) / "usr" / "lib" / name)

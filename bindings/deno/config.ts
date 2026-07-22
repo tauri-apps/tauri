@@ -66,6 +66,7 @@ const RESOURCE_MARKER = '.tauri-resources'
  *   sibling `resources/` the CLI stages into
  * - Windows installers: next to the executable
  * - Linux deb/rpm: binary in `/usr/bin`, resources in `/usr/lib/<productName>`
+ *   (a cef build moves the binary to `/usr/share/<productName>/<bin>`)
  * - Linux AppImage: the same, under `$APPDIR`
  */
 export function bundledResourceDir(): string | null {
@@ -89,8 +90,14 @@ export function bundledResourceDir(): string | null {
     const name = bundledProductName()
     if (name) {
       // `../lib/<name>` covers deb/rpm (/usr/bin → /usr/lib/<name>) and an
-      // AppImage whose AppRun did not export APPDIR.
-      candidates.push(`${dir.slice(0, dir.lastIndexOf('/'))}/lib/${name}`)
+      // AppImage whose AppDir mirrors that layout; `../../lib/<name>` covers a
+      // cef build, whose bundler moves the binary to /usr/share/<name>/<bin> so
+      // libcef resolves via $ORIGIN (Deno.execPath() follows the /usr/bin
+      // symlink back to it). The APPDIR and absolute fallbacks match the order
+      // tauri_utils falls back through.
+      const parent = dir.slice(0, dir.lastIndexOf('/'))
+      candidates.push(`${parent}/lib/${name}`)
+      candidates.push(`${parent.slice(0, parent.lastIndexOf('/'))}/lib/${name}`)
       const appdir = Deno.env.get('APPDIR')
       if (appdir) candidates.push(`${appdir}/usr/lib/${name}`)
       candidates.push(`/usr/lib/${name}`)

@@ -6,14 +6,14 @@ name: test `@tauri-apps/api` e2e
 
 on:
   push:
-    branches:
-      - dev
-  pull_request:
-    paths:
-      - '.github/workflows/test-api-e2e.yml'
-      - 'packages/api/**'
-      - 'packages/api-e2e/**'
-      - 'examples/api/**'
+    #branches:
+    #  - dev
+  #pull_request:
+  #  paths:
+  #    - '.github/workflows/test-api-e2e.yml'
+  #    - 'packages/api/**'
+  #    - 'packages/api-e2e/**'
+  #    - 'examples/api/**'
 
 env:
   RUST_BACKTRACE: 1

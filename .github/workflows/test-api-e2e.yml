@@ -5,6 +5,7 @@
 name: test `@tauri-apps/api` e2e
 
 on:
+  workflow_dispatch:
   push:
     #branches:
     #  - dev

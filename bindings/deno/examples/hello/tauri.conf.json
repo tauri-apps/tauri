@@ -4,8 +4,6 @@
   "identifier": "com.tauri.ffi.hello.deno",
   "build": {
     "runner": { "cmd": "deno", "args": ["run", "-A", "main.ts"] },
-    "beforeDevCommand": { "script": "node ../../../scripts/stage-dev.mjs --lang deno --runtime wry", "cwd": ".", "wait": true },
-    "beforeBuildCommand": { "script": "node ../../../scripts/stage-dev.mjs --lang deno --runtime wry", "cwd": "." },
     "frontendDist": "./assets"
   },
   "bundle": {

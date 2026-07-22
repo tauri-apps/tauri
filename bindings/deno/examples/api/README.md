@@ -35,9 +35,8 @@ node ../../../scripts/dev.mjs dev
 TAURI_RUNTIME=cef node ../../../scripts/dev.mjs dev
 ```
 
-[`dev.mjs`](../../../scripts/dev.mjs) is a thin wrapper around the freshly built
-`cargo-tauri`. Swap `dev` for `build` to bundle instead. `TAURI_RUNTIME` is the single
-webview switch: it sets `app.runtime` (via `--config`) so the CLI loads the
-matching `libtauri_<runtime>`, and the same value reaches `stage-dev.mjs` in
-`beforeDevCommand` so that library gets staged. Leave it unset to use the
-config's own `app.runtime`.
+[`dev.mjs`](../../../scripts/dev.mjs) stages the freshly built native library
+into this package's `_native/` (via `stage-dev.mjs`) and then runs `cargo-tauri`.
+Swap `dev` for `build` to bundle instead. `TAURI_RUNTIME` is the single webview
+switch: `dev.mjs` stages the matching `libtauri_<runtime>` and sets `app.runtime`
+(via `--config`) so the CLI loads that same library. Leave it unset for wry.

@@ -7,8 +7,9 @@
 # frontend invokes and the events it exchanges. app.run() blocks the main
 # thread (like every Python GUI toolkit); handlers run on the event-pump thread.
 #
-# Run from this directory (starts the shared Vite dev server automatically):
-#   ../../../../target/debug/cargo-tauri dev
+# Run it through the example launcher (from the repo root), which stages the
+# native library and starts the shared Vite dev server automatically:
+#   pnpm python:example:api dev          (TAURI_RUNTIME=cef … to run against cef)
 
 import json
 import sys

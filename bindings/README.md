@@ -15,12 +15,13 @@ node-gyp — every package is pure script + the prebuilt cdylib.
 
 ## Running the examples
 
-Use the Tauri CLI to run an example:
+Use each example's launcher to run it — it stages the freshly built native
+library into the binding's `_native/` and then invokes the Tauri CLI:
 
 ```sh
 cargo build -p tauri-cli
 cd bindings/node/examples/hello
-../../../../target/debug/cargo-tauri dev
+node ../../../scripts/dev.mjs dev
 ```
 
 ## Tauri CLI (`tauri dev` / `tauri build`)

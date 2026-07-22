@@ -4,8 +4,6 @@
   "identifier": "com.tauri.ffi.hello.python",
   "build": {
     "runner": { "cmd": "python3", "args": ["main.py"] },
-    "beforeDevCommand": { "script": "node ../../../scripts/stage-dev.mjs --lang python --runtime wry", "cwd": ".", "wait": true },
-    "beforeBuildCommand": { "script": "node ../../../scripts/stage-dev.mjs --lang python --runtime wry", "cwd": "." },
     "frontendDist": "./assets"
   },
   "bundle": {

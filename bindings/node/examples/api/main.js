@@ -6,8 +6,9 @@
 // This file only provides the host (Rust-equivalent) side: the commands the
 // frontend invokes and the events it exchanges.
 //
-// Run from this directory (starts the shared Vite dev server automatically):
-//   ../../../../target/debug/cargo-tauri dev
+// Run it through the example launcher (from the repo root), which stages the
+// native library and starts the shared Vite dev server automatically:
+//   pnpm node:example:api dev            (TAURI_RUNTIME=cef … to run against cef)
 import { launch } from '../../src/index.js'
 import appMenu from './app-menu-plugin.js'
 

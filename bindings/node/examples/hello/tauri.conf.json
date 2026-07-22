@@ -9,15 +9,6 @@
         "main.js"
       ]
     },
-    "beforeDevCommand": {
-      "script": "node ../../../scripts/stage-dev.mjs --lang node --runtime wry",
-      "cwd": ".",
-      "wait": true
-    },
-    "beforeBuildCommand": {
-      "script": "node ../../../scripts/stage-dev.mjs --lang node --runtime wry",
-      "cwd": "."
-    },
     "frontendDist": "./assets"
   },
   "bundle": {

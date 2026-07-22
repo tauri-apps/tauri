@@ -7,7 +7,9 @@
 // so an in-repo `tauri dev`/`tauri build` resolves the cdylib, CEF distribution,
 // subprocess helper and run-loop addon exactly the way a published app resolves
 // its installed platform package — no `target/` discovery, no wry-vs-cef probing.
-// The binding examples run it from `beforeDevCommand`/`beforeBuildCommand`.
+// The binding examples run it from their launcher, `bindings/scripts/dev.mjs`,
+// before it spawns the CLI (see that file for why staging can't live in the
+// example's `beforeDevCommand`).
 //
 // Usage:
 //   node bindings/scripts/stage-dev.mjs --lang <node|deno|python> [--runtime <wry|cef>] [--profile <debug|release>]

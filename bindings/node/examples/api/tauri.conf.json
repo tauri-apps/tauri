@@ -4,8 +4,8 @@
   "identifier": "com.tauri.ffi.api.node",
   "build": {
     "runner": { "cmd": "node", "args": ["main.js"] },
-    "beforeDevCommand": { "script": "node ../../bindings/scripts/stage-dev.mjs --lang node --runtime wry && pnpm dev", "cwd": "../../../../examples/api" },
-    "beforeBuildCommand": { "script": "node ../../bindings/scripts/stage-dev.mjs --lang node --runtime wry && pnpm build", "cwd": "../../../../examples/api" },
+    "beforeDevCommand": { "script": "pnpm dev", "cwd": "../../../../examples/api" },
+    "beforeBuildCommand": { "script": "pnpm build", "cwd": "../../../../examples/api" },
     "devUrl": "http://localhost:1420",
     "frontendDist": "../../../../examples/api/dist"
   },

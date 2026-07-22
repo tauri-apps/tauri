@@ -25,7 +25,15 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { name: Linux, os: ubuntu-latest }
+          - { name: Windows, os: windows-latest }
+          - { name: macOS, os: macos-latest }
 
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +49,7 @@ jobs:
           cache: 'pnpm'
 
       - name: install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -53,6 +62,8 @@ jobs:
             fluxbox
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.os }}
 
       - name: install dependencies
         run: pnpm i --frozen-lockfile
@@ -63,7 +74,8 @@ jobs:
       - name: build @tauri-apps/cli
         run: pnpm build:cli
 
-      - name: run e2e tests
+      - name: run e2e tests (Linux)
+        if: runner.os == 'Linux'
         timeout-minutes: 45
         # A real window manager (fluxbox) is started so that window-state tests
         # (minimize/maximize/fullscreen/position) behave. The tray host is absent
@@ -74,3 +86,29 @@ jobs:
             sleep 1
             E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
           '
+
+      - name: run e2e tests (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 45
+        shell: pwsh
+        # tauri-driver drives the WebView2 webview through Microsoft Edge WebDriver.
+        # The GitHub-hosted runner ships a version-matched msedgedriver.exe and points
+        # $env:EdgeWebDriver at its folder, so put it on PATH for tauri-driver to find.
+        # The runner has an interactive desktop session, so window-state tests run as-is;
+        # the tray module is skipped to match the Linux job.
+        run: |
+          $env:PATH = "$env:EdgeWebDriver;$env:PATH"
+          $env:E2E_SKIP = "tray"
+          $env:E2E_SPEC_RETRIES = "1"
+          pnpm test:api-e2e
+
+      - name: run e2e tests (macOS)
+        if: runner.os == 'macOS' && env.CN_API_KEY != ''
+        timeout-minutes: 45
+        # macOS has no native WebDriver for WKWebView, so the app is driven through the
+        # CrabNebula Webdriver (tauri-plugin-automation + test-runner-backend), which
+        # authenticates with CN_API_KEY. wdio.conf enables it automatically on darwin and
+        # builds the `.app` bundle it needs. The tray module is skipped to match the other jobs.
+        run: E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
+        env:
+          CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY }}

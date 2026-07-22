@@ -1912,6 +1912,7 @@ tauri::Builder::default()
     if let Some((plugin, command_name)) = plugin_command {
       invoke.message.command = command_name;
 
+      #[cfg(desktop)]
       let command = invoke.message.command.clone();
 
       #[cfg(mobile)]
@@ -1920,48 +1921,46 @@ tauri::Builder::default()
       #[allow(unused_mut)]
       let mut handled = manager.run_plugin_invoke_handler(plugin, invoke);
 
+      if handled {
+        return;
+      }
+
       #[cfg(mobile)]
       {
-        if !handled {
-          handled = true;
+        fn load_channels<R: Runtime>(payload: &serde_json::Value, webview: &Webview<R>) {
+          use std::str::FromStr;
 
-          fn load_channels<R: Runtime>(payload: &serde_json::Value, webview: &Webview<R>) {
-            use std::str::FromStr;
-
-            if let serde_json::Value::Object(map) = payload {
-              for v in map.values() {
-                if let serde_json::Value::String(s) = v {
-                  let _ = crate::ipc::JavaScriptChannelId::from_str(s)
-                    .map(|id| id.channel_on::<R, ()>(webview.clone()));
-                }
+          if let serde_json::Value::Object(map) = payload {
+            for v in map.values() {
+              if let serde_json::Value::String(s) = v {
+                let _ = crate::ipc::JavaScriptChannelId::from_str(s)
+                  .map(|id| id.channel_on::<R, ()>(webview.clone()));
               }
             }
           }
+        }
 
-          let payload = message.payload.into_json();
-          // initialize channels
-          load_channels(&payload, &message.webview);
+        let payload = message.payload.into_json();
+        // initialize channels
+        load_channels(&payload, &message.webview);
 
-          let resolver_ = resolver.clone();
-          if let Err(e) = crate::plugin::mobile::run_command(
-            plugin,
-            &app_handle,
-            heck::AsLowerCamelCase(message.command).to_string(),
-            payload,
-            move |response| match response {
-              Ok(r) => resolver_.resolve(r),
-              Err(e) => resolver_.reject(e),
-            },
-          ) {
-            resolver.reject(e.to_string());
-            return;
-          }
+        let resolver_ = resolver.clone();
+        if let Err(e) = crate::plugin::mobile::run_command(
+          plugin,
+          &app_handle,
+          heck::AsLowerCamelCase(message.command).to_string(),
+          payload,
+          move |response| match response {
+            Ok(r) => resolver_.resolve(r),
+            Err(e) => resolver_.reject(e),
+          },
+        ) {
+          resolver.reject(e.to_string());
         }
       }
 
-      if !handled {
-        resolver.reject(format!("Command {command} not found"));
-      }
+      #[cfg(desktop)]
+      resolver.reject(format!("Command {command} not found"));
     } else {
       let command = invoke.message.command.clone();
       let handled = manager.run_invoke_handler(invoke);

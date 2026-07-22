@@ -62,6 +62,14 @@ jobs:
             xvfb \
             fluxbox
 
+      # install a matching Microsoft Edge Driver version using msedgedriver-tool
+      - name: install msdgedriver (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$HOME/.cargo/bin/msedgedriver-tool.exe"
+          $PWD.Path >> $env:GITHUB_PATH
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.platform.os }}
@@ -92,13 +100,7 @@ jobs:
         if: runner.os == 'Windows'
         timeout-minutes: 45
         shell: pwsh
-        # tauri-driver drives the WebView2 webview through Microsoft Edge WebDriver.
-        # The GitHub-hosted runner ships a version-matched msedgedriver.exe and points
-        # $env:EdgeWebDriver at its folder, so put it on PATH for tauri-driver to find.
-        # The runner has an interactive desktop session, so window-state tests run as-is;
-        # the tray module is skipped to match the Linux job.
         run: |
-          $env:PATH = "$env:EdgeWebDriver;$env:PATH"
           $env:E2E_SKIP = "tray"
           $env:E2E_SPEC_RETRIES = "1"
           pnpm test:api-e2e

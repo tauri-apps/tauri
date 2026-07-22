@@ -1924,8 +1924,6 @@ tauri::Builder::default()
         return;
       }
 
-      #[cfg(desktop)]
-      resolver.reject(format!("Command {command} not found"));
       #[cfg(mobile)]
       {
         fn load_channels<R: Runtime>(payload: &serde_json::Value, webview: &Webview<R>) {
@@ -1959,6 +1957,9 @@ tauri::Builder::default()
           resolver.reject(e.to_string());
         }
       }
+
+      #[cfg(desktop)]
+      resolver.reject(format!("Command {command} not found"));
     } else {
       let command = invoke.message.command.clone();
       let handled = manager.run_invoke_handler(invoke);

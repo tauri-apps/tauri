@@ -18,8 +18,9 @@ use crate::error::ErrorExt;
 use anyhow::Context;
 use std::{
   fmt::Write,
+  fs::File,
   io::{Seek, SeekFrom},
-  path::PathBuf,
+  path::{Path, PathBuf},
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -85,7 +86,8 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
     package_type.short_name()
   );
 
-  let mut file_data = std::fs::read(binary).expect("Could not read binary file.");
+  let mut file_data =
+    std::fs::read(binary).fs_context("failed to read binary for patching", binary.clone())?;
   let bundle_var_index =
     kmp::index_of(BUNDLE_VAR_TOKEN, &file_data).ok_or(crate::Error::MissingBundleTypeVar)?;
   file_data[bundle_var_index..bundle_var_index + BUNDLE_VAR_TOKEN.len()]
@@ -94,6 +96,46 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
   std::fs::write(binary, &file_data).map_err(|e| crate::Error::BinaryWriteError(e.to_string()))?;
 
   Ok(())
+}
+
+/// Copies `path` into a temp file so it can be restored to its pristine
+/// (unsigned, unpatched) state between per-package-type bundling steps.
+fn backup_file(path: &Path) -> crate::Result<(PathBuf, File)> {
+  let mut copy = tempfile::tempfile().context("failed to create temp file for binary backup")?;
+  let mut original =
+    File::open(path).fs_context("can't open binary to back up", path.to_path_buf())?;
+  std::io::copy(&mut original, &mut copy)?;
+  Ok((path.to_path_buf(), copy))
+}
+
+/// Restores each backed-up file from its temp copy.
+fn restore_files(backups: &mut [(PathBuf, File)]) -> crate::Result<()> {
+  for (path, copy) in backups {
+    let mut original = std::fs::OpenOptions::new()
+      .write(true)
+      .truncate(true)
+      .open(path.as_path())?;
+    copy.seek(SeekFrom::Start(0))?;
+    std::io::copy(&mut *copy, &mut original)?;
+  }
+  Ok(())
+}
+
+/// Restores the backed-up files to their pristine state when dropped, so the
+/// originals are reset regardless of how a package-type iteration ends — normal
+/// completion, an early `continue`, a `?` error from a signing/bundling step, or
+/// a panic. A restore failure is logged rather than propagated, since it can only
+/// surface while unwinding and must not mask the original error.
+struct RestoreGuard<'a> {
+  backups: &'a mut [(PathBuf, File)],
+}
+
+impl Drop for RestoreGuard<'_> {
+  fn drop(&mut self) {
+    if let Err(e) = restore_files(self.backups) {
+      log::warn!("failed to restore the original binary after bundling: {e}");
+    }
+  }
 }
 
 /// Generated bundle metadata.
@@ -129,18 +171,31 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let main_binary = settings.main_binary()?;
   let main_binary_path = settings.binary_path(main_binary);
 
-  // We make a copy of the unsigned main_binary so that we can restore it after each package_type step.
-  // This allows us to patch the binary correctly and avoids two issues:
+  // The file that carries the `__TAURI_BUNDLE_TYPE` marker patched with the
+  // bundle type. A Rust app embeds it in the main binary; a bindings app's main
+  // binary is the language runtime, so the marker lives in the embedded
+  // `tauri-ffi` library staged as a resource — we patch that instead.
+  let patch_target = settings.bundle_type_binary()?;
+
+  // We back up the pristine (unsigned, unpatched) copies of every file mutated in
+  // the per-package-type loop so we can restore them after each step. This lets
+  // us patch the marker correctly and avoids two signing issues:
   //  - modifying a signed binary without updating its PE checksum can break signature verification
   //    - codesigning tools should handle calculating+updating this, we just need to ensure
   //      (re)signing is performed after every `patch_binary()` operation
   //  - signing an already-signed binary can result in multiple signatures, causing verification errors
-  // TODO: change this to work on a copy while preserving the main binary unchanged
-  let mut main_binary_copy =
-    tempfile::tempfile().context("failed to create temp file for main binary copy")?;
-  let mut main_binary_original = std::fs::File::open(&main_binary_path)
-    .fs_context("can't open main binary", &main_binary_path)?;
-  std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
+  // The marker patch targets `patch_target`; signing targets `main_binary_path`.
+  // For a Rust app these are the same file; for a bindings app they differ, so we
+  // track both. A missing `patch_target` is not fatal — `patch_binary` below just
+  // warns, matching the behavior when the marker itself can't be found.
+  // TODO: change this to work on a copy while preserving the originals unchanged
+  let mut restore_targets = Vec::new();
+  if patch_target.exists() {
+    restore_targets.push(backup_file(&patch_target)?);
+  }
+  if patch_target != main_binary_path {
+    restore_targets.push(backup_file(&main_binary_path)?);
+  }
 
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
@@ -149,11 +204,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    if let Err(e) = patch_binary(&main_binary_path, package_type) {
+    if let Err(e) = patch_binary(&patch_target, package_type) {
       log::warn!(
         "Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues"
       );
     }
+
+    // Reset the patched (and, on Windows, signed) originals to their pristine
+    // state when this iteration ends, so the next package type re-finds the
+    // untouched `_UNK` marker — even if a signing or bundling step below errors
+    // out. Without this, a failed build would leave the original patched, and a
+    // retry would find no `_UNK` to patch and silently ship the stale type.
+    let _restore = RestoreGuard {
+      backups: &mut restore_targets,
+    };
 
     // sign main binary for every package type after patch
     if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
@@ -199,14 +263,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       package_type: package_type.to_owned(),
       bundle_paths,
     });
-
-    // Restore unsigned and unpatched binary
-    let mut modified_main_binary = std::fs::OpenOptions::new()
-      .write(true)
-      .truncate(true)
-      .open(&main_binary_path)?;
-    main_binary_copy.seek(SeekFrom::Start(0))?;
-    std::io::copy(&mut main_binary_copy, &mut modified_main_binary)?;
   }
 
   if let Some(updater) = settings.updater() {
@@ -364,5 +420,33 @@ pub fn check_icons(settings: &Settings) -> crate::Result<bool> {
     Ok(false)
   } else {
     Ok(true)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  // The marker patch mutates the original in place; the guard must reset it even
+  // when the enclosing iteration exits early (an `?` error from a bundling step),
+  // otherwise a retry would find no pristine `_UNK` token to patch.
+  #[test]
+  fn restore_guard_resets_file_when_dropped_early() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("libtauri.so");
+    std::fs::write(&path, BUNDLE_VAR_TOKEN).unwrap();
+
+    let mut backups = vec![backup_file(&path).unwrap()];
+    {
+      let _restore = RestoreGuard {
+        backups: &mut backups,
+      };
+      // stand in for `patch_binary` writing a bundle type over the marker
+      std::fs::write(&path, b"__TAURI_BUNDLE_TYPE_VAR_DEB").unwrap();
+      assert_ne!(std::fs::read(&path).unwrap(), BUNDLE_VAR_TOKEN);
+      // dropping `_restore` here mirrors an early return out of the loop body
+    }
+
+    assert_eq!(std::fs::read(&path).unwrap(), BUNDLE_VAR_TOKEN);
   }
 }

@@ -724,6 +724,14 @@ pub struct BundleSettings {
   pub windows: WindowsSettings,
   /// Path to the CEF (Chromium Embedded Framework) root directory.
   pub cef_path: Option<PathBuf>,
+  /// Path to the on-disk file that carries the `__TAURI_BUNDLE_TYPE` marker the
+  /// bundler patches with the packaged bundle type. Defaults to the main binary.
+  ///
+  /// A Rust app embeds the marker in its own executable, but a bindings app's
+  /// main binary is the language runtime; there the marker lives in the embedded
+  /// `tauri-ffi` library staged as a resource, so bindings point this at that
+  /// library instead.
+  pub bundle_type_binary: Option<PathBuf>,
 }
 
 /// A binary to bundle.
@@ -1074,6 +1082,18 @@ impl Settings {
   /// Returns the list of binaries to bundle.
   pub fn binaries(&self) -> &Vec<BundleBinary> {
     &self.binaries
+  }
+
+  /// Path to the file the bundler patches with the `__TAURI_BUNDLE_TYPE` marker.
+  ///
+  /// This is the [`BundleSettings::bundle_type_binary`] override when set (a
+  /// bindings app carries the marker in its embedded `tauri-ffi` library rather
+  /// than in the language-runtime main binary), otherwise the main binary.
+  pub fn bundle_type_binary(&self) -> crate::Result<PathBuf> {
+    match &self.bundle_settings.bundle_type_binary {
+      Some(path) => Ok(path.clone()),
+      None => Ok(self.binary_path(self.main_binary()?)),
+    }
   }
 
   /// If a list of package types was specified by the command-line, returns

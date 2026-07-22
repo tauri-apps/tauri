@@ -640,6 +640,10 @@ impl AppSettings for BindingsAppSettings {
       // binary. See `stage_cef_runtime` for why deduplicating needs sharun_cef
       // to change.
       cef_path: (config.app.runtime == WebviewRuntime::Cef).then(|| resources_dir.clone()),
+      // The `__TAURI_BUNDLE_TYPE` marker the bundler patches is not in the
+      // compiled binary (that's the language runtime) but in the embedded
+      // `tauri-ffi` cdylib staged as a resource — point the bundler at it.
+      bundle_type_binary: Some(resources_dir.join(cdylib_name(&self.target_triple, self.runtime))),
       ..Default::default()
     })
   }

@@ -663,21 +663,15 @@ impl<R: Runtime> AppManager<R> {
           .remove_webview_js_listeners(webview.label());
         self
           .listeners()
-          .remove_listeners_for_target(EventTarget::Webview {
-            label: webview.label().to_string(),
-          });
+          .remove_listeners_for_target(EventTarget::webview(webview.label()));
       }
     }
     self
       .listeners()
-      .remove_listeners_for_target(EventTarget::Window {
-        label: label.to_string(),
-      });
+      .remove_listeners_for_target(EventTarget::window(label));
     self
       .listeners()
-      .remove_listeners_for_target(EventTarget::WebviewWindow {
-        label: label.to_string(),
-      });
+      .remove_listeners_for_target(EventTarget::webview_window(label));
   }
 
   #[cfg(desktop)]
@@ -686,9 +680,7 @@ impl<R: Runtime> AppManager<R> {
     self.listeners().remove_webview_js_listeners(label);
     self
       .listeners()
-      .remove_listeners_for_target(EventTarget::Webview {
-        label: label.to_string(),
-      });
+      .remove_listeners_for_target(EventTarget::webview(label));
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {

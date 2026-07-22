@@ -1796,6 +1796,32 @@ tauri::Builder::default()
   ///
   /// The handler receives the [`crate::webview::PermissionKind`] and should return
   /// the desired [`crate::webview::PermissionResponse`].
+  ///
+  /// > [!NOTE]
+  /// > This handler only triggers for new permission requests. If the user has already
+  /// > allowed or denied a permission persistently within the webview, the browser
+  /// > will use the saved preference instead of calling this handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
+  /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
+  /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
+  /// - **Android**: Supported via JNI bridge for geolocation, microphone, camera,
+  ///   protected media, and MIDI requests. Android runtime permissions may still
+  ///   trigger native OS prompts before access is granted.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::webview::{PermissionKind, PermissionResponse};
+  /// tauri::Builder::default()
+  ///   .on_permission_request(|_, kind| match kind {
+  ///     PermissionKind::Geolocation => PermissionResponse::Allow,
+  ///     PermissionKind::Notifications => PermissionResponse::Allow,
+  ///     _ => PermissionResponse::Default,
+  ///   });
+  /// ```
   #[must_use]
   pub fn on_permission_request<F>(mut self, on_permission_request: F) -> Self
   where

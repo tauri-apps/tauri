@@ -416,38 +416,6 @@ mod test {
   }
 
   #[test]
-  fn remove_listeners_for_target_drops_only_exact_target() {
-    let listeners = Listeners::default();
-    let event = crate::EventName::new("test-event".to_owned()).unwrap();
-
-    let window = listeners.listen(event.clone(), EventTarget::window("main"), event_fn);
-    // Same label as the window, but a different target kind (multi-webview mode).
-    let webview = listeners.listen(event.clone(), EventTarget::webview("main"), event_fn);
-    let webview_window =
-      listeners.listen(event.clone(), EventTarget::webview_window("main"), event_fn);
-    let other = listeners.listen(event.clone(), EventTarget::webview("other"), event_fn);
-    let app = listeners.listen(event.clone(), EventTarget::App, event_fn);
-    let any = listeners.listen(event.clone(), EventTarget::Any, event_fn);
-    let labeled = listeners.listen(event.clone(), EventTarget::labeled("main"), event_fn);
-
-    listeners.remove_listeners_for_target(EventTarget::webview("main"));
-
-    let lock = listeners.inner.handlers.lock().unwrap();
-    let remaining: HashSet<EventId> = lock.get(&event).unwrap().keys().copied().collect();
-
-    // only the exact `Webview { label: "main" }` listener is gone
-    assert!(!remaining.contains(&webview));
-    // same label but different kind is kept
-    assert!(remaining.contains(&window));
-    assert!(remaining.contains(&webview_window));
-    // unrelated and global listeners are kept
-    assert!(remaining.contains(&other));
-    assert!(remaining.contains(&app));
-    assert!(remaining.contains(&any));
-    assert!(remaining.contains(&labeled));
-  }
-
-  #[test]
   fn event_no_deadlocks() {
     let listeners = Listeners::default();
     let listeners_clone = listeners.clone();
@@ -464,24 +432,50 @@ mod test {
   }
 
   #[test]
-  fn js_listeners_removed_on_webview_close() {
+  fn listeners_removed_on_webview_close() {
     let listeners = Listeners::default();
-    let event = crate::EventName::new("some-event".to_owned()).unwrap();
+    let event = crate::EventName::new("test-event".to_owned()).unwrap();
     let webview_label = "main";
+
+    let window = listeners.listen(event.clone(), EventTarget::window(webview_label), event_fn);
+    // Same label as the window, but a different target kind (multi-webview mode).
+    let webview = listeners.listen(event.clone(), EventTarget::webview(webview_label), event_fn);
+    let webview_window = listeners.listen(
+      event.clone(),
+      EventTarget::webview_window(webview_label),
+      event_fn,
+    );
+    let other = listeners.listen(event.clone(), EventTarget::webview("other"), event_fn);
+    let app = listeners.listen(event.clone(), EventTarget::App, event_fn);
+    let any = listeners.listen(event.clone(), EventTarget::Any, event_fn);
+    let labeled = listeners.listen(event.clone(), EventTarget::labeled(webview_label), event_fn);
 
     let id = listeners.next_event_id();
     listeners.listen_js(
       event.as_str_event(),
       webview_label,
-      EventTarget::Webview {
-        label: webview_label.to_owned(),
-      },
+      EventTarget::webview(webview_label),
       id,
     );
     assert!(listeners.has_js_listener(event.as_str_event(), |_| true));
 
-    // dropping the source webview must drop its JS listeners.
     listeners.remove_webview_js_listeners(webview_label);
+    listeners.remove_listeners_for_target(EventTarget::webview(webview_label));
+
     assert!(!listeners.has_js_listener(event.as_str_event(), |_| true));
+
+    let lock = listeners.inner.handlers.lock().unwrap();
+    let remaining: HashSet<EventId> = lock.get(&event).unwrap().keys().copied().collect();
+
+    // only the exact `Webview { label: "main" }` listener is gone
+    assert!(!remaining.contains(&webview));
+    // same label but different kind is kept
+    assert!(remaining.contains(&window));
+    assert!(remaining.contains(&webview_window));
+    // unrelated and global listeners are kept
+    assert!(remaining.contains(&other));
+    assert!(remaining.contains(&app));
+    assert!(remaining.contains(&any));
+    assert!(remaining.contains(&labeled));
   }
 }

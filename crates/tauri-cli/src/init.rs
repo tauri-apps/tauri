@@ -79,9 +79,9 @@ impl Options {
 
     let init_defaults = if package_json_path.exists() {
       let package_json_text =
-        read_to_string(&package_json_path).fs_context("failed to read", &package_json_path)?;
+          read_to_string(&package_json_path).fs_context("failed to read", &package_json_path)?;
       let package_json: crate::PackageJson =
-        serde_json::from_str(&package_json_text).context("failed to parse JSON")?;
+          serde_json::from_str(&package_json_text).context("failed to parse JSON")?;
       let (framework, _) = infer_framework(&package_json_text);
       InitDefaults {
         app_name: package_json.product_name.or(package_json.name),
@@ -96,9 +96,9 @@ impl Options {
         "What is your app name?",
         Some(
           init_defaults
-            .app_name
-            .clone()
-            .unwrap_or_else(|| "Tauri App".to_string()),
+              .app_name
+              .clone()
+              .unwrap_or_else(|| "Tauri App".to_string()),
         ),
         self.ci,
         true,
@@ -110,9 +110,9 @@ impl Options {
         "What should the window title be?",
         Some(
           init_defaults
-            .app_name
-            .clone()
-            .unwrap_or_else(|| "Tauri".to_string()),
+              .app_name
+              .clone()
+              .unwrap_or_else(|| "Tauri".to_string()),
         ),
         self.ci,
         true,
@@ -135,31 +135,37 @@ impl Options {
       )
     })?;
 
+    if let Some(dev_url) = &self.dev_url {
+      if let Err(reason) = prompts::validate_url(dev_url) {
+        None::<()>.context(reason)?;
+      }
+    }
+
     let detected_package_manager = PackageManager::from_project(&self.directory);
 
     self.before_dev_command = self
-      .before_dev_command
-      .map(|s| Ok(Some(s)))
-      .unwrap_or_else(|| {
-        prompts::input(
-          "What is your frontend dev command?",
-          Some(default_dev_command(detected_package_manager).into()),
-          self.ci,
-          true,
-        )
-      })?;
+        .before_dev_command
+        .map(|s| Ok(Some(s)))
+        .unwrap_or_else(|| {
+          prompts::input(
+            "What is your frontend dev command?",
+            Some(default_dev_command(detected_package_manager).into()),
+            self.ci,
+            true,
+          )
+        })?;
 
     self.before_build_command = self
-      .before_build_command
-      .map(|s| Ok(Some(s)))
-      .unwrap_or_else(|| {
-        prompts::input(
-          "What is your frontend build command?",
-          Some(default_build_command(detected_package_manager).into()),
-          self.ci,
-          true,
-        )
-      })?;
+        .before_build_command
+        .map(|s| Ok(Some(s)))
+        .unwrap_or_else(|| {
+          prompts::input(
+            "What is your frontend build command?",
+            Some(default_build_command(detected_package_manager).into()),
+            self.ci,
+            true,
+          )
+        })?;
 
     Ok(self)
   }
@@ -187,12 +193,30 @@ fn default_build_command(pm: PackageManager) -> &'static str {
   }
 }
 
+fn escape_json_string(input: &str) -> String {
+  let mut escaped = String::with_capacity(input.len());
+  for c in input.chars() {
+    match c {
+      '"' => escaped.push_str("\\\""),
+      '\\' => escaped.push_str("\\\\"),
+      '\n' => escaped.push_str("\\n"),
+      '\r' => escaped.push_str("\\r"),
+      '\t' => escaped.push_str("\\t"),
+      c if (c as u32) < 0x20 => {
+        escaped.push_str(&format!("\\u{:04x}", c as u32));
+      }
+      c => escaped.push(c),
+    }
+  }
+  escaped
+}
+
 pub fn command(mut options: Options) -> Result<()> {
   options = options.load()?;
 
   let template_target_path = PathBuf::from(&options.directory).join("src-tauri");
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata-v2.json"))
-    .context("failed to parse version metadata")?;
+      .context("failed to parse version metadata")?;
 
   if template_target_path.exists() && !options.force {
     log::warn!(
@@ -201,33 +225,33 @@ pub fn command(mut options: Options) -> Result<()> {
     );
   } else {
     let (tauri_dep, tauri_build_dep, tauri_utils_dep, tauri_plugin_dep) =
-      if let Some(tauri_path) = &options.tauri_path {
-        (
-          format!(
-            r#"{{  path = {:?} }}"#,
-            resolve_tauri_path(tauri_path, "crates/tauri")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-build")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-utils")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(tauri_path, "crates/tauri-plugin")
-          ),
-        )
-      } else {
-        (
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
-          r#"{{ version = "2" }}"#.to_string(),
-          r#"{{ version = "2" }}"#.to_string(),
-        )
-      };
+        if let Some(tauri_path) = &options.tauri_path {
+          (
+            format!(
+              r#"{{  path = {:?} }}"#,
+              resolve_tauri_path(tauri_path, "crates/tauri")
+            ),
+            format!(
+              "{{  path = {:?} }}",
+              resolve_tauri_path(tauri_path, "crates/tauri-build")
+            ),
+            format!(
+              "{{  path = {:?} }}",
+              resolve_tauri_path(tauri_path, "crates/tauri-utils")
+            ),
+            format!(
+              "{{  path = {:?} }}",
+              resolve_tauri_path(tauri_path, "crates/tauri-plugin")
+            ),
+          )
+        } else {
+          (
+            format!(r#"{{ version = "{}" }}"#, metadata.tauri),
+            format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
+            r#"{{ version = "2" }}"#.to_string(),
+            r#"{{ version = "2" }}"#.to_string(),
+          )
+        };
 
     let _ = remove_dir_all(&template_target_path);
     let mut handlebars = Handlebars::new();
@@ -260,12 +284,22 @@ pub fn command(mut options: Options) -> Result<()> {
       to_json(options.before_build_command),
     );
 
-    let mut config = serde_json::from_str(
-      &handlebars
+    // let mut config = serde_json::from_str(
+    //   &handlebars
+    //     .render_template(TAURI_CONF_TEMPLATE, &data)
+    //     .expect("Failed to render tauri.conf.json template"),
+    // )
+    // .unwrap();
+    let mut json_handlebars = Handlebars::new();
+    json_handlebars.register_escape_fn(escape_json_string);
+
+    let rendered = json_handlebars
         .render_template(TAURI_CONF_TEMPLATE, &data)
-        .expect("Failed to render tauri.conf.json template"),
-    )
-    .unwrap();
+        .expect("Failed to render tauri.conf.json template");
+
+    println!("{:#?}", rendered);
+    let mut config: serde_json::Value = serde_json::from_str(&rendered)
+        .with_context(|| format!("failed to parse generated tauri.conf.json:\n{rendered}"))?;
     if option_env!("TARGET") == Some("node") {
       let mut dir = current_dir().expect("failed to read cwd");
       let mut count = 0;
@@ -300,9 +334,9 @@ pub fn command(mut options: Options) -> Result<()> {
           "$schema".into(),
           serde_json::Value::String(
             cli_node_module_path
-              .display()
-              .to_string()
-              .replace('\\', "/"),
+                .display()
+                .to_string()
+                .replace('\\', "/"),
           ),
         );
         let merge_config = serde_json::Value::Object(map);
@@ -312,11 +346,14 @@ pub fn command(mut options: Options) -> Result<()> {
 
     data.insert(
       "tauri_config",
-      to_json(serde_json::to_string_pretty(&config).unwrap()),
+      to_json(
+        serde_json::to_string_pretty(&config)
+            .context("failed to serialize generated tauri.conf.json")?,
+      ),
     );
 
     template::render(&handlebars, &data, &TEMPLATE_DIR, &options.directory)
-      .with_context(|| "failed to render Tauri template")?;
+        .with_context(|| "failed to render Tauri template")?;
   }
 
   Ok(())

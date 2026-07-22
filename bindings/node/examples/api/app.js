@@ -36,5 +36,7 @@ app.listen('js-event', (payload) => {
   app.emit('rust-event', { data: 'something else' })
 })
 
-app.on('ready', () => console.log('[app] ready — serving examples/api frontend'))
+app.on('ready', () =>
+  console.log('[app] ready — serving examples/api frontend')
+)
 app.on('exit', () => console.log('[app] exit'))

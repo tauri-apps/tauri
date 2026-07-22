@@ -79,7 +79,8 @@ export function bundledResourceDir(): string | null {
   }
   const candidates: string[] = []
   const macos = exec.indexOf('/Contents/MacOS/')
-  if (macos !== -1) candidates.push(exec.slice(0, macos) + '/Contents/Resources')
+  if (macos !== -1)
+    candidates.push(exec.slice(0, macos) + '/Contents/Resources')
   const slash = Math.max(exec.lastIndexOf('/'), exec.lastIndexOf('\\'))
   if (slash === -1) return null
   const dir = exec.slice(0, slash)
@@ -147,7 +148,10 @@ export function readEmbeddedText(name: string): string | null {
 
 /** JSON merge patch (like the CLI's config merging): objects merge
  * recursively, null removes the key, everything else replaces. */
-export function mergeConfig(target: Record<string, Json>, source: Record<string, Json>): Record<string, Json> {
+export function mergeConfig(
+  target: Record<string, Json>,
+  source: Record<string, Json>
+): Record<string, Json> {
   for (const [key, value] of Object.entries(source)) {
     if (value === null) {
       delete target[key]
@@ -219,7 +223,11 @@ function walkCapabilityFiles(dir: string, files: string[] = []): string[] {
     const full = `${dir}/${entry.name}`
     if (entry.isDirectory) {
       if (entry.name !== 'schemas') walkCapabilityFiles(full, files)
-    } else if (CAPABILITY_EXTENSIONS.some((ext) => entry.name.toLowerCase().endsWith(ext))) {
+    } else if (
+      CAPABILITY_EXTENSIONS.some((ext) =>
+        entry.name.toLowerCase().endsWith(ext)
+      )
+    ) {
       files.push(full)
     }
   }
@@ -273,6 +281,8 @@ export function resolveAssets(
   const dist = config?.build?.frontendDist
   if (typeof dist !== 'string' || /^https?:/.test(dist)) return {}
   const base = configDir ?? Deno.cwd()
-  const resolved = dist.startsWith('/') ? dist : `${base}/${dist.replace(/^\.\//, '')}`
+  const resolved = dist.startsWith('/')
+    ? dist
+    : `${base}/${dist.replace(/^\.\//, '')}`
   return dist.endsWith('.assets') ? { archive: resolved } : { dir: resolved }
 }

@@ -15,7 +15,7 @@ import {
   readEmbeddedText,
   resolveAssets,
   resolveCapabilities,
-  resolveConfig,
+  resolveConfig
 } from './config.ts'
 import { cstr, ensureLibrary, open } from './ffi.ts'
 import type { Plugin } from './plugin.ts'
@@ -76,7 +76,9 @@ export interface LaunchOptions {
 function toPath(value: URL | string | undefined): string | undefined {
   if (value === undefined) return undefined
   const url = value instanceof URL ? value : null
-  return url?.protocol === 'file:' ? decodeURIComponent(url.pathname) : String(value)
+  return url?.protocol === 'file:'
+    ? decodeURIComponent(url.pathname)
+    : String(value)
 }
 
 /**
@@ -85,14 +87,21 @@ function toPath(value: URL | string | undefined): string | undefined {
  * exits with the app's exit code. Use
  * `import { app } from '../../worker.ts'` inside the worker module.
  */
-export async function launch(appEntry: URL | string, options: LaunchOptions = {}): Promise<never> {
-  const entryUrl = new URL(appEntry instanceof URL ? appEntry.href : appEntry, `file://${Deno.cwd()}/`)
+export async function launch(
+  appEntry: URL | string,
+  options: LaunchOptions = {}
+): Promise<never> {
+  const entryUrl = new URL(
+    appEntry instanceof URL ? appEntry.href : appEntry,
+    `file://${Deno.cwd()}/`
+  )
   const entryDir =
     entryUrl.protocol === 'file:'
       ? decodeURIComponent(new URL('.', entryUrl).pathname).replace(/\/$/, '')
       : null
   // a compiled bundle ignores the TAURI_DEV env override (hermetic in production)
-  const dev = options.dev ?? (!isBundled() && Deno.env.get('TAURI_DEV') === 'true')
+  const dev =
+    options.dev ?? (!isBundled() && Deno.env.get('TAURI_DEV') === 'true')
 
   // When bundled, assets/config/capabilities are embedded *inside* the binary
   // (see config.ts embeddedDir); in dev they come from disk. Explicit launch
@@ -103,20 +112,25 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
   let configDir: string | null = null
   if (embedded && !options.config) {
     const text = readEmbeddedText('config.json')
-    if (!text) throw new Error('bundled app is missing its embedded config.json')
+    if (!text)
+      throw new Error('bundled app is missing its embedded config.json')
     config = JSON.parse(text)
   } else {
     ;({ config, configDir } = resolveConfig(entryDir, options.config))
   }
 
   // Embedded archive bytes (bundled) take precedence over disk-based resolution.
-  const embeddedAssets = embedded && !options.assetsDir && !options.assetsArchive
-    ? readEmbeddedBytes('app.assets')
-    : null
+  const embeddedAssets =
+    embedded && !options.assetsDir && !options.assetsArchive
+      ? readEmbeddedBytes('app.assets')
+      : null
   const assets = embeddedAssets
     ? {}
     : resolveAssets(
-        { assetsDir: toPath(options.assetsDir), assetsArchive: toPath(options.assetsArchive) },
+        {
+          assetsDir: toPath(options.assetsDir),
+          assetsArchive: toPath(options.assetsArchive)
+        },
         config,
         configDir
       )
@@ -127,7 +141,10 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
 
   const outBuilder = new BigUint64Array(1)
   check(
-    sym.tauri_app_builder_new(cstr(JSON.stringify(config)), new Uint8Array(outBuilder.buffer)),
+    sym.tauri_app_builder_new(
+      cstr(JSON.stringify(config)),
+      new Uint8Array(outBuilder.buffer)
+    ),
     'builder_new'
   )
   const builder = outBuilder[0]
@@ -137,16 +154,29 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
   }
   if (embeddedAssets) {
     check(
-      sym.tauri_app_builder_set_assets_archive_bytes(builder, embeddedAssets, embeddedAssets.length),
+      sym.tauri_app_builder_set_assets_archive_bytes(
+        builder,
+        embeddedAssets,
+        embeddedAssets.length
+      ),
       'set_assets_archive_bytes'
     )
   } else if (assets.archive) {
-    check(sym.tauri_app_builder_set_assets_archive(builder, cstr(assets.archive)), 'set_assets_archive')
+    check(
+      sym.tauri_app_builder_set_assets_archive(builder, cstr(assets.archive)),
+      'set_assets_archive'
+    )
   } else if (assets.dir) {
-    check(sym.tauri_app_builder_set_assets_dir(builder, cstr(assets.dir)), 'set_assets_dir')
+    check(
+      sym.tauri_app_builder_set_assets_dir(builder, cstr(assets.dir)),
+      'set_assets_dir'
+    )
   }
   for (const name of options.commands ?? []) {
-    check(sym.tauri_app_builder_register_command(builder, cstr(name)), `register_command(${name})`)
+    check(
+      sym.tauri_app_builder_register_command(builder, cstr(name)),
+      `register_command(${name})`
+    )
   }
   for (const scheme of options.protocols ?? []) {
     check(
@@ -155,75 +185,134 @@ export async function launch(appEntry: URL | string, options: LaunchOptions = {}
     )
   }
   if (options.pageLoadEvents) {
-    check(sym.tauri_app_builder_set_page_load_events(builder, true), 'set_page_load_events')
+    check(
+      sym.tauri_app_builder_set_page_load_events(builder, true),
+      'set_page_load_events'
+    )
   }
   if (options.webviewEvents) {
-    check(sym.tauri_app_builder_set_webview_events(builder, true), 'set_webview_events')
+    check(
+      sym.tauri_app_builder_set_webview_events(builder, true),
+      'set_webview_events'
+    )
   }
   if (options.singleInstance) {
-    check(sym.tauri_app_builder_enable_single_instance(builder), 'enable_single_instance')
+    check(
+      sym.tauri_app_builder_enable_single_instance(builder),
+      'enable_single_instance'
+    )
   }
   if (options.localhost !== undefined) {
-    check(sym.tauri_app_builder_enable_localhost(builder, options.localhost), 'enable_localhost')
+    check(
+      sym.tauri_app_builder_enable_localhost(builder, options.localhost),
+      'enable_localhost'
+    )
   }
   if (options.windowIcon !== undefined) {
     const icon = options.windowIcon
     check(
       typeof icon === 'string'
-        ? sym.tauri_app_builder_set_default_window_icon_path(builder, cstr(icon))
-        : sym.tauri_app_builder_set_default_window_icon(builder, icon.rgba, icon.width, icon.height),
+        ? sym.tauri_app_builder_set_default_window_icon_path(
+            builder,
+            cstr(icon)
+          )
+        : sym.tauri_app_builder_set_default_window_icon(
+            builder,
+            icon.rgba,
+            icon.width,
+            icon.height
+          ),
       'set_default_window_icon'
     )
   }
   if (options.appIcon !== undefined) {
-    const bytes = typeof options.appIcon === 'string' ? Deno.readFileSync(options.appIcon) : options.appIcon
-    check(sym.tauri_app_builder_set_app_icon(builder, bytes, bytes.length), 'set_app_icon')
+    const bytes =
+      typeof options.appIcon === 'string'
+        ? Deno.readFileSync(options.appIcon)
+        : options.appIcon
+    check(
+      sym.tauri_app_builder_set_app_icon(builder, bytes, bytes.length),
+      'set_app_icon'
+    )
   }
   for (const script of [options.invokeInitializationScript ?? []].flat()) {
     check(
-      sym.tauri_app_builder_append_invoke_initialization_script(builder, cstr(script)),
+      sym.tauri_app_builder_append_invoke_initialization_script(
+        builder,
+        cstr(script)
+      ),
       'append_invoke_init_script'
     )
   }
   if (options.deviceEventFilter !== undefined) {
     check(
-      sym.tauri_app_builder_set_device_event_filter(builder, cstr(options.deviceEventFilter)),
+      sym.tauri_app_builder_set_device_event_filter(
+        builder,
+        cstr(options.deviceEventFilter)
+      ),
       'set_device_event_filter'
     )
   }
   if (options.macosDefaultMenu !== undefined) {
     check(
-      sym.tauri_app_builder_set_macos_default_menu(builder, options.macosDefaultMenu),
+      sym.tauri_app_builder_set_macos_default_menu(
+        builder,
+        options.macosDefaultMenu
+      ),
       'set_macos_default_menu'
     )
   }
   // Inline capabilities plus those embedded in the binary (bundled) or found in
   // a `capabilities/` directory next to the config (dev) — the compile-time
   // capability files, read at launch.
-  const embeddedCapabilities = embedded ? readEmbeddedText('capabilities.json') : null
+  const embeddedCapabilities = embedded
+    ? readEmbeddedText('capabilities.json')
+    : null
   const discoveredCapabilities: (object | string)[] = embeddedCapabilities
     ? JSON.parse(embeddedCapabilities)
     : resolveCapabilities([configDir, entryDir])
-  const allCapabilities = [...(options.capabilities ?? []), ...discoveredCapabilities]
+  const allCapabilities = [
+    ...(options.capabilities ?? []),
+    ...discoveredCapabilities
+  ]
   for (const capability of allCapabilities) {
-    const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
-    check(sym.tauri_app_builder_add_capability(builder, cstr(json)), 'add_capability')
+    const json =
+      typeof capability === 'string' ? capability : JSON.stringify(capability)
+    check(
+      sym.tauri_app_builder_add_capability(builder, cstr(json)),
+      'add_capability'
+    )
   }
   for (const plugin of options.plugins ?? []) {
     const outPlugin = new BigUint64Array(1)
-    check(sym.tauri_plugin_new(cstr(plugin.name), new Uint8Array(outPlugin.buffer)), `plugin_new(${plugin.name})`)
+    check(
+      sym.tauri_plugin_new(cstr(plugin.name), new Uint8Array(outPlugin.buffer)),
+      `plugin_new(${plugin.name})`
+    )
     const handle = outPlugin[0]
     if (plugin.script) {
-      check(sym.tauri_plugin_set_init_script(handle, cstr(plugin.script)), `plugin_set_init_script(${plugin.name})`)
+      check(
+        sym.tauri_plugin_set_init_script(handle, cstr(plugin.script)),
+        `plugin_set_init_script(${plugin.name})`
+      )
     }
     for (const command of plugin.commandNames) {
-      check(sym.tauri_plugin_register_command(handle, cstr(command)), `plugin_register_command(${plugin.name}|${command})`)
+      check(
+        sym.tauri_plugin_register_command(handle, cstr(command)),
+        `plugin_register_command(${plugin.name}|${command})`
+      )
     }
-    check(sym.tauri_app_builder_add_plugin(builder, handle), `add_plugin(${plugin.name})`)
+    check(
+      sym.tauri_app_builder_add_plugin(builder, handle),
+      `add_plugin(${plugin.name})`
+    )
   }
 
   const outApp = new BigUint64Array(1)
-  check(sym.tauri_app_build(builder, new Uint8Array(outApp.buffer)), 'app_build')
+  check(
+    sym.tauri_app_build(builder, new Uint8Array(outApp.buffer)),
+    'app_build'
+  )
   const app = outApp[0]
 
   // Deno workers have no workerData; hand over the context via query params,

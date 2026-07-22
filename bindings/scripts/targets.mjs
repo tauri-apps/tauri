@@ -62,7 +62,9 @@ export const RUN_ADDON_FILE = 'tauri_node.node'
  */
 export function cefHelperFile(target, runtime) {
   if (runtime !== 'cef') return null
-  return target.includes('windows') ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
+  return target.includes('windows')
+    ? 'tauri-cef-helper.exe'
+    : 'tauri-cef-helper'
 }
 
 /** npm platform package for a (target, runtime): @tauri-apps/node-<runtime>-<platform>-<arch>. */

@@ -5,9 +5,7 @@
   "build": {
     "runner": {
       "cmd": "node",
-      "args": [
-        "main.js"
-      ]
+      "args": ["main.js"]
     },
     "frontendDist": "./assets"
   },

@@ -36,9 +36,11 @@ export function ffiRuntime() {
 // crate's own output name, used for the local dev build (cargo emits it
 // regardless of the selected runtime feature).
 function platformLibraryName(base) {
-  const spec = { darwin: ['lib', '.dylib'], linux: ['lib', '.so'], win32: ['', '.dll'] }[
-    process.platform
-  ]
+  const spec = {
+    darwin: ['lib', '.dylib'],
+    linux: ['lib', '.so'],
+    win32: ['', '.dll']
+  }[process.platform]
   if (!spec) throw new Error(`unsupported platform: ${process.platform}`)
   return `${spec[0]}tauri_${base}${spec[1]}`
 }
@@ -53,13 +55,18 @@ function platformLibraryName(base) {
  * carries only `src`, so this directory is absent there and simply skipped.
  */
 function baseNativeDir() {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '_native')
+  return path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '_native'
+  )
 }
 
 export function libraryPath(runtime = ffiRuntime()) {
   // a compiled bundle ignores the TAURI_FFI_LIB env override — it must load
   // only its own bundled cdylib, never an arbitrary library named by the env
-  if (!isBundled() && process.env.TAURI_FFI_LIB) return process.env.TAURI_FFI_LIB
+  if (!isBundled() && process.env.TAURI_FFI_LIB)
+    return process.env.TAURI_FFI_LIB
   const distName = platformLibraryName(runtime)
   // a compiled bundle loads the per-runtime cdylib the CLI staged in its
   // resource dir (selected there from `app.runtime`)
@@ -74,7 +81,9 @@ export function libraryPath(runtime = ffiRuntime()) {
   if (existsSync(staged)) return staged
   // Installed platform package (optionalDependencies of the runtime's base package).
   try {
-    return require.resolve(`@tauri-apps/node-${runtime}-${process.platform}-${process.arch}/${distName}`)
+    return require.resolve(
+      `@tauri-apps/node-${runtime}-${process.platform}-${process.arch}/${distName}`
+    )
   } catch {
     // not installed
   }
@@ -84,11 +93,17 @@ export function libraryPath(runtime = ffiRuntime()) {
 }
 
 function cefLibraryName() {
-  return { darwin: 'libcef.dylib', linux: 'libcef.so', win32: 'libcef.dll' }[process.platform] ?? 'libcef.so'
+  return (
+    { darwin: 'libcef.dylib', linux: 'libcef.so', win32: 'libcef.dll' }[
+      process.platform
+    ] ?? 'libcef.so'
+  )
 }
 
 function cefHelperName() {
-  return process.platform === 'win32' ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
+  return process.platform === 'win32'
+    ? 'tauri-cef-helper.exe'
+    : 'tauri-cef-helper'
 }
 
 /**
@@ -143,7 +158,8 @@ function loadRunAddon(runtime) {
  */
 function preloadCef(dir) {
   const dirs = [dir]
-  if (!isBundled() && process.env.TAURI_CEF_PATH) dirs.push(process.env.TAURI_CEF_PATH)
+  if (!isBundled() && process.env.TAURI_CEF_PATH)
+    dirs.push(process.env.TAURI_CEF_PATH)
   for (const d of dirs) {
     const libcef = path.join(d, cefLibraryName())
     if (existsSync(libcef)) {
@@ -162,7 +178,10 @@ export function open(libPath = libraryPath(), runtime = ffiRuntime()) {
   // A compiled bundle must point at its own staged helper (hermetic, like
   // TAURI_FFI_LIB); in dev an explicit env value wins.
   const helper = path.join(dir, cefHelperName())
-  if (existsSync(helper) && (isBundled() || !process.env.TAURI_CEF_SUBPROCESS_PATH)) {
+  if (
+    existsSync(helper)
+    && (isBundled() || !process.env.TAURI_CEF_SUBPROCESS_PATH)
+  ) {
     process.env.TAURI_CEF_SUBPROCESS_PATH = helper
   }
   let lib
@@ -185,7 +204,9 @@ export function open(libPath = libraryPath(), runtime = ffiRuntime()) {
 
   function check(code, what = 'tauri-ffi call') {
     if (code !== CODES.OK) {
-      throw new Error(`${what} failed (${code}): ${api.lastErrorMessage() ?? 'unknown error'}`)
+      throw new Error(
+        `${what} failed (${code}): ${api.lastErrorMessage() ?? 'unknown error'}`
+      )
     }
     return code
   }
@@ -231,9 +252,9 @@ export function open(libPath = libraryPath(), runtime = ffiRuntime()) {
       return exitCode
     }
     console.warn(
-      `[tauri] ${RUN_ADDON_NAME} not found — falling back to a koffi run loop. ` +
-        'A webkit-based (wry) app will abort in JavaScriptCore; build the addon with ' +
-        '`node native/build.mjs`, or reinstall so the platform package is present.'
+      `[tauri] ${RUN_ADDON_NAME} not found — falling back to a koffi run loop. `
+        + 'A webkit-based (wry) app will abort in JavaScriptCore; build the addon with '
+        + '`node native/build.mjs`, or reinstall so the platform package is present.'
     )
     const outCode = [0]
     check(api.appRun(app, outCode), 'app_run')

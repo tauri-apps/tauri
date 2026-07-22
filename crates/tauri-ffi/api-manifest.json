@@ -338,10 +338,7 @@
       "name": "tauri_app_builder_set_any_thread",
       "doc": "Allows the event loop to run off the process main thread, lifting the main-thread requirement of tauri_app_build/tauri_app_run (they still have to share a thread).",
       "thread": "any",
-      "platforms": [
-        "windows",
-        "linux"
-      ],
+      "platforms": ["windows", "linux"],
       "params": [
         {
           "name": "builder",
@@ -1888,17 +1885,13 @@
         }
       ],
       "result": "status",
-      "platforms": [
-        "macos"
-      ]
+      "platforms": ["macos"]
     },
     {
       "name": "tauri_webview_window_set_title_bar_style",
       "doc": "Sets the title bar style. Pass \"visible\", \"transparent\" or \"overlay\".",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "window",
@@ -1915,9 +1908,7 @@
       "name": "tauri_webview_window_set_overlay_icon",
       "doc": "Sets the taskbar overlay icon from RGBA pixel data (width*height*4 bytes). Pass NULL rgba to clear it.",
       "thread": "any",
-      "platforms": [
-        "windows"
-      ],
+      "platforms": ["windows"],
       "params": [
         {
           "name": "window",
@@ -1942,9 +1933,7 @@
       "name": "tauri_webview_window_ns_window",
       "doc": "The NSWindow pointer backing the window, as an integer.",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "window",
@@ -1961,9 +1950,7 @@
       "name": "tauri_webview_window_ns_view",
       "doc": "The NSView pointer backing the window's content view, as an integer.",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "window",
@@ -1980,9 +1967,7 @@
       "name": "tauri_webview_window_hwnd",
       "doc": "The window's HWND, as an integer.",
       "thread": "any",
-      "platforms": [
-        "windows"
-      ],
+      "platforms": ["windows"],
       "params": [
         {
           "name": "window",
@@ -2327,9 +2312,7 @@
       "name": "tauri_app_set_activation_policy",
       "doc": "Sets the macOS activation policy: \"regular\" (normal app with a Dock icon), \"accessory\" (no Dock icon — menu-bar style apps) or \"prohibited\".",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "app",
@@ -2346,9 +2329,7 @@
       "name": "tauri_app_set_dock_visibility",
       "doc": "Shows or hides the app's Dock icon.",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "app",
@@ -2365,9 +2346,7 @@
       "name": "tauri_app_show",
       "doc": "Shows the application (all windows), without automatically focusing it.",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "app",
@@ -2380,9 +2359,7 @@
       "name": "tauri_app_hide",
       "doc": "Hides the application (all windows), like Cmd+H.",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "app",
@@ -3760,17 +3737,13 @@
         }
       ],
       "result": "status",
-      "platforms": [
-        "macos"
-      ]
+      "platforms": ["macos"]
     },
     {
       "name": "tauri_window_set_title_bar_style",
       "doc": "Window: Sets the title bar style. Pass \"visible\", \"transparent\" or \"overlay\".",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "window",
@@ -3787,9 +3760,7 @@
       "name": "tauri_window_set_overlay_icon",
       "doc": "Window: Sets the taskbar overlay icon from RGBA pixel data (width*height*4 bytes). Pass NULL rgba to clear it.",
       "thread": "any",
-      "platforms": [
-        "windows"
-      ],
+      "platforms": ["windows"],
       "params": [
         {
           "name": "window",
@@ -3814,9 +3785,7 @@
       "name": "tauri_window_ns_window",
       "doc": "Window: The NSWindow pointer backing the window, as an integer.",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "window",
@@ -3833,9 +3802,7 @@
       "name": "tauri_window_ns_view",
       "doc": "Window: The NSView pointer backing the window's content view, as an integer.",
       "thread": "any",
-      "platforms": [
-        "macos"
-      ],
+      "platforms": ["macos"],
       "params": [
         {
           "name": "window",
@@ -3852,9 +3819,7 @@
       "name": "tauri_window_hwnd",
       "doc": "Window: The window's HWND, as an integer.",
       "thread": "any",
-      "platforms": [
-        "windows"
-      ],
+      "platforms": ["windows"],
       "params": [
         {
           "name": "window",

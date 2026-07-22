@@ -3,7 +3,8 @@
 const status = document.querySelector('#status')
 
 if (!window.__TAURI__) {
-  status.textContent = 'window.__TAURI__ missing — global API script was not injected'
+  status.textContent =
+    'window.__TAURI__ missing — global API script was not injected'
 } else {
   status.textContent = `bridge ok (${Object.keys(window.__TAURI__).length} modules)`
   const { invoke } = window.__TAURI__.core
@@ -35,7 +36,8 @@ if (!window.__TAURI__) {
   // The demo plugin's init script ran before this page script, installing both
   // window.__DEMO_PLUGIN__ and the window.demo frontend API. Calling
   // window.demo.echo() hides the plugin:demo|echo wire format entirely.
-  document.querySelector('#plugin-init').textContent = window.__DEMO_PLUGIN__ ?? 'missing'
+  document.querySelector('#plugin-init').textContent =
+    window.__DEMO_PLUGIN__ ?? 'missing'
 
   document.querySelector('#plugin-echo').addEventListener('click', async () => {
     const result = await window.demo.echo({ hello: 'from frontend' })

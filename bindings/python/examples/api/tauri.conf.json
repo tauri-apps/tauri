@@ -4,8 +4,14 @@
   "identifier": "com.tauri.ffi.api.python",
   "build": {
     "runner": { "cmd": "python3", "args": ["main.py"] },
-    "beforeDevCommand": { "script": "pnpm dev", "cwd": "../../../../examples/api" },
-    "beforeBuildCommand": { "script": "pnpm build", "cwd": "../../../../examples/api" },
+    "beforeDevCommand": {
+      "script": "pnpm dev",
+      "cwd": "../../../../examples/api"
+    },
+    "beforeBuildCommand": {
+      "script": "pnpm build",
+      "cwd": "../../../../examples/api"
+    },
     "devUrl": "http://localhost:1420",
     "frontendDist": "../../../../examples/api/dist"
   },

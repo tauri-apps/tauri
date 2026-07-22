@@ -10,15 +10,21 @@ app.plugin(appMenu)
 
 // Communication view: "Call Log API". Rust logs it through an ACL-scoped
 // command; here we just print it (the frontend ignores the return value).
-app.command('log_operation', ({ event, payload }: { event: string; payload?: string }) => {
-  console.log('[app] log_operation:', event, payload ?? '')
-})
+app.command(
+  'log_operation',
+  ({ event, payload }: { event: string; payload?: string }) => {
+    console.log('[app] log_operation:', event, payload ?? '')
+  }
+)
 
 // Communication view: "Call Request (async) API".
-app.command('perform_request', ({ endpoint, body }: { endpoint: string; body: unknown }) => {
-  console.log('[app] perform_request:', endpoint, JSON.stringify(body))
-  return { message: 'message response' }
-})
+app.command(
+  'perform_request',
+  ({ endpoint, body }: { endpoint: string; body: unknown }) => {
+    console.log('[app] perform_request:', endpoint, JSON.stringify(body))
+    return { message: 'message response' }
+  }
+)
 
 // Communication view: "Echo". The Rust command echoes the raw request body
 // (an object or a bare array), so we return the payload untouched.
@@ -36,5 +42,7 @@ app.listen('js-event', (payload: unknown) => {
   app.emit('rust-event', { data: 'something else' })
 })
 
-app.on('ready', () => console.log('[app] ready — serving examples/api frontend'))
+app.on('ready', () =>
+  console.log('[app] ready — serving examples/api frontend')
+)
 app.on('exit', () => console.log('[app] exit'))

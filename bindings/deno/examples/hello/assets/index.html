@@ -4,13 +4,37 @@
     <meta charset="utf-8" />
     <title>Tauri FFI fixture</title>
     <style>
-      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
-      body { margin: 0; display: grid; place-items: center; min-height: 100vh; }
-      main { width: min(32rem, 90vw); }
-      section { margin-top: 1.5rem; padding: 1rem; border-radius: 8px;
-                border: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
-      h1 { font-size: 1.3rem; } h2 { font-size: 1rem; margin-top: 0; }
-      input, button { font: inherit; padding: 0.4rem 0.7rem; }
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      main {
+        width: min(32rem, 90vw);
+      }
+      section {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+      }
+      h1 {
+        font-size: 1.3rem;
+      }
+      h2 {
+        font-size: 1rem;
+        margin-top: 0;
+      }
+      input,
+      button {
+        font: inherit;
+        padding: 0.4rem 0.7rem;
+      }
     </style>
   </head>
   <body>
@@ -47,7 +71,8 @@
     <script>
       const status = document.querySelector('#status')
       if (!window.__TAURI__) {
-        status.textContent = 'window.__TAURI__ missing — global API script was not injected'
+        status.textContent =
+          'window.__TAURI__ missing — global API script was not injected'
       } else {
         status.textContent = `bridge ok (${Object.keys(window.__TAURI__).length} modules)`
         const { invoke } = window.__TAURI__.core
@@ -71,19 +96,25 @@
           emit('frontend-ping', { at: new Date().toISOString() })
         })
 
-        document.querySelector('#open-window').addEventListener('click', async () => {
-          const { label } = await invoke('open-window')
-          document.querySelector('#opened').textContent = `opened ${label}`
-        })
+        document
+          .querySelector('#open-window')
+          .addEventListener('click', async () => {
+            const { label } = await invoke('open-window')
+            document.querySelector('#opened').textContent = `opened ${label}`
+          })
 
         // The demo plugin's init script ran before this page script, installing
         // window.__DEMO_PLUGIN__ and the window.demo frontend API — so the
         // plugin:demo|echo wire format stays hidden.
-        document.querySelector('#plugin-init').textContent = window.__DEMO_PLUGIN__ ?? 'missing'
-        document.querySelector('#plugin-echo').addEventListener('click', async () => {
-          const result = await window.demo.echo({ hello: 'from frontend' })
-          document.querySelector('#echoed').textContent = JSON.stringify(result)
-        })
+        document.querySelector('#plugin-init').textContent =
+          window.__DEMO_PLUGIN__ ?? 'missing'
+        document
+          .querySelector('#plugin-echo')
+          .addEventListener('click', async () => {
+            const result = await window.demo.echo({ hello: 'from frontend' })
+            document.querySelector('#echoed').textContent =
+              JSON.stringify(result)
+          })
 
         // Auto-exercise the bridge once on load so smoke tests can assert on
         // the host-side FIXTURE_STATUS file without clicking anything.
@@ -99,7 +130,9 @@
         window.demo
           .echo({ smoke: true })
           .then((result) => emit('plugin-echo-ok', result))
-          .catch((error) => emit('plugin-init-ran', { echoError: String(error) }))
+          .catch((error) =>
+            emit('plugin-init-ran', { echoError: String(error) })
+          )
       }
     </script>
   </body>

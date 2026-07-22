@@ -26,7 +26,8 @@
 export class Plugin {
   /** @param {string} name plugin name; commands are `plugin:<name>|<command>`. */
   constructor(name) {
-    if (!name || typeof name !== 'string') throw new TypeError('a plugin needs a name')
+    if (!name || typeof name !== 'string')
+      throw new TypeError('a plugin needs a name')
     this.name = name
     /** @type {string | null} */
     this.script = null

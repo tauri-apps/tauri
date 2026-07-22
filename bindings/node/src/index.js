@@ -14,7 +14,13 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { libraryPath, open } from './ffi.js'
-import { isBundled, readEmbedded, resolveAssets, resolveCapabilities, resolveConfig } from './config.js'
+import {
+  isBundled,
+  readEmbedded,
+  resolveAssets,
+  resolveCapabilities,
+  resolveConfig
+} from './config.js'
 
 /**
  * Builds the app, spawns `appEntry` as a worker, then blocks this thread in
@@ -64,13 +70,21 @@ import { isBundled, readEmbedded, resolveAssets, resolveCapabilities, resolveCon
  *   application menu when the app declares none (default true)
  */
 export function launch(appEntry, options = {}) {
-  const { commands = [], capabilities = [], plugins = [], protocols = [] } = options
+  const {
+    commands = [],
+    capabilities = [],
+    plugins = [],
+    protocols = []
+  } = options
   const entry = appEntry instanceof URL ? fileURLToPath(appEntry) : appEntry
 
   // `tauri build` (Node SEA) runs this entry once in trace mode to learn
   // which module launch() would spawn as the worker, so it can bundle it.
   if (!isBundled() && process.env.TAURI_SEA_TRACE) {
-    writeFileSync(process.env.TAURI_SEA_TRACE, JSON.stringify({ entry: path.resolve(entry) }))
+    writeFileSync(
+      process.env.TAURI_SEA_TRACE,
+      JSON.stringify({ entry: path.resolve(entry) })
+    )
     process.exit(0)
   }
 
@@ -81,17 +95,25 @@ export function launch(appEntry, options = {}) {
 
   // When bundled (SEA), assets/config/capabilities are embedded *inside* the
   // binary as SEA assets; in dev they come from disk. Explicit options win.
-  const embeddedConfig = options.config ? null : readEmbedded('config.json', 'utf8')
+  const embeddedConfig = options.config
+    ? null
+    : readEmbedded('config.json', 'utf8')
   const { config, configDir } = embeddedConfig
     ? { config: JSON.parse(embeddedConfig), configDir: null }
     : resolveConfig(entryDir, options.config)
 
-  const embeddedAssets = !options.assetsDir && !options.assetsArchive ? readEmbedded('app.assets') : null
+  const embeddedAssets =
+    !options.assetsDir && !options.assetsArchive
+      ? readEmbedded('app.assets')
+      : null
   const assets = embeddedAssets
     ? {}
     : resolveAssets(
         {
-          assetsDir: options.assetsDir instanceof URL ? fileURLToPath(options.assetsDir) : options.assetsDir,
+          assetsDir:
+            options.assetsDir instanceof URL
+              ? fileURLToPath(options.assetsDir)
+              : options.assetsDir,
           assetsArchive:
             options.assetsArchive instanceof URL
               ? fileURLToPath(options.assetsArchive)
@@ -103,7 +125,10 @@ export function launch(appEntry, options = {}) {
 
   // `app.runtime` selects which prebuilt tauri-ffi library to load (wry/cef),
   // and which platform package's run-loop addon runApp() loads.
-  const { api, check, runApp, libPath } = open(libraryPath(config?.app?.runtime), config?.app?.runtime)
+  const { api, check, runApp, libPath } = open(
+    libraryPath(config?.app?.runtime),
+    config?.app?.runtime
+  )
 
   const outBuilder = [0]
   check(api.appBuilderNew(JSON.stringify(config), outBuilder), 'builder_new')
@@ -114,22 +139,38 @@ export function launch(appEntry, options = {}) {
   }
   if (embeddedAssets) {
     check(
-      api.appBuilderSetAssetsArchiveBytes(builder, embeddedAssets, embeddedAssets.length),
+      api.appBuilderSetAssetsArchiveBytes(
+        builder,
+        embeddedAssets,
+        embeddedAssets.length
+      ),
       'set_assets_archive_bytes'
     )
   } else if (assets.archive) {
-    check(api.appBuilderSetAssetsArchive(builder, assets.archive), 'set_assets_archive')
+    check(
+      api.appBuilderSetAssetsArchive(builder, assets.archive),
+      'set_assets_archive'
+    )
   } else if (assets.dir) {
     check(api.appBuilderSetAssetsDir(builder, assets.dir), 'set_assets_dir')
   }
   for (const name of commands) {
-    check(api.appBuilderRegisterCommand(builder, name), `register_command(${name})`)
+    check(
+      api.appBuilderRegisterCommand(builder, name),
+      `register_command(${name})`
+    )
   }
   for (const scheme of protocols) {
-    check(api.appBuilderRegisterUriSchemeProtocol(builder, scheme), `register_protocol(${scheme})`)
+    check(
+      api.appBuilderRegisterUriSchemeProtocol(builder, scheme),
+      `register_protocol(${scheme})`
+    )
   }
   if (options.pageLoadEvents) {
-    check(api.appBuilderSetPageLoadEvents(builder, true), 'set_page_load_events')
+    check(
+      api.appBuilderSetPageLoadEvents(builder, true),
+      'set_page_load_events'
+    )
   }
   if (options.webviewEvents) {
     check(api.appBuilderSetWebviewEvents(builder, true), 'set_webview_events')
@@ -138,29 +179,52 @@ export function launch(appEntry, options = {}) {
     check(api.appBuilderEnableSingleInstance(builder), 'enable_single_instance')
   }
   if (options.localhost !== undefined) {
-    check(api.appBuilderEnableLocalhost(builder, options.localhost), 'enable_localhost')
+    check(
+      api.appBuilderEnableLocalhost(builder, options.localhost),
+      'enable_localhost'
+    )
   }
   if (options.windowIcon !== undefined) {
     const icon = options.windowIcon
     check(
       typeof icon === 'string'
         ? api.appBuilderSetDefaultWindowIconPath(builder, icon)
-        : api.appBuilderSetDefaultWindowIcon(builder, icon.rgba, icon.width, icon.height),
+        : api.appBuilderSetDefaultWindowIcon(
+            builder,
+            icon.rgba,
+            icon.width,
+            icon.height
+          ),
       'set_default_window_icon'
     )
   }
   if (options.appIcon !== undefined) {
-    const bytes = typeof options.appIcon === 'string' ? readFileSync(options.appIcon) : options.appIcon
-    check(api.appBuilderSetAppIcon(builder, bytes, bytes.length), 'set_app_icon')
+    const bytes =
+      typeof options.appIcon === 'string'
+        ? readFileSync(options.appIcon)
+        : options.appIcon
+    check(
+      api.appBuilderSetAppIcon(builder, bytes, bytes.length),
+      'set_app_icon'
+    )
   }
   for (const script of [options.invokeInitializationScript ?? []].flat()) {
-    check(api.appBuilderAppendInvokeInitializationScript(builder, script), 'append_invoke_init_script')
+    check(
+      api.appBuilderAppendInvokeInitializationScript(builder, script),
+      'append_invoke_init_script'
+    )
   }
   if (options.deviceEventFilter !== undefined) {
-    check(api.appBuilderSetDeviceEventFilter(builder, options.deviceEventFilter), 'set_device_event_filter')
+    check(
+      api.appBuilderSetDeviceEventFilter(builder, options.deviceEventFilter),
+      'set_device_event_filter'
+    )
   }
   if (options.macosDefaultMenu !== undefined) {
-    check(api.appBuilderSetMacosDefaultMenu(builder, options.macosDefaultMenu), 'set_macos_default_menu')
+    check(
+      api.appBuilderSetMacosDefaultMenu(builder, options.macosDefaultMenu),
+      'set_macos_default_menu'
+    )
   }
   // Inline capabilities plus those embedded in the binary (SEA) or discovered
   // in a `capabilities/` directory next to the config (dev) — compile-time
@@ -171,7 +235,8 @@ export function launch(appEntry, options = {}) {
     : resolveCapabilities([configDir, entryDir])
   const allCapabilities = [...capabilities, ...discoveredCapabilities]
   for (const capability of allCapabilities) {
-    const json = typeof capability === 'string' ? capability : JSON.stringify(capability)
+    const json =
+      typeof capability === 'string' ? capability : JSON.stringify(capability)
     check(api.appBuilderAddCapability(builder, json), 'add_capability')
   }
   for (const plugin of plugins) {
@@ -179,12 +244,21 @@ export function launch(appEntry, options = {}) {
     check(api.pluginNew(plugin.name, outPlugin), `plugin_new(${plugin.name})`)
     const handle = outPlugin[0]
     if (plugin.script) {
-      check(api.pluginSetInitScript(handle, plugin.script), `plugin_set_init_script(${plugin.name})`)
+      check(
+        api.pluginSetInitScript(handle, plugin.script),
+        `plugin_set_init_script(${plugin.name})`
+      )
     }
     for (const command of plugin.commandNames) {
-      check(api.pluginRegisterCommand(handle, command), `plugin_register_command(${plugin.name}|${command})`)
+      check(
+        api.pluginRegisterCommand(handle, command),
+        `plugin_register_command(${plugin.name}|${command})`
+      )
     }
-    check(api.appBuilderAddPlugin(builder, handle), `add_plugin(${plugin.name})`)
+    check(
+      api.appBuilderAddPlugin(builder, handle),
+      `add_plugin(${plugin.name})`
+    )
   }
 
   const outApp = [0]
@@ -196,10 +270,16 @@ export function launch(appEntry, options = {}) {
   // `worker.js` SEA asset, so run it from source instead.
   const workerData = { app: String(app), libPath }
   const worker = isBundled()
-    ? new Worker(createRequire(import.meta.url)('node:sea').getAsset('worker.js', 'utf8'), {
-        eval: true,
-        workerData
-      })
+    ? new Worker(
+        createRequire(import.meta.url)('node:sea').getAsset(
+          'worker.js',
+          'utf8'
+        ),
+        {
+          eval: true,
+          workerData
+        }
+      )
     : new Worker(entry, { workerData })
   // Note: while this thread is blocked in run(), worker events (including
   // 'error') are not dispatched here — the worker logs its own failures.

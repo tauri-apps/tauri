@@ -6,12 +6,12 @@ Language bindings to Tauri over the `crates/tauri-ffi` C ABI — see
 from it by `bindgen/generate.mjs` (`--check` in CI). No napi-rs, no pyo3, no
 node-gyp — every package is pure script + the prebuilt cdylib.
 
-| directory | consumer | runtime |
-|---|---|---|
-| [`c/`](c/) | C | header + your compiler |
-| [`node/`](node/) | Node.js ≥ 18 | [koffi](https://koffi.dev) |
-| [`deno/`](deno/) | Deno 2 | built-in `Deno.dlopen` |
-| [`python/`](python/) | Python 3 | [cffi](https://cffi.readthedocs.io) (ABI mode) |
+| directory            | consumer     | runtime                                        |
+| -------------------- | ------------ | ---------------------------------------------- |
+| [`c/`](c/)           | C            | header + your compiler                         |
+| [`node/`](node/)     | Node.js ≥ 18 | [koffi](https://koffi.dev)                     |
+| [`deno/`](deno/)     | Deno 2       | built-in `Deno.dlopen`                         |
+| [`python/`](python/) | Python 3     | [cffi](https://cffi.readthedocs.io) (ABI mode) |
 
 ## Running the examples
 

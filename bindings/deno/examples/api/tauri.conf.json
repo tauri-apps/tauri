@@ -4,8 +4,14 @@
   "identifier": "com.tauri.ffi.api.deno",
   "build": {
     "runner": { "cmd": "deno", "args": ["run", "-A", "main.ts"] },
-    "beforeDevCommand": { "script": "pnpm dev", "cwd": "../../../../examples/api" },
-    "beforeBuildCommand": { "script": "pnpm build", "cwd": "../../../../examples/api" },
+    "beforeDevCommand": {
+      "script": "pnpm dev",
+      "cwd": "../../../../examples/api"
+    },
+    "beforeBuildCommand": {
+      "script": "pnpm build",
+      "cwd": "../../../../examples/api"
+    },
     "devUrl": "http://localhost:1420",
     "frontendDist": "../../../../examples/api/dist"
   },

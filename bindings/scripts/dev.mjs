@@ -91,10 +91,15 @@ if (stage.status !== 0) process.exit(stage.status ?? 1)
 // preferring debug over release; `TAURI_CLI` overrides the lookup.
 const exe = process.platform === 'win32' ? 'cargo-tauri.exe' : 'cargo-tauri'
 const cli =
-  process.env.TAURI_CLI ||
-  [path.join(repoRoot, 'target/debug', exe), path.join(repoRoot, 'target/release', exe)].find(existsSync)
+  process.env.TAURI_CLI
+  || [
+    path.join(repoRoot, 'target/debug', exe),
+    path.join(repoRoot, 'target/release', exe)
+  ].find(existsSync)
 if (!cli || !existsSync(cli)) {
-  fail(`could not find cargo-tauri under ${path.join(repoRoot, 'target')} — build it first: cargo build -p tauri-cli`)
+  fail(
+    `could not find cargo-tauri under ${path.join(repoRoot, 'target')} — build it first: cargo build -p tauri-cli`
+  )
 }
 
 // Default to `dev`; forward the subcommand and any extra args straight through.
@@ -103,7 +108,9 @@ if (passthrough.length === 0) passthrough.push('dev')
 
 // Only fill `app.runtime` when TAURI_RUNTIME is set, leaving an unset run on the
 // example's own config. The merge value wins over the config file's field.
-const configArgs = process.env.TAURI_RUNTIME ? ['--config', JSON.stringify({ app: { runtime } })] : []
+const configArgs = process.env.TAURI_RUNTIME
+  ? ['--config', JSON.stringify({ app: { runtime } })]
+  : []
 
 const args = [...passthrough, ...configArgs]
 console.log(

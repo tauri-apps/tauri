@@ -24,197 +24,370 @@ export const DECLS = {
   lastErrorMessage: 'const char * tauri_last_error_message()',
   stringFree: 'void tauri_string_free(void *str)',
   handleClose: 'int32_t tauri_handle_close(uint64_t handle)',
-  appBuilderNew: 'int32_t tauri_app_builder_new(const char *config_json, _Out_ uint64_t *out_builder)',
-  appBuilderSetAssetsDir: 'int32_t tauri_app_builder_set_assets_dir(uint64_t builder, const char *path)',
-  appBuilderSetAssetsArchive: 'int32_t tauri_app_builder_set_assets_archive(uint64_t builder, const char *path)',
-  appBuilderSetAssetsArchiveBytes: 'int32_t tauri_app_builder_set_assets_archive_bytes(uint64_t builder, const uint8_t *bytes, uint32_t len)',
-  appBuilderSetDev: 'int32_t tauri_app_builder_set_dev(uint64_t builder, bool dev)',
-  appBuilderRegisterCommand: 'int32_t tauri_app_builder_register_command(uint64_t builder, const char *name)',
-  appBuilderAddCapability: 'int32_t tauri_app_builder_add_capability(uint64_t builder, const char *capability)',
-  appBuilderRegisterUriSchemeProtocol: 'int32_t tauri_app_builder_register_uri_scheme_protocol(uint64_t builder, const char *scheme)',
-  appBuilderAppendInvokeInitializationScript: 'int32_t tauri_app_builder_append_invoke_initialization_script(uint64_t builder, const char *js)',
-  appBuilderSetDeviceEventFilter: 'int32_t tauri_app_builder_set_device_event_filter(uint64_t builder, const char *filter)',
-  appBuilderSetMacosDefaultMenu: 'int32_t tauri_app_builder_set_macos_default_menu(uint64_t builder, bool enable)',
-  appBuilderSetDefaultWindowIcon: 'int32_t tauri_app_builder_set_default_window_icon(uint64_t builder, const uint8_t *rgba, uint32_t width, uint32_t height)',
-  appBuilderSetDefaultWindowIconPath: 'int32_t tauri_app_builder_set_default_window_icon_path(uint64_t builder, const char *path)',
-  appBuilderSetAppIcon: 'int32_t tauri_app_builder_set_app_icon(uint64_t builder, const uint8_t *bytes, uint32_t len)',
-  appBuilderSetAnyThread: 'int32_t tauri_app_builder_set_any_thread(uint64_t builder, bool any_thread)',
-  appBuilderSetPageLoadEvents: 'int32_t tauri_app_builder_set_page_load_events(uint64_t builder, bool enable)',
-  appBuilderSetWebviewEvents: 'int32_t tauri_app_builder_set_webview_events(uint64_t builder, bool enable)',
-  appBuilderEnableLocalhost: 'int32_t tauri_app_builder_enable_localhost(uint64_t builder, uint32_t port)',
-  appBuilderEnableSingleInstance: 'int32_t tauri_app_builder_enable_single_instance(uint64_t builder)',
-  pluginNew: 'int32_t tauri_plugin_new(const char *name, _Out_ uint64_t *out_plugin)',
-  pluginSetInitScript: 'int32_t tauri_plugin_set_init_script(uint64_t plugin, const char *js)',
-  pluginRegisterCommand: 'int32_t tauri_plugin_register_command(uint64_t plugin, const char *name)',
-  appBuilderAddPlugin: 'int32_t tauri_app_builder_add_plugin(uint64_t builder, uint64_t plugin)',
-  appBuild: 'int32_t tauri_app_build(uint64_t builder, _Out_ uint64_t *out_app)',
+  appBuilderNew:
+    'int32_t tauri_app_builder_new(const char *config_json, _Out_ uint64_t *out_builder)',
+  appBuilderSetAssetsDir:
+    'int32_t tauri_app_builder_set_assets_dir(uint64_t builder, const char *path)',
+  appBuilderSetAssetsArchive:
+    'int32_t tauri_app_builder_set_assets_archive(uint64_t builder, const char *path)',
+  appBuilderSetAssetsArchiveBytes:
+    'int32_t tauri_app_builder_set_assets_archive_bytes(uint64_t builder, const uint8_t *bytes, uint32_t len)',
+  appBuilderSetDev:
+    'int32_t tauri_app_builder_set_dev(uint64_t builder, bool dev)',
+  appBuilderRegisterCommand:
+    'int32_t tauri_app_builder_register_command(uint64_t builder, const char *name)',
+  appBuilderAddCapability:
+    'int32_t tauri_app_builder_add_capability(uint64_t builder, const char *capability)',
+  appBuilderRegisterUriSchemeProtocol:
+    'int32_t tauri_app_builder_register_uri_scheme_protocol(uint64_t builder, const char *scheme)',
+  appBuilderAppendInvokeInitializationScript:
+    'int32_t tauri_app_builder_append_invoke_initialization_script(uint64_t builder, const char *js)',
+  appBuilderSetDeviceEventFilter:
+    'int32_t tauri_app_builder_set_device_event_filter(uint64_t builder, const char *filter)',
+  appBuilderSetMacosDefaultMenu:
+    'int32_t tauri_app_builder_set_macos_default_menu(uint64_t builder, bool enable)',
+  appBuilderSetDefaultWindowIcon:
+    'int32_t tauri_app_builder_set_default_window_icon(uint64_t builder, const uint8_t *rgba, uint32_t width, uint32_t height)',
+  appBuilderSetDefaultWindowIconPath:
+    'int32_t tauri_app_builder_set_default_window_icon_path(uint64_t builder, const char *path)',
+  appBuilderSetAppIcon:
+    'int32_t tauri_app_builder_set_app_icon(uint64_t builder, const uint8_t *bytes, uint32_t len)',
+  appBuilderSetAnyThread:
+    'int32_t tauri_app_builder_set_any_thread(uint64_t builder, bool any_thread)',
+  appBuilderSetPageLoadEvents:
+    'int32_t tauri_app_builder_set_page_load_events(uint64_t builder, bool enable)',
+  appBuilderSetWebviewEvents:
+    'int32_t tauri_app_builder_set_webview_events(uint64_t builder, bool enable)',
+  appBuilderEnableLocalhost:
+    'int32_t tauri_app_builder_enable_localhost(uint64_t builder, uint32_t port)',
+  appBuilderEnableSingleInstance:
+    'int32_t tauri_app_builder_enable_single_instance(uint64_t builder)',
+  pluginNew:
+    'int32_t tauri_plugin_new(const char *name, _Out_ uint64_t *out_plugin)',
+  pluginSetInitScript:
+    'int32_t tauri_plugin_set_init_script(uint64_t plugin, const char *js)',
+  pluginRegisterCommand:
+    'int32_t tauri_plugin_register_command(uint64_t plugin, const char *name)',
+  appBuilderAddPlugin:
+    'int32_t tauri_app_builder_add_plugin(uint64_t builder, uint64_t plugin)',
+  appBuild:
+    'int32_t tauri_app_build(uint64_t builder, _Out_ uint64_t *out_app)',
   appRun: 'int32_t tauri_app_run(uint64_t app, _Out_ int32_t *out_exit_code)',
   appExit: 'int32_t tauri_app_exit(uint64_t app, int32_t code)',
-  eventsNext: 'int32_t tauri_events_next(uint64_t app, uint32_t timeout_ms, _Out_ void **out_json)',
-  appEmit: 'int32_t tauri_app_emit(uint64_t app, const char *event, const char *payload_json)',
-  appEmitTo: 'int32_t tauri_app_emit_to(uint64_t app, const char *label, const char *event, const char *payload_json)',
-  appListen: 'int32_t tauri_app_listen(uint64_t app, const char *event, _Out_ uint32_t *out_listener)',
+  eventsNext:
+    'int32_t tauri_events_next(uint64_t app, uint32_t timeout_ms, _Out_ void **out_json)',
+  appEmit:
+    'int32_t tauri_app_emit(uint64_t app, const char *event, const char *payload_json)',
+  appEmitTo:
+    'int32_t tauri_app_emit_to(uint64_t app, const char *label, const char *event, const char *payload_json)',
+  appListen:
+    'int32_t tauri_app_listen(uint64_t app, const char *event, _Out_ uint32_t *out_listener)',
   appUnlisten: 'int32_t tauri_app_unlisten(uint64_t app, uint32_t listener)',
-  invokeResolve: 'int32_t tauri_invoke_resolve(uint64_t resolver, const char *json)',
-  invokeReject: 'int32_t tauri_invoke_reject(uint64_t resolver, const char *json)',
-  uriSchemeRespond: 'int32_t tauri_uri_scheme_respond(uint64_t request, uint32_t status, const char *headers_json, const uint8_t *body, uint32_t body_len)',
-  webviewWindowCreate: 'int32_t tauri_webview_window_create(uint64_t app, const char *config_json, _Out_ uint64_t *out_window)',
-  appGetWebviewWindow: 'int32_t tauri_app_get_webview_window(uint64_t app, const char *label, _Out_ uint64_t *out_window)',
-  appWebviewWindowLabels: 'int32_t tauri_app_webview_window_labels(uint64_t app, _Out_ void **out_labels_json)',
-  webviewWindowLabel: 'int32_t tauri_webview_window_label(uint64_t window, _Out_ void **out_label)',
-  webviewWindowTitle: 'int32_t tauri_webview_window_title(uint64_t window, _Out_ void **out_title)',
-  webviewWindowUrl: 'int32_t tauri_webview_window_url(uint64_t window, _Out_ void **out_url)',
-  webviewWindowScaleFactor: 'int32_t tauri_webview_window_scale_factor(uint64_t window, _Out_ double *out_scale)',
-  webviewWindowInnerSize: 'int32_t tauri_webview_window_inner_size(uint64_t window, _Out_ uint32_t *out_width, _Out_ uint32_t *out_height)',
-  webviewWindowOuterSize: 'int32_t tauri_webview_window_outer_size(uint64_t window, _Out_ uint32_t *out_width, _Out_ uint32_t *out_height)',
-  webviewWindowInnerPosition: 'int32_t tauri_webview_window_inner_position(uint64_t window, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
-  webviewWindowOuterPosition: 'int32_t tauri_webview_window_outer_position(uint64_t window, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
-  webviewWindowIsVisible: 'int32_t tauri_webview_window_is_visible(uint64_t window, _Out_ bool *out_visible)',
-  webviewWindowIsFocused: 'int32_t tauri_webview_window_is_focused(uint64_t window, _Out_ bool *out_focused)',
-  webviewWindowIsFullscreen: 'int32_t tauri_webview_window_is_fullscreen(uint64_t window, _Out_ bool *out_fullscreen)',
-  webviewWindowIsMaximized: 'int32_t tauri_webview_window_is_maximized(uint64_t window, _Out_ bool *out_maximized)',
-  webviewWindowIsMinimized: 'int32_t tauri_webview_window_is_minimized(uint64_t window, _Out_ bool *out_minimized)',
-  webviewWindowIsResizable: 'int32_t tauri_webview_window_is_resizable(uint64_t window, _Out_ bool *out_resizable)',
-  webviewWindowSetTitle: 'int32_t tauri_webview_window_set_title(uint64_t window, const char *title)',
-  webviewWindowSetSize: 'int32_t tauri_webview_window_set_size(uint64_t window, double width, double height, bool physical)',
-  webviewWindowSetPosition: 'int32_t tauri_webview_window_set_position(uint64_t window, double x, double y, bool physical)',
-  webviewWindowSetFullscreen: 'int32_t tauri_webview_window_set_fullscreen(uint64_t window, bool fullscreen)',
-  webviewWindowSetResizable: 'int32_t tauri_webview_window_set_resizable(uint64_t window, bool resizable)',
-  webviewWindowSetAlwaysOnTop: 'int32_t tauri_webview_window_set_always_on_top(uint64_t window, bool always_on_top)',
-  webviewWindowSetDecorations: 'int32_t tauri_webview_window_set_decorations(uint64_t window, bool decorations)',
-  webviewWindowSetFocus: 'int32_t tauri_webview_window_set_focus(uint64_t window)',
-  webviewWindowSetZoom: 'int32_t tauri_webview_window_set_zoom(uint64_t window, double scale)',
+  invokeResolve:
+    'int32_t tauri_invoke_resolve(uint64_t resolver, const char *json)',
+  invokeReject:
+    'int32_t tauri_invoke_reject(uint64_t resolver, const char *json)',
+  uriSchemeRespond:
+    'int32_t tauri_uri_scheme_respond(uint64_t request, uint32_t status, const char *headers_json, const uint8_t *body, uint32_t body_len)',
+  webviewWindowCreate:
+    'int32_t tauri_webview_window_create(uint64_t app, const char *config_json, _Out_ uint64_t *out_window)',
+  appGetWebviewWindow:
+    'int32_t tauri_app_get_webview_window(uint64_t app, const char *label, _Out_ uint64_t *out_window)',
+  appWebviewWindowLabels:
+    'int32_t tauri_app_webview_window_labels(uint64_t app, _Out_ void **out_labels_json)',
+  webviewWindowLabel:
+    'int32_t tauri_webview_window_label(uint64_t window, _Out_ void **out_label)',
+  webviewWindowTitle:
+    'int32_t tauri_webview_window_title(uint64_t window, _Out_ void **out_title)',
+  webviewWindowUrl:
+    'int32_t tauri_webview_window_url(uint64_t window, _Out_ void **out_url)',
+  webviewWindowScaleFactor:
+    'int32_t tauri_webview_window_scale_factor(uint64_t window, _Out_ double *out_scale)',
+  webviewWindowInnerSize:
+    'int32_t tauri_webview_window_inner_size(uint64_t window, _Out_ uint32_t *out_width, _Out_ uint32_t *out_height)',
+  webviewWindowOuterSize:
+    'int32_t tauri_webview_window_outer_size(uint64_t window, _Out_ uint32_t *out_width, _Out_ uint32_t *out_height)',
+  webviewWindowInnerPosition:
+    'int32_t tauri_webview_window_inner_position(uint64_t window, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
+  webviewWindowOuterPosition:
+    'int32_t tauri_webview_window_outer_position(uint64_t window, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
+  webviewWindowIsVisible:
+    'int32_t tauri_webview_window_is_visible(uint64_t window, _Out_ bool *out_visible)',
+  webviewWindowIsFocused:
+    'int32_t tauri_webview_window_is_focused(uint64_t window, _Out_ bool *out_focused)',
+  webviewWindowIsFullscreen:
+    'int32_t tauri_webview_window_is_fullscreen(uint64_t window, _Out_ bool *out_fullscreen)',
+  webviewWindowIsMaximized:
+    'int32_t tauri_webview_window_is_maximized(uint64_t window, _Out_ bool *out_maximized)',
+  webviewWindowIsMinimized:
+    'int32_t tauri_webview_window_is_minimized(uint64_t window, _Out_ bool *out_minimized)',
+  webviewWindowIsResizable:
+    'int32_t tauri_webview_window_is_resizable(uint64_t window, _Out_ bool *out_resizable)',
+  webviewWindowSetTitle:
+    'int32_t tauri_webview_window_set_title(uint64_t window, const char *title)',
+  webviewWindowSetSize:
+    'int32_t tauri_webview_window_set_size(uint64_t window, double width, double height, bool physical)',
+  webviewWindowSetPosition:
+    'int32_t tauri_webview_window_set_position(uint64_t window, double x, double y, bool physical)',
+  webviewWindowSetFullscreen:
+    'int32_t tauri_webview_window_set_fullscreen(uint64_t window, bool fullscreen)',
+  webviewWindowSetResizable:
+    'int32_t tauri_webview_window_set_resizable(uint64_t window, bool resizable)',
+  webviewWindowSetAlwaysOnTop:
+    'int32_t tauri_webview_window_set_always_on_top(uint64_t window, bool always_on_top)',
+  webviewWindowSetDecorations:
+    'int32_t tauri_webview_window_set_decorations(uint64_t window, bool decorations)',
+  webviewWindowSetFocus:
+    'int32_t tauri_webview_window_set_focus(uint64_t window)',
+  webviewWindowSetZoom:
+    'int32_t tauri_webview_window_set_zoom(uint64_t window, double scale)',
   webviewWindowShow: 'int32_t tauri_webview_window_show(uint64_t window)',
   webviewWindowHide: 'int32_t tauri_webview_window_hide(uint64_t window)',
   webviewWindowCenter: 'int32_t tauri_webview_window_center(uint64_t window)',
-  webviewWindowMaximize: 'int32_t tauri_webview_window_maximize(uint64_t window)',
-  webviewWindowUnmaximize: 'int32_t tauri_webview_window_unmaximize(uint64_t window)',
-  webviewWindowMinimize: 'int32_t tauri_webview_window_minimize(uint64_t window)',
-  webviewWindowUnminimize: 'int32_t tauri_webview_window_unminimize(uint64_t window)',
+  webviewWindowMaximize:
+    'int32_t tauri_webview_window_maximize(uint64_t window)',
+  webviewWindowUnmaximize:
+    'int32_t tauri_webview_window_unmaximize(uint64_t window)',
+  webviewWindowMinimize:
+    'int32_t tauri_webview_window_minimize(uint64_t window)',
+  webviewWindowUnminimize:
+    'int32_t tauri_webview_window_unminimize(uint64_t window)',
   webviewWindowClose: 'int32_t tauri_webview_window_close(uint64_t window)',
   webviewWindowDestroy: 'int32_t tauri_webview_window_destroy(uint64_t window)',
-  webviewWindowEval: 'int32_t tauri_webview_window_eval(uint64_t window, const char *js)',
-  webviewWindowNavigate: 'int32_t tauri_webview_window_navigate(uint64_t window, const char *url)',
+  webviewWindowEval:
+    'int32_t tauri_webview_window_eval(uint64_t window, const char *js)',
+  webviewWindowNavigate:
+    'int32_t tauri_webview_window_navigate(uint64_t window, const char *url)',
   webviewWindowReload: 'int32_t tauri_webview_window_reload(uint64_t window)',
-  webviewWindowIsDecorated: 'int32_t tauri_webview_window_is_decorated(uint64_t window, _Out_ bool *out_decorated)',
-  webviewWindowIsClosable: 'int32_t tauri_webview_window_is_closable(uint64_t window, _Out_ bool *out_closable)',
-  webviewWindowIsMaximizable: 'int32_t tauri_webview_window_is_maximizable(uint64_t window, _Out_ bool *out_maximizable)',
-  webviewWindowIsMinimizable: 'int32_t tauri_webview_window_is_minimizable(uint64_t window, _Out_ bool *out_minimizable)',
-  webviewWindowIsAlwaysOnTop: 'int32_t tauri_webview_window_is_always_on_top(uint64_t window, _Out_ bool *out_always_on_top)',
-  webviewWindowIsEnabled: 'int32_t tauri_webview_window_is_enabled(uint64_t window, _Out_ bool *out_enabled)',
-  webviewWindowIsMenuVisible: 'int32_t tauri_webview_window_is_menu_visible(uint64_t window, _Out_ bool *out_visible)',
-  webviewWindowIsDevtoolsOpen: 'int32_t tauri_webview_window_is_devtools_open(uint64_t window, _Out_ bool *out_open)',
-  webviewWindowTheme: 'int32_t tauri_webview_window_theme(uint64_t window, _Out_ void **out_theme)',
-  webviewWindowSetClosable: 'int32_t tauri_webview_window_set_closable(uint64_t window, bool closable)',
-  webviewWindowSetMaximizable: 'int32_t tauri_webview_window_set_maximizable(uint64_t window, bool maximizable)',
-  webviewWindowSetMinimizable: 'int32_t tauri_webview_window_set_minimizable(uint64_t window, bool minimizable)',
-  webviewWindowSetAlwaysOnBottom: 'int32_t tauri_webview_window_set_always_on_bottom(uint64_t window, bool always_on_bottom)',
-  webviewWindowSetContentProtected: 'int32_t tauri_webview_window_set_content_protected(uint64_t window, bool protected)',
-  webviewWindowSetSkipTaskbar: 'int32_t tauri_webview_window_set_skip_taskbar(uint64_t window, bool skip)',
-  webviewWindowSetShadow: 'int32_t tauri_webview_window_set_shadow(uint64_t window, bool enable)',
-  webviewWindowSetVisibleOnAllWorkspaces: 'int32_t tauri_webview_window_set_visible_on_all_workspaces(uint64_t window, bool visible)',
-  webviewWindowSetIgnoreCursorEvents: 'int32_t tauri_webview_window_set_ignore_cursor_events(uint64_t window, bool ignore)',
-  webviewWindowSetCursorVisible: 'int32_t tauri_webview_window_set_cursor_visible(uint64_t window, bool visible)',
-  webviewWindowSetCursorGrab: 'int32_t tauri_webview_window_set_cursor_grab(uint64_t window, bool grab)',
-  webviewWindowSetEnabled: 'int32_t tauri_webview_window_set_enabled(uint64_t window, bool enabled)',
-  webviewWindowSetFocusable: 'int32_t tauri_webview_window_set_focusable(uint64_t window, bool focusable)',
-  webviewWindowSetSimpleFullscreen: 'int32_t tauri_webview_window_set_simple_fullscreen(uint64_t window, bool enable)',
-  webviewWindowSetMinSize: 'int32_t tauri_webview_window_set_min_size(uint64_t window, double width, double height, bool physical)',
-  webviewWindowSetMaxSize: 'int32_t tauri_webview_window_set_max_size(uint64_t window, double width, double height, bool physical)',
-  webviewWindowSetCursorPosition: 'int32_t tauri_webview_window_set_cursor_position(uint64_t window, double x, double y, bool physical)',
-  webviewWindowSetTheme: 'int32_t tauri_webview_window_set_theme(uint64_t window, const char *theme)',
-  webviewWindowSetCursorIcon: 'int32_t tauri_webview_window_set_cursor_icon(uint64_t window, const char *icon)',
-  webviewWindowRequestUserAttention: 'int32_t tauri_webview_window_request_user_attention(uint64_t window, const char *kind)',
-  webviewWindowSetProgressBar: 'int32_t tauri_webview_window_set_progress_bar(uint64_t window, const char *state_json)',
-  webviewWindowSetEffects: 'int32_t tauri_webview_window_set_effects(uint64_t window, const char *effects_json)',
-  webviewWindowSetSizeConstraints: 'int32_t tauri_webview_window_set_size_constraints(uint64_t window, const char *constraints_json)',
-  webviewWindowSetBackgroundColor: 'int32_t tauri_webview_window_set_background_color(uint64_t window, uint32_t r, uint32_t g, uint32_t b, uint32_t a)',
-  webviewWindowSetBadgeCount: 'int32_t tauri_webview_window_set_badge_count(uint64_t window, int32_t count)',
-  webviewWindowSetBadgeLabel: 'int32_t tauri_webview_window_set_badge_label(uint64_t window, const char *label)',
-  webviewWindowSetTitleBarStyle: 'int32_t tauri_webview_window_set_title_bar_style(uint64_t window, const char *style)',
-  webviewWindowSetOverlayIcon: 'int32_t tauri_webview_window_set_overlay_icon(uint64_t window, const uint8_t *rgba, uint32_t width, uint32_t height)',
-  webviewWindowNsWindow: 'int32_t tauri_webview_window_ns_window(uint64_t window, _Out_ uint64_t *out_ns_window)',
-  webviewWindowNsView: 'int32_t tauri_webview_window_ns_view(uint64_t window, _Out_ uint64_t *out_ns_view)',
-  webviewWindowHwnd: 'int32_t tauri_webview_window_hwnd(uint64_t window, _Out_ uint64_t *out_hwnd)',
-  webviewWindowStartDragging: 'int32_t tauri_webview_window_start_dragging(uint64_t window)',
+  webviewWindowIsDecorated:
+    'int32_t tauri_webview_window_is_decorated(uint64_t window, _Out_ bool *out_decorated)',
+  webviewWindowIsClosable:
+    'int32_t tauri_webview_window_is_closable(uint64_t window, _Out_ bool *out_closable)',
+  webviewWindowIsMaximizable:
+    'int32_t tauri_webview_window_is_maximizable(uint64_t window, _Out_ bool *out_maximizable)',
+  webviewWindowIsMinimizable:
+    'int32_t tauri_webview_window_is_minimizable(uint64_t window, _Out_ bool *out_minimizable)',
+  webviewWindowIsAlwaysOnTop:
+    'int32_t tauri_webview_window_is_always_on_top(uint64_t window, _Out_ bool *out_always_on_top)',
+  webviewWindowIsEnabled:
+    'int32_t tauri_webview_window_is_enabled(uint64_t window, _Out_ bool *out_enabled)',
+  webviewWindowIsMenuVisible:
+    'int32_t tauri_webview_window_is_menu_visible(uint64_t window, _Out_ bool *out_visible)',
+  webviewWindowIsDevtoolsOpen:
+    'int32_t tauri_webview_window_is_devtools_open(uint64_t window, _Out_ bool *out_open)',
+  webviewWindowTheme:
+    'int32_t tauri_webview_window_theme(uint64_t window, _Out_ void **out_theme)',
+  webviewWindowSetClosable:
+    'int32_t tauri_webview_window_set_closable(uint64_t window, bool closable)',
+  webviewWindowSetMaximizable:
+    'int32_t tauri_webview_window_set_maximizable(uint64_t window, bool maximizable)',
+  webviewWindowSetMinimizable:
+    'int32_t tauri_webview_window_set_minimizable(uint64_t window, bool minimizable)',
+  webviewWindowSetAlwaysOnBottom:
+    'int32_t tauri_webview_window_set_always_on_bottom(uint64_t window, bool always_on_bottom)',
+  webviewWindowSetContentProtected:
+    'int32_t tauri_webview_window_set_content_protected(uint64_t window, bool protected)',
+  webviewWindowSetSkipTaskbar:
+    'int32_t tauri_webview_window_set_skip_taskbar(uint64_t window, bool skip)',
+  webviewWindowSetShadow:
+    'int32_t tauri_webview_window_set_shadow(uint64_t window, bool enable)',
+  webviewWindowSetVisibleOnAllWorkspaces:
+    'int32_t tauri_webview_window_set_visible_on_all_workspaces(uint64_t window, bool visible)',
+  webviewWindowSetIgnoreCursorEvents:
+    'int32_t tauri_webview_window_set_ignore_cursor_events(uint64_t window, bool ignore)',
+  webviewWindowSetCursorVisible:
+    'int32_t tauri_webview_window_set_cursor_visible(uint64_t window, bool visible)',
+  webviewWindowSetCursorGrab:
+    'int32_t tauri_webview_window_set_cursor_grab(uint64_t window, bool grab)',
+  webviewWindowSetEnabled:
+    'int32_t tauri_webview_window_set_enabled(uint64_t window, bool enabled)',
+  webviewWindowSetFocusable:
+    'int32_t tauri_webview_window_set_focusable(uint64_t window, bool focusable)',
+  webviewWindowSetSimpleFullscreen:
+    'int32_t tauri_webview_window_set_simple_fullscreen(uint64_t window, bool enable)',
+  webviewWindowSetMinSize:
+    'int32_t tauri_webview_window_set_min_size(uint64_t window, double width, double height, bool physical)',
+  webviewWindowSetMaxSize:
+    'int32_t tauri_webview_window_set_max_size(uint64_t window, double width, double height, bool physical)',
+  webviewWindowSetCursorPosition:
+    'int32_t tauri_webview_window_set_cursor_position(uint64_t window, double x, double y, bool physical)',
+  webviewWindowSetTheme:
+    'int32_t tauri_webview_window_set_theme(uint64_t window, const char *theme)',
+  webviewWindowSetCursorIcon:
+    'int32_t tauri_webview_window_set_cursor_icon(uint64_t window, const char *icon)',
+  webviewWindowRequestUserAttention:
+    'int32_t tauri_webview_window_request_user_attention(uint64_t window, const char *kind)',
+  webviewWindowSetProgressBar:
+    'int32_t tauri_webview_window_set_progress_bar(uint64_t window, const char *state_json)',
+  webviewWindowSetEffects:
+    'int32_t tauri_webview_window_set_effects(uint64_t window, const char *effects_json)',
+  webviewWindowSetSizeConstraints:
+    'int32_t tauri_webview_window_set_size_constraints(uint64_t window, const char *constraints_json)',
+  webviewWindowSetBackgroundColor:
+    'int32_t tauri_webview_window_set_background_color(uint64_t window, uint32_t r, uint32_t g, uint32_t b, uint32_t a)',
+  webviewWindowSetBadgeCount:
+    'int32_t tauri_webview_window_set_badge_count(uint64_t window, int32_t count)',
+  webviewWindowSetBadgeLabel:
+    'int32_t tauri_webview_window_set_badge_label(uint64_t window, const char *label)',
+  webviewWindowSetTitleBarStyle:
+    'int32_t tauri_webview_window_set_title_bar_style(uint64_t window, const char *style)',
+  webviewWindowSetOverlayIcon:
+    'int32_t tauri_webview_window_set_overlay_icon(uint64_t window, const uint8_t *rgba, uint32_t width, uint32_t height)',
+  webviewWindowNsWindow:
+    'int32_t tauri_webview_window_ns_window(uint64_t window, _Out_ uint64_t *out_ns_window)',
+  webviewWindowNsView:
+    'int32_t tauri_webview_window_ns_view(uint64_t window, _Out_ uint64_t *out_ns_view)',
+  webviewWindowHwnd:
+    'int32_t tauri_webview_window_hwnd(uint64_t window, _Out_ uint64_t *out_hwnd)',
+  webviewWindowStartDragging:
+    'int32_t tauri_webview_window_start_dragging(uint64_t window)',
   webviewWindowPrint: 'int32_t tauri_webview_window_print(uint64_t window)',
-  webviewWindowClearAllBrowsingData: 'int32_t tauri_webview_window_clear_all_browsing_data(uint64_t window)',
-  webviewWindowHideMenu: 'int32_t tauri_webview_window_hide_menu(uint64_t window)',
-  webviewWindowShowMenu: 'int32_t tauri_webview_window_show_menu(uint64_t window)',
-  webviewWindowOpenDevtools: 'int32_t tauri_webview_window_open_devtools(uint64_t window)',
-  webviewWindowCloseDevtools: 'int32_t tauri_webview_window_close_devtools(uint64_t window)',
-  webviewWindowCurrentMonitor: 'int32_t tauri_webview_window_current_monitor(uint64_t window, _Out_ void **out_monitor_json)',
-  webviewWindowPrimaryMonitor: 'int32_t tauri_webview_window_primary_monitor(uint64_t window, _Out_ void **out_monitor_json)',
-  webviewWindowAvailableMonitors: 'int32_t tauri_webview_window_available_monitors(uint64_t window, _Out_ void **out_monitors_json)',
-  webviewWindowMonitorFromPoint: 'int32_t tauri_webview_window_monitor_from_point(uint64_t window, double x, double y, _Out_ void **out_monitor_json)',
-  webviewWindowCursorPosition: 'int32_t tauri_webview_window_cursor_position(uint64_t window, _Out_ double *out_x, _Out_ double *out_y)',
-  appConfig: 'int32_t tauri_app_config(uint64_t app, _Out_ void **out_config_json)',
-  appPackageInfo: 'int32_t tauri_app_package_info(uint64_t app, _Out_ void **out_info_json)',
-  appPath: 'int32_t tauri_app_path(uint64_t app, const char *kind, _Out_ void **out_path)',
-  appGetFocusedWindow: 'int32_t tauri_app_get_focused_window(uint64_t app, _Out_ uint64_t *out_window)',
-  appAddCapability: 'int32_t tauri_app_add_capability(uint64_t app, const char *capability)',
-  appOnce: 'int32_t tauri_app_once(uint64_t app, const char *event, _Out_ uint32_t *out_listener)',
+  webviewWindowClearAllBrowsingData:
+    'int32_t tauri_webview_window_clear_all_browsing_data(uint64_t window)',
+  webviewWindowHideMenu:
+    'int32_t tauri_webview_window_hide_menu(uint64_t window)',
+  webviewWindowShowMenu:
+    'int32_t tauri_webview_window_show_menu(uint64_t window)',
+  webviewWindowOpenDevtools:
+    'int32_t tauri_webview_window_open_devtools(uint64_t window)',
+  webviewWindowCloseDevtools:
+    'int32_t tauri_webview_window_close_devtools(uint64_t window)',
+  webviewWindowCurrentMonitor:
+    'int32_t tauri_webview_window_current_monitor(uint64_t window, _Out_ void **out_monitor_json)',
+  webviewWindowPrimaryMonitor:
+    'int32_t tauri_webview_window_primary_monitor(uint64_t window, _Out_ void **out_monitor_json)',
+  webviewWindowAvailableMonitors:
+    'int32_t tauri_webview_window_available_monitors(uint64_t window, _Out_ void **out_monitors_json)',
+  webviewWindowMonitorFromPoint:
+    'int32_t tauri_webview_window_monitor_from_point(uint64_t window, double x, double y, _Out_ void **out_monitor_json)',
+  webviewWindowCursorPosition:
+    'int32_t tauri_webview_window_cursor_position(uint64_t window, _Out_ double *out_x, _Out_ double *out_y)',
+  appConfig:
+    'int32_t tauri_app_config(uint64_t app, _Out_ void **out_config_json)',
+  appPackageInfo:
+    'int32_t tauri_app_package_info(uint64_t app, _Out_ void **out_info_json)',
+  appPath:
+    'int32_t tauri_app_path(uint64_t app, const char *kind, _Out_ void **out_path)',
+  appGetFocusedWindow:
+    'int32_t tauri_app_get_focused_window(uint64_t app, _Out_ uint64_t *out_window)',
+  appAddCapability:
+    'int32_t tauri_app_add_capability(uint64_t app, const char *capability)',
+  appOnce:
+    'int32_t tauri_app_once(uint64_t app, const char *event, _Out_ uint32_t *out_listener)',
   appSetTheme: 'int32_t tauri_app_set_theme(uint64_t app, const char *theme)',
-  appCursorPosition: 'int32_t tauri_app_cursor_position(uint64_t app, _Out_ double *out_x, _Out_ double *out_y)',
+  appCursorPosition:
+    'int32_t tauri_app_cursor_position(uint64_t app, _Out_ double *out_x, _Out_ double *out_y)',
   appRequestRestart: 'int32_t tauri_app_request_restart(uint64_t app)',
-  appSetActivationPolicy: 'int32_t tauri_app_set_activation_policy(uint64_t app, const char *policy)',
-  appSetDockVisibility: 'int32_t tauri_app_set_dock_visibility(uint64_t app, bool visible)',
+  appSetActivationPolicy:
+    'int32_t tauri_app_set_activation_policy(uint64_t app, const char *policy)',
+  appSetDockVisibility:
+    'int32_t tauri_app_set_dock_visibility(uint64_t app, bool visible)',
   appShow: 'int32_t tauri_app_show(uint64_t app)',
   appHide: 'int32_t tauri_app_hide(uint64_t app)',
-  trayNew: 'int32_t tauri_tray_new(uint64_t app, const char *id, _Out_ uint64_t *out_tray)',
+  trayNew:
+    'int32_t tauri_tray_new(uint64_t app, const char *id, _Out_ uint64_t *out_tray)',
   trayId: 'int32_t tauri_tray_id(uint64_t tray, _Out_ void **out_id)',
   traySetIcon: 'int32_t tauri_tray_set_icon(uint64_t tray, const char *path)',
-  traySetIconAsTemplate: 'int32_t tauri_tray_set_icon_as_template(uint64_t tray, bool is_template)',
-  traySetTooltip: 'int32_t tauri_tray_set_tooltip(uint64_t tray, const char *tooltip)',
-  traySetTitle: 'int32_t tauri_tray_set_title(uint64_t tray, const char *title)',
+  traySetIconAsTemplate:
+    'int32_t tauri_tray_set_icon_as_template(uint64_t tray, bool is_template)',
+  traySetTooltip:
+    'int32_t tauri_tray_set_tooltip(uint64_t tray, const char *tooltip)',
+  traySetTitle:
+    'int32_t tauri_tray_set_title(uint64_t tray, const char *title)',
   traySetVisible: 'int32_t tauri_tray_set_visible(uint64_t tray, bool visible)',
-  traySetShowMenuOnLeftClick: 'int32_t tauri_tray_set_show_menu_on_left_click(uint64_t tray, bool enable)',
-  appRemoveTrayById: 'int32_t tauri_app_remove_tray_by_id(uint64_t app, const char *id)',
-  windowCreate: 'int32_t tauri_window_create(uint64_t app, const char *config_json, _Out_ uint64_t *out_window)',
-  windowAddWebview: 'int32_t tauri_window_add_webview(uint64_t window, const char *config_json, double x, double y, double width, double height, bool physical, _Out_ uint64_t *out_webview)',
-  windowWebviews: 'int32_t tauri_window_webviews(uint64_t window, _Out_ void **out_labels_json)',
-  appGetWindow: 'int32_t tauri_app_get_window(uint64_t app, const char *label, _Out_ uint64_t *out_window)',
-  appWindowLabels: 'int32_t tauri_app_window_labels(uint64_t app, _Out_ void **out_labels_json)',
-  windowLabel: 'int32_t tauri_window_label(uint64_t window, _Out_ void **out_label)',
+  traySetShowMenuOnLeftClick:
+    'int32_t tauri_tray_set_show_menu_on_left_click(uint64_t tray, bool enable)',
+  appRemoveTrayById:
+    'int32_t tauri_app_remove_tray_by_id(uint64_t app, const char *id)',
+  windowCreate:
+    'int32_t tauri_window_create(uint64_t app, const char *config_json, _Out_ uint64_t *out_window)',
+  windowAddWebview:
+    'int32_t tauri_window_add_webview(uint64_t window, const char *config_json, double x, double y, double width, double height, bool physical, _Out_ uint64_t *out_webview)',
+  windowWebviews:
+    'int32_t tauri_window_webviews(uint64_t window, _Out_ void **out_labels_json)',
+  appGetWindow:
+    'int32_t tauri_app_get_window(uint64_t app, const char *label, _Out_ uint64_t *out_window)',
+  appWindowLabels:
+    'int32_t tauri_app_window_labels(uint64_t app, _Out_ void **out_labels_json)',
+  windowLabel:
+    'int32_t tauri_window_label(uint64_t window, _Out_ void **out_label)',
   windowTitle: 'int32_t tauri_window_title(uint64_t window, _Out_ void **out)',
-  windowTheme: 'int32_t tauri_window_theme(uint64_t window, _Out_ void **out_theme)',
-  windowScaleFactor: 'int32_t tauri_window_scale_factor(uint64_t window, _Out_ double *out_scale)',
-  windowInnerSize: 'int32_t tauri_window_inner_size(uint64_t window, _Out_ uint32_t *out_w, _Out_ uint32_t *out_h)',
-  windowOuterSize: 'int32_t tauri_window_outer_size(uint64_t window, _Out_ uint32_t *out_w, _Out_ uint32_t *out_h)',
-  windowInnerPosition: 'int32_t tauri_window_inner_position(uint64_t window, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
-  windowOuterPosition: 'int32_t tauri_window_outer_position(uint64_t window, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
-  windowCursorPosition: 'int32_t tauri_window_cursor_position(uint64_t window, _Out_ double *out_x, _Out_ double *out_y)',
-  windowIsVisible: 'int32_t tauri_window_is_visible(uint64_t window, _Out_ bool *out)',
-  windowIsFocused: 'int32_t tauri_window_is_focused(uint64_t window, _Out_ bool *out)',
-  windowIsFullscreen: 'int32_t tauri_window_is_fullscreen(uint64_t window, _Out_ bool *out)',
-  windowIsMaximized: 'int32_t tauri_window_is_maximized(uint64_t window, _Out_ bool *out)',
-  windowIsMinimized: 'int32_t tauri_window_is_minimized(uint64_t window, _Out_ bool *out)',
-  windowIsResizable: 'int32_t tauri_window_is_resizable(uint64_t window, _Out_ bool *out)',
-  windowIsDecorated: 'int32_t tauri_window_is_decorated(uint64_t window, _Out_ bool *out)',
-  windowIsClosable: 'int32_t tauri_window_is_closable(uint64_t window, _Out_ bool *out)',
-  windowIsMaximizable: 'int32_t tauri_window_is_maximizable(uint64_t window, _Out_ bool *out)',
-  windowIsMinimizable: 'int32_t tauri_window_is_minimizable(uint64_t window, _Out_ bool *out)',
-  windowIsAlwaysOnTop: 'int32_t tauri_window_is_always_on_top(uint64_t window, _Out_ bool *out)',
-  windowIsEnabled: 'int32_t tauri_window_is_enabled(uint64_t window, _Out_ bool *out)',
-  windowIsMenuVisible: 'int32_t tauri_window_is_menu_visible(uint64_t window, _Out_ bool *out)',
-  windowSetFullscreen: 'int32_t tauri_window_set_fullscreen(uint64_t window, bool value)',
-  windowSetResizable: 'int32_t tauri_window_set_resizable(uint64_t window, bool value)',
-  windowSetAlwaysOnTop: 'int32_t tauri_window_set_always_on_top(uint64_t window, bool value)',
-  windowSetDecorations: 'int32_t tauri_window_set_decorations(uint64_t window, bool value)',
-  windowSetClosable: 'int32_t tauri_window_set_closable(uint64_t window, bool value)',
-  windowSetMaximizable: 'int32_t tauri_window_set_maximizable(uint64_t window, bool value)',
-  windowSetMinimizable: 'int32_t tauri_window_set_minimizable(uint64_t window, bool value)',
-  windowSetAlwaysOnBottom: 'int32_t tauri_window_set_always_on_bottom(uint64_t window, bool value)',
-  windowSetContentProtected: 'int32_t tauri_window_set_content_protected(uint64_t window, bool value)',
-  windowSetSkipTaskbar: 'int32_t tauri_window_set_skip_taskbar(uint64_t window, bool value)',
-  windowSetShadow: 'int32_t tauri_window_set_shadow(uint64_t window, bool value)',
-  windowSetVisibleOnAllWorkspaces: 'int32_t tauri_window_set_visible_on_all_workspaces(uint64_t window, bool value)',
-  windowSetIgnoreCursorEvents: 'int32_t tauri_window_set_ignore_cursor_events(uint64_t window, bool value)',
-  windowSetCursorVisible: 'int32_t tauri_window_set_cursor_visible(uint64_t window, bool value)',
-  windowSetCursorGrab: 'int32_t tauri_window_set_cursor_grab(uint64_t window, bool value)',
-  windowSetEnabled: 'int32_t tauri_window_set_enabled(uint64_t window, bool value)',
-  windowSetFocusable: 'int32_t tauri_window_set_focusable(uint64_t window, bool value)',
-  windowSetSimpleFullscreen: 'int32_t tauri_window_set_simple_fullscreen(uint64_t window, bool value)',
+  windowTheme:
+    'int32_t tauri_window_theme(uint64_t window, _Out_ void **out_theme)',
+  windowScaleFactor:
+    'int32_t tauri_window_scale_factor(uint64_t window, _Out_ double *out_scale)',
+  windowInnerSize:
+    'int32_t tauri_window_inner_size(uint64_t window, _Out_ uint32_t *out_w, _Out_ uint32_t *out_h)',
+  windowOuterSize:
+    'int32_t tauri_window_outer_size(uint64_t window, _Out_ uint32_t *out_w, _Out_ uint32_t *out_h)',
+  windowInnerPosition:
+    'int32_t tauri_window_inner_position(uint64_t window, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
+  windowOuterPosition:
+    'int32_t tauri_window_outer_position(uint64_t window, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
+  windowCursorPosition:
+    'int32_t tauri_window_cursor_position(uint64_t window, _Out_ double *out_x, _Out_ double *out_y)',
+  windowIsVisible:
+    'int32_t tauri_window_is_visible(uint64_t window, _Out_ bool *out)',
+  windowIsFocused:
+    'int32_t tauri_window_is_focused(uint64_t window, _Out_ bool *out)',
+  windowIsFullscreen:
+    'int32_t tauri_window_is_fullscreen(uint64_t window, _Out_ bool *out)',
+  windowIsMaximized:
+    'int32_t tauri_window_is_maximized(uint64_t window, _Out_ bool *out)',
+  windowIsMinimized:
+    'int32_t tauri_window_is_minimized(uint64_t window, _Out_ bool *out)',
+  windowIsResizable:
+    'int32_t tauri_window_is_resizable(uint64_t window, _Out_ bool *out)',
+  windowIsDecorated:
+    'int32_t tauri_window_is_decorated(uint64_t window, _Out_ bool *out)',
+  windowIsClosable:
+    'int32_t tauri_window_is_closable(uint64_t window, _Out_ bool *out)',
+  windowIsMaximizable:
+    'int32_t tauri_window_is_maximizable(uint64_t window, _Out_ bool *out)',
+  windowIsMinimizable:
+    'int32_t tauri_window_is_minimizable(uint64_t window, _Out_ bool *out)',
+  windowIsAlwaysOnTop:
+    'int32_t tauri_window_is_always_on_top(uint64_t window, _Out_ bool *out)',
+  windowIsEnabled:
+    'int32_t tauri_window_is_enabled(uint64_t window, _Out_ bool *out)',
+  windowIsMenuVisible:
+    'int32_t tauri_window_is_menu_visible(uint64_t window, _Out_ bool *out)',
+  windowSetFullscreen:
+    'int32_t tauri_window_set_fullscreen(uint64_t window, bool value)',
+  windowSetResizable:
+    'int32_t tauri_window_set_resizable(uint64_t window, bool value)',
+  windowSetAlwaysOnTop:
+    'int32_t tauri_window_set_always_on_top(uint64_t window, bool value)',
+  windowSetDecorations:
+    'int32_t tauri_window_set_decorations(uint64_t window, bool value)',
+  windowSetClosable:
+    'int32_t tauri_window_set_closable(uint64_t window, bool value)',
+  windowSetMaximizable:
+    'int32_t tauri_window_set_maximizable(uint64_t window, bool value)',
+  windowSetMinimizable:
+    'int32_t tauri_window_set_minimizable(uint64_t window, bool value)',
+  windowSetAlwaysOnBottom:
+    'int32_t tauri_window_set_always_on_bottom(uint64_t window, bool value)',
+  windowSetContentProtected:
+    'int32_t tauri_window_set_content_protected(uint64_t window, bool value)',
+  windowSetSkipTaskbar:
+    'int32_t tauri_window_set_skip_taskbar(uint64_t window, bool value)',
+  windowSetShadow:
+    'int32_t tauri_window_set_shadow(uint64_t window, bool value)',
+  windowSetVisibleOnAllWorkspaces:
+    'int32_t tauri_window_set_visible_on_all_workspaces(uint64_t window, bool value)',
+  windowSetIgnoreCursorEvents:
+    'int32_t tauri_window_set_ignore_cursor_events(uint64_t window, bool value)',
+  windowSetCursorVisible:
+    'int32_t tauri_window_set_cursor_visible(uint64_t window, bool value)',
+  windowSetCursorGrab:
+    'int32_t tauri_window_set_cursor_grab(uint64_t window, bool value)',
+  windowSetEnabled:
+    'int32_t tauri_window_set_enabled(uint64_t window, bool value)',
+  windowSetFocusable:
+    'int32_t tauri_window_set_focusable(uint64_t window, bool value)',
+  windowSetSimpleFullscreen:
+    'int32_t tauri_window_set_simple_fullscreen(uint64_t window, bool value)',
   windowSetFocus: 'int32_t tauri_window_set_focus(uint64_t window)',
   windowShow: 'int32_t tauri_window_show(uint64_t window)',
   windowHide: 'int32_t tauri_window_hide(uint64_t window)',
@@ -228,71 +401,122 @@ export const DECLS = {
   windowStartDragging: 'int32_t tauri_window_start_dragging(uint64_t window)',
   windowHideMenu: 'int32_t tauri_window_hide_menu(uint64_t window)',
   windowShowMenu: 'int32_t tauri_window_show_menu(uint64_t window)',
-  windowSetTitle: 'int32_t tauri_window_set_title(uint64_t window, const char *title)',
-  windowSetSize: 'int32_t tauri_window_set_size(uint64_t window, double width, double height, bool physical)',
-  windowSetPosition: 'int32_t tauri_window_set_position(uint64_t window, double x, double y, bool physical)',
-  windowSetMinSize: 'int32_t tauri_window_set_min_size(uint64_t window, double width, double height, bool physical)',
-  windowSetMaxSize: 'int32_t tauri_window_set_max_size(uint64_t window, double width, double height, bool physical)',
-  windowSetCursorPosition: 'int32_t tauri_window_set_cursor_position(uint64_t window, double x, double y, bool physical)',
-  windowSetTheme: 'int32_t tauri_window_set_theme(uint64_t window, const char *theme)',
-  windowSetCursorIcon: 'int32_t tauri_window_set_cursor_icon(uint64_t window, const char *icon)',
-  windowRequestUserAttention: 'int32_t tauri_window_request_user_attention(uint64_t window, const char *kind)',
-  windowSetProgressBar: 'int32_t tauri_window_set_progress_bar(uint64_t window, const char *state_json)',
-  windowSetEffects: 'int32_t tauri_window_set_effects(uint64_t window, const char *effects_json)',
-  windowSetSizeConstraints: 'int32_t tauri_window_set_size_constraints(uint64_t window, const char *constraints_json)',
-  windowSetBackgroundColor: 'int32_t tauri_window_set_background_color(uint64_t window, uint32_t r, uint32_t g, uint32_t b, uint32_t a)',
-  windowSetBadgeCount: 'int32_t tauri_window_set_badge_count(uint64_t window, int32_t count)',
-  windowSetBadgeLabel: 'int32_t tauri_window_set_badge_label(uint64_t window, const char *label)',
-  windowSetTitleBarStyle: 'int32_t tauri_window_set_title_bar_style(uint64_t window, const char *style)',
-  windowSetOverlayIcon: 'int32_t tauri_window_set_overlay_icon(uint64_t window, const uint8_t *rgba, uint32_t width, uint32_t height)',
-  windowNsWindow: 'int32_t tauri_window_ns_window(uint64_t window, _Out_ uint64_t *out_ns_window)',
-  windowNsView: 'int32_t tauri_window_ns_view(uint64_t window, _Out_ uint64_t *out_ns_view)',
-  windowHwnd: 'int32_t tauri_window_hwnd(uint64_t window, _Out_ uint64_t *out_hwnd)',
-  windowCurrentMonitor: 'int32_t tauri_window_current_monitor(uint64_t window, _Out_ void **out_json)',
-  windowPrimaryMonitor: 'int32_t tauri_window_primary_monitor(uint64_t window, _Out_ void **out_json)',
-  windowAvailableMonitors: 'int32_t tauri_window_available_monitors(uint64_t window, _Out_ void **out_json)',
-  windowMonitorFromPoint: 'int32_t tauri_window_monitor_from_point(uint64_t window, double x, double y, _Out_ void **out_json)',
-  webviewLabel: 'int32_t tauri_webview_label(uint64_t webview, _Out_ void **out_label)',
-  webviewUrl: 'int32_t tauri_webview_url(uint64_t webview, _Out_ void **out_url)',
-  webviewPosition: 'int32_t tauri_webview_position(uint64_t webview, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
-  webviewSize: 'int32_t tauri_webview_size(uint64_t webview, _Out_ uint32_t *out_w, _Out_ uint32_t *out_h)',
-  webviewGetWindow: 'int32_t tauri_webview_get_window(uint64_t webview, _Out_ uint64_t *out_window)',
+  windowSetTitle:
+    'int32_t tauri_window_set_title(uint64_t window, const char *title)',
+  windowSetSize:
+    'int32_t tauri_window_set_size(uint64_t window, double width, double height, bool physical)',
+  windowSetPosition:
+    'int32_t tauri_window_set_position(uint64_t window, double x, double y, bool physical)',
+  windowSetMinSize:
+    'int32_t tauri_window_set_min_size(uint64_t window, double width, double height, bool physical)',
+  windowSetMaxSize:
+    'int32_t tauri_window_set_max_size(uint64_t window, double width, double height, bool physical)',
+  windowSetCursorPosition:
+    'int32_t tauri_window_set_cursor_position(uint64_t window, double x, double y, bool physical)',
+  windowSetTheme:
+    'int32_t tauri_window_set_theme(uint64_t window, const char *theme)',
+  windowSetCursorIcon:
+    'int32_t tauri_window_set_cursor_icon(uint64_t window, const char *icon)',
+  windowRequestUserAttention:
+    'int32_t tauri_window_request_user_attention(uint64_t window, const char *kind)',
+  windowSetProgressBar:
+    'int32_t tauri_window_set_progress_bar(uint64_t window, const char *state_json)',
+  windowSetEffects:
+    'int32_t tauri_window_set_effects(uint64_t window, const char *effects_json)',
+  windowSetSizeConstraints:
+    'int32_t tauri_window_set_size_constraints(uint64_t window, const char *constraints_json)',
+  windowSetBackgroundColor:
+    'int32_t tauri_window_set_background_color(uint64_t window, uint32_t r, uint32_t g, uint32_t b, uint32_t a)',
+  windowSetBadgeCount:
+    'int32_t tauri_window_set_badge_count(uint64_t window, int32_t count)',
+  windowSetBadgeLabel:
+    'int32_t tauri_window_set_badge_label(uint64_t window, const char *label)',
+  windowSetTitleBarStyle:
+    'int32_t tauri_window_set_title_bar_style(uint64_t window, const char *style)',
+  windowSetOverlayIcon:
+    'int32_t tauri_window_set_overlay_icon(uint64_t window, const uint8_t *rgba, uint32_t width, uint32_t height)',
+  windowNsWindow:
+    'int32_t tauri_window_ns_window(uint64_t window, _Out_ uint64_t *out_ns_window)',
+  windowNsView:
+    'int32_t tauri_window_ns_view(uint64_t window, _Out_ uint64_t *out_ns_view)',
+  windowHwnd:
+    'int32_t tauri_window_hwnd(uint64_t window, _Out_ uint64_t *out_hwnd)',
+  windowCurrentMonitor:
+    'int32_t tauri_window_current_monitor(uint64_t window, _Out_ void **out_json)',
+  windowPrimaryMonitor:
+    'int32_t tauri_window_primary_monitor(uint64_t window, _Out_ void **out_json)',
+  windowAvailableMonitors:
+    'int32_t tauri_window_available_monitors(uint64_t window, _Out_ void **out_json)',
+  windowMonitorFromPoint:
+    'int32_t tauri_window_monitor_from_point(uint64_t window, double x, double y, _Out_ void **out_json)',
+  webviewLabel:
+    'int32_t tauri_webview_label(uint64_t webview, _Out_ void **out_label)',
+  webviewUrl:
+    'int32_t tauri_webview_url(uint64_t webview, _Out_ void **out_url)',
+  webviewPosition:
+    'int32_t tauri_webview_position(uint64_t webview, _Out_ int32_t *out_x, _Out_ int32_t *out_y)',
+  webviewSize:
+    'int32_t tauri_webview_size(uint64_t webview, _Out_ uint32_t *out_w, _Out_ uint32_t *out_h)',
+  webviewGetWindow:
+    'int32_t tauri_webview_get_window(uint64_t webview, _Out_ uint64_t *out_window)',
   webviewReload: 'int32_t tauri_webview_reload(uint64_t webview)',
   webviewPrint: 'int32_t tauri_webview_print(uint64_t webview)',
   webviewSetFocus: 'int32_t tauri_webview_set_focus(uint64_t webview)',
   webviewShow: 'int32_t tauri_webview_show(uint64_t webview)',
   webviewHide: 'int32_t tauri_webview_hide(uint64_t webview)',
   webviewClose: 'int32_t tauri_webview_close(uint64_t webview)',
-  webviewClearAllBrowsingData: 'int32_t tauri_webview_clear_all_browsing_data(uint64_t webview)',
+  webviewClearAllBrowsingData:
+    'int32_t tauri_webview_clear_all_browsing_data(uint64_t webview)',
   webviewEval: 'int32_t tauri_webview_eval(uint64_t webview, const char *js)',
-  webviewNavigate: 'int32_t tauri_webview_navigate(uint64_t webview, const char *url)',
-  webviewSetZoom: 'int32_t tauri_webview_set_zoom(uint64_t webview, double scale)',
-  webviewSetAutoResize: 'int32_t tauri_webview_set_auto_resize(uint64_t webview, bool auto_resize)',
-  webviewSetSize: 'int32_t tauri_webview_set_size(uint64_t webview, double width, double height, bool physical)',
-  webviewSetPosition: 'int32_t tauri_webview_set_position(uint64_t webview, double x, double y, bool physical)',
-  webviewSetBackgroundColor: 'int32_t tauri_webview_set_background_color(uint64_t webview, uint32_t r, uint32_t g, uint32_t b, uint32_t a)',
-  webviewReparent: 'int32_t tauri_webview_reparent(uint64_t webview, uint64_t window)',
+  webviewNavigate:
+    'int32_t tauri_webview_navigate(uint64_t webview, const char *url)',
+  webviewSetZoom:
+    'int32_t tauri_webview_set_zoom(uint64_t webview, double scale)',
+  webviewSetAutoResize:
+    'int32_t tauri_webview_set_auto_resize(uint64_t webview, bool auto_resize)',
+  webviewSetSize:
+    'int32_t tauri_webview_set_size(uint64_t webview, double width, double height, bool physical)',
+  webviewSetPosition:
+    'int32_t tauri_webview_set_position(uint64_t webview, double x, double y, bool physical)',
+  webviewSetBackgroundColor:
+    'int32_t tauri_webview_set_background_color(uint64_t webview, uint32_t r, uint32_t g, uint32_t b, uint32_t a)',
+  webviewReparent:
+    'int32_t tauri_webview_reparent(uint64_t webview, uint64_t window)',
   webviewOpenDevtools: 'int32_t tauri_webview_open_devtools(uint64_t webview)',
-  webviewCloseDevtools: 'int32_t tauri_webview_close_devtools(uint64_t webview)',
-  webviewIsDevtoolsOpen: 'int32_t tauri_webview_is_devtools_open(uint64_t webview, _Out_ bool *out_open)',
+  webviewCloseDevtools:
+    'int32_t tauri_webview_close_devtools(uint64_t webview)',
+  webviewIsDevtoolsOpen:
+    'int32_t tauri_webview_is_devtools_open(uint64_t webview, _Out_ bool *out_open)',
   menuNew: 'int32_t tauri_menu_new(uint64_t app, _Out_ uint64_t *out_menu)',
-  menuItemNew: 'int32_t tauri_menu_item_new(uint64_t app, const char *id, const char *text, bool enabled, const char *accelerator, _Out_ uint64_t *out_item)',
-  menuCheckItemNew: 'int32_t tauri_menu_check_item_new(uint64_t app, const char *id, const char *text, bool enabled, bool checked, const char *accelerator, _Out_ uint64_t *out_item)',
-  menuPredefinedItemNew: 'int32_t tauri_menu_predefined_item_new(uint64_t app, const char *kind, const char *text, _Out_ uint64_t *out_item)',
-  submenuNew: 'int32_t tauri_submenu_new(uint64_t app, const char *id, const char *text, bool enabled, _Out_ uint64_t *out_submenu)',
+  menuItemNew:
+    'int32_t tauri_menu_item_new(uint64_t app, const char *id, const char *text, bool enabled, const char *accelerator, _Out_ uint64_t *out_item)',
+  menuCheckItemNew:
+    'int32_t tauri_menu_check_item_new(uint64_t app, const char *id, const char *text, bool enabled, bool checked, const char *accelerator, _Out_ uint64_t *out_item)',
+  menuPredefinedItemNew:
+    'int32_t tauri_menu_predefined_item_new(uint64_t app, const char *kind, const char *text, _Out_ uint64_t *out_item)',
+  submenuNew:
+    'int32_t tauri_submenu_new(uint64_t app, const char *id, const char *text, bool enabled, _Out_ uint64_t *out_submenu)',
   menuAppend: 'int32_t tauri_menu_append(uint64_t menu, uint64_t item)',
-  submenuAppend: 'int32_t tauri_submenu_append(uint64_t submenu, uint64_t item)',
+  submenuAppend:
+    'int32_t tauri_submenu_append(uint64_t submenu, uint64_t item)',
   menuSetAsAppMenu: 'int32_t tauri_menu_set_as_app_menu(uint64_t menu)',
-  menuSetAsWindowMenu: 'int32_t tauri_menu_set_as_window_menu(uint64_t window, uint64_t menu)',
+  menuSetAsWindowMenu:
+    'int32_t tauri_menu_set_as_window_menu(uint64_t window, uint64_t menu)',
   traySetMenu: 'int32_t tauri_tray_set_menu(uint64_t tray, uint64_t menu)',
   menuItemId: 'int32_t tauri_menu_item_id(uint64_t item, _Out_ void **out_id)',
-  menuItemSetText: 'int32_t tauri_menu_item_set_text(uint64_t item, const char *text)',
-  menuItemSetEnabled: 'int32_t tauri_menu_item_set_enabled(uint64_t item, bool enabled)',
-  menuItemSetChecked: 'int32_t tauri_menu_item_set_checked(uint64_t item, bool checked)',
-  menuItemSetAccelerator: 'int32_t tauri_menu_item_set_accelerator(uint64_t item, const char *accelerator)'
+  menuItemSetText:
+    'int32_t tauri_menu_item_set_text(uint64_t item, const char *text)',
+  menuItemSetEnabled:
+    'int32_t tauri_menu_item_set_enabled(uint64_t item, bool enabled)',
+  menuItemSetChecked:
+    'int32_t tauri_menu_item_set_checked(uint64_t item, bool checked)',
+  menuItemSetAccelerator:
+    'int32_t tauri_menu_item_set_accelerator(uint64_t item, const char *accelerator)'
 }
 
 /** Binds every declaration against a koffi library handle. */
 export function declare(lib) {
-  return Object.fromEntries(Object.entries(DECLS).map(([name, decl]) => [name, lib.func(decl)]))
+  return Object.fromEntries(
+    Object.entries(DECLS).map(([name, decl]) => [name, lib.func(decl)])
+  )
 }

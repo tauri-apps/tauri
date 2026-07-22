@@ -2,7 +2,7 @@
 
 Goal: let non-Rust hosts (C first, then Node.js, Python, Deno, …) build and drive a
 Tauri desktop app in-process. One hand-designed C ABI is the single product; every
-language binding is a thin, eventually *generated* shim over that ABI — no pyo3, no
+language binding is a thin, eventually _generated_ shim over that ABI — no pyo3, no
 napi-rs, no per-language native code.
 
 Scope for v0: **desktop only** (Wry runtime). Mobile stays with the existing Swift/Kotlin
@@ -14,21 +14,21 @@ bridges.
 
 These facts shape the whole design. File references are current as of `feat/bindings`.
 
-| Fact | Evidence | Consequence |
-|---|---|---|
-| A `Context` can be built 100% at runtime: `Context::new` is `pub` (`#[doc(hidden)]`, "unstable") | `crates/tauri/src/lib.rs:484` | No `generate_context!`/tauri-build needed by FFI consumers. In-tree crate absorbs the instability. |
-| `Config` derives `Deserialize` (+ `deny_unknown_fields`); `parse_json` is public | `crates/tauri-utils/src/config.rs:3637`, `config/parse.rs:340` | Hosts pass `tauri.conf.json`-shaped JSON strings at runtime. |
-| `Assets` is an object-safe trait (`Box<dyn Assets<R>>`); `NoopAsset` is the minimal template | `crates/tauri/src/lib.rs:312`, `src/test/mod.rs:81` | Serve app frontends from a directory, a dev-server URL, or host callbacks — no embedding step. |
-| ACL is runtime-resolvable: `Resolved::resolve` is pub; `dynamic-acl` (default feature) enables `Manager::add_capability` with JSON/TOML strings | `crates/tauri-utils/src/acl/resolved.rs:85`, `crates/tauri/src/ipc/authority.rs:150`, `src/lib.rs:813` | Capabilities become runtime JSON inputs. Plugin permission *manifests* are known at cdylib build time (plugins are compiled in), so we embed them then. |
-| `App::run_iteration` is **deprecated** (busy-loops; tao 0.35 has `run_return` but no `pump_events`) | `crates/tauri/src/app.rs:1467`, `crates/tauri-runtime-wry/src/lib.rs:3094-3112` | A "host pumps the loop" model is not viable today. Foundation = blocking run. |
-| `App::run_return` blocks, returns the exit code, and gives the main thread back | `crates/tauri/src/app.rs:1405`, CHANGELOG (PR #12668) | The FFI `run` wraps `run_return`; hosts regain control after exit for cleanup. |
-| macOS: event loop must be created *and* run on the OS main thread (`any_thread` not exposed there) | `crates/tauri-runtime/src/lib.rs:412`, `app.rs:1634` | `tauri_app_new` + `tauri_app_run` are main-thread-only. Everything else is callable from any thread. |
-| `AppHandle` is `Send + Sync + Clone` | `crates/tauri/src/app.rs:386,476`; asserts at `webview/mod.rs:2372` | Handle-based C API is safe to call from any host thread while the loop runs. |
-| `Builder::invoke_handler` takes one plain closure `Fn(Invoke<R>) -> bool`; `InvokeResolver` is `Send`, `Clone`, resolvable later from any thread | `app.rs:1658`, `ipc/mod.rs:286-421` | Commands need no Rust macros: dispatch by name to the host, respond asynchronously via a resolver handle. |
-| Rust event listeners run inline on the emitting thread; `emit_str`/`emit_str_to` accept pre-serialized JSON | `src/event/listener.rs:190-204`, `lib.rs:954,993` | Cheap event bridge; JSON-in/JSON-out at the boundary. |
-| Windows are creatable after launch, from any thread, from a `WindowConfig`: `WebviewWindowBuilder::from_config` | `webview/webview_window.rs:150` (Windows sync-handler deadlock caveat at :115) | Window creation = one FFI call with a JSON config. Docs must steer hosts off "create window synchronously inside an invoke callback" on Windows. |
-| Veto-style APIs (`prevent_close`, `prevent_exit`) are synchronous within the callback | `RunEvent` at `app.rs:220` | Direct C callbacks can veto in-place; queue-based hosts (Node) get a pre-set *policy* API instead (§4.4). |
-| No existing desktop C ABI in-tree (only mobile `start_app`/plugin bridges) | `tauri-macros/src/mobile.rs:87`, `tauri/src/ios.rs` | Greenfield — we set the conventions. |
+| Fact                                                                                                                                             | Evidence                                                                                               | Consequence                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A `Context` can be built 100% at runtime: `Context::new` is `pub` (`#[doc(hidden)]`, "unstable")                                                 | `crates/tauri/src/lib.rs:484`                                                                          | No `generate_context!`/tauri-build needed by FFI consumers. In-tree crate absorbs the instability.                                                      |
+| `Config` derives `Deserialize` (+ `deny_unknown_fields`); `parse_json` is public                                                                 | `crates/tauri-utils/src/config.rs:3637`, `config/parse.rs:340`                                         | Hosts pass `tauri.conf.json`-shaped JSON strings at runtime.                                                                                            |
+| `Assets` is an object-safe trait (`Box<dyn Assets<R>>`); `NoopAsset` is the minimal template                                                     | `crates/tauri/src/lib.rs:312`, `src/test/mod.rs:81`                                                    | Serve app frontends from a directory, a dev-server URL, or host callbacks — no embedding step.                                                          |
+| ACL is runtime-resolvable: `Resolved::resolve` is pub; `dynamic-acl` (default feature) enables `Manager::add_capability` with JSON/TOML strings  | `crates/tauri-utils/src/acl/resolved.rs:85`, `crates/tauri/src/ipc/authority.rs:150`, `src/lib.rs:813` | Capabilities become runtime JSON inputs. Plugin permission _manifests_ are known at cdylib build time (plugins are compiled in), so we embed them then. |
+| `App::run_iteration` is **deprecated** (busy-loops; tao 0.35 has `run_return` but no `pump_events`)                                              | `crates/tauri/src/app.rs:1467`, `crates/tauri-runtime-wry/src/lib.rs:3094-3112`                        | A "host pumps the loop" model is not viable today. Foundation = blocking run.                                                                           |
+| `App::run_return` blocks, returns the exit code, and gives the main thread back                                                                  | `crates/tauri/src/app.rs:1405`, CHANGELOG (PR #12668)                                                  | The FFI `run` wraps `run_return`; hosts regain control after exit for cleanup.                                                                          |
+| macOS: event loop must be created _and_ run on the OS main thread (`any_thread` not exposed there)                                               | `crates/tauri-runtime/src/lib.rs:412`, `app.rs:1634`                                                   | `tauri_app_new` + `tauri_app_run` are main-thread-only. Everything else is callable from any thread.                                                    |
+| `AppHandle` is `Send + Sync + Clone`                                                                                                             | `crates/tauri/src/app.rs:386,476`; asserts at `webview/mod.rs:2372`                                    | Handle-based C API is safe to call from any host thread while the loop runs.                                                                            |
+| `Builder::invoke_handler` takes one plain closure `Fn(Invoke<R>) -> bool`; `InvokeResolver` is `Send`, `Clone`, resolvable later from any thread | `app.rs:1658`, `ipc/mod.rs:286-421`                                                                    | Commands need no Rust macros: dispatch by name to the host, respond asynchronously via a resolver handle.                                               |
+| Rust event listeners run inline on the emitting thread; `emit_str`/`emit_str_to` accept pre-serialized JSON                                      | `src/event/listener.rs:190-204`, `lib.rs:954,993`                                                      | Cheap event bridge; JSON-in/JSON-out at the boundary.                                                                                                   |
+| Windows are creatable after launch, from any thread, from a `WindowConfig`: `WebviewWindowBuilder::from_config`                                  | `webview/webview_window.rs:150` (Windows sync-handler deadlock caveat at :115)                         | Window creation = one FFI call with a JSON config. Docs must steer hosts off "create window synchronously inside an invoke callback" on Windows.        |
+| Veto-style APIs (`prevent_close`, `prevent_exit`) are synchronous within the callback                                                            | `RunEvent` at `app.rs:220`                                                                             | Direct C callbacks can veto in-place; queue-based hosts (Node) get a pre-set _policy_ API instead (§4.4).                                               |
+| No existing desktop C ABI in-tree (only mobile `start_app`/plugin bridges)                                                                       | `tauri-macros/src/mobile.rs:87`, `tauri/src/ios.rs`                                                    | Greenfield — we set the conventions.                                                                                                                    |
 
 ---
 
@@ -95,14 +95,14 @@ Design principles:
   livekit's explicitly-experimental `uniffi-bindgen-node`. Still disqualified as the
   backbone: it produces **no C header as a product** (its scaffolding ABI is internal
   and unstable across uniffi versions) and C is a first-class target here. Worth
-  revisiting as an *additional* layer if we later want idiomatic Swift/Kotlin desktop
+  revisiting as an _additional_ layer if we later want idiomatic Swift/Kotlin desktop
   bindings.
 - **interoptopus** — closest prior art (inventory → backends), but as of 2026 only the
   C# backend is Tier 1; the **C and Python backends are suspended** ("contributors
   wanted"). Betting a C-first project on its two suspended backends is not defensible.
 - **Sidecar process + JSON-RPC** (neutralino-style) — sidesteps the main-thread problem
   entirely but adds process management, IPC latency, packaging complexity, and kills
-  in-process embedding (shared memory, same-process state). Could be layered *on top of*
+  in-process embedding (shared memory, same-process state). Could be layered _on top of_
   this ABI later (the manifest would generate the RPC schema too).
 
 ---
@@ -127,7 +127,7 @@ How each host lives with a blocked main thread:
   re-acquire the GIL from any thread, so direct-callback mode works while the main
   thread is parked inside C. The package marshals handler calls onto a dispatch thread
   or the user's asyncio loop (`call_soon_threadsafe`) — package-level sugar, not ABI.
-- **Node.js**: the main JS thread *is* the OS main thread, and blocking it kills libuv —
+- **Node.js**: the main JS thread _is_ the OS main thread, and blocking it kills libuv —
   so the package inverts the layout: `launch()` re-runs user app code in a
   `worker_threads.Worker` (own event loop), then parks the main thread in
   `tauri_app_run` via a plain blocking koffi call. The worker drives everything through
@@ -244,7 +244,7 @@ no synchronous reentry.
 ### 4.5 ACL / capabilities
 
 - Plugins usable through this ABI are **compiled into the cdylib** behind cargo features
-  (`ffi-tray`, `ffi-dialog`, …), so their permission manifests are known at *cdylib*
+  (`ffi-tray`, `ffi-dialog`, …), so their permission manifests are known at _cdylib_
   build time. `tauri-ffi/build.rs` embeds the collected `acl-manifests.json` (same
   data tauri-build assembles from plugin build-script metadata — exact reuse surface to
   confirm in M0) as a static JSON blob.
@@ -257,11 +257,11 @@ no synchronous reentry.
 - **Host-defined plugins (implemented 2026-07-09).** A host builds a plugin from its own
   language — a name, an optional JS init script injected into every webview, and a set of
   commands invoked from the frontend as `plugin:<name>|<command>`. Unlike app commands,
-  plugin commands are *always* ACL-gated (tauri rejects `plugin:*` invokes whose access
+  plugin commands are _always_ ACL-gated (tauri rejects `plugin:*` invokes whose access
   doesn't resolve). Since host plugins have no build-time manifest, `tauri-ffi` synthesizes
   one at runtime: a `Manifest` with an `allow-all` permission (`commands.allow` = every
   registered command) under a `default` set, inserted into the acl map keyed by plugin
-  name *before* `RuntimeAuthority::new`; the default capability is then extended with
+  name _before_ `RuntimeAuthority::new`; the default capability is then extended with
   `<name>:default` for windows `["*"]`. Each plugin attaches a `tauri::plugin::Builder`
   (name `Box::leak`ed to `&'static str`) whose `invoke_handler` funnels into the same event
   queue with an added `"plugin"` field; language shims route handlers by the composite
@@ -285,26 +285,26 @@ All are **pure script + prebuilt cdylib**; hand-written in M2 to learn the idiom
 regenerated from the manifest in M3 (generated low-level layer + hand-written idiomatic
 sugar on top — sugar is per-language and stays manual by design).
 
-| | loader | events | packaging |
-|---|---|---|---|
-| C | `tauri_ffi.h` (cbindgen → generated) | direct callbacks or queue | release tarball: header + dylib/static lib + `.pc` file |
-| Node | koffi (no node-gyp, prebuilt-free) | worker bootstrap (§3) + async `tauri_events_next` | npm `@tauri-apps/node`, per-platform binary via optionalDependencies (esbuild pattern) |
-| Deno | `Deno.dlopen` (`--allow-ffi`) | worker bootstrap + `nonblocking` FFI | JSR package; dylib fetched/cached per platform |
-| Python | cffi ABI mode (no compiler at install) | direct callbacks; sugar marshals to dispatch thread / asyncio | wheels embedding the dylib per platform |
+|        | loader                                 | events                                                        | packaging                                                                              |
+| ------ | -------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| C      | `tauri_ffi.h` (cbindgen → generated)   | direct callbacks or queue                                     | release tarball: header + dylib/static lib + `.pc` file                                |
+| Node   | koffi (no node-gyp, prebuilt-free)     | worker bootstrap (§3) + async `tauri_events_next`             | npm `@tauri-apps/node`, per-platform binary via optionalDependencies (esbuild pattern) |
+| Deno   | `Deno.dlopen` (`--allow-ffi`)          | worker bootstrap + `nonblocking` FFI                          | JSR package; dylib fetched/cached per platform                                         |
+| Python | cffi ABI mode (no compiler at install) | direct callbacks; sugar marshals to dispatch thread / asyncio | wheels embedding the dylib per platform                                                |
 
 Node sketch (what M2 must make feel natural):
 
 ```js
 // main.js — process entry, parks the OS main thread
-import { launch } from "@tauri-apps/node";
-launch(new URL("./app.js", import.meta.url), { config });
+import { launch } from '@tauri-apps/node'
+launch(new URL('./app.js', import.meta.url), { config })
 
 // app.js — runs in a worker with a live event loop
-import { app } from "@tauri-apps/node/worker";
-app.command("greet", async ({ name }) => `Hello ${name}!`);
-app.on("ready", async () => {
-  const win = await app.createWindow({ label: "main", url: "index.html" });
-});
+import { app } from '@tauri-apps/node/worker'
+app.command('greet', async ({ name }) => `Hello ${name}!`)
+app.on('ready', async () => {
+  const win = await app.createWindow({ label: 'main', url: 'index.html' })
+})
 ```
 
 Python sketch:
@@ -334,12 +334,12 @@ error). Implemented and validated — the fixture runs on fully generated declar
 
 Generated today from one manifest entry per function:
 
-| artifact | consumer |
-|---|---|
-| `bindings/c/tauri_ffi.h` | C (docs + thread contracts in comments) |
-| `bindings/node/src/ffi-decls.js` | Node (koffi declarations + error codes) |
-| `bindings/deno/symbols.ts` | Deno (`dlopen` map; `blocking` → `nonblocking: true`) |
-| `bindings/python/tauri_ffi_cdef.py` | Python (cffi ABI-mode `cdef` + error codes) |
+| artifact                            | consumer                                              |
+| ----------------------------------- | ----------------------------------------------------- |
+| `bindings/c/tauri_ffi.h`            | C (docs + thread contracts in comments)               |
+| `bindings/node/src/ffi-decls.js`    | Node (koffi declarations + error codes)               |
+| `bindings/deno/symbols.ts`          | Deno (`dlopen` map; `blocking` → `nonblocking: true`) |
+| `bindings/python/tauri_ffi_cdef.py` | Python (cffi ABI-mode `cdef` + error codes)           |
 
 `--check` mode makes CI fail on stale outputs; the manifest diff is the ABI-review
 artifact on every PR.
@@ -429,7 +429,7 @@ policies, C examples (hello-window, commands, events). CI: build matrix + smoke 
 **M2 — Node + Python, hand-written.** Node package with worker bootstrap + koffi +
 async event pump; Python package with cffi + blocking run + callback dispatch. Both ship
 the same demo app as C. This is where boundary idioms get discovered — feed every
-irritation back into ABI tweaks *before* codegen freezes patterns.
+irritation back into ABI tweaks _before_ codegen freezes patterns.
 
 > **Status (2026-07-09):** done, plus Deno ahead of schedule — all three language
 > packages run on their generated artifacts and pass the same smoke trace (invoke
@@ -481,7 +481,7 @@ irritation back into ABI tweaks *before* codegen freezes patterns.
 > JSON index + blob). FFI: `tauri_app_builder_set_assets_archive` (`ArchiveAssets`) and
 > `tauri_app_builder_set_dev` — the dev flag rewrites `frontend_dist = Url(devUrl)`,
 > which reproduces a Rust dev build exactly because the runtime resolves
-> `WebviewUrl::App` *and* the Local ACL origin via `get_app_url()` (manager/mod.rs)
+> `WebviewUrl::App` _and_ the Local ACL origin via `get_app_url()` (manager/mod.rs)
 > from that value; no dev-flavored cdylib needed. Bindings runtime gained
 > tauri.conf.json auto-discovery (next to the app entry, then cwd) + RFC-7396-style
 > `TAURI_CONFIG` merging + `assetsArchive` and `dev` options in
@@ -568,21 +568,20 @@ irritation back into ABI tweaks *before* codegen freezes patterns.
 > `ERR_UNSUPPORTED` (-6, filling the reserved gap) with a "only supported on X"
 > message — an error, deliberately not a silent no-op. The generator renders the
 > contract into the header docs ("Platform-specific: macOS only — the symbol exists
-> everywhere but returns TAURI_ERR_UNSUPPORTED on other platforms"); two new param
-> kinds landed with it (`bytes` = const uint8_t*, `out_u64`). New surface — macOS:
+> everywhere but returns TAURI*ERR_UNSUPPORTED on other platforms"); two new param
+> kinds landed with it (`bytes` = const uint8_t\*, `out_u64`). New surface — macOS:
 > `tauri_app_set_activation_policy` (regular/accessory/prohibited),
 > `tauri_app_set_dock_visibility`, `tauri_app_show`/`tauri_app_hide`,
 > `set_title_bar_style`, `ns_window`/`ns_view` (pointers as u64); Windows:
 > `set_overlay_icon` (RGBA bytes, NULL clears), `hwnd` — window fns on both
-> `tauri_webview_window_*` and `tauri_window_*`. Also fixed: `set_badge_label` FFI
-> called a macOS-only tauri method unconditionally, so the crate didn't even
-> *compile* off-macOS — now gated the same way. Language sugar added in all three
-> packages (`app.setActivationPolicy()`, `win.setTitleBarStyle()`, `win.nsWindow()`,
-> …). Validation: headless smoke asserts the gate per platform (macOS-only fn →
-> INVALID_HANDLE on darwin / UNSUPPORTED elsewhere; runs on all 4 CI targets); all
-> three hello fixtures exercise a supported macOS call + a gated `hwnd()` failure;
-> `cargo check --target x86_64-pc-windows-msvc` passes from macOS (it didn't before
-> the badge fix). GTK native handles (`gtk_window`) deliberately skipped — GObject
+> `tauri_webview_window*_`and`tauri*window*_`. Also fixed: `set_badge_label` FFI
+called a macOS-only tauri method unconditionally, so the crate didn't even
+*compile* off-macOS — now gated the same way. Language sugar added in all three
+packages (`app.setActivationPolicy()`, `win.setTitleBarStyle()`, `win.nsWindow()`,
+…). Validation: headless smoke asserts the gate per platform (macOS-only fn →
+INVALID_HANDLE on darwin / UNSUPPORTED elsewhere; runs on all 4 CI targets); all
+three hello fixtures exercise a supported macOS call + a gated `hwnd()`failure;`cargo check --target x86_64-pc-windows-msvc` passes from macOS (it didn't before
+the badge fix). GTK native handles (`gtk_window`) deliberately skipped — GObject
 > refs don't reduce to a plain pointer; revisit if a Linux embedder asks.
 
 **M3 — Manifest + codegen + Deno.** Decided and partially landed early (§6, 2026-07-09):

@@ -33,9 +33,11 @@ function ffiRuntime(): string {
 // regardless of the selected runtime feature); the runtime name is what the
 // bundle and the published npm platform packages use.
 function platformLibraryName(base: string): string {
-  const spec = { darwin: ['lib', '.dylib'], linux: ['lib', '.so'], windows: ['', '.dll'] }[
-    Deno.build.os as string
-  ]
+  const spec = {
+    darwin: ['lib', '.dylib'],
+    linux: ['lib', '.so'],
+    windows: ['', '.dll']
+  }[Deno.build.os as string]
   if (!spec) throw new Error(`unsupported platform: ${Deno.build.os}`)
   return `${spec[0]}tauri_${base}${spec[1]}`
 }
@@ -46,7 +48,9 @@ function platformLibraryName(base: string): string {
 // targets.mjs), which is what the packages are published under — so Deno maps
 // its own `Deno.build` names onto that.
 function platformPackage(runtime: string): string {
-  const platform = { darwin: 'darwin', linux: 'linux', windows: 'win32' }[Deno.build.os as string]
+  const platform = { darwin: 'darwin', linux: 'linux', windows: 'win32' }[
+    Deno.build.os as string
+  ]
   const arch = { x86_64: 'x64', aarch64: 'arm64' }[Deno.build.arch as string]
   if (!platform || !arch) {
     throw new Error(`unsupported platform: ${Deno.build.os}-${Deno.build.arch}`)
@@ -58,7 +62,9 @@ function platformPackage(runtime: string): string {
  * drive-letter path like `/C:/…`). */
 function fromFileUrl(url: string): string {
   const path = decodeURIComponent(new URL(url).pathname)
-  return Deno.build.os === 'windows' && /^\/[A-Za-z]:/.test(path) ? path.slice(1) : path
+  return Deno.build.os === 'windows' && /^\/[A-Za-z]:/.test(path)
+    ? path.slice(1)
+    : path
 }
 
 export function libraryPath(runtime: string = ffiRuntime()): string {
@@ -109,7 +115,9 @@ export function libraryPath(runtime: string = ffiRuntime()): string {
  * makes `import.meta.resolve` hand back the on-disk path of the bundled library
  * to `dlopen` — no bespoke download, checksum or cache handling of our own.
  */
-export async function ensureLibrary(runtime: string = ffiRuntime()): Promise<string> {
+export async function ensureLibrary(
+  runtime: string = ffiRuntime()
+): Promise<string> {
   try {
     return libraryPath(runtime)
   } catch {
@@ -140,7 +148,9 @@ export async function ensureLibrary(runtime: string = ffiRuntime()): Promise<str
   // that it echoes the `npm:` specifier), which is why it follows the import.
   const url = import.meta.resolve(`${spec}/${distName}`)
   if (!url.startsWith('file:')) {
-    throw new Error(`could not resolve ${distName} from the npm package ${spec} (resolved to ${url})`)
+    throw new Error(
+      `could not resolve ${distName} from the npm package ${spec} (resolved to ${url})`
+    )
   }
   return fromFileUrl(url)
 }
@@ -152,19 +162,25 @@ export interface FfiLibrary {
   check: (code: number, what?: string) => number
   lastError: () => string
   takeString: (slot: BigUint64Array) => string | null
-  eventsNext: (app: bigint, timeoutMs: number) => Promise<{ code: number; json: string | null }>
+  eventsNext: (
+    app: bigint,
+    timeoutMs: number
+  ) => Promise<{ code: number; json: string | null }>
   libPath: string
 }
 
 function cefLibraryName(): string {
   return (
-    { darwin: 'libcef.dylib', linux: 'libcef.so', windows: 'libcef.dll' }[Deno.build.os as string] ??
-    'libcef.so'
+    { darwin: 'libcef.dylib', linux: 'libcef.so', windows: 'libcef.dll' }[
+      Deno.build.os as string
+    ] ?? 'libcef.so'
   )
 }
 
 function cefHelperName(): string {
-  return Deno.build.os === 'windows' ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
+  return Deno.build.os === 'windows'
+    ? 'tauri-cef-helper.exe'
+    : 'tauri-cef-helper'
 }
 
 /** The directory holding `file`. */
@@ -216,7 +232,10 @@ export function open(libPath: string = libraryPath()): FfiLibrary {
   // A compiled bundle must point at its own staged helper (hermetic, like
   // TAURI_FFI_LIB); in dev an explicit env value wins.
   const helper = `${dir}/${cefHelperName()}`
-  if (exists(helper) && (isBundled() || !Deno.env.get('TAURI_CEF_SUBPROCESS_PATH'))) {
+  if (
+    exists(helper)
+    && (isBundled() || !Deno.env.get('TAURI_CEF_SUBPROCESS_PATH'))
+  ) {
     Deno.env.set('TAURI_CEF_SUBPROCESS_PATH', helper)
   }
   let lib: Deno.DynamicLibrary<typeof SYMBOLS>
@@ -239,16 +258,21 @@ export function open(libPath: string = libraryPath()): FfiLibrary {
 
   const abi = sym.tauri_ffi_abi_version()
   if (abi !== ABI_VERSION) {
-    throw new Error(`ABI mismatch: library has v${abi}, bindings expect v${ABI_VERSION}`)
+    throw new Error(
+      `ABI mismatch: library has v${abi}, bindings expect v${ABI_VERSION}`
+    )
   }
 
   function lastError(): string {
     const pointer = sym.tauri_last_error_message()
-    return pointer === null ? 'unknown error' : new Deno.UnsafePointerView(pointer).getCString()
+    return pointer === null
+      ? 'unknown error'
+      : new Deno.UnsafePointerView(pointer).getCString()
   }
 
   function check(code: number, what = 'tauri-ffi call'): number {
-    if (code !== CODES.OK) throw new Error(`${what} failed (${code}): ${lastError()}`)
+    if (code !== CODES.OK)
+      throw new Error(`${what} failed (${code}): ${lastError()}`)
     return code
   }
 
@@ -265,7 +289,11 @@ export function open(libPath: string = libraryPath()): FfiLibrary {
   // resolves a promise, keeping the caller's event loop free.
   async function eventsNext(app: bigint, timeoutMs: number) {
     const slot = new BigUint64Array(1)
-    const code = await sym.tauri_events_next(app, timeoutMs, new Uint8Array(slot.buffer))
+    const code = await sym.tauri_events_next(
+      app,
+      timeoutMs,
+      new Uint8Array(slot.buffer)
+    )
     if (code !== CODES.OK) return { code, json: null }
     return { code, json: takeString(slot) }
   }

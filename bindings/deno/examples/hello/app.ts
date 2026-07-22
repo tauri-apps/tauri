@@ -54,9 +54,15 @@ app.on('ready', async () => {
   }
   try {
     main.hwnd()
-    log('platform-gate:', Deno.build.os === 'windows' ? 'ok' : 'hwnd unexpectedly succeeded')
+    log(
+      'platform-gate:',
+      Deno.build.os === 'windows' ? 'ok' : 'hwnd unexpectedly succeeded'
+    )
   } catch (e) {
-    log('platform-gate:', /only supported on Windows/.test(String(e)) ? 'ok' : `bad ${e}`)
+    log(
+      'platform-gate:',
+      /only supported on Windows/.test(String(e)) ? 'ok' : `bad ${e}`
+    )
   }
 
   // Runtime window creation: hidden child, checked and torn down again.
@@ -75,11 +81,19 @@ app.on('ready', async () => {
   log('child-destroyed')
 })
 
-app.on('window-event', (message) => log('window-event:', message.label, message.event.kind))
+app.on('window-event', (message) =>
+  log('window-event:', message.label, message.event.kind)
+)
 
-app.listen('frontend-ping', (payload) => log('frontend-ping:', JSON.stringify(payload)))
-app.listen('plugin-init-ran', (payload) => log('plugin-init:', payload.ran ? 'ran' : 'missing'))
-app.listen('plugin-echo-ok', (payload) => log('plugin-echo:', JSON.stringify(payload)))
+app.listen('frontend-ping', (payload) =>
+  log('frontend-ping:', JSON.stringify(payload))
+)
+app.listen('plugin-init-ran', (payload) =>
+  log('plugin-init:', payload.ran ? 'ran' : 'missing')
+)
+app.listen('plugin-echo-ok', (payload) =>
+  log('plugin-echo:', JSON.stringify(payload))
+)
 
 let count = 0
 setInterval(() => app.emit('tick', { count: ++count }), 1000)

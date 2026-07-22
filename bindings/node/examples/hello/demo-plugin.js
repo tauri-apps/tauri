@@ -5,10 +5,12 @@
 import { definePlugin } from '../../src/plugin.js'
 
 export default definePlugin('demo')
-  .initScript(`
+  .initScript(
+    `
     window.__DEMO_PLUGIN__ = 'demo plugin init script ran'
     window.demo = {
       echo: (payload) => window.__TAURI__.core.invoke('plugin:demo|echo', payload)
     }
-  `)
+  `
+  )
   .command('echo', (payload) => ({ echoed: payload }))

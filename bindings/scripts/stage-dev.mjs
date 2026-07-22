@@ -28,12 +28,23 @@
 // macOS stages cef differently: see `stageCefMacOS` below.
 
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../..'
+)
 
 // The CEF distribution files a cef app needs beside libcef, mirroring the
 // bundler's per-platform lists and `stage_cef_runtime` in the CLI. `cef-dll-sys`
@@ -91,7 +102,12 @@ const CEF_OPTIONAL_FILES = {
   ]
 }
 // Only en-US is staged, matching what the bundler ships for a Rust cef app.
-const CEF_LOCALES = ['en-US.pak', 'en-US_FEMININE.pak', 'en-US_MASCULINE.pak', 'en-US_NEUTER.pak']
+const CEF_LOCALES = [
+  'en-US.pak',
+  'en-US_FEMININE.pak',
+  'en-US_MASCULINE.pak',
+  'en-US_NEUTER.pak'
+]
 // The macOS CEF distribution: one framework instead of a flat file list.
 const CEF_FRAMEWORK = 'Chromium Embedded Framework.framework'
 
@@ -115,10 +131,14 @@ const runtime = process.env.TAURI_RUNTIME || flag('--runtime', 'wry')
 const profile = flag('--profile', 'debug')
 
 if (!['node', 'deno', 'python'].includes(lang)) {
-  fail('usage: stage-dev.mjs --lang <node|deno|python> [--runtime <wry|cef>] [--profile <debug|release>]')
+  fail(
+    'usage: stage-dev.mjs --lang <node|deno|python> [--runtime <wry|cef>] [--profile <debug|release>]'
+  )
 }
-if (!['wry', 'cef'].includes(runtime)) fail(`unknown runtime '${runtime}' (known: wry, cef)`)
-if (!['debug', 'release'].includes(profile)) fail(`unknown profile '${profile}' (known: debug, release)`)
+if (!['wry', 'cef'].includes(runtime))
+  fail(`unknown runtime '${runtime}' (known: wry, cef)`)
+if (!['debug', 'release'].includes(profile))
+  fail(`unknown profile '${profile}' (known: debug, release)`)
 
 const isCef = runtime === 'cef'
 if (isCef && !['linux', 'win32', 'darwin'].includes(process.platform)) {
@@ -135,7 +155,11 @@ const nativeDir = {
 
 /** The `tauri_<base>` library file name for this host (libtauri_ffi.so, …). */
 function libFileName(base) {
-  const spec = { darwin: ['lib', '.dylib'], linux: ['lib', '.so'], win32: ['', '.dll'] }[process.platform]
+  const spec = {
+    darwin: ['lib', '.dylib'],
+    linux: ['lib', '.so'],
+    win32: ['', '.dll']
+  }[process.platform]
   if (!spec) fail(`unsupported platform: ${process.platform}`)
   return `${spec[0]}tauri_${base}${spec[1]}`
 }
@@ -183,7 +207,8 @@ function link(src, dest, hint = 'the build did not produce it') {
 /** Copy `src` to `dest` (a real file, not a symlink). Used for the helper, whose
  * `$ORIGIN` libcef lookup must resolve inside `_native/`. */
 function copy(src, dest) {
-  if (!existsSync(src)) fail(`expected ${src} but it does not exist — the build did not produce it`)
+  if (!existsSync(src))
+    fail(`expected ${src} but it does not exist — the build did not produce it`)
   mkdirSync(path.dirname(dest), { recursive: true })
   rmDest(dest)
   copyFileSync(src, dest)
@@ -195,7 +220,9 @@ function copy(src, dest) {
  * so the directory name the shared cache is keyed by. */
 function cefVersion() {
   const lock = readFileSync(path.join(repoRoot, 'Cargo.lock'), 'utf8')
-  const match = lock.match(/name = "cef-dll-sys"\r?\nversion = "[^"+]+\+([^"]+)"/)
+  const match = lock.match(
+    /name = "cef-dll-sys"\r?\nversion = "[^"+]+\+([^"]+)"/
+  )
   if (!match) fail('could not read the cef-dll-sys version from Cargo.lock')
   return match[1]
 }
@@ -206,7 +233,9 @@ function cefVersion() {
 function cefDistributionDir() {
   const arch = { arm64: 'aarch64', x64: 'x86_64' }[process.arch]
   if (!arch) fail(`no CEF distribution for ${process.platform}/${process.arch}`)
-  const osName = { darwin: 'macos', linux: 'linux', win32: 'windows' }[process.platform]
+  const osName = { darwin: 'macos', linux: 'linux', win32: 'windows' }[
+    process.platform
+  ]
   return path.join(env.CEF_PATH, cefVersion(), `cef_${osName}_${arch}`)
 }
 
@@ -216,28 +245,45 @@ function stageCef() {
   if (process.platform === 'darwin') return stageCefMacOS()
 
   const platform = process.platform
-  for (const name of CEF_FILES[platform]) link(path.join(targetDir, name), path.join(nativeDir, name))
+  for (const name of CEF_FILES[platform])
+    link(path.join(targetDir, name), path.join(nativeDir, name))
   for (const name of CEF_OPTIONAL_FILES[platform]) {
     const src = path.join(targetDir, name)
     if (existsSync(src)) link(src, path.join(nativeDir, name))
-    else console.log(`  (skipping optional CEF file ${name}, this distribution does not ship it)`)
+    else
+      console.log(
+        `  (skipping optional CEF file ${name}, this distribution does not ship it)`
+      )
   }
   for (const name of CEF_LOCALES) {
-    link(path.join(targetDir, 'locales', name), path.join(nativeDir, 'locales', name))
+    link(
+      path.join(targetDir, 'locales', name),
+      path.join(nativeDir, 'locales', name)
+    )
   }
 
   // Build the helper out-of-workspace (its own `[workspace]`), redirecting its
   // target dir under the repo's ignored `target/` so the checkout stays clean.
   // The `sandbox` default feature is macOS-only; drop it wherever the helper is
   // built here (macOS takes its own from the bundler, see `stageCefMacOS`).
-  const helperName = platform === 'win32' ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
+  const helperName =
+    platform === 'win32' ? 'tauri-cef-helper.exe' : 'tauri-cef-helper'
   const helperTargetDir = path.join(repoRoot, 'target', 'cef-helper')
   run(
     'cargo',
-    ['build', ...profileArgs, '--manifest-path', 'cef-helper/Cargo.toml', '--no-default-features'],
+    [
+      'build',
+      ...profileArgs,
+      '--manifest-path',
+      'cef-helper/Cargo.toml',
+      '--no-default-features'
+    ],
     { env: { ...env, CARGO_TARGET_DIR: helperTargetDir } }
   )
-  copy(path.join(helperTargetDir, profile, helperName), path.join(nativeDir, helperName))
+  copy(
+    path.join(helperTargetDir, profile, helperName),
+    path.join(nativeDir, helperName)
+  )
 }
 
 /** macOS stages only the CEF framework, and only as a marker.
@@ -275,10 +321,20 @@ function stageCefMacOS() {
 const profileArgs = profile === 'release' ? ['--release'] : []
 const targetDir = path.join(repoRoot, 'target', profile)
 
-console.log(`staging ${runtime} tauri-ffi (${profile}) into ${path.relative(repoRoot, nativeDir)} for ${lang}`)
+console.log(
+  `staging ${runtime} tauri-ffi (${profile}) into ${path.relative(repoRoot, nativeDir)} for ${lang}`
+)
 
 // 1. build the cdylib (cargo emits the crate's own name for any runtime feature).
-run('cargo', ['build', ...profileArgs, '-p', 'tauri-ffi', '--no-default-features', '--features', `runtime-${runtime}`])
+run('cargo', [
+  'build',
+  ...profileArgs,
+  '-p',
+  'tauri-ffi',
+  '--no-default-features',
+  '--features',
+  `runtime-${runtime}`
+])
 
 // Start from a clean package dir so switching runtimes never leaves a stale
 // library/helper behind, mirroring a freshly installed platform package.
@@ -286,14 +342,23 @@ rmDest(nativeDir)
 mkdirSync(nativeDir, { recursive: true })
 
 // 2. the library, under its distribution name (libtauri_<runtime>).
-link(path.join(targetDir, libFileName('ffi')), path.join(nativeDir, libFileName(runtime)))
+link(
+  path.join(targetDir, libFileName('ffi')),
+  path.join(nativeDir, libFileName(runtime))
+)
 
 // 3. cef: the CEF distribution next to the library, plus the subprocess helper.
 if (isCef) stageCef()
 
 // 4. node: the run-loop addon the Node bindings drive the event loop through.
 if (lang === 'node') {
-  run('node', ['bindings/node/native/build.mjs', '--out', path.join(nativeDir, 'tauri_node.node')])
+  run('node', [
+    'bindings/node/native/build.mjs',
+    '--out',
+    path.join(nativeDir, 'tauri_node.node')
+  ])
 }
 
-console.log(`staged ${runtime} tauri-ffi into ${path.relative(repoRoot, nativeDir)}`)
+console.log(
+  `staged ${runtime} tauri-ffi into ${path.relative(repoRoot, nativeDir)}`
+)

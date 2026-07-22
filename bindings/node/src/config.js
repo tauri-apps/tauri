@@ -68,7 +68,8 @@ export function bundledResourceDir() {
   const exec = process.execPath
   const candidates = []
   const macos = exec.indexOf('/Contents/MacOS/')
-  if (macos !== -1) candidates.push(exec.slice(0, macos) + '/Contents/Resources')
+  if (macos !== -1)
+    candidates.push(exec.slice(0, macos) + '/Contents/Resources')
 
   const dir = path.dirname(exec)
   candidates.push(path.join(dir, 'resources')) // unpackaged `tauri build` output
@@ -83,7 +84,8 @@ export function bundledResourceDir() {
       // order tauri_utils falls back through.
       candidates.push(path.resolve(dir, '..', 'lib', name))
       candidates.push(path.resolve(dir, '..', '..', 'lib', name))
-      if (process.env.APPDIR) candidates.push(path.join(process.env.APPDIR, 'usr', 'lib', name))
+      if (process.env.APPDIR)
+        candidates.push(path.join(process.env.APPDIR, 'usr', 'lib', name))
       candidates.push(path.join('/usr', 'lib', name))
     }
   }
@@ -179,7 +181,9 @@ function walkCapabilityFiles(dir, files = []) {
     const full = path.join(dir, entry.name)
     if (entry.isDirectory()) {
       if (entry.name !== 'schemas') walkCapabilityFiles(full, files)
-    } else if (CAPABILITY_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+    } else if (
+      CAPABILITY_EXTENSIONS.has(path.extname(entry.name).toLowerCase())
+    ) {
       files.push(full)
     }
   }

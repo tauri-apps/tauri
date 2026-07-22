@@ -17,7 +17,9 @@ app.plugin(demoPlugin)
 
 app.command('greet', ({ name }) => {
   log('greet:', name)
-  return { message: `Hello ${name}! Greetings from Node.js ${process.version}.` }
+  return {
+    message: `Hello ${name}! Greetings from Node.js ${process.version}.`
+  }
 })
 
 let childCount = 0
@@ -55,9 +57,15 @@ app.on('ready', () => {
   }
   try {
     main.hwnd()
-    log('platform-gate:', process.platform === 'win32' ? 'ok' : 'hwnd unexpectedly succeeded')
+    log(
+      'platform-gate:',
+      process.platform === 'win32' ? 'ok' : 'hwnd unexpectedly succeeded'
+    )
   } catch (e) {
-    log('platform-gate:', /only supported on Windows/.test(e.message) ? 'ok' : `bad ${e.message}`)
+    log(
+      'platform-gate:',
+      /only supported on Windows/.test(e.message) ? 'ok' : `bad ${e.message}`
+    )
   }
 
   // Runtime window creation: hidden child, checked and torn down again.
@@ -79,9 +87,15 @@ app.on('window-event', (msg) => log('window-event:', msg.label, msg.event.kind))
 app.on('exit', () => log('exit'))
 
 // Frontend -> host events.
-app.listen('frontend-ping', (payload) => log('frontend-ping:', JSON.stringify(payload)))
-app.listen('plugin-init-ran', (payload) => log('plugin-init:', payload.ran ? 'ran' : 'missing'))
-app.listen('plugin-echo-ok', (payload) => log('plugin-echo:', JSON.stringify(payload)))
+app.listen('frontend-ping', (payload) =>
+  log('frontend-ping:', JSON.stringify(payload))
+)
+app.listen('plugin-init-ran', (payload) =>
+  log('plugin-init:', payload.ran ? 'ran' : 'missing')
+)
+app.listen('plugin-echo-ok', (payload) =>
+  log('plugin-echo:', JSON.stringify(payload))
+)
 
 // Host -> frontend events, once a second.
 let count = 0

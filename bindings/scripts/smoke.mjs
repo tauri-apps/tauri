@@ -22,12 +22,19 @@ assert.equal(abi, ABI_VERSION, 'library ABI matches generated bindings')
 const outBuilder = [0]
 const bad = api.appBuilderNew('{not json', outBuilder)
 assert.equal(bad, CODES.INVALID_ARG, 'malformed config is rejected')
-assert.ok(api.lastErrorMessage()?.includes('invalid config'), 'error message is set')
+assert.ok(
+  api.lastErrorMessage()?.includes('invalid config'),
+  'error message is set'
+)
 
 // Happy path: builder creation and handle lifecycle (no event loop needed).
 check(
   api.appBuilderNew(
-    JSON.stringify({ productName: 'smoke', version: '0.0.0', identifier: 'com.tauri.ffi.smoke' }),
+    JSON.stringify({
+      productName: 'smoke',
+      version: '0.0.0',
+      identifier: 'com.tauri.ffi.smoke'
+    }),
     outBuilder
   ),
   'builder_new'
@@ -35,7 +42,11 @@ check(
 assert.ok(outBuilder[0] > 0, 'builder handle is valid')
 check(api.appBuilderRegisterCommand(outBuilder[0], 'ping'), 'register_command')
 check(api.handleClose(outBuilder[0]), 'handle_close')
-assert.equal(api.handleClose(0), CODES.OK, 'closing an unknown handle is a no-op')
+assert.equal(
+  api.handleClose(0),
+  CODES.OK,
+  'closing an unknown handle is a no-op'
+)
 
 // Platform-gated functions: loading above already proved the symbols resolve
 // on this platform; off-platform they must fail fast with UNSUPPORTED (before

@@ -68,7 +68,9 @@ import { definePlugin } from '@tauri-apps/node/plugin'
 
 export default definePlugin('greet')
   // install a frontend API so callers never write the plugin:greet|hello wire format
-  .initScript("window.greet = { hello: (n) => window.__TAURI__.core.invoke('plugin:greet|hello', { name: n }) }")
+  .initScript(
+    "window.greet = { hello: (n) => window.__TAURI__.core.invoke('plugin:greet|hello', { name: n }) }"
+  )
   .command('hello', ({ name }) => `Hello ${name}!`)
 ```
 

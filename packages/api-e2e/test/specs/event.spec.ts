@@ -76,9 +76,17 @@ describeApi('event', () => {
         new Promise<{ mainCount: number }>((resolve, reject) => {
           let mainCount = 0
           api.event
-            .listen('e2e://target', () => {
-              mainCount++
-            })
+            // The listener must be scoped to the `main` label: a default
+            // `listen()` registers the `Any` target, a catch-all that receives
+            // every emit regardless of the `emitTo` label (so it would also see
+            // the `does-not-exist` emit).
+            .listen(
+              'e2e://target',
+              () => {
+                mainCount++
+              },
+              { target: 'main' }
+            )
             .then(async (unlisten) => {
               await api.event.emitTo('main', 'e2e://target') // delivered
               await api.event.emitTo('does-not-exist', 'e2e://target') // dropped

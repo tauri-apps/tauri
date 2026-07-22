@@ -89,6 +89,16 @@ export async function tauriError<A extends unknown[]>(
     if (error instanceof TauriPageError) {
       return error.message
     }
+    // Some platform drivers (notably the Linux WebKitWebDriver) surface a
+    // page-side `invoke` rejection as a WebDriver-level error on the
+    // `execute/async` command instead of letting the in-page bridge report it
+    // as an `{ ok: false }` outcome. Fall back to that error's message so the
+    // backend rejection is still assertable. This is safe for error-path specs:
+    // they match the message against an expected pattern, so a genuine driver
+    // failure (whose message won't match) still fails the test.
+    if (error instanceof Error) {
+      return error.message
+    }
     throw error
   }
   throw new Error('expected the API call to reject, but it resolved')

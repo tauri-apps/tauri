@@ -124,7 +124,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   for f in cef_files {
     let dest = app_dir_path.join("bin/").join(f);
-    fs::copy(cef_path.join(f), &dest).with_context(|| format!("Failed to copy cef file {f} to {}", dest.display()))?;
+    fs::copy(cef_path.join(f), &dest)
+      .with_context(|| format!("Failed to copy cef file {f} to {}", dest.display()))?;
     // quick-sharun checks for the NO_STRIP env but libcef.so is 1.5GB so we make sure it's stripped anyway.
     let _ = Command::new("strip").arg(&dest).output_ok();
   }
@@ -139,7 +140,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs::copy(
       cef_path.join("locales").join(f),
       app_dir_path.join("bin/locales").join(f),
-    ).with_context(|| format!("Failed to copy cef locales file {f}"))?;
+    )
+    .with_context(|| format!("Failed to copy cef locales file {f}"))?;
   }
 
   let appimage_filename = format!(

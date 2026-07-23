@@ -1,0 +1,347 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+use std::{
+  path::{Path, PathBuf},
+  str::FromStr,
+  sync::OnceLock,
+};
+
+use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
+use tauri_bundler::PackageType;
+use tauri_utils::platform::Target;
+
+use crate::{
+  error::{Context, ErrorExt},
+  helpers::{
+    self,
+    app_paths::Dirs,
+    config::{get_config, ConfigMetadata},
+    updater_signature,
+  },
+  interface::{AppInterface, AppSettings},
+  ConfigValue,
+};
+
+#[derive(Debug, Clone)]
+pub struct BundleFormat(PackageType);
+
+impl FromStr for BundleFormat {
+  type Err = crate::Error;
+  fn from_str(s: &str) -> crate::Result<Self> {
+    PackageType::from_short_name(s)
+      .map(Self)
+      .with_context(|| format!("unknown bundle format {s}"))
+  }
+}
+
+impl ValueEnum for BundleFormat {
+  fn value_variants<'a>() -> &'a [Self] {
+    static VARIANTS: OnceLock<Vec<BundleFormat>> = OnceLock::new();
+    VARIANTS.get_or_init(|| PackageType::all().iter().map(|t| Self(*t)).collect())
+  }
+
+  fn to_possible_value(&self) -> Option<PossibleValue> {
+    let hide = (!cfg!(windows) && self.0 == PackageType::Nsis) || self.0 == PackageType::Updater;
+    Some(PossibleValue::new(self.0.short_name()).hide(hide))
+  }
+}
+
+#[derive(Debug, Parser, Clone)]
+#[clap(
+  about = "Generate bundles and installers for your app (already built by `tauri build`)",
+  long_about = "Generate bundles and installers for your app (already built by `tauri build`). This run `build.beforeBundleCommand` before generating the bundles and installers of your app."
+)]
+pub struct Options {
+  /// Builds with the debug flag
+  #[clap(short, long)]
+  pub debug: bool,
+  /// Space or comma separated list of bundles to package.
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
+  pub bundles: Option<Vec<BundleFormat>>,
+  /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
+  ///
+  /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
+  ///
+  /// Note that a platform-specific file is looked up and merged with the default file by default
+  /// (tauri.macos.conf.json, tauri.linux.conf.json, tauri.windows.conf.json, tauri.android.conf.json and tauri.ios.conf.json)
+  /// but you can use this for more specific use cases such as different build flavors.
+  #[clap(short, long)]
+  pub config: Vec<ConfigValue>,
+  /// Space or comma separated list of features, should be the same features passed to `tauri build` if any.
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
+  pub features: Vec<String>,
+  /// Target triple to build against.
+  ///
+  /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
+  ///
+  /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
+  #[clap(short, long)]
+  pub target: Option<String>,
+  /// Skip prompting for values
+  #[clap(long, env = "CI")]
+  pub ci: bool,
+  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  ///
+  /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
+  /// reaching out to Apple's servers which is helpful in offline environments.
+  ///
+  /// Enabling this option will also result in `tauri build` not waiting for notarization to finish
+  /// which is helpful for the very first time your app is notarized as this can take multiple hours.
+  /// On subsequent runs, it's recommended to disable this setting again.
+  #[clap(long)]
+  pub skip_stapling: bool,
+
+  /// Skip code signing during the build or bundling process.
+  ///
+  /// Useful for local development and CI environments
+  /// where signing certificates or environment variables
+  /// are not available or not needed.
+  #[clap(long)]
+  pub no_sign: bool,
+
+  /// Skip patching the main executable with bundle type information.
+  ///
+  /// The patching rewrites the binary in place, invalidating an existing code
+  /// signature. Skipping it preserves an already-signed binary at the cost of
+  /// per-bundle-type updater support (only relevant when shipping multiple
+  /// bundle types per platform).
+  #[clap(long)]
+  pub no_binary_patching: bool,
+}
+
+impl From<crate::build::Options> for Options {
+  fn from(value: crate::build::Options) -> Self {
+    Self {
+      bundles: value.bundles,
+      target: value.target,
+      features: value.features,
+      debug: value.debug,
+      ci: value.ci,
+      config: value.config,
+      skip_stapling: value.skip_stapling,
+      no_sign: value.no_sign,
+      no_binary_patching: value.no_binary_patching,
+    }
+  }
+}
+
+pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+
+  let ci = options.ci;
+
+  let target = options
+    .target
+    .as_deref()
+    .map(Target::from_triple)
+    .unwrap_or_else(Target::current);
+
+  let config = get_config(
+    target,
+    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
+  )?;
+
+  let interface = AppInterface::new(&config, options.target.clone(), dirs.tauri)?;
+
+  std::env::set_current_dir(dirs.tauri).context("failed to set current directory")?;
+
+  if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
+    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+  }
+
+  let app_settings = interface.app_settings();
+  let interface_options = options.clone().into();
+
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
+
+  bundle(
+    &options,
+    verbosity,
+    ci,
+    &interface,
+    &*app_settings,
+    &config,
+    &dirs,
+    &out_dir,
+  )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn bundle<A: AppSettings>(
+  options: &Options,
+  verbosity: u8,
+  ci: bool,
+  interface: &AppInterface,
+  app_settings: &A,
+  config: &ConfigMetadata,
+  dirs: &Dirs,
+  out_dir: &Path,
+) -> crate::Result<()> {
+  let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
+    bundles.iter().map(|bundle| bundle.0).collect::<Vec<_>>()
+  } else {
+    config
+      .bundle
+      .targets
+      .to_vec()
+      .into_iter()
+      .map(Into::into)
+      .collect()
+  };
+
+  if package_types.is_empty() {
+    return Ok(());
+  }
+
+  // if we have a package to bundle, let's run the `before_bundle_command`.
+  if !package_types.is_empty() {
+    if let Some(before_bundle) = config.build.before_bundle_command.clone() {
+      helpers::run_hook(
+        "beforeBundleCommand",
+        before_bundle,
+        interface,
+        options.debug,
+        dirs.frontend,
+      )?;
+    }
+  }
+
+  let mut settings = app_settings
+    .get_bundler_settings(
+      options.clone().into(),
+      config,
+      out_dir,
+      package_types,
+      dirs.tauri,
+    )
+    .context("failed to build bundler settings")?;
+  settings.set_no_sign(options.no_sign);
+  settings.set_binary_patching(!options.no_binary_patching);
+
+  settings.set_log_level(match verbosity {
+    0 => log::Level::Error,
+    1 => log::Level::Info,
+    _ => log::Level::Trace,
+  });
+
+  let bundles = tauri_bundler::bundle_project(&settings)?;
+
+  sign_updaters(settings, bundles, ci)?;
+
+  Ok(())
+}
+
+fn sign_updaters(
+  settings: tauri_bundler::Settings,
+  bundles: Vec<tauri_bundler::Bundle>,
+  ci: bool,
+) -> crate::Result<()> {
+  let Some(update_settings) = settings.updater() else {
+    // Updater not enabled
+    return Ok(());
+  };
+
+  let update_enabled_bundles: Vec<&tauri_bundler::Bundle> = bundles
+    .iter()
+    .filter(|bundle| {
+      matches!(
+        bundle.package_type,
+        PackageType::Updater
+          | PackageType::Nsis
+          | PackageType::WindowsMsi
+          | PackageType::AppImage
+          | PackageType::Deb
+          | PackageType::Rpm
+      )
+    })
+    .collect();
+
+  if update_enabled_bundles.is_empty() {
+    return Ok(());
+  }
+
+  if settings.no_sign() {
+    log::warn!("Updater signing is skipped due to --no-sign flag.");
+    return Ok(());
+  }
+
+  // get the public key
+  let pubkey = &update_settings.pubkey;
+  // check if pubkey points to a file...
+  let maybe_path = Path::new(pubkey);
+  let pubkey = if maybe_path.exists() {
+    std::fs::read_to_string(maybe_path)
+      .fs_context("failed to read pubkey from file", maybe_path.to_path_buf())?
+  } else {
+    pubkey.to_string()
+  };
+
+  // if no password provided we use an empty string
+  let password = std::env::var("TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
+    .ok()
+    .or_else(|| if ci { Some("".into()) } else { None });
+
+  // get the private key
+  let private_key = std::env::var("TAURI_SIGNING_PRIVATE_KEY")
+    .ok()
+    .context("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")?;
+  // check if private_key points to a file...
+  let maybe_path = Path::new(&private_key);
+  let private_key = if maybe_path.exists() {
+    std::fs::read_to_string(maybe_path).fs_context(
+      "failed to read private key from file",
+      maybe_path.to_path_buf(),
+    )?
+  } else {
+    private_key
+  };
+  if password.is_none() {
+    log::info!("Decrypting updater signing key, expect a prompt for password")
+  }
+  let secret_key =
+    updater_signature::secret_key(private_key, password).context("failed to decode secret key")?;
+  let public_key = updater_signature::pub_key(pubkey).context("failed to decode pubkey")?;
+
+  let mut signed_paths = Vec::new();
+  for bundle in update_enabled_bundles {
+    // we expect to have only one path in the vec but we iter if we add
+    // another type of updater package who require multiple file signature
+    for path in &bundle.bundle_paths {
+      // sign our path from environment variables
+      let (signature_path, signature) = updater_signature::sign_file(&secret_key, path)?;
+      if signature.keynum() != public_key.keynum() {
+        log::warn!("The updater secret key from `TAURI_SIGNING_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update.");
+      }
+      signed_paths.push(signature_path);
+    }
+  }
+
+  print_signed_updater_archive(&signed_paths)?;
+
+  Ok(())
+}
+
+fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
+  use std::fmt::Write;
+  if !output_paths.is_empty() {
+    let finished_bundles = output_paths.len();
+    let pluralised = if finished_bundles == 1 {
+      "updater signature"
+    } else {
+      "updater signatures"
+    };
+    let mut printable_paths = String::new();
+    for path in output_paths {
+      let _ = writeln!(
+        printable_paths,
+        "        {}",
+        tauri_utils::display_path(path)
+      );
+    }
+    log::info!( action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
+  }
+  Ok(())
+}

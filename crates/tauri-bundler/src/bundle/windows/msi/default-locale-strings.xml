@@ -1,0 +1,6 @@
+<String Id="TauriLanguage">__language__</String>
+<String Id="TauriCodepage">__codepage__</String>
+<String Id="LaunchApp">Launch __productName__</String>
+<String Id="DowngradeErrorMessage">A newer version of __productName__ is already installed.</String>
+<String Id="PathEnvVarFeature">Add the install location of the __productName__ executable to the PATH system environment variable. This allows the __productName__ executable to be called from any location.</String>
+<String Id="InstallAppFeature">Installs __productName__.</String>

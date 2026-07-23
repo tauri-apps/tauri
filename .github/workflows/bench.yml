@@ -1,0 +1,116 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: bench
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/bench.yml'
+      - 'bench/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+  LC_ALL: en_US.UTF-8 # This prevents strace from changing its number format to use commas.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [nightly]
+        platform:
+          - {
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              runner: 'xvfb-run --auto-servernum '
+            }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, runner: '' }
+          - { target: aarch64-apple-darwin, os: macos-latest, runner: '' }
+
+    runs-on: ${{ matrix.platform.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rust-src
+          targets: ${{ matrix.platform.target }}
+
+      - name: install webkit2gtk and xvfb (ubuntu only)
+        if: contains(matrix.platform.target, 'gnu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            webkit2gtk-4.1 libayatana-appindicator3-dev \
+            xvfb \
+            at-spi2-core
+
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: install memory_profiler
+        run: |
+          python -m pip install --upgrade pip
+          pip install memory_profiler
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.19.1
+
+      - name: Install hyperfine
+        run: cargo binstall hyperfine@1.20 --no-confirm
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: build benchmark binaries
+        env:
+          RUSTFLAGS: '-Zunstable-options -Cpanic=immediate-abort'
+        run: |
+          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/cpu_intensive/src-tauri/Cargo.toml
+          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/files_transfer/src-tauri/Cargo.toml
+          cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml
+
+      - name: run benchmarks
+        run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark
+
+      - name: clone benchmarks_results
+        if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          path: gh-pages
+          repository: tauri-apps/benchmark_results
+
+      - name: push new benchmarks
+        if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
+        run: |
+          cargo run --manifest-path ./bench/Cargo.toml --bin build_benchmark_jsons
+          cd gh-pages
+          git pull
+          git config user.name "tauri-bot"
+          git config user.email "tauri-bot@tauri.app"
+          git add .
+          git commit --message "Update Tauri benchmarks"
+          git push origin gh-pages
+
+      - name: Print worker info
+        # TODO: How to print this info on macOS and Windows
+        if: contains(matrix.platform.target, 'gnu')
+        run: |
+          cat /proc/cpuinfo
+          cat /proc/meminfo

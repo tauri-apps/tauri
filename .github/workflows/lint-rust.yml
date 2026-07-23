@@ -1,0 +1,82 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: lint rust
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '.github/workflows/lint-rust.yml'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clippy:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            cargo: 'cargo'
+            include: ''
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            cargo: 'cargo'
+            include: ''
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            cargo: 'cargo'
+            include: ''
+          - target: aarch64-apple-ios
+            os: macos-latest
+            cargo: 'cargo'
+            # api example crate should pull in every dependency we want to lint on mobile
+            include: '--package api '
+          - target: aarch64-linux-android
+            os: ubuntu-latest
+            cargo: 'cross'
+            # api example crate should pull in every dependency we want to lint on mobile
+            include: '--package api '
+
+    runs-on: ${{ matrix.platform.os }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install rust stable and clippy
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: ${{ matrix.platform.target }}
+
+      - name: install Linux dependencies
+        if: contains(matrix.platform.target, 'unknown-linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1 libayatana-appindicator3-dev
+
+      - name: Install cross
+        if: ${{ matrix.platform.cargo == 'cross' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross@0.2.5
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.target }}
+
+      - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} ${{ matrix.platform.include }}--all-targets --all-features -- -D warnings

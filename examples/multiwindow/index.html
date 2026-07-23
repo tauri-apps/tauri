@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+  <h1>Send a message to a window using its label:</h1>
+  <form id="send-message-form">
+    <input id="send-message" placeholder="message" />
+    <input id="send-label" placeholder="Secondary" />
+    <button type="submit">Send</button>
+  </form>
+
+  <br />
+
+  <h1>Create new window</h1>
+  <form id="new-window-form">
+    <input id="new-label" placeholder="newLabel" />
+    <input id="new-title" placeholder="New window" />
+    <button type="submit">Create</button>
+  </form>
+
+  <br />
+
+  <h1>Messages received from other windows:</h1>
+  <pre id="messages-view"></pre>
+
+  <body>
+    <script>
+      const { WebviewWindow } = window.__TAURI__.webviewWindow
+      const { getCurrentWebviewWindow } = window.__TAURI__.webviewWindow
+      const { emitTo } = window.__TAURI__.event
+
+      const sendMessageForm = document.querySelector('#send-message-form')
+      const sendMessageEl = document.querySelector('#send-message')
+      const sendLabelEl = document.querySelector('#send-label')
+      sendMessageForm.addEventListener('submit', (e) => {
+        e.preventDefault()
+        console.log(sendLabelEl.value)
+        console.log(sendMessageEl.value)
+
+        emitTo(sendLabelEl.value, 'message', sendMessageEl.value)
+      })
+
+      const newWindowForm = document.querySelector('#new-window-form')
+      const newLabelEl = document.querySelector('#new-label')
+      const newTitleEl = document.querySelector('#new-title')
+      newWindowForm.addEventListener('submit', (e) => {
+        e.preventDefault()
+
+        new WebviewWindow(newLabelEl.value, {
+          title: newTitleEl.value
+        })
+      })
+
+      const currentWindow = getCurrentWebviewWindow()
+      const messagesView = document.querySelector('#messages-view')
+      window.addEventListener('DOMContentLoaded', () => {
+        currentWindow.listen('message', (event) => {
+          const time = new Date().toLocaleTimeString()
+          messagesView.textContent = `${messagesView.textContent}\n[${time}] ${event.payload}`
+        })
+      })
+    </script>
+  </body>
+</html>

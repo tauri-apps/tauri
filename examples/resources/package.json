@@ -1,0 +1,7 @@
+{
+  "name": "resources",
+  "version": "0.1.0",
+  "scripts": {
+    "tauri": "node ../../packages/cli/tauri.js"
+  }
+}

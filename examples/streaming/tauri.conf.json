@@ -1,0 +1,36 @@
+{
+  "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "productName": "Streaming",
+  "version": "0.1.0",
+  "identifier": "com.tauri.dev",
+  "build": {
+    "frontendDist": ["index.html"]
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Stream video using custom protocol",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; media-src stream: http://stream.localhost",
+      "assetProtocol": {
+        "scope": ["**/streaming_example_test_video.mp4"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../.icons/32x32.png",
+      "../.icons/128x128.png",
+      "../.icons/128x128@2x.png",
+      "../.icons/icon.icns",
+      "../.icons/icon.ico"
+    ]
+  }
+}

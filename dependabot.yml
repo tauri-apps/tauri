@@ -1,0 +1,105 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+version: 2
+updates:
+  # Crates
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-build'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-codegen'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-macros'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-runtime'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-runtime-wry'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-utils'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-cli'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-bundler'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-macos-sign'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+
+  # NPM Packages
+  - package-ecosystem: 'npm'
+    directory: '/packages/api'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'npm'
+    directory: '/packages/cli'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0

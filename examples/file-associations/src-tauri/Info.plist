@@ -1,0 +1,21 @@
+<!-- Add this file next to your tauri.conf.json file -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLName</key>
+                <!-- Obviously needs to be replaced with your app's bundle identifier -->
+                <string>com.tauri.dev-file-associations-demo</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <!-- register the myapp:// and myscheme:// schemes -->
+                    <string>myapp</string>
+                    <string>myscheme</string>
+                </array>
+            </dict>
+        </array>
+    </dict>
+</plist>

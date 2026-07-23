@@ -1,0 +1,55 @@
+# dependency directories
+node_modules/
+
+# Optional npm and yarn cache directory
+.npm/
+.yarn/
+
+# Output of 'npm pack'
+*.tgz
+
+# dotenv environment variables file
+.env
+
+# .vscode workspace settings file
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+
+# npm, yarn and bun lock files
+package-lock.json
+yarn.lock
+bun.lockb
+
+# rust compiled folders
+target/
+
+# test video for streaming example
+streaming_example_test_video.mp4
+
+# examples /gen directory
+/examples/**/src-tauri/gen/
+/bench/**/src-tauri/gen/
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# miscellaneous
+/.vs
+.DS_Store
+.Thumbs.db
+*.sublime*
+.idea
+debug.log
+TODO.md
+.aider*

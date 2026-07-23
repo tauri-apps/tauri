@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        margin: unset;
+        overflow: hidden;
+      }
+      video {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+
+  <body>
+    <video id="video_source" controls="" autoplay="" name="media">
+      <source type="video/mp4" />
+    </video>
+
+    <script>
+      const { invoke, convertFileSrc } = window.__TAURI__.core
+      const video = document.getElementById('video_source')
+      const source = document.createElement('source')
+      source.type = 'video/mp4'
+      source.src = convertFileSrc('streaming_example_test_video.mp4', 'stream')
+      video.appendChild(source)
+      video.load()
+    </script>
+  </body>
+</html>

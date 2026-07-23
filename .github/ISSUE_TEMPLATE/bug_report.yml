@@ -1,0 +1,63 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: 🐞 Bug Report
+title: '[bug] '
+description: Report a bug
+labels: ['type: bug', 'status: needs triage']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## First of all
+        1. Please search for [existing issues](https://github.com/tauri-apps/tauri/issues?q=is%3Aissue) about this problem first.
+        2. Make sure `rustc` and all relevant Tauri packages are up to date.
+        3. Make sure it's an issue with Tauri and not something else you are using.
+        4. Remember to follow our community guidelines and be friendly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear description of what the bug is. Include screenshots if applicable.
+      placeholder: Bug description
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: A link to a reproduction repo or steps to reproduce the behaviour.
+      placeholder: |
+        Please provide a minimal reproduction or steps to reproduce, see this guide https://stackoverflow.com/help/minimal-reproducible-example
+        Why reproduction is required? see this article https://antfu.me/posts/why-reproductions-are-required
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: A clear description of what you expected to happen.
+
+  - type: textarea
+    id: info
+    attributes:
+      label: Full `tauri info` output
+      description: 'Output of `npm run tauri info` or `cargo tauri info`'
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Stack trace
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.

@@ -1,0 +1,15 @@
+[package]
+name = "restart"
+version = "0.1.0"
+authors = ["Tauri Programme within The Commons Conservancy"]
+license = "Apache-2.0 OR MIT"
+edition = "2021"
+
+[dependencies.tauri]
+path = "../../tauri"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+process-relaunch-dangerous-allow-symlink-macos = []

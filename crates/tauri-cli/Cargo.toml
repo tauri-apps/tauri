@@ -1,0 +1,154 @@
+[package]
+name = "tauri-cli"
+version = "2.11.4"
+authors = ["Tauri Programme within The Commons Conservancy"]
+edition = "2021"
+rust-version = "1.90"
+categories = ["gui", "web-programming"]
+license = "Apache-2.0 OR MIT"
+homepage = "https://tauri.app"
+repository = "https://github.com/tauri-apps/tauri"
+description = "Command line interface for building Tauri apps"
+include = [
+  "src/",
+  "/templates",
+  "scripts/",
+  "*.json",
+  "*.rs",
+  "tauri.gitignore",
+  "tauri-dev-watcher.gitignore",
+  "LICENSE*",
+]
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/tauri-cli-v{ version }/cargo-tauri-{ target }.{ archive-format }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
+[package.metadata.binstall.overrides.x86_64-apple-darwin]
+pkg-fmt = "zip"
+
+[[bin]]
+name = "cargo-tauri"
+path = "src/main.rs"
+
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
+cargo-mobile2 = { version = "0.22.4", default-features = false }
+
+[dependencies]
+jsonrpsee = { version = "0.26", features = ["server"] }
+jsonrpsee-core = "0.26"
+jsonrpsee-client-transport = { version = "0.26", features = ["ws"] }
+jsonrpsee-ws-client = { version = "0.26", default-features = false }
+sublime_fuzzy = "0.7"
+clap_complete = "4"
+clap = { version = "4", features = ["derive", "env"] }
+thiserror = "2"
+tauri-bundler = { version = "2.9.4", default-features = false, path = "../tauri-bundler" }
+colored = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+# version should match tauri-utils for deduplication
+json5 = "0.4"
+notify = "8"
+notify-debouncer-full = "0.7"
+shared_child = "1"
+duct = "1.0"
+toml_edit = { version = "0.25", features = ["serde"] }
+json-patch = "4"
+tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
+  "isolation",
+  "schema",
+  "config-json5",
+  "config-toml",
+  "html-manipulation-2",
+] }
+toml = "1"
+jsonschema = { version = "0.47", default-features = false }
+handlebars = "6"
+include_dir = "0.7"
+dirs = "6"
+# Careful with updating minisign, often broke our updater signatures.
+# See https://github.com/tauri-apps/tauri/pull/15022 for example.
+minisign = "0.9"
+base64 = "0.22"
+ureq = { version = "3", default-features = false, features = ["gzip"] }
+os_info = "3"
+semver = "1"
+regex = "1"
+heck = "0.5"
+dialoguer = "0.12"
+url = { version = "2", features = ["serde"] }
+os_pipe = "1"
+ignore = "0.4"
+ctrlc = "3"
+log = { version = "0.4.21", features = ["kv", "kv_std"] }
+env_logger = "0.11"
+icns = { package = "tauri-icns", version = "0.1" }
+image = { version = "0.25", default-features = false, features = ["ico"] }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["macros", "sync"] }
+common-path = "1"
+serde-value = "0.7"
+itertools = "0.15"
+local-ip-address = "0.6"
+css-color = "0.2"
+resvg = "0.47"
+dunce = "1"
+glob = "0.3"
+# 0.111 raised msrv to 1.91
+oxc_parser = "0.110"
+oxc_span = "0.110"
+oxc_allocator = "0.110"
+oxc_ast = "0.110"
+magic_string = "0.3"
+phf = { version = "0.14", features = ["macros"] }
+walkdir = "2"
+elf = "0.8"
+memchr = "2"
+tempfile = "3"
+uuid = { version = "1", features = ["v5"] }
+rand = "0.10"
+zip = { version = "8", default-features = false, features = ["deflate"] }
+which = "8"
+rayon = "1.10"
+
+[dev-dependencies]
+insta = "1"
+pretty_assertions = "1"
+
+[target."cfg(windows)".dependencies.windows-sys]
+version = "0.61"
+features = [
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_IO",
+  "Win32_System_Console",
+]
+
+[target."cfg(unix)".dependencies]
+libc = "0.2"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+plist = "1"
+tauri-macos-sign = { version = "2.3.4", path = "../tauri-macos-sign" }
+object = { version = "0.39", default-features = false, features = [
+  "macho",
+  "read_core",
+  "std",
+] }
+ar = "0.9"
+
+[features]
+default = ["rustls", "platform-certs"]
+native-tls = [
+  "tauri-bundler/native-tls",
+  "cargo-mobile2/native-tls",
+  "ureq/native-tls",
+]
+native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
+rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]
+platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]

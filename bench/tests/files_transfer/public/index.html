@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Tauri!</title>
+  </head>
+  <body>
+    <h1>Welcome to Tauri!</h1>
+
+    <script>
+      window.addEventListener('DOMContentLoaded', (event) => {
+        window.__TAURI__.core
+          .invoke('read_file')
+          .then((_data) => {
+            // success
+            window.__TAURI__.core.invoke('app_should_close', {
+              exitCode: 0
+            })
+          })
+          .catch((_error) => {
+            // error
+            window.__TAURI__.core.invoke('app_should_close', {
+              exitCode: 1
+            })
+          })
+      })
+    </script>
+  </body>
+</html>

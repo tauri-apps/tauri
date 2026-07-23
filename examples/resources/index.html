@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+
+  <body>
+    <div>
+      <strong>Resource `assets/index.js` path:</strong>
+      <span id="path"></span>
+    </div>
+    <strong>Resource `assets/index.js` content:</strong>
+    <pre id="content"></pre>
+
+    <script>
+      const { invoke } = window.__TAURI__.core
+      const { resolveResource } = window.__TAURI__.path
+
+      const pathEl = document.querySelector('#path')
+      const contentEl = document.querySelector('#content')
+
+      window.addEventListener('DOMContentLoaded', async () => {
+        const path = await resolveResource('assets/index.js')
+        pathEl.textContent = path
+
+        const content = await invoke('read_to_string', { path })
+        contentEl.textContent = content
+      })
+    </script>
+  </body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "productName": "Multi Window",
+  "version": "0.1.0",
+  "identifier": "com.tauri.dev",
+  "build": {
+    "frontendDist": ["index.html"]
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "Main",
+        "title": "Tauri - Main",
+        "tabbingIdentifier": "Main",
+        "width": 800,
+        "height": 600
+      },
+      {
+        "label": "Secondary",
+        "title": "Tauri - Secondary",
+        "tabbingIdentifier": "Secondary",
+        "width": 600,
+        "height": 400
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../.icons/32x32.png",
+      "../.icons/128x128.png",
+      "../.icons/128x128@2x.png",
+      "../.icons/icon.icns",
+      "../.icons/icon.ico"
+    ],
+    "resources": [],
+    "externalBin": [],
+    "copyright": "",
+    "category": "DeveloperTool"
+  }
+}

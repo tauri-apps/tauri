@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri</title>
+  </head>
+
+  <body>
+    <h3>Counter: <span id="counter"></span></h3>
+    <div>
+      <button id="increment-btn">Increment</button>
+      <button id="decrement-btn">Decrement</button>
+      <button id="reset-btn">Reset</button>
+    </div>
+
+    <p>Press Ctrl+R to reload and see the state persist.</p>
+
+    <script>
+      const { invoke } = window.__TAURI__.core
+
+      const incrementBtn = document.querySelector('#increment-btn')
+      const decrementBtn = document.querySelector('#decrement-btn')
+      const resetBtn = document.querySelector('#reset-btn')
+      const counterContainer = document.querySelector('#counter')
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        let currentCount = await invoke('get')
+        counterContainer.innerText = currentCount
+        console.log('loaded')
+      })
+
+      incrementBtn.addEventListener('click', async () => {
+        let newCount = await invoke('increment')
+        counterContainer.innerText = newCount
+      })
+
+      decrementBtn.addEventListener('click', async () => {
+        let newCount = await invoke('decrement')
+        counterContainer.innerText = newCount
+      })
+
+      resetBtn.addEventListener('click', async () => {
+        let newCount = await invoke('reset')
+        counterContainer.innerText = newCount
+      })
+    </script>
+  </body>
+</html>

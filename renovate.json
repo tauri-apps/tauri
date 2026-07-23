@@ -1,0 +1,45 @@
+{
+  "extends": ["config:recommended"],
+  "baseBranches": ["dev"],
+  "labels": ["type: chore"],
+  "enabledManagers": ["cargo", "npm"],
+  "rangeStrategy": "replace",
+  "packageRules": [
+    {
+      "matchPackageNames": ["*"],
+      "semanticCommitType": "chore",
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Disable node/pnpm version updates",
+      "matchPackageNames": ["node", "pnpm"],
+      "matchDepTypes": ["engines", "packageManager"],
+      "enabled": false
+    },
+    {
+      "description": "Disable oxc_* crates because of MSRV and PR spam",
+      "groupName": "oxc crates",
+      "matchPackageNames": ["oxc_*"],
+      "enabled": false
+    },
+    {
+      "description": "Group windows-rs / webview2-com crates",
+      "groupName": "windows-rs and webview2 crates",
+      "matchSourceUrls": [
+        "https://github.com/microsoft/windows-rs",
+        "https://github.com/wravery/webview2-rs"
+      ]
+    },
+    {
+      "description": "Group worker-rs crates",
+      "groupName": "worker-rs crates",
+      "matchSourceUrls": ["https://github.com/cloudflare/workers-rs"]
+    },
+    {
+      "description": "Group napi-rs packages",
+      "groupName": "napi-rs packages",
+      "matchSourceUrls": ["https://github.com/napi-rs/napi-rs"]
+    }
+  ],
+  "postUpdateOptions": ["pnpmDedupe"]
+}

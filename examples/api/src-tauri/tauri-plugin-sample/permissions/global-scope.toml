@@ -1,0 +1,7 @@
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+identifier = "global-scope"
+description = "Sets a global scope."
+[[permission.scope.allow]]
+path = "global"

@@ -1,0 +1,46 @@
+[package]
+name = "tauri-codegen"
+version = "2.6.3"
+description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
+exclude = ["CHANGELOG.md", "/target"]
+readme = "README.md"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+sha2 = "0.10"
+base64 = "0.22"
+proc-macro2 = "1"
+quote = "1"
+syn = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
+  "build-2",
+] }
+thiserror = "2"
+walkdir = "2"
+brotli = { version = "8", optional = true, default-features = false, features = [
+  "std",
+] }
+uuid = { version = "1", features = ["v4"] }
+semver = "1"
+ico = "0.5"
+png = "0.17"
+json-patch = "4"
+url = "2"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+plist = "1"
+time = { version = "0.3", features = ["parsing", "formatting"] }
+
+[features]
+compression = ["brotli", "tauri-utils/compression"]
+isolation = ["tauri-utils/isolation"]
+config-json5 = ["tauri-utils/config-json5"]
+config-toml = ["tauri-utils/config-toml"]

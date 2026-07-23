@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-read-file"
+description = "Enables the read_file command without any pre-configured scope."
+commands.allow = ["read_file"]

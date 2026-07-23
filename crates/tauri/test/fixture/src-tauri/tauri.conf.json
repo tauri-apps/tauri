@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "identifier": "studio.tauri.example",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:4000"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Tauri App"
+      }
+    ],
+    "security": {
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'; connect-src ipc: http://ipc.localhost",
+      "headers": null
+    }
+  },
+  "bundle": {
+    "active": true
+  }
+}

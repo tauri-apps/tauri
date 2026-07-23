@@ -1,0 +1,17 @@
+[build.env]
+# must set ICONS_VOLUME, DIST_VOLUME, ISOLATION_VOLUME and WORKSPACE_VOLUME environment variables
+# ICONS_VOLUME: absolute path to the .icons folder
+# DIST_VOLUME: absolute path to the dist folder
+# ISOLATION_VOLUME: absolute path to the isolation dist folder
+# WORKSPACE_VOLUME: absolute path to the workspace
+# this can be done running `$ . .setup-cross.sh` in the examples/api folder
+volumes = [
+  "ICONS_VOLUME",
+  "DIST_VOLUME",
+  "ISOLATION_VOLUME",
+  "WORKSPACE_VOLUME",
+]
+
+[target.aarch64-unknown-linux-gnu]
+image = "aarch64-unknown-linux-gnu:latest"
+#image = "ghcr.io/tauri-apps/tauri/aarch64-unknown-linux-gnu:latest"

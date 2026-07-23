@@ -1,0 +1,349 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
+use crate::{
+  error::{Context, ErrorExt},
+  helpers::config::{get_config as get_tauri_config, reload_config as reload_tauri_config},
+  interface::{AppInterface, Options as InterfaceOptions},
+  mobile::ios::LIB_OUTPUT_FILE_NAME,
+  Error, Result,
+};
+
+use cargo_mobile2::{apple::target::Target, opts::Profile, target::TargetTrait};
+use clap::{ArgAction, Parser};
+use object::{Object, ObjectSymbol};
+
+use std::{
+  collections::HashMap,
+  env::{current_dir, set_current_dir, var, var_os},
+  ffi::OsStr,
+  fs::read_to_string,
+  io::Read,
+  path::{Path, PathBuf},
+};
+
+#[derive(Debug, Parser)]
+pub struct Options {
+  /// Value of `PLATFORM_DISPLAY_NAME` env var
+  #[clap(long)]
+  platform: String,
+  /// Value of `SDKROOT` env var
+  #[clap(long)]
+  sdk_root: PathBuf,
+  /// Value of `FRAMEWORK_SEARCH_PATHS` env var
+  #[clap(long, action = ArgAction::Append, num_args(0..))]
+  framework_search_paths: Vec<String>,
+  /// Value of `GCC_PREPROCESSOR_DEFINITIONS` env var
+  #[clap(long, action = ArgAction::Append, num_args(0..))]
+  gcc_preprocessor_definitions: Vec<String>,
+  /// Value of `HEADER_SEARCH_PATHS` env var
+  #[clap(long, action = ArgAction::Append, num_args(0..))]
+  header_search_paths: Vec<String>,
+  /// Value of `CONFIGURATION` env var
+  #[clap(long)]
+  configuration: String,
+  /// Value of `FORCE_COLOR` env var
+  #[clap(long)]
+  force_color: bool,
+  /// Value of `ARCHS` env var
+  #[clap(index = 1, required = true)]
+  arches: Vec<String>,
+}
+
+pub fn command(options: Options) -> Result<()> {
+  fn macos_from_platform(platform: &str) -> bool {
+    platform == "macOS"
+  }
+
+  fn profile_from_configuration(configuration: &str) -> Profile {
+    if configuration == "release" {
+      Profile::Release
+    } else {
+      Profile::Debug
+    }
+  }
+
+  let process_path = std::env::current_exe().unwrap_or_default();
+
+  // `xcode-script` is ran from the `gen/apple` folder when not using NPM/yarn/pnpm/deno.
+  // so we must change working directory to the src-tauri folder to resolve the tauri dir
+  // additionally, bun@<1.2 does not modify the current working directory, so it is also runs this script from `gen/apple`
+  // bun@>1.2 now actually moves the CWD to the package root so we shouldn't modify CWD in that case
+  // see https://bun.sh/blog/bun-v1.2#bun-run-uses-the-correct-directory
+  if (var_os("npm_lifecycle_event").is_none()
+    && var_os("PNPM_PACKAGE_NAME").is_none()
+    && process_path.file_stem().unwrap_or_default() != "deno")
+    || var("npm_config_user_agent")
+      .is_ok_and(|agent| agent.starts_with("bun/1.0") || agent.starts_with("bun/1.1"))
+  {
+    set_current_dir(
+      current_dir()
+        .context("failed to resolve current directory")?
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap(),
+    )
+    .unwrap();
+  }
+
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+
+  let profile = profile_from_configuration(&options.configuration);
+  let macos = macos_from_platform(&options.platform);
+
+  let mut tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[], dirs.tauri)?;
+  let cli_options = read_options(&tauri_config);
+  if !cli_options.config.is_empty() {
+    // reload config with merges from the ios dev|build script
+    reload_tauri_config(
+      &mut tauri_config,
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+      dirs.tauri,
+    )?
+  };
+
+  let (config, metadata) = get_config(
+    &get_app(
+      MobileTarget::Ios,
+      &tauri_config,
+      &AppInterface::new(&tauri_config, None, dirs.tauri)?,
+      dirs.tauri,
+    ),
+    &tauri_config,
+    &[],
+    &cli_options,
+    dirs.tauri,
+  )?;
+
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Ios,
+    std::env::var("CI").is_ok(),
+  )?;
+
+  if !cli_options.config.is_empty() {
+    crate::helpers::config::merge_config_with(
+      &mut tauri_config,
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+    )?;
+  }
+
+  let env = env()
+    .context("failed to load iOS environment")?
+    .explicit_env_vars(cli_options.vars);
+
+  if !options.sdk_root.is_dir() {
+    crate::error::bail!(
+      "SDK root provided by Xcode was invalid. {} doesn't exist or isn't a directory",
+      options.sdk_root.display(),
+    );
+  }
+  let include_dir = options.sdk_root.join("usr/include");
+  if !include_dir.is_dir() {
+    crate::error::bail!(
+      "Include dir was invalid. {} doesn't exist or isn't a directory",
+      include_dir.display()
+    );
+  }
+
+  // Host flags that are used by build scripts
+  let macos_isysroot = {
+    let macos_sdk_root = options
+      .sdk_root
+      .join("../../../../MacOSX.platform/Developer/SDKs/MacOSX.sdk");
+    if !macos_sdk_root.is_dir() {
+      crate::error::bail!("Invalid SDK root {}", macos_sdk_root.display());
+    }
+    format!("-isysroot {}", macos_sdk_root.display())
+  };
+
+  let mut host_env = HashMap::<&str, &OsStr>::new();
+
+  host_env.insert("RUST_BACKTRACE", "1".as_ref());
+
+  host_env.insert("CFLAGS_x86_64_apple_darwin", macos_isysroot.as_ref());
+  host_env.insert("CXXFLAGS_x86_64_apple_darwin", macos_isysroot.as_ref());
+
+  host_env.insert(
+    "OBJC_INCLUDE_PATH_x86_64_apple_darwin",
+    include_dir.as_os_str(),
+  );
+
+  let framework_search_paths = options.framework_search_paths.join(" ");
+  host_env.insert("FRAMEWORK_SEARCH_PATHS", framework_search_paths.as_ref());
+
+  let gcc_preprocessor_definitions = options.gcc_preprocessor_definitions.join(" ");
+  host_env.insert(
+    "GCC_PREPROCESSOR_DEFINITIONS",
+    gcc_preprocessor_definitions.as_ref(),
+  );
+
+  let header_search_paths = options.header_search_paths.join(" ");
+  host_env.insert("HEADER_SEARCH_PATHS", header_search_paths.as_ref());
+
+  let macos_target = Target::macos();
+
+  let isysroot = format!("-isysroot {}", options.sdk_root.display());
+
+  let simulator =
+    options.platform == "iOS Simulator" || options.arches.contains(&"Simulator".to_string());
+  let arches = if simulator {
+    // when compiling for the simulator, we don't need to build other targets
+    vec![if cfg!(target_arch = "aarch64") {
+      "arm64"
+    } else {
+      "x86_64"
+    }
+    .to_string()]
+  } else {
+    options.arches
+  };
+
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
+  for arch in arches {
+    // Set target-specific flags
+    let (env_triple, rust_triple) = match arch.as_str() {
+      "arm64" if !simulator => ("aarch64_apple_ios", "aarch64-apple-ios"),
+      "arm64" if simulator => ("aarch64_apple_ios_sim", "aarch64-apple-ios-sim"),
+      "x86_64" => ("x86_64_apple_ios", "x86_64-apple-ios"),
+      _ => {
+        crate::error::bail!("Arch specified by Xcode was invalid. {arch} isn't a known arch")
+      }
+    };
+
+    let interface = AppInterface::new(&tauri_config, Some(rust_triple.into()), dirs.tauri)?;
+
+    let cflags = format!("CFLAGS_{env_triple}");
+    let cxxflags = format!("CFLAGS_{env_triple}");
+    let objc_include_path = format!("OBJC_INCLUDE_PATH_{env_triple}");
+    let mut target_env = host_env.clone();
+    target_env.insert(cflags.as_ref(), isysroot.as_ref());
+    target_env.insert(cxxflags.as_ref(), isysroot.as_ref());
+    target_env.insert(objc_include_path.as_ref(), include_dir.as_ref());
+
+    let target = if macos {
+      &macos_target
+    } else {
+      Target::for_arch(if arch == "arm64" && simulator {
+        "arm64-sim"
+      } else {
+        &arch
+      })
+      .with_context(|| format!("Arch specified by Xcode was invalid. {arch} isn't a known arch"))?
+    };
+
+    if !installed_targets.contains(&rust_triple.into()) {
+      log::info!("Installing target {}", target.triple());
+      target.install().map_err(|error| Error::CommandFailed {
+        command: "rustup target add".to_string(),
+        error,
+      })?;
+    }
+
+    target
+      .compile_lib(
+        &config,
+        &metadata,
+        cli_options.noise_level,
+        true,
+        profile,
+        &env,
+        target_env,
+      )
+      .context("failed to compile iOS app")?;
+
+    let out_dir = interface.app_settings().out_dir(
+      &InterfaceOptions {
+        debug: matches!(profile, Profile::Debug),
+        target: Some(rust_triple.into()),
+        ..Default::default()
+      },
+      dirs.tauri,
+    )?;
+
+    let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
+    if !lib_path.exists() {
+      crate::error::bail!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display());
+    }
+
+    validate_lib(&lib_path)?;
+
+    let project_dir = config.project_dir();
+    let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
+    std::fs::create_dir_all(&externals_lib_dir).fs_context(
+      "failed to create externals lib directory",
+      externals_lib_dir.clone(),
+    )?;
+
+    // backwards compatible lib output file name
+    let uses_new_lib_output_file_name = {
+      let pbxproj_path = project_dir
+        .join(format!("{}.xcodeproj", config.app().name()))
+        .join("project.pbxproj");
+      let pbxproj_contents = read_to_string(&pbxproj_path)
+        .fs_context("failed to read project.pbxproj file", pbxproj_path)?;
+
+      pbxproj_contents.contains(LIB_OUTPUT_FILE_NAME)
+    };
+
+    let lib_output_file_name = if uses_new_lib_output_file_name {
+      LIB_OUTPUT_FILE_NAME.to_string()
+    } else {
+      format!("lib{}.a", config.app().lib_name())
+    };
+
+    std::fs::copy(&lib_path, externals_lib_dir.join(lib_output_file_name)).fs_context(
+      "failed to copy mobile lib file to Externals directory",
+      lib_path.to_path_buf(),
+    )?;
+  }
+  Ok(())
+}
+
+fn validate_lib(path: &Path) -> Result<()> {
+  let mut archive = ar::Archive::new(
+    std::fs::File::open(path).fs_context("failed to open mobile lib file", path.to_path_buf())?,
+  );
+  // Iterate over all entries in the archive:
+  while let Some(entry) = archive.next_entry() {
+    let Ok(mut entry) = entry else {
+      continue;
+    };
+    let mut obj_bytes = Vec::new();
+    entry
+      .read_to_end(&mut obj_bytes)
+      .fs_context("failed to read mobile lib entry", path.to_path_buf())?;
+
+    let file = object::File::parse(&*obj_bytes)
+      .map_err(std::io::Error::other)
+      .fs_context("failed to parse mobile lib entry", path.to_path_buf())?;
+    for symbol in file.symbols() {
+      let Ok(name) = symbol.name() else {
+        continue;
+      };
+      if name.contains("start_app") {
+        return Ok(());
+      }
+    }
+  }
+
+  crate::error::bail!(
+    "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
+    path.display()
+  )
+}

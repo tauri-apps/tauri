@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-read-dir"
+description = "Enables the read_dir command without any pre-configured scope."
+commands.allow = ["read_dir"]

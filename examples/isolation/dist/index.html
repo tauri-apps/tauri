@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <title>Hello Tauri!</title>
+</head>
+
+<body>
+  <div>
+    <h1>Hello, Tauri!</h1>
+    <div>
+      <button id="ping">ping</button>
+      <span id="pong"></span>
+    </div>
+  </div>
+
+  <script>
+    const { invoke } = window.__TAURI__.core
+
+    const ping = document.querySelector("#ping")
+    const pong = document.querySelector('#pong')
+
+    ping.addEventListener("click", () => {
+      invoke("ping")
+        .then(() => {
+          pong.innerText = `ok: ${Date.now()}`
+        })
+        .catch(() => {
+          pong.innerText = `error: ${Date.now()}`
+        })
+    })
+  </script>
+</body>
+</html>

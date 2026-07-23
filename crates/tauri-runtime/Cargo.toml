@@ -1,0 +1,72 @@
+[package]
+name = "tauri-runtime"
+version = "2.11.3"
+description = "Runtime for Tauri applications"
+exclude = ["CHANGELOG.md", "/target"]
+readme = "README.md"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "x86_64-linux-android",
+  "x86_64-apple-ios",
+]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tauri-utils = { version = "2.9.3", path = "../tauri-utils" }
+http = "1"
+raw-window-handle = "0.6"
+url = { version = "2" }
+dpi = { version = "0.1", features = ["serde"] }
+# WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
+cookie = "0.18"
+
+[target."cfg(windows)".dependencies.windows]
+version = "0.61"
+features = ["Win32_Foundation", "Win32_System_WinRT"]
+
+[target."cfg(windows)".dependencies]
+webview2-com = "0.38"
+
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }
+webkit2gtk = { version = "=2.0", features = ["v2_40"] }
+
+[target."cfg(target_os = \"android\")".dependencies]
+jni = "0.21"
+
+[target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
+objc2 = "0.6"
+objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+  "UIView",
+  "UIResponder",
+  "UIScene",
+  "UISceneOptions",
+] }
+
+[target."cfg(target_os = \"macos\")".dependencies]
+url = "2"
+objc2 = "0.6"
+objc2-web-kit = { version = "0.3", default-features = false, features = [
+  "objc2-app-kit",
+  "WKWebView",
+  "WKWebViewConfiguration",
+] }
+
+[features]
+devtools = []
+macos-private-api = []

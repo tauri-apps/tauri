@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../crates/tauri-schema-generator/schemas/config.schema.json",
+  "productName": "Tauri API",
+  "version": "1.0.0",
+  "identifier": "com.tauri.api",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "removeUnusedCommands": true
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "security": {
+      "pattern": {
+        "use": "isolation",
+        "options": {
+          "dir": "../isolation-dist/"
+        }
+      },
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": ["https://fonts.gstatic.com"],
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
+      },
+      "freezePrototype": true,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
+          "deny": ["$APPDATA/db/*.stronghold"]
+        }
+      }
+    }
+  },
+  "plugins": {
+    "cli": {
+      "description": "Tauri API example",
+      "args": [
+        {
+          "short": "c",
+          "name": "config",
+          "takesValue": true,
+          "description": "Config path"
+        },
+        {
+          "short": "t",
+          "name": "theme",
+          "takesValue": true,
+          "description": "App theme",
+          "possibleValues": ["light", "dark", "system"]
+        },
+        {
+          "short": "v",
+          "name": "verbose",
+          "description": "Verbosity level"
+        }
+      ],
+      "subcommands": {
+        "update": {
+          "description": "Updates the app",
+          "args": [
+            {
+              "short": "b",
+              "name": "background",
+              "description": "Update in background"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "fileAssociations": [
+      {
+        "ext": ["png"],
+        "mimeType": "image/png",
+        "rank": "Default"
+      },
+      {
+        "ext": ["jpg", "jpeg"],
+        "mimeType": "image/jpeg",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["gif"],
+        "mimeType": "image/gif",
+        "rank": "Owner"
+      },
+      {
+        "ext": ["taurijson"],
+        "exportedType": {
+          "identifier": "com.tauri.dev-file-associations-demo.taurijson",
+          "conformsTo": ["public.json"]
+        }
+      },
+      {
+        "ext": ["taurid"],
+        "exportedType": {
+          "identifier": "com.tauri.dev-file-associations-demo.tauridata",
+          "conformsTo": ["public.data"]
+        }
+      }
+    ],
+    "icon": [
+      "../../.icons/32x32.png",
+      "../../.icons/128x128.png",
+      "../../.icons/128x128@2x.png",
+      "../../.icons/icon.icns",
+      "../../.icons/icon.ico",
+      "../../.icons/AppIcon.icon"
+    ],
+    "windows": {
+      "wix": {
+        "language": {
+          "en-US": {},
+          "pt-BR": {
+            "localePath": "locales/pt-BR.wxl"
+          }
+        }
+      },
+      "nsis": {
+        "compression": "none"
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "tauri-workspace",
+  "version": "0.0.0",
+  "license": "Apache-2.0 OR MIT",
+  "private": true,
+  "contributors": [
+    "Tauri Programme within The Commons Conservancy"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tauri-apps/tauri.git"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "eslint:check": "pnpm run -r eslint:check",
+    "ts:check": "pnpm run -r ts:check",
+    "build": "pnpm run -F !api build && pnpm run -F api build",
+    "build:debug": "pnpm run -F !api build:debug && pnpm run -F api build:debug",
+    "build:api": "pnpm run --filter \"@tauri-apps/api\" build",
+    "build:api:debug": "pnpm run --filter \"@tauri-apps/api\" build:debug",
+    "build:cli": "pnpm run --filter \"@tauri-apps/cli\" build",
+    "build:cli:debug": "pnpm run --filter \"@tauri-apps/cli\" build:debug",
+    "test": "pnpm run -r test",
+    "example:api:dev": "pnpm run --filter \"api\" tauri dev"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1"
+  },
+  "minimumReleaseAge": 4320,
+  "packageManager": "pnpm@11.13.0"
+}

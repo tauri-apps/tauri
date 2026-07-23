@@ -1,0 +1,224 @@
+{
+  "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
+  "changeTags": {
+    "feat": "New Features",
+    "enhance": "Enhancements",
+    "bug": "Bug Fixes",
+    "perf": "Performance Improvements",
+    "changes": "What's Changed",
+    "sec": "Security fixes",
+    "deps": "Dependencies",
+    "breaking": "Breaking Changes"
+  },
+  "defaultChangeTag": "changes",
+  "pkgManagers": {
+    "rust": {
+      "version": true,
+      "getPublishedVersion": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://crates.io/api/v1/crates/${ pkg.pkgFile.pkg.package.name }/${ pkg.pkgFile.version }"
+        }
+      },
+      "prepublish": [
+        "cargo install cargo-audit --features=fix",
+        {
+          "command": "echo '<details>\n<summary><em><h4>Cargo Audit</h4></em></summary>\n\n```'",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo audit ${ process.env.CARGO_AUDIT_OPTIONS || '' }",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo '```\n\n</details>\n'",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "publish": [
+        {
+          "command": "echo '<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```'",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo publish",
+          "dryRunCommand": "cargo publish --dry-run",
+          "pipe": true
+        },
+        {
+          "command": "echo '```\n\n</details>\n'",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "postpublish": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://crates.io/api/v1/crates/${ pkg.pkgFile.pkg.package.name }/${ pkg.pkgFile.version }"
+        },
+        "retries": [5000, 5000, 5000]
+      }
+    },
+    "javascript": {
+      "version": true,
+      "getPublishedVersion": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://registry.npmjs.com/${ pkg.pkgFile.pkg.name }/${ pkg.pkgFile.version }"
+        }
+      },
+      "prepublish": [
+        {
+          "command": "echo '<details>\n<summary><em><h4>PNPM Audit</h4></em></summary>\n\n```'",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "pnpm i --frozen-lockfile",
+          "dryRunCommand": true
+        },
+        {
+          "command": "pnpm audit",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
+        },
+        {
+          "command": "echo '```\n\n</details>\n'",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "publish": [
+        {
+          "command": "echo '<details>\n<summary><em><h4>PNPM Publish</h4></em></summary>\n\n```'",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "pnpm publish --access public --loglevel silly --no-git-checks",
+          "dryRunCommand": "npm publish --dry-run --access public --no-git-checks",
+          "pipe": true
+        },
+        {
+          "command": "echo '```\n\n</details>\n'",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
+      "postpublish": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://registry.npmjs.com/${ pkg.pkgFile.pkg.name }/${ pkg.pkgFile.version }"
+        },
+        "retries": [5000, 5000, 5000]
+      }
+    }
+  },
+  "packages": {
+    "@tauri-apps/api": {
+      "path": "./packages/api",
+      "manager": "javascript",
+      "publish": [
+        {
+          "command": "echo '<details>\n<summary><em><h4>PNPM Publish</h4></em></summary>\n\n```'",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "pnpm npm-publish",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo '```\n\n</details>\n'",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ]
+    },
+    "tauri-utils": {
+      "path": "./crates/tauri-utils",
+      "manager": "rust"
+    },
+    "tauri-macos-sign": {
+      "path": "./crates/tauri-macos-sign",
+      "manager": "rust"
+    },
+    "tauri-bundler": {
+      "path": "./crates/tauri-bundler",
+      "manager": "rust",
+      "dependencies": ["tauri-utils", "tauri-macos-sign"]
+    },
+    "tauri-runtime": {
+      "path": "./crates/tauri-runtime",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"]
+    },
+    "tauri-runtime-wry": {
+      "path": "./crates/tauri-runtime-wry",
+      "manager": "rust",
+      "dependencies": ["tauri-utils", "tauri-runtime"]
+    },
+    "tauri-codegen": {
+      "path": "./crates/tauri-codegen",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"]
+    },
+    "tauri-macros": {
+      "path": "./crates/tauri-macros",
+      "manager": "rust",
+      "dependencies": ["tauri-codegen", "tauri-utils"]
+    },
+    "tauri-plugin": {
+      "path": "./crates/tauri-plugin",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"],
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+    },
+    "tauri-build": {
+      "path": "./crates/tauri-build",
+      "manager": "rust",
+      "dependencies": ["tauri-codegen", "tauri-utils"],
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+    },
+    "tauri": {
+      "path": "./crates/tauri",
+      "manager": "rust",
+      "dependencies": [
+        "tauri-macros",
+        "tauri-utils",
+        "tauri-runtime",
+        "tauri-runtime-wry",
+        "tauri-build"
+      ],
+      "postversion": [
+        "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../tauri-schema-generator/Cargo.toml"
+      ]
+    },
+    "@tauri-apps/cli": {
+      "path": "./packages/cli",
+      "manager": "javascript",
+      "dependencies": ["tauri-cli"],
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "prepublish": [],
+      "publish": [],
+      "postpublish": []
+    },
+    "tauri-cli": {
+      "path": "./crates/tauri-cli",
+      "manager": "rust",
+      "dependencies": ["tauri-bundler", "tauri-utils", "tauri-macos-sign"]
+    },
+    "tauri-driver": {
+      "path": "./crates/tauri-driver",
+      "manager": "rust"
+    }
+  }
+}

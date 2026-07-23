@@ -1,0 +1,80 @@
+:root {
+  line-height: 1.5;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+:root.light {
+  color-scheme: light;
+}
+
+input,
+select {
+  min-width: 0;
+}
+
+*:not(h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: 'Rubik', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 0.25rem;
+  height: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 0.25rem;
+}
+
+code {
+  padding: 0.05rem 0.25rem;
+}
+
+code.code-block {
+  padding: 0.5rem;
+}
+
+#sidebar {
+  width: 18.75rem;
+}
+
+@media screen and (width < 640px) {
+  #sidebar {
+    --translate-x: -18.75rem;
+    transform: translateX(var(--translate-x));
+  }
+}
+
+#sidebar,
+main {
+  padding-top: calc(env(safe-area-inset-top) + 1rem);
+}
+
+#sidebar {
+  padding-left: calc(env(safe-area-inset-left) + 0.5rem);
+}
+
+main {
+  padding-right: env(safe-area-inset-right);
+}
+
+#sidebarToggle {
+  margin-top: calc(env(safe-area-inset-top) + 0.5rem);
+  margin-left: calc(env(safe-area-inset-left) + 0.5rem);
+}
+
+#sidebar,
+#console {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
+}

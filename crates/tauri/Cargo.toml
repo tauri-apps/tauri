@@ -1,0 +1,277 @@
+[package]
+name = "tauri"
+version = "2.11.5"
+description = "Make tiny, secure apps for all desktop platforms with Tauri"
+exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
+readme = "README.md"
+links = "Tauri"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[package.metadata.docs.rs]
+no-default-features = true
+features = [
+  "wry",
+  "unstable",
+  "custom-protocol",
+  "tray-icon",
+  "devtools",
+  "image-png",
+  "protocol-asset",
+  "test",
+  "specta",
+  "dynamic-acl",
+  "isolation",
+]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "x86_64-linux-android",
+  "x86_64-apple-ios",
+]
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["reqwest"]
+build = ["tauri-build"]
+development = ["quickcheck_macros"]
+
+[dependencies]
+serde_json = { version = "1", features = ["raw_value"] }
+serde = { version = "1", features = ["derive", "rc"] }
+tokio = { version = "1", features = [
+  "rt",
+  "rt-multi-thread",
+  "sync",
+  "fs",
+  "io-util",
+] }
+uuid = { version = "1", features = ["v4"], optional = true }
+url = "2"
+anyhow = "1"
+thiserror = "2"
+tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
+tauri-macros = { version = "2.6.3", path = "../tauri-macros" }
+tauri-utils = { version = "2.9.3", features = [
+  "resources",
+], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "2.11.4", path = "../tauri-runtime-wry", default-features = false, optional = true }
+getrandom = "0.3"
+serde_repr = "0.1"
+http = "1"
+dirs = "6"
+percent-encoding = "2"
+raw-window-handle = { version = "0.6", features = ["std"] }
+glob = "0.3"
+mime = "0.3"
+data-url = { version = "0.3", optional = true }
+serialize-to-javascript = "0.1.2"
+image = { version = "0.25", default-features = false, optional = true }
+http-range = { version = "0.1", optional = true }
+tracing = { version = "0.1", optional = true }
+heck = "0.5"
+log = "0.4.21"
+dunce = "1"
+specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [
+  "function",
+  "derive",
+] }
+# WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
+cookie = "0.18"
+
+# desktop
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
+muda = { version = "0.19", default-features = false, features = [
+  "serde",
+  "gtk",
+] }
+tray-icon = { version = "0.24", default-features = false, features = [
+  "serde",
+  "gtk",
+], optional = true }
+
+# linux
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }
+webkit2gtk = { version = "2", features = ["v2_40"], optional = true }
+
+# darwin
+[target.'cfg(target_vendor = "apple")'.dependencies]
+objc2 = "0.6"
+
+# macOS
+[target.'cfg(target_os = "macos")'.dependencies]
+embed_plist = "1.2"
+plist = "1"
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSData",
+  "NSThread",
+] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSColor",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+  "NSImage",
+] }
+objc2-web-kit = { version = "0.3", default-features = false, features = [
+  "objc2-app-kit",
+  "WKWebView",
+  "WKWebViewConfiguration",
+  "WKUserContentController",
+] }
+window-vibrancy = "0.6"
+
+# windows
+[target."cfg(windows)".dependencies]
+webview2-com = { version = "0.38", optional = true }
+window-vibrancy = "0.6"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+# mobile
+[target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
+bytes = { version = "1", features = ["serde"] }
+reqwest = { version = "0.13", default-features = false, features = [
+  "json",
+  "stream",
+] }
+rustls = { version = "0.23", default-features = false, features = [
+  "ring",
+], optional = true }
+
+# android
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+
+# UIKit, i.e. iOS/tvOS/watchOS/visionOS
+[target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
+libc = "0.2"
+swift-rs = "1"
+objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+  "UIApplication",
+  "UIResponder",
+  "UIView",
+] }
+
+[build-dependencies]
+glob = "0.3"
+heck = "0.5"
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.6.3" }
+tauri-utils = { path = "../tauri-utils/", version = "2.9.3", features = [
+  "build-2",
+] }
+
+[dev-dependencies]
+proptest = "1.6.0"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { path = ".", default-features = false, features = ["wry"] }
+tokio = { version = "1", features = ["full"] }
+cargo_toml = "1.0"
+http-range = "0.1.5"
+
+[features]
+default = [
+  "wry",
+  "compression",
+  "common-controls-v6",
+  "dynamic-acl",
+  "x11",
+  "dbus",
+]
+unstable = ["tauri-runtime-wry?/unstable"]
+x11 = ["tauri-runtime-wry?/x11"]
+dbus = ["tauri-runtime-wry?/dbus"]
+common-controls-v6 = [
+  "tray-icon?/common-controls-v6",
+  "muda/common-controls-v6",
+  "tauri-runtime-wry?/common-controls-v6",
+]
+tray-icon = ["dep:tray-icon"]
+tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]
+test = []
+compression = ["tauri-macros/compression", "tauri-utils/compression"]
+wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
+# TODO: Remove in v3 - wry does not have this feature anymore
+objc-exception = []
+linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
+isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
+custom-protocol = ["tauri-macros/custom-protocol"]
+# TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384
+native-tls = ["reqwest/native-tls"]
+native-tls-vendored = ["reqwest/native-tls-vendored"]
+rustls-tls = ["reqwest/rustls-no-provider", "dep:rustls"]
+devtools = ["tauri-runtime/devtools", "tauri-runtime-wry?/devtools"]
+process-relaunch-dangerous-allow-symlink-macos = [
+  "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
+]
+macos-private-api = [
+  "tauri-runtime/macos-private-api",
+  "tauri-runtime-wry?/macos-private-api",
+]
+webview-data-url = ["data-url", "tauri-utils/html-manipulation-2"]
+protocol-asset = ["http-range"]
+config-json5 = ["tauri-macros/config-json5"]
+config-toml = ["tauri-macros/config-toml"]
+image-ico = ["image/ico"]
+image-png = ["image/png"]
+macos-proxy = ["tauri-runtime-wry?/macos-proxy"]
+dynamic-acl = []
+specta = ["dep:specta"]
+
+[[example]]
+name = "commands"
+path = "../../examples/commands/main.rs"
+
+[[example]]
+name = "helloworld"
+path = "../../examples/helloworld/main.rs"
+
+[[example]]
+name = "drag"
+path = "../../examples/drag/main.rs"
+
+[[example]]
+name = "multiwebview"
+path = "../../examples/multiwebview/main.rs"
+required-features = ["unstable"]
+
+[[example]]
+name = "multiwindow"
+path = "../../examples/multiwindow/main.rs"
+
+[[example]]
+name = "run-return"
+path = "../../examples/run-return/main.rs"
+
+[[example]]
+name = "splashscreen"
+path = "../../examples/splashscreen/main.rs"
+
+[[example]]
+name = "state"
+path = "../../examples/state/main.rs"
+
+[[example]]
+name = "streaming"
+path = "../../examples/streaming/main.rs"
+
+[[example]]
+name = "isolation"
+path = "../../examples/isolation/main.rs"
+required-features = ["isolation"]

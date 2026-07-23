@@ -1,0 +1,4 @@
+[env]
+# workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error in tests
+# see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
+__TAURI_WORKSPACE__ = "true"

@@ -1,0 +1,14 @@
+[advisories]
+ignore = [
+  # rsa Marvin Attack
+  "RUSTSEC-2023-0071",
+  # difference is unmaintained
+  "RUSTSEC-2020-0095",
+  # proc-macro-error is unmaintained
+  "RUSTSEC-2024-0370",
+  # rand unsoundness, fixed when we remove kuchikiki from deps in v3, currently
+  # remains for semver reasons but is not built in default configuration
+  "RUSTSEC-2026-0097",
+  # glib 0.18.5 unsoundness, fixed by updating to gtk4
+  "RUSTSEC-2024-0429",
+]

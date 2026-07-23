@@ -44,7 +44,7 @@ impl CodegenContext {
   /// the package compiling; does not need to be set manually if that config file is in the same
   /// directory as your `Cargo.toml`.
   #[must_use]
-  #[deprecated(since = "2.11.0", note = "Use `Attributes::config_path()` instead")]
+  #[deprecated(since = "2.12.0", note = "Use `Attributes::config_path()` instead")]
   pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
     self.config_path.replace(config_path.into());
     self

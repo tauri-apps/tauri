@@ -38,10 +38,10 @@ impl CodegenContext {
     Self::default()
   }
 
-  /// Set the path to the `tauri.conf.json` (relative to the package's directory).
+  /// Set the path to the `tauri.conf.json` (relative to the crate's directory).
   ///
   /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
-  /// the package compiling; does not need to be set manually if that config file is in the same
+  /// the crate compiling; does not need to be set manually if that config file is in the same
   /// directory as your `Cargo.toml`.
   #[must_use]
   #[deprecated(since = "2.12.0", note = "Use `Attributes::config_path()` instead")]

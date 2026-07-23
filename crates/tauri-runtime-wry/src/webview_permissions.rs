@@ -4,7 +4,7 @@
 
 use tauri_runtime::webview::{PermissionKind, PermissionResponse};
 
-pub(super) fn map_permission_kind(kind: wry::PermissionKind) -> PermissionKind {
+pub(super) fn to_wry_permission_kind(kind: wry::PermissionKind) -> PermissionKind {
   match kind {
     wry::PermissionKind::Microphone => PermissionKind::Microphone,
     wry::PermissionKind::Camera => PermissionKind::Camera,
@@ -26,7 +26,7 @@ pub(super) fn map_permission_kind(kind: wry::PermissionKind) -> PermissionKind {
   }
 }
 
-pub(super) fn map_permission_response(response: PermissionResponse) -> wry::PermissionResponse {
+pub(super) fn to_wry_permission_response(response: PermissionResponse) -> wry::PermissionResponse {
   match response {
     PermissionResponse::Allow => wry::PermissionResponse::Allow,
     PermissionResponse::Deny => wry::PermissionResponse::Deny,

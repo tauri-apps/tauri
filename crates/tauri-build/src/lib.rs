@@ -591,7 +591,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     )?;
   }
 
-  #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config
     .bundle
     .resources

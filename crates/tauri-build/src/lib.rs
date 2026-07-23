@@ -518,7 +518,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     &env::current_dir().unwrap()
   };
 
-  let (mut config, config_paths) = tauri_utils::config::parse::read_from(target, &config_root)?;
+  let (mut config, config_paths) = tauri_utils::config::parse::read_from(target, config_root)?;
 
   for config_file_path in config_paths {
     println!("cargo:rerun-if-changed={}", config_file_path.display());

@@ -1421,11 +1421,11 @@ impl<R: Runtime> App<R> {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
-        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Ready, &self.manager);
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Ready, self.manager());
         callback(self.handle(), event);
       }
       RuntimeRunEvent::Exit => {
-        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Exit, &self.manager);
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Exit, self.manager());
         callback(self.handle(), event);
         self.cleanup_before_exit();
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
@@ -1433,7 +1433,7 @@ impl<R: Runtime> App<R> {
         }
       }
       _ => {
-        let event = on_event_loop_event(self.handle(), event, &self.manager);
+        let event = on_event_loop_event(self.handle(), event, self.manager());
         callback(self.handle(), event);
       }
     }

@@ -1227,13 +1227,19 @@ impl<T: UserEvent> fmt::Debug for CefRuntime<T> {
   target_os = "openbsd",
   target_os = "netbsd"
 ))]
-
 struct TerminationSignals {
   sigint: Option<libc::sigaction>,
   sigterm: Option<libc::sigaction>,
   sighup: Option<libc::sigaction>,
 }
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "openbsd",
+  target_os = "netbsd"
+))]
 impl TerminationSignals {
   fn capture() -> Self {
     Self {

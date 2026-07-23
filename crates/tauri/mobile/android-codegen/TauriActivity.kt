@@ -8,6 +8,7 @@ package {{package}}
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Bundle
 import app.tauri.plugin.PluginManager
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -32,6 +33,11 @@ object TauriLifecycleObserver : DefaultLifecycleObserver {
 
 abstract class TauriActivity : WryActivity() {
   override val handleBackNavigation: Boolean = false
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    PluginManager.onActivityCreate(this)
+  }
 
   fun getPluginManager(): PluginManager {
     return PluginManager

@@ -202,6 +202,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .output_ok()
     .context("quick-sharun command failed to run.")?;
 
-  //fs::remove_dir_all(package_dir).expect("rmdir");
+  fs::remove_dir_all(package_dir).expect("rmdir");
   Ok(vec![appimage_path])
 }

@@ -217,10 +217,10 @@ impl<R: Runtime> PathResolver<R> {
   /// this is not a contract and things might change in the future
   ///
   /// - **Windows:** Resolves to the directory that contains the main executable.
-  /// - **Linux:** When running in an AppImage, the `APPDIR` variable will be set to
-  ///   the mounted location of the app, and the resource dir will be `${APPDIR}/usr/lib/${exe_name}`.
-  ///   If not running in an AppImage, the path is `/usr/lib/${exe_name}`.
-  ///   When running the app from `src-tauri/target/(debug|release)/`, the path is `${exe_dir}/../lib/${exe_name}`.
+  /// - **Linux:** When running from a Cargo output directory, resolves to the directory containing the
+  ///   executable. Otherwise, resolves to `${exe_dir}/../lib/${product_name}` when that directory
+  ///   exists, `${APPDIR}/usr/lib/${product_name}` inside an AppImage, or
+  ///   `/usr/lib/${product_name}` for an installed package.
   /// - **macOS:** Resolves to `${exe_dir}/../Resources` (inside .app).
   /// - **iOS:** Resolves to `${exe_dir}/assets`.
   /// - **Android:** Currently the resources are stored in the APK as assets so it's not a normal file system path,

@@ -74,15 +74,25 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     main_binary.set_name(main_binary_name_kebab);
   }
 
+  fs::create_dir_all(&output_path)?;
+  let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
+
   // generate deb_folder structure
   let (data_dir, icons) = debian::generate_data(&settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
-  fs_utils::copy_custom_files(&settings.appimage().files, &data_dir)
+
+  fs_utils::copy_dir(&data_dir.join("usr/bin/"), &app_dir_path.join("bin/"))
+    .with_context(|| "Failed to copy bin files")?;
+  // Only exists when resources feature is used
+  if data_dir.join("usr/lib/").exists() {
+    fs_utils::copy_dir(&data_dir.join("usr/lib/"), &app_dir_path.join("lib/"))
+      .with_context(|| "Failed to copy lib files")?;
+  }
+
+  fs_utils::copy_custom_files(&settings.appimage().files, &app_dir_path)
     .with_context(|| "Failed to copy custom files")?;
 
-  fs::create_dir_all(data_dir.join("usr/bin/"))?;
-  fs::create_dir_all(data_dir.join("usr/bin/locales"))?;
-  fs::create_dir_all(data_dir.join("usr/lib/"))?;
+  fs::create_dir_all(app_dir_path.join("bin/locales/"))?;
 
   let cef_path = settings
     .bundle_settings()
@@ -113,8 +123,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   ];
 
   for f in cef_files {
-    let dest = data_dir.join("usr/bin/").join(f);
-    fs::copy(cef_path.join(f), &dest)?;
+    let dest = app_dir_path.join("bin/").join(f);
+    fs::copy(cef_path.join(f), &dest).with_context(|| format!("Failed to copy cef file {f} to {}", dest.display()))?;
+    // quick-sharun checks for the NO_STRIP env but libcef.so is 1.5GB so we make sure it's stripped anyway.
     let _ = Command::new("strip").arg(&dest).output_ok();
   }
   let locales = [
@@ -127,12 +138,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for f in locales {
     fs::copy(
       cef_path.join("locales").join(f),
-      data_dir.join("usr/bin/locales").join(f),
-    )?;
+      app_dir_path.join("bin/locales").join(f),
+    ).with_context(|| format!("Failed to copy cef locales file {f}"))?;
   }
 
-  fs::create_dir_all(&output_path)?;
-  let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
   let appimage_filename = format!(
     "{}_{}_{appimage_arch}.AppImage",
     settings.product_name(),
@@ -157,7 +166,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     _ => "",
   };
 
-  settings.copy_binaries(&app_dir_path.join("usr/bin/"))?;
+  // Also intentionally(!) includes cef library files
+  let bins = app_dir_path
+    .join("bin/")
+    .read_dir()?
+    .filter_map(|entry| entry.ok())
+    .map(|entry| format!(" \"{}\"", entry.path().to_string_lossy()))
+    .collect::<String>();
+
+  dbg!(&bins);
 
   // TODO: Consider to not rely on quick-sharun when we have more time
   Command::new("/bin/sh")
@@ -176,18 +193,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .args([
       "-c",
       &format!(
-        r#""{}" "{}" "{}""#,
+        r#""{}" {bins} "{}""#,
         quick_sharun.to_string_lossy(),
-        data_dir
-          .join("usr/bin/")
-          .to_string_lossy(),
         // TODO: check if we have to search for binaries/libraries in this folder and manually enter them here
-        data_dir.join("usr/lib/").to_string_lossy()
+        app_dir_path.join("lib/").to_string_lossy()
       ),
     ])
     .output_ok()
     .context("quick-sharun command failed to run.")?;
 
-  fs::remove_dir_all(package_dir).expect("rmdir");
+  //fs::remove_dir_all(package_dir).expect("rmdir");
   Ok(vec![appimage_path])
 }

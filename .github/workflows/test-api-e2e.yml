@@ -63,8 +63,8 @@ jobs:
             fluxbox
 
       # install a matching Microsoft Edge Driver version using msedgedriver-tool
-      - name: install msdgedriver (Windows)
-        if: matrix.platform == 'windows-latest'
+      - name: install msedgedriver (Windows)
+        if: runner.os == 'Windows'
         run: |
           cargo install --git https://github.com/chippers/msedgedriver-tool
           & "$HOME/.cargo/bin/msedgedriver-tool.exe"

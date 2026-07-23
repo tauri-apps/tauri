@@ -17,7 +17,7 @@ use tauri_utils::config::FrontendDist;
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 #[derive(Debug)]
 pub struct CodegenContext {
-  config_path: PathBuf,
+  pub(crate) config_path: Option<PathBuf>,
   out_file: PathBuf,
   capabilities: Option<Vec<PathBuf>>,
 }
@@ -25,7 +25,7 @@ pub struct CodegenContext {
 impl Default for CodegenContext {
   fn default() -> Self {
     Self {
-      config_path: PathBuf::from("tauri.conf.json"),
+      config_path: None,
       out_file: PathBuf::from("tauri-build-context.rs"),
       capabilities: None,
     }
@@ -46,7 +46,7 @@ impl CodegenContext {
   #[must_use]
   #[deprecated(since = "2.11.0", note = "Use `Attributes::config_path()` instead")]
   pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
-    self.config_path = config_path.into();
+    self.config_path.replace(config_path.into());
     self
   }
 
@@ -81,12 +81,12 @@ impl CodegenContext {
   ///
   /// Unless you are doing something special with this builder, you don't need to do anything with
   /// the returned output path.
-  pub(crate) fn try_build(self, attributes_config_path: Option<PathBuf>) -> Result<PathBuf> {
-    let config_path = attributes_config_path
-      // If no fallback path, default to `tauri.conf.json` in the current working directory.
-      .unwrap_or_else(|| PathBuf::from("tauri.conf.json"));
-
-    let (config, config_parent) = tauri_codegen::get_config(&config_path)?;
+  pub(crate) fn try_build(self) -> Result<PathBuf> {
+    let (config, config_parent) = tauri_codegen::get_config(
+      &self
+        .config_path
+        .unwrap_or_else(|| PathBuf::from("tauri.conf.json")),
+    )?;
 
     // rerun if changed
     match &config.build.frontend_dist {

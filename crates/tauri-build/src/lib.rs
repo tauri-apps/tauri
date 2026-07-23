@@ -507,12 +507,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let config_root = attributes
-    .config_path
-    .as_deref()
-    .and_then(|p| p.parent())
-    .map(|p| p.to_path_buf())
-    .unwrap_or_else(|| env::current_dir().unwrap());
+  let config_root = if let Some(config_path) = &attributes.config_path {
+    config_path.parent().with_context(|| {
+      format!(
+        "`config_path` '{}' doesn't have a parent directory",
+        config_path.display()
+      )
+    })?
+  } else {
+    &env::current_dir().unwrap()
+  };
 
   let (mut config, config_paths) = tauri_utils::config::parse::read_from(target, &config_root)?;
 
@@ -749,8 +753,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   #[cfg(feature = "codegen")]
-  if let Some(codegen) = attributes.codegen {
-    codegen.try_build(attributes.config_path)?;
+  if let Some(mut codegen) = attributes.codegen {
+    if codegen.config_path.is_none() {
+      codegen.config_path = attributes.config_path;
+    }
+    codegen.try_build()?;
   }
 
   Ok(())

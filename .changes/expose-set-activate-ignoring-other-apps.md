@@ -4,8 +4,4 @@
 "tauri": minor:feat
 ---
 
-Expose set_activate_ignoring_other_apps() as an API in `App`.
-
-Note:
-
-- The API must be called after building the app and before starting its event loop.
+Expose `Builder::set_activate_ignoring_other_apps` on macOS.

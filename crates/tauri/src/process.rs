@@ -108,23 +108,43 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
         return;
       }
 
-      if let Ok(info_plist) =
-        plist::from_file::<_, plist::Dictionary>(contents_directory.join("Info.plist"))
-      {
-        if let Some(binary_name) = info_plist
-          .get("CFBundleExecutable")
-          .and_then(|v| v.as_string())
-        {
-          if let Err(e) = Command::new(macos_directory.join(binary_name))
-            .args(env.args_os.iter().skip(1))
-            .spawn()
+      // The app bundle root is two levels up from the MacOS directory:
+      //   <bundle>/Contents/MacOS/<binary>
+      if let Some(bundle_root) = contents_directory.parent() {
+        // Prefer LaunchServices (`open -n <bundle>`) so the new process is
+        // reparented to launchd with stdio = /dev/null instead of inheriting
+        // the dying process's pipes (which would close mid-restart on a
+        // terminal-launched binary, killing the relaunch on its first println
+        // with SIGPIPE / panic-in-panic abort). Falls back to the previous
+        // direct-spawn path when `/usr/bin/open` is unreachable.
+        let launched_via_launch_services = Command::new("/usr/bin/open")
+          .arg("-n")
+          .arg(bundle_root)
+          .stdout(std::process::Stdio::null())
+          .stderr(std::process::Stdio::null())
+          .stdin(std::process::Stdio::null())
+          .spawn()
+          .is_ok();
+        if !launched_via_launch_services {
+          if let Ok(info_plist) =
+            plist::from_file::<_, plist::Dictionary>(contents_directory.join("Info.plist"))
           {
-            log::error!("failed to restart app: {e}");
+            if let Some(binary_name) = info_plist
+              .get("CFBundleExecutable")
+              .and_then(|v| v.as_string())
+            {
+              if let Err(e) = Command::new(macos_directory.join(binary_name))
+                .args(env.args_os.iter().skip(1))
+                .spawn()
+              {
+                log::error!("failed to restart app: {e}");
+              }
+            }
           }
-
-          exit(0);
         }
       }
+
+      exit(0);
     }
   }
 }

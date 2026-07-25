@@ -58,6 +58,9 @@ describeApi('menu', () => {
         text: 'Toggle',
         checked: false
       })
+      // On Windows the checked state lives in the native menu the item belongs
+      // to, so it must be attached to a menu to be readable.
+      await api.menu.Menu.new({ items: [item] })
       const before = await item.isChecked()
       await item.setChecked(true)
       const after = await item.isChecked()

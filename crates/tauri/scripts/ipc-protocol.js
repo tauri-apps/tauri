@@ -3,60 +3,55 @@
 // SPDX-License-Identifier: MIT
 
 ;(function () {
-  /**
-   * A runtime generated key to ensure an IPC call comes from an initialized frame.
-   *
-   * This is declared outside the `window.__TAURI_INVOKE__` definition to prevent
-   * the key from being leaked by `window.__TAURI_INVOKE__.toString()`.
-   */
-  const __TAURI_INVOKE_KEY__ = __TEMPLATE_invoke_key__
-
   const processIpcMessage = __RAW_process_ipc_message_fn__
   const osName = __TEMPLATE_os_name__
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
-  let customProtocolIpcFailed = false
+  let customProtocolIpcFailed = null
 
   // on Android we never use it because Android does not have support to reading the request body
   const canUseCustomProtocol = osName !== 'android'
 
   function sendIpcMessage(message) {
-    const { cmd, callback, error, payload, options } = message
 
-    if (
-      !customProtocolIpcFailed
-      && (canUseCustomProtocol || cmd === fetchChannelDataCommand)
-    ) {
-      const { contentType, data } = processIpcMessage(payload)
+    if (canUseCustomProtocol && !customProtocolIpcFailed) {
+      const { cmd, callback, error, payload, options } = message
 
-      const headers = new Headers((options && options.headers) || {})
-      headers.set('Content-Type', contentType)
-      headers.set('Tauri-Callback', callback)
-      headers.set('Tauri-Error', error)
-      headers.set('Tauri-Invoke-Key', __TAURI_INVOKE_KEY__)
+      const headers = {
+        'Tauri-Callback': callback,
+        'Tauri-Error': error
+      }
 
-      fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {
-        method: 'POST',
-        body: data,
-        headers
-      })
+      if (options?.headers) {
+        Object.assign(headers, options.headers)
+      }
+
+      fetch(
+        window.__TAURI_INTERNALS__.postMessage
+          ? 'http://ipc.localhost'
+          : 'https://ipc.localhost',
+        {
+          method: 'POST',
+          body: processIpcMessage(payload),
+          headers
+        }
+      )
         .then((response) => {
+          customProtocolIpcFailed = false
           const callbackId =
             response.headers.get('Tauri-Response') === 'ok' ? callback : error
           // we need to split here because on Android the content-type gets duplicated
-          switch ((response.headers.get('content-type') || '').split(',')[0]) {
-            case 'application/json':
-              return response.json().then((r) => [callbackId, r])
-            case 'text/plain':
-              return response.text().then((r) => [callbackId, r])
-            default:
-              return response.arrayBuffer().then((r) => [callbackId, r])
+          const contentType = response.headers
+            .get('content-type')
+            ?.split(',')[0]
+            .trim()
+          if (contentType === 'application/json') {
+            return response.json().then((data) => [callbackId, data])
+          } else {
+            return response.arrayBuffer().then((data) => [callbackId, data])
           }
         })
-        .then(
-          ([callbackId, data]) => {
-            window.__TAURI_INTERNALS__.runCallback(callbackId, data)
-          },
-          (e) => {
+        .catch((e) => {
+          if (customProtocolIpcFailed !== false) {
             console.warn(
               'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
               e
@@ -65,27 +60,49 @@
             // so we need to fallback to the postMessage interface
             customProtocolIpcFailed = true
             sendIpcMessage(message)
+          } else {
+            throw e
           }
-        )
+        })
+        .then(([callbackId, data]) => {
+          window.__TAURI_INTERNALS__.runCallback(callbackId, data)
+        })
     } else {
-      // otherwise use the postMessage interface
-      const { data } = processIpcMessage({
-        cmd,
-        callback,
-        error,
-        options: {
-          ...options,
-          customProtocolIpcBlocked: customProtocolIpcFailed
-        },
-        payload,
-        __TAURI_INVOKE_KEY__
-      })
-      // `window.ipc.postMessage` came from `tauri-runtime-wry` > `wry` [`with_ipc_handler`](https://github.com/tauri-apps/wry/blob/a0403b9e2f1ff9d73be7dce1184f058afcaa1d82/src/lib.rs#L1130)
-      window.ipc.postMessage(data)
+      window.__TAURI_INTERNALS__.postMessage(message)
     }
   }
 
-  Object.defineProperty(window.__TAURI_INTERNALS__, 'postMessage', {
-    value: sendIpcMessage
-  })
+  window.__TAURI_INTERNALS__.invoke = function (cmd, payload = {}, options) {
+    return new Promise((resolve, reject) => {
+      const callback = window.__TAURI_INTERNALS__.transformCallback(
+        (response) => {
+          resolve(response)
+        },
+        true
+      )
+      const error = window.__TAURI_INTERNALS__.transformCallback(
+        (response) => {
+          reject(response)
+        },
+        true
+      )
+
+      sendIpcMessage({
+        cmd,
+        callback,
+        error,
+        payload,
+        options
+      })
+    })
+  }
+
+  // send raw message to IPC
+  window.__TAURI_INTERNALS__.postIpcMessage = sendIpcMessage
+
+  window.__TAURI_INTERNALS__.fetchChannelData = function (channelId) {
+    return window.__TAURI_INTERNALS__.invoke(fetchChannelDataCommand, {
+      channelId
+    })
+  }
 })()

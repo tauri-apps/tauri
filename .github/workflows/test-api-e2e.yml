@@ -70,6 +70,57 @@ jobs:
           & "$HOME/.cargo/bin/msedgedriver-tool.exe"
           $PWD.Path >> $env:GITHUB_PATH
 
+      # Temporary diagnostics for the `DevToolsActivePort file doesn't exist`
+      # failure: msedgedriver drives a WebView2 app by injecting
+      # `--remote-debugging-port` through WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
+      # (which overrides the args wry sets), then waiting for the webview to
+      # write DevToolsActivePort into the user data folder it points at. This
+      # step reports whether the runner's Edge/WebView2 majors match the driver
+      # and whether remote debugging is permitted on the machine at all.
+      - name: webview2/msedgedriver diagnostics (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "### msedgedriver"
+          & msedgedriver --version
+          "### Edge"
+          (Get-Item 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe').VersionInfo.ProductVersion
+          "### WebView2 runtimes installed"
+          Get-ChildItem 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application' -Directory -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty Name
+          "### WebView2 runtime (registry pv)"
+          foreach ($k in @(
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+            'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+            'HKCU:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          )) {
+            if (Test-Path $k) { "$k -> $((Get-ItemProperty $k).pv)" } else { "$k -> absent" }
+          }
+          "### Edge/WebView2 policies (RemoteDebuggingAllowed blocks the debug port)"
+          foreach ($k in @(
+            'HKLM:\SOFTWARE\Policies\Microsoft\Edge',
+            'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2',
+            'HKCU:\SOFTWARE\Policies\Microsoft\Edge'
+          )) {
+            if (Test-Path $k) { "--- $k"; Get-ItemProperty $k | Format-List } else { "--- $k -> absent" }
+          }
+          "### can anything open a remote debugging port here?"
+          $probeProfile = Join-Path $env:TEMP 'edge-remote-debug-probe'
+          $edge = Start-Process 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe' `
+            -ArgumentList '--headless=new', '--remote-debugging-port=9222', "--user-data-dir=$probeProfile", 'about:blank' `
+            -PassThru
+          $ok = $false
+          foreach ($i in 1..20) {
+            try {
+              $version = Invoke-RestMethod 'http://127.0.0.1:9222/json/version' -TimeoutSec 2
+              "remote debugging OK: $($version.Browser)"
+              $ok = $true
+              break
+            } catch { Start-Sleep -Milliseconds 500 }
+          }
+          if (-not $ok) { "remote debugging port never came up (machine-level block)" }
+          try { Stop-Process -Id $edge.Id -Force -ErrorAction Stop } catch {}
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.platform.os }}
@@ -101,9 +152,33 @@ jobs:
         timeout-minutes: 45
         shell: pwsh
         run: |
+          # Temporary: record the command line of every app/webview process the
+          # driver launches, so we can see whether `--remote-debugging-port` and
+          # the driver's `--user-data-dir` actually reach msedgewebview2.exe.
+          $watcher = Start-Job {
+            $seen = @{}
+            while ($true) {
+              Get-CimInstance Win32_Process -Filter "Name='api.exe' OR Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue |
+                Where-Object { $_.CommandLine -and -not $seen.ContainsKey($_.CommandLine) } |
+                ForEach-Object { $seen[$_.CommandLine] = $true; "[$($_.Name)] $($_.CommandLine)" }
+              Start-Sleep -Milliseconds 250
+            }
+          }
+
           $env:E2E_SKIP = "tray"
           $env:E2E_SPEC_RETRIES = "1"
           pnpm test:api-e2e
+          $code = $LASTEXITCODE
+
+          "### app/webview process command lines"
+          Receive-Job $watcher
+          Stop-Job $watcher; Remove-Job $watcher -Force
+          "### DevToolsActivePort files on disk"
+          Get-ChildItem $env:TEMP, "$env:LOCALAPPDATA", "$env:GITHUB_WORKSPACE\target\debug" `
+            -Filter DevToolsActivePort -Recurse -Depth 6 -Force -ErrorAction SilentlyContinue |
+            Select-Object -First 20 -Property FullName, LastWriteTime | Format-List
+
+          exit $code
 
       - name: run e2e tests (macOS)
         if: runner.os == 'macOS' && env.CN_API_KEY != ''

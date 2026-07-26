@@ -80,7 +80,7 @@ jobs:
         uses: actions/setup-node@v7
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 22
+          node-version: 'lts/*'
           cache: 'pnpm'
 
       - name: Install Rust
@@ -149,7 +149,10 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v7
-      - run: npm i -g --force corepack
+      - uses: pnpm/action-setup@v6
+        with:
+          # pnpm 11 requires node 22+
+          standalone: true
       - name: Setup node
         uses: actions/setup-node@v7
         with:
@@ -187,7 +190,10 @@ jobs:
     runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
-      - run: npm i -g --force corepack
+      - uses: pnpm/action-setup@v6
+        with:
+          # pnpm 11 requires node 22+
+          standalone: true
       - name: Setup node
         uses: actions/setup-node@v7
         with:
@@ -271,7 +277,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 'lts/*'
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm i --frozen-lockfile --ignore-scripts

@@ -197,13 +197,11 @@ jobs:
           Get-ChildItem $tempRoots -Directory -Filter 'scoped_dir*' -Force -ErrorAction SilentlyContinue |
             ForEach-Object { "$($_.FullName)"; Get-ChildItem $_.FullName -Recurse -Depth 2 -Force -ErrorAction SilentlyContinue | Select-Object -First 15 -ExpandProperty FullName }
 
-      # Temporary: the CI webview command line shows only wry's own browser args
-      # and no `--remote-debugging-port`, while the driver's user data folder IS
-      # honored - so the runner's runtime is dropping
-      # WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS instead of merging it with the args
-      # wry passes via CreateCoreWebView2EnvironmentWithOptions. This probes that
-      # env var directly against the built app; if it is ignored, it updates the
-      # Evergreen runtime (runner has 150.0.4078.65) and probes again.
+      # Temporary: this runner ignores WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS (proven
+      # with msedgedriver out of the picture, on both 150.0.4078.65 and .99), which
+      # is how the driver hands the app its `--remote-debugging-port`. examples/api
+      # now forwards that variable through `additional_browser_args` instead, so this
+      # probe reports whether that workaround took: "DevTools OK" means it did.
       - name: webview2 env-var probe (Windows)
         if: runner.os == 'Windows'
         continue-on-error: true
@@ -228,7 +226,7 @@ jobs:
                 break
               } catch { Start-Sleep -Milliseconds 500 }
             }
-            if (-not $ok) { Write-Host "[$label] no DevTools on 9333 - WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS was ignored" }
+            if (-not $ok) { Write-Host "[$label] no DevTools on 9333 - the app never applied WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS" }
             Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue |
               Where-Object { $_.CommandLine -like '*api.exe*' -and $_.CommandLine -notlike '*--type=*' } |
               ForEach-Object { ($_.CommandLine -split ' --') |
@@ -239,16 +237,7 @@ jobs:
             return $ok
           }
 
-          if (-not (Invoke-Probe 'runner-runtime')) {
-            "### updating the Evergreen WebView2 runtime"
-            $setup = "$env:RUNNER_TEMP\MicrosoftEdgeWebview2Setup.exe"
-            Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $setup -UseBasicParsing
-            Start-Process $setup -ArgumentList '/silent', '/install' -Wait
-            "### WebView2 runtimes now installed"
-            Get-ChildItem 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application' -Directory -ErrorAction SilentlyContinue |
-              Select-Object -ExpandProperty Name
-            Invoke-Probe 'updated-runtime' | Out-Null
-          }
+          Invoke-Probe 'runner-runtime' | Out-Null
 
       - name: run e2e tests (Windows)
         if: runner.os == 'Windows'

@@ -50,6 +50,12 @@ mod run;
 
 const NDK_VERSION: &str = "29.0.13846066";
 const SDK_VERSION: u8 = 36;
+/// Highest Java feature version that the Gradle shipped in the Android template
+/// (see `templates/mobile/android/gradle/wrapper/gradle-wrapper.properties`) can
+/// run on. Gradle 8.14 supports running on Java up to 24 — bump this whenever the
+/// template's Gradle version changes.
+/// See <https://docs.gradle.org/current/userguide/compatibility.html>.
+const MAX_SUPPORTED_JAVA: u32 = 24;
 
 #[cfg(target_os = "macos")]
 const CMDLINE_TOOLS_URL: &str =
@@ -486,7 +492,48 @@ fn ensure_java() -> Result<()> {
     }
   }
 
+  if let Some(java) = java_major_version() {
+    if java > MAX_SUPPORTED_JAVA {
+      log::warn!(
+        "Detected Java {java}, but the bundled Gradle can only run on Java up to {MAX_SUPPORTED_JAVA}. \
+         Android builds will likely fail with a cryptic error. Install a supported JDK (the Java {MAX_SUPPORTED_JAVA} \
+         or an LTS release such as Java 17 or 21) and point JAVA_HOME at it. \
+         See https://docs.gradle.org/current/userguide/compatibility.html"
+      );
+    }
+  }
+
   Ok(())
+}
+
+/// Detects the major (feature) version of the active Java installation by
+/// running `java -version`, preferring the binary in `JAVA_HOME` if set.
+fn java_major_version() -> Option<u32> {
+  let java = std::env::var_os("JAVA_HOME")
+    .map(|home| PathBuf::from(home).join("bin").join("java"))
+    .filter(|path| path.exists())
+    .unwrap_or_else(|| PathBuf::from("java"));
+
+  // `java -version` writes the version banner to stderr.
+  let output = Command::new(java).arg("-version").output().ok()?;
+  parse_java_major(&String::from_utf8_lossy(&output.stderr))
+}
+
+/// Parses the major (feature) version out of a `java -version` banner, handling
+/// both the legacy `1.x` scheme (`1.8.0_292` -> 8) and the modern scheme
+/// (`21.0.1` -> 21).
+fn parse_java_major(version_output: &str) -> Option<u32> {
+  let start = version_output.find('"')?;
+  let rest = &version_output[start + 1..];
+  let end = rest.find('"')?;
+  let mut parts = rest[..end].split(['.', '_', '-']);
+
+  let first = parts.next()?;
+  if first == "1" {
+    parts.next()?.parse().ok()
+  } else {
+    first.parse().ok()
+  }
 }
 
 fn ensure_sdk(non_interactive: bool) -> Result<()> {
@@ -1081,7 +1128,28 @@ fn generate_tauri_properties(
 
 #[cfg(test)]
 mod tests {
-  use super::{find_matching_brace, set_debug_application_id_suffix};
+  use super::{find_matching_brace, parse_java_major, set_debug_application_id_suffix};
+
+  #[test]
+  fn parses_java_major_version() {
+    // modern scheme
+    assert_eq!(
+      parse_java_major("openjdk version \"21.0.1\" 2023-10-17"),
+      Some(21)
+    );
+    assert_eq!(
+      parse_java_major("openjdk version \"26\" 2026-03-17"),
+      Some(26)
+    );
+    assert_eq!(
+      parse_java_major("java version \"17.0.9\" 2023-10-17 LTS"),
+      Some(17)
+    );
+    // legacy 1.x scheme
+    assert_eq!(parse_java_major("java version \"1.8.0_292\""), Some(8));
+    // garbage
+    assert_eq!(parse_java_major("no version here"), None);
+  }
 
   #[test]
   fn writes_debug_application_id_suffix() {

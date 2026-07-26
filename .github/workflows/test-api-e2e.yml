@@ -147,28 +147,33 @@ jobs:
             E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
           '
 
-      - name: run e2e tests (Windows)
+      # Temporary: one spec, no retries, so the diagnostics below are reached in
+      # ~1 minute instead of after 33 failing attempts. This step also builds the
+      # app (wdio.conf's onPrepare), which is why the full suite that follows
+      # sets E2E_SKIP_BUILD. It records the command line of every app/webview
+      # process the driver launches: msedgedriver drives a WebView2 app by
+      # injecting `--remote-debugging-port=0` plus its own scoped
+      # `--user-data-dir` through WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, then
+      # waits for the webview to write DevToolsActivePort into that folder.
+      - name: e2e diagnostic run (Windows)
         if: runner.os == 'Windows'
+        continue-on-error: true
         timeout-minutes: 45
         shell: pwsh
+        working-directory: packages/api-e2e
         run: |
-          # Temporary: record the command line of every app/webview process the
-          # driver launches, so we can see whether `--remote-debugging-port` and
-          # the driver's `--user-data-dir` actually reach msedgewebview2.exe.
           $watcher = Start-Job {
             $seen = @{}
             while ($true) {
               Get-CimInstance Win32_Process -Filter "Name='api.exe' OR Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue |
                 Where-Object { $_.CommandLine -and -not $seen.ContainsKey($_.CommandLine) } |
                 ForEach-Object { $seen[$_.CommandLine] = $true; "[$($_.Name)] $($_.CommandLine)" }
-              Start-Sleep -Milliseconds 250
+              Start-Sleep -Milliseconds 200
             }
           }
 
-          $env:E2E_SKIP = "tray"
-          $env:E2E_SPEC_RETRIES = "1"
-          pnpm test:api-e2e
-          $code = $LASTEXITCODE
+          $env:E2E_SPEC_RETRIES = "0"
+          pnpm exec wdio run ./wdio.conf.ts --spec test/specs/app.spec.ts
 
           "### app/webview process command lines"
           Receive-Job $watcher
@@ -177,8 +182,72 @@ jobs:
           Get-ChildItem $env:TEMP, "$env:LOCALAPPDATA", "$env:GITHUB_WORKSPACE\target\debug" `
             -Filter DevToolsActivePort -Recurse -Depth 6 -Force -ErrorAction SilentlyContinue |
             Select-Object -First 20 -Property FullName, LastWriteTime | Format-List
+          "### msedgedriver scoped dirs left behind"
+          Get-ChildItem $env:TEMP -Directory -Filter 'scoped_dir*' -ErrorAction SilentlyContinue |
+            ForEach-Object { "$($_.FullName)"; Get-ChildItem $_.FullName -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -First 15 -ExpandProperty FullName }
 
-          exit $code
+      # Temporary: the CI webview command line shows only wry's own browser args
+      # and no `--remote-debugging-port`, while the driver's user data folder IS
+      # honored - so the runner's runtime is dropping
+      # WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS instead of merging it with the args
+      # wry passes via CreateCoreWebView2EnvironmentWithOptions. This probes that
+      # env var directly against the built app; if it is ignored, it updates the
+      # Evergreen runtime (runner has 150.0.4078.65) and probes again.
+      - name: webview2 env-var probe (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $app = "$env:GITHUB_WORKSPACE\target\debug\api.exe"
+          if (-not (Test-Path $app)) { "app not built, skipping probe"; exit 0 }
+
+          function Invoke-Probe($label) {
+            $udf = Join-Path $env:RUNNER_TEMP "probe-udf-$label"
+            Remove-Item $udf -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Force $udf | Out-Null
+            $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9333'
+            $env:WEBVIEW2_USER_DATA_FOLDER = $udf
+            $proc = Start-Process $app -PassThru
+            $ok = $false
+            foreach ($i in 1..24) {
+              try {
+                $version = Invoke-RestMethod 'http://127.0.0.1:9333/json/version' -TimeoutSec 2
+                Write-Host "[$label] DevTools OK: $($version.Browser)"
+                $ok = $true
+                break
+              } catch { Start-Sleep -Milliseconds 500 }
+            }
+            if (-not $ok) { Write-Host "[$label] no DevTools on 9333 - WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS was ignored" }
+            Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue |
+              Where-Object { $_.CommandLine -like '*api.exe*' -and $_.CommandLine -notlike '*--type=*' } |
+              ForEach-Object { ($_.CommandLine -split ' --') |
+                Where-Object { $_ -match 'remote-debugging|disable-features' } |
+                ForEach-Object { Write-Host "[$label] --$_" } }
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction Stop } catch {}
+            Remove-Item Env:\WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, Env:\WEBVIEW2_USER_DATA_FOLDER -ErrorAction SilentlyContinue
+            return $ok
+          }
+
+          if (-not (Invoke-Probe 'runner-runtime')) {
+            "### updating the Evergreen WebView2 runtime"
+            $setup = "$env:RUNNER_TEMP\MicrosoftEdgeWebview2Setup.exe"
+            Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $setup -UseBasicParsing
+            Start-Process $setup -ArgumentList '/silent', '/install' -Wait
+            "### WebView2 runtimes now installed"
+            Get-ChildItem 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application' -Directory -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty Name
+            Invoke-Probe 'updated-runtime' | Out-Null
+          }
+
+      - name: run e2e tests (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 45
+        shell: pwsh
+        run: |
+          $env:E2E_SKIP = "tray"
+          $env:E2E_SPEC_RETRIES = "1"
+          $env:E2E_SKIP_BUILD = "1" # the diagnostic step above already built it
+          pnpm test:api-e2e
 
       - name: run e2e tests (macOS)
         if: runner.os == 'macOS' && env.CN_API_KEY != ''

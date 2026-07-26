@@ -237,7 +237,7 @@ jobs:
             if ('${{ matrix.target }}'.endsWith('-musl')) {
               console.log('IMAGE=node:${{ matrix.node }}-alpine')
             } else {
-              console.log('IMAGE=arm32v7:${{ matrix.node }}-slim')
+              console.log('IMAGE=arm32v7/node:${{ matrix.node }}-slim')
             }
           " >> $GITHUB_OUTPUT
 

@@ -162,12 +162,20 @@ jobs:
         shell: pwsh
         working-directory: packages/api-e2e
         run: |
+          "### step context"
+          whoami
+          "TEMP=$env:TEMP"
+
           $watcher = Start-Job {
             $seen = @{}
             while ($true) {
-              Get-CimInstance Win32_Process -Filter "Name='api.exe' OR Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue |
+              Get-CimInstance Win32_Process -Filter "Name='api.exe' OR Name='msedgewebview2.exe' OR Name='msedgedriver.exe'" -ErrorAction SilentlyContinue |
                 Where-Object { $_.CommandLine -and -not $seen.ContainsKey($_.CommandLine) } |
-                ForEach-Object { $seen[$_.CommandLine] = $true; "[$($_.Name)] $($_.CommandLine)" }
+                ForEach-Object {
+                  $seen[$_.CommandLine] = $true
+                  $owner = try { $o = Invoke-CimMethod -InputObject $_ -MethodName GetOwner; "$($o.Domain)\$($o.User)" } catch { 'unknown' }
+                  "[$($_.Name)] (owner $owner) $($_.CommandLine)"
+                }
               Start-Sleep -Milliseconds 200
             }
           }
@@ -178,13 +186,16 @@ jobs:
           "### app/webview process command lines"
           Receive-Job $watcher
           Stop-Job $watcher; Remove-Job $watcher -Force
+          # msedgedriver's scoped dirs land in its own temp, which on this runner
+          # is C:\Windows\SystemTemp rather than the step's $env:TEMP.
+          $tempRoots = @($env:TEMP, 'C:\Windows\SystemTemp', 'C:\Windows\Temp', "$env:LOCALAPPDATA", "$env:GITHUB_WORKSPACE\target\debug") |
+            Where-Object { $_ -and (Test-Path $_) }
           "### DevToolsActivePort files on disk"
-          Get-ChildItem $env:TEMP, "$env:LOCALAPPDATA", "$env:GITHUB_WORKSPACE\target\debug" `
-            -Filter DevToolsActivePort -Recurse -Depth 6 -Force -ErrorAction SilentlyContinue |
+          Get-ChildItem $tempRoots -Filter DevToolsActivePort -Recurse -Depth 6 -Force -ErrorAction SilentlyContinue |
             Select-Object -First 20 -Property FullName, LastWriteTime | Format-List
           "### msedgedriver scoped dirs left behind"
-          Get-ChildItem $env:TEMP -Directory -Filter 'scoped_dir*' -ErrorAction SilentlyContinue |
-            ForEach-Object { "$($_.FullName)"; Get-ChildItem $_.FullName -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -First 15 -ExpandProperty FullName }
+          Get-ChildItem $tempRoots -Directory -Filter 'scoped_dir*' -Force -ErrorAction SilentlyContinue |
+            ForEach-Object { "$($_.FullName)"; Get-ChildItem $_.FullName -Recurse -Depth 2 -Force -ErrorAction SilentlyContinue | Select-Object -First 15 -ExpandProperty FullName }
 
       # Temporary: the CI webview command line shows only wry's own browser args
       # and no `--remote-debugging-port`, while the driver's user data folder IS

@@ -566,7 +566,7 @@ impl<R: Runtime> AppManager<R> {
   ) -> crate::Result<()>
   where
     S: Serialize,
-    F: Fn(&EventTarget) -> bool,
+    F: Fn(&EventTarget) -> bool + Send + 'static,
   {
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
@@ -636,7 +636,7 @@ impl<R: Runtime> AppManager<R> {
     match target {
       // if targeting all, emit to all using emit without filter
       EventTarget::Any => self.emit(event, payload),
-      target => self.emit_filter(event, payload, |t| filter_target(&target, t)),
+      target => self.emit_filter(event, payload, move |t| filter_target(&target, t)),
     }
   }
 

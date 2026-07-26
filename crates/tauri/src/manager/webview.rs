@@ -688,13 +688,13 @@ impl<R: Runtime> Webview<R> {
     event: crate::EventName<&str>,
     payload: &S,
   ) -> crate::Result<()> {
-    let window_label = self.label();
+    let window_label = self.label().to_string();
     let payload = EmitPayload::Serialize(payload);
     self
       .manager()
-      .emit_filter(event, payload, |target| match target {
+      .emit_filter(event, payload, move |target| match target {
         EventTarget::Webview { label } | EventTarget::WebviewWindow { label } => {
-          label == window_label
+          *label == window_label
         }
         _ => false,
       })

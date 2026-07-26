@@ -1020,7 +1020,7 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool,
+    F: Fn(&EventTarget) -> bool + Send + 'static,
   {
     let event = EventName::new(event)?;
     let payload = EmitPayload::Serialize(&payload);
@@ -1030,7 +1030,7 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   /// Similar to [`Emitter::emit_filter`] but the payload is json serialized.
   fn emit_str_filter<F>(&self, event: &str, payload: String, filter: F) -> Result<()>
   where
-    F: Fn(&EventTarget) -> bool,
+    F: Fn(&EventTarget) -> bool + Send + 'static,
   {
     let event = EventName::new(event)?;
     let payload = EmitPayload::<()>::Str(payload);

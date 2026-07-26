@@ -16,6 +16,12 @@ use std::{
   },
 };
 
+/// A boxed event target filter that can be stored in the pending queue.
+///
+/// Requires `Send` because the queue may be flushed from a different thread than
+/// the one that deferred the emit.
+type BoxedFilter = Box<dyn Fn(&EventTarget) -> bool + Send>;
+
 /// What to do with the pending handler when resolving it?
 enum Pending {
   Unlisten(EventId),
@@ -24,7 +30,10 @@ enum Pending {
     event: crate::EventName,
     handler: Handler,
   },
-  Emit(EmitArgs),
+  Emit {
+    args: EmitArgs,
+    filter: Option<BoxedFilter>,
+  },
   RemoveForTarget(EventTarget),
 }
 
@@ -128,7 +137,7 @@ impl Listeners {
       match action {
         Pending::Unlisten(id) => self.unlisten(id),
         Pending::Listen { id, event, handler } => self.listen_with_id(id, event, handler),
-        Pending::Emit(args) => self.emit(args)?,
+        Pending::Emit { args, filter } => self.emit_filter(args, filter)?,
         Pending::RemoveForTarget(target) => self.remove_listeners_for_target(target),
       }
     }
@@ -207,12 +216,15 @@ impl Listeners {
   /// Emits the given event with its payload based on a filter.
   pub(crate) fn emit_filter<F>(&self, emit_args: EmitArgs, filter: Option<F>) -> crate::Result<()>
   where
-    F: Fn(&EventTarget) -> bool,
+    F: Fn(&EventTarget) -> bool + Send + 'static,
   {
     let mut maybe_pending = false;
 
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Emit(emit_args)),
+      Err(_) => self.insert_pending(Pending::Emit {
+        args: emit_args,
+        filter: filter.map(|f| Box::new(f) as BoxedFilter),
+      }),
       Ok(lock) => {
         if let Some(handlers) = lock.get(&emit_args.event) {
           let handlers = handlers.iter();
@@ -234,7 +246,7 @@ impl Listeners {
 
   /// Emits the given event with its payload.
   pub(crate) fn emit(&self, emit_args: EmitArgs) -> crate::Result<()> {
-    self.emit_filter(emit_args, None::<&dyn Fn(&EventTarget) -> bool>)
+    self.emit_filter(emit_args, None::<fn(&EventTarget) -> bool>)
   }
 
   pub(crate) fn listen_js(
@@ -437,6 +449,49 @@ mod test {
     listeners
       .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
       .unwrap();
+  }
+
+  #[test]
+  fn pending_emit_keeps_filter() {
+    let listeners = Listeners::default();
+    let listeners_clone = listeners.clone();
+
+    let outer = crate::EventName::new("outer".to_owned()).unwrap();
+    let inner = crate::EventName::new("inner".to_owned()).unwrap();
+    let inner_clone = inner.clone();
+
+    let a_hits = Arc::new(AtomicU32::new(0));
+    let b_hits = Arc::new(AtomicU32::new(0));
+
+    let a_hits_cb = a_hits.clone();
+    listeners.listen(inner.clone(), EventTarget::webview("a"), move |_| {
+      a_hits_cb.fetch_add(1, Ordering::SeqCst);
+    });
+    let b_hits_cb = b_hits.clone();
+    listeners.listen(inner.clone(), EventTarget::webview("b"), move |_| {
+      b_hits_cb.fetch_add(1, Ordering::SeqCst);
+    });
+
+    // Emitting `inner` from within the `outer` handler runs while the handlers
+    // lock is held, so the emit is deferred onto the pending queue. The filter
+    // must survive that round-trip instead of degrading into a broadcast.
+    listeners.listen(outer.clone(), EventTarget::Any, move |_| {
+      listeners_clone
+        .emit_filter(
+          EmitArgs::new(inner_clone.as_str_event(), &()).unwrap(),
+          Some(
+            |target: &EventTarget| matches!(target, EventTarget::Webview { label } if label == "a"),
+          ),
+        )
+        .unwrap();
+    });
+
+    listeners
+      .emit(EmitArgs::new(outer.as_str_event(), &()).unwrap())
+      .unwrap();
+
+    assert_eq!(a_hits.load(Ordering::SeqCst), 1);
+    assert_eq!(b_hits.load(Ordering::SeqCst), 0);
   }
 
   #[test]

@@ -133,13 +133,13 @@ impl<R: Runtime> WindowManager<R> {
 impl<R: Runtime> Window<R> {
   /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
   fn emit_to_window<S: Serialize>(&self, event: EventName<&str>, payload: &S) -> crate::Result<()> {
-    let window_label = self.label();
+    let window_label = self.label().to_string();
     let payload = EmitPayload::Serialize(payload);
     self
       .manager()
-      .emit_filter(event, payload, |target| match target {
+      .emit_filter(event, payload, move |target| match target {
         EventTarget::Window { label } | EventTarget::WebviewWindow { label } => {
-          label == window_label
+          *label == window_label
         }
         _ => false,
       })

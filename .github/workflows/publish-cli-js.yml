@@ -86,7 +86,8 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.settings.target }}
+          # CEF helper needs both archs
+          targets: ${{ contains(matrix.settings.target, 'apple-darwin') && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.settings.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.settings.target }}
@@ -143,8 +144,8 @@ jobs:
             target: x86_64-apple-darwin
             architecture: x64
         node:
-          - '20'
           - '22'
+          - '24'
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v7
@@ -181,8 +182,8 @@ jobs:
           - aarch64-unknown-linux-musl
           - armv7-unknown-linux-gnueabihf
         node:
-          - '20'
           - '22'
+          - '24'
     runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
@@ -234,7 +235,7 @@ jobs:
             if ('${{ matrix.target }}'.endsWith('-musl')) {
               console.log('IMAGE=node:${{ matrix.node }}-alpine')
             } else {
-              console.log('IMAGE=node:${{ matrix.node }}-slim')
+              console.log('IMAGE=arm32v7/node:${{ matrix.node }}-slim')
             }
           " >> $GITHUB_OUTPUT
 

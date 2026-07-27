@@ -67,7 +67,7 @@ tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
   "html-manipulation-2",
 ] }
 toml = "1"
-jsonschema = { version = "0.48", default-features = false }
+jsonschema = { version = "0.49", default-features = false }
 handlebars = "6"
 include_dir = "0.7"
 dirs = "6"

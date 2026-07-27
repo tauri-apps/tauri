@@ -1182,11 +1182,86 @@ impl<T: UserEvent> fmt::Debug for CefRuntime<T> {
   }
 }
 
+/// CEF installs Chromium's shutdown signal handlers for SIGINT/SIGTERM/SIGHUP
+/// inside `cef::initialize`. Those handlers hand the signal to Chrome's own exit
+/// machinery, which never quits the winit loop this runtime owns, so the process
+/// just ignores the signal. Because the handler disarms itself on delivery, it
+/// takes a second Ctrl+C to kill the app by default disposition.
+///
+/// Put the process's original signal policy back so termination signals behave
+/// the way they do for any other app (and the way they already do under
+/// `tauri-runtime-wry`, which installs no handlers at all).
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "openbsd",
+  target_os = "netbsd"
+))]
+struct TerminationSignals {
+  sigint: Option<libc::sigaction>,
+  sigterm: Option<libc::sigaction>,
+  sighup: Option<libc::sigaction>,
+}
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "openbsd",
+  target_os = "netbsd"
+))]
+impl TerminationSignals {
+  fn capture() -> Self {
+    Self {
+      sigint: Self::capture_one(libc::SIGINT),
+      sigterm: Self::capture_one(libc::SIGTERM),
+      sighup: Self::capture_one(libc::SIGHUP),
+    }
+  }
+
+  /// Must run *after* `cef::initialize`, which is the only place CEF installs
+  /// these handlers; nothing reinstalls them later, so one restore is enough.
+  fn restore(&self) {
+    Self::restore_one(libc::SIGINT, self.sigint);
+    Self::restore_one(libc::SIGTERM, self.sigterm);
+    Self::restore_one(libc::SIGHUP, self.sighup);
+  }
+
+  fn capture_one(sig: libc::c_int) -> Option<libc::sigaction> {
+    let mut action = std::mem::MaybeUninit::<libc::sigaction>::uninit();
+    if unsafe { libc::sigaction(sig, std::ptr::null(), action.as_mut_ptr()) } == 0 {
+      Some(unsafe { action.assume_init() })
+    } else {
+      None
+    }
+  }
+
+  fn restore_one(sig: libc::c_int, previous: Option<libc::sigaction>) {
+    let Some(previous) = previous else {
+      return;
+    };
+
+    unsafe { libc::sigaction(sig, &previous, std::ptr::null_mut()) };
+  }
+}
+
 impl<T: UserEvent> CefRuntime<T> {
   fn init(
     mut event_loop_builder: EventLoopBuilder,
     runtime_args: RuntimeInitArgs<RuntimeInitAttribute>,
   ) -> Result<Self> {
+    // Snapshot before CEF can touch anything, so we can tell an embedder's own
+    // signal policy apart from the handlers CEF installs in `cef::initialize`.
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "openbsd",
+      target_os = "netbsd"
+    ))]
+    let pre_cef_signals = TerminationSignals::capture();
+
     let args = cef::args::Args::new();
 
     #[cfg(target_os = "macos")]
@@ -1343,6 +1418,15 @@ impl<T: UserEvent> CefRuntime<T> {
     {
       return Err(Error::WebviewRuntimeNotInstalled);
     }
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "openbsd",
+      target_os = "netbsd"
+    ))]
+    pre_cef_signals.restore();
 
     #[cfg(target_os = "macos")]
     let app_delegate = if !is_helper {

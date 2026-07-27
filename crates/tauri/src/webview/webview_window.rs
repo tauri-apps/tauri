@@ -1021,9 +1021,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// ## Warning
   ///
-  /// On Windows, webviews that use the same data directory must use the same browser arguments.
-  /// To use different browser arguments, set a distinct data directory for each argument set with
-  /// [`WebviewWindowBuilder::data_directory`].
+  /// Webview instances with different browser arguments must also have different [data directories](Self::data_directory).
   ///
   /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
   /// so if you use this method, you also need to disable these components by yourself if you want.

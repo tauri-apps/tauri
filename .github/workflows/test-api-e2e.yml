@@ -115,3 +115,50 @@ jobs:
         run: E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
         env:
           CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY }}
+
+      # The CrabNebula Webdriver proxies every command to a server running *inside* the app
+      # process, so when the app dies the suite only ever reports `connection refused` — the
+      # actual cause is never in this log. The app's stdout/stderr is inherited (its `println!`
+      # output shows up above) and no panic message is printed, which means it goes down on a
+      # signal. macOS records the reason in a crash report, and that is the only place it
+      # survives the run.
+      - name: collect app crash reports (macOS)
+        if: runner.os == 'macOS' && failure()
+        run: |
+          dest="$RUNNER_TEMP/crash-reports"
+          mkdir -p "$dest"
+          # ReportCrash writes asynchronously; give the last crash a moment to land.
+          sleep 5
+          found=0
+          for f in "$HOME/Library/Logs/DiagnosticReports"/*.ips \
+                   "$HOME/Library/Logs/DiagnosticReports/Retired"/*.ips; do
+            [ -e "$f" ] || continue
+            found=$((found + 1))
+            cp "$f" "$dest/"
+            echo "::group::$(basename "$f")"
+            # An .ips file is a one-line JSON header followed by the JSON report body.
+            head -n 1 "$f"
+            tail -n +2 "$f" | jq -r '
+              "exception:   \(.exception // {} | tojson)",
+              "termination: \(.termination // {} | tojson)",
+              "asi:         \(.asi // {} | tojson)",
+              "faulting thread \(.faultingThread // 0):",
+              (. as $r
+                | $r.threads[$r.faultingThread // 0].frames[]?
+                | "  \($r.usedImages[.imageIndex].name // "?")  \(.symbol // "?")  +\(.imageOffset)"),
+              "last ObjC exception:",
+              (. as $r
+                | $r.lastExceptionBacktrace[]?
+                | "  \($r.usedImages[.imageIndex].name // "?")  \(.symbol // "?")  +\(.imageOffset)")
+            ' || cat "$f"
+            echo "::endgroup::"
+          done
+          [ "$found" -gt 0 ] || echo "no crash reports under $HOME/Library/Logs/DiagnosticReports"
+
+      - name: upload app crash reports (macOS)
+        if: runner.os == 'macOS' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-crash-reports
+          path: ${{ runner.temp }}/crash-reports
+          if-no-files-found: ignore

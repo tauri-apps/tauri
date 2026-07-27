@@ -141,9 +141,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       let webview = window_builder.build()?;
 
-      #[cfg(debug_assertions)]
-      webview.open_devtools();
-
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {
         value: value.clone(),

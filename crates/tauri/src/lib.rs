@@ -95,12 +95,6 @@ extern crate gtk3 as gtk;
 ))]
 extern crate gtk4 as gtk;
 
-#[cfg(feature = "cef")]
-extern crate muda_gtk4 as muda;
-
-#[cfg(all(any(feature = "wry", feature = "test"), not(feature = "cef")))]
-extern crate muda_gtk3 as muda;
-
 /// Setups the binding that initializes an iOS plugin.
 #[cfg(target_os = "ios")]
 #[macro_export]

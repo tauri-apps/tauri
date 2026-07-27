@@ -5420,12 +5420,12 @@ dependencies = [
 [[package]]
 name = "muda"
 version = "0.19.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1dd04e60bc0b07438a6771710ee1698f98f6ebbc7f89b61264af1563b8aeb878"
+source = "git+https://github.com/tauri-apps/muda?branch=dev#88e0025a9ba0c860d46d62cc9966be4855cc44dc"
 dependencies = [
  "crossbeam-channel",
  "dpi",
  "gtk",
+ "gtk4",
  "keyboard-types 0.7.0",
  "libxdo",
  "objc2",
@@ -5433,27 +5433,6 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-foundation",
  "once_cell",
- "png 0.18.1",
- "serde",
- "thiserror 2.0.18",
- "windows-sys 0.60.2",
-]
-
-[[package]]
-name = "muda"
-version = "0.19.3"
-source = "git+https://github.com/tauri-apps/muda?branch=feat%2Fgtk4#6eef6ba07b1cce4ea21a72b203e0938c565d13f3"
-dependencies = [
- "crossbeam-channel",
- "dpi",
- "gtk4",
- "keyboard-types 0.7.0",
- "objc2",
- "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-foundation",
- "once_cell",
- "png 0.17.16",
  "png 0.18.1",
  "serde",
  "thiserror 2.0.18",
@@ -9756,8 +9735,7 @@ dependencies = [
  "libc",
  "log",
  "mime",
- "muda 0.19.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "muda 0.19.3 (git+https://github.com/tauri-apps/muda?branch=feat%2Fgtk4)",
+ "muda",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
@@ -10738,7 +10716,7 @@ dependencies = [
  "crossbeam-channel",
  "dirs 6.0.0",
  "libappindicator",
- "muda 0.19.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "muda",
  "objc2",
  "objc2-app-kit",
  "objc2-core-foundation",

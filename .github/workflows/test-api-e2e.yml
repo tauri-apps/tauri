@@ -70,57 +70,6 @@ jobs:
           & "$HOME/.cargo/bin/msedgedriver-tool.exe"
           $PWD.Path >> $env:GITHUB_PATH
 
-      # Temporary diagnostics for the `DevToolsActivePort file doesn't exist`
-      # failure: msedgedriver drives a WebView2 app by injecting
-      # `--remote-debugging-port` through WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
-      # (which overrides the args wry sets), then waiting for the webview to
-      # write DevToolsActivePort into the user data folder it points at. This
-      # step reports whether the runner's Edge/WebView2 majors match the driver
-      # and whether remote debugging is permitted on the machine at all.
-      - name: webview2/msedgedriver diagnostics (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          "### msedgedriver"
-          & msedgedriver --version
-          "### Edge"
-          (Get-Item 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe').VersionInfo.ProductVersion
-          "### WebView2 runtimes installed"
-          Get-ChildItem 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application' -Directory -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty Name
-          "### WebView2 runtime (registry pv)"
-          foreach ($k in @(
-            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-            'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-            'HKCU:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
-          )) {
-            if (Test-Path $k) { "$k -> $((Get-ItemProperty $k).pv)" } else { "$k -> absent" }
-          }
-          "### Edge/WebView2 policies (RemoteDebuggingAllowed blocks the debug port)"
-          foreach ($k in @(
-            'HKLM:\SOFTWARE\Policies\Microsoft\Edge',
-            'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2',
-            'HKCU:\SOFTWARE\Policies\Microsoft\Edge'
-          )) {
-            if (Test-Path $k) { "--- $k"; Get-ItemProperty $k | Format-List } else { "--- $k -> absent" }
-          }
-          "### can anything open a remote debugging port here?"
-          $probeProfile = Join-Path $env:TEMP 'edge-remote-debug-probe'
-          $edge = Start-Process 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe' `
-            -ArgumentList '--headless=new', '--remote-debugging-port=9222', "--user-data-dir=$probeProfile", 'about:blank' `
-            -PassThru
-          $ok = $false
-          foreach ($i in 1..20) {
-            try {
-              $version = Invoke-RestMethod 'http://127.0.0.1:9222/json/version' -TimeoutSec 2
-              "remote debugging OK: $($version.Browser)"
-              $ok = $true
-              break
-            } catch { Start-Sleep -Milliseconds 500 }
-          }
-          if (-not $ok) { "remote debugging port never came up (machine-level block)" }
-          try { Stop-Process -Id $edge.Id -Force -ErrorAction Stop } catch {}
-
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.platform.os }}
@@ -147,98 +96,6 @@ jobs:
             E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
           '
 
-      # Temporary: one spec, no retries, so the diagnostics below are reached in
-      # ~1 minute instead of after 33 failing attempts. This step also builds the
-      # app (wdio.conf's onPrepare), which is why the full suite that follows
-      # sets E2E_SKIP_BUILD. It records the command line of every app/webview
-      # process the driver launches: msedgedriver drives a WebView2 app by
-      # injecting `--remote-debugging-port=0` plus its own scoped
-      # `--user-data-dir` through WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, then
-      # waits for the webview to write DevToolsActivePort into that folder.
-      - name: e2e diagnostic run (Windows)
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        timeout-minutes: 45
-        shell: pwsh
-        working-directory: packages/api-e2e
-        run: |
-          "### step context"
-          whoami
-          "TEMP=$env:TEMP"
-
-          $watcher = Start-Job {
-            $seen = @{}
-            while ($true) {
-              Get-CimInstance Win32_Process -Filter "Name='api.exe' OR Name='msedgewebview2.exe' OR Name='msedgedriver.exe'" -ErrorAction SilentlyContinue |
-                Where-Object { $_.CommandLine -and -not $seen.ContainsKey($_.CommandLine) } |
-                ForEach-Object {
-                  $seen[$_.CommandLine] = $true
-                  $owner = try { $o = Invoke-CimMethod -InputObject $_ -MethodName GetOwner; "$($o.Domain)\$($o.User)" } catch { 'unknown' }
-                  "[$($_.Name)] (owner $owner) $($_.CommandLine)"
-                }
-              Start-Sleep -Milliseconds 200
-            }
-          }
-
-          $env:E2E_SPEC_RETRIES = "0"
-          pnpm exec wdio run ./wdio.conf.ts --spec test/specs/app.spec.ts
-
-          "### app/webview process command lines"
-          Receive-Job $watcher
-          Stop-Job $watcher; Remove-Job $watcher -Force
-          # msedgedriver's scoped dirs land in its own temp, which on this runner
-          # is C:\Windows\SystemTemp rather than the step's $env:TEMP.
-          $tempRoots = @($env:TEMP, 'C:\Windows\SystemTemp', 'C:\Windows\Temp', "$env:LOCALAPPDATA", "$env:GITHUB_WORKSPACE\target\debug") |
-            Where-Object { $_ -and (Test-Path $_) }
-          "### DevToolsActivePort files on disk"
-          Get-ChildItem $tempRoots -Filter DevToolsActivePort -Recurse -Depth 6 -Force -ErrorAction SilentlyContinue |
-            Select-Object -First 20 -Property FullName, LastWriteTime | Format-List
-          "### msedgedriver scoped dirs left behind"
-          Get-ChildItem $tempRoots -Directory -Filter 'scoped_dir*' -Force -ErrorAction SilentlyContinue |
-            ForEach-Object { "$($_.FullName)"; Get-ChildItem $_.FullName -Recurse -Depth 2 -Force -ErrorAction SilentlyContinue | Select-Object -First 15 -ExpandProperty FullName }
-
-      # Temporary: this runner ignores WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS (proven
-      # with msedgedriver out of the picture, on both 150.0.4078.65 and .99), which
-      # is how the driver hands the app its `--remote-debugging-port`. examples/api
-      # now forwards that variable through `additional_browser_args` instead, so this
-      # probe reports whether that workaround took: "DevTools OK" means it did.
-      - name: webview2 env-var probe (Windows)
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          $app = "$env:GITHUB_WORKSPACE\target\debug\api.exe"
-          if (-not (Test-Path $app)) { "app not built, skipping probe"; exit 0 }
-
-          function Invoke-Probe($label) {
-            $udf = Join-Path $env:RUNNER_TEMP "probe-udf-$label"
-            Remove-Item $udf -Recurse -Force -ErrorAction SilentlyContinue
-            New-Item -ItemType Directory -Force $udf | Out-Null
-            $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9333'
-            $env:WEBVIEW2_USER_DATA_FOLDER = $udf
-            $proc = Start-Process $app -PassThru
-            $ok = $false
-            foreach ($i in 1..24) {
-              try {
-                $version = Invoke-RestMethod 'http://127.0.0.1:9333/json/version' -TimeoutSec 2
-                Write-Host "[$label] DevTools OK: $($version.Browser)"
-                $ok = $true
-                break
-              } catch { Start-Sleep -Milliseconds 500 }
-            }
-            if (-not $ok) { Write-Host "[$label] no DevTools on 9333 - the app never applied WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS" }
-            Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue |
-              Where-Object { $_.CommandLine -like '*api.exe*' -and $_.CommandLine -notlike '*--type=*' } |
-              ForEach-Object { ($_.CommandLine -split ' --') |
-                Where-Object { $_ -match 'remote-debugging|disable-features' } |
-                ForEach-Object { Write-Host "[$label] --$_" } }
-            try { Stop-Process -Id $proc.Id -Force -ErrorAction Stop } catch {}
-            Remove-Item Env:\WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, Env:\WEBVIEW2_USER_DATA_FOLDER -ErrorAction SilentlyContinue
-            return $ok
-          }
-
-          Invoke-Probe 'runner-runtime' | Out-Null
-
       - name: run e2e tests (Windows)
         if: runner.os == 'Windows'
         timeout-minutes: 45
@@ -246,7 +103,6 @@ jobs:
         run: |
           $env:E2E_SKIP = "tray"
           $env:E2E_SPEC_RETRIES = "1"
-          $env:E2E_SKIP_BUILD = "1" # the diagnostic step above already built it
           pnpm test:api-e2e
 
       - name: run e2e tests (macOS)

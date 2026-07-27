@@ -114,6 +114,10 @@ mod window_effects {
     UnderWindowBackground,
     /// **macOS 10.14+**
     UnderPageBackground,
+    /// *macOS 26.0+**
+    LiquidGlassRegular,
+    /// *macOS 26.0+**
+    LiquidGlassClear,
     /// Mica effect that matches the system dark preference **Windows 11 Only**
     Mica,
     /// Mica effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**

@@ -2085,6 +2085,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
+  /// - **macOS**: Using `None` can only clear Liquid Glass effects, not Visual Effects.
   /// - **Linux**: Unsupported
   pub fn set_effects<E: Into<Option<WindowEffectsConfig>>>(&self, effects: E) -> crate::Result<()> {
     let effects = effects.into();

@@ -1448,7 +1448,7 @@ class Window {
   }
 
   /**
-   * On macOS, Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won’t work if the window was already in the native fullscreen).
+   * On macOS, Toggles a fullscreen mode that doesn't require a new macOS space. Returns a boolean indicating whether the transition was successful (this won't work if the window was already in the native fullscreen).
    * This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
    *
    * On other platforms, this is the same as {@link Window.setFullscreen}.
@@ -2251,6 +2251,14 @@ enum Effect {
    */
   UnderPageBackground = 'underPageBackground',
   /**
+   *  **macOS 26.0+**
+   */
+  LiquidGlassRegular = 'liquidGlassRegular',
+  /**
+   *  **macOS 26.0+**
+   */
+  LiquidGlassClear = 'liquidGlassClear',
+  /**
    *  **Windows 11 Only**
    */
   Mica = 'mica',
@@ -2312,12 +2320,15 @@ enum EffectState {
  */
 interface Effects {
   /**
-   *  List of Window effects to apply to the Window.
-   * Conflicting effects will apply the first one and ignore the rest.
+   * List of Window effects to apply to the Window.
+   *
+   * Generally, conflicting effects will apply the first one and ignore the rest but
+   * on macOS you can specify one Liquid Glass style and one Visual Effect material at the same time
+   * to make Tauri fallback to the latter on macOS 15 and below.
    */
   effects: Effect[]
   /**
-   * Window effect state **macOS Only**
+   * Window effect state **macOS Only**. Ignored for Liquid Glass Effects.
    */
   state?: EffectState
   /**
@@ -2325,8 +2336,13 @@ interface Effects {
    */
   radius?: number
   /**
-   *  Window effect color. Affects {@link Effect.Blur} and {@link Effect.Acrylic} only
+   *  Window effect color.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows**: Affects {@link Effect.Blur} and {@link Effect.Acrylic} only
    * on Windows 10 v1903+. Doesn't have any effect on Windows 7 or Windows 11.
+   * - **macOS**: Only affects Liquid Glass effects.
    */
   color?: Color
 }

@@ -50,8 +50,8 @@ webkit2gtk = { version = "=2.0", features = ["v2_40"] }
 jni = "0.21"
 
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
-objc2 = "0.6"
-objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+objc2 = "0.6.3"
+objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIView",
   "UIResponder",
   "UIScene",

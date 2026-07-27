@@ -129,12 +129,12 @@ objc2-web-kit = { version = "0.3", default-features = false, features = [
   "WKWebViewConfiguration",
   "WKUserContentController",
 ] }
-window-vibrancy = "0.6"
+window-vibrancy = "0.7.1"
 
 # windows
 [target."cfg(windows)".dependencies]
 webview2-com = { version = "0.38", optional = true }
-window-vibrancy = "0.6"
+window-vibrancy = "0.7.1"
 windows = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_UI",

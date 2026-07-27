@@ -83,6 +83,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
+          .transparent(true)
           .menu(tauri::menu::Menu::default(app.handle())?)
           .on_new_window(move |url, features| {
             println!("new window requested: {url:?} {features:?}");

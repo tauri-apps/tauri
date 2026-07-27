@@ -483,7 +483,7 @@
           ]
         },
         "additionalBrowserArgs": {
-          "description": "Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`\n so if you use this method, you also need to disable these components by yourself if you want.",
+          "description": "Defines additional browser arguments on Windows.\n\n ## Warning\n\n Webview instances with different browser arguments must also have different [data directories](Self::data_directory).\n\n By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`\n so if you set this, you also need to disable these components by yourself if you want.",
           "type": [
             "string",
             "null"

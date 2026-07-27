@@ -1416,28 +1416,25 @@ impl<R: Runtime> App<R> {
     mut self,
     mut callback: F,
   ) -> impl FnMut(RuntimeRunEvent<EventLoopMessage>) {
-    let app_handle = self.handle().clone();
-    let manager = self.manager.clone();
-
     move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Ready, self.manager());
+        callback(self.handle(), event);
       }
       RuntimeRunEvent::Exit => {
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-        callback(&app_handle, event);
-        app_handle.cleanup_before_exit();
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Exit, self.manager());
+        callback(self.handle(), event);
+        self.cleanup_before_exit();
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
       }
       _ => {
-        let event = on_event_loop_event(&app_handle, event, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), event, self.manager());
+        callback(self.handle(), event);
       }
     }
   }
@@ -1469,19 +1466,18 @@ impl<R: Runtime> App<R> {
     note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
   )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
-    let manager = self.manager.clone();
-    let app_handle = self.handle().clone();
-
     if !self.ran_setup {
       if let Err(e) = setup(self) {
         panic!("Failed to setup app: {e}");
       }
     }
 
+    let app_handle = self.handle().clone();
+
     app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
-      let event = on_event_loop_event(&app_handle, event, &manager);
+      let event = on_event_loop_event(&app_handle, event, app_handle.manager());
       callback(&app_handle, event);
     })
   }
@@ -2365,8 +2361,7 @@ tauri::Builder::default()
 
     let runtime_handle = runtime.handle();
 
-    #[allow(unused_mut)]
-    let mut app = App {
+    let app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
       manager: manager.clone(),

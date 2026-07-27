@@ -950,6 +950,8 @@ fn main() {
   ///
   /// ## Warning
   ///
+  /// Webview instances with different browser arguments must also have different [data directories](Self::data_directory).
+  ///
   /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
   /// so if you use this method, you also need to disable these components by yourself if you want.
   #[must_use]

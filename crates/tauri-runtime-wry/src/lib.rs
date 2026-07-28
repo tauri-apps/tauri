@@ -554,7 +554,9 @@ impl WindowEventWrapper {
         }
       }
       TaoWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
+      #[cfg(mobile)]
       TaoWindowEvent::Suspended => WindowEvent::Suspended,
+      #[cfg(mobile)]
       TaoWindowEvent::Resumed => WindowEvent::Resumed,
       _ => return Self(None),
     };

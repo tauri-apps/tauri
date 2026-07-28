@@ -90,7 +90,7 @@ jobs:
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           path: gh-pages

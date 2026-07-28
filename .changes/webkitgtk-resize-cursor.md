@@ -1,5 +1,6 @@
 ---
 'tauri-runtime-wry': 'patch:bug'
+'tauri': 'patch:bug'
 ---
 
-Fix the resize cursor not being set correctly on Linux/WebKitGTK and prevent resize operations being overridden
+On Linux, fix resize cursor for undecorated Window not being set correctly when mouse is over a resize edge.

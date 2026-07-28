@@ -1313,7 +1313,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub struct GtkWindow(pub gtk::ApplicationWindow);
+pub struct GtkWindow(pub *mut c_void);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -1331,7 +1331,7 @@ unsafe impl Send for GtkWindow {}
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub struct GtkBox(pub gtk::Box);
+pub struct GtkBox(pub *mut c_void);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -2114,12 +2114,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<*mut c_void> {
-    use gtk::glib::translate::ToGlibPtr;
-
-    window_getter!(self, WindowMessage::GtkWindow).map(|w| {
-      let ptr: *mut gtk::ffi::GtkApplicationWindow = w.0.to_glib_full();
-      ptr as *mut c_void
-    })
+    window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
   }
 
   #[cfg(any(
@@ -2130,12 +2125,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "openbsd"
   ))]
   fn default_vbox(&self) -> Result<*mut c_void> {
-    use gtk::glib::translate::ToGlibPtr;
-
-    window_getter!(self, WindowMessage::GtkBox).map(|w| {
-      let ptr: *mut gtk::ffi::GtkBox = w.0.to_glib_full();
-      ptr as *mut c_void
-    })
+    window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
   }
 
   /// Returns the name of the Android activity associated with this window.
@@ -3452,7 +3442,12 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::GtkWindow(tx) => {
+            use gtk::glib::translate::ToGlibPtr;
+
+            let ptr: *mut gtk::ffi::GtkApplicationWindow = window.gtk_window().to_glib_full();
+            tx.send(GtkWindow(ptr as *mut c_void)).unwrap()
+          }
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -3460,9 +3455,12 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkBox(tx) => tx
-            .send(GtkBox(window.default_vbox().unwrap().clone()))
-            .unwrap(),
+          WindowMessage::GtkBox(tx) => {
+            use gtk::glib::translate::ToGlibPtr;
+
+            let ptr: *mut gtk::ffi::GtkBox = window.default_vbox().unwrap().to_glib_full();
+            tx.send(GtkBox(ptr as *mut c_void)).unwrap()
+          }
           #[cfg(target_os = "android")]
           WindowMessage::ActivityName(tx) => {
             tx.send(window.activity_name()).unwrap();

@@ -71,7 +71,7 @@ type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventListener
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub(crate) struct SendGtkWindow(gtk::ApplicationWindow);
+pub(crate) struct SendGtkWindow(*mut c_void);
 
 #[cfg(any(
   target_os = "linux",
@@ -89,7 +89,7 @@ unsafe impl Send for SendGtkWindow {}
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub(crate) struct SendGtkBox(gtk::Box);
+pub(crate) struct SendGtkBox(*mut c_void);
 
 #[cfg(any(
   target_os = "linux",
@@ -768,8 +768,12 @@ impl<T: UserEvent> WinitCefApp<T> {
         target_os = "openbsd"
       ))]
       WindowMessage::GtkWindow(tx) => {
+        use gtk::glib::translate::ToGlibPtr;
         use winit::platform::gtk4::WindowExtGtk4;
-        let _ = tx.send(Ok(SendGtkWindow(appwindow.window.gtk_window().unwrap())));
+
+        let gtk_window = appwindow.window.gtk_window().unwrap();
+        let ptr: *mut gtk::ffi::GtkApplicationWindow = gtk_window.to_glib_full();
+        let _ = tx.send(Ok(SendGtkWindow(ptr as *mut c_void)));
       }
       #[cfg(any(
         target_os = "linux",
@@ -779,7 +783,11 @@ impl<T: UserEvent> WinitCefApp<T> {
         target_os = "openbsd"
       ))]
       WindowMessage::DefaultVBox(tx) => {
-        let _ = tx.send(Ok(SendGtkBox(appwindow.cef_host.default_vbox())));
+        use gtk::glib::translate::ToGlibPtr;
+
+        let default_vbox = appwindow.cef_host.default_vbox();
+        let ptr: *mut gtk::ffi::GtkBox = default_vbox.to_glib_full();
+        let _ = tx.send(Ok(SendGtkBox(ptr as *mut c_void)));
       }
       WindowMessage::RawWindowHandle(tx) => {
         let handle = window.window_handle();
@@ -1114,12 +1122,7 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<*mut c_void> {
-    use gtk::glib::translate::ToGlibPtr;
-
-    window_getter!(self, GtkWindow).map(|gtk_window| {
-      let ptr: *mut gtk::ffi::GtkApplicationWindow = gtk_window.0.to_glib_full();
-      ptr as *mut c_void
-    })
+    window_getter!(self, GtkWindow).map(|gtk_window| gtk_window.0)
   }
 
   #[cfg(any(
@@ -1130,12 +1133,7 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     target_os = "openbsd"
   ))]
   fn default_vbox(&self) -> Result<*mut c_void> {
-    use gtk::glib::translate::ToGlibPtr;
-
-    window_getter!(self, DefaultVBox).map(|gtk_box| {
-      let ptr: *mut gtk::ffi::GtkBox = gtk_box.0.to_glib_full();
-      ptr as *mut c_void
-    })
+    window_getter!(self, DefaultVBox).map(|gtk_box| gtk_box.0)
   }
 
   fn window_handle(

@@ -495,10 +495,7 @@ impl TryFrom<Icon<'_>> for TaoIcon {
 pub struct WindowEventWrapper(pub Option<WindowEvent>);
 
 impl WindowEventWrapper {
-  fn map_from_tao(
-    event: &TaoWindowEvent<'_>,
-    #[allow(unused_variables)] window: &WindowWrapper,
-  ) -> Self {
+  fn map_from_tao(event: &TaoWindowEvent<'_>, #[cfg(windows)] window: &WindowWrapper) -> Self {
     let event = match event {
       TaoWindowEvent::Resized(size) => WindowEvent::Resized(*size),
       TaoWindowEvent::Moved(position) => WindowEvent::Moved(*position),
@@ -557,6 +554,8 @@ impl WindowEventWrapper {
         }
       }
       TaoWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
+      TaoWindowEvent::Suspended => WindowEvent::Suspended,
+      TaoWindowEvent::Resumed => WindowEvent::Resumed,
       _ => return Self(None),
     };
     Self(Some(event))
@@ -578,7 +577,11 @@ impl WindowEventWrapper {
           Self(None)
         }
       }
-      e => Self::map_from_tao(e, window),
+      e => Self::map_from_tao(
+        e,
+        #[cfg(windows)]
+        window,
+      ),
     }
   }
 }
@@ -4333,39 +4336,6 @@ fn handle_event_loop<T: UserEvent>(
     #[cfg(target_os = "ios")]
     Event::SceneRequested { scene, options } => {
       callback(RunEvent::SceneRequested { scene, options });
-    }
-    #[cfg(mobile)]
-    e @ Event::Resumed | e @ Event::Suspended => {
-      let event = match e {
-        Event::Resumed => WindowEvent::Resumed,
-        Event::Suspended => WindowEvent::Suspended,
-        _ => unreachable!(),
-      };
-
-      // Collect the per-window listener handles and release the `windows`
-      // borrow before dispatching: handlers and the `RunEvent` callback may
-      // create or close windows (`windows.0.borrow_mut()`), which would panic
-      // the `RefCell` if we held the borrow across them. The desktop
-      // `WindowEvent` branches drop the borrow before dispatching for the same
-      // reason; this mobile `Resumed`/`Suspended` branch was the exception.
-      let targets = windows
-        .0
-        .borrow()
-        .values()
-        .map(|w| (w.label.clone(), w.window_event_listeners.clone()))
-        .collect::<Vec<_>>();
-
-      for (label, window_event_listeners) in targets {
-        let listeners = window_event_listeners.lock().unwrap();
-        for handler in listeners.values() {
-          handler(&event);
-        }
-
-        callback(RunEvent::WindowEvent {
-          label,
-          event: event.clone(),
-        });
-      }
     }
     _ => (),
   }

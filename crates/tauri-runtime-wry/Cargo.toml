@@ -14,11 +14,12 @@ rust-version.workspace = true
 
 [dependencies]
 wry = { version = "0.55.0", default-features = false, features = [
-  "protocol",
   "os-webview",
   "linux-body",
-] }
-tao = { version = "0.35.0", default-features = false, features = ["rwh_06"] }
+], git = "https://github.com/tauri-apps/wry.git", branch = "feat/tao-0.36" }
+tao = { version = "0.35.0", default-features = false, features = [
+  "rwh_06",
+], git = "https://github.com/Legend-Master/tao.git", branch = "rename-android-life-cycle-bindings" }
 tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
 tauri-utils = { version = "2.9.3", path = "../tauri-utils" }
 raw-window-handle = "0.6"
@@ -62,11 +63,7 @@ jni = "0.21"
 default = ["x11", "dbus"]
 devtools = ["wry/devtools", "tauri-runtime/devtools"]
 x11 = ["tao/x11", "wry/x11"]
-macos-private-api = [
-  "wry/fullscreen",
-  "wry/transparent",
-  "tauri-runtime/macos-private-api",
-]
+macos-private-api = ["tauri-runtime/macos-private-api"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 tracing = ["dep:tracing", "wry/tracing"]

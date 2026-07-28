@@ -11449,7 +11449,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 [[package]]
 name = "wry"
 version = "0.55.1"
-source = "git+https://github.com/tauri-apps/wry.git?branch=feat%2Ftao-0.36#b90beb8aade7068467854546d50e7f1867106b87"
+source = "git+https://github.com/Legend-Master/wry.git?branch=tao-0.36-lifecycle-renames#0592236adaa55e663a9446d1fc5d9f31c19951e6"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.2",

@@ -4336,6 +4336,14 @@ fn handle_event_loop<T: UserEvent>(
     }
     #[cfg(mobile)]
     e @ Event::Resumed | e @ Event::Suspended => {
+      // Surface the resume to the app-level callback as well. The per-window
+      // dispatch below never runs when there are no windows (e.g. on Android
+      // when the activity was destroyed while a foreground service kept the
+      // process alive), so the app would otherwise never learn about it.
+      if matches!(e, Event::Resumed) {
+        callback(RunEvent::Resumed);
+      }
+
       let event = match e {
         Event::Resumed => WindowEvent::Resumed,
         Event::Suspended => WindowEvent::Suspended,

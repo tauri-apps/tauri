@@ -216,7 +216,9 @@ pub enum RunEvent<T: UserEvent> {
   },
   /// Application ready.
   Ready,
-  /// Sent if the event loop is being resumed.
+  /// Sent when the application has been resumed.
+  ///
+  /// On desktop this is only emitted when the event loop is woken while running in poll mode, which is not used by default.
   Resumed,
   /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///

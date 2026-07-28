@@ -35,37 +35,6 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
 ]
-default-members = [
-  "crates/tauri",
-  "crates/tauri-build",
-  "crates/tauri-bundler",
-  "crates/tauri-cli",
-  "crates/tauri-codegen",
-  "crates/tauri-driver",
-  "crates/tauri-macos-sign",
-  "crates/tauri-macros",
-  "crates/tauri-plugin",
-  "crates/tauri-runtime",
-  "crates/tauri-runtime-wry",
-  "crates/tauri-schema-generator",
-  "crates/tauri-schema-worker",
-  "crates/tauri-utils",
-
-  # @tauri-apps/cli rust project
-  "packages/cli",
-
-  # integration tests
-  "crates/tests/acl",
-  "crates/tests/restart",
-
-  # bench
-  "bench",
-  "bench/tests/*/src-tauri",
-
-  # examples
-  "examples/*/src-tauri",
-  "examples/api/src-tauri/tauri-plugin-sample",
-]
 exclude = ["crates/cef-helper"]
 resolver = "2"
 

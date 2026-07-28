@@ -47,6 +47,7 @@ use windows::Win32::Foundation::HWND;
 use tauri_macros::default_runtime;
 
 use std::{
+  ffi::c_void,
   fmt,
   hash::{Hash, Hasher},
   sync::{Arc, Mutex, MutexGuard},
@@ -662,7 +663,9 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
       target_os = "openbsd"
     ))]
     {
-      self.window_builder = self.window_builder.transient_for(&parent.gtk_window()?);
+      self.window_builder = self
+        .window_builder
+        .transient_for(gtk_window_ptr(&parent.gtk_window()?));
     }
 
     #[cfg(target_os = "macos")]
@@ -743,7 +746,9 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   pub fn transient_for(mut self, parent: &Window<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.transient_for(&parent.gtk_window()?);
+    self.window_builder = self
+      .window_builder
+      .transient_for(gtk_window_ptr(&parent.gtk_window()?));
     Ok(self)
   }
 
@@ -761,7 +766,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ))]
   #[must_use]
   pub fn transient_for_raw(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
-    self.window_builder = self.window_builder.transient_for(parent);
+    self.window_builder = self.window_builder.transient_for(gtk_window_ptr(parent));
     self
   }
 
@@ -1713,7 +1718,16 @@ impl<R: Runtime> Window<R> {
     target_os = "openbsd"
   ))]
   pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
-    self.window.dispatcher.gtk_window().map_err(Into::into)
+    use gtk::glib::translate::FromGlibPtrNone;
+
+    self
+      .window
+      .dispatcher
+      .gtk_window()
+      .map(|window| unsafe {
+        gtk::ApplicationWindow::from_glib_none(window as *mut gtk::ffi::GtkApplicationWindow)
+      })
+      .map_err(Into::into)
   }
 
   /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
@@ -1727,7 +1741,14 @@ impl<R: Runtime> Window<R> {
     target_os = "openbsd"
   ))]
   pub fn default_vbox(&self) -> crate::Result<gtk::Box> {
-    self.window.dispatcher.default_vbox().map_err(Into::into)
+    use gtk::glib::translate::FromGlibPtrNone;
+
+    self
+      .window
+      .dispatcher
+      .default_vbox()
+      .map(|vbox| unsafe { gtk::Box::from_glib_none(vbox as *mut gtk::ffi::GtkBox) })
+      .map_err(Into::into)
   }
 
   /// Returns the name of the Android activity associated with this window.
@@ -2505,6 +2526,21 @@ impl From<WindowEffectsConfig> for EffectsBuilder {
   fn from(value: WindowEffectsConfig) -> Self {
     Self(value)
   }
+}
+
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn gtk_window_ptr(parent: &impl gtk::prelude::IsA<gtk::Window>) -> *mut c_void {
+  use gtk::{glib::translate::ToGlibPtr, prelude::Cast};
+
+  let parent = parent.clone().upcast::<gtk::Window>();
+  let ptr: *mut gtk::ffi::GtkWindow = parent.to_glib_full();
+  ptr as *mut c_void
 }
 
 #[cfg(test)]

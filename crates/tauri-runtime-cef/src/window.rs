@@ -4,6 +4,7 @@
 
 use std::{
   collections::HashMap,
+  ffi::c_void,
   sync::{
     Arc, Mutex,
     mpsc::{self, Receiver, Sender},
@@ -606,13 +607,20 @@ impl<T: UserEvent> WinitCefApp<T> {
       target_os = "openbsd"
     ))]
     if let Some(after_window_creation) = _after_window_creation {
+      use gtk::glib::translate::ToGlibPtr;
       use winit::platform::gtk4::WindowExtGtk4;
 
       let gtk_window = appwindow.window.gtk_window().unwrap();
       let default_vbox = appwindow.cef_host.default_vbox();
       after_window_creation(RawWindow {
-        gtk_window: &gtk_window,
-        default_vbox: Some(&default_vbox),
+        gtk_window: {
+          let ptr: *mut gtk::ffi::GtkApplicationWindow = gtk_window.to_glib_none().0;
+          ptr as *mut c_void
+        },
+        default_vbox: Some({
+          let ptr: *mut gtk::ffi::GtkBox = default_vbox.to_glib_none().0;
+          ptr as *mut c_void
+        }),
         _marker: &PhantomData,
       });
     }
@@ -1105,8 +1113,13 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
-    window_getter!(self, GtkWindow).map(|gtk_window| gtk_window.0)
+  fn gtk_window(&self) -> Result<*mut c_void> {
+    use gtk::glib::translate::ToGlibPtr;
+
+    window_getter!(self, GtkWindow).map(|gtk_window| {
+      let ptr: *mut gtk::ffi::GtkApplicationWindow = gtk_window.0.to_glib_full();
+      ptr as *mut c_void
+    })
   }
 
   #[cfg(any(
@@ -1116,8 +1129,13 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<gtk::Box> {
-    window_getter!(self, DefaultVBox).map(|gtk_box| gtk_box.0)
+  fn default_vbox(&self) -> Result<*mut c_void> {
+    use gtk::glib::translate::ToGlibPtr;
+
+    window_getter!(self, DefaultVBox).map(|gtk_box| {
+      let ptr: *mut gtk::ffi::GtkBox = gtk_box.0.to_glib_full();
+      ptr as *mut c_void
+    })
   }
 
   fn window_handle(

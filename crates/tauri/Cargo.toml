@@ -206,7 +206,7 @@ common-controls-v6 = [
 ]
 tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]
-test = ["dep:gtk3", "dep:muda", "muda/gtk", "tauri-runtime/gtk3"]
+test = ["dep:gtk3", "dep:muda", "muda/gtk"]
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = [
   "dep:gtk3",
@@ -215,14 +215,12 @@ wry = [
   "dep:webview2-com",
   "dep:webkit2gtk",
   "dep:tauri-runtime-wry",
-  "tauri-runtime/gtk3",
 ]
 cef = [
   "dep:gtk4",
   "dep:muda",
   "muda/gtk4",
   "dep:tauri-runtime-cef",
-  "tauri-runtime/gtk4",
 ]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []

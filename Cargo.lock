@@ -10084,8 +10084,6 @@ version = "2.11.3"
 dependencies = [
  "cookie",
  "dpi",
- "gtk",
- "gtk4",
  "http",
  "jni 0.21.1",
  "objc2",

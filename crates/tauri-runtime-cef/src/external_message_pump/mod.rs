@@ -95,7 +95,6 @@ impl CefExternalPump {
   pub(crate) fn do_work(&self) {
     self.state.do_work();
   }
-
 }
 
 /// Platform-independent pump state, shared with the [`PlatformPump`] backend.

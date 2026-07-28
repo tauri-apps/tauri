@@ -843,7 +843,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       event_loop.exit();
     }
   }
-
 }
 
 impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {

@@ -33,8 +33,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: install Rust 1.90
-        uses: dtolnay/rust-toolchain@1.90
+      - name: install Rust 1.92
+        uses: dtolnay/rust-toolchain@1.92
 
       - name: install x86_64-apple-darwin target (required by bundler CEF helper on macOS)
         if: matrix.platform == 'macos-latest'

@@ -6,7 +6,7 @@ authors = ["you"]
 license = ""
 repository = ""
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.92"
 
 [lib]
 name = "tauri_app_lib"

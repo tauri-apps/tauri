@@ -37,4 +37,6 @@ jobs:
           node-version: 'lts/*'
           cache: 'pnpm'
       - run: pnpm i --frozen-lockfile
+      - run: pnpm build
+        working-directory: packages/api
       - run: pnpm ts:check

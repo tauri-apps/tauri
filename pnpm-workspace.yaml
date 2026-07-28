@@ -1,5 +1,6 @@
 packages:
   - packages/api
+  - packages/api-e2e
   - packages/cli
   - crates/tauri-schema-worker
   - examples/api
@@ -7,10 +8,28 @@ packages:
   - examples/file-associations
 
 allowBuilds:
+  # transitive deps of @wdio/utils; their postinstall downloads browser drivers
+  # the Tauri suite never uses (it drives the app via tauri-driver)
+  edgedriver: false
   esbuild: true
+  geckodriver: false
   sharp: true
   workerd: true
 
+minimumReleaseAgeExclude:
+  - serialize-javascript@7.0.5
+  - brace-expansion@1.1.16 || 2.1.2 || 5.0.7
+  - js-yaml@4.3.0
+  - sharp@0.35.0
+  - fast-xml-parser@5.10.1
+
 overrides:
+  brace-expansion@<1.1.16: ^1.1.16
+  brace-expansion@>=2.0.0 <2.1.2: ^2.1.2
+  brace-expansion@>=3.0.0 <5.0.7: ^5.0.7
   esbuild@>=0.27.3 <0.28.1: '>=0.28.1'
+  fast-xml-parser@>=5.9.3 <5.10.1: ^5.10.1
+  js-yaml@>=4.0.0 <4.3.0: ^4.3.0
+  serialize-javascript@<7.0.5: ^7.0.5
+  sharp@<0.35.0: ^0.35.0
   ws@>=8.0.0 <8.20.1: '>=8.20.1'

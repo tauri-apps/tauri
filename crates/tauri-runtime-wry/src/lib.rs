@@ -4410,6 +4410,63 @@ fn on_window_close(window_id: WindowId, windows: &WindowsStore) {
   }
 }
 
+/// Combines the browser arguments a WebView2 webview would be created with and the ones
+/// from `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`.
+///
+/// `app_args` is what the app configured, if anything; when it configured nothing, wry's
+/// own defaults are reproduced here, since passing arguments at all replaces them.
+/// A later `--disable-features` switch overrides an earlier one rather than adding to
+/// it, so the feature lists are merged into a single switch.
+#[cfg(windows)]
+fn merge_browser_args(app_args: Option<&str>, env_args: &str, proxy_arg: Option<&str>) -> String {
+  const DISABLE_FEATURES: &str = "--disable-features=";
+
+  // Mirrors wry: it removes the "mini menu" and "smart screen", allows autoplay (which
+  // Tauri never turns off) and appends the proxy server, if one is configured.
+  let defaults = {
+    let mut args = String::from("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection");
+    args.push_str(" --autoplay-policy=no-user-gesture-required");
+    if let Some(proxy_arg) = proxy_arg {
+      args.push(' ');
+      args.push_str(proxy_arg);
+    }
+    args
+  };
+
+  let mut disabled_features: Vec<&str> = Vec::new();
+  let mut other_args: Vec<&str> = Vec::new();
+  for arg in app_args
+    .unwrap_or(&defaults)
+    .split_whitespace()
+    .chain(env_args.split_whitespace())
+  {
+    match arg.strip_prefix(DISABLE_FEATURES) {
+      Some(features) => {
+        for feature in features.split(',').filter(|feature| !feature.is_empty()) {
+          if !disabled_features.contains(&feature) {
+            disabled_features.push(feature);
+          }
+        }
+      }
+      None => other_args.push(arg),
+    }
+  }
+
+  let mut merged = String::new();
+  if !disabled_features.is_empty() {
+    merged.push_str(DISABLE_FEATURES);
+    merged.push_str(&disabled_features.join(","));
+  }
+  for arg in other_args {
+    if !merged.is_empty() {
+      merged.push(' ');
+    }
+    merged.push_str(arg);
+  }
+
+  merged
+}
+
 fn parse_proxy_url(url: &Url) -> Result<ProxyConfig> {
   let host = url.host().map(|h| h.to_string()).unwrap_or_default();
   let port = url.port().map(|p| p.to_string()).unwrap_or_default();
@@ -4985,15 +5042,54 @@ You may have it installed on another user account, but it is not available for t
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
 
+  #[cfg(windows)]
+  let mut proxy_browser_arg = None;
+
   if let Some(proxy_url) = webview_attributes.proxy_url {
     let config = parse_proxy_url(&proxy_url)?;
+
+    #[cfg(windows)]
+    {
+      proxy_browser_arg = Some(match &config {
+        ProxyConfig::Http(endpoint) => {
+          format!("--proxy-server=http://{}:{}", endpoint.host, endpoint.port)
+        }
+        ProxyConfig::Socks5(endpoint) => {
+          format!(
+            "--proxy-server=socks5://{}:{}",
+            endpoint.host, endpoint.port
+          )
+        }
+      });
+    }
 
     webview_builder = webview_builder.with_proxy_config(config);
   }
 
   #[cfg(windows)]
   {
-    if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
+    // WebView2 is meant to apply `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` on top of the
+    // arguments passed to `CreateCoreWebView2EnvironmentWithOptions`, which is how
+    // msedgedriver hands a WebView2 app the `--remote-debugging-port` it then attaches
+    // to. Some machines ignore the variable because wry always sets arguments of its
+    // own, so under automation it is applied here instead. Every webview in the process
+    // has to end up with the same arguments: WebView2 refuses to create a second
+    // environment whose options differ from the first one with `ERROR_INVALID_STATE`.
+    let driver_args = if automation_enabled {
+      std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").ok()
+    } else {
+      None
+    };
+    let additional_browser_args = match driver_args {
+      Some(driver_args) => Some(merge_browser_args(
+        webview_attributes.additional_browser_args.as_deref(),
+        &driver_args,
+        proxy_browser_arg.as_deref(),
+      )),
+      None => webview_attributes.additional_browser_args,
+    };
+
+    if let Some(additional_browser_args) = additional_browser_args {
       webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
     }
 

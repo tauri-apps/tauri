@@ -38,6 +38,13 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   builder: tauri::Builder<R>,
   setup: F,
 ) {
+  // WebDriver automation bridge for the `@tauri-apps/api` e2e suite (packages/api-e2e).
+  // Registered as early as possible per the plugin's docs. Gated behind `debug_assertions`
+  // and `not(test)` so it never ships in release builds nor interferes with the mock-runtime
+  // unit test below.
+  #[cfg(all(desktop, debug_assertions, not(test)))]
+  let builder = builder.plugin(tauri_plugin_automation::init());
+
   let builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
@@ -105,10 +112,34 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           });
       }
 
-      let webview = window_builder.build()?;
+      // WebView2 is supposed to let `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` override the
+      // arguments passed to `CreateCoreWebView2EnvironmentWithOptions`, which is how
+      // msedgedriver hands a WebView2 app the `--remote-debugging-port` it then attaches
+      // to. Some machines (GitHub's Windows runners among them) ignore that variable
+      // because wry always sets arguments of its own, so the driver can never attach.
+      // Forwarding it explicitly makes the e2e suite work there. wry's own defaults are
+      // repeated first because this replaces them.
+      #[cfg(windows)]
+      if let Ok(driver_args) = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS") {
+        // Setting the arguments replaces wry's defaults, so they are restored here. The
+        // driver disables features of its own, and a later `--disable-features` wins
+        // outright over an earlier one, so the two lists are merged into one switch.
+        let mut disabled_features = vec!["msWebOOUI", "msPdfOOUI", "msSmartScreenProtection"];
+        let mut other_args = vec!["--autoplay-policy=no-user-gesture-required"];
+        for arg in driver_args.split_whitespace() {
+          match arg.strip_prefix("--disable-features=") {
+            Some(features) => disabled_features.extend(features.split(',')),
+            None => other_args.push(arg),
+          }
+        }
+        window_builder = window_builder.additional_browser_args(&format!(
+          "--disable-features={} {}",
+          disabled_features.join(","),
+          other_args.join(" ")
+        ));
+      }
 
-      #[cfg(debug_assertions)]
-      webview.open_devtools();
+      let webview = window_builder.build()?;
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {

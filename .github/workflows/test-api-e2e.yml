@@ -1,0 +1,164 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: test `@tauri-apps/api` e2e
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+  pull_request:
+    paths:
+      - '.github/workflows/test-api-e2e.yml'
+      - 'packages/api/**'
+      - 'packages/api-e2e/**'
+      - 'examples/api/**'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0 # keeps the target folder small for better cache efficiency
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.platform.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { name: Linux, os: ubuntu-latest }
+          - { name: Windows, os: windows-latest }
+          - { name: macOS, os: macos-latest }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - run: npm i -g --force corepack
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+
+      - name: install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            xvfb \
+            fluxbox
+
+      # install a matching Microsoft Edge Driver version using msedgedriver-tool
+      - name: install msedgedriver (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$HOME/.cargo/bin/msedgedriver-tool.exe"
+          $PWD.Path >> $env:GITHUB_PATH
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.os }}
+
+      - name: install dependencies
+        run: pnpm i --frozen-lockfile
+
+      - name: build @tauri-apps/api
+        run: pnpm build:api
+
+      - name: build @tauri-apps/cli
+        run: pnpm build:cli
+
+      - name: run e2e tests (Linux)
+        if: runner.os == 'Linux'
+        timeout-minutes: 45
+        # A real window manager (fluxbox) is started so that window-state tests
+        # (minimize/maximize/fullscreen/position) behave. The tray host is absent
+        # in this environment, so the tray module is skipped.
+        run: |
+          xvfb-run --auto-servernum -- bash -c '
+            fluxbox >/dev/null 2>&1 &
+            sleep 1
+            E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
+          '
+
+      - name: run e2e tests (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 45
+        shell: pwsh
+        run: |
+          $env:E2E_SKIP = "tray"
+          $env:E2E_SPEC_RETRIES = "1"
+          pnpm test:api-e2e
+
+      - name: run e2e tests (macOS)
+        if: runner.os == 'macOS' && env.CN_API_KEY != ''
+        timeout-minutes: 45
+        # macOS has no native WebDriver for WKWebView, so the app is driven through the
+        # CrabNebula Webdriver (tauri-plugin-automation + test-runner-backend), which
+        # authenticates with CN_API_KEY. wdio.conf enables it automatically on darwin and
+        # builds the `.app` bundle it needs. The tray module is skipped to match the other jobs.
+        run: E2E_SKIP=tray E2E_SPEC_RETRIES=1 pnpm test:api-e2e
+        env:
+          CN_API_KEY: ${{ secrets.TAURI_E2E_CN_API_KEY }}
+
+      # The CrabNebula Webdriver proxies every command to a server running *inside* the app
+      # process, so when the app dies the suite only ever reports `connection refused` — the
+      # actual cause is never in this log. The app's stdout/stderr is inherited (its `println!`
+      # output shows up above) and no panic message is printed, which means it goes down on a
+      # signal. macOS records the reason in a crash report, and that is the only place it
+      # survives the run.
+      - name: collect app crash reports (macOS)
+        if: runner.os == 'macOS' && failure()
+        run: |
+          dest="$RUNNER_TEMP/crash-reports"
+          mkdir -p "$dest"
+          # ReportCrash writes asynchronously; give the last crash a moment to land.
+          sleep 5
+          found=0
+          for f in "$HOME/Library/Logs/DiagnosticReports"/*.ips \
+                   "$HOME/Library/Logs/DiagnosticReports/Retired"/*.ips; do
+            [ -e "$f" ] || continue
+            found=$((found + 1))
+            cp "$f" "$dest/"
+            echo "::group::$(basename "$f")"
+            # An .ips file is a one-line JSON header followed by the JSON report body.
+            head -n 1 "$f"
+            tail -n +2 "$f" | jq -r '
+              "exception:   \(.exception // {} | tojson)",
+              "termination: \(.termination // {} | tojson)",
+              "asi:         \(.asi // {} | tojson)",
+              "faulting thread \(.faultingThread // 0):",
+              (. as $r
+                | $r.threads[$r.faultingThread // 0].frames[]?
+                | "  \($r.usedImages[.imageIndex].name // "?")  \(.symbol // "?")  +\(.imageOffset)"),
+              "last ObjC exception:",
+              (. as $r
+                | $r.lastExceptionBacktrace[]?
+                | "  \($r.usedImages[.imageIndex].name // "?")  \(.symbol // "?")  +\(.imageOffset)")
+            ' || cat "$f"
+            echo "::endgroup::"
+          done
+          [ "$found" -gt 0 ] || echo "no crash reports under $HOME/Library/Logs/DiagnosticReports"
+
+      - name: upload app crash reports (macOS)
+        if: runner.os == 'macOS' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-crash-reports
+          path: ${{ runner.temp }}/crash-reports
+          if-no-files-found: ignore

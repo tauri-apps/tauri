@@ -99,6 +99,7 @@ impl<'a> ResourcePaths<'a> {
         allow_walk,
         current_dest: None,
         current_iter: None,
+        rerun_if_changed: Vec::new(),
       },
     }
   }
@@ -111,6 +112,7 @@ impl<'a> ResourcePaths<'a> {
         allow_walk,
         current_dest: None,
         current_iter: None,
+        rerun_if_changed: Vec::new(),
       },
     }
   }
@@ -136,6 +138,10 @@ pub struct ResourcePathsIter<'a> {
   /// The iter for the current pattern. The cycle goes like this:
   /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
+  /// Paths that were walked or globbed while iterating. Build scripts
+  /// should emit a `rerun-if-changed` for each so that adding or removing a
+  /// file inside a resource directory re-triggers the resource copy.
+  rerun_if_changed: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -168,6 +174,17 @@ impl Iterator for ResourcePathsInnerIter {
 }
 
 impl ResourcePathsIter<'_> {
+  /// Paths that were walked or globbed while iterating.
+  ///
+  /// A build script should emit a `cargo:rerun-if-changed` for each of these
+  /// after iterating, so that adding or removing a file inside a resource
+  /// directory re-runs the script and copies the new files. Only meaningful
+  /// once iteration has produced the entries (i.e. after the iterator is
+  /// exhausted).
+  pub fn rerun_if_changed(&self) -> &[PathBuf] {
+    &self.rerun_if_changed
+  }
+
   fn next_current_iter(&mut self) -> Option<crate::Result<Resource>> {
     let current_iter = self.current_iter.as_mut().unwrap();
     let entry = current_iter.next()?;
@@ -209,7 +226,21 @@ impl ResourcePathsIter<'_> {
             // preserving the file name as it is
             ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
           },
-          None => dest.clone(),
+          None => {
+            if dest.components().count() == 0 {
+              // if current_dest is empty while processing a file pattern
+              // we preserve the file name as it is
+              //
+              // e.g. `{ "README.md": "" }` is `README.md` -> `$RESOURCE/README.md`
+              //
+              // TODO: This behavior is a confusing special case,
+              // remove this in v3 or make other cases like this work
+              // > `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md` (this gives `$RESOURCE/folder` today)
+              PathBuf::from(path.file_name().unwrap())
+            } else {
+              dest.clone()
+            }
+          }
         }
       } else {
         // If [`ResourcePathsIter::pattern_iter`] is a [`PatternIter::Slice`]
@@ -221,6 +252,7 @@ impl ResourcePathsIter<'_> {
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
     self.current_dest = None;
+    self.current_iter = None;
 
     let pattern = match &mut self.pattern_iter {
       PatternIter::Slice(iter) => iter.next()?,
@@ -232,19 +264,34 @@ impl ResourcePathsIter<'_> {
     };
 
     if pattern.contains('*') {
+      // Watch the fixed directory prefix of the glob (everything before the
+      // first wildcard component) so new files matching the glob are noticed.
+      let mut base = PathBuf::new();
+      for component in Path::new(pattern).components() {
+        if component.as_os_str().to_string_lossy().contains('*') {
+          break;
+        }
+        base.push(component);
+      }
+      if base.as_os_str().is_empty() {
+        base.push(".");
+      }
+      self.rerun_if_changed.push(base);
+
       self.current_iter = match glob::glob(pattern) {
         Ok(glob) => Some(ResourcePathsInnerIter::Glob { iter: glob }),
         Err(error) => return Some(Err(error.into())),
       };
       match self.next_current_iter() {
-        Some(r) => return Some(r),
+        Some(r) => Some(r),
         None => {
           self.current_iter = None;
-          return Some(Err(crate::Error::GlobPathNotFound(pattern.clone())));
+          Some(Err(crate::Error::GlobPathNotFound(pattern.clone())))
         }
       }
     } else {
       let path = normalize(Path::new(pattern));
+      self.rerun_if_changed.push(path.clone());
       if path.is_dir() {
         if !self.allow_walk {
           return Some(Err(crate::Error::NotAllowedToWalkDir(path)));
@@ -257,12 +304,12 @@ impl ResourcePathsIter<'_> {
             None
           },
         });
+        // If the directory is empty, skip and continue to the next pattern
+        self.next_current_iter().or_else(|| self.next_pattern())
       } else {
-        return Some(self.resource_from_path(path));
+        Some(self.resource_from_path(path))
       }
     }
-
-    self.next_current_iter()
   }
 }
 
@@ -358,6 +405,7 @@ mod tests {
       fs::create_dir_all(path.parent().unwrap()).unwrap();
       fs::write(path, "").unwrap();
     }
+    fs::create_dir_all("empty-directory").unwrap();
   }
 
   fn resources_map(literal: &[(&str, &str)]) -> HashMap<String, String> {
@@ -377,6 +425,8 @@ mod tests {
 
     let resources = ResourcePaths::new(
       &[
+        // `empty-directory` should not affect anything
+        "../empty-directory".into(),
         "../src/script.js".into(),
         "../src/assets".into(),
         "../src/index.html".into(),
@@ -433,6 +483,37 @@ mod tests {
         panic!("{resource:?} was expected but not found in {resources:?}");
       }
     }
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
+  fn resource_paths_iter_rerun_if_changed() {
+    setup_test_dirs();
+
+    let dir = std::env::current_dir().unwrap().join("src-tauri");
+    let _ = std::env::set_current_dir(dir);
+
+    let patterns = [
+      "../src/script.js".into(),
+      "../src/assets".into(),
+      "../src/textures/**/*".into(),
+      "*.toml".into(),
+    ];
+    let mut resources = ResourcePaths::new(&patterns, true).iter();
+
+    for resource in resources.by_ref() {
+      resource.unwrap();
+    }
+
+    assert_eq!(
+      resources.rerun_if_changed(),
+      &[
+        normalize(Path::new("../src/script.js")),
+        normalize(Path::new("../src/assets")),
+        normalize(Path::new("../src/textures")),
+        PathBuf::from("."),
+      ]
+    );
   }
 
   #[test]

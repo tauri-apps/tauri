@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.8.3"
+version = "2.9.3"
 description = "Utilities for Tauri"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -17,7 +17,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
 thiserror = "2"
-phf = { version = "0.11", features = ["macros"] }
+phf = { version = "0.13", features = ["macros"] }
 brotli = { version = "8", optional = true, default-features = false, features = [
   "std",
 ] }
@@ -33,22 +33,19 @@ serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }
 serialize-to-javascript = { version = "0.1.2", optional = true }
-ctor = { version = "0.8", default-features = false, features = [
-  "std",
-  "proc_macro",
-] }
+ctor = { version = "1.0", default-features = false }
 json5 = { version = "0.4", optional = true }
 # Part of public api in error type
 toml = { version = ">=0.9, <=1", features = ["parse"] }
-json-patch = "3.0"
+json-patch = "4.0"
 # Our code requires at least 0.3.1
 glob = "0.3.1"
-urlpattern = "0.3"
+urlpattern = "0.6"
 regex = "1"
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.19"
+infer = "0.22"
 dunce = "1"
 log = "0.4.21"
 cargo_metadata = { version = "0.19", optional = true }
@@ -62,7 +59,7 @@ swift-rs = { version = "1", optional = true, features = ["build"] }
 
 [dev-dependencies]
 getrandom = { version = "0.3", features = ["std"] }
-serial_test = "3"
+serial_test = "3.5"
 tauri = { path = "../tauri" }
 tempfile = "3.15.0"
 

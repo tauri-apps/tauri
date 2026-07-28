@@ -520,7 +520,7 @@ else
 	fi
 fi
 
-# Make sure it's not world writeable
+# Make sure it's not world writable
 echo "Fixing permissions..."
 chmod -Rf go-w "${MOUNT_DIR}" &> /dev/null || true
 echo "Done fixing permissions"

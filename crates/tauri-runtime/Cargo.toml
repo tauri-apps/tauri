@@ -51,7 +51,7 @@ jni = "0.21"
 
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 objc2 = "0.6"
-objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIView",
   "UIResponder",
   "UIScene",
@@ -61,7 +61,7 @@ objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
 [target."cfg(target_os = \"macos\")".dependencies]
 url = "2"
 objc2 = "0.6"
-objc2-web-kit = { version = "0.3", default-features = false, features = [
+objc2-web-kit = { version = "0.3.2", default-features = false, features = [
   "objc2-app-kit",
   "WKWebView",
   "WKWebViewConfiguration",

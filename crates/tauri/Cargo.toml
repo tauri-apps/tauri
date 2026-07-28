@@ -216,12 +216,7 @@ wry = [
   "dep:webkit2gtk",
   "dep:tauri-runtime-wry",
 ]
-cef = [
-  "dep:gtk4",
-  "dep:muda",
-  "muda/gtk4",
-  "dep:tauri-runtime-cef",
-]
+cef = ["dep:gtk4", "dep:muda", "muda/gtk4", "dep:tauri-runtime-cef"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda?/libxdo"]

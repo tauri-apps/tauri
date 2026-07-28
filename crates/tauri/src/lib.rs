@@ -64,21 +64,7 @@
     target_os = "netbsd",
     target_os = "openbsd"
   ),
-  feature = "wry"
-))]
-extern crate gtk3 as gtk;
-
-#[cfg(all(
-  any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ),
-  feature = "test",
-  not(feature = "wry"),
-  not(feature = "cef")
+  any(feature = "wry", all(feature = "test", not(feature = "cef"))),
 ))]
 extern crate gtk3 as gtk;
 

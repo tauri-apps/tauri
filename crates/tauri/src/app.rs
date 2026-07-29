@@ -679,7 +679,7 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    let _ = self.run_on_main_thread(move || unsafe {
+    let _ = self.run_on_main_thread(move || {
       let mtm = objc2::MainThreadMarker::new().unwrap();
       let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
       tx.send(ui_application.supportsMultipleScenes()).unwrap();
@@ -1263,11 +1263,9 @@ impl<R: Runtime> App<R> {
   /// Whether the application supports multiple windows.
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
-    unsafe {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      ui_application.supportsMultipleScenes()
-    }
+    let mtm = objc2::MainThreadMarker::new().unwrap();
+    let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+    ui_application.supportsMultipleScenes()
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.

@@ -17,9 +17,7 @@ wry = { version = "0.55.0", default-features = false, features = [
   "os-webview",
   "linux-body",
 ], git = "https://github.com/Legend-Master/wry.git", branch = "tao-0.36-lifecycle-renames" }
-tao = { version = "0.35.0", default-features = false, features = [
-  "rwh_06",
-], git = "https://github.com/Legend-Master/tao.git", branch = "rename-android-life-cycle-bindings" }
+tao = { version = "0.36.0", default-features = false, features = ["rwh_06"] }
 tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
 tauri-utils = { version = "2.9.3", path = "../tauri-utils" }
 raw-window-handle = "0.6"

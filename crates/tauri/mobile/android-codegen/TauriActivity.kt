@@ -16,7 +16,7 @@ abstract class TauriActivity : WryActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    PluginManager.onActivityCreate(this)
+    PluginManager.onCreate(this)
   }
 
   fun getPluginManager(): PluginManager {

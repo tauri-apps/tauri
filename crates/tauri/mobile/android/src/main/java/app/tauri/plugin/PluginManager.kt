@@ -55,7 +55,7 @@ object PluginManager {
       .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
   }
 
-  fun onActivityCreate(activity: AppCompatActivity) {
+  fun onCreate(activity: AppCompatActivity) {
     // TODO: on destroy, we should change to a different activity
     if (::activity.isInitialized) {
       return

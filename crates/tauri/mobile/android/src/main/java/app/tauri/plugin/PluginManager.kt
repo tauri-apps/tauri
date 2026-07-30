@@ -34,11 +34,12 @@ object PluginManager {
     fun onResult(result: ActivityResult)
   }
 
-  lateinit var activity: AppCompatActivity
+  private val activities: HashSet<AppCompatActivity> = HashSet()
+  var activity: AppCompatActivity? = null
   private val plugins: HashMap<String, PluginHandle> = HashMap()
-  private lateinit var startActivityForResultLauncher: ActivityResultLauncher<Intent>
-  private lateinit var startIntentSenderForResultLauncher: ActivityResultLauncher<IntentSenderRequest>
-  private lateinit var requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
+  private var startActivityForResultLauncher: ActivityResultLauncher<Intent>? = null
+  private var startIntentSenderForResultLauncher: ActivityResultLauncher<IntentSenderRequest>? = null
+  private var requestPermissionsLauncher: ActivityResultLauncher<Array<String>>? = null
   private var requestPermissionsCallback: RequestPermissionsCallback? = null
   private var startActivityForResultCallback: ActivityResultCallback? = null
   private var startIntentSenderForResultCallback: ActivityResultCallback? = null
@@ -56,11 +57,15 @@ object PluginManager {
   }
 
   fun onCreate(activity: AppCompatActivity) {
-    // TODO: on destroy, we should change to a different activity
-    if (::activity.isInitialized) {
-      return
+    // Record the activity, and if that's the only activity we got, register result launchers
+    activities.add(activity)
+    if (this.activity == null) {
+      this.activity = activity
+      registerResultLaunchers(activity)
     }
-    this.activity = activity
+  }
+
+  private fun registerResultLaunchers(activity: AppCompatActivity) {
     startActivityForResultLauncher =
       activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()
       ) { result ->
@@ -120,6 +125,20 @@ object PluginManager {
     for (plugin in plugins.values) {
       plugin.instance.triggerOnDestroy(activity)
     }
+
+    activities.remove(activity)
+    val nextActivity = activities.firstOrNull()
+    if (nextActivity != null) {
+      if (this.activity == activity) {
+        this.activity = nextActivity
+        registerResultLaunchers(nextActivity)
+      }
+    } else {
+      this.activity = null
+      this.startActivityForResultLauncher = null
+      this.startIntentSenderForResultLauncher = null
+      this.requestPermissionsLauncher = null
+    }
   }
 
   fun onConfigurationChanged(newConfig: Configuration) {
@@ -130,12 +149,12 @@ object PluginManager {
 
   fun startActivityForResult(intent: Intent, callback: ActivityResultCallback) {
     startActivityForResultCallback = callback
-    startActivityForResultLauncher.launch(intent)
+    startActivityForResultLauncher!!.launch(intent)
   }
 
   fun startIntentSenderForResult(intent: IntentSenderRequest, callback: ActivityResultCallback) {
     startIntentSenderForResultCallback = callback
-    startIntentSenderForResultLauncher.launch(intent)
+    startIntentSenderForResultLauncher!!.launch(intent)
   }
 
   fun requestPermissions(
@@ -143,7 +162,7 @@ object PluginManager {
     callback: RequestPermissionsCallback
   ) {
     requestPermissionsCallback = callback
-    requestPermissionsLauncher.launch(permissionStrings)
+    requestPermissionsLauncher!!.launch(permissionStrings)
   }
 
   @JniMethod

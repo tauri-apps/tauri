@@ -34,6 +34,11 @@
       "description": "Group worker-rs crates",
       "groupName": "worker-rs crates",
       "matchSourceUrls": ["https://github.com/cloudflare/workers-rs"]
+    },
+    {
+      "description": "Group napi-rs packages",
+      "groupName": "napi-rs packages",
+      "matchPackageNames": ["napi", "napi-build", "napi-derive", "@napi-rs/cli"]
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

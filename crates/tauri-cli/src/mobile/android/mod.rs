@@ -591,14 +591,27 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
     .or_else(|| std::env::var_os("ANDROID_SDK_ROOT"))
     .map(PathBuf::from)
     .context("Failed to locate Android SDK")?;
-  let mut installed_ndks = read_dir(android_home.join("ndk"))
-    .map(|dir| {
-      dir
-        .into_iter()
-        .flat_map(|e| e.ok().map(|e| e.path()))
-        .collect::<Vec<_>>()
-    })
-    .unwrap_or_default();
+
+  // check NDK_HOME
+  let mut installed_ndks = if let Some(ndk_home) = std::env::var_os("NDK_HOME") {
+    let ndk_path = PathBuf::from(ndk_home);
+    if ndk_path.is_dir() {
+      vec![ndk_path]
+    } else {
+      crate::error::bail!(
+        "Android NDK invalid. Make sure the NDK_HOME environment variable has correct value."
+      );
+    }
+  } else {
+    read_dir(android_home.join("ndk"))
+      .map(|dir| {
+        dir
+          .into_iter()
+          .flat_map(|e| e.ok().map(|e| e.path()))
+          .collect::<Vec<_>>()
+      })
+      .unwrap_or_default()
+  };
   installed_ndks.sort();
 
   if let Some(ndk) = installed_ndks.last() {

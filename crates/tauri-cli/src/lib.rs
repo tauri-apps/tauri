@@ -211,7 +211,8 @@ where
   if let Err(err) = builder
     .format_indent(Some(12))
     .filter(None, verbosity_level(verbosity_number).to_level_filter())
-    // golbin spams an insane amount of really technical logs on the debug level so we're reducing one level
+    // goblin spams an insane amount of really technical logs on the debug level so we're reducing one level.
+    // goblin was removed in 2.12 but is still used in apple-codesign so we keep this just in case.
     .filter(
       Some("goblin"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
@@ -219,6 +220,11 @@ where
     // handlebars is not that spammy but its debug logs are typically far from being helpful
     .filter(
       Some("handlebars"),
+      verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
+    )
+    // `ureq_proto` logs out every network packets at trace level
+    .filter(
+      Some("ureq_proto"),
       verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
     )
     .format(|f, record| {

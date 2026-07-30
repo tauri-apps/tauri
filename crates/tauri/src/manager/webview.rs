@@ -268,7 +268,7 @@ impl<R: Runtime> WebviewManager<R> {
       let web_resource_request_handler = pending.web_resource_request_handler.take();
       let protocol = crate::protocol::tauri::get(
         manager.manager_owned(),
-        &window_origin,
+        window_origin.clone(),
         web_resource_request_handler,
       );
       pending.register_uri_scheme_protocol("tauri", move |webview_id, request, responder| {
@@ -535,7 +535,10 @@ impl<R: Runtime> WebviewManager<R> {
     // but we do respect user-specification
     // Note: Android and OHOS (mobile platforms) don't need data_directory as their webviews
     // automatically use the app's data directory
-    #[cfg(all(any(target_os = "linux", target_os = "windows"), not(target_env = "ohos")))]
+    #[cfg(all(
+      any(target_os = "linux", target_os = "windows"),
+      not(target_env = "ohos")
+    ))]
     if pending.webview_attributes.data_directory.is_none() {
       let local_app_data = manager.path().resolve(
         &app_manager.config.identifier,

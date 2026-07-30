@@ -10,8 +10,8 @@ pub enum Error {
   Context(String, Box<dyn std::error::Error + Send + Sync + 'static>),
   #[error("{0}")]
   GenericError(String),
-  #[error("failed to bundle project {0}")]
-  Bundler(#[from] Box<tauri_bundler::Error>),
+  #[error("failed to bundle project: {0}")]
+  Bundler(#[from] tauri_bundler::Error),
   #[error("{context} {path}: {error}")]
   Fs {
     context: &'static str,

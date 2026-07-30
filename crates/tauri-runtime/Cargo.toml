@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "2.11.2"
+version = "2.11.3"
 description = "Runtime for Tauri applications"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -27,7 +27,7 @@ targets = [
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-tauri-utils = { version = "2.9.2", path = "../tauri-utils" }
+tauri-utils = { version = "2.9.3", path = "../tauri-utils" }
 http = "1"
 raw-window-handle = "0.6"
 url = { version = "2" }
@@ -54,7 +54,7 @@ openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ab
 
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 objc2 = "0.6"
-objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIView",
   "UIResponder",
   "UIScene",
@@ -64,7 +64,7 @@ objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
 [target."cfg(target_os = \"macos\")".dependencies]
 url = "2"
 objc2 = "0.6"
-objc2-web-kit = { version = "0.3", default-features = false, features = [
+objc2-web-kit = { version = "0.3.2", default-features = false, features = [
   "objc2-app-kit",
   "WKWebView",
   "WKWebViewConfiguration",

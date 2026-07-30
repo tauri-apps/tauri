@@ -87,10 +87,9 @@ fn copy_binaries(
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   let path = path.canonicalize()?;
-  for resource in resources.iter() {
+  let mut resources = resources.iter();
+  for resource in resources.by_ref() {
     let resource = resource?;
-
-    println!("cargo:rerun-if-changed={}", resource.path().display());
 
     // avoid copying the resource if target is the same as source
     let src = resource.path().canonicalize()?;
@@ -99,6 +98,11 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
       copy_file(src, target)?;
     }
   }
+
+  for path in resources.rerun_if_changed() {
+    println!("cargo:rerun-if-changed={}", path.display());
+  }
+
   Ok(())
 }
 
@@ -215,6 +219,8 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 #[derive(Debug)]
 pub struct WindowsAttributes {
   window_icon_path: Option<PathBuf>,
+  /// Whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets
+  static_vc_runtime: Option<bool>,
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
@@ -257,6 +263,7 @@ impl WindowsAttributes {
   pub fn new() -> Self {
     Self {
       window_icon_path: Default::default(),
+      static_vc_runtime: None,
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
       append_rc_content: Vec::new(),
     }
@@ -268,6 +275,7 @@ impl WindowsAttributes {
     Self {
       app_manifest: None,
       window_icon_path: Default::default(),
+      static_vc_runtime: None,
       append_rc_content: Vec::new(),
     }
   }
@@ -279,6 +287,15 @@ impl WindowsAttributes {
     self
       .window_icon_path
       .replace(window_icon_path.as_ref().into());
+    self
+  }
+
+  /// Sets whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets.
+  ///
+  /// If unset, this is read from `build > windows > staticVCRuntime` in the Tauri configuration.
+  #[must_use]
+  pub fn static_vc_runtime(mut self, static_vc_runtime: bool) -> Self {
+    self.static_vc_runtime.replace(static_vc_runtime);
     self
   }
 
@@ -354,6 +371,7 @@ pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
   capabilities_path_pattern: Option<&'static str>,
+  config_path: Option<PathBuf>,
   #[cfg(feature = "codegen")]
   codegen: Option<codegen::context::CodegenContext>,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
@@ -402,6 +420,16 @@ impl Attributes {
     I: IntoIterator<Item = (&'static str, InlinedPlugin)>,
   {
     self.inlined_plugins.extend(plugins);
+    self
+  }
+
+  /// Set the path to the `tauri.conf.json` (relative to the crate's directory).
+  ///
+  /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
+  /// the crate compiling; does not need to be set manually if that config file is in the same
+  /// directory as your `Cargo.toml`.
+  pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
+    self.config_path = Some(config_path.into());
     self
   }
 
@@ -483,8 +511,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let (mut config, config_paths) =
-    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
+  let config_root = if let Some(config_path) = &attributes.config_path {
+    config_path.parent().with_context(|| {
+      format!(
+        "`config_path` '{}' doesn't have a parent directory",
+        config_path.display()
+      )
+    })?
+  } else {
+    &env::current_dir().unwrap()
+  };
+
+  let (mut config, config_paths) = tauri_utils::config::parse::read_from(target, config_root)?;
+
   for config_file_path in config_paths {
     println!("cargo:rerun-if-changed={}", config_file_path.display());
   }
@@ -493,6 +532,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     json_patch::merge(&mut config, &merge_config);
   }
   let config: Config = serde_json::from_value(config)?;
+  let static_vc_runtime = should_static_link_vc_runtime(&config, &attributes);
 
   let s = config.identifier.split('.');
   let last = s.clone().count() - 1;
@@ -555,7 +595,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     )?;
   }
 
-  #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config
     .bundle
     .resources
@@ -709,7 +748,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           }
         }
       }
-      "msvc" if env::var_os("STATIC_VCRUNTIME").is_some_and(|v| v == "true") => {
+      "msvc" if static_vc_runtime => {
         static_vcruntime::build();
       }
       _ => (),
@@ -717,7 +756,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   #[cfg(feature = "codegen")]
-  if let Some(codegen) = attributes.codegen {
+  if let Some(mut codegen) = attributes.codegen {
+    if codegen.config_path.is_none() {
+      codegen.config_path = attributes.config_path;
+    }
     codegen.try_build()?;
   }
 
@@ -728,6 +770,20 @@ fn to_winres_version(v: &semver::Version) -> u64 {
   let build = v.build.parse::<u16>().map(u64::from).unwrap_or(0);
 
   (v.major << 48) | (v.minor << 32) | (v.patch << 16) | build
+}
+
+fn should_static_link_vc_runtime(config: &Config, attributes: &Attributes) -> bool {
+  if let Some(value) = env::var_os("STATIC_VCRUNTIME") {
+    println!(
+      "cargo:warning=STATIC_VCRUNTIME is deprecated; use build.windows.staticVCRuntime in tauri.conf.json or tauri_build::WindowsAttributes::static_vc_runtime instead."
+    );
+    value != "false"
+  } else {
+    attributes
+      .windows_attributes
+      .static_vc_runtime
+      .unwrap_or(config.build.windows.static_vc_runtime)
+  }
 }
 
 #[cfg(test)]
@@ -772,5 +828,87 @@ mod tests {
       crate::to_winres_version(&version),
       (1 << 48) | (2 << 32) | (3 << 16)
     );
+  }
+
+  #[test]
+  fn static_vc_runtime_chain() {
+    // 1. Nothing is set, should default to true
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new();
+    assert!(crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 2. Set to anything but "false" in env, should be true
+    std::env::set_var("STATIC_VCRUNTIME", "qweqe");
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new();
+    assert!(crate::should_static_link_vc_runtime(&config, &attributes));
+    std::env::remove_var("STATIC_VCRUNTIME");
+
+    // 3. Set to "false" in env, should be false
+    std::env::set_var("STATIC_VCRUNTIME", "false");
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new();
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+    std::env::remove_var("STATIC_VCRUNTIME");
+
+    // 4. Set to true in attributes, should be true
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new()
+      .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(true));
+    assert!(crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 5. Set to false in attributes, should be false
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new()
+      .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(false));
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 6. Set to true in config, should be true
+    let config = tauri_utils::config::Config {
+      build: tauri_utils::config::BuildConfig {
+        windows: tauri_utils::config::WindowsBuildConfig {
+          static_vc_runtime: true,
+        },
+        ..Default::default()
+      },
+      ..Default::default()
+    };
+    let attributes = crate::Attributes::new();
+    assert!(crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 7. Set to false in config, should be false
+    let config = tauri_utils::config::Config {
+      build: tauri_utils::config::BuildConfig {
+        windows: tauri_utils::config::WindowsBuildConfig {
+          static_vc_runtime: false,
+        },
+        ..Default::default()
+      },
+      ..Default::default()
+    };
+    let attributes = crate::Attributes::new();
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 8. Set to true in config and false in attributes, should be false because attributes takes precedence over config
+    let config = tauri_utils::config::Config {
+      build: tauri_utils::config::BuildConfig {
+        windows: tauri_utils::config::WindowsBuildConfig {
+          static_vc_runtime: true,
+        },
+        ..Default::default()
+      },
+      ..Default::default()
+    };
+    let attributes = crate::Attributes::new()
+      .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(false));
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 9. Set to false in env and true in attributes, should be false because env takes precedence over attributes
+    std::env::set_var("STATIC_VCRUNTIME", "false");
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new()
+      .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(true));
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+    std::env::remove_var("STATIC_VCRUNTIME");
   }
 }

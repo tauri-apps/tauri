@@ -25,6 +25,8 @@ mod imp {
 mod imp {
   use std::ffi::c_void;
 
+  // These pointers are borrowed from ObjC `Retained` handles owned elsewhere and must
+  // not be mutated through. TODO: change these to `*const c_void` in v3 (breaking change).
   pub struct Webview {
     pub webview: *mut c_void,
     pub manager: *mut c_void,

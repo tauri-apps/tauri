@@ -176,6 +176,7 @@ tauri-utils = { path = "../tauri-utils/", version = "2.9.3", features = [
 
 [dev-dependencies]
 proptest = "1.6.0"
+tempfile = "3"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 serde = { version = "1", features = ["derive"] }

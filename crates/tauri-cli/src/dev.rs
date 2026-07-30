@@ -35,7 +35,7 @@ static BEFORE_DEV: OnceLock<SharedChild> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: AtomicBool = AtomicBool::new(false);
 
 #[cfg(unix)]
-const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
+const KILL_CHILDREN_SCRIPT: &str = include_str!("../scripts/kill-children.sh");
 
 pub const TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE: &[u8] =
   include_bytes!("../tauri-dev-watcher.gitignore");
@@ -349,20 +349,10 @@ pub fn kill_before_dev_process() {
     }
     #[cfg(unix)]
     {
-      use std::io::Write;
-      let mut kill_children_script_path = std::env::temp_dir();
-      kill_children_script_path.push("tauri-stop-dev-processes.sh");
-
-      if !kill_children_script_path.exists() {
-        if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {
-          use std::os::unix::fs::PermissionsExt;
-          let _ = file.write_all(KILL_CHILDREN_SCRIPT);
-          let mut permissions = file.metadata().unwrap().permissions();
-          permissions.set_mode(0o770);
-          let _ = file.set_permissions(permissions);
-        }
-      }
-      let _ = Command::new(&kill_children_script_path)
+      let _ = Command::new("sh")
+        .arg("-c")
+        .arg(KILL_CHILDREN_SCRIPT)
+        .arg("tauri-stop-dev-processes")
         .arg(child.id().to_string())
         .output();
     }

@@ -19,6 +19,7 @@ use cargo_mobile2::{
 };
 use clap::{Parser, Subcommand};
 use semver::Version;
+use sha2::Digest;
 use std::{
   env::set_var,
   fs::{create_dir, create_dir_all, read_dir, write},
@@ -60,6 +61,16 @@ const CMDLINE_TOOLS_URL: &str =
 #[cfg(windows)]
 const CMDLINE_TOOLS_URL: &str =
   "https://dl.google.com/android/repository/commandlinetools-win-13114758_latest.zip";
+
+#[cfg(target_os = "macos")]
+const CMDLINE_TOOLS_SHA256: &str =
+  "5673201e6f3869f418eeed3b5cb6c4be7401502bd0aae1b12a29d164d647a54e";
+#[cfg(target_os = "linux")]
+const CMDLINE_TOOLS_SHA256: &str =
+  "7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee";
+#[cfg(windows)]
+const CMDLINE_TOOLS_SHA256: &str =
+  "98b565cb657b012dae6794cefc0f66ae1efb4690c699b78a614b4a6a3505b003";
 
 #[derive(Parser)]
 #[clap(
@@ -447,6 +458,13 @@ fn download_cmdline_tools(extract_path: &Path) -> Result<()> {
     .limit(200 * 1024 * 1024 /* 200MB */)
     .read_to_vec()
     .context("failed to read Android command line tools download response")?;
+
+  let actual_hash = sha2::Sha256::digest(&body);
+  let expected_hash = hex::decode(CMDLINE_TOOLS_SHA256)
+    .context("failed to decode Android command line tools checksum")?;
+  if actual_hash.as_slice() != expected_hash {
+    crate::error::bail!("Android command line tools checksum mismatch");
+  }
 
   let mut zip = zip::ZipArchive::new(Cursor::new(body))
     .context("failed to create zip archive from Android command line tools download response")?;

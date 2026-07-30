@@ -97,7 +97,6 @@ pub fn download(url: &str) -> crate::Result<Vec<u8>> {
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub enum HashAlgorithm {
-  #[cfg(target_os = "windows")]
   Sha256,
   Sha1,
 }
@@ -118,7 +117,6 @@ pub fn download_and_verify(
 #[allow(dead_code)]
 pub fn verify_hash(data: &[u8], hash: &str, hash_algorithm: HashAlgorithm) -> crate::Result<()> {
   match hash_algorithm {
-    #[cfg(target_os = "windows")]
     HashAlgorithm::Sha256 => {
       let hasher = sha2::Sha256::new();
       verify_data_with_hasher(data, hash, hasher)
@@ -188,12 +186,22 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
 
 #[cfg(test)]
 mod tests {
-  use super::generate_github_mirror_url_from_template;
+  use super::{generate_github_mirror_url_from_template, verify_hash, HashAlgorithm};
   use std::env;
 
   const GITHUB_ASSET_URL: &str =
     "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
   const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
+
+  #[test]
+  fn test_verify_sha256_hash() {
+    verify_hash(
+      b"tauri",
+      "238bc7b5d614886683a514ef66cbe5ff1771798bf05499486fcedee3cfed6175",
+      HashAlgorithm::Sha256,
+    )
+    .unwrap();
+  }
 
   #[test]
   fn test_generate_mirror_url_no_env_var() {

@@ -90,6 +90,7 @@ impl From<Options> for BuildOptions {
       skip_stapling: false,
       ignore_version_mismatches: options.ignore_version_mismatches,
       no_sign: false,
+      no_binary_patching: false,
     }
   }
 }

@@ -507,21 +507,31 @@ fn ensure_java() -> Result<()> {
 }
 
 /// Detects the major (feature) version of the active Java installation by
-/// running `java -version`, preferring the binary in `JAVA_HOME` if set.
+/// reading the `release` metadata file shipped inside every JDK, preferring
+/// `JAVA_HOME` and falling back to the `java` binary on `PATH`. This avoids
+/// spawning a `java -version` subprocess on every Android command.
 fn java_major_version() -> Option<u32> {
-  let java = std::env::var_os("JAVA_HOME")
-    .map(|home| PathBuf::from(home).join("bin").join("java"))
-    .filter(|path| path.exists())
-    .unwrap_or_else(|| PathBuf::from("java"));
-
-  // `java -version` writes the version banner to stderr.
-  let output = Command::new(java).arg("-version").output().ok()?;
-  parse_java_major(&String::from_utf8_lossy(&output.stderr))
+  let release = std::fs::read_to_string(java_home_dir()?.join("release")).ok()?;
+  release
+    .lines()
+    .find_map(|line| line.strip_prefix("JAVA_VERSION="))
+    .and_then(parse_java_major)
 }
 
-/// Parses the major (feature) version out of a `java -version` banner, handling
-/// both the legacy `1.x` scheme (`1.8.0_292` -> 8) and the modern scheme
-/// (`21.0.1` -> 21).
+/// Resolves the active JDK home directory, preferring `JAVA_HOME` and otherwise
+/// deriving it from the `java` binary on `PATH` (`<home>/bin/java` -> `<home>`).
+fn java_home_dir() -> Option<PathBuf> {
+  if let Some(home) = std::env::var_os("JAVA_HOME") {
+    return Some(PathBuf::from(home));
+  }
+  let java = which::which("java").ok()?;
+  java.parent()?.parent().map(Path::to_path_buf)
+}
+
+/// Parses the major (feature) version out of a quoted Java version string (the
+/// `JAVA_VERSION="..."` line of a JDK `release` file, or a `java -version`
+/// banner), handling both the legacy `1.x` scheme (`1.8.0_292` -> 8) and the
+/// modern scheme (`21.0.1` -> 21).
 fn parse_java_major(version_output: &str) -> Option<u32> {
   let start = version_output.find('"')?;
   let rest = &version_output[start + 1..];
@@ -1147,6 +1157,8 @@ mod tests {
     );
     // legacy 1.x scheme
     assert_eq!(parse_java_major("java version \"1.8.0_292\""), Some(8));
+    // JDK `release` file line (the path java_major_version actually feeds in)
+    assert_eq!(parse_java_major("\"21.0.1\""), Some(21));
     // garbage
     assert_eq!(parse_java_major("no version here"), None);
   }

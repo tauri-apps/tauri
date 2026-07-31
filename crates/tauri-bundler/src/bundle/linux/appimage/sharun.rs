@@ -59,12 +59,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // TODO: mirror
   let quick_sharun = tools_path.join("quick-sharun.sh");
-  if !quick_sharun.exists() {
-    let data = download(
+  let data = download(
       "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
     )?;
-    write_and_make_executable(&quick_sharun, data)?;
-  }
+  write_and_make_executable(&quick_sharun, data)?;
 
   let main_binary = settings.main_binary()?;
 

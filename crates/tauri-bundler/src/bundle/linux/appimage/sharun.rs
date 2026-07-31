@@ -4,7 +4,7 @@
 
 use std::{
   fs,
-  path::{self, Path, PathBuf},
+  path::{Path, PathBuf},
   process::Command,
 };
 
@@ -39,9 +39,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs::remove_dir_all(&output_path)?;
   }
 
+  let product_name = settings.product_name();
+
   let appimage_filename = format!(
     "{}_{}_{appimage_arch}.AppImage",
-    settings.product_name(),
+    product_name,
     settings.version_string()
   );
   let appimage_path = output_path.join(&appimage_filename);
@@ -81,7 +83,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let settings = settings;
 
   fs::create_dir_all(&output_path)?;
-  let app_dir = output_path.join(format!("{}.AppDir", settings.product_name()));
+  let app_dir = output_path.join(format!("{product_name}.AppDir"));
   let app_dir_bin = app_dir.join("bin/");
   let app_dir_lib = app_dir.join("lib/");
 
@@ -90,7 +92,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .0;
   fs::rename(
     desktop_file,
-    app_dir.join(format!("{}.desktop", settings.product_name())),
+    app_dir.join(format!("{product_name}.desktop")),
   )
   .with_context(|| "Failed to move desktop file")?;
   let _ = fs_utils::remove_dir_all(&app_dir.join("usr/"));
@@ -110,7 +112,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   settings
-    .copy_resources(&app_dir_lib.join(settings.product_name()))
+    .copy_resources(&app_dir_lib.join(product_name))
     .with_context(|| "Failed to copy resource files")?;
 
   fs_utils::copy_custom_files(&settings.appimage().files, &app_dir)
@@ -125,6 +127,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .max_by_key(|(i, _)| i.width)
     .expect("couldn't find a square icon to use as AppImage icon");
 
+  fs::copy(largest_icon.1, app_dir.join(format!("{product_name}.png")))
+    .with_context(|| "Failed to copy icon file")?;
+
   let bins = bins
     .iter()
     .map(|p| format!(" \"{}\"", p.to_string_lossy()))
@@ -135,7 +140,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .current_dir(&output_path)
     .env("APPDIR", &app_dir)
     .env("OUTNAME", &appimage_filename)
-    .env("ICON", path::absolute(largest_icon.1)?)
     .env("OUTPUT_APPIMAGE", "1")
     //.env("URUNTIME2APPIMAGE_SOURCE", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/uruntime2appimage.sh")
     //.env("ADD_HOOKS", "fix-namespaces.hook")

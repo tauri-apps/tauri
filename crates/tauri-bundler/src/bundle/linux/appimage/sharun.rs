@@ -4,7 +4,7 @@
 
 use std::{
   fs,
-  path::{Path, PathBuf},
+  path::{self, Path, PathBuf},
   process::Command,
 };
 
@@ -136,7 +136,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .current_dir(&output_path)
     .env("APPDIR", &app_dir)
     .env("OUTNAME", &appimage_filename)
-    .env("ICON", largest_icon.0.path)
+    .env("ICON", path::absolute(largest_icon.1)?)
     .env("OUTPUT_APPIMAGE", "1")
     //.env("URUNTIME2APPIMAGE_SOURCE", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/uruntime2appimage.sh")
     //.env("ADD_HOOKS", "fix-namespaces.hook")

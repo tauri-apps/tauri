@@ -121,7 +121,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .with_context(|| "Failed to create icon files")?;
 
   let largest_icon = icons
-    .iter()
+    .into_iter()
     .filter(|(i, _)| i.width == i.height)
     .max_by_key(|(i, _)| i.width)
     .expect("couldn't find a square icon to use as AppImage icon");
@@ -136,7 +136,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .current_dir(&output_path)
     .env("APPDIR", &app_dir)
     .env("OUTNAME", &appimage_filename)
-    .env("ICON", largest_icon.1)
+    .env("ICON", largest_icon.0.path)
     .env("OUTPUT_APPIMAGE", "1")
     //.env("URUNTIME2APPIMAGE_SOURCE", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/uruntime2appimage.sh")
     //.env("ADD_HOOKS", "fix-namespaces.hook")

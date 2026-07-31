@@ -176,8 +176,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .map(|entry| format!(" \"{}\"", entry.path().to_string_lossy()))
     .collect::<String>();
 
-  dbg!(&bins);
-
   // TODO: Consider to not rely on quick-sharun when we have more time
   Command::new("/bin/sh")
     .current_dir(&output_path)

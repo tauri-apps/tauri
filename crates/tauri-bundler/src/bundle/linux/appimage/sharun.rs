@@ -73,14 +73,24 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     main_binary.set_name(main_binary_name_kebab);
   }
 
+  fs::create_dir_all(&output_path)?;
+  let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
+
   // generate deb_folder structure
   let (data_dir, icons) = debian::generate_data(&settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
-  fs_utils::copy_custom_files(&settings.appimage().files, &data_dir)
+
+    fs_utils::copy_dir(&data_dir.join("usr/bin/"), &app_dir_path.join("bin/"))
+    .with_context(|| "Failed to copy bin files")?;
+  // Only exists when resources feature is used
+  if data_dir.join("usr/lib/").exists() {
+    fs_utils::copy_dir(&data_dir.join("usr/lib/"), &app_dir_path.join("lib/"))
+      .with_context(|| "Failed to copy lib files")?;
+  }
+
+  fs_utils::copy_custom_files(&settings.appimage().files, &app_dir_path)
     .with_context(|| "Failed to copy custom files")?;
 
-  fs::create_dir_all(&output_path)?;
-  let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
   let appimage_filename = format!(
     "{}_{}_{appimage_arch}.AppImage",
     settings.product_name(),
@@ -104,10 +114,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     _ => "",
   };
 
-  let bins = settings.copy_binaries(&app_dir_path.join("usr/bin/"))?;
-  let bins = bins
-    .iter()
-    .map(|b| format!(" \"{}\"", b.to_string_lossy()))
+  let bins = app_dir_path
+    .join("bin/")
+    .read_dir()?
+    .filter_map(|entry| entry.ok())
+    .map(|entry| format!(" \"{}\"", entry.path().to_string_lossy()))
     .collect::<String>();
 
   let mut cmd = Command::new("/bin/sh");
@@ -126,11 +137,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .args([
       "-c",
       &format!(
-        r#""{}" "{}" {bins}"#,
+        r#""{}" {bins} "{}""#,
         quick_sharun.to_string_lossy(),
-        data_dir
-          .join(format!("usr/bin/{}", main_binary.name()))
-          .to_string_lossy(),
+        app_dir_path.join("lib/").to_string_lossy()
       ),
     ]);
 
@@ -144,11 +153,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   cmd
     .output_ok()
     .context("quick-sharun command failed to run.")?;
-
-  {
-    use std::os::unix::fs::PermissionsExt;
-    fs::set_permissions(&appimage_path, fs::Permissions::from_mode(0o770))?;
-  }
 
   fs::remove_dir_all(package_dir)?;
   Ok(vec![appimage_path])

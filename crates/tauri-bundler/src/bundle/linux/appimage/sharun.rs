@@ -105,8 +105,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .copy_resources(&app_dir_lib.join(settings.product_name()))
     .with_context(|| "Failed to copy resource files")?;
 
-  freedesktop::generate_desktop_file(&settings, &None, &app_dir)
-    .with_context(|| "Failed to create desktop file")?;
+  let desktop_file = freedesktop::generate_desktop_file(&settings, &None, &app_dir)
+    .with_context(|| "Failed to create desktop file")?
+    .0;
+  fs::rename(
+    desktop_file,
+    app_dir.join(format!("{}.desktop", settings.product_name())),
+  )
+  .with_context(|| "Failed to move desktop file")?;
 
   fs_utils::copy_custom_files(&settings.appimage().files, &app_dir)
     .with_context(|| "Failed to copy custom files")?;

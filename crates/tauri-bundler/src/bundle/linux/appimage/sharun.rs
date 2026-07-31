@@ -87,6 +87,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let app_dir_bin = app_dir.join("bin/");
   let app_dir_lib = app_dir.join("lib/");
 
+  let desktop_file = freedesktop::generate_desktop_file(&settings, &None, &app_dir)
+    .with_context(|| "Failed to create desktop file")?
+    .0;
+  fs::rename(
+    desktop_file,
+    app_dir.join(format!("{}.desktop", settings.product_name())),
+  )
+  .with_context(|| "Failed to move desktop file")?;
+  let _ = fs_utils::remove_dir_all(&app_dir.join("usr/"));
+
   // Copy external binaries (externalBin)
   let mut bins = settings
     .copy_binaries(&app_dir_bin)
@@ -104,15 +114,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   settings
     .copy_resources(&app_dir_lib.join(settings.product_name()))
     .with_context(|| "Failed to copy resource files")?;
-
-  let desktop_file = freedesktop::generate_desktop_file(&settings, &None, &app_dir)
-    .with_context(|| "Failed to create desktop file")?
-    .0;
-  fs::rename(
-    desktop_file,
-    app_dir.join(format!("{}.desktop", settings.product_name())),
-  )
-  .with_context(|| "Failed to move desktop file")?;
 
   fs_utils::copy_custom_files(&settings.appimage().files, &app_dir)
     .with_context(|| "Failed to copy custom files")?;

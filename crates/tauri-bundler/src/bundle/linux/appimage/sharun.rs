@@ -87,18 +87,19 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let app_dir_bin = app_dir.join("bin/");
   let app_dir_lib = app_dir.join("lib/");
 
+  // Copy external binaries (externalBin)
+  let mut bins = settings
+    .copy_binaries(&app_dir_bin)
+    .with_context(|| "Failed to copy external binaries")?;
+
   // Copy Cargo project binaries
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
     let trgt = app_dir_bin.join(bin.name());
     fs_utils::copy_file(&bin_path, &trgt)
       .with_context(|| format!("Failed to copy binary from {bin_path:?} to {trgt:?}"))?;
+    bins.push(trgt);
   }
-
-  // Copy external binaries (externalBin)
-  settings
-    .copy_binaries(&app_dir_bin)
-    .with_context(|| "Failed to copy external binaries")?;
 
   settings
     .copy_resources(&app_dir_lib.join(settings.product_name()))
@@ -119,10 +120,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .max_by_key(|(i, _)| i.width)
     .expect("couldn't find a square icon to use as AppImage icon");
 
-  let bins = app_dir_bin
-    .read_dir()?
-    .filter_map(|entry| entry.ok())
-    .map(|entry| format!(" \"{}\"", entry.path().to_string_lossy()))
+  let bins = bins
+    .iter()
+    .map(|p| format!(" \"{}\"", p.to_string_lossy()))
     .collect::<String>();
 
   let mut cmd = Command::new("/bin/sh");

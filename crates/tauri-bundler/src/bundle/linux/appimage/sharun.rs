@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fs, path::PathBuf, process::Command};
+use std::{
+  fs,
+  path::{Path, PathBuf},
+  process::Command,
+};
 
 use anyhow::Context;
 
 use crate::{
-  bundle::{linux::debian, settings::Arch},
+  bundle::{linux::freedesktop, settings::Arch},
   utils::{fs_utils, http_utils::download, CommandExt},
   Settings,
 };
@@ -35,6 +39,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs::remove_dir_all(&output_path)?;
   }
 
+  let appimage_filename = format!(
+    "{}_{}_{appimage_arch}.AppImage",
+    settings.product_name(),
+    settings.version_string()
+  );
+  let appimage_path = output_path.join(&appimage_filename);
+
+  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
+
   let tools_path = settings
     .local_tools_directory()
     .map(|d| d.join(".tauri"))
@@ -53,12 +66,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     write_and_make_executable(&quick_sharun, data)?;
   }
 
-  let package_dir = settings
-    .project_out_directory()
-    .join("bundle/appimage_deb/");
-
   let main_binary = settings.main_binary()?;
-  let product_name = settings.product_name();
 
   let mut settings = settings.clone();
   if main_binary.name().contains(' ') {
@@ -72,50 +80,46 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     let main_binary = settings.main_binary_mut()?;
     main_binary.set_name(main_binary_name_kebab);
   }
+  let settings = settings;
 
   fs::create_dir_all(&output_path)?;
-  let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
+  let app_dir = output_path.join(format!("{}.AppDir", settings.product_name()));
+  let app_dir_bin = app_dir.join("bin/");
+  let app_dir_lib = app_dir.join("lib/");
 
-  // generate deb_folder structure
-  let (data_dir, icons) = debian::generate_data(&settings, &package_dir)
-    .with_context(|| "Failed to build data folders and files")?;
-
-    fs_utils::copy_dir(&data_dir.join("usr/bin/"), &app_dir_path.join("bin/"))
-    .with_context(|| "Failed to copy bin files")?;
-  // Only exists when resources feature is used
-  if data_dir.join("usr/lib/").exists() {
-    fs_utils::copy_dir(&data_dir.join("usr/lib/"), &app_dir_path.join("lib/"))
-      .with_context(|| "Failed to copy lib files")?;
+  // Copy Cargo project binaries
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    let trgt = app_dir_bin.join(bin.name());
+    fs_utils::copy_file(&bin_path, &trgt)
+      .with_context(|| format!("Failed to copy binary from {bin_path:?} to {trgt:?}"))?;
   }
 
-  fs_utils::copy_custom_files(&settings.appimage().files, &app_dir_path)
+  // Copy external binaries (externalBin)
+  settings
+    .copy_binaries(&app_dir_bin)
+    .with_context(|| "Failed to copy external binaries")?;
+
+  settings
+    .copy_resources(&app_dir_lib.join(settings.product_name()))
+    .with_context(|| "Failed to copy resource files")?;
+
+  freedesktop::generate_desktop_file(&settings, &None, &app_dir)
+    .with_context(|| "Failed to create desktop file")?;
+
+  fs_utils::copy_custom_files(&settings.appimage().files, &app_dir)
     .with_context(|| "Failed to copy custom files")?;
 
-  let appimage_filename = format!(
-    "{}_{}_{appimage_arch}.AppImage",
-    settings.product_name(),
-    settings.version_string()
-  );
-  let appimage_path = output_path.join(&appimage_filename);
+  let icons = freedesktop::list_icon_files(&settings, Path::new(""))
+    .with_context(|| "Failed to create icon files")?;
 
-  let larger_icon = icons
+  let largest_icon = icons
     .iter()
-    .filter(|i| i.width == i.height)
-    .max_by_key(|i| i.width)
+    .filter(|(i, _)| i.width == i.height)
+    .max_by_key(|(i, _)| i.width)
     .expect("couldn't find a square icon to use as AppImage icon");
 
-  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
-
-  // TODO:
-  let _verbosity = match settings.log_level() {
-    log::Level::Error => "-q", // errors only
-    log::Level::Info => "",    // errors + "normal logs" (mostly rpath)
-    log::Level::Trace => "-v", // You can expect way over 1k lines from just lib4bin on this level
-    _ => "",
-  };
-
-  let bins = app_dir_path
-    .join("bin/")
+  let bins = app_dir_bin
     .read_dir()?
     .filter_map(|entry| entry.ok())
     .map(|entry| format!(" \"{}\"", entry.path().to_string_lossy()))
@@ -124,13 +128,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut cmd = Command::new("/bin/sh");
   cmd
     .current_dir(&output_path)
-    .env("APPDIR", &app_dir_path)
+    .env("APPDIR", &app_dir)
     .env("OUTNAME", &appimage_filename)
-    .env(
-      "DESKTOP",
-      data_dir.join(format!("usr/share/applications/{product_name}.desktop")),
-    )
-    .env("ICON", &larger_icon.path)
+    .env("ICON", largest_icon.1)
     .env("OUTPUT_APPIMAGE", "1")
     //.env("URUNTIME2APPIMAGE_SOURCE", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/uruntime2appimage.sh")
     //.env("ADD_HOOKS", "fix-namespaces.hook")
@@ -139,7 +139,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       &format!(
         r#""{}" {bins} "{}""#,
         quick_sharun.to_string_lossy(),
-        app_dir_path.join("lib/").to_string_lossy()
+        app_dir_lib.to_string_lossy()
       ),
     ]);
 
@@ -154,6 +154,5 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .output_ok()
     .context("quick-sharun command failed to run.")?;
 
-  fs::remove_dir_all(package_dir)?;
   Ok(vec![appimage_path])
 }

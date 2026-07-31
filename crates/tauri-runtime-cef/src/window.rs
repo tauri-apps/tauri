@@ -55,7 +55,10 @@ use winit::platform::windows::WindowExtWindows;
 use crate::window_handle::SoftbufferWindowHandle;
 use crate::{
   cef_impl::{client as browser_client, request_context},
-  runtime::{AfterWindowCreationCallback, CefRuntime, Message, RuntimeContext, WinitCefApp},
+  runtime::{
+    AfterWindowCreationCallback, CefRuntime, Message, RuntimeContext, WinitCefApp,
+    WinitDragDropState,
+  },
   webview::{AppWebview, CefWebviewDispatcher, create_webview_detached},
   window_builder::WindowBuilderWrapper,
   window_handle::SendRawWindowHandle,
@@ -390,6 +393,7 @@ pub(crate) struct AppWindow {
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: WindowEventListeners,
+  pub(crate) native_drag_drop: Option<WinitDragDropState>,
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -556,6 +560,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       attrs,
       children: Vec::new(),
       listeners: Default::default(),
+      native_drag_drop: None,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

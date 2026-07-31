@@ -33,9 +33,10 @@ use tauri_runtime::{
 use tauri_utils::Theme;
 use winit::{
   application::ApplicationHandler,
+  data_transfer::{DataTransferId, TypeHint},
   event::{StartCause, WindowEvent as WinitWindowEvent},
   event_loop::{
-    ActiveEventLoop, EventLoop, EventLoopBuilder, EventLoopProxy as WinitEventLoopProxy,
+    ActiveEventLoop, DndAction, EventLoop, EventLoopBuilder, EventLoopProxy as WinitEventLoopProxy,
   },
   window::WindowId as WinitWindowId,
 };
@@ -380,6 +381,80 @@ pub(crate) enum EventLoopMessage {
   ShowApplication,
   #[cfg(target_os = "macos")]
   HideApplication,
+}
+
+#[derive(Debug)]
+pub(crate) struct WinitDragDropState {
+  id: DataTransferId,
+  paths: Option<Vec<PathBuf>>,
+  paths_requested: bool,
+  enter_position: Option<PhysicalPosition<f64>>,
+  latest_position: Option<PhysicalPosition<f64>>,
+  enter_emitted: bool,
+  drop_pending: bool,
+}
+
+impl WinitDragDropState {
+  fn position(&self) -> PhysicalPosition<f64> {
+    self
+      .latest_position
+      .or(self.enter_position)
+      .unwrap_or_default()
+  }
+}
+
+fn pending_native_drag_enter(
+  native_drag_drop: &mut Option<WinitDragDropState>,
+) -> Option<DragDropEvent> {
+  native_drag_drop.as_mut().and_then(|state| {
+    if state.enter_emitted {
+      return None;
+    }
+
+    let paths = state.paths.clone()?;
+    let position = state.position();
+
+    state.enter_emitted = true;
+    Some(DragDropEvent::Enter { paths, position })
+  })
+}
+
+fn pending_native_drag_drop(
+  native_drag_drop: &mut Option<WinitDragDropState>,
+) -> Option<DragDropEvent> {
+  native_drag_drop.as_mut().and_then(|state| {
+    if !state.drop_pending || !state.enter_emitted {
+      return None;
+    }
+
+    let paths = state.paths.clone()?;
+    let position = state.position();
+
+    Some(DragDropEvent::Drop { paths, position })
+  })
+}
+
+fn request_native_drag_paths(
+  event_loop: &dyn ActiveEventLoop,
+  native_drag_drop: &mut Option<WinitDragDropState>,
+) {
+  let Some(state) = native_drag_drop else {
+    return;
+  };
+  let id = state.id;
+  if state.paths.is_some() || state.paths_requested {
+    return;
+  }
+
+  if event_loop
+    .fetch_data_transfer(id, &TypeHint::UriList)
+    .is_err()
+  {
+    *native_drag_drop = None;
+    let _ = event_loop.set_valid_dnd_actions(id, &[]);
+  } else if let Some(state) = native_drag_drop {
+    state.paths_requested = true;
+  }
 }
 
 macro_rules! event_loop_getter {
@@ -933,24 +1008,132 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         }
         self.emit_window_event(window_id, WindowEvent::ThemeChanged(system_theme));
       }
-      WinitWindowEvent::DragEntered { paths, position } => {
-        let event = DragDropEvent::Enter { paths, position };
-        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
-      }
-      WinitWindowEvent::DragMoved { position } => {
-        let event = DragDropEvent::Over { position };
-        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
-      }
-      WinitWindowEvent::DragDropped { paths, position } => {
-        let event = DragDropEvent::Drop { paths, position };
-        self.emit_window_event(window_id, WindowEvent::DragDrop(event));
-      }
-      WinitWindowEvent::DragLeft { .. } => {
-        self.emit_window_event(window_id, WindowEvent::DragDrop(DragDropEvent::Leave));
-      }
       #[cfg(windows)]
       WinitWindowEvent::RedrawRequested => {
         appwindow.draw_background_surface();
+      }
+      WinitWindowEvent::DragEntered { id, position } => {
+        let has_file_paths = event_loop
+          .data_transfer(id)
+          .map(|data_transfer| data_transfer.has_type(&TypeHint::UriList))
+          .unwrap_or(false);
+
+        if has_file_paths {
+          appwindow.native_drag_drop = Some(WinitDragDropState {
+            id,
+            paths: None,
+            paths_requested: false,
+            enter_position: position,
+            latest_position: position,
+            enter_emitted: false,
+            drop_pending: false,
+          });
+          let _ = event_loop.set_valid_dnd_actions(id, &[DndAction::Copy]);
+          request_native_drag_paths(event_loop, &mut appwindow.native_drag_drop);
+        } else {
+          appwindow.native_drag_drop = None;
+          let _ = event_loop.set_valid_dnd_actions(id, &[]);
+        }
+      }
+      WinitWindowEvent::DragPosition { id, position, .. } => {
+        if let Some(state) = appwindow
+          .native_drag_drop
+          .as_mut()
+          .filter(|state| state.id == id)
+        {
+          state.latest_position = Some(position);
+          state.enter_position.get_or_insert(position);
+        }
+
+        let enter_event = pending_native_drag_enter(&mut appwindow.native_drag_drop);
+
+        let over_event = appwindow
+          .native_drag_drop
+          .as_ref()
+          .filter(|state| state.id == id && state.enter_emitted)
+          .map(|_| DragDropEvent::Over { position });
+
+        if let Some(event) = enter_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+        if let Some(event) = over_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+      }
+      WinitWindowEvent::DragDropped { id, .. } => {
+        if let Some(state) = appwindow
+          .native_drag_drop
+          .as_mut()
+          .filter(|state| state.id == id)
+        {
+          state.drop_pending = true;
+        }
+
+        request_native_drag_paths(event_loop, &mut appwindow.native_drag_drop);
+
+        let enter_event = pending_native_drag_enter(&mut appwindow.native_drag_drop);
+        let drop_event = pending_native_drag_drop(&mut appwindow.native_drag_drop);
+
+        let drop_emitted = drop_event.is_some();
+        if drop_emitted {
+          appwindow.native_drag_drop = None;
+        }
+
+        if let Some(event) = enter_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+        if let Some(event) = drop_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+      }
+      WinitWindowEvent::DragLeft { id } => {
+        let entered = appwindow
+          .native_drag_drop
+          .as_ref()
+          .is_some_and(|state| state.id == id && state.enter_emitted);
+
+        appwindow.native_drag_drop = None;
+
+        if entered {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(DragDropEvent::Leave));
+        }
+      }
+      WinitWindowEvent::DataTransferReceived { id, value, .. } => {
+        let mut reject_drag = false;
+
+        if let Some(state) = appwindow
+          .native_drag_drop
+          .as_mut()
+          .filter(|state| state.id == id)
+        {
+          match value.try_as_file_paths() {
+            Ok(paths) if !paths.is_empty() => state.paths = Some(paths),
+            Ok(_) => reject_drag = state.drop_pending,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+            Err(_) => reject_drag = state.drop_pending,
+          }
+        }
+
+        if reject_drag {
+          appwindow.native_drag_drop = None;
+          let _ = event_loop.set_valid_dnd_actions(id, &[]);
+          return;
+        }
+
+        let enter_event = pending_native_drag_enter(&mut appwindow.native_drag_drop);
+        let drop_event = pending_native_drag_drop(&mut appwindow.native_drag_drop);
+
+        let drop_emitted = drop_event.is_some();
+        if drop_emitted {
+          appwindow.native_drag_drop = None;
+        }
+
+        if let Some(event) = enter_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
+        if let Some(event) = drop_event {
+          self.emit_window_event(window_id, WindowEvent::DragDrop(event));
+        }
       }
       _ => {}
     }

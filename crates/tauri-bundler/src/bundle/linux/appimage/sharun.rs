@@ -130,6 +130,22 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs::copy(largest_icon.1, app_dir.join(format!("{product_name}.png")))
     .with_context(|| "Failed to copy icon file")?;
 
+  // make sure to check whether the user has provided their own copy already
+  if settings.deep_link_protocols().is_some()
+    && !app_dir_bin.join("xdg-mime").exists()
+    && Path::new("/usr/bin/xdg-mime").exists()
+  {
+    bins.push("/usr/bin/xdg-mime".into());
+  }
+
+  // make sure to check whether the user has provided their own copy already
+  if settings.appimage().bundle_xdg_open
+    && !app_dir_bin.join("xdg-open").exists()
+    && Path::new("/usr/bin/xdg-open").exists()
+  {
+    bins.push("/usr/bin/xdg-open".into());
+  }
+
   let bins = bins
     .iter()
     .map(|p| format!(" \"{}\"", p.to_string_lossy()))

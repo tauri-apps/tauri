@@ -9,7 +9,7 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Webdriver server for Tauri applications"
 readme = "README.md"
 edition = "2024"
-rust-version = "1.92"
+rust-version = "1.90"
 
 [dependencies]
 anyhow = "1"

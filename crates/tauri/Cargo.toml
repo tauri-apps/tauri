@@ -56,7 +56,7 @@ uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1"
 thiserror = "2"
-tauri-runtime = { version = "2.11.3", path = "../tauri-runtime", default-features = false }
+tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
 tauri-macros = { version = "2.6.3", path = "../tauri-macros" }
 tauri-utils = { version = "2.9.3", features = [
   "resources",
@@ -100,7 +100,7 @@ rustls = { version = "0.23", default-features = false, features = [
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
 muda = { git = "https://github.com/tauri-apps/muda", branch = "dev", default-features = false, features = [
   "serde",
-], optional = true }
+] }
 tray-icon = { version = "0.24", default-features = false, features = [
   "serde",
   "gtk",
@@ -201,7 +201,7 @@ x11 = ["tauri-runtime-wry?/x11"]
 dbus = ["tauri-runtime-wry?/dbus"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
-  "muda?/common-controls-v6",
+  "muda/common-controls-v6",
   "tauri-runtime-wry?/common-controls-v6",
 ]
 tray-icon = ["dep:tray-icon"]
@@ -219,7 +219,7 @@ wry = [
 cef = ["dep:gtk4", "dep:muda", "muda/gtk4", "dep:tauri-runtime-cef"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
-linux-libxdo = ["tray-icon/libxdo", "muda?/libxdo"]
+linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 # TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384

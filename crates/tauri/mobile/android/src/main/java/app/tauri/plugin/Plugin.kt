@@ -65,13 +65,24 @@ abstract class Plugin(private val activity: Activity) {
   /**
    * This event is called just before another activity comes into the foreground.
    */
+  open fun onPause(activity: AppCompatActivity) {}
+
+  /**
+   * This event is called just before another activity comes into the foreground.
+   */
+  @Deprecated("use onPause(activity: AppCompatActivity) instead")
   open fun onPause() {}
 
   /**
    * This event is called when the user returns to the activity. It is also called on cold starts.
    */
-  open fun onResume() {}
+  open fun onResume(activity: AppCompatActivity) {}
 
+  /**
+   * This event is called when the user returns to the activity. It is also called on cold starts.
+   */
+  @Deprecated("use onResume(activity: AppCompatActivity) instead")
+  open fun onResume() {}
 
   /**
    * This event is called after onStop() when the current activity is being re-displayed to the user (the user has navigated back to it).
@@ -90,6 +101,13 @@ abstract class Plugin(private val activity: Activity) {
    * This event is called when the app is no longer visible to the user.
    * You will next receive either onRestart(), onDestroy(), or nothing, depending on later user activity.
    */
+  open fun onStop(activity: AppCompatActivity) {}
+
+  /**
+   * This event is called when the app is no longer visible to the user.
+   * You will next receive either onRestart(), onDestroy(), or nothing, depending on later user activity.
+   */
+  @Deprecated("use onStop(activity: AppCompatActivity) instead")
   open fun onStop() {}
 
   /**
@@ -110,6 +128,21 @@ abstract class Plugin(private val activity: Activity) {
   internal fun triggerOnRestart(activity: AppCompatActivity) {
     onRestart(activity)
     onRestart()
+  }
+
+  internal fun triggerOnPause(activity: AppCompatActivity) {
+    onPause(activity)
+    onPause()
+  }
+
+  internal fun triggerOnResume(activity: AppCompatActivity) {
+    onResume(activity)
+    onResume()
+  }
+
+  internal fun triggerOnStop(activity: AppCompatActivity) {
+    onStop(activity)
+    onStop()
   }
 
   /**

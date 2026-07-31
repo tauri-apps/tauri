@@ -58,7 +58,7 @@ notify-debouncer-full = "0.7"
 shared_child = "1"
 duct = "1.0"
 toml_edit = { version = "0.25", features = ["serde"] }
-json-patch = "3"
+json-patch = "4"
 tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
   "isolation",
   "schema",
@@ -67,7 +67,7 @@ tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
   "html-manipulation-2",
 ] }
 toml = "1"
-jsonschema = { version = "0.46", default-features = false }
+jsonschema = { version = "0.49", default-features = false }
 handlebars = "6"
 include_dir = "0.7"
 dirs = "6"
@@ -107,7 +107,7 @@ oxc_ast = "0.110"
 magic_string = "0.3"
 phf = { version = "0.14", features = ["macros"] }
 walkdir = "2"
-elf = "0.7"
+elf = "0.8"
 memchr = "2"
 tempfile = "3"
 uuid = { version = "1", features = ["v5"] }

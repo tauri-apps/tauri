@@ -27,6 +27,7 @@ serde = { version = "1", features = ["derive"] }
 strsim = "0.11"
 tar = "0.4"
 walkdir = "2"
+bytesize = "2"
 handlebars = "6"
 tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }
@@ -44,6 +45,7 @@ url = "2"
 uuid = { version = "1", features = ["v4", "v5"] }
 regex = "1"
 plist = "1"
+glob = "0.3"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 bitness = "0.4"
@@ -63,9 +65,6 @@ heck = "0.5"
 ar = "0.9"
 md5 = "0.8"
 rpm = { version = "0.16", features = ["bzip2-compression"] }
-
-[target."cfg(any(target_os = \"windows\", target_os = \"macos\", target_os = \"linux\"))".dependencies]
-glob = "0.3"
 
 [target."cfg(unix)".dependencies]
 which = "8"

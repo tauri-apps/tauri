@@ -679,7 +679,7 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    self.run_on_main_thread(move || unsafe {
+    let _ = self.run_on_main_thread(move || {
       let mtm = objc2::MainThreadMarker::new().unwrap();
       let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
       tx.send(ui_application.supportsMultipleScenes()).unwrap();
@@ -1263,11 +1263,9 @@ impl<R: Runtime> App<R> {
   /// Whether the application supports multiple windows.
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
-    unsafe {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      ui_application.supportsMultipleScenes()
-    }
+    let mtm = objc2::MainThreadMarker::new().unwrap();
+    let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+    ui_application.supportsMultipleScenes()
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -1416,28 +1414,25 @@ impl<R: Runtime> App<R> {
     mut self,
     mut callback: F,
   ) -> impl FnMut(RuntimeRunEvent<EventLoopMessage>) {
-    let app_handle = self.handle().clone();
-    let manager = self.manager.clone();
-
     move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Ready, self.manager());
+        callback(self.handle(), event);
       }
       RuntimeRunEvent::Exit => {
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-        callback(&app_handle, event);
-        app_handle.cleanup_before_exit();
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Exit, self.manager());
+        callback(self.handle(), event);
+        self.cleanup_before_exit();
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
       }
       _ => {
-        let event = on_event_loop_event(&app_handle, event, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), event, self.manager());
+        callback(self.handle(), event);
       }
     }
   }
@@ -1469,19 +1464,18 @@ impl<R: Runtime> App<R> {
     note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
   )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
-    let manager = self.manager.clone();
-    let app_handle = self.handle().clone();
-
     if !self.ran_setup {
       if let Err(e) = setup(self) {
         panic!("Failed to setup app: {e}");
       }
     }
 
+    let app_handle = self.handle().clone();
+
     app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
-      let event = on_event_loop_event(&app_handle, event, &manager);
+      let event = on_event_loop_event(&app_handle, event, app_handle.manager());
       callback(&app_handle, event);
     })
   }
@@ -2365,8 +2359,7 @@ tauri::Builder::default()
 
     let runtime_handle = runtime.handle();
 
-    #[allow(unused_mut)]
-    let mut app = App {
+    let app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
       manager: manager.clone(),
@@ -2379,6 +2372,8 @@ tauri::Builder::default()
       },
       ran_setup: false,
     };
+
+    app.register_core_plugins()?;
 
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
@@ -2394,8 +2389,6 @@ tauri::Builder::default()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
-    app.register_core_plugins()?;
 
     let env = Env::default();
     app.manage(env);
@@ -2418,11 +2411,9 @@ tauri::Builder::default()
     {
       let config = app.config();
       if let Some(tray_config) = &config.app.tray_icon {
-        #[allow(deprecated)]
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
             .icon_as_template(tray_config.icon_as_template)
-            .menu_on_left_click(tray_config.menu_on_left_click)
             .show_menu_on_left_click(tray_config.show_menu_on_left_click);
         if let Some(icon) = &app.manager.tray.icon {
           tray = tray.icon(icon.clone());

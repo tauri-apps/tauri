@@ -38,7 +38,7 @@
     {
       "description": "Group napi-rs packages",
       "groupName": "napi-rs packages",
-      "matchSourceUrls": ["https://github.com/napi-rs/napi-rs"]
+      "matchPackageNames": ["napi", "napi-build", "napi-derive", "@napi-rs/cli"]
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

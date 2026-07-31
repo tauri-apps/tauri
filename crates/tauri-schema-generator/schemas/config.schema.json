@@ -260,7 +260,7 @@
           ]
         },
         "dragDropEnabled": {
-          "description": "Whether the drag and drop is enabled or not on the webview. By default it is enabled.\n\n Disabling it is required to use HTML5 drag and drop on the frontend on Windows.",
+          "description": "Whether the drag and drop handlers used internally to generate [`DragDropEvent`]s are enabled on the webview. By default it is enabled.\n\n Disabling it is required to use HTML5 drag and drop on the frontend on Windows since we replace the drag drop handler of WebView2.\n\n Note: this setting maps to [`WebviewBuilder::disable_drag_drop_handler`], not [`WindowBuilder::drag_and_drop`].\n\n [`DragDropEvent`]: https://docs.rs/tauri/latest/tauri/enum.DragDropEvent.html\n [`WebviewBuilder::disable_drag_drop_handler`]: https://docs.rs/tauri/latest/tauri/webview/struct.WebviewBuilder.html#method.disable_drag_drop_handler\n [`WindowBuilder::drag_and_drop`]: https://docs.rs/tauri/latest/x86_64-pc-windows-msvc/tauri/window/struct.WindowBuilder.html#method.drag_and_drop",
           "default": true,
           "type": "boolean"
         },
@@ -486,7 +486,7 @@
           ]
         },
         "additionalBrowserArgs": {
-          "description": "Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`\n so if you use this method, you also need to disable these components by yourself if you want.",
+          "description": "Defines additional browser arguments on Windows.\n\n ## Warning\n\n Webview instances with different browser arguments must also have different [data directories](Self::data_directory).\n\n By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`\n so if you set this, you also need to disable these components by yourself if you want.",
           "type": [
             "string",
             "null"
@@ -616,6 +616,11 @@
               "$ref": "#/definitions/ScrollBarStyle"
             }
           ]
+        },
+        "limitNavigationsToAppBoundDomains": {
+          "description": "Whether to limit navigations to App-Bound Domains. This is necessary to\n enable Service Workers on iOS according to\n [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).\n\n Default is false.\n\n Note: If you set this to `true` make sure to add localhost and any [`registrable\n domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)\n used in this webview to tauri-src/Info.ios.plist:\n\n ```xml\n <plist>\n <dict>\n     <key>WKAppBoundDomains</key>\n     <array>\n         <string>localhost</string>\n         <string>aregistrabledomain.example</string>\n     </array>\n </dict>\n </plist>\n ```\n\n You must add `localhost` if any webview with this set to true opens a\n local webpage, makes any localhost calls, or uses the isolation pattern\n because Tauri uses the `localhost` domain for hosting the application\n webpage, the IPC protocol, and the isolation pattern's iframe.\n\n Requests served through custom uri schemes are allowed so long as they use\n a registrable domain specified in the `WKAppBoundDomains` array for all the\n requests from the app, including requests for the `localhost` domain.\n\n In theory, you can whitelist an entire uri scheme by including the\n protocol name followed by a colon. For example, to allow all requests\n using a custom \"stream\" uri scheme (see [this tauri\n example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),\n you could add `stream:` to the AppBoundDomains array. That said, I'm not\n sure whether Apple would let your app through app review if you do\n whitelist an entire protocol because this feature is not mentioned in\n [their blog post on App-Bound\n Domains](https://webkit.org/blog/10882/app-bound-domains/).\n\n See https://webkit.org/blog/10882/app-bound-domains/ and\n https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains\n for the official documentation on App-Bound Domains.\n\n ## Platform-specific\n\n - **iOS**: Supported since version 14.0+.\n - **Linux / Windows / Android / MacOS:** Unsupported.",
+          "default": false,
+          "type": "boolean"
         },
         "activityName": {
           "description": "The name of the Android activity to create for this window.",
@@ -1867,7 +1872,7 @@
           "type": "boolean"
         },
         "menuOnLeftClick": {
-          "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click.\n\n ## Platform-specific:\n\n - **Linux**: Unsupported.",
+          "description": "**No longer works since v2.2, use [`Self::show_menu_on_left_click`] instead**\n\n A Boolean value that determines whether the menu should appear when the tray icon receives a left click.\n\n ## Platform-specific:\n\n - **Linux**: Unsupported.",
           "default": true,
           "deprecated": true,
           "type": "boolean"

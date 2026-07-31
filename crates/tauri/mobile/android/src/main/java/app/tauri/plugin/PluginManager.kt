@@ -55,7 +55,7 @@ object PluginManager {
       .registerModule(SimpleModule().addDeserializer(Channel::class.java, channelDeserializer))
   }
 
-  fun onActivityCreate(activity: AppCompatActivity) {
+  fun onCreate(activity: AppCompatActivity) {
     // TODO: on destroy, we should change to a different activity
     if (::activity.isInitialized) {
       return
@@ -92,15 +92,15 @@ object PluginManager {
     }
   }
 
-  fun onPause() {
+  fun onPause(activity: AppCompatActivity) {
     for (plugin in plugins.values) {
-      plugin.instance.onPause()
+      plugin.instance.triggerOnPause(activity)
     }
   }
 
-  fun onResume() {
+  fun onResume(activity: AppCompatActivity) {
     for (plugin in plugins.values) {
-      plugin.instance.onResume()
+      plugin.instance.triggerOnResume(activity)
     }
   }
 
@@ -110,9 +110,9 @@ object PluginManager {
     }
   }
 
-  fun onStop() {
+  fun onStop(activity: AppCompatActivity) {
     for (plugin in plugins.values) {
-      plugin.instance.onStop()
+      plugin.instance.triggerOnStop(activity)
     }
   }
 

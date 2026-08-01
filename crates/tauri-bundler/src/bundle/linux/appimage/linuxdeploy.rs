@@ -122,7 +122,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // we also check if the user may have provided their own copy already
   // xdg-open will be handled by the `files` config instead
-  if settings.deep_link_protocols().is_some() && !app_dir_usr_bin.join("xdg-mime").exists() {
+  if settings.deep_link_protocols().is_some() && !app_dir_usr_bin.join("xdg-open").exists() {
     fs::copy("/usr/bin/xdg-mime", app_dir_usr_bin.join("xdg-mime"))
       .fs_context("xdg-mime binary not found", "/usr/bin/xdg-mime".to_string())?;
   }

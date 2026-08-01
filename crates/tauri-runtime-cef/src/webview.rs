@@ -424,10 +424,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       "http"
     }
     .to_string();
-    let custom_scheme_domain_names: Vec<String> = uri_scheme_protocols
-      .keys()
-      .map(|scheme| format!("{scheme}.localhost"))
-      .collect();
+    let custom_scheme_names: Vec<String> = uri_scheme_protocols.keys().cloned().collect();
     let real_initial_url = pending.url.as_str().to_string();
     let (browser_tx, browser_rx) = mpsc::channel();
     let (init_done, on_initialized) = request_context::deferred_init_continuation({
@@ -435,7 +432,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       let uri_scheme_protocols = uri_scheme_protocols.clone();
       let initialization_scripts = initialization_scripts.clone();
       let custom_protocol_scheme = custom_protocol_scheme.clone();
-      let custom_scheme_domain_names = custom_scheme_domain_names.clone();
+      let custom_scheme_names = custom_scheme_names.clone();
       let label = pending.label.clone();
       move |mut request_context| {
         request_context::apply_theme_scheme(request_context.as_ref(), theme);
@@ -485,7 +482,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           &browser,
           &initialization_scripts,
           &custom_protocol_scheme,
-          &custom_scheme_domain_names,
+          &custom_scheme_names,
           &real_initial_url,
           &pending_initial_loads,
         );
@@ -1453,21 +1450,31 @@ pub(crate) fn add_dev_tools_observer(
 fn devtools_initialization_script_source(
   initialization_scripts: &[CefInitScript],
   custom_protocol_scheme: &str,
-  custom_scheme_domain_names: &[String],
+  custom_scheme_names: &[String],
 ) -> Option<String> {
   if initialization_scripts.is_empty() {
     return None;
   }
 
   let custom_protocol = serde_json::to_string(&format!("{custom_protocol_scheme}:")).ok()?;
-  let custom_domains = serde_json::to_string(custom_scheme_domain_names).ok()?;
+  let custom_schemes = serde_json::to_string(custom_scheme_names).ok()?;
+  // A mapped custom-protocol document lives at `https://<scheme>.<authority>`
+  // where the whole host ends in `.localhost` (for example `app.localhost` or
+  // `app.<authority>.localhost`). Recognize the reserved namespace by matching
+  // any registered scheme label rather than a fixed host, so per-authority
+  // origins are also detected. These documents receive the initialization
+  // scripts injected into their HTML directly, so the CDP document-start copy
+  // below is guarded off for them to avoid double injection.
   let mut source = format!(
     r#"{{
   const __TAURI_CEF_INIT_CUSTOM_PROTOCOL__ = {custom_protocol};
-  const __TAURI_CEF_INIT_CUSTOM_DOMAINS__ = new Set({custom_domains});
+  const __TAURI_CEF_INIT_CUSTOM_SCHEMES__ = {custom_schemes};
   const __TAURI_CEF_INIT_IS_CUSTOM_PROTOCOL__ =
     location.protocol === __TAURI_CEF_INIT_CUSTOM_PROTOCOL__
-    && __TAURI_CEF_INIT_CUSTOM_DOMAINS__.has(location.hostname);
+    && location.hostname.endsWith(".localhost")
+    && __TAURI_CEF_INIT_CUSTOM_SCHEMES__.some(
+      (scheme) => location.hostname.startsWith(scheme + ".")
+    );
   const __TAURI_CEF_INIT_IS_MAIN_FRAME__ = (() => {{
     try {{
       return window.top === window;
@@ -1496,14 +1503,14 @@ fn register_initialization_scripts(
   browser: &Browser,
   initialization_scripts: &[CefInitScript],
   custom_protocol_scheme: &str,
-  custom_scheme_domain_names: &[String],
+  custom_scheme_names: &[String],
   initial_url: String,
   pending_initial_loads: &PendingInitialLoads,
 ) -> bool {
   let Some(source) = devtools_initialization_script_source(
     initialization_scripts,
     custom_protocol_scheme,
-    custom_scheme_domain_names,
+    custom_scheme_names,
   ) else {
     return false;
   };
@@ -1572,7 +1579,7 @@ pub(crate) fn load_initial_url_after_registering_initialization_scripts(
   browser: &Browser,
   initialization_scripts: &[CefInitScript],
   custom_protocol_scheme: &str,
-  custom_scheme_domain_names: &[String],
+  custom_scheme_names: &[String],
   initial_url: &str,
   pending_initial_loads: &PendingInitialLoads,
 ) {
@@ -1582,7 +1589,7 @@ pub(crate) fn load_initial_url_after_registering_initialization_scripts(
     browser,
     initialization_scripts,
     custom_protocol_scheme,
-    custom_scheme_domain_names,
+    custom_scheme_names,
     initial_url.clone(),
     pending_initial_loads,
   );

@@ -29,6 +29,7 @@ use url::Url;
 
 use crate::{
   cef_impl::client::{DragDropEventTarget, DragDropState, WebDragDropResourceRequestHandler},
+  cef_impl::mapped_scheme,
   runtime::RuntimeContext,
   webview::{CefInitScript, INITIAL_LOAD_URL},
 };
@@ -205,6 +206,10 @@ wrap_resource_handler! {
     webview_label: String,
     handler: Arc<Box<UriSchemeProtocolHandler>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
+    // Logical URL selected by the mapped-namespace router (for example
+    // `app://<authority>/…`). The Tauri callback therefore sees the same request
+    // shape on CEF as it does on the other mapped-protocol runtimes.
+    logical_url: String,
     // Serialized origin of the main frame that initiated this request, captured
     // browser-side in the scheme handler factory. The renderer can issue an IPC
     // request before its execution context is fully wired to the loader; in
@@ -226,10 +231,8 @@ wrap_resource_handler! {
       let Some(request) = request else { return 0 };
       let Some(callback) = callback else { return 0 };
 
-      let url = CefString::from(&request.url()).to_string();
-      let url = Url::parse(&url).ok();
-
-      if let Some(url) = url {
+      if Url::parse(&CefString::from(&request.url()).to_string()).is_ok() {
+        let logical_url = self.logical_url.clone();
         let callback = ThreadSafe(callback.clone());
         let response_store = ThreadSafe(self.response.clone());
         let initialization_scripts = self.initialization_scripts.clone();
@@ -296,7 +299,7 @@ wrap_resource_handler! {
         std::thread::spawn(move || {
           let mut http_request = http::Request::builder()
             .method(method)
-            .uri(url.as_str())
+            .uri(logical_url.as_str())
             .body(data)
             .unwrap();
           *http_request.headers_mut() = headers;
@@ -387,7 +390,6 @@ wrap_resource_handler! {
 wrap_scheme_handler_factory! {
   pub struct UriSchemeHandlerFactory {
     registry: SchemeRegistry,
-    scheme: String,
   }
 
   impl SchemeHandlerFactory {
@@ -396,17 +398,27 @@ wrap_scheme_handler_factory! {
       browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
       _scheme_name: Option<&CefString>,
-      _request: Option<&mut Request>,
+      request: Option<&mut Request>,
     ) -> Option<ResourceHandler> {
       let browser = browser?;
       let id = browser.identifier();
 
-      // get handler from our regsitry based on browser ID and scheme
-      let (webview_label, handler, initialization_scripts) = self
-        .registry
-        .lock()
-        .unwrap()
-        .get(&(id, self.scheme.clone()))
+      // This factory is registered against the whole mapped scheme, so it is
+      // consulted for every `https`/`http` request. Route only the reserved
+      // `<scheme>.….localhost` namespace whose scheme label is a registered
+      // custom protocol for this browser; return `None` (which for a built-in
+      // scheme falls through to CEF's normal network path) for anything else,
+      // so unrelated origins are never intercepted.
+      let request = request?;
+      let request_url = CefString::from(&request.url()).to_string();
+      let registry = self.registry.lock().unwrap();
+      let route = mapped_scheme::route_mapped_request(&request_url, |scheme| {
+        registry.contains_key(&(id, scheme.to_string()))
+      })?;
+
+      // get handler from our registry based on browser ID and scheme
+      let (webview_label, handler, initialization_scripts) = registry
+        .get(&(id, route.custom_scheme.clone()))
         .cloned()?;
 
       // Capture the initiating main frame's origin so `process_request` can
@@ -424,6 +436,7 @@ wrap_scheme_handler_factory! {
         webview_label,
         handler,
         initialization_scripts,
+        route.logical_url,
         initiator_origin,
         Arc::new(RefCell::new(None)),
       ))

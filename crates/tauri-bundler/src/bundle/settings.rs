@@ -223,6 +223,10 @@ pub struct AppImageSettings {
   /// Whether to include gstreamer plugins for audio/media support.
   pub bundle_media_framework: bool,
   /// Whether to include the `xdg-open` binary.
+  #[deprecated(
+    since = "2.12.0",
+    note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
+  )]
   pub bundle_xdg_open: bool,
 }
 

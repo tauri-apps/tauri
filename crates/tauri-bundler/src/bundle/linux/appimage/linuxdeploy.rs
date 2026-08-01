@@ -118,21 +118,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs::create_dir_all(&app_dir_usr_bin)?;
   fs::create_dir_all(app_dir_usr_lib)?;
 
-  // Copy bins and libs that linuxdeploy doesn't know about
-
-  // we also check if the user may have provided their own copy already
-  // xdg-open will be handled by the `files` config instead
-  if settings.deep_link_protocols().is_some() && !app_dir_usr_bin.join("xdg-open").exists() {
-    fs::copy("/usr/bin/xdg-mime", app_dir_usr_bin.join("xdg-mime"))
-      .fs_context("xdg-mime binary not found", "/usr/bin/xdg-mime".to_string())?;
-  }
-
-  // we also check if the user may have provided their own copy already
-  if settings.appimage().bundle_xdg_open && !app_dir_usr_bin.join("xdg-open").exists() {
-    fs::copy("/usr/bin/xdg-open", app_dir_usr_bin.join("xdg-open"))
-      .fs_context("xdg-open binary not found", "/usr/bin/xdg-open".to_string())?;
-  }
-
   let search_dirs = [
     match settings.binary_arch() {
       Arch::X86_64 => "/usr/lib/x86_64-linux-gnu/",

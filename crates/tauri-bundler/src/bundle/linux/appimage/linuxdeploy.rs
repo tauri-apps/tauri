@@ -6,7 +6,7 @@
 use super::{super::debian, write_and_make_executable};
 use crate::{
   bundle::settings::Arch,
-  error::{Context, ErrorExt},
+  error::Context,
   utils::{fs_utils, http_utils::download, CommandExt},
   Settings,
 };

@@ -328,12 +328,10 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
             js: crate::Result<String>,
             error: CallbackFn,
           ) {
-            let eval_js = match js {
-              Ok(js) => js,
-              Err(e) => crate::ipc::format_callback::format(error, &e.to_string())
-                .expect("unable to serialize response error string to json"),
-            };
-
+            let eval_js = js.unwrap_or_else(|e| {
+              crate::ipc::format_callback::format(error, &e.to_string())
+                .expect("unable to serialize response error string to json")
+            });
             let _ = webview.eval(eval_js);
           }
 

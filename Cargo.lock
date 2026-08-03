@@ -3900,7 +3900,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
 dependencies = [
  "equivalent",
- "hashbrown 0.15.5",
+ "hashbrown 0.16.1",
  "serde",
  "serde_core",
 ]
@@ -4140,6 +4140,16 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+]
+
+[[package]]
+name = "json5"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "733a844dbd6fef128e98cb4487b887cb55454d92cd9994b1bafe004fabbe670c"
+dependencies = [
+ "serde",
+ "ucd-trie",
 ]
 
 [[package]]
@@ -6102,7 +6112,7 @@ dependencies = [
  "aes-gcm",
  "aes-kw",
  "argon2",
- "base64 0.21.7",
+ "base64 0.22.1",
  "bitfield",
  "block-padding",
  "blowfish",
@@ -9150,7 +9160,7 @@ dependencies = [
  "insta",
  "itertools 0.15.0",
  "json-patch",
- "json5",
+ "json5 1.3.1",
  "jsonrpsee",
  "jsonrpsee-client-transport",
  "jsonrpsee-core",
@@ -9450,7 +9460,7 @@ dependencies = [
  "http",
  "infer",
  "json-patch",
- "json5",
+ "json5 0.4.1",
  "kuchikiki",
  "log",
  "memchr",

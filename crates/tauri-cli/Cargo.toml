@@ -52,7 +52,7 @@ colored = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 # version should match tauri-utils for deduplication
-json5 = "0.4"
+json5 = "1.3.1"
 notify = "8"
 notify-debouncer-full = "0.7"
 shared_child = "1"

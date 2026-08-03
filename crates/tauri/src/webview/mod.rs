@@ -705,6 +705,9 @@ tauri::Builder::default()
   /// The handler receives the [`PermissionKind`] and should return
   /// the desired [`PermissionResponse`].
   ///
+  /// This is called before [`crate::Builder::on_permission_request`],
+  /// and skips it if the returned response is not [`crate::webview::PermissionResponse::Default`].
+  ///
   /// > [!NOTE]
   /// > This handler only triggers for new permission requests. If the user has already
   /// > allowed or denied a permission persistently within the webview, the browser

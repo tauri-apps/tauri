@@ -4883,7 +4883,7 @@ You may have it installed on another user account, but it is not available for t
 
   if let Some(permission_request_handler) = pending.permission_request_handler {
     webview_builder = webview_builder.with_permission_handler(move |kind| {
-      let kind = webview_permissions::to_wry_permission_kind(kind);
+      let kind = webview_permissions::from_wry_permission_kind(kind);
       let response = permission_request_handler(kind);
       webview_permissions::to_wry_permission_response(response)
     });

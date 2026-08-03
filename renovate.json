@@ -42,7 +42,6 @@
     },
     {
       "description": "Bump CLI packages",
-      "groupName": "cli packages",
       "matchFileNames": [
         "crates/tauri-cli/Cargo.toml",
         "packages/cli/Cargo.toml",

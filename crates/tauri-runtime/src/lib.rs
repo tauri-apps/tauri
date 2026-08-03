@@ -26,6 +26,7 @@ pub mod dpi;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
+mod webview_permissions;
 pub mod window;
 
 use dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size};

@@ -157,6 +157,7 @@ mod monitor;
 mod undecorated_resizing;
 mod util;
 mod webview;
+mod webview_permissions;
 mod window;
 
 pub use webview::Webview;
@@ -4878,6 +4879,14 @@ You may have it installed on another user account, but it is not available for t
   if let Some(document_title_changed_handler) = pending.document_title_changed_handler {
     webview_builder =
       webview_builder.with_document_title_changed_handler(document_title_changed_handler)
+  }
+
+  if let Some(permission_request_handler) = pending.permission_request_handler {
+    webview_builder = webview_builder.with_permission_handler(move |kind| {
+      let kind = webview_permissions::from_wry_permission_kind(kind);
+      let response = permission_request_handler(kind);
+      webview_permissions::to_wry_permission_response(response)
+    });
   }
 
   let webview_bounds = if let Some(bounds) = webview_attributes.bounds {

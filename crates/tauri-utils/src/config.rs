@@ -3486,6 +3486,9 @@ impl From<String> for RunnerConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
   /// The binary used to build and run the application.
+  ///
+  /// This can be either a string specifying the command name, or an object with
+  /// `cmd`, `cwd`, and `args` fields for advanced configuration.
   pub runner: Option<RunnerConfig>,
   /// The URL to load in development.
   ///

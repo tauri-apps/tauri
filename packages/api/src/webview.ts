@@ -715,13 +715,13 @@ interface WebviewOptions {
    */
   url?: string
   /** The initial vertical position in logical pixels. */
-  x: number
+  x?: number
   /** The initial horizontal position in logical pixels. */
-  y: number
+  y?: number
   /** The initial width in logical pixels. */
-  width: number
+  width?: number
   /** The initial height in logical pixels. */
-  height: number
+  height?: number
   /**
    * Whether the webview is transparent or not.
    * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.

@@ -3,10 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{app, icon::create_icns_file};
+use super::{
+  app,
+  icon::create_icns_file,
+  sign::{keychain, notarize, notarize_auth, notarize_without_stapling, sign, SignTarget},
+};
 use crate::{
   bundle::{settings::Arch, Bundle},
-  error::{Context, ErrorExt},
+  error::{Context, ErrorExt, NotarizeAuthError},
   utils::CommandExt,
   PackageType, Settings,
 };
@@ -194,15 +198,39 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // skipping self-signing DMGs https://github.com/tauri-apps/tauri/issues/12288
   let identity = settings.macos().signing_identity.as_deref();
   if !settings.no_sign() && identity != Some("-") {
-    if let Some(keychain) = super::sign::keychain(identity)? {
-      super::sign::sign(
+    if let Some(keychain) = keychain(identity)? {
+      sign(
         &keychain,
-        vec![super::sign::SignTarget {
+        vec![SignTarget {
           path: dmg_path.clone(),
           is_an_executable: false,
         }],
         settings,
       )?;
+
+      // Notarize the signed DMG. The .app bundle inside was notarized before
+      // the DMG was created (app.rs), but the DMG itself is the artifact a
+      // user downloads: without its own notarized and stapled ticket, a
+      // gatekeeper check on the DMG fails and the build reports success for a
+      // file Apple will not open without bypassing Gatekeeper. Mirror the app
+      // notarization path exactly, including the skip_stapling opt-out and the
+      // missing-team-id hard error. See https://github.com/tauri-apps/tauri/issues/15822
+      match notarize_auth() {
+        Ok(auth) => {
+          if settings.macos().skip_stapling {
+            notarize_without_stapling(&keychain, dmg_path.clone(), &auth)?;
+          } else {
+            notarize(&keychain, dmg_path.clone(), &auth)?;
+          }
+        }
+        Err(e) => {
+          if matches!(e, NotarizeAuthError::MissingTeamId) {
+            return Err(e.into());
+          } else {
+            log::warn!("skipping dmg notarization, {e}");
+          }
+        }
+      }
     }
   }
 

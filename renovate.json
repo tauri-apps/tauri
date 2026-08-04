@@ -38,17 +38,22 @@
     {
       "description": "Group napi-rs packages",
       "groupName": "napi-rs packages",
-      "matchPackageNames": ["napi", "napi-build", "napi-derive", "@napi-rs/cli"]
+      "matchPackageNames": [
+        "napi",
+        "napi-build",
+        "napi-derive",
+        "@napi-rs/cli"
+      ],
+      "rangeStrategy": "bump"
     },
     {
       "description": "Bump CLI packages",
-      "groupName": "cli packages",
       "matchFileNames": [
         "crates/tauri-cli/Cargo.toml",
         "packages/cli/Cargo.toml",
         "packages/cli/package.json"
       ],
-      "rangeStrategy": "bump"
+      "rangeStrategy": "auto"
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

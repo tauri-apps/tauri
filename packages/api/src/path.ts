@@ -16,6 +16,12 @@ import { invoke } from './core'
 /**
  * @since 2.0.0
  */
+/**
+ * A base directory to be used with path functions.
+ * Each variant corresponds to a specific directory and can be resolved using the associated function.
+ *
+ * @see {@link https://v2.tauri.app/reference/javascript/api/namespacespath/} for more details.
+ */
 enum BaseDirectory {
   /**
    * @see {@link audioDir} for more information.

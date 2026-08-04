@@ -76,7 +76,11 @@ pub struct Options {
   /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
   pub ignore_version_mismatches: bool,
-  /// Skip code signing when bundling the app
+  /// Skip code signing during the build or bundling process.
+  ///
+  /// Useful for local development and CI environments
+  /// where signing certificates or environment variables
+  /// are not available or not needed.
   #[clap(long)]
   pub no_sign: bool,
   /// Skip patching the main executable with bundle type information.

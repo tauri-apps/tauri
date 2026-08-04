@@ -77,7 +77,7 @@ pub trait AppSettings {
     if config.bundle.use_local_tools_dir {
       settings_builder = settings_builder.local_tools_directory(
         rust::get_cargo_metadata(tauri_dir)
-          .context("failed to get cargo metadata")?
+          .context("failed to get cargo metadata. If you are using a custom cargo wrapper, ensure it supports the `metadata` subcommand and outputs valid JSON.")?
           .target_directory,
       )
     }

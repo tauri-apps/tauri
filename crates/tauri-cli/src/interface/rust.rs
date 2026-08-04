@@ -1216,7 +1216,14 @@ pub(crate) fn get_cargo_metadata(tauri_dir: &Path) -> crate::Result<CargoMetadat
     });
   }
 
-  serde_json::from_slice(&output.stdout).context("failed to parse cargo metadata")
+  serde_json::from_slice(&output.stdout).with_context(|| {
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
+    if stdout_str.trim().is_empty() {
+      "failed to parse cargo metadata: `cargo metadata` returned empty output. Make sure `cargo` is properly installed and not a wrapper script that interferes with JSON output.".to_string()
+    } else {
+      format!("failed to parse cargo metadata: `cargo metadata` output was:\n{stdout_str}")
+    }
+  })
 }
 
 /// Get the tauri project crate's dependencies that are inside the workspace

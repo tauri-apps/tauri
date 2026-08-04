@@ -7,7 +7,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
 use std::{
-  collections::HashMap,
+  collections::BTreeMap,
   fs::File,
   path::{Path, PathBuf},
 };
@@ -76,7 +76,7 @@ pub type EmbeddedAssetsResult<T> = Result<T, EmbeddedAssetsError>;
 /// the compressed assets in that application's binary.
 #[derive(Default)]
 pub struct EmbeddedAssets {
-  assets: HashMap<AssetKey, (PathBuf, PathBuf)>,
+  assets: BTreeMap<AssetKey, (PathBuf, PathBuf)>,
   csp_hashes: CspHashes,
 }
 
@@ -158,7 +158,7 @@ pub struct CspHashes {
   /// Scripts that are part of the asset collection (JS or MJS files).
   pub(crate) scripts: Vec<String>,
   /// Inline scripts (`<script>code</script>`). Maps a HTML path to a list of hashes.
-  pub(crate) inline_scripts: HashMap<String, Vec<String>>,
+  pub(crate) inline_scripts: BTreeMap<String, Vec<String>>,
   /// A list of hashes of the contents of all `style` elements.
   pub(crate) styles: Vec<String>,
 }
@@ -266,13 +266,13 @@ impl EmbeddedAssets {
 
     struct CompressState {
       csp_hashes: CspHashes,
-      assets: HashMap<AssetKey, (PathBuf, PathBuf)>,
+      assets: BTreeMap<AssetKey, (PathBuf, PathBuf)>,
     }
 
     let CompressState { assets, csp_hashes } = paths.into_iter().try_fold(
       CompressState {
         csp_hashes,
-        assets: HashMap::new(),
+        assets: BTreeMap::new(),
       },
       move |mut state, (prefix, entry)| {
         let (key, asset) =
@@ -302,7 +302,7 @@ impl EmbeddedAssets {
     settings
   }
 
-  /// Compress a file and spit out the information in a [`HashMap`] friendly form.
+  /// Compress a file and spit out the information in a [`BTreeMap`] friendly form.
   fn compress_file(
     prefix: &Path,
     path: &Path,
@@ -393,9 +393,7 @@ impl ToTokens for EmbeddedAssets {
     let mut assets = TokenStream::new();
     // Iterate sorted so the generated code is deterministic
     // see: https://github.com/tauri-apps/tauri/issues/14978
-    let mut sorted_assets: Vec<_> = self.assets.iter().collect();
-    sorted_assets.sort_by(|(a, _), (b, _)| AsRef::<str>::as_ref(a).cmp(b.as_ref()));
-    for (key, (input, output)) in sorted_assets {
+    for (key, (input, output)) in &self.assets {
       let key: &str = key.as_ref();
       let input = input.display().to_string();
       let output = output.display().to_string();
@@ -425,9 +423,7 @@ impl ToTokens for EmbeddedAssets {
     }
 
     let mut html_hashes = TokenStream::new();
-    let mut sorted_inline_scripts: Vec<_> = self.csp_hashes.inline_scripts.iter().collect();
-    sorted_inline_scripts.sort_by_key(|(path, _)| path.as_str());
-    for (path, hashes) in sorted_inline_scripts {
+    for (path, hashes) in &self.csp_hashes.inline_scripts {
       let key = path.as_str();
       let mut value = TokenStream::new();
       for script_hash in hashes {

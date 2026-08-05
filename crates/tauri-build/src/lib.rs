@@ -21,7 +21,9 @@ use tauri_utils::{
 
 use std::{
   collections::HashMap,
-  env, fs,
+  env,
+  ffi::OsStr,
+  fs,
   path::{Path, PathBuf},
 };
 
@@ -203,6 +205,15 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
     }
   }
   Ok(())
+}
+
+// resolves the target dir from `OUT_DIR`, which is
+// `<target-dir>/build/<crate dir>/out` - one crate dir on stable, two on nightly.
+fn target_dir_from_out_dir(out_dir: &Path) -> Option<&Path> {
+  out_dir
+    .ancestors()
+    .find(|path| path.file_name() == Some(OsStr::new("build")))
+    .and_then(|build_dir| build_dir.parent())
 }
 
 // creates a cfg alias if `has_feature` is true.
@@ -574,13 +585,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
 
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
-  let target_dir = out_dir
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap();
+  let target_dir = target_dir_from_out_dir(&out_dir)
+    .with_context(|| format!("failed to resolve the target directory from {out_dir:?}"))?;
 
   if let Some(paths) = &config.bundle.external_bin {
     copy_binaries(
@@ -785,6 +791,37 @@ fn should_static_link_vc_runtime(config: &Config, attributes: &Attributes) -> bo
 #[cfg(test)]
 mod tests {
   use semver::Version;
+  use std::path::Path;
+
+  #[test]
+  fn target_dir_from_stable_out_dir() {
+    assert_eq!(
+      crate::target_dir_from_out_dir(Path::new(
+        "/app/target/debug/build/app-63ba68eead531e35/out"
+      )),
+      Some(Path::new("/app/target/debug"))
+    );
+  }
+
+  #[test]
+  fn target_dir_from_nightly_out_dir() {
+    assert_eq!(
+      crate::target_dir_from_out_dir(Path::new(
+        "/app/target/debug/build/app/63ba68eead531e35/out"
+      )),
+      Some(Path::new("/app/target/debug"))
+    );
+  }
+
+  #[test]
+  fn target_dir_from_out_dir_with_triple() {
+    assert_eq!(
+      crate::target_dir_from_out_dir(Path::new(
+        "/app/target/aarch64-apple-darwin/release/build/app/63ba68eead531e35/out"
+      )),
+      Some(Path::new("/app/target/aarch64-apple-darwin/release"))
+    );
+  }
 
   #[test]
   fn version_uses_numeric_build_metadata() {

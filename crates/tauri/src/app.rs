@@ -679,7 +679,7 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    self.run_on_main_thread(move || unsafe {
+    let _ = self.run_on_main_thread(move || {
       let mtm = objc2::MainThreadMarker::new().unwrap();
       let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
       tx.send(ui_application.supportsMultipleScenes()).unwrap();
@@ -1035,6 +1035,10 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will hide the menu from it.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** Unsupported.
       #[cfg(desktop)]
       pub fn hide_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
@@ -1056,6 +1060,10 @@ macro_rules! shared_app_impl {
       ///
       /// If a window was not created with an explicit menu or had one set explicitly,
       /// this will show the menu for it.
+      ///
+      /// ## Platform-specific:
+      ///
+      /// - **macOS:** Unsupported.
       #[cfg(desktop)]
       pub fn show_menu(&self) -> crate::Result<()> {
         #[cfg(not(target_os = "macos"))]
@@ -1255,11 +1263,9 @@ impl<R: Runtime> App<R> {
   /// Whether the application supports multiple windows.
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
-    unsafe {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      ui_application.supportsMultipleScenes()
-    }
+    let mtm = objc2::MainThreadMarker::new().unwrap();
+    let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+    ui_application.supportsMultipleScenes()
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -1408,28 +1414,25 @@ impl<R: Runtime> App<R> {
     mut self,
     mut callback: F,
   ) -> impl FnMut(RuntimeRunEvent<EventLoopMessage>) {
-    let app_handle = self.handle().clone();
-    let manager = self.manager.clone();
-
     move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Ready, self.manager());
+        callback(self.handle(), event);
       }
       RuntimeRunEvent::Exit => {
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-        callback(&app_handle, event);
-        app_handle.cleanup_before_exit();
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Exit, self.manager());
+        callback(self.handle(), event);
+        self.cleanup_before_exit();
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
       }
       _ => {
-        let event = on_event_loop_event(&app_handle, event, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), event, self.manager());
+        callback(self.handle(), event);
       }
     }
   }
@@ -1461,19 +1464,18 @@ impl<R: Runtime> App<R> {
     note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
   )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
-    let manager = self.manager.clone();
-    let app_handle = self.handle().clone();
-
     if !self.ran_setup {
       if let Err(e) = setup(self) {
         panic!("Failed to setup app: {e}");
       }
     }
 
+    let app_handle = self.handle().clone();
+
     app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
-      let event = on_event_loop_event(&app_handle, event, &manager);
+      let event = on_event_loop_event(&app_handle, event, app_handle.manager());
       callback(&app_handle, event);
     })
   }
@@ -1507,6 +1509,9 @@ pub struct Builder<R: Runtime> {
 
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
+
+  /// Permission request hook.
+  on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
 
   /// Web content process termination hook.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -1598,6 +1603,7 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
+      on_permission_request: None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
@@ -1777,6 +1783,53 @@ tauri::Builder::default()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Defines a closure to be executed when a permission is requested.
+  ///
+  /// The handler receives the [`crate::webview::PermissionKind`] and should return
+  /// the desired [`crate::webview::PermissionResponse`].
+  ///
+  /// This is not called if a [`crate::webview::WebviewBuilder::on_permission_request`]
+  /// is set on the webview and returned a response other than [`crate::webview::PermissionResponse::Default`].
+  ///
+  /// > [!NOTE]
+  /// > This handler only triggers for new permission requests. If the user has already
+  /// > allowed or denied a permission persistently within the webview, the browser
+  /// > will use the saved preference instead of calling this handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
+  /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
+  /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
+  /// - **Android**: Supported via JNI bridge for geolocation, microphone, camera,
+  ///   protected media, and MIDI requests. Android runtime permissions may still
+  ///   trigger native OS prompts before access is granted.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::webview::{PermissionKind, PermissionResponse};
+  /// tauri::Builder::default()
+  ///   .on_permission_request(|_, kind| match kind {
+  ///     PermissionKind::Geolocation => PermissionResponse::Allow,
+  ///     PermissionKind::Notifications => PermissionResponse::Allow,
+  ///     _ => PermissionResponse::Default,
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn on_permission_request<F>(mut self, on_permission_request: F) -> Self
+  where
+    F: Fn(Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
+      + Send
+      + Sync
+      + 'static,
+  {
+    self
+      .on_permission_request
+      .replace(Arc::new(on_permission_request));
     self
   }
 
@@ -2245,6 +2298,7 @@ tauri::Builder::default()
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      self.on_permission_request,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
@@ -2357,8 +2411,7 @@ tauri::Builder::default()
 
     let runtime_handle = runtime.handle();
 
-    #[allow(unused_mut)]
-    let mut app = App {
+    let app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
       manager: manager.clone(),
@@ -2371,6 +2424,8 @@ tauri::Builder::default()
       },
       ran_setup: false,
     };
+
+    app.register_core_plugins()?;
 
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
@@ -2386,8 +2441,6 @@ tauri::Builder::default()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
-    app.register_core_plugins()?;
 
     let env = Env::default();
     app.manage(env);
@@ -2410,11 +2463,9 @@ tauri::Builder::default()
     {
       let config = app.config();
       if let Some(tray_config) = &config.app.tray_icon {
-        #[allow(deprecated)]
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
             .icon_as_template(tray_config.icon_as_template)
-            .menu_on_left_click(tray_config.menu_on_left_click)
             .show_menu_on_left_click(tray_config.show_menu_on_left_click);
         if let Some(icon) = &app.manager.tray.icon {
           tray = tray.icon(icon.clone());

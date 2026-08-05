@@ -79,6 +79,14 @@ pub struct Options {
   /// Skip code signing when bundling the app
   #[clap(long)]
   pub no_sign: bool,
+  /// Skip patching the main executable with bundle type information.
+  ///
+  /// The patching rewrites the binary in place, invalidating an existing code
+  /// signature. Skipping it preserves an already-signed binary at the cost of
+  /// per-bundle-type updater support (only relevant when shipping multiple
+  /// bundle types per platform).
+  #[clap(long)]
+  pub no_binary_patching: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {

@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 mod cmd;
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test)))]
 mod menu_plugin;
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test)))]
 mod tray;
 
 use serde::Serialize;
@@ -38,8 +38,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   builder: tauri::Builder<R>,
   setup: F,
 ) {
-  #[allow(unused_mut)]
-  let mut builder = builder
+  let builder = builder
     .plugin(
       tauri_plugin_log::Builder::default()
         .level(log::LevelFilter::Info)
@@ -66,15 +65,19 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
+      #[allow(unused_mut)]
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .disable_drag_drop_handler()
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
         });
 
       #[cfg(all(desktop, not(test)))]
       {
+        use std::sync::atomic::{AtomicU64, Ordering};
+
         let app_ = app.handle().clone();
-        let mut created_window_count = std::sync::atomic::AtomicUsize::new(0);
+        let created_window_count = AtomicU64::new(0);
 
         window_builder = window_builder
           .title("Tauri API Validation")
@@ -84,7 +87,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .on_new_window(move |url, features| {
             println!("new window requested: {url:?} {features:?}");
 
-            let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let number = created_window_count.fetch_add(1, Ordering::Relaxed);
 
             let builder = WebviewWindowBuilder::new(
               &app_,
@@ -115,37 +118,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           Ok(())
         }),
       });
-      log::info!("got response: {:?}", response);
-      // when #[cfg(desktop)], Rust will detect pattern as irrefutable
-      #[allow(irrefutable_let_patterns)]
+      log::info!("got response: {response:?}");
       if let Ok(res) = response {
         assert_eq!(res.value, value);
       }
-
-      #[cfg(desktop)]
-      std::thread::spawn(|| {
-        let server = match tiny_http::Server::http("localhost:3003") {
-          Ok(s) => s,
-          Err(e) => {
-            eprintln!("{e}");
-            std::process::exit(1);
-          }
-        };
-        loop {
-          if let Ok(mut request) = server.recv() {
-            let mut body = Vec::new();
-            let _ = request.as_reader().read_to_end(&mut body);
-            let response = tiny_http::Response::new(
-              tiny_http::StatusCode(200),
-              request.headers().to_vec(),
-              std::io::Cursor::new(body),
-              request.body_length(),
-              None,
-            );
-            let _ = request.respond(response);
-          }
-        }
-      });
 
       setup(app);
 
@@ -183,13 +159,12 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
   #[cfg(target_os = "ios")]
   let mut counter = 0;
-  app.run(move |_app_handle, _event| {
-    #[cfg(not(test))]
-    match &_event {
+  app.run(move |_app_handle, event| {
+    match event {
       // Keep the event loop running even if all windows are closed
       // This allow us to catch tray icon events when there is no window
       // if we manually requested an exit (code is Some(_)) we will let it go through
-      #[cfg(desktop)]
+      #[cfg(all(desktop, not(test)))]
       RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
         api.prevent_exit();
       }
@@ -204,7 +179,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         // usually you'd show a dialog here to ask for confirmation or whatever
         api.prevent_close();
         _app_handle
-          .get_webview_window(label)
+          .get_webview_window(&label)
           .unwrap()
           .destroy()
           .unwrap();

@@ -1,5 +1,82 @@
 # Changelog
 
+## \[2.11.5]
+
+### Dependencies
+
+- [`44594d6f1`](https://www.github.com/tauri-apps/tauri/commit/44594d6f1b83856c2c0aec9c5021d7bb9db51a42) ([#15631](https://www.github.com/tauri-apps/tauri/pull/15631) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Unpin `time` as a new fixed version `0.3.53` has been published
+
+## \[2.11.4]
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.11.4`
+- [`0299da0d3`](https://www.github.com/tauri-apps/tauri/commit/0299da0d391d6ebcd1c29d4f6de677d5cb586e56) ([#15616](https://www.github.com/tauri-apps/tauri/pull/15616) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Pinning `time` to `<0.3.52` used by `cookie` to mitigate a compilation error, see
+
+  - https://github.com/tauri-apps/tauri/issues/15615
+  - https://github.com/rwf2/cookie-rs/issues/255
+
+## \[2.11.3]
+
+### Bug Fixes
+
+- [`5075c81a1`](https://www.github.com/tauri-apps/tauri/commit/5075c81a1c7c5e19e648df47766df7ffdb495b0f) ([#15550](https://www.github.com/tauri-apps/tauri/pull/15550) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix double clicking `data-tauri-drag-region` maximizes the window even when `is_maximizable` is set to false
+- [`7af245c60`](https://www.github.com/tauri-apps/tauri/commit/7af245c60b3e7620158499db06545e284461925b) ([#15474](https://www.github.com/tauri-apps/tauri/pull/15474) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `tauri::scope::fs::Scope::once` deadlocks
+- [`4c8bb98cd`](https://www.github.com/tauri-apps/tauri/commit/4c8bb98cd504e9bdca712deb904a0479726dfa15) ([#15475](https://www.github.com/tauri-apps/tauri/pull/15475) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Listener::once` can be called multiple times if they trigger `emit`(s) inside the handler
+- [`66f873d62`](https://www.github.com/tauri-apps/tauri/commit/66f873d623ee3325179047efba85bd0cce0a6658) ([#15491](https://www.github.com/tauri-apps/tauri/pull/15491) by [@bclarke123](https://www.github.com/tauri-apps/tauri/../../bclarke123)) Adjust mutex locking in `send_channel_data_handler`, `handle_android_plugin_response`, `send_channel_data` to avoid deadlocks
+
+### Performance Improvements
+
+- [`e6083a111`](https://www.github.com/tauri-apps/tauri/commit/e6083a1119aba0674743e2e7d27cf12d28968cbf) ([#15220](https://www.github.com/tauri-apps/tauri/pull/15220) by [@DeTeam](https://www.github.com/tauri-apps/tauri/../../DeTeam)) Load `tauri://` custom protocol handlers asynchronously to speed up load time
+- [`800eade58`](https://www.github.com/tauri-apps/tauri/commit/800eade58d1c09d19f283d0a014b9e00bef9cc81) ([#15444](https://www.github.com/tauri-apps/tauri/pull/15444) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Reuse proxy reqwest client in mobile dev, improving the dev load speed
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+- Upgraded to `tauri-runtime-wry@2.11.3`
+- Upgraded to `tauri-runtime@2.11.3`
+- Upgraded to `tauri-macros@2.6.3`
+- Upgraded to `tauri-build@2.6.3`
+- [`504ff3f44`](https://www.github.com/tauri-apps/tauri/commit/504ff3f44eff2c0627eae6664e91e77b838e7ed3) ([#15364](https://www.github.com/tauri-apps/tauri/pull/15364) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated dependency `tray-icon` to 0.24
+
+## \[2.11.2]
+
+### Bug Fixes
+
+- [`47e1b7549`](https://www.github.com/tauri-apps/tauri/commit/47e1b754951bffeedbcd6400928d60755fb954de) ([#15386](https://www.github.com/tauri-apps/tauri/pull/15386) by [@DominikPeters](https://www.github.com/tauri-apps/tauri/../../DominikPeters)) Fixed `Submenu.setAsWindowsMenuForNSApp()` calling the Help menu setter instead of the Window menu setter.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+- Upgraded to `tauri-runtime@2.11.2`
+- Upgraded to `tauri-runtime-wry@2.11.2`
+- Upgraded to `tauri-macros@2.6.2`
+- Upgraded to `tauri-build@2.6.2`
+
+## \[2.11.1]
+
+### Enhancements
+
+- [`5e3126ff7`](https://www.github.com/tauri-apps/tauri/commit/5e3126ff7045aec54811b227cb4d33d78b3957b5) ([#15338](https://www.github.com/tauri-apps/tauri/pull/15338)) Expose the monitor (display) APIs on mobile.
+
+### Bug Fixes
+
+- [`5f479c0c3`](https://www.github.com/tauri-apps/tauri/commit/5f479c0c364d7f5d89a83eaff66fbb7ef5045ce9) ([#15336](https://www.github.com/tauri-apps/tauri/pull/15336)) Fix crash when using the requestPermission API on Android.
+
+### Security fixes
+
+- [`1b26769f9`](https://www.github.com/tauri-apps/tauri/commit/1b26769f92b54b158777a35a7f548f870f4e7901) ([#15266](https://www.github.com/tauri-apps/tauri/pull/15266)) Enforce ACL checks for IPC requests from remote origins even when no `AppManifest` is configured. Previously, custom (non-plugin) commands bypassed ACL entirely without an `AppManifest`, allowing any origin to invoke them. Now, remote origins are always subject to ACL resolution, and can only reach custom commands if an explicit `remote` capability has been granted.
+- [`ba025588f`](https://www.github.com/tauri-apps/tauri/commit/ba025588f3559858f43547e8c04424c47a3c445b) Correctly handle .localhost suffix in local origins on Windows and Android to fix a security issue that made tauri think remote websites that started with a registered scheme were local websites.
+  For example, when registering an `app` custom protocol, Tauri would think `http://app.evil.com/` would be a local URL on Windows/Android.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+- Upgraded to `tauri-runtime@2.11.1`
+- Upgraded to `tauri-runtime-wry@2.11.1`
+- Upgraded to `tauri-macros@2.6.1`
+- Upgraded to `tauri-build@2.6.1`
+
 ## \[2.11.0]
 
 ### New Features

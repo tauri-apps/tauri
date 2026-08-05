@@ -1,5 +1,59 @@
 # Changelog
 
+## \[2.9.3]
+
+### Enhancements
+
+- [`c2b8f4783`](https://www.github.com/tauri-apps/tauri/commit/c2b8f4783217d4a8a9e22b2d333727f4de2c57b0) ([#15373](https://www.github.com/tauri-apps/tauri/pull/15373) by [@MavenRain](https://www.github.com/tauri-apps/tauri/../../MavenRain)) Improve diagnostics for invalid plugin and permission identifiers.
+
+  The `Identifier` deserializer now wraps the inner error with the offending identifier string so the message reads `invalid plugin or permission identifier '<value>': ...`, surfacing the bad entry without requiring a grep through the file.
+
+  The previous parse failure (`failed to parse JSON: identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix at line 16 column 23`) now reads `failed to parse JSON: invalid plugin or permission identifier 'sqlite_proxy:allow-foo': identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix at line 16 column 23`.
+
+### Bug Fixes
+
+- [`2783e6079`](https://www.github.com/tauri-apps/tauri/commit/2783e60793cf4d911ca89d950047817ee3367dfb) ([#15481](https://www.github.com/tauri-apps/tauri/pull/15481) by [@thanhtoantnt](https://www.github.com/tauri-apps/tauri/../../thanhtoantnt)) Fix `Number::Int` being silently coerced to `Number::Float` on `serde_json` round-trip.
+
+  `From<serde_json::Value> for Value` was checking `as_f64()` first, which succeeds for every integer that fits in an f64, so integer JSON numbers were always deserialized as `Number::Float`. The check order is now `as_i64()` → `as_u64()` (cast to `i64`, wrapping for values above `i64::MAX`) → `as_f64()`, matching serde_json's own visitor convention.
+
+## \[2.9.2]
+
+### Bug Fixes
+
+- [`b5b72ce51`](https://www.github.com/tauri-apps/tauri/commit/b5b72ce51811e9f95b1f7e9a05ea19c8f12ce694) ([#15383](https://www.github.com/tauri-apps/tauri/pull/15383) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a regression in tauri-utils 2.8.3 that made empty path an invalid resource target, e.g.
+
+  ```json
+  {
+    "bundle": {
+      "resources": {
+        "README.md": "",
+      }
+    }
+  }
+  ```
+
+  (this means `README.md` -> `$RESOURCE/README.md`, note this is a confusing behavior, and will be changed in v3)
+- [`3fd8ba2c0`](https://www.github.com/tauri-apps/tauri/commit/3fd8ba2c022717068ff6a154ce12942c3a672232) ([#15388](https://www.github.com/tauri-apps/tauri/pull/15388) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a regression in tauri-utils 2.8.3 that made an empty directory makes it skip all the following entries, e.g.
+
+  ```json
+  {
+    "bundle": {
+      "resources": [
+        "empty-directory",
+        "README.md"
+      ]
+    }
+  }
+  ```
+
+  if `empty-directory` is empty, the `README.md` will not be copied to the resource directory (skipped)
+
+## \[2.9.1]
+
+### Dependencies
+
+- [`4f548e739`](https://www.github.com/tauri-apps/tauri/commit/4f548e73947b3b06bf2073c822564aed3dd5f948) ([#15308](https://www.github.com/tauri-apps/tauri/pull/15308)) Updated `phf` to 0.13
+
 ## \[2.9.0]
 
 ### New Features

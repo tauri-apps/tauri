@@ -156,7 +156,7 @@ impl Request<'_> {
     self.body
   }
 
-  /// Thr request headers.
+  /// The request headers.
   pub fn headers(&self) -> &HeaderMap {
     self.headers
   }

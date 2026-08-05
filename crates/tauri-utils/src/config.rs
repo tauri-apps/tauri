@@ -2105,8 +2105,14 @@ pub struct WindowConfig {
   /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
-  /// Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
-  /// so if you use this method, you also need to disable these components by yourself if you want.
+  /// Defines additional browser arguments on Windows.
+  ///
+  /// ## Warning
+  ///
+  /// Webview instances with different browser arguments must also have different [data directories](Self::data_directory).
+  ///
+  /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you set this, you also need to disable these components by yourself if you want.
   #[serde(default, alias = "additional-browser-args")]
   pub additional_browser_args: Option<String>,
   /// Whether or not the window has shadow.

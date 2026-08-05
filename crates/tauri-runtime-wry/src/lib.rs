@@ -157,6 +157,7 @@ mod monitor;
 mod undecorated_resizing;
 mod util;
 mod webview;
+mod webview_permissions;
 mod window;
 
 pub use webview::Webview;
@@ -495,10 +496,7 @@ impl TryFrom<Icon<'_>> for TaoIcon {
 pub struct WindowEventWrapper(pub Option<WindowEvent>);
 
 impl WindowEventWrapper {
-  fn map_from_tao(
-    event: &TaoWindowEvent<'_>,
-    #[allow(unused_variables)] window: &WindowWrapper,
-  ) -> Self {
+  fn map_from_tao(event: &TaoWindowEvent<'_>, #[cfg(windows)] window: &WindowWrapper) -> Self {
     let event = match event {
       TaoWindowEvent::Resized(size) => WindowEvent::Resized(*size),
       TaoWindowEvent::Moved(position) => WindowEvent::Moved(*position),
@@ -557,6 +555,10 @@ impl WindowEventWrapper {
         }
       }
       TaoWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
+      #[cfg(mobile)]
+      TaoWindowEvent::Suspended => WindowEvent::Suspended,
+      #[cfg(mobile)]
+      TaoWindowEvent::Resumed => WindowEvent::Resumed,
       _ => return Self(None),
     };
     Self(Some(event))
@@ -578,7 +580,11 @@ impl WindowEventWrapper {
           Self(None)
         }
       }
-      e => Self::map_from_tao(e, window),
+      e => Self::map_from_tao(
+        e,
+        #[cfg(windows)]
+        window,
+      ),
     }
   }
 }
@@ -4334,39 +4340,6 @@ fn handle_event_loop<T: UserEvent>(
     Event::SceneRequested { scene, options } => {
       callback(RunEvent::SceneRequested { scene, options });
     }
-    #[cfg(mobile)]
-    e @ Event::Resumed | e @ Event::Suspended => {
-      let event = match e {
-        Event::Resumed => WindowEvent::Resumed,
-        Event::Suspended => WindowEvent::Suspended,
-        _ => unreachable!(),
-      };
-
-      // Collect the per-window listener handles and release the `windows`
-      // borrow before dispatching: handlers and the `RunEvent` callback may
-      // create or close windows (`windows.0.borrow_mut()`), which would panic
-      // the `RefCell` if we held the borrow across them. The desktop
-      // `WindowEvent` branches drop the borrow before dispatching for the same
-      // reason; this mobile `Resumed`/`Suspended` branch was the exception.
-      let targets = windows
-        .0
-        .borrow()
-        .values()
-        .map(|w| (w.label.clone(), w.window_event_listeners.clone()))
-        .collect::<Vec<_>>();
-
-      for (label, window_event_listeners) in targets {
-        let listeners = window_event_listeners.lock().unwrap();
-        for handler in listeners.values() {
-          handler(&event);
-        }
-
-        callback(RunEvent::WindowEvent {
-          label,
-          event: event.clone(),
-        });
-      }
-    }
     _ => (),
   }
 }
@@ -4906,6 +4879,14 @@ You may have it installed on another user account, but it is not available for t
   if let Some(document_title_changed_handler) = pending.document_title_changed_handler {
     webview_builder =
       webview_builder.with_document_title_changed_handler(document_title_changed_handler)
+  }
+
+  if let Some(permission_request_handler) = pending.permission_request_handler {
+    webview_builder = webview_builder.with_permission_handler(move |kind| {
+      let kind = webview_permissions::from_wry_permission_kind(kind);
+      let response = permission_request_handler(kind);
+      webview_permissions::to_wry_permission_response(response)
+    });
   }
 
   let webview_bounds = if let Some(bounds) = webview_attributes.bounds {

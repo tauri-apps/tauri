@@ -31,7 +31,6 @@ use schemars::JsonSchema;
 use semver::Version;
 use serde::{
   de::{Deserializer, Error as DeError, Visitor},
-  ser::SerializeMap,
   Deserialize, Serialize, Serializer,
 };
 use serde_json::Value as JsonValue;
@@ -40,7 +39,7 @@ use serde_with::skip_serializing_none;
 use url::Url;
 
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
@@ -2540,16 +2539,11 @@ impl Serialize for Csp {
     match self {
       Self::Policy(policy) => serializer.serialize_str(policy),
       Self::DirectiveMap(map) => {
-        // Serialize sorted so the output is deterministic
+        // Serialize through `BTreeMap` so the output is deterministic
         // see: https://github.com/tauri-apps/tauri/issues/14978
         // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-        let mut sorted: Vec<_> = map.iter().collect();
-        sorted.sort_by_key(|(k, _)| *k);
-        let mut map = serializer.serialize_map(Some(sorted.len()))?;
-        for (key, value) in sorted {
-          map.serialize_entry(key, value)?;
-        }
-        map.end()
+        let btree_map: BTreeMap<_, _> = map.iter().collect();
+        btree_map.serialize(serializer)
       }
     }
   }
@@ -2729,16 +2723,11 @@ impl Serialize for HeaderSource {
       Self::Inline(s) => serializer.serialize_str(s),
       Self::List(l) => l.serialize(serializer),
       Self::Map(m) => {
-        // Serialize sorted so the output is deterministic
+        // Serialize through `BTreeMap` so the output is deterministic
         // see: https://github.com/tauri-apps/tauri/issues/14978
         // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-        let mut sorted: Vec<_> = m.iter().collect();
-        sorted.sort_by_key(|(k, _)| *k);
-        let mut map = serializer.serialize_map(Some(sorted.len()))?;
-        for (key, value) in sorted {
-          map.serialize_entry(key, value)?;
-        }
-        map.end()
+        let btree_map: BTreeMap<_, _> = m.iter().collect();
+        btree_map.serialize(serializer)
       }
     }
   }
@@ -3822,16 +3811,11 @@ impl Serialize for PluginConfig {
   where
     S: Serializer,
   {
-    // Serialize sorted so the output is deterministic
+    // Serialize through `BTreeMap` so the output is deterministic
     // see: https://github.com/tauri-apps/tauri/issues/14978
     // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
-    let mut sorted: Vec<_> = self.0.iter().collect();
-    sorted.sort_by_key(|(k, _)| *k);
-    let mut map = serializer.serialize_map(Some(sorted.len()))?;
-    for (key, value) in sorted {
-      map.serialize_entry(key, value)?;
-    }
-    map.end()
+    let btree_map: BTreeMap<_, _> = self.0.iter().collect();
+    btree_map.serialize(serializer)
   }
 }
 

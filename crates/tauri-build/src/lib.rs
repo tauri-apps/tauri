@@ -207,8 +207,8 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
   Ok(())
 }
 
-// resolves the target dir from `OUT_DIR`, which is
-// `<target-dir>/build/<crate dir>/out` - one crate dir on stable, two on nightly.
+// resolves the target dir from `OUT_DIR`, which is `<target dir>/build/<crate dirs>/out`.
+// there is a single crate dir on stable and two of them on the new nightly layout.
 fn target_dir_from_out_dir(out_dir: &Path) -> Option<&Path> {
   out_dir
     .ancestors()
@@ -795,30 +795,31 @@ mod tests {
 
   #[test]
   fn target_dir_from_stable_out_dir() {
+    let out_dir = Path::new("/app/target/debug/build/app-63ba68eead531e35/out");
+
     assert_eq!(
-      crate::target_dir_from_out_dir(Path::new(
-        "/app/target/debug/build/app-63ba68eead531e35/out"
-      )),
+      crate::target_dir_from_out_dir(out_dir),
       Some(Path::new("/app/target/debug"))
     );
   }
 
   #[test]
   fn target_dir_from_nightly_out_dir() {
+    let out_dir = Path::new("/app/target/debug/build/app/63ba68eead531e35/out");
+
     assert_eq!(
-      crate::target_dir_from_out_dir(Path::new(
-        "/app/target/debug/build/app/63ba68eead531e35/out"
-      )),
+      crate::target_dir_from_out_dir(out_dir),
       Some(Path::new("/app/target/debug"))
     );
   }
 
   #[test]
   fn target_dir_from_out_dir_with_triple() {
+    let out_dir =
+      Path::new("/app/target/aarch64-apple-darwin/release/build/app/63ba68eead531e35/out");
+
     assert_eq!(
-      crate::target_dir_from_out_dir(Path::new(
-        "/app/target/aarch64-apple-darwin/release/build/app/63ba68eead531e35/out"
-      )),
+      crate::target_dir_from_out_dir(out_dir),
       Some(Path::new("/app/target/aarch64-apple-darwin/release"))
     );
   }

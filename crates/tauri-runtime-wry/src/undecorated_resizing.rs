@@ -222,7 +222,7 @@ mod windows {
             SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOMOVE,
           );
         } else {
-          // otherwise updat the cutout region
+          // otherwise update the cutout region
           let mut rect = RECT::default();
           if GetClientRect(parent, &mut rect).is_ok() {
             let width = rect.right - rect.left;
@@ -502,6 +502,7 @@ mod windows {
 #[cfg(not(windows))]
 mod gtk {
   use super::{hit_test, HitTestResult};
+  use gtk::prelude::*;
 
   const BORDERLESS_RESIZE_INSET: i32 = 5;
 
@@ -519,108 +520,127 @@ mod gtk {
         HitTestResult::BottomRight => gtk::gdk::WindowEdge::SouthEast,
       }
     }
+
+    fn to_cursor(self, display: &gtk::gdk::Display) -> Option<gtk::gdk::Cursor> {
+      use gtk::gdk::CursorType;
+
+      let cursor_type = match self {
+        HitTestResult::Left => CursorType::LeftSide,
+        HitTestResult::Right => CursorType::RightSide,
+        HitTestResult::Top => CursorType::TopSide,
+        HitTestResult::Bottom => CursorType::BottomSide,
+        HitTestResult::TopLeft => CursorType::TopLeftCorner,
+        HitTestResult::TopRight => CursorType::TopRightCorner,
+        HitTestResult::BottomLeft => CursorType::BottomLeftCorner,
+        HitTestResult::BottomRight => CursorType::BottomRightCorner,
+        HitTestResult::Client | HitTestResult::NoWhere => return None,
+      };
+
+      gtk::gdk::Cursor::for_display(display, cursor_type)
+    }
+  }
+
+  fn resizable_window(webview: &webkit2gtk::WebView) -> Option<gtk::Window> {
+    let window = webview.parent()?.parent()?.downcast::<gtk::Window>().ok()?;
+    (!window.is_decorated() && window.is_resizable() && !window.is_maximized()).then_some(window)
+  }
+
+  fn hit_test_window(window: &gtk::gdk::Window, x: f64, y: f64) -> HitTestResult {
+    let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
+    hit_test(
+      0.0,
+      0.0,
+      window.width() as f64,
+      window.height() as f64,
+      x,
+      y,
+      border as _,
+      border as _,
+    )
+  }
+
+  fn hit_test_window_root(window: &gtk::gdk::Window, root_x: f64, root_y: f64) -> HitTestResult {
+    let (window_x, window_y) = window.position();
+    hit_test_window(window, root_x - window_x as f64, root_y - window_y as f64)
   }
 
   pub fn attach_resize_handler(webview: &wry::WebView) {
-    use gtk::{
-      gdk::{prelude::*, WindowEdge},
-      glib::Propagation,
-      prelude::*,
-    };
+    use gtk::{gdk::WindowEdge, glib::Propagation};
     use wry::WebViewExtUnix;
 
     let webview = webview.webview();
 
     webview.add_events(
-      gtk::gdk::EventMask::BUTTON1_MOTION_MASK
+      gtk::gdk::EventMask::POINTER_MOTION_MASK
+        | gtk::gdk::EventMask::BUTTON1_MOTION_MASK
         | gtk::gdk::EventMask::BUTTON_PRESS_MASK
         | gtk::gdk::EventMask::TOUCH_MASK,
     );
 
-    webview.connect_button_press_event(
-      move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventButton| {
-        if event.button() == 1 {
-          // This one should be GtkBox
-          if let Some(window) = webview.parent().and_then(|w| w.parent()) {
-            // Safe to unwrap unless this is not from tao
-            let window: gtk::Window = window.downcast().unwrap();
-            if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
-              if let Some(window) = window.window() {
-                let (root_x, root_y) = event.root();
-                let (window_x, window_y) = window.position();
-                let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
-                let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
-                let edge = hit_test(
-                  0.0,
-                  0.0,
-                  window.width() as f64,
-                  window.height() as f64,
-                  client_x,
-                  client_y,
-                  border as _,
-                  border as _,
-                )
-                .to_gtk_edge();
+    webview.connect_motion_notify_event(
+      move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventMotion| {
+        let Some(window) = resizable_window(webview).and_then(|_| webview.window()) else {
+          return Propagation::Proceed;
+        };
 
-                // we ignore the `__Unknown` variant so the webview receives the click correctly if it is not on the edges.
-                match edge {
-                  WindowEdge::__Unknown(_) => (),
-                  _ => {
-                    window.begin_resize_drag(edge, 1, root_x as i32, root_y as i32, event.time())
-                  }
-                }
-              }
-            }
-          }
+        let (x, y) = event.position();
+        let result = hit_test_window(&window, x, y);
+        if matches!(result, HitTestResult::Client | HitTestResult::NoWhere) {
+          return Propagation::Proceed;
         }
 
-        Propagation::Proceed
+        let cursor = result.to_cursor(&window.display());
+        window.set_cursor(cursor.as_ref());
+        Propagation::Stop
+      },
+    );
+
+    webview.connect_button_press_event(
+      move |webview: &webkit2gtk::WebView, event: &gtk::gdk::EventButton| {
+        if event.button() != 1 {
+          return Propagation::Proceed;
+        }
+        let Some(window) = resizable_window(webview).and_then(|w| w.window()) else {
+          return Propagation::Proceed;
+        };
+
+        let (root_x, root_y) = event.root();
+        let edge = hit_test_window_root(&window, root_x, root_y).to_gtk_edge();
+        if matches!(&edge, WindowEdge::__Unknown(_)) {
+          return Propagation::Proceed;
+        }
+
+        window.begin_resize_drag(edge, 1, root_x as i32, root_y as i32, event.time());
+        // Prevent the webview from handling an event claimed by the resize inset
+        Propagation::Stop
       },
     );
 
     webview.connect_touch_event(
       move |webview: &webkit2gtk::WebView, event: &gtk::gdk::Event| {
-        // This one should be GtkBox
-        if let Some(window) = webview.parent().and_then(|w| w.parent()) {
-          // Safe to unwrap unless this is not from tao
-          let window: gtk::Window = window.downcast().unwrap();
-          if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
-            if let Some(window) = window.window() {
-              if let Some((root_x, root_y)) = event.root_coords() {
-                if let Some(device) = event.device() {
-                  let (window_x, window_y) = window.position();
-                  let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
-                  let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
-                  let edge = hit_test(
-                    0.0,
-                    0.0,
-                    window.width() as f64,
-                    window.height() as f64,
-                    client_x,
-                    client_y,
-                    border as _,
-                    border as _,
-                  )
-                  .to_gtk_edge();
+        let Some(window) = resizable_window(webview).and_then(|w| w.window()) else {
+          return Propagation::Proceed;
+        };
+        let Some((root_x, root_y)) = event.root_coords() else {
+          return Propagation::Proceed;
+        };
+        let Some(device) = event.device() else {
+          return Propagation::Proceed;
+        };
 
-                  // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
-                  match edge {
-                    WindowEdge::__Unknown(_) => (),
-                    _ => window.begin_resize_drag_for_device(
-                      edge,
-                      &device,
-                      0,
-                      root_x as i32,
-                      root_y as i32,
-                      event.time(),
-                    ),
-                  }
-                }
-              }
-            }
-          }
+        let edge = hit_test_window_root(&window, root_x, root_y).to_gtk_edge();
+        if matches!(&edge, WindowEdge::__Unknown(_)) {
+          return Propagation::Proceed;
         }
 
+        window.begin_resize_drag_for_device(
+          edge,
+          &device,
+          0,
+          root_x as i32,
+          root_y as i32,
+          event.time(),
+        );
         Propagation::Proceed
       },
     );

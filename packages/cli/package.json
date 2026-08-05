@@ -44,7 +44,7 @@
     "@napi-rs/cli": "3.7.2",
     "@types/node": "^24.11.0",
     "cross-env": "10.1.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">= 10"

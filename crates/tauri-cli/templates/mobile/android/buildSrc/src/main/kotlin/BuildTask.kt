@@ -7,8 +7,6 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import javax.inject.Inject
 import org.gradle.process.ExecOperations
-import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.tasks.Internal
 
 abstract class BuildTask : DefaultTask() {
     @get:Inject
@@ -36,7 +34,7 @@ abstract class BuildTask : DefaultTask() {
                     "$executable.cmd",
                     "$executable.bat",
                 )
-                
+
                 var lastException: Exception = e
                 for (fallback in fallbacks) {
                     try {
@@ -54,9 +52,9 @@ abstract class BuildTask : DefaultTask() {
     }
 
     fun runTauriCli(executable: String) {
-        val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null") as Throwable
-        val target = target ?: throw GradleException("target cannot be null") as Throwable
-        val release = release ?: throw GradleException("release cannot be null") as Throwable
+        val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
+        val target = target ?: throw GradleException("target cannot be null")
+        val release = release ?: throw GradleException("release cannot be null")
         val args = listOf({{quote-and-join tauri-binary-args}});
 
         execOperations.exec {

@@ -391,8 +391,6 @@ impl EmbeddedAssets {
 impl ToTokens for EmbeddedAssets {
   fn to_tokens(&self, tokens: &mut TokenStream) {
     let mut assets = TokenStream::new();
-    // Iterate sorted so the generated code is deterministic
-    // see: https://github.com/tauri-apps/tauri/issues/14978
     for (key, (input, output)) in &self.assets {
       let key: &str = key.as_ref();
       let input = input.display().to_string();

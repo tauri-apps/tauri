@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
 plugins {
@@ -52,12 +51,6 @@ android {
     }
     buildFeatures {
         buildConfig = true
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = JvmTarget.JVM_1_8
     }
 }
 

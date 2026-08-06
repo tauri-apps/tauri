@@ -207,8 +207,10 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
   Ok(())
 }
 
-// resolves the target dir from `OUT_DIR`, which is `<target dir>/build/<crate dirs>/out`.
-// there is a single crate dir on stable and two of them on the new nightly layout.
+// TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
+// resolves the target dir from `OUT_DIR`, which is `<target dir>/build/<pkg>-<hash>/out` on stable
+// and `<target dir>/build/<pkg>/<hash>/out` on recent nightlies, so we walk up to the `build` dir
+// and take its parent instead of assuming a fixed depth.
 fn target_dir_from_out_dir(out_dir: &Path) -> Option<&Path> {
   out_dir
     .ancestors()
@@ -584,7 +586,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   // when running codegen in this build script, we need to access the env var directly
   env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
 
-  // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = target_dir_from_out_dir(&out_dir)
     .with_context(|| format!("failed to resolve the target directory from {out_dir:?}"))?;
 

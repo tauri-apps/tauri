@@ -77,7 +77,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: build and install CLI
-        run: cargo install tauri-cli --path ./crates/tauri-cli/ --debug
+        run: cargo install tauri-cli --path ./crates/tauri-cli/ --locked --debug
 
       - run: pnpm i --frozen-lockfile
 

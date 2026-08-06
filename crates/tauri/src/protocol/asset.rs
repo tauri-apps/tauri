@@ -11,19 +11,25 @@ use std::{borrow::Cow, io::SeekFrom};
 use tauri_utils::mime_type::MimeType;
 
 pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
-  Box::new(
-    move |_, request, responder| match get_response(request, &scope, &window_origin) {
-      Ok(response) => responder.respond(response),
-      Err(e) => responder.respond(
-        http::Response::builder()
-          .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-          .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-          .header("Access-Control-Allow-Origin", &window_origin)
-          .body(e.to_string().into_bytes())
-          .unwrap(),
-      ),
-    },
-  )
+  Box::new(move |_, request, responder| {
+    let scope = scope.clone();
+    let window_origin = window_origin.clone();
+    // `get_response` performs blocking filesystem I/O, so it must not run on the
+    // thread the webview calls us on, otherwise the whole event loop stalls.
+    crate::async_runtime::spawn_blocking(move || {
+      match get_response(request, &scope, &window_origin) {
+        Ok(response) => responder.respond(response),
+        Err(e) => responder.respond(
+          http::Response::builder()
+            .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+            .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+            .header("Access-Control-Allow-Origin", &window_origin)
+            .body(e.to_string().into_bytes())
+            .unwrap(),
+        ),
+      }
+    });
+  })
 }
 
 fn get_response(
@@ -235,4 +241,77 @@ fn random_boundary() -> String {
       a.push_str(x.as_str());
       a
     })
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+  use crate::app::UriSchemeResponder;
+  use crate::Manager;
+  use std::sync::mpsc::{channel, TryRecvError};
+  use std::time::Duration;
+
+  /// The handler must hand the request off and return, rather than reading the
+  /// file on the thread the webview called it on.
+  ///
+  /// A FIFO stands in for a slow or unreachable path: opening one for reading
+  /// blocks until a writer appears, which is the same shape as the unreachable
+  /// network share in #7434 without needing one. If the read happened inline,
+  /// `handler(..)` below would not return until the writer thread runs.
+  #[test]
+  fn does_not_block_the_calling_thread() {
+    let dir = std::env::temp_dir().join(format!("tauri-asset-protocol-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("blocking-asset");
+    let _ = std::fs::remove_file(&path);
+    assert!(std::process::Command::new("mkfifo")
+      .arg(&path)
+      .status()
+      .unwrap()
+      .success());
+
+    let app = crate::test::mock_app();
+    let scope = app.asset_protocol_scope();
+    scope.allow_file(&path).unwrap();
+
+    let handler = super::get(scope, "tauri://localhost".into());
+
+    let (tx, rx) = channel();
+    let responder = UriSchemeResponder(Box::new(move |response| {
+      let _ = tx.send(response);
+    }));
+
+    let encoded = percent_encoding::percent_encode(
+      path.to_str().unwrap().as_bytes(),
+      percent_encoding::NON_ALPHANUMERIC,
+    );
+    let request = http::Request::builder()
+      .uri(format!("asset://localhost/{encoded}"))
+      .body(Vec::new())
+      .unwrap();
+
+    // call the handler off the test thread so a regression fails the test instead
+    // of hanging it
+    let (returned_tx, returned_rx) = channel();
+    std::thread::spawn(move || {
+      handler("main", request, responder);
+      let _ = returned_tx.send(());
+    });
+    returned_rx
+      .recv_timeout(Duration::from_secs(30))
+      .expect("asset protocol handler did not return before reading the file");
+
+    // it cannot have read the file yet, because nothing has opened the write end
+    // of the FIFO
+    assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
+
+    // unblock the read so the request resolves instead of leaking a blocked thread
+    std::thread::spawn(move || {
+      let _ = std::fs::write(&path, b"tauri");
+    });
+
+    rx.recv_timeout(Duration::from_secs(30))
+      .expect("asset protocol never responded");
+
+    let _ = std::fs::remove_dir_all(&dir);
+  }
 }

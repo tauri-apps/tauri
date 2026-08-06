@@ -76,16 +76,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: build CLI
-        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
-
-      - name: move CLI to cargo bin dir
-        if: matrix.platform != 'windows-latest'
-        run: mv ./target/debug/cargo-tauri $HOME/.cargo/bin
-
-      - name: move CLI to cargo bin dir
-        if: matrix.platform == 'windows-latest'
-        run: mv ./target/debug/cargo-tauri.exe $HOME/.cargo/bin
+      - name: build and install CLI
+        run: cargo install tauri-cli --path ./crates/tauri-cli/ --debug
 
       - run: pnpm i --frozen-lockfile
 

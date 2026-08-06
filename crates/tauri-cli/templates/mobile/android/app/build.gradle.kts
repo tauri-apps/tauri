@@ -43,11 +43,14 @@ android {
             }
         }
         getByName("release") {
-            isMinifyEnabled = true
+            optimization {
+               enable = true
+            }
             proguardFiles(
-                *fileTree(".") { include("**/*.pro") }
-                    .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
-                    .toList().toTypedArray()
+                *fileTree(".") {
+                  include("**/*.pro")
+                  exclude("build/**")
+                }.files.toTypedArray()
             )
         }
     }

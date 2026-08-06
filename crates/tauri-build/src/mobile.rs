@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{collections::HashSet, path::PathBuf};
+use std::{
+  collections::HashSet,
+  path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result};
 use tauri_utils::{config::AndroidIntentAction, write_if_changed};
@@ -156,6 +159,42 @@ dependencies {
   implementation(\"androidx.lifecycle:lifecycle-process:2.10.0\")"
     .to_string();
 
+  for (plugin_name, plugin_path) in android_libraries() {
+    if let Err(error) = fix_missing_consumer_proguard_file(&plugin_path) {
+      eprintln!(
+        "Failed to fix missing `consumer-rules.pro` for {}: {error}",
+        tauri_utils::display_path(&plugin_path)
+      )
+    }
+
+    gradle_settings.push_str(&format!("include ':{plugin_name}'"));
+    gradle_settings.push('\n');
+    gradle_settings.push_str(&format!(
+      "project(':{plugin_name}').projectDir = new File({:?})",
+      tauri_utils::display_path(plugin_path)
+    ));
+    gradle_settings.push('\n');
+
+    app_build_gradle.push('\n');
+    app_build_gradle.push_str(&format!(r#"  implementation(project(":{plugin_name}"))"#));
+  }
+  app_build_gradle.push_str("\n}");
+
+  // Overwrite only if changed to not trigger rebuilds
+  write_if_changed(&gradle_settings_path, gradle_settings)
+    .context("failed to write tauri.settings.gradle")?;
+
+  write_if_changed(&app_build_gradle_path, app_build_gradle)
+    .context("failed to write tauri.build.gradle.kts")?;
+
+  println!("cargo:rerun-if-changed={}", gradle_settings_path.display());
+  println!("cargo:rerun-if-changed={}", app_build_gradle_path.display());
+
+  Ok(())
+}
+
+fn android_libraries() -> Vec<(String, PathBuf)> {
+  let mut plugins = Vec::new();
   for (env, value) in std::env::vars_os() {
     let env = env.to_string_lossy();
     if env.starts_with("DEP_") && env.ends_with("_ANDROID_LIBRARY_PATH") {
@@ -171,31 +210,30 @@ dependencies {
         plugin_name = "tauri-android".into();
       }
       let plugin_path = PathBuf::from(value);
-
-      gradle_settings.push_str(&format!("include ':{plugin_name}'"));
-      gradle_settings.push('\n');
-      gradle_settings.push_str(&format!(
-        "project(':{plugin_name}').projectDir = new File({:?})",
-        tauri_utils::display_path(plugin_path)
-      ));
-      gradle_settings.push('\n');
-
-      app_build_gradle.push('\n');
-      app_build_gradle.push_str(&format!(r#"  implementation(project(":{plugin_name}"))"#));
+      plugins.push((plugin_name, plugin_path));
     }
   }
+  plugins
+}
 
-  app_build_gradle.push_str("\n}");
+// Our old template had a bug that caused missing `consumer-rules.pro` files,
+// try to fix it here as a work around
+// See https://github.com/tauri-apps/tauri/pull/15828#issuecomment-5199937796
+fn fix_missing_consumer_proguard_file(plugin_path: &Path) -> std::io::Result<()> {
+  let consumer_rules = plugin_path.join("consumer-rules.pro");
+  if consumer_rules.exists() {
+    return Ok(());
+  }
 
-  // Overwrite only if changed to not trigger rebuilds
-  write_if_changed(&gradle_settings_path, gradle_settings)
-    .context("failed to write tauri.settings.gradle")?;
+  let build_gradle = plugin_path.join("build.gradle.kts");
+  if !build_gradle.exists() {
+    return Ok(());
+  }
 
-  write_if_changed(&app_build_gradle_path, app_build_gradle)
-    .context("failed to write tauri.build.gradle.kts")?;
-
-  println!("cargo:rerun-if-changed={}", gradle_settings_path.display());
-  println!("cargo:rerun-if-changed={}", app_build_gradle_path.display());
+  let content = std::fs::read_to_string(build_gradle)?;
+  if content.contains(r#"consumerProguardFiles("consumer-rules.pro")"#) {
+    std::fs::write(consumer_rules, "")?;
+  }
 
   Ok(())
 }

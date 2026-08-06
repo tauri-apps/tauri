@@ -36,12 +36,6 @@ jobs:
       - name: install Rust 1.90
         uses: dtolnay/rust-toolchain@1.90
 
-      - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1
-
       - run: npm i -g --force corepack
       - name: setup node
         uses: actions/setup-node@v7

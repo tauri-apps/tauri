@@ -37,7 +37,7 @@ android {
             isJniDebuggable = true
             isMinifyEnabled = false
             packaging {
-                {{~#each abi-list}}
+                {{#each abi-list}}
                 jniLibs.keepDebugSymbols.add("*/{{this}}/*.so")
                 {{/each}}
             }

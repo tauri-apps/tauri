@@ -169,7 +169,7 @@ fn get_response(
       let boundary_sep = format!("\r\n--{boundary}\r\n");
       let boundary_closer = format!("\r\n--{boundary}--\r\n");
 
-      // replace the sniffed file mime type set earlier, `Builder::header` would append instead
+      // `Builder::header` appends, so replace the file mime type set earlier
       if let Some(headers) = resp.headers_mut() {
         headers.insert(
           CONTENT_TYPE,
@@ -205,6 +205,7 @@ fn get_response(
 
         buf
       };
+
       resp = resp.status(StatusCode::PARTIAL_CONTENT);
       resp.body(buf.into())
     }
@@ -252,7 +253,10 @@ mod tests {
   fn multi_range_request() {
     let app = crate::test::mock_app();
 
-    let path = std::env::temp_dir().join("tauri-asset-protocol-multi-range.bin");
+    let path = std::env::temp_dir().join(format!(
+      "tauri-asset-protocol-multi-range-{}.bin",
+      std::process::id()
+    ));
     std::fs::write(&path, vec![b'a'; 1000]).unwrap();
 
     let scope = Scope::new(&app, &FsScope::default()).unwrap();
@@ -271,6 +275,7 @@ mod tests {
       .unwrap();
 
     let response = get_response(request, &scope, "http://tauri.localhost").unwrap();
+    std::fs::remove_file(&path).unwrap();
 
     assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
 

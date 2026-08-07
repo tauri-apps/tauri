@@ -1,11 +1,10 @@
 ---
 tauri: minor:deps
-tauri-build: minor:deps
 tauri-cli: minor:deps
 "tauri-apps/cli": minor:deps
 ---
 
-On Android, fix missing `consumer-rules.pro` file in the template and try to work around missing `consumer-rules.pro` files for plugins in `tauri-build`.
+On Android, fix missing `consumer-rules.pro` file in the template.
 
 **IMPORTANT**: For plugin authors, update your `build.gradle.kts` file to remove the
 
@@ -21,4 +20,4 @@ On Android, fix missing `consumer-rules.pro` file in the template and try to wor
     }
 ```
 
-section and rename your `proguard-rules.pro` to `consumer-rules.pro`.
+section and rename your `proguard-rules.pro` to `consumer-rules.pro` to match the `consumerProguardFiles("consumer-rules.pro")` in the template.

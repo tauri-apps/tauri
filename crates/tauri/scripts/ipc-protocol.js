@@ -16,6 +16,23 @@
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
   let customProtocolIpcFailed = false
 
+  // Tracks whether the document is being torn down (a reload or navigation).
+  // When that happens, any in-flight custom protocol `fetch` is aborted by the
+  // webview and its promise rejects. We must not treat that as a custom
+  // protocol failure and re-send the message over the postMessage fallback,
+  // because the command may already be running on the backend and would be
+  // invoked a second time. See https://github.com/tauri-apps/tauri/issues/14154
+  let documentIsUnloading = false
+  const markUnloading = () => {
+    documentIsUnloading = true
+  }
+  // `pagehide` covers reloads/navigations across all supported webviews;
+  // `beforeunload` fires earlier on Chromium (WebView2) so the flag is set
+  // before the aborted fetch's rejection handler runs. Both are passive (they
+  // never call `preventDefault`/set `returnValue`), so no unload prompt shows.
+  window.addEventListener('pagehide', markUnloading)
+  window.addEventListener('beforeunload', markUnloading)
+
   // on Android we never use it because Android does not have support to reading the request body
   const canUseCustomProtocol = osName !== 'android'
 
@@ -57,6 +74,13 @@
             window.__TAURI_INTERNALS__.runCallback(callbackId, data)
           },
           (e) => {
+            // the document is unloading (reload/navigation), so the fetch was
+            // aborted rather than blocked. Re-sending over postMessage would
+            // re-invoke a command that may already be running on the backend,
+            // so bail out. See https://github.com/tauri-apps/tauri/issues/14154
+            if (documentIsUnloading) {
+              return
+            }
             console.warn(
               'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
               e

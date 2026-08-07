@@ -225,6 +225,18 @@ impl Keychain {
       args.push("runtime");
     }
 
+    // Force a 4 KB code-signing page size.
+    //
+    // On Apple Silicon `codesign` may produce a code signature that uses a 16 KB
+    // page size. macOS 26 (Tahoe)'s AMFI fails to load such signatures for
+    // larger binaries, killing the app at launch with "Attempt to execute
+    // completely unsigned code" even though `codesign --verify` still passes.
+    // 4 KB pages are the long-standing default (already used on x86_64) and are
+    // universally supported, so pinning the page size restores a working default.
+    // https://github.com/tauri-apps/tauri/issues/15801
+    args.push("--pagesize");
+    args.push("4096");
+
     let mut codesign = Command::new("codesign");
     codesign.args(args);
     if let Some(p) = &self.path {

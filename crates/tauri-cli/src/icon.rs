@@ -357,6 +357,8 @@ pub fn command(options: Options) -> Result<()> {
     ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
     png(&source, &out_dir, bg_color).context("Failed to generate png icons")?;
+    open_harmony(&source, &manifest, &bg_color_string, &out_dir)
+      .context("Failed to generate OpenHarmony icons")?;
     android(&source, &input, manifest, &bg_color_string, &out_dir)
       .context("Failed to generate android icons")?;
   } else {
@@ -736,6 +738,93 @@ fn android(
   launcher_file
     .write_all(launcher_content.as_bytes())
     .fs_context("failed to write Android launcher file", &launcher_xml_path)?;
+
+  Ok(())
+}
+
+// Generate OpenHarmony layered launcher icons: `background.png` (solid
+// color), `foreground.png` (source centered on a transparent canvas), and
+// `startIcon.png` (plain square icon). Written into the generated
+// `gen/ohos` media dirs when they exist (i.e. after `tauri ohos init`), or
+// into `icons/ohos` otherwise for a later init to consume.
+fn open_harmony(
+  source: &Source,
+  manifest: &Option<Manifest>,
+  bg_color: &String,
+  out_dir: &Path,
+) -> Result<()> {
+  let gen_ohos = out_dir.parent().unwrap().join("gen/ohos");
+  let entry_media = gen_ohos.join("entry/src/main/resources/base/media");
+  let appscope_media = gen_ohos.join("AppScope/resources/base/media");
+
+  let entry_out = if entry_media.exists() {
+    entry_media
+  } else {
+    let out = out_dir.join("ohos");
+    create_dir_all(&out).fs_context("Can't create OpenHarmony output directory", &out)?;
+    out
+  };
+  let appscope_out = if appscope_media.exists() {
+    appscope_media
+  } else {
+    entry_out.clone()
+  };
+
+  let bg_color = parse_bg_color(bg_color)?;
+
+  // foreground.png: source centered on a transparent 1024 canvas, scaled to
+  // the safe zone so the icon doesn't butt against the square edges.
+  let fg_scale = manifest
+    .as_ref()
+    .and_then(|manifest| manifest.android_fg_scale)
+    .unwrap_or(80.0);
+  let foreground = resize_asset(&source.resize_exact(1024), 1024, fg_scale);
+
+  // background.png: solid color canvas.
+  let background = DynamicImage::ImageRgba8(ImageBuffer::from_pixel(1024, 1024, bg_color));
+
+  // startIcon.png: the plain square icon (content fills the canvas).
+  let start_icon = resize_asset(&source.resize_exact(144), 144, 100.0);
+
+  for dir in [&entry_out, &appscope_out] {
+    create_dir_all(dir).fs_context("Can't create OpenHarmony media directory", dir)?;
+
+    let foreground_path = dir.join("foreground.png");
+    log::info!(action = "OpenHarmony"; "Creating {}", foreground_path.display());
+    let mut out_file = BufWriter::new(
+      File::create(&foreground_path)
+        .fs_context("failed to create OpenHarmony foreground", &foreground_path)?,
+    );
+    write_png(foreground.as_bytes(), &mut out_file, 1024)
+      .context("failed to write OpenHarmony foreground")?;
+    out_file
+      .flush()
+      .fs_context("failed to flush OpenHarmony foreground", &foreground_path)?;
+
+    let background_path = dir.join("background.png");
+    log::info!(action = "OpenHarmony"; "Creating {}", background_path.display());
+    let mut out_file = BufWriter::new(
+      File::create(&background_path)
+        .fs_context("failed to create OpenHarmony background", &background_path)?,
+    );
+    write_png(background.as_bytes(), &mut out_file, 1024)
+      .context("failed to write OpenHarmony background")?;
+    out_file
+      .flush()
+      .fs_context("failed to flush OpenHarmony background", &background_path)?;
+
+    let start_icon_path = dir.join("startIcon.png");
+    log::info!(action = "OpenHarmony"; "Creating {}", start_icon_path.display());
+    let mut out_file = BufWriter::new(
+      File::create(&start_icon_path)
+        .fs_context("failed to create OpenHarmony startIcon", &start_icon_path)?,
+    );
+    write_png(start_icon.as_bytes(), &mut out_file, 144)
+      .context("failed to write OpenHarmony startIcon")?;
+    out_file
+      .flush()
+      .fs_context("failed to flush OpenHarmony startIcon", &start_icon_path)?;
+  }
 
   Ok(())
 }

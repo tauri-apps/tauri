@@ -14,7 +14,10 @@ function tauriPlugin(): HvigorPlugin {
     apply(node: HvigorNode) {
       const buildRustCode = () => {
         const properties = hvigor.getParameter().getProperties();
-        const target = properties.target || "aarch64";
+        // Priority: TAURI_OHOS_TARGET env var > hvigor `target` property >
+        // aarch64 (the default device architecture; override to x86_64 for
+        // the OpenHarmony emulator).
+        const target = process.env.TAURI_OHOS_TARGET || properties.target || "aarch64";
         execFileSync(`{{tauri-binary}}`,
           [{{quote-and-join tauri-binary-args}}, "--target", target.toString()], {
             cwd: resolve(__dirname, "{{root-dir-rel}}"),

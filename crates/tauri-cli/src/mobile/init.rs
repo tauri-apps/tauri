@@ -121,8 +121,9 @@ fn exec(
   build_args.push(target.ide_build_script_name());
 
   let mut binary = binary.to_string_lossy().to_string();
-  if binary.ends_with(".exe") || binary.ends_with(".cmd") || binary.ends_with(".bat") {
-    // remove Windows-only extension
+  if binary.ends_with(".cmd") || binary.ends_with(".bat") {
+    // Command shims are resolved through PATHEXT, but an absolute executable
+    // path passed to Node's execFileSync must retain its `.exe` extension.
     binary.pop();
     binary.pop();
     binary.pop();

@@ -373,31 +373,44 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
   let runtime = tokio::runtime::Runtime::new().unwrap();
   let options = runtime
     .block_on(async move {
+      // The options WebSocket server is only available while a `tauri dev`
+      // (watch) process is running. IDE-driven builds (DevEco Studio Run,
+      // hvigor `dev-eco-studio-script`) should not fail just because the dev
+      // server is not running: fall back to default options instead.
       let addr_path = temp_dir().join(format!(
         "{}-server-addr",
         config
           .original_identifier()
           .context("app configuration is missing an identifier")?
       ));
-      let (tx, rx) = WsTransportClientBuilder::default()
-        .build(
-          format!(
-            "ws://{}",
-            read_to_string(&addr_path).unwrap_or_else(|e| panic!(
-              "failed to read missing addr file {}: {e}",
-              addr_path.display()
-            ))
-          )
-          .parse()
-          .unwrap(),
-        )
+      let addr_text = match read_to_string(&addr_path) {
+        Ok(text) => text,
+        Err(e) => {
+          log::warn!(
+            "failed to read options server address file {}: {e}; using default CLI options",
+            addr_path.display()
+          );
+          return Ok::<CliOptions, Error>(CliOptions::default());
+        }
+      };
+      let (tx, rx) = match WsTransportClientBuilder::default()
+        .build(format!("ws://{}", addr_text).parse().unwrap())
         .await
-        .context("failed to build WebSocket client")?;
+      {
+        Ok(transport) => transport,
+        Err(e) => {
+          log::warn!("failed to connect to options server: {e}; using default CLI options");
+          return Ok::<CliOptions, Error>(CliOptions::default());
+        }
+      };
       let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
-      let options: CliOptions = client
-        .request("options", rpc_params![])
-        .await
-        .context("failed to request options")?;
+      let options: CliOptions = match client.request("options", rpc_params!()).await {
+        Ok(options) => options,
+        Err(e) => {
+          log::warn!("failed to request options from dev server: {e}; using default CLI options");
+          return Ok::<CliOptions, Error>(CliOptions::default());
+        }
+      };
       Ok::<CliOptions, Error>(options)
     })
     .expect("failed to read CLI options");

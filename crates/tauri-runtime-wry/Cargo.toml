@@ -12,11 +12,16 @@ license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
-[dependencies]
+[target.'cfg(not(target_env = "ohos"))'.dependencies]
 wry = { version = "0.56.0", default-features = false, features = [
   "os-webview",
   "linux-body",
 ] }
+
+[target.'cfg(target_env = "ohos")'.dependencies]
+wry = { version = "0.56.0", default-features = false, features = ["os-webview"] }
+
+[dependencies]
 tao = { version = "0.36.0", default-features = false, features = ["rwh_06"] }
 tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
 tauri-utils = { version = "2.9.3", path = "../tauri-utils" }

@@ -10,7 +10,7 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "{{app.stylized-name}}"
     }
   ]
 }

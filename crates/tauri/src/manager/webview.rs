@@ -40,7 +40,12 @@ use super::{
 // and we do not get a secure context without the custom protocol that proxies to the dev server
 // additionally, we need the custom protocol to inject the initialization scripts on Android
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
-pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
+// OpenHarmony is excluded: ArkWeb cannot run `evaluate_script` (the IPC
+// response channel) on documents served through the tauri:// proxy from an
+// HTTP dev server, which makes every invoke hang. Loading the devUrl
+// directly (http://localhost:3000, reachable via the hdc rport forward the
+// CLI sets up) keeps IPC, eval and RSC navigation working.
+pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile)) && !cfg!(target_env = "ohos");
 
 pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
   include_str!("../../scripts/process-ipc-message-fn.js");

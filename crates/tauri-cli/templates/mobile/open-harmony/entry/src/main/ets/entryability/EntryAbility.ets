@@ -24,12 +24,13 @@ export default class EntryAbility extends RustAbility {
   }
 
   /**
-   * Back key handling: when any WebView can navigate back, go back and
-   * consume the event instead of exiting the app; fall through to the
-   * system default when there is no history. The controller is registered
-   * by the openharmony-ability DefaultXComponent under this key when the
-   * WebView is created (this SDK exposes no getAllWebControllers /
-   * findControllerByName static API).
+   * Back key handling at the ability level. The page-level onBackPress
+   * (MainPage) navigates the WebView back first; when there is no history
+   * the event reaches here and we move the app to the background instead of
+   * destroying it (true keeps the instance alive, false destroys it). The
+   * controller is registered to AppStorage by DefaultXComponent under this
+   * key when the WebView is created (this SDK exposes no
+   * getAllWebControllers / findControllerByName static API).
    */
   onBackPressed(): boolean {
     try {
@@ -37,11 +38,11 @@ export default class EntryAbility extends RustAbility {
         "ohos.rs.ability.webviewController",
       );
       if (controller && typeof controller.backwardIfPossible === "function") {
-        return controller.backwardIfPossible();
+        controller.backwardIfPossible();
       }
     } catch (e) {
       console.error('[EntryAbility] back handling failed:', e);
     }
-    return false;
+    return true;
   }
 }

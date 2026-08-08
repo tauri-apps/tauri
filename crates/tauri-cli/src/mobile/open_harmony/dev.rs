@@ -91,7 +91,12 @@ pub struct Options {
   /// When this is set or when running on an iOS device the CLI sets the `TAURI_DEV_HOST`
   /// environment variable so you can check this on your framework's configuration to expose the development server
   /// on the public network address.
-  #[clap(long, default_value_t, default_missing_value(""), num_args(0..=1))]
+  #[clap(
+    long,
+    default_value("<none>"),
+    default_missing_value(""),
+    num_args(0..=1)
+  )]
   pub host: DevHost,
   /// Disable the built-in dev server for static files.
   #[clap(long)]

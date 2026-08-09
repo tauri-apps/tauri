@@ -109,6 +109,10 @@ impl Keychain {
         .arg("-P")
         .arg(certificate_password)
         .args([
+          "-f",
+          "pkcs12",
+          "-t",
+          "cert",
           "-T",
           "/usr/bin/codesign",
           "-T",

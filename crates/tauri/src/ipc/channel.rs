@@ -42,8 +42,8 @@ static CHANNEL_COUNTER: AtomicU32 = AtomicU32::new(0);
 static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
-#[derive(Default, Clone)]
-pub struct ChannelDataIpcQueue(Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
+#[derive(Default)]
+pub struct ChannelDataIpcQueue(HashMap<u32, InvokeResponseBody>);
 
 /// An IPC channel.
 pub struct Channel<TSend = InvokeResponseBody> {
@@ -169,10 +169,10 @@ impl JavaScriptChannelId {
             let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
             webview
-              .state::<ChannelDataIpcQueue>()
-              .0
+              .state::<Mutex<ChannelDataIpcQueue>>()
               .lock()
               .unwrap()
+              .0
               .insert(data_id, body);
 
             webview.eval(format!(
@@ -265,10 +265,10 @@ impl<TSend> Channel<TSend> {
             let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
             webview
-              .state::<ChannelDataIpcQueue>()
-              .0
+              .state::<Mutex<ChannelDataIpcQueue>>()
               .lock()
               .unwrap()
+              .0
               .insert(data_id, body);
 
             webview.eval(format!(
@@ -318,7 +318,7 @@ impl<'de, R: Runtime, TSend> CommandArg<'de, R> for Channel<TSend> {
 #[command(root = "crate")]
 fn fetch(
   request: Request<'_>,
-  cache: State<'_, ChannelDataIpcQueue>,
+  cache: State<'_, Mutex<ChannelDataIpcQueue>>,
 ) -> Result<Response, &'static str> {
   if let Some(id) = request
     .headers()
@@ -326,7 +326,7 @@ fn fetch(
     .and_then(|v| v.to_str().ok())
     .and_then(|id| id.parse().ok())
   {
-    if let Some(data) = cache.0.lock().unwrap().remove(&id) {
+    if let Some(data) = cache.lock().unwrap().0.remove(&id) {
       Ok(Response::new(data))
     } else {
       Err("data not found")

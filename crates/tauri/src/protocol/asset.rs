@@ -85,8 +85,6 @@ fn get_response(
     )
   };
 
-  resp = resp.header(CONTENT_TYPE, &mime_type);
-
   // handle 206 (partial range) http requests
   let response = if let Some(range_header) = request
     .headers()
@@ -145,6 +143,7 @@ fn get_response(
 
       resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
       resp = resp.header(CONTENT_LENGTH, end + 1 - start);
+      resp = resp.header(CONTENT_TYPE, &mime_type);
       resp = resp.status(StatusCode::PARTIAL_CONTENT);
       resp.body(buf.into())
     } else {
@@ -167,12 +166,13 @@ fn get_response(
 
       let boundary = random_boundary();
       let boundary_sep = format!("\r\n--{boundary}\r\n");
-      let boundary_closer = format!("\r\n--{boundary}\r\n");
+      let boundary_closer = format!("\r\n--{boundary}--");
 
       resp = resp.header(
         CONTENT_TYPE,
         format!("multipart/byteranges; boundary={boundary}"),
       );
+      resp = resp.status(StatusCode::PARTIAL_CONTENT);
 
       let buf = {
         // multi-part range header
@@ -206,6 +206,7 @@ fn get_response(
     }
   } else if request.method() == http::Method::HEAD {
     // if the HEAD method is used, we should not return a body
+    resp = resp.header(CONTENT_TYPE, &mime_type);
     resp = resp.header(CONTENT_LENGTH, len);
     resp.body(Vec::new().into())
   } else {
@@ -218,6 +219,7 @@ fn get_response(
       file.read_to_end(&mut local_buf)?;
       local_buf
     };
+    resp = resp.header(CONTENT_TYPE, &mime_type);
     resp = resp.header(CONTENT_LENGTH, len);
     resp.body(buf.into())
   };

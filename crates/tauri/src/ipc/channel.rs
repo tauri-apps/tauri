@@ -17,7 +17,7 @@ use crate::{
   command,
   ipc::{CommandArg, CommandItem},
   plugin::{Builder as PluginBuilder, TauriPlugin},
-  Manager, Runtime, State, Webview,
+  Runtime, State, Webview,
 };
 
 use super::{
@@ -44,6 +44,12 @@ static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default)]
 pub struct ChannelDataIpcQueue(HashMap<u32, InvokeResponseBody>);
+
+impl ChannelDataIpcQueue {
+  fn insert(&mut self, data_id: u32, body: InvokeResponseBody) -> Option<InvokeResponseBody> {
+    self.0.insert(data_id, body)
+  }
+}
 
 /// An IPC channel.
 pub struct Channel<TSend = InvokeResponseBody> {
@@ -169,10 +175,10 @@ impl JavaScriptChannelId {
             let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
             webview
-              .state::<Mutex<ChannelDataIpcQueue>>()
+              .manager
+              .data_ipc_queue()
               .lock()
               .unwrap()
-              .0
               .insert(data_id, body);
 
             webview.eval(format!(
@@ -265,10 +271,10 @@ impl<TSend> Channel<TSend> {
             let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
             webview
-              .state::<Mutex<ChannelDataIpcQueue>>()
+              .manager
+              .data_ipc_queue()
               .lock()
               .unwrap()
-              .0
               .insert(data_id, body);
 
             webview.eval(format!(

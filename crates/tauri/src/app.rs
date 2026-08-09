@@ -5,8 +5,7 @@
 use crate::{
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
-    InvokeHandler, InvokeResponseBody,
+    CallbackFn, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler, InvokeResponseBody,
   },
   manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
@@ -2450,7 +2449,6 @@ tauri::Builder::default()
       )?,
     });
 
-    app.manage(ChannelDataIpcQueue::default());
     app.handle.plugin(crate::ipc::channel::plugin())?;
 
     let handle = app.handle();

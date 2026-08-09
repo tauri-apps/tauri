@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-  ipc::{CommandArg, CommandItem, InvokeError},
+  ipc::{channel::ChannelDataIpcQueue, CommandArg, CommandItem, InvokeError},
   menu::plugin::MenuChannels,
   Env, Runtime,
 };
@@ -109,6 +109,7 @@ pub struct StateManager {
   // state of some required plugins
   menu_channels: Mutex<MenuChannels>,
   env: Env,
+  data_ipc_queue: Mutex<ChannelDataIpcQueue>,
 }
 
 impl std::fmt::Debug for StateManager {
@@ -125,6 +126,7 @@ impl StateManager {
       map: Default::default(),
       menu_channels: Default::default(),
       env: Env::default(),
+      data_ipc_queue: Default::default(),
     }
   }
 
@@ -178,6 +180,13 @@ impl StateManager {
             .unwrap(),
         ))
       }
+      tyid if tyid == TypeId::of::<Mutex<ChannelDataIpcQueue>>() => {
+        return Some(State(
+          (&self.data_ipc_queue as &(dyn Any + Send + Sync))
+            .downcast_ref()
+            .unwrap(),
+        ))
+      }
       _ => {}
     }
     let state = map.get(&type_id)?;
@@ -193,6 +202,9 @@ impl StateManager {
   }
   pub(crate) fn env(&self) -> &Env {
     &self.env
+  }
+  pub(crate) fn data_ipc_queue(&self) -> &Mutex<ChannelDataIpcQueue> {
+    &self.data_ipc_queue
   }
 }
 

@@ -24,7 +24,7 @@ use crate::{
     OnPageLoad,
   },
   event::{EmitArgs, Event, EventId, EventTarget, Listeners},
-  ipc::{Invoke, InvokeHandler, RuntimeAuthority},
+  ipc::{channel::ChannelDataIpcQueue, Invoke, InvokeHandler, RuntimeAuthority},
   menu::plugin::MenuChannels,
   plugin::PluginStore,
   resources::ResourceTable,
@@ -702,6 +702,10 @@ impl<R: Runtime> AppManager<R> {
 
   pub(crate) fn env(&self) -> &crate::Env {
     self.state.env()
+  }
+
+  pub(crate) fn data_ipc_queue(&self) -> &Mutex<ChannelDataIpcQueue> {
+    self.state.data_ipc_queue()
   }
 }
 

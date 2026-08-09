@@ -78,6 +78,17 @@ fn copy_binaries(
     }
 
     let dest = path.join(file_name);
+    if dest.is_dir() {
+      // The destination path is a directory. This most likely means a Cargo
+      // dependency (or its build script output) with the same name as the
+      // sidecar occupies that path, so the sidecar binary cannot be placed
+      // there. Surface a clear error instead of a confusing
+      // PermissionDenied/IsADirectory panic from remove_file.
+      return Err(anyhow::anyhow!(
+        "Cannot copy sidecar `{file_name}` to `{}`: a directory already exists at that path. A Cargo dependency likely has the same name as the sidecar; rename either the sidecar binary or the dependency crate.",
+        dest.display()
+      ));
+    }
     if dest.exists() {
       fs::remove_file(&dest).unwrap();
     }

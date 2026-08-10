@@ -24,10 +24,10 @@ pub struct Options {
   #[clap(long)]
   description: Option<String>,
   /// List of commands to allow
-  #[clap(short, long, use_value_delimiter = true)]
+  #[clap(short, long, value_delimiter = ',')]
   allow: Option<Vec<String>>,
   /// List of commands to deny
-  #[clap(short, long, use_value_delimiter = true)]
+  #[clap(short, long, value_delimiter = ',')]
   deny: Option<Vec<String>>,
   /// Output file format.
   #[clap(long, default_value_t = FileFormat::Json)]
@@ -46,7 +46,7 @@ pub fn command(options: Options) -> Result<()> {
   let description = match options.description {
     Some(d) => Some(d),
     None => prompts::input::<String>("What's the permission description?", None, false, true)?
-      .and_then(|d| if d.is_empty() { None } else { Some(d) }),
+      .filter(|d| !d.is_empty()),
   };
 
   let allow: Vec<String> = options

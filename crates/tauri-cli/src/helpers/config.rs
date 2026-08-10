@@ -12,9 +12,10 @@ pub use tauri_utils::{config::*, platform::Target};
 use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, set_var},
-  ffi::OsStr,
+  ffi::{OsStr, OsString},
+  path::Path,
   process::exit,
-  sync::{Arc, Mutex, OnceLock},
+  sync::LazyLock,
 };
 
 use crate::error::Context;
@@ -30,7 +31,7 @@ pub struct ConfigMetadata {
   inner: Config,
   /// The config extensions (platform-specific config files or the config CLI argument).
   /// Maps the extension name to its value.
-  extensions: HashMap<String, JsonValue>,
+  extensions: HashMap<OsString, JsonValue>,
 }
 
 impl std::ops::Deref for ConfigMetadata {
@@ -50,12 +51,11 @@ impl ConfigMetadata {
   }
 
   /// Checks which config is overwriting the bundle identifier.
-  pub fn find_bundle_identifier_overwriter(&self) -> Option<String> {
+  pub fn find_bundle_identifier_overwriter(&self) -> Option<OsString> {
     for (ext, config) in &self.extensions {
       if let Some(identifier) = config
         .as_object()
-        .and_then(|bundle_config| bundle_config.get("identifier"))
-        .and_then(|id| id.as_str())
+        .and_then(|bundle_config| bundle_config.get("identifier")?.as_str())
       {
         if identifier == self.inner.identifier {
           return Some(ext.clone());
@@ -66,14 +66,11 @@ impl ConfigMetadata {
   }
 }
 
-pub type ConfigHandle = Arc<Mutex<Option<ConfigMetadata>>>;
-
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
     version: config.version,
     upgrade_code: config.upgrade_code,
-    fips_compliant: std::env::var("TAURI_BUNDLER_WIX_FIPS_COMPLIANT")
-      .ok()
+    fips_compliant: std::env::var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT")
       .map(|v| v == "true")
       .unwrap_or(config.fips_compliant),
     language: tauri_bundler::WixLanguage(match config.language {
@@ -113,6 +110,8 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     header_image: config.header_image,
     sidebar_image: config.sidebar_image,
     installer_icon: config.installer_icon,
+    uninstaller_icon: config.uninstaller_icon,
+    uninstaller_header_image: config.uninstaller_header_image,
     install_mode: config.install_mode,
     languages: config.languages,
     custom_language_files: config.custom_language_files,
@@ -120,6 +119,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     compression: config.compression,
     start_menu_folder: config.start_menu_folder,
     installer_hooks: config.installer_hooks,
+    #[allow(deprecated)]
     minimum_webview2_version: config.minimum_webview2_version,
   }
 }
@@ -141,32 +141,27 @@ pub fn custom_sign_settings(
   }
 }
 
-fn config_handle() -> &'static ConfigHandle {
-  static CONFIG_HANDLE: OnceLock<ConfigHandle> = OnceLock::new();
-  CONFIG_HANDLE.get_or_init(Default::default)
-}
+static CONFIG_SCHEMA_VALIDATOR: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
+  let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
+    .expect("Failed to parse config schema bundled in the tauri-cli");
+  jsonschema::validator_for(&schema).expect("Config schema bundled in the tauri-cli is invalid")
+});
 
-/// Gets the static parsed config from `tauri.conf.json`.
-fn get_internal(
+fn load_config(
   merge_configs: &[&serde_json::Value],
   reload: bool,
   target: Target,
-) -> crate::Result<ConfigHandle> {
-  if !reload && config_handle().lock().unwrap().is_some() {
-    return Ok(config_handle().clone());
-  }
-
-  let tauri_dir = super::app_paths::tauri_dir();
+  tauri_dir: &Path,
+) -> crate::Result<ConfigMetadata> {
   let (mut config, config_path) =
     tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))
       .context("failed to parse config")?;
-  let config_file_name = config_path.file_name().unwrap().to_string_lossy();
+  let config_file_name = config_path.file_name().unwrap();
   let mut extensions = HashMap::new();
 
   let original_identifier = config
     .as_object()
-    .and_then(|config| config.get("identifier"))
-    .and_then(|id| id.as_str())
+    .and_then(|config| config.get("identifier")?.as_str())
     .map(ToString::to_string);
 
   if let Some((platform_config, config_path)) =
@@ -174,10 +169,7 @@ fn get_internal(
       .context("failed to parse platform config")?
   {
     merge(&mut config, &platform_config);
-    extensions.insert(
-      config_path.file_name().unwrap().to_str().unwrap().into(),
-      platform_config,
-    );
+    extensions.insert(config_path.file_name().unwrap().into(), platform_config);
   }
 
   if !merge_configs.is_empty() {
@@ -195,17 +187,14 @@ fn get_internal(
   if config_path.extension() == Some(OsStr::new("json"))
     || config_path.extension() == Some(OsStr::new("json5"))
   {
-    let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
-      .context("failed to parse config schema")?;
-    let validator = jsonschema::validator_for(&schema).expect("Invalid schema");
-    let mut errors = validator.iter_errors(&config).peekable();
+    let mut errors = CONFIG_SCHEMA_VALIDATOR.iter_errors(&config).peekable();
     if errors.peek().is_some() {
       for error in errors {
-        let path = error.instance_path.into_iter().join(" > ");
+        let path = error.instance_path().into_iter().join(" > ");
         if path.is_empty() {
-          log::error!("`{}` error: {}", config_file_name, error);
+          log::error!("`{config_file_name:?}` error: {error}");
         } else {
-          log::error!("`{}` error on `{}`: {}", config_file_name, path, error);
+          log::error!("`{config_file_name:?}` error on `{path}`: {error}");
         }
       }
       if !reload {
@@ -236,59 +225,54 @@ fn get_internal(
     std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir);
   }
 
-  *config_handle().lock().unwrap() = Some(ConfigMetadata {
+  Ok(ConfigMetadata {
     target,
     original_identifier,
     inner: config,
     extensions,
-  });
-
-  Ok(config_handle().clone())
+  })
 }
 
-pub fn get(target: Target, merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
-  get_internal(merge_configs, false, target)
+pub fn get_config(
+  target: Target,
+  merge_configs: &[&serde_json::Value],
+  tauri_dir: &Path,
+) -> crate::Result<ConfigMetadata> {
+  load_config(merge_configs, false, target, tauri_dir)
 }
 
-pub fn reload(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
-  let target = config_handle()
-    .lock()
-    .unwrap()
-    .as_ref()
-    .map(|conf| conf.target);
-  if let Some(target) = target {
-    get_internal(merge_configs, true, target)
-  } else {
-    crate::error::bail!("config not loaded");
-  }
+pub fn reload_config(
+  config: &mut ConfigMetadata,
+  merge_configs: &[&serde_json::Value],
+  tauri_dir: &Path,
+) -> crate::Result<()> {
+  let target = config.target;
+  *config = load_config(merge_configs, true, target, tauri_dir)?;
+  Ok(())
 }
 
 /// merges the loaded config with the given value
-pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
-  let handle = config_handle();
-
+pub fn merge_config_with(
+  config: &mut ConfigMetadata,
+  merge_configs: &[&serde_json::Value],
+) -> crate::Result<()> {
   if merge_configs.is_empty() {
-    return Ok(handle.clone());
+    return Ok(());
   }
 
-  if let Some(config_metadata) = &mut *handle.lock().unwrap() {
-    let mut merge_config = serde_json::Value::Object(Default::default());
-    for conf in merge_configs {
-      merge_patches(&mut merge_config, conf);
-    }
-
-    let merge_config_str = serde_json::to_string(&merge_config).unwrap();
-    set_var("TAURI_CONFIG", merge_config_str);
-
-    let mut value =
-      serde_json::to_value(config_metadata.inner.clone()).context("failed to serialize config")?;
-    merge(&mut value, &merge_config);
-    config_metadata.inner = serde_json::from_value(value).context("failed to parse config")?;
-
-    Ok(handle.clone())
-  } else {
-    crate::error::bail!("config not loaded");
+  let mut merge_config = serde_json::Value::Object(Default::default());
+  for conf in merge_configs {
+    merge_patches(&mut merge_config, conf);
   }
+
+  let merge_config_str = serde_json::to_string(&merge_config).unwrap();
+  set_var("TAURI_CONFIG", merge_config_str);
+
+  let mut value =
+    serde_json::to_value(config.inner.clone()).context("failed to serialize config")?;
+  merge(&mut value, &merge_config);
+  config.inner = serde_json::from_value(value).context("failed to parse config")?;
+  Ok(())
 }
 
 /// Same as [`json_patch::merge`] but doesn't delete the key when the patch's value is `null`

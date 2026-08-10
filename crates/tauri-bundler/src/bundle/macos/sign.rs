@@ -21,7 +21,7 @@ pub fn keychain(identity: Option<&str>) -> crate::Result<Option<tauri_macos_sign
     var_os("APPLE_CERTIFICATE"),
     var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    // import user certificate - useful for for CI build
+    // import user certificate - useful for CI build
     let keychain =
       tauri_macos_sign::Keychain::with_certificate(&certificate_encoded, &certificate_password)
         .map_err(Box::new)?;

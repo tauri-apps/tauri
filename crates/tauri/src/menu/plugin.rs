@@ -91,6 +91,7 @@ enum Predefined {
   Quit,
   About(Option<AboutMetadata>),
   Services,
+  BringAllToFront,
 }
 
 #[derive(Deserialize)]
@@ -303,6 +304,9 @@ impl PredefinedMenuItemPayload {
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
       }
       Predefined::Services => PredefinedMenuItem::services(webview, self.text.as_deref()),
+      Predefined::BringAllToFront => {
+        PredefinedMenuItem::bring_all_to_front(webview, self.text.as_deref())
+      }
     }
   }
 }
@@ -355,7 +359,6 @@ struct NewOptions {
 
 #[command(root = "crate")]
 fn new<R: Runtime>(
-  app: Webview<R>,
   webview: Webview<R>,
   kind: ItemKind,
   options: Option<NewOptions>,
@@ -363,11 +366,11 @@ fn new<R: Runtime>(
   handler: Channel<MenuId>,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
 
   let (rid, id) = match kind {
     ItemKind::Menu => {
-      let mut builder = MenuBuilder::new(&app);
+      let mut builder = MenuBuilder::new(&webview);
       if let Some(id) = options.id {
         builder = builder.id(id);
       }
@@ -811,7 +814,7 @@ fn set_as_windows_menu_for_nsapp<R: Runtime>(
   {
     let resources_table = webview.resources_table();
     let submenu = resources_table.get::<Submenu<R>>(rid)?;
-    submenu.set_as_help_menu_for_nsapp()?;
+    submenu.set_as_windows_menu_for_nsapp()?;
   }
 
   let _ = rid;
@@ -884,6 +887,11 @@ fn set_icon<R: Runtime>(
 
 struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);
 
+// Called in `Menu`'s `Drop` to clean up the event handlers
+pub(crate) fn remove_menu_channel<R: Runtime>(app: &AppHandle<R>, id: &MenuId) {
+  app.state::<MenuChannels>().0.lock().unwrap().remove(id);
+}
+
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("menu")
     .setup(|app, _api| {
@@ -892,7 +900,15 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     })
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
-        if let Some(channel) = app.state::<MenuChannels>().0.lock().unwrap().get(&e.id) {
+        // Cloning the channel out in case the menu gets dropped during the channel send through `channel_interceptor`
+        let channel = app
+          .state::<MenuChannels>()
+          .0
+          .lock()
+          .unwrap()
+          .get(&e.id)
+          .cloned();
+        if let Some(channel) = channel {
           let _ = channel.send(e.id.clone());
         }
       }

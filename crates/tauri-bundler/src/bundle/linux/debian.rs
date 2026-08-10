@@ -119,8 +119,9 @@ pub fn generate_data(
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    fs_utils::copy_file(&bin_path, &bin_dir.join(bin.name()))
-      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
+    let trgt = bin_dir.join(bin.name());
+    fs_utils::copy_file(&bin_path, &trgt)
+      .with_context(|| format!("Failed to copy binary from {bin_path:?} to {trgt:?}"))?;
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;

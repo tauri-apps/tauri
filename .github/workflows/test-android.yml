@@ -31,35 +31,29 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - name: install Rust 1.77.2
-        uses: dtolnay/rust-toolchain@1.77.2
-
-      - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1
+      - name: install Rust 1.90
+        uses: dtolnay/rust-toolchain@1.90
 
       - run: npm i -g --force corepack
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: 'pnpm'
 
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 17
-          cache: 'gradle'
+          java-version: 25
+          cache: gradle
 
       - name: Setup NDK
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r25b
+          ndk-version: r29
           local-cache: true
 
       # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
@@ -76,16 +70,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: build CLI
-        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
-
-      - name: move CLI to cargo bin dir
-        if: matrix.platform != 'windows-latest'
-        run: mv ./target/debug/cargo-tauri $HOME/.cargo/bin
-
-      - name: move CLI to cargo bin dir
-        if: matrix.platform == 'windows-latest'
-        run: mv ./target/debug/cargo-tauri.exe $HOME/.cargo/bin
+      - name: build and install CLI
+        run: cargo install tauri-cli --path ./crates/tauri-cli/ --locked --debug
 
       - run: pnpm i --frozen-lockfile
 

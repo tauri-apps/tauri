@@ -56,7 +56,7 @@ pub fn cargo_manifest_and_lock(tauri_dir: &Path) -> (Option<CargoManifest>, Opti
     .ok()
     .and_then(|manifest_contents| toml::from_str(&manifest_contents).ok());
 
-  let lock: Option<CargoLock> = get_workspace_dir()
+  let lock: Option<CargoLock> = get_workspace_dir(tauri_dir)
     .ok()
     .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
     .and_then(|s| toml::from_str(&s).ok());

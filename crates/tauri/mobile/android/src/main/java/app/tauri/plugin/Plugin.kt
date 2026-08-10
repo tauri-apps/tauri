@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.webkit.WebView
 import androidx.activity.result.IntentSenderRequest
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import app.tauri.FsUtils
 import app.tauri.Logger
@@ -64,29 +65,85 @@ abstract class Plugin(private val activity: Activity) {
   /**
    * This event is called just before another activity comes into the foreground.
    */
+  open fun onPause(activity: AppCompatActivity) {}
+
+  /**
+   * This event is called just before another activity comes into the foreground.
+   */
+  @Deprecated("use onPause(activity: AppCompatActivity) instead")
   open fun onPause() {}
 
   /**
    * This event is called when the user returns to the activity. It is also called on cold starts.
    */
+  open fun onResume(activity: AppCompatActivity) {}
+
+  /**
+   * This event is called when the user returns to the activity. It is also called on cold starts.
+   */
+  @Deprecated("use onResume(activity: AppCompatActivity) instead")
   open fun onResume() {}
 
   /**
    * This event is called after onStop() when the current activity is being re-displayed to the user (the user has navigated back to it).
    * It will be followed by onStart() and then onResume().
    */
+  open fun onRestart(activity: AppCompatActivity) {}
+
+  /**
+   * This event is called after onStop() when the current activity is being re-displayed to the user (the user has navigated back to it).
+   * It will be followed by onStart() and then onResume().
+   */
+  @Deprecated("use onRestart(activity: AppCompatActivity) instead")
   open fun onRestart() {}
 
   /**
    * This event is called when the app is no longer visible to the user.
    * You will next receive either onRestart(), onDestroy(), or nothing, depending on later user activity.
    */
+  open fun onStop(activity: AppCompatActivity) {}
+
+  /**
+   * This event is called when the app is no longer visible to the user.
+   * You will next receive either onRestart(), onDestroy(), or nothing, depending on later user activity.
+   */
+  @Deprecated("use onStop(activity: AppCompatActivity) instead")
   open fun onStop() {}
 
   /**
    * This event is called before the activity is destroyed.
    */
+  open fun onDestroy(activity: AppCompatActivity) {}
+  /**
+   * This event is called before an activity is destroyed.
+   */
+  @Deprecated("use onDestroy(activity: AppCompatActivity) instead")
   open fun onDestroy() {}
+
+  internal fun triggerOnDestroy(activity: AppCompatActivity) {
+    onDestroy(activity)
+    onDestroy()
+  }
+
+  internal fun triggerOnRestart(activity: AppCompatActivity) {
+    onRestart(activity)
+    onRestart()
+  }
+
+  internal fun triggerOnPause(activity: AppCompatActivity) {
+    onPause(activity)
+    onPause()
+  }
+
+  internal fun triggerOnResume(activity: AppCompatActivity) {
+    onResume(activity)
+    onResume()
+  }
+
+  internal fun triggerOnStop(activity: AppCompatActivity) {
+    onStop(activity)
+    onStop()
+  }
 
   /**
    * This event is called when a configuration change occurs but the app does not recreate the activity.
@@ -300,16 +357,13 @@ abstract class Plugin(private val activity: Activity) {
    * @return true only if all permissions associated with the given alias are declared in the manifest
    */
   fun isPermissionDeclared(alias: String): Boolean {
-    val annotation = handle?.annotation
-    if (annotation != null) {
-      for (perm in annotation.permissions) {
-        if (alias.equals(perm.alias, ignoreCase = true)) {
-          var result = true
-          for (permString in perm.strings) {
-            result = result && PermissionHelper.hasDefinedPermission(activity, permString)
-          }
-          return result
+    for (perm in handle?.annotation?.permissions.orEmpty()) {
+      if (alias.equals(perm.alias, ignoreCase = true)) {
+        var result = true
+        for (permString in perm.strings) {
+          result = result && PermissionHelper.hasDefinedPermission(activity, permString)
         }
+        return result
       }
     }
     Logger.error(
@@ -406,13 +460,10 @@ abstract class Plugin(private val activity: Activity) {
    * @return Android permission strings associated with the provided aliases, if exists
    */
   private fun getPermissionStringsForAliases(aliases: Array<String>): Array<String> {
-    val annotation = handle?.annotation
     val perms: HashSet<String> = HashSet()
-    if (annotation != null) {
-      for (perm in annotation.permissions) {
-        if (aliases.contains(perm.alias)) {
-          perms.addAll(perm.strings)
-        }
+    for (perm in handle?.annotation?.permissions.orEmpty()) {
+      if (aliases.contains(perm.alias)) {
+        perms.addAll(perm.strings)
       }
     }
     return perms.toArray(arrayOfNulls(0))
@@ -435,50 +486,45 @@ abstract class Plugin(private val activity: Activity) {
    */
   open fun getPermissionStates(): Map<String, PermissionState> {
     val permissionsResults: MutableMap<String, PermissionState> = HashMap()
-    val annotation = handle?.annotation
-    if (annotation != null) {
-      for (perm in annotation.permissions) {
-        // If a permission is defined with no permission constants, return GRANTED for it.
-        // Otherwise, get its true state.
-        if (perm.strings.isEmpty() || perm.strings.size == 1 && perm.strings[0]
-            .isEmpty()
-        ) {
-          val key = perm.alias
-          if (key.isNotEmpty()) {
-            val existingResult = permissionsResults[key]
+    for (perm in handle?.annotation?.permissions.orEmpty()) {
+      // If a permission is defined with no permission constants, return GRANTED for it.
+      // Otherwise, get its true state.
+      if (perm.strings.isEmpty() || perm.strings.size == 1 && perm.strings[0].isEmpty()) {
+        val key = perm.alias
+        if (key.isNotEmpty()) {
+          val existingResult = permissionsResults[key]
 
-            // auto set permission state to GRANTED if the alias is empty.
-            if (existingResult == null) {
-              permissionsResults[key] = PermissionState.GRANTED
+          // auto set permission state to GRANTED if the alias is empty.
+          if (existingResult == null) {
+            permissionsResults[key] = PermissionState.GRANTED
+          }
+        }
+      } else {
+        for (permString in perm.strings) {
+          val key = perm.alias.ifEmpty { permString }
+          var permissionStatus: PermissionState
+          if (ActivityCompat.checkSelfPermission(
+              activity,
+              permString
+            ) == PackageManager.PERMISSION_GRANTED
+          ) {
+            permissionStatus = PermissionState.GRANTED
+          } else {
+            permissionStatus = PermissionState.PROMPT
+
+            // Check if there is a cached permission state for the "Never ask again" state
+            val prefs =
+              activity.getSharedPreferences("PluginPermStates", Activity.MODE_PRIVATE)
+            val state = prefs.getString(permString, null)
+            if (state != null) {
+              permissionStatus = PermissionState.byState(state)
             }
           }
-        } else {
-          for (permString in perm.strings) {
-            val key = perm.alias.ifEmpty { permString }
-            var permissionStatus: PermissionState
-            if (ActivityCompat.checkSelfPermission(
-                activity,
-                permString
-              ) == PackageManager.PERMISSION_GRANTED
-            ) {
-              permissionStatus = PermissionState.GRANTED
-            } else {
-              permissionStatus = PermissionState.PROMPT
+          val existingResult = permissionsResults[key]
 
-              // Check if there is a cached permission state for the "Never ask again" state
-              val prefs =
-                activity.getSharedPreferences("PluginPermStates", Activity.MODE_PRIVATE)
-              val state = prefs.getString(permString, null)
-              if (state != null) {
-                permissionStatus = PermissionState.byState(state)
-              }
-            }
-            val existingResult = permissionsResults[key]
-
-            // multiple permissions with the same alias must all be true, otherwise all false.
-            if (existingResult == null || existingResult === PermissionState.GRANTED) {
-              permissionsResults[key] = permissionStatus
-            }
+          // multiple permissions with the same alias must all be true, otherwise all false.
+          if (existingResult == null || existingResult === PermissionState.GRANTED) {
+            permissionsResults[key] = permissionStatus
           }
         }
       }

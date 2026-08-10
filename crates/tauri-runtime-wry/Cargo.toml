@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.9.1"
+version = "2.11.4"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -13,15 +13,13 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wry = { version = "0.53.4", default-features = false, features = [
-  "drag-drop",
-  "protocol",
+wry = { version = "0.56.0", default-features = false, features = [
   "os-webview",
   "linux-body",
 ] }
-tao = { version = "0.34.5", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.9.1", path = "../tauri-runtime" }
-tauri-utils = { version = "2.8.0", path = "../tauri-utils" }
+tao = { version = "0.36.0", default-features = false, features = ["rwh_06"] }
+tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
+tauri-utils = { version = "2.9.3", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1"
 url = "2"
@@ -46,8 +44,7 @@ percent-encoding = "2"
 objc2 = "0.6"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-foundation = { version = "0.3", features = [] }
-objc2-app-kit = { version = "0.3", features = [
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "block2",
   "NSApplication",
   "NSResponder",
@@ -61,17 +58,14 @@ objc2-app-kit = { version = "0.3", features = [
 jni = "0.21"
 
 [features]
-default = ["x11"]
+default = ["x11", "dbus"]
 devtools = ["wry/devtools", "tauri-runtime/devtools"]
 x11 = ["tao/x11", "wry/x11"]
-macos-private-api = [
-  "wry/fullscreen",
-  "wry/transparent",
-  "tauri-runtime/macos-private-api",
-]
+macos-private-api = ["tauri-runtime/macos-private-api"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 tracing = ["dep:tracing", "wry/tracing"]
 macos-proxy = ["wry/mac-proxy"]
 unstable = []
 common-controls-v6 = []
+dbus = ["tao/dbus"]

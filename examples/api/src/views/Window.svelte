@@ -1,5 +1,5 @@
-<script>
-  import { onDestroy } from 'svelte'
+<script lang="ts">
+  import { onDestroy, onMount } from 'svelte'
   import {
     LogicalSize,
     UserAttentionType,
@@ -10,19 +10,23 @@
     ProgressBarStatus
   } from '@tauri-apps/api/window'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
+  import type { CursorIcon, Effects, Theme } from '@tauri-apps/api/window'
+  import type { UnlistenFn } from '@tauri-apps/api/event'
+  import type { ViewProps } from '../App.svelte'
 
-  let { onMessage } = $props()
+  let { onMessage }: ViewProps = $props()
 
   const webview = WebviewWindow.getCurrent()
 
-  let selectedWebview = $state(webview.label)
   const webviewMap = $state({
     [webview.label]: webview
   })
+  let selectedWebviewLabel = $state(webview.label)
+  let selectedWebview = $derived(webviewMap[selectedWebviewLabel])
 
   let focusable = $state(true)
 
-  const cursorIconOptions = [
+  const cursorIconOptions: CursorIcon[] = [
     'default',
     'crosshair',
     'hand',
@@ -64,32 +68,28 @@
     'rowResize'
   ]
 
-  const windowsEffects = [
-    'mica',
-    'blur',
-    'acrylic',
-    'tabbed',
-    'tabbedDark',
-    'tabbedLight'
+  const windowsEffects: Effect[] = [
+    Effect.Mica,
+    Effect.Blur,
+    Effect.Acrylic,
+    Effect.Tabbed,
+    Effect.TabbedDark,
+    Effect.TabbedLight
   ]
   const isWindows = navigator.appVersion.includes('Windows')
   const isMacOS = navigator.appVersion.includes('Macintosh')
-  let effectOptions = isWindows
+  const effectOptions: Effect[] = isWindows
     ? windowsEffects
-    : Object.keys(Effect)
-        .map((effect) => Effect[effect])
-        .filter((e) => !windowsEffects.includes(e))
-  const effectStateOptions = Object.keys(EffectState).map(
-    (state) => EffectState[state]
-  )
+    : (Object.values(Effect) as Effect[]).filter(
+        (e) => !windowsEffects.includes(e)
+      )
+  const effectStateOptions = Object.values(EffectState) as EffectState[]
 
-  const progressBarStatusOptions = Object.keys(ProgressBarStatus).map(
-    (s) => ProgressBarStatus[s]
-  )
+  const progressBarStatusOptions = Object.values(ProgressBarStatus)
 
-  const mainEl = document.querySelector('main')
+  const mainEl = document.querySelector('main')!
 
-  let newWebviewLabel = $state()
+  let newWebviewLabel = $state<string>()
 
   let resizable = $state(true)
   let maximizable = $state(true)
@@ -102,90 +102,89 @@
   let contentProtected = $state(false)
   let fullscreen = $state(false)
   let simpleFullscreen = $state(false)
-  let width = $state(null)
-  let height = $state(null)
-  let minWidth = $state(null)
-  let minHeight = $state(null)
-  let maxWidth = $state(null)
-  let maxHeight = $state(null)
-  let x = $state(null)
-  let y = $state(null)
+  let width = $state(100)
+  let height = $state(100)
+  let minWidth = $state<number | null>(null)
+  let minHeight = $state<number | null>(null)
+  let maxWidth = $state<number | null>(null)
+  let maxHeight = $state<number | null>(null)
+  let x = $state(0)
+  let y = $state(0)
   let scaleFactor = $state(1)
   let innerPosition = $state(new PhysicalPosition(0, 0))
   let outerPosition = $state(new PhysicalPosition(0, 0))
   let innerSize = $state(new PhysicalSize(0, 0))
   let outerSize = $state(new PhysicalSize(0, 0))
-  let resizeEventUnlisten
-  let moveEventUnlisten
+  let resizeEventUnlisten: UnlistenFn | undefined
+  let moveEventUnlisten: UnlistenFn | undefined
   let cursorGrab = $state(false)
   let cursorVisible = $state(true)
-  let cursorX = $state(null)
-  let cursorY = $state(null)
-  /** @type {import('@tauri-apps/api/window').CursorIcon} */
-  let cursorIcon = $state('default')
+  let cursorX = $state<number | null>(null)
+  let cursorY = $state<number | null>(null)
+  let cursorIcon = $state<CursorIcon>('default')
   let cursorIgnoreEvents = $state(false)
   let windowTitle = $state('Awesome Tauri Example!')
 
-  /** @type {import('@tauri-apps/api/window').Theme | 'auto'} */
-  let theme = $state('auto')
+  let theme = $state<Theme | 'auto'>('auto')
 
-  let effects = $state([])
-  let selectedEffect = $state()
-  let effectState = $state()
-  let effectRadius = $state()
-  let effectR = $state(),
-    effectG = $state(),
-    effectB = $state(),
-    effectA = $state()
+  let effects = $state<Effect[]>([])
+  let selectedEffect = $state<Effect>()
+  let effectState = $state<EffectState>()
+  let effectRadius = $state<number>()
+  let effectR = $state<number>(),
+    effectG = $state<number>(),
+    effectB = $state<number>(),
+    effectA = $state<number>()
 
-  /** @type {ProgressBarStatus} */
-  let selectedProgressBarStatus = $state(ProgressBarStatus.None)
+  let selectedProgressBarStatus = $state<ProgressBarStatus>(
+    ProgressBarStatus.None
+  )
   let progress = $state(0)
 
-  let windowIconPath = $state()
+  let windowIconPath = $state('')
 
   function setTitle() {
-    webviewMap[selectedWebview].setTitle(windowTitle)
+    selectedWebview.setTitle(windowTitle)
   }
 
   async function hide() {
-    let visible = await webviewMap[selectedWebview].isVisible()
+    let visible = await selectedWebview.isVisible()
     onMessage('window is ' + (visible ? 'visible' : 'invisible'))
-    await webviewMap[selectedWebview].hide()
+    await selectedWebview.hide()
 
     setTimeout(async () => {
-      visible = await webviewMap[selectedWebview].isVisible()
+      visible = await selectedWebview.isVisible()
       onMessage('window is ' + (visible ? 'visible' : 'invisible'))
 
-      await webviewMap[selectedWebview].show()
-      visible = await webviewMap[selectedWebview].isVisible()
+      await selectedWebview.show()
+      visible = await selectedWebview.isVisible()
       onMessage('window is ' + (visible ? 'visible' : 'invisible'))
     }, 2000)
   }
 
   async function disable() {
-    let enabled = await webviewMap[selectedWebview].isEnabled()
+    let enabled = await selectedWebview.isEnabled()
     onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
 
-    await webviewMap[selectedWebview].setEnabled(false)
+    await selectedWebview.setEnabled(false)
 
     setTimeout(async () => {
-      enabled = await webviewMap[selectedWebview].isEnabled()
+      enabled = await selectedWebview.isEnabled()
       onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
 
-      await webviewMap[selectedWebview].setEnabled(true)
-      enabled = await webviewMap[selectedWebview].isEnabled()
+      await selectedWebview.setEnabled(true)
+      enabled = await selectedWebview.isEnabled()
       onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
     }, 2000)
   }
 
   function minimize() {
-    webviewMap[selectedWebview].minimize()
-    setTimeout(webviewMap[selectedWebview].unminimize, 2000)
+    selectedWebview.minimize()
+    setTimeout(selectedWebview.unminimize, 2000)
   }
 
   function changeIcon() {
-    webviewMap[selectedWebview].setIcon(windowIconPath)
+    selectedWebview.setIcon(windowIconPath)
   }
 
   function createWebviewWindow() {
@@ -203,28 +202,28 @@
   }
 
   function loadWindowSize() {
-    webviewMap[selectedWebview].innerSize().then((response) => {
+    selectedWebview.innerSize().then((response) => {
       innerSize = response
       width = innerSize.width
       height = innerSize.height
     })
-    webviewMap[selectedWebview].outerSize().then((response) => {
+    selectedWebview.outerSize().then((response) => {
       outerSize = response
     })
   }
 
   function loadWindowPosition() {
-    webviewMap[selectedWebview].innerPosition().then((response) => {
+    selectedWebview.innerPosition().then((response) => {
       innerPosition = response
     })
-    webviewMap[selectedWebview].outerPosition().then((response) => {
+    selectedWebview.outerPosition().then((response) => {
       outerPosition = response
       x = outerPosition.x
       y = outerPosition.y
     })
   }
 
-  async function addWindowEventListeners(window) {
+  async function addWindowEventListeners(window: WebviewWindow | undefined) {
     if (!window) return
     resizeEventUnlisten?.()
     moveEventUnlisten?.()
@@ -233,12 +232,10 @@
   }
 
   async function requestUserAttention() {
-    await webviewMap[selectedWebview].minimize()
-    await webviewMap[selectedWebview].requestUserAttention(
-      UserAttentionType.Critical
-    )
+    await selectedWebview.minimize()
+    await selectedWebview.requestUserAttention(UserAttentionType.Critical)
     await new Promise((resolve) => setTimeout(resolve, 3000))
-    await webviewMap[selectedWebview].requestUserAttention(null)
+    await selectedWebview.requestUserAttention(null)
   }
 
   async function switchTheme() {
@@ -253,22 +250,22 @@
         theme = 'dark'
         break
     }
-    await webviewMap[selectedWebview].setTheme(theme === 'auto' ? null : theme)
+    await selectedWebview.setTheme(theme === 'auto' ? null : theme)
   }
 
   async function updateProgressBar() {
-    webviewMap[selectedWebview]?.setProgressBar({
+    selectedWebview.setProgressBar({
       status: selectedProgressBarStatus,
       progress
     })
   }
 
   async function addEffect() {
-    if (!effects.includes(selectedEffect)) {
+    if (selectedEffect && !effects.includes(selectedEffect)) {
       effects = [...effects, selectedEffect]
     }
 
-    const payload = {
+    const payload: Effects = {
       effects,
       state: effectState,
       radius: effectRadius
@@ -279,112 +276,122 @@
       && Number.isInteger(effectB)
       && Number.isInteger(effectA)
     ) {
-      payload.color = [effectR, effectG, effectB, effectA]
+      payload.color = [effectR!, effectG!, effectB!, effectA!]
     }
 
     mainEl.classList.remove('bg-primary')
     mainEl.classList.remove('dark:bg-darkPrimary')
-    await webviewMap[selectedWebview].clearEffects()
-    await webviewMap[selectedWebview].setEffects(payload)
+    await selectedWebview.clearEffects()
+    await selectedWebview.setEffects(payload)
   }
 
   async function clearEffects() {
     effects = []
-    await webviewMap[selectedWebview].clearEffects()
+    await selectedWebview.clearEffects()
     mainEl.classList.add('bg-primary')
     mainEl.classList.add('dark:bg-darkPrimary')
   }
 
   async function updatePosition() {
-    webviewMap[selectedWebview]?.setPosition(new PhysicalPosition(x, y))
+    selectedWebview.setPosition(new PhysicalPosition(x, y))
   }
 
   async function updateSize() {
-    webviewMap[selectedWebview]?.setSize(new PhysicalSize(width, height))
+    if (width && height) {
+      selectedWebview.setSize(new PhysicalSize(width, height))
+    }
+  }
+
+  function refreshSelectedWebview() {
+    loadWindowPosition()
+    loadWindowSize()
+    selectedWebview.scaleFactor().then((factor) => (scaleFactor = factor))
+    addWindowEventListeners(selectedWebview)
+  }
+
+  function updateResizable() {
+    selectedWebview.setResizable(resizable)
+  }
+
+  function updateMaximizable() {
+    selectedWebview.setMaximizable(maximizable)
+  }
+
+  function updateMinimizable() {
+    selectedWebview.setMinimizable(minimizable)
+  }
+
+  function updateClosable() {
+    selectedWebview.setClosable(closable)
+  }
+
+  function updateMaximized() {
+    maximized ? selectedWebview.maximize() : selectedWebview.unmaximize()
+  }
+
+  function updateDecorations() {
+    selectedWebview.setDecorations(decorations)
+  }
+
+  function updateAlwaysOnTop() {
+    selectedWebview.setAlwaysOnTop(alwaysOnTop)
+  }
+
+  function updateAlwaysOnBottom() {
+    selectedWebview.setAlwaysOnBottom(alwaysOnBottom)
+  }
+
+  function updateContentProtected() {
+    selectedWebview.setContentProtected(contentProtected)
+  }
+
+  function updateFullscreen() {
+    selectedWebview.setFullscreen(fullscreen)
+  }
+
+  function updateSimpleFullscreen() {
+    selectedWebview.setSimpleFullscreen(simpleFullscreen)
+  }
+
+  function updateMinSize() {
+    minWidth && minHeight
+      ? selectedWebview.setMinSize(new LogicalSize(minWidth, minHeight))
+      : selectedWebview.setMinSize(null)
+  }
+
+  function updateMaxSize() {
+    maxWidth && maxHeight && maxWidth > 800 && maxHeight > 400
+      ? selectedWebview.setMaxSize(new LogicalSize(maxWidth, maxHeight))
+      : selectedWebview.setMaxSize(null)
+  }
+
+  function updateCursorGrab() {
+    selectedWebview.setCursorGrab(cursorGrab)
+  }
+
+  function updateCursorVisible() {
+    selectedWebview.setCursorVisible(cursorVisible)
+  }
+
+  function updateCursorIgnoreEvents() {
+    selectedWebview.setIgnoreCursorEvents(cursorIgnoreEvents)
+  }
+
+  function updateCursorIcon() {
+    selectedWebview.setCursorIcon(cursorIcon)
+  }
+
+  function updateCursorPosition() {
+    cursorX !== null
+      && cursorY !== null
+      && selectedWebview.setCursorPosition(
+        new PhysicalPosition(cursorX, cursorY)
+      )
   }
 
   $effect(() => {
-    webviewMap[selectedWebview]
-    loadWindowPosition()
-    loadWindowSize()
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setResizable(resizable)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setMaximizable(maximizable)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setMinimizable(minimizable)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setClosable(closable)
-  })
-  $effect(() => {
-    maximized
-      ? webviewMap[selectedWebview]?.maximize()
-      : webviewMap[selectedWebview]?.unmaximize()
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setDecorations(decorations)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setAlwaysOnTop(alwaysOnTop)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setAlwaysOnBottom(alwaysOnBottom)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setContentProtected(contentProtected)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setFullscreen(fullscreen)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setSimpleFullscreen(simpleFullscreen)
-  })
-
-  $effect(() => {
-    minWidth && minHeight
-      ? webviewMap[selectedWebview]?.setMinSize(
-          new LogicalSize(minWidth, minHeight)
-        )
-      : webviewMap[selectedWebview]?.setMinSize(null)
-  })
-  $effect(() => {
-    maxWidth > 800 && maxHeight > 400
-      ? webviewMap[selectedWebview]?.setMaxSize(
-          new LogicalSize(maxWidth, maxHeight)
-        )
-      : webviewMap[selectedWebview]?.setMaxSize(null)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]
-      ?.scaleFactor()
-      .then((factor) => (scaleFactor = factor))
-  })
-  $effect(() => {
-    addWindowEventListeners(webviewMap[selectedWebview])
-  })
-
-  $effect(() => {
-    webviewMap[selectedWebview]?.setCursorGrab(cursorGrab)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setCursorVisible(cursorVisible)
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setCursorIcon(cursorIcon)
-  })
-  $effect(() => {
-    cursorX !== null
-      && cursorY !== null
-      && webviewMap[selectedWebview]?.setCursorPosition(
-        new PhysicalPosition(cursorX, cursorY)
-      )
-  })
-  $effect(() => {
-    webviewMap[selectedWebview]?.setIgnoreCursorEvents(cursorIgnoreEvents)
+    selectedWebview
+    refreshSelectedWebview()
   })
 
   onDestroy(() => {
@@ -393,14 +400,18 @@
   })
 </script>
 
-<div class="flex flex-col children:grow gap-8 mb-4">
+<div class="flex flex-col *:grow gap-8 mb-4">
   <div
     class="flex flex-wrap items-center gap-4 pb-6 border-b-solid border-b-1 border-code"
   >
     {#if Object.keys(webviewMap).length >= 1}
       <div class="grid gap-1">
         <h4 class="my-2">Selected Window</h4>
-        <select class="input" bind:value={selectedWebview}>
+        <select
+          class="input"
+          bind:value={selectedWebviewLabel}
+          onchange={refreshSelectedWebview}
+        >
           <option value="" disabled selected>Choose a window...</option>
           {#each Object.keys(webviewMap) as label}
             <option value={label}>{label}</option>
@@ -427,7 +438,7 @@
       </form>
     </div>
   </div>
-  {#if webviewMap[selectedWebview]}
+  {#if selectedWebview}
     <div class="flex flex-wrap items-center gap-4">
       <div class="grid gap-1 grow">
         <h4 class="my-2">Change Window Icon</h4>
@@ -464,7 +475,7 @@
       <button
         class="btn"
         title="Unminimizes after 2 seconds"
-        onclick={() => webviewMap[selectedWebview].center()}
+        onclick={() => selectedWebview.center()}
       >
         Center
       </button>
@@ -496,39 +507,74 @@
         class="btn"
         onclick={() => {
           focusable = !focusable
-          webviewMap[selectedWebview].setFocusable(!focusable)
+          selectedWebview.setFocusable(!focusable)
         }}
       >
         Set focusable to {!focusable}
       </button>
     </div>
-    <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))]">
+    <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))] *:flex *:gap-2">
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={resizable} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={resizable}
+          onchange={updateResizable}
+        />
         Resizable
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={maximizable} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={maximizable}
+          onchange={updateMaximizable}
+        />
         Maximizable
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={minimizable} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={minimizable}
+          onchange={updateMinimizable}
+        />
         Minimizable
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={closable} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={closable}
+          onchange={updateClosable}
+        />
         Closable
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={decorations} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={decorations}
+          onchange={updateDecorations}
+        />
         Has decorations
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={alwaysOnTop} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={alwaysOnTop}
+          onchange={updateAlwaysOnTop}
+        />
         Always on top
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={alwaysOnBottom} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={alwaysOnBottom}
+          onchange={updateAlwaysOnBottom}
+        />
         Always on bottom
       </label>
       <label>
@@ -536,15 +582,26 @@
           type="checkbox"
           class="checkbox"
           bind:checked={contentProtected}
+          onchange={updateContentProtected}
         />
         Content protected
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={maximized} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={maximized}
+          onchange={updateMaximized}
+        />
         Maximized
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={fullscreen} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={fullscreen}
+          onchange={updateFullscreen}
+        />
         Fullscreen
       </label>
       <label>
@@ -552,12 +609,13 @@
           type="checkbox"
           class="checkbox"
           bind:checked={simpleFullscreen}
+          onchange={updateSimpleFullscreen}
         />
         Simple fullscreen
       </label>
     </div>
-    <div class="flex flex-wrap children:flex-basis-30 gap-2">
-      <div class="grid gap-1 children:grid">
+    <div class="flex flex-wrap *:flex-basis-30 gap-2">
+      <div class="grid gap-1 *:grid">
         <label>
           X
           <input
@@ -579,7 +637,7 @@
           />
         </label>
       </div>
-      <div class="grid gap-1 children:grid">
+      <div class="grid gap-1 *:grid">
         <label>
           Width
           <input
@@ -601,24 +659,46 @@
           />
         </div>
       </div>
-      <div class="grid gap-1 children:grid">
+      <div class="grid gap-1 *:grid">
         <label>
           Min width
-          <input class="input" type="number" bind:value={minWidth} />
+          <input
+            class="input"
+            type="number"
+            bind:value={minWidth}
+            onchange={updateMinSize}
+          />
         </label>
         <label>
           Min height
-          <input class="input" type="number" bind:value={minHeight} />
+          <input
+            class="input"
+            type="number"
+            bind:value={minHeight}
+            onchange={updateMinSize}
+          />
         </label>
       </div>
-      <div class="grid gap-1 children:grid">
+      <div class="grid gap-1 *:grid">
         <label>
           Max width
-          <input class="input" type="number" bind:value={maxWidth} min="800" />
+          <input
+            class="input"
+            type="number"
+            bind:value={maxWidth}
+            onchange={updateMaxSize}
+            min="800"
+          />
         </label>
         <label>
           Max height
-          <input class="input" type="number" bind:value={maxHeight} min="400" />
+          <input
+            class="input"
+            type="number"
+            bind:value={maxHeight}
+            onchange={updateMaxSize}
+            min="400"
+          />
         </label>
       </div>
     </div>
@@ -684,9 +764,14 @@
     </div>
     <div class="grid gap-2">
       <h4 class="my-2">Cursor</h4>
-      <div class="flex gap-2">
+      <div class="flex gap-4 *:flex *:gap-2">
         <label>
-          <input type="checkbox" class="checkbox" bind:checked={cursorGrab} />
+          <input
+            type="checkbox"
+            class="checkbox"
+            bind:checked={cursorGrab}
+            onchange={updateCursorGrab}
+          />
           Grab
         </label>
         <label>
@@ -694,6 +779,7 @@
             type="checkbox"
             class="checkbox"
             bind:checked={cursorVisible}
+            onchange={updateCursorVisible}
           />
           Visible
         </label>
@@ -702,6 +788,7 @@
             type="checkbox"
             class="checkbox"
             bind:checked={cursorIgnoreEvents}
+            onchange={updateCursorIgnoreEvents}
           />
           Ignore events
         </label>
@@ -709,7 +796,11 @@
       <div class="flex gap-2">
         <label>
           Icon
-          <select class="input" bind:value={cursorIcon}>
+          <select
+            class="input"
+            bind:value={cursorIcon}
+            onchange={updateCursorIcon}
+          >
             {#each cursorIconOptions as kind}
               <option value={kind}>{kind}</option>
             {/each}
@@ -717,11 +808,21 @@
         </label>
         <label>
           X position
-          <input class="input" type="number" bind:value={cursorX} />
+          <input
+            class="input"
+            type="number"
+            bind:value={cursorX}
+            onchange={updateCursorPosition}
+          />
         </label>
         <label>
           Y position
-          <input class="input" type="number" bind:value={cursorY} />
+          <input
+            class="input"
+            type="number"
+            bind:value={cursorY}
+            onchange={updateCursorPosition}
+          />
         </label>
       </div>
     </div>
@@ -793,7 +894,7 @@
         <div class="flex">
           <label>
             Color
-            <div class="flex gap-2 children:flex-basis-30">
+            <div class="flex gap-2 *:flex-basis-30">
               <input
                 class="input"
                 type="number"

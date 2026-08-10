@@ -45,7 +45,7 @@ impl dyn Resource {
   }
 
   #[inline(always)]
-  pub(crate) fn downcast_arc<'a, T: Resource>(self: &'a Arc<Self>) -> Option<&'a Arc<T>> {
+  pub(crate) fn downcast_arc<T: Resource>(self: &Arc<Self>) -> Option<&Arc<T>> {
     if self.is::<T>() {
       // A resource is stored as `Arc<T>` in a BTreeMap
       // and is safe to cast to `Arc<T>` because of the runtime
@@ -140,7 +140,7 @@ impl ResourceTable {
   }
 
   /// Returns a reference counted pointer to the resource of the given `rid`.
-  /// If `rid` is not present, this function returns [`Error::BadResourceId`].
+  /// If `rid` is not present, this function returns [`crate::Error::BadResourceId`].
   pub fn get_any(&self, rid: ResourceId) -> crate::Result<Arc<dyn Resource>> {
     self
       .index

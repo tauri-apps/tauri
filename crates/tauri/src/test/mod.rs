@@ -216,7 +216,11 @@ pub fn mock_app() -> App<MockRuntime> {
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
-///             url: "http://tauri.localhost".parse().unwrap(),
+///             url: if cfg!(any(windows, target_os = "android")) {
+///                 "http://tauri.localhost"
+///             } else {
+///                 "tauri://localhost"
+///             }.parse().unwrap(),
 ///             body: tauri::ipc::InvokeBody::default(),
 ///             headers: Default::default(),
 ///             invoke_key: tauri::test::INVOKE_KEY.to_string(),
@@ -243,6 +247,7 @@ pub fn assert_ipc_response<
   );
 }
 
+#[allow(clippy::needless_doctest_main)]
 /// Executes the given IPC message and get the return value.
 ///
 /// # Examples
@@ -274,7 +279,11 @@ pub fn assert_ipc_response<
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
-///             url: "http://tauri.localhost".parse().unwrap(),
+///             url: if cfg!(any(windows, target_os = "android")) {
+///                 "http://tauri.localhost"
+///             } else {
+///                 "tauri://localhost"
+///             }.parse().unwrap(),
 ///             body: tauri::ipc::InvokeBody::default(),
 ///             headers: Default::default(),
 ///             invoke_key: tauri::test::INVOKE_KEY.to_string(),

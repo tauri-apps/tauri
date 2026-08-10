@@ -11,12 +11,12 @@ use crate::{
   build::Options as BuildOptions,
   error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_tauri_config, ConfigHandle},
+    app_paths::Dirs,
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
     plist::merge_plist,
   },
-  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Options as InterfaceOptions},
   mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions, TargetDevice},
   ConfigValue, Error, Result,
 };
@@ -36,7 +36,7 @@ use rand::distr::{Alphanumeric, SampleString};
 use std::{
   env::{set_current_dir, var, var_os},
   fs,
-  path::PathBuf,
+  path::{Path, PathBuf},
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -59,8 +59,8 @@ pub struct Options {
   )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
+  pub features: Vec<String>,
   /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
@@ -94,6 +94,12 @@ pub struct Options {
   /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
   pub ignore_version_mismatches: bool,
+  /// Skip code signing when bundling the app
+  #[clap(long)]
+  pub no_sign: bool,
+  /// Only archive the app, skip generating the IPA.
+  #[clap(long)]
+  pub archive_only: bool,
   /// Target device of this build
   #[clap(skip)]
   pub target_device: Option<TargetDevice>,
@@ -154,7 +160,8 @@ impl From<Options> for BuildOptions {
       ci: options.ci,
       skip_stapling: false,
       ignore_version_mismatches: options.ignore_version_mismatches,
-      no_sign: false,
+      no_sign: options.no_sign,
+      no_binary_patching: false,
     }
   }
 }
@@ -168,8 +175,11 @@ pub struct BuiltApplication {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplication> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
+  run(options, noise_level, &dirs)
+}
 
+pub fn run(options: Options, noise_level: NoiseLevel, dirs: &Dirs) -> Result<BuiltApplication> {
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -189,26 +199,29 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Ios,
     &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
-  let (interface, mut config) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+  let interface = AppInterface::new(&tauri_config, build_options.target.clone(), dirs.tauri)?;
+  interface.build_options(&mut build_options.args, &mut build_options.features, true);
 
-    let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
-    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+  let app = get_app(MobileTarget::Ios, &tauri_config, &interface, dirs.tauri);
+  let (mut config, _) = get_config(
+    &app,
+    &tauri_config,
+    &build_options.features,
+    &CliOptions {
+      dev: false,
+      features: build_options.features.clone(),
+      args: build_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: build_options.config.clone(),
+      target_device: None,
+    },
+    dirs.tauri,
+  )?;
 
-    let app = get_app(MobileTarget::Ios, tauri_config_, &interface);
-    let (config, _metadata) = get_config(
-      &app,
-      tauri_config_,
-      build_options.features.as_ref(),
-      &Default::default(),
-    )?;
-    (interface, config)
-  };
-
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).context("failed to set current directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory")?;
 
   ensure_init(
     &tauri_config,
@@ -217,7 +230,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     MobileTarget::Ios,
     options.ci,
   )?;
-  inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+  inject_resources(&config, &tauri_config)?;
 
   let mut plist = plist::Dictionary::new();
   plist.insert(
@@ -231,22 +244,21 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     .join("Info.plist");
   let mut src_plists = vec![info_plist_path.clone().into()];
   src_plists.push(plist::Value::Dictionary(plist).into());
-  if tauri_path.join("Info.plist").exists() {
-    src_plists.push(tauri_path.join("Info.plist").into());
+  if dirs.tauri.join("Info.plist").exists() {
+    src_plists.push(dirs.tauri.join("Info.plist").into());
   }
-  if tauri_path.join("Info.ios.plist").exists() {
-    src_plists.push(tauri_path.join("Info.ios.plist").into());
+  if dirs.tauri.join("Info.ios.plist").exists() {
+    src_plists.push(dirs.tauri.join("Info.ios.plist").into());
   }
-  if let Some(info_plist) = &tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .bundle
-    .ios
-    .info_plist
   {
-    src_plists.push(info_plist.clone().into());
+    if let Some(info_plist) = &tauri_config.bundle.ios.info_plist {
+      src_plists.push(info_plist.clone().into());
+    }
+    if let Some(associations) = tauri_config.bundle.file_associations.as_ref() {
+      if let Some(file_associations) = tauri_utils::config::file_associations_plist(associations) {
+        src_plists.push(file_associations.into());
+      }
+    }
   }
   let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist
@@ -311,7 +323,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
       tempfile::NamedTempFile::new().context("failed to create temporary file")?;
 
     let merged_plist = merge_plist(vec![
-      export_options_plist_path.clone().into(),
+      export_options_plist_path.into(),
       plist::Value::from(export_options_plist).into(),
     ])?;
     merged_plist
@@ -338,6 +350,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
     &mut config,
     &mut env,
     noise_level,
+    dirs,
   )?;
 
   if open {
@@ -356,10 +369,11 @@ fn run_build(
   interface: &AppInterface,
   options: Options,
   mut build_options: BuildOptions,
-  tauri_config: ConfigHandle,
+  tauri_config: ConfigMetadata,
   config: &mut AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
+  dirs: &Dirs,
 ) -> Result<OptionsHandle> {
   let profile = if options.debug {
     Profile::Debug
@@ -367,15 +381,18 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(interface, &mut build_options, tauri_config.clone(), true)?;
+  crate::build::setup(interface, &mut build_options, &tauri_config, dirs, true)?;
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&InterfaceOptions {
-    debug: build_options.debug,
-    target: build_options.target.clone(),
-    args: build_options.args.clone(),
-    ..Default::default()
-  })?;
+  let out_dir = app_settings.out_dir(
+    &InterfaceOptions {
+      debug: build_options.debug,
+      target: build_options.target.clone(),
+      args: build_options.args.clone(),
+      ..Default::default()
+    },
+    dirs.tauri,
+  )?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let cli_options = CliOptions {
@@ -387,7 +404,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: options.target_device.clone(),
   };
-  let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+  let handle = write_options(&tauri_config, cli_options)?;
 
   if options.open {
     return Ok(handle);
@@ -413,20 +430,26 @@ fn run_build(
       }
 
       let credentials = auth_credentials_from_env()?;
-      let skip_signing = credentials.is_some();
+      let skip_signing = options.no_sign || credentials.is_some();
 
-      let mut build_config = BuildConfig::new().allow_provisioning_updates();
-      if let Some(credentials) = &credentials {
-        build_config = build_config
-          .authentication_credentials(credentials.clone())
-          .skip_codesign();
+      if !(options.archive_only || options.no_sign) {
+        let mut build_config = BuildConfig::new().allow_provisioning_updates();
+        if let Some(credentials) = &credentials {
+          build_config = build_config.authentication_credentials(credentials.clone());
+        }
+        if skip_signing {
+          build_config = build_config.skip_codesign();
+        }
+
+        target
+          .build(None, config, env, noise_level, profile, build_config)
+          .context("failed to build iOS app")?;
       }
 
-      target
-        .build(None, config, env, noise_level, profile, build_config)
-        .context("failed to build iOS app")?;
-
-      let mut archive_config = ArchiveConfig::new();
+      let mut archive_config = ArchiveConfig::new().allow_provisioning_updates();
+      if let Some(credentials) = &credentials {
+        archive_config = archive_config.authentication_credentials(credentials.clone());
+      }
       if skip_signing {
         archive_config = archive_config.skip_codesign();
       }
@@ -441,6 +464,15 @@ fn run_build(
           archive_config,
         )
         .context("failed to archive iOS app")?;
+
+      if options.archive_only {
+        out_files.push(
+          config
+            .archive_dir()
+            .join(format!("{}.xcarchive", config.scheme())),
+        );
+        return Ok(());
+      }
 
       let out_dir = config.export_dir().join(target.arch);
 
@@ -459,6 +491,23 @@ fn run_build(
         let path = out_dir.join(app_path.file_name().unwrap());
         fs::rename(&app_path, &path).fs_context("failed to rename app", app_path)?;
         out_files.push(path);
+      } else if options.no_sign {
+        fs::create_dir_all(&out_dir)
+          .fs_context("failed to create Xcode output directory", out_dir.clone())?;
+
+        let app_path = config
+          .archive_dir()
+          .join(format!("{}.xcarchive", config.scheme()))
+          .join("Products")
+          .join("Applications")
+          .join(config.app().stylized_name())
+          .with_extension("app");
+
+        let ipa_path = out_dir
+          .join(config.app().stylized_name())
+          .with_extension("ipa");
+        create_ipa(&app_path, &ipa_path)?;
+        out_files.push(ipa_path);
       } else {
         // if we skipped code signing, we do not have the entitlements applied to our exported IPA
         // we must force sign the app binary with a dummy certificate just to preserve the entitlements
@@ -533,6 +582,62 @@ fn run_build(
   }
 
   Ok(handle)
+}
+
+fn create_ipa(app_path: &Path, ipa_path: &Path) -> Result<()> {
+  let ipa_file =
+    fs::File::create(ipa_path).fs_context("failed to create IPA file", ipa_path.to_path_buf())?;
+  let mut zip = zip::ZipWriter::new(ipa_file);
+  let options = zip::write::SimpleFileOptions::default()
+    .compression_method(zip::CompressionMethod::Deflated)
+    .unix_permissions(0o755);
+
+  zip
+    .add_directory("Payload/", options)
+    .context("failed to add Payload directory to zip")?;
+
+  let mut app_files = Vec::new();
+  let mut stack = vec![app_path.to_path_buf()];
+  while let Some(path) = stack.pop() {
+    if path.is_dir() {
+      app_files.push(path.clone());
+      for entry in fs::read_dir(&path).fs_context("failed to read directory", path.clone())? {
+        stack.push(
+          entry
+            .fs_context("failed to read directory entry", path.clone())?
+            .path(),
+        );
+      }
+    } else {
+      app_files.push(path);
+    }
+  }
+
+  for file_path in app_files {
+    let name = file_path.strip_prefix(app_path.parent().unwrap()).unwrap();
+    let mut name_str = name.to_string_lossy().to_string();
+    // zip expects forward slashes
+    if std::path::MAIN_SEPARATOR == '\\' {
+      name_str = name_str.replace('\\', "/");
+    }
+    let mut name_in_zip = format!("Payload/{name_str}");
+
+    if file_path.is_dir() {
+      name_in_zip.push('/');
+      zip
+        .add_directory(name_in_zip, options)
+        .context("failed to add directory to zip")?;
+    } else {
+      zip
+        .start_file(name_in_zip, options)
+        .context("failed to start file in zip")?;
+      let mut f = fs::File::open(&file_path).fs_context("failed to open file", file_path)?;
+      std::io::copy(&mut f, &mut zip).context("failed to copy file to zip")?;
+    }
+  }
+
+  zip.finish().context("failed to finish zip")?;
+  Ok(())
 }
 
 fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCredentials>> {

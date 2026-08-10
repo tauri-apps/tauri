@@ -26,6 +26,7 @@ Resolved {
                             ),
                         ],
                         is_recursive: false,
+                        has_metachars: false,
                     },
                 ],
                 webviews: [],
@@ -53,6 +54,7 @@ Resolved {
                             ),
                         ],
                         is_recursive: false,
+                        has_metachars: false,
                     },
                 ],
                 webviews: [],
@@ -68,7 +70,7 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$APP",
+                            "$APPDATA",
                         ),
                     },
                 ),

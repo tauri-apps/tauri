@@ -78,8 +78,8 @@ impl Options {
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
-      let package_json_text = read_to_string(&package_json_path)
-        .fs_context("failed to read", package_json_path.clone())?;
+      let package_json_text =
+        read_to_string(&package_json_path).fs_context("failed to read", &package_json_path)?;
       let package_json: crate::PackageJson =
         serde_json::from_str(&package_json_text).context("failed to parse JSON")?;
       let (framework, _) = infer_framework(&package_json_text);
@@ -142,7 +142,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend dev command?",
+          "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
           Some(default_dev_command(detected_package_manager).into()),
           self.ci,
           true,
@@ -154,7 +154,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend build command?",
+          "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
           Some(default_build_command(detected_package_manager).into()),
           self.ci,
           true,

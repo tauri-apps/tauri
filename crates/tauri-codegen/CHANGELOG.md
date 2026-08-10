@@ -1,5 +1,54 @@
 # Changelog
 
+## \[2.6.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+
+## \[2.6.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+- [`df05c0056`](https://www.github.com/tauri-apps/tauri/commit/df05c00563a91fc936bd15c6b10dd2825472f96b) Upgraded to `tauri-utils@2.9.0`
+
+## \[2.5.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+
+## \[2.5.4]
+
+### Bug Fixes
+
+- [`eb5d88427`](https://www.github.com/tauri-apps/tauri/commit/eb5d88427a7dcb347fb0feae9e816db05b101844) ([#14883](https://www.github.com/tauri-apps/tauri/pull/14883) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `tauri::Context` code generation failing with `can't capture dynamic environment in a fn item` when custom assets are provided.
+
+## \[2.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+
 ## \[2.5.1]
 
 ### Performance Improvements

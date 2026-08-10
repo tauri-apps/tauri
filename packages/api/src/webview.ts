@@ -593,7 +593,7 @@ class Webview {
   /**
    * Specify the webview background color.
    *
-   * #### Platfrom-specific:
+   * #### Platform-specific:
    *
    * - **macOS / iOS**: Not implemented.
    * - **Windows**:
@@ -714,13 +714,13 @@ interface WebviewOptions {
    * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
-  /** The initial vertical position. */
+  /** The initial vertical position in logical pixels. */
   x: number
-  /** The initial horizontal position. */
+  /** The initial horizontal position in logical pixels. */
   y: number
-  /** The initial width. */
+  /** The initial width in logical pixels. */
   width: number
-  /** The initial height. */
+  /** The initial height in logical pixels. */
   height: number
   /**
    * Whether the webview is transparent or not.
@@ -897,6 +897,25 @@ interface WebviewOptions {
    * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
    */
   scrollBarStyle?: ScrollBarStyle
+  /**
+   * Controls the WebView's browser-level general autofill behavior.
+   *
+   * **This option does not disable password or credit card autofill.**
+   *
+   * When set to `false`, the WebView will not automatically populate general form
+   * fields using previously stored data such as addresses or contact information.
+   *
+   * If not specified, this is `true` by default.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows**: Supported. WebView2's autofill feature (called "Suggestions")
+   *   may not honor `autocomplete="off"` on input elements in some cases.
+   * - **Linux / Android / iOS / macOS**: Unsupported and performs no operation.
+   *
+   * @since 2.11.0
+   */
+  generalAutofillEnabled?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

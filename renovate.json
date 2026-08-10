@@ -36,6 +36,15 @@
       "matchSourceUrls": ["https://github.com/cloudflare/workers-rs"]
     },
     {
+      "description": "Bump CLI packages",
+      "matchFileNames": [
+        "crates/tauri-cli/Cargo.toml",
+        "packages/cli/Cargo.toml",
+        "packages/cli/package.json"
+      ],
+      "rangeStrategy": "auto"
+    },
+    {
       "description": "Group napi-rs packages",
       "groupName": "napi-rs packages",
       "matchPackageNames": [
@@ -45,15 +54,6 @@
         "@napi-rs/cli"
       ],
       "rangeStrategy": "bump"
-    },
-    {
-      "description": "Bump CLI packages",
-      "matchFileNames": [
-        "crates/tauri-cli/Cargo.toml",
-        "packages/cli/Cargo.toml",
-        "packages/cli/package.json"
-      ],
-      "rangeStrategy": "auto"
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

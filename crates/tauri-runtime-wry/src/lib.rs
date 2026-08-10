@@ -2738,66 +2738,31 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     self.context.main_thread.window_target.display_handle()
   }
 
-  fn primary_monitor(&self) -> Option<Monitor> {
-    // Query the monitor on the main thread: the event loop's window target is
-    // not thread safe and touching it from another thread crashes (#15170).
-    let (tx, rx) = channel();
-
-    // Bail out if the message never reaches the event loop, otherwise recv()
-    // would block forever waiting on a sender that will never send.
-    if send_user_message(
-      &self.context,
-      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::PrimaryMonitor(tx)),
+  fn primary_monitor(&self) -> Result<Option<Monitor>> {
+    Ok(
+      event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor)?
+        .map(|m| MonitorHandleWrapper(m).into()),
     )
-    .is_err()
-    {
-      return None;
-    }
-
-    rx.recv()
-      .ok()
-      .flatten()
-      .map(|m| MonitorHandleWrapper(m).into())
   }
 
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
     let (tx, rx) = channel();
-
-    if send_user_message(
+    send_user_message(
       &self.context,
       Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y))),
-    )
-    .is_err()
-    {
-      return None;
-    }
-
-    rx.recv()
-      .ok()
-      .flatten()
-      .map(|m| MonitorHandleWrapper(m).into())
+    )?;
+    Ok(rx.recv().unwrap().map(|m| MonitorHandleWrapper(m).into()))
   }
 
-  fn available_monitors(&self) -> Vec<Monitor> {
-    let (tx, rx) = channel();
-
-    if send_user_message(
-      &self.context,
-      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::AvailableMonitors(tx)),
-    )
-    .is_err()
-    {
-      return Vec::new();
-    }
-
-    rx.recv()
-      .map(|monitors| {
+  fn available_monitors(&self) -> Result<Vec<Monitor>> {
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors).map(
+      |monitors| {
         monitors
           .into_iter()
           .map(|m| MonitorHandleWrapper(m).into())
           .collect()
-      })
-      .unwrap_or_default()
+      },
+    )
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {

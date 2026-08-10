@@ -9,6 +9,21 @@ pub(crate) mod plugin;
 use std::borrow::Cow;
 use std::sync::Arc;
 
+#[cfg(windows)]
+use windows::{
+  core::{Owned, PCWSTR},
+  Win32::{
+    Foundation::GetLastError,
+    Graphics::Gdi::{
+      CreateCompatibleDC, DeleteDC, GetDIBits, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+    },
+    System::LibraryLoader::GetModuleHandleW,
+    UI::WindowsAndMessaging::{
+      GetIconInfo, LoadImageW, HICON, ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR,
+    },
+  },
+};
+
 use crate::{Resource, ResourceId, ResourceTable};
 
 /// An RGBA Image in row-major order from top to bottom.
@@ -96,6 +111,101 @@ impl<'a> Image<'a> {
   pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> crate::Result<Self> {
     let bytes = std::fs::read(path)?;
     Self::from_bytes(&bytes)
+  }
+
+  /// Creates a new image from the application icon embedded in this executable or library.
+  ///
+  /// The application icon is currently the icon with `nameID 32512` we embedded through `tauri-build`,
+  /// this could change in the future.
+  #[cfg(windows)]
+  pub fn from_app_icon_resource(size: u32) -> crate::Result<Self> {
+    // Make sure we keep this `resource_id` in sync with the one in `tauri-build`
+    Image::from_icon_resource(PCWSTR(32512 as _), size, size)
+  }
+
+  /// Create a new image from an icon resource embedded in this executable or library.
+  ///
+  /// **Note**: This might take ~2ms for [`LoadImageW`] to load the image for the first time.
+  ///
+  /// ## Examples
+  ///
+  /// The `resource_id` can be an `u16` wrapped as `PCWSTR(1 as _)` or a wide string like `w!("icon")`
+  ///
+  /// ```
+  /// # use tauri::image::Image;
+  /// # use windows::core::{w, PCWSTR};
+  /// Image::from_icon_resource(PCWSTR(1 as _), 32, 32);
+  /// Image::from_icon_resource(w!("icon"), 32, 32);
+  /// ```
+  #[cfg(windows)]
+  pub fn from_icon_resource(resource_id: PCWSTR, width: u32, height: u32) -> crate::Result<Self> {
+    let width_i32 = width as i32;
+    let height_i32 = height as i32;
+    let color_depth_bytes = 4;
+
+    let hicon = unsafe {
+      Owned::new(HICON(
+        LoadImageW(
+          Some(
+            GetModuleHandleW(PCWSTR::null())
+              .map_err(crate::Error::ImageFromResource)?
+              .into(),
+          ),
+          resource_id,
+          IMAGE_ICON,
+          width_i32,
+          height_i32,
+          LR_DEFAULTCOLOR,
+        )
+        .map_err(crate::Error::ImageFromResource)?
+        .0,
+      ))
+    };
+
+    let mut icon_info = ICONINFO::default();
+    unsafe { GetIconInfo(*hicon, &mut icon_info).map_err(crate::Error::ImageFromResource)? };
+    let _hbm_mask = unsafe { Owned::new(icon_info.hbmMask) };
+    let hbm_color = unsafe { Owned::new(icon_info.hbmColor) };
+
+    let image_bytes = (width_i32 * height_i32 * color_depth_bytes as i32) as usize;
+    let mut bgra: Vec<u8> = Vec::with_capacity(image_bytes);
+
+    let mut bitmap_info = BITMAPINFO::default();
+    bitmap_info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as _;
+    bitmap_info.bmiHeader.biWidth = width_i32;
+    // nagative value for top-down
+    bitmap_info.bmiHeader.biHeight = -height_i32;
+    bitmap_info.bmiHeader.biBitCount = color_depth_bytes * 8;
+    bitmap_info.bmiHeader.biPlanes = 1;
+    bitmap_info.bmiHeader.biCompression = BI_RGB.0;
+
+    unsafe {
+      let hdc = CreateCompatibleDC(None);
+      let result = GetDIBits(
+        hdc,
+        *hbm_color,
+        0,
+        height,
+        Some(bgra.as_mut_ptr() as _),
+        &mut bitmap_info,
+        DIB_RGB_COLORS,
+      );
+      let _ = DeleteDC(hdc);
+      if result == 0 {
+        return Err(crate::Error::ImageFromResource(GetLastError().into()));
+      }
+      bgra.set_len(image_bytes);
+    }
+
+    let rgba = {
+      for px in bgra.chunks_exact_mut(color_depth_bytes as usize) {
+        // Swap Blue and Red channels
+        px.swap(0, 2);
+      }
+      bgra
+    };
+
+    Ok(Image::new_owned(rgba, width, height))
   }
 
   /// Returns the RGBA data for this image, in row-major order from top to bottom.

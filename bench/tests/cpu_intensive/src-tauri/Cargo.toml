@@ -6,9 +6,7 @@ edition = "2021"
 rust-version = "1.90"
 
 [build-dependencies]
-tauri-build = { workspace = true, default-features = true, features = [
-  "codegen",
-] }
+tauri-build = { workspace = true, features = ["codegen"] }
 
 [dependencies]
 serde_json = "1"

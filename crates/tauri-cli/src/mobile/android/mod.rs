@@ -50,12 +50,6 @@ mod run;
 
 const NDK_VERSION: &str = "29.0.13846066";
 const SDK_VERSION: u8 = 36;
-/// Highest Java feature version that the Gradle shipped in the Android template
-/// (see `templates/mobile/android/gradle/wrapper/gradle-wrapper.properties`) can
-/// run on. Gradle 8.14 supports running on Java up to 24 — bump this whenever the
-/// template's Gradle version changes.
-/// See <https://docs.gradle.org/current/userguide/compatibility.html>.
-const MAX_SUPPORTED_JAVA: u32 = 24;
 
 #[cfg(target_os = "macos")]
 const CMDLINE_TOOLS_URL: &str =
@@ -492,18 +486,66 @@ fn ensure_java() -> Result<()> {
     }
   }
 
-  if let Some(java) = java_major_version() {
-    if java > MAX_SUPPORTED_JAVA {
-      log::warn!(
-        "Detected Java {java}, but the bundled Gradle can only run on Java up to {MAX_SUPPORTED_JAVA}. \
-         Android builds will likely fail with a cryptic error. Install a supported JDK (the Java {MAX_SUPPORTED_JAVA} \
-         or an LTS release such as Java 17 or 21) and point JAVA_HOME at it. \
-         See https://docs.gradle.org/current/userguide/compatibility.html"
-      );
+  // Read the Gradle version this project actually uses (the user may have upgraded it away from
+  // the template default) and only warn when the detected Java is too new for that Gradle.
+  if let (Some(java), Some(gradle_version)) = (java_major_version(), project_gradle_version()) {
+    if let Some(max_java) = gradle_max_supported_java(&gradle_version) {
+      if java > max_java {
+        log::warn!(
+          "Detected Java {java}, but Gradle {gradle_version} used by this project can only run on Java up to {max_java}. \
+           Android builds will likely fail with a cryptic error. Install a supported JDK (Java {max_java} \
+           or an LTS release such as Java 17 or 21) and point JAVA_HOME at it. \
+           See https://docs.gradle.org/current/userguide/compatibility.html"
+        );
+      }
     }
   }
 
   Ok(())
+}
+
+/// Reads the Gradle version this project is pinned to from its
+/// `gradle/wrapper/gradle-wrapper.properties` `distributionUrl` (e.g.
+/// `gradle-8.14-bin.zip` -> `8.14`). Returns `None` when the project isn't
+/// generated yet or the file can't be parsed, in which case no warning is shown.
+fn project_gradle_version() -> Option<String> {
+  let project_path = std::env::var_os("TAURI_ANDROID_PROJECT_PATH")?;
+  let properties = std::fs::read_to_string(
+    Path::new(&project_path).join("gradle/wrapper/gradle-wrapper.properties"),
+  )
+  .ok()?;
+  properties.lines().find_map(|line| {
+    let url = line.trim().strip_prefix("distributionUrl=")?;
+    let file = url.rsplit('/').next()?;
+    let version = file.strip_prefix("gradle-")?.split('-').next()?;
+    (!version.is_empty()).then(|| version.to_string())
+  })
+}
+
+/// Highest Java feature version a given Gradle release can *run* on.
+/// Only 8.x releases are mapped; for Gradle 9+ (which tracks new Java quickly)
+/// we return `None` to avoid false warnings. See
+/// <https://docs.gradle.org/current/userguide/compatibility.html>.
+fn gradle_max_supported_java(version: &str) -> Option<u32> {
+  let mut parts = version.split('.');
+  let major: u32 = parts.next()?.parse().ok()?;
+  let minor: u32 = parts.next().and_then(|m| m.parse().ok()).unwrap_or(0);
+
+  if major >= 9 {
+    return None;
+  }
+
+  Some(match (major, minor) {
+    v if v >= (8, 14) => 24,
+    v if v >= (8, 10) => 23,
+    v if v >= (8, 8) => 22,
+    v if v >= (8, 5) => 21,
+    v if v >= (8, 3) => 20,
+    v if v >= (7, 6) => 19,
+    v if v >= (7, 5) => 18,
+    v if v >= (7, 3) => 17,
+    _ => return None,
+  })
 }
 
 /// Detects the major (feature) version of the active Java installation by

@@ -241,7 +241,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
         .l()?;
 
       let plugin_name = env.new_string(plugin_name)?;
-      let config = env.new_string(&serde_json::to_string(plugin_config).unwrap())?;
+      let config = env.new_string(serde_json::to_string(plugin_config).unwrap())?;
       env.call_method(
         plugin_manager,
         "load",
@@ -450,7 +450,7 @@ pub(crate) fn run_command<
 ) -> Result<(), PluginInvokeError> {
   use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
 
-  fn run<R: Runtime>(
+  fn run(
     id: i32,
     plugin: &str,
     command: String,
@@ -460,7 +460,7 @@ pub(crate) fn run_command<
   ) -> Result<(), JniError> {
     let plugin = env.new_string(plugin)?;
     let command = env.new_string(&command)?;
-    let data = env.new_string(&serde_json::to_string(payload).unwrap())?;
+    let data = env.new_string(serde_json::to_string(payload).unwrap())?;
     let plugin_manager = env
       .call_method(
         activity,
@@ -502,7 +502,7 @@ pub(crate) fn run_command<
     .insert(id, Box::new(handler.clone()));
 
   handle.run_on_android_context(move |env, activity, _webview| {
-    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, env, activity) {
+    if let Err(e) = run(id, &plugin_name, command, &payload, env, activity) {
       handler(Err(e.to_string().into()));
     }
   });

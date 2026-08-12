@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.11.3"
+version = "2.11.5"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -61,7 +61,7 @@ tauri-macros = { version = "2.6.3", path = "../tauri-macros" }
 tauri-utils = { version = "2.9.3", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.11.3", path = "../tauri-runtime-wry", default-features = false, optional = true }
+tauri-runtime-wry = { version = "2.11.4", path = "../tauri-runtime-wry", default-features = false, optional = true }
 getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"
@@ -109,12 +109,12 @@ objc2 = "0.6"
 [target.'cfg(target_os = "macos")'.dependencies]
 embed_plist = "1.2"
 plist = "1"
-objc2-foundation = { version = "0.3", default-features = false, features = [
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "std",
   "NSData",
   "NSThread",
 ] }
-objc2-app-kit = { version = "0.3", default-features = false, features = [
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "std",
   "NSApplication",
   "NSColor",
@@ -123,7 +123,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSWindow",
   "NSImage",
 ] }
-objc2-web-kit = { version = "0.3", default-features = false, features = [
+objc2-web-kit = { version = "0.3.2", default-features = false, features = [
   "objc2-app-kit",
   "WKWebView",
   "WKWebViewConfiguration",
@@ -160,7 +160,7 @@ jni = "0.21"
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
 swift-rs = "1"
-objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIApplication",
   "UIResponder",
   "UIView",
@@ -182,7 +182,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { workspace = true, features = ["wry"] }
 tokio = { version = "1", features = ["full"] }
-cargo_toml = "0.22"
+cargo_toml = "1.0"
 http-range = "0.1.5"
 
 [features]

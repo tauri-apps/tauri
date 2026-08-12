@@ -24,7 +24,7 @@ brotli = { version = "8", optional = true, default-features = false, features = 
 url = { version = "2", features = ["serde"] }
 html5ever = { version = "0.29", optional = true }
 kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader", optional = true }
-dom_query = { version = "0.27", optional = true, default-features = false }
+dom_query = { version = "0.28", optional = true, default-features = false }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
 # Our code requires at least 0.8.21 so don't change this to 0.8
@@ -33,22 +33,19 @@ serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.3", optional = true, features = ["std"] }
 serialize-to-javascript = { version = "0.1.2", optional = true }
-ctor = { version = "0.8", default-features = false, features = [
-  "std",
-  "proc_macro",
-] }
+ctor = { version = "1.0", default-features = false }
 json5 = { version = "0.4", optional = true }
 # Part of public api in error type
 toml = { version = ">=0.9, <=1", features = ["parse"] }
-json-patch = "3.0"
+json-patch = "4.0"
 # Our code requires at least 0.3.1
 glob = "0.3.1"
-urlpattern = "0.3"
+urlpattern = "0.6"
 regex = "1"
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.19"
+infer = "0.22"
 dunce = "1"
 log = "0.4.21"
 cargo_metadata = { version = "0.19", optional = true }
@@ -62,7 +59,7 @@ swift-rs = { version = "1", optional = true, features = ["build"] }
 
 [dev-dependencies]
 getrandom = { version = "0.3", features = ["std"] }
-serial_test = "3"
+serial_test = "3.5"
 tauri = { workspace = true }
 tempfile = "3.15.0"
 

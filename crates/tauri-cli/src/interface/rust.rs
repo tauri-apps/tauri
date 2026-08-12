@@ -899,26 +899,6 @@ impl AppSettings for RustAppSettings {
       });
     }
 
-    if let Some(open) = config.plugins.0.get("shell").and_then(|v| v.get("open")) {
-      if open.as_bool().is_some_and(|x| x) || open.is_string() {
-        settings.appimage.bundle_xdg_open = true;
-      }
-    }
-
-    if let Some(deps) = self
-      .manifest
-      .lock()
-      .unwrap()
-      .inner
-      .as_table()
-      .get("dependencies")
-      .and_then(|f| f.as_table())
-    {
-      if deps.contains_key("tauri-plugin-opener") {
-        settings.appimage.bundle_xdg_open = true;
-      };
-    }
-
     Ok(settings)
   }
 
@@ -1675,6 +1655,7 @@ fn tauri_config_to_bundle_settings(
       allow_downgrades: config.windows.allow_downgrades,
       sign_command: config.windows.sign_command.map(custom_sign_settings),
       minimum_webview2_version: config.windows.minimum_webview2_version,
+      bundle_vc_runtime: config.windows.bundle_vc_runtime,
     },
     license: config.license.or_else(|| {
       settings

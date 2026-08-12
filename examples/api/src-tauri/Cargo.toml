@@ -11,7 +11,10 @@ name = "api_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { workspace = true, features = ["codegen", "isolation"] }
+tauri-build = { workspace = true, default-features = true, features = [
+  "codegen",
+  "isolation",
+] }
 
 [dependencies]
 serde_json = "1"

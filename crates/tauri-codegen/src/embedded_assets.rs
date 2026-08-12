@@ -7,7 +7,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
 use std::{
-  collections::HashMap,
+  collections::BTreeMap,
   fs::File,
   path::{Path, PathBuf},
 };
@@ -76,7 +76,7 @@ pub type EmbeddedAssetsResult<T> = Result<T, EmbeddedAssetsError>;
 /// the compressed assets in that application's binary.
 #[derive(Default)]
 pub struct EmbeddedAssets {
-  assets: HashMap<AssetKey, (PathBuf, PathBuf)>,
+  assets: BTreeMap<AssetKey, (PathBuf, PathBuf)>,
   csp_hashes: CspHashes,
 }
 
@@ -158,7 +158,7 @@ pub struct CspHashes {
   /// Scripts that are part of the asset collection (JS or MJS files).
   pub(crate) scripts: Vec<String>,
   /// Inline scripts (`<script>code</script>`). Maps a HTML path to a list of hashes.
-  pub(crate) inline_scripts: HashMap<String, Vec<String>>,
+  pub(crate) inline_scripts: BTreeMap<String, Vec<String>>,
   /// A list of hashes of the contents of all `style` elements.
   pub(crate) styles: Vec<String>,
 }
@@ -266,13 +266,13 @@ impl EmbeddedAssets {
 
     struct CompressState {
       csp_hashes: CspHashes,
-      assets: HashMap<AssetKey, (PathBuf, PathBuf)>,
+      assets: BTreeMap<AssetKey, (PathBuf, PathBuf)>,
     }
 
     let CompressState { assets, csp_hashes } = paths.into_iter().try_fold(
       CompressState {
         csp_hashes,
-        assets: HashMap::new(),
+        assets: BTreeMap::new(),
       },
       move |mut state, (prefix, entry)| {
         let (key, asset) =
@@ -302,7 +302,7 @@ impl EmbeddedAssets {
     settings
   }
 
-  /// Compress a file and spit out the information in a [`HashMap`] friendly form.
+  /// Compress a file and spit out the information in a [`BTreeMap`] friendly form.
   fn compress_file(
     prefix: &Path,
     path: &Path,
@@ -404,12 +404,18 @@ impl ToTokens for EmbeddedAssets {
     }
 
     let mut global_hashes = TokenStream::new();
-    for script_hash in &self.csp_hashes.scripts {
+    // Sort the hashes so the generated code does not depend on the filesystem
+    // walk order the assets were collected in, which varies across machines
+    let mut script_hashes: Vec<_> = self.csp_hashes.scripts.iter().collect();
+    script_hashes.sort();
+    for script_hash in script_hashes {
       let hash = script_hash.as_str();
       global_hashes.append_all(quote!(CspHash::Script(#hash),));
     }
 
-    for style_hash in &self.csp_hashes.styles {
+    let mut style_hashes: Vec<_> = self.csp_hashes.styles.iter().collect();
+    style_hashes.sort();
+    for style_hash in style_hashes {
       let hash = style_hash.as_str();
       global_hashes.append_all(quote!(CspHash::Style(#hash),));
     }

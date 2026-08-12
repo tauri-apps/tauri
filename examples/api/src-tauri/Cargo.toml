@@ -33,6 +33,7 @@ features = [
 
 [dev-dependencies.tauri]
 workspace = true
+default-features = true
 features = ["test"]
 
 [features]

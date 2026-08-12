@@ -18,8 +18,8 @@ wry = { version = "0.56.0", default-features = false, features = [
   "linux-body",
 ] }
 tao = { version = "0.36.0", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
-tauri-utils = { version = "2.9.3", path = "../tauri-utils" }
+tauri-runtime = { workspace = true }
+tauri-utils = { workspace = true }
 raw-window-handle = "0.6"
 http = "1"
 url = "2"

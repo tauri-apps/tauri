@@ -21,7 +21,7 @@ tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 tauri-plugin-log = "2"
 
 [dependencies.tauri]
-path = "../../../crates/tauri"
+workspace = true
 features = [
   "protocol-asset",
   "image-ico",

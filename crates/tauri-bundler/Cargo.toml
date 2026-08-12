@@ -15,9 +15,7 @@ rust-version = "1.90"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
-  "resources",
-] }
+tauri-utils = { workspace = true, features = ["resources"] }
 image = "0.25"
 flate2 = "1"
 thiserror = "2"

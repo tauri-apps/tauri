@@ -25,6 +25,7 @@ tauri-plugin-log = "2"
 
 [dependencies.tauri]
 workspace = true
+default-features = true
 features = [
   "protocol-asset",
   "image-ico",
@@ -36,7 +37,6 @@ features = [
 
 [dev-dependencies.tauri]
 workspace = true
-default-features = true
 features = ["test"]
 
 [features]

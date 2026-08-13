@@ -49,7 +49,7 @@ rust-version = "1.90"
 tauri = { version = "2.11", path = "./crates/tauri", default-features = false }
 tauri-runtime = { version = "2.11", path = "./crates/tauri-runtime" }
 tauri-runtime-wry = { version = "2.11", path = "./crates/tauri-runtime-wry", default-features = false }
-tauri-build = { version = "2.5", path = "./crates/tauri-build" }
+tauri-build = { version = "2.5", path = "./crates/tauri-build", default-features = false }
 tauri-macros = { version = "2.6", path = "./crates/tauri-macros" }
 tauri-codegen = { version = "2.6", path = "./crates/tauri-codegen" }
 tauri-utils = { version = "2.9", path = "./crates/tauri-utils" }

@@ -167,7 +167,7 @@ objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
 [build-dependencies]
 glob = "0.3"
 heck = "0.5"
-tauri-build = { workspace = true, default-features = false }
+tauri-build = { workspace = true }
 tauri-utils = { workspace = true, features = ["build-2"] }
 
 [dev-dependencies]

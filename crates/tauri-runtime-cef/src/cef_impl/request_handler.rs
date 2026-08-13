@@ -398,16 +398,42 @@ wrap_scheme_handler_factory! {
       _scheme_name: Option<&CefString>,
       _request: Option<&mut Request>,
     ) -> Option<ResourceHandler> {
-      let browser = browser?;
-      let id = browser.identifier();
+      let (webview_label, handler, initialization_scripts) = match browser {
+        Some(browser) => {
+          let id = browser.identifier();
 
-      // get handler from our regsitry based on browser ID and scheme
-      let (webview_label, handler, initialization_scripts) = self
-        .registry
-        .lock()
-        .unwrap()
-        .get(&(id, self.scheme.clone()))
-        .cloned()?;
+          // get handler from our regsitry based on browser ID and scheme
+          self
+            .registry
+            .lock()
+            .unwrap()
+            .get(&(id, self.scheme.clone()))
+            .cloned()?
+        }
+        // `browser`/`frame` are null for requests that do not originate from a
+        // browser: service worker (main script and update) fetches and
+        // CefURLRequest. Returning `None` here would fall through to the
+        // network service, where `{scheme}.localhost` resolves to loopback and
+        // the connection is refused — which is exactly how service worker
+        // registration on a custom-protocol origin used to fail with "An
+        // unknown error occurred when fetching the script.".
+        //
+        // Every registry entry for a given scheme wraps the same app-level
+        // `UriSchemeProtocolHandler`, so any live entry can serve the request;
+        // only the webview label differs, and asset serving does not depend on
+        // it. Initialization scripts are per-document injections, meaningless
+        // without a browser, so they are not applied on this path.
+        None => {
+          let (webview_label, handler, _) = self
+            .registry
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|((_, scheme), _)| *scheme == self.scheme)
+            .map(|(_, entry)| entry.clone())?;
+          (webview_label, handler, Arc::new(Vec::new()))
+        }
+      };
 
       // Capture the initiating main frame's origin so `process_request` can
       // repair a racy `Origin: null` header. Restricted to the main frame: it

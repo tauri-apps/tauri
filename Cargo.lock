@@ -8880,6 +8880,7 @@ dependencies = [
  "serialize-to-javascript",
  "specta",
  "swift-rs",
+ "tauri",
  "tauri-build",
  "tauri-macros",
  "tauri-runtime",

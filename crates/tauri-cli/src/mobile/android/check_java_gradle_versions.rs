@@ -42,19 +42,21 @@ fn project_gradle_version() -> Option<String> {
 }
 
 /// Highest Java feature version a given Gradle release can *run* on.
-/// Only 8.x releases are mapped; for Gradle 9+ (which tracks new Java quickly)
-/// we return `None` to avoid false warnings. See
+/// Known Gradle 7.x through 9.x releases are mapped. Unknown future major
+/// versions return `None` to avoid false warnings. See
 /// <https://docs.gradle.org/current/userguide/compatibility.html>.
 fn gradle_max_supported_java(version: &str) -> Option<u32> {
   let mut parts = version.split('.');
   let major: u32 = parts.next()?.parse().ok()?;
   let minor: u32 = parts.next().and_then(|m| m.parse().ok()).unwrap_or(0);
 
-  if major >= 9 {
+  if major >= 10 {
     return None;
   }
 
   Some(match (major, minor) {
+    v if v >= (9, 4) => 26,
+    v if v >= (9, 1) => 25,
     v if v >= (8, 14) => 24,
     v if v >= (8, 10) => 23,
     v if v >= (8, 8) => 22,
@@ -136,13 +138,18 @@ mod tests {
 
   #[test]
   fn maps_gradle_to_max_java() {
+    assert_eq!(gradle_max_supported_java("9.6.1"), Some(26));
+    assert_eq!(gradle_max_supported_java("9.4.0"), Some(26));
+    assert_eq!(gradle_max_supported_java("9.3"), Some(25));
+    assert_eq!(gradle_max_supported_java("9.1.0"), Some(25));
+    assert_eq!(gradle_max_supported_java("9.0"), Some(24));
     assert_eq!(gradle_max_supported_java("8.14"), Some(24));
     assert_eq!(gradle_max_supported_java("8.5"), Some(21));
     assert_eq!(gradle_max_supported_java("7.3"), Some(17));
     // pre-7.3 is unmapped
     assert_eq!(gradle_max_supported_java("7.2"), None);
-    // Gradle 9+ tracks new Java quickly, so we don't warn
-    assert_eq!(gradle_max_supported_java("9.0"), None);
+    // Unknown future Gradle majors are left unmapped to avoid false warnings.
+    assert_eq!(gradle_max_supported_java("10.0"), None);
     // unparsable
     assert_eq!(gradle_max_supported_java("not-a-version"), None);
   }

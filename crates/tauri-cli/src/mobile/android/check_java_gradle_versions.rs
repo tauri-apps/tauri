@@ -6,41 +6,21 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::Result;
-
-pub fn ensure_java() -> Result<()> {
-  if std::env::var_os("JAVA_HOME").is_none() {
-    #[cfg(windows)]
-    let default_java_home = "C:\\Program Files\\Android\\Android Studio\\jbr";
-    #[cfg(target_os = "macos")]
-    let default_java_home = "/Applications/Android Studio.app/Contents/jbr/Contents/Home";
-    #[cfg(target_os = "linux")]
-    let default_java_home = "/opt/android-studio/jbr";
-
-    if Path::new(default_java_home).exists() {
-      log::info!("Using Android Studio's default Java installation: {default_java_home}");
-      std::env::set_var("JAVA_HOME", default_java_home);
-    } else if which::which("java").is_err() {
-      crate::error::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");
-    }
-  }
-
+pub fn check_java_gradle_versions() -> Option<()> {
+  let java_major_version = java_major_version()?;
+  let project_gradle_version = project_gradle_version()?;
+  let gradle_max_supported_java = gradle_max_supported_java(&project_gradle_version)?;
   // Read the Gradle version this project actually uses (the user may have upgraded it away from
   // the template default) and only warn when the detected Java is too new for that Gradle.
-  if let (Some(java), Some(gradle_version)) = (java_major_version(), project_gradle_version()) {
-    if let Some(max_java) = gradle_max_supported_java(&gradle_version) {
-      if java > max_java {
-        log::warn!(
-          "Detected Java {java}, but Gradle {gradle_version} used by this project can only run on Java up to {max_java}. \
-           Android builds will likely fail with a cryptic error. Install a JDK that Gradle {gradle_version} supports \
-           (Java {max_java} or older) and point JAVA_HOME at it. \
+  if java_major_version > gradle_max_supported_java {
+    log::warn!(
+          "Detected Java {java_major_version}, but Gradle {project_gradle_version} used by this project can only run on Java up to {gradle_max_supported_java}. \
+           Android builds will likely fail with a cryptic error. Install a JDK that Gradle {project_gradle_version} supports \
+           (Java {gradle_max_supported_java} or older) and point JAVA_HOME at it. \
            See https://docs.gradle.org/current/userguide/compatibility.html"
         );
-      }
-    }
   }
-
-  Ok(())
+  Some(())
 }
 
 /// Reads the Gradle version this project is pinned to from its

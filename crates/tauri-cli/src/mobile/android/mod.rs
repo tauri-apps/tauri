@@ -39,13 +39,14 @@ use super::{
 use crate::{
   error::Context,
   helpers::config::{BundleResources, Config as TauriConfig},
+  mobile::android::check_java_gradle_versions::check_java_gradle_versions,
   ConfigValue, Error, ErrorExt, Result,
 };
 
 mod android_studio_script;
 mod build;
+mod check_java_gradle_versions;
 mod dev;
-mod java;
 pub(crate) mod project;
 mod run;
 
@@ -186,6 +187,8 @@ pub fn get_config(
     "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
     src_main_dir.join("generated"),
   );
+
+  check_java_gradle_versions();
 
   (config, metadata)
 }

@@ -464,9 +464,29 @@ fn download_cmdline_tools(extract_path: &Path) -> Result<()> {
 }
 
 fn ensure_env(non_interactive: bool) -> Result<()> {
-  java::ensure_java()?;
+  ensure_java()?;
   ensure_sdk(non_interactive)?;
   ensure_ndk(non_interactive)?;
+  Ok(())
+}
+
+fn ensure_java() -> Result<()> {
+  if std::env::var_os("JAVA_HOME").is_none() {
+    #[cfg(windows)]
+    let default_java_home = "C:\\Program Files\\Android\\Android Studio\\jbr";
+    #[cfg(target_os = "macos")]
+    let default_java_home = "/Applications/Android Studio.app/Contents/jbr/Contents/Home";
+    #[cfg(target_os = "linux")]
+    let default_java_home = "/opt/android-studio/jbr";
+
+    if Path::new(default_java_home).exists() {
+      log::info!("Using Android Studio's default Java installation: {default_java_home}");
+      std::env::set_var("JAVA_HOME", default_java_home);
+    } else if which::which("java").is_err() {
+      crate::error::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");
+    }
+  }
+
   Ok(())
 }
 

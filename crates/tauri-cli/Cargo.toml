@@ -47,7 +47,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
 thiserror = "2"
-tauri-bundler = { version = "2.9.4", default-features = false, path = "../tauri-bundler" }
+tauri-bundler = { workspace = true }
 colored = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
@@ -59,7 +59,7 @@ shared_child = "1"
 duct = "1.0"
 toml_edit = { version = "0.25", features = ["serde"] }
 json-patch = "4"
-tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
+tauri-utils = { workspace = true, features = [
   "isolation",
   "schema",
   "config-json5",
@@ -134,7 +134,7 @@ libc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
-tauri-macos-sign = { version = "2.3.4", path = "../tauri-macos-sign" }
+tauri-macos-sign = { workspace = true }
 object = { version = "0.39", default-features = false, features = [
   "macho",
   "read_core",

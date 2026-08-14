@@ -29,7 +29,7 @@ brotli = { version = "8", optional = true, default-features = false, features = 
 uuid = { version = "1", features = ["v4"] }
 semver = "1"
 ico = "0.5"
-png = "0.17"
+png = "0.18"
 json-patch = "4"
 url = "2"
 

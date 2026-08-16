@@ -428,6 +428,75 @@ impl Attributes {
   }
 }
 
+/// The attributes used by [`try_build_context`].
+///
+/// Unlike [`Attributes`], this only carries the inputs that shape the generated
+/// context and its Access Control List — there is nothing executable-specific
+/// (Windows resources, icons, artifact staging) to configure here.
+#[derive(Debug, Default)]
+pub struct ContextAttributes {
+  capabilities_path_pattern: Option<&'static str>,
+  #[cfg(feature = "codegen")]
+  codegen: Option<codegen::context::CodegenContext>,
+  inlined_plugins: HashMap<&'static str, InlinedPlugin>,
+  app_manifest: AppManifest,
+}
+
+impl ContextAttributes {
+  /// Creates the default attribute set.
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  /// Set the glob pattern to be used to find the capabilities.
+  ///
+  /// **WARNING:** The `removeUnusedCommands` option does not work with a custom capabilities path.
+  ///
+  /// **Note:** You must emit [rerun-if-changed] instructions for your capabilities directory.
+  ///
+  /// [rerun-if-changed]: https://doc.rust-lang.org/cargo/reference/build-scripts.html#rerun-if-changed
+  #[must_use]
+  pub fn capabilities_path_pattern(mut self, pattern: &'static str) -> Self {
+    self.capabilities_path_pattern.replace(pattern);
+    self
+  }
+
+  /// Adds the given plugin to the list of inlined plugins (a plugin that is part of your application).
+  ///
+  /// See [`InlinedPlugin`] for more information.
+  pub fn plugin(mut self, name: &'static str, plugin: InlinedPlugin) -> Self {
+    self.inlined_plugins.insert(name, plugin);
+    self
+  }
+
+  /// Adds the given list of plugins to the list of inlined plugins (a plugin that is part of your application).
+  ///
+  /// See [`InlinedPlugin`] for more information.
+  pub fn plugins<I>(mut self, plugins: I) -> Self
+  where
+    I: IntoIterator<Item = (&'static str, InlinedPlugin)>,
+  {
+    self.inlined_plugins.extend(plugins);
+    self
+  }
+
+  /// Sets the application manifest for the Access Control List.
+  ///
+  /// See [`AppManifest`] for more information.
+  pub fn app_manifest(mut self, manifest: AppManifest) -> Self {
+    self.app_manifest = manifest;
+    self
+  }
+
+  #[cfg(feature = "codegen")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
+  #[must_use]
+  pub fn codegen(mut self, codegen: codegen::context::CodegenContext) -> Self {
+    self.codegen.replace(codegen);
+    self
+  }
+}
+
 pub fn is_dev() -> bool {
   env::var_os("DEP_TAURI_DEV")
     .expect("missing `cargo:dev` instruction, please update tauri to latest")
@@ -472,6 +541,22 @@ pub fn build() {
   }
 }
 
+/// Parses the Tauri configuration from the current directory, emitting a
+/// `rerun-if-changed` instruction for every config file it reads and applying
+/// the `TAURI_CONFIG` merge overlay.
+fn parse_tauri_config(target: tauri_utils::platform::Target) -> Result<Config> {
+  let (mut config, config_paths) =
+    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
+  for config_file_path in config_paths {
+    println!("cargo:rerun-if-changed={}", config_file_path.display());
+  }
+  if let Ok(env) = env::var("TAURI_CONFIG") {
+    let merge_config: serde_json::Value = serde_json::from_str(&env)?;
+    json_patch::merge(&mut config, &merge_config);
+  }
+  Ok(serde_json::from_value(config)?)
+}
+
 /// Same as [`build()`], but takes an extra configuration argument, and does not panic.
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
@@ -487,16 +572,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let (mut config, config_paths) =
-    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
-  for config_file_path in config_paths {
-    println!("cargo:rerun-if-changed={}", config_file_path.display());
-  }
-  if let Ok(env) = env::var("TAURI_CONFIG") {
-    let merge_config: serde_json::Value = serde_json::from_str(&env)?;
-    json_patch::merge(&mut config, &merge_config);
-  }
-  let config: Config = serde_json::from_value(config)?;
+  let config = parse_tauri_config(target)?;
   let static_vc_runtime = should_static_link_vc_runtime(&config, &attributes);
 
   let s = config.identifier.split('.');
@@ -534,7 +610,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   manifest::check(&config, &mut manifest)?;
 
-  acl::build(&out_dir, target, &attributes)?;
+  acl::build(
+    &out_dir,
+    target,
+    attributes.app_manifest,
+    &attributes.inlined_plugins,
+    attributes.capabilities_path_pattern,
+  )?;
 
   tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
 
@@ -718,6 +800,82 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   Ok(())
 }
 
+/// Runs only the build time helpers that `tauri::generate_context!` (or
+/// [`CodegenContext`](https://docs.rs/tauri-build/latest/tauri_build/struct.CodegenContext.html))
+/// consumes, without staging any application artifacts.
+///
+/// Use this from the build script of a package that expands the context once
+/// and shares it with the rest of the workspace, so the expensive context
+/// codegen re-runs only when its real inputs change — the Tauri configuration,
+/// the capability files, and the permission manifests — instead of on every
+/// source edit of the application crate:
+///
+/// ```rust,no_run
+/// tauri_build::try_build_context(
+///   tauri_build::ContextAttributes::new()
+///     .app_manifest(tauri_build::AppManifest::new().commands(&["greet"])),
+/// )
+/// .expect("failed to run tauri-build");
+/// ```
+///
+/// This emits the `dev`/`desktop`/`mobile` cfg aliases and the
+/// `TAURI_ENV_TARGET_TRIPLE` environment variable, parses the Tauri
+/// configuration (declaring each config file as a build script input), and
+/// writes the resolved Access Control List artifacts and the global API script
+/// list to `OUT_DIR`.
+///
+/// It deliberately skips everything that belongs to the package owning the
+/// executable: Android project mutation, external binary staging, macOS
+/// framework staging, Windows resource compilation, and platform-specific link
+/// and deployment configuration. That package must keep calling [`build()`] or
+/// [`try_build`] from its own build script.
+///
+/// Everything path-shaped — the config files, the capabilities glob, the
+/// permission files — is resolved against the process working directory, just
+/// like [`try_build`]. A package that holds the context for an application in
+/// another directory should `std::env::set_current_dir` into the application's
+/// Tauri directory before calling this.
+pub fn try_build_context(attributes: ContextAttributes) -> Result<()> {
+  println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
+
+  let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
+  let mobile = target_os == "ios" || target_os == "android";
+  cfg_alias("desktop", !mobile);
+  cfg_alias("mobile", mobile);
+  cfg_alias("dev", is_dev());
+
+  let target_triple = env::var("TARGET").unwrap();
+  let target = tauri_utils::platform::Target::from_triple(&target_triple);
+
+  // Parsed only to declare each config file as a build script input and to
+  // fail fast on invalid configuration; the value itself is read again by the
+  // `generate_context!` expansion.
+  parse_tauri_config(target)?;
+
+  let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+
+  acl::build(
+    &out_dir,
+    target,
+    attributes.app_manifest,
+    &attributes.inlined_plugins,
+    attributes.capabilities_path_pattern,
+  )?;
+
+  tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
+
+  println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
+  // when running codegen in this build script, we need to access the env var directly
+  unsafe { env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple) };
+
+  #[cfg(feature = "codegen")]
+  if let Some(codegen) = attributes.codegen {
+    codegen.try_build()?;
+  }
+
+  Ok(())
+}
+
 fn to_winres_version(v: &semver::Version) -> u64 {
   let build = v.build.parse::<u16>().map(u64::from).unwrap_or(0);
 
@@ -741,6 +899,26 @@ fn should_static_link_vc_runtime(config: &Config, attributes: &Attributes) -> bo
 #[cfg(test)]
 mod tests {
   use semver::Version;
+
+  // `WindowsAttributes::new` selects the default app manifest from the
+  // `cargo:runtime` instruction tauri emits; unit tests run without cargo's
+  // build-dependency env, so provide it before constructing `Attributes`.
+  fn ensure_runtime_dep_env() {
+    if std::env::var_os("DEP_TAURI_RUNTIME").is_none() {
+      unsafe { std::env::set_var("DEP_TAURI_RUNTIME", "wry") };
+    }
+  }
+
+  #[test]
+  fn context_attributes_collect_acl_inputs() {
+    let attributes = crate::ContextAttributes::new()
+      .capabilities_path_pattern("./caps/**/*")
+      .plugin("inlined", crate::InlinedPlugin::new().commands(&["cmd"]))
+      .app_manifest(crate::AppManifest::new().commands(&["greet"]));
+
+    assert_eq!(attributes.capabilities_path_pattern, Some("./caps/**/*"));
+    assert!(attributes.inlined_plugins.contains_key("inlined"));
+  }
 
   #[test]
   fn version_uses_numeric_build_metadata() {
@@ -784,6 +962,8 @@ mod tests {
 
   #[test]
   fn static_vc_runtime_chain() {
+    ensure_runtime_dep_env();
+
     // 1. Nothing is set, should default to true
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new();

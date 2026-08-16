@@ -1,6 +1,6 @@
 ---
 "tauri": "minor:feat"
-"tauri-build": "minor:breaking"
+"tauri-build": "minor:feat"
 "tauri-utils": "minor:feat"
 "tauri-codegen": "minor:feat"
 ---
@@ -12,4 +12,3 @@
 
 The `bundle > resources` configuration is now part of the config embedded by `generate_context!`, where it was previously stripped.
 
-`tauri` and `tauri-build` must be updated together: an older `tauri` with a newer `tauri-build` will not find resources when running unbundled. Note that missing resources are now reported at runtime instead of failing the development build, executables produced by `tauri build` only have access to resources when bundled, and apps constructing a `Context` manually (without `generate_context!`) keep the previous exe-directory resolution.

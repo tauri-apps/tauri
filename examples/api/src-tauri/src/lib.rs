@@ -230,7 +230,7 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
         // usually you'd show a dialog here to ask for confirmation or whatever
         api.prevent_close();
         _app_handle
-          .get_webview_window(&label)
+          .get_webview_window(label)
           .unwrap()
           .destroy()
           .unwrap();

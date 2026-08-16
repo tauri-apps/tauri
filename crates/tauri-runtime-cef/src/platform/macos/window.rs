@@ -72,7 +72,7 @@ impl AppWindow {
         )
       };
       sheet.setAlphaValue(0.5);
-      (&*nswindow).beginSheet_completionHandler(&*sheet, None);
+      nswindow.beginSheet_completionHandler(&sheet, None);
     }
   }
 

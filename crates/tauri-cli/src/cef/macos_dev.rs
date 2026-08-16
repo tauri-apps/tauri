@@ -11,6 +11,7 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   app_settings: &RustAppSettings,
   options: Options,

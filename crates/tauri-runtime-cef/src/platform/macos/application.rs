@@ -143,14 +143,14 @@ define_class!(
       value: Option<&AnyObject>,
       attribute: Option<&NSString>,
     ) {
-      if let (Some(value), Some(attribute)) = (value, attribute) {
-        if attribute.to_string() == "AXEnhancedUserInterface" {
-          let int_value: std::ffi::c_int = unsafe { msg_send![value, intValue] };
-          if let Some(delegate) = self.delegate() {
-            delegate.emit(AppDelegateEvent::AccessibilityChanged {
-              enabled: int_value == 1,
-            });
-          }
+      if let (Some(value), Some(attribute)) = (value, attribute) &&
+        attribute.to_string() == "AXEnhancedUserInterface"
+      {
+        let int_value: std::ffi::c_int = unsafe { msg_send![value, intValue] };
+        if let Some(delegate) = self.delegate() {
+          delegate.emit(AppDelegateEvent::AccessibilityChanged {
+            enabled: int_value == 1,
+          });
         }
       }
 

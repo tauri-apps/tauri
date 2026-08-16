@@ -748,7 +748,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetTrafficLightPosition(_position) => {
         #[cfg(target_os = "macos")]
         {
-          appwindow.attrs.traffic_light_position = Some(_position.clone());
+          appwindow.attrs.traffic_light_position = Some(_position);
           appwindow.set_traffic_light_position(&_position);
         }
       }

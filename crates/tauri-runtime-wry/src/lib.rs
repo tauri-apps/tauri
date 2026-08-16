@@ -3274,9 +3274,6 @@ fn make_event_handler<T: UserEvent, F: FnMut(RunEvent<T>) + 'static>(
   context: Context<T>,
   mut callback: F,
 ) -> impl FnMut(Event<'_, Message<T>>, &EventLoopWindowTarget<Message<T>>, &mut ControlFlow) + use<T, F>
-where
-  T: UserEvent,
-  F: FnMut(RunEvent<T>) + 'static,
 {
   let windows = context.main_thread.windows.clone();
   let window_id_map = context.window_id_map.clone();

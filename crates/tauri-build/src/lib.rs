@@ -15,7 +15,7 @@ pub use anyhow::Result;
 use cargo_toml::Manifest;
 
 use tauri_utils::{
-  config::{BundleResources, Config, WebviewInstallMode},
+  config::Config,
   resources::{ResourcePaths, external_binaries},
 };
 
@@ -80,24 +80,6 @@ fn copy_binaries(
       fs::remove_file(&dest).unwrap();
     }
     copy_file(&src, &dest)?;
-  }
-  Ok(())
-}
-
-/// Copies resources to a path.
-fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
-  let path = path.canonicalize()?;
-  for resource in resources.iter() {
-    let resource = resource?;
-
-    println!("cargo:rerun-if-changed={}", resource.path().display());
-
-    // avoid copying the resource if target is the same as source
-    let src = resource.path().canonicalize()?;
-    let target = path.join(resource.target());
-    if src != target {
-      copy_file(src, target)?;
-    }
   }
   Ok(())
 }
@@ -576,27 +558,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       target_dir,
       manifest.package.as_ref().map(|p| p.name.as_ref()),
     )?;
-  }
-
-  #[allow(unused_mut, clippy::redundant_clone)]
-  let mut resources = config
-    .bundle
-    .resources
-    .clone()
-    .unwrap_or_else(|| BundleResources::List(Vec::new()));
-  if target_triple.contains("windows")
-    && let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
-      WebviewInstallMode::FixedRuntime { path } => Some(path),
-      _ => None,
-    }
-  {
-    resources.push(fixed_webview2_runtime_path.display().to_string());
-  }
-  match resources {
-    BundleResources::List(res) => {
-      copy_resources(ResourcePaths::new(res.as_slice(), true), target_dir)?
-    }
-    BundleResources::Map(map) => copy_resources(ResourcePaths::from_map(&map, true), target_dir)?,
   }
 
   if target_triple.contains("darwin") {

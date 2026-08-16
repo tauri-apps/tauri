@@ -2428,12 +2428,22 @@ tauri::Builder::<tauri::Wry>::new()
       if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } =
         &manager.config.bundle.windows.webview_install_mode
       {
-        if let Some(exe_dir) = crate::utils::platform::current_exe()
-          .ok()
-          .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        {
+        // In development the runtime is not copied next to the executable,
+        // so resolve it from the directory the configured path is relative to.
+        #[cfg(dev)]
+        let base_dir = manager.config_parent().cloned();
+        #[cfg(not(dev))]
+        let base_dir: Option<std::path::PathBuf> = None;
+
+        let base_dir = base_dir.or_else(|| {
+          crate::utils::platform::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        });
+
+        if let Some(base_dir) = base_dir {
           unsafe {
-            std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path));
+            std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", base_dir.join(path));
           }
         } else {
           #[cfg(debug_assertions)]

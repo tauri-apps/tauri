@@ -196,6 +196,11 @@ pub struct AppManager<R: Runtime> {
   pub config: Config,
   #[cfg(dev)]
   pub config_parent: Option<std::path::PathBuf>,
+  /// Directory where remapped resources have been mirrored for this run,
+  /// so joined resource paths keep working in development.
+  /// See [`crate::path::PathResolver::resource_dir`].
+  #[cfg(all(dev, desktop))]
+  pub(crate) dev_resources_dir: Mutex<Option<std::path::PathBuf>>,
   pub assets: Box<dyn Assets<R>>,
 
   pub app_icon: Option<Vec<u8>>,
@@ -316,6 +321,8 @@ impl<R: Runtime> AppManager<R> {
       config: context.config,
       #[cfg(dev)]
       config_parent: context.config_parent,
+      #[cfg(all(dev, desktop))]
+      dev_resources_dir: Mutex::default(),
       assets: context.assets,
       app_icon: context.app_icon,
       package_info: context.package_info,

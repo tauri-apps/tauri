@@ -4019,6 +4019,28 @@ mod build {
     }
   }
 
+  impl ToTokens for BundleResources {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::BundleResources };
+
+      tokens.append_all(match self {
+        Self::List(paths) => {
+          let paths = vec_lit(paths, str_lit);
+          quote! { #prefix::List(#paths) }
+        }
+        Self::Map(map) => {
+          let map = map_lit(
+            quote! { ::std::collections::HashMap },
+            map,
+            str_lit,
+            str_lit,
+          );
+          quote! { #prefix::Map(#map) }
+        }
+      })
+    }
+  }
+
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let publisher = quote!(None);
@@ -4027,7 +4049,7 @@ mod build {
       let active = self.active;
       let targets = quote!(Default::default());
       let create_updater_artifacts = quote!(Default::default());
-      let resources = quote!(None);
+      let resources = opt_lit(self.resources.as_ref());
       let copyright = quote!(None);
       let category = quote!(None);
       let file_associations = quote!(None);

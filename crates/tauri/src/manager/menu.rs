@@ -85,9 +85,21 @@ impl<R: Runtime> MenuManager<R> {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        let _ = menu
-          .inner()
-          .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
+        {
+          use gtk::glib::translate::FromGlibPtrNone;
+
+          let gtk_window = unsafe {
+            gtk::ApplicationWindow::from_glib_none(
+              raw.gtk_window as *mut gtk::ffi::GtkApplicationWindow,
+            )
+          };
+          let default_vbox = raw
+            .default_vbox
+            .map(|vbox| unsafe { gtk::Box::from_glib_none(vbox as *mut gtk::ffi::GtkBox) });
+          let _ = menu
+            .inner()
+            .init_for_gtk_window(&gtk_window, default_vbox.as_ref());
+        }
       })
     } else {
       None

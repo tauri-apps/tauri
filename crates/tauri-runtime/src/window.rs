@@ -19,6 +19,7 @@ use tauri_utils::{
 use windows::Win32::Foundation::HWND;
 
 use std::{
+  ffi::c_void,
   hash::{Hash, Hasher},
   marker::PhantomData,
   path::PathBuf,
@@ -455,7 +456,7 @@ pub trait WindowBuilder: WindowBuilderBase {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self;
+  fn transient_for(self, parent: *mut c_void) -> Self;
 
   /// Enables or disables drag and drop support.
   #[cfg(windows)]
@@ -647,7 +648,7 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
 }
 
 /// A raw window type that contains fields to access
-/// the HWND on Windows, gtk::ApplicationWindow on Linux
+/// the HWND on Windows, GTK object pointers on Linux
 pub struct RawWindow<'a> {
   #[cfg(windows)]
   pub hwnd: isize,
@@ -658,7 +659,7 @@ pub struct RawWindow<'a> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  pub gtk_window: &'a gtk::ApplicationWindow,
+  pub gtk_window: *mut c_void,
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -666,6 +667,6 @@ pub struct RawWindow<'a> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  pub default_vbox: Option<&'a gtk::Box>,
+  pub default_vbox: Option<*mut c_void>,
   pub _marker: &'a PhantomData<()>,
 }

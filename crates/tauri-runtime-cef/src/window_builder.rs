@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::ffi::c_void;
+
 use tauri_runtime::{
   Icon, Result,
   dpi::{PhysicalSize, Size},
@@ -442,7 +444,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, _parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  fn transient_for(self, _parent: *mut c_void) -> Self {
     self
   }
 

@@ -123,6 +123,7 @@ use std::{
     BTreeMap, HashMap, HashSet,
     hash_map::Entry::{Occupied, Vacant},
   },
+  ffi::c_void,
   fmt,
   ops::Deref,
   path::PathBuf,
@@ -1152,8 +1153,11 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
-    self.inner = self.inner.with_transient_for(parent);
+  fn transient_for(mut self, parent: *mut c_void) -> Self {
+    use gtk::glib::translate::FromGlibPtrNone;
+
+    let parent = unsafe { gtk::Window::from_glib_none(parent as *mut gtk::ffi::GtkWindow) };
+    self.inner = self.inner.with_transient_for(&parent);
     self
   }
 
@@ -1309,7 +1313,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub struct GtkWindow(pub gtk::ApplicationWindow);
+pub struct GtkWindow(pub *mut c_void);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -1327,7 +1331,7 @@ unsafe impl Send for GtkWindow {}
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub struct GtkBox(pub gtk::Box);
+pub struct GtkBox(pub *mut c_void);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -2109,7 +2113,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
+  fn gtk_window(&self) -> Result<*mut c_void> {
     window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
   }
 
@@ -2120,7 +2124,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<gtk::Box> {
+  fn default_vbox(&self) -> Result<*mut c_void> {
     window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
   }
 
@@ -3435,7 +3439,12 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::GtkWindow(tx) => {
+            use gtk::glib::translate::ToGlibPtr;
+
+            let ptr: *mut gtk::ffi::GtkApplicationWindow = window.gtk_window().to_glib_full();
+            tx.send(GtkWindow(ptr as *mut c_void)).unwrap()
+          }
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -3443,9 +3452,12 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkBox(tx) => tx
-            .send(GtkBox(window.default_vbox().unwrap().clone()))
-            .unwrap(),
+          WindowMessage::GtkBox(tx) => {
+            use gtk::glib::translate::ToGlibPtr;
+
+            let ptr: *mut gtk::ffi::GtkBox = window.default_vbox().unwrap().to_glib_full();
+            tx.send(GtkBox(ptr as *mut c_void)).unwrap()
+          }
           #[cfg(target_os = "android")]
           WindowMessage::ActivityName(tx) => {
             tx.send(window.activity_name()).unwrap();
@@ -4653,6 +4665,15 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   context.window_id_map.insert(window.id(), window_id);
 
   if let Some(handler) = after_window_creation {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    use gtk::glib::translate::ToGlibPtr;
+
     let raw = RawWindow {
       #[cfg(windows)]
       hwnd: window.hwnd(),
@@ -4663,7 +4684,10 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      gtk_window: window.gtk_window(),
+      gtk_window: {
+        let ptr: *mut gtk::ffi::GtkApplicationWindow = window.gtk_window().to_glib_none().0;
+        ptr as *mut c_void
+      },
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -4671,7 +4695,10 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      default_vbox: window.default_vbox(),
+      default_vbox: window.default_vbox().map(|vbox| {
+        let ptr: *mut gtk::ffi::GtkBox = vbox.to_glib_none().0;
+        ptr as *mut c_void
+      }),
       _marker: &std::marker::PhantomData,
     };
     handler(raw);

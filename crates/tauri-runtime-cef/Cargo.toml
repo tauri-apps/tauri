@@ -29,7 +29,9 @@ tauri-utils = { version = "2.9.2", path = "../tauri-utils", features = [
   "html-manipulation",
 ] }
 url = "2"
-winit = "0.31.0-beta.2"
+winit = { version = "0.31.0-beta.2", git = "https://github.com/tauri-apps/winit-gtk4", branch = "master", default-features = false, features = [
+  "gtk4",
+] }
 
 [target."cfg(windows)".dependencies]
 softbuffer = { version = "0.4", default-features = false }
@@ -87,7 +89,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 dlopen2 = { version = "0.8", features = ["derive"] }
-gtk = { version = "0.18", features = ["v3_24"] }
+gtk = { package = "gtk4", version = "0.11.4" }
 libc = "0.2"
 x11-dl = "2.21"
 

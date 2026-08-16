@@ -39,9 +39,6 @@ cookie = "0.18"
 version = "0.61"
 features = ["Win32_Foundation", "Win32_System_WinRT"]
 
-[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.18", features = ["v3_24"] }
-
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
 
@@ -58,5 +55,6 @@ objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
 url = "2"
 objc2 = "0.6"
 [features]
+default = []
 devtools = []
 macos-private-api = []

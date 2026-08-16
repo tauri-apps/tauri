@@ -56,6 +56,31 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[cfg(all(
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ),
+  any(feature = "wry", all(feature = "test", not(feature = "cef"))),
+))]
+extern crate gtk3 as gtk;
+
+#[cfg(all(
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ),
+  feature = "cef",
+  not(feature = "wry")
+))]
+extern crate gtk4 as gtk;
+
 /// Setups the binding that initializes an iOS plugin.
 #[cfg(target_os = "ios")]
 #[macro_export]

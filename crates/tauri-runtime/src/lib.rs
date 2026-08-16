@@ -15,7 +15,7 @@
 
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
-use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
+use std::{borrow::Cow, ffi::c_void, fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use tauri_utils::config::Color;
 use url::Url;
@@ -804,7 +804,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
-  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
+  /// Returns the GTK application window pointer that is used by this window.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -812,9 +812,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
+  fn gtk_window(&self) -> Result<*mut c_void>;
 
-  /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
+  /// Returns the vertical GTK box pointer that is added by default as the sole child of this window.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -822,7 +822,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<gtk::Box>;
+  fn default_vbox(&self) -> Result<*mut c_void>;
 
   /// Returns the name of the Android activity associated with this window.
   #[cfg(target_os = "android")]

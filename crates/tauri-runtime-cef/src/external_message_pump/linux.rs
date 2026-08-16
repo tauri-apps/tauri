@@ -60,7 +60,7 @@ unsafe impl Send for PlatformPump {}
 
 impl PlatformPump {
   pub(super) fn new(state: Weak<PumpState>) -> Self {
-    // The runtime services callbacks from GLib's default MainContext.
+    // winit-gtk4 drives callbacks from GLib's default MainContext.
     let context = glib::MainContext::default();
 
     // Create our wakeup pipe, which is used to flag when work was scheduled.
@@ -135,10 +135,6 @@ impl PlatformPump {
 
   pub(super) fn is_timer_pending(&self) -> bool {
     get_time_interval_milliseconds(self.source_state.delayed_work_time) > 0
-  }
-
-  pub(super) fn deadline(&self) -> Option<Instant> {
-    self.source_state.delayed_work_time
   }
 }
 

@@ -99,9 +99,8 @@ rustls = { version = "0.23", default-features = false, features = [
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.19", default-features = false, features = [
+muda = { git = "https://github.com/tauri-apps/muda", branch = "dev", default-features = false, features = [
   "serde",
-  "gtk",
 ] }
 tray-icon = { version = "0.24", default-features = false, features = [
   "serde",
@@ -110,7 +109,10 @@ tray-icon = { version = "0.24", default-features = false, features = [
 
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
-gtk = { version = "0.18", features = ["v3_24"] }
+gtk3 = { package = "gtk", version = "0.18", features = [
+  "v3_24",
+], optional = true }
+gtk4 = { package = "gtk4", version = "0.11.4", optional = true }
 webkit2gtk = { version = "2", features = ["v2_40"], optional = true }
 
 # darwin
@@ -205,10 +207,17 @@ common-controls-v6 = [
 ]
 tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]
-test = []
+test = ["dep:gtk3", "muda/gtk"]
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
-wry = ["dep:webview2-com", "dep:webkit2gtk", "dep:tauri-runtime-wry"]
-cef = ["dep:tauri-runtime-cef"]
+wry = [
+  "dep:gtk3",
+
+  "muda/gtk",
+  "dep:webview2-com",
+  "dep:webkit2gtk",
+  "dep:tauri-runtime-wry",
+]
+cef = ["dep:gtk4", "muda/gtk4", "dep:tauri-runtime-cef"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]

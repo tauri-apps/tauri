@@ -947,6 +947,21 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self.window_builder = self.window_builder.background_color(color);
     self
   }
+
+  #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    pub fn wlr_layer_shell(
+      mut self,
+      wlr_layer_shell: bool,
+    ) -> Self {
+      self.window_builder = self.window_builder.wlr_layer_shell(wlr_layer_shell);
+    self
+  }
 }
 
 #[cfg(target_os = "android")]

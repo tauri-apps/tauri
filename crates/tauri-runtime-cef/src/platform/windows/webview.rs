@@ -10,8 +10,9 @@ use windows::Win32::{
   Graphics::Gdi::MapWindowPoints,
   UI::Shell::{DefSubclassProc, SetWindowSubclass},
   UI::WindowsAndMessaging::{
-    GetParent, GetWindowRect, HWND_TOP, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
-    SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow, WINDOWPOS, WM_WINDOWPOSCHANGING,
+    DestroyWindow, GetParent, GetWindowRect, HWND_TOP, SW_HIDE, SW_SHOW, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow, WINDOWPOS,
+    WM_WINDOWPOSCHANGING,
   },
 };
 
@@ -71,6 +72,13 @@ impl AppWebview {
 
   pub(crate) fn apply_visible(&self, visible: bool) {
     let _ = unsafe { ShowWindow(self.hwnd(), if visible { SW_SHOW } else { SW_HIDE }) };
+  }
+
+  /// Destroys CEF's own window for this browser, completing a close that
+  /// `do_close` took over. CEF's browser window procedure reports
+  /// `WindowDestroyed` back to CEF on `WM_NCDESTROY`.
+  pub(crate) fn destroy_host_window(&self) {
+    let _ = unsafe { DestroyWindow(self.hwnd()) };
   }
 
   const PIN_Z_ORDER_SUBCLASS_ID: usize = 124;

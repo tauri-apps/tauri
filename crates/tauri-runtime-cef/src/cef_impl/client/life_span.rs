@@ -125,6 +125,40 @@ wrap_life_span_handler! {
       }
     }
 
+    /// Take over the browser close so it does not take the window down with it.
+    ///
+    /// Returning 0 runs CEF's default, which sends the standard close
+    /// notification to the browser's *top-level parent window* (`performClose:`
+    /// on macOS, `WM_CLOSE` on Windows). Every Tauri webview is a child browser
+    /// parented to a shared window, so that default turns "close this webview"
+    /// into "close the window and every sibling webview" — and with the last
+    /// window gone, the app exits.
+    ///
+    /// Returning 1 leaves the parent window alone and makes us responsible for
+    /// completing the close, which means destroying this browser's own child
+    /// view/window on the event loop. That destruction is what drives CEF's
+    /// `WindowDestroyed` -> `on_before_close` sequence.
+    ///
+    /// On Linux the default only closes the browser's own X11 child window (and
+    /// calls `WindowDestroyed` itself), so the default is already correct there.
+    fn do_close(&self, browser: Option<&mut Browser>) -> std::os::raw::c_int {
+      if browser.is_none() {
+        return 0;
+      }
+
+      #[cfg(any(target_os = "macos", windows))]
+      {
+        let _ = self
+          .sender
+          .send(Message::DestroyWebviewHostWindow(self.webview_id));
+        self.proxy.wake_up();
+        return 1;
+      }
+
+      #[cfg(not(any(target_os = "macos", windows)))]
+      0
+    }
+
     fn on_before_close(&self, browser: Option<&mut Browser>) {
       if browser.is_none() {
         return;

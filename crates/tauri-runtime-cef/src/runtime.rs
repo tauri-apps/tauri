@@ -309,6 +309,10 @@ pub(crate) type AfterWindowCreationCallback = Box<dyn for<'a> Fn(RawWindow<'a>) 
 pub(crate) enum Message<T: UserEvent> {
   EventLoop(EventLoopMessage),
   BrowserClosed(WindowId, u32),
+  /// CEF handed us the teardown of a webview's browser, keyed by the webview's
+  /// process-unique id. See `TauriCefChildLifeSpanHandler::do_close`.
+  #[cfg(any(target_os = "macos", windows))]
+  DestroyWebviewHostWindow(u32),
   Opened(Vec<url::Url>),
   #[cfg(target_os = "macos")]
   Reopen {
@@ -512,19 +516,55 @@ impl<T: UserEvent> WinitCefApp<T> {
         // window rather than trusting the message's window_id — otherwise a
         // reparented webview's scheme-handler entries would leak and its
         // AppWebview would linger in the target window forever.
-        let child = self.state.windows.values_mut().find_map(|appwindow| {
+        let closed = self.state.windows.iter_mut().find_map(|(id, appwindow)| {
           appwindow
             .children
             .iter()
             .position(|child| child.webview_id == webview_id)
-            .map(|index| appwindow.children.remove(index))
+            .map(|index| {
+              let child = appwindow.children.remove(index);
+              (*id, child, appwindow.children.is_empty())
+            })
         });
-        if let Some(child) = child {
+
+        let mut emptied_window = None;
+        if let Some((window_id, child, was_last)) = closed {
           self.remove_scheme_handler_entries(&child);
+          if was_last {
+            emptied_window = Some(window_id);
+          }
         }
 
         self.state.live_browsers = self.state.live_browsers.saturating_sub(1);
-        self.exit_if_done(event_loop);
+
+        // A window that just lost its last webview has nothing left to show, so
+        // it follows the webview out through the regular close path — listeners
+        // still get `CloseRequested` and can keep the empty window around.
+        // `close_window` runs the exit check itself.
+        if let Some(window_id) = emptied_window {
+          self.request_window_close(window_id, event_loop);
+        } else {
+          self.exit_if_done(event_loop);
+        }
+      }
+      #[cfg(any(target_os = "macos", windows))]
+      Message::DestroyWebviewHostWindow(webview_id) => {
+        // Destroying the browser's own child view/window is what completes the
+        // close CEF handed over in `do_close`; CEF acknowledges it with
+        // `BrowserClosed`, which is where the bookkeeping is dropped. Same
+        // reasoning as there for searching every window by webview id.
+        //
+        // A webview that is already gone from state means its window is being
+        // torn down, and that teardown destroys the child view anyway.
+        if let Some(child) = self
+          .state
+          .windows
+          .values()
+          .flat_map(|appwindow| appwindow.children.iter())
+          .find(|child| child.webview_id == webview_id)
+        {
+          child.destroy_host_window();
+        }
       }
       Message::CreateWindow {
         window_id,

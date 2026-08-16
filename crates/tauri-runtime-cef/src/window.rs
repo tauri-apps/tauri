@@ -467,9 +467,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
 
     #[cfg(windows)]
-    if appwindow.attrs.inner.transparent || appwindow.attrs.background_color.is_some() {
-      appwindow.draw_background_surface();
-    }
+    appwindow.draw_background_surface();
 
     #[cfg(not(windows))]
     if appwindow.attrs.background_color.is_some() {

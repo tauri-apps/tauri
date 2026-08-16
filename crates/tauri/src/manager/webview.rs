@@ -503,7 +503,11 @@ impl<R: Runtime> WebviewManager<R> {
       if html.contains('<') && html.contains('>') {
         let document = tauri_utils::html2::parse_doc(html);
         tauri_utils::html2::inject_csp(&document, &csp.to_string());
-        url.set_path(&format!("{},{document}", mime::TEXT_HTML));
+        url.set_path(&format!(
+          "{},{}",
+          mime::TEXT_HTML,
+          String::from_utf8_lossy(&tauri_utils::html2::serialize_doc(&document))
+        ));
       }
     }
 

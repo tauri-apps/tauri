@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: 'Setup Rust'
-        uses: dtolnay/rust-toolchain@1.90
+        uses: dtolnay/rust-toolchain@1.95
         with:
           targets: ${{ matrix.platform.target }}
 

@@ -1139,34 +1139,34 @@ pub mod test;
 
 #[cfg(feature = "specta")]
 const _: () = {
-  use specta::{TypeMap, datatype::DataType, function::FunctionArg};
+  use specta::{Types, datatype::DataType, function::FunctionArg};
 
   impl<T: Send + Sync + 'static> FunctionArg for crate::State<'_, T> {
-    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+    fn to_datatype(_: &mut Types) -> Option<DataType> {
       None
     }
   }
 
   impl<R: crate::Runtime> FunctionArg for crate::AppHandle<R> {
-    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+    fn to_datatype(_: &mut Types) -> Option<DataType> {
       None
     }
   }
 
   impl<R: crate::Runtime> FunctionArg for crate::Window<R> {
-    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+    fn to_datatype(_: &mut Types) -> Option<DataType> {
       None
     }
   }
 
   impl<R: crate::Runtime> FunctionArg for crate::Webview<R> {
-    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+    fn to_datatype(_: &mut Types) -> Option<DataType> {
       None
     }
   }
 
   impl<R: crate::Runtime> FunctionArg for crate::WebviewWindow<R> {
-    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+    fn to_datatype(_: &mut Types) -> Option<DataType> {
       None
     }
   }

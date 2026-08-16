@@ -79,9 +79,10 @@ tracing = { version = "0.1", optional = true }
 heck = "0.5"
 log = "0.4.21"
 dunce = "1"
-specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [
+specta = { version = "^2.0.0-rc.25", optional = true, default-features = false, features = [
   "function",
   "derive",
+  "std",
 ] }
 # WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
 cookie = "0.18"

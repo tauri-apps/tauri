@@ -501,7 +501,7 @@ impl<R: Runtime> WebviewManager<R> {
       let html = String::from_utf8_lossy(&body).into_owned();
       // naive way to check if it's an html
       if html.contains('<') && html.contains('>') {
-        let document = tauri_utils::html2::parse(html);
+        let document = tauri_utils::html2::parse_doc(html);
         tauri_utils::html2::inject_csp(&document, &csp.to_string());
         url.set_path(&format!("{},{document}", mime::TEXT_HTML));
       }

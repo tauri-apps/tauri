@@ -334,7 +334,7 @@ export class Resource {
   }
 
   async [Symbol.asyncDispose]() {
-    return this.close()
+    await this.close()
   }
 }
 

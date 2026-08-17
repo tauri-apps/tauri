@@ -314,7 +314,6 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  * To support older browsers with [Explicit Resource Management], use a supported compiler (e.g. tsc) or bundler (e.g. rollup).
  *
  * @example
- *
  * ```typescript
  * import { Resource, invoke } from '@tauri-apps/api/core';
  *
@@ -328,11 +327,14 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  *     await invoke('execute_sql', { rid: this.rid, sql });
  *   }
  * }
+ * ```
  *
- * {
- *   await using db = await DatabaseHandle.open('test.db');
- *   await db.execute('SELECT *');
- * }
+ * To use with [Explicit Resource Management]:
+ *
+ * @example
+ * ```
+ * await using db = await DatabaseHandle.open('test.db');
+ * await db.execute('SELECT *');
  * ```
  *
  * To support older browsers, add the following to the globals (e.g. adding to the HTML file):

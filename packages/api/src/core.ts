@@ -346,6 +346,10 @@ export class Resource {
       rid: this.rid
     })
   }
+
+  async [Symbol.asyncDispose]() {
+    await this.close()
+  }
 }
 
 function isTauri(): boolean {

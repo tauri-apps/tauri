@@ -309,11 +309,15 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  *
  * The resource lives in the main process and does not exist
  * in the Javascript world, and thus will not be cleaned up automatically
- * except on application exit. If you want to clean it up early, call {@linkcode Resource.close}
+ * except on application exit. If you want to clean it up early, call {@linkcode Resource.close} or use use [Explicit Resource Management].
+ *
+ * To support older browsers with [Explicit Resource Management], use a supported compiler (e.g. tsc) or bundler (e.g. rollup)
  *
  * @example
+ *
  * ```typescript
  * import { Resource, invoke } from '@tauri-apps/api/core';
+ *
  * export class DatabaseHandle extends Resource {
  *   static async open(path: string): Promise<DatabaseHandle> {
  *     const rid: number = await invoke('open_db', { path });
@@ -324,7 +328,32 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  *     await invoke('execute_sql', { rid: this.rid, sql });
  *   }
  * }
+ *
+ * {
+ *   await using db = await DatabaseHandle.open('test.db');
+ *   await db.execute('SELECT *');
+ * }
  * ```
+ *
+ * To support older browsers, add the following to the globals (e.g. adding to the HTML file):
+ *
+ * ```javascript
+ * Symbol.dispose ??= Symbol("Symbol.dispose");
+ * Symbol.asyncDispose ??= Symbol("Symbol.asyncDispose");
+ * ```
+ *
+ * And for the compiler, for example `tsc`, `rollup`, `vite`, add the following to `tsconfig.json`:
+ *
+ * ```json
+ * {
+ *   "compilerOptions": {
+ *     "target": "es2022",
+ *     "lib": ["es2022", "esnext.disposable", "dom"]
+ *   }
+ * }
+ * ```
+ *
+ * [Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
  */
 export class Resource {
   readonly #rid: number

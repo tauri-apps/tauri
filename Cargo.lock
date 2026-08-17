@@ -1044,16 +1044,15 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.22.4"
+version = "0.22.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caa0060b6b7e1c0f14312c8ccebf28f5713b3045ffaae033a180622122a361dc"
+checksum = "102aeef2cc62bb7b6c7a901b8f5169cc8c58f27a0b4b4098a84a427ba825ae46"
 dependencies = [
  "colored 2.2.0",
  "core-foundation 0.10.0",
  "deunicode",
  "duct",
  "dunce",
- "embed-resource",
  "english-numbers",
  "freedesktop_entry_parser",
  "handlebars",
@@ -8684,8 +8683,7 @@ dependencies = [
 [[package]]
 name = "swift-rs"
 version = "1.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4057c98e2e852d51fdcfca832aac7b571f6b351ad159f9eda5db1655f8d0c4d7"
+source = "git+https://github.com/SteveSSL45/swift-rs?rev=f80356b83a43e6203ab24a537446b45007984997#f80356b83a43e6203ab24a537446b45007984997"
 dependencies = [
  "base64 0.21.7",
  "serde",

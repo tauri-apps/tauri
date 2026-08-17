@@ -83,3 +83,6 @@ opt-level = "s"
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
+# Xcode 27: SwiftPM's new build backend breaks swift-rs cross-compilation; remove once
+# https://github.com/Brendonovich/swift-rs/pull/77 is merged and released
+swift-rs = { git = "https://github.com/SteveSSL45/swift-rs", rev = "f80356b83a43e6203ab24a537446b45007984997" }

@@ -5,5 +5,6 @@
 mod event_loop;
 mod icon;
 mod monitor;
+pub(crate) mod shutdown;
 mod webview;
 mod window;

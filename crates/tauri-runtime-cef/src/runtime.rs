@@ -1243,6 +1243,8 @@ pub struct CefRuntime<T: UserEvent> {
   scheme_registry: request_handler::SchemeRegistry,
   #[cfg(target_os = "macos")]
   _app_delegate: Option<objc2::rc::Retained<crate::platform::macos::AppDelegate>>,
+  #[cfg(windows)]
+  _shutdown_events: Option<crate::platform::windows::shutdown::ShutdownEvents>,
 }
 
 impl<T: UserEvent> fmt::Debug for CefRuntime<T> {
@@ -1492,6 +1494,20 @@ impl<T: UserEvent> CefRuntime<T> {
     ))]
     pre_cef_signals.restore();
 
+    // Windows counterpart of the macOS `applicationShouldTerminate` handler
+    // below and the Unix signal restore above: session-end messages and
+    // console control events either terminate cleanly with exit code 0 or
+    // ride the same graceful RequestExit path. Installed after
+    // `cef::initialize` so our console handler runs ahead of anything CEF
+    // registered.
+    #[cfg(windows)]
+    let shutdown_events = {
+      let context = context.clone();
+      crate::platform::windows::shutdown::install(Box::new(move || {
+        let _ = context.send_message(Message::RequestExit(0));
+      }))
+    };
+
     #[cfg(target_os = "macos")]
     let app_delegate = if !is_helper {
       use crate::platform::macos::AppDelegateEvent;
@@ -1534,6 +1550,8 @@ impl<T: UserEvent> CefRuntime<T> {
       scheme_registry: Default::default(),
       #[cfg(target_os = "macos")]
       _app_delegate: app_delegate,
+      #[cfg(windows)]
+      _shutdown_events: shutdown_events,
     })
   }
 }

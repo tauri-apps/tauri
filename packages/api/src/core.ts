@@ -309,9 +309,9 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  *
  * The resource lives in the main process and does not exist
  * in the Javascript world, and thus will not be cleaned up automatically
- * except on application exit. If you want to clean it up early, call {@linkcode Resource.close} or use use [Explicit Resource Management].
+ * except on application exit. If you want to clean it up early, call {@linkcode Resource.close} or use [Explicit Resource Management].
  *
- * To support older browsers with [Explicit Resource Management], use a supported compiler (e.g. tsc) or bundler (e.g. rollup)
+ * To support older browsers with [Explicit Resource Management], use a supported compiler (e.g. tsc) or bundler (e.g. rollup).
  *
  * @example
  *

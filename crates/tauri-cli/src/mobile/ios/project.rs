@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::{config::Config as TauriConfig, template},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
-  Result,
+  Error, ErrorExt, Result,
 };
-use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::{Config, Metadata},
-    deps, rust_version_check,
+    deps,
     target::Target,
   },
   config::app::DEFAULT_ASSET_DIR,
@@ -53,17 +53,20 @@ pub fn gen(
       log::info!("Installing iOS Rust targets...");
       for target in missing_targets {
         log::info!("Installing target {}", target.triple());
-        target
-          .install()
-          .context("failed to install target with rustup")?;
+        target.install().map_err(|error| Error::CommandFailed {
+          command: "rustup target add".to_string(),
+          error,
+        })?;
       }
     }
   }
 
-  rust_version_check(wrapper)?;
-
-  deps::install_all(wrapper, non_interactive, true, reinstall_deps)
-    .with_context(|| "failed to install Apple dependencies")?;
+  deps::install_all(wrapper, non_interactive, true, reinstall_deps).map_err(|error| {
+    Error::CommandFailed {
+      command: "pod install".to_string(),
+      error: std::io::Error::other(error),
+    }
+  })?;
 
   let dest = config.project_dir();
   let rel_prefix = util::relativize_path(config.app().root_dir(), &dest);
@@ -174,9 +177,14 @@ pub fn gen(
   .with_context(|| "failed to process template")?;
 
   if let Some(template_path) = tauri_config.bundle.ios.template.as_ref() {
-    let template = std::fs::read_to_string(template_path)
-      .context("failed to read custom Xcode project template")?;
-    let mut output_file = std::fs::File::create(dest.join("project.yml"))?;
+    let template = std::fs::read_to_string(template_path).fs_context(
+      "failed to read custom Xcode project template",
+      template_path.to_path_buf(),
+    )?;
+    let mut output_file = std::fs::File::create(dest.join("project.yml")).fs_context(
+      "failed to create project.yml file",
+      dest.join("project.yml"),
+    )?;
     handlebars
       .render_template_to_write(&template, map.inner(), &mut output_file)
       .expect("Failed to render template");
@@ -189,12 +197,7 @@ pub fn gen(
 
   // Create all required project directories if they don't already exist
   for dir in &dirs_to_create {
-    std::fs::create_dir_all(dir).map_err(|cause| {
-      anyhow::anyhow!(
-        "failed to create directory at {path}: {cause}",
-        path = dir.display()
-      )
-    })?;
+    std::fs::create_dir_all(dir).fs_context("failed to create directory", dir.to_path_buf())?;
   }
 
   // Note that Xcode doesn't always reload the project nicely; reopening is
@@ -211,7 +214,10 @@ pub fn gen(
   .stdout_file(os_pipe::dup_stdout().unwrap())
   .stderr_file(os_pipe::dup_stderr().unwrap())
   .run()
-  .with_context(|| "failed to run `xcodegen`")?;
+  .map_err(|error| Error::CommandFailed {
+    command: "xcodegen".to_string(),
+    error,
+  })?;
 
   if !ios_pods.is_empty() || !macos_pods.is_empty() {
     duct::cmd(
@@ -224,7 +230,10 @@ pub fn gen(
     .stdout_file(os_pipe::dup_stdout().unwrap())
     .stderr_file(os_pipe::dup_stderr().unwrap())
     .run()
-    .with_context(|| "failed to run `pod install`")?;
+    .map_err(|error| Error::CommandFailed {
+      command: "pod install".to_string(),
+      error,
+    })?;
   }
   Ok(())
 }

@@ -56,7 +56,7 @@ fn main() {
 
         // NOTICE: `args` may include URL protocol (`your-app-protocol://`)
         // or arguments (`--`) if your app supports them.
-        // files may aslo be passed as `file://path/to/file`
+        // files may also be passed as `file://path/to/file`
         for maybe_file in std::env::args().skip(1) {
           // skip flags like -f or --flag
           if maybe_file.starts_with('-') {
@@ -83,7 +83,7 @@ fn main() {
     .run(
       #[allow(unused_variables)]
       |app, event| {
-        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
         if let tauri::RunEvent::Opened { urls } = event {
           let files = urls
             .into_iter()

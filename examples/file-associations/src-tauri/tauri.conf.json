@@ -1,12 +1,15 @@
 {
-  "$schema": "../../../crates/tauri-cli/schema.json",
+  "$schema": "../../../crates/tauri-cli/config.schema.json",
   "identifier": "com.tauri.dev-file-associations-demo",
   "build": {
     "frontendDist": ["../index.html"]
   },
   "app": {
     "security": {
-      "csp": "default-src 'self'"
+      "csp": "default-src 'self'",
+      "assetProtocol": {
+        "enable": true
+      }
     }
   },
   "bundle": {
@@ -34,6 +37,20 @@
         "ext": ["gif"],
         "mimeType": "image/gif",
         "rank": "Owner"
+      },
+      {
+        "ext": ["taurijson"],
+        "exportedType": {
+          "identifier": "com.tauri.dev-file-associations-demo.taurijson",
+          "conformsTo": ["public.json"]
+        }
+      },
+      {
+        "ext": ["taurid"],
+        "exportedType": {
+          "identifier": "com.tauri.dev-file-associations-demo.tauridata",
+          "conformsTo": ["public.data"]
+        }
       }
     ]
   }

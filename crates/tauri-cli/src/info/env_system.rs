@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{SectionItem, Status};
+#[cfg(windows)]
+use crate::error::Context;
 use colored::Colorize;
 #[cfg(windows)]
 use serde::Deserialize;
@@ -16,19 +18,9 @@ struct VsInstanceInfo {
 }
 
 #[cfg(windows)]
-const VSWHERE: &[u8] = include_bytes!("../../scripts/vswhere.exe");
-
-#[cfg(windows)]
 fn build_tools_version() -> crate::Result<Vec<String>> {
-  let mut vswhere = std::env::temp_dir();
-  vswhere.push("vswhere.exe");
-
-  if !vswhere.exists() {
-    if let Ok(mut file) = std::fs::File::create(&vswhere) {
-      use std::io::Write;
-      let _ = file.write_all(VSWHERE);
-    }
-  }
+  let vswhere =
+    tauri_bundler::bundle::vswhere_path().context("failed to find or prepare vswhere.exe")?;
 
   // Check if there are Visual Studio installations that have the "MSVC - C++ Buildtools" and "Windows SDK" components.
   // Both the Windows 10 and Windows 11 SDKs work so we need to query it twice.
@@ -45,7 +37,11 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "json",
       "-utf8",
     ])
-    .output()?;
+    .output()
+    .map_err(|error| crate::error::Error::CommandFailed {
+      command: "vswhere -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -requires Microsoft.VisualStudio.Component.Windows10SDK.* -format json -utf8".to_string(),
+      error,
+    })?;
 
   let output_sdk11 = Command::new(vswhere)
     .args([
@@ -60,19 +56,25 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "json",
       "-utf8",
     ])
-    .output()?;
+    .output()
+    .map_err(|error| crate::error::Error::CommandFailed {
+      command: "vswhere -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -requires Microsoft.VisualStudio.Component.Windows11SDK.* -format json -utf8".to_string(),
+      error,
+    })?;
 
   let mut instances: Vec<VsInstanceInfo> = Vec::new();
 
   if output_sdk10.status.success() {
     let stdout = String::from_utf8_lossy(&output_sdk10.stdout);
-    let found: Vec<VsInstanceInfo> = serde_json::from_str(&stdout)?;
+    let found: Vec<VsInstanceInfo> =
+      serde_json::from_str(&stdout).context("failed to parse vswhere output")?;
     instances.extend(found);
   }
 
   if output_sdk11.status.success() {
     let stdout = String::from_utf8_lossy(&output_sdk11.stdout);
-    let found: Vec<VsInstanceInfo> = serde_json::from_str(&stdout)?;
+    let found: Vec<VsInstanceInfo> =
+      serde_json::from_str(&stdout).context("failed to parse vswhere output")?;
     instances.extend(found);
   }
 
@@ -97,7 +99,11 @@ fn webview2_version() -> crate::Result<Option<String>> {
   let output = Command::new(&powershell_path)
       .args(["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
-      .output()?;
+      .output()
+      .map_err(|error| crate::error::Error::CommandFailed {
+        command: "Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}".to_string(),
+        error,
+      })?;
   if output.status.success() {
     return Ok(Some(
       String::from_utf8_lossy(&output.stdout).replace('\n', ""),
@@ -107,7 +113,11 @@ fn webview2_version() -> crate::Result<Option<String>> {
   let output = Command::new(&powershell_path)
         .args(["-NoProfile", "-Command"])
         .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
-        .output()?;
+        .output()
+        .map_err(|error| crate::error::Error::CommandFailed {
+          command: "Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}".to_string(),
+          error,
+        })?;
   if output.status.success() {
     return Ok(Some(
       String::from_utf8_lossy(&output.stdout).replace('\n', ""),
@@ -117,7 +127,11 @@ fn webview2_version() -> crate::Result<Option<String>> {
   let output = Command::new(&powershell_path)
       .args(["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
-      .output()?;
+      .output()
+      .map_err(|error| crate::error::Error::CommandFailed {
+        command: "Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}".to_string(),
+        error,
+      })?;
   if output.status.success() {
     return Ok(Some(
       String::from_utf8_lossy(&output.stdout).replace('\n', ""),

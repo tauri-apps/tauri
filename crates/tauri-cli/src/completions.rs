@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Result;
-use anyhow::Context;
+use crate::{error::ErrorExt, Result};
 use clap::{Command, Parser};
 use clap_complete::{generate, Shell};
 
@@ -95,7 +94,7 @@ pub fn command(options: Options, cmd: Command) -> Result<()> {
 
   let completions = get_completions(options.shell, cmd)?;
   if let Some(output) = options.output {
-    write(output, completions).context("failed to write to output path")?;
+    write(&output, completions).fs_context("failed to write to completions", output)?;
   } else {
     print!("{completions}");
   }

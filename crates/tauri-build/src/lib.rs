@@ -21,7 +21,9 @@ use tauri_utils::{
 
 use std::{
   collections::HashMap,
-  env, fs,
+  env,
+  ffi::OsStr,
+  fs,
   path::{Path, PathBuf},
 };
 
@@ -57,7 +59,7 @@ fn copy_binaries(
   binaries: ResourcePaths,
   target_triple: &str,
   path: &Path,
-  package_name: Option<&String>,
+  package_name: Option<&str>,
 ) -> Result<()> {
   for src in binaries {
     let src = src?;
@@ -87,10 +89,9 @@ fn copy_binaries(
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   let path = path.canonicalize()?;
-  for resource in resources.iter() {
+  let mut resources = resources.iter();
+  for resource in resources.by_ref() {
     let resource = resource?;
-
-    println!("cargo:rerun-if-changed={}", resource.path().display());
 
     // avoid copying the resource if target is the same as source
     let src = resource.path().canonicalize()?;
@@ -99,6 +100,11 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
       copy_file(src, target)?;
     }
   }
+
+  for path in resources.rerun_if_changed() {
+    println!("cargo:rerun-if-changed={}", path.display());
+  }
+
   Ok(())
 }
 
@@ -165,21 +171,21 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
     .with_context(|| format!("Failed to create frameworks output directory at {dest_dir:?}"))?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
-      let src_path = PathBuf::from(framework);
+      let src_path = Path::new(framework);
       let src_name = src_path
         .file_name()
         .expect("Couldn't get framework filename");
       let dest_path = dest_dir.join(src_name);
-      copy_dir(&src_path, &dest_path)?;
+      copy_dir(src_path, &dest_path)?;
       continue;
     } else if framework.ends_with(".dylib") {
-      let src_path = PathBuf::from(framework);
+      let src_path = Path::new(framework);
       if !src_path.exists() {
         return Err(anyhow::anyhow!("Library not found: {}", framework));
       }
       let src_name = src_path.file_name().expect("Couldn't get library filename");
       let dest_path = dest_dir.join(src_name);
-      copy_file(&src_path, &dest_path)?;
+      copy_file(src_path, &dest_path)?;
       continue;
     } else if framework.contains('/') {
       return Err(anyhow::anyhow!(
@@ -192,17 +198,24 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
         continue;
       }
     }
-    if copy_framework_from(&PathBuf::from("/Library/Frameworks/"), framework, dest_dir)?
-      || copy_framework_from(
-        &PathBuf::from("/Network/Library/Frameworks/"),
-        framework,
-        dest_dir,
-      )?
+    if copy_framework_from("/Library/Frameworks/".as_ref(), framework, dest_dir)?
+      || copy_framework_from("/Network/Library/Frameworks/".as_ref(), framework, dest_dir)?
     {
       continue;
     }
   }
   Ok(())
+}
+
+// TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
+// resolves the target dir from `OUT_DIR`, which is `<target dir>/build/<pkg>-<hash>/out` on stable
+// and `<target dir>/build/<pkg>/<hash>/out` on recent nightlies, so we walk up to the `build` dir
+// and take its parent instead of assuming a fixed depth.
+fn target_dir_from_out_dir(out_dir: &Path) -> Option<&Path> {
+  out_dir
+    .ancestors()
+    .find(|path| path.file_name() == Some(OsStr::new("build")))
+    .and_then(|build_dir| build_dir.parent())
 }
 
 // creates a cfg alias if `has_feature` is true.
@@ -219,6 +232,8 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 #[derive(Debug)]
 pub struct WindowsAttributes {
   window_icon_path: Option<PathBuf>,
+  /// Whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets
+  static_vc_runtime: Option<bool>,
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
@@ -246,6 +261,8 @@ pub struct WindowsAttributes {
   ///
   /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
   app_manifest: Option<String>,
+  /// A series of strings containing additional .rc content to be appended to the generated resource file on Windows.
+  append_rc_content: Vec<String>,
 }
 
 impl Default for WindowsAttributes {
@@ -259,16 +276,20 @@ impl WindowsAttributes {
   pub fn new() -> Self {
     Self {
       window_icon_path: Default::default(),
+      static_vc_runtime: None,
       app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
+      append_rc_content: Vec::new(),
     }
   }
 
-  /// Creates the default attriute set wihtou the default app manifest.
+  /// Creates the default attribute set without the default app manifest.
   #[must_use]
   pub fn new_without_app_manifest() -> Self {
     Self {
       app_manifest: None,
       window_icon_path: Default::default(),
+      static_vc_runtime: None,
+      append_rc_content: Vec::new(),
     }
   }
 
@@ -279,6 +300,15 @@ impl WindowsAttributes {
     self
       .window_icon_path
       .replace(window_icon_path.as_ref().into());
+    self
+  }
+
+  /// Sets whether to statically link the Visual C++ runtime into the application binary on Windows MSVC targets.
+  ///
+  /// If unset, this is read from `build > windows > staticVCRuntime` in the Tauri configuration.
+  #[must_use]
+  pub fn static_vc_runtime(mut self, static_vc_runtime: bool) -> Self {
+    self.static_vc_runtime.replace(static_vc_runtime);
     self
   }
 
@@ -338,6 +368,14 @@ impl WindowsAttributes {
     self.app_manifest = Some(manifest.as_ref().to_string());
     self
   }
+
+  /// Append additional .rc content to the generated resource file on Windows.
+  /// This can be called multiple times to append multiple contents.
+  #[must_use]
+  pub fn append_rc_content<S: Into<String>>(mut self, content: S) -> Self {
+    self.append_rc_content.push(content.into());
+    self
+  }
 }
 
 /// The attributes used on the build.
@@ -346,6 +384,7 @@ pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
   capabilities_path_pattern: Option<&'static str>,
+  config_path: Option<PathBuf>,
   #[cfg(feature = "codegen")]
   codegen: Option<codegen::context::CodegenContext>,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
@@ -397,6 +436,16 @@ impl Attributes {
     self
   }
 
+  /// Set the path to the `tauri.conf.json` (relative to the crate's directory).
+  ///
+  /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
+  /// the crate compiling; does not need to be set manually if that config file is in the same
+  /// directory as your `Cargo.toml`.
+  pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
+    self.config_path = Some(config_path.into());
+    self
+  }
+
   /// Sets the application manifest for the Access Control List.
   ///
   /// See [`AppManifest`] for more information.
@@ -415,7 +464,8 @@ impl Attributes {
 }
 
 pub fn is_dev() -> bool {
-  env::var("DEP_TAURI_DEV").expect("missing `cargo:dev` instruction, please update tauri to latest")
+  env::var_os("DEP_TAURI_DEV")
+    .expect("missing `cargo:dev` instruction, please update tauri to latest")
     == "true"
 }
 
@@ -462,7 +512,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
-  let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
@@ -470,8 +520,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let (mut config, config_paths) =
-    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
+  let config_root = if let Some(config_path) = &attributes.config_path {
+    config_path.parent().with_context(|| {
+      format!(
+        "`config_path` '{}' doesn't have a parent directory",
+        config_path.display()
+      )
+    })?
+  } else {
+    &env::current_dir().unwrap()
+  };
+
+  let (mut config, config_paths) = tauri_utils::config::parse::read_from(target, config_root)?;
+
   for config_file_path in config_paths {
     println!("cargo:rerun-if-changed={}", config_file_path.display());
   }
@@ -480,6 +541,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     json_patch::merge(&mut config, &merge_config);
   }
   let config: Config = serde_json::from_value(config)?;
+  let static_vc_runtime = should_static_link_vc_runtime(&config, &attributes);
 
   let s = config.identifier.split('.');
   let last = s.clone().count() - 1;
@@ -499,7 +561,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={android_package_prefix}");
 
   if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-    mobile::generate_gradle_files(project_dir, &config)?;
+    mobile::generate_gradle_files(project_dir)?;
+
+    // Update Android manifest with file associations
+    if let Some(associations) = config.bundle.file_associations.as_ref() {
+      mobile::update_android_manifest_file_associations(associations)?;
+    }
   }
 
   cfg_alias("dev", is_dev());
@@ -507,7 +574,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let cargo_toml_path = Path::new("Cargo.toml").canonicalize()?;
   let mut manifest = Manifest::<cargo_toml::Value>::from_path_with_metadata(cargo_toml_path)?;
 
-  let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+  let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
   manifest::check(&config, &mut manifest)?;
 
@@ -519,30 +586,23 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   // when running codegen in this build script, we need to access the env var directly
   env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
 
-  // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
-  let target_dir = out_dir
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap();
+  let target_dir = target_dir_from_out_dir(&out_dir)
+    .with_context(|| format!("failed to resolve the target directory from {out_dir:?}"))?;
 
   if let Some(paths) = &config.bundle.external_bin {
     copy_binaries(
       ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
       &target_triple,
       target_dir,
-      manifest.package.as_ref().map(|p| &p.name),
+      manifest.package.as_ref().map(|p| p.name.as_ref()),
     )?;
   }
 
-  #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config
     .bundle
     .resources
     .clone()
-    .unwrap_or_else(|| BundleResources::List(Vec::new()));
+    .unwrap_or(BundleResources::List(Vec::new()));
   if target_triple.contains("windows") {
     if let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
       WebviewInstallMode::FixedRuntime { path } => Some(path),
@@ -591,21 +651,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};
 
-    fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
-      let icon_path = config
-        .bundle
-        .icon
-        .iter()
-        .find(|i| predicate(i))
-        .cloned()
-        .unwrap_or_else(|| default.to_string());
-      icon_path.into()
-    }
-
     let window_icon_path = attributes
       .windows_attributes
       .window_icon_path
-      .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
+      .unwrap_or_else(|| {
+        config
+          .bundle
+          .icon
+          .iter()
+          .find(|i| i.ends_with(".ico"))
+          .map(AsRef::as_ref)
+          .unwrap_or("icons/icon.ico")
+          .into()
+      });
 
     let mut res = WindowsResource::new();
 
@@ -613,11 +671,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       res.set_manifest(&manifest);
     }
 
+    for content in attributes.windows_attributes.append_rc_content {
+      res.append_rc_content(&content);
+    }
+
     if let Some(version_str) = &config.version {
       if let Ok(v) = Version::parse(version_str) {
-        let version = (v.major << 48) | (v.minor << 32) | (v.patch << 16);
+        let version = to_winres_version(&v);
         res.set_version_info(VersionInfo::FILEVERSION, version);
         res.set_version_info(VersionInfo::PRODUCTVERSION, version);
+        res.set("FileVersion", version_str);
+        res.set("ProductVersion", version_str);
       }
     }
 
@@ -687,19 +751,199 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           }
         }
       }
-      "msvc" => {
-        if env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "true") {
-          static_vcruntime::build();
-        }
+      "msvc" if static_vc_runtime => {
+        static_vcruntime::build();
       }
       _ => (),
     }
   }
 
   #[cfg(feature = "codegen")]
-  if let Some(codegen) = attributes.codegen {
+  if let Some(mut codegen) = attributes.codegen {
+    if codegen.config_path.is_none() {
+      codegen.config_path = attributes.config_path;
+    }
     codegen.try_build()?;
   }
 
   Ok(())
+}
+
+fn to_winres_version(v: &semver::Version) -> u64 {
+  let build = v.build.parse::<u16>().map(u64::from).unwrap_or(0);
+
+  (v.major << 48) | (v.minor << 32) | (v.patch << 16) | build
+}
+
+fn should_static_link_vc_runtime(config: &Config, attributes: &Attributes) -> bool {
+  if let Some(value) = env::var_os("STATIC_VCRUNTIME") {
+    println!(
+      "cargo:warning=STATIC_VCRUNTIME is deprecated; use build.windows.staticVCRuntime in tauri.conf.json or tauri_build::WindowsAttributes::static_vc_runtime instead."
+    );
+    value != "false"
+  } else {
+    attributes
+      .windows_attributes
+      .static_vc_runtime
+      .unwrap_or(config.build.windows.static_vc_runtime)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use semver::Version;
+  use std::path::Path;
+
+  #[test]
+  fn target_dir_from_stable_out_dir() {
+    let out_dir = Path::new("/app/target/debug/build/app-63ba68eead531e35/out");
+
+    assert_eq!(
+      crate::target_dir_from_out_dir(out_dir),
+      Some(Path::new("/app/target/debug"))
+    );
+  }
+
+  #[test]
+  fn target_dir_from_nightly_out_dir() {
+    let out_dir = Path::new("/app/target/debug/build/app/63ba68eead531e35/out");
+
+    assert_eq!(
+      crate::target_dir_from_out_dir(out_dir),
+      Some(Path::new("/app/target/debug"))
+    );
+  }
+
+  #[test]
+  fn target_dir_from_out_dir_with_triple() {
+    let out_dir =
+      Path::new("/app/target/aarch64-apple-darwin/release/build/app/63ba68eead531e35/out");
+
+    assert_eq!(
+      crate::target_dir_from_out_dir(out_dir),
+      Some(Path::new("/app/target/aarch64-apple-darwin/release"))
+    );
+  }
+
+  #[test]
+  fn version_uses_numeric_build_metadata() {
+    let version = Version::parse("1.2.3+42").unwrap();
+
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16) | 42
+    );
+  }
+
+  #[test]
+  fn version_ignores_non_numeric_composite_build_metadata() {
+    let version = Version::parse("1.2.3+42.sha").unwrap();
+
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
+  }
+
+  #[test]
+  fn version_ignores_non_numeric_build_metadata() {
+    let version = Version::parse("1.2.3+abc").unwrap();
+
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
+  }
+
+  #[test]
+  fn version_ignores_build_metadata_that_does_not_fit_in_u16() {
+    let version = Version::parse("1.2.3+70000").unwrap();
+
+    assert_eq!(
+      crate::to_winres_version(&version),
+      (1 << 48) | (2 << 32) | (3 << 16)
+    );
+  }
+
+  #[test]
+  fn static_vc_runtime_chain() {
+    // 1. Nothing is set, should default to true
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new();
+    assert!(crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 2. Set to anything but "false" in env, should be true
+    std::env::set_var("STATIC_VCRUNTIME", "qweqe");
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new();
+    assert!(crate::should_static_link_vc_runtime(&config, &attributes));
+    std::env::remove_var("STATIC_VCRUNTIME");
+
+    // 3. Set to "false" in env, should be false
+    std::env::set_var("STATIC_VCRUNTIME", "false");
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new();
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+    std::env::remove_var("STATIC_VCRUNTIME");
+
+    // 4. Set to true in attributes, should be true
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new()
+      .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(true));
+    assert!(crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 5. Set to false in attributes, should be false
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new()
+      .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(false));
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 6. Set to true in config, should be true
+    let config = tauri_utils::config::Config {
+      build: tauri_utils::config::BuildConfig {
+        windows: tauri_utils::config::WindowsBuildConfig {
+          static_vc_runtime: true,
+        },
+        ..Default::default()
+      },
+      ..Default::default()
+    };
+    let attributes = crate::Attributes::new();
+    assert!(crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 7. Set to false in config, should be false
+    let config = tauri_utils::config::Config {
+      build: tauri_utils::config::BuildConfig {
+        windows: tauri_utils::config::WindowsBuildConfig {
+          static_vc_runtime: false,
+        },
+        ..Default::default()
+      },
+      ..Default::default()
+    };
+    let attributes = crate::Attributes::new();
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 8. Set to true in config and false in attributes, should be false because attributes takes precedence over config
+    let config = tauri_utils::config::Config {
+      build: tauri_utils::config::BuildConfig {
+        windows: tauri_utils::config::WindowsBuildConfig {
+          static_vc_runtime: true,
+        },
+        ..Default::default()
+      },
+      ..Default::default()
+    };
+    let attributes = crate::Attributes::new()
+      .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(false));
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+
+    // 9. Set to false in env and true in attributes, should be false because env takes precedence over attributes
+    std::env::set_var("STATIC_VCRUNTIME", "false");
+    let config = tauri_utils::config::Config::default();
+    let attributes = crate::Attributes::new()
+      .windows_attributes(crate::WindowsAttributes::new().static_vc_runtime(true));
+    assert!(!crate::should_static_link_vc_runtime(&config, &attributes));
+    std::env::remove_var("STATIC_VCRUNTIME");
+  }
 }

@@ -83,7 +83,7 @@ impl CachedIcon {
       panic!("icon {} is not RGBA", icon.display());
     }
 
-    let mut rgba = Vec::with_capacity(reader.output_buffer_size());
+    let mut rgba = Vec::with_capacity(reader.output_buffer_size().unwrap());
     while let Ok(Some(row)) = reader.next_row() {
       rgba.extend(row.data());
     }

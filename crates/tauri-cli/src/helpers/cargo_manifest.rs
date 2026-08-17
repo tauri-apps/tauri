@@ -56,7 +56,7 @@ pub fn cargo_manifest_and_lock(tauri_dir: &Path) -> (Option<CargoManifest>, Opti
     .ok()
     .and_then(|manifest_contents| toml::from_str(&manifest_contents).ok());
 
-  let lock: Option<CargoLock> = get_workspace_dir()
+  let lock: Option<CargoLock> = get_workspace_dir(tauri_dir)
     .ok()
     .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
     .and_then(|s| toml::from_str(&s).ok());
@@ -131,20 +131,7 @@ struct CrateIoGetResponse {
 pub fn crate_latest_version(name: &str) -> Option<String> {
   // Reference: https://github.com/rust-lang/crates.io/blob/98c83c8231cbcd15d6b8f06d80a00ad462f71585/src/controllers/krate/metadata.rs#L88
   let url = format!("https://crates.io/api/v1/crates/{name}?include");
-  #[cfg(feature = "platform-certs")]
-  let mut response = {
-    let agent = ureq::Agent::config_builder()
-      .tls_config(
-        ureq::tls::TlsConfig::builder()
-          .root_certs(ureq::tls::RootCerts::PlatformVerifier)
-          .build(),
-      )
-      .build()
-      .new_agent();
-    agent.get(&url).call().ok()?
-  };
-  #[cfg(not(feature = "platform-certs"))]
-  let mut response = ureq::get(&url).call().ok()?;
+  let mut response = super::http::get(&url).ok()?;
   let metadata: CrateIoGetResponse =
     serde_json::from_reader(response.body_mut().as_reader()).unwrap();
   metadata.krate.default_version

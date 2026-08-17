@@ -7,8 +7,6 @@ use axum::{
   http::{header, StatusCode, Uri},
   response::{IntoResponse, Response},
 };
-use html5ever::{namespace_url, ns, LocalName, QualName};
-use kuchiki::{traits::TendrilSink, NodeRef};
 use std::{
   net::{IpAddr, SocketAddr},
   path::{Path, PathBuf},
@@ -17,6 +15,8 @@ use std::{
 };
 use tauri_utils::mime_type::MimeType;
 use tokio::sync::broadcast::{channel, Sender};
+
+use crate::error::ErrorExt;
 
 const RELOAD_SCRIPT: &str = include_str!("./auto-reload.js");
 
@@ -29,7 +29,8 @@ struct ServerState {
 
 pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Result<SocketAddr> {
   let dir = dir.as_ref();
-  let dir = dunce::canonicalize(dir)?;
+  let dir =
+    dunce::canonicalize(dir).fs_context("failed to canonicalize path", dir.to_path_buf())?;
 
   // bind port and tcp listener
   let auto_port = port.is_none();
@@ -37,12 +38,12 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
   let (tcp_listener, address) = loop {
     let address = SocketAddr::new(ip, port);
     if let Ok(tcp) = std::net::TcpListener::bind(address) {
-      tcp.set_nonblocking(true)?;
+      tcp.set_nonblocking(true).unwrap();
       break (tcp, address);
     }
 
     if !auto_port {
-      anyhow::bail!("Couldn't bind to {port} on {ip}");
+      crate::error::bail!("Couldn't bind to {port} on {ip}");
     }
 
     port += 1;
@@ -89,8 +90,8 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
   };
 
   let bytes = fs_read_scoped(state.dir.join(uri), &state.dir)
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}.html", &uri)), &state.dir))
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}/index.html", &uri)), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}.html")), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}/index.html")), &state.dir))
     .or_else(|_| std::fs::read(state.dir.join("index.html")));
 
   match bytes {
@@ -125,38 +126,22 @@ async fn ws_handler(ws: WebSocketUpgrade, state: State<ServerState>) -> Response
 }
 
 fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
-  fn with_html_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {
-    if let Ok(ref node) = document.select_first("head") {
-      f(node.as_node())
-    } else {
-      let node = NodeRef::new_element(
-        QualName::new(None, ns!(html), LocalName::from("head")),
-        None,
-      );
-      f(&node);
-      document.prepend(node)
-    }
-  }
+  let document = tauri_utils::html2::parse_doc(String::from_utf8_lossy(&html_bytes).into_owned());
 
-  let mut document = kuchiki::parse_html()
-    .one(String::from_utf8_lossy(&html_bytes).into_owned())
-    .document_node;
-  with_html_head(&mut document, |head| {
-    let script = RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli"));
-    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-    script_el.append(NodeRef::new_text(script));
-    head.prepend(script_el);
-  });
+  tauri_utils::html2::append_script_to_head(
+    &document,
+    &RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli")),
+  );
 
-  tauri_utils::html::serialize_node(&document)
+  tauri_utils::html2::serialize_doc(&document)
 }
 
 fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
-  let path = dunce::canonicalize(path)?;
+  let path = dunce::canonicalize(&path).fs_context("failed to canonicalize path", path)?;
   if path.starts_with(scope) {
-    std::fs::read(path).map_err(Into::into)
+    std::fs::read(&path).fs_context("failed to read file", &path)
   } else {
-    anyhow::bail!("forbidden path")
+    crate::error::bail!("forbidden path")
   }
 }
 

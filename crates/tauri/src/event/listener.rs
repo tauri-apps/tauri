@@ -25,6 +25,7 @@ enum Pending {
     handler: Handler,
   },
   Emit(EmitArgs),
+  RemoveForTarget(EventTarget),
 }
 
 /// Stored in [`Listeners`] to be called upon, when the event that stored it, is triggered.
@@ -128,6 +129,7 @@ impl Listeners {
         Pending::Unlisten(id) => self.unlisten(id),
         Pending::Listen { id, event, handler } => self.listen_with_id(id, event, handler),
         Pending::Emit(args) => self.emit(args)?,
+        Pending::RemoveForTarget(target) => self.remove_listeners_for_target(target),
       }
     }
 
@@ -168,11 +170,11 @@ impl Listeners {
 
     self.listen(event, target, move |event| {
       let id = event.id;
+      self_.unlisten(id);
       let handler = handler
         .take()
         .expect("attempted to call handler more than once");
       handler(event);
-      self_.unlisten(id);
     })
   }
 
@@ -183,6 +185,22 @@ impl Listeners {
       Ok(mut lock) => lock.values_mut().for_each(|handler| {
         handler.remove(&id);
       }),
+    }
+  }
+
+  /// Removes every Rust-side event listener registered for the exact given target.
+  ///
+  /// Called when a window or webview is destroyed so its listeners don't leak.
+  /// Global targets such as [`EventTarget::App`], [`EventTarget::Any`] and [`EventTarget::AnyLabel`] are never matched here.
+  fn remove_listeners_for_target(&self, target: EventTarget) {
+    match self.inner.handlers.try_lock() {
+      Err(_) => self.insert_pending(Pending::RemoveForTarget(target)),
+      Ok(mut lock) => {
+        for handlers in lock.values_mut() {
+          handlers.retain(|_, handler| handler.target != target);
+        }
+        lock.retain(|_, handlers| !handlers.is_empty());
+      }
     }
   }
 
@@ -249,6 +267,28 @@ impl Listeners {
         }
       }
     }
+  }
+
+  /// Removes all JS event listeners registered from the given webview.
+  fn remove_webview_js_listeners(&self, webview_label: &str) {
+    self
+      .inner
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .remove(webview_label);
+  }
+
+  /// Removes all event listeners associated with a destroyed webview.
+  pub(crate) fn remove_webview_listeners(&self, label: &str) {
+    self.remove_webview_js_listeners(label);
+    self.remove_listeners_for_target(EventTarget::webview(label));
+  }
+
+  /// Removes all event listeners associated with a destroyed window.
+  pub(crate) fn remove_window_listeners(&self, label: &str) {
+    self.remove_listeners_for_target(EventTarget::window(label));
+    self.remove_listeners_for_target(EventTarget::webview_window(label));
   }
 
   pub(crate) fn has_js_listener<F: Fn(&EventTarget) -> bool>(
@@ -381,5 +421,68 @@ mod test {
       // assert that the key is contained in the listeners map
       assert!(l.contains_key(&key));
     }
+  }
+
+  #[test]
+  fn event_no_deadlocks() {
+    let listeners = Listeners::default();
+    let listeners_clone = listeners.clone();
+    let event = crate::EventName::new("test-event".to_owned()).unwrap();
+    let event_clone = event.clone();
+    listeners.once(event.clone(), EventTarget::Any, move |_event| {
+      listeners_clone
+        .emit(EmitArgs::new(event_clone.as_str_event(), &()).unwrap())
+        .unwrap();
+    });
+    listeners
+      .emit(EmitArgs::new(event.as_str_event(), &()).unwrap())
+      .unwrap();
+  }
+
+  #[test]
+  fn listeners_removed_on_webview_close() {
+    let listeners = Listeners::default();
+    let event = crate::EventName::new("test-event".to_owned()).unwrap();
+    let webview_label = "main";
+
+    let window = listeners.listen(event.clone(), EventTarget::window(webview_label), event_fn);
+    // Same label as the window, but a different target kind (multi-webview mode).
+    let webview = listeners.listen(event.clone(), EventTarget::webview(webview_label), event_fn);
+    let webview_window = listeners.listen(
+      event.clone(),
+      EventTarget::webview_window(webview_label),
+      event_fn,
+    );
+    let other = listeners.listen(event.clone(), EventTarget::webview("other"), event_fn);
+    let app = listeners.listen(event.clone(), EventTarget::App, event_fn);
+    let any = listeners.listen(event.clone(), EventTarget::Any, event_fn);
+    let labeled = listeners.listen(event.clone(), EventTarget::labeled(webview_label), event_fn);
+
+    let id = listeners.next_event_id();
+    listeners.listen_js(
+      event.as_str_event(),
+      webview_label,
+      EventTarget::webview(webview_label),
+      id,
+    );
+    assert!(listeners.has_js_listener(event.as_str_event(), |_| true));
+
+    listeners.remove_webview_listeners(webview_label);
+
+    assert!(!listeners.has_js_listener(event.as_str_event(), |_| true));
+
+    let lock = listeners.inner.handlers.lock().unwrap();
+    let remaining: HashSet<EventId> = lock.get(&event).unwrap().keys().copied().collect();
+
+    // only the exact `Webview { label: "main" }` listener is gone
+    assert!(!remaining.contains(&webview));
+    // same label but different kind is kept
+    assert!(remaining.contains(&window));
+    assert!(remaining.contains(&webview_window));
+    // unrelated and global listeners are kept
+    assert!(remaining.contains(&other));
+    assert!(remaining.contains(&app));
+    assert!(remaining.contains(&any));
+    assert!(remaining.contains(&labeled));
   }
 }

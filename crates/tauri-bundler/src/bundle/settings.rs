@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::category::AppCategory;
-use crate::{bundle::platform::target_triple, utils::fs_utils};
-use anyhow::Context;
+use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{
@@ -127,7 +126,7 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::IosBundle,
   #[cfg(target_os = "windows")]
   PackageType::WindowsMsi,
-  #[cfg(target_os = "windows")]
+  // NSIS installers can be built on all platforms but it's hidden in the --help output on macOS/Linux.
   PackageType::Nsis,
   #[cfg(target_os = "macos")]
   PackageType::MacOsBundle,
@@ -224,6 +223,10 @@ pub struct AppImageSettings {
   /// Whether to include gstreamer plugins for audio/media support.
   pub bundle_media_framework: bool,
   /// Whether to include the `xdg-open` binary.
+  #[deprecated(
+    since = "2.12.0",
+    note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
+  )]
   pub bundle_xdg_open: bool,
 }
 
@@ -232,7 +235,7 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
-  /// the list of of RPM dependencies your application recommends.
+  /// the list of RPM dependencies your application recommends.
   pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
@@ -361,10 +364,28 @@ pub struct MacOsSettings {
   pub hardened_runtime: bool,
   /// Provider short name for notarization.
   pub provider_short_name: Option<String>,
+  /// Path or contents of the entitlements.plist file.
+  pub entitlements: Option<Entitlements>,
+  /// Path to the Info.plist file or raw plist value to merge with the bundle Info.plist.
+  pub info_plist: Option<PlistKind>,
+}
+
+/// Entitlements for macOS code signing.
+#[derive(Debug, Clone)]
+pub enum Entitlements {
   /// Path to the entitlements.plist file.
-  pub entitlements: Option<String>,
-  /// Path to the Info.plist file for the bundle.
-  pub info_plist_path: Option<PathBuf>,
+  Path(PathBuf),
+  /// Raw plist::Value.
+  Plist(plist::Value),
+}
+
+/// Plist format.
+#[derive(Debug, Clone)]
+pub enum PlistKind {
+  /// Path to a .plist file.
+  Path(PathBuf),
+  /// Raw plist value.
+  Plist(plist::Value),
 }
 
 /// Configuration for a target language for the WiX build.
@@ -453,11 +474,19 @@ pub struct NsisSettings {
   pub sidebar_image: Option<PathBuf>,
   /// The path to an icon file used as the installer icon.
   pub installer_icon: Option<PathBuf>,
+  /// The path to an icon file used as the uninstaller icon.
+  pub uninstaller_icon: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of uninstallers pages.
+  /// Defaults to [`Self::header_image`]. If this is set but [`Self::header_image`] is not, a default image from NSIS will be applied to `header_image`
+  ///
+  /// The recommended dimensions are 150px x 57px.
+  pub uninstaller_header_image: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   pub install_mode: NSISInstallerMode,
-  /// A list of installer languages.
+  /// A list of installer languages. Default to `["English"]` if not set.
+  ///
   /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
-  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  /// To allow the user to select the language, set [`Self::display_language_selector`] to `true`.
   ///
   /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
   pub languages: Option<Vec<String>>,
@@ -466,7 +495,7 @@ pub struct NsisSettings {
   ///
   /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsi` file.
   ///
-  /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`]languages array,
+  /// **Note**: the key must be a valid NSIS language and it must be added to the [`Self::languages`] array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
   /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
@@ -515,6 +544,10 @@ pub struct NsisSettings {
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
+  #[deprecated(
+    since = "2.8.0",
+    note = "Use `WindowsSettings::minimum_webview2_version` instead."
+  )]
   pub minimum_webview2_version: Option<String>,
 }
 
@@ -570,6 +603,17 @@ pub struct WindowsSettings {
   /// if you are on another platform and want to cross-compile and sign you will
   /// need to use another tool like `osslsigncode`.
   pub sign_command: Option<CustomSignCommandSettings>,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  pub minimum_webview2_version: Option<String>,
+  /// Whether to bundle the Visual C++ runtime DLLs alongside the application.
+  ///
+  /// This can be particularly useful when the application includes sidecars or DLLs that do not
+  /// statically link the Visual C++ runtime and require the runtime DLLs at runtime, and users
+  /// should not be required to install the Visual C++ Redistributable. This can also be useful
+  /// when `static_vc_runtime` is set to `false`.
+  pub bundle_vc_runtime: bool,
 }
 
 impl WindowsSettings {
@@ -595,6 +639,8 @@ mod _default {
         webview_install_mode: Default::default(),
         allow_downgrades: true,
         sign_command: None,
+        minimum_webview2_version: None,
+        bundle_vc_runtime: false,
       }
     }
   }
@@ -778,6 +824,8 @@ pub struct Settings {
   local_tools_directory: Option<PathBuf>,
   /// the bundle settings.
   bundle_settings: BundleSettings,
+  /// Same as `bundle_settings.icon`, but without the .icon directory.
+  icon_files: Option<Vec<String>>,
   /// the binaries to bundle.
   binaries: Vec<BundleBinary>,
   /// The target platform.
@@ -786,10 +834,11 @@ pub struct Settings {
   target: String,
   /// Whether to disable code signing during the bundling process.
   no_sign: bool,
+  /// Whether to patch the main binary with bundle type information.
+  binary_patching: bool,
 }
 
 /// A builder for [`Settings`].
-#[derive(Default)]
 pub struct SettingsBuilder {
   log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
@@ -800,12 +849,31 @@ pub struct SettingsBuilder {
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
   no_sign: bool,
+  binary_patching: bool,
+}
+
+impl Default for SettingsBuilder {
+  fn default() -> Self {
+    Self {
+      log_level: None,
+      project_out_directory: None,
+      package_types: None,
+      package_settings: None,
+      bundle_settings: BundleSettings::default(),
+      binaries: Vec::new(),
+      target: None,
+      local_tools_directory: None,
+      no_sign: false,
+      // Binary patching is on by default; disabled via `--no-binary-patching`.
+      binary_patching: true,
+    }
+  }
 }
 
 impl SettingsBuilder {
   /// Creates the default settings builder.
   pub fn new() -> Self {
-    Default::default()
+    Self::default()
   }
 
   /// Sets the project output directory. It's used as current working directory.
@@ -876,6 +944,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets whether to patch the main binary with bundle type information. Defaults to `true`.
+  #[must_use]
+  pub fn binary_patching(mut self, binary_patching: bool) -> Self {
+    self.binary_patching = binary_patching;
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -888,6 +963,14 @@ impl SettingsBuilder {
       target_triple()?
     };
     let target_platform = TargetPlatform::from_triple(&target);
+
+    let icon_files = self.bundle_settings.icon.as_ref().map(|paths| {
+      paths
+        .iter()
+        .filter(|p| !p.ends_with(".icon"))
+        .cloned()
+        .collect()
+    });
 
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
@@ -908,9 +991,11 @@ impl SettingsBuilder {
           .map(|bins| external_binaries(bins, &target, &target_platform)),
         ..self.bundle_settings
       },
+      icon_files,
       target_platform,
       target,
       no_sign: self.no_sign,
+      binary_patching: self.binary_patching,
     })
   }
 }
@@ -941,6 +1026,11 @@ impl Settings {
     &self.target_platform
   }
 
+  /// Raw list of icons.
+  pub fn icons(&self) -> Option<&Vec<String>> {
+    self.bundle_settings.icon.as_ref()
+  }
+
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
   pub fn binary_arch(&self) -> Arch {
     if self.target.starts_with("x86_64") {
@@ -969,7 +1059,6 @@ impl Settings {
       .iter()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
   }
 
   /// Returns the file name of the binary being bundled.
@@ -979,7 +1068,6 @@ impl Settings {
       .iter_mut()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
   }
 
   /// Returns the file name of the binary being bundled.
@@ -990,7 +1078,6 @@ impl Settings {
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
       .map(|b| b.name())
-      .map_err(Into::into)
   }
 
   /// Returns the path to the specified binary.
@@ -1078,7 +1165,7 @@ impl Settings {
 
   /// Returns an iterator over the icon files to be used for this bundle.
   pub fn icon_files(&self) -> ResourcePaths<'_> {
-    match self.bundle_settings.icon {
+    match self.icon_files {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), false),
       None => ResourcePaths::new(&[], false),
     }
@@ -1268,5 +1355,15 @@ impl Settings {
   /// Set whether to skip signing.
   pub fn set_no_sign(&mut self, no_sign: bool) {
     self.no_sign = no_sign;
+  }
+
+  /// Whether the main binary is patched with bundle type information.
+  pub fn binary_patching(&self) -> bool {
+    self.binary_patching
+  }
+
+  /// Set whether to patch the main binary with bundle type information.
+  pub fn set_binary_patching(&mut self, binary_patching: bool) {
+    self.binary_patching = binary_patching;
   }
 }

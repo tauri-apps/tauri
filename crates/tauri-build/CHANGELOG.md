@@ -1,5 +1,101 @@
 # Changelog
 
+## \[2.6.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.3`
+- Upgraded to `tauri-codegen@2.6.3`
+
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.2`
+- Upgraded to `tauri-codegen@2.6.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.1`
+- Upgraded to `tauri-codegen@2.6.1`
+
+## \[2.6.0]
+
+### New Features
+
+- [`b7a0ff030`](https://www.github.com/tauri-apps/tauri/commit/b7a0ff03087a73fce6888361562faf9738afc829) ([#15263](https://www.github.com/tauri-apps/tauri/pull/15263)) Allow users to append extra `.rc` content by `append_rc_content` in `WindowsAttributes`.
+- [`cc5c97602`](https://www.github.com/tauri-apps/tauri/commit/cc5c976027b0ab2431c13ec5b2e201d4414a8a6e) ([#14486](https://www.github.com/tauri-apps/tauri/pull/14486)) Implement file association for Android and iOS.
+
+### Enhancements
+
+- [`d730770bb`](https://www.github.com/tauri-apps/tauri/commit/d730770bb93d77358cfc6f1286f10187cef37362) ([#15117](https://www.github.com/tauri-apps/tauri/pull/15117)) Simplify async-sync code boundaries, no externally visible changes
+- [`b3f2d12b8`](https://www.github.com/tauri-apps/tauri/commit/b3f2d12b89daefe528e562b93871db62f77973b9) ([#15289](https://www.github.com/tauri-apps/tauri/pull/15289)) Preserve a numeric semver build identifier such as `1.2.3+42` in the 4th segment of the Windows `FILEVERSION` fixed field when it fits in the Windows version format.
+
+### Bug Fixes
+
+- [`a30dca482`](https://www.github.com/tauri-apps/tauri/commit/a30dca4820d0ad681f04737a1819e6a6fab9fe84) ([#15288](https://www.github.com/tauri-apps/tauri/pull/15288)) Set the correct Windows `FileVersion` and `ProductVersion` string values using the version from the Tauri config.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.9.0`
+- Upgraded to `tauri-codegen@2.6.0`
+
+## \[2.5.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.3`
+- Upgraded to `tauri-codegen@2.5.5`
+
+## \[2.5.5]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.5.4`
+
+## \[2.5.4]
+
+### Enhancements
+
+- [`2d28e3143`](https://www.github.com/tauri-apps/tauri/commit/2d28e3143ee3d97d7570ea03877aa00a0d6e47d0) ([#14632](https://www.github.com/tauri-apps/tauri/pull/14632) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Small code refactors for improved code readability. No user facing changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.2`
+- Upgraded to `tauri-codegen@2.5.3`
+
+## \[2.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.1`
+- Upgraded to `tauri-codegen@2.5.2`
+
+## \[2.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.5.1`
+
+## \[2.5.1]
+
+### Bug Fixes
+
+- [`4b6b8690a`](https://www.github.com/tauri-apps/tauri/commit/4b6b8690ab886ebdf1307951cffbe03e31280baa) ([#14347](https://www.github.com/tauri-apps/tauri/pull/14347) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused docs.rs builds to fail. No user facing changes.
+
+## \[2.5.0]
+
+### New Features
+
+- [`3b4fac201`](https://www.github.com/tauri-apps/tauri/commit/3b4fac2017832d426dd07c5e24e26684eda57f7b) ([#14194](https://www.github.com/tauri-apps/tauri/pull/14194)) Add `tauri.conf.json > bundle > android > autoIncrementVersionCode` config option to automatically increment the Android version code.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.8.0`
+- Upgraded to `tauri-codegen@2.5.0`
+
 ## \[2.4.1]
 
 ### Enhancements

@@ -8,6 +8,7 @@ use clap::Parser;
 
 use crate::{
   acl::FileFormat,
+  error::{Context, ErrorExt},
   helpers::{app_paths::resolve_tauri_dir, prompts},
   Result,
 };
@@ -23,10 +24,10 @@ pub struct Options {
   #[clap(long)]
   description: Option<String>,
   /// List of commands to allow
-  #[clap(short, long, use_value_delimiter = true)]
+  #[clap(short, long, value_delimiter = ',')]
   allow: Option<Vec<String>>,
   /// List of commands to deny
-  #[clap(short, long, use_value_delimiter = true)]
+  #[clap(short, long, value_delimiter = ',')]
   deny: Option<Vec<String>>,
   /// Output file format.
   #[clap(long, default_value_t = FileFormat::Json)]
@@ -45,7 +46,7 @@ pub fn command(options: Options) -> Result<()> {
   let description = match options.description {
     Some(d) => Some(d),
     None => prompts::input::<String>("What's the permission description?", None, false, true)?
-      .and_then(|d| if d.is_empty() { None } else { Some(d) }),
+      .filter(|d| !d.is_empty()),
   };
 
   let allow: Vec<String> = options
@@ -67,11 +68,13 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let path = match options.out {
-    Some(o) => o.canonicalize()?,
+    Some(o) => o
+      .canonicalize()
+      .fs_context("failed to canonicalize permission file path", o.clone())?,
     None => {
       let dir = match resolve_tauri_dir() {
         Some(t) => t,
-        None => std::env::current_dir()?,
+        None => std::env::current_dir().context("failed to resolve current directory")?,
       };
       let permissions_dir = dir.join("permissions");
       permissions_dir.join(format!(
@@ -89,24 +92,31 @@ pub fn command(options: Options) -> Result<()> {
     );
     let overwrite = prompts::confirm(&format!("{msg}, overwrite?"), Some(false))?;
     if overwrite {
-      std::fs::remove_file(&path)?;
+      std::fs::remove_file(&path).fs_context("failed to remove permission file", path.clone())?;
     } else {
-      anyhow::bail!(msg);
+      crate::error::bail!(msg);
     }
   }
 
   if let Some(parent) = path.parent() {
-    std::fs::create_dir_all(parent)?;
+    std::fs::create_dir_all(parent).fs_context(
+      "failed to create permission directory",
+      parent.to_path_buf(),
+    )?;
   }
 
   std::fs::write(
     &path,
-    options.format.serialize(&PermissionFile {
-      default: None,
-      set: Vec::new(),
-      permission: vec![permission],
-    })?,
-  )?;
+    options
+      .format
+      .serialize(&PermissionFile {
+        default: None,
+        set: Vec::new(),
+        permission: vec![permission],
+      })
+      .context("failed to serialize permission")?,
+  )
+  .fs_context("failed to write permission file", path.clone())?;
 
   log::info!(action = "Created"; "permission at {}", dunce::simplified(&path).display());
 

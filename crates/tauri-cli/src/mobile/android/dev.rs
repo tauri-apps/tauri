@@ -4,25 +4,25 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_resources, open_and_wait, MobileTarget,
+  inject_resources, open_and_wait, sync_debug_application_id_suffix, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
+  error::{Context, ErrorExt},
   helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_tauri_config, ConfigHandle},
+    app_paths::Dirs,
+    config::{get_config as get_tauri_config, ConfigMetadata},
     flock,
   },
-  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
-    TargetDevice,
+    android::generate_tauri_properties, use_network_address_for_dev_url, write_options, CliOptions,
+    DevChild, DevHost, DevProcess, TargetDevice,
   },
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use cargo_mobile2::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
@@ -33,8 +33,9 @@ use cargo_mobile2::{
   opts::{FilterLevel, NoiseLevel, Profile},
   target::TargetTrait,
 };
+use url::Host;
 
-use std::{env::set_current_dir, path::PathBuf};
+use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -43,8 +44,8 @@ use std::{env::set_current_dir, path::PathBuf};
 )]
 pub struct Options {
   /// List of cargo features to activate
-  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
-  pub features: Option<Vec<String>>,
+  #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
+  pub features: Vec<String>,
   /// Exit on panic
   #[clap(short, long)]
   exit_on_panic: bool,
@@ -130,22 +131,25 @@ impl From<Options> for DevOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  crate::helpers::app_paths::resolve();
+  let dirs = crate::helpers::app_paths::resolve_dirs();
 
-  let result = run_command(options, noise_level);
+  let result = run_command(options, noise_level, dirs);
   if result.is_err() {
     crate::dev::kill_before_dev_process();
   }
   result
 }
 
-fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+fn run_command(options: Options, noise_level: NoiseLevel, dirs: Dirs) -> Result<()> {
   delete_codegen_vars();
   // setup env additions before calling env()
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).context("failed to read certificate file")?,
+      std::fs::read_to_string(root_certificate_path).fs_context(
+        "failed to read certificate file",
+        root_certificate_path.clone(),
+      )?,
     );
   }
 
@@ -156,9 +160,10 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .iter()
       .map(|conf| &conf.0)
       .collect::<Vec<_>>(),
+    dirs.tauri,
   )?;
 
-  let env = env()?;
+  let env = env(false)?;
   let device = if options.open {
     None
   } else {
@@ -177,31 +182,34 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple);
+  dev_options.args.push("--lib".into());
 
-  let (interface, config, metadata) = {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+  let interface = AppInterface::new(&tauri_config, dev_options.target.clone(), dirs.tauri)?;
 
-    let interface = AppInterface::new(tauri_config_, dev_options.target.clone())?;
+  let app = get_app(MobileTarget::Android, &tauri_config, &interface, dirs.tauri);
+  let (config, metadata) = get_config(
+    &app,
+    &tauri_config,
+    dev_options.features.as_ref(),
+    &CliOptions {
+      dev: true,
+      features: dev_options.features.clone(),
+      args: dev_options.args.clone(),
+      noise_level,
+      vars: Default::default(),
+      config: dev_options.config.clone(),
+      target_device: None,
+    },
+  );
 
-    let app = get_app(MobileTarget::Android, tauri_config_, &interface);
-    let (config, metadata) = get_config(
-      &app,
-      tauri_config_,
-      dev_options.features.as_ref(),
-      &Default::default(),
-    );
-    (interface, config, metadata)
-  };
-
-  let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(dirs.tauri).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
     config.app(),
     config.project_dir(),
     MobileTarget::Android,
+    false,
   )?;
   run_dev(
     interface,
@@ -213,6 +221,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &config,
     &metadata,
     noise_level,
+    &dirs,
   )
 }
 
@@ -221,24 +230,36 @@ fn run_dev(
   mut interface: AppInterface,
   options: Options,
   mut dev_options: DevOptions,
-  tauri_config: ConfigHandle,
+  mut tauri_config: ConfigMetadata,
   device: Option<Device>,
   mut env: Env,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
+  dirs: &Dirs,
 ) -> Result<()> {
-  // when running on an actual device we must use the network IP
+  // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
     || device
       .as_ref()
       .map(|device| !device.serial_no().starts_with("emulator"))
       .unwrap_or(false)
+    || tauri_config.build.dev_url.as_ref().is_some_and(|url| {
+      matches!(
+        url.host(),
+        Some(Host::Ipv4(i)) if i == Ipv4Addr::UNSPECIFIED
+      )
+    })
   {
-    use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
+    use_network_address_for_dev_url(
+      &mut tauri_config,
+      &mut dev_options,
+      options.force_ip_prompt,
+      dirs.tauri,
+    )?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
+  crate::dev::setup(&interface, &mut dev_options, &mut tauri_config, dirs)?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -247,10 +268,13 @@ fn run_dev(
   };
 
   let app_settings = interface.app_settings();
-  let out_dir = app_settings.out_dir(&interface_options)?;
+  let out_dir = app_settings.out_dir(&interface_options, dirs.tauri)?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   configure_cargo(&mut env, config)?;
+
+  generate_tauri_properties(config, &tauri_config, true)?;
+  sync_debug_application_id_suffix(config, &tauri_config)?;
 
   let installed_targets =
     crate::interface::rust::installation::installed_targets().unwrap_or_default();
@@ -263,26 +287,30 @@ fn run_dev(
     .unwrap_or_else(|| Target::all().values().next().unwrap());
   if !installed_targets.contains(&target.triple().into()) {
     log::info!("Installing target {}", target.triple());
-    target
-      .install()
-      .context("failed to install target with rustup")?;
+    target.install().map_err(|error| Error::CommandFailed {
+      command: "rustup target add".to_string(),
+      error,
+    })?;
   }
 
-  target.build(
-    config,
-    metadata,
-    &env,
-    noise_level,
-    true,
-    if options.release_mode {
-      Profile::Release
-    } else {
-      Profile::Debug
-    },
-  )?;
+  target
+    .build(
+      config,
+      metadata,
+      &env,
+      noise_level,
+      true,
+      if options.release_mode {
+        Profile::Release
+      } else {
+        Profile::Debug
+      },
+    )
+    .context("failed to build Android app")?;
 
   let open = options.open;
   interface.mobile_dev(
+    &mut tauri_config,
     MobileOptions {
       debug: !options.release_mode,
       features: options.features,
@@ -291,7 +319,7 @@ fn run_dev(
       no_watch: options.no_watch,
       additional_watch_folders: options.additional_watch_folders,
     },
-    |options| {
+    |options, tauri_config| {
       let cli_options = CliOptions {
         dev: true,
         features: options.features.clone(),
@@ -305,14 +333,22 @@ fn run_dev(
         }),
       };
 
-      let _handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+      let _handle = write_options(tauri_config, cli_options)?;
 
-      inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+      inject_resources(config, tauri_config)?;
 
       if open {
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
-        match run(device, options, config, &env, metadata, noise_level) {
+        match run(
+          device,
+          options,
+          config,
+          &env,
+          metadata,
+          noise_level,
+          tauri_config,
+        ) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
           Err(e) => {
             crate::dev::kill_before_dev_process();
@@ -323,6 +359,7 @@ fn run_dev(
         open_and_wait(config, &env)
       }
     },
+    dirs,
   )
 }
 
@@ -333,6 +370,7 @@ fn run(
   env: &Env,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
+  tauri_config: &tauri_utils::config::Config,
 ) -> crate::Result<DevChild> {
   let profile = if options.debug {
     Profile::Debug
@@ -342,8 +380,18 @@ fn run(
 
   let build_app_bundle = metadata.asset_packs().is_some();
 
+  let application_id_suffix = if profile == Profile::Debug {
+    tauri_config
+      .bundle
+      .android
+      .debug_application_id_suffix
+      .clone()
+  } else {
+    None
+  };
+
   device
-    .run(
+    .run_with_application_id_suffix(
       config,
       env,
       noise_level,
@@ -355,8 +403,9 @@ fn run(
       }),
       build_app_bundle,
       false,
-      ".MainActivity".into(),
+      format!("{}.MainActivity", config.app().identifier()),
+      application_id_suffix,
     )
     .map(DevChild::new)
-    .map_err(Into::into)
+    .context("failed to run Android app")
 }

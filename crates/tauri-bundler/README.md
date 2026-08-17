@@ -4,7 +4,11 @@ Wrap Rust executables in OS-specific app bundles.
 
 ## About
 
-This is a fork of the awesome [cargo-bundle](https://github.com/burtonageo/cargo-bundle), turned into a library used by the [Tauri CLI](../cli).
+This is a fork of the awesome [cargo-bundle](https://github.com/burtonageo/cargo-bundle), turned into a library used by the [Tauri CLI](../tauri-cli).
+
+### Stability
+
+As it's intended to be used primarily in `tauri-cli`, the public API does not strictly adhere to SemVer. For example, minor releases may add new struct fields and change or remove Error enum variants.
 
 ## Configuration
 

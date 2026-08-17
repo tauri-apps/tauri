@@ -37,6 +37,10 @@ pub(crate) const DRAG_ENTER_EVENT: EventName<&str> = EventName::from_str("tauri:
 pub(crate) const DRAG_OVER_EVENT: EventName<&str> = EventName::from_str("tauri://drag-over");
 pub(crate) const DRAG_DROP_EVENT: EventName<&str> = EventName::from_str("tauri://drag-drop");
 pub(crate) const DRAG_LEAVE_EVENT: EventName<&str> = EventName::from_str("tauri://drag-leave");
+#[cfg(mobile)]
+pub(crate) const WINDOW_SUSPENDED_EVENT: EventName<&str> = EventName::from_str("tauri://suspended");
+#[cfg(mobile)]
+pub(crate) const WINDOW_RESUMED_EVENT: EventName<&str> = EventName::from_str("tauri://resumed");
 
 pub struct WindowManager<R: Runtime> {
   pub windows: Mutex<HashMap<String, Window<R>>>,
@@ -265,6 +269,10 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
       _ => unimplemented!(),
     },
     WindowEvent::ThemeChanged(theme) => window.emit_to_window(WINDOW_THEME_CHANGED, &theme)?,
+    #[cfg(mobile)]
+    WindowEvent::Suspended => window.emit_to_window(WINDOW_SUSPENDED_EVENT, &())?,
+    #[cfg(mobile)]
+    WindowEvent::Resumed => window.emit_to_window(WINDOW_RESUMED_EVENT, &())?,
   }
   Ok(())
 }

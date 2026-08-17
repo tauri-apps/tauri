@@ -9,18 +9,18 @@ use crate::{
     windows::{
       sign::{should_sign, try_sign},
       util::{
-        download_webview2_bootstrapper, download_webview2_offline_installer,
+        download_webview2_bootstrapper, download_webview2_offline_installer, vc_runtime_dlls,
         WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
       },
     },
   },
+  error::Context,
   utils::{
     fs_utils::copy_file,
     http_utils::{download_and_verify, extract_zip, HashAlgorithm},
     CommandExt,
   },
 };
-use anyhow::{bail, Context};
 use handlebars::{html_escape, to_json, Handlebars};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ use std::{
 use tauri_utils::{config::WebviewInstallMode, display_path};
 use uuid::Uuid;
 
-// URLS for the WIX toolchain.  Can be used for cross-platform compilation.
+// URLs for the WIX toolchain. Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip";
 pub const WIX_SHA256: &str = "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31";
@@ -97,9 +97,6 @@ const UUID_NAMESPACE: [u8; 16] = [
   0xfd, 0x85, 0x95, 0xa8, 0x17, 0xa3, 0x47, 0x4e, 0xa6, 0x16, 0x76, 0x14, 0x8d, 0xfa, 0x0c, 0x7b,
 ];
 
-/// Mapper between a resource directory name and its ResourceDirectory descriptor.
-type ResourceMap = BTreeMap<String, ResourceDirectory>;
-
 #[derive(Debug, Deserialize)]
 struct LanguageMetadata {
   #[serde(rename = "asciiCode")]
@@ -123,28 +120,36 @@ struct Binary {
 
 /// A Resource file to bundle with WIX.
 /// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
-#[derive(Serialize, Clone)]
 struct ResourceFile {
   /// the GUID to use on the WIX XML.
   guid: String,
   /// the id to use on the WIX XML.
   id: String,
-  /// the file path.
-  path: PathBuf,
+  /// the source file path.
+  source_path: PathBuf,
+  /// file name override, defaulting to the file name of [`Self::source_path`].
+  target_name_override: Option<String>,
+}
+
+impl ResourceFile {
+  fn new(source_path: PathBuf, target_name_override: Option<String>) -> Self {
+    Self {
+      id: format!("I{}", Uuid::new_v4().as_simple()),
+      guid: Uuid::new_v4().to_string(),
+      source_path,
+      target_name_override,
+    }
+  }
 }
 
 /// A resource directory to bundle with WIX.
 /// This data structure is needed because WIX requires each path to have its own `id` and `guid`.
-#[derive(Serialize)]
+#[derive(Default)]
 struct ResourceDirectory {
-  /// the directory path.
-  path: String,
-  /// the directory name of the described resource.
-  name: String,
   /// the files of the described resource directory.
   files: Vec<ResourceFile>,
   /// the directories that are children of the described resource directory.
-  directories: Vec<ResourceDirectory>,
+  directories: HashMap<String, ResourceDirectory>,
 }
 
 impl ResourceDirectory {
@@ -154,38 +159,45 @@ impl ResourceDirectory {
   }
 
   /// Generates the wix XML string to bundle this directory resources recursively
-  fn get_wix_data(self) -> crate::Result<(String, Vec<String>)> {
+  fn render_wix(self, directory_name: Option<String>) -> crate::Result<(String, Vec<String>)> {
     let mut files = String::from("");
     let mut file_ids = Vec::new();
     for file in self.files {
-      file_ids.push(file.id.clone());
+      let ResourceFile {
+        id,
+        guid,
+        source_path,
+        target_name_override,
+      } = file;
+      let name_attribute = target_name_override
+        .map(|name| format!(r#"Name="{}" "#, html_escape(&name)))
+        .unwrap_or_default();
+      let source_path = html_escape(&source_path.to_string_lossy());
       files.push_str(
-        format!(
-          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{path}" /></Component>"#,
-          id = file.id,
-          guid = file.guid,
-          path = html_escape(&file.path.display().to_string())
-        ).as_str()
+        &format!(
+          r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{source_path}" {name_attribute}/></Component>"#,
+        )
       );
+      file_ids.push(id);
     }
     let mut directories = String::from("");
-    for directory in self.directories {
-      let (wix_string, ids) = directory.get_wix_data()?;
+    for (directory_name, directory) in self.directories {
+      let (wix_string, ids) = directory.render_wix(Some(directory_name))?;
       for id in ids {
         file_ids.push(id)
       }
       directories.push_str(wix_string.as_str());
     }
-    let wix_string = if self.name.is_empty() {
-      format!("{files}{directories}")
-    } else {
+    let wix_string = if let Some(directory_name) = directory_name {
       format!(
         r#"<Directory Id="I{id}" Name="{name}">{files}{directories}</Directory>"#,
         id = Uuid::new_v4().as_simple(),
-        name = html_escape(&self.name),
+        name = html_escape(&directory_name),
         files = files,
         directories = directories,
       )
+    } else {
+      format!("{files}{directories}")
     };
 
     Ok((wix_string, file_ids))
@@ -256,6 +268,24 @@ fn generate_guid(key: &[u8]) -> Uuid {
   Uuid::new_v5(&namespace, key)
 }
 
+fn wix_identifier(id: &str) -> String {
+  let mut identifier: String = id
+    .replace('-', "_")
+    .chars()
+    .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '.')
+    .collect();
+
+  if !identifier
+    .chars()
+    .next()
+    .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+  {
+    identifier.insert(0, '_');
+  }
+
+  identifier
+}
+
 // Specifically goes and gets Wix and verifies the download via Sha256
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   log::info!("Verifying wix package");
@@ -279,37 +309,40 @@ fn clear_env_for_wix(cmd: &mut Command) {
   }
 }
 
-fn validate_wix_version(version_str: &str) -> anyhow::Result<()> {
+fn validate_wix_version(version_str: &str) -> crate::Result<()> {
   let components = version_str
     .split('.')
     .flat_map(|c| c.parse::<u64>().ok())
     .collect::<Vec<_>>();
 
-  anyhow::ensure!(
-    components.len() >= 3,
-    "app wix version should be in the format major.minor.patch.build (build is optional)"
-  );
+  if components.len() < 3 {
+    crate::error::bail!(
+      "app wix version should be in the format major.minor.patch.build (build is optional)"
+    );
+  }
 
   if components[0] > 255 {
-    bail!("app version major number cannot be greater than 255");
+    crate::error::bail!("app version major number cannot be greater than 255");
   }
   if components[1] > 255 {
-    bail!("app version minor number cannot be greater than 255");
+    crate::error::bail!("app version minor number cannot be greater than 255");
   }
   if components[2] > 65535 {
-    bail!("app version patch number cannot be greater than 65535");
+    crate::error::bail!("app version patch number cannot be greater than 65535");
   }
 
   if components.len() == 4 && components[3] > 65535 {
-    bail!("app version build number cannot be greater than 65535");
+    crate::error::bail!("app version build number cannot be greater than 65535");
   }
 
   Ok(())
 }
 
 // WiX requires versions to be numeric only in a `major.minor.patch.build` format
-fn convert_version(version_str: &str) -> anyhow::Result<String> {
-  let version = semver::Version::parse(version_str).context("invalid app version")?;
+fn convert_version(version_str: &str) -> crate::Result<String> {
+  let version = semver::Version::parse(version_str)
+    .map_err(Into::into)
+    .context("invalid app version")?;
   if !version.build.is_empty() {
     let build = version.build.parse::<u64>();
     if build.map(|b| b <= 65535).unwrap_or_default() {
@@ -318,7 +351,7 @@ fn convert_version(version_str: &str) -> anyhow::Result<String> {
         version.major, version.minor, version.patch, version.build
       ));
     } else {
-      bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      crate::error::bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
     }
   }
 
@@ -330,7 +363,7 @@ fn convert_version(version_str: &str) -> anyhow::Result<String> {
         version.major, version.minor, version.patch, version.pre
       ));
     } else {
-      bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      crate::error::bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
     }
   }
 
@@ -387,11 +420,7 @@ fn run_candle(
     cmd.arg(ext);
   }
   clear_env_for_wix(&mut cmd);
-  cmd
-    .args(&args)
-    .current_dir(cwd)
-    .output_ok()
-    .context("error running candle.exe")?;
+  cmd.args(&args).current_dir(cwd).output_ok()?;
 
   Ok(())
 }
@@ -416,11 +445,7 @@ fn run_light(
     cmd.arg(ext);
   }
   clear_env_for_wix(&mut cmd);
-  cmd
-    .args(&args)
-    .current_dir(build_path)
-    .output_ok()
-    .context("error running light.exe")?;
+  cmd.args(&args).current_dir(build_path).output_ok()?;
 
   Ok(())
 }
@@ -472,8 +497,7 @@ pub fn build_wix_app_installer(
   // when we're performing code signing, we'll sign some WiX DLLs, so we make a local copy
   let wix_toolset_path = if settings.windows().can_sign() {
     let wix_path = output_path.join("wix");
-    crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)
-      .context("failed to copy wix directory")?;
+    crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)?;
     wix_path
   } else {
     wix_toolset_path.to_path_buf()
@@ -538,6 +562,13 @@ pub fn build_wix_app_installer(
     }
   }
 
+  if let Some(minimum_webview2_version) = &settings.windows().minimum_webview2_version {
+    data.insert(
+      "minimum_webview2_version",
+      to_json(minimum_webview2_version),
+    );
+  }
+
   if let Some(license) = settings.license_file() {
     if license.ends_with(".rtf") {
       data.insert("license", to_json(license));
@@ -593,7 +624,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_else(|| {
       Uuid::new_v5(
         &Uuid::NAMESPACE_DNS,
-        format!("{}.exe.app.x64", &settings.product_name()).as_bytes(),
+        format!("{}.exe.app.x64", settings.product_name()).as_bytes(),
       )
     });
   data.insert("upgrade_code", to_json(upgrade_code.to_string()));
@@ -614,15 +645,7 @@ pub fn build_wix_app_installer(
   data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(settings)?;
-  let mut resources_wix_string = String::from("");
-  let mut files_ids = Vec::new();
-  for (_, dir) in resources {
-    let (wix_string, ids) = dir.get_wix_data()?;
-    resources_wix_string.push_str(wix_string.as_str());
-    for id in ids {
-      files_ids.push(id);
-    }
-  }
+  let (resources_wix_string, files_ids) = resources.render_wix(None)?;
 
   data.insert("resources", to_json(resources_wix_string));
   data.insert("resource_file_ids", to_json(files_ids));
@@ -630,7 +653,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  // Note: `main_binary_name` is not used in our template but we keep it as it is potentially useful for custom temples
+  // Note: `main_binary_name` is not used in our template but we keep it as it is potentially useful for custom templates
   let main_binary_name = settings.main_binary_name()?;
   data.insert("main_binary_name", to_json(main_binary_name));
 
@@ -703,7 +726,9 @@ pub fn build_wix_app_installer(
       .iter()
       .flat_map(|p| &p.schemes)
       .collect::<Vec<_>>();
-    data.insert("deep_link_protocols", to_json(schemes));
+    if !schemes.is_empty() {
+      data.insert("deep_link_protocols", to_json(schemes));
+    }
   }
 
   if let Some(path) = custom_template_path {
@@ -757,30 +782,32 @@ pub fn build_wix_app_installer(
   }
 
   let main_wxs_path = output_path.join("main.wxs");
-  fs::write(main_wxs_path, handlebars.render("main.wxs", &data)?)?;
+  fs::write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
-  let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
+  let mut candle_inputs = vec![];
 
   let current_dir = std::env::current_dir()?;
   let extension_regex = Regex::new("\"http://schemas.microsoft.com/wix/(\\w+)\"")?;
-  for fragment_path in fragment_paths {
-    let fragment_path = current_dir.join(fragment_path);
-    let fragment_content = fs::read_to_string(&fragment_path)?;
-    let fragment_handlebars = Handlebars::new();
-    let fragment = fragment_handlebars.render_template(&fragment_content, &data)?;
+  let input_paths =
+    std::iter::once(main_wxs_path).chain(fragment_paths.iter().map(|p| current_dir.join(p)));
+
+  for input_path in input_paths {
+    let input_content = fs::read_to_string(&input_path)?;
+    let input_handlebars = Handlebars::new();
+    let input = input_handlebars.render_template(&input_content, &data)?;
     let mut extensions = Vec::new();
-    for cap in extension_regex.captures_iter(&fragment) {
+    for cap in extension_regex.captures_iter(&input) {
       let path = wix_toolset_path.join(format!("Wix{}.dll", &cap[1]));
       if settings.windows().can_sign() {
         try_sign(&path, settings)?;
       }
       extensions.push(path);
     }
-    candle_inputs.push((fragment_path, extensions));
+    candle_inputs.push((input_path, extensions));
   }
 
   let mut fragment_extensions = HashSet::new();
-  //Default extensions
+  // Default extensions
   fragment_extensions.insert(wix_toolset_path.join("WixUIExtension.dll"));
   fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
 
@@ -894,7 +921,6 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   let mut binaries = Vec::new();
   let cwd = std::env::current_dir()?;
   let tmp_dir = std::env::temp_dir();
-  let regex = Regex::new(r"[^\w\d\.]")?;
   for src in settings.external_binaries() {
     let src = src?;
     let binary_path = cwd.join(&src);
@@ -912,9 +938,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: regex
-        .replace_all(&dest_filename.replace('-', "_"), "")
-        .to_string(),
+      id: wix_identifier(&dest_filename),
     });
   }
 
@@ -927,9 +951,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: regex
-          .replace_all(&bin.name().replace('-', "_"), "")
-          .to_string(),
+        id: wix_identifier(bin.name()),
       })
     }
   }
@@ -969,11 +991,11 @@ fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
 }
 
 /// Generates the data required for the resource bundling on wix
-fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
-  let mut resources = ResourceMap::new();
+fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirectory> {
   let cwd = std::env::current_dir()?;
 
-  let mut added_resources = Vec::new();
+  let mut root_resource_directory = ResourceDirectory::default();
+  let mut added_resources = HashSet::new();
 
   for resource in settings.resource_files().iter() {
     let resource = resource?;
@@ -986,19 +1008,24 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     if added_resources.contains(&resource_path) {
       continue;
     }
-    added_resources.push(resource_path.clone());
+    added_resources.insert(resource_path.clone());
 
     if settings.windows().can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
     }
 
-    let resource_entry = ResourceFile {
-      id: format!("I{}", Uuid::new_v4().as_simple()),
-      guid: Uuid::new_v4().to_string(),
-      path: resource_path.clone(),
-    };
+    let resource_entry = ResourceFile::new(
+      resource_path,
+      Some(
+        resource
+          .target()
+          .file_name()
+          .expect("failed to read resource file name")
+          .to_string_lossy()
+          .into_owned(),
+      ),
+    );
 
-    // split the resource path directories
     let target_path = resource.target();
     let components_count = target_path.components().count();
     let directories = target_path
@@ -1006,60 +1033,35 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .take(components_count - 1) // the last component is the file
       .collect::<Vec<_>>();
 
-    // transform the directory structure to a chained vec structure
-    let first_directory = directories
-      .first()
-      .map(|d| d.as_os_str().to_string_lossy().into_owned())
-      .unwrap_or_else(String::new);
+    let mut directory_entry = &mut root_resource_directory;
 
-    if !resources.contains_key(&first_directory) {
-      resources.insert(
-        first_directory.clone(),
-        ResourceDirectory {
-          path: first_directory.clone(),
-          name: first_directory.clone(),
-          directories: vec![],
-          files: vec![],
-        },
-      );
-    }
-
-    let mut directory_entry = resources
-      .get_mut(&first_directory)
-      .expect("Unable to handle resources");
-
-    let mut path = String::new();
-    // the first component is already parsed on `first_directory` so we skip(1)
-    for directory in directories.into_iter().skip(1) {
+    for directory in directories {
       let directory_name = directory
         .as_os_str()
         .to_os_string()
         .into_string()
         .expect("failed to read resource folder name");
-      path.push_str(directory_name.as_str());
-      path.push(std::path::MAIN_SEPARATOR);
 
-      let index = directory_entry
+      directory_entry = directory_entry
         .directories
-        .iter()
-        .position(|f| f.path == path);
-      match index {
-        Some(i) => directory_entry = directory_entry.directories.get_mut(i).unwrap(),
-        None => {
-          directory_entry.directories.push(ResourceDirectory {
-            path: path.clone(),
-            name: directory_name,
-            directories: vec![],
-            files: vec![],
-          });
-          directory_entry = directory_entry.directories.iter_mut().last().unwrap();
-        }
-      }
+        .entry(directory_name)
+        .or_default();
     }
     directory_entry.add_file(resource_entry);
   }
 
   let mut dlls = Vec::new();
+
+  if settings.windows().bundle_vc_runtime {
+    for dll in vc_runtime_dlls(settings.binary_arch())? {
+      let resource_path = dunce::simplified(&dll);
+      if added_resources.contains(&resource_path.to_path_buf()) {
+        continue;
+      }
+      added_resources.insert(resource_path.to_path_buf());
+      dlls.push(ResourceFile::new(resource_path.to_path_buf(), None));
+    }
+  }
 
   // TODO: The bundler should not include all DLLs it finds. Instead it should only include WebView2Loader.dll if present and leave the rest to the resources config.
   let out_dir = settings.project_out_directory();
@@ -1080,27 +1082,13 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
         try_sign(resource_path, settings)?;
       }
 
-      dlls.push(ResourceFile {
-        id: format!("I{}", Uuid::new_v4().as_simple()),
-        guid: Uuid::new_v4().to_string(),
-        path: resource_path.to_path_buf(),
-      });
+      dlls.push(ResourceFile::new(resource_path.to_path_buf(), None));
     }
   }
 
-  if !dlls.is_empty() {
-    resources
-      .entry("".to_string())
-      .and_modify(|r| r.files.append(&mut dlls))
-      .or_insert(ResourceDirectory {
-        path: "".to_string(),
-        name: "".to_string(),
-        directories: vec![],
-        files: dlls,
-      });
-  }
+  root_resource_directory.files.extend(dlls);
 
-  Ok(resources)
+  Ok(root_resource_directory)
 }
 
 #[cfg(test)]
@@ -1132,5 +1120,31 @@ mod tests {
     assert!(convert_version("1.1.2-alpha").is_err());
     assert!(convert_version("1.1.2-alpha.4").is_err());
     assert!(convert_version("1.1.2+asd.3").is_err());
+  }
+
+  #[test]
+  fn sanitizes_wix_identifiers() {
+    assert_eq!(wix_identifier("7za.exe"), "_7za.exe");
+    assert_eq!(wix_identifier("my-app.exe"), "my_app.exe");
+    assert_eq!(wix_identifier("bad name!.exe"), "badname.exe");
+    assert_eq!(wix_identifier(".bin"), "_.bin");
+    assert_eq!(wix_identifier(""), "_");
+    assert_eq!(wix_identifier("app_1.2"), "app_1.2");
+  }
+
+  #[test]
+  fn includes_mapped_resource_file_name_in_wix_data() {
+    let resource = ResourceFile::new("MyFile".into(), Some("myFileRenamed".into()));
+    let resource_id = resource.id.clone();
+    let directory = ResourceDirectory {
+      files: vec![resource],
+      directories: HashMap::new(),
+    };
+
+    let (wix_data, file_ids) = directory.render_wix(None).unwrap();
+
+    assert_eq!(file_ids, vec![resource_id]);
+    assert!(wix_data.contains(r#"Name="myFileRenamed""#));
+    assert!(wix_data.contains(r#"Source="MyFile""#));
   }
 }

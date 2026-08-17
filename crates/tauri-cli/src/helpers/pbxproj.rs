@@ -8,9 +8,12 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use crate::error::ErrorExt;
+
 pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
   let path = path.as_ref();
-  let pbxproj = std::fs::read_to_string(path)?;
+  let pbxproj =
+    std::fs::read_to_string(path).fs_context("failed to read pbxproj file", path.to_path_buf())?;
 
   let mut proj = Pbxproj {
     path: path.to_owned(),
@@ -66,11 +69,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
               // multiline value
               let value = if value == "(" {
                 let mut value = value.to_string();
-                loop {
-                  let Some((_next_line_number, next_line)) = iter.next() else {
-                    break;
-                  };
-
+                for (_next_line_number, next_line) in iter.by_ref() {
                   value.push_str(next_line);
                   value.push('\n');
 
@@ -171,7 +170,7 @@ enum State {
 }
 
 pub struct Pbxproj {
-  path: PathBuf,
+  pub path: PathBuf,
   raw_lines: Vec<String>,
   pub xc_build_configuration: BTreeMap<String, XCBuildConfiguration>,
   pub xc_configuration_list: BTreeMap<String, XCConfigurationList>,

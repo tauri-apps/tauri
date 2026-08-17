@@ -43,7 +43,19 @@ repository = "https://github.com/tauri-apps/tauri"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.90"
+
+[workspace.dependencies]
+tauri = { version = "2.11.5", path = "./crates/tauri", default-features = false }
+tauri-runtime = { version = "2.11.3", path = "./crates/tauri-runtime" }
+tauri-runtime-wry = { version = "2.11.4", path = "./crates/tauri-runtime-wry", default-features = false }
+tauri-build = { version = "2.6.3", path = "./crates/tauri-build", default-features = false }
+tauri-macros = { version = "2.6.3", path = "./crates/tauri-macros" }
+tauri-codegen = { version = "2.6.3", path = "./crates/tauri-codegen" }
+tauri-utils = { version = "2.9.3", path = "./crates/tauri-utils" }
+tauri-plugin = { version = "2.6.3", path = "./crates/tauri-plugin", default-features = false }
+tauri-bundler = { version = "2.9.4", path = "./crates/tauri-bundler", default-features = false }
+tauri-macos-sign = { version = "2.3.4", path = "./crates/tauri-macos-sign" }
 
 # default to small, optimized workspace release binaries
 [profile.release]

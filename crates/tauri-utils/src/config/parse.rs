@@ -209,7 +209,7 @@ pub fn read_platform(
 /// JSON with `.json`.
 pub fn does_supported_file_name_exist(target: Target, path: impl Into<PathBuf>) -> bool {
   let path = path.into();
-  let source_file_name = path.file_name().unwrap().to_str().unwrap();
+  let source_file_name = path.file_name().unwrap();
   let lookup_platform_config = ENABLED_FORMATS
     .iter()
     .any(|format| source_file_name == format.into_platform_file_name(target));

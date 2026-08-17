@@ -4,10 +4,7 @@
 
 use super::Result;
 use crate::{plugin::PluginHandle, Runtime};
-use std::{
-  ffi::OsStr,
-  path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 /// A helper class to access the mobile path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) PluginHandle<R>);
@@ -117,7 +114,16 @@ impl<R: Runtime> PathResolver<R> {
     self.call_resolve("getPublicDir")
   }
 
-  /// Returns the path to the user's video dir
+  /// Returns the path to the user's video directory.
+  ///
+  /// Resolves to the app-specific Movies directory (`getExternalFilesDir(DIRECTORY_MOVIES)`),
+  /// typically `.../files/Movies`.
+  ///
+  /// ## Migration
+  ///
+  /// Previously this resolved to external cache storage ([`cache_dir`], typically `.../cache`).
+  /// Files written to the old location will not be discovered at the new path and must be migrated
+  /// or paths updated accordingly.
   pub fn video_dir(&self) -> Result<PathBuf> {
     self.call_resolve("getVideoDir")
   }

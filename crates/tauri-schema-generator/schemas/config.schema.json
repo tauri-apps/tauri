@@ -16,7 +16,7 @@
       ]
     },
     "productName": {
-      "description": "App name.",
+      "description": "App name.\n\n Make sure to change this from the default `tauri-app` before publishing your app.\n On Windows it is used to derive the default WiX installer upgrade code,\n which must be unique across applications and can be set explicitly with the\n [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code) setting.",
       "type": [
         "string",
         "null"
@@ -38,7 +38,7 @@
       ]
     },
     "identifier": {
-      "description": "The application identifier in reverse domain name notation (e.g. `com.tauri.example`).\n This string must be unique across applications since it is used in system configurations like\n the bundle ID and path to the webview data directory.\n This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),\n and periods (.).",
+      "description": "The application identifier in reverse domain name notation (e.g. `com.tauri.example`).\n This string must be unique across applications since it is used in system configurations like\n the bundle ID and path to the webview data directory.\n This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),\n and periods (.).\n The default value `com.tauri.dev` is rejected by `tauri build` and must be changed before\n building your application.",
       "type": "string"
     },
     "app": {

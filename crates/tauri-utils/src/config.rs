@@ -3744,6 +3744,11 @@ pub struct Config {
   #[serde(rename = "$schema")]
   pub schema: Option<String>,
   /// App name.
+  ///
+  /// Make sure to change this from the default `tauri-app` before publishing your app.
+  /// On Windows it is used to derive the default WiX installer upgrade code,
+  /// which must be unique across applications and can be set explicitly with the
+  /// [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code) setting.
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
@@ -3784,6 +3789,8 @@ pub struct Config {
   /// the bundle ID and path to the webview data directory.
   /// This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),
   /// and periods (.).
+  /// The default value `com.tauri.dev` is rejected by `tauri build` and must be changed before
+  /// building your application.
   pub identifier: String,
   /// The App configuration.
   #[serde(default)]

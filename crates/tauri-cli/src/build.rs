@@ -193,6 +193,12 @@ pub fn setup(
     );
   }
 
+  if config.product_name.as_deref() == Some("tauri-app") {
+    log::warn!(
+      "The `productName` is still set to the default value `tauri-app`. You should change it before publishing your app since it is used to derive the default Windows installer (WiX) upgrade code, which must be unique across applications."
+    );
+  }
+
   if let Some(before_build) = config.build.before_build_command.clone() {
     helpers::run_hook(
       "beforeBuildCommand",

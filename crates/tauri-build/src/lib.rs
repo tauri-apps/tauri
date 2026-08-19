@@ -625,13 +625,24 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   unsafe { env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple) };
 
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
-  let target_dir = out_dir
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap();
+  //
+  // `OUT_DIR` is `<target>/<profile>/build/<pkg>-<hash>/out` in the legacy
+  // layout and `<target>/<profile>/build/<pkg>/<hash>/out` under cargo's
+  // build-dir layout (the default since 1.100), so the profile directory is
+  // three or four levels up. Only the legacy unit directory carries the
+  // `<pkg>-` prefix — the build-dir layout splits that into a package
+  // directory holding a bare hash — so the name tells the two apart.
+  let unit_dir = out_dir.parent().unwrap();
+  let legacy_prefix = format!("{}-", env::var("CARGO_PKG_NAME").unwrap());
+  let build_dir = if unit_dir
+    .file_name()
+    .is_some_and(|name| name.to_string_lossy().starts_with(&legacy_prefix))
+  {
+    unit_dir.parent().unwrap()
+  } else {
+    unit_dir.parent().unwrap().parent().unwrap()
+  };
+  let target_dir = build_dir.parent().unwrap();
 
   if let Some(paths) = &config.bundle.external_bin {
     copy_binaries(
@@ -771,14 +782,31 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           arch => None,
         };
         if let Some(target_arch) = target_arch {
+          // the unit directory holding webview2-com-sys's build script output
+          // is `build/webview2-com-sys-<hash>` in the legacy layout and
+          // `build/webview2-com-sys/<hash>` under cargo's build-dir layout
+          // (the default since 1.100), so a bare `webview2-com-sys` package
+          // directory fans out to its hash subdirectories
+          let mut unit_dirs = Vec::new();
           for entry in fs::read_dir(target_dir.join("build"))? {
             let path = entry?.path();
-            let webview2_loader_path = path
+            let Some(name) = path.file_name().map(|n| n.to_string_lossy().into_owned()) else {
+              continue;
+            };
+            if name.starts_with("webview2-com-sys-") {
+              unit_dirs.push(path);
+            } else if name == "webview2-com-sys" {
+              for entry in fs::read_dir(&path)? {
+                unit_dirs.push(entry?.path());
+              }
+            }
+          }
+          for unit_dir in unit_dirs {
+            let webview2_loader_path = unit_dir
               .join("out")
               .join(target_arch)
               .join("WebView2Loader.dll");
-            if path.to_string_lossy().contains("webview2-com-sys") && webview2_loader_path.exists()
-            {
+            if webview2_loader_path.exists() {
               fs::copy(webview2_loader_path, target_dir.join("WebView2Loader.dll"))?;
               break;
             }

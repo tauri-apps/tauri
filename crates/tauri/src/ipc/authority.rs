@@ -101,7 +101,7 @@ macro_rules! runtime_authority {
 }
 
 impl RuntimeAuthority {
-  /// Contruct a new [`RuntimeAuthority`] from the ACL
+  /// Construct a new [`RuntimeAuthority`] from the ACL
   ///
   /// **Please prefer using the [`runtime_authority`] macro instead of calling this directly**
   #[doc(hidden)]
@@ -609,13 +609,11 @@ impl<T: ScopeObjectMatch> CommandScope<T> {
 impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
-    let scope_ids = command.acl.as_ref().map(|resolved| {
-      resolved
+    if let Some(resolved) = &command.acl {
+      let scope_ids = resolved
         .iter()
         .filter_map(|cmd| cmd.scope_id)
-        .collect::<Vec<_>>()
-    });
-    if let Some(scope_ids) = scope_ids {
+        .collect::<Vec<_>>();
       CommandScope::resolve(&command.message.webview, scope_ids).map_err(Into::into)
     } else {
       Ok(CommandScope {
@@ -748,7 +746,7 @@ impl ScopeManager {
     key: &str,
   ) -> crate::Result<ScopeValue<T>> {
     match self.global_scope_cache.try_get::<ScopeValue<T>>() {
-      Some(cached) => Ok(cached.inner().clone()),
+      Some(cached) => Ok((*cached).clone()),
       None => {
         let mut allow = Vec::new();
         let mut deny = Vec::new();
@@ -785,7 +783,7 @@ impl ScopeManager {
   ) -> crate::Result<ScopeValue<T>> {
     let cache = self.command_cache.get(key).unwrap();
     match cache.try_get::<ScopeValue<T>>() {
-      Some(cached) => Ok(cached.inner().clone()),
+      Some(cached) => Ok((*cached).clone()),
       None => {
         let resolved_scope = self
           .command_scope
@@ -1010,7 +1008,7 @@ mod tests {
   }
 
   #[test]
-  fn denied_command_takes_precendence() {
+  fn denied_command_takes_precedence() {
     let command = "my-command";
     let window = "main";
     let webview = "main";

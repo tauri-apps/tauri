@@ -1922,7 +1922,6 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       self
         .window()?
         .available_monitors()
-        .into_iter()
         .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
     )
@@ -2199,6 +2198,17 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     Ok(())
   }
 
+  #[cfg_attr(
+    not(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )),
+    allow(unused_variables)
+  )]
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
     #[cfg(any(
       windows,
@@ -2291,11 +2301,14 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     Ok(())
   }
 
+  #[cfg_attr(not(windows), allow(unused_variables))]
   fn set_overlay_icon(&self, icon: Option<Icon>) -> Result<()> {
-    let icon: Result<Option<TaoIcon>> = icon.map_or(Ok(None), |x| Ok(Some(TaoIcon::try_from(x)?)));
-
     #[cfg(windows)]
-    self.window()?.set_overlay_icon(icon?.map(|x| x.0).as_ref());
+    {
+      let icon: Result<Option<TaoIcon>> =
+        icon.map_or(Ok(None), |x| Ok(Some(TaoIcon::try_from(x)?)));
+      self.window()?.set_overlay_icon(icon?.map(|x| x.0).as_ref());
+    }
     Ok(())
   }
 
@@ -3229,7 +3242,11 @@ fn handle_user_message<T: UserEvent>(
             window.set_has_shadow(_enable);
           }
           WindowMessage::SetFullscreen(fullscreen) => {
-            window.set_fullscreen(fullscreen.then(|| Fullscreen::Borderless(None)));
+            if fullscreen {
+              window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+            } else {
+              window.set_fullscreen(None)
+            }
           }
         }
       }

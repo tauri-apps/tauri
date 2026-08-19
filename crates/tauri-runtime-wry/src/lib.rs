@@ -1300,6 +1300,9 @@ pub struct GtkBox(pub gtk::Box);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkBox {}
 
+pub struct SendRawDisplayHandle(pub raw_window_handle::RawDisplayHandle);
+unsafe impl Send for SendRawDisplayHandle {}
+
 pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
@@ -1488,6 +1491,9 @@ pub enum EventLoopWindowTargetMessage {
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
+  RawDisplayHandle(
+    Sender<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>>,
+  ),
 }
 
 pub type CreateWindowClosure<T> =
@@ -1915,6 +1921,12 @@ fn get_raw_window_handle<T: UserEvent>(
   window_getter!(dispatcher, WindowMessage::RawWindowHandle)
 }
 
+fn get_raw_display_handle<T: UserEvent>(
+  dispatcher: &WryHandle<T>,
+) -> Result<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>> {
+  event_loop_window_getter!(dispatcher, EventLoopWindowTargetMessage::RawDisplayHandle)
+}
+
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
@@ -2085,12 +2097,10 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
     get_raw_window_handle(self)
-      .map_err(|_| raw_window_handle::HandleError::Unavailable)
-      .and_then(|r| {
-        r.map(|h| {
-          // SAFETY: the lifetime is wrong here!
-          unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }
-        })
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .map(|h| {
+        // SAFETY: the lifetime is wrong here!
+        unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }
       })
   }
 
@@ -2746,16 +2756,12 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   fn display_handle(
     &self,
   ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
-    let window_target = self
-      .context
-      .main_thread
-      .window_target
-      .upgrade()
-      .ok_or(raw_window_handle::HandleError::Unavailable)?;
-    window_target.display_handle().map(|handle| {
-      // SAFETY: the lifetime is wrong here, but the alternatives are worse, see https://github.com/tauri-apps/tauri/pull/15411
-      unsafe { raw_window_handle::DisplayHandle::borrow_raw(handle.as_raw()) }
-    })
+    get_raw_display_handle(self)
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .map(|handle| {
+        // SAFETY: the lifetime is wrong here, but the alternatives are worse, see https://github.com/tauri-apps/tauri/pull/15411
+        unsafe { raw_window_handle::DisplayHandle::borrow_raw(handle.0) }
+      })
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
@@ -4118,6 +4124,13 @@ fn handle_user_message<T: UserEvent>(
       EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
         event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
       }
+      EventLoopWindowTargetMessage::RawDisplayHandle(tx) => tx
+        .send(
+          event_loop
+            .display_handle()
+            .map(|h| SendRawDisplayHandle(h.as_raw())),
+        )
+        .unwrap(),
     },
   }
 }

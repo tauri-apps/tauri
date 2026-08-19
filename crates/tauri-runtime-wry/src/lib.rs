@@ -1254,9 +1254,6 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 }
 
-pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
-unsafe impl Send for SendRawWindowHandle {}
-
 pub enum ApplicationMessage {
   #[cfg(target_os = "macos")]
   Show,
@@ -1775,8 +1772,7 @@ pub struct WryWindowDispatcher<T: UserEvent> {
   context: Context<T>,
 }
 
-// SAFETY: native window methods and the event loop proxy are thread-safe, and access to the
-// non-thread-safe fields in `Context` remains guarded by `send_user_message`.
+// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryWindowDispatcher<T> {}
 
@@ -1784,17 +1780,6 @@ impl<T: UserEvent> WryWindowDispatcher<T> {
   fn window(&self) -> Result<Arc<Window>> {
     self.window.upgrade().ok_or(Error::WindowNotFound)
   }
-}
-
-fn get_raw_window_handle<T: UserEvent>(
-  dispatcher: &WryWindowDispatcher<T>,
-) -> Result<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>> {
-  Ok(
-    dispatcher
-      .window()?
-      .window_handle()
-      .map(|h| SendRawWindowHandle(h.as_raw())),
-  )
 }
 
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
@@ -1981,9 +1966,11 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    get_raw_window_handle(self)
-      .map_err(|_| raw_window_handle::HandleError::Unavailable)
-      .and_then(|r| r.map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }))
+    self
+      .window()
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .window_handle()
+      .map(|handle| unsafe { raw_window_handle::WindowHandle::borrow_raw(handle.as_raw()) })
   }
 
   // Setters

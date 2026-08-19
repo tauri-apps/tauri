@@ -359,7 +359,6 @@ struct NewOptions {
 
 #[command(root = "crate")]
 fn new<R: Runtime>(
-  app: Webview<R>,
   webview: Webview<R>,
   kind: ItemKind,
   options: Option<NewOptions>,
@@ -367,11 +366,11 @@ fn new<R: Runtime>(
   handler: Channel<MenuId>,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
 
   let (rid, id) = match kind {
     ItemKind::Menu => {
-      let mut builder = MenuBuilder::new(&app);
+      let mut builder = MenuBuilder::new(&webview);
       if let Some(id) = options.id {
         builder = builder.id(id);
       }
@@ -487,7 +486,7 @@ fn append<R: Runtime>(
         item.with_item(&webview, &resources_table, |i| submenu.append(i))?;
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -514,7 +513,7 @@ fn prepend<R: Runtime>(
         item.with_item(&webview, &resources_table, |i| submenu.prepend(i))?;
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -544,7 +543,7 @@ fn insert<R: Runtime>(
         position += 1
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -569,7 +568,7 @@ fn remove<R: Runtime>(
       do_menu_item!(resources_table, item_rid, item_kind, |i| submenu
         .remove(&*i))?;
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -610,7 +609,7 @@ fn remove_at<R: Runtime>(
         return Ok(Some(make_item_resource!(resources_table, item)));
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(None)
@@ -626,7 +625,7 @@ fn items<R: Runtime>(
   let items = match kind {
     ItemKind::Menu => resources_table.get::<Menu<R>>(rid)?.items()?,
     ItemKind::Submenu => resources_table.get::<Submenu<R>>(rid)?.items()?,
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(
@@ -658,7 +657,7 @@ fn get<R: Runtime>(
         return Ok(Some(make_item_resource!(resources_table, item)));
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(None)
@@ -688,7 +687,7 @@ async fn popup<R: Runtime>(
         let submenu = resources_table.get::<Submenu<R>>(rid)?;
         submenu.popup_inner(window, at)?;
       }
-      _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+      _ => return Err(crate::Error::UnexpectedMenuKind),
     };
   }
 
@@ -888,6 +887,11 @@ fn set_icon<R: Runtime>(
 
 struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);
 
+// Called in `Menu`'s `Drop` to clean up the event handlers
+pub(crate) fn remove_menu_channel<R: Runtime>(app: &AppHandle<R>, id: &MenuId) {
+  app.state::<MenuChannels>().0.lock().unwrap().remove(id);
+}
+
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("menu")
     .setup(|app, _api| {
@@ -896,7 +900,15 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     })
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
-        if let Some(channel) = app.state::<MenuChannels>().0.lock().unwrap().get(&e.id) {
+        // Cloning the channel out in case the menu gets dropped during the channel send through `channel_interceptor`
+        let channel = app
+          .state::<MenuChannels>()
+          .0
+          .lock()
+          .unwrap()
+          .get(&e.id)
+          .cloned();
+        if let Some(channel) = channel {
           let _ = channel.send(e.id.clone());
         }
       }

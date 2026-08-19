@@ -7,6 +7,7 @@
     "strict": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,
-    "noEmit": true
+    "noEmit": true,
+    "lib": ["es2022", "esnext.disposable", "dom"]
   }
 }

@@ -14,7 +14,26 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
+use crate::error::ErrorExt;
+use anyhow::Context;
+use bytesize::ByteSize;
+use std::{
+  fmt::Write,
+  io::{Seek, SeekFrom},
+  path::PathBuf,
+};
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
+
+pub use {
+  category::AppCategory,
+  settings::{
+    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
+    DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings, PackageSettings,
+    PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
+  },
+  windows::vswhere_path,
+};
 
 const BUNDLE_VAR_TOKEN: &[u8] = b"__TAURI_BUNDLE_TYPE_VAR_UNK";
 /// Patch a binary with bundle type information
@@ -77,22 +96,6 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
   Ok(())
 }
 
-pub use self::{
-  category::AppCategory,
-  settings::{
-    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, Entitlements, IosSettings, MacOsSettings, PackageSettings, PackageType, PlistKind,
-    Position, RpmSettings, Settings, SettingsBuilder, Size, UpdaterSettings,
-  },
-};
-pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
-
-use std::{
-  fmt::Write,
-  io::{Seek, SeekFrom},
-  path::PathBuf,
-};
-
 /// Generated bundle metadata.
 #[derive(Debug)]
 pub struct Bundle {
@@ -121,11 +124,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
   sign_binaries_if_needed(settings, target_os)?;
 
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|b| b.main())
-    .expect("Main binary missing in settings");
+  let main_binary = settings.main_binary()?;
   let main_binary_path = settings.binary_path(main_binary);
 
   // We make a copy of the unsigned main_binary so that we can restore it after each package_type step.
@@ -135,9 +134,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   //      (re)signing is performed after every `patch_binary()` operation
   //  - signing an already-signed binary can result in multiple signatures, causing verification errors
   // TODO: change this to work on a copy while preserving the main binary unchanged
-  let mut main_binary_copy = tempfile::tempfile()?;
-  let mut main_binary_orignal = std::fs::File::open(&main_binary_path)?;
-  std::io::copy(&mut main_binary_orignal, &mut main_binary_copy)?;
+  let mut main_binary_copy =
+    tempfile::tempfile().context("failed to create temp file for main binary copy")?;
+  let mut main_binary_original = std::fs::File::open(&main_binary_path)
+    .fs_context("can't open main binary", &main_binary_path)?;
+  std::io::copy(&mut main_binary_original, &mut main_binary_copy)?;
 
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
@@ -146,8 +147,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    if let Err(e) = patch_binary(&main_binary_path, package_type) {
-      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+    if settings.binary_patching() {
+      if let Err(e) = patch_binary(&main_binary_path, package_type) {
+        log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+      }
+    } else {
+      log::warn!(
+        "Skipping binary patching for {} due to --no-binary-patching flag.",
+        main_binary_path.display()
+      );
     }
 
     // sign main binary for every package type after patch
@@ -290,13 +298,30 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         ""
       };
       let path_display = display_path(path);
-      writeln!(printable_paths, "        {path_display}{note}").unwrap();
+      let size = bundle_size(path)
+        .map(|bytes| format!(" ({:.2})", ByteSize::b(bytes).display()))
+        .unwrap_or_default();
+      writeln!(printable_paths, "        {path_display}{note}{size}").unwrap();
     }
   }
 
   log::info!(action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
 
   Ok(bundles)
+}
+
+/// Total size in bytes of a bundle path, recursing into directories (e.g. macOS `.app`).
+fn bundle_size(path: &std::path::Path) -> crate::Result<u64> {
+  let metadata = std::fs::symlink_metadata(path)?;
+  if metadata.is_dir() {
+    let mut total = 0;
+    for entry in walkdir::WalkDir::new(path) {
+      total += entry?.metadata()?.len();
+    }
+    Ok(total)
+  } else {
+    Ok(metadata.len())
+  }
 }
 
 fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> crate::Result<()> {

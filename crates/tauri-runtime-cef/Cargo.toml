@@ -45,7 +45,6 @@ windows = { version = "0.61", features = [
 ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
-dispatch2 = "0.3"
 objc2 = "0.6"
 objc2-application-services = { version = "0.3", default-features = false, features = [
   "HIServices",
@@ -76,6 +75,10 @@ objc2-quartz-core = { version = "0.3", default-features = false, features = [
 ] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSArray",
+  # NSDate gates the performSelector:withObject:afterDelay: binding used to
+  # restore the traffic light position after an appearance change.
+  "NSDate",
+  "NSNotification",
   "NSObject",
   "NSValue",
   "NSRunLoop",

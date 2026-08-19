@@ -1000,6 +1000,11 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
         let system_theme = winit_theme_to_tauri_theme(theme);
         if let Some(explicit_theme) = appwindow.preferred_theme() {
           appwindow.set_theme(Some(explicit_theme));
+        } else {
+          // Following the system: the appearance changed without going through
+          // `set_theme`, so the titlebar rebuild still has to be undone.
+          #[cfg(target_os = "macos")]
+          appwindow.reapply_traffic_light_position_after_appearance_change();
         }
         self.emit_window_event(window_id, WindowEvent::ThemeChanged(system_theme));
       }

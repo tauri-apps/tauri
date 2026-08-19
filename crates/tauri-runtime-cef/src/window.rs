@@ -30,13 +30,9 @@ use winit::{
   window::{Window as WinitWindow, WindowAttributes, WindowLevel},
 };
 
-#[cfg(target_os = "macos")]
-use crate::platform::macos::AppkitState;
 use crate::platform::{EventLoopExt, MonitorExt};
 #[cfg(any(windows, target_os = "macos"))]
 use std::marker::PhantomData;
-#[cfg(target_os = "macos")]
-use std::sync::RwLock;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowExtMacOS;
 #[cfg(windows)]
@@ -329,8 +325,6 @@ pub(crate) struct AppWindow {
   pub(crate) attrs: AppWindowAttrs,
   pub(crate) children: Vec<AppWebview>,
   pub(crate) listeners: WindowEventListeners,
-  #[cfg(target_os = "macos")]
-  pub(crate) appkit_state: Arc<RwLock<AppkitState>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -401,6 +395,8 @@ impl AppWindow {
     self.attrs.inner.preferred_theme = tauri_theme_to_winit_theme(theme);
     self.window.set_theme(tauri_theme_to_winit_theme(theme));
     self.apply_cef_theme(theme);
+    #[cfg(target_os = "macos")]
+    self.reapply_traffic_light_position_after_appearance_change();
   }
 
   fn apply_cef_theme(&self, theme: Option<Theme>) {
@@ -441,13 +437,10 @@ impl<T: UserEvent> WinitCefApp<T> {
       attrs,
       children: Vec::new(),
       listeners: Default::default(),
-      #[cfg(target_os = "macos")]
-      appkit_state: Arc::new(RwLock::new(AppkitState::default())),
     };
 
     #[cfg(target_os = "macos")]
     {
-      appwindow.associate_appkit_state();
       appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
       if let Some(position) = &appwindow.attrs.traffic_light_position {
         appwindow.set_traffic_light_position(position);

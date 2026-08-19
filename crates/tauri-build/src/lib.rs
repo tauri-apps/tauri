@@ -53,6 +53,48 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   Ok(())
 }
 
+/// Resolves the directory cargo places final artifacts in for the current
+/// profile, given the profile directory `OUT_DIR` resides under.
+///
+/// The two only differ when the `build.build-dir` config (stabilized in Rust
+/// 1.100) moves intermediate artifacts away from the target directory: the
+/// executable still lands in `<target>[/<triple>]/<profile>`, so staged files
+/// must follow it there instead of sitting next to the build script output.
+/// The split is only detectable when configured through the
+/// `CARGO_BUILD_BUILD_DIR` environment variable — a `build-dir` set in
+/// `.cargo/config.toml` is not visible to build scripts, and that case still
+/// stages into the build dir.
+fn artifact_profile_dir(build_profile_dir: &Path) -> PathBuf {
+  fn resolve(build_profile_dir: &Path) -> Option<PathBuf> {
+    // `cargo metadata` reports both roots with config and template variables
+    // resolved, and the `[<triple>/]<profile>` suffix mirrors between them
+    let output = std::process::Command::new(env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
+      .args(["metadata", "--format-version", "1", "--no-deps"])
+      .output()
+      .ok()?;
+    if !output.status.success() {
+      return None;
+    }
+    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+    let target_directory = PathBuf::from(metadata.get("target_directory")?.as_str()?);
+    let build_directory = Path::new(metadata.get("build_directory")?.as_str()?);
+    let profile_suffix = build_profile_dir
+      .strip_prefix(build_directory)
+      .ok()
+      .or_else(|| {
+        build_profile_dir
+          .strip_prefix(build_directory.canonicalize().ok()?)
+          .ok()
+      })?;
+    Some(target_directory.join(profile_suffix))
+  }
+
+  if env::var_os("CARGO_BUILD_BUILD_DIR").is_none() {
+    return build_profile_dir.to_path_buf();
+  }
+  resolve(build_profile_dir).unwrap_or_else(|| build_profile_dir.to_path_buf())
+}
+
 fn copy_binaries(
   binaries: ResourcePaths,
   target_triple: &str,
@@ -642,13 +684,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   } else {
     unit_dir.parent().unwrap().parent().unwrap()
   };
-  let target_dir = build_dir.parent().unwrap();
+  let build_profile_dir = build_dir.parent().unwrap();
+  let target_dir = artifact_profile_dir(build_profile_dir);
 
   if let Some(paths) = &config.bundle.external_bin {
     copy_binaries(
       ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
       &target_triple,
-      target_dir,
+      &target_dir,
       manifest.package.as_ref().map(|p| p.name.as_ref()),
     )?;
   }
@@ -788,7 +831,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
           // (the default since 1.100), so a bare `webview2-com-sys` package
           // directory fans out to its hash subdirectories
           let mut unit_dirs = Vec::new();
-          for entry in fs::read_dir(target_dir.join("build"))? {
+          for entry in fs::read_dir(build_profile_dir.join("build"))? {
             let path = entry?.path();
             let Some(name) = path.file_name().map(|n| n.to_string_lossy().into_owned()) else {
               continue;

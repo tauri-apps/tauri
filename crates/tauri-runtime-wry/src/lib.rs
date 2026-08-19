@@ -1276,6 +1276,7 @@ pub enum WindowMessage {
   SetDecorations(bool),
   SetShadow(bool),
   SetFullscreen(bool),
+  SetTitleBarStyle(tauri_utils::TitleBarStyle),
 }
 
 #[derive(Debug, Clone)]
@@ -2319,27 +2320,11 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     Ok(())
   }
 
-  fn set_title_bar_style(&self, _style: tauri_utils::TitleBarStyle) -> Result<()> {
-    #[cfg(target_os = "macos")]
-    {
-      let window = self.window()?;
-      match _style {
-        TitleBarStyle::Visible => {
-          window.set_titlebar_transparent(false);
-          window.set_fullsize_content_view(true);
-        }
-        TitleBarStyle::Transparent => {
-          window.set_titlebar_transparent(true);
-          window.set_fullsize_content_view(false);
-        }
-        TitleBarStyle::Overlay => {
-          window.set_titlebar_transparent(true);
-          window.set_fullsize_content_view(true);
-        }
-        _ => {}
-      }
-    }
-    Ok(())
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetTitleBarStyle(style)),
+    )
   }
 
   fn set_traffic_light_position(&self, _position: Position) -> Result<()> {
@@ -3241,6 +3226,30 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
           }
+          WindowMessage::SetTitleBarStyle(_style) => {
+            #[cfg(target_os = "macos")]
+            match _style {
+              TitleBarStyle::Visible => {
+                window.set_titlebar_transparent(false);
+                window.set_fullsize_content_view(true);
+              }
+              TitleBarStyle::Transparent => {
+                window.set_titlebar_transparent(true);
+                window.set_fullsize_content_view(false);
+              }
+              TitleBarStyle::Overlay => {
+                window.set_titlebar_transparent(true);
+                window.set_fullsize_content_view(true);
+              }
+              unknown => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("unknown title bar style applied: {unknown}");
+
+                #[cfg(not(feature = "tracing"))]
+                eprintln!("unknown title bar style applied: {unknown}");
+              }
+            };
+          }
           WindowMessage::SetFullscreen(fullscreen) => {
             if fullscreen {
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
@@ -3651,11 +3660,11 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWindow(window_id, handler, sender) => match handler(event_loop) {
-      Ok(webview) => {
-        let window = Arc::downgrade(webview.inner.as_ref().unwrap());
-        windows.0.borrow_mut().insert(window_id, webview);
+      Ok(window) => {
+        let tao_window = Arc::downgrade(window.inner.as_ref().unwrap());
+        windows.0.borrow_mut().insert(window_id, window);
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Ok(window)).unwrap();
+        sender.send(Ok(tao_window)).unwrap();
       }
       Err(e) => {
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this

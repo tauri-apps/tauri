@@ -16,7 +16,7 @@
       ]
     },
     "productName": {
-      "description": "App name.\n\n Make sure to change this from the default `tauri-app` before publishing your app.\n On Windows it is used to derive the default WiX installer upgrade code,\n which must be unique across applications and can be set explicitly with the\n [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code) setting.",
+      "description": "App name.\n\n This is the name your app is known by on the user's system, so it must be changed from the\n default before publishing. Besides naming the generated bundles, it is written into platform\n metadata and install paths that are expected to be unique to your application.\n\n ## Platform-specific\n\n - **macOS**: Names the `.app` bundle and the `.dmg`, and sets the bundle's\n    `CFBundleDisplayName` and `CFBundleName` properties. `CFBundleName` can be overridden with\n    [`bundle > macOS > bundleName`](MacConfig::bundle_name).\n - **Linux**: Kebab-cased for the Debian and RPM package names, used as the `Name` entry of\n    the desktop file and as the resource directory name under `/usr/lib`.\n - **Windows**: Names the installers, the installation directory, the Start Menu folder and\n    the `HKCU\\Software\\<publisher>\\<product name>` registry key. It also derives the default\n    WiX upgrade code, which must be unique across applications and can be set explicitly with\n    [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code).",
       "type": [
         "string",
         "null"

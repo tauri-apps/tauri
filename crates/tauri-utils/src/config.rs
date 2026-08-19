@@ -3745,10 +3745,21 @@ pub struct Config {
   pub schema: Option<String>,
   /// App name.
   ///
-  /// Make sure to change this from the default `tauri-app` before publishing your app.
-  /// On Windows it is used to derive the default WiX installer upgrade code,
-  /// which must be unique across applications and can be set explicitly with the
-  /// [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code) setting.
+  /// This is the name your app is known by on the user's system, so it must be changed from the
+  /// default before publishing. Besides naming the generated bundles, it is written into platform
+  /// metadata and install paths that are expected to be unique to your application.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Names the `.app` bundle and the `.dmg`, and sets the bundle's
+  ///    `CFBundleDisplayName` and `CFBundleName` properties. `CFBundleName` can be overridden with
+  ///    [`bundle > macOS > bundleName`](MacConfig::bundle_name).
+  /// - **Linux**: Kebab-cased for the Debian and RPM package names, used as the `Name` entry of
+  ///    the desktop file and as the resource directory name under `/usr/lib`.
+  /// - **Windows**: Names the installers, the installation directory, the Start Menu folder and
+  ///    the `HKCU\Software\<publisher>\<product name>` registry key. It also derives the default
+  ///    WiX upgrade code, which must be unique across applications and can be set explicitly with
+  ///    [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code).
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,

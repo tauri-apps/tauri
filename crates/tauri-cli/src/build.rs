@@ -195,7 +195,7 @@ pub fn setup(
 
   if config.product_name.as_deref() == Some("tauri-app") {
     log::warn!(
-      "The `productName` is still set to the default value `tauri-app`. You should change it before publishing your app since it names the generated bundles and is written into install paths and platform metadata that are expected to be unique to your application, like the Windows installer upgrade code."
+      "The `productName` is still set to the default value `tauri-app`, it must be unique across applications since it is written into install paths and platform metadata that are expected to be unique to your application, like the Windows installer upgrade code."
     );
   }
 

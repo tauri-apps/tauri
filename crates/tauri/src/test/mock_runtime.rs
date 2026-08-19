@@ -249,15 +249,15 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!();
   }
 
-  fn primary_monitor(&self) -> Option<Monitor> {
+  fn primary_monitor(&self) -> Result<Option<Monitor>> {
     unimplemented!()
   }
 
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
     unimplemented!()
   }
 
-  fn available_monitors(&self) -> Vec<Monitor> {
+  fn available_monitors(&self) -> Result<Vec<Monitor>> {
     unimplemented!()
   }
 

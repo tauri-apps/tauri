@@ -486,7 +486,7 @@ fn append<R: Runtime>(
         item.with_item(&webview, &resources_table, |i| submenu.append(i))?;
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -513,7 +513,7 @@ fn prepend<R: Runtime>(
         item.with_item(&webview, &resources_table, |i| submenu.prepend(i))?;
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -543,7 +543,7 @@ fn insert<R: Runtime>(
         position += 1
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -568,7 +568,7 @@ fn remove<R: Runtime>(
       do_menu_item!(resources_table, item_rid, item_kind, |i| submenu
         .remove(&*i))?;
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(())
@@ -609,7 +609,7 @@ fn remove_at<R: Runtime>(
         return Ok(Some(make_item_resource!(resources_table, item)));
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(None)
@@ -625,7 +625,7 @@ fn items<R: Runtime>(
   let items = match kind {
     ItemKind::Menu => resources_table.get::<Menu<R>>(rid)?.items()?,
     ItemKind::Submenu => resources_table.get::<Submenu<R>>(rid)?.items()?,
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(
@@ -657,7 +657,7 @@ fn get<R: Runtime>(
         return Ok(Some(make_item_resource!(resources_table, item)));
       }
     }
-    _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+    _ => return Err(crate::Error::UnexpectedMenuKind),
   };
 
   Ok(None)
@@ -687,7 +687,7 @@ async fn popup<R: Runtime>(
         let submenu = resources_table.get::<Submenu<R>>(rid)?;
         submenu.popup_inner(window, at)?;
       }
-      _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
+      _ => return Err(crate::Error::UnexpectedMenuKind),
     };
   }
 

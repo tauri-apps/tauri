@@ -1344,6 +1344,9 @@ pub enum WebviewMessage {
 
 pub enum EventLoopWindowTargetMessage {
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
+  PrimaryMonitor(Sender<Option<MonitorHandle>>),
+  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
+  AvailableMonitors(Sender<Vec<MonitorHandle>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
 }
@@ -2614,32 +2617,31 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     self.context.main_thread.window_target.display_handle()
   }
 
-  fn primary_monitor(&self) -> Option<Monitor> {
-    self
-      .context
-      .main_thread
-      .window_target
-      .primary_monitor()
-      .map(|m| MonitorHandleWrapper(m).into())
+  fn primary_monitor(&self) -> Result<Option<Monitor>> {
+    Ok(
+      event_loop_window_getter!(self, EventLoopWindowTargetMessage::PrimaryMonitor)?
+        .map(|m| MonitorHandleWrapper(m).into()),
+    )
   }
 
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
-    self
-      .context
-      .main_thread
-      .window_target
-      .monitor_from_point(x, y)
-      .map(|m| MonitorHandleWrapper(m).into())
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
+    let (tx, rx) = channel();
+    send_user_message(
+      &self.context,
+      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y))),
+    )?;
+    Ok(rx.recv().unwrap().map(|m| MonitorHandleWrapper(m).into()))
   }
 
-  fn available_monitors(&self) -> Vec<Monitor> {
-    self
-      .context
-      .main_thread
-      .window_target
-      .available_monitors()
-      .map(|m| MonitorHandleWrapper(m).into())
-      .collect()
+  fn available_monitors(&self) -> Result<Vec<Monitor>> {
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::AvailableMonitors).map(
+      |monitors| {
+        monitors
+          .into_iter()
+          .map(|m| MonitorHandleWrapper(m).into())
+          .collect()
+      },
+    )
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
@@ -3682,6 +3684,17 @@ fn handle_user_message<T: UserEvent>(
           .map_err(|_| Error::FailedToSendMessage);
         sender.send(pos).unwrap();
       }
+      EventLoopWindowTargetMessage::PrimaryMonitor(sender) => {
+        sender.send(event_loop.primary_monitor()).unwrap();
+      }
+      EventLoopWindowTargetMessage::MonitorFromPoint(sender, (x, y)) => {
+        sender.send(event_loop.monitor_from_point(x, y)).unwrap();
+      }
+      EventLoopWindowTargetMessage::AvailableMonitors(sender) => {
+        sender
+          .send(event_loop.available_monitors().collect())
+          .unwrap();
+      }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
         event_loop.set_theme(to_tao_theme(theme));
       }
@@ -3902,7 +3915,7 @@ fn handle_event_loop<T: UserEvent>(
         let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
         if !should_prevent {
-          *control_flow = ControlFlow::Exit;
+          *control_flow = ControlFlow::ExitWithCode(code);
         }
       }
       Message::Window(id, WindowMessage::Close) => {

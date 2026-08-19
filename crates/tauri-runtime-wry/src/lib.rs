@@ -1270,8 +1270,11 @@ pub enum ApplicationMessage {
 
 pub enum WindowMessage {
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
+  SetResizable(bool),
   Close,
   Destroy,
+  SetDecorations(bool),
+  SetShadow(bool),
   SetFullscreen(bool),
 }
 
@@ -2017,15 +2020,10 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
-    let window = self.window()?;
-    window.set_resizable(resizable);
-    #[cfg(windows)]
-    if !resizable {
-      undecorated_resizing::detach_resize_handler(window.hwnd());
-    } else if !window.is_decorated() {
-      undecorated_resizing::attach_resize_handler(window.hwnd(), window.has_undecorated_shadow());
-    }
-    Ok(())
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetResizable(resizable)),
+    )
   }
 
   fn set_enabled(&self, enabled: bool) -> Result<()> {
@@ -2102,27 +2100,17 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn set_decorations(&self, decorations: bool) -> Result<()> {
-    let window = self.window()?;
-    window.set_decorations(decorations);
-    #[cfg(windows)]
-    if decorations {
-      undecorated_resizing::detach_resize_handler(window.hwnd());
-    } else if window.is_resizable() {
-      undecorated_resizing::attach_resize_handler(window.hwnd(), window.has_undecorated_shadow());
-    }
-    Ok(())
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetDecorations(decorations)),
+    )
   }
 
   fn set_shadow(&self, enable: bool) -> Result<()> {
-    let window = self.window()?;
-    #[cfg(windows)]
-    {
-      window.set_undecorated_shadow(enable);
-      undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(window.hwnd(), enable);
-    }
-    #[cfg(target_os = "macos")]
-    window.set_has_shadow(enable);
-    Ok(())
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetShadow(enable)),
+    )
   }
 
   fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
@@ -3201,11 +3189,44 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::AddEventListener(id, listener) => {
             window_event_listeners.lock().unwrap().insert(id, listener);
           }
+          WindowMessage::SetResizable(resizable) => {
+            window.set_resizable(resizable);
+            #[cfg(windows)]
+            if !resizable {
+              undecorated_resizing::detach_resize_handler(window.hwnd());
+            } else if !window.is_decorated() {
+              undecorated_resizing::attach_resize_handler(
+                window.hwnd(),
+                window.has_undecorated_shadow(),
+              );
+            }
+          }
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
           WindowMessage::Destroy => {
             panic!("cannot handle `WindowMessage::Destroy` on the main thread")
+          }
+          WindowMessage::SetDecorations(decorations) => {
+            window.set_decorations(decorations);
+            #[cfg(windows)]
+            if decorations {
+              undecorated_resizing::detach_resize_handler(window.hwnd());
+            } else if window.is_resizable() {
+              undecorated_resizing::attach_resize_handler(
+                window.hwnd(),
+                window.has_undecorated_shadow(),
+              );
+            }
+          }
+          WindowMessage::SetShadow(_enable) => {
+            #[cfg(windows)]
+            {
+              window.set_undecorated_shadow(_enable);
+              undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(window.hwnd(), _enable);
+            }
+            #[cfg(target_os = "macos")]
+            window.set_has_shadow(_enable);
           }
           WindowMessage::SetFullscreen(fullscreen) => {
             window.set_fullscreen(fullscreen.then(|| Fullscreen::Borderless(None)));

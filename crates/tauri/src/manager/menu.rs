@@ -56,20 +56,18 @@ impl<R: Runtime> MenuManager<R> {
     window_menu: Option<&crate::window::WindowMenu<R>>,
     #[allow(unused)] theme: Option<tauri_utils::Theme>,
   ) -> Option<impl Fn(tauri_runtime::window::RawWindow<'_>)> {
-    {
-      if let Some(menu) = window_menu {
-        self
-          .menus_stash_lock()
-          .insert(menu.menu.id().clone(), menu.menu.clone());
-      }
-    }
+    let window_menu = window_menu?;
+
+    self
+      .menus_stash_lock()
+      .insert(window_menu.menu.id().clone(), window_menu.menu.clone());
 
     #[cfg(target_os = "macos")]
     return None;
 
     #[cfg_attr(target_os = "macos", allow(unused_variables, unreachable_code))]
-    if let Some(menu) = &window_menu {
-      let menu = menu.menu.clone();
+    {
+      let menu = window_menu.menu.clone();
       Some(move |raw: tauri_runtime::window::RawWindow<'_>| {
         #[cfg(target_os = "windows")]
         {
@@ -89,8 +87,6 @@ impl<R: Runtime> MenuManager<R> {
           .inner()
           .init_for_gtk_window(raw.gtk_window, raw.default_vbox);
       })
-    } else {
-      None
     }
   }
 

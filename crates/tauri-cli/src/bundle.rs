@@ -100,6 +100,15 @@ pub struct Options {
   /// are not available or not needed.
   #[clap(long)]
   pub no_sign: bool,
+
+  /// Skip patching the main executable with bundle type information.
+  ///
+  /// The patching rewrites the binary in place, invalidating an existing code
+  /// signature. Skipping it preserves an already-signed binary at the cost of
+  /// per-bundle-type updater support (only relevant when shipping multiple
+  /// bundle types per platform).
+  #[clap(long)]
+  pub no_binary_patching: bool,
 }
 
 impl From<crate::build::Options> for Options {
@@ -113,6 +122,7 @@ impl From<crate::build::Options> for Options {
       config: value.config,
       skip_stapling: value.skip_stapling,
       no_sign: value.no_sign,
+      no_binary_patching: value.no_binary_patching,
     }
   }
 }
@@ -209,6 +219,7 @@ pub fn bundle<A: AppSettings>(
     )
     .context("failed to build bundler settings")?;
   settings.set_no_sign(options.no_sign);
+  settings.set_binary_patching(!options.no_binary_patching);
 
   settings.set_log_level(match verbosity {
     0 => log::Level::Error,

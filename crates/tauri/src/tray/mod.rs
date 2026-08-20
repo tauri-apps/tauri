@@ -403,9 +403,19 @@ impl<R: Runtime> Drop for TrayIconInner<R> {
     let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
     // SAFETY: inner was created on main thread and is being dropped on main thread
     let inner = UnsafeSend(inner);
-    let _ = self.app_handle.run_on_main_thread(move || {
-      drop(inner.take());
-    });
+    let (sender, receiver) = std::sync::mpsc::channel();
+    if self
+      .app_handle
+      .run_on_main_thread(move || {
+        drop(inner.take());
+        sender.send(0).unwrap();
+      })
+      .is_ok()
+    {
+      // We need to wait for the drop to finish on Windows or if we return too early and the program exits,
+      // there will be a left over tray icon
+      receiver.recv().unwrap();
+    }
   }
 }
 

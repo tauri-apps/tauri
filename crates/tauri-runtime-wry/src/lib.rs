@@ -126,7 +126,7 @@ use std::{
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
-    BTreeMap, HashMap, HashSet,
+    BTreeMap, HashMap, HashSet, VecDeque,
   },
   fmt,
   ops::Deref,
@@ -246,10 +246,80 @@ pub(crate) fn send_user_message<T: UserEvent>(
     );
     Ok(())
   } else {
-    context
-      .proxy
-      .send_event(message)
-      .map_err(|_| Error::FailedToSendMessage)
+    match context.proxy.send_event(message) {
+      Ok(()) => Ok(()),
+      Err(tao::event_loop::EventLoopClosed(message)) => {
+        if message.can_queue() {
+          // Fire-and-forget message: queue for retry on the next event loop iteration.
+          // If the event loop is actually closed, the queued messages will be dropped
+          // when the Context is dropped.
+          log::warn!(
+            "Event loop proxy send failed, queuing message for retry (queue depth: {})",
+            context.pending_queue.inner.lock().unwrap().len() + 1
+          );
+          context.pending_queue.push(message);
+          Ok(())
+        } else {
+          // Synchronous message (contains Sender): must NOT queue — the caller
+          // blocks on rx.recv() and would deadlock. Return the error instead.
+          Err(Error::FailedToSendMessage)
+        }
+      }
+    }
+  }
+}
+
+/// Maximum number of messages that can be queued for retry when the OS event loop
+/// is full. This prevents unbounded memory growth while still allowing high-frequency
+/// event emission to recover gracefully.
+const PENDING_QUEUE_CAPACITY: usize = 10_000;
+
+/// A thread-safe bounded queue for messages that failed to be delivered to the event loop.
+///
+/// When the OS event queue is full (e.g., Windows 10,000 message limit), messages are
+/// stored here and retried on the next event loop iteration. Includes event coalescing:
+/// for the same webview, only the latest `EvaluateScript` message is kept.
+pub(crate) struct PendingQueue<T: 'static> {
+  inner: Mutex<VecDeque<Message<T>>>,
+}
+
+impl<T: 'static> Default for PendingQueue<T> {
+  fn default() -> Self {
+    Self {
+      inner: Mutex::new(VecDeque::with_capacity(PENDING_QUEUE_CAPACITY)),
+    }
+  }
+}
+
+impl<T: 'static> PendingQueue<T> {
+  /// Push a message to the back of the queue. If the queue is at capacity,
+  /// drops the oldest message to make room.
+  ///
+  /// For messages with a coalescing key (currently only `EvaluateScript`), if
+  /// there is already a pending message with the same key, the old message is
+  /// replaced. This prevents unbounded queue growth when `emit()` is called at
+  /// high frequency — only the latest script evaluation per webview is kept.
+  fn push(&self, message: Message<T>) {
+    let mut queue = self.inner.lock().unwrap();
+    if let Some(key) = message.coalescing_key() {
+      if let Some(pos) = queue.iter().position(|m| m.coalescing_key() == Some(key)) {
+        queue.remove(pos);
+      }
+    } else if queue.len() >= PENDING_QUEUE_CAPACITY {
+      queue.pop_front();
+    }
+    queue.push_back(message);
+  }
+
+  /// Drain all pending messages, returning them in order.
+  /// The caller is responsible for re-sending them via the event loop proxy.
+  fn drain(&self) -> VecDeque<Message<T>> {
+    let mut queue = self.inner.lock().unwrap();
+    std::mem::take(&mut *queue)
+  }
+
+  fn is_empty(&self) -> bool {
+    self.inner.lock().unwrap().is_empty()
   }
 }
 
@@ -265,6 +335,7 @@ pub struct Context<T: UserEvent> {
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
   webview_runtime_installed: bool,
+  pending_queue: Arc<PendingQueue<T>>,
 }
 
 unsafe impl<T: UserEvent> Send for Context<T> {}
@@ -1409,6 +1480,55 @@ pub enum WindowMessage {
   RequestRedraw,
 }
 
+impl WindowMessage {
+  /// Returns `true` if this message is fire-and-forget and safe to queue when
+  /// the OS event loop is full. Getter variants contain a `Sender` and the caller
+  /// blocks on `rx.recv()` — queuing those would deadlock.
+  fn can_queue(&self) -> bool {
+    match self {
+      // Getters — contain Sender, caller blocks on rx.recv()
+      Self::ScaleFactor(_)
+      | Self::InnerPosition(_)
+      | Self::OuterPosition(_)
+      | Self::InnerSize(_)
+      | Self::OuterSize(_)
+      | Self::IsFullscreen(_)
+      | Self::IsMinimized(_)
+      | Self::IsMaximized(_)
+      | Self::IsFocused(_)
+      | Self::IsDecorated(_)
+      | Self::IsResizable(_)
+      | Self::IsMaximizable(_)
+      | Self::IsMinimizable(_)
+      | Self::IsClosable(_)
+      | Self::IsVisible(_)
+      | Self::Title(_)
+      | Self::CurrentMonitor(_)
+      | Self::PrimaryMonitor(_)
+      | Self::MonitorFromPoint(..)
+      | Self::AvailableMonitors(_)
+      | Self::RawWindowHandle(_)
+      | Self::Theme(_)
+      | Self::IsEnabled(_)
+      | Self::IsAlwaysOnTop(_) => false,
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      Self::GtkWindow(_) | Self::GtkBox(_) => false,
+      #[cfg(target_os = "android")]
+      Self::ActivityName(_) => false,
+      #[cfg(target_os = "ios")]
+      Self::SceneIdentifier(_) => false,
+      // Everything else is fire-and-forget
+      _ => true,
+    }
+  }
+}
+
 #[derive(Debug, Clone)]
 pub enum SynthesizedWindowEvent {
   Focused(bool),
@@ -1476,6 +1596,45 @@ pub enum WebviewMessage {
   IsDevToolsOpen(Sender<bool>),
 }
 
+impl WebviewMessage {
+  /// Returns `true` if this message is fire-and-forget and safe to queue when
+  /// the OS event loop is full. Variants containing a `Sender` are consumed
+  /// through `getter!` or manual channels — queuing those would deadlock.
+  fn can_queue(&self) -> bool {
+    match self {
+      // Variants with Sender — caller blocks on rx.recv()
+      Self::CookiesForUrl(..)
+      | Self::Cookies(_)
+      | Self::Reparent(..)
+      | Self::Url(_)
+      | Self::Bounds(_)
+      | Self::Position(_)
+      | Self::Size(_) => false,
+      #[cfg(any(debug_assertions, feature = "devtools"))]
+      Self::IsDevToolsOpen(_) => false,
+      // Tracing EvaluateScript/EvaluateScriptWithCallback contain Sender<()>
+      #[cfg(all(feature = "tracing", not(target_os = "android")))]
+      Self::EvaluateScript(..) | Self::EvaluateScriptWithCallback(..) => false,
+      // Everything else is fire-and-forget
+      _ => true,
+    }
+  }
+
+  /// Returns `true` if this is an `EvaluateScript` variant that is safe to
+  /// coalesce (i.e., the non-tracing fire-and-forget variant). The tracing
+  /// variant carries a `Sender<()>` and must NOT be coalesced.
+  fn is_eval_script_coalescable(&self) -> bool {
+    #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+    {
+      matches!(self, Self::EvaluateScript(..))
+    }
+    #[cfg(all(feature = "tracing", not(target_os = "android")))]
+    {
+      false
+    }
+  }
+}
+
 pub enum EventLoopWindowTargetMessage {
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
@@ -1483,6 +1642,18 @@ pub enum EventLoopWindowTargetMessage {
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
+}
+
+impl EventLoopWindowTargetMessage {
+  fn can_queue(&self) -> bool {
+    !matches!(
+      self,
+      Self::CursorPosition(_)
+        | Self::PrimaryMonitor(_)
+        | Self::MonitorFromPoint(..)
+        | Self::AvailableMonitors(_)
+    )
+  }
 }
 
 pub type CreateWindowClosure<T> =
@@ -1525,6 +1696,43 @@ impl<T: UserEvent> Clone for Message<T> {
   }
 }
 
+impl<T: 'static> Message<T> {
+  /// Returns `true` if this message is fire-and-forget and can be safely queued
+  /// in the pending queue when the OS event loop is full. Messages that contain
+  /// a `Sender` channel (used for synchronous getters via the `getter!` macro)
+  /// must NOT be queued — the caller blocks on `rx.recv()` and would deadlock.
+  fn can_queue(&self) -> bool {
+    match self {
+      Self::UserEvent(_) | Self::Task(_) => true,
+      Self::Webview(_, _, webview_msg) => webview_msg.can_queue(),
+      Self::Window(_, window_msg) => window_msg.can_queue(),
+      Self::EventLoopWindowTarget(elwt_msg) => elwt_msg.can_queue(),
+      Self::Application(_)
+      | Self::RequestExit(_)
+      | Self::CreateWebview(..)
+      | Self::CreateWindow(..)
+      | Self::CreateRawWindow(..) => false,
+      #[cfg(target_os = "macos")]
+      Self::SetActivationPolicy(_) | Self::SetDockVisibility(_) => false,
+    }
+  }
+
+  /// Returns a coalescing key for messages that can be safely deduplicated
+  /// when the event queue is backed up. Only fire-and-forget `EvaluateScript`
+  /// messages (non-tracing path from `emit()`) are coalesced — for the same
+  /// webview, only the latest script evaluation is kept.
+  fn coalescing_key(&self) -> Option<(WindowId, WebviewId)> {
+    match self {
+      Self::Webview(window_id, webview_id, webview_msg)
+        if webview_msg.is_eval_script_coalescable() =>
+      {
+        Some((*window_id, *webview_id))
+      }
+      _ => None,
+    }
+  }
+}
+
 /// The Tauri [`WebviewDispatch`] for [`Wry`].
 #[derive(Debug, Clone)]
 pub struct WryWebviewDispatcher<T: UserEvent> {
@@ -1542,11 +1750,16 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
     let id = self.context.next_webview_event_id();
-    let _ = self.context.proxy.send_event(Message::Webview(
-      *self.window_id.lock().unwrap(),
-      self.webview_id,
-      WebviewMessage::AddEventListener(id, Box::new(f)),
-    ));
+    if let Err(e) = send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::AddEventListener(id, Box::new(f)),
+      ),
+    ) {
+      log::warn!("Failed to register webview event listener (event loop may be closing): {e}");
+    }
     id
   }
 
@@ -1920,10 +2133,15 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
     let id = self.context.next_window_event_id();
-    let _ = self.context.proxy.send_event(Message::Window(
-      self.window_id,
-      WindowMessage::AddEventListener(id, Box::new(f)),
-    ));
+    if let Err(e) = send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::AddEventListener(id, Box::new(f)),
+      ),
+    ) {
+      log::warn!("Failed to register window event listener (event loop may be closing): {e}");
+    }
     id
   }
 
@@ -2894,6 +3112,7 @@ impl<T: UserEvent> Wry<T> {
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
       webview_runtime_installed: wry::webview_version().is_ok(),
+      pending_queue: Default::default(),
     };
 
     Ok(Self {
@@ -3143,6 +3362,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let active_tracing_spans = &self.context.main_thread.active_tracing_spans;
 
     let proxy = self.event_loop.create_proxy();
+    let pending_queue = &self.context.pending_queue;
 
     self
       .event_loop
@@ -3164,6 +3384,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               windows,
               #[cfg(feature = "tracing")]
               active_tracing_spans,
+              pending_queue,
+              proxy: &proxy,
             },
             web_context,
           );
@@ -3182,6 +3404,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             window_id_map,
             #[cfg(feature = "tracing")]
             active_tracing_spans,
+            pending_queue,
+            proxy: &proxy,
           },
         );
       });
@@ -3219,6 +3443,7 @@ fn make_event_handler<T: UserEvent, F: FnMut(RunEvent<T>) + 'static>(
   #[cfg(feature = "tracing")]
   let active_tracing_spans = context.main_thread.active_tracing_spans;
   let proxy = context.proxy;
+  let pending_queue = context.pending_queue;
 
   move |event, event_loop, control_flow| {
     for p in plugins.lock().unwrap().iter_mut() {
@@ -3233,6 +3458,8 @@ fn make_event_handler<T: UserEvent, F: FnMut(RunEvent<T>) + 'static>(
           windows: &windows,
           #[cfg(feature = "tracing")]
           active_tracing_spans: &active_tracing_spans,
+          pending_queue: &pending_queue,
+          proxy: &proxy,
         },
         &web_context,
       );
@@ -3250,6 +3477,8 @@ fn make_event_handler<T: UserEvent, F: FnMut(RunEvent<T>) + 'static>(
         windows: &windows,
         #[cfg(feature = "tracing")]
         active_tracing_spans: &active_tracing_spans,
+        pending_queue: &pending_queue,
+        proxy: &proxy,
       },
     );
   }
@@ -3261,6 +3490,8 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub windows: &'a WindowsStore,
   #[cfg(feature = "tracing")]
   pub active_tracing_spans: &'a ActiveTraceSpanStore,
+  pub(crate) pending_queue: &'a PendingQueue<T>,
+  pub proxy: &'a TaoEventLoopProxy<Message<T>>,
 }
 
 struct UserMessageContext<'a> {
@@ -4119,6 +4350,8 @@ fn handle_event_loop<T: UserEvent>(
     windows,
     #[cfg(feature = "tracing")]
     active_tracing_spans,
+    pending_queue,
+    proxy,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -4134,6 +4367,18 @@ fn handle_event_loop<T: UserEvent>(
     }
 
     Event::MainEventsCleared => {
+      // Drain the pending message queue. Messages that failed to be delivered
+      // (e.g., because the OS event queue was full) are retried here.
+      if !pending_queue.is_empty() {
+        let messages = pending_queue.drain();
+        log::debug!("Draining {} pending messages from event queue overflow", messages.len());
+        for message in messages {
+          if let Err(tao::event_loop::EventLoopClosed(retry_message)) = proxy.send_event(message) {
+            // Still can't deliver — re-queue for next iteration
+            pending_queue.push(retry_message);
+          }
+        }
+      }
       callback(RunEvent::MainEventsCleared);
     }
 
@@ -4818,7 +5063,9 @@ You may have it installed on another user account, but it is not available for t
         WebviewMessage::WebviewEvent(WebviewEvent::DragDrop(event))
       };
 
-      let _ = proxy.send_event(Message::Webview(*window_id_.lock().unwrap(), id, message));
+      if let Err(e) = proxy.send_event(Message::Webview(*window_id_.lock().unwrap(), id, message)) {
+        log::warn!("Failed to send drag-drop event (event loop may be closing): {e}");
+      }
       true
     });
   }
@@ -5244,10 +5491,12 @@ You may have it installed on another user account, but it is not available for t
             sender
               .ok_or_else(windows::core::Error::empty)?
               .ContainsFullScreenElement(&mut contains_fullscreen_element)?;
-            let _ = proxy_clone.send_event(Message::Window(
+            if let Err(e) = proxy_clone.send_event(Message::Window(
               *window_id.lock().unwrap(),
               WindowMessage::SetFullscreen(contains_fullscreen_element.as_bool()),
-            ));
+            )) {
+              log::warn!("Failed to send fullscreen change event (event loop may be closing): {e}");
+            }
             Ok(())
           })),
           &mut token,
@@ -5363,11 +5612,13 @@ fn add_focus_change_listeners<T: UserEvent>(
         };
 
         if !already_focused {
-          let _ = proxy_clone.send_event(Message::Webview(
+          if let Err(e) = proxy_clone.send_event(Message::Webview(
             *window_id_.lock().unwrap(),
             id,
             WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
-          ));
+          )) {
+            log::warn!("Failed to send GotFocus event (event loop may be closing): {e}");
+          }
         }
         Ok(())
       })),
@@ -5396,11 +5647,13 @@ fn add_focus_change_listeners<T: UserEvent>(
             *focused_webview = FocusState::Blured {
               last_focused_webview_label: Some(label.clone()),
             };
-            let _ = proxy.send_event(Message::Webview(
+            if let Err(e) = proxy.send_event(Message::Webview(
               *window_id.lock().unwrap(),
               id,
               WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
-            ));
+            )) {
+              log::warn!("Failed to send LostFocus event (event loop may be closing): {e}");
+            }
           }
         }
 
@@ -5410,5 +5663,160 @@ fn add_focus_change_listeners<T: UserEvent>(
     )
   } {
     log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn pending_queue_push_drain() {
+    let queue: PendingQueue<u32> = PendingQueue::default();
+    assert!(queue.is_empty());
+
+    queue.push(Message::UserEvent(1));
+    queue.push(Message::UserEvent(2));
+    queue.push(Message::UserEvent(3));
+
+    assert!(!queue.is_empty());
+
+    let mut drained = queue.drain();
+    assert!(queue.is_empty());
+    assert_eq!(drained.len(), 3);
+
+    match drained.pop_front() {
+      Some(Message::UserEvent(v)) => assert_eq!(v, 1),
+      _ => panic!("expected UserEvent(1)"),
+    }
+    match drained.pop_front() {
+      Some(Message::UserEvent(v)) => assert_eq!(v, 2),
+      _ => panic!("expected UserEvent(2)"),
+    }
+    match drained.pop_front() {
+      Some(Message::UserEvent(v)) => assert_eq!(v, 3),
+      _ => panic!("expected UserEvent(3)"),
+    }
+  }
+
+  #[test]
+  fn pending_queue_capacity_limit() {
+    let queue: PendingQueue<u32> = PendingQueue::default();
+
+    for i in 0..PENDING_QUEUE_CAPACITY + 100 {
+      queue.push(Message::UserEvent(i as u32));
+    }
+
+    let mut drained = queue.drain();
+    assert_eq!(drained.len(), PENDING_QUEUE_CAPACITY);
+
+    // First remaining message should be index 100 (oldest 100 were dropped)
+    match drained.pop_front() {
+      Some(Message::UserEvent(v)) => assert_eq!(v, 100),
+      _ => panic!("expected UserEvent(100)"),
+    }
+  }
+
+  #[test]
+  fn pending_queue_empty_drain() {
+    let queue: PendingQueue<u32> = PendingQueue::default();
+    let drained = queue.drain();
+    assert!(drained.is_empty());
+  }
+
+  fn eval_script_msg(window_id: u32, webview_id: u32, script: &str) -> Message<u32> {
+    Message::Webview(
+      WindowId::from(window_id),
+      webview_id,
+      WebviewMessage::EvaluateScript(script.to_string()),
+    )
+  }
+
+  #[test]
+  fn pending_queue_coalesces_same_webview() {
+    let queue: PendingQueue<u32> = PendingQueue::default();
+
+    // Queue 3 EvaluateScript messages for the same webview
+    queue.push(eval_script_msg(1, 10, "script_a"));
+    queue.push(eval_script_msg(1, 10, "script_b"));
+    queue.push(eval_script_msg(1, 10, "script_c"));
+
+    let mut drained = queue.drain();
+    // Coalescing should have replaced earlier ones — only the latest remains
+    assert_eq!(drained.len(), 1);
+    match drained.pop_front() {
+      Some(Message::Webview(_, _, WebviewMessage::EvaluateScript(s))) => {
+        assert_eq!(s, "script_c");
+      }
+      _ => panic!("expected EvaluateScript(script_c)"),
+    }
+  }
+
+  #[test]
+  fn pending_queue_does_not_coalesce_different_webviews() {
+    let queue: PendingQueue<u32> = PendingQueue::default();
+
+    // Different webview IDs — should NOT coalesce
+    queue.push(eval_script_msg(1, 10, "script_a"));
+    queue.push(eval_script_msg(1, 20, "script_b"));
+
+    let drained = queue.drain();
+    assert_eq!(drained.len(), 2);
+  }
+
+  #[test]
+  fn pending_queue_does_not_coalesce_different_windows() {
+    let queue: PendingQueue<u32> = PendingQueue::default();
+
+    // Same webview ID but different window ID — should NOT coalesce
+    queue.push(eval_script_msg(1, 10, "script_a"));
+    queue.push(eval_script_msg(2, 10, "script_b"));
+
+    let drained = queue.drain();
+    assert_eq!(drained.len(), 2);
+  }
+
+  #[test]
+  fn pending_queue_does_not_coalesce_non_eval_script() {
+    let queue: PendingQueue<u32> = PendingQueue::default();
+
+    // Non-EvaluateScript messages — should NOT coalesce even for same webview
+    queue.push(Message::UserEvent(1));
+    queue.push(Message::UserEvent(2));
+
+    let drained = queue.drain();
+    assert_eq!(drained.len(), 2);
+  }
+
+  #[test]
+  fn pending_queue_coalescing_preserves_order() {
+    let queue: PendingQueue<u32> = PendingQueue::default();
+
+    // Mix of coalescable and non-coalescable messages
+    queue.push(eval_script_msg(1, 10, "script_a"));
+    queue.push(Message::UserEvent(1));
+    queue.push(eval_script_msg(1, 10, "script_b"));
+    queue.push(Message::UserEvent(2));
+
+    let mut drained = queue.drain();
+    assert_eq!(drained.len(), 3);
+
+    // UserEvent(1) should be first (preserved in position)
+    match drained.pop_front() {
+      Some(Message::UserEvent(v)) => assert_eq!(v, 1),
+      _ => panic!("expected UserEvent(1)"),
+    }
+    // script_b should replace script_a's position
+    match drained.pop_front() {
+      Some(Message::Webview(_, _, WebviewMessage::EvaluateScript(s))) => {
+        assert_eq!(s, "script_b");
+      }
+      _ => panic!("expected EvaluateScript(script_b)"),
+    }
+    // UserEvent(2) should be last
+    match drained.pop_front() {
+      Some(Message::UserEvent(v)) => assert_eq!(v, 2),
+      _ => panic!("expected UserEvent(2)"),
+    }
   }
 }

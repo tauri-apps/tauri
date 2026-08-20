@@ -2093,15 +2093,14 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::SceneIdentifier)
   }
 
+  /// **SAFETY:** the lifetime is wrong here, use with caution!
+  /// `WryWindowDispatcher` does not own the window handle so the window can become stale before `WryWindowDispatcher` is dropped.
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
     get_raw_window_handle(self)
       .map_err(|_| raw_window_handle::HandleError::Unavailable)?
-      .map(|h| {
-        // SAFETY: the lifetime is wrong here!
-        unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }
-      })
+      .map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) })
   }
 
   // Setters
@@ -2753,6 +2752,8 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
+  /// **SAFETY:** the lifetime is wrong here, use with caution!
+  /// `WryHandle` does not own the display handle so the window can become stale before `WryWindowDispatcher` is dropped.
   fn display_handle(
     &self,
   ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {

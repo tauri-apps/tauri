@@ -2635,8 +2635,8 @@ pub trait Plugin<T: UserEvent> {
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry<T: UserEvent> {
   context: Context<T>,
-  event_loop: EventLoop<Message<T>>,
   _window_target: Arc<EventLoopWindowTarget<Message<T>>>,
+  event_loop: EventLoop<Message<T>>,
 }
 
 impl<T: UserEvent> fmt::Debug for Wry<T> {
@@ -2926,8 +2926,8 @@ impl<T: UserEvent> Wry<T> {
 
     Ok(Self {
       context,
-      event_loop,
       _window_target: window_target,
+      event_loop,
     })
   }
 }

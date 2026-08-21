@@ -1452,7 +1452,6 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_path: Arc::new(cache_path.clone()),
     };
 
-    command_line_args.push(("--enable-media-stream".to_string(), None));
     let mut app = TauriCefApp::new(
       context.clone(),
       context_initialized.clone(),

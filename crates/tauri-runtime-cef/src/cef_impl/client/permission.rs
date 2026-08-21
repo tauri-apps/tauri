@@ -13,22 +13,10 @@ wrap_permission_handler! {
       _browser: Option<&mut Browser>,
       _frame: Option<&mut Frame>,
       _requesting_origin: Option<&CefString>,
-      requested_permissions: u32,
-      callback: Option<&mut MediaAccessCallback>,
+      _requested_permissions: u32,
+      _callback: Option<&mut MediaAccessCallback>,
     ) -> ::std::os::raw::c_int {
-      let Some(callback) = callback else {
-        return 0;
-      };
-      // Allow microphone and camera when requested.
-      let allowed = requested_permissions
-        & (cef::sys::cef_media_access_permission_types_t::CEF_MEDIA_PERMISSION_DEVICE_AUDIO_CAPTURE
-          as u32
-          | cef::sys::cef_media_access_permission_types_t::CEF_MEDIA_PERMISSION_DEVICE_VIDEO_CAPTURE
-            as u32);
-      if allowed != 0 {
-        callback.cont(requested_permissions);
-        return 1;
-      }
+      // Use CEF's default media permission handling.
       0
     }
 
@@ -38,16 +26,10 @@ wrap_permission_handler! {
       _prompt_id: u64,
       _requesting_origin: Option<&CefString>,
       _requested_permissions: u32,
-      callback: Option<&mut PermissionPromptCallback>,
+      _callback: Option<&mut PermissionPromptCallback>,
     ) -> ::std::os::raw::c_int {
-      let Some(callback) = callback else {
-        return 0;
-      };
-      // Allow permission prompt (e.g. microphone/camera).
-      callback.cont(PermissionRequestResult::from(
-        cef::sys::cef_permission_request_result_t::CEF_PERMISSION_RESULT_ACCEPT,
-      ));
-      1
+      // Use CEF's default permission prompt handling.
+      0
     }
   }
 }

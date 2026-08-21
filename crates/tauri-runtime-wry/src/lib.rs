@@ -3348,7 +3348,7 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
           WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
           WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
-          WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
+          WindowMessage::IsFocused(tx) => tx.send(is_focused(&window)).unwrap(),
           WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
           WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
           WindowMessage::IsMaximizable(tx) => tx.send(window.is_maximizable()).unwrap(),
@@ -5322,6 +5322,18 @@ fn inner_size(
   has_children: bool,
 ) -> PhysicalSize<u32> {
   window.inner_size()
+}
+
+#[cfg(windows)]
+fn is_focused(window: &Window) -> bool {
+  use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+  // the webview child window owns the keyboard focus, so the window itself never reports it
+  HWND(window.hwnd() as _) == unsafe { GetForegroundWindow() }
+}
+
+#[cfg(not(windows))]
+fn is_focused(window: &Window) -> bool {
+  window.is_focused()
 }
 
 fn to_tao_theme(theme: Option<Theme>) -> Option<TaoTheme> {

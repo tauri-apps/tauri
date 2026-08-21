@@ -54,11 +54,6 @@ targets:
         LSRequiresIPhoneOS: true
         UILaunchStoryboardName: LaunchScreen
         UIRequiredDeviceCapabilities: [arm64, metal]
-        # Adopt the UIScene lifecycle (required for apps linked against the
-        # iOS 26+ SDK; without it UIKit fatally traps at launch in
-        # _UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption).
-        UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

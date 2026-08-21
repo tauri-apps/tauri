@@ -6,5 +6,12 @@
 	<string>Request camera access for WebRTC</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Request microphone access for WebRTC</string>
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+      <key>UIApplicationSupportsMultipleScenes</key>
+      <true/>
+      <key>UISceneConfigurations</key>
+      <dict/>
+  </dict>
 </dict>
 </plist>

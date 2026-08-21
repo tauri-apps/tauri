@@ -3923,7 +3923,7 @@
           ]
         },
         "minimumSystemVersion": {
-          "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `14.0`.\n\n Maps to the IPHONEOS_DEPLOYMENT_TARGET value.",
+          "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `15.0`.\n\n Maps to the IPHONEOS_DEPLOYMENT_TARGET value.",
           "default": "15.0",
           "type": "string"
         },

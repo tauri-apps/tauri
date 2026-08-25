@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fs, path::PathBuf, process::Command};
+use std::{
+  fs,
+  io::Read,
+  path::{Path, PathBuf},
+  process::Command,
+};
 
 use anyhow::Context;
+use walkdir::WalkDir;
 
 use crate::{
   Settings,
@@ -168,11 +174,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     _ => "",
   };
 
-  // Also intentionally(!) includes cef library files
-  let bins = app_dir_path
-    .join("bin/")
-    .read_dir()?
-    .filter_map(|entry| entry.ok())
+  // We need to give quick-sharun the list of binaries AND libraries to include.
+  // To support weird `appimage.files` settings we just walk through the whole AppDir we set up.
+  // TODO: In some cases we may have to give quick-sharun the path to some directories as well.
+  let mut elfs = Vec::new();
+  for entry in WalkDir::new(&app_dir_path) {
+    if let Ok(entry) = entry {
+      if entry.file_type().is_file() && is_elf(entry.path()) {
+        elfs.push(format!(" \"{}\"", entry.path().to_string_lossy()));
+      }
+    }
+  }
+  let elfs = elfs
     .map(|entry| format!(" \"{}\"", entry.path().to_string_lossy()))
     .collect::<String>();
 
@@ -193,10 +206,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .args([
       "-c",
       &format!(
-        r#""{}" {bins} "{}""#,
-        quick_sharun.to_string_lossy(),
-        // TODO: check if we have to search for binaries/libraries in this folder and manually enter them here
-        app_dir_path.join("lib/").to_string_lossy()
+        r#""{}" {elfs}"#,
+        quick_sharun.to_string_lossy()
       ),
     ])
     .output_ok()
@@ -204,4 +215,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::remove_dir_all(package_dir).expect("rmdir");
   Ok(vec![appimage_path])
+}
+
+fn is_elf(path: &Path) -> bool {
+  let mut buf = [0; 4];
+  if let Ok(mut file) = fs::File::open(path) {
+    if let Ok(_) = file.read_exact(&mut buf) {
+      return buf == [0x7f, b'E', b'L', b'F'];
+    }
+  }
+  false
 }

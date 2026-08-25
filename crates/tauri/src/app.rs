@@ -1685,6 +1685,15 @@ impl Builder<crate::Cef> {
       });
     self
   }
+
+  /// Sets the CEF API version this process declares (`cef_api_hash`).
+  #[cfg(feature = "cef")]
+  pub fn cef_api_version(mut self, version: i32) -> Self {
+    self
+      .platform_specific_attributes
+      .push(tauri_runtime_cef::RuntimeInitAttribute::ApiVersion { version });
+    self
+  }
 }
 
 impl<R: Runtime> Builder<R> {

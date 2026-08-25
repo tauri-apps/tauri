@@ -87,6 +87,9 @@ pub enum RuntimeInitAttribute {
   ///
   /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
   CachePath { path: PathBuf },
+  /// CEF API version this process declares (`cef_api_hash`), defaulting to
+  /// `cef::sys::CEF_API_VERSION_LAST`.
+  ApiVersion { version: i32 },
 }
 
 impl tauri_runtime::InitAttribute for RuntimeInitAttribute {
@@ -1369,7 +1372,14 @@ impl<T: UserEvent> CefRuntime<T> {
     // The CEF API version table must be initialized before any other CEF call
     // (e.g. `args.as_cmd_line()` below), otherwise the process crashes with no
     // diagnostics.
-    let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+    let mut pl_attrs = runtime_args.platform_specific_attributes.iter();
+    let version = pl_attrs
+      .find_map(|attribute| match attribute {
+        RuntimeInitAttribute::ApiVersion { version } => Some(*version),
+        _ => None,
+      })
+      .unwrap_or(sys::CEF_API_VERSION_LAST);
+    let _ = cef::api_hash(version, 0);
 
     // Handle CEF subprocesses (renderer/GPU/utility) before any browser-only
     // setup such as building the event loop, creating cache directories, or the
@@ -1400,6 +1410,8 @@ impl<T: UserEvent> CefRuntime<T> {
         RuntimeInitAttribute::CommandLineArgs { args } => command_line_args.extend(args),
         RuntimeInitAttribute::DeepLinkSchemes { schemes } => deep_link_schemes.extend(schemes),
         RuntimeInitAttribute::CachePath { path } => cache_path_override = Some(path),
+        // Already applied, above, before the first CEF call.
+        RuntimeInitAttribute::ApiVersion { .. } => {}
       }
     }
 

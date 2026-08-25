@@ -21,10 +21,24 @@ To learn more about the details of how all of these pieces fit together, please 
 
 If you are interested in making a tauri app, please visit the [documentation website](https://tauri.app).
 
-The quickest way to get started is to install the [prerequisites](https://v2.tauri.app/start/prerequisites/) for your system and create a new project with [`create-tauri-app`](https://github.com/tauri-apps/create-tauri-app/#usage). For example with `npm`:
+The quickest way to get started is to install the [prerequisites](https://v2.tauri.app/start/prerequisites/) for your system and create a new project with [`create-tauri-app`](https://github.com/tauri-apps/create-tauri-app/#usage):
 
 ```sh
+# npm
 npm create tauri-app@latest
+
+# yarn
+yarn create tauri-app
+
+# pnpm
+pnpm create tauri-app
+
+# bun
+bun create tauri-app
+
+# cargo
+cargo install create-tauri-app --locked
+cargo create-tauri-app
 ```
 
 ## Features

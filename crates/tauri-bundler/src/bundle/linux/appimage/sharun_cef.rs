@@ -185,9 +185,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       }
     }
   }
-  let elfs = elfs
-    .into_iter()
-    .collect::<String>();
+  let elfs = elfs.into_iter().collect::<String>();
 
   // TODO: Consider to not rely on quick-sharun when we have more time
   Command::new("/bin/sh")

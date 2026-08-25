@@ -314,7 +314,10 @@ pub fn rewrite_manifest(config: &Config, tauri_dir: &Path) -> crate::Result<(Man
   for item in items {
     if let Some(features) = item.get("features") {
       if let Some(features) = features.as_array() {
-        if features.iter().any(|feature| {feature.as_str().unwrap_or_default() == "tray-icon"}) {
+        if features
+          .iter()
+          .any(|feature| feature.as_str().unwrap_or_default() == "tray-icon")
+        {
           tauri_features.insert("tray-icon".to_string());
         }
       }

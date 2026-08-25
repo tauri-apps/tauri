@@ -842,7 +842,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
       // TODO: check if x64 means no arm64
       "dxil.dll",
       "dxcompiler.dll",
-      // ANGEL support
+      // ANGLE support
       "libEGL.dll",
       "libGLESv2.dll",
       // SwANGLE support

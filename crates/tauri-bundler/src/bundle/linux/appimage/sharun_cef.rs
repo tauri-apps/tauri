@@ -95,7 +95,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       .with_context(|| "Failed to copy lib files")?;
   }
 
-  fs_utils::copy_custom_files(&settings.appimage().files, &app_dir_path)
+  fs_utils::copy_custom_files(dbg!(&settings.appimage().files), &app_dir_path)
     .with_context(|| "Failed to copy custom files")?;
 
   fs::create_dir_all(app_dir_path.join("bin/locales/"))?;
@@ -116,7 +116,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "chrome_100_percent.pak",
     "chrome_200_percent.pak",
     "resources.pak",
-    // ANGEL support
+    // ANGLE support
     "libEGL.so",
     "libGLESv2.so",
     // SwANGLE support

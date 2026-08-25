@@ -186,7 +186,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     }
   }
   let elfs = elfs
-    .map(|entry| format!(" \"{}\"", entry.path().to_string_lossy()))
+    .into_iter()
     .collect::<String>();
 
   // TODO: Consider to not rely on quick-sharun when we have more time

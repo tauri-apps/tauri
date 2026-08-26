@@ -192,9 +192,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut elfs = Vec::new();
   for entry in WalkDir::new(&app_dir) {
     if let Ok(entry) = entry
-      && entry.file_type().is_file() && is_elf(entry.path()) {
-        elfs.push(entry.path().to_string_lossy().to_string());
-      }
+      && entry.file_type().is_file()
+      && is_elf(entry.path())
+    {
+      elfs.push(entry.path().to_string_lossy().to_string());
+    }
   }
   for (target, source) in &settings.appimage().files {
     if target.starts_with("/usr/lib") {
@@ -275,8 +277,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 fn is_elf(path: &Path) -> bool {
   let mut buf = [0; 4];
   if let Ok(mut file) = fs::File::open(path)
-    && file.read_exact(&mut buf).is_ok() {
-      return buf == [0x7f, b'E', b'L', b'F'];
-    }
+    && file.read_exact(&mut buf).is_ok()
+  {
+    return buf == [0x7f, b'E', b'L', b'F'];
+  }
   false
 }

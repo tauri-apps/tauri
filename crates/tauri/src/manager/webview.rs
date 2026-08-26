@@ -72,6 +72,8 @@ pub struct WebviewManager<R: Runtime> {
   pub invoke_handler: Box<InvokeHandler<R>>,
   /// The page load hook, invoked when the webview performs a navigation.
   pub on_page_load: Option<Arc<OnPageLoad<R>>>,
+  /// The permission request hook, invoked when the webview requests a permission.
+  pub on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
   /// The web content process termination hook.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
@@ -303,6 +305,30 @@ impl<R: Runtime> WebviewManager<R> {
           handler(url, event);
         }
       }));
+
+    let permission_request_handler = pending.permission_request_handler.take();
+    if permission_request_handler.is_some() || self.on_permission_request.is_some() {
+      let label_ = pending.label.clone();
+      let app_manager_ = manager.manager_owned();
+      pending
+        .permission_request_handler
+        .replace(Box::new(move |kind| {
+          if let Some(handler) = &permission_request_handler {
+            let response = handler(kind);
+            if response != crate::webview::PermissionResponse::Default {
+              return response;
+            }
+          }
+
+          if let Some(w) = app_manager_.get_webview(&label_)
+            && let Some(on_permission_request) = &app_manager_.webview.on_permission_request
+          {
+            return on_permission_request(w, kind);
+          }
+
+          crate::webview::PermissionResponse::Default
+        }));
+    }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     if pending.on_web_content_process_terminate_handler.is_none() {

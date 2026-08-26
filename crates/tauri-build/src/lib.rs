@@ -21,7 +21,9 @@ use tauri_utils::{
 
 use std::{
   collections::HashMap,
-  env, fs,
+  env,
+  ffi::OsStr,
+  fs,
   path::{Path, PathBuf},
 };
 
@@ -51,48 +53,6 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   fs::create_dir_all(dest_dir)?;
   fs::copy(from, to)?;
   Ok(())
-}
-
-/// Resolves the directory cargo places final artifacts in for the current
-/// profile, given the profile directory `OUT_DIR` resides under.
-///
-/// The two only differ when the `build.build-dir` config (stabilized in Rust
-/// 1.100) moves intermediate artifacts away from the target directory: the
-/// executable still lands in `<target>[/<triple>]/<profile>`, so staged files
-/// must follow it there instead of sitting next to the build script output.
-/// The split is only detectable when configured through the
-/// `CARGO_BUILD_BUILD_DIR` environment variable — a `build-dir` set in
-/// `.cargo/config.toml` is not visible to build scripts, and that case still
-/// stages into the build dir.
-fn artifact_profile_dir(build_profile_dir: &Path) -> PathBuf {
-  fn resolve(build_profile_dir: &Path) -> Option<PathBuf> {
-    // `cargo metadata` reports both roots with config and template variables
-    // resolved, and the `[<triple>/]<profile>` suffix mirrors between them
-    let output = std::process::Command::new(env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-      .args(["metadata", "--format-version", "1", "--no-deps"])
-      .output()
-      .ok()?;
-    if !output.status.success() {
-      return None;
-    }
-    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
-    let target_directory = PathBuf::from(metadata.get("target_directory")?.as_str()?);
-    let build_directory = Path::new(metadata.get("build_directory")?.as_str()?);
-    let profile_suffix = build_profile_dir
-      .strip_prefix(build_directory)
-      .ok()
-      .or_else(|| {
-        build_profile_dir
-          .strip_prefix(build_directory.canonicalize().ok()?)
-          .ok()
-      })?;
-    Some(target_directory.join(profile_suffix))
-  }
-
-  if env::var_os("CARGO_BUILD_BUILD_DIR").is_none() {
-    return build_profile_dir.to_path_buf();
-  }
-  resolve(build_profile_dir).unwrap_or_else(|| build_profile_dir.to_path_buf())
 }
 
 fn copy_binaries(
@@ -223,6 +183,62 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
     }
   }
   Ok(())
+}
+
+// TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
+// resolves the profile directory `OUT_DIR` resides under, which is
+// `<dir>/build/<pkg>-<hash>/out` on stable and `<dir>/build/<pkg>/<hash>/out`
+// on recent nightlies, so we walk up to the `build` dir and take its parent
+// instead of assuming a fixed depth. This is the directory cargo places final
+// artifacts in unless the `build.build-dir` config moves intermediate
+// artifacts elsewhere — see [`artifact_profile_dir`].
+fn build_profile_dir_from_out_dir(out_dir: &Path) -> Option<&Path> {
+  out_dir
+    .ancestors()
+    .find(|path| path.file_name() == Some(OsStr::new("build")))
+    .and_then(|build_dir| build_dir.parent())
+}
+
+/// Resolves the directory cargo places final artifacts in for the current
+/// profile, given the profile directory `OUT_DIR` resides under.
+///
+/// The two only differ when the `build.build-dir` config (stabilized in Rust
+/// 1.100) moves intermediate artifacts away from the target directory: the
+/// executable still lands in `<target>[/<triple>]/<profile>`, so staged files
+/// must follow it there instead of sitting next to the build script output.
+/// The split is only detectable when configured through the
+/// `CARGO_BUILD_BUILD_DIR` environment variable — a `build-dir` set in
+/// `.cargo/config.toml` is not visible to build scripts, and that case still
+/// stages into the build dir.
+fn artifact_profile_dir(build_profile_dir: &Path) -> PathBuf {
+  fn resolve(build_profile_dir: &Path) -> Option<PathBuf> {
+    // `cargo metadata` reports both roots with config and template variables
+    // resolved, and the `[<triple>/]<profile>` suffix mirrors between them
+    let output = std::process::Command::new(env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
+      .args(["metadata", "--format-version", "1", "--no-deps"])
+      .output()
+      .ok()?;
+    if !output.status.success() {
+      return None;
+    }
+    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+    let target_directory = PathBuf::from(metadata.get("target_directory")?.as_str()?);
+    let build_directory = Path::new(metadata.get("build_directory")?.as_str()?);
+    let profile_suffix = build_profile_dir
+      .strip_prefix(build_directory)
+      .ok()
+      .or_else(|| {
+        build_profile_dir
+          .strip_prefix(build_directory.canonicalize().ok()?)
+          .ok()
+      })?;
+    Some(target_directory.join(profile_suffix))
+  }
+
+  if env::var_os("CARGO_BUILD_BUILD_DIR").is_none() {
+    return build_profile_dir.to_path_buf();
+  }
+  resolve(build_profile_dir).unwrap_or_else(|| build_profile_dir.to_path_buf())
 }
 
 // creates a cfg alias if `has_feature` is true.
@@ -402,6 +418,7 @@ pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
   capabilities_path_pattern: Option<&'static str>,
+  config_path: Option<PathBuf>,
   #[cfg(feature = "codegen")]
   codegen: Option<codegen::context::CodegenContext>,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
@@ -450,6 +467,16 @@ impl Attributes {
     I: IntoIterator<Item = (&'static str, InlinedPlugin)>,
   {
     self.inlined_plugins.extend(plugins);
+    self
+  }
+
+  /// Set the path to the `tauri.conf.json` (relative to the crate's directory).
+  ///
+  /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
+  /// the crate compiling; does not need to be set manually if that config file is in the same
+  /// directory as your `Cargo.toml`.
+  pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
+    self.config_path = Some(config_path.into());
     self
   }
 
@@ -666,25 +693,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   // when running codegen in this build script, we need to access the env var directly
   unsafe { env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple) };
 
-  // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
-  //
-  // `OUT_DIR` is `<target>/<profile>/build/<pkg>-<hash>/out` in the legacy
-  // layout and `<target>/<profile>/build/<pkg>/<hash>/out` under cargo's
-  // build-dir layout (the default since 1.100), so the profile directory is
-  // three or four levels up. Only the legacy unit directory carries the
-  // `<pkg>-` prefix — the build-dir layout splits that into a package
-  // directory holding a bare hash — so the name tells the two apart.
-  let unit_dir = out_dir.parent().unwrap();
-  let legacy_prefix = format!("{}-", env::var("CARGO_PKG_NAME").unwrap());
-  let build_dir = if unit_dir
-    .file_name()
-    .is_some_and(|name| name.to_string_lossy().starts_with(&legacy_prefix))
-  {
-    unit_dir.parent().unwrap()
-  } else {
-    unit_dir.parent().unwrap().parent().unwrap()
-  };
-  let build_profile_dir = build_dir.parent().unwrap();
+  let build_profile_dir = build_profile_dir_from_out_dir(&out_dir)
+    .with_context(|| format!("failed to resolve the build profile directory from {out_dir:?}"))?;
   let target_dir = artifact_profile_dir(build_profile_dir);
 
   if let Some(paths) = &config.bundle.external_bin {
@@ -864,7 +874,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   #[cfg(feature = "codegen")]
-  if let Some(codegen) = attributes.codegen {
+  if let Some(mut codegen) = attributes.codegen {
+    if codegen.config_path.is_none() {
+      codegen.config_path = attributes.config_path;
+    }
     codegen.try_build()?;
   }
 
@@ -970,6 +983,7 @@ fn should_static_link_vc_runtime(config: &Config, attributes: &Attributes) -> bo
 #[cfg(test)]
 mod tests {
   use semver::Version;
+  use std::path::Path;
 
   // `WindowsAttributes::new` selects the default app manifest from the
   // `cargo:runtime` instruction tauri emits; unit tests run without cargo's
@@ -989,6 +1003,37 @@ mod tests {
 
     assert_eq!(attributes.capabilities_path_pattern, Some("./caps/**/*"));
     assert!(attributes.inlined_plugins.contains_key("inlined"));
+  }
+
+  #[test]
+  fn build_profile_dir_from_stable_out_dir() {
+    let out_dir = Path::new("/app/target/debug/build/app-63ba68eead531e35/out");
+
+    assert_eq!(
+      crate::build_profile_dir_from_out_dir(out_dir),
+      Some(Path::new("/app/target/debug"))
+    );
+  }
+
+  #[test]
+  fn build_profile_dir_from_nightly_out_dir() {
+    let out_dir = Path::new("/app/target/debug/build/app/63ba68eead531e35/out");
+
+    assert_eq!(
+      crate::build_profile_dir_from_out_dir(out_dir),
+      Some(Path::new("/app/target/debug"))
+    );
+  }
+
+  #[test]
+  fn build_profile_dir_from_out_dir_with_triple() {
+    let out_dir =
+      Path::new("/app/target/aarch64-apple-darwin/release/build/app/63ba68eead531e35/out");
+
+    assert_eq!(
+      crate::build_profile_dir_from_out_dir(out_dir),
+      Some(Path::new("/app/target/aarch64-apple-darwin/release"))
+    );
   }
 
   #[test]

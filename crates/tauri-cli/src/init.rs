@@ -142,7 +142,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend dev command?",
+          "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
           Some(default_dev_command(detected_package_manager).into()),
           self.ci,
           true,
@@ -154,7 +154,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend build command?",
+          "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
           Some(default_build_command(detected_package_manager).into()),
           self.ci,
           true,

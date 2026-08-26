@@ -1256,9 +1256,9 @@ mod z85 {
     assert_eq!(bytes.len() % 4, 0);
 
     let mut buf = String::with_capacity(bytes.len() * 5 / 4);
-    for chunk in bytes.chunks_exact(4) {
+    for chunk in bytes.as_chunks::<4>().0 {
       let mut chars = [0u8; 5];
-      let mut chunk = u32::from_be_bytes(chunk.try_into().unwrap()) as usize;
+      let mut chunk = u32::from_be_bytes(*chunk) as usize;
       for byte in chars.iter_mut().rev() {
         *byte = TABLE[chunk % 85];
         chunk /= 85;

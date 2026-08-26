@@ -4,6 +4,7 @@
 
 //! A layer between raw [`Runtime`] webviews and Tauri.
 //!
+pub use crate::webview_permissions::{PermissionKind, PermissionResponse};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use crate::window::WindowId;
 use crate::{Rect, Runtime, UserEvent, window::is_label_valid};
@@ -43,6 +44,8 @@ pub type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
 pub type AddressChangedHandler = dyn Fn(&Url) + Send + Sync + 'static;
 
 pub type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
+
+type PermissionRequestHandler = dyn Fn(PermissionKind) -> PermissionResponse + Send + Sync;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 type OnWebContentProcessTerminateHandler = dyn Fn() + Send;
@@ -211,6 +214,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
 
   pub download_handler: Option<Arc<DownloadHandler>>,
 
+  pub permission_request_handler: Option<Box<PermissionRequestHandler>>,
+
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub on_web_content_process_terminate_handler: Option<Box<OnWebContentProcessTerminateHandler>>,
 }
@@ -243,6 +248,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         web_resource_request_handler: None,
         on_page_load_handler: None,
         download_handler: None,
+        permission_request_handler: None,
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         on_web_content_process_terminate_handler: None,
       })
@@ -388,6 +394,8 @@ pub struct WebviewAttributes {
   /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
   #[cfg(target_os = "ios")]
   pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
+  #[cfg(target_os = "ios")]
+  pub limit_navigations_to_app_bound_domains: bool,
 }
 
 unsafe impl Send for WebviewAttributes {}
@@ -427,6 +435,7 @@ impl From<&WindowConfig> for WebviewAttributes {
         ConfigScrollBarStyle::FluentOverlay => ScrollBarStyle::FluentOverlay,
         _ => ScrollBarStyle::Default,
       })
+      .limit_navigations_to_app_bound_domains(config.limit_navigations_to_app_bound_domains)
       .general_autofill_enabled(config.general_autofill_enabled);
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -505,6 +514,8 @@ impl WebviewAttributes {
       general_autofill_enabled: true,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
+      #[cfg(target_os = "ios")]
+      limit_navigations_to_app_bound_domains: false,
     }
   }
 
@@ -743,6 +754,65 @@ impl WebviewAttributes {
   #[must_use]
   pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
     self.allow_link_preview = allow_link_preview;
+    self
+  }
+
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  ///
+  /// Default is false.
+  ///
+  /// Note: If you pass in `true` make sure to add localhost and any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to tauri-src/Info.ios.plist:
+  ///
+  /// ```xml
+  /// <plist>
+  /// <dict>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
+  ///     </array>
+  /// </dict>
+  /// </plist>
+  /// ```
+  ///
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  ///
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  ///
+  /// See https://webkit.org/blog/10882/app-bound-domains/ and
+  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: Supported since version 14.0+.
+  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  #[must_use]
+  #[allow(unused_variables, unused_mut)]
+  pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
+    #[cfg(target_os = "ios")]
+    {
+      self.limit_navigations_to_app_bound_domains = limit_navigations;
+    }
     self
   }
 

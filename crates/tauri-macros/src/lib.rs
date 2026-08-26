@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 //! Create macros for `tauri::Context`, invoke handler and commands leveraging the `tauri-codegen` crate.
+//!
+//! Don't depend on this crate directly, use the re-exported types from tauri instead.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
@@ -143,7 +145,7 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 /// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check | Submenu);
 /// ```
 ///
-/// #### Example
+/// ## Examples
 ///
 /// ```ignore
 ///  let rid = 23;
@@ -177,9 +179,10 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 ///      let i = resources_table.get::<IconMenuItem<R>>(rid)?;
 ///      i.set_text(text)
 ///    }
-///    _ => unreachable!(),
+///    _ => return Err(crate::Error::UnexpectedMenuKind),
 ///  }
 /// ```
+#[doc(hidden)]
 #[proc_macro]
 pub fn do_menu_item(input: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(input as menu::DoMenuItemInput);

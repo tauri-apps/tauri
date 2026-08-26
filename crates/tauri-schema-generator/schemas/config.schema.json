@@ -13,7 +13,7 @@
       ]
     },
     "productName": {
-      "description": "App name.",
+      "description": "App name.\n\nThis is the name your app is known by on the user's system, so it must be changed from the\ndefault before publishing. Besides naming the generated bundles, it is written into platform\nmetadata and install paths that are expected to be unique to your application.\n\n## Platform-specific\n\n- **macOS**: Names the `.app` bundle and the `.dmg`, and sets the bundle's\n   `CFBundleDisplayName` and `CFBundleName` properties. `CFBundleName` can be overridden with\n   [`bundle > macOS > bundleName`](MacConfig::bundle_name).\n- **Linux**: Kebab-cased for the Debian and RPM package names, used as the `Name` entry of\n   the desktop file and as the resource directory name under `/usr/lib`.\n- **Windows**: Names the installers, the installation directory, the Start Menu folder and\n   the `HKCU\\Software\\<publisher>\\<product name>` registry key. It also derives the default\n   WiX upgrade code, which must be unique across applications and can be set explicitly with\n   [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code).",
       "type": [
         "string",
         "null"
@@ -35,7 +35,7 @@
       ]
     },
     "identifier": {
-      "description": "The application identifier in reverse domain name notation (e.g. `com.tauri.example`).\nThis string must be unique across applications since it is used in system configurations like\nthe bundle ID and path to the webview data directory.\nThis string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),\nand periods (.).",
+      "description": "The application identifier in reverse domain name notation (e.g. `com.tauri.example`).\nThis string must be unique across applications since it is used in system configurations like\nthe bundle ID and path to the webview data directory.\nThis string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),\nand periods (.).\nThe default value `com.tauri.dev` is rejected by `tauri build` and must be changed before\nbuilding your application.",
       "type": "string"
     },
     "app": {
@@ -483,7 +483,7 @@
           ]
         },
         "additionalBrowserArgs": {
-          "description": "Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`\nso if you use this method, you also need to disable these components by yourself if you want.",
+          "description": "Defines additional browser arguments on Windows.\n\n## Warning\n\nWebview instances with different browser arguments must also have different [data directories](Self::data_directory).\n\nBy default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`\nso if you set this, you also need to disable these components by yourself if you want.",
           "type": [
             "string",
             "null"
@@ -614,6 +614,11 @@
               "$ref": "#/definitions/ScrollBarStyle"
             }
           ]
+        },
+        "limitNavigationsToAppBoundDomains": {
+          "description": "Whether to limit navigations to App-Bound Domains. This is necessary to\nenable Service Workers on iOS according to\n[StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).\n\nDefault is false.\n\nNote: If you set this to `true` make sure to add localhost and any [`registrable\ndomains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)\nused in this webview to tauri-src/Info.ios.plist:\n\n```xml\n<plist>\n<dict>\n    <key>WKAppBoundDomains</key>\n    <array>\n        <string>localhost</string>\n        <string>aregistrabledomain.example</string>\n    </array>\n</dict>\n</plist>\n```\n\nYou must add `localhost` if any webview with this set to true opens a\nlocal webpage, makes any localhost calls, or uses the isolation pattern\nbecause Tauri uses the `localhost` domain for hosting the application\nwebpage, the IPC protocol, and the isolation pattern's iframe.\n\nRequests served through custom uri schemes are allowed so long as they use\na registrable domain specified in the `WKAppBoundDomains` array for all the\nrequests from the app, including requests for the `localhost` domain.\n\nIn theory, you can whitelist an entire uri scheme by including the\nprotocol name followed by a colon. For example, to allow all requests\nusing a custom \"stream\" uri scheme (see [this tauri\nexample](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),\nyou could add `stream:` to the AppBoundDomains array. That said, I'm not\nsure whether Apple would let your app through app review if you do\nwhitelist an entire protocol because this feature is not mentioned in\n[their blog post on App-Bound\nDomains](https://webkit.org/blog/10882/app-bound-domains/).\n\nSee https://webkit.org/blog/10882/app-bound-domains/ and\nhttps://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains\nfor the official documentation on App-Bound Domains.\n\n## Platform-specific\n\n- **iOS**: Supported since version 14.0+.\n- **Linux / Windows / Android / MacOS:** Unsupported.",
+          "type": "boolean",
+          "default": false
         },
         "activityName": {
           "description": "The name of the Android activity to create for this window.",

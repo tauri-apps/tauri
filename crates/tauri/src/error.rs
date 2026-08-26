@@ -166,6 +166,9 @@ pub enum Error {
   /// tokio oneshot channel failed to receive message
   #[error(transparent)]
   TokioOneshotRecv(#[from] tokio::sync::oneshot::error::RecvError),
+  /// Unexpected menu kind passed to menu/tray plugin command
+  #[error("Unexpected menu kind")]
+  UnexpectedMenuKind,
 }
 
 impl From<getrandom::Error> for Error {

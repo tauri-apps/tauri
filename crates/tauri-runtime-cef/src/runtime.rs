@@ -374,9 +374,9 @@ fn device_event_filter_to_winit(filter: DeviceEventFilter) -> winit::event_loop:
 pub(crate) enum EventLoopMessage {
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
-  PrimaryMonitor(Sender<Option<Monitor>>),
-  MonitorFromPoint(Sender<Option<Monitor>>, f64, f64),
-  AvailableMonitors(Sender<Vec<Monitor>>),
+  PrimaryMonitor(Sender<Result<Option<Monitor>>>),
+  MonitorFromPoint(Sender<Result<Option<Monitor>>>, f64, f64),
+  AvailableMonitors(Sender<Result<Vec<Monitor>>>),
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
   DisplayHandle(Sender<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>>),
   #[cfg(target_os = "macos")]
@@ -651,19 +651,19 @@ impl<T: UserEvent> WinitCefApp<T> {
         let monitor = event_loop
           .primary_monitor()
           .map(|monitor| winit_monitor_to_tauri_monitor(&monitor));
-        let _ = tx.send(monitor);
+        let _ = tx.send(Ok(monitor));
       }
       EventLoopMessage::MonitorFromPoint(tx, x, y) => {
         let monitor = find_monitor_from_point(event_loop.available_monitors(), x, y)
           .map(|monitor| winit_monitor_to_tauri_monitor(&monitor));
-        let _ = tx.send(monitor);
+        let _ = tx.send(Ok(monitor));
       }
       EventLoopMessage::AvailableMonitors(tx) => {
         let monitors = event_loop
           .available_monitors()
           .map(|monitor| winit_monitor_to_tauri_monitor(&monitor))
           .collect();
-        let _ = tx.send(monitors);
+        let _ = tx.send(Ok(monitors));
       }
       EventLoopMessage::SetDeviceEventFilter(filter) => {
         event_loop.listen_device_events(device_event_filter_to_winit(filter));
@@ -1178,24 +1178,22 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     Ok(unsafe { DisplayHandle::borrow_raw(raw.0) })
   }
 
-  fn primary_monitor(&self) -> Option<Monitor> {
-    event_loop_getter!(self, PrimaryMonitor).ok().flatten()
+  fn primary_monitor(&self) -> Result<Option<Monitor>> {
+    event_loop_getter!(self, PrimaryMonitor)?
   }
 
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
     let (tx, rx) = mpsc::channel();
     self
       .context
       .send_message(Message::EventLoop(EventLoopMessage::MonitorFromPoint(
         tx, x, y,
-      )))
-      .and_then(|_| rx.recv().map_err(|_| Error::FailedToReceiveMessage))
-      .ok()
-      .flatten()
+      )))?;
+    rx.recv().map_err(|_| Error::FailedToReceiveMessage)?
   }
 
-  fn available_monitors(&self) -> Vec<Monitor> {
-    event_loop_getter!(self, AvailableMonitors).unwrap_or_default()
+  fn available_monitors(&self) -> Result<Vec<Monitor>> {
+    event_loop_getter!(self, AvailableMonitors)?
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
@@ -1612,7 +1610,10 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
-    event_loop_getter!(self, PrimaryMonitor).ok().flatten()
+    event_loop_getter!(self, PrimaryMonitor)
+      .flatten()
+      .ok()
+      .unwrap_or_default()
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
@@ -1623,12 +1624,16 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
         tx, x, y,
       )))
       .and_then(|_| rx.recv().map_err(|_| Error::FailedToReceiveMessage))
+      .ok()?
       .ok()
-      .flatten()
+      .unwrap_or_default()
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
-    event_loop_getter!(self, AvailableMonitors).unwrap_or_default()
+    event_loop_getter!(self, AvailableMonitors)
+      .flatten()
+      .ok()
+      .unwrap_or_default()
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {

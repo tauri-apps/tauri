@@ -120,7 +120,7 @@ pub fn normalize(path: String) -> String {
   // and `"."` for `normalize("")` or `normalize(".")`
   if p.is_empty() && path == ".." {
     "..".into()
-  } else if p.is_empty() && path == "." {
+  } else if p.is_empty() && (path.is_empty() || path == ".") {
     ".".into()
   } else {
     // Add a trailing separator if the path passed to this functions had a trailing separator. That's how Node.js behaves.
@@ -309,5 +309,22 @@ mod tests {
     check(vec!["a", "/b", "c"], "a/b/c", r"a\b\c");
     check(vec!["a", "b/c", "d"], "a/b/c/d", r"a\b\c\d");
     check(vec!["a/", "b"], "a/b", r"a\b");
+  }
+
+  #[test]
+  fn normalize() {
+    fn check(path: &str, expected_unix: &str, expected_windows: &str) {
+      let expected = if cfg!(windows) {
+        expected_windows
+      } else {
+        expected_unix
+      };
+      assert_eq!(super::normalize(path.into()), expected);
+    }
+
+    // Same Node contract as `join(vec![""])` / the comment on `normalize`.
+    check("", ".", ".");
+    check(".", ".", ".");
+    check("..", "..", "..");
   }
 }

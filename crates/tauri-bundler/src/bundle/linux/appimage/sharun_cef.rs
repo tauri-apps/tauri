@@ -181,11 +181,28 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for entry in WalkDir::new(&app_dir_path) {
     if let Ok(entry) = entry {
       if entry.file_type().is_file() && is_elf(entry.path()) {
-        elfs.push(format!(" \"{}\"", entry.path().to_string_lossy()));
+        elfs.push(entry.path().to_string_lossy().to_string());
       }
     }
   }
-  let elfs = elfs.into_iter().collect::<String>();
+  for (target, source) in &settings.appimage().files {
+    if target.starts_with("/usr/lib") {
+      elfs.push(source.to_string_lossy().to_string());
+
+      // TODO: This ideally should not be required
+      if let Some(filename) = source.file_name()
+        && filename.to_string_lossy().contains("appindicator")
+      {
+        fs::copy(source, app_dir_path.join("bin/").join(filename))
+          .with_context(|| format!("Failed to copy appindicator .so file {}", source.display()))?;
+        elfs.push(app_dir_path.join("bin/").join(filename).to_string_lossy().to_string());
+      }
+    }
+  }
+  let elfs = elfs
+    .into_iter()
+    .map(|entry| format!(" \"{entry}\""))
+    .collect::<String>();
 
   // TODO: Consider to not rely on quick-sharun when we have more time
   Command::new("/bin/sh")

@@ -203,61 +203,63 @@ mod windows {
     _: usize,
     data: usize,
   ) -> LRESULT {
-    match msg {
-      WM_SIZE => {
-        let data = data as *mut UndecoratedResizingData;
-        let data = &*data;
-        let child = data.child;
-        let has_undecorated_shadows = data.has_undecorated_shadows;
+    unsafe {
+      match msg {
+        WM_SIZE => {
+          let data = data as *mut UndecoratedResizingData;
+          let data = &*data;
+          let child = data.child;
+          let has_undecorated_shadows = data.has_undecorated_shadows;
 
-        // when parent is maximized, remove the undecorated window drag resize region
-        if is_maximized(parent).unwrap_or(false) {
-          let _ = SetWindowPos(
-            child,
-            Some(HWND_TOP),
-            0,
-            0,
-            0,
-            0,
-            SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOMOVE,
-          );
-        } else {
-          // otherwise update the cutout region
-          let mut rect = RECT::default();
-          if GetClientRect(parent, &mut rect).is_ok() {
-            let width = rect.right - rect.left;
-            let height = rect.bottom - rect.top;
-
+          // when parent is maximized, remove the undecorated window drag resize region
+          if is_maximized(parent).unwrap_or(false) {
             let _ = SetWindowPos(
               child,
               Some(HWND_TOP),
               0,
               0,
-              width,
-              height,
+              0,
+              0,
               SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOMOVE,
             );
+          } else {
+            // otherwise update the cutout region
+            let mut rect = RECT::default();
+            if GetClientRect(parent, &mut rect).is_ok() {
+              let width = rect.right - rect.left;
+              let height = rect.bottom - rect.top;
 
-            set_drag_hwnd_rgn(child, width, height, has_undecorated_shadows);
+              let _ = SetWindowPos(
+                child,
+                Some(HWND_TOP),
+                0,
+                0,
+                width,
+                height,
+                SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOMOVE,
+              );
+
+              set_drag_hwnd_rgn(child, width, height, has_undecorated_shadows);
+            }
           }
         }
+
+        WM_UPDATE_UNDECORATED_SHADOWS => {
+          let data = data as *mut UndecoratedResizingData;
+          let data = &mut *data;
+          data.has_undecorated_shadows = wparam.0 != 0;
+        }
+
+        WM_NCDESTROY => {
+          let data = data as *mut UndecoratedResizingData;
+          drop(Box::from_raw(data));
+        }
+
+        _ => {}
       }
 
-      WM_UPDATE_UNDECORATED_SHADOWS => {
-        let data = data as *mut UndecoratedResizingData;
-        let data = &mut *data;
-        data.has_undecorated_shadows = wparam.0 != 0;
-      }
-
-      WM_NCDESTROY => {
-        let data = data as *mut UndecoratedResizingData;
-        drop(Box::from_raw(data));
-      }
-
-      _ => {}
+      DefSubclassProc(parent, msg, wparam, lparam)
     }
-
-    DefSubclassProc(parent, msg, wparam, lparam)
   }
 
   unsafe extern "system" fn drag_resize_window_proc(
@@ -266,94 +268,49 @@ mod windows {
     wparam: WPARAM,
     lparam: LPARAM,
   ) -> LRESULT {
-    match msg {
-      WM_CREATE => {
-        let data = lparam.0 as *mut CREATESTRUCTW;
-        let data = (*data).lpCreateParams as *mut UndecoratedResizingData;
-        (*data).child = child;
-        SetWindowLongPtrW(child, GWLP_USERDATA, data as _);
-      }
-
-      WM_NCHITTEST => {
-        let data = GetWindowLongPtrW(child, GWLP_USERDATA);
-        let data = &*(data as *mut UndecoratedResizingData);
-
-        let Ok(parent) = GetParent(child) else {
-          return DefWindowProcW(child, msg, wparam, lparam);
-        };
-        let style = GetWindowLongPtrW(parent, GWL_STYLE);
-        let style = WINDOW_STYLE(style as u32);
-
-        let is_resizable = (style & WS_SIZEBOX).0 != 0;
-        if !is_resizable {
-          return DefWindowProcW(child, msg, wparam, lparam);
+    unsafe {
+      match msg {
+        WM_CREATE => {
+          let data = lparam.0 as *mut CREATESTRUCTW;
+          let data = (*data).lpCreateParams as *mut UndecoratedResizingData;
+          (*data).child = child;
+          SetWindowLongPtrW(child, GWLP_USERDATA, data as _);
         }
 
-        // if the window has undecorated shadows,
-        // it should always be the top border,
-        // ensured by the cutout drag window
-        if data.has_undecorated_shadows {
-          return LRESULT(HTTOP as _);
-        }
+        WM_NCHITTEST => {
+          let data = GetWindowLongPtrW(child, GWLP_USERDATA);
+          let data = &*(data as *mut UndecoratedResizingData);
 
-        let mut rect = RECT::default();
-        if GetWindowRect(child, &mut rect).is_err() {
-          return DefWindowProcW(child, msg, wparam, lparam);
-        }
+          let Ok(parent) = GetParent(child) else {
+            return DefWindowProcW(child, msg, wparam, lparam);
+          };
+          let style = GetWindowLongPtrW(parent, GWL_STYLE);
+          let style = WINDOW_STYLE(style as u32);
 
-        let (cx, cy) = (GET_X_LPARAM(lparam) as i32, GET_Y_LPARAM(lparam) as i32);
+          let is_resizable = (style & WS_SIZEBOX).0 != 0;
+          if !is_resizable {
+            return DefWindowProcW(child, msg, wparam, lparam);
+          }
 
-        let dpi = unsafe { util::hwnd_dpi(child) };
-        let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
-        let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
+          // if the window has undecorated shadows,
+          // it should always be the top border,
+          // ensured by the cutout drag window
+          if data.has_undecorated_shadows {
+            return LRESULT(HTTOP as _);
+          }
 
-        let res = hit_test(
-          rect.left,
-          rect.top,
-          rect.right,
-          rect.bottom,
-          cx,
-          cy,
-          border_x,
-          border_y,
-        );
-
-        return LRESULT(res.to_win32() as _);
-      }
-
-      WM_NCLBUTTONDOWN => {
-        let data = GetWindowLongPtrW(child, GWLP_USERDATA);
-        let data = &*(data as *mut UndecoratedResizingData);
-
-        let Ok(parent) = GetParent(child) else {
-          return DefWindowProcW(child, msg, wparam, lparam);
-        };
-        let style = GetWindowLongPtrW(parent, GWL_STYLE);
-        let style = WINDOW_STYLE(style as u32);
-
-        let is_resizable = (style & WS_SIZEBOX).0 != 0;
-        if !is_resizable {
-          return DefWindowProcW(child, msg, wparam, lparam);
-        }
-
-        let (cx, cy) = (GET_X_LPARAM(lparam) as i32, GET_Y_LPARAM(lparam) as i32);
-
-        // if the window has undecorated shadows,
-        // it should always be the top border,
-        // ensured by the cutout drag window
-        let res = if data.has_undecorated_shadows {
-          HitTestResult::Top
-        } else {
           let mut rect = RECT::default();
           if GetWindowRect(child, &mut rect).is_err() {
             return DefWindowProcW(child, msg, wparam, lparam);
           }
 
+          let (cx, cy) = (GET_X_LPARAM(lparam) as i32, GET_Y_LPARAM(lparam) as i32);
+
           let dpi = unsafe { util::hwnd_dpi(child) };
           let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
           let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
-          hit_test(
+          let res = hit_test(
             rect.left,
             rect.top,
             rect.right,
@@ -362,42 +319,89 @@ mod windows {
             cy,
             border_x,
             border_y,
-          )
-        };
-
-        if res != HitTestResult::NoWhere {
-          let points = POINTS {
-            x: cx as i16,
-            y: cy as i16,
-          };
-
-          let _ = PostMessageW(
-            Some(parent),
-            WM_NCLBUTTONDOWN,
-            WPARAM(res.to_win32() as _),
-            LPARAM(&points as *const _ as _),
           );
+
+          return LRESULT(res.to_win32() as _);
         }
 
-        return LRESULT(0);
+        WM_NCLBUTTONDOWN => {
+          let data = GetWindowLongPtrW(child, GWLP_USERDATA);
+          let data = &*(data as *mut UndecoratedResizingData);
+
+          let Ok(parent) = GetParent(child) else {
+            return DefWindowProcW(child, msg, wparam, lparam);
+          };
+          let style = GetWindowLongPtrW(parent, GWL_STYLE);
+          let style = WINDOW_STYLE(style as u32);
+
+          let is_resizable = (style & WS_SIZEBOX).0 != 0;
+          if !is_resizable {
+            return DefWindowProcW(child, msg, wparam, lparam);
+          }
+
+          let (cx, cy) = (GET_X_LPARAM(lparam) as i32, GET_Y_LPARAM(lparam) as i32);
+
+          // if the window has undecorated shadows,
+          // it should always be the top border,
+          // ensured by the cutout drag window
+          let res = if data.has_undecorated_shadows {
+            HitTestResult::Top
+          } else {
+            let mut rect = RECT::default();
+            if GetWindowRect(child, &mut rect).is_err() {
+              return DefWindowProcW(child, msg, wparam, lparam);
+            }
+
+            let dpi = unsafe { util::hwnd_dpi(child) };
+            let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
+            let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
+
+            hit_test(
+              rect.left,
+              rect.top,
+              rect.right,
+              rect.bottom,
+              cx,
+              cy,
+              border_x,
+              border_y,
+            )
+          };
+
+          if res != HitTestResult::NoWhere {
+            let points = POINTS {
+              x: cx as i16,
+              y: cy as i16,
+            };
+
+            let _ = PostMessageW(
+              Some(parent),
+              WM_NCLBUTTONDOWN,
+              WPARAM(res.to_win32() as _),
+              LPARAM(&points as *const _ as _),
+            );
+          }
+
+          return LRESULT(0);
+        }
+
+        WM_UPDATE_UNDECORATED_SHADOWS => {
+          let data = GetWindowLongPtrW(child, GWLP_USERDATA);
+          let data = &mut *(data as *mut UndecoratedResizingData);
+          data.has_undecorated_shadows = wparam.0 != 0;
+        }
+
+        WM_NCDESTROY => {
+          let data = GetWindowLongPtrW(child, GWLP_USERDATA);
+          let data = data as *mut UndecoratedResizingData;
+          drop(Box::from_raw(data));
+        }
+
+        _ => {}
       }
 
-      WM_UPDATE_UNDECORATED_SHADOWS => {
-        let data = GetWindowLongPtrW(child, GWLP_USERDATA);
-        let data = &mut *(data as *mut UndecoratedResizingData);
-        data.has_undecorated_shadows = wparam.0 != 0;
-      }
-
-      WM_NCDESTROY => {
-        let data = GetWindowLongPtrW(child, GWLP_USERDATA);
-        let data = data as *mut UndecoratedResizingData;
-        drop(Box::from_raw(data));
-      }
-
-      _ => {}
+      DefWindowProcW(child, msg, wparam, lparam)
     }
-
-    DefWindowProcW(child, msg, wparam, lparam)
   }
 
   pub fn detach_resize_handler(hwnd: isize) {
@@ -411,32 +415,34 @@ mod windows {
   }
 
   unsafe fn set_drag_hwnd_rgn(hwnd: HWND, width: i32, height: i32, only_top: bool) {
-    // The window used for drag resizing an undecorated window
-    // is a child HWND that covers the whole window
-    // and so we need create a cut out in the middle for the parent and other child
-    // windows like the webview can receive mouse events.
+    unsafe {
+      // The window used for drag resizing an undecorated window
+      // is a child HWND that covers the whole window
+      // and so we need create a cut out in the middle for the parent and other child
+      // windows like the webview can receive mouse events.
 
-    let dpi = unsafe { util::hwnd_dpi(hwnd) };
-    let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
-    let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
+      let dpi = unsafe { util::hwnd_dpi(hwnd) };
+      let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
+      let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
-    // hrgn1 must be mutable to call .free() later
-    let mut hrgn1 = CreateRectRgn(0, 0, width, height);
+      // hrgn1 must be mutable to call .free() later
+      let mut hrgn1 = CreateRectRgn(0, 0, width, height);
 
-    let x1 = if only_top { 0 } else { border_x };
-    let y1 = border_y;
-    let x2 = if only_top { width } else { width - border_x };
-    let y2 = if only_top { height } else { height - border_y };
+      let x1 = if only_top { 0 } else { border_x };
+      let y1 = border_y;
+      let x2 = if only_top { width } else { width - border_x };
+      let y2 = if only_top { height } else { height - border_y };
 
-    // Wrap hrgn2 in Owned so it is automatically freed when going out of scope
-    let hrgn2 = Owned::new(CreateRectRgn(x1, y1, x2, y2));
+      // Wrap hrgn2 in Owned so it is automatically freed when going out of scope
+      let hrgn2 = Owned::new(CreateRectRgn(x1, y1, x2, y2));
 
-    CombineRgn(Some(hrgn1), Some(hrgn1), Some(*hrgn2), RGN_DIFF);
+      CombineRgn(Some(hrgn1), Some(hrgn1), Some(*hrgn2), RGN_DIFF);
 
-    // Try to set the window region
-    if SetWindowRgn(hwnd, Some(hrgn1), true) == 0 {
-      // If it fails, we must free hrgn1 manually
-      hrgn1.free();
+      // Try to set the window region
+      if SetWindowRgn(hwnd, Some(hrgn1), true) == 0 {
+        // If it fails, we must free hrgn1 manually
+        hrgn1.free();
+      }
     }
   }
 

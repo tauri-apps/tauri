@@ -4247,14 +4247,14 @@ fn handle_event_loop<T: UserEvent>(
     Event::RedrawRequested(id) => {
       if let Some(window_id) = window_id_map.get(&id) {
         let mut windows_ref = windows.0.borrow_mut();
-        if let Some(window) = windows_ref.get_mut(&window_id) {
-          if window.is_window_transparent {
-            let background_color = window.background_color;
-            if let Some(surface) = &mut window.surface {
-              if let Some(window) = &window.inner {
-                window.draw_surface(surface, background_color);
-              }
-            }
+        if let Some(window) = windows_ref.get_mut(&window_id)
+          && window.is_window_transparent
+        {
+          let background_color = window.background_color;
+          if let Some(surface) = &mut window.surface
+            && let Some(window) = &window.inner
+          {
+            window.draw_surface(surface, background_color);
           }
         }
       }

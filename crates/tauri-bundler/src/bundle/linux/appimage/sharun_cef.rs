@@ -65,7 +65,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // github doesn't send a Last-Modified header
   // if !quick_sharun.exists() {}
   let data = download(
-    "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
+    "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
   )?;
   write_and_make_executable(&quick_sharun, data)?;
 
@@ -217,6 +217,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .env("APPDIR", &app_dir)
     // At least on my local machine this was required, worked fine without in CI / using published tauri-apps/cli-cef.
     .env("MAIN_BIN", app_dir_bin.join(settings.main_binary()?.name()))
+    .env("OUTPUT_APPIMAGE", "1")
     .env("OUTNAME", &appimage_filename)
     .env("HOOKSRC", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/hooks")
     .env("DEPLOY_CHROMIUM", "1")
@@ -225,40 +226,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       "-c",
       &format!(
         r#""{}" {elfs}"#,
-        quick_sharun.to_string_lossy()
-      ),
-    ])
-    .output_ok()
-    .context("quick-sharun command failed to run.")?;
-
-  // This is super messed up but sharun or anylinux or whatever does not
-  // intercept `libloading::Library::new` here https://github.com/tauri-apps/libappindicator-rs/blob/main/sys/src/lib.rs#L14C43-L22
-  if app_dir_lib.join("libayatana-appindicator3.so.1").exists() {
-    std::os::unix::fs::symlink(
-      app_dir_lib.join("libayatana-appindicator3.so.1"),
-      app_dir_bin.join("libayatana-appindicator3.so.1"),
-    )?;
-  }
-  if app_dir_lib.join("libappindicator3.so.1").exists() {
-    std::os::unix::fs::symlink(
-      app_dir_lib.join("libappindicator3.so.1"),
-      app_dir_bin.join("libappindicator3.so.1"),
-    )?;
-  }
-
-  Command::new("/bin/sh")
-    .current_dir(&output_path)
-    .env("APPDIR", &app_dir)
-    // At least on my local machine this was required, worked fine without in CI / using published tauri-apps/cli-cef.
-    .env("MAIN_BIN", app_dir_bin.join(settings.main_binary()?.name()))
-    .env("OUTNAME", &appimage_filename)
-    .env("HOOKSRC", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/hooks")
-    .env("DEPLOY_CHROMIUM", "1")
-    .env("ADD_HOOKS", "fix-namespaces.hook")
-    .args([
-      "-c",
-      &format!(
-        r#""{}" --make-appimage"#,
         quick_sharun.to_string_lossy()
       ),
     ])

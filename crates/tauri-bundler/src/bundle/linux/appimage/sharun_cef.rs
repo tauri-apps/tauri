@@ -51,8 +51,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   );
   let appimage_path = output_path.join(&appimage_filename);
 
-  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
-
   let tools_path = settings
     .local_tools_directory()
     .map(|d| d.join(".tauri"))
@@ -70,6 +68,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
   )?;
   write_and_make_executable(&quick_sharun, data)?;
+
+  // This should come after the download or users will think it's stuck on the download step.
+  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
+
 
   let mut settings = settings.clone();
   if settings.main_binary()?.name().contains(' ') {
@@ -198,18 +200,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       elfs.push(entry.path().to_string_lossy().to_string());
     }
   }
+  // This is mostly for libappindicator that we added to /usr/lib in tauri-cli/src/interface/rust.rs
   for (target, source) in &settings.appimage().files {
     if target.starts_with("/usr/lib") {
       elfs.push(source.to_string_lossy().to_string());
-
-      // TODO: This ideally should not be required
-      if let Some(filename) = source.file_name()
-        && filename.to_string_lossy().contains("appindicator")
-      {
-        fs::copy(source, app_dir_bin.join(filename))
-          .with_context(|| format!("Failed to copy appindicator .so file {}", source.display()))?;
-        elfs.push(app_dir_bin.join(filename).to_string_lossy().to_string());
-      }
     }
   }
   let elfs = elfs
@@ -245,10 +239,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       app_dir_bin.join("libayatana-appindicator3.so.1"),
     )?;
   }
-  if app_dir_lib.join("libayatana-appindicator3.so.1").exists() {
+  if app_dir_lib.join("libappindicator3.so.1").exists() {
     std::os::unix::fs::symlink(
-      app_dir_lib.join("libayatana-appindicator3.so.1"),
-      app_dir_bin.join("libayatana-appindicator3.so.1"),
+      app_dir_lib.join("libappindicator3.so.1"),
+      app_dir_bin.join("libappindicator3.so.1"),
     )?;
   }
 

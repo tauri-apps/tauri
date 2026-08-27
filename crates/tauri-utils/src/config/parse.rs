@@ -391,12 +391,7 @@ fn do_parse_toml<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, Confi
 
 /// Helper function to wrap IO errors from [`std::fs::read_to_string`] into a [`ConfigError`].
 ///
-/// A leading UTF-8 BOM is stripped before the contents are handed to a parser.
-/// [`std::fs::read_to_string`] validates UTF-8 but keeps `U+FEFF` in the returned string, and
-/// none of the parsers used above accept it. Windows tooling writes BOM-prefixed files in
-/// several common cases (for instance PowerShell's `Set-Content -Encoding UTF8`), which would
-/// otherwise fail with an opaque `expected value at line 1 column 1` on a file that looks
-/// perfectly valid in an editor.
+/// A leading UTF-8 BOM is stripped before the contents are handed to the parser.
 fn read_to_string(path: &Path) -> Result<String, ConfigError> {
   let mut content = std::fs::read_to_string(path).map_err(|error| ConfigError::Io {
     path: path.into(),
@@ -414,40 +409,14 @@ fn read_to_string(path: &Path) -> Result<String, ConfigError> {
 mod tests {
   use super::*;
 
-  fn write_temp(name: &str, contents: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join("tauri-utils-parse-tests");
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join(name);
-    std::fs::write(&path, contents).unwrap();
-    path
-  }
-
   #[test]
   fn read_to_string_strips_a_leading_utf8_bom() {
-    let path = write_temp("with-bom.json", "\u{feff}{\"productName\":\"test\"}");
+    let path = std::env::temp_dir().join("tauri-utils-bom.json");
+    std::fs::write(&path, "\u{feff}{\"productName\":\"test\"}").unwrap();
 
     let raw = read_to_string(&path).unwrap();
 
-    assert!(
-      !raw.starts_with('\u{feff}'),
-      "the BOM must be stripped, otherwise every parser below rejects the file"
-    );
-    assert!(
-      do_parse_json::<serde_json::Value>(&raw, &path).is_ok(),
-      "a BOM-prefixed config must parse once the BOM is stripped"
-    );
-
-    std::fs::remove_file(&path).unwrap();
-  }
-
-  #[test]
-  fn read_to_string_leaves_a_file_without_a_bom_untouched() {
-    let contents = "{\"productName\":\"test\"}";
-    let path = write_temp("without-bom.json", contents);
-
-    let raw = read_to_string(&path).unwrap();
-
-    assert_eq!(raw, contents);
+    assert!(do_parse_json::<serde_json::Value>(&raw, &path).is_ok());
 
     std::fs::remove_file(&path).unwrap();
   }

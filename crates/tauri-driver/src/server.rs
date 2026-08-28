@@ -26,6 +26,13 @@ use tokio::net::TcpListener;
 
 const TAURI_OPTIONS: &str = "tauri:options";
 
+// WebDriver BiDi capability auto-injected by clients like WebdriverIO 9+.
+// tauri-driver does not proxy the BiDi websocket and native drivers without
+// BiDi support (WebKitGTK < 2.46) reject sessions requesting it, so it is
+// stripped before forwarding. BiDi is additive; clients fall back to classic
+// WebDriver.
+const BIDI_CAPABILITY: &str = "webSocketUrl";
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TauriOptions {
@@ -152,6 +159,8 @@ fn map_capabilities(mut json: Value) -> Value {
         }
       }
     }
+
+    strip_bidi_capabilities(capabilities);
   }
 
   if let Some(native) = native {
@@ -164,6 +173,28 @@ fn map_capabilities(mut json: Value) -> Value {
   }
 
   json
+}
+
+/// Removes WebDriver BiDi capabilities the native driver may not honor,
+/// from both `alwaysMatch` and every `firstMatch` entry.
+fn strip_bidi_capabilities(capabilities: &mut Value) {
+  if let Some(always_match) = capabilities
+    .get_mut("alwaysMatch")
+    .and_then(Value::as_object_mut)
+  {
+    always_match.remove(BIDI_CAPABILITY);
+  }
+
+  if let Some(first_match) = capabilities
+    .get_mut("firstMatch")
+    .and_then(Value::as_array_mut)
+  {
+    for entry in first_match.iter_mut() {
+      if let Some(entry) = entry.as_object_mut() {
+        entry.remove(BIDI_CAPABILITY);
+      }
+    }
+  }
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -242,4 +273,38 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn strips_bidi_from_always_match_and_first_match() {
+    let json = json!({
+      "capabilities": {
+        "alwaysMatch": { "browserName": "wry", "webSocketUrl": true },
+        "firstMatch": [{ "webSocketUrl": true }, { "browserName": "wry" }]
+      }
+    });
+
+    let mapped = map_capabilities(json);
+    let capabilities = &mapped["capabilities"];
+
+    assert!(capabilities["alwaysMatch"].get("webSocketUrl").is_none());
+    assert_eq!(capabilities["alwaysMatch"]["browserName"], "wry");
+    for entry in capabilities["firstMatch"].as_array().unwrap() {
+      assert!(entry.get("webSocketUrl").is_none());
+    }
+  }
+
+  #[test]
+  fn strip_ignores_non_object_entries() {
+    let mut capabilities = json!({
+      "alwaysMatch": true,
+      "firstMatch": [1, "x", { "webSocketUrl": true }]
+    });
+    strip_bidi_capabilities(&mut capabilities);
+    assert!(capabilities["firstMatch"][2].get("webSocketUrl").is_none());
+  }
 }

@@ -1956,28 +1956,27 @@ tauri::Builder::default()
       && invoke.acl.is_none()
     {
       #[cfg(debug_assertions)]
-      {
+      let message = {
         let (key, command_name) = plugin_command
           .clone()
           .unwrap_or_else(|| (tauri_utils::acl::APP_ACL_KEY, request.cmd.clone()));
-        invoke.resolver.reject(
-          manager
-            .runtime_authority
-            .lock()
-            .unwrap()
-            .resolve_access_message(
-              key,
-              &command_name,
-              invoke.message.webview.window().label(),
-              invoke.message.webview.label(),
-              &acl_origin,
-            ),
-        );
-      }
+        manager
+          .runtime_authority
+          .lock()
+          .unwrap()
+          .resolve_access_message(
+            key,
+            &command_name,
+            invoke.message.webview.window().label(),
+            invoke.message.webview.label(),
+            &acl_origin,
+          )
+      };
       #[cfg(not(debug_assertions))]
-      invoke
-        .resolver
-        .reject(format!("Command {} not allowed by ACL", request.cmd));
+      let message = format!("Command {} not allowed by ACL", request.cmd);
+
+      log::error!("{message}");
+      invoke.resolver.reject(message);
       return;
     }
 

@@ -405,9 +405,17 @@ impl<R: Runtime> AppManager<R> {
 
     let mut asset_path = AssetKey::from(path.as_str());
 
+    // a missing subresource (script, style, image, ...) must never resolve to
+    // an HTML document; skipping the fallback chain lets the protocol handler
+    // answer 404 instead of `index.html` with a misleading mime type
+    let use_fallbacks = !tauri_utils::mime_type::has_subresource_extension(&path);
+
     let asset_response = assets
       .get(&asset_path)
       .or_else(|| {
+        if !use_fallbacks {
+          return None;
+        }
         log::debug!("Asset `{path}` not found; fallback to {path}.html");
         let fallback = format!("{path}.html").into();
         let asset = assets.get(&fallback);
@@ -415,6 +423,9 @@ impl<R: Runtime> AppManager<R> {
         asset
       })
       .or_else(|| {
+        if !use_fallbacks {
+          return None;
+        }
         log::debug!("Asset `{path}` not found; fallback to {path}/index.html",);
         let fallback = format!("{path}/index.html").into();
         let asset = assets.get(&fallback);
@@ -422,15 +433,22 @@ impl<R: Runtime> AppManager<R> {
         asset
       })
       .or_else(|| {
-        log::debug!("Asset `{path}` not found; fallback to index.html");
+        if !use_fallbacks {
+          return None;
+        }
         let fallback = AssetKey::from("index.html");
         let asset = assets.get(&fallback);
+        if asset.is_some() {
+          log::warn!("asset `{path}` not found; serving `index.html` instead (SPA fallback)");
+        }
         asset_path = fallback;
         asset
       })
-      .ok_or_else(|| {
+      .ok_or_else(|| -> Box<dyn std::error::Error> {
         let error = crate::Error::AssetNotFound(path.clone());
         log::error!("{error}");
+        // the explicit coercion keeps the boxed value downcastable to
+        // `crate::Error` (a plain `Box::new` would be boxed again by `?`)
         Box::new(error)
       })?;
 
@@ -730,6 +748,96 @@ mod tests {
       "1 is awesome, 2 is amazing",
     )] {
       assert_eq!(replace_with_callback(src, pattern, replacement), result);
+    }
+  }
+}
+
+#[cfg(test)]
+mod asset_tests {
+  use crate::{
+    sealed::ManagerBase,
+    test::{mock_builder, mock_context, MockRuntime},
+    App,
+  };
+  use std::borrow::Cow;
+  use tauri_utils::assets::{AssetKey, AssetsIter, CspHash};
+
+  struct MapAssets(std::collections::HashMap<&'static str, &'static [u8]>);
+
+  impl crate::Assets<MockRuntime> for MapAssets {
+    fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
+      self.0.get(key.as_ref()).copied().map(Cow::Borrowed)
+    }
+
+    fn iter(&self) -> Box<AssetsIter<'_>> {
+      Box::new(
+        self
+          .0
+          .iter()
+          .map(|(k, b)| (Cow::Borrowed(*k), Cow::Borrowed(*b))),
+      )
+    }
+
+    fn csp_hashes(&self, _html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
+      Box::new(std::iter::empty())
+    }
+  }
+
+  fn app() -> App<MockRuntime> {
+    let assets = MapAssets(
+      [
+        ("/index.html", b"<html>index</html>" as &[u8]),
+        ("/about.html", b"<html>about</html>" as &[u8]),
+        ("/docs/index.html", b"<html>docs</html>" as &[u8]),
+        ("/app.js", b"console.log('app')" as &[u8]),
+      ]
+      .into(),
+    );
+    mock_builder().build(mock_context(assets)).unwrap()
+  }
+
+  fn get_bytes(app: &App<MockRuntime>, path: &str) -> Vec<u8> {
+    app.manager().get_asset(path.into(), false).unwrap().bytes
+  }
+
+  #[test]
+  fn exact_asset_is_served_with_correct_mime() {
+    let app = app();
+    let asset = app.manager().get_asset("/app.js".into(), false).unwrap();
+    assert_eq!(asset.mime_type, "text/javascript");
+    assert_eq!(asset.bytes.as_slice(), b"console.log('app')");
+  }
+
+  #[test]
+  fn html_fallbacks_apply_to_extensionless_paths() {
+    let app = app();
+    // empty path resolves to index.html
+    assert_eq!(get_bytes(&app, "").as_slice(), b"<html>index</html>");
+    // `{path}.html` fallback
+    assert_eq!(get_bytes(&app, "/about").as_slice(), b"<html>about</html>");
+    // `{path}/index.html` fallback
+    assert_eq!(get_bytes(&app, "/docs").as_slice(), b"<html>docs</html>");
+    // SPA fallback
+    assert_eq!(get_bytes(&app, "/route").as_slice(), b"<html>index</html>");
+    // dotted routes without a subresource extension keep the SPA fallback
+    assert_eq!(
+      get_bytes(&app, "/product/v1.2").as_slice(),
+      b"<html>index</html>"
+    );
+  }
+
+  #[test]
+  fn missing_subresource_is_not_found() {
+    let app = app();
+    for path in ["/missing.js", "/missing.css", "/assets/missing.png"] {
+      let error = app.manager().get_asset(path.into(), false).err().unwrap();
+      assert!(
+        matches!(
+          error.downcast_ref::<crate::Error>(),
+          Some(crate::Error::AssetNotFound(p)) if *p == path[1..]
+        ),
+        "expected AssetNotFound for {path}"
+      );
     }
   }
 }

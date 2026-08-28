@@ -8,6 +8,75 @@ use std::fmt;
 
 const MIMETYPE_PLAIN: &str = "text/plain";
 
+/// File extensions identifying static subresources (scripts, styles, images,
+/// fonts, media, data files) that a webview requests as part of a document
+/// and that should never resolve to an HTML document.
+const SUBRESOURCE_EXTENSIONS: &[&str] = &[
+  "js",
+  "mjs",
+  "cjs",
+  "css",
+  "map",
+  "json",
+  "jsonld",
+  "wasm",
+  "webmanifest",
+  "xml",
+  "csv",
+  "txt",
+  "rtf",
+  "pdf",
+  "zip",
+  "gz",
+  "bin",
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "avif",
+  "svg",
+  "ico",
+  "bmp",
+  "woff",
+  "woff2",
+  "ttf",
+  "otf",
+  "eot",
+  "mp3",
+  "mp4",
+  "webm",
+  "ogg",
+  "wav",
+  "m4a",
+  "aac",
+  "flac",
+];
+
+/// Whether the URI path's last segment has a file extension that identifies a
+/// static subresource (script, style, image, font, media or data file).
+///
+/// Used to decide whether a missing asset may fall back to an HTML document
+/// (SPA routing) or must be reported as not found. Deliberately matches a
+/// conservative allowlist so that dotted URL routes like `/product/v1.2` are
+/// not treated as subresources.
+pub fn has_subresource_extension(path: &str) -> bool {
+  path
+    .rsplit('/')
+    .next()
+    .and_then(|segment| {
+      segment
+        .rsplit_once('.')
+        .filter(|(stem, _)| !stem.is_empty())
+        .map(|(_, extension)| extension)
+    })
+    .is_some_and(|extension| {
+      SUBRESOURCE_EXTENSIONS
+        .iter()
+        .any(|known| extension.eq_ignore_ascii_case(known))
+    })
+}
+
 /// [Web Compatible MimeTypes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#important_mime_types_for_web_developers)
 #[allow(missing_docs)]
 pub enum MimeType {
@@ -150,5 +219,23 @@ mod tests {
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.app").to_string();
     assert_eq!(custom_scheme, String::from("text/html"));
+  }
+
+  #[test]
+  fn should_detect_subresource_extensions() {
+    assert!(has_subresource_extension("/app.js"));
+    assert!(has_subresource_extension("/assets/font.woff2"));
+    assert!(has_subresource_extension("/A.JS"));
+    assert!(has_subresource_extension("/bundle.min.js"));
+    assert!(has_subresource_extension("style.css"));
+
+    assert!(!has_subresource_extension("/about"));
+    assert!(!has_subresource_extension("/about.html"));
+    assert!(!has_subresource_extension("/product/v1.2"));
+    assert!(!has_subresource_extension("/"));
+    assert!(!has_subresource_extension(""));
+    assert!(!has_subresource_extension("/.well-known"));
+    assert!(!has_subresource_extension("/file.unknownext"));
+    assert!(!has_subresource_extension("/dir.js/route"));
   }
 }

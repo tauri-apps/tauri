@@ -31,6 +31,66 @@ async fn get_all_webviews<R: Runtime>(app: AppHandle<R>) -> Vec<WebviewRef> {
     .collect()
 }
 
+/// A console message or page error forwarded by the console capture script.
+#[derive(serde::Deserialize)]
+pub struct JsLogPayload {
+  /// The console level (`error`, `warn`, `info`, `log`, `debug`, ...).
+  pub level: String,
+  /// The stringified message.
+  pub message: String,
+  /// The source URL, when available.
+  #[serde(default)]
+  pub url: Option<String>,
+  /// The source line, when available.
+  #[serde(default)]
+  pub line: Option<u32>,
+  /// The source column, when available.
+  #[serde(default)]
+  pub col: Option<u32>,
+  /// The error stack, when available.
+  #[serde(default)]
+  pub stack: Option<String>,
+}
+
+fn js_log_level(level: &str) -> log::Level {
+  match level {
+    "error" => log::Level::Error,
+    "warn" => log::Level::Warn,
+    "debug" => log::Level::Debug,
+    "trace" => log::Level::Trace,
+    _ => log::Level::Info,
+  }
+}
+
+fn log_js_message(label: &str, payload: &JsLogPayload) {
+  let location = match (&payload.url, payload.line, payload.col) {
+    (Some(url), Some(line), Some(col)) => format!(" ({url}:{line}:{col})"),
+    (Some(url), Some(line), None) => format!(" ({url}:{line})"),
+    (Some(url), None, _) => format!(" ({url})"),
+    _ => String::new(),
+  };
+  let stack = payload
+    .stack
+    .as_deref()
+    .map(|stack| format!("\n{stack}"))
+    .unwrap_or_default();
+
+  log::log!(
+    target: &format!("webview:{label}"),
+    js_log_level(&payload.level),
+    "{}{location}{stack}",
+    payload.message
+  );
+}
+
+#[command(root = "crate")]
+fn internal_log<R: Runtime>(webview: crate::Webview<R>, payload: JsLogPayload) {
+  if !webview.manager().webview.forward_console {
+    return;
+  }
+  log_js_message(webview.label(), &payload);
+}
+
 #[command(root = "crate")]
 async fn create_webview_window<R: Runtime>(
   app: AppHandle<R>,
@@ -233,6 +293,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       #![plugin(webview)]
       create_webview_window,
       get_all_webviews,
+      internal_log,
       #[cfg(desktop)] desktop_commands::create_webview,
       // getters
       #[cfg(desktop)] desktop_commands::webview_position,
@@ -254,4 +315,36 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       desktop_commands::internal_toggle_devtools,
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn maps_js_console_levels() {
+    use super::js_log_level;
+    assert_eq!(js_log_level("error"), log::Level::Error);
+    assert_eq!(js_log_level("warn"), log::Level::Warn);
+    assert_eq!(js_log_level("debug"), log::Level::Debug);
+    assert_eq!(js_log_level("trace"), log::Level::Trace);
+    assert_eq!(js_log_level("log"), log::Level::Info);
+    assert_eq!(js_log_level("info"), log::Level::Info);
+    assert_eq!(js_log_level("anything"), log::Level::Info);
+  }
+
+  #[test]
+  fn forward_console_flag_is_threaded() {
+    use crate::{
+      sealed::ManagerBase,
+      test::{mock_builder, mock_context, noop_assets},
+    };
+
+    let app = mock_builder()
+      .forward_webview_console(true)
+      .build(mock_context(noop_assets()))
+      .unwrap();
+    assert!(app.manager().webview.forward_console);
+
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    assert!(!app.manager().webview.forward_console);
+  }
 }

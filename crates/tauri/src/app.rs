@@ -1553,6 +1553,9 @@ pub struct Builder<R: Runtime> {
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
 
+  /// Whether webview console output and page errors are forwarded to the log crate.
+  forward_webview_console: bool,
+
   pub(crate) invoke_key: String,
 }
 
@@ -1621,6 +1624,7 @@ impl<R: Runtime> Builder<R> {
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
+      forward_webview_console: false,
       invoke_key,
     }
   }
@@ -1785,6 +1789,34 @@ tauri::Builder::default()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Forwards webview `console.*` output, uncaught errors (including
+  /// capture-phase resource load errors, e.g. a `<script>` that fails to load)
+  /// and unhandled promise rejections to the [`log`] crate, using the
+  /// `webview:{label}` target.
+  ///
+  /// Console levels map to log levels: `error`, `warn`, `debug` as-is,
+  /// everything else to `info`.
+  ///
+  /// Disabled by default.
+  /// When disabled, the capture script is not injected and forwarded messages
+  /// are ignored.
+  ///
+  /// # Security
+  ///
+  /// When enabled, any JavaScript running in the webview can write to the
+  /// host application's log.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// tauri::Builder::default().forward_webview_console(true);
+  /// ```
+  #[must_use]
+  pub fn forward_webview_console(mut self, enabled: bool) -> Self {
+    self.forward_webview_console = enabled;
     self
   }
 
@@ -2315,6 +2347,7 @@ tauri::Builder::default()
       HashMap::new(),
       self.invoke_initialization_script,
       self.channel_interceptor,
+      self.forward_webview_console,
       self.invoke_key,
     ));
 

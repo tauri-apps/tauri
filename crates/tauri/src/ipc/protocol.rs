@@ -579,6 +579,7 @@ mod tests {
       Default::default(),
       "".into(),
       None,
+      false,
       crate::generate_invoke_key().unwrap(),
     );
 
@@ -698,6 +699,7 @@ mod tests {
       Default::default(),
       "".into(),
       None,
+      false,
       crate::generate_invoke_key().unwrap(),
     );
 

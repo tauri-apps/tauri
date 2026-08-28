@@ -149,6 +149,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_webview_background_color", false),
       // internal
       ("internal_toggle_devtools", true),
+      ("internal_log", true),
     ],
   ),
   (

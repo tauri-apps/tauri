@@ -8,6 +8,7 @@ Default permissions for the plugin.
 - `allow-webview-position`
 - `allow-webview-size`
 - `allow-internal-toggle-devtools`
+- `allow-internal-log`
 
 ## Permission Table
 
@@ -118,6 +119,32 @@ Enables the get_all_webviews command without any pre-configured scope.
 <td>
 
 Denies the get_all_webviews command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:allow-internal-log`
+
+</td>
+<td>
+
+Enables the internal_log command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-internal-log`
+
+</td>
+<td>
+
+Denies the internal_log command without any pre-configured scope.
 
 </td>
 </tr>

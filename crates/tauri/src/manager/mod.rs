@@ -272,6 +272,7 @@ impl<R: Runtime> AppManager<R> {
     >,
     invoke_initialization_script: String,
     channel_interceptor: Option<ChannelInterceptor<R>>,
+    forward_console: bool,
     invoke_key: String,
   ) -> Self {
     // generate a random isolation key at runtime
@@ -297,6 +298,7 @@ impl<R: Runtime> AppManager<R> {
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webview_event_listeners),
         invoke_initialization_script,
+        forward_console,
         invoke_key: invoke_key.clone(),
       },
       #[cfg(all(desktop, feature = "tray-icon"))]
@@ -785,6 +787,7 @@ mod test {
       Default::default(),
       "".into(),
       None,
+      false,
       crate::generate_invoke_key().unwrap(),
     );
 

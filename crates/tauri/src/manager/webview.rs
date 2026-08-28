@@ -86,6 +86,9 @@ pub struct WebviewManager<R: Runtime> {
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,
 
+  /// Whether webview console output and page errors are forwarded to the log crate.
+  pub(crate) forward_console: bool,
+
   /// A runtime generated invoke key.
   pub(crate) invoke_key: String,
 }
@@ -200,6 +203,15 @@ impl<R: Runtime> WebviewManager<R> {
       &pattern_init.into_string(),
       use_https_scheme,
     )?));
+
+    // placed after the invoke system is set up (its queue buffers messages
+    // until the IPC bridge is ready) and before any plugin or user script, so
+    // their console output is captured as well
+    if self.forward_console {
+      all_initialization_scripts.push(main_frame_script(
+        include_str!("../webview/scripts/console-forward.js").to_owned(),
+      ));
+    }
 
     all_initialization_scripts.extend(plugin_init_scripts);
 

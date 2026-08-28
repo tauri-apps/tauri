@@ -2844,6 +2844,108 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 }
 
+/// WebKitGTK is known to render a blank window in environments without GPU
+/// acceleration (containers, VMs, CI) unless one of its rendering escape
+/// hatches is set. Since nothing is painted and nothing is logged in that
+/// case, log a hint here so the workaround is discoverable.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+mod software_rendering {
+  const WEBKIT_ESCAPE_HATCHES: [&str; 2] = [
+    "WEBKIT_DISABLE_DMABUF_RENDERER",
+    "WEBKIT_DISABLE_COMPOSITING_MODE",
+  ];
+
+  /// Returns the environment variable and value indicating software GL rendering.
+  fn indicator(get: impl Fn(&str) -> Option<String>) -> Option<(&'static str, String)> {
+    if let Some(value) = get("LIBGL_ALWAYS_SOFTWARE") {
+      if value.eq_ignore_ascii_case("1") || value.eq_ignore_ascii_case("true") {
+        return Some(("LIBGL_ALWAYS_SOFTWARE", value));
+      }
+    }
+
+    if let Some(value) = get("GALLIUM_DRIVER") {
+      if ["llvmpipe", "softpipe", "swrast"]
+        .iter()
+        .any(|driver| value.eq_ignore_ascii_case(driver))
+      {
+        return Some(("GALLIUM_DRIVER", value));
+      }
+    }
+
+    None
+  }
+
+  /// Logs a one-time hint when WebKitGTK is likely to render a blank window.
+  pub fn warn_once() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+      let get = |name: &str| std::env::var(name).ok().filter(|value| !value.is_empty());
+
+      if let Some(hatch) = WEBKIT_ESCAPE_HATCHES.iter().find(|var| get(var).is_some()) {
+        log::debug!("WebKitGTK rendering workaround already active ({hatch} is set)");
+        return;
+      }
+
+      log::debug!(
+        "WebKitGTK rendering issues (blank or white window) can often be worked around by setting WEBKIT_DISABLE_DMABUF_RENDERER=1 or WEBKIT_DISABLE_COMPOSITING_MODE=1"
+      );
+
+      if let Some((var, value)) = indicator(get) {
+        log::warn!(
+          "software GL rendering detected ({var}={value}); WebKitGTK may show a blank window in this environment. If that happens, set WEBKIT_DISABLE_DMABUF_RENDERER=1 (WebKitGTK 2.42+) or WEBKIT_DISABLE_COMPOSITING_MODE=1 before launching the app"
+        );
+      }
+    });
+  }
+
+  #[cfg(test)]
+  mod tests {
+    use super::indicator;
+
+    fn env<'a>(vars: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+      move |name| {
+        vars
+          .iter()
+          .find(|(var, _)| *var == name)
+          .map(|(_, value)| value.to_string())
+      }
+    }
+
+    #[test]
+    fn detects_software_gl() {
+      assert_eq!(
+        indicator(env(&[("LIBGL_ALWAYS_SOFTWARE", "1")])),
+        Some(("LIBGL_ALWAYS_SOFTWARE", "1".into()))
+      );
+      assert_eq!(
+        indicator(env(&[("LIBGL_ALWAYS_SOFTWARE", "TRUE")])),
+        Some(("LIBGL_ALWAYS_SOFTWARE", "TRUE".into()))
+      );
+      assert_eq!(
+        indicator(env(&[("GALLIUM_DRIVER", "llvmpipe")])),
+        Some(("GALLIUM_DRIVER", "llvmpipe".into()))
+      );
+      assert_eq!(
+        indicator(env(&[("GALLIUM_DRIVER", "LLVMpipe")])),
+        Some(("GALLIUM_DRIVER", "LLVMpipe".into()))
+      );
+    }
+
+    #[test]
+    fn ignores_hardware_gl() {
+      assert_eq!(indicator(env(&[])), None);
+      assert_eq!(indicator(env(&[("LIBGL_ALWAYS_SOFTWARE", "0")])), None);
+      assert_eq!(indicator(env(&[("GALLIUM_DRIVER", "radeonsi")])), None);
+    }
+  }
+}
+
 impl<T: UserEvent> Wry<T> {
   fn init_with_builder(
     mut event_loop_builder: EventLoopBuilder<Message<T>>,
@@ -2870,6 +2972,15 @@ impl<T: UserEvent> Wry<T> {
   }
 
   fn init(event_loop: EventLoop<Message<T>>) -> Result<Self> {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    software_rendering::warn_once();
+
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 

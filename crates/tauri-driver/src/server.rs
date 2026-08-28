@@ -98,6 +98,18 @@ async fn handle(
       parts.headers.insert(CONTENT_LENGTH, bytes.len().into());
 
       Request::from_parts(parts, Full::new(bytes.into()))
+    } else if is_element_send_keys(req.method(), req.uri().path()) {
+      let (mut parts, body) = req.into_parts();
+
+      let mut bytes = body.collect().await?.to_bytes().to_vec();
+      if let Ok(mut json) = serde_json::from_slice::<Value>(&bytes) {
+        if ensure_send_keys_text(&mut json) {
+          bytes = serde_json::to_vec(&json)?;
+        }
+      }
+      parts.headers.insert(CONTENT_LENGTH, bytes.len().into());
+
+      Request::from_parts(parts, Full::new(bytes.into()))
     } else {
       let (parts, body) = req.into_parts();
 
@@ -195,6 +207,50 @@ fn strip_bidi_capabilities(capabilities: &mut Value) {
       }
     }
   }
+}
+
+/// `true` for the Element Send Keys endpoint (`POST /session/{id}/element/{id}/value`).
+fn is_element_send_keys(method: &Method, path: &str) -> bool {
+  method == Method::POST && {
+    let mut segments = path.trim_start_matches('/').split('/');
+    matches!(
+      (
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+      ),
+      (
+        Some("session"),
+        Some(_),
+        Some("element"),
+        Some(_),
+        Some("value"),
+        None
+      )
+    )
+  }
+}
+
+/// Adds the W3C `text` field to an Element Send Keys body that only carries
+/// the legacy JSON Wire Protocol `value`. WebKitWebDriver 2.52+ rejects
+/// bodies without `text`. Returns `true` if the body was modified.
+fn ensure_send_keys_text(json: &mut Value) -> bool {
+  let Some(obj) = json.as_object_mut() else {
+    return false;
+  };
+  if obj.contains_key("text") {
+    return false;
+  }
+  let text = match obj.get("value") {
+    Some(Value::Array(chunks)) => chunks.iter().filter_map(Value::as_str).collect::<String>(),
+    Some(Value::String(s)) => s.clone(),
+    _ => return false,
+  };
+  obj.insert("text".into(), Value::String(text));
+  true
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -306,5 +362,50 @@ mod tests {
     });
     strip_bidi_capabilities(&mut capabilities);
     assert!(capabilities["firstMatch"][2].get("webSocketUrl").is_none());
+  }
+
+  #[test]
+  fn matches_element_send_keys_endpoint() {
+    assert!(is_element_send_keys(
+      &Method::POST,
+      "/session/abc/element/def/value"
+    ));
+    assert!(!is_element_send_keys(
+      &Method::GET,
+      "/session/abc/element/def/value"
+    ));
+    assert!(!is_element_send_keys(
+      &Method::POST,
+      "/session/abc/element/def/value/extra"
+    ));
+    assert!(!is_element_send_keys(&Method::POST, "/session/abc/value"));
+    assert!(!is_element_send_keys(&Method::POST, "/status"));
+  }
+
+  #[test]
+  fn send_keys_text_synthesis() {
+    // W3C body stays untouched
+    let mut body = json!({ "text": "hello" });
+    assert!(!ensure_send_keys_text(&mut body));
+    assert_eq!(body["text"], "hello");
+
+    // legacy value array gets a text field
+    let mut body = json!({ "value": ["h", "i"] });
+    assert!(ensure_send_keys_text(&mut body));
+    assert_eq!(body["text"], "hi");
+    assert_eq!(body["value"], json!(["h", "i"]));
+
+    // both fields present stays untouched
+    let mut body = json!({ "text": "hi", "value": ["h", "i"] });
+    assert!(!ensure_send_keys_text(&mut body));
+
+    // value as plain string
+    let mut body = json!({ "value": "hello" });
+    assert!(ensure_send_keys_text(&mut body));
+    assert_eq!(body["text"], "hello");
+
+    // nothing usable
+    assert!(!ensure_send_keys_text(&mut json!({})));
+    assert!(!ensure_send_keys_text(&mut json!([1, 2])));
   }
 }

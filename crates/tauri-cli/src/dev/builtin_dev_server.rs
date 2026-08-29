@@ -165,6 +165,29 @@ fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
   }
 }
 
+fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
+  thread::spawn(move || {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    let mut watcher = notify_debouncer_full::new_debouncer(Duration::from_secs(1), None, tx)
+      .expect("failed to start builtin server fs watcher");
+
+    watcher
+      .watch(&dir, notify::RecursiveMode::Recursive)
+      .expect("builtin server failed to watch dir");
+
+    loop {
+      if let Ok(Ok(event)) = rx.recv() {
+        if let Some(event) = event.first() {
+          if !event.kind.is_access() {
+            handler();
+          }
+        }
+      }
+    }
+  });
+}
+
 #[cfg(test)]
 mod tests {
   use super::resolve_asset;
@@ -173,6 +196,10 @@ mod tests {
     let dir =
       std::env::temp_dir().join(format!("tauri-cli-dev-server-test-{}", std::process::id()));
     std::fs::create_dir_all(dir.join("docs")).unwrap();
+    // the server canonicalizes the dist dir on startup (`start`); do the same
+    // here so the scope check holds on platforms where the temp dir contains
+    // symlinks (macOS `/var`) or short names (Windows)
+    let dir = dunce::canonicalize(&dir).unwrap();
     std::fs::write(dir.join("index.html"), "<html>index</html>").unwrap();
     std::fs::write(dir.join("about.html"), "<html>about</html>").unwrap();
     std::fs::write(dir.join("docs/index.html"), "<html>docs</html>").unwrap();
@@ -208,27 +235,4 @@ mod tests {
 
     std::fs::remove_dir_all(dir).unwrap();
   }
-}
-
-fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
-  thread::spawn(move || {
-    let (tx, rx) = std::sync::mpsc::channel();
-
-    let mut watcher = notify_debouncer_full::new_debouncer(Duration::from_secs(1), None, tx)
-      .expect("failed to start builtin server fs watcher");
-
-    watcher
-      .watch(&dir, notify::RecursiveMode::Recursive)
-      .expect("builtin server failed to watch dir");
-
-    loop {
-      if let Ok(Ok(event)) = rx.recv() {
-        if let Some(event) = event.first() {
-          if !event.kind.is_access() {
-            handler();
-          }
-        }
-      }
-    }
-  });
 }

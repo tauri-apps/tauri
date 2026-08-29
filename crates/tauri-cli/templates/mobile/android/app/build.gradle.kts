@@ -36,11 +36,6 @@ android {
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {
-                {{#each abi-list}}
-                jniLibs.keepDebugSymbols.add("*/{{this}}/*.so")
-                {{/each}}
-            }
         }
         getByName("release") {
             optimization {
@@ -60,6 +55,19 @@ android {
     }
     buildFeatures {
         buildConfig = true
+    }
+}
+
+// `packaging` has no equivalent in the `buildTypes { getByName("debug") { ... } }` DSL, so a
+// `packaging { ... }` block placed there silently resolves against the outer `android {}`
+// extension instead and applies to every build type, including release. Scope it to the debug
+// variant explicitly via the variant API so release libs are still stripped and
+// `ndk.debugSymbolLevel` can extract debug metadata.
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        {{#each abi-list}}
+        variant.packaging.jniLibs.keepDebugSymbols.add("*/{{this}}/*.so")
+        {{/each}}
     }
 }
 

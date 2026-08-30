@@ -424,7 +424,19 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
   let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
     tauri_utils::acl::build::parse_capabilities(pattern)?
   } else {
-    println!("cargo:rerun-if-changed=capabilities");
+    // Emit an absolute watch path: cargo resolves a relative
+    // `rerun-if-changed` against the package that owns the build script, while
+    // the glob below is resolved against the process working directory.
+    // Callers that `set_current_dir` before `try_build[_context]` (for example
+    // a crate generating a context byte-identical to the app's) would
+    // otherwise watch a `<caller-manifest-dir>/capabilities` that usually does
+    // not exist — and a missing watched path is dirty on every fingerprint
+    // check, re-running the build script and recompiling the whole downstream
+    // chain on every build.
+    let capabilities_dir = std::env::current_dir()
+      .context("resolve current dir for capabilities watch path")?
+      .join("capabilities");
+    println!("cargo:rerun-if-changed={}", capabilities_dir.display());
     tauri_utils::acl::build::parse_capabilities("./capabilities/**/*")?
   };
   validate_capabilities(&acl_manifests, &capabilities)?;

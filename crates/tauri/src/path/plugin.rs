@@ -313,18 +313,8 @@ mod tests {
 
   #[test]
   fn normalize() {
-    fn check(path: &str, expected_unix: &str, expected_windows: &str) {
-      let expected = if cfg!(windows) {
-        expected_windows
-      } else {
-        expected_unix
-      };
-      assert_eq!(super::normalize(path.into()), expected);
-    }
-
-    // Same Node contract as `join(vec![""])` / the comment on `normalize`.
-    check("", ".", ".");
-    check(".", ".", ".");
-    check("..", "..", "..");
+    assert_eq!(super::normalize("".into()), ".");
+    assert_eq!(super::normalize(".".into()), ".");
+    assert_eq!(super::normalize("..".into()), "..");
   }
 }

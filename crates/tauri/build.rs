@@ -9,10 +9,8 @@ use std::{
   collections::BTreeMap,
   env, fs,
   path::{Path, PathBuf},
-  sync::{Mutex, OnceLock},
 };
 
-static CHECKED_FEATURES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 const PLUGINS: &[(&str, &[(&str, bool)])] = &[
   // (plugin_name, &[(command, enabled-by_default)])
   // TODO: Enable this in v3
@@ -229,12 +227,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
 ];
 
 // checks if the given Cargo feature is enabled.
-fn has_feature(feature: &str) -> bool {
-  CHECKED_FEATURES
-    .get_or_init(Default::default)
-    .lock()
-    .unwrap()
-    .push(feature.to_string());
+fn has_feature(list: &mut Vec<String>, feature: &str) -> bool {
+  list.push(feature.to_string());
 
   // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name>` env var to 1
   // <https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts>
@@ -253,7 +247,8 @@ fn alias(alias: &str, has_feature: bool) {
 }
 
 fn main() {
-  let custom_protocol = has_feature("custom-protocol");
+  let mut checked_features = Vec::new();
+  let custom_protocol = has_feature(&mut checked_features, "custom-protocol");
   let dev = !custom_protocol;
   alias("custom_protocol", custom_protocol);
   alias("dev", dev);
@@ -268,11 +263,8 @@ fn main() {
   let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
   let checked_features_out_path = out_dir.join("checked_features");
-  std::fs::write(
-    checked_features_out_path,
-    CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
-  )
-  .expect("failed to write checked_features file");
+  std::fs::write(checked_features_out_path, checked_features.join(","))
+    .expect("failed to write checked_features file");
 
   // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error in tests
   // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864

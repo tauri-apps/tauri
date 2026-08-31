@@ -651,7 +651,8 @@ impl<R: Runtime> AppManager<R> {
       .window
       .windows_lock()
       .values()
-      .find(|w| w.is_focused().unwrap_or(false)).cloned()
+      .find(|w| w.is_focused().unwrap_or(false))
+      .cloned()
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {

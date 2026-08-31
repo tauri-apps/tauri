@@ -3422,9 +3422,12 @@ fn handle_user_message<T: UserEvent>(
           w.webviews.clone(),
           w.has_children.load(Ordering::Relaxed),
           w.window_event_listeners.clone(),
+          w.focused_webview.clone(),
         )
       });
-      if let Some((Some(window), webviews, has_children, window_event_listeners)) = w {
+      if let Some((Some(window), webviews, has_children, window_event_listeners, focused_webview)) =
+        w
+      {
         match window_message {
           WindowMessage::AddEventListener(id, listener) => {
             window_event_listeners.lock().unwrap().insert(id, listener);
@@ -3453,7 +3456,19 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
           WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
           WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
-          WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
+          WindowMessage::IsFocused(tx) => {
+            let focused = if has_children {
+              // on multiwebview mode, get the focused state from cache,
+              // as the window might not have direct focus
+              matches!(
+                *focused_webview.lock().unwrap(),
+                FocusState::WindowFocused | FocusState::WebviewFocused { .. }
+              )
+            } else {
+              window.is_focused()
+            };
+            tx.send(focused).unwrap()
+          }
           WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
           WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
           WindowMessage::IsMaximizable(tx) => tx.send(window.is_maximizable()).unwrap(),

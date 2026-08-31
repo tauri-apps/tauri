@@ -54,7 +54,7 @@ http = "1"
 plist = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-swift-rs = { version = "1", optional = true, features = ["build"] }
+swift-rs = { version = "1.0.8", optional = true, features = ["build"] }
 
 [dev-dependencies]
 getrandom = { version = "0.3", features = ["std"] }

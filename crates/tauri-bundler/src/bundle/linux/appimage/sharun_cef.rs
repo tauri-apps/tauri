@@ -72,7 +72,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // This should come after the download or users will think it's stuck on the download step.
   log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
 
-
   let mut settings = settings.clone();
   if settings.main_binary()?.name().contains(' ') {
     let main_binary = settings.main_binary()?;

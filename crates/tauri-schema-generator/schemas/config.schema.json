@@ -137,7 +137,7 @@
           }
         },
         "iOS": {
-          "minimumSystemVersion": "14.0"
+          "minimumSystemVersion": "15.0"
         },
         "android": {
           "minSdkVersion": 24,
@@ -2257,7 +2257,7 @@
         "iOS": {
           "description": "iOS configuration.",
           "default": {
-            "minimumSystemVersion": "14.0"
+            "minimumSystemVersion": "15.0"
           },
           "allOf": [
             {
@@ -3769,9 +3769,9 @@
           ]
         },
         "minimumSystemVersion": {
-          "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.\n\nMaps to the IPHONEOS_DEPLOYMENT_TARGET value.",
+          "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `15.0`.\n\nMaps to the IPHONEOS_DEPLOYMENT_TARGET value.",
           "type": "string",
-          "default": "14.0"
+          "default": "15.0"
         },
         "infoPlist": {
           "description": "Path to a Info.plist file to merge with the default Info.plist.\n\nNote that Tauri also looks for a `Info.plist` and `Info.ios.plist` file in the same directory as the Tauri configuration file.",

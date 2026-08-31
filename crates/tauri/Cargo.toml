@@ -157,7 +157,7 @@ jni = "0.21"
 # UIKit, i.e. iOS/tvOS/watchOS/visionOS
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
-swift-rs = "1"
+swift-rs = "1.0.8"
 objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIApplication",
   "UIResponder",

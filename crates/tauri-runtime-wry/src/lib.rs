@@ -1257,6 +1257,21 @@ impl WindowBuilder for WindowBuilderWrapper {
       .with_requesting_scene_identifier(identifier.into());
     self
   }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn wlr_layer_shell(
+    mut self,
+    wlr_layer_shell: bool,
+  ) -> Self {
+    self.inner = self.inner.with_wlr_layer_shell(wlr_layer_shell);
+    self
+  }
 }
 
 #[cfg(any(

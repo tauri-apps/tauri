@@ -562,6 +562,14 @@ impl WindowBuilder for MockWindowBuilder {
   fn requested_by_scene_identifier<S: Into<String>>(self, _identifier: S) -> Self {
     self
   }
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn wlr_layer_shell(self, _: bool) -> Self { self }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {

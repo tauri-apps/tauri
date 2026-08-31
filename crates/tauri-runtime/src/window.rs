@@ -524,6 +524,18 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// By default the system uses the foreground scene.
   #[cfg(target_os = "ios")]
   fn requested_by_scene_identifier<S: Into<String>>(self, identifier: S) -> Self;
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn wlr_layer_shell(
+    self,
+    wlr_layer_shell: bool,
+  ) -> Self;
 }
 
 /// A window that has yet to be built.

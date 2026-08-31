@@ -4,7 +4,7 @@
 
 use axum::{
   extract::{ws, State, WebSocketUpgrade},
-  http::{header, StatusCode, Uri},
+  http::{header, HeaderMap, StatusCode, Uri},
   response::{IntoResponse, Response},
 };
 use std::{
@@ -79,7 +79,7 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
   Ok(address)
 }
 
-async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
+async fn handler(uri: Uri, headers: HeaderMap, state: State<ServerState>) -> impl IntoResponse {
   // Frontend files should not contain query parameters. This seems to be how Vite handles it.
   let uri = uri.path();
 
@@ -89,7 +89,11 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
     uri.strip_prefix('/').unwrap_or(uri)
   };
 
-  match resolve_asset(&state.dir, uri) {
+  match resolve_asset(
+    &state.dir,
+    uri,
+    tauri_utils::request::is_navigation(&headers),
+  ) {
     Some(mut bytes) => {
       let mime_type = MimeType::parse_with_fallback(&bytes, uri, MimeType::OctetStream);
       if mime_type == MimeType::Html.to_string() {
@@ -108,13 +112,12 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
 /// Resolves a request path against the dist directory, mirroring the fallback
 /// chain of the `tauri://` protocol: exact path, `{path}.html`,
 /// `{path}/index.html`, then the SPA `index.html` fallback.
-/// Paths with a static subresource extension (`.js`, `.css`, images, ...) do
-/// not fall back, so a missing file is answered with a 404 instead of an HTML
-/// document.
-fn resolve_asset(dir: &Path, uri: &str) -> Option<Vec<u8>> {
+/// Only navigations fall back, so a missing subresource is answered with a 404
+/// instead of an HTML document.
+fn resolve_asset(dir: &Path, uri: &str, allow_html_fallback: bool) -> Option<Vec<u8>> {
   let exact = fs_read_scoped(dir.join(uri), dir).ok();
 
-  if tauri_utils::mime_type::has_subresource_extension(uri) {
+  if !allow_html_fallback {
     return exact;
   }
 
@@ -213,25 +216,29 @@ mod tests {
 
     // exact hits
     assert_eq!(
-      resolve_asset(&dir, "app.js").as_deref(),
+      resolve_asset(&dir, "app.js", false).as_deref(),
       Some(b"console.log('app')" as &[u8])
     );
-    // html fallbacks for extensionless paths
+    // navigations keep the html fallbacks
     assert_eq!(
-      resolve_asset(&dir, "about").as_deref(),
+      resolve_asset(&dir, "about", true).as_deref(),
       Some(b"<html>about</html>" as &[u8])
     );
     assert_eq!(
-      resolve_asset(&dir, "docs").as_deref(),
+      resolve_asset(&dir, "docs", true).as_deref(),
       Some(b"<html>docs</html>" as &[u8])
     );
     assert_eq!(
-      resolve_asset(&dir, "route").as_deref(),
+      resolve_asset(&dir, "route", true).as_deref(),
       Some(b"<html>index</html>" as &[u8])
     );
     // missing subresources do not fall back
-    assert_eq!(resolve_asset(&dir, "missing.js"), None);
-    assert_eq!(resolve_asset(&dir, "assets/missing.png"), None);
+    assert_eq!(
+      resolve_asset(&dir, "reports/2024.pdf", true).as_deref(),
+      Some(b"<html>index</html>" as &[u8])
+    );
+    assert_eq!(resolve_asset(&dir, "missing.js", false), None);
+    assert_eq!(resolve_asset(&dir, "assets/missing.png", false), None);
 
     std::fs::remove_dir_all(dir).unwrap();
   }

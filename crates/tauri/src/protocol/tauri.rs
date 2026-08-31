@@ -174,9 +174,13 @@ async fn get_response<R: Runtime>(
 
   #[cfg(not(all(dev, mobile)))]
   let mut response = {
+    // only a navigation may resolve to the SPA `index.html` fallback; serving a
+    // document in place of a missing subresource breaks it with an error that
+    // names neither the URL nor the cause
     match manager.get_asset(
       path,
       request.uri().scheme() == Some(&http::uri::Scheme::HTTPS),
+      tauri_utils::request::is_navigation(request.headers()),
     ) {
       Ok(asset) => {
         builder = builder.header(CONTENT_TYPE, &asset.mime_type);

@@ -326,9 +326,6 @@ impl<R: Runtime> AssetResolver<R> {
   /// In dev mode, if [`devUrl`](https://v2.tauri.app/reference/config/#devurl) is set, we don't bundle the assets to reduce re-builds,
   /// and this will fall back to read from `frontendDist` directly.
   /// Note that the dist directory must exist so you might need to build your frontend assets first.
-  ///
-  /// Missing paths with a static subresource extension (`.js`, `.css`, images, fonts, ...) return `None`;
-  /// the SPA `index.html` fallback only applies to extensionless paths.
   pub fn get(&self, path: String) -> Option<Asset> {
     let use_https_scheme = self
       .manager
@@ -372,7 +369,8 @@ impl<R: Runtime> AssetResolver<R> {
       }
     }
 
-    self.manager.get_asset(path, use_https_scheme).ok()
+    // there is no request to classify here, so the historical fallback applies
+    self.manager.get_asset(path, use_https_scheme, true).ok()
   }
 
   /// Iterate on all assets.

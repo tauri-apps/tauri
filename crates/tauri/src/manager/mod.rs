@@ -387,6 +387,7 @@ impl<R: Runtime> AppManager<R> {
     &self,
     mut path: String,
     _use_https_schema: bool,
+    allow_html_fallback: bool,
   ) -> Result<Asset, Box<dyn std::error::Error>> {
     let assets = &self.assets;
     if path.ends_with('/') {
@@ -405,15 +406,10 @@ impl<R: Runtime> AppManager<R> {
 
     let mut asset_path = AssetKey::from(path.as_str());
 
-    // a missing subresource (script, style, image, ...) must never resolve to
-    // an HTML document; skipping the fallback chain lets the protocol handler
-    // answer 404 instead of `index.html` with a misleading mime type
-    let use_fallbacks = !tauri_utils::mime_type::has_subresource_extension(&path);
-
     let asset_response = assets
       .get(&asset_path)
       .or_else(|| {
-        if !use_fallbacks {
+        if !allow_html_fallback {
           return None;
         }
         log::debug!("Asset `{path}` not found; fallback to {path}.html");
@@ -423,7 +419,7 @@ impl<R: Runtime> AppManager<R> {
         asset
       })
       .or_else(|| {
-        if !use_fallbacks {
+        if !allow_html_fallback {
           return None;
         }
         log::debug!("Asset `{path}` not found; fallback to {path}/index.html",);
@@ -433,7 +429,7 @@ impl<R: Runtime> AppManager<R> {
         asset
       })
       .or_else(|| {
-        if !use_fallbacks {
+        if !allow_html_fallback {
           return None;
         }
         let fallback = AssetKey::from("index.html");
@@ -757,7 +753,7 @@ mod asset_tests {
   use crate::{
     sealed::ManagerBase,
     test::{mock_builder, mock_context, MockRuntime},
-    App,
+    App, Asset,
   };
   use std::borrow::Cow;
   use tauri_utils::assets::{AssetKey, AssetsIter, CspHash};
@@ -796,32 +792,53 @@ mod asset_tests {
     mock_builder().build(mock_context(assets)).unwrap()
   }
 
-  fn get_bytes(app: &App<MockRuntime>, path: &str) -> Vec<u8> {
-    app.manager().get_asset(path.into(), false).unwrap().bytes
+  /// Resolves like a navigation (the SPA fallback may apply).
+  fn navigate(app: &App<MockRuntime>, path: &str) -> Vec<u8> {
+    app
+      .manager()
+      .get_asset(path.into(), false, true)
+      .unwrap()
+      .bytes
+  }
+
+  /// Resolves like a subresource request (no HTML fallback).
+  fn subresource(app: &App<MockRuntime>, path: &str) -> Result<Asset, Box<dyn std::error::Error>> {
+    app.manager().get_asset(path.into(), false, false)
+  }
+
+  fn assert_not_found(result: Result<Asset, Box<dyn std::error::Error>>, path: &str) {
+    let error = result.err().unwrap();
+    assert!(
+      matches!(
+        error.downcast_ref::<crate::Error>(),
+        Some(crate::Error::AssetNotFound(p)) if *p == path[1..]
+      ),
+      "expected AssetNotFound for {path}"
+    );
   }
 
   #[test]
   fn exact_asset_is_served_with_correct_mime() {
     let app = app();
-    let asset = app.manager().get_asset("/app.js".into(), false).unwrap();
+    let asset = subresource(&app, "/app.js").unwrap();
     assert_eq!(asset.mime_type, "text/javascript");
     assert_eq!(asset.bytes.as_slice(), b"console.log('app')");
   }
 
   #[test]
-  fn html_fallbacks_apply_to_extensionless_paths() {
+  fn navigations_keep_the_html_fallbacks() {
     let app = app();
     // empty path resolves to index.html
-    assert_eq!(get_bytes(&app, "").as_slice(), b"<html>index</html>");
+    assert_eq!(navigate(&app, "").as_slice(), b"<html>index</html>");
     // `{path}.html` fallback
-    assert_eq!(get_bytes(&app, "/about").as_slice(), b"<html>about</html>");
+    assert_eq!(navigate(&app, "/about").as_slice(), b"<html>about</html>");
     // `{path}/index.html` fallback
-    assert_eq!(get_bytes(&app, "/docs").as_slice(), b"<html>docs</html>");
+    assert_eq!(navigate(&app, "/docs").as_slice(), b"<html>docs</html>");
     // SPA fallback
-    assert_eq!(get_bytes(&app, "/route").as_slice(), b"<html>index</html>");
-    // dotted routes without a subresource extension keep the SPA fallback
+    assert_eq!(navigate(&app, "/route").as_slice(), b"<html>index</html>");
+    // a navigation to a document-looking path still reaches the router
     assert_eq!(
-      get_bytes(&app, "/product/v1.2").as_slice(),
+      navigate(&app, "/reports/2024.pdf").as_slice(),
       b"<html>index</html>"
     );
   }
@@ -830,15 +847,10 @@ mod asset_tests {
   fn missing_subresource_is_not_found() {
     let app = app();
     for path in ["/missing.js", "/missing.css", "/assets/missing.png"] {
-      let error = app.manager().get_asset(path.into(), false).err().unwrap();
-      assert!(
-        matches!(
-          error.downcast_ref::<crate::Error>(),
-          Some(crate::Error::AssetNotFound(p)) if *p == path[1..]
-        ),
-        "expected AssetNotFound for {path}"
-      );
+      assert_not_found(subresource(&app, path), path);
     }
+    // extensionless subresources do not fall back either
+    assert_not_found(subresource(&app, "/route"), "/route");
   }
 }
 

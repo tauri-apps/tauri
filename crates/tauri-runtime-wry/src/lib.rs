@@ -386,7 +386,7 @@ impl<T: UserEvent> Context<T> {
       self,
       Message::CreateWebview(
         window_id,
-        Box::new(move |window, options| {
+        Box::new(move |window, _options| {
           create_webview(
             WebviewKind::WindowChild,
             window,
@@ -394,7 +394,8 @@ impl<T: UserEvent> Context<T> {
             webview_id,
             &context,
             pending,
-            options.focused_webview,
+            #[cfg(windows)]
+            _options.focused_webview,
           )
         }),
         tx,
@@ -1492,6 +1493,7 @@ pub type CreateWebviewClosure =
   Box<dyn FnOnce(&Window, CreateWebviewOptions) -> Result<WebviewWrapper> + Send>;
 
 pub struct CreateWebviewOptions {
+  #[cfg(windows)]
   pub focused_webview: Arc<Mutex<FocusState>>,
 }
 
@@ -2528,6 +2530,7 @@ impl Drop for WebviewWrapper {
   }
 }
 
+#[cfg(windows)]
 #[derive(Debug)]
 pub enum FocusState {
   WindowFocused,
@@ -2539,6 +2542,7 @@ pub enum FocusState {
   },
 }
 
+#[cfg(windows)]
 impl Default for FocusState {
   fn default() -> Self {
     Self::Blured {
@@ -2561,6 +2565,7 @@ pub struct WindowWrapper {
   is_window_transparent: bool,
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
+  #[cfg(windows)]
   focused_webview: Arc<Mutex<FocusState>>,
 }
 
@@ -3022,8 +3027,16 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .0
       .borrow()
       .get(&window_id)
-      .map(|w| (w.inner.clone(), w.focused_webview.clone()));
-    if let Some((Some(window), focused_webview)) = window {
+      .map(|w| {
+        (
+          w.inner.clone(),
+          CreateWebviewOptions {
+            #[cfg(windows)]
+            focused_webview: w.focused_webview.clone(),
+          },
+        )
+      });
+    if let Some((Some(window), _options)) = window {
       let window_id_wrapper = Arc::new(Mutex::new(window_id));
 
       let webview_id = self.context.next_webview_id();
@@ -3035,7 +3048,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         webview_id,
         &self.context,
         pending,
-        focused_webview,
+        #[cfg(windows)]
+        _options.focused_webview,
       )?;
 
       if let Some(w) = self
@@ -3312,16 +3326,25 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::Window(id, window_message) => {
       let w = windows.0.borrow().get(&id).map(|w| {
+        #[cfg(windows)]
+        let focused_webview = w.focused_webview.clone();
+        #[cfg(not(windows))]
+        let focused_webview = ();
         (
           w.inner.clone(),
           w.webviews.clone(),
           w.has_children.load(Ordering::Relaxed),
           w.window_event_listeners.clone(),
-          w.focused_webview.clone(),
+          focused_webview,
         )
       });
-      if let Some((Some(window), webviews, has_children, window_event_listeners, focused_webview)) =
-        w
+      if let Some((
+        Some(window),
+        webviews,
+        has_children,
+        window_event_listeners,
+        _focused_webview,
+      )) = w
       {
         match window_message {
           WindowMessage::AddEventListener(id, listener) => {
@@ -3351,12 +3374,15 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
           WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
           WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+          #[cfg(not(windows))]
+          WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
+          #[cfg(windows)]
           WindowMessage::IsFocused(tx) => {
             let focused = if has_children {
               // on multiwebview mode, get the focused state from cache,
               // as the window might not have direct focus
               matches!(
-                *focused_webview.lock().unwrap(),
+                *_focused_webview.lock().unwrap(),
                 FocusState::WindowFocused | FocusState::WebviewFocused { .. }
               )
             } else {
@@ -4008,13 +4034,17 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWebview(window_id, handler, sender) => {
-      let window = windows
-        .0
-        .borrow()
-        .get(&window_id)
-        .map(|w| (w.inner.clone(), w.focused_webview.clone()));
-      if let Some((Some(window), focused_webview)) = window {
-        match handler(&window, CreateWebviewOptions { focused_webview }) {
+      let window = windows.0.borrow().get(&window_id).map(|w| {
+        (
+          w.inner.clone(),
+          CreateWebviewOptions {
+            #[cfg(windows)]
+            focused_webview: w.focused_webview.clone(),
+          },
+        )
+      });
+      if let Some((Some(window), options)) = window {
+        match handler(&window, options) {
           Ok(webview) => {
             if let Some(w) = windows.0.borrow_mut().get_mut(&window_id) {
               w.webviews.push(webview);
@@ -4084,6 +4114,7 @@ fn handle_user_message<T: UserEvent>(
             is_window_transparent,
             #[cfg(windows)]
             surface,
+            #[cfg(windows)]
             focused_webview: Default::default(),
           },
         );
@@ -4614,6 +4645,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut webviews = Vec::new();
 
+  #[cfg(windows)]
   let focused_webview = Arc::new(Mutex::new(FocusState::default()));
 
   #[cfg(feature = "unstable")]
@@ -4632,6 +4664,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       webview_id,
       context,
       webview,
+      #[cfg(windows)]
       focused_webview.clone(),
     )?);
   }
@@ -4666,6 +4699,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     is_window_transparent,
     #[cfg(windows)]
     surface,
+    #[cfg(windows)]
     focused_webview,
   })
 }
@@ -4694,7 +4728,7 @@ fn create_webview<T: UserEvent>(
   id: WebviewId,
   context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
-  #[allow(unused_variables)] focused_webview: Arc<Mutex<FocusState>>,
+  #[cfg(windows)] focused_webview: Arc<Mutex<FocusState>>,
 ) -> Result<WebviewWrapper> {
   if !context.webview_runtime_installed {
     #[cfg(all(not(debug_assertions), windows))]

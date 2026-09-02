@@ -13,14 +13,25 @@ export interface ImageSize {
   height: number
 }
 
-/** A type that represents an icon that can be used in menu items. */
-export type MenuIcon =
-  | NativeIcon
+/**
+ * A type that can be passed to Rust side as [`tauri::image::JsImage`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html) through {@linkcode transformImage}
+ */
+export type JsImage =
+  // Path to a image in the filesystem.
   | string
   | Image
+  // ICO or PNG image in raw bytes. This requires `image-ico` or `image-png` cargo features
+  // To enable it, change your Cargo.toml file:
+  // ```toml
+  // [dependencies]
+  // tauri = { version = "...", features = ["...", "image-png"] }
+  // ```
   | Uint8Array
   | ArrayBuffer
   | number[]
+
+/** A type that represents an icon that can be used in menu items. */
+export type MenuIcon = JsImage | NativeIcon
 
 /** An RGBA Image in row-major order from top to bottom. */
 export class Image extends Resource {
@@ -40,7 +51,7 @@ export class Image extends Resource {
     height: number
   ): Promise<Image> {
     return invoke<number>('plugin:image|new', {
-      rgba: transformImage(rgba),
+      rgba,
       width,
       height
     }).then((rid) => new Image(rid))
@@ -48,7 +59,6 @@ export class Image extends Resource {
 
   /**
    * Creates a new image using the provided bytes by inferring the file format.
-   * If the format is known, prefer [@link Image.fromPngBytes] or [@link Image.fromIcoBytes].
    *
    * Only `ico` and `png` are supported (based on activated feature flag).
    *
@@ -63,7 +73,7 @@ export class Image extends Resource {
     bytes: number[] | Uint8Array | ArrayBuffer
   ): Promise<Image> {
     return invoke<number>('plugin:image|from_bytes', {
-      bytes: transformImage(bytes)
+      bytes
     }).then((rid) => new Image(rid))
   }
 
@@ -101,12 +111,10 @@ export class Image extends Resource {
 /**
  * Transforms image from various types into a type acceptable by Rust.
  *
- * See [tauri::image::JsImage](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html) for more information.
+ * See [`tauri::image::JsImage`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html) for more information.
  * Note the API signature is not stable and might change.
  */
-export function transformImage<T>(
-  image: string | Image | Uint8Array | ArrayBuffer | number[] | null
-): T {
+export function transformImage<T>(image: JsImage | null): T {
   const ret =
     image == null
       ? null

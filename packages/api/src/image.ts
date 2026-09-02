@@ -15,20 +15,20 @@ export interface ImageSize {
 
 /**
  * A type that can be passed to Rust side as [`tauri::image::JsImage`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html) through {@linkcode transformImage}
+ *
+ * ## Variants
+ *
+ * - **string:** Path to an image in the filesystem. Maps to [`JsImage::Path`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html#variant.Path)
+ * - **Uint8Array | ArrayBuffer | number[]:** ICO or PNG image in raw bytes. This requires the `image-ico` or `image-png` Cargo features.
+ *   To enable it, change your Cargo.toml file:
+ *   ```toml
+ *   [dependencies]
+ *   tauri = { version = "...", features = ["...", "image-png"] }
+ *   ```
+ *   Maps to [`JsImage::Bytes`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html#variant.Bytes)
+ * - **Image:** An image that was previously loaded with the API and is stored in the resource table. Maps to [`JsImage::Resource`](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html#variant.Resource)
  */
-export type JsImage =
-  // Path to a image in the filesystem.
-  | string
-  | Image
-  // ICO or PNG image in raw bytes. This requires `image-ico` or `image-png` cargo features
-  // To enable it, change your Cargo.toml file:
-  // ```toml
-  // [dependencies]
-  // tauri = { version = "...", features = ["...", "image-png"] }
-  // ```
-  | Uint8Array
-  | ArrayBuffer
-  | number[]
+export type JsImage = string | Uint8Array | ArrayBuffer | number[] | Image
 
 /** A type that represents an icon that can be used in menu items. */
 export type MenuIcon = JsImage | NativeIcon

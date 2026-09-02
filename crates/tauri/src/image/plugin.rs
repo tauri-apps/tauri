@@ -55,10 +55,10 @@ fn from_path() -> std::result::Result<(), &'static str> {
 }
 
 #[command(root = "crate")]
-fn rgba<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<Vec<u8>> {
+fn rgba<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<crate::ipc::Response> {
   let resources_table = webview.resources_table();
   let image = resources_table.get::<Image<'_>>(rid)?;
-  Ok(image.rgba().to_vec())
+  Ok(crate::ipc::Response::new(image.rgba().to_owned()))
 }
 
 #[derive(Serialize)]

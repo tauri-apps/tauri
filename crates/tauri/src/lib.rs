@@ -147,6 +147,11 @@ pub use tauri_runtime_cef::run_cef_helper_process;
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
 
+/// The latest CEF API version known to the linked CEF bindings.
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub use tauri_runtime_cef::CEF_API_VERSION_LAST;
+
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
 #[doc(hidden)]

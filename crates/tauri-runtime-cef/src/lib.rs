@@ -14,6 +14,7 @@ mod window;
 mod window_builder;
 mod window_handle;
 
+pub use cef::sys::CEF_API_VERSION_LAST;
 pub use runtime::*;
 pub use webview::*;
 pub use window::CefWindowDispatcher;

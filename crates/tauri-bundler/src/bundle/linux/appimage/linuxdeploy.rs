@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{super::debian, write_and_make_executable};
+use super::{
+  super::{debian, tools_directory},
+  write_and_make_executable,
+};
 use crate::{
   bundle::settings::Arch,
   error::Context,
@@ -43,12 +46,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs::remove_dir_all(&output_path)?;
   }
 
-  let tools_path = settings
-    .local_tools_directory()
-    .map(|d| d.join(".tauri"))
-    .unwrap_or_else(|| {
-      dirs::cache_dir().map_or_else(|| output_path.to_path_buf(), |p| p.join("tauri"))
-    });
+  let tools_path = tools_directory(settings, &output_path);
 
   fs::create_dir_all(&tools_path)?;
 

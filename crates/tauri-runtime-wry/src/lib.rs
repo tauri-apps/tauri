@@ -1819,14 +1819,14 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     self
       .window()?
       .inner_position()
-      .map_err(|_| Error::FailedToSendMessage)
+      .map_err(|_| Error::NotSupported)
   }
 
   fn outer_position(&self) -> Result<PhysicalPosition<i32>> {
     self
       .window()?
       .outer_position()
-      .map_err(|_| Error::FailedToSendMessage)
+      .map_err(|_| Error::NotSupported)
   }
 
   fn inner_size(&self) -> Result<PhysicalSize<u32>> {
@@ -2224,7 +2224,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     self
       .window()?
       .set_cursor_grab(grab)
-      .map_err(|_| Error::FailedToSendMessage)
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn set_cursor_visible(&self, visible: bool) -> crate::Result<()> {
@@ -2243,21 +2243,21 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     self
       .window()?
       .set_cursor_position(position.into())
-      .map_err(|_| Error::FailedToSendMessage)
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
     self
       .window()?
       .set_ignore_cursor_events(ignore)
-      .map_err(|_| Error::FailedToSendMessage)
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn start_dragging(&self) -> Result<()> {
     self
       .window()?
       .drag_window()
-      .map_err(|_| Error::FailedToSendMessage)
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
@@ -2273,7 +2273,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
         tauri_runtime::ResizeDirection::SouthWest => tao::window::ResizeDirection::SouthWest,
         tauri_runtime::ResizeDirection::West => tao::window::ResizeDirection::West,
       })
-      .map_err(|_| Error::FailedToSendMessage)
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn set_badge_count(&self, _count: Option<i64>, _desktop_filename: Option<String>) -> Result<()> {
@@ -3226,6 +3226,7 @@ fn handle_user_message<T: UserEvent>(
             };
             tx.send(focused).unwrap()
           }
+          // Setters
           WindowMessage::SetResizable(resizable) => {
             window.set_resizable(resizable);
             #[cfg(windows)]
@@ -3772,7 +3773,7 @@ fn handle_user_message<T: UserEvent>(
       EventLoopWindowTargetMessage::CursorPosition(sender) => {
         let pos = event_loop
           .cursor_position()
-          .map_err(|_| Error::FailedToSendMessage);
+          .map_err(tao_error_to_runtime_error);
         sender.send(pos).unwrap();
       }
       EventLoopWindowTargetMessage::PrimaryMonitor(sender) => {
@@ -5102,5 +5103,13 @@ fn add_focus_change_listeners<T: UserEvent>(
     )
   } {
     log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
+  }
+}
+
+fn tao_error_to_runtime_error(tao_error: tao::error::ExternalError) -> tauri_runtime::Error {
+  match tao_error {
+    tao::error::ExternalError::NotSupported(_) => tauri_runtime::Error::NotSupported,
+    tao::error::ExternalError::Os(os_error) => tauri_runtime::Error::Os(os_error.into()),
+    _ => unreachable!(),
   }
 }

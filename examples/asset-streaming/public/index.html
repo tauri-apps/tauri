@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+    }
+
+    video {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+
+<body>
+  <video controls autoplay></video>
+  <script>
+    const { invoke, convertFileSrc } = window.__TAURI__.core
+    invoke('video_path').then((path) => {
+      document.querySelector('video').src = convertFileSrc(path)
+    })
+  </script>
+</body>
+
+</html>

@@ -328,6 +328,20 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+/// Configuration for the `asset://` GStreamer plugin for Linux.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetGstPluginConfig {
+  /// Whether to bundle the plugin. Defaults to `false`.
+  #[serde(default)]
+  pub active: bool,
+  /// Path to a prebuilt `libgsttauriasset.so`.
+  /// When unset, the bundler downloads a prebuilt plugin for the target architecture.
+  pub path: Option<PathBuf>,
+}
+
 /// Configuration for Debian (.deb) bundles.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#debconfig>
@@ -397,6 +411,9 @@ pub struct LinuxConfig {
   /// Configuration for the RPM bundle.
   #[serde(default)]
   pub rpm: RpmConfig,
+  /// Configuration for the `asset://` GStreamer plugin, shared by all Linux bundle formats.
+  #[serde(default, alias = "asset-gst-plugin")]
+  pub asset_gst_plugin: AssetGstPluginConfig,
 }
 
 /// Compression algorithms used when bundling RPM packages.

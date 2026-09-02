@@ -183,6 +183,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   ]);
   if settings.appimage().bundle_media_framework {
     cmd.args(["--plugin", "gstreamer"]);
+  } else if settings.asset_gst_plugin().active {
+    log::warn!(
+      "`bundle > linux > assetGstPlugin` is enabled but `bundle > linux > appimage > bundleMediaFramework` is not. \
+       The plugin links against the GStreamer libraries, which only get deployed into the AppImage by the media \
+       framework, so it will fail to load at runtime."
+    );
   }
   cmd.args(["--output", "appimage"]);
 

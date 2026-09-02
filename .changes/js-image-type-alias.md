@@ -2,4 +2,4 @@
 '@tauri-apps/api': 'minor:feat'
 ---
 
-Added the `JsImage` type alias for image values accepted by Tauri APIs.
+Added `JsImage` type alias and documented its relation ship to the Rust `JsImage`

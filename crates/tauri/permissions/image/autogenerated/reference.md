@@ -8,6 +8,7 @@ Default permissions for the plugin, which enables all commands.
 - `allow-from-bytes`
 - `allow-from-path`
 - `allow-rgba`
+- `allow-to-png`
 - `allow-size`
 
 ## Permission Table
@@ -145,6 +146,32 @@ Enables the size command without any pre-configured scope.
 <td>
 
 Denies the size command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:image:allow-to-png`
+
+</td>
+<td>
+
+Enables the to_png command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:image:deny-to-png`
+
+</td>
+<td>
+
+Denies the to_png command without any pre-configured scope.
 
 </td>
 </tr>

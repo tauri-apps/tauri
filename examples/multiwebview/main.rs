@@ -18,9 +18,9 @@ fn main() {
 
       let _webview1 = window.add_child(
         tauri::webview::WebviewBuilder::new("main1", WebviewUrl::App(Default::default()))
+          .position(LogicalPosition::new(0., 0.))
+          .size(LogicalSize::new(width / 2., height / 2.))
           .auto_resize(),
-        LogicalPosition::new(0., 0.),
-        LogicalSize::new(width / 2., height / 2.),
       )?;
 
       let _webview2 = window.add_child(
@@ -28,9 +28,9 @@ fn main() {
           "main2",
           WebviewUrl::External("https://github.com/tauri-apps/tauri".parse().unwrap()),
         )
+        .position(LogicalPosition::new(width / 2., 0.))
+        .size(LogicalSize::new(width / 2., height / 2.))
         .auto_resize(),
-        LogicalPosition::new(width / 2., 0.),
-        LogicalSize::new(width / 2., height / 2.),
       )?;
 
       let _webview3 = window.add_child(
@@ -38,9 +38,9 @@ fn main() {
           "main3",
           WebviewUrl::External("https://tauri.app".parse().unwrap()),
         )
+        .position(LogicalPosition::new(0., height / 2.))
+        .size(LogicalSize::new(width / 2., height / 2.))
         .auto_resize(),
-        LogicalPosition::new(0., height / 2.),
-        LogicalSize::new(width / 2., height / 2.),
       )?;
 
       let _webview4 = window.add_child(
@@ -48,9 +48,9 @@ fn main() {
           "main4",
           WebviewUrl::External("https://twitter.com/TauriApps".parse().unwrap()),
         )
+        .position(LogicalPosition::new(width / 2., height / 2.))
+        .size(LogicalSize::new(width / 2., height / 2.))
         .auto_resize(),
-        LogicalPosition::new(width / 2., height / 2.),
-        LogicalSize::new(width / 2., height / 2.),
       )?;
 
       Ok(())

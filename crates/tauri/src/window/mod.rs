@@ -1137,22 +1137,19 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Adds a new webview as a child of this window.
+  ///
+  /// The webview's initial geometry can be configured with [`WebviewBuilder::bounds`],
+  /// [`WebviewBuilder::position`] and [`WebviewBuilder::size`]. It defaults to a position
+  /// of `(0, 0)` and a size of `200 x 200`.
   #[cfg(any(test, all(desktop, feature = "unstable")))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
-  pub fn add_child<P: Into<Position>, S: Into<Size>>(
-    &self,
-    webview_builder: WebviewBuilder<R>,
-    position: P,
-    size: S,
-  ) -> crate::Result<Webview<R>> {
+  pub fn add_child(&self, webview_builder: WebviewBuilder<R>) -> crate::Result<Webview<R>> {
     use std::sync::mpsc::channel;
 
     let (tx, rx) = channel();
-    let position = position.into();
-    let size = size.into();
     let window_ = self.clone();
     self.run_on_main_thread(move || {
-      let res = webview_builder.build(window_, position, size);
+      let res = webview_builder.build(window_);
       tx.send(res).unwrap();
     })?;
     rx.recv().unwrap()

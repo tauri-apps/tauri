@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.10.0]
+
+### New Features
+
+- [`3f62c70d6`](https://www.github.com/tauri-apps/tauri/commit/3f62c70d6b9a9eeeb7c302b010c858405a1bb761) ([#13848](https://www.github.com/tauri-apps/tauri/pull/13848) by [@zphrs](https://www.github.com/tauri-apps/tauri/../../zphrs)) Add `WebviewBuilder::limit_navigations_to_app_bound_domains`, `WebviewWindowBuilder::limit_navigations_to_app_bound_domains`, and limitNavigationsToAppBoundDomains to tauri.config.json.
+- [`f6c1eb253`](https://www.github.com/tauri-apps/tauri/commit/f6c1eb2533a0445e081c334931d67fee3e354c6f) ([#15401](https://www.github.com/tauri-apps/tauri/pull/15401) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `bundle.windows.bundleVCRuntime` to copy the Visual C++ runtime DLLs into Windows MSI and NSIS installers. The bundler locates the runtime through `VCTOOLS_REDIST_DIR` or the bundled `vswhere.exe`.
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410) by [@zetaloop](https://www.github.com/tauri-apps/tauri/../../zetaloop)) Added `app > windows > noRedirectionBitmap` config option to disable the window redirection bitmap on Windows.
+- [`f6c1eb253`](https://www.github.com/tauri-apps/tauri/commit/f6c1eb2533a0445e081c334931d67fee3e354c6f) ([#15401](https://www.github.com/tauri-apps/tauri/pull/15401) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `build.windows.staticVCRuntime` to control MSVC static runtime linking. The `STATIC_VCRUNTIME` environment variable is now deprecated and emits a migration warning when used.
+
+### Enhancements
+
+- [`ca160ad48`](https://www.github.com/tauri-apps/tauri/commit/ca160ad4808f477380cb0865a08a8ae781e37f85) ([#15895](https://www.github.com/tauri-apps/tauri/pull/15895) by [@leepokai](https://www.github.com/tauri-apps/tauri/../../leepokai)) `tauri build` now warns when `productName` is still set to the default `tauri-app`, since it names the generated bundles and is written into install paths and metadata that are expected to be unique to your application. The config documentation for `productName` now lists what the field controls on each platform, and `identifier`'s documentation notes that the default value is rejected.
+- [`19215f638`](https://www.github.com/tauri-apps/tauri/commit/19215f638a5889afef4333b2e5a402051f21b891) ([#15629](https://www.github.com/tauri-apps/tauri/pull/15629) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Emit a `cargo:rerun-if-changed` for each resource directory (and glob base directory), so that adding or removing a file inside a resource directory re-runs the build script and copies the new files. Previously only the individual files present at build time were watched, so newly added files were silently ignored until an unrelated rebuild.
+- [`459fc315e`](https://www.github.com/tauri-apps/tauri/commit/459fc315eb790d9aa2d2cea693c20c8978f4b1b0) ([#15711](https://www.github.com/tauri-apps/tauri/pull/15711) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix different build and runtime debug assertion profiles on the tauri-utils crate can resulting in compilation errors.
+
+### Bug Fixes
+
+- [`29c87c3d3`](https://www.github.com/tauri-apps/tauri/commit/29c87c3d3f5bbcf5a7ae9de01af7e6bb738c1d01) ([#15777](https://www.github.com/tauri-apps/tauri/pull/15777) by [@VityaSchel](https://www.github.com/tauri-apps/tauri/../../VityaSchel)) Serialize the CSP directive map, header source maps and plugin config with sorted keys so writing the processed config (e.g. the `tauri.conf.json` embedded in Android/iOS projects) is deterministic across builds.
+
+### What's Changed
+
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set MSRV to 1.90.
+
+### Dependencies
+
+- [`e9e6a5eef`](https://www.github.com/tauri-apps/tauri/commit/e9e6a5eefa8c09d5abed1f691cbc924d6f617947) ([#15677](https://www.github.com/tauri-apps/tauri/pull/15677) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Update `serial_test` to 3.5 to pull in the updated `scc` and fix RUSTSEC advisory
+- [`8a97d387a`](https://www.github.com/tauri-apps/tauri/commit/8a97d387a3a1a52f7c501762517e294d8c94e119) ([#15352](https://www.github.com/tauri-apps/tauri/pull/15352) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated `ctor` crate to `1`
+- [`9e9a54dea`](https://www.github.com/tauri-apps/tauri/commit/9e9a54dea26ae66de63800cabbccf980902a1cd3) ([#15890](https://www.github.com/tauri-apps/tauri/pull/15890) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update swift-rs to support builds using Xcode 27.
+- [`7cc68e74f`](https://www.github.com/tauri-apps/tauri/commit/7cc68e74ff6981f5c50a52a67d56c5eb2d227188) ([#15307](https://www.github.com/tauri-apps/tauri/pull/15307) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Updated `dom_query` dependency to 0.28.0
+
 ## \[2.9.3]
 
 ### Enhancements

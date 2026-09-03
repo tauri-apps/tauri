@@ -1,6 +1,6 @@
 [package]
 name = "tauri-macros"
-version = "2.6.3"
+version = "2.7.0"
 description = "Macros for the tauri crate."
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"

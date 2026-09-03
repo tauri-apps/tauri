@@ -1,5 +1,90 @@
 # Changelog
 
+## [2.12.0]
+
+### New Features
+
+- [`3f62c70d6`](https://www.github.com/tauri-apps/tauri/commit/3f62c70d6b9a9eeeb7c302b010c858405a1bb761) ([#13848](https://www.github.com/tauri-apps/tauri/pull/13848) by [@zphrs](https://www.github.com/tauri-apps/tauri/../../zphrs)) Add `WebviewBuilder::limit_navigations_to_app_bound_domains`, `WebviewWindowBuilder::limit_navigations_to_app_bound_domains`, and limitNavigationsToAppBoundDomains to tauri.config.json.
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410) by [@zetaloop](https://www.github.com/tauri-apps/tauri/../../zetaloop)) Added `app > windows > noRedirectionBitmap` config option to disable the window redirection bitmap on Windows.
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410) by [@zetaloop](https://www.github.com/tauri-apps/tauri/../../zetaloop)) Added `WindowBuilder/WebviewWindowBuilder::no_redirection_bitmap` method to disable the window redirection bitmap on Windows.
+- [`382dd6ccc`](https://www.github.com/tauri-apps/tauri/commit/382dd6ccc022277d5620fde90a39b4c5e896310e) ([#14865](https://www.github.com/tauri-apps/tauri/pull/14865) by [@F0RLE](https://www.github.com/tauri-apps/tauri/../../F0RLE)) Expose the `wry` permission handler API through Tauri.
+    This includes support for permission types such as `DisplayCapture`, `Midi`, `Sensors`, `MediaKeySystemAccess`, `LocalFonts`, `WindowManagement`, `PointerLock`, `AutomaticDownloads`, `FileSystemAccess`, and `Autoplay`.
+    Added `PermissionResponse::{Allow, Deny, Default}` for runtime permission decisions.
+
+### Enhancements
+
+- [`aebf38c84`](https://www.github.com/tauri-apps/tauri/commit/aebf38c845b57bc5653eca677e2e2e044528ea73) ([#15694](https://www.github.com/tauri-apps/tauri/pull/15694) by [@Turbo87](https://www.github.com/tauri-apps/tauri/../../Turbo87)) Migrate the Android Gradle scripts from the deprecated `kotlinOptions` DSL to `compilerOptions`, which is accepted by both Kotlin Gradle Plugin 1.9.x and 2.x. This lets projects move to Kotlin 2.x without hitting the hard error that 2.3+ raises on the old DSL.
+    
+    This increased the minimum supported Gradle version to 8.13, if your `gradle` is on an earlier version, delete `src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties` and re-run `tauri android init` to update it.
+- [`d3108ff9a`](https://www.github.com/tauri-apps/tauri/commit/d3108ff9a2b6c694f4cbe579d9a9c1d67917117f) ([#15578](https://www.github.com/tauri-apps/tauri/pull/15578) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) `State` had `Send` and `Sync` trait bounds that were already implied, remove them from the struct definition.
+- [`459fc315e`](https://www.github.com/tauri-apps/tauri/commit/459fc315eb790d9aa2d2cea693c20c8978f4b1b0) ([#15711](https://www.github.com/tauri-apps/tauri/pull/15711) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix different build and runtime debug assertion profiles on the tauri-utils crate can resulting in compilation errors.
+
+### Bug Fixes
+
+- [`020919a1b`](https://www.github.com/tauri-apps/tauri/commit/020919a1b5d2c1faa9deb972a31a1a11d0ae8ce6) ([#15798](https://www.github.com/tauri-apps/tauri/pull/15798) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On Android, fixed requesting permission in a plugin fails after the first activity closed.
+- [`cb2ecac53`](https://www.github.com/tauri-apps/tauri/commit/cb2ecac53a505b974ef24f0d4f66ac04fc298eff) ([#15949](https://www.github.com/tauri-apps/tauri/pull/15949) by [@okhsunrog](https://www.github.com/tauri-apps/tauri/../../okhsunrog)) On Android, fixed a crash when an activity is destroyed while another one is already running — installing an APK over the running app is the common way to hit it. The plugin manager tried to move its activity result launchers to the surviving activity, and `registerForActivityResult` rejects that with `IllegalStateException: LifecycleOwner ... is attempting to register while current state is RESUMED`. Each activity now registers its own launchers when it is created.
+- [`1417768f9`](https://www.github.com/tauri-apps/tauri/commit/1417768f9941f6ee998e7b5c9fe609ada61a6727) ([#15679](https://www.github.com/tauri-apps/tauri/pull/15679) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Remove the `Channel` used to send event to JavaScript side on dropping the menu
+- [`17717757b`](https://www.github.com/tauri-apps/tauri/commit/17717757b75581d54de4c8fa2c8c450d10c3a257) ([#15617](https://www.github.com/tauri-apps/tauri/pull/15617) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Remove Rust-side event listeners bound to a window or webview when that target is destroyed, so `listen`/`once` handlers registered on a `Window`, `Webview` or `WebviewWindow` no longer leak after it is closed.
+- [`0aeadb6b2`](https://www.github.com/tauri-apps/tauri/commit/0aeadb6b2674ecd43f15b5dd6fcace3232f74b8a) ([#15821](https://www.github.com/tauri-apps/tauri/pull/15821) by [@aurelj](https://www.github.com/tauri-apps/tauri/../../aurelj)) Transfer the exit code from the `window.app_handle().exit(1)` call to the `run_return()` result instead of always returning 0.
+- [`4a0e1df18`](https://www.github.com/tauri-apps/tauri/commit/4a0e1df1829dab29cedc1164ff5e7fd1ce42e215) ([#15604](https://www.github.com/tauri-apps/tauri/pull/15604) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Remove a webview's JS event listeners from the backend `Listeners` map when that webview is destroyed. Previously the entries keyed by the source webview label lingered after the webview was dropped, so they could never be delivered and leaked until the app exited — forcing apps to manually `unlisten()` before closing a window.
+- [`d727d6316`](https://www.github.com/tauri-apps/tauri/commit/d727d631659f07a597cc86cf808f505858dee878) ([#15630](https://www.github.com/tauri-apps/tauri/pull/15630) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Query monitor information (`primary_monitor`, `monitor_from_point`, `available_monitors`) on the main thread from the app-level runtime handle instead of touching the event loop's window target directly.
+- [`a370f6533`](https://www.github.com/tauri-apps/tauri/commit/a370f653330506c2a5f59b643645a15b4cc30c18) ([#15224](https://www.github.com/tauri-apps/tauri/pull/15224) by [@krishpranav](https://www.github.com/tauri-apps/tauri/../../krishpranav)) Avoid leaking Objective-C objects in `WebviewMessage::WithWebview` on Apple targets by replacing `Retained::into_raw` with scoped retained bindings and `Retained::as_ptr` pointer handoff.
+- [`448d39ee2`](https://www.github.com/tauri-apps/tauri/commit/448d39ee25c4bcbf4bd40129abc5399213dcc0a9) ([#15860](https://www.github.com/tauri-apps/tauri/pull/15860) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix menu related commands can panic if called with invalid menu types through `invoke` directly.
+    
+    - The internal `do_menu_item!` macro now returns `Err(crate::Error::UnexpectedMenuKind)` instead of `unreachable!()`
+    - Added a new error type `tauri::Error::UnexpectedMenuKind`
+- [`e517fa18e`](https://www.github.com/tauri-apps/tauri/commit/e517fa18ee45a451a60b681552547899d3e6a4b2) ([#15450](https://www.github.com/tauri-apps/tauri/pull/15450) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `run_main_thread!` macro used by things like `MenuItem` and some other APIs deadlock when called on main thread with `MockRuntime`
+- [`2087bcae2`](https://www.github.com/tauri-apps/tauri/commit/2087bcae25cf0fca2f944777cdadfef773639f19) ([#15920](https://www.github.com/tauri-apps/tauri/pull/15920) by [@bun-unsafe](https://www.github.com/tauri-apps/tauri/../../bun-unsafe)) Fix `path.normalize("")` returning an empty string instead of `"."`, matching Node.js and the existing `path.join("")` behavior.
+- [`08acfb3fa`](https://www.github.com/tauri-apps/tauri/commit/08acfb3fa04945a6a4f822d66c7556111d9385aa) ([#15625](https://www.github.com/tauri-apps/tauri/pull/15625) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix webview don't get focus when Alt-Tab back to the window if `unstable` feature is enabled on Windows
+- [`5a882eccf`](https://www.github.com/tauri-apps/tauri/commit/5a882eccfda53a189ec076c79c4ad186f50db5ff) ([#15701](https://www.github.com/tauri-apps/tauri/pull/15701) by [@yobson1](https://www.github.com/tauri-apps/tauri/../../yobson1)) On Linux, fix resize cursor for undecorated Window not being set correctly when mouse is over a resize edge.
+- [`08acfb3fa`](https://www.github.com/tauri-apps/tauri/commit/08acfb3fa04945a6a4f822d66c7556111d9385aa) ([#15625](https://www.github.com/tauri-apps/tauri/pull/15625) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `WindowEvent::Focused` events emitted when dragging the window on Windows
+- [`f4feb2ba7`](https://www.github.com/tauri-apps/tauri/commit/f4feb2ba71ae018f0fc200453ae9cf12a6b0c05f) ([#15950](https://www.github.com/tauri-apps/tauri/pull/15950) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On Windows, fixed `Window::is_focused` always returns `false` in multi-webview mode
+
+### Performance Improvements
+
+- [`ba0828c76`](https://www.github.com/tauri-apps/tauri/commit/ba0828c76a2d532808ffe88adc94ad04214a1384) ([#15955](https://www.github.com/tauri-apps/tauri/pull/15955) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Skip serializing to JSON for `Image::rgba`
+
+### What's Changed
+
+- [`ce3f13b91`](https://www.github.com/tauri-apps/tauri/commit/ce3f13b91a75cb723f229f56a3e82eb5f2d3f644) ([#15887](https://www.github.com/tauri-apps/tauri/pull/15887) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Lock unstable tauri crates to minor versions.
+- [`7cc68e74f`](https://www.github.com/tauri-apps/tauri/commit/7cc68e74ff6981f5c50a52a67d56c5eb2d227188) ([#15307](https://www.github.com/tauri-apps/tauri/pull/15307) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) `WindowEvent::Resumed` and `WindowEvent::Suspended` are now only fired for the matching activity window instead of every window.
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.7.0`
+- Upgraded to `tauri-runtime@2.12.0`
+- Upgraded to `tauri-runtime-wry@2.12.0`
+- Upgraded to `tauri-utils@2.10.0`
+- Upgraded to `tauri-macros@2.7.0`
+- [`e2e585ad1`](https://www.github.com/tauri-apps/tauri/commit/e2e585ad1196c9572f86ef39aae01ef4c3b1a762) ([#15828](https://www.github.com/tauri-apps/tauri/pull/15828) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On Android, fix missing `consumer-rules.pro` file in the template.
+    
+    **IMPORTANT**: For plugin authors, update your `build.gradle.kts` file to remove the
+    
+    ```kotlin
+        buildTypes {
+            release {
+                isMinifyEnabled = false
+                proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro"
+                )
+            }
+        }
+    ```
+    
+    section and rename your `proguard-rules.pro` to `consumer-rules.pro` to match the `consumerProguardFiles("consumer-rules.pro")` in the template.
+- [`e2e585ad1`](https://www.github.com/tauri-apps/tauri/commit/e2e585ad1196c9572f86ef39aae01ef4c3b1a762) ([#15828](https://www.github.com/tauri-apps/tauri/pull/15828) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On Android, updated the template to use Gradle v9.6.1 (`com.android.tools.build:gradle` v9.3.1) and Kotlin v2.2. Use `tauri android init` to apply the change.
+- [`2bb4fdbd0`](https://www.github.com/tauri-apps/tauri/commit/2bb4fdbd0252ca414e28bdc9f0284ac4ff108f26) ([#15592](https://www.github.com/tauri-apps/tauri/pull/15592) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) Updated `cargo_toml` crate to `1`
+- [`872428fe9`](https://www.github.com/tauri-apps/tauri/commit/872428fe910efe25eeaa959b56adcd9d9a9a2157) ([#15790](https://www.github.com/tauri-apps/tauri/pull/15790) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On macOS, updated `objc2-*` dependencies to 0.3.2
+- [`9e9a54dea`](https://www.github.com/tauri-apps/tauri/commit/9e9a54dea26ae66de63800cabbccf980902a1cd3) ([#15890](https://www.github.com/tauri-apps/tauri/pull/15890) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update swift-rs to support builds using Xcode 27.
+
+### Breaking Changes
+
+- [`26cb3d665`](https://www.github.com/tauri-apps/tauri/commit/26cb3d665b881b44fa5cf95514776aee5c85c374) ([#15563](https://www.github.com/tauri-apps/tauri/pull/15563) by [@onehumandev](https://www.github.com/tauri-apps/tauri/../../onehumandev)) On Android, `$VIDEO` and `video_dir()` now resolve to the app-specific Movies directory instead of external cache storage.
+    
+    **Migration:** Files previously written to the old location (`.../cache`) will not be discovered at the new location (`.../files/Movies`). Migrate existing files or update path assumptions accordingly.
+
 ## \[2.11.5]
 
 ### Dependencies

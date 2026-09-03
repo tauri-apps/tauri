@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.10.0]
+
+### New Features
+
+- [`f6c1eb253`](https://www.github.com/tauri-apps/tauri/commit/f6c1eb2533a0445e081c334931d67fee3e354c6f) ([#15401](https://www.github.com/tauri-apps/tauri/pull/15401) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `bundle.windows.bundleVCRuntime` to copy the Visual C++ runtime DLLs into Windows MSI and NSIS installers. The bundler locates the runtime through `VCTOOLS_REDIST_DIR` or the bundled `vswhere.exe`.
+- [`f76b1d3ae`](https://www.github.com/tauri-apps/tauri/commit/f76b1d3ae70d0ba0f0eba80b94b867593aa5ca8b) ([#15644](https://www.github.com/tauri-apps/tauri/pull/15644) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) The bundler now prints the size of each generated bundle next to its path in the `Finished N bundles at:` output (directories such as macOS `.app` bundles are measured recursively).
+- [`af465eae1`](https://www.github.com/tauri-apps/tauri/commit/af465eae1ad99d7b16b8fdbf9aa96bf76d6b9a76) ([#15619](https://www.github.com/tauri-apps/tauri/pull/15619) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Add a `--no-binary-patching` flag to `tauri build` and `tauri bundle`. When set, the bundler skips patching the main executable with bundle type information (and the subsequent re-signing), leaving an already-signed binary untouched. Patching is only required when shipping multiple bundle types per platform that should each update with their own installer format.
+
+### Bug Fixes
+
+- [`7164de395`](https://www.github.com/tauri-apps/tauri/commit/7164de39574d616b762ba658f797f9657ea03b20) ([#15786](https://www.github.com/tauri-apps/tauri/pull/15786) by [@yingyanzhitong](https://www.github.com/tauri-apps/tauri/../../yingyanzhitong)) Respect an explicitly configured `GDK_BACKEND` in AppImage GTK hooks while retaining `x11` as the default.
+- [`eaf96690d`](https://www.github.com/tauri-apps/tauri/commit/eaf96690db2439445fe16da24031bf3294ada605) ([#15804](https://www.github.com/tauri-apps/tauri/pull/15804) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) On Linux, do not bundle xdg-open and xdg-utils in the AppImage anymore. This rarely worked and usually requires host system support anyway.
+- [`adf5acf6f`](https://www.github.com/tauri-apps/tauri/commit/adf5acf6fbc0ef26de6b1eb30c47bb701c256954) ([#15651](https://www.github.com/tauri-apps/tauri/pull/15651) by [@justjavac](https://www.github.com/tauri-apps/tauri/../../justjavac)) Fix MSI bundling when an external binary filename starts with a digit.
+- [`11012a13f`](https://www.github.com/tauri-apps/tauri/commit/11012a13f55ab55ec5ed12ca3ac95338ae1731c3) ([#15681](https://www.github.com/tauri-apps/tauri/pull/15681) by [@justjavac](https://www.github.com/tauri-apps/tauri/../../justjavac)) Fix WiX bundler doesn't respect the resource's target file name.
+
+### What's Changed
+
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+- Upgraded to `tauri-macos-sign@2.4.0`
+- [`7632efd09`](https://www.github.com/tauri-apps/tauri/commit/7632efd09ffb9eddafefd8d04e311565394efce9) ([#15641](https://www.github.com/tauri-apps/tauri/pull/15641) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) **Breaking Change:** Updated various dependencies and removed `goblin`. Some of these dependencies are part of the public API which makes this a breaking change. Added a warning about `tauri-bundler`'s API stability in reflection to past regular breaking struct changes.
+
 ## \[2.9.4]
 
 ### Bug Fixes

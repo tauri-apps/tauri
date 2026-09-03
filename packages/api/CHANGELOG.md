@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.12.0]
+
+### New Features
+
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410) by [@zetaloop](https://www.github.com/tauri-apps/tauri/../../zetaloop)) Added `noRedirectionBitmap` option to the `Window` and `WebviewWindow` constructors on Windows.
+
+### Enhancements
+
+- [`be019795a`](https://www.github.com/tauri-apps/tauri/commit/be019795abc0316aa53f2519bfbf3e7624b9af2e) ([#14103](https://www.github.com/tauri-apps/tauri/pull/14103) by [@ddosakura](https://www.github.com/tauri-apps/tauri/../../ddosakura)) Add ECMAScript Explicit Resource Management to Resource. You can now use the `using` syntax in supported browsers or with polyfills:
+    
+    ```javascript
+    import { create, BaseDirectory } from "@tauri-apps/plugin-fs"
+    ...
+    {
+      await using file = await create("foo/bar.txt", { baseDir: BaseDirectory.AppConfig });
+      await file.write(new TextEncoder().encode("Hello world"));
+      // Before `file` goes out of scope, it is disposed by calling `file[Symbol.asyncDispose]()` and awaited.
+    }
+    ```
+
+### Bug Fixes
+
+- [`32efd0232`](https://www.github.com/tauri-apps/tauri/commit/32efd0232d868984ac8de9efebae19e464c7c536) ([#15957](https://www.github.com/tauri-apps/tauri/pull/15957) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `Image.rgba` now returns a more specific type `Promise<Uint8Array<ArrayBuffer>>` instead of the default `Promise<Uint8Array<ArrayBufferLike>`
+
 ## \[2.11.1]
 
 ### Enhancements

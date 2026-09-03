@@ -875,6 +875,11 @@ impl<R: Runtime> Default for PluginStore<R> {
 }
 
 impl<R: Runtime> PluginStore<R> {
+  /// Returns `true` if a plugin with the given name is in the store.
+  pub fn has(&self, name: &str) -> bool {
+    self.store.iter().any(|p| p.name() == name)
+  }
+
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.

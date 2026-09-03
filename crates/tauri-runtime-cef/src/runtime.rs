@@ -77,15 +77,40 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 pub use cef;
 
 /// CEF runtime initialization attributes.
-#[derive(Clone, Debug, Default)]
+#[derive(Default)]
 pub struct RuntimeInitAttrs {
   command_line_args: Vec<(String, Option<String>)>,
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
+  settings_callback: Option<Box<dyn FnOnce(&mut cef::Settings) + Send + Sync>>,
+}
+
+impl fmt::Debug for RuntimeInitAttrs {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("RuntimeInitAttrs")
+      .field("command_line_args", &self.command_line_args)
+      .field("deep_link_schemes", &self.deep_link_schemes)
+      .field("cache_path", &self.cache_path)
+      .field("api_version", &self.api_version)
+      .field("settings_callback", &self.settings_callback.is_some())
+      .finish()
+  }
 }
 
 impl RuntimeInitAttrs {
+  /// Sets a callback to customize the settings passed to [`cef::initialize`].
+  ///
+  /// If called more than once, only the last callback is used.
+  #[must_use]
+  pub fn with_settings<F>(mut self, callback: F) -> Self
+  where
+    F: FnOnce(&mut cef::Settings) + Send + Sync + 'static,
+  {
+    self.settings_callback = Some(Box::new(callback));
+    self
+  }
+
   /// Appends one command line argument to the CEF command line.
   #[must_use]
   pub fn command_line_arg<K: Into<String>, V: Into<String>>(
@@ -1449,6 +1474,7 @@ impl<T: UserEvent> CefRuntime<T> {
       mut command_line_args,
       deep_link_schemes,
       cache_path: cache_path_override,
+      settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
     } = runtime_args.runtime_init_attrs;
@@ -1522,12 +1548,15 @@ impl<T: UserEvent> CefRuntime<T> {
       "CEF browser process unexpectedly returned from execute_process"
     );
 
-    let settings = cef::Settings {
+    let mut settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       external_message_pump: 1,
       ..Default::default()
     };
+    if let Some(callback) = settings_callback {
+      callback(&mut settings);
+    }
     if cef::initialize(
       Some(args.as_main_args()),
       Some(&settings),

@@ -168,6 +168,11 @@ pub enum Error {
   FailedToRemoveDataStore,
   #[error("Could not find the webview runtime, make sure it is installed")]
   WebviewRuntimeNotInstalled,
+  /// The operation is not supported by the backend.
+  #[error("The operation is not supported by the backend")]
+  NotSupported,
+  #[error("The OS cannot perform the operation")]
+  Os(Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Result type.

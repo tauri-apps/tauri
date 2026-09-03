@@ -369,7 +369,8 @@ impl<R: Runtime> AssetResolver<R> {
       }
     }
 
-    self.manager.get_asset(path, use_https_scheme).ok()
+    // there is no request to classify here, so the historical fallback applies
+    self.manager.get_asset(path, use_https_scheme, true).ok()
   }
 
   /// Iterate on all assets.

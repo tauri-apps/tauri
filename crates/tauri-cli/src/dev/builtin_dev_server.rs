@@ -4,7 +4,7 @@
 
 use axum::{
   extract::{ws, State, WebSocketUpgrade},
-  http::{header, StatusCode, Uri},
+  http::{header, HeaderMap, StatusCode, Uri},
   response::{IntoResponse, Response},
 };
 use std::{
@@ -79,7 +79,7 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
   Ok(address)
 }
 
-async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
+async fn handler(uri: Uri, headers: HeaderMap, state: State<ServerState>) -> impl IntoResponse {
   // Frontend files should not contain query parameters. This seems to be how Vite handles it.
   let uri = uri.path();
 
@@ -89,25 +89,48 @@ async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
     uri.strip_prefix('/').unwrap_or(uri)
   };
 
-  let bytes = fs_read_scoped(state.dir.join(uri), &state.dir)
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}.html")), &state.dir))
-    .or_else(|_| fs_read_scoped(state.dir.join(format!("{uri}/index.html")), &state.dir))
-    .or_else(|_| std::fs::read(state.dir.join("index.html")));
-
-  match bytes {
-    Ok(mut bytes) => {
+  match resolve_asset(
+    &state.dir,
+    uri,
+    tauri_utils::request::is_navigation(&headers),
+  ) {
+    Some(mut bytes) => {
       let mime_type = MimeType::parse_with_fallback(&bytes, uri, MimeType::OctetStream);
       if mime_type == MimeType::Html.to_string() {
         bytes = inject_address(bytes, &state.address);
       }
       (StatusCode::OK, [(header::CONTENT_TYPE, mime_type)], bytes)
     }
-    Err(_) => (
+    None => (
       StatusCode::NOT_FOUND,
       [(header::CONTENT_TYPE, "text/plain".into())],
-      vec![],
+      format!("asset not found: /{}", uri.trim_start_matches('/')).into_bytes(),
     ),
   }
+}
+
+/// Resolves a request path against the dist directory, mirroring the fallback
+/// chain of the `tauri://` protocol: exact path, `{path}.html`,
+/// `{path}/index.html`, then the SPA `index.html` fallback.
+/// Only navigations fall back, so a missing subresource is answered with a 404
+/// instead of an HTML document.
+fn resolve_asset(dir: &Path, uri: &str, allow_html_fallback: bool) -> Option<Vec<u8>> {
+  let exact = fs_read_scoped(dir.join(uri), dir).ok();
+
+  if !allow_html_fallback {
+    return exact;
+  }
+
+  exact
+    .or_else(|| fs_read_scoped(dir.join(format!("{uri}.html")), dir).ok())
+    .or_else(|| fs_read_scoped(dir.join(format!("{uri}/index.html")), dir).ok())
+    .or_else(|| {
+      let bytes = std::fs::read(dir.join("index.html")).ok();
+      if bytes.is_some() {
+        log::warn!("asset `/{uri}` not found; serving `index.html` instead (SPA fallback)");
+      }
+      bytes
+    })
 }
 
 async fn ws_handler(ws: WebSocketUpgrade, state: State<ServerState>) -> Response {
@@ -166,4 +189,57 @@ fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
       }
     }
   });
+}
+
+#[cfg(test)]
+mod tests {
+  use super::resolve_asset;
+
+  fn dist() -> std::path::PathBuf {
+    let dir =
+      std::env::temp_dir().join(format!("tauri-cli-dev-server-test-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("docs")).unwrap();
+    // the server canonicalizes the dist dir on startup (`start`); do the same
+    // here so the scope check holds on platforms where the temp dir contains
+    // symlinks (macOS `/var`) or short names (Windows)
+    let dir = dunce::canonicalize(&dir).unwrap();
+    std::fs::write(dir.join("index.html"), "<html>index</html>").unwrap();
+    std::fs::write(dir.join("about.html"), "<html>about</html>").unwrap();
+    std::fs::write(dir.join("docs/index.html"), "<html>docs</html>").unwrap();
+    std::fs::write(dir.join("app.js"), "console.log('app')").unwrap();
+    dir
+  }
+
+  #[test]
+  fn resolves_assets_like_the_tauri_protocol() {
+    let dir = dist();
+
+    // exact hits
+    assert_eq!(
+      resolve_asset(&dir, "app.js", false).as_deref(),
+      Some(b"console.log('app')" as &[u8])
+    );
+    // navigations keep the html fallbacks
+    assert_eq!(
+      resolve_asset(&dir, "about", true).as_deref(),
+      Some(b"<html>about</html>" as &[u8])
+    );
+    assert_eq!(
+      resolve_asset(&dir, "docs", true).as_deref(),
+      Some(b"<html>docs</html>" as &[u8])
+    );
+    assert_eq!(
+      resolve_asset(&dir, "route", true).as_deref(),
+      Some(b"<html>index</html>" as &[u8])
+    );
+    // missing subresources do not fall back
+    assert_eq!(
+      resolve_asset(&dir, "reports/2024.pdf", true).as_deref(),
+      Some(b"<html>index</html>" as &[u8])
+    );
+    assert_eq!(resolve_asset(&dir, "missing.js", false), None);
+    assert_eq!(resolve_asset(&dir, "assets/missing.png", false), None);
+
+    std::fs::remove_dir_all(dir).unwrap();
+  }
 }

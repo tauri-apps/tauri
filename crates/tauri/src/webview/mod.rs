@@ -25,10 +25,11 @@ pub use tauri_runtime::webview::{
 pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
 use tauri_runtime::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
+  dpi::{PhysicalPosition, PhysicalSize},
   WindowDispatch,
 };
 use tauri_runtime::{
+  dpi::{Position, Rect, Size},
   webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
   WebviewDispatch,
 };
@@ -887,7 +888,7 @@ tauri::Builder::default()
   pub(crate) fn build(self, window: Window<R>) -> crate::Result<Webview<R>> {
     let app_manager = window.manager();
 
-    let mut pending = self.into_pending_webview(&window, window.label())?;
+    let pending = self.into_pending_webview(&window, window.label())?;
 
     let use_https_scheme = pending.webview_attributes.use_https_scheme;
 

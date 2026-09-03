@@ -420,9 +420,60 @@ pub fn read_allowed_commands() -> Option<AllowedCommands> {
   Some(json)
 }
 
+/// Reads and parses the permission files listed in `$OUT_DIR/{relative_path}`,
+/// as written by the build script (`define_permissions`).
+///
+/// Returns `None` when the list or any referenced permission file is missing
+/// or cannot be parsed.
+pub fn read_defined_permission_files(relative_path: &str) -> Option<Vec<manifest::PermissionFile>> {
+  let list_path = std::env::var("OUT_DIR")
+    .map(PathBuf::from)
+    .ok()?
+    .join(relative_path);
+  let paths: Vec<PathBuf> = serde_json::from_str(&fs::read_to_string(list_path).ok()?).ok()?;
+
+  let mut permission_files = Vec::new();
+  for path in paths {
+    let contents = fs::read_to_string(&path).ok()?;
+    let permission_file = match path.extension().and_then(|e| e.to_str()) {
+      Some("toml") => toml::from_str(&contents).ok()?,
+      Some("json") => serde_json::from_str(&contents).ok()?,
+      _ => return None,
+    };
+    permission_files.push(permission_file);
+  }
+  Some(permission_files)
+}
+
 #[cfg(test)]
 mod tests {
   use crate::acl::RemoteUrlPattern;
+
+  #[test]
+  #[serial_test::serial(out_dir)]
+  fn reads_defined_permission_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let permission_path = dir.path().join("ping.toml");
+    std::fs::write(
+      &permission_path,
+      "[[permission]]\nidentifier = \"allow-ping\"\n[permission.commands]\nallow = [\"ping\"]\n",
+    )
+    .unwrap();
+    std::fs::write(
+      dir.path().join("my-plugin-permission-files"),
+      serde_json::to_string(&vec![&permission_path]).unwrap(),
+    )
+    .unwrap();
+
+    std::env::set_var("OUT_DIR", dir.path());
+    let files = super::read_defined_permission_files("my-plugin-permission-files").unwrap();
+    let missing = super::read_defined_permission_files("other-permission-files");
+    std::env::remove_var("OUT_DIR");
+
+    assert_eq!(files.len(), 1);
+    assert_eq!(files[0].permission[0].commands.allow, vec!["ping"]);
+    assert!(missing.is_none());
+  }
 
   #[test]
   fn url_pattern_domain_wildcard() {

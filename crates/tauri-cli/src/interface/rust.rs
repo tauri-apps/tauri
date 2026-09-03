@@ -1445,6 +1445,11 @@ pub(crate) fn tauri_config_to_bundle_settings(
     .lock()
     .unwrap()
     .all_enabled_features(features);
+  let cef_enabled =
+    enabled_features.contains(&"cef".into()) || enabled_features.contains(&"tauri/cef".into());
+  // `bundle > cef > embed`: false for an app that loads CEF at run time
+  // from outside its bundle, so nothing of the distribution ships.
+  let embed_cef = config.cef.embed;
 
   #[allow(unused_mut)]
   let mut resources = config
@@ -1731,9 +1736,9 @@ pub(crate) fn tauri_config_to_bundle_settings(
     }),
     license_file: config.license_file.map(|l| tauri_dir.join(l)),
     updater: updater_config,
-    cef_path: if enabled_features.contains(&"cef".into())
-      || enabled_features.contains(&"tauri/cef".into())
-    {
+    // An app on a shared runtime links CEF but ships none: there may not
+    // even be a distribution on this machine to resolve, so don't look.
+    cef_path: if cef_enabled && embed_cef {
       let cef_path = std::env::var_os("CEF_PATH")
         .map(PathBuf::from)
         .unwrap_or_else(default_cef_path);
@@ -1745,6 +1750,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
     } else {
       None
     },
+    cef_shared_runtime: cef_enabled && !embed_cef,
     ..Default::default()
   })
 }

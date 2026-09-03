@@ -117,14 +117,19 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
-  // Handle CEF support if cef_path is set
-  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
-    let helper_paths = create_cef_helpers(&bundle_directory, settings, cef_path)?;
+  // Handle CEF support: the helper apps are per-app and always needed, the
+  // framework only when one is being embedded — an app on a shared runtime
+  // loads it from elsewhere at launch and ships none.
+  let cef_path = settings.bundle_settings().cef_path.clone();
+  if cef_path.is_some() || settings.bundle_settings().cef_shared_runtime {
+    let helper_paths = create_cef_helpers(&bundle_directory, settings)?;
     // Add helper apps to sign paths
     sign_paths.extend(helper_paths.into_iter().map(|path| SignTarget {
       path,
       is_an_executable: true,
     }));
+  }
+  if let Some(cef_path) = cef_path.as_ref() {
     let cef_framework_path = copy_cef_framework(&bundle_directory, cef_path)?;
     // Add CEF framework to sign paths
     add_framework_sign_path(
@@ -568,11 +573,7 @@ fn add_nested_code_sign_path(src_path: &Path, dest_path: &Path, sign_paths: &mut
 
 /// Creates CEF helper .app bundles.
 /// Returns the paths to the created helper apps for signing.
-fn create_cef_helpers(
-  bundle_directory: &Path,
-  settings: &Settings,
-  _cef_path: &Path,
-) -> crate::Result<Vec<PathBuf>> {
+fn create_cef_helpers(bundle_directory: &Path, settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let mut helper_paths = Vec::new();
   let exec_name = settings.main_binary_name()?;
   let frameworks_dir = bundle_directory.join("Frameworks");

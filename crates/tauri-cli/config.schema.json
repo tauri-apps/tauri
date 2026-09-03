@@ -142,6 +142,9 @@
         "android": {
           "minSdkVersion": 24,
           "autoIncrementVersionCode": false
+        },
+        "cef": {
+          "embed": true
         }
       },
       "allOf": [
@@ -2276,6 +2279,17 @@
               "$ref": "#/definitions/AndroidConfig"
             }
           ]
+        },
+        "cef": {
+          "description": "Configuration for apps using the Chromium Embedded Framework.",
+          "default": {
+            "embed": true
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/CefConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -3815,6 +3829,18 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "CefConfig": {
+      "description": "Configuration for apps using the Chromium Embedded Framework (the `cef`\nfeature of the `tauri` crate).\n\nSee more: <https://v2.tauri.app/reference/config/#cefconfig>",
+      "type": "object",
+      "properties": {
+        "embed": {
+          "description": "Whether the CEF binary distribution is embedded in the bundle.\nDefaults to `true`.\n\nSet it to `false` for an app that loads CEF at run time from outside\nits own bundle — a shared, machine-wide runtime, through the\n`TAURI_CEF_LIBRARY_PATH` environment variable. The framework,\n`libcef` and their resources are then left out of every bundle, and\nthe app must find a runtime at launch or it will not start. On macOS\nthe helper apps are still produced: they belong to the app, not to\nthe distribution.",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false

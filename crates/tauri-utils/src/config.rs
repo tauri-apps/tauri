@@ -1652,6 +1652,38 @@ pub struct BundleConfig {
   /// Android configuration.
   #[serde(default)]
   pub android: AndroidConfig,
+  /// Configuration for apps using the Chromium Embedded Framework.
+  #[serde(default)]
+  pub cef: CefConfig,
+}
+
+/// Configuration for apps using the Chromium Embedded Framework (the `cef`
+/// feature of the `tauri` crate).
+///
+/// See more: <https://v2.tauri.app/reference/config/#cefconfig>
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CefConfig {
+  /// Whether the CEF binary distribution is embedded in the bundle.
+  /// Defaults to `true`.
+  ///
+  /// Set it to `false` for an app that loads CEF at run time from outside
+  /// its own bundle — a shared, machine-wide runtime, through the
+  /// `TAURI_CEF_LIBRARY_PATH` environment variable. The framework,
+  /// `libcef` and their resources are then left out of every bundle, and
+  /// the app must find a runtime at launch or it will not start. On macOS
+  /// the helper apps are still produced: they belong to the app, not to
+  /// the distribution.
+  #[serde(default = "default_true")]
+  pub embed: bool,
+}
+
+impl Default for CefConfig {
+  fn default() -> Self {
+    Self { embed: true }
+  }
 }
 
 /// A tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
@@ -4193,6 +4225,7 @@ mod build {
       let macos = quote!(Default::default());
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
+      let cef = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -4217,7 +4250,8 @@ mod build {
         linux,
         macos,
         ios,
-        android
+        android,
+        cef
       );
     }
   }

@@ -726,8 +726,15 @@ pub struct BundleSettings {
   pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
   pub windows: WindowsSettings,
-  /// Path to the CEF (Chromium Embedded Framework) root directory.
+  /// Path to the CEF (Chromium Embedded Framework) root directory to copy
+  /// into the bundle. `None` when the app does not use CEF, or uses it
+  /// without embedding one — see [`Self::cef_shared_runtime`].
   pub cef_path: Option<PathBuf>,
+  /// The app uses CEF but loads it at run time from outside the bundle (a
+  /// shared runtime), so no binary distribution is copied in. The macOS
+  /// helper apps are still created: they are per-app, and CEF launches them
+  /// by path from inside the bundle.
+  pub cef_shared_runtime: bool,
 }
 
 /// A binary to bundle.

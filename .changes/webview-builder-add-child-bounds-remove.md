@@ -1,5 +1,5 @@
 ---
-"tauri": "minor"
+"tauri": "minor:breaking"
 ---
 
 

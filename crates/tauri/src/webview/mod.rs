@@ -25,13 +25,14 @@ pub use tauri_runtime::webview::{
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
 use tauri_runtime::{
-  WebviewDispatch,
+  dpi::{Position, Rect, Size},
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
+  WebviewDispatch,
 };
 #[cfg(desktop)]
 use tauri_runtime::{
+  dpi::{PhysicalPosition, PhysicalSize},
   WindowDispatch,
-  dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
 };
 pub use tauri_utils::config::Color;
 use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
@@ -876,7 +877,7 @@ tauri::Builder::default()
   pub(crate) fn build(self, window: Window<R>) -> crate::Result<Webview<R>> {
     let app_manager = window.manager();
 
-    let mut pending = self.into_pending_webview(&window, window.label())?;
+    let pending = self.into_pending_webview(&window, window.label())?;
 
     let use_https_scheme = pending.webview_attributes.use_https_scheme;
     let devtools = pending.webview_attributes.devtools;

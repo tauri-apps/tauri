@@ -1,5 +1,66 @@
 # Changelog
 
+## [2.12.0]
+
+### New Features
+
+- [`f6c1eb253`](https://www.github.com/tauri-apps/tauri/commit/f6c1eb2533a0445e081c334931d67fee3e354c6f) ([#15401](https://www.github.com/tauri-apps/tauri/pull/15401) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `bundle.windows.bundleVCRuntime` to copy the Visual C++ runtime DLLs into Windows MSI and NSIS installers. The bundler locates the runtime through `VCTOOLS_REDIST_DIR` or the bundled `vswhere.exe`.
+- [`f76b1d3ae`](https://www.github.com/tauri-apps/tauri/commit/f76b1d3ae70d0ba0f0eba80b94b867593aa5ca8b) ([#15644](https://www.github.com/tauri-apps/tauri/pull/15644) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) The bundler now prints the size of each generated bundle next to its path in the `Finished N bundles at:` output (directories such as macOS `.app` bundles are measured recursively).
+- [`af465eae1`](https://www.github.com/tauri-apps/tauri/commit/af465eae1ad99d7b16b8fdbf9aa96bf76d6b9a76) ([#15619](https://www.github.com/tauri-apps/tauri/pull/15619) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Add a `--no-binary-patching` flag to `tauri build` and `tauri bundle`. When set, the bundler skips patching the main executable with bundle type information (and the subsequent re-signing), leaving an already-signed binary untouched. Patching is only required when shipping multiple bundle types per platform that should each update with their own installer format.
+- [`0646cc162`](https://www.github.com/tauri-apps/tauri/commit/0646cc1623608dfdaec8d1adbc08d0159b9c2369) ([#15620](https://www.github.com/tauri-apps/tauri/pull/15620) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Add a `--fit` option to `tauri icon` to accept non-square source images. `--fit cover` center-crops the source to a square (clipping the longer side) and `--fit contain` pads the shorter side with transparency. Non-square sources without `--fit` keep erroring, now with a hint pointing to the flag.
+- [`f6c1eb253`](https://www.github.com/tauri-apps/tauri/commit/f6c1eb2533a0445e081c334931d67fee3e354c6f) ([#15401](https://www.github.com/tauri-apps/tauri/pull/15401) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `build.windows.staticVCRuntime` to control MSVC static runtime linking. The `STATIC_VCRUNTIME` environment variable is now deprecated and emits a migration warning when used.
+
+### Enhancements
+
+- [`aebf38c84`](https://www.github.com/tauri-apps/tauri/commit/aebf38c845b57bc5653eca677e2e2e044528ea73) ([#15694](https://www.github.com/tauri-apps/tauri/pull/15694) by [@Turbo87](https://www.github.com/tauri-apps/tauri/../../Turbo87)) Migrate the Android Gradle scripts from the deprecated `kotlinOptions` DSL to `compilerOptions`, which is accepted by both Kotlin Gradle Plugin 1.9.x and 2.x. This lets projects move to Kotlin 2.x without hitting the hard error that 2.3+ raises on the old DSL.
+    
+    This increased the minimum supported Gradle version to 8.13, if your `gradle` is on an earlier version, delete `src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties` and re-run `tauri android init` to update it.
+- [`d89d8fa62`](https://www.github.com/tauri-apps/tauri/commit/d89d8fa62302bd3553b66fd47ecfa046b2fc84ef) ([#15780](https://www.github.com/tauri-apps/tauri/pull/15780) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Warn during Android commands (`init`/`dev`/`build`) when the active Java version is too new for the Gradle version Tauri ships (e.g. Java 25+ against Gradle 8.14), instead of letting the build fail later with a cryptic error. The warning points to the Gradle/Java compatibility matrix and suggests a supported JDK.
+- [`c3d21bd60`](https://www.github.com/tauri-apps/tauri/commit/c3d21bd60c3355b284b23dee1a181c3423231182) ([#15730](https://www.github.com/tauri-apps/tauri/pull/15730) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Use `Theme.Material3.DayNight.NoActionBar` instead of `Theme.MaterialComponents.DayNight.NoActionBar` when running `tauri android init`
+- [`f654f470c`](https://www.github.com/tauri-apps/tauri/commit/f654f470c122e925e425424cea733f13d3306412) ([#15862](https://www.github.com/tauri-apps/tauri/pull/15862) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Update template to use `targetSdk = 37`
+- [`cdaf7eab6`](https://www.github.com/tauri-apps/tauri/commit/cdaf7eab6c5fccc2a4812af18f58fd3530f3eedd) ([#15765](https://www.github.com/tauri-apps/tauri/pull/15765) by [@Hushlor](https://www.github.com/tauri-apps/tauri/../../Hushlor)) Clarify that the `tauri init` frontend commands run before `tauri dev` and `tauri build`, and can be left empty when they are not needed.
+- [`ca160ad48`](https://www.github.com/tauri-apps/tauri/commit/ca160ad4808f477380cb0865a08a8ae781e37f85) ([#15895](https://www.github.com/tauri-apps/tauri/pull/15895) by [@leepokai](https://www.github.com/tauri-apps/tauri/../../leepokai)) `tauri build` now warns when `productName` is still set to the default `tauri-app`, since it names the generated bundles and is written into install paths and metadata that are expected to be unique to your application. The config documentation for `productName` now lists what the field controls on each platform, and `identifier`'s documentation notes that the default value is rejected.
+- [`010f06bae`](https://www.github.com/tauri-apps/tauri/commit/010f06baecd499c41321da3130e20147c50025f7) ([#15737](https://www.github.com/tauri-apps/tauri/pull/15737) by [@lazerg](https://www.github.com/tauri-apps/tauri/../../lazerg)) Document the `TAURI_SIGNING_PRIVATE_KEY_PATH` environment variable and clarify that `TAURI_SIGNING_PRIVATE_KEY` accepts a string or a path for the `build` and `bundle` command but must be the literal key string for the `signer sign` command, both in `ENVIRONMENT_VARIABLES.md` and in the `signer generate` command output.
+
+### Bug Fixes
+
+- [`eaf96690d`](https://www.github.com/tauri-apps/tauri/commit/eaf96690db2439445fe16da24031bf3294ada605) ([#15804](https://www.github.com/tauri-apps/tauri/pull/15804) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) On Linux, do not bundle xdg-open and xdg-utils in the AppImage anymore. This rarely worked and usually requires host system support anyway.
+- [`adf5acf6f`](https://www.github.com/tauri-apps/tauri/commit/adf5acf6fbc0ef26de6b1eb30c47bb701c256954) ([#15651](https://www.github.com/tauri-apps/tauri/pull/15651) by [@justjavac](https://www.github.com/tauri-apps/tauri/../../justjavac)) Fix MSI bundling when an external binary filename starts with a digit.
+- [`11012a13f`](https://www.github.com/tauri-apps/tauri/commit/11012a13f55ab55ec5ed12ca3ac95338ae1731c3) ([#15681](https://www.github.com/tauri-apps/tauri/pull/15681) by [@justjavac](https://www.github.com/tauri-apps/tauri/../../justjavac)) Fix WiX bundler doesn't respect the resource's target file name.
+- [`6a298ee12`](https://www.github.com/tauri-apps/tauri/commit/6a298ee12e7ffde115175d43ac63a2fdcba51c3e) ([#15713](https://www.github.com/tauri-apps/tauri/pull/15713) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `tauri info` reports non existent npm package as not installed
+
+### What's Changed
+
+- [`ce3f13b91`](https://www.github.com/tauri-apps/tauri/commit/ce3f13b91a75cb723f229f56a3e82eb5f2d3f644) ([#15887](https://www.github.com/tauri-apps/tauri/pull/15887) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Lock unstable tauri crates to minor versions.
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+- Upgraded to `tauri-bundler@2.10.0`
+- Upgraded to `tauri-macos-sign@2.4.0`
+- [`e2e585ad1`](https://www.github.com/tauri-apps/tauri/commit/e2e585ad1196c9572f86ef39aae01ef4c3b1a762) ([#15828](https://www.github.com/tauri-apps/tauri/pull/15828) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On Android, fix missing `consumer-rules.pro` file in the template.
+    
+    **IMPORTANT**: For plugin authors, update your `build.gradle.kts` file to remove the
+    
+    ```kotlin
+        buildTypes {
+            release {
+                isMinifyEnabled = false
+                proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro"
+                )
+            }
+        }
+    ```
+    
+    section and rename your `proguard-rules.pro` to `consumer-rules.pro` to match the `consumerProguardFiles("consumer-rules.pro")` in the template.
+- [`e2e585ad1`](https://www.github.com/tauri-apps/tauri/commit/e2e585ad1196c9572f86ef39aae01ef4c3b1a762) ([#15828](https://www.github.com/tauri-apps/tauri/pull/15828) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On Android, updated the template to use Gradle v9.6.1 (`com.android.tools.build:gradle` v9.3.1) and Kotlin v2.2. Use `tauri android init` to apply the change.
+- [`9e9a54dea`](https://www.github.com/tauri-apps/tauri/commit/9e9a54dea26ae66de63800cabbccf980902a1cd3) ([#15890](https://www.github.com/tauri-apps/tauri/pull/15890) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Enable scenes lifecycle by default to support iOS 27.
+- [`b6660a041`](https://www.github.com/tauri-apps/tauri/commit/b6660a041db44729893dae7991a9be61cf8c2ed5) ([#15954](https://www.github.com/tauri-apps/tauri/pull/15954) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Update typescript to v7 in `tauri plugin init` template. Also fixes the default `rootDir` in the template `tsconfig.json`
+- [`9e9a54dea`](https://www.github.com/tauri-apps/tauri/commit/9e9a54dea26ae66de63800cabbccf980902a1cd3) ([#15890](https://www.github.com/tauri-apps/tauri/pull/15890) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update cargo-mobile2 and change the default minimum iOS version to 15.0 to support Xcode 27.
+
 ## \[2.11.4]
 
 ### Bug Fixes

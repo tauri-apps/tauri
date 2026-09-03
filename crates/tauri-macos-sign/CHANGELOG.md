@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.4.0]
+
+### What's Changed
+
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set MSRV to 1.90.
+
+### Dependencies
+
+- [`6f1f9da69`](https://www.github.com/tauri-apps/tauri/commit/6f1f9da69ae58f90b9ad56430d981d58f4690734) ([#15593](https://www.github.com/tauri-apps/tauri/pull/15593) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Updated dependency `apple-codesign` to `0.29`, no user facing changes.
+
 ## \[2.3.4]
 
 ### Enhancements

@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.0]
+
+### What's Changed
+
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set MSRV to 1.90.
+
 ## \[2.0.6]
 
 ### What's Changed

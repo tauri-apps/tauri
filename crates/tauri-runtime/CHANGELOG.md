@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.12.0]
+
+### New Features
+
+- [`3f62c70d6`](https://www.github.com/tauri-apps/tauri/commit/3f62c70d6b9a9eeeb7c302b010c858405a1bb761) ([#13848](https://www.github.com/tauri-apps/tauri/pull/13848) by [@zphrs](https://www.github.com/tauri-apps/tauri/../../zphrs)) Add `WebviewBuilder::limit_navigations_to_app_bound_domains`, `WebviewWindowBuilder::limit_navigations_to_app_bound_domains`, and limitNavigationsToAppBoundDomains to tauri.config.json.
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410) by [@zetaloop](https://www.github.com/tauri-apps/tauri/../../zetaloop)) Added `WindowBuilder/WebviewWindowBuilder::no_redirection_bitmap` method to disable the window redirection bitmap on Windows.
+- [`382dd6ccc`](https://www.github.com/tauri-apps/tauri/commit/382dd6ccc022277d5620fde90a39b4c5e896310e) ([#14865](https://www.github.com/tauri-apps/tauri/pull/14865) by [@F0RLE](https://www.github.com/tauri-apps/tauri/../../F0RLE)) Expose the `wry` permission handler API through Tauri.
+    This includes support for permission types such as `DisplayCapture`, `Midi`, `Sensors`, `MediaKeySystemAccess`, `LocalFonts`, `WindowManagement`, `PointerLock`, `AutomaticDownloads`, `FileSystemAccess`, and `Autoplay`.
+    Added `PermissionResponse::{Allow, Deny, Default}` for runtime permission decisions.
+
+### What's Changed
+
+- [`ce3f13b91`](https://www.github.com/tauri-apps/tauri/commit/ce3f13b91a75cb723f229f56a3e82eb5f2d3f644) ([#15887](https://www.github.com/tauri-apps/tauri/pull/15887) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Lock unstable tauri crates to minor versions.
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set MSRV to 1.90.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.10.0`
+- [`872428fe9`](https://www.github.com/tauri-apps/tauri/commit/872428fe910efe25eeaa959b56adcd9d9a9a2157) ([#15790](https://www.github.com/tauri-apps/tauri/pull/15790) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On macOS, updated `objc2-*` dependencies to 0.3.2
+
+### Breaking Changes
+
+- [`d727d6316`](https://www.github.com/tauri-apps/tauri/commit/d727d631659f07a597cc86cf808f505858dee878) ([#15630](https://www.github.com/tauri-apps/tauri/pull/15630) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Changed `RuntimeHandle::primary_monitor`, `RuntimeHandle::monitor_from_point`, `RuntimeHandle::available_monitors` to return `Result`s
+
 ## \[2.11.3]
 
 ### Dependencies

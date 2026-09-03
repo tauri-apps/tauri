@@ -79,17 +79,66 @@ pub use cef;
 /// CEF runtime initialization attributes.
 #[derive(Clone, Debug, Default)]
 pub struct RuntimeInitAttrs {
+  command_line_args: Vec<(String, Option<String>)>,
+  deep_link_schemes: Vec<String>,
+  cache_path: Option<PathBuf>,
+  api_version: Option<i32>,
+}
+
+impl RuntimeInitAttrs {
+  /// Appends one command line argument to the CEF command line.
+  #[must_use]
+  pub fn command_line_arg<K: Into<String>, V: Into<String>>(
+    mut self,
+    key: K,
+    value: Option<V>,
+  ) -> Self {
+    self
+      .command_line_args
+      .push((key.into(), value.map(Into::into)));
+    self
+  }
+
   /// Command line arguments passed to CEF.
-  pub command_line_args: Vec<(String, Option<String>)>,
+  #[must_use]
+  pub fn command_line_args<K: Into<String>, V: Into<String>>(
+    mut self,
+    args: impl IntoIterator<Item = (K, Option<V>)>,
+  ) -> Self {
+    self
+      .command_line_args
+      .extend(args.into_iter().map(|(k, v)| (k.into(), v.map(Into::into))));
+    self
+  }
+
   /// Deep link schemes.
-  pub deep_link_schemes: Vec<String>,
+  #[must_use]
+  pub fn deep_link_schemes<S: Into<String>>(
+    mut self,
+    schemes: impl IntoIterator<Item = S>,
+  ) -> Self {
+    self
+      .deep_link_schemes
+      .extend(schemes.into_iter().map(Into::into));
+    self
+  }
+
   /// Directory used for CEF disk cache (`Settings::cache_path`).
   ///
   /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
-  pub cache_path: Option<PathBuf>,
+  #[must_use]
+  pub fn root_cache_path<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
+    self.cache_path = Some(path.as_ref().to_path_buf());
+    self
+  }
+
   /// CEF API version this process declares (`cef_api_hash`), defaulting to
   /// `cef::sys::CEF_API_VERSION_LAST`.
-  pub api_version: Option<i32>,
+  #[must_use]
+  pub fn cef_api_version(mut self, version: i32) -> Self {
+    self.api_version = Some(version);
+    self
+  }
 }
 
 impl tauri_runtime::RuntimeSpecificInitAttrs for RuntimeInitAttrs {

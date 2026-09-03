@@ -11,7 +11,7 @@ on:
     types: [publish-clirs]
 
 permissions:
-  contents: write
+  contents: write # required to create new releases
 
 jobs:
   build:

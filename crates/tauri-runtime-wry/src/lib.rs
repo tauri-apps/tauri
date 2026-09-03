@@ -722,6 +722,13 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
   }
 }
 
+// Values beyond `i32::MAX` have been observed to crash native window creation
+// (e.g. an AppKit `NSWindow` frame assertion on macOS), so clamp instead of
+// passing them through unchecked. See https://github.com/tauri-apps/tauri/issues/15648
+fn clamp_window_dimension(value: f64) -> f64 {
+  value.min(i32::MAX as f64)
+}
+
 #[derive(Clone, Default)]
 pub struct WindowBuilderWrapper {
   inner: TaoWindowBuilder,
@@ -872,16 +879,20 @@ impl WindowBuilder for WindowBuilderWrapper {
     let mut constraints = WindowSizeConstraints::default();
 
     if let Some(min_width) = config.min_width {
-      constraints.min_width = Some(tao::dpi::LogicalUnit::new(min_width).into());
+      constraints.min_width =
+        Some(tao::dpi::LogicalUnit::new(clamp_window_dimension(min_width)).into());
     }
     if let Some(min_height) = config.min_height {
-      constraints.min_height = Some(tao::dpi::LogicalUnit::new(min_height).into());
+      constraints.min_height =
+        Some(tao::dpi::LogicalUnit::new(clamp_window_dimension(min_height)).into());
     }
     if let Some(max_width) = config.max_width {
-      constraints.max_width = Some(tao::dpi::LogicalUnit::new(max_width).into());
+      constraints.max_width =
+        Some(tao::dpi::LogicalUnit::new(clamp_window_dimension(max_width)).into());
     }
     if let Some(max_height) = config.max_height {
-      constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
+      constraints.max_height =
+        Some(tao::dpi::LogicalUnit::new(clamp_window_dimension(max_height)).into());
     }
     if let Some(color) = config.background_color {
       window = window.background_color(color);
@@ -924,21 +935,26 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn inner_size(mut self, width: f64, height: f64) -> Self {
-    self.inner = self.inner.with_inner_size(LogicalSize::new(width, height));
+    self.inner = self.inner.with_inner_size(LogicalSize::new(
+      clamp_window_dimension(width),
+      clamp_window_dimension(height),
+    ));
     self
   }
 
   fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
-    self.inner = self
-      .inner
-      .with_min_inner_size(LogicalSize::new(min_width, min_height));
+    self.inner = self.inner.with_min_inner_size(LogicalSize::new(
+      clamp_window_dimension(min_width),
+      clamp_window_dimension(min_height),
+    ));
     self
   }
 
   fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
-    self.inner = self
-      .inner
-      .with_max_inner_size(LogicalSize::new(max_width, max_height));
+    self.inner = self.inner.with_max_inner_size(LogicalSize::new(
+      clamp_window_dimension(max_width),
+      clamp_window_dimension(max_height),
+    ));
     self
   }
 

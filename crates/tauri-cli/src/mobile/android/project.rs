@@ -207,3 +207,41 @@ fn generate_out_file(
     Ok(None)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  // Regression test for https://github.com/tauri-apps/tauri/issues/15884: the app build.gradle.kts
+  // template used to put `packaging { jniLibs.keepDebugSymbols.add(...) }` inside
+  // `buildTypes { getByName("debug") { ... } }`. `BuildType` has no `packaging` member, so Kotlin
+  // silently resolved that call against the outer `android {}` extension instead, applying the
+  // keep-symbols globs to every build type, including release. That caused release `.so` files to
+  // ship unstripped and made `ndk.debugSymbolLevel` extract nothing.
+  #[test]
+  fn debug_keep_debug_symbols_is_not_applied_to_every_build_type() {
+    let build_gradle = include_str!("../../../templates/mobile/android/app/build.gradle.kts");
+
+    let debug_block_start = build_gradle
+      .find(r#"getByName("debug")"#)
+      .expect("template should define a debug build type");
+    let release_block_start = build_gradle
+      .find(r#"getByName("release")"#)
+      .expect("template should define a release build type");
+    assert!(debug_block_start < release_block_start);
+
+    let debug_block = &build_gradle[debug_block_start..release_block_start];
+    assert!(
+      !debug_block.contains("packaging"),
+      "`getByName(\"debug\")` has no `packaging` block in AGP's DSL, so placing one there \
+       silently resolves against the outer `android {{}}` extension and leaks keepDebugSymbols \
+       into every build type, including release"
+    );
+
+    // `keepDebugSymbols` must instead be scoped to the debug variant through the variant API,
+    // which is the only DSL surface that actually restricts it to a single build type.
+    let variants_block = &build_gradle[build_gradle
+      .find("androidComponents")
+      .expect("template should scope keepDebugSymbols via androidComponents")..];
+    assert!(variants_block.contains(r#"selector().withBuildType("debug")"#));
+    assert!(variants_block.contains("keepDebugSymbols"));
+  }
+}

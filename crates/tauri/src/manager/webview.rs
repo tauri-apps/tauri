@@ -517,7 +517,7 @@ impl<R: Runtime> WebviewManager<R> {
           if html.contains('<') && html.contains('>') {
             let document = tauri_utils::html2::parse_doc(html);
             tauri_utils::html2::inject_csp(&document, &csp.to_string());
-            url.set_path(&format!("{},{}", mime::TEXT_HTML, document.html()));
+            set_html_data_url(&mut url, &document.html());
           }
         }
       }
@@ -775,6 +775,28 @@ fn is_local_network_url(url: &url::Url) -> bool {
   }
 }
 
+// the fragment percent-encode set, plus `#`, `%` and `?` which would otherwise be read back as a
+// fragment separator, an escape sequence and a query separator
+#[cfg(feature = "webview-data-url")]
+const DATA_URL_ENCODE_SET: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
+  .add(b' ')
+  .add(b'"')
+  .add(b'#')
+  .add(b'%')
+  .add(b'<')
+  .add(b'>')
+  .add(b'?')
+  .add(b'`');
+
+#[cfg(feature = "webview-data-url")]
+fn set_html_data_url(url: &mut Url, html: &str) {
+  url.set_path(&format!(
+    "{},{}",
+    mime::TEXT_HTML,
+    percent_encoding::utf8_percent_encode(html, DATA_URL_ENCODE_SET)
+  ));
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -790,5 +812,23 @@ mod tests {
     ));
 
     assert!(!is_local_network_url(&"https://tauri.app".parse().unwrap()));
+  }
+
+  #[cfg(feature = "webview-data-url")]
+  #[test]
+  fn html_data_url_survives_serialization() {
+    let html = "<html><head><style>body{background:#09090b}</style></head>\n\t<body>50%3Coff привет</body></html>";
+
+    let mut url = Url::parse("data:text/html,placeholder").unwrap();
+    set_html_data_url(&mut url, html);
+
+    let url = Url::parse(url.as_str()).unwrap();
+    assert_eq!(url.fragment(), None);
+
+    let (body, _) = data_url::DataUrl::process(url.as_str())
+      .unwrap()
+      .decode_to_vec()
+      .unwrap();
+    assert_eq!(String::from_utf8(body).unwrap(), html);
   }
 }

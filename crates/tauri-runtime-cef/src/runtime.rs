@@ -76,25 +76,24 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 /// in minor releases when a known breaking change is discovered.
 pub use cef;
 
-/// Platform-specific runtime init attributes.
-#[derive(Clone, Debug)]
-pub enum RuntimeInitAttribute {
+/// CEF runtime initialization attributes.
+#[derive(Clone, Debug, Default)]
+pub struct RuntimeInitAttrs {
   /// Command line arguments passed to CEF.
-  CommandLineArgs { args: Vec<(String, Option<String>)> },
+  pub command_line_args: Vec<(String, Option<String>)>,
   /// Deep link schemes.
-  DeepLinkSchemes { schemes: Vec<String> },
+  pub deep_link_schemes: Vec<String>,
   /// Directory used for CEF disk cache (`Settings::cache_path`).
   ///
   /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
-  CachePath { path: PathBuf },
+  pub cache_path: Option<PathBuf>,
   /// CEF API version this process declares (`cef_api_hash`), defaulting to
   /// `cef::sys::CEF_API_VERSION_LAST`.
-  ApiVersion { version: i32 },
+  pub api_version: Option<i32>,
 }
 
-impl tauri_runtime::InitAttribute for RuntimeInitAttribute {
-  fn new(config: &tauri_utils::config::Config) -> Result<Vec<Self>> {
-    let mut attrs = Vec::new();
+impl tauri_runtime::RuntimeSpecificInitAttrs for RuntimeInitAttrs {
+  fn apply_config(&mut self, config: &tauri_utils::config::Config) -> Result<()> {
     if let Some(plugin_config) = config
       .plugins
       .0
@@ -118,9 +117,9 @@ impl tauri_runtime::InitAttribute for RuntimeInitAttribute {
           .collect(),
       };
 
-      attrs.push(RuntimeInitAttribute::DeepLinkSchemes { schemes });
+      self.deep_link_schemes.extend(schemes);
     }
-    Ok(attrs)
+    Ok(())
   }
 }
 
@@ -1324,7 +1323,7 @@ impl TerminationSignals {
 impl<T: UserEvent> CefRuntime<T> {
   fn init(
     mut event_loop_builder: EventLoopBuilder,
-    runtime_args: RuntimeInitArgs<RuntimeInitAttribute>,
+    runtime_args: RuntimeInitArgs<RuntimeInitAttrs>,
   ) -> Result<Self> {
     // Snapshot before CEF can touch anything, so we can tell an embedder's own
     // signal policy apart from the handlers CEF installs in `cef::initialize`.
@@ -1370,12 +1369,9 @@ impl<T: UserEvent> CefRuntime<T> {
     // The CEF API version table must be initialized before any other CEF call
     // (e.g. `args.as_cmd_line()` below), otherwise the process crashes with no
     // diagnostics.
-    let mut pl_attrs = runtime_args.platform_specific_attributes.iter();
-    let version = pl_attrs
-      .find_map(|attribute| match attribute {
-        RuntimeInitAttribute::ApiVersion { version } => Some(*version),
-        _ => None,
-      })
+    let version = runtime_args
+      .runtime_init_attrs
+      .api_version
       .unwrap_or(sys::CEF_API_VERSION_LAST);
     let _ = cef::api_hash(version, 0);
 
@@ -1400,18 +1396,13 @@ impl<T: UserEvent> CefRuntime<T> {
       std::process::exit(ret.max(0));
     }
 
-    let mut command_line_args = Vec::new();
-    let mut deep_link_schemes = Vec::new();
-    let mut cache_path_override = None::<PathBuf>;
-    for arg in runtime_args.platform_specific_attributes {
-      match arg {
-        RuntimeInitAttribute::CommandLineArgs { args } => command_line_args.extend(args),
-        RuntimeInitAttribute::DeepLinkSchemes { schemes } => deep_link_schemes.extend(schemes),
-        RuntimeInitAttribute::CachePath { path } => cache_path_override = Some(path),
-        // Already applied, above, before the first CEF call.
-        RuntimeInitAttribute::ApiVersion { .. } => {}
-      }
-    }
+    let RuntimeInitAttrs {
+      mut command_line_args,
+      deep_link_schemes,
+      cache_path: cache_path_override,
+      // Already applied, above, before the first CEF call.
+      api_version: _,
+    } = runtime_args.runtime_init_attrs;
 
     let cache_path = cache_path_override.unwrap_or_else(|| {
       let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
@@ -1560,10 +1551,10 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type EventLoopProxy = EventProxy<T>;
   type PlatformSpecificWebviewAttribute = WebviewAtribute;
   type Webview = Webview;
-  type PlatformSpecificInitAttribute = RuntimeInitAttribute;
+  type RuntimeInitAttrs = RuntimeInitAttrs;
   type WindowOpener = NewWindowOpener;
 
-  fn new(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
+  fn new(args: RuntimeInitArgs<Self::RuntimeInitAttrs>) -> Result<Self> {
     Self::init(EventLoopBuilder::default(), args)
   }
 
@@ -1575,7 +1566,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
+  fn new_any_thread(args: RuntimeInitArgs<Self::RuntimeInitAttrs>) -> Result<Self> {
     let mut event_loop_builder = EventLoopBuilder::default();
     event_loop_builder.with_any_thread(true);
     Self::init(event_loop_builder, args)

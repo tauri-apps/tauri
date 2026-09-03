@@ -31,7 +31,7 @@ use tauri_runtime::{
 #[cfg(desktop)]
 use tauri_runtime::{
   WindowDispatch,
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
 };
 pub use tauri_utils::config::Color;
 use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
@@ -230,7 +230,7 @@ macro_rules! unstable_struct {
 
       #[cfg(not(any(test, feature = "unstable")))]
       pub(crate) $($tokens)*
-    }
+  }
 }
 
 unstable_struct!(
@@ -270,8 +270,10 @@ impl<R: Runtime> WebviewBuilder<R> {
 tauri::Builder::default()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label").build()?;
-    let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+    let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
+    let webview = window.add_child(webview_builder);
     Ok(())
   });
 ```
@@ -289,8 +291,10 @@ tauri::Builder::default()
     let handle = app.handle().clone();
     std::thread::spawn(move || {
       let window = tauri::window::WindowBuilder::new(&handle, "label").build().unwrap();
-      let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()));
-      window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+      let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
+        .position(tauri::LogicalPosition::new(0, 0))
+        .size(window.inner_size().unwrap());
+      window.add_child(webview_builder);
     });
     Ok(())
   });
@@ -307,8 +311,10 @@ tauri::Builder::default()
 #[tauri::command]
 async fn create_window(app: tauri::AppHandle) {
   let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
-  let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()));
-  window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+  let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::External("https://tauri.app/".parse().unwrap()))
+    .position(tauri::LogicalPosition::new(0, 0))
+    .size(window.inner_size().unwrap());
+  window.add_child(webview_builder);
 }
 ```
   "####
@@ -351,8 +357,10 @@ async fn create_window(app: tauri::AppHandle) {
 #[tauri::command]
 async fn create_window(app: tauri::AppHandle) {
   let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
-  let webview_builder = tauri::webview::WebviewBuilder::from_config(&app.config().app.windows.get(0).unwrap().clone());
-  window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
+  let webview_builder = tauri::webview::WebviewBuilder::from_config(&app.config().app.windows.get(0).unwrap().clone())
+    .position(tauri::LogicalPosition::new(0, 0))
+    .size(window.inner_size().unwrap());
+  window.add_child(webview_builder);
 }
 ```
   "####
@@ -413,6 +421,13 @@ async fn create_window(app: tauri::AppHandle) {
     }
   }
 
+  fn default_bounds() -> Rect {
+    Rect {
+      position: Position::Logical((0, 0).into()),
+      size: Size::Logical((200., 200.).into()),
+    }
+  }
+
   /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
   ///
   /// Currently only implemented for the `tauri` URI protocol.
@@ -451,9 +466,11 @@ tauri::Builder::default()
             *csp = HeaderValue::from_str(&csp_string).unwrap();
           }
         }
-      });
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
 
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
 
     Ok(())
   });
@@ -493,9 +510,11 @@ tauri::Builder::default()
       .on_navigation(|url| {
         // allow the production URL or localhost on dev
         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
-      });
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
 
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -544,9 +563,11 @@ tauri::Builder::default()
 
         let window = builder.build().unwrap();
         tauri::webview::NewWindowResponse::Create { window }
-      });
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
 
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -616,9 +637,11 @@ tauri::Builder::default()
         }
         // let the download start
         true
-      });
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
 
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -662,8 +685,10 @@ tauri::Builder::default()
             println!("{} finished loading", payload.url());
           }
         }
-      });
-    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+      })
+      .position(tauri::LogicalPosition::new(0, 0))
+      .size(window.inner_size().unwrap());
+    let webview = window.add_child(webview_builder)?;
     Ok(())
   });
 ```
@@ -713,8 +738,10 @@ tauri::Builder::default()
   ///           PermissionKind::Notifications => PermissionResponse::Allow,
   ///           _ => PermissionResponse::Default,
   ///         }
-  ///       });
-  ///     let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+  ///       })
+  ///       .position(tauri::LogicalPosition::new(0, 0))
+  ///       .size(window.inner_size().unwrap());
+  ///     let webview = window.add_child(webview_builder)?;
   ///     Ok(())
   ///   });
   /// ```
@@ -846,17 +873,10 @@ tauri::Builder::default()
 
   /// Creates a new webview on the given window.
   #[cfg(desktop)]
-  pub(crate) fn build(
-    self,
-    window: Window<R>,
-    position: Position,
-    size: Size,
-  ) -> crate::Result<Webview<R>> {
+  pub(crate) fn build(self, window: Window<R>) -> crate::Result<Webview<R>> {
     let app_manager = window.manager();
 
     let mut pending = self.into_pending_webview(&window, window.label())?;
-
-    pending.webview_attributes.bounds = Some(tauri_runtime::dpi::Rect { size, position });
 
     let use_https_scheme = pending.webview_attributes.use_https_scheme;
     let devtools = pending.webview_attributes.devtools;
@@ -927,8 +947,10 @@ fn main() {
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
-        .initialization_script(INIT_SCRIPT);
-      let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+        .initialization_script(INIT_SCRIPT)
+        .position(tauri::LogicalPosition::new(0, 0))
+        .size(window.inner_size().unwrap());
+      let webview = window.add_child(webview_builder)?;
       Ok(())
     });
 }
@@ -986,8 +1008,10 @@ fn main() {
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
-        .initialization_script_for_all_frames(INIT_SCRIPT);
-      let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+        .initialization_script_for_all_frames(INIT_SCRIPT)
+        .position(tauri::LogicalPosition::new(0, 0))
+        .size(window.inner_size().unwrap());
+      let webview = window.add_child(webview_builder)?;
       Ok(())
     });
 }
@@ -1109,6 +1133,40 @@ fn main() {
   #[must_use]
   pub fn focused(mut self, focus: bool) -> Self {
     self.webview_attributes.focus = focus;
+    self
+  }
+
+  /// Sets the webview bounds relative to its parent window.
+  #[cfg(desktop)]
+  #[must_use]
+  pub fn bounds(mut self, bounds: Rect) -> Self {
+    self.webview_attributes.bounds = Some(bounds);
+    self
+  }
+
+  /// Sets the webview size while preserving its configured position.
+  /// The position defaults to `(0, 0)`.
+  #[cfg(desktop)]
+  #[must_use]
+  pub fn size<S: Into<Size>>(mut self, size: S) -> Self {
+    self
+      .webview_attributes
+      .bounds
+      .get_or_insert_with(Self::default_bounds)
+      .size = size.into();
+    self
+  }
+
+  /// Sets the webview position relative to its parent window while preserving its configured size.
+  /// The size defaults to `200 x 200`.
+  #[cfg(desktop)]
+  #[must_use]
+  pub fn position<P: Into<Position>>(mut self, position: P) -> Self {
+    self
+      .webview_attributes
+      .bounds
+      .get_or_insert_with(Self::default_bounds)
+      .position = position.into();
     self
   }
 

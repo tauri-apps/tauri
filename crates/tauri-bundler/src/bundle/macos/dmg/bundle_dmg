@@ -35,7 +35,8 @@ HDIUTIL_VERBOSITY=""
 SANDBOX_SAFE=0
 BLESS=0
 SKIP_JENKINS=0
-MAXIMUM_UNMOUNTING_ATTEMPTS=3
+MAXIMUM_UNMOUNTING_ATTEMPTS="${TAURI_DMG_DETACH_ATTEMPTS:-3}"
+DMG_DETACH_DELAY="${TAURI_DMG_DETACH_DELAY:-1}"
 SIGNATURE=""
 NOTARIZE=""
 
@@ -58,7 +59,7 @@ function hdiutil_detach_retry() {
 	do
 		(( unmounting_attempts == MAXIMUM_UNMOUNTING_ATTEMPTS )) && exit 16  # patience exhausted, exit with code EBUSY
 		echo "Wait a moment..."
-		sleep $(( 1 * (2 ** unmounting_attempts) ))
+		sleep $(( DMG_DETACH_DELAY * (2 ** unmounting_attempts) ))
 	done
 	unset unmounting_attempts
 }

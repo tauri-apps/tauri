@@ -37,7 +37,7 @@ import {
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
 import type { DragDropEvent } from './webview'
-import { Image, transformImage } from './image'
+import { JsImage, transformImage } from './image'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -1521,9 +1521,7 @@ class Window {
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(
-    icon: string | Image | Uint8Array | ArrayBuffer | number[]
-  ): Promise<void> {
+  async setIcon(icon: JsImage): Promise<void> {
     return invoke('plugin:window|set_icon', {
       label: this.label,
       value: transformImage(icon)
@@ -1772,9 +1770,7 @@ class Window {
    * @param icon Icon bytes or path to the icon file. Use `undefined` to remove the overlay icon.
    * @return A promise indicating the success or failure of the operation.
    */
-  async setOverlayIcon(
-    icon?: string | Image | Uint8Array | ArrayBuffer | number[]
-  ): Promise<void> {
+  async setOverlayIcon(icon?: JsImage): Promise<void> {
     return invoke('plugin:window|set_overlay_icon', {
       label: this.label,
       value: icon ? transformImage(icon) : undefined

@@ -92,6 +92,22 @@ export class Image extends Resource {
     }).then((buffer) => new Uint8Array(buffer))
   }
 
+  /**
+   * Encodes this image as PNG bytes.
+   *
+   * Note that you need the `image-png` Cargo feature to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
+   */
+  async toPng(): Promise<Uint8Array> {
+    return invoke<number[]>('plugin:image|to_png', {
+      rid: this.rid
+    }).then((buffer) => new Uint8Array(buffer))
+  }
+
   /** Returns the size of this image.  */
   async size(): Promise<ImageSize> {
     return invoke<ImageSize>('plugin:image|size', { rid: this.rid })

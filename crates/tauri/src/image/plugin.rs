@@ -61,6 +61,20 @@ fn rgba<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<crate
   Ok(crate::ipc::Response::new(image.rgba().to_owned()))
 }
 
+#[cfg(feature = "image-png")]
+#[command(root = "crate")]
+fn to_png<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<crate::ipc::Response> {
+  let resources_table = webview.resources_table();
+  let image = resources_table.get::<Image<'_>>(rid)?;
+  Ok(crate::ipc::Response::new(image.to_png()?))
+}
+
+#[cfg(not(feature = "image-png"))]
+#[command(root = "crate")]
+fn to_png() -> std::result::Result<(), &'static str> {
+  Err("to_png is only supported if the `image-png` Cargo feature is enabled")
+}
+
 #[derive(Serialize)]
 struct Size {
   width: u32,
@@ -82,7 +96,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("image")
     .invoke_handler(crate::generate_handler![
       #![plugin(image)]
-      new, from_bytes, from_path, rgba, size
+      new, from_bytes, from_path, rgba, to_png, size
     ])
     .build()
 }

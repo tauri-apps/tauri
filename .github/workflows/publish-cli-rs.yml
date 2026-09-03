@@ -10,6 +10,9 @@ on:
   repository_dispatch:
     types: [publish-clirs]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ${{ matrix.config.os }}

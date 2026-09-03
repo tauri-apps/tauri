@@ -18,7 +18,8 @@ use winit::{
 };
 
 use crate::window::{
-  AppWindowAttrs, paired_size_constraint, tauri_theme_to_winit_theme, winit_theme_to_tauri_theme,
+  AppWindowAttrs, max_size_constraint, min_size_constraint, tauri_theme_to_winit_theme,
+  winit_theme_to_tauri_theme,
 };
 
 #[cfg(any(windows, target_os = "macos"))]
@@ -94,12 +95,20 @@ impl WindowBuilder for WindowBuilderWrapper {
     {
       builder = builder.transparent(config.transparent);
     }
-    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-      builder = builder.min_inner_size(min_width, min_height);
+    let mut constraints = WindowSizeConstraints::default();
+    if let Some(min_width) = config.min_width {
+      constraints.min_width = Some(tauri_runtime::dpi::LogicalUnit::new(min_width).into());
     }
-    if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
-      builder = builder.max_inner_size(max_width, max_height);
+    if let Some(min_height) = config.min_height {
+      constraints.min_height = Some(tauri_runtime::dpi::LogicalUnit::new(min_height).into());
     }
+    if let Some(max_width) = config.max_width {
+      constraints.max_width = Some(tauri_runtime::dpi::LogicalUnit::new(max_width).into());
+    }
+    if let Some(max_height) = config.max_height {
+      constraints.max_height = Some(tauri_runtime::dpi::LogicalUnit::new(max_height).into());
+    }
+    builder = builder.inner_size_constraints(constraints);
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
     }
@@ -179,11 +188,10 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
-    // TODO: upstream individual width/height size constraints to winit.
     self.attrs.inner.min_surface_size =
-      paired_size_constraint(constraints.min_width, constraints.min_height);
+      min_size_constraint(constraints.min_width, constraints.min_height);
     self.attrs.inner.max_surface_size =
-      paired_size_constraint(constraints.max_width, constraints.max_height);
+      max_size_constraint(constraints.max_width, constraints.max_height);
     self
   }
 

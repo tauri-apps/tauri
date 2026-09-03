@@ -210,9 +210,10 @@ fn prepare_window_attributes(event_loop: &dyn ActiveEventLoop, attrs: &mut AppWi
   }
 }
 
-pub(crate) fn paired_size_constraint(
+fn paired_size_constraint(
   width: Option<tauri_runtime::dpi::PixelUnit>,
   height: Option<tauri_runtime::dpi::PixelUnit>,
+  unconstrained: u32,
 ) -> Option<Size> {
   match (width, height) {
     (
@@ -229,8 +230,34 @@ pub(crate) fn paired_size_constraint(
       width.into(),
       height.into(),
     ))),
+    (Some(tauri_runtime::dpi::PixelUnit::Logical(width)), None) => Some(Size::Logical(
+      tauri_runtime::dpi::LogicalSize::new(width.into(), unconstrained as f64),
+    )),
+    (None, Some(tauri_runtime::dpi::PixelUnit::Logical(height))) => Some(Size::Logical(
+      tauri_runtime::dpi::LogicalSize::new(unconstrained as f64, height.into()),
+    )),
+    (Some(tauri_runtime::dpi::PixelUnit::Physical(width)), None) => Some(Size::Physical(
+      PhysicalSize::new(width.into(), unconstrained),
+    )),
+    (None, Some(tauri_runtime::dpi::PixelUnit::Physical(height))) => Some(Size::Physical(
+      PhysicalSize::new(unconstrained, height.into()),
+    )),
     _ => None,
   }
+}
+
+pub(crate) fn min_size_constraint(
+  width: Option<tauri_runtime::dpi::PixelUnit>,
+  height: Option<tauri_runtime::dpi::PixelUnit>,
+) -> Option<Size> {
+  paired_size_constraint(width, height, 0)
+}
+
+pub(crate) fn max_size_constraint(
+  width: Option<tauri_runtime::dpi::PixelUnit>,
+  height: Option<tauri_runtime::dpi::PixelUnit>,
+) -> Option<Size> {
+  paired_size_constraint(width, height, u32::MAX)
 }
 
 pub(crate) enum WindowMessage {
@@ -766,8 +793,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WindowMessage::SetSizeConstraints(constraints) => {
         // TODO: upstream individual width/height size constraints to winit.
-        let min_size = paired_size_constraint(constraints.min_width, constraints.min_height);
-        let max_size = paired_size_constraint(constraints.max_width, constraints.max_height);
+        let min_size = min_size_constraint(constraints.min_width, constraints.min_height);
+        let max_size = max_size_constraint(constraints.max_width, constraints.max_height);
         window.set_min_surface_size(min_size);
         window.set_max_surface_size(max_size);
       }

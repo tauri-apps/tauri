@@ -100,6 +100,9 @@
             "bundleMediaFramework": false,
             "files": {}
           },
+          "assetGstPlugin": {
+            "active": false
+          },
           "deb": {
             "files": {}
           },
@@ -2293,6 +2296,9 @@
               "bundleMediaFramework": false,
               "files": {}
             },
+            "assetGstPlugin": {
+              "active": false
+            },
             "deb": {
               "files": {}
             },
@@ -3291,6 +3297,17 @@
               "$ref": "#/definitions/RpmConfig"
             }
           ]
+        },
+        "assetGstPlugin": {
+          "description": "Configuration for the `asset://` GStreamer plugin, shared by all Linux bundle formats.",
+          "default": {
+            "active": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AssetGstPluginConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -3670,6 +3687,25 @@
           "additionalProperties": false
         }
       ]
+    },
+    "AssetGstPluginConfig": {
+      "description": "Configuration for the `asset://` GStreamer plugin for Linux.",
+      "type": "object",
+      "properties": {
+        "active": {
+          "description": "Whether to bundle the plugin. Defaults to `false`.",
+          "default": false,
+          "type": "boolean"
+        },
+        "path": {
+          "description": "Path to a prebuilt `libgsttauriasset.so`.\n When unset, the bundler downloads a prebuilt plugin for the target architecture.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "MacConfig": {
       "description": "Configuration for the macOS bundles.\n\n See more: <https://v2.tauri.app/reference/config/#macconfig>",

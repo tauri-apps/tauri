@@ -230,6 +230,17 @@ pub struct AppImageSettings {
   pub bundle_xdg_open: bool,
 }
 
+/// The `asset://` GStreamer plugin settings, shared by all Linux bundle formats.
+#[derive(Clone, Debug, Default)]
+pub struct AssetGstPluginSettings {
+  /// Whether to bundle the plugin.
+  pub active: bool,
+  /// Path to a prebuilt `libgsttauriasset.so`.
+  ///
+  /// When `None`, the bundler downloads a prebuilt plugin for the target architecture.
+  pub path: Option<PathBuf>,
+}
+
 /// The RPM bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct RpmSettings {
@@ -716,6 +727,8 @@ pub struct BundleSettings {
   pub appimage: AppImageSettings,
   /// Rpm-specific settings.
   pub rpm: RpmSettings,
+  /// `asset://` GStreamer plugin settings (Linux bundle only).
+  pub asset_gst_plugin: AssetGstPluginSettings,
   /// DMG-specific settings.
   pub dmg: DmgSettings,
   /// iOS-specific settings.
@@ -1320,6 +1333,11 @@ impl Settings {
   /// Returns the RPM settings.
   pub fn rpm(&self) -> &RpmSettings {
     &self.bundle_settings.rpm
+  }
+
+  /// Returns the `asset://` GStreamer plugin settings.
+  pub fn asset_gst_plugin(&self) -> &AssetGstPluginSettings {
+    &self.bundle_settings.asset_gst_plugin
   }
 
   /// Returns the DMG settings.

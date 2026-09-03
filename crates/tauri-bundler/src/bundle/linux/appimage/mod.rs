@@ -10,9 +10,19 @@ use std::{
 use crate::Settings;
 
 mod linuxdeploy;
+mod sharun;
 
+// TODO: Consider auto fallback to linuxdeploy on unsupported systems.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  linuxdeploy::bundle_project(settings)
+  if std::env::var("TAURI_BUNDLER_NEW_APPIMAGE_FORMAT").is_ok_and(|v| v == "true" || v == "1")
+    || settings.appimage().use_new_format
+  {
+    sharun::bundle_project(settings)
+  } else {
+    // TODO: update link with whatever it will be
+    log::warn!("Using the deprecated AppImage bundler. Please visit https://v2.tauri.app/distribute/appimage/#new-version and try the new implementation.");
+    linuxdeploy::bundle_project(settings)
+  }
 }
 
 fn write_and_make_executable(path: &Path, data: Vec<u8>) -> std::io::Result<()> {

@@ -228,6 +228,32 @@ pub struct AppImageSettings {
     note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
   )]
   pub bundle_xdg_open: bool,
+  /// Use the new AppImage bundler based on sharun and uruntime instead of linuxdeploy.
+  ///
+  /// Enabling this is strongly recommended as it will produce truly portable
+  /// AppImages that allow you to build on newer distros while still supporting
+  /// older distros. The produced AppImage also has fewer general issues and
+  /// supports Wayland without forcing the use of XWayland.
+  ///
+  /// The drawbacks of this option is that the AppImage will be larger, only supports
+  /// x86_64 and aarch64, and currently can only be built on Debian/Ubuntu based systems.
+  /// For Ubuntu it requires at least 24.04 and above.
+  pub use_new_format: bool,
+  /// Make the AppImage use squashfs instead of dwarfs.
+  ///
+  /// Enabling this option will improve compatibility with AppImage integration
+  /// tools but will also increase the file size.
+  ///
+  /// Ignored if `use_new_format` is disabled.
+  pub squashfs: bool,
+  /// Update information to forward to the AppImage tooling according to <https://github.com/AppImage/AppImageSpec/blob/master/draft.md#update-information>.
+  /// Can also be provided via the `UPINFO` env var.
+  ///
+  /// When enabled, the generated AppImage or the .zsync file must not be renamed
+  /// to keep the update mechanism working.
+  ///
+  /// Requires `zsyncmake` to be installed on the build system.
+  pub update_information: Option<String>,
 }
 
 /// The RPM bundle settings.

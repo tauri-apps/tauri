@@ -179,6 +179,10 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     }
   }
 
+  if let Some(retries) = dmg_settings.detach_retries {
+    bundle_dmg_cmd.env("TAURI_DMG_DETACH_RETRIES", retries.to_string());
+  }
+
   log::info!(action = "Running"; "bundle_dmg.sh");
 
   // execute the bundle script

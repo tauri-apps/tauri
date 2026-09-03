@@ -831,9 +831,9 @@ mod test {
 
     let webview = window
       .add_child(
-        WebviewBuilder::new("main-webview", Default::default()),
-        crate::LogicalPosition::new(0, 0),
-        window.inner_size().unwrap(),
+        WebviewBuilder::new("main-webview", Default::default())
+          .position(crate::LogicalPosition::new(0, 0))
+          .size(window.inner_size().unwrap()),
       )
       .unwrap();
 

@@ -50,6 +50,7 @@ pub(crate) type SchemeRegistry = Arc<
 fn csp_inject_initialization_scripts_hashes(
   existing_csp: String,
   initialization_scripts: &[CefInitScript],
+  is_main_frame: bool,
 ) -> String {
   if initialization_scripts.is_empty() {
     return existing_csp;
@@ -57,6 +58,7 @@ fn csp_inject_initialization_scripts_hashes(
 
   let script_hashes: Vec<String> = initialization_scripts
     .iter()
+    .filter(|script| script.runs_in_frame(is_main_frame))
     .map(|s| s.hash.clone())
     .collect();
 
@@ -79,6 +81,7 @@ fn csp_inject_initialization_scripts_hashes(
 fn inject_scripts_into_html_body(
   body: &[u8],
   initialization_scripts: &[CefInitScript],
+  is_main_frame: bool,
 ) -> Option<Vec<u8>> {
   let Ok(body_str) = std::str::from_utf8(body) else {
     return None;
@@ -97,7 +100,11 @@ fn inject_scripts_into_html_body(
     head_node
   };
 
-  for init_script in initialization_scripts.iter().rev() {
+  for init_script in initialization_scripts
+    .iter()
+    .rev()
+    .filter(|script| script.runs_in_frame(is_main_frame))
+  {
     let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
     script_el.append(NodeRef::new_text(init_script.script.as_str()));
     head.prepend(script_el);
@@ -250,6 +257,11 @@ wrap_resource_handler! {
     webview_label: String,
     handler: Arc<Box<UriSchemeProtocolHandler>>,
     initialization_scripts: Arc<Vec<CefInitScript>>,
+    // Whether the document this response is loaded into is the main frame. Scripts flagged
+    // `for_main_frame_only` are skipped for subframes - the isolation iframe most notably -
+    // matching both the wry runtime and the guard in the document-start script we register
+    // over CDP for documents that are not served by a custom protocol.
+    is_main_frame: bool,
     // Serialized origin of the main frame that initiated this request, captured
     // browser-side in the scheme handler factory. The renderer can issue an IPC
     // request before its execution context is fully wired to the loader; in
@@ -278,6 +290,7 @@ wrap_resource_handler! {
         let callback = ThreadSafe(callback.clone());
         let response_store = ThreadSafe(self.response.clone());
         let initialization_scripts = self.initialization_scripts.clone();
+        let is_main_frame = self.is_main_frame;
         let responder = Box::new(move |response: http::Response<Cow<'static, [u8]>>| {
           let is_html = response
             .headers()
@@ -289,7 +302,7 @@ wrap_resource_handler! {
           let (parts, body) = response.into_parts();
           let body_bytes = body.into_owned();
           let body_bytes = if is_html {
-            inject_scripts_into_html_body(&body_bytes, &initialization_scripts)
+            inject_scripts_into_html_body(&body_bytes, &initialization_scripts, is_main_frame)
               .unwrap_or(body_bytes)
           } else {
             body_bytes
@@ -299,8 +312,11 @@ wrap_resource_handler! {
 
           if let Some(csp) = response.headers_mut().get_mut(CONTENT_SECURITY_POLICY) {
             let csp_string = csp.to_str().unwrap_or_default().to_string();
-            let new_csp =
-              csp_inject_initialization_scripts_hashes(csp_string, &initialization_scripts);
+            let new_csp = csp_inject_initialization_scripts_hashes(
+              csp_string,
+              &initialization_scripts,
+              is_main_frame,
+            );
             if let Ok(new_csp) = HeaderValue::from_str(&new_csp) {
               *csp = new_csp;
             }
@@ -480,6 +496,10 @@ wrap_scheme_handler_factory! {
         }
       };
 
+      // A subframe navigation is the only case we can positively identify here, so anything
+      // else (a null frame included) keeps the main frame behavior of injecting everything.
+      let is_main_frame = frame.as_ref().map(|frame| frame.is_main() == 1).unwrap_or(true);
+
       // Capture the initiating main frame's origin so `process_request` can
       // repair a racy `Origin: null` header. Restricted to the main frame: it
       // is never an opaque-origin (sandboxed) document in a Tauri webview, so
@@ -495,6 +515,7 @@ wrap_scheme_handler_factory! {
         webview_label,
         handler,
         initialization_scripts,
+        is_main_frame,
         initiator_origin,
         Arc::new(RefCell::new(None)),
       ))

@@ -4707,6 +4707,7 @@ mod test {
       windows: Default::default(),
       ios: Default::default(),
       android: Default::default(),
+      cef: Default::default(),
     };
 
     // test the configs

@@ -75,11 +75,11 @@ unsafe impl Sync for RuntimeContext {}
 
 impl RuntimeContext {
   fn send_message(&self, message: Message) -> Result<()> {
-    if std::thread::current().id() == self.main_thread_id {
-      if let Message::Task(task) = message {
-        task();
-        return Ok(());
-      }
+    if std::thread::current().id() == self.main_thread_id
+      && let Message::Task(task) = message
+    {
+      task();
+      return Ok(());
     }
     if self.is_running.load(Ordering::Relaxed) {
       self

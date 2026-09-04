@@ -111,7 +111,7 @@ impl RuntimeInitAttrs {
     self
   }
 
-  /// Appends one command line argument to the CEF command line.
+  /// Appends one command line argument passed to CEF.
   #[must_use]
   pub fn command_line_arg<K: Into<String>, V: Into<String>>(
     mut self,
@@ -124,7 +124,7 @@ impl RuntimeInitAttrs {
     self
   }
 
-  /// Command line arguments passed to CEF.
+  /// Appends a list of command line arguments passed to CEF.
   #[must_use]
   pub fn command_line_args<K: Into<String>, V: Into<String>>(
     mut self,
@@ -136,7 +136,9 @@ impl RuntimeInitAttrs {
     self
   }
 
-  /// Deep link schemes.
+  /// Appends a list of deep link schemes detected by CEF's on_already_running_app_relaunch hook.
+  ///
+  /// Deep links defined by the core deep-link plugin on the Tauri configuration are automatically added.
   #[must_use]
   pub fn deep_link_schemes<S: Into<String>>(
     mut self,

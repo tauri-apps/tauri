@@ -763,21 +763,21 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
-      None,
+      None, // on_page_load
+      None, // on_permission_request
       #[cfg(any(target_os = "macos", target_os = "ios"))]
-      None,
-      Default::default(),
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
+      None, // on_web_content_process_terminate
+      Default::default(), // uri_scheme_protocols
+      StateManager::new(), // state
+      Default::default(), // menu_event_listener
       #[cfg(all(desktop, feature = "tray-icon"))]
-      Default::default(),
-      Default::default(),
-      Default::default(),
-      Default::default(),
-      "".into(),
-      None,
-      crate::generate_invoke_key().unwrap(),
+      Default::default(), // tray_icon_event_listeners
+      Default::default(), // window_event_listeners
+      Default::default(), // webview_event_listeners
+      Default::default(), // window_menu_event_listeners
+      "".into(), // invoke_initialization_script
+      None, // channel_interceptor
+      crate::generate_invoke_key().unwrap(), // invoke_key,
     );
 
     #[cfg(custom_protocol)]
@@ -815,20 +815,21 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
-      None,
+      None, // on_page_load
+      None, // on_permission_request
       #[cfg(any(target_os = "macos", target_os = "ios"))]
-      None,
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
+      None, // on_web_content_process_terminate
+      Default::default(), // uri_scheme_protocols
+      StateManager::new(), // state
+      Default::default(), // menu_event_listener
       #[cfg(all(desktop, feature = "tray-icon"))]
-      Default::default(),
-      Default::default(),
-      Default::default(),
-      Default::default(),
-      "".into(),
-      None,
-      crate::generate_invoke_key().unwrap(),
+      Default::default(), // tray_icon_event_listeners
+      Default::default(), // window_event_listeners
+      Default::default(), // webview_event_listeners
+      Default::default(), // window_menu_event_listeners
+      "".into(), // invoke_initialization_script
+      None, // channel_interceptor
+      crate::generate_invoke_key().unwrap(), // invoke_key
     );
 
     #[cfg(custom_protocol)]

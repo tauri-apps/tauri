@@ -15,7 +15,7 @@ use http::{
   HeaderMap, HeaderName, HeaderValue,
   header::{CONTENT_SECURITY_POLICY, CONTENT_TYPE, ORIGIN},
 };
-use kuchiki::NodeRef;
+use kuchiki::{Attribute, ExpandedName, NodeRef};
 use tauri_runtime::{
   UserEvent,
   webview::{NavigationHandler, UriSchemeProtocolHandler},
@@ -103,7 +103,52 @@ fn inject_scripts_into_html_body(
     head.prepend(script_el);
   }
 
+  keep_encoding_declaration_first(&document, &head);
+
   Some(serialize_node(&document))
+}
+
+/// Keeps the document's character encoding declaration ahead of the injected scripts.
+///
+/// Chromium only pre-scans the first 1024 bytes of a document for a `<meta charset>`
+/// declaration. The initialization scripts we prepend to `<head>` are much larger than
+/// that, so an encoding declaration that used to be in the pre-scan window ends up out
+/// of reach and the document is decoded with the fallback encoding (windows-1252)
+/// instead. That mojibakes every non-ASCII byte in the page and in the injected scripts,
+/// which additionally breaks the CSP hashes we compute over the UTF-8 source, so the
+/// browser refuses to execute the affected script.
+fn keep_encoding_declaration_first(document: &NodeRef, head: &NodeRef) {
+  let existing_declaration = document.select("meta").ok().and_then(|metas| {
+    metas.into_iter().find(|meta| {
+      let attributes = meta.attributes.borrow();
+      attributes.get("charset").is_some()
+        || attributes
+          .get("http-equiv")
+          .map(|value| value.trim().eq_ignore_ascii_case("content-type"))
+          .unwrap_or(false)
+    })
+  });
+
+  match existing_declaration {
+    // the document declares its encoding, move that declaration back into the pre-scan window
+    Some(declaration) => {
+      let node = declaration.as_node().clone();
+      node.detach();
+      head.prepend(node);
+    }
+    // no declaration at all: the assets are served as UTF-8 (this handler parses them as
+    // such), so make that explicit instead of leaving it to the fallback encoding
+    None => head.prepend(NodeRef::new_element(
+      QualName::new(None, ns!(html), LocalName::from("meta")),
+      [(
+        ExpandedName::new(ns!(), LocalName::from("charset")),
+        Attribute {
+          prefix: None,
+          value: "utf-8".into(),
+        },
+      )],
+    )),
+  }
 }
 
 wrap_request_handler! {

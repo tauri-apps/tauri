@@ -408,24 +408,18 @@ pub struct RuntimeInitArgs<A> {
   pub msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
   pub identifier: String,
   pub custom_schemes: Vec<String>,
-  pub platform_specific_attributes: Vec<A>,
+  pub runtime_init_attrs: A,
 }
 
-/// Builds platform-specific init attributes from config. These are merged with
-/// user-provided attributes before runtime creation. Implement for the runtime's
-/// [`Runtime::PlatformSpecificInitAttribute`]; default is to return none (implement for `()`).
-pub trait InitAttribute: Send + Sync + 'static {
-  /// Returns attributes derived from config (e.g. deep-link schemes). Merged with user attrs by the app.
-  fn new(config: &tauri_utils::config::Config) -> Result<Vec<Self>>
-  where
-    Self: Sized;
-}
-
-impl InitAttribute for () {
-  fn new(_config: &tauri_utils::config::Config) -> Result<Vec<Self>> {
-    Ok(vec![])
+/// Runtime-specific initialization attributes.
+pub trait RuntimeSpecificInitAttrs: Default + Send + Sync + 'static {
+  /// Applies attributes derived from the application configuration.
+  fn apply_config(&mut self, _config: &tauri_utils::config::Config) -> Result<()> {
+    Ok(())
   }
 }
+
+impl RuntimeSpecificInitAttrs for () {}
 
 /// The webview runtime interface.
 pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
@@ -444,13 +438,13 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// This is the runtime-specific type the user interacts with to reach the
   /// underlying platform webview APIs.
   type Webview: 'static;
-  /// The platform specific runtime init arguments. Must implement [`InitAttribute`].
-  type PlatformSpecificInitAttribute: InitAttribute + Send + Sync + 'static;
+  /// Runtime-specific initialization attributes.
+  type RuntimeInitAttrs: crate::RuntimeSpecificInitAttrs;
   /// Data about the window that requested the new window for [`PendingWebview::new_window_handler`].
   type WindowOpener: Send + Sync + Debug;
 
   /// Creates a new webview runtime. Must be used on the main thread.
-  fn new(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self>;
+  fn new(args: RuntimeInitArgs<Self::RuntimeInitAttrs>) -> Result<Self>;
 
   /// Creates a new webview runtime on any thread.
   #[cfg(any(
@@ -472,7 +466,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
       target_os = "openbsd"
     )))
   )]
-  fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self>;
+  fn new_any_thread(args: RuntimeInitArgs<Self::RuntimeInitAttrs>) -> Result<Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
   fn create_proxy(&self) -> Self::EventLoopProxy;

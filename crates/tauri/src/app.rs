@@ -32,7 +32,7 @@ use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  InitAttribute, RuntimeInitArgs,
+  RuntimeInitArgs, RuntimeSpecificInitAttrs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
 };
@@ -1554,7 +1554,7 @@ pub struct Builder<R: Runtime> {
 
   pub(crate) invoke_key: String,
 
-  platform_specific_attributes: Vec<R::PlatformSpecificInitAttribute>,
+  runtime_init_attrs: R::RuntimeInitAttrs,
 }
 
 #[derive(Template)]
@@ -1632,72 +1632,14 @@ impl<R: Runtime> Builder<R> {
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
       invoke_key,
-      platform_specific_attributes: Vec::new(),
+      runtime_init_attrs: Default::default(),
     }
   }
-}
 
-/// Helper so `Builder<R>` can merge user-provided platform attributes with config-derived ones
-/// ([`InitAttribute::new`]). User attrs come first, then config-derived.
-pub(crate) trait PlatformSpecificAttributesHelper {
-  type Attr: Send + Sync + 'static;
-  fn process_platform_specific_attributes(
-    user_attrs: Vec<Self::Attr>,
-    config: &Config,
-  ) -> crate::Result<Vec<Self::Attr>>;
-}
-
-impl<R: Runtime> PlatformSpecificAttributesHelper for Builder<R> {
-  type Attr = R::PlatformSpecificInitAttribute;
-  fn process_platform_specific_attributes(
-    mut user_attrs: Vec<Self::Attr>,
-    config: &Config,
-  ) -> crate::Result<Vec<Self::Attr>> {
-    let from_config = R::PlatformSpecificInitAttribute::new(config).map_err(crate::Error::from)?;
-    user_attrs.extend(from_config);
-    Ok(user_attrs)
-  }
-}
-
-#[cfg(feature = "cef")]
-impl Builder<crate::Cef> {
-  /// Appends command line arguments to the CEF command line.
-  #[cfg(feature = "cef")]
-  pub fn command_line_args<K: Into<String>, V: Into<String>>(
-    mut self,
-    args: impl IntoIterator<Item = (K, Option<V>)>,
-  ) -> Self {
-    self.platform_specific_attributes.push(
-      tauri_runtime_cef::RuntimeInitAttribute::CommandLineArgs {
-        args: args
-          .into_iter()
-          .map(|(k, v)| (k.into(), v.map(Into::into)))
-          .collect::<Vec<_>>(),
-      },
-    );
-    self
-  }
-
-  /// Sets the disk cache directory for CEF (`Settings::cache_path`).
-  ///
-  /// Calling this more than once keeps the path from the last call.
-  /// If omitted, the cache defaults to `{user cache directory}/{identifier}/cef`.
-  #[cfg(feature = "cef")]
-  pub fn root_cache_path<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
-    self
-      .platform_specific_attributes
-      .push(tauri_runtime_cef::RuntimeInitAttribute::CachePath {
-        path: path.as_ref().to_path_buf(),
-      });
-    self
-  }
-
-  /// Sets the CEF API version this process declares (`cef_api_hash`).
-  #[cfg(feature = "cef")]
-  pub fn cef_api_version(mut self, version: i32) -> Self {
-    self
-      .platform_specific_attributes
-      .push(tauri_runtime_cef::RuntimeInitAttribute::ApiVersion { version });
+  /// Sets the runtime-specific initialization attributes.
+  #[must_use]
+  pub fn runtime_init_attrs(mut self, attrs: R::RuntimeInitAttrs) -> Self {
+    self.runtime_init_attrs = attrs;
     self
   }
 }
@@ -1707,7 +1649,7 @@ impl<R: Runtime> Builder<R> {
   fn build_runtime_init_args(
     identifier: &str,
     custom_schemes: Vec<String>,
-    platform_specific_attributes: Vec<R::PlatformSpecificInitAttribute>,
+    runtime_init_attrs: R::RuntimeInitAttrs,
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1717,11 +1659,11 @@ impl<R: Runtime> Builder<R> {
     ))]
     app_id: Option<String>,
     #[cfg(windows)] msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
-  ) -> RuntimeInitArgs<R::PlatformSpecificInitAttribute> {
+  ) -> RuntimeInitArgs<R::RuntimeInitAttrs> {
     RuntimeInitArgs {
       identifier: identifier.to_string(),
       custom_schemes,
-      platform_specific_attributes,
+      runtime_init_attrs,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -2404,11 +2346,10 @@ tauri::Builder::<tauri::Wry>::new()
     }
 
     let config = context.config();
-    let attrs = self.platform_specific_attributes;
-    let platform_specific_attributes =
-      <Self as PlatformSpecificAttributesHelper>::process_platform_specific_attributes(
-        attrs, config,
-      )?;
+    self
+      .runtime_init_attrs
+      .apply_config(config)
+      .map_err(crate::Error::from)?;
 
     let manager = Arc::new(AppManager::with_handlers(
       context,
@@ -2455,7 +2396,7 @@ tauri::Builder::<tauri::Wry>::new()
     let runtime_args = Self::build_runtime_init_args(
       &manager.config.identifier,
       custom_schemes,
-      platform_specific_attributes,
+      self.runtime_init_attrs,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",

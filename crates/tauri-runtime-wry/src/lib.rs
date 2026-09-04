@@ -2993,7 +2993,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   type EventLoopProxy = EventProxy<T>;
   type PlatformSpecificWebviewAttribute = WebviewAttribute;
-  type PlatformSpecificInitAttribute = ();
+  type RuntimeInitAttrs = ();
   type WindowOpener = NewWindowOpener;
   type Webview = Webview;
 

@@ -229,29 +229,54 @@ impl Pbxproj {
       .iter_mut()
       .find(|s| s.key == key)
     {
-      if build_setting.value != value {
-        let Some(line) = self.raw_lines.get_mut(build_setting.line_number) else {
-          return;
-        };
+      if build_setting.value == value {
+        return;
+      }
 
-        *line = format!("{}{key} = {value};", build_setting.identation);
+      let new_line_content = format!("{}{key} = {value};", build_setting.identation);
+
+      if let Some(line) = self.additions.get_mut(&build_setting.line_number) {
+        line.push_str(&format!("\n{}", new_line_content));
+      } else if let Some(line) = self.raw_lines.get_mut(build_setting.line_number) {
+        *line = new_line_content;
         self.has_changes = true;
       }
-    } else {
-      let Some(last_build_setting) = build_configuration.build_settings.last().cloned() else {
-        return;
-      };
-      build_configuration.build_settings.push(BuildSettings {
-        identation: last_build_setting.identation.clone(),
-        line_number: last_build_setting.line_number + 1,
-        key: key.to_string(),
-        value: value.to_string(),
-      });
-      self.additions.insert(
-        last_build_setting.line_number + 1,
-        format!("{}{key} = {value};", last_build_setting.identation),
-      );
+
+      build_setting.value = value.to_string();
+
+      return;
     }
+
+    let Some(last_build_setting) = build_configuration.build_settings.last() else {
+      log::error!("cannot add '{key}' to an empty build configuration");
+      return;
+    };
+
+    let mut new_line_number = last_build_setting.line_number + 1;
+    if self.additions.contains_key(&last_build_setting.line_number) {
+      new_line_number = last_build_setting.line_number;
+    }
+
+    let identation = last_build_setting.identation.clone();
+    let new_entry = format!("{}{key} = {value};", identation);
+
+    build_configuration.build_settings.push(BuildSettings {
+      identation: identation.clone(),
+      line_number: new_line_number,
+      key: key.to_string(),
+      value: value.to_string(),
+    });
+
+    self
+      .additions
+      .entry(new_line_number)
+      .and_modify(|current| {
+        current.push('\n');
+        current.push_str(&new_entry);
+      })
+      .or_insert(new_entry);
+
+    self.has_changes = true;
   }
 }
 

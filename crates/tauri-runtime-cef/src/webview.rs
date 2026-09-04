@@ -831,6 +831,11 @@ pub struct CefInitScript {
 }
 
 impl CefInitScript {
+  /// Whether this script must run in a document loaded in the given frame.
+  pub(crate) fn runs_in_frame(&self, is_main_frame: bool) -> bool {
+    is_main_frame || !self.for_main_frame_only
+  }
+
   fn new(script: InitializationScript) -> Self {
     let mut hasher = Sha256::new();
     hasher.update(normalize_script_for_csp(script.script.as_bytes()));

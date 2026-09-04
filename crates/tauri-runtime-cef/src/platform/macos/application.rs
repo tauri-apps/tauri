@@ -13,6 +13,7 @@ use objc2::{
   msg_send,
   rc::Retained,
   runtime::{AnyObject, Bool, ProtocolObject},
+  sel,
 };
 use objc2_app_kit::{
   NSApp, NSApplication, NSApplicationActivationOptions, NSApplicationDelegate,
@@ -218,6 +219,27 @@ impl CefWinitApplication {
 
   fn delegate(&self) -> Option<&AppDelegate> {
     unsafe { self.ivars().delegate.get().as_ref() }
+  }
+}
+
+/// Make this application the active one.
+///
+/// `activateIgnoringOtherApps:` is deprecated since macOS 14 and is largely
+/// ignored there: activation became cooperative, so an app that asks the old
+/// way while another app owns the foreground simply stays behind. `-[NSApplication
+/// activate]` is the replacement, so prefer it whenever the running system has
+/// it and keep the legacy call for older releases.
+pub(crate) fn activate_application() {
+  let Some(mtm) = MainThreadMarker::new() else {
+    return;
+  };
+
+  let app = NSApplication::sharedApplication(mtm);
+  if app.respondsToSelector(sel!(activate)) {
+    app.activate();
+  } else {
+    #[allow(deprecated)]
+    app.activateIgnoringOtherApps(true);
   }
 }
 

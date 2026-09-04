@@ -1010,6 +1010,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
 
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
+    self.apply_pending_activations();
     // TODO: remove once migrated to winit-gtk4
     #[cfg(any(
       target_os = "linux",

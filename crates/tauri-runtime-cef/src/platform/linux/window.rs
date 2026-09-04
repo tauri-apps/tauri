@@ -28,6 +28,10 @@ impl AppWindow {
     }
   }
 
+  pub(crate) fn raise_native(&self) {
+    super::utils::activate_window(self.xid());
+  }
+
   pub(crate) fn set_enabled(&self, enabled: bool) {
     let _ = (self, enabled);
     // TODO: implement native window enabled state on Linux/BSD.

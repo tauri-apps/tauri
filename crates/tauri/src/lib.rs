@@ -152,6 +152,11 @@ pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub use tauri_runtime_cef::CEF_API_VERSION_LAST;
 
+/// The runtime initialization attributes.
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub use tauri_runtime_cef::RuntimeInitAttrs as CefRuntimeAttributes;
+
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
 #[doc(hidden)]

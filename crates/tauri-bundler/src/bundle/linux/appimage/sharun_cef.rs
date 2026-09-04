@@ -135,56 +135,56 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs::copy(largest_icon.1, app_dir.join(format!("{product_name}.png")))
     .with_context(|| "Failed to copy icon file")?;
 
-  fs::create_dir_all(app_dir_bin.join("locales/"))?;
+  // `None` on a shared runtime: the app resolves and loads CEF from outside
+  // the bundle at launch, so there is nothing to copy in. Chromium's host
+  // dependencies are still deployed below (DEPLOY_CHROMIUM), because the
+  // libcef the app loads resolves them against this bundle.
+  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+    fs::create_dir_all(app_dir_bin.join("locales/"))?;
 
-  let cef_path = settings
-    .bundle_settings()
-    .cef_path
-    .clone()
-    .expect("this module is only called when cef_path is set");
+    let cef_files = [
+      // required
+      "libcef.so",
+      "icudtl.dat",
+      "v8_context_snapshot.bin",
+      // required end
+      // "optional" - but not really since we want support for all of this
+      "chrome_100_percent.pak",
+      "chrome_200_percent.pak",
+      "resources.pak",
+      // ANGLE support
+      "libEGL.so",
+      "libGLESv2.so",
+      // SwANGLE support
+      "libvk_swiftshader.so",
+      "vk_swiftshader_icd.json",
+      "libvulkan.so.1",
+      // sandbox - may need to be behind a setting?
+      "chrome-sandbox",
+      // TODO: seccomp
+    ];
 
-  let cef_files = [
-    // required
-    "libcef.so",
-    "icudtl.dat",
-    "v8_context_snapshot.bin",
-    // required end
-    // "optional" - but not really since we want support for all of this
-    "chrome_100_percent.pak",
-    "chrome_200_percent.pak",
-    "resources.pak",
-    // ANGLE support
-    "libEGL.so",
-    "libGLESv2.so",
-    // SwANGLE support
-    "libvk_swiftshader.so",
-    "vk_swiftshader_icd.json",
-    "libvulkan.so.1",
-    // sandbox - may need to be behind a setting?
-    "chrome-sandbox",
-    // TODO: seccomp
-  ];
+    for f in cef_files {
+      let dest = app_dir_bin.join(f);
+      fs::copy(cef_path.join(f), &dest)
+        .with_context(|| format!("Failed to copy cef file {f} to {}", dest.display()))?;
+      // quick-sharun checks for the NO_STRIP env but libcef.so is 1.5GB so we make sure it's stripped anyway.
+      let _ = Command::new("strip").arg(&dest).output_ok();
+    }
+    let locales = [
+      "en-US.pak",
+      "en-US_FEMININE.pak",
+      "en-US_MASCULINE.pak",
+      "en-US_NEUTER.pak",
+    ];
 
-  for f in cef_files {
-    let dest = app_dir_bin.join(f);
-    fs::copy(cef_path.join(f), &dest)
-      .with_context(|| format!("Failed to copy cef file {f} to {}", dest.display()))?;
-    // quick-sharun checks for the NO_STRIP env but libcef.so is 1.5GB so we make sure it's stripped anyway.
-    let _ = Command::new("strip").arg(&dest).output_ok();
-  }
-  let locales = [
-    "en-US.pak",
-    "en-US_FEMININE.pak",
-    "en-US_MASCULINE.pak",
-    "en-US_NEUTER.pak",
-  ];
-
-  for f in locales {
-    fs::copy(
-      cef_path.join("locales").join(f),
-      app_dir_bin.join("locales").join(f),
-    )
-    .with_context(|| format!("Failed to copy cef locales file {f}"))?;
+    for f in locales {
+      fs::copy(
+        cef_path.join("locales").join(f),
+        app_dir_bin.join("locales").join(f),
+      )
+      .with_context(|| format!("Failed to copy cef locales file {f}"))?;
+    }
   }
 
   // We need to give quick-sharun the list of binaries AND libraries to include.
@@ -211,7 +211,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .collect::<String>();
 
   // TODO: Consider to not rely on quick-sharun when we have more time
-  Command::new("/bin/sh")
+  let mut cmd = Command::new("/bin/sh");
+  cmd
     .current_dir(&output_path)
     .env("APPDIR", &app_dir)
     // At least on my local machine this was required, worked fine without in CI / using published tauri-apps/cli-cef.
@@ -220,13 +221,22 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .env("OUTNAME", &appimage_filename)
     .env("HOOKSRC", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/hooks")
     .env("DEPLOY_CHROMIUM", "1")
-    .env("ADD_HOOKS", "fix-namespaces.hook")
+    .env("ADD_HOOKS", "fix-namespaces.hook");
+
+  // quick-sharun's strace mode runs the app for a few seconds and deploys every
+  // library it sees loaded. On a shared runtime that means the CEF distribution
+  // the app resolves at launch — the one thing this bundle exists not to carry —
+  // gets copied back in, unstripped. Its discovery filter is hardcoded, so the
+  // only way to leave it out is to skip the tracing; the DEPLOY_* rules above
+  // still cover GTK, OpenGL, Vulkan, NSS and the other Chromium host libraries.
+  if settings.bundle_settings().cef_path.is_none() {
+    cmd.env("STRACE_MODE", "0");
+  }
+
+  cmd
     .args([
       "-c",
-      &format!(
-        r#""{}" {elfs}"#,
-        quick_sharun.to_string_lossy()
-      ),
+      &format!(r#""{}" {elfs}"#, quick_sharun.to_string_lossy()),
     ])
     .output_ok()
     .context("quick-sharun command failed to run.")?;

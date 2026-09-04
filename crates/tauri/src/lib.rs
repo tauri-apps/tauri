@@ -67,23 +67,14 @@ macro_rules! ios_plugin_binding {
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
-pub use error::{Error, Result};
 use ipc::RuntimeAuthority;
 #[cfg(feature = "dynamic-acl")]
 use ipc::RuntimeCapability;
-pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
-#[cfg(feature = "cef")]
-pub use tauri_macros::cef_entry_point;
-pub use tauri_macros::include_image;
-#[cfg(mobile)]
-pub use tauri_macros::mobile_entry_point;
-pub use tauri_macros::{command, generate_handler};
 
 use tauri_utils::assets::AssetsIter;
-pub use url::Url;
 
 pub(crate) mod app;
 pub mod async_runtime;
@@ -136,26 +127,6 @@ pub type Cef = tauri_runtime_cef::CefRuntime<EventLoopMessage>;
 #[cfg(feature = "cef")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub type CefHandle = tauri_runtime_cef::CefRuntimeHandle<EventLoopMessage>;
-
-/// Helper function for non-browser CEF processes (renderer, GPU, plugin, etc.).
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub use tauri_runtime_cef::run_cef_helper_process;
-
-/// DevTools protocol message type for the CEF runtime.
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
-
-/// The latest CEF API version known to the linked CEF bindings.
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub use tauri_runtime_cef::CEF_API_VERSION_LAST;
-
-/// The runtime initialization attributes.
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-pub use tauri_runtime_cef::RuntimeInitAttrs as CefRuntimeAttributes;
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
@@ -227,42 +198,120 @@ use std::{
 };
 use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 
-#[cfg(target_os = "macos")]
-#[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
-pub use runtime::ActivationPolicy;
-
-pub use self::utils::TitleBarStyle;
-
 use self::event::EventName;
-pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
-pub use {
-  self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
-    RunEvent, UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
-  },
-  self::manager::Asset,
-  self::runtime::{
-    DeviceEventFilter, UserAttentionType,
-    dpi::{
-      LogicalPosition, LogicalRect, LogicalSize, LogicalUnit, PhysicalPosition, PhysicalRect,
-      PhysicalSize, PhysicalUnit, Pixel, PixelUnit, Position, Rect, Size,
-    },
-    window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
-  },
-  self::state::{State, StateManager},
-  self::utils::{
-    Env, PackageInfo, Theme,
-    config::{Config, WebviewUrl},
-  },
-  self::webview::{Webview, WebviewWindow, WebviewWindowBuilder},
-  self::window::{Monitor, Window},
-  scope::*,
-};
 
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use {self::webview::WebviewBuilder, self::window::WindowBuilder};
+/// The Tauri prelude, re-exporting the most commonly used types, traits and macros.
+///
+/// ```rust,no_run
+/// use tauri::prelude::*;
+/// ```
+///
+/// Everything here is also re-exported on the crate root for backwards compatibility,
+/// but importing from this module is preferred.
+pub mod prelude {
+  pub use crate::error::{Error, Result};
+  pub use crate::resources::{Resource, ResourceId, ResourceTable};
+  pub use url::Url;
+
+  #[cfg(feature = "cef")]
+  pub use tauri_macros::cef_entry_point;
+  pub use tauri_macros::include_image;
+  #[cfg(mobile)]
+  pub use tauri_macros::mobile_entry_point;
+  pub use tauri_macros::{command, generate_handler};
+
+  /// Reads the config file at compile time and generates a [`Context`] based on its content.
+  ///
+  /// The default config file path is a `tauri.conf.json` file inside the Cargo manifest directory of
+  /// the crate being built.
+  ///
+  /// # Custom Config Path
+  ///
+  /// You may pass a string literal to this macro to specify a custom path for the Tauri config file.
+  /// If the path is relative, it will be search for relative to the Cargo manifest of the compiling
+  /// crate.
+  ///
+  /// # Note
+  ///
+  /// This macro should not be called if you are using [`tauri-build`] to generate the context from
+  /// inside your build script as it will just cause excess computations that will be discarded. Use
+  /// either the [`tauri-build`] method or this macro - not both.
+  ///
+  /// [`tauri-build`]: https://docs.rs/tauri-build
+  pub use tauri_macros::generate_context;
+
+  pub use crate::pattern::Pattern;
+  pub use crate::utils::TitleBarStyle;
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  pub use crate::runtime::ActivationPolicy;
+
+  /// Helper function for non-browser CEF processes (renderer, GPU, plugin, etc.).
+  #[cfg(feature = "cef")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+  pub use tauri_runtime_cef::run_cef_helper_process;
+
+  /// DevTools protocol message type for the CEF runtime.
+  #[cfg(feature = "cef")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+  pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
+
+  /// The latest CEF API version known to the linked CEF bindings.
+  #[cfg(feature = "cef")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+  pub use tauri_runtime_cef::CEF_API_VERSION_LAST;
+
+  /// The runtime initialization attributes.
+  #[cfg(feature = "cef")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+  pub use tauri_runtime_cef::RuntimeInitAttrs as CefRuntimeAttributes;
+
+  pub use crate::event::{Event, EventId, EventTarget};
+  pub use crate::{
+    Assets, Context, Emitter, EventLoopMessage, Listener, Manager, Runtime, RuntimeHandle, SyncTask,
+  };
+
+  #[cfg(feature = "wry")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
+  pub use crate::{Wry, WryHandle};
+
+  #[cfg(feature = "cef")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+  pub use crate::{Cef, CefHandle};
+
+  pub use crate::{
+    app::{
+      App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RESTART_EXIT_CODE,
+      RunEvent, UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
+    },
+    manager::Asset,
+    runtime::{
+      DeviceEventFilter, UserAttentionType,
+      dpi::{
+        LogicalPosition, LogicalRect, LogicalSize, LogicalUnit, PhysicalPosition, PhysicalRect,
+        PhysicalSize, PhysicalUnit, Pixel, PixelUnit, Position, Rect, Size,
+      },
+      window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
+    },
+    scope::*,
+    state::{State, StateManager},
+    utils::{
+      Env, PackageInfo, Theme,
+      config::{Config, WebviewUrl},
+    },
+    webview::{Webview, WebviewWindow, WebviewWindowBuilder},
+    window::{Monitor, Window},
+  };
+
+  #[cfg(feature = "unstable")]
+  #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+  pub use crate::{webview::WebviewBuilder, window::WindowBuilder};
+}
+
+#[doc(hidden)]
+pub use prelude::*;
 
 /// The Tauri version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -296,26 +345,6 @@ pub trait RuntimeHandle: runtime::RuntimeHandle<EventLoopMessage> {}
 impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}
 impl<R: runtime::RuntimeHandle<EventLoopMessage>> RuntimeHandle for R {}
 
-/// Reads the config file at compile time and generates a [`Context`] based on its content.
-///
-/// The default config file path is a `tauri.conf.json` file inside the Cargo manifest directory of
-/// the crate being built.
-///
-/// # Custom Config Path
-///
-/// You may pass a string literal to this macro to specify a custom path for the Tauri config file.
-/// If the path is relative, it will be search for relative to the Cargo manifest of the compiling
-/// crate.
-///
-/// # Note
-///
-/// This macro should not be called if you are using [`tauri-build`] to generate the context from
-/// inside your build script as it will just cause excess computations that will be discarded. Use
-/// either the [`tauri-build`] method or this macro - not both.
-///
-/// [`tauri-build`]: https://docs.rs/tauri-build
-pub use tauri_macros::generate_context;
-
 /// Include a [`Context`] that was generated by [`tauri-build`] inside your build script.
 ///
 /// You should either use [`tauri-build`] and this macro to include the compile time generated code,
@@ -329,8 +358,6 @@ macro_rules! tauri_build_context {
     include!(concat!(env!("OUT_DIR"), "/tauri-build-context.rs"))
   };
 }
-
-pub use pattern::Pattern;
 
 /// Whether we are running in development mode or not.
 pub const fn is_dev() -> bool {

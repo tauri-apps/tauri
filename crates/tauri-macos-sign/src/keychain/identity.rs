@@ -89,6 +89,7 @@ pub fn list(keychain_path: &Path) -> Result<Vec<Team>> {
     let mut certs = Vec::new();
     for cert_prefix in [
       "iOS Distribution:",
+      "iPhone Distribution:",
       "Apple Distribution:",
       "Developer ID Application:",
       "Mac App Distribution:",

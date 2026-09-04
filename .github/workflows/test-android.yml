@@ -36,10 +36,6 @@ jobs:
       - name: install Rust 1.95
         uses: dtolnay/rust-toolchain@1.95
 
-      - name: install x86_64-apple-darwin target (required by bundler CEF helper on macOS)
-        if: matrix.platform == 'macos-latest'
-        run: rustup target add x86_64-apple-darwin
-
       - run: npm i -g --force corepack
       - name: setup node
         uses: actions/setup-node@v7

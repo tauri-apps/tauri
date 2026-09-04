@@ -1,3 +1,9 @@
+# Manifest of the CEF helper the bundler embeds into the macOS helper `.app`s.
+#
+# Kept as a template rather than a `Cargo.toml` so `cargo package` does not treat
+# this directory as a nested package and drop it from the published crate.
+# `build.rs` writes it out next to `src/main.rs` in `OUT_DIR` before building it.
+
 [package]
 name = "tauri-cef-helper"
 version = "0.1.0"

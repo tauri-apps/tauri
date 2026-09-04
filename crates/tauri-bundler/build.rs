@@ -8,6 +8,8 @@ use std::{
   process::Command,
 };
 
+const HELPER_BIN_NAME: &str = "tauri-cef-helper";
+
 fn main() {
   let target = env::var("TARGET").unwrap_or_default();
   let host = env::var("HOST").unwrap_or_default();
@@ -27,44 +29,42 @@ fn main() {
   let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
   let bundler_manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
-  let helper_root = bundler_manifest_dir
-    .parent() // crates/
-    .map(|p| p.join("cef-helper"))
-    .expect("failed to compute cef-helper path");
+  // The helper sources live inside this crate so they ship with it when published.
+  let helper_root = bundler_manifest_dir.join("cef-helper");
+  let helper_manifest = helper_root.join("Cargo.toml.in");
+  let helper_main = helper_root.join("main.rs");
 
-  let helper_manifest = helper_root.join("Cargo.toml");
-  let helper_main = helper_root.join("src").join("main.rs");
-
-  // Rebuild if the helper crate changes.
+  // Rebuild if the helper sources change.
   println!("cargo:rerun-if-changed={}", helper_manifest.display());
   println!("cargo:rerun-if-changed={}", helper_main.display());
 
-  // Copy the helper crate sources into OUT_DIR so any generated files (Cargo.lock, target dir)
-  // stay out of the repo checkout.
+  // Lay the helper crate out in OUT_DIR so any generated files (Cargo.lock, target dir)
+  // stay out of the repo checkout, and so the manifest template becomes a real manifest.
   let helper_src_dir = out_dir.join("cef-helper-src");
   let helper_src_manifest = helper_src_dir.join("Cargo.toml");
   let helper_src_main = helper_src_dir.join("src").join("main.rs");
   fs::create_dir_all(helper_src_main.parent().unwrap())
     .expect("failed to create cef-helper-src directory");
-  fs::copy(&helper_manifest, &helper_src_manifest).expect("failed to copy cef-helper Cargo.toml");
+  fs::copy(&helper_manifest, &helper_src_manifest)
+    .expect("failed to copy cef-helper Cargo.toml.in");
   fs::copy(&helper_main, &helper_src_main).expect("failed to copy cef-helper main.rs");
 
   let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-
   let helper_target_dir = out_dir.join("cef-helper-target");
+
+  // Both architectures, so a bundle of any of them — including universal, which
+  // `lipo`s the two together — can be produced.
   let aarch64 = build_helper(
     &cargo,
     &helper_src_manifest,
     &helper_target_dir,
     "aarch64-apple-darwin",
-    "tauri-cef-helper",
   );
   let x86_64 = build_helper(
     &cargo,
     &helper_src_manifest,
     &helper_target_dir,
     "x86_64-apple-darwin",
-    "tauri-cef-helper",
   );
 
   // Generate a small rust shim that exposes the embedded helper bytes.
@@ -78,31 +78,60 @@ pub const CEF_HELPER_X86_64: &[u8] = include_bytes!(r#\"{}\"#);\n",
   fs::write(&shim_path, shim).expect("failed to write cef_helpers.rs");
 }
 
-fn build_helper(
-  cargo: &str,
-  manifest_path: &Path,
-  target_dir: &Path,
-  target: &str,
-  bin_name: &str,
-) -> PathBuf {
-  let mut cmd = Command::new(cargo);
-  cmd
+/// Installs `target` via rustup when it is missing.
+///
+/// Best effort: without rustup (a distro toolchain, for instance) there is
+/// nothing to install with, so the cargo build reports the missing target instead.
+fn ensure_target_installed(target: &str) {
+  let installed = Command::new("rustup")
+    .args(["target", "list", "--installed"])
+    .output();
+
+  match installed {
+    Ok(output) if output.status.success() => {
+      if String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .any(|line| line.trim() == target)
+      {
+        return;
+      }
+    }
+    _ => return,
+  }
+
+  println!("cargo:warning=installing missing Rust target {target}, required by the CEF helper");
+
+  match Command::new("rustup")
+    .args(["target", "add", target])
+    .status()
+  {
+    Ok(status) if status.success() => {}
+    _ => println!("cargo:warning=failed to install the {target} Rust target"),
+  }
+}
+
+fn build_helper(cargo: &str, manifest_path: &Path, target_dir: &Path, target: &str) -> PathBuf {
+  ensure_target_installed(target);
+
+  let status = Command::new(cargo)
     .arg("build")
     .arg("--release")
     .arg("--manifest-path")
     .arg(manifest_path)
     .arg("--bin")
-    .arg(bin_name)
+    .arg(HELPER_BIN_NAME)
     .arg("--target")
     .arg(target)
-    .env("CARGO_TARGET_DIR", target_dir);
-
-  let status = cmd
+    .env("CARGO_TARGET_DIR", target_dir)
     .status()
     .expect("failed to spawn cargo build for CEF helper");
+
   if !status.success() {
     panic!("failed to build CEF helper for target {target}");
   }
 
-  target_dir.join(target).join("release").join(bin_name)
+  target_dir
+    .join(target)
+    .join("release")
+    .join(HELPER_BIN_NAME)
 }

@@ -465,6 +465,11 @@
             }
           ]
         },
+        "prefersCompactControlSizeMetrics": {
+          "description": "Whether the window prefers compact control size metrics on macOS.\n\n On macOS 26 with SDK 26 or newer this can restore the older compact\n traffic light metrics for windows using overlay title bars.",
+          "default": false,
+          "type": "boolean"
+        },
         "hiddenTitle": {
           "description": "If `true`, sets the window title to be hidden on macOS.",
           "default": false,

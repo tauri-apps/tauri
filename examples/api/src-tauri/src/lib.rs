@@ -10,7 +10,7 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{
-  App, Emitter, Listener, Runtime, WebviewUrl,
+  App, Emitter, Listener, WebviewUrl,
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
 };
@@ -29,10 +29,10 @@ struct Reply {
 }
 
 #[cfg(target_os = "macos")]
-pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
+pub struct AppMenu<R: tauri::Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
 #[cfg(all(desktop, not(test)))]
-pub struct PopupMenu<R: Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
+pub struct PopupMenu<R: tauri::Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[cfg_attr(feature = "cef", tauri_runtime_cef::cef_entry_point)]

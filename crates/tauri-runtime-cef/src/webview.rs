@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::{
   Mutex,
-  atomic::{AtomicI32, Ordering},
+  atomic::Ordering,
   mpsc::{self, Receiver, Sender},
 };
 
@@ -35,11 +35,38 @@ use crate::window::AppWindow;
 #[derive(Clone)]
 pub struct Webview {
   browser: cef::Browser,
+  snapshot: WebviewSnapshot,
+}
+
+/// Native state sampled on the CEF UI thread immediately before a
+/// `with_webview` callback. This does not assert renderer responsiveness or
+/// that the view is unobscured on screen.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct WebviewSnapshot {
+  /// Native browser identity, distinct for each popup.
+  pub browser_id: i32,
+  /// Runtime window that owns this webview.
+  pub window_label: String,
+  /// Whether the actual native parent matches that runtime window.
+  /// `None` means the platform could not establish the relationship.
+  pub parent_matches: Option<bool>,
+  /// Current bounds relative to the native parent, in the indicated DPI units.
+  pub bounds: Option<Rect>,
+  /// Native view visibility. `None` means native inspection was unavailable.
+  /// Visibility is separate from occlusion, minimization, and page lifecycle.
+  pub visible: Option<bool>,
 }
 
 impl Webview {
-  pub(crate) fn new(browser: cef::Browser) -> Self {
-    Self { browser }
+  pub(crate) fn new(browser: cef::Browser, snapshot: WebviewSnapshot) -> Self {
+    Self { browser, snapshot }
+  }
+
+  /// Returns the native state sampled for this `with_webview` callback.
+  /// Retaining the handle does not refresh this observation.
+  pub fn snapshot(&self) -> &WebviewSnapshot {
+    &self.snapshot
   }
 
   /// Returns the [`cef::Browser`] backing this webview.
@@ -546,6 +573,27 @@ impl<T: UserEvent> WinitCefApp<T> {
     let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
       return;
     };
+    let message = match message {
+      WebviewMessage::WithWebview(callback) => {
+        let Some(child) = appwindow
+          .children
+          .iter()
+          .find(|child| child.webview_id == webview_id)
+        else {
+          return;
+        };
+        let snapshot = WebviewSnapshot {
+          browser_id: child.browser_id,
+          window_label: appwindow.label.clone(),
+          parent_matches: child.native_parent_matches(appwindow),
+          bounds: child.bounds(),
+          visible: child.native_visible(),
+        };
+        callback(Webview::new(child.browser.clone(), snapshot));
+        return;
+      }
+      message => message,
+    };
     let Some(child) = appwindow
       .children
       .iter_mut()
@@ -564,12 +612,14 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
         let host = &child.host;
-        let message_id = self.context.next_webview_event_id() as i32 + 1;
-        let message_id = Arc::new(AtomicI32::new(message_id));
+        let Ok(message_id) = crate::allocate_devtools_message_id() else {
+          callback(String::new());
+          return;
+        };
         let callback = Arc::new(Mutex::new(Some(callback)));
         let registration = Arc::new(Mutex::new(None));
         let mut observer = EvalScriptWithCallbackDevToolsObserver::new(
-          message_id.clone(),
+          message_id,
           callback.clone(),
           registration.clone(),
         );
@@ -580,7 +630,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           *registration.lock().unwrap() = Some(observer_registration);
 
           let message = serde_json::json!({
-            "id": message_id.load(Ordering::Relaxed),
+            "id": message_id,
             "method": "Runtime.evaluate",
             "params": {
               "expression": script,
@@ -655,7 +705,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         let size = bounds.map(|b| b.size.to_physical::<u32>(appwindow.window.scale_factor()));
         let _ = tx.send(size);
       }
-      WebviewMessage::WithWebview(f) => f(Webview::new(child.browser.clone())),
+      WebviewMessage::WithWebview(_) => unreachable!("native observation dispatched above"),
       WebviewMessage::Print => child.host.print(),
       WebviewMessage::AddEventListener(event_id, handler) => {
         child.listeners.lock().unwrap().insert(event_id, handler);
@@ -1317,7 +1367,6 @@ pub(crate) const INITIAL_LOAD_URL: &str = concat!(
   "%3C%2Fbody%3E",
   "%3C%2Fhtml%3E",
 );
-static NEXT_INIT_SCRIPT_DEVTOOLS_MESSAGE_ID: AtomicI32 = AtomicI32::new(1_000_000);
 
 /// Maps a pending `Page.addScriptToEvaluateOnNewDocument` CDP message id to the
 /// `(browser, real_url)` whose real navigation is deferred until that message is
@@ -1419,7 +1468,7 @@ type EvalScriptCallback = Box<dyn Fn(String) + Send + 'static>;
 
 cef::wrap_dev_tools_message_observer! {
   struct EvalScriptWithCallbackDevToolsObserver {
-    message_id: Arc<AtomicI32>,
+    message_id: i32,
     callback: Arc<Mutex<Option<EvalScriptCallback>>>,
     registration: Arc<Mutex<Option<cef::Registration>>>,
   }
@@ -1432,7 +1481,7 @@ cef::wrap_dev_tools_message_observer! {
       success: std::os::raw::c_int,
       result: Option<&[u8]>,
     ) {
-      if message_id != self.message_id.load(Ordering::Relaxed) {
+      if message_id != self.message_id {
         return;
       }
 
@@ -1515,19 +1564,20 @@ fn register_initialization_scripts(
   custom_scheme_domain_names: &[String],
   initial_url: String,
   pending_initial_loads: &PendingInitialLoads,
-) -> bool {
+) -> std::result::Result<bool, crate::DevToolsMessageIdExhausted> {
   let Some(source) = devtools_initialization_script_source(
     initialization_scripts,
     custom_protocol_scheme,
     custom_scheme_domain_names,
   ) else {
-    return false;
+    return Ok(false);
   };
   let Some(host) = browser.host() else {
-    return false;
+    return Ok(false);
   };
 
-  let page_enable_message_id = NEXT_INIT_SCRIPT_DEVTOOLS_MESSAGE_ID.fetch_add(1, Ordering::Relaxed);
+  let page_enable_message_id = crate::allocate_devtools_message_id()?;
+  let message_id = crate::allocate_devtools_message_id()?;
   let page_enable_message = serde_json::json!({
     "id": page_enable_message_id,
     "method": "Page.enable",
@@ -1536,7 +1586,6 @@ fn register_initialization_scripts(
   .to_string();
   let _ = host.send_dev_tools_message(Some(page_enable_message.as_bytes()));
 
-  let message_id = NEXT_INIT_SCRIPT_DEVTOOLS_MESSAGE_ID.fetch_add(1, Ordering::Relaxed);
   let message = serde_json::json!({
     "id": message_id,
     "method": "Page.addScriptToEvaluateOnNewDocument",
@@ -1551,10 +1600,10 @@ fn register_initialization_scripts(
     .unwrap()
     .insert(message_id, (browser.clone(), initial_url));
   if host.send_dev_tools_message(Some(message.as_bytes())) == 1 {
-    true
+    Ok(true)
   } else {
     pending_initial_loads.lock().unwrap().remove(&message_id);
-    false
+    Ok(false)
   }
 }
 
@@ -1603,8 +1652,17 @@ pub(crate) fn load_initial_url_after_registering_initialization_scripts(
     pending_initial_loads,
   );
 
-  if !is_waiting_for_initialization_scripts {
-    post_load_initial_url(browser_for_callback, initial_url);
+  match is_waiting_for_initialization_scripts {
+    Ok(false) => post_load_initial_url(browser_for_callback, initial_url),
+    Ok(true) => {}
+    Err(error) => {
+      // Exhaustion cannot fall through to a navigation without the requested
+      // document-start scripts or reuse another operation's acknowledgment.
+      eprintln!("CEF initialization failed: {error}");
+      if let Some(host) = browser.host() {
+        host.close_browser(1);
+      }
+    }
   }
 }
 

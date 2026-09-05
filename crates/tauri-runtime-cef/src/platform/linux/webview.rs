@@ -13,6 +13,46 @@ use crate::{webview::AppWebview, window::AppWindow};
 use super::utils::{atom, with_cef_display};
 
 impl AppWebview {
+  pub(crate) fn native_parent_matches(&self, parent: &AppWindow) -> Option<bool> {
+    let xid = self.host.window_handle();
+    if xid == 0 {
+      return None;
+    }
+    with_cef_display(None, |xlib, display| unsafe {
+      let mut root = 0;
+      let mut native_parent = 0;
+      let mut children = std::ptr::null_mut();
+      let mut count = 0;
+      let status = (xlib.XQueryTree)(
+        display,
+        xid as xlib::Window,
+        &mut root,
+        &mut native_parent,
+        &mut children,
+        &mut count,
+      );
+      if !children.is_null() {
+        (xlib.XFree)(children.cast());
+      }
+      (status != 0).then_some(native_parent == parent.xid() as xlib::Window)
+    })
+  }
+
+  pub(crate) fn native_visible(&self) -> Option<bool> {
+    let xid = self.host.window_handle();
+    if xid == 0 {
+      return None;
+    }
+    with_cef_display(None, |xlib, display| unsafe {
+      let mut attributes = std::mem::MaybeUninit::<xlib::XWindowAttributes>::uninit();
+      if (xlib.XGetWindowAttributes)(display, xid as xlib::Window, attributes.as_mut_ptr()) == 0 {
+        return None;
+      }
+      // XGetWindowAttributes initializes the complete structure on success.
+      Some(attributes.assume_init().map_state == xlib::IsViewable)
+    })
+  }
+
   fn xid(&self) -> xlib::Window {
     let xid = self.host.window_handle();
     assert_ne!(xid, 0, "failed to get XID");

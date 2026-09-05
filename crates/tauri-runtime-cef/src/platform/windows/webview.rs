@@ -10,15 +10,34 @@ use windows::Win32::{
   Graphics::Gdi::MapWindowPoints,
   UI::Shell::{DefSubclassProc, SetWindowSubclass},
   UI::WindowsAndMessaging::{
-    DestroyWindow, GetParent, GetWindowRect, HWND_TOP, SW_HIDE, SW_SHOW, SWP_NOACTIVATE,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow, WINDOWPOS,
-    WM_WINDOWPOSCHANGING,
+    DestroyWindow, GetParent, GetWindowRect, HWND_TOP, IsWindow, IsWindowVisible, SW_HIDE, SW_SHOW,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow,
+    WINDOWPOS, WM_WINDOWPOSCHANGING,
   },
 };
 
 use crate::{webview::AppWebview, window::AppWindow};
 
 impl AppWebview {
+  pub(crate) fn native_parent_matches(&self, parent: &AppWindow) -> Option<bool> {
+    let hwnd = self.hwnd();
+    unsafe {
+      if !IsWindow(Some(hwnd)).as_bool() {
+        return None;
+      }
+      Some(GetParent(hwnd).ok()? == parent.hwnd())
+    }
+  }
+
+  pub(crate) fn native_visible(&self) -> Option<bool> {
+    let hwnd = self.hwnd();
+    unsafe {
+      IsWindow(Some(hwnd))
+        .as_bool()
+        .then(|| IsWindowVisible(hwnd).as_bool())
+    }
+  }
+
   pub(crate) fn hwnd(&self) -> HWND {
     let hwnd = self.host.window_handle();
     HWND(hwnd.0 as _)

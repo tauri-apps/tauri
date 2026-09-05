@@ -117,22 +117,61 @@ wrap_app! {
   }
 }
 
+/// Where the browser process says CEF was loaded from
+#[cfg(target_os = "macos")]
+const CEF_LIBRARY_PATH_ENV: &str = "TAURI_CEF_LIBRARY_PATH";
+
+/// The framework named by that variable — the binary, or the `.framework`
+/// directory holding it — or `None` for the bundle-relative location.
+#[cfg(target_os = "macos")]
+fn cef_framework_from_env() -> Option<std::path::PathBuf> {
+  const FRAMEWORK_BINARY: &str = "Chromium Embedded Framework";
+
+  let path = std::path::PathBuf::from(std::env::var_os(CEF_LIBRARY_PATH_ENV)?);
+  Some(match path.extension() {
+    Some(ext) if ext == "framework" => path.join(FRAMEWORK_BINARY),
+    _ => path,
+  })
+}
+
 fn main() {
   let args = Args::new();
 
+  #[cfg(target_os = "macos")]
+  let cef_framework = cef_framework_from_env();
+
+  // A framework outside the app bundle is out of the sandbox's reach, so
+  // the browser process launched this one with `--no-sandbox` and entering
+  // the sandbox here would only make the load below fail.
   #[cfg(all(target_os = "macos", feature = "sandbox"))]
-  let _sandbox = {
+  let _sandbox = cef_framework.is_none().then(|| {
     let mut sandbox = cef::sandbox::Sandbox::new();
     sandbox.initialize(args.as_main_args());
     sandbox
-  };
+  });
 
   #[cfg(target_os = "macos")]
-  let _loader = {
-    let loader = library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), true);
-    assert!(loader.load());
-    loader
-  };
+  match &cef_framework {
+    // `load_library` directly: `LibraryLoader` only ever resolves the
+    // bundle-relative location, and this framework is somewhere else.
+    Some(path) => {
+      use std::os::unix::ffi::OsStrExt;
+
+      let c_path = std::ffi::CString::new(path.as_os_str().as_bytes())
+        .unwrap_or_else(|_| panic!("CEF path is not a valid C string: {}", path.display()));
+      if unsafe { load_library(Some(&*c_path.as_ptr().cast())) } != 1 {
+        panic!("failed to load CEF from {}", path.display());
+      }
+    }
+    None => {
+      let loader = library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), true);
+      assert!(loader.load(), "failed to load CEF from the app bundle");
+      // CEF's threads outlive every scope here and unloading is only safe
+      // after `cef::shutdown`, so the loader (which unloads on drop) is
+      // deliberately leaked.
+      std::mem::forget(loader);
+    }
+  }
 
   let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
   let mut app = TauriRenderApp::new();

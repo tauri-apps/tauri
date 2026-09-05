@@ -856,13 +856,11 @@ impl<T: ScopeObjectMatch> CommandScope<T> {
 impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
-    let scope_ids = command.acl.as_ref().map(|resolved| {
-      resolved
+    if let Some(resolved) = &command.acl {
+      let scope_ids = resolved
         .iter()
         .filter_map(|cmd| cmd.scope_id)
-        .collect::<Vec<_>>()
-    });
-    if let Some(scope_ids) = scope_ids {
+        .collect::<Vec<_>>();
       CommandScope::resolve(&command.message.webview, scope_ids).map_err(Into::into)
     } else {
       Ok(CommandScope {

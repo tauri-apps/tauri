@@ -100,6 +100,7 @@ impl<'a> ResourcePaths<'a> {
         base_dir: None,
         current_dest: None,
         current_iter: None,
+        rerun_if_changed: Vec::new(),
       },
     }
   }
@@ -113,6 +114,7 @@ impl<'a> ResourcePaths<'a> {
         base_dir: None,
         current_dest: None,
         current_iter: None,
+        rerun_if_changed: Vec::new(),
       },
     }
   }
@@ -152,6 +154,10 @@ pub struct ResourcePathsIter<'a> {
   /// The iter for the current pattern. The cycle goes like this:
   /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
+  /// Paths that were walked or globbed while iterating. Build scripts
+  /// should emit a `rerun-if-changed` for each so that adding or removing a
+  /// file inside a resource directory re-triggers the resource copy.
+  rerun_if_changed: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -184,6 +190,17 @@ impl Iterator for ResourcePathsInnerIter {
 }
 
 impl ResourcePathsIter<'_> {
+  /// Paths that were walked or globbed while iterating.
+  ///
+  /// A build script should emit a `cargo:rerun-if-changed` for each of these
+  /// after iterating, so that adding or removing a file inside a resource
+  /// directory re-runs the script and copies the new files. Only meaningful
+  /// once iteration has produced the entries (i.e. after the iterator is
+  /// exhausted).
+  pub fn rerun_if_changed(&self) -> &[PathBuf] {
+    &self.rerun_if_changed
+  }
+
   fn next_current_iter(&mut self) -> Option<crate::Result<Resource>> {
     let current_iter = self.current_iter.as_mut().unwrap();
     let entry = current_iter.next()?;
@@ -285,6 +302,20 @@ impl ResourcePathsIter<'_> {
           .into_owned(),
         None => pattern.clone(),
       };
+      // Watch the fixed directory prefix of the glob (everything before the
+      // first wildcard component) so new files matching the glob are noticed.
+      let mut base = PathBuf::new();
+      for component in Path::new(&glob_pattern).components() {
+        if component.as_os_str().to_string_lossy().contains('*') {
+          break;
+        }
+        base.push(component);
+      }
+      if base.as_os_str().is_empty() {
+        base.push(".");
+      }
+      self.rerun_if_changed.push(base);
+
       self.current_iter = match glob::glob(&glob_pattern) {
         Ok(glob) => Some(ResourcePathsInnerIter::Glob { iter: glob }),
         Err(error) => return Some(Err(error.into())),
@@ -302,6 +333,7 @@ impl ResourcePathsIter<'_> {
         Some(base_dir) => base_dir.join(path),
         None => path,
       };
+      self.rerun_if_changed.push(path.clone());
       if path.is_dir() {
         if !self.allow_walk {
           return Some(Err(crate::Error::NotAllowedToWalkDir(path)));
@@ -493,6 +525,37 @@ mod tests {
         panic!("{resource:?} was expected but not found in {resources:?}");
       }
     }
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
+  fn resource_paths_iter_rerun_if_changed() {
+    setup_test_dirs();
+
+    let dir = std::env::current_dir().unwrap().join("src-tauri");
+    let _ = std::env::set_current_dir(dir);
+
+    let patterns = [
+      "../src/script.js".into(),
+      "../src/assets".into(),
+      "../src/textures/**/*".into(),
+      "*.toml".into(),
+    ];
+    let mut resources = ResourcePaths::new(&patterns, true).iter();
+
+    for resource in resources.by_ref() {
+      resource.unwrap();
+    }
+
+    assert_eq!(
+      resources.rerun_if_changed(),
+      &[
+        normalize(Path::new("../src/script.js")),
+        normalize(Path::new("../src/assets")),
+        normalize(Path::new("../src/textures")),
+        PathBuf::from("."),
+      ]
+    );
   }
 
   #[test]

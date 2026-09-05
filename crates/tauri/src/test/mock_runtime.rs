@@ -75,11 +75,11 @@ unsafe impl Sync for RuntimeContext {}
 
 impl RuntimeContext {
   fn send_message(&self, message: Message) -> Result<()> {
-    if std::thread::current().id() == self.main_thread_id {
-      if let Message::Task(task) = message {
-        task();
-        return Ok(());
-      }
+    if std::thread::current().id() == self.main_thread_id
+      && let Message::Task(task) = message
+    {
+      task();
+      return Ok(());
     }
     if self.is_running.load(Ordering::Relaxed) {
       self
@@ -253,15 +253,15 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!();
   }
 
-  fn primary_monitor(&self) -> Option<Monitor> {
+  fn primary_monitor(&self) -> Result<Option<Monitor>> {
     unimplemented!()
   }
 
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
     unimplemented!()
   }
 
-  fn available_monitors(&self) -> Vec<Monitor> {
+  fn available_monitors(&self) -> Result<Vec<Monitor>> {
     unimplemented!()
   }
 
@@ -1218,7 +1218,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Handle = MockRuntimeHandle;
   type EventLoopProxy = EventProxy;
   type PlatformSpecificWebviewAttribute = ();
-  type PlatformSpecificInitAttribute = ();
+  type RuntimeInitAttrs = ();
   type WindowOpener = ();
   type Webview = ();
 

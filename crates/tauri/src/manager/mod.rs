@@ -259,6 +259,7 @@ impl<R: Runtime> AppManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
+    on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
     #[cfg(any(target_os = "macos", target_os = "ios"))] on_web_content_process_terminate: Option<
       Arc<OnWebContentProcessTerminate<R>>,
     >,
@@ -295,6 +296,7 @@ impl<R: Runtime> AppManager<R> {
         webviews: Mutex::default(),
         invoke_handler,
         on_page_load,
+        on_permission_request,
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
@@ -464,12 +466,15 @@ impl<R: Runtime> AppManager<R> {
     (self.webview.invoke_handler)(invoke)
   }
 
-  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
+  /// Runs the plugin [`crate::plugin::Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
+  ///
+  /// The message is not handled when the plugin exists **and** the command does not.
+  pub fn run_plugin_invoke_handler(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(plugin, invoke)
+      .run_invoke_handler(plugin, invoke)
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
@@ -637,9 +642,9 @@ impl<R: Runtime> AppManager<R> {
     self
       .window
       .windows_lock()
-      .iter()
-      .find(|w| w.1.is_focused().unwrap_or(false))
-      .map(|w| w.1.clone())
+      .values()
+      .find(|w| w.is_focused().unwrap_or(false))
+      .cloned()
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {
@@ -647,17 +652,16 @@ impl<R: Runtime> AppManager<R> {
     if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
-        self
-          .listeners()
-          .remove_webview_js_listeners(webview.label());
+        self.listeners().remove_webview_listeners(webview.label());
       }
     }
+    self.listeners().remove_window_listeners(label);
   }
 
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
-    self.listeners().remove_webview_js_listeners(label);
+    self.listeners().remove_webview_listeners(label);
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
@@ -759,20 +763,21 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
-      None,
+      None, // on_page_load
+      None, // on_permission_request
       #[cfg(any(target_os = "macos", target_os = "ios"))]
-      None,
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
+      None, // on_web_content_process_terminate
+      Default::default(), // uri_scheme_protocols
+      StateManager::new(), // state
+      Default::default(), // menu_event_listener
       #[cfg(all(desktop, feature = "tray-icon"))]
-      Default::default(),
-      Default::default(),
-      Default::default(),
-      Default::default(),
-      "".into(),
-      None,
-      crate::generate_invoke_key().unwrap(),
+      Default::default(), // tray_icon_event_listeners
+      Default::default(), // window_event_listeners
+      Default::default(), // webview_event_listeners
+      Default::default(), // window_menu_event_listeners
+      "".into(), // invoke_initialization_script
+      None, // channel_interceptor
+      crate::generate_invoke_key().unwrap(), // invoke_key,
     );
 
     #[cfg(custom_protocol)]
@@ -810,20 +815,21 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
-      None,
+      None, // on_page_load
+      None, // on_permission_request
       #[cfg(any(target_os = "macos", target_os = "ios"))]
-      None,
-      Default::default(),
-      StateManager::new(),
-      Default::default(),
+      None, // on_web_content_process_terminate
+      Default::default(), // uri_scheme_protocols
+      StateManager::new(), // state
+      Default::default(), // menu_event_listener
       #[cfg(all(desktop, feature = "tray-icon"))]
-      Default::default(),
-      Default::default(),
-      Default::default(),
-      Default::default(),
-      "".into(),
-      None,
-      crate::generate_invoke_key().unwrap(),
+      Default::default(), // tray_icon_event_listeners
+      Default::default(), // window_event_listeners
+      Default::default(), // webview_event_listeners
+      Default::default(), // window_menu_event_listeners
+      "".into(), // invoke_initialization_script
+      None, // channel_interceptor
+      crate::generate_invoke_key().unwrap(), // invoke_key
     );
 
     #[cfg(custom_protocol)]

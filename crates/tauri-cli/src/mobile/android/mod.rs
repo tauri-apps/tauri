@@ -40,10 +40,12 @@ use crate::{
   ConfigValue, Error, ErrorExt, Result,
   error::Context,
   helpers::config::{BundleResources, Config as TauriConfig},
+  mobile::android::check_java_gradle_versions::check_java_gradle_versions,
 };
 
 mod android_studio_script;
 mod build;
+mod check_java_gradle_versions;
 mod dev;
 pub(crate) mod project;
 mod run;
@@ -189,6 +191,8 @@ pub fn get_config(
       src_main_dir.join("generated"),
     );
   }
+
+  check_java_gradle_versions();
 
   (config, metadata)
 }

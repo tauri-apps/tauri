@@ -120,7 +120,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       "chrome_100_percent.pak",
       "chrome_200_percent.pak",
       "resources.pak",
-      // ANGEL support
+      // ANGLE support
       "libEGL.so",
       "libGLESv2.so",
       // SwANGLE support

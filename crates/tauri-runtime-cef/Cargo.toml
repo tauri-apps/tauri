@@ -11,9 +11,9 @@ rust-version.workspace = true
 
 [dependencies]
 base64 = "0.22"
-cef = { version = "=150.0.0", features = ["build-util", "linux-x11"] }
+cef = { version = "=151.8.1", features = ["build-util", "linux-x11"] }
 # Not actually used directly, just locking it.
-cef-dll-sys = { version = "=150.0.0", default-features = false }
+cef-dll-sys = { version = "=151.8.1", default-features = false }
 dirs = "6"
 dioxus-debug-cell = "0.1"
 http = "1"

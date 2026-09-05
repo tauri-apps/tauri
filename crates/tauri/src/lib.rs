@@ -147,6 +147,16 @@ pub use tauri_runtime_cef::run_cef_helper_process;
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
 
+/// The latest CEF API version known to the linked CEF bindings.
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub use tauri_runtime_cef::CEF_API_VERSION_LAST;
+
+/// The runtime initialization attributes.
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub use tauri_runtime_cef::RuntimeInitAttrs as CefRuntimeAttributes;
+
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
 #[doc(hidden)]
@@ -1256,9 +1266,9 @@ mod z85 {
     assert_eq!(bytes.len() % 4, 0);
 
     let mut buf = String::with_capacity(bytes.len() * 5 / 4);
-    for chunk in bytes.chunks_exact(4) {
+    for chunk in bytes.as_chunks::<4>().0 {
       let mut chars = [0u8; 5];
-      let mut chunk = u32::from_be_bytes(chunk.try_into().unwrap()) as usize;
+      let mut chunk = u32::from_be_bytes(*chunk) as usize;
       for byte in chars.iter_mut().rev() {
         *byte = TABLE[chunk % 85];
         chunk /= 85;

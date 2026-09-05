@@ -32,7 +32,7 @@ use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  InitAttribute, RuntimeInitArgs,
+  RuntimeInitArgs, RuntimeSpecificInitAttrs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
 };
@@ -672,7 +672,7 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    let _ = self.run_on_main_thread(move || unsafe {
+    let _ = self.run_on_main_thread(move || {
       let mtm = objc2::MainThreadMarker::new().unwrap();
       let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
       tx.send(ui_application.supportsMultipleScenes()).unwrap();
@@ -863,7 +863,7 @@ macro_rules! shared_app_impl {
       pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.primary_monitor().map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor()?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -872,7 +872,7 @@ macro_rules! shared_app_impl {
       pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.monitor_from_point(x, y).map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y).map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y)?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -883,9 +883,11 @@ macro_rules! shared_app_impl {
           RuntimeOrDispatch::Runtime(h) => {
             h.available_monitors().into_iter().map(Into::into).collect()
           }
-          RuntimeOrDispatch::RuntimeHandle(h) => {
-            h.available_monitors().into_iter().map(Into::into).collect()
-          }
+          RuntimeOrDispatch::RuntimeHandle(h) => h
+            .available_monitors()?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
           _ => unreachable!(),
         })
       }
@@ -1256,11 +1258,9 @@ impl<R: Runtime> App<R> {
   /// Whether the application supports multiple windows.
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
-    unsafe {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      ui_application.supportsMultipleScenes()
-    }
+    let mtm = objc2::MainThreadMarker::new().unwrap();
+    let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+    ui_application.supportsMultipleScenes()
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -1409,28 +1409,28 @@ impl<R: Runtime> App<R> {
     mut self,
     mut callback: F,
   ) -> impl FnMut(RuntimeRunEvent<EventLoopMessage>) {
-    let app_handle = self.handle().clone();
-    let manager = self.manager.clone();
+    let _app_handle = self.handle().clone();
+    let _manager = self.manager.clone();
 
     move |event| match &event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Ready, self.manager());
+        callback(self.handle(), event);
       }
       RuntimeRunEvent::Exit => {
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-        callback(&app_handle, event);
-        app_handle.cleanup_before_exit();
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Exit, self.manager());
+        callback(self.handle(), event);
+        self.cleanup_before_exit();
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
       }
       _ => {
-        let event = on_event_loop_event(&app_handle, event, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), event, self.manager());
+        callback(self.handle(), event);
       }
     }
   }
@@ -1462,8 +1462,8 @@ impl<R: Runtime> App<R> {
     note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
   )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
-    let manager = self.manager.clone();
-    let app_handle = self.handle().clone();
+    let _manager = self.manager.clone();
+    let _app_handle = self.handle().clone();
 
     if !self.ran_setup
       && let Err(e) = setup(self)
@@ -1471,10 +1471,12 @@ impl<R: Runtime> App<R> {
       panic!("Failed to setup app: {e}");
     }
 
+    let app_handle = self.handle().clone();
+
     app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
-      let event = on_event_loop_event(&app_handle, event, &manager);
+      let event = on_event_loop_event(&app_handle, event, app_handle.manager());
       callback(&app_handle, event);
     })
   }
@@ -1508,6 +1510,9 @@ pub struct Builder<R: Runtime> {
 
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
+
+  /// Permission request hook.
+  on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
 
   /// Web content process termination hook.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -1549,7 +1554,7 @@ pub struct Builder<R: Runtime> {
 
   pub(crate) invoke_key: String,
 
-  platform_specific_attributes: Vec<R::PlatformSpecificInitAttribute>,
+  runtime_init_attrs: R::RuntimeInitAttrs,
 }
 
 #[derive(Template)]
@@ -1610,6 +1615,7 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
+      on_permission_request: None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
@@ -1626,63 +1632,14 @@ impl<R: Runtime> Builder<R> {
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
       invoke_key,
-      platform_specific_attributes: Vec::new(),
+      runtime_init_attrs: Default::default(),
     }
   }
-}
 
-/// Helper so `Builder<R>` can merge user-provided platform attributes with config-derived ones
-/// ([`InitAttribute::new`]). User attrs come first, then config-derived.
-pub(crate) trait PlatformSpecificAttributesHelper {
-  type Attr: Send + Sync + 'static;
-  fn process_platform_specific_attributes(
-    user_attrs: Vec<Self::Attr>,
-    config: &Config,
-  ) -> crate::Result<Vec<Self::Attr>>;
-}
-
-impl<R: Runtime> PlatformSpecificAttributesHelper for Builder<R> {
-  type Attr = R::PlatformSpecificInitAttribute;
-  fn process_platform_specific_attributes(
-    mut user_attrs: Vec<Self::Attr>,
-    config: &Config,
-  ) -> crate::Result<Vec<Self::Attr>> {
-    let from_config = R::PlatformSpecificInitAttribute::new(config).map_err(crate::Error::from)?;
-    user_attrs.extend(from_config);
-    Ok(user_attrs)
-  }
-}
-
-#[cfg(feature = "cef")]
-impl Builder<crate::Cef> {
-  /// Appends command line arguments to the CEF command line.
-  #[cfg(feature = "cef")]
-  pub fn command_line_args<K: Into<String>, V: Into<String>>(
-    mut self,
-    args: impl IntoIterator<Item = (K, Option<V>)>,
-  ) -> Self {
-    self.platform_specific_attributes.push(
-      tauri_runtime_cef::RuntimeInitAttribute::CommandLineArgs {
-        args: args
-          .into_iter()
-          .map(|(k, v)| (k.into(), v.map(Into::into)))
-          .collect::<Vec<_>>(),
-      },
-    );
-    self
-  }
-
-  /// Sets the disk cache directory for CEF (`Settings::cache_path`).
-  ///
-  /// Calling this more than once keeps the path from the last call.
-  /// If omitted, the cache defaults to `{user cache directory}/{identifier}/cef`.
-  #[cfg(feature = "cef")]
-  pub fn root_cache_path<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
-    self
-      .platform_specific_attributes
-      .push(tauri_runtime_cef::RuntimeInitAttribute::CachePath {
-        path: path.as_ref().to_path_buf(),
-      });
+  /// Sets the runtime-specific initialization attributes.
+  #[must_use]
+  pub fn runtime_init_attrs(mut self, attrs: R::RuntimeInitAttrs) -> Self {
+    self.runtime_init_attrs = attrs;
     self
   }
 }
@@ -1692,7 +1649,7 @@ impl<R: Runtime> Builder<R> {
   fn build_runtime_init_args(
     identifier: &str,
     custom_schemes: Vec<String>,
-    platform_specific_attributes: Vec<R::PlatformSpecificInitAttribute>,
+    runtime_init_attrs: R::RuntimeInitAttrs,
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1702,11 +1659,11 @@ impl<R: Runtime> Builder<R> {
     ))]
     app_id: Option<String>,
     #[cfg(windows)] msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
-  ) -> RuntimeInitArgs<R::PlatformSpecificInitAttribute> {
+  ) -> RuntimeInitArgs<R::RuntimeInitAttrs> {
     RuntimeInitArgs {
       identifier: identifier.to_string(),
       custom_schemes,
-      platform_specific_attributes,
+      runtime_init_attrs,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -1878,6 +1835,53 @@ tauri::Builder::<tauri::Wry>::new()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Defines a closure to be executed when a permission is requested.
+  ///
+  /// The handler receives the [`crate::webview::PermissionKind`] and should return
+  /// the desired [`crate::webview::PermissionResponse`].
+  ///
+  /// This is not called if a [`crate::webview::WebviewBuilder::on_permission_request`]
+  /// is set on the webview and returned a response other than [`crate::webview::PermissionResponse::Default`].
+  ///
+  /// > [!NOTE]
+  /// > This handler only triggers for new permission requests. If the user has already
+  /// > allowed or denied a permission persistently within the webview, the browser
+  /// > will use the saved preference instead of calling this handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
+  /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
+  /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
+  /// - **Android**: Supported via JNI bridge for geolocation, microphone, camera,
+  ///   protected media, and MIDI requests. Android runtime permissions may still
+  ///   trigger native OS prompts before access is granted.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::webview::{PermissionKind, PermissionResponse};
+  /// tauri::Builder::default()
+  ///   .on_permission_request(|_, kind| match kind {
+  ///     PermissionKind::Geolocation => PermissionResponse::Allow,
+  ///     PermissionKind::Notifications => PermissionResponse::Allow,
+  ///     _ => PermissionResponse::Default,
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn on_permission_request<F>(mut self, on_permission_request: F) -> Self
+  where
+    F: Fn(Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
+      + Send
+      + Sync
+      + 'static,
+  {
+    self
+      .on_permission_request
+      .replace(Arc::new(on_permission_request));
     self
   }
 
@@ -2342,17 +2346,17 @@ tauri::Builder::<tauri::Wry>::new()
     }
 
     let config = context.config();
-    let attrs = self.platform_specific_attributes;
-    let platform_specific_attributes =
-      <Self as PlatformSpecificAttributesHelper>::process_platform_specific_attributes(
-        attrs, config,
-      )?;
+    self
+      .runtime_init_attrs
+      .apply_config(config)
+      .map_err(crate::Error::from)?;
 
     let manager = Arc::new(AppManager::with_handlers(
       context,
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      self.on_permission_request,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
@@ -2392,7 +2396,7 @@ tauri::Builder::<tauri::Wry>::new()
     let runtime_args = Self::build_runtime_init_args(
       &manager.config.identifier,
       custom_schemes,
-      platform_specific_attributes,
+      self.runtime_init_attrs,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -2494,8 +2498,7 @@ tauri::Builder::<tauri::Wry>::new()
 
     let runtime_handle = runtime.handle();
 
-    #[allow(unused_mut)]
-    let mut app = App {
+    let app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
       manager: manager.clone(),
@@ -2508,6 +2511,8 @@ tauri::Builder::<tauri::Wry>::new()
       },
       ran_setup: false,
     };
+
+    app.register_core_plugins()?;
 
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
@@ -2523,8 +2528,6 @@ tauri::Builder::<tauri::Wry>::new()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
-    app.register_core_plugins()?;
 
     let env = Env::default();
     app.manage(env);

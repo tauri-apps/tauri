@@ -355,7 +355,7 @@ tauri::Builder::<tauri::Wry>::new()
 
   /// Creates a new window with an optional webview.
   fn build_internal(
-    // mutable on Android
+    // mutable on mobile
     #[allow(unused_mut)] mut self,
     webview: Option<PendingWebview<EventLoopMessage, R>>,
   ) -> crate::Result<Window<R>> {

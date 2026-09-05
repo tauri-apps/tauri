@@ -76,22 +76,100 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 /// in minor releases when a known breaking change is discovered.
 pub use cef;
 
-/// Platform-specific runtime init attributes.
-#[derive(Clone, Debug)]
-pub enum RuntimeInitAttribute {
-  /// Command line arguments passed to CEF.
-  CommandLineArgs { args: Vec<(String, Option<String>)> },
-  /// Deep link schemes.
-  DeepLinkSchemes { schemes: Vec<String> },
+/// CEF runtime initialization attributes.
+#[derive(Default)]
+pub struct RuntimeInitAttrs {
+  command_line_args: Vec<(String, Option<String>)>,
+  deep_link_schemes: Vec<String>,
+  cache_path: Option<PathBuf>,
+  api_version: Option<i32>,
+  settings_callback: Option<Box<dyn FnOnce(&mut cef::Settings) + Send + Sync>>,
+}
+
+impl fmt::Debug for RuntimeInitAttrs {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("RuntimeInitAttrs")
+      .field("command_line_args", &self.command_line_args)
+      .field("deep_link_schemes", &self.deep_link_schemes)
+      .field("cache_path", &self.cache_path)
+      .field("api_version", &self.api_version)
+      .field("settings_callback", &self.settings_callback.is_some())
+      .finish()
+  }
+}
+
+impl RuntimeInitAttrs {
+  /// Sets a callback to customize the settings passed to [`cef::initialize`].
+  ///
+  /// If called more than once, only the last callback is used.
+  #[must_use]
+  pub fn with_settings<F>(mut self, callback: F) -> Self
+  where
+    F: FnOnce(&mut cef::Settings) + Send + Sync + 'static,
+  {
+    self.settings_callback = Some(Box::new(callback));
+    self
+  }
+
+  /// Appends one command line argument passed to CEF.
+  #[must_use]
+  pub fn command_line_arg<K: Into<String>, V: Into<String>>(
+    mut self,
+    key: K,
+    value: Option<V>,
+  ) -> Self {
+    self
+      .command_line_args
+      .push((key.into(), value.map(Into::into)));
+    self
+  }
+
+  /// Appends a list of command line arguments passed to CEF.
+  #[must_use]
+  pub fn command_line_args<K: Into<String>, V: Into<String>>(
+    mut self,
+    args: impl IntoIterator<Item = (K, Option<V>)>,
+  ) -> Self {
+    self
+      .command_line_args
+      .extend(args.into_iter().map(|(k, v)| (k.into(), v.map(Into::into))));
+    self
+  }
+
+  /// Appends a list of deep link schemes detected by CEF's on_already_running_app_relaunch hook.
+  ///
+  /// Deep links defined by the core deep-link plugin on the Tauri configuration are automatically added.
+  #[must_use]
+  pub fn deep_link_schemes<S: Into<String>>(
+    mut self,
+    schemes: impl IntoIterator<Item = S>,
+  ) -> Self {
+    self
+      .deep_link_schemes
+      .extend(schemes.into_iter().map(Into::into));
+    self
+  }
+
   /// Directory used for CEF disk cache (`Settings::cache_path`).
   ///
   /// If unspecified, defaults to `{user cache}/{app identifier}/cef`.
-  CachePath { path: PathBuf },
+  #[must_use]
+  pub fn root_cache_path<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
+    self.cache_path = Some(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// CEF API version this process declares (`cef_api_hash`), defaulting to
+  /// `cef::sys::CEF_API_VERSION_LAST`.
+  #[must_use]
+  pub fn cef_api_version(mut self, version: i32) -> Self {
+    self.api_version = Some(version);
+    self
+  }
 }
 
-impl tauri_runtime::InitAttribute for RuntimeInitAttribute {
-  fn new(config: &tauri_utils::config::Config) -> Result<Vec<Self>> {
-    let mut attrs = Vec::new();
+impl tauri_runtime::RuntimeSpecificInitAttrs for RuntimeInitAttrs {
+  fn apply_config(&mut self, config: &tauri_utils::config::Config) -> Result<()> {
     if let Some(plugin_config) = config
       .plugins
       .0
@@ -115,9 +193,9 @@ impl tauri_runtime::InitAttribute for RuntimeInitAttribute {
           .collect(),
       };
 
-      attrs.push(RuntimeInitAttribute::DeepLinkSchemes { schemes });
+      self.deep_link_schemes.extend(schemes);
     }
-    Ok(attrs)
+    Ok(())
   }
 }
 
@@ -371,9 +449,9 @@ fn device_event_filter_to_winit(filter: DeviceEventFilter) -> winit::event_loop:
 pub(crate) enum EventLoopMessage {
   SetTheme(Option<Theme>),
   SetDeviceEventFilter(DeviceEventFilter),
-  PrimaryMonitor(Sender<Option<Monitor>>),
-  MonitorFromPoint(Sender<Option<Monitor>>, f64, f64),
-  AvailableMonitors(Sender<Vec<Monitor>>),
+  PrimaryMonitor(Sender<Result<Option<Monitor>>>),
+  MonitorFromPoint(Sender<Result<Option<Monitor>>>, f64, f64),
+  AvailableMonitors(Sender<Result<Vec<Monitor>>>),
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
   DisplayHandle(Sender<std::result::Result<SendRawDisplayHandle, raw_window_handle::HandleError>>),
   #[cfg(target_os = "macos")]
@@ -648,19 +726,19 @@ impl<T: UserEvent> WinitCefApp<T> {
         let monitor = event_loop
           .primary_monitor()
           .map(|monitor| winit_monitor_to_tauri_monitor(&monitor));
-        let _ = tx.send(monitor);
+        let _ = tx.send(Ok(monitor));
       }
       EventLoopMessage::MonitorFromPoint(tx, x, y) => {
         let monitor = find_monitor_from_point(event_loop.available_monitors(), x, y)
           .map(|monitor| winit_monitor_to_tauri_monitor(&monitor));
-        let _ = tx.send(monitor);
+        let _ = tx.send(Ok(monitor));
       }
       EventLoopMessage::AvailableMonitors(tx) => {
         let monitors = event_loop
           .available_monitors()
           .map(|monitor| winit_monitor_to_tauri_monitor(&monitor))
           .collect();
-        let _ = tx.send(monitors);
+        let _ = tx.send(Ok(monitors));
       }
       EventLoopMessage::SetDeviceEventFilter(filter) => {
         event_loop.listen_device_events(device_event_filter_to_winit(filter));
@@ -932,6 +1010,7 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
 
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
+    self.apply_pending_activations();
     // TODO: remove once migrated to winit-gtk4
     #[cfg(any(
       target_os = "linux",
@@ -1175,24 +1254,22 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     Ok(unsafe { DisplayHandle::borrow_raw(raw.0) })
   }
 
-  fn primary_monitor(&self) -> Option<Monitor> {
-    event_loop_getter!(self, PrimaryMonitor).ok().flatten()
+  fn primary_monitor(&self) -> Result<Option<Monitor>> {
+    event_loop_getter!(self, PrimaryMonitor)?
   }
 
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
     let (tx, rx) = mpsc::channel();
     self
       .context
       .send_message(Message::EventLoop(EventLoopMessage::MonitorFromPoint(
         tx, x, y,
-      )))
-      .and_then(|_| rx.recv().map_err(|_| Error::FailedToReceiveMessage))
-      .ok()
-      .flatten()
+      )))?;
+    rx.recv().map_err(|_| Error::FailedToReceiveMessage)?
   }
 
-  fn available_monitors(&self) -> Vec<Monitor> {
-    event_loop_getter!(self, AvailableMonitors).unwrap_or_default()
+  fn available_monitors(&self) -> Result<Vec<Monitor>> {
+    event_loop_getter!(self, AvailableMonitors)?
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
@@ -1323,7 +1400,7 @@ impl TerminationSignals {
 impl<T: UserEvent> CefRuntime<T> {
   fn init(
     mut event_loop_builder: EventLoopBuilder,
-    runtime_args: RuntimeInitArgs<RuntimeInitAttribute>,
+    runtime_args: RuntimeInitArgs<RuntimeInitAttrs>,
   ) -> Result<Self> {
     // Snapshot before CEF can touch anything, so we can tell an embedder's own
     // signal policy apart from the handlers CEF installs in `cef::initialize`.
@@ -1369,7 +1446,11 @@ impl<T: UserEvent> CefRuntime<T> {
     // The CEF API version table must be initialized before any other CEF call
     // (e.g. `args.as_cmd_line()` below), otherwise the process crashes with no
     // diagnostics.
-    let _ = cef::api_hash(sys::CEF_API_VERSION_LAST, 0);
+    let version = runtime_args
+      .runtime_init_attrs
+      .api_version
+      .unwrap_or(sys::CEF_API_VERSION_LAST);
+    let _ = cef::api_hash(version, 0);
 
     // Handle CEF subprocesses (renderer/GPU/utility) before any browser-only
     // setup such as building the event loop, creating cache directories, or the
@@ -1392,16 +1473,14 @@ impl<T: UserEvent> CefRuntime<T> {
       std::process::exit(ret.max(0));
     }
 
-    let mut command_line_args = Vec::new();
-    let mut deep_link_schemes = Vec::new();
-    let mut cache_path_override = None::<PathBuf>;
-    for arg in runtime_args.platform_specific_attributes {
-      match arg {
-        RuntimeInitAttribute::CommandLineArgs { args } => command_line_args.extend(args),
-        RuntimeInitAttribute::DeepLinkSchemes { schemes } => deep_link_schemes.extend(schemes),
-        RuntimeInitAttribute::CachePath { path } => cache_path_override = Some(path),
-      }
-    }
+    let RuntimeInitAttrs {
+      mut command_line_args,
+      deep_link_schemes,
+      cache_path: cache_path_override,
+      settings_callback,
+      // Already applied, above, before the first CEF call.
+      api_version: _,
+    } = runtime_args.runtime_init_attrs;
 
     let cache_path = cache_path_override.unwrap_or_else(|| {
       let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
@@ -1452,6 +1531,7 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_path: Arc::new(cache_path.clone()),
     };
 
+    command_line_args.push(("--no-first-run".to_string(), None));
     let mut app = TauriCefApp::new(
       context.clone(),
       context_initialized.clone(),
@@ -1471,12 +1551,15 @@ impl<T: UserEvent> CefRuntime<T> {
       "CEF browser process unexpectedly returned from execute_process"
     );
 
-    let settings = cef::Settings {
+    let mut settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       external_message_pump: 1,
       ..Default::default()
     };
+    if let Some(callback) = settings_callback {
+      callback(&mut settings);
+    }
     if cef::initialize(
       Some(args.as_main_args()),
       Some(&settings),
@@ -1549,10 +1632,10 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type EventLoopProxy = EventProxy<T>;
   type PlatformSpecificWebviewAttribute = WebviewAtribute;
   type Webview = Webview;
-  type PlatformSpecificInitAttribute = RuntimeInitAttribute;
+  type RuntimeInitAttrs = RuntimeInitAttrs;
   type WindowOpener = NewWindowOpener;
 
-  fn new(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
+  fn new(args: RuntimeInitArgs<Self::RuntimeInitAttrs>) -> Result<Self> {
     Self::init(EventLoopBuilder::default(), args)
   }
 
@@ -1564,7 +1647,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn new_any_thread(args: RuntimeInitArgs<Self::PlatformSpecificInitAttribute>) -> Result<Self> {
+  fn new_any_thread(args: RuntimeInitArgs<Self::RuntimeInitAttrs>) -> Result<Self> {
     let mut event_loop_builder = EventLoopBuilder::default();
     event_loop_builder.with_any_thread(true);
     Self::init(event_loop_builder, args)
@@ -1599,7 +1682,10 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
-    event_loop_getter!(self, PrimaryMonitor).ok().flatten()
+    event_loop_getter!(self, PrimaryMonitor)
+      .flatten()
+      .ok()
+      .unwrap_or_default()
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
@@ -1610,12 +1696,16 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
         tx, x, y,
       )))
       .and_then(|_| rx.recv().map_err(|_| Error::FailedToReceiveMessage))
+      .ok()?
       .ok()
-      .flatten()
+      .unwrap_or_default()
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
-    event_loop_getter!(self, AvailableMonitors).unwrap_or_default()
+    event_loop_getter!(self, AvailableMonitors)
+      .flatten()
+      .ok()
+      .unwrap_or_default()
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {

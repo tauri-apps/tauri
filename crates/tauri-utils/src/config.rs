@@ -36,7 +36,7 @@ use serde_with::skip_serializing_none;
 use url::Url;
 
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
@@ -646,7 +646,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "14.0".into()
+  "15.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -1652,6 +1652,38 @@ pub struct BundleConfig {
   /// Android configuration.
   #[serde(default)]
   pub android: AndroidConfig,
+  /// Configuration for apps using the Chromium Embedded Framework.
+  #[serde(default)]
+  pub cef: CefConfig,
+}
+
+/// Configuration for apps using the Chromium Embedded Framework (the `cef`
+/// feature of the `tauri` crate).
+///
+/// See more: <https://v2.tauri.app/reference/config/#cefconfig>
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CefConfig {
+  /// Whether the CEF binary distribution is embedded in the bundle.
+  /// Defaults to `true`.
+  ///
+  /// Set it to `false` for an app that loads CEF at run time from outside
+  /// its own bundle — a shared, machine-wide runtime, through the
+  /// `TAURI_CEF_LIBRARY_PATH` environment variable. The framework,
+  /// `libcef` and their resources are then left out of every bundle, and
+  /// the app must find a runtime at launch or it will not start. On macOS
+  /// the helper apps are still produced: they belong to the app, not to
+  /// the distribution.
+  #[serde(default = "default_true")]
+  pub embed: bool,
+}
+
+impl Default for CefConfig {
+  fn default() -> Self {
+    Self { embed: true }
+  }
 }
 
 /// A tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
@@ -2043,8 +2075,14 @@ pub struct WindowConfig {
   /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
-  /// Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
-  /// so if you use this method, you also need to disable these components by yourself if you want.
+  /// Defines additional browser arguments on Windows.
+  ///
+  /// ## Warning
+  ///
+  /// Webview instances with different browser arguments must also have different [data directories](Self::data_directory).
+  ///
+  /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you set this, you also need to disable these components by yourself if you want.
   #[serde(default, alias = "additional-browser-args")]
   pub additional_browser_args: Option<String>,
   /// Whether or not the window has shadow.
@@ -2221,6 +2259,58 @@ pub struct WindowConfig {
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,
+
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  ///
+  /// Default is false.
+  ///
+  /// Note: If you set this to `true` make sure to add localhost and any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to tauri-src/Info.ios.plist:
+  ///
+  /// ```xml
+  /// <plist>
+  /// <dict>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
+  ///     </array>
+  /// </dict>
+  /// </plist>
+  /// ```
+  ///
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  ///
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  ///
+  /// See https://webkit.org/blog/10882/app-bound-domains/ and
+  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: Supported since version 14.0+.
+  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  #[serde(default, alias = "limit-navigations-to-app-bound-domains")]
+  pub limit_navigations_to_app_bound_domains: bool,
   /// The name of the Android activity to create for this window.
   #[serde(default, alias = "activity-name")]
   pub activity_name: Option<String>,
@@ -2318,6 +2408,7 @@ impl Default for WindowConfig {
       data_directory: None,
       data_store_identifier: None,
       scroll_bar_style: ScrollBarStyle::Default,
+      limit_navigations_to_app_bound_domains: false,
       activity_name: None,
       created_by_activity_name: None,
       requested_by_scene_identifier: None,
@@ -2401,7 +2492,7 @@ impl CspDirectiveSources {
 
 /// A Content-Security-Policy definition.
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum Csp {
@@ -2409,6 +2500,24 @@ pub enum Csp {
   Policy(String),
   /// An object mapping a directive with its sources values as a list of strings.
   DirectiveMap(HashMap<String, CspDirectiveSources>),
+}
+
+impl Serialize for Csp {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      Self::Policy(policy) => serializer.serialize_str(policy),
+      Self::DirectiveMap(map) => {
+        // Serialize through `BTreeMap` so the output is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let btree_map: BTreeMap<_, _> = map.iter().collect();
+        btree_map.serialize(serializer)
+      }
+    }
+  }
 }
 
 impl From<HashMap<String, CspDirectiveSources>> for Csp {
@@ -2564,7 +2673,7 @@ pub struct AssetProtocolConfig {
 /// definition of a header source
 ///
 /// The header value to a header name
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum HeaderSource {
@@ -2574,6 +2683,25 @@ pub enum HeaderSource {
   List(Vec<String>),
   /// (Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Item are then joined by ";" for the real header value
   Map(HashMap<String, String>),
+}
+
+impl Serialize for HeaderSource {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      Self::Inline(s) => serializer.serialize_str(s),
+      Self::List(l) => l.serialize(serializer),
+      Self::Map(m) => {
+        // Serialize through `BTreeMap` so the output is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let btree_map: BTreeMap<_, _> = m.iter().collect();
+        btree_map.serialize(serializer)
+      }
+    }
+  }
 }
 
 impl Display for HeaderSource {
@@ -3147,7 +3275,7 @@ pub struct IosConfig {
   /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
-  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
+  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `15.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
   #[serde(
@@ -3587,6 +3715,22 @@ pub struct Config {
   #[serde(rename = "$schema")]
   pub schema: Option<String>,
   /// App name.
+  ///
+  /// This is the name your app is known by on the user's system, so it must be changed from the
+  /// default before publishing. Besides naming the generated bundles, it is written into platform
+  /// metadata and install paths that are expected to be unique to your application.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Names the `.app` bundle and the `.dmg`, and sets the bundle's
+  ///    `CFBundleDisplayName` and `CFBundleName` properties. `CFBundleName` can be overridden with
+  ///    [`bundle > macOS > bundleName`](MacConfig::bundle_name).
+  /// - **Linux**: Kebab-cased for the Debian and RPM package names, used as the `Name` entry of
+  ///    the desktop file and as the resource directory name under `/usr/lib`.
+  /// - **Windows**: Names the installers, the installation directory, the Start Menu folder and
+  ///    the `HKCU\Software\<publisher>\<product name>` registry key. It also derives the default
+  ///    WiX upgrade code, which must be unique across applications and can be set explicitly with
+  ///    [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code).
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", schemars(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
@@ -3627,6 +3771,8 @@ pub struct Config {
   /// the bundle ID and path to the webview data directory.
   /// This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),
   /// and periods (.).
+  /// The default value `com.tauri.dev` is rejected by `tauri build` and must be changed before
+  /// building your application.
   pub identifier: String,
   /// The App configuration.
   #[serde(default)]
@@ -3645,9 +3791,22 @@ pub struct Config {
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#pluginconfig>
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
+
+impl Serialize for PluginConfig {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    // Serialize through `BTreeMap` so the output is deterministic
+    // see: https://github.com/tauri-apps/tauri/issues/14978
+    // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+    let btree_map: BTreeMap<_, _> = self.0.iter().collect();
+    btree_map.serialize(serializer)
+  }
+}
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///
@@ -3895,6 +4054,7 @@ mod build {
       let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
       let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
       let scroll_bar_style = &self.scroll_bar_style;
+      let limit_navigations_to_app_bound_domains = self.limit_navigations_to_app_bound_domains;
       let activity_name = opt_lit(self.activity_name.as_ref());
       let created_by_activity_name = opt_lit(self.created_by_activity_name.as_ref());
       let requested_by_scene_identifier = opt_lit(self.requested_by_scene_identifier.as_ref());
@@ -3961,6 +4121,7 @@ mod build {
         data_directory,
         data_store_identifier,
         scroll_bar_style,
+        limit_navigations_to_app_bound_domains,
         activity_name,
         created_by_activity_name,
         requested_by_scene_identifier,
@@ -4064,6 +4225,7 @@ mod build {
       let macos = quote!(Default::default());
       let ios = quote!(Default::default());
       let android = quote!(Default::default());
+      let cef = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -4088,7 +4250,8 @@ mod build {
         linux,
         macos,
         ios,
-        android
+        android,
+        cef
       );
     }
   }
@@ -4544,6 +4707,7 @@ mod test {
       windows: Default::default(),
       ios: Default::default(),
       android: Default::default(),
+      cef: Default::default(),
     };
 
     // test the configs

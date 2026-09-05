@@ -2,13 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fs, path::PathBuf, process::Command};
+use std::{
+  fs,
+  io::Read,
+  path::{Path, PathBuf},
+  process::Command,
+};
 
 use anyhow::Context;
+use walkdir::WalkDir;
 
 use crate::{
   Settings,
-  bundle::{linux::debian, settings::Arch},
+  bundle::{linux::freedesktop, settings::Arch},
   utils::{CommandExt, fs_utils, http_utils::download},
 };
 
@@ -36,6 +42,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     fs::remove_dir_all(&output_path)?;
   }
 
+  let product_name = settings.product_name();
+
+  let appimage_filename = format!(
+    "{}_{}_{appimage_arch}.AppImage",
+    product_name,
+    settings.version_string()
+  );
+  let appimage_path = output_path.join(&appimage_filename);
+
   let tools_path = settings
     .local_tools_directory()
     .map(|d| d.join(".tauri"))
@@ -50,19 +65,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // github doesn't send a Last-Modified header
   // if !quick_sharun.exists() {}
   let data = download(
-    "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
+    "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh",
   )?;
   write_and_make_executable(&quick_sharun, data)?;
 
-  let package_dir = settings
-    .project_out_directory()
-    .join("bundle/appimage_deb/");
-
-  let main_binary = settings.main_binary()?;
-  let product_name = settings.product_name();
+  // This should come after the download or users will think it's stuck on the download step.
+  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
 
   let mut settings = settings.clone();
-  if main_binary.name().contains(' ') {
+  if settings.main_binary()?.name().contains(' ') {
+    let main_binary = settings.main_binary()?;
+
     let main_binary_path = settings.binary_path(main_binary);
     let project_out_dir = settings.project_out_directory();
 
@@ -73,135 +86,170 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     let main_binary = settings.main_binary_mut()?;
     main_binary.set_name(main_binary_name_kebab);
   }
+  let settings = settings;
 
   fs::create_dir_all(&output_path)?;
-  let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
+  let app_dir = output_path.join(format!("{product_name}.AppDir"));
+  let app_dir_bin = app_dir.join("bin/");
+  let app_dir_lib = app_dir.join("lib/");
 
-  // generate deb_folder structure
-  let (data_dir, icons) = debian::generate_data(&settings, &package_dir)
-    .with_context(|| "Failed to build data folders and files")?;
+  let desktop_file = freedesktop::generate_desktop_file(&settings, &None, &app_dir)
+    .with_context(|| "Failed to create desktop file")?
+    .0;
+  fs::rename(
+    desktop_file,
+    app_dir.join(format!("{product_name}.desktop")),
+  )
+  .with_context(|| "Failed to move desktop file")?;
+  let _ = fs_utils::remove_dir_all(&app_dir.join("usr/"));
 
-  fs_utils::copy_dir(&data_dir.join("usr/bin/"), &app_dir_path.join("bin/"))
-    .with_context(|| "Failed to copy bin files")?;
-  // Only exists when resources feature is used
-  if data_dir.join("usr/lib/").exists() {
-    fs_utils::copy_dir(&data_dir.join("usr/lib/"), &app_dir_path.join("lib/"))
-      .with_context(|| "Failed to copy lib files")?;
+  // Copy Cargo project binaries
+  for bin in settings.binaries() {
+    let bin_path = settings.binary_path(bin);
+    let trgt = app_dir_bin.join(bin.name());
+    fs_utils::copy_file(&bin_path, &trgt)
+      .with_context(|| format!("Failed to copy binary from {bin_path:?} to {trgt:?}"))?;
   }
 
-  fs_utils::copy_custom_files(&settings.appimage().files, &app_dir_path)
+  // Copy external binaries (externalBin)
+  settings
+    .copy_binaries(&app_dir_bin)
+    .with_context(|| "Failed to copy external binaries")?;
+
+  settings
+    .copy_resources(&app_dir_lib.join(product_name))
+    .with_context(|| "Failed to copy resource files")?;
+
+  fs_utils::copy_custom_files(&settings.appimage().files, &app_dir)
     .with_context(|| "Failed to copy custom files")?;
 
-  fs::create_dir_all(app_dir_path.join("bin/locales/"))?;
+  let icons = freedesktop::list_icon_files(&settings, Path::new(""))
+    .with_context(|| "Failed to create icon files")?;
 
-  let cef_path = settings
-    .bundle_settings()
-    .cef_path
-    .clone()
-    .expect("this module is only called when cef_path is set");
-
-  let cef_files = [
-    // required
-    "libcef.so",
-    "icudtl.dat",
-    "v8_context_snapshot.bin",
-    // required end
-    // "optional" - but not really since we want support for all of this
-    "chrome_100_percent.pak",
-    "chrome_200_percent.pak",
-    "resources.pak",
-    // ANGEL support
-    "libEGL.so",
-    "libGLESv2.so",
-    // SwANGLE support
-    "libvk_swiftshader.so",
-    "vk_swiftshader_icd.json",
-    "libvulkan.so.1",
-    // sandbox - may need to be behind a setting?
-    "chrome-sandbox",
-    // TODO: seccomp
-  ];
-
-  for f in cef_files {
-    let dest = app_dir_path.join("bin/").join(f);
-    fs::copy(cef_path.join(f), &dest)
-      .with_context(|| format!("Failed to copy cef file {f} to {}", dest.display()))?;
-    // quick-sharun checks for the NO_STRIP env but libcef.so is 1.5GB so we make sure it's stripped anyway.
-    let _ = Command::new("strip").arg(&dest).output_ok();
-  }
-  let locales = [
-    "en-US.pak",
-    "en-US_FEMININE.pak",
-    "en-US_MASCULINE.pak",
-    "en-US_NEUTER.pak",
-  ];
-
-  for f in locales {
-    fs::copy(
-      cef_path.join("locales").join(f),
-      app_dir_path.join("bin/locales").join(f),
-    )
-    .with_context(|| format!("Failed to copy cef locales file {f}"))?;
-  }
-
-  let appimage_filename = format!(
-    "{}_{}_{appimage_arch}.AppImage",
-    settings.product_name(),
-    settings.version_string()
-  );
-  let appimage_path = output_path.join(&appimage_filename);
-
-  fs::create_dir_all(&tools_path)?;
-  let larger_icon = icons
-    .iter()
-    .filter(|i| i.width == i.height)
-    .max_by_key(|i| i.width)
+  let largest_icon = icons
+    .into_iter()
+    .filter(|(i, _)| i.width == i.height)
+    .max_by_key(|(i, _)| i.width)
     .expect("couldn't find a square icon to use as AppImage icon");
 
-  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
+  fs::copy(largest_icon.1, app_dir.join(format!("{product_name}.png")))
+    .with_context(|| "Failed to copy icon file")?;
 
-  // TODO:
-  let _verbosity = match settings.log_level() {
-    log::Level::Error => "-q", // errors only
-    log::Level::Info => "",    // errors + "normal logs" (mostly rpath)
-    log::Level::Trace => "-v", // You can expect way over 1k lines from just lib4bin on this level
-    _ => "",
-  };
+  // `None` on a shared runtime: the app resolves and loads CEF from outside
+  // the bundle at launch, so there is nothing to copy in. Chromium's host
+  // dependencies are still deployed below (DEPLOY_CHROMIUM), because the
+  // libcef the app loads resolves them against this bundle.
+  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+    fs::create_dir_all(app_dir_bin.join("locales/"))?;
 
-  // Also intentionally(!) includes cef library files
-  let bins = app_dir_path
-    .join("bin/")
-    .read_dir()?
-    .filter_map(|entry| entry.ok())
-    .map(|entry| format!(" \"{}\"", entry.path().to_string_lossy()))
+    let cef_files = [
+      // required
+      "libcef.so",
+      "icudtl.dat",
+      "v8_context_snapshot.bin",
+      // required end
+      // "optional" - but not really since we want support for all of this
+      "chrome_100_percent.pak",
+      "chrome_200_percent.pak",
+      "resources.pak",
+      // ANGLE support
+      "libEGL.so",
+      "libGLESv2.so",
+      // SwANGLE support
+      "libvk_swiftshader.so",
+      "vk_swiftshader_icd.json",
+      "libvulkan.so.1",
+      // sandbox - may need to be behind a setting?
+      "chrome-sandbox",
+      // TODO: seccomp
+    ];
+
+    for f in cef_files {
+      let dest = app_dir_bin.join(f);
+      fs::copy(cef_path.join(f), &dest)
+        .with_context(|| format!("Failed to copy cef file {f} to {}", dest.display()))?;
+      // quick-sharun checks for the NO_STRIP env but libcef.so is 1.5GB so we make sure it's stripped anyway.
+      let _ = Command::new("strip").arg(&dest).output_ok();
+    }
+    let locales = [
+      "en-US.pak",
+      "en-US_FEMININE.pak",
+      "en-US_MASCULINE.pak",
+      "en-US_NEUTER.pak",
+    ];
+
+    for f in locales {
+      fs::copy(
+        cef_path.join("locales").join(f),
+        app_dir_bin.join("locales").join(f),
+      )
+      .with_context(|| format!("Failed to copy cef locales file {f}"))?;
+    }
+  }
+
+  // We need to give quick-sharun the list of binaries AND libraries to include.
+  // To support weird `appimage.files` settings we just walk through the whole AppDir we set up.
+  // TODO: In some cases we may have to give quick-sharun the path to some directories as well.
+  let mut elfs = Vec::new();
+  for entry in WalkDir::new(&app_dir) {
+    if let Ok(entry) = entry
+      && entry.file_type().is_file()
+      && is_elf(entry.path())
+    {
+      elfs.push(entry.path().to_string_lossy().to_string());
+    }
+  }
+  // This is mostly for libappindicator that we added to /usr/lib in tauri-cli/src/interface/rust.rs
+  for (target, source) in &settings.appimage().files {
+    if target.starts_with("/usr/lib") {
+      elfs.push(source.to_string_lossy().to_string());
+    }
+  }
+  let elfs = elfs
+    .into_iter()
+    .map(|entry| format!(" \"{entry}\""))
     .collect::<String>();
 
   // TODO: Consider to not rely on quick-sharun when we have more time
-  Command::new("/bin/sh")
+  let mut cmd = Command::new("/bin/sh");
+  cmd
     .current_dir(&output_path)
-    .env("APPDIR", &app_dir_path)
-    .env("OUTNAME", &appimage_filename)
-    .env(
-      "DESKTOP",
-      data_dir.join(format!("usr/share/applications/{product_name}.desktop")),
-    )
-    .env("ICON", &larger_icon.path)
+    .env("APPDIR", &app_dir)
+    // At least on my local machine this was required, worked fine without in CI / using published tauri-apps/cli-cef.
+    .env("MAIN_BIN", app_dir_bin.join(settings.main_binary()?.name()))
     .env("OUTPUT_APPIMAGE", "1")
+    .env("OUTNAME", &appimage_filename)
     .env("HOOKSRC", "https://raw.githubusercontent.com/FabianLars/Anylinux-AppImages/refs/heads/main/useful-tools/hooks")
     .env("DEPLOY_CHROMIUM", "1")
-    .env("ADD_HOOKS", "fix-namespaces.hook")
+    .env("ADD_HOOKS", "fix-namespaces.hook");
+
+  // quick-sharun's strace mode runs the app for a few seconds and deploys every
+  // library it sees loaded. On a shared runtime that means the CEF distribution
+  // the app resolves at launch — the one thing this bundle exists not to carry —
+  // gets copied back in, unstripped. Its discovery filter is hardcoded, so the
+  // only way to leave it out is to skip the tracing; the DEPLOY_* rules above
+  // still cover GTK, OpenGL, Vulkan, NSS and the other Chromium host libraries.
+  if settings.bundle_settings().cef_path.is_none() {
+    cmd.env("STRACE_MODE", "0");
+  }
+
+  cmd
     .args([
       "-c",
-      &format!(
-        r#""{}" {bins} "{}""#,
-        quick_sharun.to_string_lossy(),
-        // TODO: check if we have to search for binaries/libraries in this folder and manually enter them here
-        app_dir_path.join("lib/").to_string_lossy()
-      ),
+      &format!(r#""{}" {elfs}"#, quick_sharun.to_string_lossy()),
     ])
     .output_ok()
     .context("quick-sharun command failed to run.")?;
 
-  fs::remove_dir_all(package_dir).expect("rmdir");
   Ok(vec![appimage_path])
+}
+
+fn is_elf(path: &Path) -> bool {
+  let mut buf = [0; 4];
+  if let Ok(mut file) = fs::File::open(path)
+    && file.read_exact(&mut buf).is_ok()
+  {
+    return buf == [0x7f, b'E', b'L', b'F'];
+  }
+  false
 }

@@ -161,28 +161,26 @@ impl<T> fmt::Display for ErrorResponse<T> {
 
 impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   /// Registers an iOS plugin.
-  #[cfg(all(target_os = "ios", feature = "wry"))]
+  #[cfg(target_os = "ios")]
   pub fn register_ios_plugin(
     &self,
     init_fn: unsafe fn() -> *const std::ffi::c_void,
   ) -> Result<PluginHandle<R>, PluginInvokeError> {
     if let Some(webview) = self.handle.manager.webviews().values().next() {
+      use tauri_runtime::WebviewDispatch;
       let (tx, rx) = channel();
       let name = self.name;
       let config = self.raw_config.clone();
       webview
-        .with_webview(move |w| {
-          let webview_ptr = w
-            .as_any()
-            .downcast_ref::<tauri_runtime_wry::Webview>()
-            .map(|w| w.inner())
-            .unwrap_or(std::ptr::null_mut());
+        .webview
+        .dispatcher
+        .with_ios_webview(move |w| {
           unsafe {
             crate::ios::register_plugin(
               &name.into(),
               init_fn(),
               &serde_json::to_string(&config).unwrap().as_str().into(),
-              webview_ptr as _,
+              w.webview as _,
             )
           };
           tx.send(()).unwrap();

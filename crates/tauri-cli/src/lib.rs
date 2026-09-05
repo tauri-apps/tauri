@@ -120,6 +120,8 @@ pub struct VersionMetadata {
   tauri_build: String,
   #[serde(rename = "tauri-plugin")]
   tauri_plugin: String,
+  #[serde(rename = "tauri-runtime-wry")]
+  tauri_runtime_wry: String,
 }
 
 #[derive(Deserialize)]

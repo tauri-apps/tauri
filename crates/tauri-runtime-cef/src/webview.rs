@@ -986,33 +986,45 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     })
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
-    let _ = self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::OpenDevTools,
-    });
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let _ = self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::OpenDevTools,
+      });
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    log::warn!("devtools are not available: enable the `devtools` feature of `tauri-runtime-cef`");
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn close_devtools(&self) {
-    let _ = self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::CloseDevTools,
-    });
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let _ = self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::CloseDevTools,
+      });
+    }
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
-    let (tx, rx) = mpsc::channel();
-    self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::IsDevToolsOpen(tx),
-    })?;
-    rx.recv().map_err(|_| Error::FailedToReceiveMessage)
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let (tx, rx) = mpsc::channel();
+      self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::IsDevToolsOpen(tx),
+      })?;
+      rx.recv().map_err(|_| Error::FailedToReceiveMessage)
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    {
+      Ok(false)
+    }
   }
 
   fn url(&self) -> Result<String> {

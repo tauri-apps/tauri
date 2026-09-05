@@ -7,5 +7,5 @@ This example demonstrates how a splashscreen can be implemented when waiting on 
 Run the following scripts on the root directory of the repository:
 
 ```bash
-$ cargo run --example splashscreen
+$ cargo run -p tauri-examples --example splashscreen
 ```

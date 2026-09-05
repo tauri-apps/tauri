@@ -1440,13 +1440,12 @@ pub(crate) fn tauri_config_to_bundle_settings(
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
-  let enabled_features = settings
-    .manifest
-    .lock()
-    .unwrap()
-    .all_enabled_features(features);
-  let cef_enabled =
-    enabled_features.contains(&"cef".into()) || enabled_features.contains(&"tauri/cef".into());
+  let (enabled_features, cef_enabled) = {
+    let manifest = settings.manifest.lock().unwrap();
+    let enabled_features = manifest.all_enabled_features(features);
+    let cef_enabled = manifest.is_cef_runtime_used(&enabled_features, &settings.target_triple);
+    (enabled_features, cef_enabled)
+  };
   // `bundle > cef > embed`: false for an app that loads CEF at run time
   // from outside its bundle, so nothing of the distribution ships.
   let embed_cef = config.cef.embed;
@@ -1514,8 +1513,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
       }
     }
 
-    if !enabled_features.contains(&"cef".into()) && !enabled_features.contains(&"tauri/cef".into())
-    {
+    if !cef_enabled {
       depends_deb.push("libwebkit2gtk-4.1-0".to_string());
       libs.push("libwebkit2gtk-4.1.so.0".into());
     }
@@ -1571,10 +1569,10 @@ pub(crate) fn tauri_config_to_bundle_settings(
     let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
       crate::helpers::plist::merge_plist(vec![
         PathBuf::from(user_provided_entitlements).into(),
-        plist::Value::Dictionary(required_entitlements(tauri_config, &enabled_features)?).into(),
+        plist::Value::Dictionary(required_entitlements(tauri_config, cef_enabled)?).into(),
       ])?
     } else {
-      required_entitlements(tauri_config, &enabled_features)?.into()
+      required_entitlements(tauri_config, cef_enabled)?.into()
     };
 
     Some(tauri_bundler::bundle::Entitlements::Plist(entitlements))
@@ -1758,7 +1756,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
 #[cfg(target_os = "macos")]
 fn required_entitlements(
   tauri_config: &Config,
-  enabled_features: &[String],
+  cef_enabled: bool,
 ) -> crate::Result<plist::Dictionary> {
   let mut entitlements = plist::Dictionary::new();
 
@@ -1787,7 +1785,7 @@ fn required_entitlements(
     }
   }
 
-  if enabled_features.contains(&"cef".into()) || enabled_features.contains(&"tauri/cef".into()) {
+  if cef_enabled {
     entitlements.insert("com.apple.security.cs.allow-jit".to_string(), true.into());
     entitlements.insert(
       "com.apple.security.cs.allow-unsigned-executable-memory".to_string(),

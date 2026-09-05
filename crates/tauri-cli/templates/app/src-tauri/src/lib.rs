@@ -1,6 +1,7 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::<tauri::Wry>::new()
+  tauri::Builder::default()
+    .runtime(tauri_runtime_wry::Wry)
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

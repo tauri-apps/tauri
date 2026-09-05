@@ -259,10 +259,6 @@ fn main() {
   alias("dev", dev);
 
   println!("cargo:dev={dev}");
-  println!(
-    "cargo:runtime={}",
-    if has_feature("cef") { "cef" } else { "wry" }
-  );
 
   let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";

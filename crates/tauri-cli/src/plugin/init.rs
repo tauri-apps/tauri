@@ -99,7 +99,7 @@ pub fn command(mut options: Options) -> Result<()> {
   {
     log::warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
-    let (tauri_dep, tauri_example_dep, tauri_build_dep, tauri_plugin_dep) =
+    let (tauri_dep, tauri_example_dep, tauri_build_dep, tauri_plugin_dep, tauri_runtime_wry_dep) =
       if let Some(tauri_path) = options.tauri_path {
         (
           format!(
@@ -118,6 +118,10 @@ pub fn command(mut options: Options) -> Result<()> {
             r#"{{  path = {:?}, features = ["build"] }}"#,
             resolve_tauri_path(&tauri_path, "crates/tauri-plugin")
           ),
+          format!(
+            r#"{{  path = {:?} }}"#,
+            resolve_tauri_path(&tauri_path, "crates/tauri-runtime-wry")
+          ),
         )
       } else {
         (
@@ -131,6 +135,7 @@ pub fn command(mut options: Options) -> Result<()> {
             r#"{{ version = "{}", features = ["build"] }}"#,
             metadata.tauri_plugin
           ),
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri_runtime_wry),
         )
       };
 
@@ -144,6 +149,7 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert("tauri_example_dep", to_json(tauri_example_dep));
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
     data.insert("tauri_plugin_dep", to_json(tauri_plugin_dep));
+    data.insert("tauri_runtime_wry_dep", to_json(tauri_runtime_wry_dep));
     data.insert("author", to_json(options.author));
 
     if options.tauri {

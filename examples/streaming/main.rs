@@ -186,14 +186,14 @@ fn download_video() {
   }
 }
 
-#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
+#[cfg_attr(feature = "cef", tauri_runtime_cef::cef_entry_point)]
 fn main() {
   download_video();
 
   #[cfg(feature = "cef")]
-  let builder = tauri::Builder::<tauri::Cef>::default();
+  let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
   #[cfg(not(feature = "cef"))]
-  let builder = tauri::Builder::<tauri::Wry>::new();
+  let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry);
 
   builder
     .register_asynchronous_uri_scheme_protocol("stream", move |_ctx, request, responder| {

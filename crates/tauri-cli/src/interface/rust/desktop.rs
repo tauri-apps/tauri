@@ -64,13 +64,11 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     if !no_default_features {
       merged_features.push("default".into());
     }
-    let enabled_features = app_settings
-      .manifest
-      .lock()
-      .unwrap()
-      .all_enabled_features(&merged_features);
-    let cef_enabled = enabled_features.contains(&"cef".to_string())
-      || enabled_features.contains(&"tauri/cef".to_string());
+    let cef_enabled = {
+      let manifest = app_settings.manifest.lock().unwrap();
+      let enabled_features = manifest.all_enabled_features(&merged_features);
+      manifest.is_cef_runtime_used(&enabled_features, &app_settings.target_triple)
+    };
     if cef_enabled {
       return crate::cef::macos_dev::run_dev_cef_macos(
         app_settings,

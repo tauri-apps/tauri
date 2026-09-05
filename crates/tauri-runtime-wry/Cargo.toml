@@ -18,6 +18,7 @@ wry = { version = "0.56.0", default-features = false, features = [
   "linux-body",
 ] }
 tao = { version = "0.37.0", default-features = false, features = ["rwh_06"] }
+tauri = { workspace = true }
 tauri-runtime = { workspace = true }
 tauri-utils = { workspace = true }
 raw-window-handle = "0.6"
@@ -64,13 +65,19 @@ jni = "0.21"
 
 [features]
 default = ["x11", "dbus"]
-devtools = ["wry/devtools", "tauri-runtime/devtools"]
+# also enables devtools on `tauri` so the feature only needs to be enabled on this crate
+devtools = ["wry/devtools", "tauri-runtime/devtools", "tauri/devtools"]
 x11 = ["tao/x11", "wry/x11"]
-macos-private-api = ["tauri-runtime/macos-private-api"]
+# also enables macos-private-api on `tauri` so the feature only needs to be enabled on this crate
+macos-private-api = [
+  "tauri-runtime/macos-private-api",
+  "tauri/macos-private-api",
+]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 tracing = ["dep:tracing", "wry/tracing"]
 macos-proxy = ["wry/mac-proxy"]
-unstable = []
+# exposes the extension traits for `tauri::webview::WebviewBuilder`
+unstable = ["tauri/unstable"]
 common-controls-v6 = ["windows/Win32_UI_Controls", "windows/Win32_UI_Shell"]
 dbus = ["tao/dbus"]

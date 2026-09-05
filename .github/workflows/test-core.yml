@@ -154,5 +154,5 @@ jobs:
       - name: test tauri examples
         if: ${{ matrix.features.key != 'no-default' && matrix.platform.command == 'test' }}
         run: |
-          ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --examples --manifest-path crates/tauri/Cargo.toml
+          ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --examples --manifest-path crates/tauri-examples/Cargo.toml
           ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path examples/api/src-tauri/Cargo.toml

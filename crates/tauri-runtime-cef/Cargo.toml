@@ -1,6 +1,8 @@
 [package]
 name = "tauri-runtime-cef"
 version = "0.1.0"
+# lets `tauri-build` detect the CEF runtime through the `DEP_TAURI_RUNTIME_CEF_RUNTIME` env var
+links = "tauri_runtime_cef"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -10,6 +12,8 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+tauri = { workspace = true }
+tauri-macros = { workspace = true }
 base64 = "0.22"
 cef = { version = "=151.8.1", features = ["build-util", "linux-x11"] }
 # Not actually used directly, just locking it.
@@ -96,6 +100,13 @@ x11-dl = "2.21"
 
 [features]
 default = ["sandbox"]
-devtools = []
-macos-private-api = ["tauri-runtime/macos-private-api"]
+# also enables devtools on `tauri` so the feature only needs to be enabled on this crate
+devtools = ["tauri-runtime/devtools", "tauri/devtools"]
+# also enables macos-private-api on `tauri` so the feature only needs to be enabled on this crate
+macos-private-api = [
+  "tauri-runtime/macos-private-api",
+  "tauri/macos-private-api",
+]
 sandbox = ["cef/sandbox"]
+# exposes the extension traits for `tauri::webview::WebviewBuilder`
+unstable = ["tauri/unstable"]

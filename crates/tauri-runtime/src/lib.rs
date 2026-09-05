@@ -23,6 +23,7 @@ use webview::{DetachedWebview, PendingWebview};
 
 /// UI scaling utilities.
 pub mod dpi;
+pub mod dynamic;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
@@ -168,6 +169,17 @@ pub enum Error {
   FailedToRemoveDataStore,
   #[error("Could not find the webview runtime, make sure it is installed")]
   WebviewRuntimeNotInstalled,
+  /// The type-erased runtime was initialized without selecting a concrete runtime.
+  #[error(
+    "no runtime was configured; select one with e.g. `tauri::Builder::default().runtime(tauri_runtime_wry::Wry)`"
+  )]
+  RuntimeNotConfigured,
+  /// A runtime-specific value was given to a different runtime than the one it belongs to.
+  #[error("runtime type mismatch: {0}")]
+  RuntimeTypeMismatch(String),
+  /// Failed to determine the webview version.
+  #[error("failed to get the webview version: {0}")]
+  WebviewVersion(Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Result type.
@@ -357,6 +369,15 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// See [Runtime::set_device_event_filter] for details.
   fn set_device_event_filter(&self, filter: DeviceEventFilter);
 
+  /// Returns the URL for a custom scheme.
+  ///
+  /// The URL format depends on the runtime and platform,
+  /// e.g. `tauri://localhost` or `http://tauri.localhost`.
+  fn custom_scheme_url(&self, scheme: &str, https: bool) -> String;
+
+  /// Returns the version of the underlying webview engine.
+  fn webview_version(&self) -> Result<String>;
+
   /// Finds an Android class in the project scope.
   #[cfg(target_os = "android")]
   fn find_class<'a>(
@@ -411,15 +432,60 @@ pub struct RuntimeInitArgs<A> {
   pub runtime_init_attrs: A,
 }
 
+impl<A> RuntimeInitArgs<A> {
+  /// Replaces the runtime-specific attributes, returning the new arguments and the previous attributes.
+  pub fn with_attrs<B>(self, runtime_init_attrs: B) -> (RuntimeInitArgs<B>, A) {
+    let RuntimeInitArgs {
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      app_id,
+      #[cfg(windows)]
+      msg_hook,
+      identifier,
+      custom_schemes,
+      runtime_init_attrs: previous,
+    } = self;
+    (
+      RuntimeInitArgs {
+        #[cfg(any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ))]
+        app_id,
+        #[cfg(windows)]
+        msg_hook,
+        identifier,
+        custom_schemes,
+        runtime_init_attrs,
+      },
+      previous,
+    )
+  }
+}
+
 /// Runtime-specific initialization attributes.
-pub trait RuntimeSpecificInitAttrs: Default + Send + Sync + 'static {
+///
+/// Every [`Runtime`] defines its own attributes type. That type is also what *selects* the runtime
+/// when the application uses the type-erased [`dynamic::DynRuntime`]: passing the attributes
+/// (e.g. `tauri_runtime_wry::Wry` or `tauri_runtime_cef::Cef::default()`) to
+/// `tauri::Builder::runtime` picks the runtime they belong to.
+pub trait RuntimeSpecificInitAttrs<T: UserEvent>: Default + Send + Sync + 'static {
+  /// The runtime initialized with these attributes.
+  type Runtime: Runtime<T, RuntimeInitAttrs = Self>;
+
   /// Applies attributes derived from the application configuration.
   fn apply_config(&mut self, _config: &tauri_utils::config::Config) -> Result<()> {
     Ok(())
   }
 }
-
-impl RuntimeSpecificInitAttrs for () {}
 
 /// The webview runtime interface.
 pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
@@ -438,10 +504,10 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// This is the runtime-specific type the user interacts with to reach the
   /// underlying platform webview APIs.
   type Webview: 'static;
-  /// Runtime-specific initialization attributes.
-  type RuntimeInitAttrs: crate::RuntimeSpecificInitAttrs;
+  /// Runtime-specific initialization attributes. Also used to select this runtime, see [`RuntimeSpecificInitAttrs`].
+  type RuntimeInitAttrs: RuntimeSpecificInitAttrs<T, Runtime = Self>;
   /// Data about the window that requested the new window for [`PendingWebview::new_window_handler`].
-  type WindowOpener: Send + Sync + Debug;
+  type WindowOpener: Send + Sync + Debug + 'static;
 
   /// Creates a new webview runtime. Must be used on the main thread.
   fn new(args: RuntimeInitArgs<Self::RuntimeInitAttrs>) -> Result<Self>;
@@ -538,9 +604,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// [`tao`]: https://crates.io/crates/tao
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
 
-  /// Returns the URL for a custom scheme.
-  fn custom_scheme_url(scheme: &str, _https: bool) -> String;
-
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
@@ -569,16 +632,28 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
     f: F,
   ) -> Result<()>;
 
+  /// Runs a closure with the iOS handles of the webview (the `WKWebView`, its user content controller and view controller).
+  ///
+  /// The closure is executed on the main thread.
+  #[cfg(target_os = "ios")]
+  fn with_ios_webview<F: FnOnce(webview::IosWebviewHandle) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> Result<()>;
+
   /// Open the web inspector which is usually called devtools.
-  #[cfg(any(debug_assertions, feature = "devtools"))]
+  ///
+  /// Runtimes compiled without devtools support (release builds without their `devtools` feature) do nothing.
   fn open_devtools(&self);
 
   /// Close the web inspector which is usually called devtools.
-  #[cfg(any(debug_assertions, feature = "devtools"))]
+  ///
+  /// Runtimes compiled without devtools support (release builds without their `devtools` feature) do nothing.
   fn close_devtools(&self);
 
   /// Gets the devtools window's current open state.
-  #[cfg(any(debug_assertions, feature = "devtools"))]
+  ///
+  /// Runtimes compiled without devtools support (release builds without their `devtools` feature) return `false`.
   fn is_devtools_open(&self) -> Result<bool>;
 
   // GETTERS

@@ -27,8 +27,8 @@
 //! }
 //!
 //! fn main() {
-//!     // Use `tauri::Builder::<tauri::Wry>::new()` to use the default runtime rather than the `MockRuntime`;
-//!     // let app = create_app(tauri::Builder::<tauri::Wry>::new());
+//!     // Use `tauri::Builder::default().runtime(...)` to use a real runtime rather than the `MockRuntime`;
+//!     // let app = create_app(tauri::Builder::default().runtime(tauri_runtime_wry::Wry));
 //!     let app = create_app(mock_builder());
 //!     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
 //!

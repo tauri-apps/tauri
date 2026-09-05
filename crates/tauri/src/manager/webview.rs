@@ -143,7 +143,9 @@ impl<R: Runtime> WebviewManager<R> {
     let ipc_init = IpcJavascript {
       isolation_origin: &match &*app_manager.pattern {
         #[cfg(feature = "isolation")]
-        crate::Pattern::Isolation { schema, .. } => R::custom_scheme_url(schema, use_https_scheme),
+        crate::Pattern::Isolation { schema, .. } => {
+          app_manager.custom_scheme_url(schema, use_https_scheme)
+        }
         _ => "".to_owned(),
       },
     }
@@ -200,7 +202,9 @@ impl<R: Runtime> WebviewManager<R> {
     if let crate::Pattern::Isolation { schema, .. } = &*app_manager.pattern {
       all_initialization_scripts.push(main_frame_script(
         IsolationJavascript {
-          isolation_src: R::custom_scheme_url(schema, use_https_scheme).as_str(),
+          isolation_src: app_manager
+            .custom_scheme_url(schema, use_https_scheme)
+            .as_str(),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
         .render_default(&Default::default())?
@@ -245,7 +249,9 @@ impl<R: Runtime> WebviewManager<R> {
     } else if custom_uri_schemes.contains(&window_url.scheme().to_string()) {
       // when we're referencing a custom scheme, make sure it's using the actual window origin
       // this will convert tauri://localhost to http://tauri.localhost (or any other scheme format) to match the runtime given URL
-      R::custom_scheme_url(window_url.scheme(), use_https_scheme)
+      manager
+        .manager()
+        .custom_scheme_url(window_url.scheme(), use_https_scheme)
     } else if let Some(host) = window_url.host() {
       format!(
         "{}://{}{}",
@@ -413,10 +419,9 @@ impl<R: Runtime> WebviewManager<R> {
 
     #[derive(Template)]
     #[default_template("../../scripts/core.js")]
-    struct CoreJavascript<'a> {
-      os_name: &'a str,
-      protocol_scheme: &'a str,
-      cef: bool,
+    struct CoreJavascript {
+      /// The custom scheme URL format of the runtime, with `{protocol}` as the scheme placeholder.
+      custom_scheme_url_template: String,
     }
 
     let freeze_prototype = if app_manager.config.app.security.freeze_prototype {
@@ -429,9 +434,10 @@ impl<R: Runtime> WebviewManager<R> {
       pattern_script,
       ipc_script,
       core_script: &CoreJavascript {
-        os_name: std::env::consts::OS,
-        protocol_scheme: if use_https_scheme { "https" } else { "http" },
-        cef: cfg!(feature = "cef"),
+        custom_scheme_url_template: app_manager
+          .custom_scheme_url("{protocol}", use_https_scheme)
+          .trim_end_matches('/')
+          .to_string(),
       }
       .render_default(&Default::default())?
       .into_string(),
@@ -468,10 +474,9 @@ impl<R: Runtime> WebviewManager<R> {
           && app_manager.assets.iter().next().is_none()
         {
           Cow::Owned(
-            Url::parse(&R::custom_scheme_url(
-              "tauri",
-              pending.webview_attributes.use_https_scheme,
-            ))
+            Url::parse(
+              &app_manager.custom_scheme_url("tauri", pending.webview_attributes.use_https_scheme),
+            )
             .unwrap(),
           )
         } else {
@@ -498,10 +503,9 @@ impl<R: Runtime> WebviewManager<R> {
           // only proxy the dev server when we're not using embedded assets
           && app_manager.assets.iter().next().is_none()
         {
-          Url::parse(&R::custom_scheme_url(
-            "tauri",
-            pending.webview_attributes.use_https_scheme,
-          ))
+          Url::parse(
+            &app_manager.custom_scheme_url("tauri", pending.webview_attributes.use_https_scheme),
+          )
           .unwrap()
         } else {
           url
@@ -614,10 +618,9 @@ impl<R: Runtime> WebviewManager<R> {
     #[cfg(feature = "isolation")]
     let isolation_frame_url = if let crate::Pattern::Isolation { schema, .. } = &*pattern {
       Some(
-        Url::parse(&R::custom_scheme_url(
-          schema,
-          pending.webview_attributes.use_https_scheme,
-        ))
+        Url::parse(
+          &app_manager.custom_scheme_url(schema, pending.webview_attributes.use_https_scheme),
+        )
         .unwrap(),
       )
     } else {
@@ -690,13 +693,14 @@ impl<R: Runtime> WebviewManager<R> {
         .webview_created(webview_);
     });
 
-    #[cfg(all(target_os = "ios", feature = "wry"))]
+    #[cfg(target_os = "ios")]
     {
+      use tauri_runtime::WebviewDispatch;
       webview
-        .with_webview(|w| {
-          if let Some(w) = w.as_any().downcast_ref::<tauri_runtime_wry::Webview>() {
-            unsafe { crate::ios::on_webview_created(w.inner() as _, w.view_controller() as _) };
-          }
+        .webview
+        .dispatcher
+        .with_ios_webview(|w| unsafe {
+          crate::ios::on_webview_created(w.webview as _, w.view_controller as _)
         })
         .expect("failed to run on_webview_created hook");
     }

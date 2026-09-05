@@ -122,11 +122,13 @@ wrap_request_handler! {
   impl RequestHandler {
     fn on_render_process_terminated(
       &self,
-      _browser: Option<&mut Browser>,
+      browser: Option<&mut Browser>,
       _status: TerminationStatus,
       _error_code: ::std::os::raw::c_int,
       _error_string: Option<&CefString>,
     ) {
+      let mut frame = browser.as_ref().and_then(|browser| browser.main_frame());
+      crate::frame::emit_frame_event(&self.frame_event_handler, browser, frame.as_mut(), crate::FrameEventKind::RendererTerminated);
       if let Some(handler) = &self.web_content_process_terminate_handler {
         handler();
       }

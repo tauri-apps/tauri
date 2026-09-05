@@ -14,3 +14,7 @@ Expose the native parent relationship, bounds, and visibility sampled for a
 Provide a checked, process-wide native DevTools message ID allocator shared by
 runtime evaluation, initialization scripts, and callers of the native protocol
 channel. Request IDs are never reused after cancellation or browser teardown.
+
+Track all-frame document generations for every native CEF webview and expose
+opaque document tokens for final native snapshot comparisons. Missing main
+frames and renderer termination revoke prior document tokens.

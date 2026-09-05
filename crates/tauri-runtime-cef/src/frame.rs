@@ -15,6 +15,7 @@ pub struct FrameEvent {
   /// Native browser identity. A popup has a different identity from its opener.
   pub browser_id: i32,
   /// CEF's opaque identifier for this native frame lifetime.
+  /// Empty for a browser-wide notification when no main frame exists.
   pub frame_id: String,
   /// Whether CEF identifies this as the main frame at callback time.
   pub is_main: bool,
@@ -48,6 +49,8 @@ pub enum FrameEventKind {
   /// notifications, including cancelled navigation. It does not assert DOM,
   /// application, network-idle, or renderer responsiveness.
   LoadingStateChanged { is_loading: bool },
+  /// The renderer terminated. Prior document generations cannot be reused.
+  RendererTerminated,
 }
 
 /// Synchronous observer for native frame lifecycle events.
@@ -60,11 +63,14 @@ pub(crate) fn emit_frame_event(
   kind: FrameEventKind,
 ) {
   use cef::{ImplBrowser, ImplFrame};
-  if let (Some(handler), Some(browser), Some(frame)) = (handler, browser, frame) {
+  if let (Some(handler), Some(browser)) = (handler, browser) {
     handler(FrameEvent {
       browser_id: browser.identifier(),
-      frame_id: cef::CefString::from(&frame.identifier()).to_string(),
-      is_main: frame.is_main() != 0,
+      frame_id: frame
+        .as_ref()
+        .map(|frame| cef::CefString::from(&frame.identifier()).to_string())
+        .unwrap_or_default(),
+      is_main: frame.is_some_and(|frame| frame.is_main() != 0),
       kind,
     });
   }

@@ -147,6 +147,10 @@ pub use tauri_runtime_cef::run_cef_helper_process;
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
 #[cfg(feature = "cef")]
+pub use tauri_runtime_cef::FrameNavigationState as CefFrameNavigationState;
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::NativeDocumentToken as CefNativeDocumentToken;
+#[cfg(feature = "cef")]
 pub use tauri_runtime_cef::WebviewSnapshot as CefWebviewSnapshot;
 #[cfg(feature = "cef")]
 pub use tauri_runtime_cef::{

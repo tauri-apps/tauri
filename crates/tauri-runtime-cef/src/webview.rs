@@ -36,6 +36,7 @@ use crate::window::AppWindow;
 pub struct Webview {
   browser: cef::Browser,
   snapshot: WebviewSnapshot,
+  frame_navigation_state: crate::FrameNavigationState,
 }
 
 /// Native state sampled on the CEF UI thread immediately before a
@@ -46,6 +47,9 @@ pub struct Webview {
 pub struct WebviewSnapshot {
   /// Native browser identity, distinct for each popup.
   pub browser_id: i32,
+  /// All-frame document generation validated against the current native frame
+  /// identities and load state. `None` means document admission is unavailable.
+  pub document: Option<crate::NativeDocumentToken>,
   /// Runtime window that owns this webview.
   pub window_label: String,
   /// Whether the actual native parent matches that runtime window.
@@ -59,14 +63,28 @@ pub struct WebviewSnapshot {
 }
 
 impl Webview {
-  pub(crate) fn new(browser: cef::Browser, snapshot: WebviewSnapshot) -> Self {
-    Self { browser, snapshot }
+  pub(crate) fn new(
+    browser: cef::Browser,
+    snapshot: WebviewSnapshot,
+    frame_navigation_state: crate::FrameNavigationState,
+  ) -> Self {
+    Self {
+      browser,
+      snapshot,
+      frame_navigation_state,
+    }
   }
 
   /// Returns the native state sampled for this `with_webview` callback.
   /// Retaining the handle does not refresh this observation.
   pub fn snapshot(&self) -> &WebviewSnapshot {
     &self.snapshot
+  }
+
+  /// Returns read-only live navigation state for this native browser lifetime.
+  /// Unlike `snapshot`, this handle follows subsequent native frame events.
+  pub fn frame_navigation_state(&self) -> &crate::FrameNavigationState {
+    &self.frame_navigation_state
   }
 
   /// Returns the [`cef::Browser`] backing this webview.
@@ -220,6 +238,7 @@ pub(crate) struct AppWebview {
   pub(crate) label: String,
   pub(crate) browser: cef::Browser,
   pub(crate) browser_id: i32,
+  pub(crate) frame_navigation_state: crate::FrameNavigationState,
   pub(crate) host: cef::BrowserHost,
   pub(crate) uri_scheme_protocols: Arc<HashMap<String, Arc<Box<UriSchemeProtocolHandler>>>>,
   pub(crate) devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
@@ -385,14 +404,22 @@ impl<T: UserEvent> WinitCefApp<T> {
       .map(|handler| Arc::from(handler) as Arc<dyn Fn() + Send>);
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     let web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>> = None;
+    let frame_navigation_state = crate::FrameNavigationState::new();
+    let frame_state_for_events = frame_navigation_state.clone();
+    let frame_event_handler = pending
+      .platform_specific_attributes
+      .iter()
+      .find_map(|attribute| match attribute {
+        WebviewAtribute::FrameEventHandler(handler) => Some(handler.clone()),
+        _ => None,
+      });
     let handlers = browser_client::TauriCefBrowserClientHandlers {
-      frame_event_handler: pending
-        .platform_specific_attributes
-        .iter()
-        .find_map(|attribute| match attribute {
-          WebviewAtribute::FrameEventHandler(handler) => Some(handler.clone()),
-          _ => None,
-        }),
+      frame_event_handler: Some(Arc::new(move |event| {
+        frame_state_for_events.on_frame_event(&event);
+        if let Some(handler) = &frame_event_handler {
+          handler(event);
+        }
+      })),
       ipc_handler: pending.ipc_handler.map(Arc::from),
       on_page_load_handler,
       document_title_changed_handler,
@@ -530,6 +557,7 @@ impl<T: UserEvent> WinitCefApp<T> {
             label,
             browser,
             browser_id,
+            frame_navigation_state,
             host,
             uri_scheme_protocols,
             devtools_protocol_handlers,
@@ -584,12 +612,19 @@ impl<T: UserEvent> WinitCefApp<T> {
         };
         let snapshot = WebviewSnapshot {
           browser_id: child.browser_id,
+          document: child
+            .frame_navigation_state
+            .observe_document(&child.browser),
           window_label: appwindow.label.clone(),
           parent_matches: child.native_parent_matches(appwindow),
           bounds: child.bounds(),
           visible: child.native_visible(),
         };
-        callback(Webview::new(child.browser.clone(), snapshot));
+        callback(Webview::new(
+          child.browser.clone(),
+          snapshot,
+          child.frame_navigation_state.clone(),
+        ));
         return;
       }
       message => message,

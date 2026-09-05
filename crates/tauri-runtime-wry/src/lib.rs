@@ -5108,9 +5108,33 @@ You may have it installed on another user account, but it is not available for t
       target_os = "android"
     )))]
     WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
+      // Use GtkFixed instead of GtkBox for child webviews so that
+      // position and size from add_child() are respected on Linux.
+      // GtkBox stacks children vertically, ignoring position.
+      // GtkFixed allows absolute positioning which wry already supports.
+      use gtk::prelude::*;
       let vbox = window.default_vbox().unwrap();
-      webview_builder.build_gtk(vbox)
+
+      // Find or create a GtkFixed inside the vbox
+      let fixed = {
+        let mut found: Option<gtk::Fixed> = None;
+        for child in vbox.children() {
+          if let Some(f) = child.downcast_ref::<gtk::Fixed>() {
+            found = Some(f.clone());
+            break;
+          }
+        }
+        if let Some(f) = found {
+          f
+        } else {
+          let f = gtk::Fixed::new();
+          vbox.pack_start(&f, true, true, 0);
+          f.show();
+          f
+        }
+      };
+
+      webview_builder.build_gtk(&fixed)
     }
     #[cfg(any(
       target_os = "windows",

@@ -6,10 +6,16 @@
 #![allow(clippy::too_many_arguments)]
 
 mod cef_impl;
+mod devtools;
 mod external_message_pump;
+mod frame;
+mod frame_navigation;
 mod platform;
 mod runtime;
 mod webview;
+pub use devtools::{DevToolsMessageIdExhausted, allocate_devtools_message_id};
+pub use frame::{FrameEvent, FrameEventHandler, FrameEventKind};
+pub use frame_navigation::{FrameNavigationState, NativeDocumentToken};
 mod window;
 mod window_builder;
 mod window_handle;

@@ -146,6 +146,19 @@ pub use tauri_runtime_cef::run_cef_helper_process;
 #[cfg(feature = "cef")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::FrameNavigationState as CefFrameNavigationState;
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::NativeDocumentToken as CefNativeDocumentToken;
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::WebviewSnapshot as CefWebviewSnapshot;
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::{
+  DevToolsMessageIdExhausted as CefDevToolsMessageIdExhausted,
+  allocate_devtools_message_id as allocate_cef_devtools_message_id,
+};
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::{FrameEvent as CefFrameEvent, FrameEventKind as CefFrameEventKind};
 
 /// The latest CEF API version known to the linked CEF bindings.
 #[cfg(feature = "cef")]

@@ -64,13 +64,11 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     if !no_default_features {
       merged_features.push("default".into());
     }
-    let cef_enabled = {
-      let manifest = app_settings.manifest.lock().unwrap();
-      let enabled_features = manifest.all_enabled_features(&merged_features);
-      manifest.is_cef_runtime_used(&enabled_features, &app_settings.target_triple)
-    };
-    if cef_enabled {
-      return crate::cef::macos_dev::run_dev_cef_macos(
+    if app_settings
+      .runtime(&merged_features)
+      .macos_dev_in_app_bundle()
+    {
+      return crate::runtime::macos_dev::run_dev_in_app_bundle(
         app_settings,
         options,
         run_args,
@@ -271,7 +269,7 @@ pub fn cargo_command(
   // Ensure CEF_PATH is set for the cargo subprocess so the cef-dll-sys build
   // script can locate (or download) the CEF binary distribution.
   if std::env::var_os("CEF_PATH").is_none() {
-    build_cmd.env("CEF_PATH", super::default_cef_path());
+    build_cmd.env("CEF_PATH", crate::runtime::cef::default_path());
   }
 
   // Set working directory if specified

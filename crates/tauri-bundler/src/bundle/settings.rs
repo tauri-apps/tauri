@@ -646,6 +646,50 @@ mod _default {
   }
 }
 
+/// The webview runtime linked into the application, which decides the runtime-specific files the bundler ships.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum WebviewRuntime {
+  /// [wry](https://github.com/tauri-apps/wry): the system webview, backed by webkit2gtk on Linux and WebView2 on Windows.
+  ///
+  /// The AppImage ships the webkit2gtk helper processes, and the Windows installers
+  /// install WebView2 as configured by [`WindowsSettings::webview_install_mode`].
+  #[default]
+  Wry,
+  /// The Chromium Embedded Framework, shipped with the application.
+  ///
+  /// The macOS helper apps are always created: they are per-app,
+  /// and CEF launches them by path from inside the bundle.
+  Cef {
+    /// The CEF binary distribution to copy into the bundle.
+    ///
+    /// `None` for an app on a shared runtime, which loads CEF at run time from outside its bundle:
+    /// nothing of the distribution ships.
+    distribution: Option<PathBuf>,
+  },
+  /// A runtime the bundler has no specific support for; nothing runtime-specific is shipped.
+  Other,
+}
+
+impl WebviewRuntime {
+  /// Whether the runtime relies on WebView2 on Windows.
+  ///
+  /// The Windows installers only install WebView2 and enforce its minimum version for such runtimes.
+  pub fn uses_webview2(&self) -> bool {
+    match self {
+      Self::Wry => true,
+      Self::Cef { .. } | Self::Other => false,
+    }
+  }
+
+  /// The CEF binary distribution to copy into the bundle, when the application embeds CEF.
+  pub fn cef_distribution(&self) -> Option<&Path> {
+    match self {
+      Self::Cef { distribution } => distribution.as_deref(),
+      Self::Wry | Self::Other => None,
+    }
+  }
+}
+
 /// The bundle settings of the BuildArtifact we're bundling.
 #[derive(Clone, Debug, Default)]
 pub struct BundleSettings {
@@ -726,15 +770,8 @@ pub struct BundleSettings {
   pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
   pub windows: WindowsSettings,
-  /// Path to the CEF (Chromium Embedded Framework) root directory to copy
-  /// into the bundle. `None` when the app does not use CEF, or uses it
-  /// without embedding one — see [`Self::cef_shared_runtime`].
-  pub cef_path: Option<PathBuf>,
-  /// The app uses CEF but loads it at run time from outside the bundle (a
-  /// shared runtime), so no binary distribution is copied in. The macOS
-  /// helper apps are still created: they are per-app, and CEF launches them
-  /// by path from inside the bundle.
-  pub cef_shared_runtime: bool,
+  /// The webview runtime linked into the application. Defaults to [`WebviewRuntime::Wry`].
+  pub webview_runtime: WebviewRuntime,
 }
 
 /// A binary to bundle.
@@ -1354,6 +1391,35 @@ impl Settings {
   /// Returns the Windows settings.
   pub fn windows(&self) -> &WindowsSettings {
     &self.bundle_settings.windows
+  }
+
+  /// Returns the webview runtime linked into the application.
+  pub fn webview_runtime(&self) -> &WebviewRuntime {
+    &self.bundle_settings.webview_runtime
+  }
+
+  /// The WebView2 installation step of the Windows installers.
+  ///
+  /// This is the configured [`WindowsSettings::webview_install_mode`] when the runtime uses WebView2,
+  /// and [`WebviewInstallMode::Skip`] otherwise.
+  pub fn webview_install_mode(&self) -> WebviewInstallMode {
+    if self.webview_runtime().uses_webview2() {
+      self.windows().webview_install_mode.clone()
+    } else {
+      WebviewInstallMode::Skip
+    }
+  }
+
+  /// The minimum WebView2 version enforced by the Windows installers.
+  ///
+  /// This is the configured [`WindowsSettings::minimum_webview2_version`] when the runtime uses WebView2,
+  /// and `None` otherwise.
+  pub fn minimum_webview2_version(&self) -> Option<&str> {
+    if self.webview_runtime().uses_webview2() {
+      self.windows().minimum_webview2_version.as_deref()
+    } else {
+      None
+    }
   }
 
   /// Returns the Updater settings.

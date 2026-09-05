@@ -5,6 +5,7 @@
 use crate::{
   error::{Context, ErrorExt},
   helpers::config::{Config, PatternKind},
+  runtime::Runtime,
 };
 
 use itertools::Itertools;
@@ -62,16 +63,24 @@ impl Manifest {
     all_enabled_features
   }
 
-  /// Whether the CEF runtime is linked into the application for the given target and enabled features.
-  ///
-  /// The runtime is selected by depending on the `tauri-runtime-cef` crate, so this is true when:
-  /// - `tauri-runtime-cef` is a non-optional dependency in `[dependencies]`, or
+  /// The webview runtime linked into the application for the given target and enabled features.
+  pub fn runtime(&self, enabled_features: &[String], target_triple: &str) -> Runtime {
+    Runtime::detect(self, enabled_features, target_triple)
+  }
+
+  /// Whether the crate is linked into the application for the given target and enabled features, i.e.:
+  /// - it is a non-optional dependency in `[dependencies]`, or
   /// - a `[target.'cfg(...)'.dependencies]` table matching the target triple has it as a non-optional dependency, or
-  /// - any enabled feature (transitively) enables the optional `tauri-runtime-cef` dependency.
-  pub fn is_cef_runtime_used(&self, enabled_features: &[String], target_triple: &str) -> bool {
+  /// - any enabled feature (transitively) enables the optional dependency.
+  pub fn uses_dependency(
+    &self,
+    crate_name: &str,
+    enabled_features: &[String],
+    target_triple: &str,
+  ) -> bool {
     let table = self.inner.as_table();
 
-    if is_cef_dependency_required(table) {
+    if is_dependency_required(table, crate_name) {
       return true;
     }
 
@@ -79,7 +88,7 @@ impl Manifest {
       for (cfg, target_table) in targets.iter() {
         if cfg_matches_target(cfg, target_triple)
           && let Some(target_table) = target_table.as_table()
-          && is_cef_dependency_required(target_table)
+          && is_dependency_required(target_table, crate_name)
         {
           return true;
         }
@@ -90,18 +99,16 @@ impl Manifest {
     let mut visited = HashSet::new();
     enabled_features
       .iter()
-      .any(|f| feature_enables_cef_runtime(&features, f, &mut visited))
+      .any(|f| feature_enables_dependency(&features, f, crate_name, &mut visited))
   }
 }
 
-const CEF_RUNTIME_CRATE: &str = "tauri-runtime-cef";
-
-/// Whether the given `[dependencies]`-like table lists `tauri-runtime-cef` as a non-optional dependency.
-fn is_cef_dependency_required(table: &dyn TableLike) -> bool {
+/// Whether the given `[dependencies]`-like table lists the crate as a non-optional dependency.
+fn is_dependency_required(table: &dyn TableLike, crate_name: &str) -> bool {
   let Some(dependencies) = table.get("dependencies").and_then(|i| i.as_table_like()) else {
     return false;
   };
-  let Some(dependency) = dependencies.get(CEF_RUNTIME_CRATE) else {
+  let Some(dependency) = dependencies.get(crate_name) else {
     return false;
   };
   // a plain version string is never optional
@@ -115,13 +122,14 @@ fn is_cef_dependency_required(table: &dyn TableLike) -> bool {
     .unwrap_or(false)
 }
 
-/// Whether the feature (transitively) enables the `tauri-runtime-cef` dependency.
-fn feature_enables_cef_runtime(
+/// Whether the feature (transitively) enables the optional dependency on the crate.
+fn feature_enables_dependency(
   features: &HashMap<String, Vec<String>>,
   feature: &str,
+  crate_name: &str,
   visited: &mut HashSet<String>,
 ) -> bool {
-  if feature == CEF_RUNTIME_CRATE || feature == format!("dep:{CEF_RUNTIME_CRATE}") {
+  if feature == crate_name || feature == format!("dep:{crate_name}") {
     return true;
   }
   if !visited.insert(feature.to_string()) {
@@ -130,7 +138,7 @@ fn feature_enables_cef_runtime(
   features.get(feature).is_some_and(|enabled| {
     enabled
       .iter()
-      .any(|f| feature_enables_cef_runtime(features, f, visited))
+      .any(|f| feature_enables_dependency(features, f, crate_name, visited))
   })
 }
 
@@ -696,8 +704,8 @@ mod tests {
 }
 
 #[cfg(test)]
-mod cef_runtime_detection_tests {
-  use super::Manifest;
+mod runtime_detection_tests {
+  use super::{Manifest, Runtime};
 
   fn manifest(toml: &str) -> Manifest {
     Manifest {
@@ -712,14 +720,48 @@ mod cef_runtime_detection_tests {
 
   #[test]
   fn required_dependency() {
-    let m = manifest(
+    let cef = manifest(
       r#"
 [dependencies]
 tauri = "2"
 tauri-runtime-cef = "0.1"
 "#,
     );
-    assert!(m.is_cef_runtime_used(&[], LINUX));
+    assert_eq!(cef.runtime(&[], LINUX), Runtime::Cef);
+
+    let wry = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+tauri-runtime-wry = "2"
+"#,
+    );
+    assert_eq!(wry.runtime(&[], LINUX), Runtime::Wry);
+  }
+
+  #[test]
+  fn no_runtime_crate() {
+    let m = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+my-custom-runtime = "1"
+"#,
+    );
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Other);
+  }
+
+  #[test]
+  fn cef_takes_precedence() {
+    let m = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+tauri-runtime-wry = "2"
+tauri-runtime-cef = "0.1"
+"#,
+    );
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Cef);
   }
 
   #[test]
@@ -738,13 +780,23 @@ cef = ["dep:tauri-runtime-cef"]
 chromium = ["cef"]
 "#,
     );
-    assert!(!m.is_cef_runtime_used(&[], LINUX));
-    assert!(!m.is_cef_runtime_used(&m.all_enabled_features(&["default".into()]), LINUX));
-    assert!(m.is_cef_runtime_used(&m.all_enabled_features(&["cef".into()]), LINUX));
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Other);
+    assert_eq!(
+      m.runtime(&m.all_enabled_features(&["default".into()]), LINUX),
+      Runtime::Wry
+    );
+    assert_eq!(
+      m.runtime(&m.all_enabled_features(&["cef".into()]), LINUX),
+      Runtime::Cef
+    );
     // nested feature
-    assert!(m.is_cef_runtime_used(&m.all_enabled_features(&["chromium".into()]), LINUX));
+    assert_eq!(
+      m.runtime(&m.all_enabled_features(&["chromium".into()]), LINUX),
+      Runtime::Cef
+    );
     // feature names are also accepted directly
-    assert!(m.is_cef_runtime_used(&["cef".into()], LINUX));
+    assert_eq!(m.runtime(&["cef".into()], LINUX), Runtime::Cef);
+    assert_eq!(m.runtime(&["wry".into()], LINUX), Runtime::Wry);
   }
 
   #[test]
@@ -764,9 +816,9 @@ tauri-runtime-cef = "0.1"
 tauri-runtime-wry = "2"
 "#,
     );
-    assert!(m.is_cef_runtime_used(&[], WINDOWS));
-    assert!(m.is_cef_runtime_used(&[], MACOS));
-    assert!(!m.is_cef_runtime_used(&[], LINUX));
+    assert_eq!(m.runtime(&[], WINDOWS), Runtime::Cef);
+    assert_eq!(m.runtime(&[], MACOS), Runtime::Cef);
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Wry);
   }
 
   #[test]
@@ -777,7 +829,7 @@ tauri-runtime-wry = "2"
 tauri-runtime-cef = { version = "0.1" }
 "#,
     );
-    assert!(m.is_cef_runtime_used(&[], LINUX));
-    assert!(!m.is_cef_runtime_used(&[], WINDOWS));
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Cef);
+    assert_eq!(m.runtime(&[], WINDOWS), Runtime::Other);
   }
 }

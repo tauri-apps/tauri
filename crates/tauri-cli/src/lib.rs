@@ -14,7 +14,6 @@ mod acl;
 mod add;
 mod build;
 mod bundle;
-mod cef;
 mod completions;
 mod dev;
 mod error;
@@ -28,6 +27,7 @@ mod migrate;
 mod mobile;
 mod plugin;
 mod remove;
+mod runtime;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};

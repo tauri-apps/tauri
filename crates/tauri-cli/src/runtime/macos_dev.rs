@@ -11,8 +11,13 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+/// Runs the app in dev mode from inside an `.app` bundle: builds it, bundles it
+/// and launches the bundled executable.
+///
+/// Used for runtimes that cannot run as a bare executable on macOS,
+/// see [`Runtime::macos_dev_in_app_bundle`](super::Runtime::macos_dev_in_app_bundle).
 #[allow(clippy::too_many_arguments)]
-pub fn run_dev_cef_macos<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
+pub fn run_dev_in_app_bundle<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   app_settings: &RustAppSettings,
   options: Options,
   run_args: &[String],

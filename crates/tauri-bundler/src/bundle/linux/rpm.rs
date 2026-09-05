@@ -161,7 +161,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     let src = settings.binary_path(bin);
     let dest = Path::new("/usr/bin").join(bin.name());
     // This may cause issues when you try to submit the app to the distro repos but this is how apps like spotify do it as well (in .deb)
-    if settings.bundle_settings().cef_path.is_some() && bin.main() {
+    if settings.webview_runtime().cef_distribution().is_some() && bin.main() {
       let cef_bin_dest = Path::new("/usr/share")
         .join(settings.product_name())
         .join(bin.name());
@@ -213,7 +213,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   // Add resources and/or prepare for CEF files
-  if settings.resource_files().count() > 0 || settings.bundle_settings().cef_path.is_some() {
+  if settings.resource_files().count() > 0
+    || settings.webview_runtime().cef_distribution().is_some()
+  {
     let resource_dir = Path::new("/usr/lib").join(settings.product_name());
     builder.with_dir_entry(FileOptions::dir(resource_dir.to_string_lossy()).permissions(0o755))?;
     // Then add the resources files in that directory
@@ -223,13 +225,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       builder.with_file(resource.path(), FileOptions::new(dest.to_string_lossy()))?;
     }
   }
-  // Handle CEF support if cef_path is set,
+  // Handle CEF support when the app embeds a CEF distribution,
   // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/linux/README.redistrib.txt as a reference
   //
   // Dealing with rpath or LD_LIBRARY_PATH is annoying so we'll somewhat follow the spotify approach and move the binary out of /usr/bin for now.
   // This still requires adding $ORIGIN to RUNPATH, which we currently do in tauri-build.
   // TODO: This may cause issues when you try to submit the app to the distro repos but we can revisit this later.
-  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+  if let Some(cef_path) = settings.webview_runtime().cef_distribution() {
     let cef_resource_dir = Path::new("/usr/share").join(settings.product_name());
     // TODO: We probably want this in a shared and versioned location.
     let cef_temp_dir = package_dir.join("cef_temp");

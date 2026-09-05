@@ -139,8 +139,9 @@ fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Resu
     Ok(())
   };
 
+  // installers that ship the WebView2 installer are rebuilt with the download bootstrapper for the updater package
   if matches!(
-    settings.windows().webview_install_mode,
+    settings.webview_install_mode(),
     WebviewInstallMode::OfflineInstaller { .. } | WebviewInstallMode::EmbedBootstrapper { .. }
   ) {
     rebuild_installers()?;

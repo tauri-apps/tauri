@@ -23,6 +23,9 @@ http-range = "0.1.5"
 getrandom = "0.3"
 percent-encoding = "2"
 
+[build-dependencies]
+tauri-utils = { workspace = true, features = ["build-2"] }
+
 [features]
 default = ["wry"]
 wry = ["dep:tauri-runtime-wry"]

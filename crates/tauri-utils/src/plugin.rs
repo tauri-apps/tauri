@@ -32,8 +32,8 @@ mod build {
   /// Collects the path of all the global API scripts defined with [`define_global_api_script_path`]
   /// and saves them to the out dir with filename [`GLOBAL_API_SCRIPT_FILE_LIST_PATH`].
   ///
-  /// `tauri_global_scripts` is only used in Tauri's monorepo for the examples to work
-  /// since they don't have a build script to run `tauri-build` and pull in the deps env vars
+  /// `tauri_global_scripts` is a fallback for the `tauri` global API script path,
+  /// used when the `DEP_TAURI_GLOBAL_API_SCRIPT_PATH` env var is not available to the build script.
   pub fn save_global_api_scripts_paths(out_dir: &Path, mut tauri_global_scripts: Option<PathBuf>) {
     let mut scripts = Vec::new();
 

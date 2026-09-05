@@ -450,7 +450,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICO"; "Creating icon.ico");
   let mut frames = Vec::new();
 
-  for size in [32, 16, 24, 48, 64, 256] {
+  for size in [16, 24, 32, 48, 64, 256] {
     let image = source.resize_exact(size);
 
     // Only the 256px layer can be compressed according to the ico specs.

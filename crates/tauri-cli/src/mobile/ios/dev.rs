@@ -133,6 +133,7 @@ impl From<Options> for DevOptions {
       no_dev_server_wait: options.no_dev_server_wait,
       port: options.port,
       host: options.host.0.unwrap_or_default(),
+      packaged: false,
     }
   }
 }

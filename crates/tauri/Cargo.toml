@@ -180,7 +180,10 @@ http-range = "0.1.5"
 [features]
 default = ["compression", "common-controls-v6", "dynamic-acl"]
 unstable = []
-common-controls-v6 = ["tray-icon?/common-controls-v6", "muda/common-controls-v6"]
+common-controls-v6 = [
+  "tray-icon?/common-controls-v6",
+  "muda/common-controls-v6",
+]
 tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing"]
 test = []

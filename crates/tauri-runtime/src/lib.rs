@@ -26,6 +26,7 @@ pub mod dpi;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
+mod webview_permissions;
 pub mod window;
 
 use dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size};
@@ -314,13 +315,13 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
-  fn primary_monitor(&self) -> Option<Monitor>;
+  fn primary_monitor(&self) -> Result<Option<Monitor>>;
 
   /// Returns the monitor that contains the given point.
-  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>>;
 
   /// Returns the list of all the monitors available on the system.
-  fn available_monitors(&self) -> Vec<Monitor>;
+  fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
   /// Get the cursor position relative to the top-left hand corner of the desktop.
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;

@@ -39,7 +39,7 @@ use serde_with::skip_serializing_none;
 use url::Url;
 
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, HashMap, HashSet},
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
@@ -722,7 +722,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "14.0".into()
+  "15.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -2550,7 +2550,7 @@ impl CspDirectiveSources {
 
 /// A Content-Security-Policy definition.
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum Csp {
@@ -2558,6 +2558,24 @@ pub enum Csp {
   Policy(String),
   /// An object mapping a directive with its sources values as a list of strings.
   DirectiveMap(HashMap<String, CspDirectiveSources>),
+}
+
+impl Serialize for Csp {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      Self::Policy(policy) => serializer.serialize_str(policy),
+      Self::DirectiveMap(map) => {
+        // Serialize through `BTreeMap` so the output is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let btree_map: BTreeMap<_, _> = map.iter().collect();
+        btree_map.serialize(serializer)
+      }
+    }
+  }
 }
 
 impl From<HashMap<String, CspDirectiveSources>> for Csp {
@@ -2713,7 +2731,7 @@ pub struct AssetProtocolConfig {
 /// definition of a header source
 ///
 /// The header value to a header name
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum HeaderSource {
@@ -2723,6 +2741,25 @@ pub enum HeaderSource {
   List(Vec<String>),
   /// (Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Item are then joined by ";" for the real header value
   Map(HashMap<String, String>),
+}
+
+impl Serialize for HeaderSource {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      Self::Inline(s) => serializer.serialize_str(s),
+      Self::List(l) => l.serialize(serializer),
+      Self::Map(m) => {
+        // Serialize through `BTreeMap` so the output is deterministic
+        // see: https://github.com/tauri-apps/tauri/issues/14978
+        // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+        let btree_map: BTreeMap<_, _> = m.iter().collect();
+        btree_map.serialize(serializer)
+      }
+    }
+  }
 }
 
 impl Display for HeaderSource {
@@ -3296,7 +3333,7 @@ pub struct IosConfig {
   /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
-  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
+  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `15.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
   #[serde(
@@ -3736,6 +3773,22 @@ pub struct Config {
   #[serde(rename = "$schema")]
   pub schema: Option<String>,
   /// App name.
+  ///
+  /// This is the name your app is known by on the user's system, so it must be changed from the
+  /// default before publishing. Besides naming the generated bundles, it is written into platform
+  /// metadata and install paths that are expected to be unique to your application.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Names the `.app` bundle and the `.dmg`, and sets the bundle's
+  ///    `CFBundleDisplayName` and `CFBundleName` properties. `CFBundleName` can be overridden with
+  ///    [`bundle > macOS > bundleName`](MacConfig::bundle_name).
+  /// - **Linux**: Kebab-cased for the Debian and RPM package names, used as the `Name` entry of
+  ///    the desktop file and as the resource directory name under `/usr/lib`.
+  /// - **Windows**: Names the installers, the installation directory, the Start Menu folder and
+  ///    the `HKCU\Software\<publisher>\<product name>` registry key. It also derives the default
+  ///    WiX upgrade code, which must be unique across applications and can be set explicitly with
+  ///    [`bundle > windows > wix > upgradeCode`](WixConfig::upgrade_code).
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
@@ -3776,6 +3829,8 @@ pub struct Config {
   /// the bundle ID and path to the webview data directory.
   /// This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),
   /// and periods (.).
+  /// The default value `com.tauri.dev` is rejected by `tauri build` and must be changed before
+  /// building your application.
   pub identifier: String,
   /// The App configuration.
   #[serde(default)]
@@ -3794,9 +3849,22 @@ pub struct Config {
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#pluginconfig>
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
+
+impl Serialize for PluginConfig {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    // Serialize through `BTreeMap` so the output is deterministic
+    // see: https://github.com/tauri-apps/tauri/issues/14978
+    // TODO: Remove this in v3, use a BTreeMap instead of a HashMap
+    let btree_map: BTreeMap<_, _> = self.0.iter().collect();
+    btree_map.serialize(serializer)
+  }
+}
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///

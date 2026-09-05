@@ -254,6 +254,7 @@ impl<R: Runtime> AppManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
+    on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
     #[cfg(any(target_os = "macos", target_os = "ios"))] on_web_content_process_terminate: Option<
       Arc<OnWebContentProcessTerminate<R>>,
     >,
@@ -290,6 +291,7 @@ impl<R: Runtime> AppManager<R> {
         webviews: Mutex::default(),
         invoke_handler,
         on_page_load,
+        on_permission_request,
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
@@ -648,9 +650,9 @@ impl<R: Runtime> AppManager<R> {
     self
       .window
       .windows_lock()
-      .iter()
-      .find(|w| w.1.is_focused().unwrap_or(false))
-      .map(|w| w.1.clone())
+      .values()
+      .find(|w| w.is_focused().unwrap_or(false))
+      .cloned()
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {
@@ -772,6 +774,7 @@ mod test {
       None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),

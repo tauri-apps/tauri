@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "rootDir": "guest-js",
     "target": "es2021",
     "module": "esnext",
     "moduleResolution": "bundler",

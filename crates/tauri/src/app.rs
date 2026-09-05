@@ -870,7 +870,7 @@ macro_rules! shared_app_impl {
       pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.primary_monitor().map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor()?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -879,7 +879,7 @@ macro_rules! shared_app_impl {
       pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.monitor_from_point(x, y).map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y).map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y)?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -890,9 +890,11 @@ macro_rules! shared_app_impl {
           RuntimeOrDispatch::Runtime(h) => {
             h.available_monitors().into_iter().map(Into::into).collect()
           }
-          RuntimeOrDispatch::RuntimeHandle(h) => {
-            h.available_monitors().into_iter().map(Into::into).collect()
-          }
+          RuntimeOrDispatch::RuntimeHandle(h) => h
+            .available_monitors()?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
           _ => unreachable!(),
         })
       }
@@ -1510,6 +1512,9 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
+  /// Permission request hook.
+  on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
+
   /// Web content process termination hook.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
@@ -1600,6 +1605,7 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
+      on_permission_request: None,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
@@ -1779,6 +1785,53 @@ tauri::Builder::default()
     F: Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static,
   {
     self.on_page_load.replace(Arc::new(on_page_load));
+    self
+  }
+
+  /// Defines a closure to be executed when a permission is requested.
+  ///
+  /// The handler receives the [`crate::webview::PermissionKind`] and should return
+  /// the desired [`crate::webview::PermissionResponse`].
+  ///
+  /// This is not called if a [`crate::webview::WebviewBuilder::on_permission_request`]
+  /// is set on the webview and returned a response other than [`crate::webview::PermissionResponse::Default`].
+  ///
+  /// > [!NOTE]
+  /// > This handler only triggers for new permission requests. If the user has already
+  /// > allowed or denied a permission persistently within the webview, the browser
+  /// > will use the saved preference instead of calling this handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
+  /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
+  /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
+  /// - **Android**: Supported via JNI bridge for geolocation, microphone, camera,
+  ///   protected media, and MIDI requests. Android runtime permissions may still
+  ///   trigger native OS prompts before access is granted.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::webview::{PermissionKind, PermissionResponse};
+  /// tauri::Builder::default()
+  ///   .on_permission_request(|_, kind| match kind {
+  ///     PermissionKind::Geolocation => PermissionResponse::Allow,
+  ///     PermissionKind::Notifications => PermissionResponse::Allow,
+  ///     _ => PermissionResponse::Default,
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn on_permission_request<F>(mut self, on_permission_request: F) -> Self
+  where
+    F: Fn(Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
+      + Send
+      + Sync
+      + 'static,
+  {
+    self
+      .on_permission_request
+      .replace(Arc::new(on_permission_request));
     self
   }
 
@@ -2247,6 +2300,7 @@ tauri::Builder::default()
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
+      self.on_permission_request,
       #[cfg(any(target_os = "macos", target_os = "ios"))]
       self.on_web_content_process_terminate,
       self.uri_scheme_protocols,

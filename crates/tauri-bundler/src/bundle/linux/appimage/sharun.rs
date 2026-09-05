@@ -221,9 +221,21 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // binary. The directory itself always exists by the time the script reads it.
   deploy_args.push(app_dir_lib);
 
-  // Passing the script to `sh` rather than building a `sh -c` string keeps
-  // paths containing spaces intact.
-  let mut cmd = Command::new("/bin/sh");
+  // quick-sharun runs each binary it deploys for a few seconds to see which
+  // libraries get dlopened, then kills it with a process-group signal. That
+  // only reaches the process if the shell put it in its own group, which is
+  // what `set -m` is for. dash does not create the group when there is no
+  // controlling terminal, so on Debian and Ubuntu, where /bin/sh is dash,
+  // every terminal-less build - which is every CI run - hangs forever on the
+  // first traced process that does not exit by itself. bash creates the group
+  // either way, so prefer it and fall back to sh where it is missing.
+  let shell = which::which("bash")
+    .map(|p| p.to_string_lossy().into_owned())
+    .unwrap_or_else(|_| "/bin/sh".into());
+
+  // Passing the script to the shell as an argument rather than building a
+  // `-c` string keeps paths containing spaces intact.
+  let mut cmd = Command::new(shell);
   cmd
     .arg(&quick_sharun)
     .args(&deploy_args)

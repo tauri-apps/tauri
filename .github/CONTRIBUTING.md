@@ -70,7 +70,7 @@ See [Architecture](/ARCHITECTURE.md#major-components) for an overview of the pac
 
 The code for the Rust crates, including the Core, Macros, Utils, WRY runtime, and a few more are located in the [main Tauri repository](https://github.com/tauri-apps/tauri/tree/dev/crates).
 
-The easiest way to test your changes is to use the [helloworld](https://github.com/tauri-apps/tauri/tree/dev/examples/helloworld) example app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `cargo run -p tauri-examples --example helloworld` after making changes to test them out.
+The easiest way to test your changes is to use the [helloworld](https://github.com/tauri-apps/tauri/tree/dev/examples/helloworld) example app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `cargo run --example helloworld` after making changes to test them out.
 
 To test local changes against your own application simply point the Tauri create to your local repository. In `src-tauri/Cargo.toml` file change:
 

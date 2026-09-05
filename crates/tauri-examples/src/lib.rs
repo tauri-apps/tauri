@@ -4,5 +4,5 @@
 
 //! Tauri desktop application examples.
 //!
-//! Run with `cargo run -p tauri-examples --example <name>` (wry runtime, the default)
-//! or `cargo run -p tauri-examples --example <name> --features cef` (CEF runtime).
+//! Run with `cargo run --example <name>` (wry runtime, the default)
+//! or `cargo run --example <name> --features cef` (CEF runtime).

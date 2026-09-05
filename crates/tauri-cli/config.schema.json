@@ -99,7 +99,6 @@
           "appimage": {
             "bundleMediaFramework": false,
             "files": {},
-            "squashfs": false,
             "updateInformation": null,
             "useNewFormat": false
           },
@@ -2295,7 +2294,6 @@
             "appimage": {
               "bundleMediaFramework": false,
               "files": {},
-              "squashfs": false,
               "updateInformation": null,
               "useNewFormat": false
             },
@@ -3267,7 +3265,6 @@
           "default": {
             "bundleMediaFramework": false,
             "files": {},
-            "squashfs": false,
             "updateInformation": null,
             "useNewFormat": false
           },
@@ -3322,17 +3319,12 @@
           }
         },
         "useNewFormat": {
-          "description": "Use the new AppImage bundler based on sharun and uruntime instead of linuxdeploy.\n\n Enabling this is strongly recommended as it will produce truly portable\n AppImages that allow you to build on newer distros while still supporting\n older distros. The produced AppImage also has fewer general issues and\n supports Wayland without forcing the use of XWayland.\n\n The drawbacks of this option is that the AppImage will be larger, only supports\n x86_64 and aarch64, and currently can only be built on Debian/Ubuntu based systems.\n For Ubuntu it requires at least 24.04 and above.",
-          "default": false,
-          "type": "boolean"
-        },
-        "squashfs": {
-          "description": "Make the AppImage use squashfs instead of dwarfs.\n\n Enabling this option will improve compatibility with AppImage integration\n tools but will also increase the file size.\n\n Ignored if `use_new_format` is disabled.",
+          "description": "Use the new AppImage bundler based on sharun and uruntime instead of linuxdeploy.\n\n The resulting AppImage carries its own dependencies, so it runs on distributions\n older than the one it was built on, does not depend on the host libc, and supports\n Wayland without forcing the use of XWayland.\n\n This is experimental. The bundler downloads and runs third-party tooling, launches\n your application once during bundling to discover the libraries it loads at runtime,\n and produces a larger AppImage. Only x86_64 and aarch64 are supported, and it cannot\n cross-compile because it deploys the build system's own libraries.\n\n Arch Linux is the recommended build host. Ubuntu 24.04 works but is known to lose\n hardware acceleration on Wayland with the proprietary NVIDIA driver.",
           "default": false,
           "type": "boolean"
         },
         "updateInformation": {
-          "description": "Update information to forward to the AppImage tooling according to <https://github.com/AppImage/AppImageSpec/blob/master/draft.md#update-information>.\n Can also be provided via the `UPINFO` env var.\n\n When enabled, the generated AppImage or the .zsync file must not be renamed\n to keep the update mechanism working.\n\n Requires `zsyncmake` to be installed on the build system.",
+          "description": "Update information to forward to the AppImage tooling according to <https://github.com/AppImage/AppImageSpec/blob/master/draft.md#update-information>.\n Can also be provided via the `UPINFO` env var, which takes precedence over this value.\n\n When set, the generated AppImage and its .zsync file must not be renamed\n to keep the update mechanism working.\n\n Only used by the new AppImage format, see `use_new_format`.",
           "default": null,
           "type": [
             "string",

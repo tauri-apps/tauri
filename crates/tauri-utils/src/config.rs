@@ -328,31 +328,26 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
   /// Use the new AppImage bundler based on sharun and uruntime instead of linuxdeploy.
   ///
-  /// Enabling this is strongly recommended as it will produce truly portable
-  /// AppImages that allow you to build on newer distros while still supporting
-  /// older distros. The produced AppImage also has fewer general issues and
-  /// supports Wayland without forcing the use of XWayland.
+  /// The resulting AppImage carries its own dependencies, so it runs on distributions
+  /// older than the one it was built on, does not depend on the host libc, and supports
+  /// Wayland without forcing the use of XWayland.
   ///
-  /// The drawbacks of this option is that the AppImage will be larger, only supports
-  /// x86_64 and aarch64, and currently can only be built on Debian/Ubuntu based systems.
-  /// For Ubuntu it requires at least 24.04 and above.
+  /// This is experimental. The bundler downloads and runs third-party tooling, launches
+  /// your application once during bundling to discover the libraries it loads at runtime,
+  /// and produces a larger AppImage. Only x86_64 and aarch64 are supported, and it cannot
+  /// cross-compile because it deploys the build system's own libraries.
+  ///
+  /// Arch Linux is the recommended build host. Ubuntu 24.04 works but is known to lose
+  /// hardware acceleration on Wayland with the proprietary NVIDIA driver.
   #[serde(default, alias = "use-new-format")]
   pub use_new_format: bool,
-  /// Make the AppImage use squashfs instead of dwarfs.
-  ///
-  /// Enabling this option will improve compatibility with AppImage integration
-  /// tools but will also increase the file size.
-  ///
-  /// Ignored if `use_new_format` is disabled.
-  #[serde(default)]
-  pub squashfs: bool,
   /// Update information to forward to the AppImage tooling according to <https://github.com/AppImage/AppImageSpec/blob/master/draft.md#update-information>.
-  /// Can also be provided via the `UPINFO` env var.
+  /// Can also be provided via the `UPINFO` env var, which takes precedence over this value.
   ///
-  /// When enabled, the generated AppImage or the .zsync file must not be renamed
+  /// When set, the generated AppImage and its .zsync file must not be renamed
   /// to keep the update mechanism working.
   ///
-  /// Requires `zsyncmake` to be installed on the build system.
+  /// Only used by the new AppImage format, see `use_new_format`.
   #[serde(default, alias = "update-information")]
   pub update_information: Option<String>,
 }

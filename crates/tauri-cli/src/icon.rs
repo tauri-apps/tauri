@@ -48,11 +48,19 @@ enum AndroidIconKind {
   Rounded,
 }
 
+struct BannerEntry {
+  name: String,
+  width: u32,
+  height: u32,
+  out_path: PathBuf,
+}
+
 struct AndroidEntries {
   icon: Vec<(PngEntry, AndroidIconKind)>,
   foreground: Vec<PngEntry>,
   background: Vec<PngEntry>,
   monochrome: Vec<PngEntry>,
+  banner: Vec<BannerEntry>,
 }
 
 #[derive(Deserialize)]
@@ -63,6 +71,7 @@ struct Manifest {
   android_fg: Option<String>,
   android_monochrome: Option<String>,
   android_fg_scale: Option<f32>,
+  android_tv_banner: Option<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -100,6 +109,10 @@ pub struct Options {
   #[clap(long, default_value = "#fff")]
   ios_color: String,
 
+  /// Path to a full Android TV banner image with a 16:9 aspect ratio.
+  #[clap(long)]
+  android_tv_banner: Option<PathBuf>,
+
   /// How to fit a non-square source image into the square icon canvas, similar to the CSS `object-fit` property.
   ///
   /// When not set, a non-square source is rejected.
@@ -128,6 +141,20 @@ enum Source {
 }
 
 impl Source {
+  fn width(&self) -> u32 {
+    match self {
+      Self::Svg { tree, .. } => tree.size().width() as u32,
+      Self::DynamicImage(image) => image.width(),
+    }
+  }
+
+  fn height(&self) -> u32 {
+    match self {
+      Self::Svg { tree, .. } => tree.size().height() as u32,
+      Self::DynamicImage(image) => image.height(),
+    }
+  }
+
   fn resize_exact(&self, size: u32) -> DynamicImage {
     match self {
       Self::Svg { tree, fit } => rasterize_svg(tree, *fit, size),
@@ -135,6 +162,28 @@ impl Source {
         // image.resize_exact(size, size, FilterType::Lanczos3)
         resize_image(image, size, size)
       }
+    }
+  }
+
+  fn resize(&self, width: u32, height: u32) -> DynamicImage {
+    match self {
+      Self::Svg { tree, .. } => {
+        let mut pixmap = tiny_skia::Pixmap::new(width, height).unwrap();
+        let scale_x = width as f32 / tree.size().width();
+        let scale_y = height as f32 / tree.size().height();
+        resvg::render(
+          tree,
+          tiny_skia::Transform::from_scale(scale_x, scale_y),
+          &mut pixmap.as_mut(),
+        );
+
+        let img_buffer = ImageBuffer::from_par_fn(width, height, |x, y| {
+          let pixel = pixmap.pixel(x, y).unwrap().demultiply();
+          Rgba([pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()])
+        });
+        DynamicImage::ImageRgba8(img_buffer)
+      }
+      Self::DynamicImage(image) => resize_image(image, width, height),
     }
   }
 }
@@ -328,6 +377,15 @@ pub fn command(options: Options) -> Result<()> {
     None => options.ios_color,
   };
   let bg_color = parse_bg_color(&bg_color_string)?;
+  let android_tv_banner = manifest
+    .as_ref()
+    .and_then(|manifest| {
+      manifest
+        .android_tv_banner
+        .as_ref()
+        .map(|banner| input.parent().unwrap().join(banner))
+    })
+    .or(options.android_tv_banner.clone());
 
   let default_icon = match manifest {
     Some(ref manifest) => input.parent().unwrap().join(manifest.default.clone()),
@@ -357,8 +415,15 @@ pub fn command(options: Options) -> Result<()> {
     ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
     png(&source, &out_dir, bg_color).context("Failed to generate png icons")?;
-    android(&source, &input, manifest, &bg_color_string, &out_dir)
-      .context("Failed to generate android icons")?;
+    android(
+      &source,
+      &input,
+      manifest,
+      &bg_color_string,
+      &out_dir,
+      android_tv_banner,
+    )
+    .context("Failed to generate android icons")?;
   } else {
     for target in png_icon_sizes.into_iter().map(|size| {
       let name = format!("{size}x{size}.png");
@@ -418,7 +483,7 @@ fn icns(source: &Source, out_dir: &Path) -> Result<()> {
 
     let image = source.resize_exact(size);
 
-    write_png(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
+    write_png_square(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
 
     let image = icns::Image::read_png(&buf[..]).context("failed to read output file")?;
 
@@ -457,7 +522,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
     if size == 256 {
       let mut buf = Vec::new();
 
-      write_png(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
+      write_png_square(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
 
       frames.push(
         IcoFrame::with_encoded(buf, size, size, ExtendedColorType::Rgba8)
@@ -491,11 +556,13 @@ fn android(
   manifest: Option<Manifest>,
   bg_color: &String,
   out_dir: &Path,
+  android_tv_banner: Option<PathBuf>,
 ) -> Result<()> {
   fn android_entries(out_dir: &Path) -> Result<AndroidEntries> {
     struct AndroidEntry {
       name: &'static str,
       size: u32,
+      banner_width: u32,
       foreground_size: u32,
     }
 
@@ -503,26 +570,31 @@ fn android(
       AndroidEntry {
         name: "hdpi",
         size: 49,
+        banner_width: 240,
         foreground_size: 162,
       },
       AndroidEntry {
         name: "mdpi",
         size: 48,
+        banner_width: 160,
         foreground_size: 108,
       },
       AndroidEntry {
         name: "xhdpi",
         size: 96,
+        banner_width: 320,
         foreground_size: 216,
       },
       AndroidEntry {
         name: "xxhdpi",
         size: 144,
+        banner_width: 480,
         foreground_size: 324,
       },
       AndroidEntry {
         name: "xxxhdpi",
         size: 192,
+        banner_width: 640,
         foreground_size: 432,
       },
     ];
@@ -530,6 +602,7 @@ fn android(
     let mut fg_entries = Vec::new();
     let mut bg_entries = Vec::new();
     let mut monochrome_entries = Vec::new();
+    let mut banner_entries = Vec::new();
 
     for target in targets {
       let folder_name = format!("mipmap-{}", target.name);
@@ -573,6 +646,13 @@ fn android(
         out_path: out_folder.join("ic_launcher_monochrome.png"),
         size: target.foreground_size,
       });
+
+      banner_entries.push(BannerEntry {
+        name: format!("{}/{}", folder_name, "ic_banner.png"),
+        width: target.banner_width,
+        height: target.banner_width * 9 / 16,
+        out_path: out_folder.join("ic_banner.png"),
+      });
     }
 
     Ok(AndroidEntries {
@@ -580,6 +660,7 @@ fn android(
       foreground: fg_entries,
       background: bg_entries,
       monochrome: monochrome_entries,
+      banner: banner_entries,
     })
   }
   fn create_color_file(out_dir: &Path, color: &String) -> Result<()> {
@@ -698,11 +779,24 @@ fn android(
     let mut out_file = BufWriter::new(
       File::create(&entry.out_path).fs_context("failed to create output file", &entry.out_path)?,
     );
-    write_png(image.as_bytes(), &mut out_file, entry.size)
+    write_png_square(image.as_bytes(), &mut out_file, entry.size)
       .context("failed to write output file")?;
     out_file
       .flush()
       .fs_context("failed to flush output file", &entry.out_path)?;
+  }
+
+  if let Some(android_tv_banner) = android_tv_banner {
+    let banner_source = read_source(android_tv_banner)?;
+    validate_android_tv_banner(&banner_source)?;
+
+    for entry in entries.banner {
+      log::info!(action = "Android TV Banner"; "Creating {}", entry.name);
+      save_png(
+        &banner_source.resize(entry.width, entry.height),
+        &entry.out_path,
+      )?;
+    }
   }
 
   let mut launcher_content = r#"<?xml version="1.0" encoding="utf-8"?>
@@ -920,18 +1014,46 @@ fn resize_and_save_png(
   scale_percent: Option<f32>,
 ) -> Result<()> {
   let image = resize_png(source, size, bg, scale_percent)?;
-  let mut out_file =
-    BufWriter::new(File::create(file_path).fs_context("failed to create output file", file_path)?);
-  write_png(image.as_bytes(), &mut out_file, size).context("failed to write output file")?;
-  out_file
-    .flush()
-    .fs_context("failed to save output file", file_path)
+  save_png(&image, file_path)
 }
 
 // Encode image data as png with compression.
-fn write_png<W: Write>(image_data: &[u8], w: W, size: u32) -> image::ImageResult<()> {
+fn write_png<W: Write>(image_data: &[u8], w: W, width: u32, height: u32) -> image::ImageResult<()> {
   let encoder = PngEncoder::new_with_quality(w, CompressionType::Best, PngFilterType::Adaptive);
-  encoder.write_image(image_data, size, size, ExtendedColorType::Rgba8)?;
+  encoder.write_image(image_data, width, height, ExtendedColorType::Rgba8)?;
+  Ok(())
+}
+
+fn write_png_square<W: Write>(image_data: &[u8], w: W, size: u32) -> image::ImageResult<()> {
+  write_png(image_data, w, size, size)
+}
+
+fn save_png(image: &DynamicImage, file_path: &Path) -> Result<()> {
+  let mut out_file =
+    BufWriter::new(File::create(file_path).fs_context("failed to create output file", file_path)?);
+  write_png(
+    image.as_bytes(),
+    &mut out_file,
+    image.width(),
+    image.height(),
+  )
+  .context("failed to write output file")?;
+  out_file
+    .flush()
+    .fs_context("failed to save output file", file_path)?;
+  Ok(())
+}
+
+fn validate_android_tv_banner(source: &Source) -> Result<()> {
+  let width = source.width();
+  let height = source.height();
+
+  if width * 9 != height * 16 {
+    crate::error::bail!(
+      "Android TV banner source image must use a 16:9 aspect ratio, found {width}x{height}"
+    );
+  }
+
   Ok(())
 }
 

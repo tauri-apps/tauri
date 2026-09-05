@@ -2,6 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Path resolution APIs.
+//!
+//! Tauri exposes path resolution through [`Manager::path`](crate::Manager::path) so the resolver
+//! can use the running application's configuration and platform integration. Import the
+//! [`Manager`](crate::Manager) trait and call `.path()` on a manager such as an
+//! [`App`](crate::App) or [`AppHandle`](crate::AppHandle).
+//!
+//! # Examples
+//!
+//! Access paths from a command by injecting an [`AppHandle`](crate::AppHandle):
+//!
+//! ```rust,no_run
+//! use std::path::PathBuf;
+//! use tauri::Manager;
+//!
+//! #[tauri::command]
+//! fn home_dir(app: tauri::AppHandle) -> tauri::Result<PathBuf> {
+//!   app.path().home_dir()
+//! }
+//! ```
+//!
+//! Application-specific paths are available after Tauri initializes because they can depend on
+//! application configuration and mobile runtime APIs. Desktop code that only needs a platform
+//! user directory before Tauri initializes can add the [`dirs`](https://docs.rs/dirs/) crate as a
+//! dependency and call the corresponding function directly, such as
+//! [`dirs::home_dir`](https://docs.rs/dirs/latest/dirs/fn.home_dir.html).
+
 use std::{
   path::{Component, Display, Path, PathBuf},
   str::FromStr,

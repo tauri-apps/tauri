@@ -52,6 +52,9 @@ pub struct WebviewSnapshot {
   pub document: Option<crate::NativeDocumentToken>,
   /// Runtime window that owns this webview.
   pub window_label: String,
+  /// Opaque lifetime of the runtime window. Labels and native handle values
+  /// may be reused after teardown; this token distinguishes their replacements.
+  pub window: crate::NativeWindowToken,
   /// Whether the actual native parent matches that runtime window.
   /// `None` means the platform could not establish the relationship.
   pub parent_matches: Option<bool>,
@@ -616,6 +619,7 @@ impl<T: UserEvent> WinitCefApp<T> {
             .frame_navigation_state
             .observe_document(&child.browser),
           window_label: appwindow.label.clone(),
+          window: appwindow.lifetime.clone(),
           parent_matches: child.native_parent_matches(appwindow),
           bounds: child.bounds(),
           visible: child.native_visible(),

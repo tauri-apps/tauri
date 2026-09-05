@@ -150,6 +150,9 @@ pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
 pub use tauri_runtime_cef::FrameNavigationState as CefFrameNavigationState;
 #[cfg(feature = "cef")]
 pub use tauri_runtime_cef::NativeDocumentToken as CefNativeDocumentToken;
+/// Opaque identity of a native CEF runtime window lifetime.
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::NativeWindowToken as CefNativeWindowToken;
 #[cfg(feature = "cef")]
 pub use tauri_runtime_cef::WebviewSnapshot as CefWebviewSnapshot;
 #[cfg(feature = "cef")]

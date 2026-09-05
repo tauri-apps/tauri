@@ -319,7 +319,51 @@ pub(crate) enum WindowMessage {
 #[cfg(windows)]
 type SoftbufferSurface = softbuffer::Surface<SoftbufferWindowHandle, SoftbufferWindowHandle>;
 
+/// Opaque identity of one runtime-owned native window lifetime. Reparented
+/// webviews observe the destination token; same-label replacements never match.
+#[derive(Clone)]
+pub struct NativeWindowToken(Arc<()>);
+
+impl NativeWindowToken {
+  fn new() -> Self {
+    Self(Arc::new(()))
+  }
+}
+
+impl PartialEq for NativeWindowToken {
+  fn eq(&self, other: &Self) -> bool {
+    Arc::ptr_eq(&self.0, &other.0)
+  }
+}
+
+impl Eq for NativeWindowToken {}
+
+impl std::fmt::Debug for NativeWindowToken {
+  fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    formatter
+      .debug_struct("NativeWindowToken")
+      .finish_non_exhaustive()
+  }
+}
+
+#[cfg(test)]
+mod native_window_identity_tests {
+  use super::NativeWindowToken;
+
+  #[test]
+  fn references_preserve_one_window_and_reject_replacements() {
+    let first = NativeWindowToken::new();
+    let retained_by_webview = first.clone();
+    assert_eq!(first, retained_by_webview);
+    let destination = NativeWindowToken::new();
+    assert_ne!(retained_by_webview, destination);
+    drop(first);
+    assert_ne!(retained_by_webview, NativeWindowToken::new());
+  }
+}
+
 pub(crate) struct AppWindow {
+  pub(crate) lifetime: NativeWindowToken,
   #[allow(unused)]
   pub(crate) id: WindowId,
   pub(crate) label: String,
@@ -433,6 +477,7 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     let winit_id = window.id();
     let mut appwindow = AppWindow {
+      lifetime: NativeWindowToken::new(),
       id: window_id,
       label: pending.label.clone(),
       #[cfg(windows)]

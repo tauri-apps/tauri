@@ -22,5 +22,5 @@ mod window_handle;
 
 pub use runtime::*;
 pub use webview::*;
-pub use window::CefWindowDispatcher;
+pub use window::{CefWindowDispatcher, NativeWindowToken};
 pub use window_builder::WindowBuilderWrapper;

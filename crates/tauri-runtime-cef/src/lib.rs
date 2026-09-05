@@ -23,7 +23,3 @@ pub use tauri_macros::cef_entry_point;
 pub use webview::*;
 pub use window::CefWindowDispatcher;
 pub use window_builder::WindowBuilderWrapper;
-
-/// The CEF runtime initialization attributes.
-#[deprecated(note = "renamed to `Cef`")]
-pub type RuntimeInitAttrs = Cef;

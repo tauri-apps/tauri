@@ -5,5 +5,6 @@
   },
   "tauri": "2.11.5",
   "tauri-build": "2.6.3",
-  "tauri-plugin": "2.6.3"
+  "tauri-plugin": "2.6.3",
+  "tauri-runtime-wry": "2.11.4"
 }

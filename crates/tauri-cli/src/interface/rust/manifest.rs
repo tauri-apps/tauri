@@ -5,6 +5,7 @@
 use crate::{
   error::{Context, ErrorExt},
   helpers::config::{Config, PatternKind},
+  runtime::Runtime,
 };
 
 use itertools::Itertools;
@@ -61,6 +62,190 @@ impl Manifest {
 
     all_enabled_features
   }
+
+  /// The webview runtime linked into the application for the given target and enabled features.
+  pub fn runtime(&self, enabled_features: &[String], target_triple: &str) -> Runtime {
+    Runtime::detect(self, enabled_features, target_triple)
+  }
+
+  /// Whether the crate is linked into the application for the given target and enabled features, i.e.:
+  /// - it is a non-optional dependency in `[dependencies]`, or
+  /// - a `[target.'cfg(...)'.dependencies]` table matching the target triple has it as a non-optional dependency, or
+  /// - any enabled feature (transitively) enables the optional dependency.
+  pub fn uses_dependency(
+    &self,
+    crate_name: &str,
+    enabled_features: &[String],
+    target_triple: &str,
+  ) -> bool {
+    let table = self.inner.as_table();
+
+    if is_dependency_required(table, crate_name) {
+      return true;
+    }
+
+    if let Some(targets) = table.get("target").and_then(|i| i.as_table()) {
+      for (cfg, target_table) in targets.iter() {
+        if cfg_matches_target(cfg, target_triple)
+          && let Some(target_table) = target_table.as_table()
+          && is_dependency_required(target_table, crate_name)
+        {
+          return true;
+        }
+      }
+    }
+
+    let features = self.features();
+    let mut visited = HashSet::new();
+    enabled_features
+      .iter()
+      .any(|f| feature_enables_dependency(&features, f, crate_name, &mut visited))
+  }
+}
+
+/// Whether the given `[dependencies]`-like table lists the crate as a non-optional dependency.
+fn is_dependency_required(table: &dyn TableLike, crate_name: &str) -> bool {
+  let Some(dependencies) = table.get("dependencies").and_then(|i| i.as_table_like()) else {
+    return false;
+  };
+  let Some(dependency) = dependencies.get(crate_name) else {
+    return false;
+  };
+  // a plain version string is never optional
+  let Some(dependency) = dependency.as_table_like() else {
+    return true;
+  };
+  !dependency
+    .get("optional")
+    .and_then(|i| i.as_value())
+    .and_then(|v| v.as_bool())
+    .unwrap_or(false)
+}
+
+/// Whether the feature (transitively) enables the optional dependency on the crate.
+fn feature_enables_dependency(
+  features: &HashMap<String, Vec<String>>,
+  feature: &str,
+  crate_name: &str,
+  visited: &mut HashSet<String>,
+) -> bool {
+  if feature == crate_name || feature == format!("dep:{crate_name}") {
+    return true;
+  }
+  if !visited.insert(feature.to_string()) {
+    return false;
+  }
+  features.get(feature).is_some_and(|enabled| {
+    enabled
+      .iter()
+      .any(|f| feature_enables_dependency(features, f, crate_name, visited))
+  })
+}
+
+/// Best-effort check of whether a `[target.'cfg(...)']` key applies to the target triple.
+///
+/// Supports the target triple itself, `cfg(windows)`, `cfg(unix)`, `cfg(target_os = "...")`,
+/// `cfg(target_arch = "...")` and `any`/`all`/`not` combinations of those.
+fn cfg_matches_target(cfg: &str, target_triple: &str) -> bool {
+  let cfg = cfg.trim();
+  if cfg == target_triple {
+    return true;
+  }
+  let Some(predicate) = cfg.strip_prefix("cfg(").and_then(|c| c.strip_suffix(')')) else {
+    return false;
+  };
+  cfg_predicate_matches(predicate.trim(), target_triple)
+}
+
+fn cfg_predicate_matches(predicate: &str, target_triple: &str) -> bool {
+  if let Some(inner) = predicate
+    .strip_prefix("any(")
+    .and_then(|p| p.strip_suffix(')'))
+  {
+    return split_cfg_list(inner)
+      .iter()
+      .any(|p| cfg_predicate_matches(p, target_triple));
+  }
+  if let Some(inner) = predicate
+    .strip_prefix("all(")
+    .and_then(|p| p.strip_suffix(')'))
+  {
+    return split_cfg_list(inner)
+      .iter()
+      .all(|p| cfg_predicate_matches(p, target_triple));
+  }
+  if let Some(inner) = predicate
+    .strip_prefix("not(")
+    .and_then(|p| p.strip_suffix(')'))
+  {
+    return !cfg_predicate_matches(inner.trim(), target_triple);
+  }
+
+  let components: Vec<&str> = target_triple.split('-').collect();
+  let arch = components.first().copied().unwrap_or_default();
+  let os = if target_triple.contains("darwin") {
+    "macos"
+  } else if target_triple.contains("windows") {
+    "windows"
+  } else if target_triple.contains("android") {
+    "android"
+  } else if target_triple.contains("ios") {
+    "ios"
+  } else if target_triple.contains("linux") {
+    "linux"
+  } else {
+    components.get(2).copied().unwrap_or_default()
+  };
+
+  match predicate {
+    "windows" => os == "windows",
+    "unix" => os != "windows",
+    _ => {
+      if let Some((key, value)) = predicate.split_once('=') {
+        let value = value.trim().trim_matches('"');
+        match key.trim() {
+          "target_os" => os == value,
+          "target_arch" => arch == value,
+          "target_family" => match value {
+            "windows" => os == "windows",
+            "unix" => os != "windows",
+            _ => false,
+          },
+          _ => false,
+        }
+      } else {
+        false
+      }
+    }
+  }
+}
+
+/// Splits a comma separated cfg list, respecting nested parentheses.
+fn split_cfg_list(list: &str) -> Vec<String> {
+  let mut items = Vec::new();
+  let mut depth = 0usize;
+  let mut current = String::new();
+  for c in list.chars() {
+    match c {
+      '(' => {
+        depth += 1;
+        current.push(c);
+      }
+      ')' => {
+        depth = depth.saturating_sub(1);
+        current.push(c);
+      }
+      ',' if depth == 0 => {
+        items.push(current.trim().to_string());
+        current.clear();
+      }
+      _ => current.push(c),
+    }
+  }
+  if !current.trim().is_empty() {
+    items.push(current.trim().to_string());
+  }
+  items
 }
 
 fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> Vec<String> {
@@ -515,5 +700,136 @@ mod tests {
         tauri_build_dependency(HashSet::from_iter(vec!["isolation".into()])),
       ],
     );
+  }
+}
+
+#[cfg(test)]
+mod runtime_detection_tests {
+  use super::{Manifest, Runtime};
+
+  fn manifest(toml: &str) -> Manifest {
+    Manifest {
+      inner: toml.parse().expect("invalid manifest"),
+      tauri_features: Default::default(),
+    }
+  }
+
+  const LINUX: &str = "x86_64-unknown-linux-gnu";
+  const WINDOWS: &str = "x86_64-pc-windows-msvc";
+  const MACOS: &str = "aarch64-apple-darwin";
+
+  #[test]
+  fn required_dependency() {
+    let cef = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+tauri-runtime-cef = "0.1"
+"#,
+    );
+    assert_eq!(cef.runtime(&[], LINUX), Runtime::Cef);
+
+    let wry = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+tauri-runtime-wry = "2"
+"#,
+    );
+    assert_eq!(wry.runtime(&[], LINUX), Runtime::Wry);
+  }
+
+  #[test]
+  fn no_runtime_crate() {
+    let m = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+my-custom-runtime = "1"
+"#,
+    );
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Other);
+  }
+
+  #[test]
+  fn cef_takes_precedence() {
+    let m = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+tauri-runtime-wry = "2"
+tauri-runtime-cef = "0.1"
+"#,
+    );
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Cef);
+  }
+
+  #[test]
+  fn optional_dependency_behind_feature() {
+    let m = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+tauri-runtime-wry = { version = "2", optional = true }
+tauri-runtime-cef = { version = "0.1", optional = true }
+
+[features]
+default = ["wry"]
+wry = ["dep:tauri-runtime-wry"]
+cef = ["dep:tauri-runtime-cef"]
+chromium = ["cef"]
+"#,
+    );
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Other);
+    assert_eq!(
+      m.runtime(&m.all_enabled_features(&["default".into()]), LINUX),
+      Runtime::Wry
+    );
+    assert_eq!(
+      m.runtime(&m.all_enabled_features(&["cef".into()]), LINUX),
+      Runtime::Cef
+    );
+    // nested feature
+    assert_eq!(
+      m.runtime(&m.all_enabled_features(&["chromium".into()]), LINUX),
+      Runtime::Cef
+    );
+    // feature names are also accepted directly
+    assert_eq!(m.runtime(&["cef".into()], LINUX), Runtime::Cef);
+    assert_eq!(m.runtime(&["wry".into()], LINUX), Runtime::Wry);
+  }
+
+  #[test]
+  fn target_specific_dependency() {
+    let m = manifest(
+      r#"
+[dependencies]
+tauri = "2"
+
+[target.'cfg(windows)'.dependencies]
+tauri-runtime-cef = "0.1"
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+tauri-runtime-cef = "0.1"
+
+[target.'cfg(not(any(windows, target_os = "macos")))'.dependencies]
+tauri-runtime-wry = "2"
+"#,
+    );
+    assert_eq!(m.runtime(&[], WINDOWS), Runtime::Cef);
+    assert_eq!(m.runtime(&[], MACOS), Runtime::Cef);
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Wry);
+  }
+
+  #[test]
+  fn target_triple_key() {
+    let m = manifest(
+      r#"
+[target.x86_64-unknown-linux-gnu.dependencies]
+tauri-runtime-cef = { version = "0.1" }
+"#,
+    );
+    assert_eq!(m.runtime(&[], LINUX), Runtime::Cef);
+    assert_eq!(m.runtime(&[], WINDOWS), Runtime::Other);
   }
 }

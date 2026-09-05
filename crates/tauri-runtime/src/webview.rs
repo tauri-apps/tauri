@@ -85,6 +85,24 @@ pub struct CreationContext<'a, 'b> {
   pub webview: &'a jni::objects::JObject<'b>,
 }
 
+/// Raw handles of an iOS webview, exposed through [`crate::WebviewDispatch::with_ios_webview`].
+///
+/// The pointers are borrowed from handles owned by the runtime and are only valid while the webview is alive.
+#[cfg(target_os = "ios")]
+#[derive(Debug, Clone, Copy)]
+pub struct IosWebviewHandle {
+  /// The [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview) pointer.
+  pub webview: *mut std::ffi::c_void,
+  /// The [WKUserContentController](https://developer.apple.com/documentation/webkit/wkusercontentcontroller) pointer.
+  pub manager: *mut std::ffi::c_void,
+  /// The [UIViewController](https://developer.apple.com/documentation/uikit/uiviewcontroller) hosting the webview.
+  pub view_controller: *mut std::ffi::c_void,
+}
+
+// SAFETY: the pointers are only dereferenced on the main thread by the consumer.
+#[cfg(target_os = "ios")]
+unsafe impl Send for IosWebviewHandle {}
+
 /// Kind of event for the page load handler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PageLoadEvent {

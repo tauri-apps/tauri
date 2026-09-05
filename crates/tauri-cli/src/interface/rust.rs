@@ -33,18 +33,16 @@ use crate::{
   error::{Context, Error, ErrorExt, bail},
   helpers::{
     app_paths::Dirs,
-    cargo_manifest::{cargo_manifest_and_lock, crate_version},
     config::{BundleResources, Config, ConfigMetadata, nsis_settings, reload_config, wix_settings},
   },
 };
-use download_cef::OsAndArch;
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 mod cargo_config;
 mod desktop;
 pub mod installation;
 pub mod manifest;
-use crate::helpers::config::custom_sign_settings;
+use crate::{helpers::config::custom_sign_settings, runtime::Runtime};
 use cargo_config::Config as CargoConfig;
 use manifest::{Manifest, rewrite_manifest};
 
@@ -1076,6 +1074,13 @@ impl AppSettings for RustAppSettings {
 }
 
 impl RustAppSettings {
+  /// The webview runtime the app links when built with the given Cargo features.
+  pub fn runtime(&self, features: &[String]) -> Runtime {
+    let manifest = self.manifest.lock().unwrap();
+    let enabled_features = manifest.all_enabled_features(features);
+    manifest.runtime(&enabled_features, &self.target_triple)
+  }
+
   pub fn new(
     config: &Config,
     manifest: Manifest,
@@ -1369,67 +1374,6 @@ pub fn get_profile_dir(options: &Options) -> &str {
   }
 }
 
-fn default_cef_version(workspace_dir: &Path) -> Option<String> {
-  let (_, lock) = cargo_manifest_and_lock(workspace_dir);
-  let crate_version = crate_version(workspace_dir, None, lock.as_ref(), "cef");
-  crate_version
-    .version
-    .as_deref()
-    .map(download_cef::default_version)
-}
-
-pub(crate) fn default_cef_path() -> std::path::PathBuf {
-  dirs::cache_dir()
-    .unwrap_or_else(|| std::path::PathBuf::from(".cache"))
-    .join("tauri-cef")
-}
-
-fn cef_marker_file(target: &str) -> crate::Result<&'static str> {
-  if target.contains("darwin") {
-    Ok("Chromium Embedded Framework.framework")
-  } else if target.contains("windows") {
-    Ok("libcef.dll")
-  } else if target.contains("linux") {
-    Ok("libcef.so")
-  } else {
-    Err(Error::GenericError(format!(
-      "CEF bundling is not supported for target `{target}`"
-    )))
-  }
-}
-
-fn resolve_cef_path_for_bundle(
-  cef_path: PathBuf,
-  target: &str,
-  workspace_dir: &Path,
-) -> crate::Result<PathBuf> {
-  let resolved = if let Some(cef_version) = default_cef_version(workspace_dir) {
-    let os_arch = OsAndArch::try_from(target)
-      .map_err(|e| Error::GenericError(format!("invalid CEF target {target}: {e}")))?;
-
-    let versioned = cef_path.join(&cef_version).join(os_arch.to_string());
-    if versioned.exists() {
-      versioned
-    } else {
-      cef_path
-    }
-  } else {
-    cef_path
-  };
-
-  let marker = cef_marker_file(target)?;
-  if !resolved.join(marker).exists() {
-    bail!(
-      "CEF binary distribution not found at {} (missing `{marker}`). \
-       Run `cargo tauri build` (or `cargo build`) so the build script downloads CEF, \
-       or point CEF_PATH to an extracted CEF binary distribution.",
-      resolved.display(),
-    );
-  }
-
-  Ok(resolved)
-}
-
 #[allow(unused_variables, deprecated)]
 pub(crate) fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
@@ -1445,11 +1389,13 @@ pub(crate) fn tauri_config_to_bundle_settings(
     .lock()
     .unwrap()
     .all_enabled_features(features);
-  let cef_enabled =
-    enabled_features.contains(&"cef".into()) || enabled_features.contains(&"tauri/cef".into());
-  // `bundle > cef > embed`: false for an app that loads CEF at run time
-  // from outside its bundle, so nothing of the distribution ships.
-  let embed_cef = config.cef.embed;
+  let runtime = settings.runtime(features);
+  let webview_runtime = runtime.bundler_runtime(
+    config.cef.embed,
+    &settings.target_triple,
+    &settings.workspace_dir,
+  )?;
+  let webview_install_mode = runtime.webview_install_mode(config.windows.webview_install_mode);
 
   #[allow(unused_mut)]
   let mut resources = config
@@ -1514,10 +1460,9 @@ pub(crate) fn tauri_config_to_bundle_settings(
       }
     }
 
-    if !enabled_features.contains(&"cef".into()) && !enabled_features.contains(&"tauri/cef".into())
-    {
-      depends_deb.push("libwebkit2gtk-4.1-0".to_string());
-      libs.push("libwebkit2gtk-4.1.so.0".into());
+    for dependency in runtime.linux_dependencies() {
+      depends_deb.push(dependency.deb_package.to_string());
+      libs.push(dependency.library.into());
     }
 
     depends_deb.push("libgtk-3-0".to_string());
@@ -1534,8 +1479,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
 
   #[cfg(windows)]
   {
-    if let crate::helpers::config::WebviewInstallMode::FixedRuntime { path } =
-      &config.windows.webview_install_mode
+    if let crate::helpers::config::WebviewInstallMode::FixedRuntime { path } = &webview_install_mode
     {
       resources.push(path.display().to_string());
     }
@@ -1571,10 +1515,10 @@ pub(crate) fn tauri_config_to_bundle_settings(
     let entitlements = if let Some(user_provided_entitlements) = config.macos.entitlements {
       crate::helpers::plist::merge_plist(vec![
         PathBuf::from(user_provided_entitlements).into(),
-        plist::Value::Dictionary(required_entitlements(tauri_config, &enabled_features)?).into(),
+        plist::Value::Dictionary(required_entitlements(tauri_config, runtime)?).into(),
       ])?
     } else {
-      required_entitlements(tauri_config, &enabled_features)?.into()
+      required_entitlements(tauri_config, runtime)?.into()
     };
 
     Some(tauri_bundler::bundle::Entitlements::Plist(entitlements))
@@ -1711,10 +1655,11 @@ pub(crate) fn tauri_config_to_bundle_settings(
       wix: config.windows.wix.map(wix_settings),
       nsis: config.windows.nsis.map(nsis_settings),
       icon_path: PathBuf::new(),
-      webview_install_mode: config.windows.webview_install_mode,
+      webview_install_mode,
       allow_downgrades: config.windows.allow_downgrades,
       sign_command: config.windows.sign_command.map(custom_sign_settings),
-      minimum_webview2_version: config.windows.minimum_webview2_version,
+      minimum_webview2_version: runtime
+        .minimum_webview2_version(config.windows.minimum_webview2_version),
       bundle_vc_runtime: config.windows.bundle_vc_runtime,
     },
     license: config.license.or_else(|| {
@@ -1736,21 +1681,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
     }),
     license_file: config.license_file.map(|l| tauri_dir.join(l)),
     updater: updater_config,
-    // An app on a shared runtime links CEF but ships none: there may not
-    // even be a distribution on this machine to resolve, so don't look.
-    cef_path: if cef_enabled && embed_cef {
-      let cef_path = std::env::var_os("CEF_PATH")
-        .map(PathBuf::from)
-        .unwrap_or_else(default_cef_path);
-      Some(resolve_cef_path_for_bundle(
-        cef_path,
-        &settings.target_triple,
-        &settings.workspace_dir,
-      )?)
-    } else {
-      None
-    },
-    cef_shared_runtime: cef_enabled && !embed_cef,
+    webview_runtime,
     ..Default::default()
   })
 }
@@ -1758,7 +1689,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
 #[cfg(target_os = "macos")]
 fn required_entitlements(
   tauri_config: &Config,
-  enabled_features: &[String],
+  runtime: Runtime,
 ) -> crate::Result<plist::Dictionary> {
   let mut entitlements = plist::Dictionary::new();
 
@@ -1787,16 +1718,8 @@ fn required_entitlements(
     }
   }
 
-  if enabled_features.contains(&"cef".into()) || enabled_features.contains(&"tauri/cef".into()) {
-    entitlements.insert("com.apple.security.cs.allow-jit".to_string(), true.into());
-    entitlements.insert(
-      "com.apple.security.cs.allow-unsigned-executable-memory".to_string(),
-      true.into(),
-    );
-    entitlements.insert(
-      "com.apple.security.cs.disable-library-validation".to_string(),
-      true.into(),
-    );
+  for (key, value) in runtime.macos_entitlements() {
+    entitlements.insert(key, value);
   }
 
   Ok(entitlements)

@@ -34,6 +34,16 @@ features = [
   "tray-icon",
 ]
 
+[dependencies.tauri-runtime-wry]
+workspace = true
+default-features = true
+optional = true
+
+[dependencies.tauri-runtime-cef]
+workspace = true
+default-features = true
+optional = true
+
 [dev-dependencies.tauri]
 workspace = true
 default-features = false
@@ -41,6 +51,6 @@ features = ["test"]
 
 [features]
 default = ["wry"]
-wry = ["tauri/wry"]
+wry = ["dep:tauri-runtime-wry"]
 prod = ["tauri/custom-protocol"]
-cef = ["tauri/cef"]
+cef = ["dep:tauri-runtime-cef"]

@@ -17,7 +17,6 @@ use serde::{
   de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
 };
 use serde_json::Value as JsonValue;
-use tauri_macros::default_runtime;
 use tauri_runtime::webview::InitializationScript;
 use thiserror::Error;
 use url::Url;
@@ -854,8 +853,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
 }
 
 /// Plugin collection type.
-#[default_runtime(crate::Wry, wry)]
-pub(crate) struct PluginStore<R: Runtime> {
+pub(crate) struct PluginStore<R: Runtime = crate::DynRuntime> {
   store: Vec<Box<dyn Plugin<R>>>,
 }
 

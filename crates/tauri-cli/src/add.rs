@@ -185,7 +185,7 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
     r#" {}
 {}
      {}"#,
-    "tauri::Builder::<tauri::Wry>::new()".dimmed(),
+    "tauri::Builder::default()".dimmed(),
     builder_code.normal().green(),
     r#".invoke_handler(tauri::generate_handler![])
      .run(tauri::generate_context!())

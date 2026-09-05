@@ -16,7 +16,15 @@ pub fn items(frontend_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Se
     && let Some(tauri_dir) = tauri_dir
   {
     let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
-    for dep in ["tauri", "tauri-build", "wry", "tao"] {
+    for dep in [
+      "tauri",
+      "tauri-build",
+      "tauri-runtime-wry",
+      "tauri-runtime-cef",
+      "wry",
+      "tao",
+      "cef",
+    ] {
       let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
       let item = rust_section_item(dep, crate_version);
       items.push(item);

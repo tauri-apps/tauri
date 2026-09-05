@@ -7,16 +7,13 @@
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
 
-  const osName = __TEMPLATE_os_name__
-  const protocolScheme = __TEMPLATE_protocol_scheme__
-  const cef = __TEMPLATE_cef__
+  // the custom scheme URL format of the runtime, e.g. `{protocol}://localhost` or `http://{protocol}.localhost`
+  const customSchemeUrlTemplate = __TEMPLATE_custom_scheme_url_template__
 
   Object.defineProperty(window.__TAURI_INTERNALS__, 'convertFileSrc', {
     value: function (filePath, protocol = 'asset') {
       const path = encodeURIComponent(filePath)
-      return osName === 'windows' || osName === 'android' || cef
-        ? `${protocolScheme}://${protocol}.localhost/${path}`
-        : `${protocol}://localhost/${path}`
+      return `${customSchemeUrlTemplate.replace('{protocol}', protocol)}/${path}`
     }
   })
 

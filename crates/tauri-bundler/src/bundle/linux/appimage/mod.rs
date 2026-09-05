@@ -7,18 +7,17 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::Settings;
+use crate::{Settings, bundle::settings::WebviewRuntime};
 
 mod linuxdeploy;
 mod sharun_cef;
 
 // TODO: Consider auto fallback to linuxdeploy on unsupported systems.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let bundle_settings = settings.bundle_settings();
   // A CEF app takes the sharun path whether it embeds the runtime or resolves
   // one from a shared store at launch: either way it needs Chromium's host
   // dependencies deployed, which linuxdeploy's GTK path does not provide.
-  if bundle_settings.cef_path.is_some() || bundle_settings.cef_shared_runtime {
+  if matches!(settings.webview_runtime(), WebviewRuntime::Cef { .. }) {
     sharun_cef::bundle_project(settings)
   } else {
     linuxdeploy::bundle_project(settings)

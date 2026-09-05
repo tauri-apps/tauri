@@ -44,8 +44,6 @@ use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
-use tauri_macros::default_runtime;
-
 use std::{
   fmt,
   hash::{Hash, Hasher},
@@ -134,6 +132,18 @@ unstable_struct!(
   }
 );
 
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
+impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
+  /// Returns a mutable reference to the runtime's window builder.
+  ///
+  /// Mostly useful for runtime-specific extension traits.
+  pub fn runtime_window_builder_mut(
+    &mut self,
+  ) -> &mut <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder {
+    &mut self.window_builder
+  }
+}
+
 impl<R: Runtime, M: Manager<R>> fmt::Debug for WindowBuilder<'_, R, M> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("WindowBuilder")
@@ -160,7 +170,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let window = tauri::window::WindowBuilder::new(app, "label")
       .build()?;
@@ -175,7 +185,7 @@ tauri::Builder::<tauri::Wry>::new()
     feature = "unstable",
     doc = r####"
 ```
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle().clone();
     std::thread::spawn(move || {
@@ -299,7 +309,7 @@ async fn reopen_window(app: tauri::AppHandle) {
     doc = r####"
 ```
 use tauri::menu::{Menu, Submenu, MenuItem};
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
@@ -1006,8 +1016,7 @@ pub(crate) struct WindowMenu<R: Runtime> {
 ///
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
-#[default_runtime(crate::Wry, wry)]
-pub struct Window<R: Runtime> {
+pub struct Window<R: Runtime = crate::DynRuntime> {
   /// The window created by the runtime.
   pub(crate) window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this window with.
@@ -1223,7 +1232,7 @@ impl<R: Runtime> Window<R> {
     doc = r####"
 ```
 use tauri::menu::{Menu, Submenu, MenuItem};
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let handle = app.handle();
     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
@@ -2074,7 +2083,7 @@ impl<R: Runtime> Window<R> {
     doc = r####"
 ```rust,no_run
 use tauri::{Manager, window::{Color, Effect, EffectState, EffectsBuilder}};
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     window.set_effects(
@@ -2373,7 +2382,7 @@ impl<R: Runtime> Listener<R> for Window<R> {
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     window.listen("component-loaded", move |event| {
@@ -2425,7 +2434,7 @@ tauri::Builder::<tauri::Wry>::new()
 ```
 use tauri::{Manager, Listener};
 
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let window = app.get_window("main").unwrap();
     let window_ = window.clone();

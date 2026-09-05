@@ -18,7 +18,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
         .any(|arg| arg.starts_with("--type="));
 
       if !is_browser_process {
-        ::tauri::run_cef_helper_process();
+        ::tauri_runtime_cef::run_cef_helper_process();
         return Default::default();
       }
     }
@@ -29,7 +29,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
         .any(|arg| arg.starts_with("--type="));
 
       if !is_browser_process {
-        ::tauri::run_cef_helper_process();
+        ::tauri_runtime_cef::run_cef_helper_process();
         return;
       }
     }

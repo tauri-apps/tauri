@@ -10,7 +10,7 @@ mod tray;
 
 use serde::Serialize;
 use tauri::{
-  App, Emitter, Listener, Runtime, WebviewUrl,
+  App, Emitter, Listener, WebviewUrl,
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
 };
@@ -20,10 +20,8 @@ use tauri_plugin_sample::{PingRequest, SampleExt};
 
 #[cfg(test)]
 type TauriRuntime = tauri::test::MockRuntime;
-#[cfg(all(not(test), feature = "cef"))]
-type TauriRuntime = tauri::Cef;
-#[cfg(all(not(test), not(feature = "cef")))]
-type TauriRuntime = tauri::Wry;
+#[cfg(not(test))]
+type TauriRuntime = tauri::DynRuntime;
 
 #[derive(Clone, Serialize)]
 struct Reply {
@@ -31,15 +29,22 @@ struct Reply {
 }
 
 #[cfg(target_os = "macos")]
-pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
+pub struct AppMenu<R: tauri::Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
 #[cfg(all(desktop, not(test)))]
-pub struct PopupMenu<R: Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
+pub struct PopupMenu<R: tauri::Runtime>(#[allow(dead_code)] tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-#[cfg_attr(feature = "cef", tauri::cef_entry_point)]
+#[cfg_attr(feature = "cef", tauri_runtime_cef::cef_entry_point)]
 pub fn run() {
-  run_app(tauri::Builder::<TauriRuntime>::new(), |_app| {});
+  #[cfg(test)]
+  let builder = tauri::test::mock_builder();
+  #[cfg(all(not(test), feature = "cef"))]
+  let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
+  #[cfg(all(not(test), not(feature = "cef")))]
+  let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry);
+
+  run_app(builder, |_app| {});
 }
 
 pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
@@ -125,24 +130,25 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
       #[cfg(debug_assertions)]
       webview.open_devtools();
 
-      #[cfg(feature = "cef")]
+      #[cfg(all(feature = "cef", not(test)))]
       {
+        use tauri_runtime_cef::{DevToolsProtocol, WebviewCefExt};
         webview
           .on_dev_tools_protocol(|protocol| match protocol {
-            tauri::CefDevToolsProtocol::Message(msg) => {
+            DevToolsProtocol::Message(msg) => {
               if let Ok(s) = std::str::from_utf8(&msg) {
                 log::info!("DevTools message: {s}");
               } else {
                 log::error!("Failed to convert DevTools message to UTF-8");
               }
             }
-            tauri::CefDevToolsProtocol::Event { method, params } => {
+            DevToolsProtocol::Event { method, params } => {
               log::info!(
                 "DevTools event: {method} (params: {})",
                 String::from_utf8_lossy(&params)
               );
             }
-            tauri::CefDevToolsProtocol::MethodResult {
+            DevToolsProtocol::MethodResult {
               message_id,
               success,
               result,

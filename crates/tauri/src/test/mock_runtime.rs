@@ -7,8 +7,8 @@
 
 use tauri_runtime::{
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
-  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
-  WebviewDispatch, WindowDispatch, WindowEventId,
+  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, RuntimeSpecificInitAttrs,
+  UserAttentionType, UserEvent, WebviewDispatch, WindowDispatch, WindowEventId,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
@@ -149,6 +149,14 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 
   fn request_exit(&self, code: i32) -> Result<()> {
     unimplemented!()
+  }
+
+  fn custom_scheme_url(&self, scheme: &str, _https: bool) -> String {
+    format!("{scheme}://localhost")
+  }
+
+  fn webview_version(&self) -> Result<String> {
+    Ok("0.0.0".into())
   }
 
   /// Create a new webview window.
@@ -586,13 +594,18 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
+  #[cfg(target_os = "ios")]
+  fn with_ios_webview<F: FnOnce(tauri_runtime::webview::IosWebviewHandle) + Send + 'static>(
+    &self,
+    _f: F,
+  ) -> Result<()> {
+    Ok(())
+  }
+
   fn open_devtools(&self) {}
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn close_devtools(&self) {}
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
     Ok(false)
   }
@@ -1212,17 +1225,25 @@ impl MockRuntime {
   }
 }
 
+/// Selects the [`MockRuntime`], e.g. `tauri::Builder::default().runtime(MockRuntimeInitAttrs)`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MockRuntimeInitAttrs;
+
+impl<T: UserEvent> RuntimeSpecificInitAttrs<T> for MockRuntimeInitAttrs {
+  type Runtime = MockRuntime;
+}
+
 impl<T: UserEvent> Runtime<T> for MockRuntime {
   type WindowDispatcher = MockWindowDispatcher;
   type WebviewDispatcher = MockWebviewDispatcher;
   type Handle = MockRuntimeHandle;
   type EventLoopProxy = EventProxy;
   type PlatformSpecificWebviewAttribute = ();
-  type RuntimeInitAttrs = ();
+  type RuntimeInitAttrs = MockRuntimeInitAttrs;
   type WindowOpener = ();
   type Webview = ();
 
-  fn new(_args: RuntimeInitArgs<()>) -> Result<Self> {
+  fn new(_args: RuntimeInitArgs<MockRuntimeInitAttrs>) -> Result<Self> {
     Ok(Self::init())
   }
 
@@ -1234,7 +1255,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn new_any_thread(_args: RuntimeInitArgs<()>) -> Result<Self> {
+  fn new_any_thread(_args: RuntimeInitArgs<MockRuntimeInitAttrs>) -> Result<Self> {
     Ok(Self::init())
   }
 
@@ -1352,10 +1373,6 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   fn hide(&self) {}
 
   fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}
-
-  fn custom_scheme_url(scheme: &str, _https: bool) -> String {
-    format!("{scheme}://localhost")
-  }
 
   #[cfg(any(
     target_os = "macos",

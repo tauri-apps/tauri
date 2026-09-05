@@ -16,8 +16,11 @@ serde = { version = "1", features = ["derive"] }
 tauri = { workspace = true, default-features = true, features = [
   "protocol-asset",
 ] }
+tauri-runtime-wry = { workspace = true, default-features = true, optional = true }
+tauri-runtime-cef = { workspace = true, default-features = true, optional = true }
 url = "2"
 
 [features]
-cef = ["tauri/cef"]
-wry = ["tauri/wry"]
+default = ["wry"]
+cef = ["dep:tauri-runtime-cef"]
+wry = ["dep:tauri-runtime-wry"]

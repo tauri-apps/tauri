@@ -27,8 +27,8 @@
 //! }
 //!
 //! fn main() {
-//!     // Use `tauri::Builder::<tauri::Wry>::new()` to use the default runtime rather than the `MockRuntime`;
-//!     // let app = create_app(tauri::Builder::<tauri::Wry>::new());
+//!     // Use `tauri::Builder::default().runtime(...)` to use a real runtime rather than the `MockRuntime`;
+//!     // let app = create_app(tauri::Builder::default().runtime(tauri_runtime_wry::Wry));
 //!     let app = create_app(mock_builder());
 //!     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
 //!
@@ -39,8 +39,8 @@
 //!             cmd: "ping".into(),
 //!             callback: tauri::ipc::CallbackFn(0),
 //!             error: tauri::ipc::CallbackFn(1),
-//!             // alternatively use "tauri://localhost"
-//!             url: "http://tauri.localhost".parse().unwrap(),
+//!             // the app's origin: the `MockRuntime` uses `tauri://localhost` on every platform
+//!             url: "tauri://localhost".parse().unwrap(),
 //!             body: tauri::ipc::InvokeBody::default(),
 //!             headers: Default::default(),
 //!             invoke_key: tauri::test::INVOKE_KEY.to_string(),
@@ -216,11 +216,8 @@ pub fn mock_app() -> App<MockRuntime> {
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
-///             url: if cfg!(any(windows, target_os = "android")) {
-///                 "http://tauri.localhost"
-///             } else {
-///                 "tauri://localhost"
-///             }.parse().unwrap(),
+///             // the app's origin: the `MockRuntime` uses `tauri://localhost` on every platform
+///             url: "tauri://localhost".parse().unwrap(),
 ///             body: tauri::ipc::InvokeBody::default(),
 ///             headers: Default::default(),
 ///             invoke_key: tauri::test::INVOKE_KEY.to_string(),
@@ -279,11 +276,8 @@ pub fn assert_ipc_response<
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
-///             url: if cfg!(any(windows, target_os = "android")) {
-///                 "http://tauri.localhost"
-///             } else {
-///                 "tauri://localhost"
-///             }.parse().unwrap(),
+///             // the app's origin: the `MockRuntime` uses `tauri://localhost` on every platform
+///             url: "tauri://localhost".parse().unwrap(),
 ///             body: tauri::ipc::InvokeBody::default(),
 ///             headers: Default::default(),
 ///             invoke_key: tauri::test::INVOKE_KEY.to_string(),

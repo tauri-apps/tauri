@@ -69,8 +69,7 @@ macro_rules! gen_wrappers {
     ),*
   ) => {
     $(
-      #[tauri_macros::default_runtime(crate::Wry, wry)]
-      pub(crate) struct $inner<R: $crate::Runtime> {
+      pub(crate) struct $inner<R: $crate::Runtime = $crate::DynRuntime> {
         // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,

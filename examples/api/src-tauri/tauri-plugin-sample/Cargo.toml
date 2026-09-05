@@ -10,8 +10,5 @@ log = "0.4"
 serde = "1"
 thiserror = "2"
 
-[target.'cfg(any(target_os = "ios", target_os = "android"))'.dependencies]
-tauri = { workspace = true, features = ["wry"] }
-
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }

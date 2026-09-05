@@ -19,5 +19,6 @@ tauri-build = {{ tauri_build_dep }}
 
 [dependencies]
 tauri = {{ tauri_example_dep }}
+tauri-runtime-wry = {{ tauri_runtime_wry_dep }}
 tauri-plugin-{{ plugin_name }} = { path = "../../../" }
 

@@ -250,7 +250,7 @@ pub struct WindowSizeConstraints {
 /// Do **NOT** implement this trait except for use in a custom [`Runtime`]
 ///
 /// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
-pub trait WindowBuilderBase: std::fmt::Debug + Clone + Sized {}
+pub trait WindowBuilderBase: std::fmt::Debug + Clone + Sized + 'static {}
 
 /// A builder for all attributes related to a single window.
 ///

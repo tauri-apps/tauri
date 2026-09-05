@@ -10,8 +10,9 @@ use std::{
 };
 
 use crate::{
-  ipc::{CommandArg, CommandItem, InvokeError},
-  Runtime,
+  ipc::{channel::ChannelDataIpcQueue, CommandArg, CommandItem, InvokeError},
+  menu::plugin::MenuChannels,
+  Env, Runtime,
 };
 
 /// A guard for a state value.
@@ -102,15 +103,30 @@ impl std::hash::Hasher for IdentHash {
 type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
-#[derive(Debug)]
+// TODO: make private in v3, inline state of required plugins into AppManager
 pub struct StateManager {
   map: Mutex<TypeIdMap>,
+  // state of some required plugins
+  menu_channels: Mutex<MenuChannels>,
+  env: Env,
+  data_ipc_queue: Mutex<ChannelDataIpcQueue>,
+}
+
+impl std::fmt::Debug for StateManager {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("StateManager")
+      .field("map", &self.map)
+      .finish()
+  }
 }
 
 impl StateManager {
   pub(crate) fn new() -> Self {
     Self {
       map: Default::default(),
+      menu_channels: Default::default(),
+      env: Env::default(),
+      data_ipc_queue: Default::default(),
     }
   }
 
@@ -148,6 +164,31 @@ impl StateManager {
   pub fn try_get<T: 'static>(&self) -> Option<State<'_, T>> {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
+    // special case state of required plugins
+    match type_id {
+      tyid if tyid == TypeId::of::<Mutex<MenuChannels>>() => {
+        return Some(State(
+          (&self.menu_channels as &(dyn Any + Send + Sync))
+            .downcast_ref()
+            .unwrap(),
+        ))
+      }
+      tyid if tyid == TypeId::of::<Env>() => {
+        return Some(State(
+          (&self.env as &(dyn Any + Send + Sync))
+            .downcast_ref()
+            .unwrap(),
+        ))
+      }
+      tyid if tyid == TypeId::of::<Mutex<ChannelDataIpcQueue>>() => {
+        return Some(State(
+          (&self.data_ipc_queue as &(dyn Any + Send + Sync))
+            .downcast_ref()
+            .unwrap(),
+        ))
+      }
+      _ => {}
+    }
     let state = map.get(&type_id)?;
     let value = state
       .downcast_ref::<T>()
@@ -155,6 +196,15 @@ impl StateManager {
     // SAFETY: We ensure the lifetime of `value` is the same as [StateManager] and `value` will not be mutated/moved.
     let v_ref = unsafe { &*(value as *const T) };
     Some(State(v_ref))
+  }
+  pub(crate) fn menu_channels(&self) -> &Mutex<MenuChannels> {
+    &self.menu_channels
+  }
+  pub(crate) fn env(&self) -> &Env {
+    &self.env
+  }
+  pub(crate) fn data_ipc_queue(&self) -> &Mutex<ChannelDataIpcQueue> {
+    &self.data_ipc_queue
   }
 }
 

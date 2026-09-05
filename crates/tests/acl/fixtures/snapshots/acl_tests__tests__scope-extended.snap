@@ -182,64 +182,40 @@ Resolved {
     command_scope: {
         1: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$HOME/.config/**",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$HOME/.config/**"),
+                },
             ],
             deny: [],
         },
         2: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$HOME/.config/**",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$HOME/.config/**"),
+                },
             ],
             deny: [],
         },
         3: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$RESOURCE/**"),
+                },
+                Object {
+                    "path": String("$RESOURCE"),
+                },
             ],
             deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**/*.key",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$RESOURCE/**/*.key"),
+                },
             ],
         },
         4: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$TEMP/*",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$TEMP/*"),
+                },
             ],
             deny: [],
         },
@@ -247,50 +223,26 @@ Resolved {
     global_scope: {
         "fs": ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$APPDATA/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$APPDATA",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$DOWNLOAD",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$DOWNLOAD/**",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$APPDATA/**"),
+                },
+                Object {
+                    "path": String("$APPDATA"),
+                },
+                Object {
+                    "path": String("$DOWNLOAD"),
+                },
+                Object {
+                    "path": String("$DOWNLOAD/**"),
+                },
             ],
             deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$HOME",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$APPDATA/*.db",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$HOME"),
+                },
+                Object {
+                    "path": String("$APPDATA/*.db"),
+                },
             ],
         },
     },

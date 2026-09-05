@@ -3200,6 +3200,34 @@ pub struct AppConfig {
   /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
   #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
   pub enable_gtk_app_id: bool,
+  /// Override the path returned from `app_*_dir` APIs,
+  /// this is useful for making portable apps that stores all the data inside a single place
+  ///
+  /// Note:
+  ///   - Relative paths are resolved based on the app's executable path,
+  ///   - The path can start with a variable that resolves to a system base directory.
+  ///     The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DOCUMENT`, `$DOWNLOAD`, `$PICTURE`,
+  ///     `$PUBLIC`, `$VIDEO`, `$RESOURCE`, `$TEMP`, `$HOME`, `$DESKTOP`, `$EXE`, `$FONT`, `$RUNTIME`, `$TEMPLATE`
+  ///
+  /// ## Example:
+  ///
+  /// To put all the data besides your current executable:
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "appDirectoriesOverride": "./"
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// `app.path().app_local_data_dir()` should now return `${current_exe_dir}/`
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Unsupported.
+  #[serde(alias = "app-directories-override")]
+  pub app_directories_override: Option<PathBuf>,
 }
 
 impl AppConfig {
@@ -4578,6 +4606,13 @@ mod build {
       let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
       let enable_gtk_app_id = self.enable_gtk_app_id;
+      let app_directories_override = opt_lit(
+        self
+          .app_directories_override
+          .as_ref()
+          .map(path_buf_lit)
+          .as_ref(),
+      );
 
       literal_struct!(
         tokens,
@@ -4587,7 +4622,8 @@ mod build {
         tray_icon,
         macos_private_api,
         with_global_tauri,
-        enable_gtk_app_id
+        enable_gtk_app_id,
+        app_directories_override
       );
     }
   }
@@ -4673,6 +4709,7 @@ mod test {
       macos_private_api: false,
       with_global_tauri: false,
       enable_gtk_app_id: false,
+      app_directories_override: None,
     };
 
     // create a build config

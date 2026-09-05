@@ -108,6 +108,20 @@ pub struct ResolvedScope {
   pub deny: Vec<Value>,
 }
 
+/// A resolved per-webview custom URI scheme allow-list contributed by one capability.
+///
+/// Produced for each capability that sets [`Capability#structfield.uri_schemes`]. Pairs the
+/// capability's matched window/webview label patterns with the custom schemes it opts in.
+#[derive(Debug, Default, Clone)]
+pub struct ResolvedUriSchemeAccess {
+  /// The list of window label patterns this allow-list applies to.
+  pub windows: Vec<glob::Pattern>,
+  /// The list of webview label patterns this allow-list applies to.
+  pub webviews: Vec<glob::Pattern>,
+  /// The custom URI schemes opted in for the matching webviews/windows.
+  pub schemes: Vec<String>,
+}
+
 /// Resolved access control list.
 #[derive(Debug, Default)]
 pub struct Resolved {
@@ -121,6 +135,11 @@ pub struct Resolved {
   pub command_scope: BTreeMap<ScopeKey, ResolvedScope>,
   /// The global scope.
   pub global_scope: BTreeMap<String, ResolvedScope>,
+  /// Per-webview custom URI scheme allow-lists resolved from capabilities that set
+  /// `uri_schemes`. Each entry pairs the capability's matched window/webview globs with the
+  /// schemes it opts into. When empty, no capability constrained schemes, so every
+  /// app-registered custom scheme is registered on every webview (the previous behavior).
+  pub uri_scheme_access: Vec<ResolvedUriSchemeAccess>,
 }
 
 impl Resolved {
@@ -136,6 +155,7 @@ impl Resolved {
     let mut current_scope_id = 0;
     let mut command_scope = BTreeMap::new();
     let mut global_scope: BTreeMap<String, Vec<Scopes>> = BTreeMap::new();
+    let mut uri_scheme_access = Vec::new();
 
     // resolve commands
     for capability in capabilities.values_mut().filter(|c| c.is_active(&target)) {
@@ -206,6 +226,15 @@ impl Resolved {
           Ok(())
         },
       )?;
+
+      // resolve the per-webview custom URI scheme allow-list, if any
+      if let Some(schemes) = &capability.uri_schemes {
+        uri_scheme_access.push(ResolvedUriSchemeAccess {
+          windows: parse_glob_patterns(capability.windows.clone())?,
+          webviews: parse_glob_patterns(capability.webviews.clone())?,
+          schemes: schemes.clone(),
+        });
+      }
     }
 
     let global_scope = global_scope
@@ -233,6 +262,7 @@ impl Resolved {
       denied_commands,
       command_scope,
       global_scope,
+      uri_scheme_access,
     };
 
     Ok(resolved)
@@ -546,6 +576,27 @@ mod build {
     }
   }
 
+  impl ToTokens for ResolvedUriSchemeAccess {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let windows = vec_lit(&self.windows, |window| {
+        let w = window.as_str();
+        quote!(#w.parse().unwrap())
+      });
+      let webviews = vec_lit(&self.webviews, |webview| {
+        let w = webview.as_str();
+        quote!(#w.parse().unwrap())
+      });
+      let schemes = vec_lit(&self.schemes, str_lit);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::resolved::ResolvedUriSchemeAccess,
+        windows,
+        webviews,
+        schemes
+      )
+    }
+  }
+
   impl ToTokens for Resolved {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let has_app_acl = self.has_app_acl;
@@ -578,6 +629,8 @@ mod build {
         identity,
       );
 
+      let uri_scheme_access = vec_lit(&self.uri_scheme_access, identity);
+
       literal_struct!(
         tokens,
         ::tauri::utils::acl::resolved::Resolved,
@@ -585,7 +638,8 @@ mod build {
         allowed_commands,
         denied_commands,
         command_scope,
-        global_scope
+        global_scope,
+        uri_scheme_access
       )
     }
   }

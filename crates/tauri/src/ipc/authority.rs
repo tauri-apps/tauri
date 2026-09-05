@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
@@ -13,7 +13,7 @@ use tauri_utils::acl::capability::CapabilityFile;
 #[cfg(any(feature = "dynamic-acl", debug_assertions))]
 use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::{
-  resolved::{Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
+  resolved::{Resolved, ResolvedCommand, ResolvedScope, ResolvedUriSchemeAccess, ScopeKey},
   ExecutionContext, Value, APP_ACL_KEY,
 };
 
@@ -31,6 +31,7 @@ pub struct RuntimeAuthority {
   has_app_acl: bool,
   allowed_commands: BTreeMap<String, Vec<ResolvedCommand>>,
   denied_commands: BTreeMap<String, Vec<ResolvedCommand>>,
+  uri_scheme_access: Vec<ResolvedUriSchemeAccess>,
   pub(crate) scope_manager: ScopeManager,
 }
 
@@ -120,6 +121,7 @@ impl RuntimeAuthority {
       has_app_acl: resolved_acl.has_app_acl,
       allowed_commands: resolved_acl.allowed_commands,
       denied_commands: resolved_acl.denied_commands,
+      uri_scheme_access: resolved_acl.uri_scheme_access,
       scope_manager: ScopeManager {
         command_scope: resolved_acl.command_scope,
         global_scope: resolved_acl.global_scope,
@@ -221,6 +223,9 @@ impl RuntimeAuthority {
       let entry = self.allowed_commands.entry(cmd_key).or_default();
       entry.extend(resolved_cmds);
     }
+
+    // per-webview custom URI scheme allow-lists
+    self.uri_scheme_access.extend(resolved.uri_scheme_access);
 
     Ok(())
   }
@@ -467,6 +472,39 @@ impl RuntimeAuthority {
           Some(resolved_cmds)
         }
       })
+    }
+  }
+
+  /// Returns the set of URI schemes that may be registered on the webview with the given
+  /// window/webview label, or `None` if no capability constrained schemes (in which case the
+  /// caller registers every scheme, the previous behavior). Custom app/plugin schemes and the
+  /// built-in `asset` protocol are gated by this set. The `ipc` and `tauri` schemes (the
+  /// capability machinery itself) and the isolation scheme (a per-app dynamic name) are not
+  /// represented here and are always registered by the caller.
+  pub(crate) fn allowed_uri_schemes(&self, window: &str, webview: &str) -> Option<HashSet<String>> {
+    if self.uri_scheme_access.is_empty() {
+      // No capability opted into scheme gating: register every custom scheme (back-compat).
+      return None;
+    }
+
+    let mut matched = false;
+    let mut allowed = HashSet::new();
+    for access in &self.uri_scheme_access {
+      if access.webviews.iter().any(|w| w.matches(webview))
+        || access.windows.iter().any(|w| w.matches(window))
+      {
+        matched = true;
+        allowed.extend(access.schemes.iter().cloned());
+      }
+    }
+
+    if matched {
+      Some(allowed)
+    } else {
+      // This webview matched no scheme-gating capability. Default to back-compat (register
+      // every custom scheme). Flipping this to `Some(HashSet::new())` would make the default
+      // deny-by-default (least authority) — deferred to a v3 RFC (see #13224).
+      None
     }
   }
 }
@@ -814,9 +852,11 @@ impl ScopeManager {
 
 #[cfg(test)]
 mod tests {
+  use std::collections::HashSet;
+
   use glob::Pattern;
   use tauri_utils::acl::{
-    resolved::{Resolved, ResolvedCommand},
+    resolved::{Resolved, ResolvedCommand, ResolvedUriSchemeAccess},
     ExecutionContext,
   };
 
@@ -855,6 +895,89 @@ mod tests {
       ),
       Some(resolved_cmd)
     );
+  }
+
+  #[test]
+  fn allowed_uri_schemes_filters_by_label() {
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        uri_scheme_access: vec![ResolvedUriSchemeAccess {
+          webviews: vec![Pattern::new("gated-*").unwrap()],
+          schemes: vec!["my-scheme".into()],
+          ..Default::default()
+        }],
+        ..Default::default()
+      },
+    );
+
+    // A webview matching the gating capability sees only the listed schemes.
+    assert_eq!(
+      authority.allowed_uri_schemes("main", "gated-1"),
+      Some(HashSet::from(["my-scheme".to_string()]))
+    );
+
+    // A webview matching no gating capability falls back to back-compat (register everything).
+    assert_eq!(authority.allowed_uri_schemes("main", "other"), None);
+  }
+
+  #[test]
+  fn allowed_uri_schemes_none_when_unconstrained() {
+    // No capability set `uri_schemes`: every custom scheme is registered (back-compat).
+    let authority = RuntimeAuthority::new(Default::default(), Resolved::default());
+    assert_eq!(authority.allowed_uri_schemes("main", "main"), None);
+  }
+
+  #[test]
+  fn allowed_uri_schemes_empty_list_denies_custom_schemes() {
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        uri_scheme_access: vec![ResolvedUriSchemeAccess {
+          webviews: vec![Pattern::new("locked").unwrap()],
+          schemes: Vec::new(),
+          ..Default::default()
+        }],
+        ..Default::default()
+      },
+    );
+
+    // Explicit empty allow-list: the webview gets no custom schemes (`Some(empty)`, not `None`).
+    assert_eq!(
+      authority.allowed_uri_schemes("main", "locked"),
+      Some(HashSet::new())
+    );
+  }
+
+  #[test]
+  fn allowed_uri_schemes_gates_asset_like_any_scheme() {
+    // `asset` is not special-cased: it is allow-listable, and a webview gated to other schemes
+    // does NOT implicitly get `asset` (the caller gates the built-in asset protocol on this set).
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        uri_scheme_access: vec![
+          ResolvedUriSchemeAccess {
+            webviews: vec![Pattern::new("with-asset").unwrap()],
+            schemes: vec!["asset".into()],
+            ..Default::default()
+          },
+          ResolvedUriSchemeAccess {
+            webviews: vec![Pattern::new("no-asset").unwrap()],
+            schemes: vec!["my-scheme".into()],
+            ..Default::default()
+          },
+        ],
+        ..Default::default()
+      },
+    );
+
+    assert_eq!(
+      authority.allowed_uri_schemes("main", "with-asset"),
+      Some(HashSet::from(["asset".to_string()]))
+    );
+    let no_asset = authority.allowed_uri_schemes("main", "no-asset").unwrap();
+    assert!(!no_asset.contains("asset"));
   }
 
   #[test]

@@ -244,6 +244,23 @@ unstable_struct!(
 #[cfg(feature = "cef")]
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl WebviewBuilder<crate::Cef> {
+  /// Observes native CEF lifecycle events for main and child frames.
+  ///
+  /// The callback runs synchronously on CEF's UI thread. It must return
+  /// promptly and must not wait for an event-loop operation. This observer
+  /// does not replace the navigation policy configured by `on_navigation`.
+  pub fn on_frame_event<F: Fn(tauri_runtime_cef::FrameEvent) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self
+      .platform_specific_attributes
+      .push(tauri_runtime_cef::WebviewAtribute::FrameEventHandler(
+        Arc::new(handler),
+      ));
+    self
+  }
+
   /// Sets the browser runtime style.
   ///
   /// See [`tauri_runtime_cef::RuntimeStyle`] for more information.

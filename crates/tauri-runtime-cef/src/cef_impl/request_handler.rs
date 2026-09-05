@@ -109,6 +109,7 @@ fn inject_scripts_into_html_body(
 wrap_request_handler! {
   pub struct WebRequestHandler<T: UserEvent> {
     navigation_handler: Option<Arc<NavigationHandler>>,
+    frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
     context: RuntimeContext<T>,
     window_id: WindowId,
     webview_id: u32,
@@ -133,7 +134,7 @@ wrap_request_handler! {
 
     fn on_before_browse(
       &self,
-      _browser: Option<&mut Browser>,
+      browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
       request: Option<&mut Request>,
       _user_gesture: ::std::os::raw::c_int,
@@ -144,10 +145,6 @@ wrap_request_handler! {
       let Some(frame) = frame else {
         return 0;
       };
-      // we only fire main frame navigation events to match the behavior of the wry runtime
-      if frame.is_main() == 0 {
-        return 0;
-      }
       let Some(request) = request else {
         return 0;
       };
@@ -162,12 +159,20 @@ wrap_request_handler! {
         return 0;
       };
 
-      let Some(handler) = &self.navigation_handler else {
-        return 0;
-      };
-
-      let should_navigate = handler(&url);
-      if should_navigate { 0 } else { 1 }
+      // Preserve the portable main-frame policy. Native observers receive only
+      // admitted navigations, so a denied navigation cannot strand their barrier.
+      if frame.is_main() != 0
+        && self.navigation_handler.as_ref().is_some_and(|handler| !handler(&url))
+      {
+        return 1;
+      }
+      crate::frame::emit_frame_event(
+        &self.frame_event_handler,
+        browser,
+        Some(frame),
+        crate::FrameEventKind::NavigationStarted { url },
+      );
+      0
     }
 
     fn resource_request_handler(

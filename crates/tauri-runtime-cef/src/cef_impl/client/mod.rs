@@ -17,6 +17,7 @@ mod context_menu;
 mod display;
 mod download;
 mod drag;
+mod frame;
 mod keyboard;
 mod life_span;
 mod load;
@@ -38,6 +39,7 @@ use permission::TauriCefPermissionHandler;
 pub(crate) use process::TauriCefBrowserProcessHandler;
 
 pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
+  pub(crate) frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
   pub(crate) ipc_handler: Option<Arc<ipc::IpcHandler<T>>>,
   pub(crate) on_page_load_handler: Option<Arc<tauri_runtime::webview::OnPageLoadHandler>>,
   pub(crate) document_title_changed_handler:
@@ -53,6 +55,7 @@ pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
 impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
   fn clone(&self) -> Self {
     Self {
+      frame_event_handler: self.frame_event_handler.clone(),
       ipc_handler: self.ipc_handler.clone(),
       on_page_load_handler: self.on_page_load_handler.clone(),
       document_title_changed_handler: self.document_title_changed_handler.clone(),
@@ -82,6 +85,12 @@ wrap_client! {
   }
 
   impl Client {
+    fn frame_handler(&self) -> Option<FrameHandler> {
+      self.handlers.frame_event_handler.as_ref().map(|handler| {
+        frame::TauriCefFrameHandler::new(Some(handler.clone()))
+      })
+    }
+
     fn drag_handler(&self) -> Option<DragHandler> {
       self
         .drag_drop_handler_enabled
@@ -91,6 +100,7 @@ wrap_client! {
     fn request_handler(&self) -> Option<RequestHandler> {
       Some(request_handler::WebRequestHandler::new(
         self.handlers.navigation_handler.clone(),
+        self.handlers.frame_event_handler.clone(),
         self.context.clone(),
         self.window_id,
         self.webview_id,
@@ -116,6 +126,7 @@ wrap_client! {
     fn load_handler(&self) -> Option<LoadHandler> {
       Some(TauriCefLoadHandler::new(
         self.handlers.on_page_load_handler.clone(),
+        self.handlers.frame_event_handler.clone(),
       ))
     }
 
@@ -123,6 +134,7 @@ wrap_client! {
       Some(TauriCefDisplayHandler::new(
         self.handlers.document_title_changed_handler.clone(),
         self.handlers.address_changed_handler.clone(),
+        self.handlers.frame_event_handler.clone(),
       ))
     }
 

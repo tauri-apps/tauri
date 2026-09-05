@@ -359,6 +359,13 @@ impl<T: UserEvent> WinitCefApp<T> {
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     let web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>> = None;
     let handlers = browser_client::TauriCefBrowserClientHandlers {
+      frame_event_handler: pending
+        .platform_specific_attributes
+        .iter()
+        .find_map(|attribute| match attribute {
+          WebviewAtribute::FrameEventHandler(handler) => Some(handler.clone()),
+          _ => None,
+        }),
       ipc_handler: pending.ipc_handler.map(Arc::from),
       on_page_load_handler,
       document_title_changed_handler,
@@ -405,13 +412,13 @@ impl<T: UserEvent> WinitCefApp<T> {
     let cef_runtime_style = pending
       .platform_specific_attributes
       .iter()
-      .map(|attr| match attr {
-        WebviewAtribute::RuntimeStyle { style } => match style {
+      .find_map(|attr| match attr {
+        WebviewAtribute::RuntimeStyle { style } => Some(match style {
           RuntimeStyle::Alloy => cef::RuntimeStyle::ALLOY,
           RuntimeStyle::Chrome => cef::RuntimeStyle::CHROME,
-        },
+        }),
+        _ => None,
       })
-      .next()
       .unwrap_or(cef::RuntimeStyle::DEFAULT);
 
     let mut window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
@@ -815,13 +822,22 @@ pub enum RuntimeStyle {
   Chrome,
 }
 
-#[derive(Debug)]
 pub enum WebviewAtribute {
   RuntimeStyle { style: RuntimeStyle },
+  FrameEventHandler(Arc<crate::FrameEventHandler>),
 }
 
-unsafe impl Send for WebviewAtribute {}
-unsafe impl Sync for WebviewAtribute {}
+impl std::fmt::Debug for WebviewAtribute {
+  fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::RuntimeStyle { style } => formatter
+        .debug_struct("RuntimeStyle")
+        .field("style", style)
+        .finish(),
+      Self::FrameEventHandler(_) => formatter.write_str("FrameEventHandler"),
+    }
+  }
+}
 
 #[derive(Debug, Clone)]
 pub struct CefInitScript {

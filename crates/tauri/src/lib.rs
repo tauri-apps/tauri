@@ -146,6 +146,8 @@ pub use tauri_runtime_cef::run_cef_helper_process;
 #[cfg(feature = "cef")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
 pub use tauri_runtime_cef::DevToolsProtocol as CefDevToolsProtocol;
+#[cfg(feature = "cef")]
+pub use tauri_runtime_cef::{FrameEvent as CefFrameEvent, FrameEventKind as CefFrameEventKind};
 
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]

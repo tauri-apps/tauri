@@ -53,6 +53,17 @@ pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
 #[cfg(feature = "cef")]
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<'a, M: Manager<crate::Cef>> WebviewWindowBuilder<'a, crate::Cef, M> {
+  /// Observes native lifecycle events for every CEF frame.
+  ///
+  /// See [`WebviewBuilder::on_frame_event`] for callback threading requirements.
+  pub fn on_frame_event<F: Fn(tauri_runtime_cef::FrameEvent) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self.webview_builder = self.webview_builder.on_frame_event(handler);
+    self
+  }
+
   /// Sets the browser runtime style.
   ///
   /// See [`tauri_runtime_cef::RuntimeStyle`] for more information.

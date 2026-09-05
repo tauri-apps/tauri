@@ -7,9 +7,11 @@
 
 mod cef_impl;
 mod external_message_pump;
+mod frame;
 mod platform;
 mod runtime;
 mod webview;
+pub use frame::{FrameEvent, FrameEventHandler, FrameEventKind};
 mod window;
 mod window_builder;
 mod window_handle;

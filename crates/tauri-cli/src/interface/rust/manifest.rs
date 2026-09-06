@@ -751,6 +751,9 @@ my-custom-runtime = "1"
     assert_eq!(m.runtime(&[], LINUX), Runtime::Other);
   }
 
+  // An app linking both runtime crates (e.g. selecting one at run time) can only run on CEF
+  // if the CEF files are shipped and its code signing requirements are met, while wry needs nothing
+  // shipped. So when both are linked, the CLI handles the app as a CEF app.
   #[test]
   fn cef_takes_precedence() {
     let m = manifest(

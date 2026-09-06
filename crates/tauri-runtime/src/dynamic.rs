@@ -140,41 +140,65 @@ impl fmt::Debug for DynWindowOpener {
   }
 }
 
-/// A runtime-specific webview attribute for the selected runtime.
+/// The runtime-specific webview attributes of the selected runtime, see [`Runtime::RuntimeWebviewAttributes`].
 ///
-/// Wrap the runtime's attribute type (e.g. `tauri_runtime_wry::WebviewAttribute`) with [`DynWebviewAttribute::new`].
-pub struct DynWebviewAttribute(Box<dyn Any + Send + Sync>);
+/// Holds the attributes type of the runtime in use (e.g. `tauri_runtime_wry::WryWebviewAttributes`)
+/// once one of the runtime's extension traits sets them through [`DynWebviewAttributes::get_or_default`].
+/// Until then the runtime uses its default attributes.
+#[derive(Default)]
+pub struct DynWebviewAttributes(Option<Box<dyn Any + Send + Sync>>);
 
-impl DynWebviewAttribute {
-  /// Wraps a runtime webview attribute.
-  pub fn new<A: Any + Send + Sync>(attribute: A) -> Self {
-    Self(Box::new(attribute))
+impl DynWebviewAttributes {
+  /// Wraps the attributes of the runtime in use.
+  pub fn new<A: Any + Send + Sync>(attributes: A) -> Self {
+    Self(Some(Box::new(attributes)))
   }
 
-  /// Whether the inner attribute is of type `A`.
+  /// Whether the attributes are of type `A`.
   pub fn is<A: Any>(&self) -> bool {
-    self.0.is::<A>()
-  }
-
-  /// Returns a reference to the inner attribute if it is of type `A`.
-  pub fn downcast_ref<A: Any>(&self) -> Option<&A> {
-    self.0.downcast_ref()
-  }
-
-  /// Unwraps the inner attribute, failing if it is not of type `A`.
-  pub fn downcast<A: Any>(self) -> Result<A> {
     self
       .0
-      .downcast::<A>()
-      .map(|a| *a)
-      .map_err(|_| mismatch::<A>("webview attribute"))
+      .as_ref()
+      .is_some_and(|attributes| attributes.is::<A>())
+  }
+
+  /// Returns a reference to the attributes if they are of type `A`.
+  pub fn downcast_ref<A: Any>(&self) -> Option<&A> {
+    self
+      .0
+      .as_ref()
+      .and_then(|attributes| attributes.downcast_ref())
+  }
+
+  /// Returns the attributes as type `A`, initializing them with `A::default()` when none were set yet.
+  ///
+  /// Returns `None` when attributes of another runtime were already set.
+  pub fn get_or_default<A: Any + Default + Send + Sync>(&mut self) -> Option<&mut A> {
+    self
+      .0
+      .get_or_insert_with(|| Box::new(A::default()))
+      .downcast_mut()
+  }
+
+  /// Unwraps the attributes as type `A`, using `A::default()` when none were set.
+  ///
+  /// Fails when attributes of another runtime were set.
+  pub fn downcast<A: Any + Default>(self) -> Result<A> {
+    match self.0 {
+      None => Ok(A::default()),
+      Some(attributes) => attributes
+        .downcast::<A>()
+        .map(|a| *a)
+        .map_err(|_| mismatch::<A>("webview attributes")),
+    }
   }
 }
 
-impl fmt::Debug for DynWebviewAttribute {
+impl fmt::Debug for DynWebviewAttributes {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("DynWebviewAttribute")
-      .finish_non_exhaustive()
+    f.debug_struct("DynWebviewAttributes")
+      .field("set", &self.0.is_some())
+      .finish()
   }
 }
 
@@ -709,7 +733,7 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     label,
     webview_attributes,
     opener,
-    platform_specific_attributes,
+    runtime_specific_attributes,
     uri_scheme_protocols,
     ipc_handler,
     navigation_handler,
@@ -731,10 +755,8 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     .map(|opener| opener.downcast::<R::WindowOpener>())
     .transpose()?;
 
-  let platform_specific_attributes = platform_specific_attributes
-    .into_iter()
-    .map(|attribute| attribute.downcast::<R::PlatformSpecificWebviewAttribute>())
-    .collect::<Result<Vec<_>>>()?;
+  let runtime_specific_attributes =
+    runtime_specific_attributes.downcast::<R::RuntimeWebviewAttributes>()?;
 
   let ipc_handler = ipc_handler.map(|handler| -> WebviewIpcHandler<T, R> {
     Box::new(move |webview, request| handler(detached_webview_into_dyn(webview), request))
@@ -748,7 +770,7 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     label,
     webview_attributes,
     opener,
-    platform_specific_attributes,
+    runtime_specific_attributes,
     uri_scheme_protocols,
     ipc_handler,
     navigation_handler,
@@ -2723,7 +2745,7 @@ impl<T: UserEvent> Runtime<T> for DynRuntime<T> {
   type WebviewDispatcher = DynWebviewDispatcher<T>;
   type Handle = DynRuntimeHandle<T>;
   type EventLoopProxy = DynEventLoopProxy<T>;
-  type PlatformSpecificWebviewAttribute = DynWebviewAttribute;
+  type RuntimeWebviewAttributes = DynWebviewAttributes;
   type Webview = DynWebview;
   type RuntimeInitAttrs = DynRuntimeInitAttrs<T>;
   type WindowOpener = DynWindowOpener;
@@ -2896,8 +2918,15 @@ mod tests {
     let opener = DynWindowOpener::new("opener".to_string());
     assert_eq!(opener.downcast::<String>().unwrap(), "opener");
 
-    let attribute = DynWebviewAttribute::new(7u8);
-    assert_eq!(attribute.downcast::<u8>().unwrap(), 7);
+    let attributes = DynWebviewAttributes::new(7u8);
+    assert_eq!(attributes.downcast::<u8>().unwrap(), 7);
+    assert!(DynWebviewAttributes::new(7u8).downcast::<u16>().is_err());
+    // unset attributes resolve to the runtime's default
+    assert_eq!(DynWebviewAttributes::default().downcast::<u8>().unwrap(), 0);
+    let mut attributes = DynWebviewAttributes::default();
+    *attributes.get_or_default::<u8>().unwrap() = 3;
+    assert!(attributes.get_or_default::<u16>().is_none());
+    assert_eq!(attributes.downcast::<u8>().unwrap(), 3);
   }
 
   #[test]

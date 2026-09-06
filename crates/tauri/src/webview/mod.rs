@@ -239,7 +239,7 @@ unstable_struct!(
     pub(crate) label: String,
     pub(crate) webview_attributes: WebviewAttributes,
     pub(crate) opener: Option<R::WindowOpener>,
-    pub(crate) platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
+    pub(crate) runtime_specific_attributes: R::RuntimeWebviewAttributes,
     pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
     pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
@@ -321,7 +321,7 @@ async fn create_window(app: tauri::AppHandle) {
       label: label.into(),
       webview_attributes: WebviewAttributes::new(url),
       opener: None,
-      platform_specific_attributes: Vec::new(),
+      runtime_specific_attributes: Default::default(),
       web_resource_request_handler: None,
       navigation_handler: None,
       new_window_handler: None,
@@ -404,7 +404,7 @@ async fn create_window(app: tauri::AppHandle) {
       label: config.label.clone(),
       webview_attributes: WebviewAttributes::from(&config),
       opener: None,
-      platform_specific_attributes: Vec::new(),
+      runtime_specific_attributes: Default::default(),
       web_resource_request_handler: None,
       navigation_handler: None,
       new_window_handler: None,
@@ -755,7 +755,7 @@ tauri::Builder::default()
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let mut pending = PendingWebview::new(
       self.webview_attributes,
-      self.platform_specific_attributes,
+      self.runtime_specific_attributes,
       self.label.clone(),
     )?;
     pending.opener = self.opener.take();
@@ -1405,11 +1405,11 @@ fn main() {
 
 #[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
-  /// Adds a runtime-specific webview attribute.
+  /// Returns a mutable reference to the runtime-specific webview attributes.
   ///
   /// Mostly useful for runtime-specific extension traits (e.g. sharing a WebView2 environment with wry).
-  pub fn platform_specific_attribute(&mut self, attribute: R::PlatformSpecificWebviewAttribute) {
-    self.platform_specific_attributes.push(attribute);
+  pub fn runtime_specific_attributes_mut(&mut self) -> &mut R::RuntimeWebviewAttributes {
+    &mut self.runtime_specific_attributes
   }
 }
 

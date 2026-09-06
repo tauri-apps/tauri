@@ -264,14 +264,16 @@ pub struct NewWindowOpener {
 unsafe impl Send for NewWindowOpener {}
 unsafe impl Sync for NewWindowOpener {}
 
-/// Platform-specific webview attributes.
-pub enum WebviewAttribute {
-  /// Set the environment for the webview.
+/// The wry-specific webview attributes, set through
+/// [`WebviewWindowBuilderWryExt`](crate::WebviewWindowBuilderWryExt).
+#[derive(Default)]
+pub struct WryWebviewAttributes {
+  /// The environment of the webview.
   /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
   #[cfg(windows)]
-  Environment(webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment),
+  pub environment: Option<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment>,
 
-  /// Creates a new webview sharing the same web process with the provided webview.
+  /// A webview sharing the same web process with the created webview.
   /// Useful if you need to link a webview to another, for instance when using the [`PendingWebview::new_window_handler`].
   #[cfg(any(
     target_os = "linux",
@@ -280,17 +282,17 @@ pub enum WebviewAttribute {
     target_os = "netbsd",
     target_os = "openbsd",
   ))]
-  RelatedView(webkit2gtk::WebView),
+  pub related_view: Option<webkit2gtk::WebView>,
 
-  /// Set the webview configuration.
-  /// Useful if you need to share the use a predefined webview configuration, for instance when using the [`PendingWebview::new_window_handler`].
+  /// The webview configuration.
+  /// Useful if you need to use a predefined webview configuration, for instance when using the [`PendingWebview::new_window_handler`].
   #[cfg(target_os = "macos")]
-  WebviewConfiguration(objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>),
+  pub webview_configuration: Option<objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>>,
 }
 
-// attribute is only used on the main thread
-unsafe impl Send for WebviewAttribute {}
-unsafe impl Sync for WebviewAttribute {}
+// attributes are only used on the main thread
+unsafe impl Send for WryWebviewAttributes {}
+unsafe impl Sync for WryWebviewAttributes {}
 
 #[derive(Debug)]
 pub struct WebContext {
@@ -3126,7 +3128,7 @@ impl<T: UserEvent> Runtime<T> for WryRuntime<T> {
   type Handle = WryHandle<T>;
 
   type EventLoopProxy = EventProxy<T>;
-  type PlatformSpecificWebviewAttribute = WebviewAttribute;
+  type RuntimeWebviewAttributes = WryWebviewAttributes;
   type RuntimeInitAttrs = Wry;
   type WindowOpener = NewWindowOpener;
   type Webview = Webview;
@@ -4935,7 +4937,7 @@ You may have it installed on another user account, but it is not available for t
   #[allow(unused_mut)]
   let PendingWebview {
     webview_attributes,
-    platform_specific_attributes,
+    runtime_specific_attributes,
     uri_scheme_protocols,
     label,
     ipc_handler,
@@ -5002,13 +5004,9 @@ You may have it installed on another user account, but it is not available for t
   }
 
   #[cfg(target_os = "macos")]
-  if let Some(webview_configuration) = platform_specific_attributes
-    .iter()
-    .find_map(|attr| match attr {
-      WebviewAttribute::WebviewConfiguration(config) => Some(config),
-      #[allow(unreachable_patterns)]
-      _ => None,
-    })
+  if let Some(webview_configuration) = runtime_specific_attributes
+    .webview_configuration
+    .as_ref()
     .or_else(|| opener.as_ref().map(|opener| &opener.target_configuration))
   {
     webview_builder = webview_builder.with_webview_configuration(webview_configuration.clone());
@@ -5254,13 +5252,9 @@ You may have it installed on another user account, but it is not available for t
       webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
     }
 
-    if let Some(environment) = platform_specific_attributes
-      .iter()
-      .find_map(|attr| match attr {
-        WebviewAttribute::Environment(env) => Some(env),
-        #[allow(unreachable_patterns)]
-        _ => None,
-      })
+    if let Some(environment) = runtime_specific_attributes
+      .environment
+      .as_ref()
       .or_else(|| opener.as_ref().map(|opener| &opener.environment))
     {
       webview_builder = webview_builder.with_environment(environment.clone());
@@ -5308,13 +5302,9 @@ You may have it installed on another user account, but it is not available for t
     target_os = "openbsd"
   ))]
   {
-    if let Some(related_view) = platform_specific_attributes
-      .iter()
-      .find_map(|attr| match attr {
-        WebviewAttribute::RelatedView(view) => Some(view),
-        #[allow(unreachable_patterns)]
-        _ => None,
-      })
+    if let Some(related_view) = runtime_specific_attributes
+      .related_view
+      .as_ref()
       .or_else(|| opener.as_ref().map(|opener| &opener.webview))
     {
       webview_builder = webview_builder.with_related_view(related_view.clone());

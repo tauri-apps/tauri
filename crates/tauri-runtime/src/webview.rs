@@ -200,8 +200,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// Information about the webview that initiated a new window request.
   pub opener: Option<R::WindowOpener>,
 
-  /// Runtime specific attributes.
-  pub platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
+  /// The runtime-specific webview attributes, see [`Runtime::RuntimeWebviewAttributes`](crate::Runtime::RuntimeWebviewAttributes).
+  pub runtime_specific_attributes: R::RuntimeWebviewAttributes,
 
   /// Custom protocols to register on the webview
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocolHandler>>,
@@ -242,7 +242,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
   /// Create a new [`PendingWebview`] with a label from the given [`WebviewAttributes`].
   pub fn new(
     webview_attributes: WebviewAttributes,
-    platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
+    runtime_specific_attributes: R::RuntimeWebviewAttributes,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
     let label = label.into();
@@ -252,7 +252,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
       Ok(Self {
         webview_attributes,
         opener: None,
-        platform_specific_attributes,
+        runtime_specific_attributes,
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,

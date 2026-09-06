@@ -45,7 +45,7 @@ use crate::platform::EventLoopExt;
 use crate::{
   cef_impl::{client as browser_client, ipc, request_handler},
   webview::{
-    self, AppWebview, CefWebviewDispatcher, Webview, WebviewAtribute, WebviewMessage,
+    self, AppWebview, CefWebviewAttributes, CefWebviewDispatcher, Webview, WebviewMessage,
     create_webview_detached,
   },
   window::{
@@ -76,6 +76,9 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 /// in minor releases when a known breaking change is discovered.
 pub use cef;
 
+/// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
+type SettingsCallback = Box<dyn FnOnce(&mut cef::Settings) + Send + Sync>;
+
 /// Selects and configures the CEF runtime.
 ///
 /// Pass it to `tauri::Builder::runtime` to run the application with CEF:
@@ -85,9 +88,6 @@ pub use cef;
 ///   tauri_runtime_cef::Cef::default().command_line_arg("disable-gpu", None::<String>),
 /// );
 /// ```
-/// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
-type SettingsCallback = Box<dyn FnOnce(&mut cef::Settings) + Send + Sync>;
-
 #[derive(Default)]
 pub struct Cef {
   command_line_args: Vec<(String, Option<String>)>,
@@ -1663,7 +1663,7 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type WebviewDispatcher = CefWebviewDispatcher<T>;
   type Handle = CefRuntimeHandle<T>;
   type EventLoopProxy = EventProxy<T>;
-  type PlatformSpecificWebviewAttribute = WebviewAtribute;
+  type RuntimeWebviewAttributes = CefWebviewAttributes;
   type Webview = Webview;
   type RuntimeInitAttrs = Cef;
   type WindowOpener = NewWindowOpener;

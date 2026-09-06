@@ -1244,7 +1244,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type WebviewDispatcher = MockWebviewDispatcher;
   type Handle = MockRuntimeHandle;
   type EventLoopProxy = EventProxy;
-  type PlatformSpecificWebviewAttribute = ();
+  type RuntimeWebviewAttributes = ();
   type RuntimeInitAttrs = MockRuntimeInitAttrs;
   type WindowOpener = ();
   type Webview = ();

@@ -9,9 +9,9 @@
 //! [`tauri_runtime::Error::RuntimeTypeMismatch`] when the application is not running on CEF.
 
 use tauri::{EventLoopMessage, Manager, Runtime, Webview, WebviewWindow};
-use tauri_runtime::dynamic::{DynWebviewAttribute, DynWebviewDispatcher};
+use tauri_runtime::dynamic::{DynWebviewAttributes, DynWebviewDispatcher};
 
-use crate::{CefWebviewDispatcher, DevToolsProtocol, RuntimeStyle, WebviewAtribute};
+use crate::{CefWebviewAttributes, CefWebviewDispatcher, DevToolsProtocol, RuntimeStyle};
 
 type Result<T> = std::result::Result<T, tauri::Error>;
 
@@ -40,21 +40,34 @@ impl AsCefWebviewDispatcher for DynWebviewDispatcher<EventLoopMessage> {
   }
 }
 
-/// Webview attribute types that can carry a CEF [`WebviewAtribute`].
-pub trait FromCefWebviewAttribute {
-  /// Wraps the CEF attribute.
-  fn from_cef(attribute: WebviewAtribute) -> Self;
+/// Runtime webview attributes that may expose the [`CefWebviewAttributes`].
+pub trait AsCefWebviewAttributes {
+  /// Returns the CEF attributes, `None` when the attributes belong to another runtime.
+  fn as_cef_webview_attributes_mut(&mut self) -> Option<&mut CefWebviewAttributes>;
 }
 
-impl FromCefWebviewAttribute for WebviewAtribute {
-  fn from_cef(attribute: WebviewAtribute) -> Self {
-    attribute
+impl AsCefWebviewAttributes for CefWebviewAttributes {
+  fn as_cef_webview_attributes_mut(&mut self) -> Option<&mut CefWebviewAttributes> {
+    Some(self)
   }
 }
 
-impl FromCefWebviewAttribute for DynWebviewAttribute {
-  fn from_cef(attribute: WebviewAtribute) -> Self {
-    DynWebviewAttribute::new(attribute)
+impl AsCefWebviewAttributes for DynWebviewAttributes {
+  fn as_cef_webview_attributes_mut(&mut self) -> Option<&mut CefWebviewAttributes> {
+    self.get_or_default()
+  }
+}
+
+/// Modifies the CEF attributes of a webview builder, if the builder's attributes are not of another runtime.
+fn with_cef_webview_attributes<A: AsCefWebviewAttributes>(
+  attributes: &mut A,
+  f: impl FnOnce(&mut CefWebviewAttributes),
+) {
+  match attributes.as_cef_webview_attributes_mut() {
+    Some(attributes) => f(attributes),
+    None => log::warn!(
+      "ignoring the CEF webview attributes: attributes of another runtime were already set on the webview builder"
+    ),
   }
 }
 
@@ -172,12 +185,12 @@ pub trait WebviewWindowBuilderCefExt {
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilderCefExt
   for tauri::WebviewWindowBuilder<'a, R, M>
 where
-  R::PlatformSpecificWebviewAttribute: FromCefWebviewAttribute,
+  R::RuntimeWebviewAttributes: AsCefWebviewAttributes,
 {
   fn browser_runtime_style(mut self, style: RuntimeStyle) -> Self {
-    self.platform_specific_attribute(FromCefWebviewAttribute::from_cef(
-      WebviewAtribute::RuntimeStyle { style },
-    ));
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.runtime_style = Some(style);
+    });
     self
   }
 }
@@ -195,12 +208,12 @@ pub trait WebviewBuilderCefExt {
 #[cfg(feature = "unstable")]
 impl<R: Runtime> WebviewBuilderCefExt for tauri::webview::WebviewBuilder<R>
 where
-  R::PlatformSpecificWebviewAttribute: FromCefWebviewAttribute,
+  R::RuntimeWebviewAttributes: AsCefWebviewAttributes,
 {
   fn browser_runtime_style(mut self, style: RuntimeStyle) -> Self {
-    self.platform_specific_attribute(FromCefWebviewAttribute::from_cef(
-      WebviewAtribute::RuntimeStyle { style },
-    ));
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.runtime_style = Some(style);
+    });
     self
   }
 }

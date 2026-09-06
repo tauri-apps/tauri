@@ -12,10 +12,11 @@ use std::sync::Weak;
 
 use tao::window::Window;
 use tauri::{App, AppHandle, EventLoopMessage, Manager, Runtime, Webview, WebviewWindow};
-use tauri_runtime::dynamic::{DynRuntimeHandle, DynWebviewAttribute};
+use tauri_runtime::dynamic::{DynRuntimeHandle, DynWebviewAttributes};
 
 use crate::{
-  Message, PluginBuilder, TaoWindowBuilder, TaoWindowId, WebviewAttribute, WindowMessage, WryHandle,
+  Message, PluginBuilder, TaoWindowBuilder, TaoWindowId, WindowMessage, WryHandle,
+  WryWebviewAttributes,
 };
 
 type Result<T> = std::result::Result<T, tauri::Error>;
@@ -45,21 +46,43 @@ impl AsWryHandle for DynRuntimeHandle<EventLoopMessage> {
   }
 }
 
-/// Webview attribute types that can carry a wry [`WebviewAttribute`].
-pub trait FromWryWebviewAttribute {
-  /// Wraps the wry attribute.
-  fn from_wry(attribute: WebviewAttribute) -> Self;
+/// Runtime webview attributes that may expose the [`WryWebviewAttributes`].
+pub trait AsWryWebviewAttributes {
+  /// Returns the wry attributes, `None` when the attributes belong to another runtime.
+  fn as_wry_webview_attributes_mut(&mut self) -> Option<&mut WryWebviewAttributes>;
 }
 
-impl FromWryWebviewAttribute for WebviewAttribute {
-  fn from_wry(attribute: WebviewAttribute) -> Self {
-    attribute
+impl AsWryWebviewAttributes for WryWebviewAttributes {
+  fn as_wry_webview_attributes_mut(&mut self) -> Option<&mut WryWebviewAttributes> {
+    Some(self)
   }
 }
 
-impl FromWryWebviewAttribute for DynWebviewAttribute {
-  fn from_wry(attribute: WebviewAttribute) -> Self {
-    DynWebviewAttribute::new(attribute)
+impl AsWryWebviewAttributes for DynWebviewAttributes {
+  fn as_wry_webview_attributes_mut(&mut self) -> Option<&mut WryWebviewAttributes> {
+    self.get_or_default()
+  }
+}
+
+/// Modifies the wry attributes of a webview builder, if the builder's attributes are not of another runtime.
+#[cfg(any(
+  windows,
+  target_os = "macos",
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd",
+))]
+fn with_wry_webview_attributes<A: AsWryWebviewAttributes>(
+  attributes: &mut A,
+  f: impl FnOnce(&mut WryWebviewAttributes),
+) {
+  match attributes.as_wry_webview_attributes_mut() {
+    Some(attributes) => f(attributes),
+    None => log::warn!(
+      "ignoring the wry webview attributes: attributes of another runtime were already set on the webview builder"
+    ),
   }
 }
 
@@ -222,9 +245,9 @@ macro_rules! webview_builder_ext_impl {
         mut self,
         environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
       ) -> Self {
-        self.platform_specific_attribute(FromWryWebviewAttribute::from_wry(
-          WebviewAttribute::Environment(environment),
-        ));
+        with_wry_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+          attributes.environment = Some(environment);
+        });
         self
       }
 
@@ -236,9 +259,9 @@ macro_rules! webview_builder_ext_impl {
         target_os = "openbsd",
       ))]
       fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
-        self.platform_specific_attribute(FromWryWebviewAttribute::from_wry(
-          WebviewAttribute::RelatedView(related_view),
-        ));
+        with_wry_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+          attributes.related_view = Some(related_view);
+        });
         self
       }
 
@@ -247,9 +270,9 @@ macro_rules! webview_builder_ext_impl {
         mut self,
         webview_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
       ) -> Self {
-        self.platform_specific_attribute(FromWryWebviewAttribute::from_wry(
-          WebviewAttribute::WebviewConfiguration(webview_configuration),
-        ));
+        with_wry_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+          attributes.webview_configuration = Some(webview_configuration);
+        });
         self
       }
     }
@@ -265,7 +288,7 @@ webview_builder_ext_impl!(
   WebviewWindowBuilderWryExt,
   impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilderWryExt for tauri::WebviewWindowBuilder<'a, R, M>
   where
-    R::PlatformSpecificWebviewAttribute: FromWryWebviewAttribute,
+    R::RuntimeWebviewAttributes: AsWryWebviewAttributes,
 );
 
 webview_builder_ext!(
@@ -279,5 +302,5 @@ webview_builder_ext_impl!(
   WebviewBuilderWryExt,
   impl<R: Runtime> WebviewBuilderWryExt for tauri::webview::WebviewBuilder<R>
   where
-    R::PlatformSpecificWebviewAttribute: FromWryWebviewAttribute,
+    R::RuntimeWebviewAttributes: AsWryWebviewAttributes,
 );

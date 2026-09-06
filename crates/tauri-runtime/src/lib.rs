@@ -503,8 +503,10 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   type Handle: RuntimeHandle<T, Runtime = Self>;
   /// The proxy type.
   type EventLoopProxy: EventLoopProxy<T>;
-  /// The platform specific webview attributes.
-  type PlatformSpecificWebviewAttribute: Send + Sync + 'static;
+  /// The runtime-specific webview attributes, set on the webview builders through the runtime's extension traits.
+  ///
+  /// The default value is used when the application sets none.
+  type RuntimeWebviewAttributes: Default + Send + Sync + 'static;
   /// The platform webview handle exposed through [`WebviewDispatch::with_webview`].
   ///
   /// This is the runtime-specific type the user interacts with to reach the

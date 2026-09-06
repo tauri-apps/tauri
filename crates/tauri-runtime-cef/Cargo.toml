@@ -11,6 +11,10 @@ license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+[[test]]
+name = "macos-application-bootstrap"
+harness = false
+
 [dependencies]
 tauri = { workspace = true }
 tauri-macros = { workspace = true }

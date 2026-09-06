@@ -4,6 +4,14 @@
 
 //! Native protocol observations of CEF's existing JavaScript dialog UI.
 //! No custom dialog handler, callback, message text, or prompt value is retained.
+//!
+//! These events reach the runtime through the DevTools `Page` domain it enables
+//! on every browser. Enabling that domain observes dialogs without taking them
+//! over: Chromium notifies each enabled `PageHandler` and *then* still runs the
+//! browser's own dialog manager, and CEF always supplies one for its browsers.
+//! A dialog only stalls a page when no browser handler exists at all, which the
+//! protocol itself reports as `hasBrowserHandler == false`. The runtime
+//! therefore never has to answer a dialog with `Page.handleJavaScriptDialog`.
 
 use crate::{FrameNavigationState, NativeDocumentToken};
 use std::sync::{Arc, Mutex};

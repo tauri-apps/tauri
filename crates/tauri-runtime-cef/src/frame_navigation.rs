@@ -139,6 +139,10 @@ impl FrameNavigationState {
       && state.observed_load_state
       && !state.loading
       && !state.frames.is_empty()
+      // Exceeding the tracked frame cap fails admission closed for as long as
+      // it lasts, matching `observe_document`'s native `frame_count` guard.
+      // Frames keep being tracked exactly, so draining below the cap recovers.
+      && state.frames.len() <= MAX_NATIVE_FRAMES
       && state.frames.values().all(|attached| *attached)
       && state
         .main_frame
@@ -172,6 +176,10 @@ impl FrameNavigationState {
     {
       return;
     }
+    // Bind the native browser identity before any rejection below can latch
+    // exhaustion. IPC admission and event delivery are gated on this identity,
+    // so an unexpected first notification must never leave it unrecorded.
+    state.browser_id = Some(browser_id);
     let browser_wide = matches!(
       kind,
       FrameEventKind::MainFrameChanged
@@ -189,7 +197,6 @@ impl FrameNavigationState {
       state.exhausted = true;
       return;
     }
-    state.browser_id = Some(browser_id);
     let Some(generation) = state.generation.checked_add(1) else {
       state.exhausted = true;
       return;
@@ -227,9 +234,6 @@ impl FrameNavigationState {
         state.loading = true;
         state.observed_load_state = false;
       }
-    }
-    if state.frames.len() > MAX_NATIVE_FRAMES {
-      state.exhausted = true;
     }
   }
 
@@ -417,5 +421,30 @@ mod tests {
     assert!(first.document().is_none());
     apply(&first, "child", Event::Attached);
     assert_ne!(before, first.document().unwrap());
+  }
+  #[test]
+  fn a_rejected_first_event_still_records_the_native_browser_identity() {
+    // `AddressChanged`/`NavigationFailed` tolerate a missing native frame, so a
+    // browser's very first notification can carry an empty identifier.
+    let url = url::Url::parse("https://example.test/frameless").unwrap();
+    let barrier = FrameNavigationState::new();
+    barrier.apply(1, "", false, &Event::AddressChanged { url });
+    // Document admission still fails closed, ...
+    assert!(barrier.document().is_none());
+    // ... but IPC and event delivery stay bound to this exact browser.
+    assert!(barrier.has_browser_id(1));
+    assert!(!barrier.has_browser_id(2));
+  }
+  #[test]
+  fn a_transient_frame_count_overflow_recovers_once_frames_drain() {
+    let barrier = ready_main();
+    for index in 0..MAX_NATIVE_FRAMES {
+      apply(&barrier, &format!("child-{index}"), Event::Created);
+      apply(&barrier, &format!("child-{index}"), Event::Attached);
+    }
+    assert!(barrier.ready_generation().is_none());
+    apply(&barrier, "child-0", Event::Detached);
+    assert!(barrier.ready_generation().is_some());
+    assert!(barrier.has_browser_id(1));
   }
 }

@@ -185,13 +185,26 @@ fn browser_settings_from_webview_attributes(
   }
 }
 
+/// A Chrome DevTools Protocol notification observed on a native browser.
+///
+/// Observers see the whole browser, including requests issued by the runtime
+/// itself and by other callers, so nothing here is scoped to one producer.
 #[derive(Debug, Clone)]
 pub enum DevToolsProtocol {
+  /// The raw agent message, before it is classified as an event or a result.
   Message(Vec<u8>),
+  /// An agent event. Events are unsolicited and carry no request identifier.
   Event {
     method: String,
     params: Vec<u8>,
   },
+  /// The result of one request.
+  ///
+  /// `message_id` correlates with the `id` of the request that produced it.
+  /// Compare it against an identifier obtained from
+  /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id);
+  /// a result whose identifier you did not allocate answers someone else's
+  /// request. Numeric correlation does not authorize a browser or document.
   MethodResult {
     message_id: i32,
     success: bool,
@@ -1028,6 +1041,13 @@ pub struct CefWebviewDispatcher<T: UserEvent> {
 }
 
 impl<T: UserEvent> CefWebviewDispatcher<T> {
+  /// Sends a UTF-8 encoded Chrome DevTools Protocol message to the DevTools agent.
+  ///
+  /// The message's `id` must come from
+  /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id), which
+  /// is the same allocator the runtime uses for its own requests. A hardcoded or
+  /// self-incremented `id` can consume another producer's
+  /// [`DevToolsProtocol::MethodResult`].
   pub fn send_dev_tools_message(&self, message: &[u8]) -> Result<()> {
     let (tx, rx) = mpsc::channel();
     self.context.send_message(Message::Webview {
@@ -1038,6 +1058,11 @@ impl<T: UserEvent> CefWebviewDispatcher<T> {
     rx.recv().map_err(|_| Error::FailedToReceiveMessage)?
   }
 
+  /// Observes the [`DevToolsProtocol`] traffic of this browser.
+  ///
+  /// The observer receives every message on the browser, including the runtime's
+  /// own requests, so results must be matched against an identifier obtained from
+  /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id).
   pub fn on_dev_tools_protocol<F: Fn(DevToolsProtocol) + Send + Sync + 'static>(
     &self,
     f: F,

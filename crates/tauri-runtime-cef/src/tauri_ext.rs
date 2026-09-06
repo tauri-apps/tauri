@@ -120,19 +120,27 @@ pub trait WebviewCefExt {
   /// Send a message to the DevTools agent. The message should be a UTF-8 encoded JSON
   /// string following the Chrome DevTools Protocol format.
   ///
+  /// The runtime shares one native request identifier space with every caller on
+  /// this browser, so the message's `id` must come from
+  /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id).
+  /// A hardcoded or self-incremented `id` can collide with a request the runtime
+  /// or another caller already sent, which consumes the other producer's
+  /// [`DevToolsProtocol::MethodResult`].
+  ///
   /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::Manager;
-  /// use tauri_runtime_cef::WebviewCefExt;
+  /// use tauri_runtime_cef::{WebviewCefExt, allocate_devtools_message_id};
   ///
   /// tauri::Builder::default()
   ///   .runtime(tauri_runtime_cef::Cef::default())
   ///   .setup(|app| {
   ///     let webview = app.get_webview_window("main").unwrap();
   ///     // Enable Page domain to receive page lifecycle events
-  ///     let msg = br#"{"id":1,"method":"Page.enable","params":{}}"#;
-  ///     webview.send_dev_tools_message(msg)?;
+  ///     let message_id = allocate_devtools_message_id()?;
+  ///     let msg = format!(r#"{{"id":{message_id},"method":"Page.enable","params":{{}}}}"#);
+  ///     webview.send_dev_tools_message(msg.as_bytes())?;
   ///     Ok(())
   ///   });
   /// ```
@@ -141,17 +149,24 @@ pub trait WebviewCefExt {
   /// Register a callback to receive DevTools protocol messages. Messages include
   /// both method results and events from the DevTools agent.
   ///
+  /// The callback observes the whole browser, including requests the runtime and
+  /// other callers sent. Match [`DevToolsProtocol::MethodResult`] against an
+  /// identifier obtained from
+  /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id)
+  /// instead of assuming every result belongs to this observer.
+  ///
   /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::Manager;
-  /// use tauri_runtime_cef::{DevToolsProtocol, WebviewCefExt};
+  /// use tauri_runtime_cef::{DevToolsProtocol, WebviewCefExt, allocate_devtools_message_id};
   ///
   /// tauri::Builder::default()
   ///   .runtime(tauri_runtime_cef::Cef::default())
   ///   .setup(|app| {
   ///     let webview = app.get_webview_window("main").unwrap();
-  ///     webview.on_dev_tools_protocol(|protocol| {
+  ///     let message_id = allocate_devtools_message_id()?;
+  ///     webview.on_dev_tools_protocol(move |protocol| {
   ///       match protocol {
   ///         DevToolsProtocol::Message(msg) => {
   ///           if let Ok(s) = std::str::from_utf8(&msg) {
@@ -161,11 +176,15 @@ pub trait WebviewCefExt {
   ///         DevToolsProtocol::Event { method, params } => {
   ///           println!("DevTools event: {} {:?}", method, params);
   ///         }
-  ///         DevToolsProtocol::MethodResult { message_id, success, result } => {
-  ///           println!("DevTools result: id={} success={}", message_id, success);
+  ///         // Only this result answers the request sent below.
+  ///         DevToolsProtocol::MethodResult { message_id: id, success, .. } if id == message_id => {
+  ///           println!("Page.enable success={}", success);
   ///         }
+  ///         DevToolsProtocol::MethodResult { .. } => {}
   ///       }
   ///     })?;
+  ///     let msg = format!(r#"{{"id":{message_id},"method":"Page.enable","params":{{}}}}"#);
+  ///     webview.send_dev_tools_message(msg.as_bytes())?;
   ///     Ok(())
   ///   });
   /// ```

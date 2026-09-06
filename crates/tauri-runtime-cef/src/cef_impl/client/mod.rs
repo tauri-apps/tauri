@@ -123,6 +123,7 @@ wrap_client! {
       let target = self.drag_drop_event_target;
       let navigation_handler = self.handlers.navigation_handler.clone();
       let new_window_handler = self.handlers.new_window_handler.clone();
+      let download_handler = self.handlers.download_handler.clone();
       let family = self.popup_family.clone();
       let create_popup: Arc<life_span::PopupClientFactory> = Arc::new(move |opener, state| {
         let events = state.clone();
@@ -134,9 +135,13 @@ wrap_client! {
             frame_event_handler: Some(Arc::new(move |event| events.on_frame_event(&event))),
             navigation_handler: navigation_handler.clone(),
             new_window_handler: new_window_handler.clone(),
+            // CEF cancels every download of a client whose download handler is
+            // NULL, so the popup keeps the opener's — as it did when it still
+            // inherited the opener's client outright.
+            download_handler: download_handler.clone(),
             ipc_handler: None, on_page_load_handler: None,
             document_title_changed_handler: None, address_changed_handler: None,
-            download_handler: None, web_content_process_terminate_handler: None,
+            web_content_process_terminate_handler: None,
           }, context.proxy.clone(), context.sender.clone(),
         )
       });

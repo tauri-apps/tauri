@@ -1465,9 +1465,6 @@ pub(crate) fn tauri_config_to_bundle_settings(
       libs.push(dependency.library.into());
     }
 
-    depends_deb.push("libgtk-3-0".to_string());
-    libs.push("libgtk-3.so.0".into());
-
     for lib in libs {
       let mut requires = lib;
       if arch64bits {

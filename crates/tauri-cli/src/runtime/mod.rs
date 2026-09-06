@@ -63,13 +63,20 @@ impl Runtime {
   /// to be declared as dependencies of the Debian and RPM packages.
   #[cfg(target_os = "linux")]
   pub fn linux_dependencies(self) -> &'static [LinuxDependency] {
+    // `tauri` itself uses GTK on Linux, whatever the runtime
+    const GTK: LinuxDependency = LinuxDependency {
+      deb_package: "libgtk-3-0",
+      library: "libgtk-3.so.0",
+    };
+    const WEBKIT2GTK: LinuxDependency = LinuxDependency {
+      deb_package: "libwebkit2gtk-4.1-0",
+      library: "libwebkit2gtk-4.1.so.0",
+    };
+
     match self {
-      Self::Wry => &[LinuxDependency {
-        deb_package: "libwebkit2gtk-4.1-0",
-        library: "libwebkit2gtk-4.1.so.0",
-      }],
+      Self::Wry => &[WEBKIT2GTK, GTK],
       // CEF is shipped with the app
-      Self::Cef | Self::Other => &[],
+      Self::Cef | Self::Other => &[GTK],
     }
   }
 

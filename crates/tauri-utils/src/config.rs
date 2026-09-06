@@ -333,12 +333,16 @@ pub struct AppImageConfig {
   /// Wayland without forcing the use of XWayland.
   ///
   /// This is experimental. The bundler downloads and runs third-party tooling, launches
-  /// your application once during bundling to discover the libraries it loads at runtime,
-  /// and produces a larger AppImage. Only x86_64 and aarch64 are supported, and it cannot
+  /// your application and every sidecar once during bundling to discover the libraries
+  /// they load at runtime, and produces a larger AppImage. Only x86_64 and aarch64 are supported, and it cannot
   /// cross-compile because it deploys the build system's own libraries.
   ///
   /// Arch Linux is the recommended build host. Ubuntu 24.04 works but is known to lose
   /// hardware acceleration on Wayland with the proprietary NVIDIA driver.
+  ///
+  /// The tooling (quick-sharun) reads its own configuration from environment variables,
+  /// which the bundler forwards. For example `STRACE_MODE=0` skips launching the application
+  /// during bundling and `DEPLOY_OPENGL=1` forces the OpenGL stack to be bundled.
   #[serde(default, alias = "use-new-format")]
   pub use_new_format: bool,
   /// Update information to forward to the AppImage tooling according to <https://github.com/AppImage/AppImageSpec/blob/master/draft.md#update-information>.

@@ -215,7 +215,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       )
     })?;
 
-  fs::copy(largest_icon.1, app_dir.join(format!("{app_dir_name}.png")))
+  // The desktop entry refers to the icon by the main binary name, and the
+  // AppImage spec expects that icon at `AppDir/<Icon>.png`, which is what
+  // desktop integration tools look for.
+  let icon_name = settings.main_binary_name()?;
+  fs::copy(largest_icon.1, app_dir.join(format!("{icon_name}.png")))
     .with_context(|| "Failed to copy icon file")?;
 
   // quick-sharun takes the binaries and libraries to deploy as positional

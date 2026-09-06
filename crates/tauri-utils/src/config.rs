@@ -1910,7 +1910,7 @@ pub struct WindowConfig {
   /// ## Example:
   ///
   /// ```rust
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())
@@ -3148,7 +3148,7 @@ pub struct AppConfig {
   /// and use it like this
   ///
   /// ```rust
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?.build()?;
   ///     Ok(())

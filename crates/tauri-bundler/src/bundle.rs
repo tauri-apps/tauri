@@ -32,7 +32,8 @@ pub use {
     AppImageSettings, BundleBinary, BundleSettings, CefHelperSettings, CustomSignCommandSettings,
     DebianSettings, DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings,
     PackageSettings, PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder,
-    Size, UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
+    Size, UpdaterSettings, WebviewRuntime, WindowsSettings, WixLanguage, WixLanguageConfig,
+    WixSettings,
   },
 };
 

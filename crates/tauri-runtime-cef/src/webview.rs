@@ -402,17 +402,11 @@ impl<T: UserEvent> WinitCefApp<T> {
     };
 
     // Let CEF pick the runtime style unless overridden per-webview.
-    let cef_runtime_style = pending
-      .platform_specific_attributes
-      .iter()
-      .map(|attr| match attr {
-        WebviewAtribute::RuntimeStyle { style } => match style {
-          RuntimeStyle::Alloy => cef::RuntimeStyle::ALLOY,
-          RuntimeStyle::Chrome => cef::RuntimeStyle::CHROME,
-        },
-      })
-      .next()
-      .unwrap_or(cef::RuntimeStyle::DEFAULT);
+    let cef_runtime_style = match pending.runtime_specific_attributes.runtime_style {
+      Some(RuntimeStyle::Alloy) => cef::RuntimeStyle::ALLOY,
+      Some(RuntimeStyle::Chrome) => cef::RuntimeStyle::CHROME,
+      None => cef::RuntimeStyle::DEFAULT,
+    };
 
     let mut window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
     window_info.runtime_style = cef_runtime_style;
@@ -815,13 +809,13 @@ pub enum RuntimeStyle {
   Chrome,
 }
 
-#[derive(Debug)]
-pub enum WebviewAtribute {
-  RuntimeStyle { style: RuntimeStyle },
+/// The CEF-specific webview attributes, set through
+/// [`WebviewWindowBuilderCefExt`](crate::WebviewWindowBuilderCefExt).
+#[derive(Debug, Default, Clone)]
+pub struct CefWebviewAttributes {
+  /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
+  pub runtime_style: Option<RuntimeStyle>,
 }
-
-unsafe impl Send for WebviewAtribute {}
-unsafe impl Sync for WebviewAtribute {}
 
 #[derive(Debug, Clone)]
 pub struct CefInitScript {
@@ -986,33 +980,45 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     })
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
-    let _ = self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::OpenDevTools,
-    });
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let _ = self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::OpenDevTools,
+      });
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    log::warn!("devtools are not available: enable the `devtools` feature of `tauri-runtime-cef`");
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn close_devtools(&self) {
-    let _ = self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::CloseDevTools,
-    });
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let _ = self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::CloseDevTools,
+      });
+    }
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
-    let (tx, rx) = mpsc::channel();
-    self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::IsDevToolsOpen(tx),
-    })?;
-    rx.recv().map_err(|_| Error::FailedToReceiveMessage)
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let (tx, rx) = mpsc::channel();
+      self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::IsDevToolsOpen(tx),
+      })?;
+      rx.recv().map_err(|_| Error::FailedToReceiveMessage)
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    {
+      Ok(false)
+    }
   }
 
   fn url(&self) -> Result<String> {

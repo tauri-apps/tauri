@@ -18,7 +18,6 @@ use serde::{
 };
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
-use tauri_macros::default_runtime;
 use tauri_utils::acl::resolved::ResolvedCommand;
 
 use crate::{Runtime, StateManager, webview::Webview};
@@ -207,8 +206,7 @@ impl Response {
 /// The message and resolver given to a custom command.
 ///
 /// This struct is used internally by macros and is explicitly **NOT** stable.
-#[default_runtime(crate::Wry, wry)]
-pub struct Invoke<R: Runtime> {
+pub struct Invoke<R: Runtime = crate::DynRuntime> {
   /// The message passed.
   pub message: InvokeMessage<R>,
 
@@ -282,8 +280,7 @@ impl From<InvokeError> for InvokeResponse {
 }
 
 /// Resolver of a invoke message.
-#[default_runtime(crate::Wry, wry)]
-pub struct InvokeResolver<R: Runtime> {
+pub struct InvokeResolver<R: Runtime = crate::DynRuntime> {
   webview: Webview<R>,
   responder: Arc<Mutex<Option<Box<OwnedInvokeResponder<R>>>>>,
   cmd: String,
@@ -493,9 +490,8 @@ impl<R: Runtime> InvokeResolver<R> {
 }
 
 /// An invoke message.
-#[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
-pub struct InvokeMessage<R: Runtime> {
+pub struct InvokeMessage<R: Runtime = crate::DynRuntime> {
   /// The webview that received the invoke message.
   pub(crate) webview: Webview<R>,
   /// Application managed state.

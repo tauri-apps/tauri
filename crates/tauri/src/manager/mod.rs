@@ -6,13 +6,13 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex, MutexGuard, atomic::AtomicBool},
+  sync::{Arc, Mutex, MutexGuard, OnceLock, atomic::AtomicBool},
 };
 
 use serde::Serialize;
 use url::Url;
 
-use tauri_macros::default_runtime;
+use tauri_runtime::RuntimeHandle as _;
 use tauri_utils::{
   assets::{AssetKey, CspHash, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
   config::{Csp, CspDirectiveSources},
@@ -180,9 +180,10 @@ impl Asset {
   }
 }
 
-#[default_runtime(crate::Wry, wry)]
-pub struct AppManager<R: Runtime> {
+pub struct AppManager<R: Runtime = crate::DynRuntime> {
   pub runtime_authority: Mutex<RuntimeAuthority>,
+  /// Handle of the runtime, set once the runtime is initialized.
+  runtime_handle: OnceLock<R::Handle>,
   pub window: window::WindowManager<R>,
   pub webview: webview::WebviewManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -287,6 +288,7 @@ impl<R: Runtime> AppManager<R> {
 
     Self {
       runtime_authority: Mutex::new(context.runtime_authority),
+      runtime_handle: OnceLock::new(),
       window: window::WindowManager {
         windows: Mutex::default(),
         default_icon: context.default_window_icon,
@@ -359,8 +361,26 @@ impl<R: Runtime> AppManager<R> {
     if let Some(url) = url {
       Cow::Borrowed(url)
     } else {
-      Cow::Owned(R::custom_scheme_url("tauri", https).parse().unwrap())
+      Cow::Owned(self.custom_scheme_url("tauri", https).parse().unwrap())
     }
+  }
+
+  /// Stores the runtime handle. Called once the runtime is initialized.
+  pub(crate) fn set_runtime_handle(&self, handle: R::Handle) {
+    let _ = self.runtime_handle.set(handle);
+  }
+
+  /// Returns the URL for a custom scheme, as defined by the runtime (e.g. `tauri://localhost` or `http://tauri.localhost`).
+  ///
+  /// # Panics
+  ///
+  /// Panics if the runtime was not initialized yet.
+  pub(crate) fn custom_scheme_url(&self, scheme: &str, https: bool) -> String {
+    self
+      .runtime_handle
+      .get()
+      .expect("runtime not initialized")
+      .custom_scheme_url(scheme, https)
   }
 
   fn csp(&self) -> Option<Csp> {
@@ -440,7 +460,7 @@ impl<R: Runtime> AppManager<R> {
         #[cfg(feature = "isolation")]
         if let Pattern::Isolation { schema, .. } = &*self.pattern {
           let default_src = csp_map.entry("default-src".to_owned()).or_default();
-          default_src.push(R::custom_scheme_url(schema, _use_https_schema));
+          default_src.push(self.custom_scheme_url(schema, _use_https_schema));
         }
 
         csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
@@ -735,7 +755,7 @@ mod test {
 
   use crate::{
     App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
-    Window, Wry,
+    Window,
     event::EventTarget,
     generate_context,
     plugin::PluginStore,
@@ -757,9 +777,9 @@ mod test {
   const TEST_EVENT_NAME: &str = "event";
 
   #[test]
-  fn check_get_url_wry() {
+  fn check_get_url() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
-    let manager: AppManager<Wry> = AppManager::with_handlers(
+    let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
       PluginStore::default(),
       Box::new(|_| false),
@@ -779,69 +799,18 @@ mod test {
       None, // channel_interceptor
       crate::generate_invoke_key().unwrap(), // invoke_key,
     );
+    // the custom scheme URL format comes from the runtime handle
+    let runtime =
+      <MockRuntime as tauri_runtime::Runtime<crate::EventLoopMessage>>::new(Default::default())
+        .expect("failed to create mock runtime");
+    manager.set_runtime_handle(<MockRuntime as tauri_runtime::Runtime<
+      crate::EventLoopMessage,
+    >>::handle(&runtime));
 
     #[cfg(custom_protocol)]
     {
-      assert_eq!(
-        manager.get_app_url(false).to_string(),
-        if cfg!(windows) || cfg!(target_os = "android") {
-          "http://tauri.localhost/"
-        } else {
-          "tauri://localhost"
-        }
-      );
-      assert_eq!(
-        manager.get_app_url(true).to_string(),
-        if cfg!(windows) || cfg!(target_os = "android") {
-          "https://tauri.localhost/"
-        } else {
-          "tauri://localhost"
-        }
-      );
-    }
-
-    #[cfg(dev)]
-    assert_eq!(
-      manager.get_app_url(false).to_string(),
-      "http://localhost:4000/"
-    );
-  }
-
-  #[cfg(feature = "cef")]
-  #[test]
-  fn check_get_url_cef() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
-    let manager: AppManager<crate::Cef> = AppManager::with_handlers(
-      context,
-      PluginStore::default(),
-      Box::new(|_| false),
-      None, // on_page_load
-      None, // on_permission_request
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
-      None, // on_web_content_process_terminate
-      Default::default(), // uri_scheme_protocols
-      StateManager::new(), // state
-      Default::default(), // menu_event_listener
-      #[cfg(all(desktop, feature = "tray-icon"))]
-      Default::default(), // tray_icon_event_listeners
-      Default::default(), // window_event_listeners
-      Default::default(), // webview_event_listeners
-      Default::default(), // window_menu_event_listeners
-      "".into(), // invoke_initialization_script
-      None, // channel_interceptor
-      crate::generate_invoke_key().unwrap(), // invoke_key
-    );
-
-    #[cfg(custom_protocol)]
-    {
-      assert_eq!(
-        manager.get_app_url(false).to_string(),
-        "http://tauri.localhost/"
-      );
-      assert_eq!(
-        manager.get_app_url(true).to_string(),
-        "https://tauri.localhost/"
-      );
+      assert_eq!(manager.get_app_url(false).to_string(), "tauri://localhost");
+      assert_eq!(manager.get_app_url(true).to_string(), "tauri://localhost");
     }
 
     #[cfg(dev)]

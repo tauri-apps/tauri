@@ -85,6 +85,24 @@ pub struct CreationContext<'a, 'b> {
   pub webview: &'a jni::objects::JObject<'b>,
 }
 
+/// Raw handles of an iOS webview, exposed through [`crate::WebviewDispatch::with_ios_webview`].
+///
+/// The pointers are borrowed from handles owned by the runtime and are only valid while the webview is alive.
+#[cfg(target_os = "ios")]
+#[derive(Debug, Clone, Copy)]
+pub struct IosWebviewHandle {
+  /// The [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview) pointer.
+  pub webview: *mut std::ffi::c_void,
+  /// The [WKUserContentController](https://developer.apple.com/documentation/webkit/wkusercontentcontroller) pointer.
+  pub manager: *mut std::ffi::c_void,
+  /// The [UIViewController](https://developer.apple.com/documentation/uikit/uiviewcontroller) hosting the webview.
+  pub view_controller: *mut std::ffi::c_void,
+}
+
+// SAFETY: the pointers are only dereferenced on the main thread by the consumer.
+#[cfg(target_os = "ios")]
+unsafe impl Send for IosWebviewHandle {}
+
 /// Kind of event for the page load handler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PageLoadEvent {
@@ -182,8 +200,8 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// Information about the webview that initiated a new window request.
   pub opener: Option<R::WindowOpener>,
 
-  /// Runtime specific attributes.
-  pub platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
+  /// The runtime-specific webview attributes, see [`Runtime::RuntimeWebviewAttributes`](crate::Runtime::RuntimeWebviewAttributes).
+  pub runtime_specific_attributes: R::RuntimeWebviewAttributes,
 
   /// Custom protocols to register on the webview
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocolHandler>>,
@@ -224,7 +242,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
   /// Create a new [`PendingWebview`] with a label from the given [`WebviewAttributes`].
   pub fn new(
     webview_attributes: WebviewAttributes,
-    platform_specific_attributes: Vec<R::PlatformSpecificWebviewAttribute>,
+    runtime_specific_attributes: R::RuntimeWebviewAttributes,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
     let label = label.into();
@@ -234,7 +252,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
       Ok(Self {
         webview_attributes,
         opener: None,
-        platform_specific_attributes,
+        runtime_specific_attributes,
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,

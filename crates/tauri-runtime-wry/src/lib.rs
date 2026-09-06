@@ -23,7 +23,8 @@ use tauri_runtime::webview::ScrollBarStyle;
 use tauri_runtime::{
   Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
   ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
-  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
+  RuntimeInitAttrs, UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch,
+  WindowEventId,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -96,6 +97,70 @@ pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as Tao
 pub use wry;
 pub use wry::webview_version;
 
+/// JNI types used by the [`android_binding!`] macro.
+#[cfg(target_os = "android")]
+#[doc(hidden)]
+pub mod prelude {
+  pub use wry::prelude::{JClass, JNIEnv, JString};
+}
+
+#[cfg(target_os = "android")]
+#[doc(hidden)]
+pub use wry::android_setup;
+
+/// Sets up the JNI bindings that start the Android app with the wry runtime.
+///
+/// This is used by `#[tauri::mobile_entry_point]` and is not meant to be invoked directly.
+#[cfg(target_os = "android")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! android_binding {
+  ($domain:ident, $app_name:ident, $main:ident) => {
+    use $crate::{
+      android_setup,
+      prelude::{JClass, JNIEnv, JString},
+    };
+
+    $crate::wry::android_binding!($domain, $app_name, $crate::wry);
+
+    $crate::tao::android_binding!($domain, $app_name, Rust, android_setup, $main, $crate::tao);
+
+    // be careful when renaming this, the `Java_app_tauri_plugin_PluginManager_handlePluginResponse` symbol is checked by the CLI
+    $crate::tao::platform::android::prelude::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      handlePluginResponse,
+      [i32, JString, JString],
+    );
+    $crate::tao::platform::android::prelude::android_fn!(
+      app_tauri,
+      plugin,
+      PluginManager,
+      sendChannelData,
+      [i64, JString],
+    );
+
+    // this function is a glue between PluginManager.kt > handlePluginResponse and Rust
+    #[allow(non_snake_case)]
+    pub fn handlePluginResponse(
+      mut env: JNIEnv,
+      _: JClass,
+      id: i32,
+      success: JString,
+      error: JString,
+    ) {
+      ::tauri::handle_android_plugin_response(&mut env, id, success, error);
+    }
+
+    // this function is a glue between PluginManager.kt > sendChannelData and Rust
+    #[allow(non_snake_case)]
+    pub fn sendChannelData(mut env: JNIEnv, _: JClass, id: i64, data: JString) {
+      ::tauri::send_channel_data(&mut env, id, data);
+    }
+  };
+}
+
 #[cfg(windows)]
 use wry::WebViewExtWindows;
 #[cfg(target_os = "android")]
@@ -158,6 +223,9 @@ mod webview;
 mod webview_permissions;
 mod window;
 
+mod tauri_ext;
+pub use tauri_ext::*;
+
 pub use webview::Webview;
 use window::WindowExt as _;
 
@@ -196,14 +264,16 @@ pub struct NewWindowOpener {
 unsafe impl Send for NewWindowOpener {}
 unsafe impl Sync for NewWindowOpener {}
 
-/// Platform-specific webview attributes.
-pub enum WebviewAttribute {
-  /// Set the environment for the webview.
+/// The wry-specific webview attributes, set through
+/// [`WebviewWindowBuilderWryExt`](crate::WebviewWindowBuilderWryExt).
+#[derive(Default)]
+pub struct WryWebviewAttributes {
+  /// The environment of the webview.
   /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
   #[cfg(windows)]
-  Environment(webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment),
+  pub environment: Option<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment>,
 
-  /// Creates a new webview sharing the same web process with the provided webview.
+  /// A webview sharing the same web process with the created webview.
   /// Useful if you need to link a webview to another, for instance when using the [`PendingWebview::new_window_handler`].
   #[cfg(any(
     target_os = "linux",
@@ -212,17 +282,17 @@ pub enum WebviewAttribute {
     target_os = "netbsd",
     target_os = "openbsd",
   ))]
-  RelatedView(webkit2gtk::WebView),
+  pub related_view: Option<webkit2gtk::WebView>,
 
-  /// Set the webview configuration.
-  /// Useful if you need to share the use a predefined webview configuration, for instance when using the [`PendingWebview::new_window_handler`].
+  /// The webview configuration.
+  /// Useful if you need to use a predefined webview configuration, for instance when using the [`PendingWebview::new_window_handler`].
   #[cfg(target_os = "macos")]
-  WebviewConfiguration(objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>),
+  pub webview_configuration: Option<objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>>,
 }
 
-// attribute is only used on the main thread
-unsafe impl Send for WebviewAttribute {}
-unsafe impl Sync for WebviewAttribute {}
+// attributes are only used on the main thread
+unsafe impl Send for WryWebviewAttributes {}
+unsafe impl Sync for WryWebviewAttributes {}
 
 #[derive(Debug)]
 pub struct WebContext {
@@ -363,9 +433,9 @@ impl<T: UserEvent> Context<T> {
 impl<T: UserEvent> Context<T> {
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
-    pending: PendingWindow<T, Wry<T>>,
+    pending: PendingWindow<T, WryRuntime<T>>,
     after_window_creation: Option<F>,
-  ) -> Result<DetachedWindow<T, Wry<T>>> {
+  ) -> Result<DetachedWindow<T, WryRuntime<T>>> {
     let label = pending.label.clone();
     let context = self.clone();
     let window_id = self.next_window_id();
@@ -434,8 +504,8 @@ impl<T: UserEvent> Context<T> {
   fn create_webview(
     &self,
     window_id: WindowId,
-    pending: PendingWebview<T, Wry<T>>,
-  ) -> Result<DetachedWebview<T, Wry<T>>> {
+    pending: PendingWebview<T, WryRuntime<T>>,
+  ) -> Result<DetachedWebview<T, WryRuntime<T>>> {
     let label = pending.label.clone();
     let context = self.clone();
 
@@ -1588,7 +1658,7 @@ impl<T: UserEvent> Clone for Message<T> {
   }
 }
 
-/// The Tauri [`WebviewDispatch`] for [`Wry`].
+/// The Tauri [`WebviewDispatch`] for [`WryRuntime`].
 #[derive(Debug, Clone)]
 pub struct WryWebviewDispatcher<T: UserEvent> {
   window_id: Arc<Mutex<WindowId>>,
@@ -1597,7 +1667,7 @@ pub struct WryWebviewDispatcher<T: UserEvent> {
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
-  type Runtime = Wry<T>;
+  type Runtime = WryRuntime<T>;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
@@ -1624,34 +1694,60 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     )
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  fn open_devtools(&self) {
-    let _ = send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::OpenDevTools,
-      ),
-    );
+  #[cfg(target_os = "ios")]
+  fn with_ios_webview<F: FnOnce(tauri_runtime::webview::IosWebviewHandle) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> Result<()> {
+    self.with_webview(move |webview| {
+      f(tauri_runtime::webview::IosWebviewHandle {
+        webview: webview.inner(),
+        manager: webview.controller(),
+        view_controller: webview.view_controller(),
+      })
+    })
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn open_devtools(&self) {
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let _ = send_user_message(
+        &self.context,
+        Message::Webview(
+          *self.window_id.lock().unwrap(),
+          self.webview_id,
+          WebviewMessage::OpenDevTools,
+        ),
+      );
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    log::warn!("devtools are not available: enable the `devtools` feature of `tauri-runtime-wry`");
+  }
+
   fn close_devtools(&self) {
-    let _ = send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::CloseDevTools,
-      ),
-    );
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let _ = send_user_message(
+        &self.context,
+        Message::Webview(
+          *self.window_id.lock().unwrap(),
+          self.webview_id,
+          WebviewMessage::CloseDevTools,
+        ),
+      );
+    }
   }
 
   /// Gets the devtools window's current open state.
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
-    webview_getter!(self, WebviewMessage::IsDevToolsOpen)
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      webview_getter!(self, WebviewMessage::IsDevToolsOpen)
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    {
+      Ok(false)
+    }
   }
 
   // Getters
@@ -1976,7 +2072,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   }
 }
 
-/// The Tauri [`WindowDispatch`] for [`Wry`].
+/// The Tauri [`WindowDispatch`] for [`WryRuntime`].
 #[derive(Debug, Clone)]
 pub struct WryWindowDispatcher<T: UserEvent> {
   window_id: WindowId,
@@ -1994,7 +2090,7 @@ fn get_raw_window_handle<T: UserEvent>(
 }
 
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
-  type Runtime = Wry<T>;
+  type Runtime = WryRuntime<T>;
   type WindowBuilder = WindowBuilderWrapper;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
@@ -2695,15 +2791,35 @@ pub trait Plugin<T: UserEvent> {
   ) -> bool;
 }
 
+/// Selects and configures the wry runtime.
+///
+/// Pass it to `tauri::Builder::runtime` to run the application with wry:
+///
+/// ```rust,no_run
+/// tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
+/// ```
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Wry {}
+
+impl<T: UserEvent> RuntimeInitAttrs<T> for Wry {
+  type Runtime = WryRuntime<T>;
+}
+
+impl<T: UserEvent> From<Wry> for tauri_runtime::dynamic::DynRuntimeInitAttrs<T> {
+  fn from(attrs: Wry) -> Self {
+    Self::new(attrs)
+  }
+}
+
 /// A Tauri [`Runtime`] wrapper around wry.
-pub struct Wry<T: UserEvent> {
+pub struct WryRuntime<T: UserEvent = tauri::EventLoopMessage> {
   context: Context<T>,
   event_loop: EventLoop<Message<T>>,
 }
 
-impl<T: UserEvent> fmt::Debug for Wry<T> {
+impl<T: UserEvent> fmt::Debug for WryRuntime<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Wry")
+    f.debug_struct("WryRuntime")
       .field("main_thread_id", &self.context.main_thread_id)
       .field("event_loop", &self.event_loop)
       .field("windows", &self.context.main_thread.windows)
@@ -2749,7 +2865,8 @@ impl<T: UserEvent> WryHandle<T> {
     Ok(())
   }
 
-  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P)
+  /// Registers a wry runtime plugin.
+  pub fn plugin<P: PluginBuilder<T> + 'static>(&self, plugin: P)
   where
     <P as PluginBuilder<T>>::Plugin: Send,
   {
@@ -2763,7 +2880,7 @@ impl<T: UserEvent> WryHandle<T> {
 }
 
 impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
-  type Runtime = Wry<T>;
+  type Runtime = WryRuntime<T>;
 
   fn create_proxy(&self) -> EventProxy<T> {
     EventProxy(self.context.proxy.clone())
@@ -2789,6 +2906,25 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .proxy
       .send_event(Message::RequestExit(code))
       .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  /// Returns the URL for a custom scheme.
+  ///
+  /// On Windows and Android, custom schemes use `http://<scheme>.localhost` or `https://<scheme>.localhost`.
+  /// On other platforms, custom schemes use `<scheme>://localhost`.
+  fn custom_scheme_url(&self, scheme: &str, _https: bool) -> String {
+    if cfg!(any(windows, target_os = "android")) {
+      format!(
+        "{}://{scheme}.localhost",
+        if _https { "https" } else { "http" }
+      )
+    } else {
+      format!("{scheme}://localhost")
+    }
+  }
+
+  fn webview_version(&self) -> Result<String> {
+    wry::webview_version().map_err(|e| Error::WebviewVersion(Box::new(e)))
   }
 
   // Creates a window by dispatching a message to the event loop.
@@ -2927,10 +3063,10 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 }
 
-impl<T: UserEvent> Wry<T> {
+impl<T: UserEvent> WryRuntime<T> {
   fn init_with_builder(
     mut event_loop_builder: EventLoopBuilder<Message<T>>,
-    #[allow(unused_variables)] args: RuntimeInitArgs<()>,
+    #[allow(unused_variables)] args: RuntimeInitArgs<Wry>,
   ) -> Result<Self> {
     #[cfg(windows)]
     if let Some(hook) = args.msg_hook {
@@ -2986,18 +3122,18 @@ impl<T: UserEvent> Wry<T> {
   }
 }
 
-impl<T: UserEvent> Runtime<T> for Wry<T> {
+impl<T: UserEvent> Runtime<T> for WryRuntime<T> {
   type WindowDispatcher = WryWindowDispatcher<T>;
   type WebviewDispatcher = WryWebviewDispatcher<T>;
   type Handle = WryHandle<T>;
 
   type EventLoopProxy = EventProxy<T>;
-  type PlatformSpecificWebviewAttribute = WebviewAttribute;
-  type RuntimeInitAttrs = ();
+  type RuntimeWebviewAttributes = WryWebviewAttributes;
+  type RuntimeInitAttrs = Wry;
   type WindowOpener = NewWindowOpener;
   type Webview = Webview;
 
-  fn new(args: RuntimeInitArgs<()>) -> Result<Self> {
+  fn new(args: RuntimeInitArgs<Wry>) -> Result<Self> {
     Self::init_with_builder(EventLoopBuilder::<Message<T>>::with_user_event(), args)
   }
   #[cfg(any(
@@ -3007,7 +3143,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn new_any_thread(args: RuntimeInitArgs<()>) -> Result<Self> {
+  fn new_any_thread(args: RuntimeInitArgs<Wry>) -> Result<Self> {
     use tao::platform::unix::EventLoopBuilderExtUnix;
     let mut event_loop_builder = EventLoopBuilder::<Message<T>>::with_user_event();
     event_loop_builder.with_any_thread(true);
@@ -3015,7 +3151,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(windows)]
-  fn new_any_thread(args: RuntimeInitArgs<()>) -> Result<Self> {
+  fn new_any_thread(args: RuntimeInitArgs<Wry>) -> Result<Self> {
     use tao::platform::windows::EventLoopBuilderExtWindows;
     let mut event_loop_builder = EventLoopBuilder::<Message<T>>::with_user_event();
     event_loop_builder.with_any_thread(true);
@@ -3218,21 +3354,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self
       .event_loop
       .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
-  }
-
-  /// Returns the URL for a custom scheme.
-  ///
-  /// On Windows and Android, custom schemes use `http://<scheme>.localhost` or `https://<scheme>.localhost`.
-  /// On other platforms, custom schemes use `<scheme>://localhost`.
-  fn custom_scheme_url(scheme: &str, _https: bool) -> String {
-    if cfg!(any(windows, target_os = "android")) {
-      format!(
-        "{}://{scheme}.localhost",
-        if _https { "https" } else { "http" }
-      )
-    } else {
-      format!("{scheme}://localhost")
-    }
   }
 
   #[cfg(desktop)]
@@ -4535,7 +4656,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   webview_id: u32,
   event_loop: &EventLoopWindowTarget<Message<T>>,
   context: &Context<T>,
-  pending: PendingWindow<T, Wry<T>>,
+  pending: PendingWindow<T, WryRuntime<T>>,
   after_window_creation: Option<F>,
 ) -> Result<WindowWrapper> {
   #[allow(unused_mut)]
@@ -4792,7 +4913,7 @@ fn create_webview<T: UserEvent>(
   window_id: Arc<Mutex<WindowId>>,
   id: WebviewId,
   context: &Context<T>,
-  pending: PendingWebview<T, Wry<T>>,
+  pending: PendingWebview<T, WryRuntime<T>>,
   #[allow(unused_variables)] focused_webview: Arc<Mutex<FocusState>>,
 ) -> Result<WebviewWrapper> {
   if !context.webview_runtime_installed {
@@ -4816,7 +4937,7 @@ You may have it installed on another user account, but it is not available for t
   #[allow(unused_mut)]
   let PendingWebview {
     webview_attributes,
-    platform_specific_attributes,
+    runtime_specific_attributes,
     uri_scheme_protocols,
     label,
     ipc_handler,
@@ -4883,13 +5004,9 @@ You may have it installed on another user account, but it is not available for t
   }
 
   #[cfg(target_os = "macos")]
-  if let Some(webview_configuration) = platform_specific_attributes
-    .iter()
-    .find_map(|attr| match attr {
-      WebviewAttribute::WebviewConfiguration(config) => Some(config),
-      #[allow(unreachable_patterns)]
-      _ => None,
-    })
+  if let Some(webview_configuration) = runtime_specific_attributes
+    .webview_configuration
+    .as_ref()
     .or_else(|| opener.as_ref().map(|opener| &opener.target_configuration))
   {
     webview_builder = webview_builder.with_webview_configuration(webview_configuration.clone());
@@ -5135,13 +5252,9 @@ You may have it installed on another user account, but it is not available for t
       webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
     }
 
-    if let Some(environment) = platform_specific_attributes
-      .iter()
-      .find_map(|attr| match attr {
-        WebviewAttribute::Environment(env) => Some(env),
-        #[allow(unreachable_patterns)]
-        _ => None,
-      })
+    if let Some(environment) = runtime_specific_attributes
+      .environment
+      .as_ref()
       .or_else(|| opener.as_ref().map(|opener| &opener.environment))
     {
       webview_builder = webview_builder.with_environment(environment.clone());
@@ -5189,13 +5302,9 @@ You may have it installed on another user account, but it is not available for t
     target_os = "openbsd"
   ))]
   {
-    if let Some(related_view) = platform_specific_attributes
-      .iter()
-      .find_map(|attr| match attr {
-        WebviewAttribute::RelatedView(view) => Some(view),
-        #[allow(unreachable_patterns)]
-        _ => None,
-      })
+    if let Some(related_view) = runtime_specific_attributes
+      .related_view
+      .as_ref()
       .or_else(|| opener.as_ref().map(|opener| &opener.webview))
     {
       webview_builder = webview_builder.with_related_view(related_view.clone());
@@ -5437,7 +5546,7 @@ fn create_ipc_handler<T: UserEvent>(
   webview_id: WebviewId,
   context: Context<T>,
   label: String,
-  ipc_handler: Option<WebviewIpcHandler<T, Wry<T>>>,
+  ipc_handler: Option<WebviewIpcHandler<T, WryRuntime<T>>>,
 ) -> Box<IpcHandler> {
   Box::new(move |request| {
     if let Some(handler) = &ipc_handler {

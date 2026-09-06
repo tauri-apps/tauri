@@ -61,7 +61,10 @@ pub struct WebviewSnapshot {
   /// `None` means the runtime could not observe a native window lifetime.
   pub window: Option<crate::NativeWindowToken>,
   /// Whether the actual native parent matches the observed native window.
-  /// `None` means the platform could not establish the relationship.
+  /// `None` means the platform could not establish the relationship. A
+  /// CEF-owned popup always reports `None`, permanently rather than
+  /// transiently: CEF owns its native window, so there is no independently
+  /// observed parent for the runtime to check it against.
   pub parent_matches: Option<bool>,
   /// Current bounds relative to the native parent, in the indicated DPI units.
   pub bounds: Option<Rect>,

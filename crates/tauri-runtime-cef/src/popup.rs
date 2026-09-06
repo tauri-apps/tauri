@@ -302,7 +302,13 @@ impl PopupFamily {
           document,
           window_label: None,
           window,
-          parent_matches: observed_window.as_ref().map(|_| true),
+          // CEF owns a popup's native window and the runtime never reparents
+          // it, so there is no independently observed parent to check the view
+          // against: the reported window is the one the view itself named.
+          // The relationship is therefore never established here, and reporting
+          // a match would hand a caller gating a native effect on `Some(true)`
+          // an assertion nothing verified.
+          parent_matches: None,
           bounds,
           visible,
         };

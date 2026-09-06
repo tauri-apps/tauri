@@ -1,7 +1,6 @@
 ---
 "tauri": major:breaking
 "tauri-runtime-wry": major:breaking
-"tauri-runtime-cef": major:breaking
 ---
 
 Runtime-specific APIs moved from the `tauri` crate to extension traits in the runtime crates, which now depend on `tauri`:

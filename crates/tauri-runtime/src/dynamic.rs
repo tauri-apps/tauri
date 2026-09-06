@@ -9,7 +9,7 @@
 //! generic parameters of every type that interacts with the runtime.
 //!
 //! The concrete runtime is selected through [`DynRuntimeInitAttrs::new`], which takes the
-//! [`RuntimeSpecificInitAttrs`] of the runtime to use (e.g. `tauri_runtime_wry::Wry`).
+//! [`RuntimeInitAttrs`] of the runtime to use (e.g. `tauri_runtime_wry::Wry::default()`).
 //! Runtime-specific APIs can still be reached by downcasting the wrappers
 //! (see [`DynRuntimeHandle::downcast_ref`], [`DynWebviewDispatcher::downcast_ref`],
 //! [`DynWindowDispatcher::downcast_ref`] and [`DynWebview::downcast_ref`]).

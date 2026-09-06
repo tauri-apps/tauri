@@ -42,7 +42,7 @@ pub fn run() {
   #[cfg(all(not(test), feature = "cef"))]
   let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
   #[cfg(all(not(test), not(feature = "cef")))]
-  let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry);
+  let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
 
   run_app(builder, |_app| {});
 }

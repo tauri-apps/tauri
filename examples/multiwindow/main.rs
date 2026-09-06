@@ -11,7 +11,7 @@ fn main() {
   #[cfg(feature = "cef")]
   let builder = tauri::Builder::default().runtime(tauri_runtime_cef::Cef::default());
   #[cfg(not(feature = "cef"))]
-  let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry);
+  let builder = tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
 
   builder
     .setup(|app| {

@@ -13,7 +13,7 @@
 //!
 //! ```rust,ignore
 //! // using wry (the system webview)
-//! tauri::Builder::default().runtime(tauri_runtime_wry::Wry);
+//! tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
 //! ```
 //!
 //! ```rust,ignore
@@ -142,7 +142,7 @@ pub use http;
 ///
 /// ```rust,ignore
 /// tauri::Builder::default()
-///   .runtime(tauri_runtime_wry::Wry)
+///   .runtime(tauri_runtime_wry::Wry::default())
 ///   .run(tauri::generate_context!())
 ///   .expect("error while running tauri application");
 /// ```

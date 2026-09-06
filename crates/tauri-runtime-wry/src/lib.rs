@@ -2794,10 +2794,10 @@ pub trait Plugin<T: UserEvent> {
 /// Pass it to `tauri::Builder::runtime` to run the application with wry:
 ///
 /// ```rust,no_run
-/// tauri::Builder::default().runtime(tauri_runtime_wry::Wry);
+/// tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default());
 /// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Wry;
+pub struct Wry {}
 
 impl<T: UserEvent> RuntimeSpecificInitAttrs<T> for Wry {
   type Runtime = WryRuntime<T>;

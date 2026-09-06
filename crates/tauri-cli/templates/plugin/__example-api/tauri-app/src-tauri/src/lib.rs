@@ -7,7 +7,7 @@ fn greet(name: &str) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .runtime(tauri_runtime_wry::Wry)
+        .runtime(tauri_runtime_wry::Wry::default())
         .invoke_handler(tauri::generate_handler![greet])
         .plugin(tauri_plugin_{{ plugin_name_snake_case }}::init())
         .run(tauri::generate_context!())

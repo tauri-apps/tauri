@@ -2438,7 +2438,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// use tauri::Manager;
   ///
   /// tauri::Builder::default()
-  ///   .runtime(tauri_runtime_wry::Wry)
+  ///   .runtime(tauri_runtime_wry::Wry::default())
   ///   .setup(|app| {
   ///     let main_webview = app.get_webview_window("main").unwrap();
   ///     main_webview.with_webview(|webview| {

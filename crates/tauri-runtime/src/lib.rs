@@ -171,7 +171,7 @@ pub enum Error {
   WebviewRuntimeNotInstalled,
   /// The type-erased runtime was initialized without selecting a concrete runtime.
   #[error(
-    "no runtime was configured; select one with e.g. `tauri::Builder::default().runtime(tauri_runtime_wry::Wry)`"
+    "no runtime was configured; select one with e.g. `tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default())`"
   )]
   RuntimeNotConfigured,
   /// A runtime-specific value was given to a different runtime than the one it belongs to.
@@ -475,7 +475,7 @@ impl<A> RuntimeInitArgs<A> {
 ///
 /// Every [`Runtime`] defines its own attributes type. That type is also what *selects* the runtime
 /// when the application uses the type-erased [`dynamic::DynRuntime`]: passing the attributes
-/// (e.g. `tauri_runtime_wry::Wry` or `tauri_runtime_cef::Cef::default()`) to
+/// (e.g. `tauri_runtime_wry::Wry::default()` or `tauri_runtime_cef::Cef::default()`) to
 /// `tauri::Builder::runtime` picks the runtime they belong to.
 pub trait RuntimeSpecificInitAttrs<T: UserEvent>: Default + Send + Sync + 'static {
   /// The runtime initialized with these attributes.

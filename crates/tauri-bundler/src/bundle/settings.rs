@@ -735,6 +735,29 @@ pub struct BundleSettings {
   /// helper apps are still created: they are per-app, and CEF launches them
   /// by path from inside the bundle.
   pub cef_shared_runtime: bool,
+  /// How the executable of the macOS CEF helper apps is built. Required
+  /// whenever they are created, that is when the app links CEF on macOS:
+  /// with [`Self::cef_path`] when embedding, and on a shared runtime.
+  pub cef_helper: Option<CefHelperSettings>,
+}
+
+/// The build of the executable of the macOS CEF helper apps.
+///
+/// The bundler carries the helper's Rust source and compiles it with cargo at
+/// bundle time, for the target being bundled only.
+#[derive(Clone, Debug, Default)]
+pub struct CefHelperSettings {
+  /// Version of the `cef` crate the app links, which the helper is built
+  /// against as well: the same crate resolves the same CEF distribution, so
+  /// the helper loads the very framework the app ships with.
+  pub cef_crate_version: String,
+  /// `CEF_PATH` for the helper's build: where `cef-dll-sys` resolves the CEF
+  /// binary distribution from, downloading into it when missing. The value
+  /// the app was built with, so the helper's build finds the app's
+  /// distribution instead of downloading its own.
+  pub cef_path: PathBuf,
+  /// Directory the helper crate is laid out and built in.
+  pub build_dir: PathBuf,
 }
 
 /// A binary to bundle.

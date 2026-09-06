@@ -1,0 +1,27 @@
+# Manifest of the CEF helper the bundler compiles into the macOS helper `.app`s.
+#
+# Kept as a template rather than a `Cargo.toml` so `cargo package` does not treat
+# this directory as a nested package and drop it from the published crate. The
+# bundler writes it out with the version placeholder replaced by the version of
+# the `cef` crate the app being bundled links, so the helper builds against (and
+# loads) the very same CEF distribution.
+
+[package]
+name = "tauri-cef-helper"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[dependencies]
+cef = { version = "=@CEF_VERSION@", default-features = false }
+# Not actually used directly, just locking it.
+cef-dll-sys = { version = "=@CEF_VERSION@", default-features = false }
+
+[features]
+default = ["sandbox"]
+# Mirrors `tauri-runtime-cef` default feature to enable CEF sandbox support on macOS.
+sandbox = ["cef/sandbox"]
+
+# Ensure this crate is NOT treated as part of the app's workspace.
+[workspace]

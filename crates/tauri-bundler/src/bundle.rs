@@ -29,10 +29,10 @@ pub use windows::vswhere_path;
 pub use {
   category::AppCategory,
   settings::{
-    AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings, PackageSettings,
-    PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder, Size,
-    UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
+    AppImageSettings, BundleBinary, BundleSettings, CefHelperSettings, CustomSignCommandSettings,
+    DebianSettings, DmgSettings, Entitlements, IosSettings, MacOsSettings, NsisSettings,
+    PackageSettings, PackageType, PlistKind, Position, RpmSettings, Settings, SettingsBuilder,
+    Size, UpdaterSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings,
   },
 };
 

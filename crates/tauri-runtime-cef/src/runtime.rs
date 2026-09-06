@@ -67,6 +67,8 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 ))]
 use winit::platform::x11::EventLoopBuilderExtX11;
 
+type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
+
 /// The `cef` crate used by this runtime, re-exported for convenience.
 ///
 /// # Stability
@@ -76,8 +78,6 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 /// in minor releases when a known breaking change is discovered.
 pub use cef;
 
-type SettingsCallback = Box<dyn FnOnce(&mut cef::Settings) + Send + Sync>;
-
 /// CEF runtime initialization attributes.
 #[derive(Default)]
 pub struct RuntimeInitAttrs {
@@ -85,7 +85,7 @@ pub struct RuntimeInitAttrs {
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
-  settings_callback: Option<SettingsCallback>,
+  settings_callback: Option<Box<SettingsCallback>>,
 }
 
 impl fmt::Debug for RuntimeInitAttrs {

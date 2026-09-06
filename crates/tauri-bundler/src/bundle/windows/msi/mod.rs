@@ -509,22 +509,23 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  let silent_webview_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
-  | WebviewInstallMode::EmbedBootstrapper { silent }
-  | WebviewInstallMode::OfflineInstaller { silent } =
-    settings.windows().webview_install_mode
-  {
-    silent
-  } else {
-    true
+  // WebView2 is only installed for runtimes that use it, see `Settings::webview_install_mode`
+  let webview_install_mode = match settings.webview_install_mode() {
+    // the updater installer downloads the bootstrapper instead of shipping it, to keep the package small
+    WebviewInstallMode::EmbedBootstrapper { silent }
+    | WebviewInstallMode::OfflineInstaller { silent }
+      if updater =>
+    {
+      WebviewInstallMode::DownloadBootstrapper { silent }
+    }
+    mode => mode,
   };
 
-  let webview_install_mode = if updater {
-    WebviewInstallMode::DownloadBootstrapper {
-      silent: silent_webview_install,
-    }
-  } else {
-    settings.windows().webview_install_mode.clone()
+  let silent_webview_install = match webview_install_mode {
+    WebviewInstallMode::DownloadBootstrapper { silent }
+    | WebviewInstallMode::EmbedBootstrapper { silent }
+    | WebviewInstallMode::OfflineInstaller { silent } => silent,
+    _ => true,
   };
 
   data.insert("install_webview", to_json(true));
@@ -566,7 +567,8 @@ pub fn build_wix_app_installer(
     }
   }
 
-  if let Some(minimum_webview2_version) = &settings.windows().minimum_webview2_version {
+  // only enforced for runtimes that use WebView2, see `Settings::minimum_webview2_version`
+  if let Some(minimum_webview2_version) = settings.minimum_webview2_version() {
     data.insert(
       "minimum_webview2_version",
       to_json(minimum_webview2_version),
@@ -1055,7 +1057,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
   }
 
   // Adding WebViewer2Loader.dll in case windows-gnu toolchain is used
-  if settings.target().ends_with("-gnu") {
+  if settings.webview_runtime().uses_webview2() && settings.target().ends_with("-gnu") {
     let loader_path =
       dunce::simplified(&settings.project_out_directory().join("WebView2Loader.dll")).to_path_buf();
 
@@ -1084,9 +1086,9 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceDirector
 
   root_resource_directory.files.extend(dlls);
 
-  // Handle CEF support if cef_path is set,
+  // Handle CEF support when the app embeds a CEF distribution,
   // using https://github.com/chromiumembedded/cef/blob/master/tools/distrib/win/README.redistrib.txt as a reference
-  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+  if let Some(cef_path) = settings.webview_runtime().cef_distribution() {
     let project_out = settings.project_out_directory();
     let cef_filenames = [
       // required

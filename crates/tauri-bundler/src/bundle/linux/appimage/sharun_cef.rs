@@ -139,7 +139,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // the bundle at launch, so there is nothing to copy in. Chromium's host
   // dependencies are still deployed below (DEPLOY_CHROMIUM), because the
   // libcef the app loads resolves them against this bundle.
-  if let Some(cef_path) = settings.bundle_settings().cef_path.as_ref() {
+  if let Some(cef_path) = settings.webview_runtime().cef_distribution() {
     fs::create_dir_all(app_dir_bin.join("locales/"))?;
 
     let cef_files = [
@@ -229,7 +229,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // gets copied back in, unstripped. Its discovery filter is hardcoded, so the
   // only way to leave it out is to skip the tracing; the DEPLOY_* rules above
   // still cover GTK, OpenGL, Vulkan, NSS and the other Chromium host libraries.
-  if settings.bundle_settings().cef_path.is_none() {
+  if settings.webview_runtime().cef_distribution().is_none() {
     cmd.env("STRACE_MODE", "0");
   }
 

@@ -15,6 +15,7 @@ members = [
   "crates/tauri-bundler",
   "crates/tauri-macos-sign",
   "crates/tauri-driver",
+  "crates/tauri-examples",
 
   # @tauri-apps/cli rust project
   "packages/cli",

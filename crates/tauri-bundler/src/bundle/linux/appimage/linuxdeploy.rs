@@ -6,7 +6,7 @@
 use super::{super::debian, write_and_make_executable};
 use crate::{
   Settings,
-  bundle::settings::Arch,
+  bundle::settings::{Arch, WebviewRuntime},
   error::Context,
   utils::{CommandExt, fs_utils, http_utils::download},
 };
@@ -131,19 +131,22 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "/usr/libexec",
   ];
 
-  for file in [
-    "WebKitNetworkProcess",
-    "WebKitWebProcess",
-    "injected-bundle/libwebkit2gtkinjectedbundle.so",
-  ] {
-    for source in search_dirs.map(PathBuf::from) {
-      // TODO: Check if it's the same dir name on all systems
-      let source = source.join("webkit2gtk-4.1").join(file);
-      if source.exists() {
-        fs_utils::copy_file(
-          &source,
-          &app_dir_path.join(source.strip_prefix("/").unwrap()),
-        )?;
+  // wry relies on webkit2gtk, whose helper processes must ship alongside the library linuxdeploy bundles
+  if matches!(settings.webview_runtime(), WebviewRuntime::Wry) {
+    for file in [
+      "WebKitNetworkProcess",
+      "WebKitWebProcess",
+      "injected-bundle/libwebkit2gtkinjectedbundle.so",
+    ] {
+      for source in search_dirs.map(PathBuf::from) {
+        // TODO: Check if it's the same dir name on all systems
+        let source = source.join("webkit2gtk-4.1").join(file);
+        if source.exists() {
+          fs_utils::copy_file(
+            &source,
+            &app_dir_path.join(source.strip_prefix("/").unwrap()),
+          )?;
+        }
       }
     }
   }

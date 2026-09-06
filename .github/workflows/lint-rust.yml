@@ -73,6 +73,11 @@ jobs:
           components: clippy
           targets: ${{ matrix.platform.target }}
 
+      # tauri-bundler embeds CEF helpers for both macOS architectures.
+      - name: install CEF helper targets
+        if: contains(matrix.platform.target, 'apple-darwin')
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |

@@ -24,18 +24,22 @@ mod tests {
 
   #[test]
   fn popup_source_observation_is_available_without_dispatch_and_redacted_from_debug() {
-    let features = NewWindowFeatures::<(), CefRuntime<()>>::new(None, None, NewWindowOpener {});
-    assert!(features.source_url().is_none());
+    let features =
+      NewWindowFeatures::<(), CefRuntime<()>>::new(None, None, NewWindowOpener::new(None));
+    assert!(features.opener().source_url().is_none());
+    assert!(format!("{features:?}").contains("source_url_observed: false"));
 
     let source = url::Url::parse("https://example.com/private?token=fixture-secret").unwrap();
-    let features = features.with_source_url(Some(source.clone()));
-    assert_eq!(features.source_url(), Some(&source));
+    let features = NewWindowFeatures::<(), CefRuntime<()>>::new(
+      None,
+      None,
+      NewWindowOpener::new(Some(source.clone())),
+    );
+    assert_eq!(features.opener().source_url(), Some(&source));
     let debug = format!("{features:?}");
     assert!(debug.contains("source_url_observed: true"));
     assert!(!debug.contains("private"));
     assert!(!debug.contains("fixture-secret"));
-
-    assert!(features.with_source_url(None).source_url().is_none());
   }
 }
 
@@ -137,8 +141,7 @@ wrap_life_span_handler! {
         let source_url = browser.as_deref()
           .and_then(|browser| browser.main_frame())
           .and_then(|frame| url::Url::parse(&CefString::from(&frame.url()).to_string()).ok());
-        handler(url, tauri_runtime::webview::NewWindowFeatures::new(size, position, NewWindowOpener {})
-          .with_source_url(source_url))
+        handler(url, tauri_runtime::webview::NewWindowFeatures::new(size, position, NewWindowOpener::new(source_url)))
       } else { tauri_runtime::webview::NewWindowResponse::Allow };
       match response {
         tauri_runtime::webview::NewWindowResponse::Allow => {

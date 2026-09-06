@@ -28,11 +28,10 @@ use crate::menu::{Menu, MenuEvent};
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
 use serialize_to_javascript::{DefaultTemplate, Template, default_template};
-use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  RuntimeInitArgs, RuntimeSpecificInitAttrs,
+  RuntimeInitArgs, RuntimeInitAttrs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
 };
@@ -376,9 +375,8 @@ impl<R: Runtime> AssetResolver<R> {
 /// A handle to the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
-#[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
-pub struct AppHandle<R: Runtime> {
+pub struct AppHandle<R: Runtime = crate::DynRuntime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: Arc<AppManager<R>>,
   event_loop: Arc<Mutex<EventLoop>>,
@@ -390,32 +388,17 @@ struct EventLoop {
   main_thread_id: ThreadId,
 }
 
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl AppHandle<crate::Wry> {
-  /// Create a new tao window using a callback. The event loop must be running at this point.
-  pub fn create_tao_window<
-    F: FnOnce() -> (String, tauri_runtime_wry::TaoWindowBuilder) + Send + 'static,
-  >(
-    &self,
-    f: F,
-  ) -> crate::Result<std::sync::Weak<tauri_runtime_wry::Window>> {
-    self.runtime_handle.create_tao_window(f).map_err(Into::into)
+impl<R: Runtime> AppHandle<R> {
+  /// Returns the handle of the underlying runtime.
+  ///
+  /// Mostly useful for runtime-specific extension traits.
+  pub fn runtime_handle(&self) -> &R::Handle {
+    &self.runtime_handle
   }
 
-  /// Sends a window message to the event loop.
-  pub fn send_tao_window_event(
-    &self,
-    window_id: tauri_runtime_wry::TaoWindowId,
-    message: tauri_runtime_wry::WindowMessage,
-  ) -> crate::Result<()> {
-    self
-      .runtime_handle
-      .send_event(tauri_runtime_wry::Message::Window(
-        self.runtime_handle.window_id(window_id),
-        message,
-      ))
-      .map_err(Into::into)
+  /// Returns the version of the webview engine used by the runtime.
+  pub fn webview_version(&self) -> crate::Result<String> {
+    self.runtime_handle.webview_version().map_err(Into::into)
   }
 }
 
@@ -507,7 +490,7 @@ impl<R: Runtime> AppHandle<R> {
   ///   PluginBuilder::new("dummy").build()
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
@@ -548,7 +531,7 @@ impl<R: Runtime> AppHandle<R> {
   /// let plugin = init_plugin();
   /// // `.name()` requires the `Plugin` trait import
   /// let plugin_name = plugin.name();
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .plugin(plugin)
   ///   .setup(move |app| {
   ///     let handle = app.handle().clone();
@@ -621,7 +604,7 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -641,7 +624,7 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.handle().set_dock_visibility(false);
@@ -718,8 +701,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 /// The instance of the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
-#[default_runtime(crate::Wry, wry)]
-pub struct App<R: Runtime> {
+pub struct App<R: Runtime = crate::DynRuntime> {
   runtime: Option<R>,
   setup: Option<SetupHook<R>>,
   manager: Arc<AppManager<R>>,
@@ -775,21 +757,10 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 }
 
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl App<crate::Wry> {
-  /// Adds a [`tauri_runtime_wry::Plugin`] using its [`tauri_runtime_wry::PluginBuilder`].
-  ///
-  /// # Stability
-  ///
-  /// This API is unstable.
-  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + Send + 'static>(
-    &mut self,
-    plugin: P,
-  ) where
-    <P as tauri_runtime_wry::PluginBuilder<EventLoopMessage>>::Plugin: Send,
-  {
-    self.handle.runtime_handle.plugin(plugin);
+impl<R: Runtime> App<R> {
+  /// Returns the version of the webview engine used by the runtime.
+  pub fn webview_version(&self) -> crate::Result<String> {
+    self.handle.webview_version()
   }
 }
 
@@ -1166,7 +1137,7 @@ macro_rules! shared_app_impl {
       /// ```
       /// use tauri::Listener;
       ///
-      /// tauri::Builder::<tauri::Wry>::new()
+      /// tauri::Builder::default()
       ///   .setup(|app| {
       ///     app.listen("component-loaded", move |event| {
       ///       println!("window just loaded a component");
@@ -1201,7 +1172,7 @@ macro_rules! shared_app_impl {
       /// ```
       /// use tauri::Listener;
       ///
-      /// tauri::Builder::<tauri::Wry>::new()
+      /// tauri::Builder::default()
       ///   .setup(|app| {
       ///     let handler = app.listen("component-loaded", move |event| {
       ///       println!("app just loaded a component");
@@ -1267,7 +1238,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -1288,7 +1259,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.set_dock_visibility(false);
@@ -1317,7 +1288,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let mut app = tauri::Builder::<tauri::Wry>::new()
+  /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1345,7 +1316,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let app = tauri::Builder::<tauri::Wry>::new()
+  /// let app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1381,7 +1352,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let app = tauri::Builder::<tauri::Wry>::new()
+  /// let app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1444,7 +1415,7 @@ impl<R: Runtime> App<R> {
   /// ```no_run
   /// use tauri::Manager;
   ///
-  /// let mut app = tauri::Builder::<tauri::Wry>::new()
+  /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1486,13 +1457,13 @@ impl<R: Runtime> App<R> {
 ///
 /// # Examples
 /// ```,no_run
-/// tauri::Builder::<tauri::Wry>::new()
+/// tauri::Builder::default()
 ///   // on an actual app, remove the string argument
 ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
 ///  .expect("error while running tauri application");
 /// ```
 #[allow(clippy::type_complexity)]
-pub struct Builder<R: Runtime> {
+pub struct Builder<R: Runtime = crate::DynRuntime> {
   /// A flag indicating that the runtime must be started on an environment that supports the event loop not on the main thread.
   #[cfg(any(windows, target_os = "linux"))]
   runtime_any_thread: bool,
@@ -1568,30 +1539,11 @@ pub(crate) struct InvokeInitializationScript<'a> {
   pub(crate) invoke_key: &'a str,
 }
 
-/// Make `Wry` the default `Runtime` for `Builder`
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-impl Default for Builder<crate::Wry> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-/// Make `Cef` the default `Runtime` for `Builder`
-#[cfg(all(desktop, feature = "cef"))]
-#[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "cef"))))]
-impl Default for Builder<crate::Cef> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-#[cfg(not(any(feature = "wry", all(desktop, feature = "cef"))))]
-#[cfg_attr(
-  docsrs,
-  doc(cfg(not(any(feature = "wry", all(desktop, feature = "cef")))))
-)]
-impl<R: Runtime> Default for Builder<R> {
+/// Make the type-erased [`DynRuntime`](crate::DynRuntime) the default `Runtime` for `Builder`.
+///
+/// This is intentionally the only `Default` implementation so `tauri::Builder::default()` infers the runtime type;
+/// use [`Builder::new`] with an explicit runtime type for static dispatch.
+impl Default for Builder<crate::DynRuntime> {
   fn default() -> Self {
     Self::new()
   }
@@ -1639,10 +1591,26 @@ impl<R: Runtime> Builder<R> {
     }
   }
 
-  /// Sets the runtime-specific initialization attributes.
+  /// Selects the runtime that powers the application, using its initialization attributes.
+  ///
+  /// Every runtime crate provides such a type, e.g. `tauri_runtime_wry::Wry` or `tauri_runtime_cef::Cef`.
+  ///
+  /// With the default type-erased [`DynRuntime`](crate::DynRuntime) the attributes of any runtime are accepted,
+  /// and building the application fails with [`tauri_runtime::Error::RuntimeNotConfigured`] if none were given.
+  /// The builder of a concrete runtime (e.g. `Builder::<tauri_runtime_wry::WryRuntime>::new()`)
+  /// only takes the attributes of that runtime.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,ignore
+  /// tauri::Builder::default()
+  ///   .runtime(tauri_runtime_wry::Wry::default())
+  ///   .run(tauri::generate_context!())
+  ///   .expect("error while running tauri application");
+  /// ```
   #[must_use]
-  pub fn runtime_init_attrs(mut self, attrs: R::RuntimeInitAttrs) -> Self {
-    self.runtime_init_attrs = attrs;
+  pub fn runtime(mut self, attrs: impl Into<R::RuntimeInitAttrs>) -> Self {
+    self.runtime_init_attrs = attrs.into();
     self
   }
 }
@@ -1701,7 +1669,7 @@ impl<R: Runtime> Builder<R> {
   /// fn command_1() -> String {
   ///   return "hello world".to_string();
   /// }
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .invoke_handler(tauri::generate_handler![
   ///     command_1,
   ///     // etc...
@@ -1792,7 +1760,7 @@ impl<R: Runtime> Builder<R> {
   /// }
   /// "#;
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .append_invoke_initialization_script(custom_script);
   /// ```
   pub fn append_invoke_initialization_script(
@@ -1813,7 +1781,7 @@ impl<R: Runtime> Builder<R> {
     doc = r####"
 ```
 use tauri::Manager;
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let main_window = app.get_webview_window("main").unwrap();
     main_window.set_title("Tauri!")?;
@@ -1867,7 +1835,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// ```rust,no_run
   /// use tauri::webview::{PermissionKind, PermissionResponse};
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_permission_request(|_, kind| match kind {
   ///     PermissionKind::Geolocation => PermissionResponse::Allow,
   ///     PermissionKind::Notifications => PermissionResponse::Allow,
@@ -1943,7 +1911,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///   }
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .plugin(plugin::init());
   /// ```
   #[must_use]
@@ -2004,7 +1972,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///   storage.store.lock().unwrap().insert(key, value);
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .manage(Storage { store: Default::default() })
   ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
@@ -2031,7 +1999,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///     println!("state: {}", state.inner().0);
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .manage(MyInt(10))
   ///   .manage(MyString("Hello, managed state!".to_string()))
   ///   .invoke_handler(tauri::generate_handler![int_command, string_command])
@@ -2058,7 +2026,7 @@ tauri::Builder::<tauri::Wry>::new()
   /// ```
   /// use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .menu(|handle| Menu::with_items(handle, &[
   ///     &Submenu::with_items(
   ///       handle,
@@ -2088,7 +2056,7 @@ tauri::Builder::<tauri::Wry>::new()
   /// ```
   /// use tauri::menu::*;
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_menu_event(|app, event| {
   ///      if event.id() == "quit" {
   ///        app.exit(0);
@@ -2111,7 +2079,7 @@ tauri::Builder::<tauri::Wry>::new()
   /// ```
   /// use tauri::Manager;
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_tray_icon_event(|app, event| {
   ///      let tray = app.tray_by_id(event.id()).expect("can't find tray icon");
   ///      let _ = tray.set_visible(false);
@@ -2132,7 +2100,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .enable_macos_default_menu(false);
   /// ```
   #[must_use]
@@ -2145,7 +2113,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_window_event(|window, event| match event {
   ///     tauri::WindowEvent::Focused(focused) => {
   ///       // hide window whenever it loses focus
@@ -2169,7 +2137,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_webview_event(|window, event| match event {
   ///     tauri::WebviewEvent::DragDrop(event) => {
   ///       println!("{:?}", event);
@@ -2199,7 +2167,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .register_uri_scheme_protocol("app-files", |_ctx, request| {
   ///     // skip leading `/`
   ///     if let Ok(data) = std::fs::read(&request.uri().path()[1..]) {
@@ -2260,7 +2228,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .register_asynchronous_uri_scheme_protocol("app-files", |_ctx, request, responder| {
   ///     // skip leading `/`
   ///     let path = request.uri().path()[1..].to_string();
@@ -2324,7 +2292,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .device_event_filter(tauri::DeviceEventFilter::Always);
   /// ```
   ///
@@ -2500,6 +2468,7 @@ tauri::Builder::<tauri::Wry>::new()
     runtime.set_device_event_filter(self.device_event_filter);
 
     let runtime_handle = runtime.handle();
+    manager.set_runtime_handle(runtime_handle.clone());
 
     let app = App {
       runtime: Some(runtime),
@@ -2695,9 +2664,10 @@ fn on_event_loop_event<R: Runtime>(
       event: event.into(),
     },
     RuntimeRunEvent::Ready => {
-      // set the app icon in development
-      #[cfg(all(dev, target_os = "macos", not(feature = "cef")))]
-      {
+      // set the app icon in development, unless the app is already running from a bundle
+      // (e.g. the CEF runtime is always bundled in development on macOS) and gets its icon from there
+      #[cfg(all(dev, target_os = "macos"))]
+      if !is_running_from_app_bundle() {
         use objc2::{AllocAnyThread, MainThreadMarker};
         use objc2_app_kit::{NSApplication, NSImage};
         use objc2_foundation::NSData;
@@ -2789,10 +2759,25 @@ mod tests {
     crate::test_utils::assert_send::<super::AppHandle>();
     crate::test_utils::assert_sync::<super::AppHandle>();
 
-    #[cfg(feature = "wry")]
-    {
-      crate::test_utils::assert_send::<super::AssetResolver<crate::Wry>>();
-      crate::test_utils::assert_sync::<super::AssetResolver<crate::Wry>>();
-    }
+    crate::test_utils::assert_send::<super::AssetResolver<crate::DynRuntime>>();
+    crate::test_utils::assert_sync::<super::AssetResolver<crate::DynRuntime>>();
   }
+}
+
+/// Whether the current executable lives inside a macOS application bundle (`*.app/Contents/MacOS`).
+#[cfg(all(dev, target_os = "macos"))]
+fn is_running_from_app_bundle() -> bool {
+  std::env::current_exe()
+    .ok()
+    .and_then(|exe| {
+      exe
+        .parent()
+        .and_then(|macos| macos.parent())
+        .and_then(|contents| contents.parent())
+        .map(|bundle| {
+          bundle.extension().is_some_and(|ext| ext == "app")
+            && exe.parent().is_some_and(|p| p.ends_with("Contents/MacOS"))
+        })
+    })
+    .unwrap_or(false)
 }

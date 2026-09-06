@@ -45,7 +45,7 @@ use crate::platform::EventLoopExt;
 use crate::{
   cef_impl::{client as browser_client, ipc, request_handler},
   webview::{
-    self, AppWebview, CefWebviewDispatcher, Webview, WebviewAtribute, WebviewMessage,
+    self, AppWebview, CefWebviewAttributes, CefWebviewDispatcher, Webview, WebviewMessage,
     create_webview_detached,
   },
   window::{
@@ -67,6 +67,7 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 ))]
 use winit::platform::x11::EventLoopBuilderExtX11;
 
+/// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
 type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
 
 /// The `cef` crate used by this runtime, re-exported for convenience.
@@ -78,9 +79,17 @@ type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
 /// in minor releases when a known breaking change is discovered.
 pub use cef;
 
-/// CEF runtime initialization attributes.
+/// Selects and configures the CEF runtime.
+///
+/// Pass it to `tauri::Builder::runtime` to run the application with CEF:
+///
+/// ```rust,no_run
+/// tauri::Builder::default().runtime(
+///   tauri_runtime_cef::Cef::default().command_line_arg("disable-gpu", None::<String>),
+/// );
+/// ```
 #[derive(Default)]
-pub struct RuntimeInitAttrs {
+pub struct Cef {
   command_line_args: Vec<(String, Option<String>)>,
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
@@ -88,9 +97,9 @@ pub struct RuntimeInitAttrs {
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
-impl fmt::Debug for RuntimeInitAttrs {
+impl fmt::Debug for Cef {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("RuntimeInitAttrs")
+    f.debug_struct("Cef")
       .field("command_line_args", &self.command_line_args)
       .field("deep_link_schemes", &self.deep_link_schemes)
       .field("cache_path", &self.cache_path)
@@ -100,7 +109,7 @@ impl fmt::Debug for RuntimeInitAttrs {
   }
 }
 
-impl RuntimeInitAttrs {
+impl Cef {
   /// Sets a callback to customize the settings passed to [`cef::initialize`].
   ///
   /// If called more than once, only the last callback is used.
@@ -170,7 +179,9 @@ impl RuntimeInitAttrs {
   }
 }
 
-impl tauri_runtime::RuntimeSpecificInitAttrs for RuntimeInitAttrs {
+impl<T: UserEvent> tauri_runtime::RuntimeInitAttrs<T> for Cef {
+  type Runtime = CefRuntime<T>;
+
   fn apply_config(&mut self, config: &tauri_utils::config::Config) -> Result<()> {
     if let Some(plugin_config) = config
       .plugins
@@ -201,8 +212,41 @@ impl tauri_runtime::RuntimeSpecificInitAttrs for RuntimeInitAttrs {
   }
 }
 
-#[derive(Debug)]
-pub struct NewWindowOpener {}
+impl<T: UserEvent> From<Cef> for tauri_runtime::dynamic::DynRuntimeInitAttrs<T> {
+  fn from(attrs: Cef) -> Self {
+    Self::new(attrs)
+  }
+}
+
+/// Information about the CEF webview that requested a new window.
+pub struct NewWindowOpener {
+  source_url: Option<url::Url>,
+}
+
+impl NewWindowOpener {
+  pub(crate) fn new(source_url: Option<url::Url>) -> Self {
+    Self { source_url }
+  }
+
+  /// The opener's main-frame URL at the native popup request, when available.
+  ///
+  /// CEF supplies this directly from the callback's browser. Reading a blocking
+  /// webview getter from that callback can deadlock the UI thread because CEF's
+  /// external message pump may run outside a winit dispatch callback.
+  pub fn source_url(&self) -> Option<&url::Url> {
+    self.source_url.as_ref()
+  }
+}
+
+impl std::fmt::Debug for NewWindowOpener {
+  fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    // The URL can carry credentials and tokens, so only its presence is shown.
+    formatter
+      .debug_struct("NewWindowOpener")
+      .field("source_url_observed", &self.source_url.is_some())
+      .finish()
+  }
+}
 
 #[derive(Clone, Debug)]
 pub struct EventProxy<T: UserEvent> {
@@ -1268,6 +1312,20 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     self.context.send_message(Message::RequestExit(code))
   }
 
+  /// Returns the URL for a custom scheme.
+  ///
+  /// CEF always uses `http://<scheme>.localhost` or `https://<scheme>.localhost`.
+  fn custom_scheme_url(&self, scheme: &str, https: bool) -> String {
+    format!(
+      "{}://{scheme}.localhost",
+      if https { "https" } else { "http" }
+    )
+  }
+
+  fn webview_version(&self) -> Result<String> {
+    crate::webview_version()
+  }
+
   fn create_window<F: Fn(RawWindow<'_>) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
@@ -1362,7 +1420,7 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
   }
 }
 
-pub struct CefRuntime<T: UserEvent> {
+pub struct CefRuntime<T: UserEvent = tauri::EventLoopMessage> {
   event_loop: EventLoop,
   receiver: Receiver<Message<T>>,
   context: RuntimeContext<T>,
@@ -1444,7 +1502,7 @@ impl TerminationSignals {
 impl<T: UserEvent> CefRuntime<T> {
   fn init(
     mut event_loop_builder: EventLoopBuilder,
-    runtime_args: RuntimeInitArgs<RuntimeInitAttrs>,
+    runtime_args: RuntimeInitArgs<Cef>,
   ) -> Result<Self> {
     // Snapshot before CEF can touch anything, so we can tell an embedder's own
     // signal policy apart from the handlers CEF installs in `cef::initialize`.
@@ -1517,7 +1575,7 @@ impl<T: UserEvent> CefRuntime<T> {
       std::process::exit(ret.max(0));
     }
 
-    let RuntimeInitAttrs {
+    let Cef {
       mut command_line_args,
       deep_link_schemes,
       cache_path: cache_path_override,
@@ -1674,9 +1732,9 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
   type WebviewDispatcher = CefWebviewDispatcher<T>;
   type Handle = CefRuntimeHandle<T>;
   type EventLoopProxy = EventProxy<T>;
-  type PlatformSpecificWebviewAttribute = WebviewAtribute;
+  type RuntimeWebviewAttributes = CefWebviewAttributes;
   type Webview = Webview;
-  type RuntimeInitAttrs = RuntimeInitAttrs;
+  type RuntimeInitAttrs = Cef;
   type WindowOpener = NewWindowOpener;
 
   fn new(args: RuntimeInitArgs<Self::RuntimeInitAttrs>) -> Result<Self> {
@@ -1789,13 +1847,6 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     self
       .event_loop
       .listen_device_events(device_event_filter_to_winit(filter));
-  }
-
-  fn custom_scheme_url(scheme: &str, https: bool) -> String {
-    format!(
-      "{}://{scheme}.localhost",
-      if https { "https" } else { "http" }
-    )
   }
 
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {

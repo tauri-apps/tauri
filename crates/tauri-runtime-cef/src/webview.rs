@@ -446,12 +446,9 @@ impl<T: UserEvent> WinitCefApp<T> {
     let dialogs = crate::dialog::DialogState::new(frame_navigation_state.clone());
     let frame_state_for_events = frame_navigation_state.clone();
     let frame_event_handler = pending
-      .platform_specific_attributes
-      .iter()
-      .find_map(|attribute| match attribute {
-        WebviewAtribute::FrameEventHandler(handler) => Some(handler.clone()),
-        _ => None,
-      });
+      .runtime_specific_attributes
+      .frame_event_handler
+      .clone();
     let handlers = browser_client::TauriCefBrowserClientHandlers {
       frame_event_handler: Some(Arc::new(move |event| {
         frame_state_for_events.on_frame_event(&event);
@@ -507,17 +504,11 @@ impl<T: UserEvent> WinitCefApp<T> {
     };
 
     // Let CEF pick the runtime style unless overridden per-webview.
-    let cef_runtime_style = pending
-      .platform_specific_attributes
-      .iter()
-      .find_map(|attr| match attr {
-        WebviewAtribute::RuntimeStyle { style } => Some(match style {
-          RuntimeStyle::Alloy => cef::RuntimeStyle::ALLOY,
-          RuntimeStyle::Chrome => cef::RuntimeStyle::CHROME,
-        }),
-        _ => None,
-      })
-      .unwrap_or(cef::RuntimeStyle::DEFAULT);
+    let cef_runtime_style = match pending.runtime_specific_attributes.runtime_style {
+      Some(RuntimeStyle::Alloy) => cef::RuntimeStyle::ALLOY,
+      Some(RuntimeStyle::Chrome) => cef::RuntimeStyle::CHROME,
+      None => cef::RuntimeStyle::DEFAULT,
+    };
 
     let mut window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
     window_info.runtime_style = cef_runtime_style;
@@ -961,20 +952,23 @@ pub enum RuntimeStyle {
   Chrome,
 }
 
-pub enum WebviewAtribute {
-  RuntimeStyle { style: RuntimeStyle },
-  FrameEventHandler(Arc<crate::FrameEventHandler>),
+/// The CEF-specific webview attributes, set through
+/// [`WebviewWindowBuilderCefExt`](crate::WebviewWindowBuilderCefExt).
+#[derive(Default, Clone)]
+pub struct CefWebviewAttributes {
+  /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
+  pub runtime_style: Option<RuntimeStyle>,
+  /// Observer of the native lifecycle events of every frame of the webview.
+  pub frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
 }
 
-impl std::fmt::Debug for WebviewAtribute {
+impl std::fmt::Debug for CefWebviewAttributes {
   fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      Self::RuntimeStyle { style } => formatter
-        .debug_struct("RuntimeStyle")
-        .field("style", style)
-        .finish(),
-      Self::FrameEventHandler(_) => formatter.write_str("FrameEventHandler"),
-    }
+    formatter
+      .debug_struct("CefWebviewAttributes")
+      .field("runtime_style", &self.runtime_style)
+      .field("frame_event_handler", &self.frame_event_handler.is_some())
+      .finish()
   }
 }
 
@@ -1195,33 +1189,45 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     })
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {
-    let _ = self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::OpenDevTools,
-    });
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let _ = self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::OpenDevTools,
+      });
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    log::warn!("devtools are not available: enable the `devtools` feature of `tauri-runtime-cef`");
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn close_devtools(&self) {
-    let _ = self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::CloseDevTools,
-    });
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let _ = self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::CloseDevTools,
+      });
+    }
   }
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
-    let (tx, rx) = mpsc::channel();
-    self.context.send_message(Message::Webview {
-      window_id: *self.window_id.lock().unwrap(),
-      webview_id: self.webview_id,
-      message: WebviewMessage::IsDevToolsOpen(tx),
-    })?;
-    rx.recv().map_err(|_| Error::FailedToReceiveMessage)
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+      let (tx, rx) = mpsc::channel();
+      self.context.send_message(Message::Webview {
+        window_id: *self.window_id.lock().unwrap(),
+        webview_id: self.webview_id,
+        message: WebviewMessage::IsDevToolsOpen(tx),
+      })?;
+      rx.recv().map_err(|_| Error::FailedToReceiveMessage)
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    {
+      Ok(false)
+    }
   }
 
   fn url(&self) -> Result<String> {

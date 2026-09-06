@@ -250,11 +250,16 @@ fn cfg_alias(alias: &str, has_feature: bool) {
   }
 }
 
-fn default_windows_app_manifest() -> &'static str {
-  let runtime = env::var("DEP_TAURI_RUNTIME")
-    .expect("missing `cargo:runtime` instruction, please update tauri to latest");
+/// Whether the application links the CEF runtime.
+///
+/// `tauri-runtime-cef` emits a `cargo:runtime=cef` instruction from its build script, which cargo
+/// exposes to the build scripts of its direct dependents (the application) as `DEP_TAURI_RUNTIME_CEF_RUNTIME`.
+fn uses_cef_runtime() -> bool {
+  env::var("DEP_TAURI_RUNTIME_CEF_RUNTIME").as_deref() == Ok("cef")
+}
 
-  if runtime == "cef" {
+fn default_windows_app_manifest() -> &'static str {
+  if uses_cef_runtime() {
     include_str!("windows-cef-app-manifest.xml")
   } else {
     include_str!("windows-app-manifest.xml")
@@ -735,9 +740,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     );
   }
 
-  if target_triple.contains("unknown-linux-gnu")
-    && env::var("DEP_TAURI_RUNTIME").as_deref() == Ok("cef")
-  {
+  if target_triple.contains("unknown-linux-gnu") && uses_cef_runtime() {
     // The executable links against libcef.so, which sits next to it: the
     // cef-dll-sys build script copies the CEF distribution into the cargo
     // target directory for dev, and the bundler ships it alongside the binary
@@ -985,15 +988,6 @@ mod tests {
   use semver::Version;
   use std::path::Path;
 
-  // `WindowsAttributes::new` selects the default app manifest from the
-  // `cargo:runtime` instruction tauri emits; unit tests run without cargo's
-  // build-dependency env, so provide it before constructing `Attributes`.
-  fn ensure_runtime_dep_env() {
-    if std::env::var_os("DEP_TAURI_RUNTIME").is_none() {
-      unsafe { std::env::set_var("DEP_TAURI_RUNTIME", "wry") };
-    }
-  }
-
   #[test]
   fn context_attributes_collect_acl_inputs() {
     let attributes = crate::ContextAttributes::new()
@@ -1078,8 +1072,6 @@ mod tests {
 
   #[test]
   fn static_vc_runtime_chain() {
-    ensure_runtime_dep_env();
-
     // 1. Nothing is set, should default to true
     let config = tauri_utils::config::Config::default();
     let attributes = crate::Attributes::new();

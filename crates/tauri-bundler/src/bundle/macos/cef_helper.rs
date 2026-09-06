@@ -38,12 +38,11 @@ const BIN_NAME: &str = "tauri-cef-helper";
 /// together.
 pub(super) fn build(settings: &Settings) -> crate::Result<PathBuf> {
   let helper_settings = settings
-    .bundle_settings()
-    .cef_helper
-    .as_ref()
+    .webview_runtime()
+    .cef_helper()
     .ok_or_else(|| {
       GenericError(
-        "the CEF helper apps' executable is compiled at bundle time, but the build is not configured (`cef_helper` bundle setting)"
+        "the CEF helper apps' executable is compiled at bundle time, but the build is not configured (the `helper` of the `WebviewRuntime::Cef` bundle setting)"
           .into(),
       )
     })?;

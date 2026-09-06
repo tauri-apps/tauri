@@ -17,6 +17,7 @@ mod frame_navigation;
 mod platform;
 mod popup;
 mod runtime;
+mod tauri_ext;
 mod webview;
 pub use devtools::{DevToolsMessageIdExhausted, allocate_devtools_message_id};
 pub use frame::{FrameEvent, FrameEventHandler, FrameEventKind};
@@ -27,6 +28,9 @@ mod window_handle;
 
 pub use cef::sys::CEF_API_VERSION_LAST;
 pub use runtime::*;
+pub use tauri_ext::*;
+/// Marks the application entry point so non-browser CEF processes (renderer, GPU, ...) are handled.
+pub use tauri_macros::cef_entry_point;
 pub use webview::*;
 pub use window::{CefWindowDispatcher, NativeWindowToken};
 pub use window_builder::WindowBuilderWrapper;

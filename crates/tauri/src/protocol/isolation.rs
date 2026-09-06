@@ -26,7 +26,7 @@ pub fn get<R: Runtime>(
   window_origin: String,
   use_https_scheme: bool,
 ) -> UriSchemeProtocolHandler {
-  let frame_src = R::custom_scheme_url(schema, use_https_scheme);
+  let frame_src = manager.custom_scheme_url(schema, use_https_scheme);
 
   let assets = assets as Arc<dyn Assets<R>>;
 

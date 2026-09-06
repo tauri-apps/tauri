@@ -264,6 +264,8 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-log",
  "tauri-plugin-sample",
+ "tauri-runtime-cef",
+ "tauri-runtime-wry",
 ]
 
 [[package]]
@@ -713,6 +715,8 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-runtime-cef",
+ "tauri-runtime-wry",
 ]
 
 [[package]]
@@ -723,6 +727,8 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-runtime-cef",
+ "tauri-runtime-wry",
 ]
 
 [[package]]
@@ -733,6 +739,8 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-runtime-cef",
+ "tauri-runtime-wry",
 ]
 
 [[package]]
@@ -7741,6 +7749,8 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-runtime-cef",
+ "tauri-runtime-wry",
 ]
 
 [[package]]
@@ -9525,8 +9535,6 @@ dependencies = [
  "tauri-build",
  "tauri-macros",
  "tauri-runtime",
- "tauri-runtime-cef",
- "tauri-runtime-wry",
  "tauri-utils",
  "thiserror 2.0.20",
  "tokio",
@@ -9534,8 +9542,6 @@ dependencies = [
  "tray-icon",
  "url",
  "uuid",
- "webkit2gtk",
- "webview2-com",
  "window-vibrancy",
  "windows 0.61.3",
 ]
@@ -9746,6 +9752,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-examples"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.3.4",
+ "http",
+ "http-range",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-runtime-cef",
+ "tauri-runtime-wry",
+ "tauri-utils",
+]
+
+[[package]]
 name = "tauri-file-associations-demo"
 version = "0.1.0"
 dependencies = [
@@ -9753,6 +9775,8 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-runtime-cef",
+ "tauri-runtime-wry",
  "url",
 ]
 
@@ -9891,6 +9915,8 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "softbuffer",
+ "tauri",
+ "tauri-macros",
  "tauri-runtime",
  "tauri-utils",
  "url",
@@ -9915,6 +9941,7 @@ dependencies = [
  "raw-window-handle",
  "softbuffer",
  "tao",
+ "tauri",
  "tauri-runtime",
  "tauri-utils",
  "tracing",

@@ -33,24 +33,31 @@ jobs:
             os: windows-latest
             cargo: 'cargo'
             include: ''
+            features: '--all-features'
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             cargo: 'cargo'
             include: ''
+            features: '--all-features'
           - target: aarch64-apple-darwin
             os: macos-latest
             cargo: 'cargo'
             include: ''
+            features: '--all-features'
           - target: aarch64-apple-ios
             os: macos-latest
             cargo: 'cargo'
             # api example crate should pull in every dependency we want to lint on mobile
             include: '--package api '
+            # cannot use --all-features: the `cef` feature pulls in tauri-runtime-cef, which is desktop-only
+            features: '--features prod'
           - target: aarch64-linux-android
             os: ubuntu-latest
             cargo: 'cross'
             # api example crate should pull in every dependency we want to lint on mobile
             include: '--package api '
+            # cannot use --all-features: the `cef` feature pulls in tauri-runtime-cef, which is desktop-only
+            features: '--features prod'
 
     runs-on: ${{ matrix.platform.os }}
 
@@ -79,4 +86,4 @@ jobs:
         with:
           key: ${{ matrix.platform.target }}
 
-      - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} ${{ matrix.platform.include }}--all-targets --all-features -- -D warnings
+      - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} ${{ matrix.platform.include }}--all-targets ${{ matrix.platform.features }} -- -D warnings

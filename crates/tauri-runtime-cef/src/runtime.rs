@@ -67,6 +67,9 @@ use winit::platform::windows::EventLoopBuilderExtWindows;
 ))]
 use winit::platform::x11::EventLoopBuilderExtX11;
 
+/// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
+type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
+
 /// The `cef` crate used by this runtime, re-exported for convenience.
 ///
 /// # Stability
@@ -75,9 +78,6 @@ use winit::platform::x11::EventLoopBuilderExtX11;
 /// no API stability guarantees. The crate will be updated frequently, usually
 /// in minor releases when a known breaking change is discovered.
 pub use cef;
-
-/// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
-type SettingsCallback = Box<dyn FnOnce(&mut cef::Settings) + Send + Sync>;
 
 /// Selects and configures the CEF runtime.
 ///
@@ -94,7 +94,7 @@ pub struct Cef {
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
-  settings_callback: Option<SettingsCallback>,
+  settings_callback: Option<Box<SettingsCallback>>,
 }
 
 impl fmt::Debug for Cef {

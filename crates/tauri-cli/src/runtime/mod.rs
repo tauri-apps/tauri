@@ -9,8 +9,9 @@
 //! installer steps, code signing entitlements, what to ship with the bundle, how to run the app in dev mode)
 //! is defined here, so the rest of the CLI only asks the [`Runtime`] what it needs.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use crate::error::Context;
 use tauri_bundler::WebviewRuntime;
 use tauri_utils::config::WebviewInstallMode;
 
@@ -140,23 +141,46 @@ impl Runtime {
     embed_cef: bool,
     target: &str,
     workspace_dir: &Path,
+    target_dir: &Path,
   ) -> crate::Result<WebviewRuntime> {
     Ok(match self {
       Self::Wry => WebviewRuntime::Wry,
       Self::Other => WebviewRuntime::Other,
-      // An app on a shared runtime links CEF but ships none: there may not
-      // even be a distribution on this machine to resolve, so don't look.
-      Self::Cef if !embed_cef => WebviewRuntime::Cef { distribution: None },
       Self::Cef => {
-        let cef_path = std::env::var_os("CEF_PATH")
-          .map(PathBuf::from)
-          .unwrap_or_else(cef::default_path);
-        WebviewRuntime::Cef {
-          distribution: Some(cef::resolve_path_for_bundle(
-            cef_path,
-            target,
-            workspace_dir,
-          )?),
+        let cef_path = crate::runtime::cef::cef_path_env();
+        // The macOS helper apps are per-app and always created; their executable
+        // is compiled at bundle time against the app's own `cef` crate version, in
+        // the cargo target directory, with the `CEF_PATH` the app was built with
+        // so the build shares the app's distribution instead of downloading one.
+        let helper = if target.contains("apple-darwin") {
+          let cef_crate_version = crate::runtime::cef::default_version(workspace_dir).context(
+            "failed to determine the version of the `cef` crate the app depends on from Cargo.lock, needed to build the CEF helper apps",
+          )?;
+          Some(tauri_bundler::bundle::CefHelperSettings {
+            cef_crate_version,
+            cef_path: cef_path.clone(),
+            build_dir: target_dir.join("tauri-cef-helper"),
+          })
+        } else {
+          None
+        };
+
+        if embed_cef {
+          WebviewRuntime::Cef {
+            distribution: Some(cef::resolve_path_for_bundle(
+              cef_path,
+              target,
+              workspace_dir,
+            )?),
+            helper,
+          }
+        } else {
+          // An app on a shared runtime links CEF but ships none: there may not
+          // even be a distribution on this machine to resolve, so don't look.
+          WebviewRuntime::Cef {
+            distribution: None,
+            helper,
+          }
         }
       }
     })

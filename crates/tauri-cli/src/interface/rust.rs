@@ -903,6 +903,7 @@ impl AppSettings for RustAppSettings {
       config.bundle.clone(),
       updater_settings,
       arch64bits,
+      &options.args,
     )?;
 
     settings.macos.skip_stapling = options.skip_stapling;
@@ -1374,7 +1375,7 @@ pub fn get_profile_dir(options: &Options) -> &str {
   }
 }
 
-#[allow(unused_variables, deprecated)]
+#[allow(unused_variables, deprecated, clippy::too_many_arguments)]
 pub(crate) fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
   features: &[String],
@@ -1383,6 +1384,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
+  cargo_args: &[String],
 ) -> crate::Result<BundleSettings> {
   let enabled_features = settings
     .manifest
@@ -1394,6 +1396,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
     config.cef.embed,
     &settings.target_triple,
     &settings.workspace_dir,
+    &get_cargo_target_dir(cargo_args, tauri_dir)?,
   )?;
   let webview_install_mode = runtime.webview_install_mode(config.windows.webview_install_mode);
 

@@ -18,14 +18,24 @@ pub const CRATE_NAME: &str = "tauri-runtime-cef";
 
 /// The directory the `cef` crate build script downloads the CEF binary distribution to
 /// when `CEF_PATH` is not set.
-pub fn default_path() -> PathBuf {
+fn default_path() -> PathBuf {
   dirs::cache_dir()
     .unwrap_or_else(|| PathBuf::from(".cache"))
     .join("tauri-cef")
 }
 
+/// `CEF_PATH` for every cargo build that links CEF: where `cef-dll-sys`
+/// resolves the CEF binary distribution from, downloading into it when
+/// missing. The environment's value, or a cache directory shared by all
+/// projects on the machine.
+pub(crate) fn cef_path_env() -> PathBuf {
+  std::env::var_os("CEF_PATH")
+    .map(PathBuf::from)
+    .unwrap_or_else(default_path)
+}
+
 /// The CEF version the app's `cef` crate dependency downloads.
-fn default_version(workspace_dir: &Path) -> Option<String> {
+pub(crate) fn default_version(workspace_dir: &Path) -> Option<String> {
   let (_, lock) = cargo_manifest_and_lock(workspace_dir);
   let crate_version = crate_version(workspace_dir, None, lock.as_ref(), "cef");
   crate_version

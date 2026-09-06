@@ -104,6 +104,7 @@ pub fn run_dev_in_app_bundle<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'sta
     config.bundle.clone(),
     None, // No updater in dev mode
     arch64bits,
+    &options.args,
   )?;
   let mut settings = tauri_bundler::bundle::SettingsBuilder::new()
     .package_settings(app_settings.get_package_settings())

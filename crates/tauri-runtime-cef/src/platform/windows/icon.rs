@@ -14,7 +14,7 @@ pub fn icon_to_hicon(icon: Icon<'static>) -> Option<HICON> {
   }
 
   let mut and_mask = Vec::with_capacity(width as usize * height as usize);
-  for pixel in rgba.chunks_exact_mut(4) {
+  for pixel in rgba.as_chunks_mut::<4>().0 {
     and_mask.push(pixel[3].wrapping_sub(u8::MAX));
     pixel.swap(0, 2);
   }

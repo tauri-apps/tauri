@@ -665,6 +665,10 @@ pub enum WebviewRuntime {
     /// `None` for an app on a shared runtime, which loads CEF at run time from outside its bundle:
     /// nothing of the distribution ships.
     distribution: Option<PathBuf>,
+    /// The build of the executable of the macOS helper apps, see [`CefHelperSettings`].
+    ///
+    /// Required when bundling for macOS, `None` for the other targets, which have no helper apps.
+    helper: Option<CefHelperSettings>,
   },
   /// A runtime the bundler has no specific support for; nothing runtime-specific is shipped.
   Other,
@@ -684,7 +688,21 @@ impl WebviewRuntime {
   /// The CEF binary distribution to copy into the bundle, when the application embeds CEF.
   pub fn cef_distribution(&self) -> Option<&Path> {
     match self {
-      Self::Cef { distribution } => distribution.as_deref(),
+      Self::Cef {
+        distribution,
+        helper: _,
+      } => distribution.as_deref(),
+      Self::Wry | Self::Other => None,
+    }
+  }
+
+  /// The build of the executable of the macOS CEF helper apps, when the application uses CEF.
+  pub fn cef_helper(&self) -> Option<&CefHelperSettings> {
+    match self {
+      Self::Cef {
+        distribution: _,
+        helper,
+      } => helper.as_ref(),
       Self::Wry | Self::Other => None,
     }
   }
@@ -772,6 +790,25 @@ pub struct BundleSettings {
   pub windows: WindowsSettings,
   /// The webview runtime linked into the application. Defaults to [`WebviewRuntime::Wry`].
   pub webview_runtime: WebviewRuntime,
+}
+
+/// The build of the executable of the macOS CEF helper apps.
+///
+/// The bundler carries the helper's Rust source and compiles it with cargo at
+/// bundle time, for the target being bundled only.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CefHelperSettings {
+  /// Version of the `cef` crate the app links, which the helper is built
+  /// against as well: the same crate resolves the same CEF distribution, so
+  /// the helper loads the very framework the app ships with.
+  pub cef_crate_version: String,
+  /// `CEF_PATH` for the helper's build: where `cef-dll-sys` resolves the CEF
+  /// binary distribution from, downloading into it when missing. The value
+  /// the app was built with, so the helper's build finds the app's
+  /// distribution instead of downloading its own.
+  pub cef_path: PathBuf,
+  /// Directory the helper crate is laid out and built in.
+  pub build_dir: PathBuf,
 }
 
 /// A binary to bundle.

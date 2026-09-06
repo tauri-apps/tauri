@@ -268,9 +268,7 @@ pub fn cargo_command(
 
   // Ensure CEF_PATH is set for the cargo subprocess so the cef-dll-sys build
   // script can locate (or download) the CEF binary distribution.
-  if std::env::var_os("CEF_PATH").is_none() {
-    build_cmd.env("CEF_PATH", crate::runtime::cef::default_path());
-  }
+  build_cmd.env("CEF_PATH", crate::runtime::cef::cef_path_env());
 
   // Set working directory if specified
   if let Some(cwd) = runner_config.cwd() {

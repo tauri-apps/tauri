@@ -270,6 +270,9 @@ pub trait WebviewWindowBuilderCefExt {
   /// The callback runs synchronously on CEF's UI thread. It must return
   /// promptly and must not wait for an event-loop operation. This observer
   /// does not replace the navigation policy configured by `on_navigation`.
+  /// It is scoped to this webview's own native browser, so a CEF-owned popup
+  /// is a separate browser that is never reported here — observe popups
+  /// through [`Webview::popups`](crate::Webview::popups).
   #[must_use]
   fn on_frame_event<F: Fn(FrameEvent) + Send + Sync + 'static>(self, handler: F) -> Self;
 }
@@ -309,6 +312,9 @@ pub trait WebviewBuilderCefExt {
   /// The callback runs synchronously on CEF's UI thread. It must return
   /// promptly and must not wait for an event-loop operation. This observer
   /// does not replace the navigation policy configured by `on_navigation`.
+  /// It is scoped to this webview's own native browser, so a CEF-owned popup
+  /// is a separate browser that is never reported here — observe popups
+  /// through [`Webview::popups`](crate::Webview::popups).
   #[must_use]
   fn on_frame_event<F: Fn(FrameEvent) + Send + Sync + 'static>(self, handler: F) -> Self;
 }

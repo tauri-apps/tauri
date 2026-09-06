@@ -132,6 +132,11 @@ wrap_client! {
           devtools_enabled, target, false, Arc::default(), state,
           family.clone(), Some(opener),
           TauriCefBrowserClientHandlers {
+            // Only the internal navigation observer, never the opener's app
+            // observer. A popup is a separate native browser that navigates
+            // wherever its own content goes — an SSO or OAuth window is the
+            // standing case — and every `FrameEvent` carries the full URL. An
+            // app observes popups without their URLs through `Webview::popups`.
             frame_event_handler: Some(Arc::new(move |event| events.on_frame_event(&event))),
             navigation_handler: navigation_handler.clone(),
             new_window_handler: new_window_handler.clone(),

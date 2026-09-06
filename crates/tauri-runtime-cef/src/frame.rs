@@ -12,7 +12,9 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct FrameEvent {
-  /// Native browser identity. A popup has a different identity from its opener.
+  /// Native browser identity. Every event delivered to one webview's observer
+  /// carries that webview's own identity; a CEF-owned popup is a different
+  /// browser and is not reported here.
   pub browser_id: i32,
   /// CEF's opaque identifier for this native frame lifetime.
   /// Empty for a browser-wide notification when no main frame exists.

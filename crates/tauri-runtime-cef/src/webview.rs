@@ -463,6 +463,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       .frame_event_handler
       .clone();
     let handlers = browser_client::TauriCefBrowserClientHandlers {
+      // The internal navigation observer must see every notification this client
+      // receives; the app observer is bound to this exact native browser. CEF can
+      // route a browser this webview does not own through the same client — a
+      // DevTools window is the standing case — and a `FrameEvent` carries the full
+      // URL, so those must never reach an observer registered for this webview.
       frame_event_handler: Some(Arc::new(move |event| {
         frame_state_for_events.on_frame_event(&event);
         if frame_state_for_events.has_browser_id(event.browser_id)
@@ -972,6 +977,15 @@ pub struct CefWebviewAttributes {
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
   pub runtime_style: Option<RuntimeStyle>,
   /// Observer of the native lifecycle events of every frame of the webview.
+  ///
+  /// Scoped to this webview's own native browser — its main frame and its child
+  /// frames. Every notification carries that one
+  /// [`browser_id`](crate::FrameEvent::browser_id). A CEF-owned popup is a
+  /// separate browser that navigates wherever its own content goes, and a
+  /// [`FrameEvent`](crate::FrameEvent) carries the full URL, so popups are never
+  /// reported here. Observe them through [`Webview::popups`], whose
+  /// [`FrameNavigationState`](crate::FrameNavigationState) follows a popup's
+  /// native lifecycle without exposing its URLs.
   pub frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
 }
 

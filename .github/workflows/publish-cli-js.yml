@@ -88,8 +88,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          # CEF helper needs both archs
-          targets: ${{ contains(matrix.settings.target, 'apple-darwin') && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.settings.target }}
+          targets: ${{ matrix.settings.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.settings.target }}

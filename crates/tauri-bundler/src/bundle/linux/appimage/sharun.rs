@@ -147,16 +147,36 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let settings = settings;
 
   fs::create_dir_all(&output_path)?;
-  let app_dir = output_path.join(format!("{product_name}.AppDir"));
+
+  // quick-sharun silently skips wrapping the application binary when the AppDir
+  // path contains whitespace, and the bundle it then produces dies at startup
+  // with a missing library. Product names with spaces are common, so keep the
+  // directory and the files inside it free of whitespace. Users still see the
+  // product name through the desktop entry's `Name` and the AppImage file name.
+  let app_dir_name = product_name
+    .chars()
+    .map(|c| if c.is_whitespace() { '_' } else { c })
+    .collect::<String>();
+
+  let app_dir = output_path.join(format!("{app_dir_name}.AppDir"));
   let app_dir_bin = app_dir.join("bin/");
   let app_dir_lib = app_dir.join("lib/");
+
+  // The project path is not ours to sanitize, so refuse rather than hand the
+  // user a bundle that looks fine and fails on their machine.
+  if app_dir.to_string_lossy().contains(char::is_whitespace) {
+    return Err(crate::Error::GenericError(format!(
+      "cannot bundle an AppImage under a path that contains whitespace: {}. The AppImage tooling silently skips deploying the application binary, so the bundle would fail to start. Build from a path without whitespace.",
+      app_dir.display()
+    )));
+  }
 
   let desktop_file = freedesktop::generate_desktop_file(&settings, &None, &app_dir)
     .with_context(|| "Failed to create desktop file")?
     .0;
   fs::rename(
     desktop_file,
-    app_dir.join(format!("{product_name}.desktop")),
+    app_dir.join(format!("{app_dir_name}.desktop")),
   )
   .with_context(|| "Failed to move desktop file")?;
   let _ = fs_utils::remove_dir_all(&app_dir.join("usr/"));
@@ -195,7 +215,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       )
     })?;
 
-  fs::copy(largest_icon.1, app_dir.join(format!("{product_name}.png")))
+  fs::copy(largest_icon.1, app_dir.join(format!("{app_dir_name}.png")))
     .with_context(|| "Failed to copy icon file")?;
 
   // quick-sharun takes the binaries and libraries to deploy as positional

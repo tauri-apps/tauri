@@ -1839,7 +1839,7 @@ pub(crate) fn load_initial_url_after_registering_initialization_scripts(
     Err(error) => {
       // Exhaustion cannot fall through to a navigation without the requested
       // document-start scripts or reuse another operation's acknowledgment.
-      eprintln!("CEF initialization failed: {error}");
+      log::error!("CEF initialization failed: {error}");
       if let Some(host) = browser.host() {
         host.close_browser(1);
       }

@@ -31,7 +31,7 @@ use serialize_to_javascript::{DefaultTemplate, Template, default_template};
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  RuntimeInitArgs, RuntimeSpecificInitAttrs,
+  RuntimeInitArgs, RuntimeInitAttrs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
 };
@@ -396,13 +396,6 @@ impl<R: Runtime> AppHandle<R> {
     &self.runtime_handle
   }
 
-  /// Returns a mutable reference to the handle of the underlying runtime.
-  ///
-  /// Mostly useful for runtime-specific extension traits.
-  pub fn runtime_handle_mut(&mut self) -> &mut R::Handle {
-    &mut self.runtime_handle
-  }
-
   /// Returns the version of the webview engine used by the runtime.
   pub fn webview_version(&self) -> crate::Result<String> {
     self.runtime_handle.webview_version().map_err(Into::into)
@@ -765,13 +758,6 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 }
 
 impl<R: Runtime> App<R> {
-  /// Returns a mutable reference to the app handle.
-  ///
-  /// Mostly useful for runtime-specific extension traits.
-  pub fn handle_mut(&mut self) -> &mut AppHandle<R> {
-    &mut self.handle
-  }
-
   /// Returns the version of the webview engine used by the runtime.
   pub fn webview_version(&self) -> crate::Result<String> {
     self.handle.webview_version()
@@ -1563,27 +1549,6 @@ impl Default for Builder<crate::DynRuntime> {
   }
 }
 
-impl Builder<crate::DynRuntime> {
-  /// Selects the runtime that powers the application, using its initialization attributes.
-  ///
-  /// Every runtime crate provides such a type, e.g. `tauri_runtime_wry::Wry` or `tauri_runtime_cef::Cef`.
-  /// Building the application fails with [`tauri_runtime::Error::RuntimeNotConfigured`] if no runtime was selected.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,ignore
-  /// tauri::Builder::default()
-  ///   .runtime(tauri_runtime_wry::Wry)
-  ///   .run(tauri::generate_context!())
-  ///   .expect("error while running tauri application");
-  /// ```
-  #[must_use]
-  pub fn runtime<A: RuntimeSpecificInitAttrs<EventLoopMessage>>(mut self, attrs: A) -> Self {
-    self.runtime_init_attrs = tauri_runtime::dynamic::DynRuntimeInitAttrs::new(attrs);
-    self
-  }
-}
-
 impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
@@ -1626,10 +1591,26 @@ impl<R: Runtime> Builder<R> {
     }
   }
 
-  /// Sets the runtime-specific initialization attributes.
+  /// Selects the runtime that powers the application, using its initialization attributes.
+  ///
+  /// Every runtime crate provides such a type, e.g. `tauri_runtime_wry::Wry` or `tauri_runtime_cef::Cef`.
+  ///
+  /// With the default type-erased [`DynRuntime`](crate::DynRuntime) the attributes of any runtime are accepted,
+  /// and building the application fails with [`tauri_runtime::Error::RuntimeNotConfigured`] if none were given.
+  /// The builder of a concrete runtime (e.g. `Builder::<tauri_runtime_wry::WryRuntime>::new()`)
+  /// only takes the attributes of that runtime.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,ignore
+  /// tauri::Builder::default()
+  ///   .runtime(tauri_runtime_wry::Wry::default())
+  ///   .run(tauri::generate_context!())
+  ///   .expect("error while running tauri application");
+  /// ```
   #[must_use]
-  pub fn runtime_init_attrs(mut self, attrs: R::RuntimeInitAttrs) -> Self {
-    self.runtime_init_attrs = attrs;
+  pub fn runtime(mut self, attrs: impl Into<R::RuntimeInitAttrs>) -> Self {
+    self.runtime_init_attrs = attrs.into();
     self
   }
 }

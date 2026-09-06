@@ -23,8 +23,8 @@ use tauri_runtime::webview::ScrollBarStyle;
 use tauri_runtime::{
   Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
   ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
-  RuntimeSpecificInitAttrs, UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId,
-  WindowDispatch, WindowEventId,
+  RuntimeInitAttrs, UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch,
+  WindowEventId,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -2799,8 +2799,14 @@ pub trait Plugin<T: UserEvent> {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Wry {}
 
-impl<T: UserEvent> RuntimeSpecificInitAttrs<T> for Wry {
+impl<T: UserEvent> RuntimeInitAttrs<T> for Wry {
   type Runtime = WryRuntime<T>;
+}
+
+impl<T: UserEvent> From<Wry> for tauri_runtime::dynamic::DynRuntimeInitAttrs<T> {
+  fn from(attrs: Wry) -> Self {
+    Self::new(attrs)
+  }
 }
 
 /// A Tauri [`Runtime`] wrapper around wry.

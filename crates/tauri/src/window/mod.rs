@@ -132,18 +132,6 @@ unstable_struct!(
   }
 );
 
-#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
-impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
-  /// Returns a mutable reference to the runtime's window builder.
-  ///
-  /// Mostly useful for runtime-specific extension traits.
-  pub fn runtime_window_builder_mut(
-    &mut self,
-  ) -> &mut <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder {
-    &mut self.window_builder
-  }
-}
-
 impl<R: Runtime, M: Manager<R>> fmt::Debug for WindowBuilder<'_, R, M> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("WindowBuilder")

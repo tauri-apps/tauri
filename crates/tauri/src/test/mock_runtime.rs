@@ -7,8 +7,8 @@
 
 use tauri_runtime::{
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
-  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, RuntimeSpecificInitAttrs,
-  UserAttentionType, UserEvent, WebviewDispatch, WindowDispatch, WindowEventId,
+  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, RuntimeInitAttrs, UserAttentionType,
+  UserEvent, WebviewDispatch, WindowDispatch, WindowEventId,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
@@ -1225,12 +1225,18 @@ impl MockRuntime {
   }
 }
 
-/// Selects the [`MockRuntime`], e.g. `tauri::Builder::default().runtime(MockRuntimeInitAttrs)`.
+/// Selects the [`MockRuntime`], e.g. `tauri::Builder::default().runtime(MockRuntimeInitAttrs::default())`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct MockRuntimeInitAttrs;
+pub struct MockRuntimeInitAttrs {}
 
-impl<T: UserEvent> RuntimeSpecificInitAttrs<T> for MockRuntimeInitAttrs {
+impl<T: UserEvent> RuntimeInitAttrs<T> for MockRuntimeInitAttrs {
   type Runtime = MockRuntime;
+}
+
+impl<T: UserEvent> From<MockRuntimeInitAttrs> for tauri_runtime::dynamic::DynRuntimeInitAttrs<T> {
+  fn from(attrs: MockRuntimeInitAttrs) -> Self {
+    Self::new(attrs)
+  }
 }
 
 impl<T: UserEvent> Runtime<T> for MockRuntime {

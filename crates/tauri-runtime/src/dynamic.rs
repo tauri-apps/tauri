@@ -32,8 +32,8 @@ use url::Url;
 use crate::ActivationPolicy;
 use crate::{
   Cookie, DeviceEventFilter, Error, EventLoopProxy, Icon, ProgressBarState, ResizeDirection,
-  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, RuntimeSpecificInitAttrs,
-  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
+  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, RuntimeInitAttrs, UserAttentionType,
+  UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
   dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,
   webview::{
@@ -2463,13 +2463,13 @@ trait ErasedRuntimeInitAttrs<T: UserEvent>: Send + Sync {
   ) -> Result<Box<dyn ErasedRuntime<T>>>;
 }
 
-struct RuntimeInitAttrs<T: UserEvent, A: RuntimeSpecificInitAttrs<T>> {
+struct TypedRuntimeInitAttrs<T: UserEvent, A: RuntimeInitAttrs<T>> {
   attrs: A,
   _marker: PhantomData<fn() -> T>,
 }
 
-impl<T: UserEvent, A: RuntimeSpecificInitAttrs<T>> ErasedRuntimeInitAttrs<T>
-  for RuntimeInitAttrs<T, A>
+impl<T: UserEvent, A: RuntimeInitAttrs<T>> ErasedRuntimeInitAttrs<T>
+  for TypedRuntimeInitAttrs<T, A>
 {
   fn apply_config(&mut self, config: &Config) -> Result<()> {
     self.attrs.apply_config(config)
@@ -2499,7 +2499,7 @@ impl<T: UserEvent, A: RuntimeSpecificInitAttrs<T>> ErasedRuntimeInitAttrs<T>
   }
 }
 
-/// The [`RuntimeSpecificInitAttrs`] of [`DynRuntime`].
+/// The [`RuntimeInitAttrs`] of [`DynRuntime`].
 ///
 /// Wraps the attributes of the concrete runtime to use, which is how the runtime is selected.
 /// The default value selects no runtime, in which case initializing the [`DynRuntime`] fails
@@ -2510,9 +2510,9 @@ pub struct DynRuntimeInitAttrs<T: UserEvent> {
 
 impl<T: UserEvent> DynRuntimeInitAttrs<T> {
   /// Selects the runtime initialized with the given attributes.
-  pub fn new<A: RuntimeSpecificInitAttrs<T>>(attrs: A) -> Self {
+  pub fn new<A: RuntimeInitAttrs<T>>(attrs: A) -> Self {
     Self {
-      inner: Some(Box::new(RuntimeInitAttrs {
+      inner: Some(Box::new(TypedRuntimeInitAttrs {
         attrs,
         _marker: PhantomData,
       })),
@@ -2539,7 +2539,7 @@ impl<T: UserEvent> fmt::Debug for DynRuntimeInitAttrs<T> {
   }
 }
 
-impl<T: UserEvent> RuntimeSpecificInitAttrs<T> for DynRuntimeInitAttrs<T> {
+impl<T: UserEvent> RuntimeInitAttrs<T> for DynRuntimeInitAttrs<T> {
   type Runtime = DynRuntime<T>;
 
   fn apply_config(&mut self, config: &Config) -> Result<()> {
@@ -2684,7 +2684,7 @@ impl<T: UserEvent, R: Runtime<T>> ErasedRuntime<T> for R {
 
 /// A type-erased [`Runtime`].
 ///
-/// The concrete runtime is selected through its [`RuntimeSpecificInitAttrs`],
+/// The concrete runtime is selected through its [`RuntimeInitAttrs`],
 /// see [`DynRuntimeInitAttrs::new`].
 #[derive(Debug)]
 pub struct DynRuntime<T: UserEvent> {

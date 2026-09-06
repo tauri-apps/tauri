@@ -434,7 +434,10 @@ pub struct RuntimeInitArgs<A> {
 
 impl<A> RuntimeInitArgs<A> {
   /// Replaces the runtime-specific attributes, returning the new arguments and the previous attributes.
-  pub fn with_attrs<B>(self, runtime_init_attrs: B) -> (RuntimeInitArgs<B>, A) {
+  ///
+  /// Used by the type-erased [`dynamic::DynRuntime`] to move the attributes of the selected runtime
+  /// in and out of the arguments, since the erased layer only carries `RuntimeInitArgs<()>`.
+  pub(crate) fn with_attrs<B>(self, runtime_init_attrs: B) -> (RuntimeInitArgs<B>, A) {
     let RuntimeInitArgs {
       #[cfg(any(
         target_os = "linux",
@@ -477,7 +480,10 @@ impl<A> RuntimeInitArgs<A> {
 /// when the application uses the type-erased [`dynamic::DynRuntime`]: passing the attributes
 /// (e.g. `tauri_runtime_wry::Wry::default()` or `tauri_runtime_cef::Cef::default()`) to
 /// `tauri::Builder::runtime` picks the runtime they belong to.
-pub trait RuntimeSpecificInitAttrs<T: UserEvent>: Default + Send + Sync + 'static {
+///
+/// For that to work, runtime crates also implement `From<Self>` for [`dynamic::DynRuntimeInitAttrs`]
+/// (wrapping the attributes with [`dynamic::DynRuntimeInitAttrs::new`]).
+pub trait RuntimeInitAttrs<T: UserEvent>: Default + Send + Sync + 'static {
   /// The runtime initialized with these attributes.
   type Runtime: Runtime<T, RuntimeInitAttrs = Self>;
 
@@ -504,8 +510,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// This is the runtime-specific type the user interacts with to reach the
   /// underlying platform webview APIs.
   type Webview: 'static;
-  /// Runtime-specific initialization attributes. Also used to select this runtime, see [`RuntimeSpecificInitAttrs`].
-  type RuntimeInitAttrs: RuntimeSpecificInitAttrs<T, Runtime = Self>;
+  /// Runtime-specific initialization attributes. Also used to select this runtime, see [`RuntimeInitAttrs`].
+  type RuntimeInitAttrs: RuntimeInitAttrs<T, Runtime = Self>;
   /// Data about the window that requested the new window for [`PendingWebview::new_window_handler`].
   type WindowOpener: Send + Sync + Debug + 'static;
 

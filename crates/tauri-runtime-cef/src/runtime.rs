@@ -85,13 +85,16 @@ pub use cef;
 ///   tauri_runtime_cef::Cef::default().command_line_arg("disable-gpu", None::<String>),
 /// );
 /// ```
+/// Customizes the CEF settings before initialization, see [`Cef::with_settings`].
+type SettingsCallback = Box<dyn FnOnce(&mut cef::Settings) + Send + Sync>;
+
 #[derive(Default)]
 pub struct Cef {
   command_line_args: Vec<(String, Option<String>)>,
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
-  settings_callback: Option<Box<dyn FnOnce(&mut cef::Settings) + Send + Sync>>,
+  settings_callback: Option<SettingsCallback>,
 }
 
 impl fmt::Debug for Cef {
@@ -176,7 +179,7 @@ impl Cef {
   }
 }
 
-impl<T: UserEvent> tauri_runtime::RuntimeSpecificInitAttrs<T> for Cef {
+impl<T: UserEvent> tauri_runtime::RuntimeInitAttrs<T> for Cef {
   type Runtime = CefRuntime<T>;
 
   fn apply_config(&mut self, config: &tauri_utils::config::Config) -> Result<()> {
@@ -206,6 +209,12 @@ impl<T: UserEvent> tauri_runtime::RuntimeSpecificInitAttrs<T> for Cef {
       self.deep_link_schemes.extend(schemes);
     }
     Ok(())
+  }
+}
+
+impl<T: UserEvent> From<Cef> for tauri_runtime::dynamic::DynRuntimeInitAttrs<T> {
+  fn from(attrs: Cef) -> Self {
+    Self::new(attrs)
   }
 }
 

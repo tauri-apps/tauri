@@ -24,12 +24,12 @@ use crate::{
   menu::{ContextMenu, Menu},
   runtime::{UserAttentionType, window::CursorIcon},
 };
-use tauri_runtime::{WindowDispatch, webview::NewWindowFeatures};
+use tauri_runtime::webview::NewWindowFeatures;
 use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
-  AppHandle, Event, EventId, EventLoopMessage, Manager, Runtime, Webview, WindowEvent,
+  AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -54,15 +54,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// Mostly useful for runtime-specific extension traits (e.g. sharing a WebView2 environment with wry).
   pub fn platform_specific_attribute(&mut self, attribute: R::PlatformSpecificWebviewAttribute) {
     self.webview_builder.platform_specific_attribute(attribute);
-  }
-
-  /// Returns a mutable reference to the runtime's window builder.
-  ///
-  /// Mostly useful for runtime-specific extension traits.
-  pub fn runtime_window_builder_mut(
-    &mut self,
-  ) -> &mut <R::WindowDispatcher as WindowDispatch<EventLoopMessage>>::WindowBuilder {
-    self.window_builder.runtime_window_builder_mut()
   }
 }
 

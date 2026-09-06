@@ -712,7 +712,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WebviewMessage::EvaluateScriptWithCallback(script, callback) => {
         let host = &child.host;
-        let Ok(message_id) = crate::allocate_devtools_message_id() else {
+        let Ok(message_id) = crate::devtools::allocate_runtime_devtools_message_id() else {
           callback(String::new());
           return;
         };
@@ -1061,10 +1061,12 @@ impl<T: UserEvent> CefWebviewDispatcher<T> {
   /// Sends a UTF-8 encoded Chrome DevTools Protocol message to the DevTools agent.
   ///
   /// The message's `id` must come from
-  /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id), which
-  /// is the same allocator the runtime uses for its own requests. A hardcoded or
-  /// self-incremented `id` can consume another producer's
-  /// [`DevToolsProtocol::MethodResult`].
+  /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id), the
+  /// allocator every caller on this browser shares. A hardcoded or
+  /// self-incremented `id` can consume another caller's
+  /// [`DevToolsProtocol::MethodResult`]. The runtime's own requests use
+  /// identifiers reserved above that allocator's range, so they cannot be
+  /// answered by a caller's message.
   pub fn send_dev_tools_message(&self, message: &[u8]) -> Result<()> {
     let (tx, rx) = mpsc::channel();
     self.context.send_message(Message::Webview {
@@ -1567,6 +1569,10 @@ pub(crate) const INITIAL_LOAD_URL: &str = concat!(
 /// Maps a pending `Page.addScriptToEvaluateOnNewDocument` CDP message id to the
 /// `(browser, real_url)` whose real navigation is deferred until that message is
 /// acknowledged.
+///
+/// The keys only ever come from `allocate_runtime_devtools_message_id`, whose
+/// reserved range no caller identifier can reach, so a caller cannot release the
+/// deferred navigation early by sending a request with a hardcoded `id`.
 pub(crate) type PendingInitialLoads = Arc<Mutex<HashMap<i32, (Browser, String)>>>;
 
 cef::wrap_dev_tools_message_observer! {
@@ -1714,7 +1720,7 @@ pub(crate) fn add_dev_tools_observer(
   browser.host().and_then(|host| {
     let mut observer = TauriDevToolsProtocolObserver::new(handlers, pending_initial_loads, dialogs);
     let registration = host.add_dev_tools_message_observer(Some(&mut observer))?;
-    if let Ok(id) = crate::allocate_devtools_message_id() {
+    if let Ok(id) = crate::devtools::allocate_runtime_devtools_message_id() {
       let message = serde_json::json!({"id":id,"method":"Page.enable","params":{}}).to_string();
       let _ = host.send_dev_tools_message(Some(message.as_bytes()));
     }
@@ -1783,7 +1789,7 @@ fn register_initialization_scripts(
     return Ok(false);
   };
 
-  let message_id = crate::allocate_devtools_message_id()?;
+  let message_id = crate::devtools::allocate_runtime_devtools_message_id()?;
   let message = serde_json::json!({
     "id": message_id,
     "method": "Page.addScriptToEvaluateOnNewDocument",

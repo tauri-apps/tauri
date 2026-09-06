@@ -120,12 +120,14 @@ pub trait WebviewCefExt {
   /// Send a message to the DevTools agent. The message should be a UTF-8 encoded JSON
   /// string following the Chrome DevTools Protocol format.
   ///
-  /// The runtime shares one native request identifier space with every caller on
-  /// this browser, so the message's `id` must come from
+  /// Callers share one native request identifier space on this browser, so the
+  /// message's `id` must come from
   /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id).
-  /// A hardcoded or self-incremented `id` can collide with a request the runtime
-  /// or another caller already sent, which consumes the other producer's
-  /// [`DevToolsProtocol::MethodResult`].
+  /// A hardcoded or self-incremented `id` can collide with a request another
+  /// caller already sent, which consumes that producer's
+  /// [`DevToolsProtocol::MethodResult`]. The runtime's own requests are issued
+  /// from a reserved range the public allocator never returns, so they cannot
+  /// be consumed this way.
   ///
   /// # Examples
   ///

@@ -229,6 +229,14 @@ impl PopupFamily {
     }
   }
 
+  /// A revoked family lost its root and admits no further popup, so nothing it
+  /// still has reserved can ever be created. CEF does not always report the
+  /// abort of a popup it discards, so the reservations of a revoked family are
+  /// what the event loop would otherwise wait on forever.
+  pub(crate) fn is_revoked(&self) -> bool {
+    self.closing.load(Ordering::Acquire)
+  }
+
   pub(crate) fn observe(&self) -> Vec<Webview> {
     if self.closing.load(Ordering::Acquire) {
       return Vec::new();
@@ -399,6 +407,24 @@ mod tests {
     assert!(family.abort(&root, 7).unwrap().is_same(&first));
     assert!(family.abort(&root, 7).is_none());
     assert!(family.reserve(&root, 1, 1000).is_none());
+  }
+  #[test]
+  fn teardown_revokes_a_family_still_holding_an_unresolved_reservation() {
+    let root = created(1);
+    let family = PopupFamily::new(root.clone());
+    // CEF discarded this popup without ever creating or aborting it.
+    let request = family.reserve(&root, 1, 7).unwrap();
+    assert!(!family.is_revoked());
+    // A popup's own native close leaves the family live, so the event loop
+    // keeps waiting for the reservations that can still be created.
+    family.closed(&created(2), 2);
+    assert!(!family.is_revoked());
+    assert_eq!(family.pending.lock().unwrap().len(), 1);
+    // Window close and app shutdown own the family outright: once revoked, no
+    // reservation of it can ever be created, so none may hold the loop open.
+    family.close_all();
+    assert!(family.is_revoked());
+    assert!(!family.admits(&request.opener, 1));
   }
   #[test]
   fn popup_admission_requires_the_live_exact_native_opener() {

@@ -1033,6 +1033,19 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn exit_if_done(&mut self, event_loop: &dyn ActiveEventLoop) {
+    // A reservation is normally resolved by `PopupCreated` or `PopupAborted`,
+    // but CEF discards popups without always reporting the abort — the opener
+    // can be torn down first, or the abort can arrive for a browser its opener
+    // no longer matches. Teardown (window close, app shutdown, the root's own
+    // native close) revokes the family, and a revoked family never admits a
+    // popup again, so its reservations are dead and must not hold the process
+    // open. Reservations of live families still gate the exit until CEF
+    // resolves them.
+    self
+      .state
+      .pending_popups
+      .retain(|(_, family)| !family.is_revoked());
+
     if self.state.live_browsers != 0
       || !self.state.live_popups.is_empty()
       || !self.state.pending_popups.is_empty()

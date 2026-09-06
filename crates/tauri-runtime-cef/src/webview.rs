@@ -192,6 +192,10 @@ fn browser_settings_from_webview_attributes(
 ///
 /// Observers see the whole browser, including requests issued by the runtime
 /// itself and by other callers, so nothing here is scoped to one producer.
+/// No notification names a browser, and none has to: an observer is registered
+/// on one native browser and never receives another's traffic — a CEF-owned
+/// popup is a separate browser, observed only by the runtime's own internal
+/// observer.
 #[derive(Debug, Clone)]
 pub enum DevToolsProtocol {
   /// The raw agent message, before it is classified as an event or a result.
@@ -591,7 +595,16 @@ impl<T: UserEvent> WinitCefApp<T> {
           }
         }
 
-        let devtools_protocol_handlers = popup_family.handlers.clone();
+        // The app observers registered through `on_dev_tools_protocol` live in
+        // this list, and it belongs to this one native browser. Every CEF-owned
+        // popup registers its own protocol observer against a list of its own,
+        // so nothing registered here ever observes a popup: a
+        // `DevToolsProtocol` notification carries the page's content, its
+        // network activity and its dialog messages with no browser identity to
+        // separate them, and a popup navigates wherever its own content goes —
+        // an SSO or OAuth window is the standing case.
+        let devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>> =
+          Arc::default();
         let pending_initial_loads: PendingInitialLoads = Arc::new(Mutex::new(HashMap::new()));
         let devtools_observer_registration = Arc::new(Mutex::new(add_dev_tools_observer(
           &browser,
@@ -1082,6 +1095,14 @@ impl<T: UserEvent> CefWebviewDispatcher<T> {
   /// The observer receives every message on the browser, including the runtime's
   /// own requests, so results must be matched against an identifier obtained from
   /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id).
+  ///
+  /// Scoped to this webview's own native browser. A CEF-owned popup is a
+  /// separate browser whose protocol traffic — its page content, its network
+  /// activity and its dialog messages — is never reported here, the way a
+  /// [`FrameEvent`](crate::FrameEvent) of a popup is not. Observe popups
+  /// through [`Webview::popups`], whose
+  /// [`FrameNavigationState`](crate::FrameNavigationState) follows a popup's
+  /// native lifecycle without exposing what it loaded.
   pub fn on_dev_tools_protocol<F: Fn(DevToolsProtocol) + Send + Sync + 'static>(
     &self,
     f: F,

@@ -157,6 +157,11 @@ pub trait WebviewCefExt {
   /// [`allocate_devtools_message_id`](crate::allocate_devtools_message_id)
   /// instead of assuming every result belongs to this observer.
   ///
+  /// It is scoped to this webview's own native browser, so a CEF-owned popup is
+  /// a separate browser whose protocol traffic — its page content, its network
+  /// activity and its dialog messages — is never reported here; observe popups
+  /// through [`Webview::popups`](crate::Webview::popups).
+  ///
   /// # Examples
   ///
   /// ```rust,no_run

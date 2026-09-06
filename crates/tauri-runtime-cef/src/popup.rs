@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 //! CEF-owned popup lifetimes. CEF keeps its native window and opener semantics;
-//! the runtime owns observation, teardown, and the separate protocol observer.
+//! the runtime owns observation, teardown, and the separate protocol observer,
+//! which serves the runtime's own dialog observation and no app callback.
 
 use crate::{
   FrameNavigationState, NativeWindowToken,
-  webview::{DevToolsProtocolHandler, Webview, WebviewSnapshot, add_dev_tools_observer},
+  webview::{Webview, WebviewSnapshot, add_dev_tools_observer},
 };
 use cef::*;
 use std::sync::{
@@ -45,7 +46,6 @@ pub(crate) struct PopupFamily {
   popups: Mutex<Vec<Arc<Popup>>>,
   pending: Mutex<Vec<PopupRequest>>,
   windows: Mutex<Vec<(Window, NativeWindowToken)>>,
-  pub(crate) handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
 }
 
 impl PopupFamily {
@@ -56,7 +56,6 @@ impl PopupFamily {
       popups: Mutex::default(),
       pending: Mutex::default(),
       windows: Mutex::default(),
-      handlers: Arc::default(),
     }
   }
 
@@ -133,12 +132,17 @@ impl PopupFamily {
       return;
     }
     let dialogs = crate::dialog::DialogState::new(state.clone());
-    let Some(observer) = add_dev_tools_observer(
-      browser,
-      self.handlers.clone(),
-      Arc::default(),
-      dialogs.clone(),
-    ) else {
+    // The runtime's own observer, on a handler list of this popup's own that
+    // stays empty: it exists for the internal dialog observation below, never
+    // to feed the opener's app observers. A popup is a separate native browser
+    // navigating wherever its own content goes — an SSO or OAuth window is the
+    // standing case — and a `DevToolsProtocol` notification carries that page's
+    // content, its network activity and its dialog messages, which the web
+    // platform itself denies the opener across origins. An app observes popups
+    // without their content through `Webview::popups`.
+    let Some(observer) =
+      add_dev_tools_observer(browser, Arc::default(), Arc::default(), dialogs.clone())
+    else {
       state.close();
       host.close_browser(1);
       return;

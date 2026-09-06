@@ -905,6 +905,7 @@ impl AppSettings for RustAppSettings {
       config.bundle.clone(),
       updater_settings,
       arch64bits,
+      &options.args,
     )?;
 
     settings.macos.skip_stapling = options.skip_stapling;
@@ -1369,19 +1370,32 @@ pub fn get_profile_dir(options: &Options) -> &str {
   }
 }
 
-fn default_cef_version(workspace_dir: &Path) -> Option<String> {
+/// Version of the `cef` crate the app links, from the workspace lockfile.
+fn cef_crate_version(workspace_dir: &Path) -> Option<String> {
   let (_, lock) = cargo_manifest_and_lock(workspace_dir);
-  let crate_version = crate_version(workspace_dir, None, lock.as_ref(), "cef");
-  crate_version
-    .version
+  crate_version(workspace_dir, None, lock.as_ref(), "cef").version
+}
+
+fn default_cef_version(workspace_dir: &Path) -> Option<String> {
+  cef_crate_version(workspace_dir)
     .as_deref()
     .map(download_cef::default_version)
 }
 
-pub(crate) fn default_cef_path() -> std::path::PathBuf {
+fn default_cef_path() -> std::path::PathBuf {
   dirs::cache_dir()
     .unwrap_or_else(|| std::path::PathBuf::from(".cache"))
     .join("tauri-cef")
+}
+
+/// `CEF_PATH` for every cargo build that links CEF: where `cef-dll-sys`
+/// resolves the CEF binary distribution from, downloading into it when
+/// missing. The environment's value, or a cache directory shared by all
+/// projects on the machine.
+pub(crate) fn cef_path_env() -> PathBuf {
+  std::env::var_os("CEF_PATH")
+    .map(PathBuf::from)
+    .unwrap_or_else(default_cef_path)
 }
 
 fn cef_marker_file(target: &str) -> crate::Result<&'static str> {
@@ -1430,7 +1444,7 @@ fn resolve_cef_path_for_bundle(
   Ok(resolved)
 }
 
-#[allow(unused_variables, deprecated)]
+#[allow(unused_variables, deprecated, clippy::too_many_arguments)]
 pub(crate) fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
   features: &[String],
@@ -1439,6 +1453,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
   updater_config: Option<UpdaterSettings>,
   arch64bits: bool,
+  cargo_args: &[String],
 ) -> crate::Result<BundleSettings> {
   let enabled_features = settings
     .manifest
@@ -1450,6 +1465,23 @@ pub(crate) fn tauri_config_to_bundle_settings(
   // `bundle > cef > embed`: false for an app that loads CEF at run time
   // from outside its bundle, so nothing of the distribution ships.
   let embed_cef = config.cef.embed;
+
+  // The macOS helper apps are per-app and always created; their executable
+  // is compiled at bundle time against the app's own `cef` crate version, in
+  // the cargo target directory, with the `CEF_PATH` the app was built with
+  // so the build shares the app's distribution instead of downloading one.
+  let cef_helper = if cef_enabled && settings.target_triple.contains("apple-darwin") {
+    let cef_crate_version = cef_crate_version(&settings.workspace_dir).context(
+      "failed to determine the version of the `cef` crate the app depends on from Cargo.lock, needed to build the CEF helper apps",
+    )?;
+    Some(tauri_bundler::bundle::CefHelperSettings {
+      cef_crate_version,
+      cef_path: cef_path_env(),
+      build_dir: get_cargo_target_dir(cargo_args, tauri_dir)?.join("tauri-cef-helper"),
+    })
+  } else {
+    None
+  };
 
   #[allow(unused_mut)]
   let mut resources = config
@@ -1739,11 +1771,8 @@ pub(crate) fn tauri_config_to_bundle_settings(
     // An app on a shared runtime links CEF but ships none: there may not
     // even be a distribution on this machine to resolve, so don't look.
     cef_path: if cef_enabled && embed_cef {
-      let cef_path = std::env::var_os("CEF_PATH")
-        .map(PathBuf::from)
-        .unwrap_or_else(default_cef_path);
       Some(resolve_cef_path_for_bundle(
-        cef_path,
+        cef_path_env(),
         &settings.target_triple,
         &settings.workspace_dir,
       )?)
@@ -1751,6 +1780,7 @@ pub(crate) fn tauri_config_to_bundle_settings(
       None
     },
     cef_shared_runtime: cef_enabled && !embed_cef,
+    cef_helper,
     ..Default::default()
   })
 }

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 pub mod app;
+mod cef_helper;
 pub mod dmg;
 pub mod icon;
 pub mod ios;

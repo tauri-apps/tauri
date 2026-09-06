@@ -6,7 +6,7 @@ use cef::ImplBrowserHost;
 use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
 use tauri_utils::config::Color;
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+  Foundation::{ERROR_SUCCESS, HWND, LPARAM, LRESULT, POINT, RECT, SetLastError, WPARAM},
   Graphics::Gdi::MapWindowPoints,
   UI::Shell::{DefSubclassProc, SetWindowSubclass},
   UI::WindowsAndMessaging::{
@@ -25,7 +25,17 @@ impl AppWebview {
       if !IsWindow(Some(hwnd)).as_bool() {
         return None;
       }
-      Some(GetParent(hwnd).ok()? == parent.hwnd())
+      // `GetParent` returns NULL both for a window that has no parent and when
+      // the call itself fails, and the binding maps that NULL to an `Err`
+      // carrying the last error — so clear it first to tell the two apart.
+      SetLastError(ERROR_SUCCESS);
+      match GetParent(hwnd) {
+        Ok(native_parent) => Some(native_parent == parent.hwnd()),
+        // `ERROR_SUCCESS`: the window really has no parent, which is an
+        // observation of the relationship and not a failure to establish it.
+        Err(err) if err.code().is_ok() => Some(false),
+        Err(_) => None,
+      }
     }
   }
 

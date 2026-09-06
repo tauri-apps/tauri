@@ -29,7 +29,7 @@ tauri-utils = { version = "2.9.2", path = "../tauri-utils", features = [
   "html-manipulation",
 ] }
 url = "2"
-winit = "0.31.0-beta.2"
+winit = "=0.31.0-beta.2"
 
 [target."cfg(windows)".dependencies]
 softbuffer = { version = "0.4", default-features = false }

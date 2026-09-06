@@ -946,9 +946,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // shutdown drain is still enforced by live_browsers.
     for child in &appwindow.children {
       self.remove_scheme_handler_entries(child);
-      child
-        .popup_family
-        .closed(&child.frame_navigation_state, child.browser_id);
+      child.popup_family.close_all();
       child.host.close_browser(1);
     }
     self.exit_if_done(event_loop);
@@ -1012,9 +1010,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     for appwindow in self.state.windows.values() {
       for child in &appwindow.children {
         self.remove_scheme_handler_entries(child);
-        child
-          .popup_family
-          .closed(&child.frame_navigation_state, child.browser_id);
+        child.popup_family.close_all();
         child.host.close_browser(1);
       }
     }

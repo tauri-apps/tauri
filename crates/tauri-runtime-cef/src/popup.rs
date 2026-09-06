@@ -196,6 +196,39 @@ impl PopupFamily {
     }
   }
 
+  /// Window close and app shutdown own the whole family, so teardown never
+  /// depends on the root having observed a native browser identity. `closed`
+  /// keeps its exact-identity guard for the per-browser native callback; a root
+  /// that was exhausted before its first frame event would otherwise leave every
+  /// popup open and the event loop waiting on them forever.
+  pub(crate) fn close_all(&self) {
+    self.closing.store(true, Ordering::Release);
+    self.root.close();
+    let descendants = {
+      let Ok(popups) = self.popups.lock() else {
+        return;
+      };
+      revoke_descendants(
+        &self.root,
+        true,
+        popups
+          .iter()
+          .enumerate()
+          .map(|(index, popup)| (index, &popup.state, &popup.opener, &popup.closing)),
+      )
+      .into_iter()
+      .map(|index| Arc::clone(&popups[index]))
+      .collect::<Vec<_>>()
+    };
+    for popup in descendants {
+      if popup.browser.is_valid() != 0
+        && let Some(host) = popup.browser.host()
+      {
+        host.close_browser(1);
+      }
+    }
+  }
+
   pub(crate) fn observe(&self) -> Vec<Webview> {
     if self.closing.load(Ordering::Acquire) {
       return Vec::new();
@@ -379,6 +412,20 @@ mod tests {
     assert!(family.admits(&root, 1));
     family.closed(&root, 1);
     assert!(!family.admits(&root, 1));
+    assert!(family.observe().is_empty());
+  }
+  #[test]
+  fn teardown_closes_a_family_whose_root_never_observed_a_browser_id() {
+    // A root that never observed a native frame event has no browser identity.
+    let root = FrameNavigationState::new();
+    assert!(!root.has_browser_id(1));
+    let family = PopupFamily::new(root.clone());
+    // The per-browser native callback cannot match an unobserved identity.
+    family.closed(&root, 1);
+    assert!(!family.closing.load(Ordering::Acquire));
+    // Window close and app shutdown own the family outright and must not.
+    family.close_all();
+    assert!(family.closing.load(Ordering::Acquire));
     assert!(family.observe().is_empty());
   }
 }

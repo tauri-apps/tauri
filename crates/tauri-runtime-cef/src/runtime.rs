@@ -151,6 +151,7 @@ pub struct Cef {
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
   secret_storage: SecretStorage,
+  allow_chromium_command_line_args: bool,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
@@ -162,6 +163,10 @@ impl fmt::Debug for Cef {
       .field("cache_path", &self.cache_path)
       .field("api_version", &self.api_version)
       .field("secret_storage", &self.secret_storage)
+      .field(
+        "allow_chromium_command_line_args",
+        &self.allow_chromium_command_line_args,
+      )
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -258,6 +263,32 @@ impl Cef {
   #[must_use]
   pub fn secret_storage(mut self, storage: SecretStorage) -> Self {
     self.secret_storage = storage;
+    self
+  }
+
+  /// Lets Chromium read switches off the process command line in release builds.
+  ///
+  /// Release builds ignore them by default (`Settings::command_line_args_disabled`),
+  /// because otherwise anyone who can start the shipped executable can also start it
+  /// with `--remote-debugging-port` and drive the app over the DevTools protocol, or
+  /// with `--disable-web-security`, `--proxy-server`, `--host-resolver-rules` or
+  /// `--ssl-key-log-file` — Chromium honours every one of them. Development builds
+  /// (`tauri::is_dev()`) always keep the command line enabled.
+  ///
+  /// Enable this only if the application genuinely needs users to pass Chromium
+  /// switches, and note that it is not a complete lockdown either way: the network
+  /// service reads the `SSLKEYLOGFILE` environment variable regardless of this setting,
+  /// so TLS session keys can still be dumped by an attacker who controls the
+  /// application's environment.
+  ///
+  /// Switches configured through [`Self::command_line_arg`] are unaffected: CEF clears
+  /// Chromium's command line before applying its own settings and before calling the
+  /// runtime's `on_before_command_line_processing` hook. Tauri's own CLI and deep link
+  /// argument handling read `std::env::args()`, which Chromium never touches, and are
+  /// unaffected too.
+  #[must_use]
+  pub fn allow_chromium_command_line_args(mut self, allow: bool) -> Self {
+    self.allow_chromium_command_line_args = allow;
     self
   }
 }
@@ -1701,6 +1732,7 @@ impl<T: UserEvent> CefRuntime<T> {
       deep_link_schemes,
       cache_path: cache_path_override,
       secret_storage,
+      allow_chromium_command_line_args,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
@@ -1828,9 +1860,21 @@ impl<T: UserEvent> CefRuntime<T> {
       "CEF browser process unexpectedly returned from execute_process"
     );
 
+    // Shipped applications ignore Chromium switches passed on their own command line:
+    // otherwise anyone able to launch the app can also launch it with
+    // `--remote-debugging-port` and drive it over the DevTools protocol, or with
+    // `--disable-web-security`, `--proxy-server`, `--host-resolver-rules` or
+    // `--ssl-key-log-file`, all of which Chromium honours. CEF clears the command line
+    // before applying `Settings` and before calling `on_before_command_line_processing`,
+    // so the switches this runtime and the application configure still take effect, and
+    // `std::env::args()` is untouched so Tauri's CLI and deep link handling still work.
+    let command_line_args_disabled =
+      !(allow_chromium_command_line_args || tauri::is_dev()) as std::os::raw::c_int;
+
     let mut settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
+      command_line_args_disabled,
       external_message_pump: 1,
       ..Default::default()
     };

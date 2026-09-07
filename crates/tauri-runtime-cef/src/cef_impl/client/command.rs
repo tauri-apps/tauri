@@ -139,6 +139,21 @@ const DEVTOOLS_COMMANDS: &[&CStr] = &[
 /// Blocked only when the webview set `zoom_hotkeys_enabled` to false, which is
 /// exactly what that attribute asks for. `WebviewDispatch::set_zoom` still zooms
 /// on the application's own request.
+///
+/// That attribute **defaults to false**, so honoring it stops Ctrl+Plus,
+/// Ctrl+Minus and Ctrl+0 in every CEF app that did not opt in. Two things it does
+/// not stop:
+///
+/// - Ctrl+mouse-wheel zoom, which Chromium applies in the render widget rather
+///   than through the command controller, so no `IDC_ZOOM_*` is ever dispatched
+///   for it and there is nothing here to swallow.
+/// - The zoom polyfill Tauri injects on Linux and macOS (never Windows) when
+///   `zoom_hotkeys_enabled` is true: a page script that watches keydown and
+///   Ctrl+wheel and calls `set_webview_zoom`. With the flag true this handler
+///   passes the accelerators through as well, so on those two platforms a
+///   keyboard zoom is applied twice — once by the polyfill's `set_zoom` and once
+///   by Chrome's own step. Nothing here can suppress the polyfill; it is injected
+///   from `tauri`, above this runtime.
 const ZOOM_COMMANDS: &[&CStr] = &[
   cef::resources::IDC_ZOOM_PLUS,
   cef::resources::IDC_ZOOM_MINUS,

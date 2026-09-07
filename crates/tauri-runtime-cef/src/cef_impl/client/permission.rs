@@ -2,6 +2,51 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! The application's permission policy, as CEF asks for it.
+//!
+//! CEF has two entry points and they behave very differently once answered, which
+//! is the single most surprising thing about this file.
+//!
+//! # The prompt path answers once per origin, forever
+//!
+//! `on_show_permission_prompt` is reached only when Chromium's stored content
+//! setting for that (origin, permission) is still "ask". `cont` then persists the
+//! answer — `ACCEPT` through `PermissionRequestManager::Accept()`, exactly as a
+//! click on Chrome's Allow button would — into the on-disk profile. Chromium
+//! reads that setting on the next request and never asks again.
+//!
+//! So the application's handler is consulted **once per origin and permission**,
+//! and the answer outlives the process: a handler whose answer depends on app
+//! state (a user having signed in, a setting having been toggled) is silently
+//! ignored from its second request onwards, including across restarts. There is
+//! no callback here for "the app changed its mind"; an app that needs to revoke a
+//! grant has to rewrite the content setting itself through the request context.
+//!
+//! # The media path answers every call
+//!
+//! `on_request_media_access_permission` is different: Chromium routes every
+//! `getUserMedia()` call through it, so camera and microphone requests do reach
+//! the handler each time and a changing answer is honored. `MediaAccessCallback`
+//! persists nothing, which is why this path — and only this path — writes the
+//! content settings itself (see [`allow_content_settings`]).
+//!
+//! # Unmapped request types are [`PermissionKind::Other`]
+//!
+//! [`PERMISSION_KINDS`] is a partial map: Chromium has more request types than
+//! Tauri has kinds. Storage Access and Top Level Storage Access, FedCM (identity
+//! provider), protocol handler registration, idle detection, local and loopback
+//! network access, web app installation, the AR and VR sessions behind WebXR,
+//! hand tracking, keyboard lock and disk quota are the whole of what is left
+//! over, and every one of them arrives as `PermissionKind::Other` — as does any
+//! request type a future CEF build adds.
+//!
+//! Failing closed is deliberate — a new request type must never be granted behind
+//! the application's back — but it means a handler written for another platform as
+//! `match kind { Camera => Allow, _ => Deny }` hard-denies all of the above on
+//! CEF, and denying Storage Access or FedCM breaks third-party SSO flows outright.
+//! A handler that only means to answer about the kinds it names should return
+//! [`PermissionResponse::Default`] for the rest.
+
 use std::sync::Arc;
 
 use cef::sys::cef_media_access_permission_types_t as MediaPermissionType;
@@ -293,9 +338,13 @@ impl TauriCefPermissionHandler {
       return AppDecision::NoOpinion;
     };
 
-    // Every requested type is asked about before the answers are combined, so that a
-    // refusal is seen wherever it sits in the bitmask. Only a refusal short-circuits,
-    // and only because nothing that follows it could weaken it.
+    // A refusal is seen wherever it sits in the bitmask, and short-circuits there:
+    // nothing after it could weaken it, so the types past it are not asked about. A
+    // handler that logs or keeps state therefore sees only a prefix of a denied
+    // request — up to and including the type it refused — never the whole of it.
+    // Left as it is on purpose: the handler is a policy predicate, not an event
+    // feed, so asking it about types whose answer cannot change the outcome would
+    // be work with no result.
     let mut asked = false;
     let mut allowed_all = true;
     for permission in requested_permissions(requested) {

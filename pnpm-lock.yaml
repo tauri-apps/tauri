@@ -115,8 +115,8 @@ importers:
         specifier: ^2.0.9
         version: 2.0.9
       '@crabnebula/test-runner-backend':
-        specifier: ^0.2.8
-        version: 0.2.8
+        specifier: ^0.2.9
+        version: 0.2.9
       '@tauri-apps/api':
         specifier: ../api/dist
         version: link:../api/dist
@@ -252,33 +252,33 @@ packages:
     engines: {node: '>= 10'}
     hasBin: true
 
-  '@crabnebula/test-runner-backend-darwin-arm64@0.2.8':
-    resolution: {integrity: sha512-2FWWOdKHLP8fdkleQ104fggZnZei7bmXzg8Xw1mi/3QbCRWuzWYwMrGFW7PZRwgGfsqJ4HpT1H3oEyQLkAzvJg==}
+  '@crabnebula/test-runner-backend-darwin-arm64@0.2.9':
+    resolution: {integrity: sha512-UAlL8VA23y/fp+MigNYFwGvtE9vJ518f846c0k2vgT/bLIpt+d3UXndjZCMYbEVFTmaq00wHoRPSPbyzHEMWlQ==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
 
-  '@crabnebula/test-runner-backend-darwin-x64@0.2.8':
-    resolution: {integrity: sha512-L7reGnRY8gVbUlvj4PF/xBK+NeFXgpcFu5iSJIWbjwV3+DTjHj6iXpGi68y7MjYpcyHvxwjKmqNrjriE04FA1g==}
+  '@crabnebula/test-runner-backend-darwin-x64@0.2.9':
+    resolution: {integrity: sha512-RUP9L4Lk8KsT4A64U4QFVy5rj99Y6iIichPLpZgTvpRybYKZBVXjUiU31aGUIlWnd4VHsWKLM2vNl90rKZm3lA==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
 
-  '@crabnebula/test-runner-backend-linux-x64-gnu@0.2.8':
-    resolution: {integrity: sha512-eGFBs66Zxy4xVhLubH4IEht0RMK/AJHLEcCP4q+Mvmt1FiqegTj2SZTnC0OoAY56XPC7ns3We2hrYg2gS4K4ag==}
+  '@crabnebula/test-runner-backend-linux-x64-gnu@0.2.9':
+    resolution: {integrity: sha512-js/haLE9OUsa0oDHNuVps5DY7av3iWG7PpAKjr9nMnIEXiLACDmvyUL/IplHMmu1lr6S0fztoudRf4JfTR+mfA==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@crabnebula/test-runner-backend-win32-x64-msvc@0.2.8':
-    resolution: {integrity: sha512-nsrg7V8qjRF1qDk8Lw/gkNrmyt2SjksF6wzSAmgObjWzoy3VHNNCwUtpWl4RVNI6/NzpGVxkZ7L+Jgk2EoAqOg==}
+  '@crabnebula/test-runner-backend-win32-x64-msvc@0.2.9':
+    resolution: {integrity: sha512-p4pc/GQ0bj3vVLuUyTHDnhaXO52EQNkaCUPhWXwEkG00loW93pvCBRrOWoYpJH9me/n2zMFv61meW9mQyvbByw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
 
-  '@crabnebula/test-runner-backend@0.2.8':
-    resolution: {integrity: sha512-dxdJ4zbpBwuEdo5V5pIICtPqlh+x2Xv+Va+u+ImvgjcZpk8inlSF9LxzZYI/soSmw3FBLHK5yVrqhc1+FS3MzA==}
+  '@crabnebula/test-runner-backend@0.2.9':
+    resolution: {integrity: sha512-3z6qZbJtVyA1JymQU5hFqcxG6nFD5INgqBc3OxTbYXVzMpihlRGOcHWyPK72ndHK88YmfwQWPcEFN1R/H/Lvhw==}
     engines: {node: '>= 10'}
     hasBin: true
 
@@ -4414,24 +4414,24 @@ snapshots:
       '@crabnebula/tauri-driver-linux-x64-gnu': 2.0.9
       '@crabnebula/tauri-driver-win32-x64-msvc': 2.0.9
 
-  '@crabnebula/test-runner-backend-darwin-arm64@0.2.8':
+  '@crabnebula/test-runner-backend-darwin-arm64@0.2.9':
     optional: true
 
-  '@crabnebula/test-runner-backend-darwin-x64@0.2.8':
+  '@crabnebula/test-runner-backend-darwin-x64@0.2.9':
     optional: true
 
-  '@crabnebula/test-runner-backend-linux-x64-gnu@0.2.8':
+  '@crabnebula/test-runner-backend-linux-x64-gnu@0.2.9':
     optional: true
 
-  '@crabnebula/test-runner-backend-win32-x64-msvc@0.2.8':
+  '@crabnebula/test-runner-backend-win32-x64-msvc@0.2.9':
     optional: true
 
-  '@crabnebula/test-runner-backend@0.2.8':
+  '@crabnebula/test-runner-backend@0.2.9':
     optionalDependencies:
-      '@crabnebula/test-runner-backend-darwin-arm64': 0.2.8
-      '@crabnebula/test-runner-backend-darwin-x64': 0.2.8
-      '@crabnebula/test-runner-backend-linux-x64-gnu': 0.2.8
-      '@crabnebula/test-runner-backend-win32-x64-msvc': 0.2.8
+      '@crabnebula/test-runner-backend-darwin-arm64': 0.2.9
+      '@crabnebula/test-runner-backend-darwin-x64': 0.2.9
+      '@crabnebula/test-runner-backend-linux-x64-gnu': 0.2.9
+      '@crabnebula/test-runner-backend-win32-x64-msvc': 0.2.9
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:

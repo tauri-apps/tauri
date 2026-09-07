@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@crabnebula/tauri-driver": "^2.0.9",
-    "@crabnebula/test-runner-backend": "^0.2.8",
+    "@crabnebula/test-runner-backend": "^0.2.9",
     "@tauri-apps/api": "../api/dist",
     "@types/node": "^22.10.0",
     "@wdio/cli": "^9.19.0",

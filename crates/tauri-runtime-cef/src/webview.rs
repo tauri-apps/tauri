@@ -482,6 +482,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       navigation_handler: pending.navigation_handler.map(Arc::from),
       new_window_handler: pending.new_window_handler.map(Arc::from),
       download_handler: pending.download_handler.take(),
+      permission_request_handler: pending.permission_request_handler.take().map(Arc::from),
       web_content_process_terminate_handler,
     };
 

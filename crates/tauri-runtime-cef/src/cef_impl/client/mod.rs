@@ -36,6 +36,7 @@ pub(crate) use drag::{
 use keyboard::TauriCefKeyboardHandler;
 use life_span::{TauriCefChildLifeSpanHandler, TauriCefChildLifeSpanHandlerArgs};
 use load::TauriCefLoadHandler;
+pub(crate) use permission::PermissionRequestHandler;
 use permission::TauriCefPermissionHandler;
 pub(crate) use process::TauriCefBrowserProcessHandler;
 
@@ -49,6 +50,7 @@ pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
   pub(crate) new_window_handler:
     Option<Arc<tauri_runtime::webview::NewWindowHandler<T, CefRuntime<T>>>>,
   pub(crate) download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
+  pub(crate) permission_request_handler: Option<Arc<PermissionRequestHandler>>,
   pub(crate) web_content_process_terminate_handler:
     Option<Arc<tauri_runtime::webview::OnWebContentProcessTerminateHandler>>,
 }
@@ -63,6 +65,7 @@ impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
       navigation_handler: self.navigation_handler.clone(),
       new_window_handler: self.new_window_handler.clone(),
       download_handler: self.download_handler.clone(),
+      permission_request_handler: self.permission_request_handler.clone(),
       web_content_process_terminate_handler: self.web_content_process_terminate_handler.clone(),
     }
   }
@@ -129,6 +132,7 @@ wrap_with_args! {
       let navigation_handler = self.handlers.navigation_handler.clone();
       let new_window_handler = self.handlers.new_window_handler.clone();
       let download_handler = self.handlers.download_handler.clone();
+      let permission_request_handler = self.handlers.permission_request_handler.clone();
       let family = self.popup_family.clone();
       let create_popup: Arc<life_span::PopupClientFactory> = Arc::new(move |opener, state| {
         let events = state.clone();
@@ -158,6 +162,22 @@ wrap_with_args! {
             // NULL, so the popup keeps the opener's — as it did when it still
             // inherited the opener's client outright.
             download_handler: download_handler.clone(),
+            // The opener's refusals carry over, its grants do not. A popup is a
+            // separate native browser showing content the opener navigated to —
+            // an SSO or OAuth window is the standing case — and a
+            // `PermissionKind` names no origin, so an `Allow` the app gave for
+            // its own content cannot be read as an answer about that other
+            // content; CEF's own prompt asks the user instead. A `Deny` does
+            // carry over, because a permission the app refused must not become
+            // obtainable by opening a popup.
+            permission_request_handler: permission_request_handler.clone().map(|handler| {
+              Arc::new(move |kind| match handler(kind) {
+                tauri_runtime::webview::PermissionResponse::Allow => {
+                  tauri_runtime::webview::PermissionResponse::Default
+                }
+                response => response,
+              }) as Arc<PermissionRequestHandler>
+            }),
             ipc_handler: None,
             on_page_load_handler: None,
             document_title_changed_handler: None,
@@ -213,7 +233,9 @@ wrap_with_args! {
     }
 
     fn permission_handler(&self) -> Option<PermissionHandler> {
-      Some(TauriCefPermissionHandler::new())
+      Some(TauriCefPermissionHandler::new(
+        self.handlers.permission_request_handler.clone(),
+      ))
     }
 
     fn on_process_message_received(

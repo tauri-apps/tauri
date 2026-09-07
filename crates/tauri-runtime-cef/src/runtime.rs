@@ -603,10 +603,10 @@ impl<T: UserEvent> WinitCefApp<T> {
     match message {
       Message::EventLoop(message) => self.handle_event_loop_message(event_loop, message),
       Message::BrowserClosed(_window_id, webview_id) => {
-        // Standalone webview.close() keeps the child in state until this
-        // callback, so cleanup happens here. Window/app teardown removes child
-        // bookkeeping before asking CEF to close; then this message is only the
-        // lifecycle acknowledgement that lets live_browsers drain.
+        // Standalone webview.close() and app shutdown keep the child in state
+        // until this callback, so cleanup happens here. Individual window
+        // teardown removes child bookkeeping first; then this message is only
+        // the lifecycle acknowledgement that lets live_browsers drain.
         //
         // The window_id baked into the browser's handlers can be stale after a
         // reparent, so locate the webview by its process-unique id across every
@@ -943,17 +943,16 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn close_all_browsers(&mut self) {
-    // App shutdown follows the same eager bookkeeping cleanup as window
-    // teardown. live_browsers keeps the loop alive until CEF confirms every
-    // browser close through BrowserClosed.
+    // Keep each child reachable until CEF acknowledges its close. On macOS and
+    // Windows, do_close queues DestroyWebviewHostWindow, which needs this state
+    // to destroy the native child view and trigger on_before_close. Dropping
+    // the windows here can strand live_browsers and prevent process exit.
     for appwindow in self.state.windows.values() {
       for child in &appwindow.children {
-        self.remove_scheme_handler_entries(child);
+        child.host.close_dev_tools();
         child.host.close_browser(1);
       }
     }
-    self.state.windows.clear();
-    self.state.winid_id_to_window_id_map.clear();
   }
 
   #[cfg(target_os = "macos")]

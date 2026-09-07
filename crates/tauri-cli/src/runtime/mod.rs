@@ -11,7 +11,6 @@
 
 use std::path::Path;
 
-use crate::error::Context;
 use tauri_bundler::WebviewRuntime;
 use tauri_utils::config::WebviewInstallMode;
 
@@ -149,15 +148,15 @@ impl Runtime {
       Self::Cef => {
         let cef_path = crate::runtime::cef::cef_path_env();
         // The macOS helper apps are per-app and always created; their executable
-        // is compiled at bundle time against the app's own `cef` crate version, in
+        // is compiled at bundle time against the app's resolved CEF crate sources, in
         // the cargo target directory, with the `CEF_PATH` the app was built with
         // so the build shares the app's distribution instead of downloading one.
         let helper = if target.contains("apple-darwin") {
-          let cef_crate_version = crate::runtime::cef::default_version(workspace_dir).context(
-            "failed to determine the version of the `cef` crate the app depends on from Cargo.lock, needed to build the CEF helper apps",
-          )?;
+          let (cef_crate_path, cef_dll_sys_crate_path) =
+            cef::resolved_crate_paths(workspace_dir, target)?;
           Some(tauri_bundler::bundle::CefHelperSettings {
-            cef_crate_version,
+            cef_crate_path,
+            cef_dll_sys_crate_path,
             cef_path: cef_path.clone(),
             build_dir: target_dir.join("tauri-cef-helper"),
           })

@@ -14,6 +14,7 @@ use crate::{
   runtime::{CefRuntime, Message, RuntimeContext},
 };
 
+mod command;
 mod context_menu;
 mod display;
 mod download;
@@ -25,8 +26,9 @@ mod load;
 mod permission;
 mod process;
 
+use command::{TauriCefCommandHandler, TauriCefCommandHandlerArgs};
 use context_menu::TauriCefContextMenuHandler;
-use display::TauriCefDisplayHandler;
+use display::{TauriCefDisplayHandler, TauriCefDisplayHandlerArgs};
 use download::TauriCefDownloadHandler;
 use drag::TauriCefDragHandler;
 pub(crate) use drag::{
@@ -36,6 +38,7 @@ pub(crate) use drag::{
 use keyboard::TauriCefKeyboardHandler;
 use life_span::{TauriCefChildLifeSpanHandler, TauriCefChildLifeSpanHandlerArgs};
 use load::TauriCefLoadHandler;
+pub(crate) use permission::PermissionRequestHandler;
 use permission::TauriCefPermissionHandler;
 pub(crate) use process::TauriCefBrowserProcessHandler;
 
@@ -49,6 +52,8 @@ pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
   pub(crate) new_window_handler:
     Option<Arc<tauri_runtime::webview::NewWindowHandler<T, CefRuntime<T>>>>,
   pub(crate) download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
+  pub(crate) console_message_handler: Option<Arc<crate::ConsoleMessageHandler>>,
+  pub(crate) permission_request_handler: Option<Arc<PermissionRequestHandler>>,
   pub(crate) web_content_process_terminate_handler:
     Option<Arc<tauri_runtime::webview::OnWebContentProcessTerminateHandler>>,
 }
@@ -63,6 +68,8 @@ impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
       navigation_handler: self.navigation_handler.clone(),
       new_window_handler: self.new_window_handler.clone(),
       download_handler: self.download_handler.clone(),
+      console_message_handler: self.console_message_handler.clone(),
+      permission_request_handler: self.permission_request_handler.clone(),
       web_content_process_terminate_handler: self.web_content_process_terminate_handler.clone(),
     }
   }
@@ -78,6 +85,8 @@ wrap_with_args! {
     pub(crate) label: String,
     initial_url: Option<String>,
     devtools_enabled: bool,
+    zoom_hotkeys_enabled: bool,
+    allowed_chrome_commands: Vec<crate::ChromeCommandGroup>,
     drag_drop_event_target: DragDropEventTarget,
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
@@ -125,10 +134,15 @@ wrap_with_args! {
       let webview_id = self.webview_id;
       let label = self.label.clone();
       let devtools_enabled = self.devtools_enabled;
+      let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
+      // A CEF-owned popup is a real Chrome window, not an app window, so it keeps the
+      // opener's allowances rather than being locked down harder than its opener.
+      let allowed_chrome_commands = self.allowed_chrome_commands.clone();
       let target = self.drag_drop_event_target;
       let navigation_handler = self.handlers.navigation_handler.clone();
       let new_window_handler = self.handlers.new_window_handler.clone();
       let download_handler = self.handlers.download_handler.clone();
+      let permission_request_handler = self.handlers.permission_request_handler.clone();
       let family = self.popup_family.clone();
       let create_popup: Arc<life_span::PopupClientFactory> = Arc::new(move |opener, state| {
         let events = state.clone();
@@ -139,6 +153,8 @@ wrap_with_args! {
           label: label.clone(),
           initial_url: None,
           devtools_enabled,
+          zoom_hotkeys_enabled,
+          allowed_chrome_commands: allowed_chrome_commands.clone(),
           drag_drop_event_target: target,
           drag_drop_handler_enabled: false,
           drag_drop_state: Arc::default(),
@@ -158,6 +174,26 @@ wrap_with_args! {
             // NULL, so the popup keeps the opener's — as it did when it still
             // inherited the opener's client outright.
             download_handler: download_handler.clone(),
+            // The opener's refusals carry over, its grants do not. A popup shows
+            // content the opener navigated to — an SSO or OAuth window is the
+            // standing case — and a `PermissionKind` names no origin, so an
+            // `Allow` the app gave for its own content is no answer about that
+            // other content; CEF's own prompt asks the user instead. A `Deny`
+            // carries over so a refused permission cannot be obtained by opening
+            // a popup.
+            permission_request_handler: permission_request_handler.clone().map(|handler| {
+              Arc::new(move |kind| match handler(kind) {
+                tauri_runtime::webview::PermissionResponse::Allow => {
+                  tauri_runtime::webview::PermissionResponse::Default
+                }
+                response => response,
+              }) as Arc<PermissionRequestHandler>
+            }),
+            // A `ConsoleMessage` carries the source URL of whatever logged it, so
+            // routing a popup's output to the opener's observer would report an
+            // SSO or OAuth window's URLs to an observer registered for the app's
+            // own content.
+            console_message_handler: None,
             ipc_handler: None,
             on_page_load_handler: None,
             document_title_changed_handler: None,
@@ -190,10 +226,12 @@ wrap_with_args! {
     }
 
     fn display_handler(&self) -> Option<DisplayHandler> {
-      Some(TauriCefDisplayHandler::new(
-        self.handlers.document_title_changed_handler.clone(),
-        self.handlers.frame_event_handler.clone(),
-      ))
+      Some(TauriCefDisplayHandler::build(TauriCefDisplayHandlerArgs {
+        document_title_changed_handler: self.handlers.document_title_changed_handler.clone(),
+        frame_event_handler: self.handlers.frame_event_handler.clone(),
+        console_message_handler: self.handlers.console_message_handler.clone(),
+        frame_navigation_state: self.frame_navigation_state.clone(),
+      }))
     }
 
     fn download_handler(&self) -> Option<DownloadHandler> {
@@ -212,8 +250,19 @@ wrap_with_args! {
       Some(TauriCefKeyboardHandler::new(self.devtools_enabled))
     }
 
+    fn command_handler(&self) -> Option<CommandHandler> {
+      Some(TauriCefCommandHandler::build(TauriCefCommandHandlerArgs {
+        devtools_enabled: self.devtools_enabled,
+        zoom_hotkeys_enabled: self.zoom_hotkeys_enabled,
+        allowed_chrome_commands: self.allowed_chrome_commands.clone(),
+        frame_navigation_state: self.frame_navigation_state.clone(),
+      }))
+    }
+
     fn permission_handler(&self) -> Option<PermissionHandler> {
-      Some(TauriCefPermissionHandler::new())
+      Some(TauriCefPermissionHandler::new(
+        self.handlers.permission_request_handler.clone(),
+      ))
     }
 
     fn on_process_message_received(

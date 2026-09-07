@@ -5332,7 +5332,20 @@ You may have it installed on another user account, but it is not available for t
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
-    webview_builder = webview_builder.with_devtools(webview_attributes.devtools.unwrap_or(true));
+    let devtools = webview_attributes.devtools.unwrap_or(true);
+    webview_builder = webview_builder.with_devtools(devtools);
+
+    // None of the webviews wry drives - WebView2, WKWebView, WebKitGTK - opens DevTools
+    // on a keyboard shortcut of its own, so the shortcut is a page script that toggles
+    // them through the `webview` plugin. Injecting it is the runtime's call rather than
+    // `tauri`'s: a runtime whose webview already binds the chord would have both fire on
+    // one keypress, and the toggle would close the window the accelerator just opened.
+    if devtools {
+      webview_builder = webview_builder.with_initialization_script_for_main_only(
+        tauri_runtime::webview::devtools_shortcut_script(),
+        true,
+      );
+    }
   }
 
   #[cfg(target_os = "android")]

@@ -162,10 +162,11 @@ fn color_to_argb(color: Color) -> u32 {
 ///   support in the Chrome runtime.
 /// - `data_store_identifier`: a WKWebView data-store concept with no CEF analog
 ///   (per-webview isolation is done through the request context cache path).
-/// - `zoom_hotkeys_enabled`: handled by Chromium's accelerator table, not a
-///   browser setting.
 ///
-/// `proxy_url` is handled separately via the request context preference.
+/// `proxy_url` is handled separately via the request context preference, and
+/// `zoom_hotkeys_enabled` through the client's command handler, because zoom
+/// reaches a browser through Chromium's accelerator table rather than through a
+/// browser setting.
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
 ) -> cef::BrowserSettings {
@@ -184,6 +185,13 @@ fn browser_settings_from_webview_attributes(
       .background_color
       .map(color_to_argb)
       .unwrap_or(0),
+    // Browser chrome a Tauri window has no business showing: the status bubble is
+    // the link target that slides in over the bottom-left of the page on hover,
+    // and the zoom bubble the popup Chrome anchors to its (absent) toolbar on
+    // Ctrl+Plus. Both draw over the app's own UI; both are ignored under Alloy
+    // style.
+    chrome_status_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
+    chrome_zoom_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
     ..Default::default()
   }
 }
@@ -217,6 +225,137 @@ pub enum DevToolsProtocol {
 }
 
 pub(crate) type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;
+
+/// A family of Chrome commands the runtime swallows in an application window.
+///
+/// A Chrome style browser keeps its whole accelerator table live even when it is hosted
+/// as a child view with no browser UI, so Ctrl+N opens a real Chrome window next to the
+/// app's and Ctrl+P prints the app's own markup. The runtime blocks the families below by
+/// default; naming one in
+/// [`allow_chrome_commands`](crate::WebviewWindowBuilderCefExt::allow_chrome_commands)
+/// lets that family run the way it would in a browser.
+///
+/// DevTools and zoom are not here: they follow `WebviewAttributes::devtools` and
+/// `WebviewAttributes::zoom_hotkeys_enabled`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ChromeCommandGroup {
+  /// Ctrl+N, Ctrl+Shift+N, Ctrl+T and the whole tab strip: new window, new incognito
+  /// window, new tab, duplicate, restore, reorder, and select tab 1-8.
+  ///
+  /// An app window has no tab strip for these to act on, and the windows they open are
+  /// real Chrome windows the application does not own.
+  WindowAndTab,
+  /// Ctrl+P, Ctrl+S, Ctrl+U, Ctrl+O: print, print without preview, save page, view
+  /// source, open file, and the PWA install and shortcut commands.
+  ///
+  /// The commonest group to want back — Ctrl+P is a keystroke users expect. Note that
+  /// `WebviewDispatch::print` prints on request without this, and that `IDC_OPEN_FILE`
+  /// and `IDC_SAVE_PAGE` raise OS file dialogs.
+  Document,
+  /// Ctrl+L and its neighbours: focus the omnibox, the search box, the toolbar, the menu
+  /// bar or the bookmarks bar, plus Home and open-current-URL.
+  ///
+  /// An app window has none of that chrome, so these can only move keyboard focus
+  /// somewhere the user cannot see; Home and open-current-URL additionally navigate the
+  /// webview away from the app's own UI.
+  BrowserChrome,
+  /// Ctrl+H, Ctrl+J, Ctrl+D, Ctrl+Shift+Delete and the rest: history, downloads,
+  /// bookmarks, settings, clear browsing data, the task manager, sign-in, about and
+  /// feedback.
+  ///
+  /// These load Chrome WebUI pages *in place of the app's UI*, in the very webview the
+  /// accelerator was pressed in, and expose the browsing data of every webview sharing
+  /// the request context.
+  BrowserSurface,
+  /// Alt+Left and Alt+Right: back and forward through the session history.
+  ///
+  /// The browser is created at an internal placeholder URL and only then navigated to the
+  /// app's own, so the app's first screen already sits on a second history entry and
+  /// going back from it lands on a blank page. `WebviewDispatch::go_back` and
+  /// `go_forward` work without this.
+  History,
+}
+
+impl ChromeCommandGroup {
+  /// Every group, which is what the runtime blocks when a webview allows none. The
+  /// blocklist is resolved from this, so a variant added here is blocked by default.
+  pub(crate) const ALL: &'static [Self] = &[
+    Self::WindowAndTab,
+    Self::Document,
+    Self::BrowserChrome,
+    Self::BrowserSurface,
+    Self::History,
+  ];
+}
+
+/// One message a renderer wrote to the JavaScript console.
+///
+/// Reported synchronously on CEF's UI thread. Observing a message neither
+/// suppresses CEF's own logging of it nor changes what DevTools shows.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct ConsoleMessage {
+  /// How severe the renderer considers the message.
+  pub level: ConsoleMessageLevel,
+  /// The message text, already formatted by the renderer the way DevTools shows
+  /// it.
+  pub message: String,
+  /// What wrote the message — a script URL, usually. Empty when CEF names none.
+  pub source: String,
+  /// The 1-based line in `source`. Zero when CEF names none.
+  pub line: i32,
+}
+
+/// The severity of a [`ConsoleMessage`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ConsoleMessageLevel {
+  /// `console.debug`.
+  Verbose,
+  /// `console.log` and `console.info`. Also CEF's default severity, which it
+  /// documents as INFO.
+  Info,
+  /// `console.warn`.
+  Warning,
+  /// `console.error`, and messages the renderer itself reports as errors, such as
+  /// an uncaught exception or a blocked subresource.
+  Error,
+  /// A fatal log severity. No console API produces one.
+  Fatal,
+  /// A severity this build of the runtime does not name.
+  Other,
+}
+
+/// Synchronous observer of renderer console output.
+pub type ConsoleMessageHandler = dyn Fn(ConsoleMessage) + Send + Sync + 'static;
+
+impl ConsoleMessage {
+  pub(crate) fn from_cef(
+    level: cef::LogSeverity,
+    message: Option<&CefString>,
+    source: Option<&CefString>,
+    line: i32,
+  ) -> Self {
+    use cef::sys::cef_log_severity_t;
+
+    Self {
+      level: match cef_log_severity_t::from(level) {
+        cef_log_severity_t::LOGSEVERITY_VERBOSE => ConsoleMessageLevel::Verbose,
+        cef_log_severity_t::LOGSEVERITY_DEFAULT | cef_log_severity_t::LOGSEVERITY_INFO => {
+          ConsoleMessageLevel::Info
+        }
+        cef_log_severity_t::LOGSEVERITY_WARNING => ConsoleMessageLevel::Warning,
+        cef_log_severity_t::LOGSEVERITY_ERROR => ConsoleMessageLevel::Error,
+        cef_log_severity_t::LOGSEVERITY_FATAL => ConsoleMessageLevel::Fatal,
+        _ => ConsoleMessageLevel::Other,
+      },
+      message: message.map(ToString::to_string).unwrap_or_default(),
+      source: source.map(ToString::to_string).unwrap_or_default(),
+      line,
+    }
+  }
+}
 pub(crate) type WebviewEventHandler = Box<dyn Fn(&WebviewEvent) + Send>;
 pub(crate) type WebviewEventListeners = Arc<Mutex<HashMap<WebviewEventId, WebviewEventHandler>>>;
 
@@ -433,6 +572,24 @@ impl<T: UserEvent> WinitCefApp<T> {
       parent_size,
       scale,
     );
+    let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
+      && pending.webview_attributes.devtools.unwrap_or(true);
+
+    // Alloy style keeps none of Chrome's accelerator table, so the DevTools chord has
+    // to be scripted the way it is for every webview `tauri-runtime-wry` drives. A
+    // Chrome style browser must not get the script: it dispatches `IDC_DEV_TOOLS` for
+    // the same chord, and with both in place the toggle closes the window the
+    // accelerator just opened.
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    if devtools_enabled && is_alloy_style(pending.runtime_specific_attributes.runtime_style) {
+      pending.webview_attributes.initialization_scripts.push(
+        tauri_runtime::webview::InitializationScript {
+          script: tauri_runtime::webview::devtools_shortcut_script(),
+          for_main_frame_only: true,
+        },
+      );
+    }
+
     let initialization_scripts = initialization_scripts(&mut pending.webview_attributes);
     let uri_scheme_protocols: Arc<HashMap<_, _>> = Arc::new(
       pending
@@ -444,8 +601,11 @@ impl<T: UserEvent> WinitCefApp<T> {
     let on_page_load_handler = pending.on_page_load_handler.take().map(Arc::from);
     let document_title_changed_handler =
       pending.document_title_changed_handler.take().map(Arc::from);
-    let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
-      && pending.webview_attributes.devtools.unwrap_or(true);
+    let zoom_hotkeys_enabled = pending.webview_attributes.zoom_hotkeys_enabled;
+    let allowed_chrome_commands = pending
+      .runtime_specific_attributes
+      .allowed_chrome_commands
+      .clone();
     let drag_drop_handler_enabled = pending.webview_attributes.drag_drop_handler_enabled;
     let drag_drop_state = Arc::new(Mutex::new(browser_client::DragDropState::default()));
     let web_content_process_terminate_handler = pending
@@ -482,6 +642,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       navigation_handler: pending.navigation_handler.map(Arc::from),
       new_window_handler: pending.new_window_handler.map(Arc::from),
       download_handler: pending.download_handler.take(),
+      console_message_handler: pending
+        .runtime_specific_attributes
+        .console_message_handler
+        .clone(),
+      permission_request_handler: pending.permission_request_handler.take().map(Arc::from),
       web_content_process_terminate_handler,
     };
 
@@ -493,6 +658,8 @@ impl<T: UserEvent> WinitCefApp<T> {
         label: pending.label.clone(),
         initial_url: Some(pending.url.as_str().to_string()),
         devtools_enabled,
+        zoom_hotkeys_enabled,
+        allowed_chrome_commands,
         drag_drop_event_target,
         drag_drop_handler_enabled,
         drag_drop_state,
@@ -636,6 +803,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     let request_context = request_context::request_context_from_webview_attributes(
       &context.cache_path,
       &pending.webview_attributes,
+      context.profile_preferences.clone(),
       uri_scheme_protocols.keys(),
       &custom_protocol_scheme,
       scheme_registry.clone(),
@@ -981,6 +1149,81 @@ pub enum RuntimeStyle {
 
 /// The CEF-specific webview attributes, set through
 /// [`WebviewWindowBuilderCefExt`](crate::WebviewWindowBuilderCefExt).
+///
+/// # Permission requests on CEF
+///
+/// The runtime honors `WebviewAttributes::on_permission_request` — an `Allow`
+/// grants without showing Chrome's prompt, a `Deny` refuses without one — with
+/// three things worth knowing before relying on it.
+///
+/// ## Most decisions are made once per origin and then persist
+///
+/// Chromium consults a permission prompt only while the stored content setting
+/// for that (origin, permission) still says "ask", and answering the prompt
+/// persists the decision to the on-disk profile. Everything routed through the
+/// prompt therefore reaches the handler **once per origin and permission, ever**,
+/// including across restarts, and nothing calls back to say the app changed its
+/// mind: revoking a grant means rewriting the content setting through the request
+/// context.
+///
+/// Camera and microphone are the exception. Chromium routes *every*
+/// `getUserMedia()` call through the media path, so those two do reach the handler
+/// on each call and a changing answer is honored.
+///
+/// ## Permissions Tauri has no kind for arrive as `PermissionKind::Other`
+///
+/// Chromium has more request types than Tauri has kinds. Storage access, FedCM,
+/// protocol handler registration, idle detection, local and loopback network
+/// access, web app installation, the WebXR sessions, hand tracking, keyboard lock
+/// and disk quota all arrive as `PermissionKind::Other`, as does any request type
+/// a future CEF build adds.
+///
+/// Failing closed is deliberate, but it means a handler written elsewhere as
+/// `match kind { Camera => Allow, _ => Deny }` hard-denies all of them here, and
+/// denying storage access or FedCM breaks third-party SSO flows outright. Return
+/// `PermissionResponse::Default` for the kinds you did not mean to answer about,
+/// and CEF's own handling runs for them unchanged.
+///
+/// ## `PermissionKind::DisplayCapture` is never granted by an `Allow`
+///
+/// A `getDisplayMedia()` request the handler answers `Allow` is handed back to
+/// CEF, which shows Chromium's desktop media picker under Chrome style and refuses
+/// under Alloy style. A `Deny` still refuses it outright.
+///
+/// Granting it from the handler would grant *everything*: CEF builds the stream
+/// from the permission mask, and a desktop video bit with no requested source
+/// synthesises the full desktop and returns it with no picker at all. Since
+/// `PermissionKind::DisplayCapture` names no screen, window or tab, a blanket
+/// `.on_permission_request(|_| PermissionResponse::Allow)` would silently hand any
+/// page in the webview a full-desktop stream.
+///
+/// # Chrome accelerators an app window does not get
+///
+/// A Chrome style browser keeps its whole accelerator table live even hosted as a
+/// child view with no browser UI, so this runtime swallows the commands that have
+/// no meaning in an app window (new window and tab, the tab strip, history and
+/// downloads and settings, print, save page, view source, the omnibox focus
+/// commands). Any family of them can be kept with
+/// [`allow_chrome_commands`](crate::WebviewWindowBuilderCefExt::allow_chrome_commands);
+/// see [`ChromeCommandGroup`] for what each family covers. Two of the exclusions
+/// take away keystrokes users expect:
+///
+/// - **Zoom.** `WebviewAttributes::zoom_hotkeys_enabled` is honored, and it
+///   **defaults to `false`**, so Ctrl+Plus, Ctrl+Minus and Ctrl+0 do not zoom
+///   unless the webview opted in. Ctrl+mouse wheel zoom is unaffected either way,
+///   since Chromium applies it in the render widget rather than through the
+///   command controller. On Linux and macOS Tauri also injects a JavaScript zoom
+///   polyfill when the flag is true, which coexists with Chrome's own accelerator,
+///   so a keyboard zoom steps twice there. `WebviewDispatch::set_zoom` is
+///   untouched.
+///
+/// - **History.** Alt+Left and Alt+Right do not navigate the session history.
+///   The browser is created at an internal placeholder URL and then navigated to
+///   the app's own, so the app's first screen already sits on a second history
+///   entry and going back from it lands on a blank page. The page context menu
+///   drops Back and Forward for the same reason. `WebviewDispatch::go_back` and
+///   `go_forward` are untouched, and an app that navigates its webview normally
+///   can take the accelerators back with [`ChromeCommandGroup::History`].
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
@@ -996,6 +1239,15 @@ pub struct CefWebviewAttributes {
   /// [`FrameNavigationState`](crate::FrameNavigationState) follows a popup's
   /// native lifecycle without exposing its URLs.
   pub frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
+  /// Observer of the messages the renderer writes to the JavaScript console.
+  ///
+  /// Scoped to this webview's own native browser, so neither a CEF-owned popup's
+  /// output nor that of a DevTools window opened on this webview is reported here.
+  pub console_message_handler: Option<Arc<ConsoleMessageHandler>>,
+  /// Families of Chrome commands this webview keeps rather than swallows.
+  ///
+  /// Empty by default, which blocks every group in [`ChromeCommandGroup`].
+  pub allowed_chrome_commands: Vec<ChromeCommandGroup>,
 }
 
 impl std::fmt::Debug for CefWebviewAttributes {
@@ -1004,6 +1256,11 @@ impl std::fmt::Debug for CefWebviewAttributes {
       .debug_struct("CefWebviewAttributes")
       .field("runtime_style", &self.runtime_style)
       .field("frame_event_handler", &self.frame_event_handler.is_some())
+      .field(
+        "console_message_handler",
+        &self.console_message_handler.is_some(),
+      )
+      .field("allowed_chrome_commands", &self.allowed_chrome_commands)
       .finish()
   }
 }
@@ -1037,6 +1294,18 @@ impl CefInitScript {
       for_main_frame_only: script.for_main_frame_only,
     }
   }
+}
+
+/// Whether the browser created for a webview will be Alloy style.
+///
+/// CEF's default is Chrome style, with one exception this runtime always meets: on
+/// macOS a browser given a native parent view - which is how every webview here is
+/// hosted - is forced to Alloy style whatever the application asked for, because Chrome
+/// style does not support a native parent there (`MaybeSetWindowInfo`, upstream issue
+/// #3294).
+#[cfg(any(debug_assertions, feature = "devtools"))]
+fn is_alloy_style(runtime_style: Option<RuntimeStyle>) -> bool {
+  cfg!(target_os = "macos") || matches!(runtime_style, Some(RuntimeStyle::Alloy))
 }
 
 pub(crate) fn initialization_scripts(attrs: &mut WebviewAttributes) -> Arc<Vec<CefInitScript>> {

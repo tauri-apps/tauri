@@ -80,6 +80,96 @@ type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
 /// in minor releases when a known breaking change is discovered.
 pub use cef;
 
+/// Which key Chromium uses to encrypt the little it stores encrypted.
+///
+/// Chromium's `os_crypt` layer encrypts **cookies and saved passwords** only. Every
+/// other piece of web storage — `localStorage`, IndexedDB, Cache Storage, service worker
+/// registrations — is written to the cache directory unencrypted whichever variant you
+/// pick here, exactly as it is under wry's WebKitGTK and WebView2 backends.
+///
+/// The default, [`SecretStorage::Auto`], skips the OS secret store in development builds
+/// (`tauri::is_dev()`) and keeps it in release builds. What it skips differs per
+/// platform:
+///
+/// - on macOS, `os_crypt` stores a random key in a shared "Chromium Safe Storage"
+///   keychain item whose ACL is bound to the code signature of the process that reads
+///   it. Ad-hoc-signed development builds get a new signature on every rebuild, so macOS
+///   puts up the keychain password prompt again after every `cargo build`.
+/// - on Linux, `os_crypt` asks the D-Bus secret portal, libsecret or KWallet for the
+///   key, which pops a keyring-unlock dialog the first time an app runs.
+///
+/// A release build that has to run where there is no secret store at all — a headless
+/// session, a container, a CI image — needs [`SecretStorage::Mock`], because there `Auto`
+/// asks for a store that is not there.
+///
+/// # Security
+///
+/// The mock keychain (`--use-mock-keychain`) and the Linux `basic` password store do not
+/// derive a secret key: they encrypt with a key derived from a **hard-coded constant**
+/// compiled into Chromium (`mock_password` and `peanuts` respectively). Both constants
+/// are public, so cookies encrypted with them have **no meaningful protection at rest** —
+/// anyone who can read the cache directory can decrypt them.
+///
+/// # Switching modes invalidates stored cookies
+///
+/// Cookies encrypted with one key cannot be read back with another, and development and
+/// release builds share the same default cache directory
+/// (`{user cache}/{identifier}/cef`). Moving an app between [`SecretStorage::Mock`] and
+/// [`SecretStorage::System`] — including the implicit move [`SecretStorage::Auto`] makes
+/// when a dev build is followed by a release build — therefore drops the cookies stored
+/// under the previous key, logging users out. Set [`Cef::root_cache_path`] to separate
+/// the two if that matters.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum SecretStorage {
+  /// Skip the OS secret store in development builds (`tauri::is_dev()`) and use it in
+  /// release builds: `--use-mock-keychain` on macOS and `--password-store=basic` on
+  /// Linux, in development only. Windows is untouched and keeps using DPAPI.
+  #[default]
+  Auto,
+  /// Always encrypt with Chromium's hard-coded constant: `--use-mock-keychain` on macOS,
+  /// `--password-store=basic` on Linux. Windows is untouched and keeps using DPAPI.
+  ///
+  /// Read the security note on [`SecretStorage`] before shipping this in a release
+  /// build: the key is a public constant, so the cookie jar is effectively unprotected.
+  Mock,
+  /// Always use the operating system secret store, on every platform and in every build
+  /// profile. Appends no switch at all.
+  System,
+}
+
+/// What to do with Chromium's process sandbox.
+///
+/// Defaults to [`SandboxPolicy::Auto`], which keeps the sandbox on every platform except
+/// in one situation: an application running from an AppImage on a Linux or BSD system
+/// that offers no way to sandbox at all, where the alternative is not an unsandboxed
+/// application but no application, since Chromium aborts with "No usable sandbox!".
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum SandboxPolicy {
+  /// Keep the sandbox, except when the application runs from an AppImage and the system
+  /// has neither the setuid `chrome-sandbox` helper nor usable unprivileged user
+  /// namespaces. A warning naming the reason is logged whenever the sandbox is dropped.
+  ///
+  /// That exception is Linux and BSD only. Windows and macOS link their sandbox into the
+  /// executable rather than relying on a helper the system has to provide, so there is
+  /// nothing that can be missing and `Auto` there is the same as [`Self::Required`].
+  #[default]
+  Auto,
+  /// Never run without a sandbox, even when that means Chromium aborts at startup.
+  ///
+  /// Pick this when running unsandboxed is not an acceptable outcome and a hard failure
+  /// is preferable — the user can then install the setuid helper, point
+  /// `CHROME_DEVEL_SANDBOX` at one, or re-enable unprivileged user namespaces.
+  Required,
+  /// Always run without a sandbox, on every platform.
+  ///
+  /// Every renderer then runs with the full privileges of the user, so a compromised
+  /// renderer is a compromised account. Useful for containers and CI images that cannot
+  /// provide a sandbox, not for shipped applications.
+  Disabled,
+}
+
 /// Selects and configures the CEF runtime.
 ///
 /// Pass it to `tauri::Builder::runtime` to run the application with CEF:
@@ -95,6 +185,14 @@ pub struct Cef {
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
+  secret_storage: SecretStorage,
+  profile_preferences: Vec<(String, bool)>,
+  allow_chromium_command_line_args: bool,
+  log_file: Option<PathBuf>,
+  log_severity: Option<LogSeverity>,
+  locale: Option<String>,
+  accept_language_list: Option<String>,
+  sandbox: SandboxPolicy,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
@@ -105,6 +203,17 @@ impl fmt::Debug for Cef {
       .field("deep_link_schemes", &self.deep_link_schemes)
       .field("cache_path", &self.cache_path)
       .field("api_version", &self.api_version)
+      .field("secret_storage", &self.secret_storage)
+      .field("profile_preferences", &self.profile_preferences)
+      .field(
+        "allow_chromium_command_line_args",
+        &self.allow_chromium_command_line_args,
+      )
+      .field("log_file", &self.log_file)
+      .field("log_severity", &self.log_severity)
+      .field("locale", &self.locale)
+      .field("accept_language_list", &self.accept_language_list)
+      .field("sandbox", &self.sandbox)
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -124,6 +233,11 @@ impl Cef {
   }
 
   /// Appends one command line argument passed to CEF.
+  ///
+  /// The argument is applied to the **browser process only**. CEF warns that modifying
+  /// the command line of a non-browser process "may result in undefined behavior
+  /// including crashes", and Chromium already forwards to each child process the
+  /// switches it needs.
   #[must_use]
   pub fn command_line_arg<K: Into<String>, V: Into<String>>(
     mut self,
@@ -137,6 +251,8 @@ impl Cef {
   }
 
   /// Appends a list of command line arguments passed to CEF.
+  ///
+  /// Like [`Self::command_line_arg`], these are applied to the browser process only.
   #[must_use]
   pub fn command_line_args<K: Into<String>, V: Into<String>>(
     mut self,
@@ -176,6 +292,155 @@ impl Cef {
   #[must_use]
   pub fn cef_api_version(mut self, version: i32) -> Self {
     self.api_version = Some(version);
+    self
+  }
+
+  /// Which key Chromium uses to encrypt cookies and saved passwords at rest.
+  ///
+  /// Defaults to [`SecretStorage::Auto`]: development builds skip the OS secret store —
+  /// the macOS keychain prompt is replaced by a mock keychain, and Linux skips the D-Bus
+  /// secret portal, libsecret and KWallet — while release builds use it. Windows keeps
+  /// using DPAPI throughout.
+  ///
+  /// Nothing but cookies and saved passwords is affected. The mock keychain and the
+  /// Linux `basic` store encrypt with a hard-coded, publicly known constant, so reach
+  /// for [`SecretStorage::Mock`] only when a release build has to run where no secret
+  /// store exists at all. Switching between key sources makes previously stored cookies
+  /// unreadable. See [`SecretStorage`] for the details.
+  #[must_use]
+  pub fn secret_storage(mut self, storage: SecretStorage) -> Self {
+    self.secret_storage = storage;
+    self
+  }
+
+  /// Sets one boolean Chromium profile preference on every webview's request context.
+  ///
+  /// Applied after the runtime's own defaults, so it can turn a preference the runtime
+  /// disabled back on as well as turn something else off. Calling it twice for the same
+  /// preference keeps the last value.
+  ///
+  /// The runtime disables a handful of Chrome browser features that have no place in an
+  /// application webview — the "Save password?" and address and credit-card bubbles
+  /// (`credentials_enable_service`, `profile.password_manager_leak_detection`,
+  /// `autofill.profile_enabled`, `autofill.credit_card_enabled`), the translate bubble
+  /// (`translate.enabled`), and two background requests to Google
+  /// (`alternate_error_pages.enabled`, `search.suggest_enabled`). An application that
+  /// wants one of them names it here.
+  ///
+  /// Safe Browsing (`safebrowsing.enabled`) is left on by the runtime; an application
+  /// whose webview only ever loads its own content can switch it off here.
+  ///
+  /// Preference names are Chromium's own, and which ones a given Chrome build registers
+  /// as writable varies. A preference this build refuses is logged at debug and skipped.
+  ///
+  /// ```no_run
+  /// # use tauri_runtime_cef::Cef;
+  /// Cef::default()
+  ///   .profile_preference("credentials_enable_service", true)
+  ///   .profile_preference("safebrowsing.enabled", false);
+  /// ```
+  #[must_use]
+  pub fn profile_preference<K: Into<String>>(mut self, name: K, enabled: bool) -> Self {
+    self.profile_preferences.push((name.into(), enabled));
+    self
+  }
+
+  /// Lets Chromium read switches off the process command line in release builds.
+  ///
+  /// Release builds ignore them by default (`Settings::command_line_args_disabled`),
+  /// because otherwise anyone who can start the shipped executable can also start it
+  /// with `--remote-debugging-port` and drive the app over the DevTools protocol, or
+  /// with `--disable-web-security`, `--proxy-server`, `--host-resolver-rules` or
+  /// `--ssl-key-log-file` — Chromium honours every one of them. Development builds
+  /// (`tauri::is_dev()`) always keep the command line enabled.
+  ///
+  /// Enable this only if the application genuinely needs users to pass Chromium
+  /// switches. It is not a complete lockdown either way: the network service reads the
+  /// `SSLKEYLOGFILE` environment variable regardless of this setting.
+  ///
+  /// Switches configured through [`Self::command_line_arg`] are unaffected, because CEF
+  /// clears Chromium's command line before applying its own settings and before calling
+  /// `on_before_command_line_processing`. Tauri's own CLI parsing and its cold-start deep
+  /// link handling read `std::env::args()`, which Chromium never touches, and are
+  /// unaffected too. Deep links delivered to an *already running* instance do go through
+  /// Chromium's process singleton, so the runtime restores the deep link URL onto the
+  /// cleared command line to keep them working.
+  #[must_use]
+  pub fn allow_chromium_command_line_args(mut self, allow: bool) -> Self {
+    self.allow_chromium_command_line_args = allow;
+    self
+  }
+
+  /// File Chromium and CEF write their log to (`Settings::log_file`).
+  ///
+  /// Defaults to `cef.log` inside the cache directory (see [`Self::root_cache_path`]).
+  /// With no log file configured, CEF writes a `debug.log` into the *main executable
+  /// directory* on Windows and Linux, which for an installed application is often not
+  /// even writable.
+  ///
+  /// The default also overrides the macOS convention of
+  /// `~/Library/Logs/<app name>_debug.log`; pass that path explicitly to keep it.
+  #[must_use]
+  pub fn log_file<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
+    self.log_file = Some(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// Lowest severity Chromium and CEF write to the log file (`Settings::log_severity`).
+  ///
+  /// Defaults to [`cef::LogSeverity::WARNING`] in release builds — CEF's own default is
+  /// `INFO`, which is chatty enough to grow the log file of a long-running application —
+  /// and to [`cef::LogSeverity::DEFAULT`] in development builds (`tauri::is_dev()`),
+  /// where the informational messages are usually what you want.
+  ///
+  /// [`cef::LogSeverity::DISABLE`] does not turn logging off entirely: CEF maps it to a
+  /// FATAL-only minimum level, so nothing is written to the log file but FATAL messages
+  /// still go to stderr.
+  #[must_use]
+  pub fn log_severity(mut self, severity: LogSeverity) -> Self {
+    self.log_severity = Some(severity);
+    self
+  }
+
+  /// Locale Chromium loads its own localized resources for (`Settings::locale`),
+  /// as an ISO language code such as `en-US` or `pt-BR`.
+  ///
+  /// Leave unset — the default — unless you know the matching pak file ships with the
+  /// application. Tauri's bundler packages **only the `en-US` locale pak**, so naming any
+  /// other locale leaves Chromium unable to load the localized strings it uses for its
+  /// own UI (context menus, error pages, form controls). This does not affect the
+  /// application's own content, nor which languages a website is asked for — that is
+  /// [`Self::accept_language_list`].
+  #[must_use]
+  pub fn locale<S: Into<String>>(mut self, locale: S) -> Self {
+    self.locale = Some(locale.into());
+    self
+  }
+
+  /// Comma-delimited list of languages sent as the `Accept-Language` header and reported
+  /// through `navigator.language` (`Settings::accept_language_list`), for example
+  /// `en-US,en,pt-BR`.
+  ///
+  /// Defaults to CEF's own value, which is derived from [`Self::locale`].
+  #[must_use]
+  pub fn accept_language_list<S: Into<String>>(mut self, languages: S) -> Self {
+    self.accept_language_list = Some(languages.into());
+    self
+  }
+
+  /// What to do with Chromium's process sandbox.
+  ///
+  /// Defaults to [`SandboxPolicy::Auto`], which keeps the sandbox except when the
+  /// application runs from an AppImage on a Linux or BSD system that offers no way to
+  /// sandbox at all — AppImages cannot ship the setuid `chrome-sandbox` helper the deb
+  /// and rpm bundlers install, and distributions such as Ubuntu 23.10 and later restrict
+  /// the unprivileged user namespaces Chromium would otherwise fall back to. Without the
+  /// escape hatch Chromium aborts at startup with "No usable sandbox!".
+  ///
+  /// See [`SandboxPolicy`] for the other variants.
+  #[must_use]
+  pub fn sandbox(mut self, policy: SandboxPolicy) -> Self {
+    self.sandbox = policy;
     self
   }
 }
@@ -276,6 +541,10 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   /// [`cef::initialize`]. Per-webview `data_directory` profiles must resolve
   /// under this root for CEF request contexts to be accepted.
   pub(crate) cache_path: Arc<PathBuf>,
+  /// Chromium profile preferences the application asked for, applied to every
+  /// webview's request context after the runtime's own defaults. See
+  /// [`Cef::profile_preference`].
+  pub(crate) profile_preferences: Arc<Vec<(String, bool)>>,
 }
 
 /// Scoped access to the current winit callback state.
@@ -1208,6 +1477,47 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   }
 }
 
+/// Picks the deep link URLs out of a process command line.
+///
+/// An argument qualifies when it parses as a URL whose scheme is one of `schemes`,
+/// matched the same exact way `BrowserProcessHandler::on_already_running_app_relaunch`
+/// matches it on the receiving end. Everything else is dropped: the point of
+/// [`Cef::allow_chromium_command_line_args`] being off is that no other argument
+/// survives onto Chromium's command line.
+fn deep_link_arguments<I>(args: I, schemes: &[String]) -> Vec<String>
+where
+  I: IntoIterator<Item = String>,
+{
+  args
+    .into_iter()
+    .filter(|arg| {
+      url::Url::parse(arg).is_ok_and(|url| schemes.iter().any(|scheme| scheme == url.scheme()))
+    })
+    .collect()
+}
+
+/// Appends `args` to `command_line`, as a switch with a value, a bare switch or a
+/// positional argument depending on how each entry looks.
+///
+/// A bare name with no value is only recognised as a switch when it is spelled with its
+/// `--` prefix; without one it is a positional argument. This runtime's own entries are
+/// therefore all spelled `--switch`, values included — Chromium strips the prefix off the
+/// key it stores, so both spellings reach the same switch.
+fn append_command_line_args(command_line: &mut CommandLine, args: &[(String, Option<String>)]) {
+  for (arg, value) in args {
+    if let Some(value) = value {
+      command_line.append_switch_with_value(
+        Some(&CefString::from(arg.as_str())),
+        Some(&CefString::from(value.as_str())),
+      );
+    } else if arg.starts_with("-") {
+      command_line.append_switch(Some(&CefString::from(arg.as_str())));
+    } else {
+      command_line.append_argument(Some(&CefString::from(arg.as_str())));
+    }
+  }
+}
+
 wrap_with_args! {
   wrap_app => TauriCefAppArgs;
 
@@ -1215,7 +1525,23 @@ wrap_with_args! {
     context: RuntimeContext<T>,
     context_initialized: Arc<AtomicBool>,
     deep_link_schemes: Vec<String>,
-    command_line_args: Vec<(String, Option<String>)>,
+    // Whether the deep link URL this process was launched with has to be put back
+    // onto Chromium's command line. See `on_before_command_line_processing`.
+    restore_deep_link_arguments: bool,
+    // Switches applied whatever process type `on_before_command_line_processing` reports.
+    //
+    // Deliberately tiny: `cef_app_t::on_before_command_line_processing` warns that
+    // "modifying the command-line arguments for non-browser processes may result in
+    // undefined behavior including crashes", so only switches we know a child process
+    // must see itself belong here.
+    internal_command_line_args: Vec<(String, Option<String>)>,
+    // Switches applied only when the reported process type is the browser one.
+    //
+    // Chromium already forwards to each child the switches it needs, so anything that
+    // is only read in the browser process - and everything the embedding application
+    // supplied through `Cef::command_line_arg` - goes here. The application's own
+    // switches are appended last so they win over the runtime's defaults.
+    browser_command_line_args: Vec<(String, Option<String>)>,
   }
 
   impl App {
@@ -1233,22 +1559,32 @@ wrap_with_args! {
 
     fn on_before_command_line_processing(
       &self,
-      _process_type: Option<&CefString>,
+      process_type: Option<&CefString>,
       command_line: Option<&mut CommandLine>,
     ) {
-      if let Some(command_line) = command_line {
-        for (arg, value) in &self.command_line_args {
-          if let Some(value) = value {
-            command_line.append_switch_with_value(
-              Some(&CefString::from(arg.as_str())),
-              Some(&CefString::from(value.as_str())),
-            );
-          } else if arg.starts_with("-") {
-            command_line.append_switch(Some(&CefString::from(arg.as_str())));
-          } else {
-            command_line.append_argument(Some(&CefString::from(arg.as_str())));
+      let Some(command_line) = command_line else {
+        return;
+      };
+
+      append_command_line_args(command_line, &self.internal_command_line_args);
+
+      // The browser process is the one launched without a `--type` switch, so CEF hands
+      // us an empty (or absent) process type for it.
+      let is_browser_process = process_type.is_none_or(|ty| ty.to_string().is_empty());
+      if is_browser_process {
+        // A second launch of an already-running application is a browser process too,
+        // so `Settings::command_line_args_disabled` clears its command line before
+        // Chromium's process singleton relays it to the first instance, losing the
+        // `myapp://...` URL. Putting it back here happens after CEF's clear and before
+        // the singleton. Only deep links are restored; every other argument stays
+        // dropped, which is the point of the lockdown.
+        if self.restore_deep_link_arguments {
+          for deep_link in deep_link_arguments(std::env::args().skip(1), &self.deep_link_schemes) {
+            command_line.append_argument(Some(&CefString::from(deep_link.as_str())));
           }
         }
+
+        append_command_line_args(command_line, &self.browser_command_line_args);
       }
     }
   }
@@ -1257,12 +1593,15 @@ wrap_with_args! {
 pub fn run_cef_helper_process() {
   let args = cef::args::Args::new();
 
-  #[cfg(all(target_os = "macos", feature = "sandbox"))]
-  let _sandbox = {
+  // A helper the browser process launched with `--no-sandbox` must not enter the sandbox
+  // here: the browser dropped it deliberately, and entering it anyway would only make the
+  // library load below fail.
+  #[cfg(target_os = "macos")]
+  let _sandbox = (!crate::sandbox::launched_without_sandbox()).then(|| {
     let mut sandbox = cef::sandbox::Sandbox::new();
     sandbox.initialize(args.as_main_args());
     sandbox
-  };
+  });
 
   #[cfg(target_os = "macos")]
   let _loader = {
@@ -1533,16 +1872,15 @@ impl<T: UserEvent> CefRuntime<T> {
 
     #[cfg(target_os = "macos")]
     let (_sandbox, _loader) = {
-      #[cfg(feature = "sandbox")]
-      let sandbox = if is_helper {
+      // As in `run_cef_helper_process`: only a helper enters the sandbox, and only when
+      // the browser process that launched it did not already drop the sandbox.
+      let sandbox = if is_helper && !crate::sandbox::launched_without_sandbox() {
         let mut sandbox = cef::sandbox::Sandbox::new();
         sandbox.initialize(args.as_main_args());
         Some(sandbox)
       } else {
         None
       };
-      #[cfg(not(feature = "sandbox"))]
-      let sandbox = ();
 
       let loader =
         cef::library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), is_helper);
@@ -1587,21 +1925,42 @@ impl<T: UserEvent> CefRuntime<T> {
     }
 
     let Cef {
-      mut command_line_args,
+      command_line_args,
       deep_link_schemes,
       cache_path: cache_path_override,
+      secret_storage,
+      profile_preferences,
+      allow_chromium_command_line_args,
+      log_file,
+      log_severity,
+      locale,
+      accept_language_list,
+      sandbox: sandbox_policy,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
     } = runtime_args.runtime_init_attrs;
 
-    let cache_path = cache_path_override.unwrap_or_else(|| {
-      let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
-      cache_base.join(&runtime_args.identifier).join("cef")
-    });
-    let _ = create_dir_all(&cache_path);
+    // Switches every process gets, and switches only the browser process gets. See the
+    // `TauriCefApp` fields for why the split exists.
+    #[allow(unused_mut)]
+    let mut internal_command_line_args: Vec<(String, Option<String>)> = Vec::new();
+    #[allow(unused_mut)]
+    let mut browser_command_line_args: Vec<(String, Option<String>)> = Vec::new();
 
-    // Force X11 usage on Linux
+    // `os_crypt` only ever runs in the browser process, so these are browser-only
+    // switches. See `SecretStorage` for what each one costs.
+    #[cfg(target_os = "macos")]
+    {
+      let mock_keychain = match secret_storage {
+        SecretStorage::Auto => tauri::is_dev(),
+        SecretStorage::Mock => true,
+        SecretStorage::System => false,
+      };
+      if mock_keychain {
+        browser_command_line_args.push(("--use-mock-keychain".to_string(), None));
+      }
+    }
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1610,7 +1969,59 @@ impl<T: UserEvent> CefRuntime<T> {
       target_os = "openbsd"
     ))]
     {
-      command_line_args.push(("ozone-platform".to_string(), Some("x11".to_string())));
+      // `basic` skips the D-Bus secret portal, libsecret and KWallet key providers, any
+      // of which can block startup on a keyring-unlock dialog or fail outright in a
+      // headless session. `Auto` splits the same way it does for the macOS keychain.
+      let basic_password_store = match secret_storage {
+        SecretStorage::Auto => tauri::is_dev(),
+        SecretStorage::Mock => true,
+        SecretStorage::System => false,
+      };
+      if basic_password_store {
+        browser_command_line_args.push(("--password-store".to_string(), Some("basic".to_string())));
+      }
+    }
+
+    // One decision on every platform, so a lost sandbox is always something the policy
+    // asked for and is always logged. On Linux and the BSDs the policy is also weighed
+    // against the system, because Chromium aborts with "No usable sandbox!" when its
+    // zygote host finds neither usable unprivileged user namespaces nor the setuid
+    // `chrome-sandbox` helper, so an AppImage on a system that restricts namespaces
+    // cannot start at all.
+    let no_sandbox = {
+      let decision = crate::sandbox::resolve_sandbox_decision(sandbox_policy);
+      if let crate::sandbox::SandboxDecision::Disable(reason) = decision {
+        log::warn!(
+          "running Chromium without a sandbox: {}. A compromised renderer process runs with the full privileges of the current user.",
+          reason.message()
+        );
+      }
+      matches!(decision, crate::sandbox::SandboxDecision::Disable(_))
+    };
+    // Windows encrypts with DPAPI, which needs no switch and prompts for nothing.
+    #[cfg(windows)]
+    let _ = secret_storage;
+
+    let cache_path = cache_path_override.unwrap_or_else(|| {
+      let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
+      cache_base.join(&runtime_args.identifier).join("cef")
+    });
+    let _ = create_dir_all(&cache_path);
+
+    // Force X11 usage on Linux.
+    //
+    // Applied to every process type rather than only the browser one: it is not certain
+    // that Chromium propagates `ozone-platform` to the GPU process, and getting it wrong
+    // there breaks rendering outright.
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      internal_command_line_args.push(("--ozone-platform".to_string(), Some("x11".to_string())));
       event_loop_builder.with_x11();
     }
 
@@ -1642,14 +2053,34 @@ impl<T: UserEvent> CefRuntime<T> {
       app_wide_theme: Default::default(),
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),
+      profile_preferences: Arc::new(profile_preferences),
     };
 
-    command_line_args.push(("--no-first-run".to_string(), None));
+    internal_command_line_args.push(("--no-first-run".to_string(), None));
+
+    // Appended last so an application switch overrides a runtime default with the same
+    // name: Chromium's command line keeps the last value appended for a given switch.
+    browser_command_line_args.extend(command_line_args);
+
+    // Shipped applications ignore Chromium switches passed on their own command line:
+    // otherwise anyone able to launch the app can also launch it with
+    // `--remote-debugging-port` and drive it over the DevTools protocol, or with
+    // `--disable-web-security`, `--proxy-server`, `--host-resolver-rules` or
+    // `--ssl-key-log-file`, all of which Chromium honours. CEF clears the command line
+    // before applying `Settings` and before calling `on_before_command_line_processing`,
+    // so the switches this runtime and the application configure still take effect, and
+    // Tauri's own CLI parsing reads `std::env::args()`, which Chromium never touches.
+    // The clear does break the *relaunch* deep link path, which
+    // `TauriCefApp::on_before_command_line_processing` restores.
+    let command_line_args_disabled = !(allow_chromium_command_line_args || tauri::is_dev());
+
     let mut app = TauriCefApp::build(TauriCefAppArgs {
       context: context.clone(),
       context_initialized: context_initialized.clone(),
       deep_link_schemes,
-      command_line_args,
+      restore_deep_link_arguments: command_line_args_disabled,
+      internal_command_line_args,
+      browser_command_line_args,
     });
 
     // Subprocesses already exited above, so this must be the browser process;
@@ -1664,12 +2095,40 @@ impl<T: UserEvent> CefRuntime<T> {
       "CEF browser process unexpectedly returned from execute_process"
     );
 
+    // Chromium drops a `debug.log` next to the *main executable* when no log file is
+    // configured, which for an installed application is often not even writable. Keep it
+    // next to the rest of the runtime's state instead.
+    let log_file = log_file.unwrap_or_else(|| cache_path.join("cef.log"));
+    // CEF logs at INFO by default, which grows that file quickly in a long-running app.
+    let log_severity = log_severity.unwrap_or(if tauri::is_dev() {
+      LogSeverity::DEFAULT
+    } else {
+      LogSeverity::WARNING
+    });
+
     let mut settings = cef::Settings {
-      no_sandbox: !cfg!(feature = "sandbox") as i32,
+      // Only this, never a `--no-sandbox` push of our own: CEF appends that switch itself
+      // from the setting, before `on_before_command_line_processing` runs, so the setting
+      // and the switch cannot end up disagreeing.
+      no_sandbox: no_sandbox as std::os::raw::c_int,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
+      command_line_args_disabled: command_line_args_disabled as std::os::raw::c_int,
+      log_file: log_file.to_string_lossy().to_string().as_str().into(),
+      log_severity,
       external_message_pump: 1,
       ..Default::default()
     };
+
+    // Left at CEF's defaults unless the application asked for something else: the bundler
+    // only ships the `en-US` locale pak, so any other locale would leave Chromium without
+    // its localized resources.
+    if let Some(locale) = locale {
+      settings.locale = locale.as_str().into();
+    }
+    if let Some(accept_language_list) = accept_language_list {
+      settings.accept_language_list = accept_language_list.as_str().into();
+    }
+
     if let Some(callback) = settings_callback {
       callback(&mut settings);
     }
@@ -1885,5 +2344,62 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     );
     let _ = self.event_loop.run_app(app);
     cef::shutdown();
+  }
+}
+
+#[cfg(test)]
+mod deep_link_argument_tests {
+  use super::deep_link_arguments;
+
+  fn schemes() -> Vec<String> {
+    vec!["myapp".to_string(), "my-other-app".to_string()]
+  }
+
+  fn filter(args: &[&str]) -> Vec<String> {
+    deep_link_arguments(args.iter().map(|arg| (*arg).to_string()), &schemes())
+  }
+
+  #[test]
+  fn keeps_configured_deep_links_in_order() {
+    assert_eq!(
+      filter(&["myapp://open/one", "my-other-app://open/two"]),
+      vec![
+        "myapp://open/one".to_string(),
+        "my-other-app://open/two".to_string(),
+      ]
+    );
+  }
+
+  #[test]
+  fn drops_everything_that_is_not_a_configured_deep_link() {
+    // The lockdown exists so that none of these reach Chromium's command line, and a
+    // URL with an unconfigured scheme is not this application's deep link either.
+    assert!(
+      filter(&[
+        "--remote-debugging-port=9222",
+        "--disable-web-security",
+        "/home/user/document.txt",
+        "not a url",
+        "",
+        "https://example.com",
+        "otherapp://open",
+      ])
+      .is_empty()
+    );
+  }
+
+  #[test]
+  fn an_empty_scheme_list_keeps_nothing() {
+    assert!(deep_link_arguments(["myapp://open".to_string()], &[]).is_empty());
+  }
+
+  #[test]
+  fn scheme_matching_is_exact() {
+    // `on_already_running_app_relaunch` compares schemes the same way, so anything
+    // matched loosely here would be re-appended and then ignored on the other end.
+    // `Url::parse` lowercases the scheme it reports, hence the upper-case spelling
+    // below still matching.
+    assert_eq!(filter(&["MYAPP://open"]), vec!["MYAPP://open".to_string()]);
+    assert!(filter(&["myapp2://open", "myap://open"]).is_empty());
   }
 }

@@ -103,7 +103,7 @@ libc = "0.2"
 x11-dl = "2.21"
 
 [features]
-default = ["sandbox"]
+default = []
 # also enables devtools on `tauri` so the feature only needs to be enabled on this crate
 devtools = ["tauri-runtime/devtools", "tauri/devtools"]
 # also enables macos-private-api on `tauri` so the feature only needs to be enabled on this crate
@@ -111,6 +111,5 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri/macos-private-api",
 ]
-sandbox = ["cef/sandbox"]
 # exposes the extension traits for `tauri::webview::WebviewBuilder`
 unstable = ["tauri/unstable"]

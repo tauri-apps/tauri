@@ -18,6 +18,9 @@ mod macros;
 mod platform;
 mod popup;
 mod runtime;
+// `SandboxPolicy` itself is public API and lives in `runtime`; this module holds the
+// decision behind it.
+mod sandbox;
 mod tauri_ext;
 mod webview;
 pub use devtools::{DevToolsMessageIdExhausted, allocate_devtools_message_id};

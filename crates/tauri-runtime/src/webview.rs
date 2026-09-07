@@ -938,6 +938,32 @@ impl WebviewAttributes {
 /// IPC handler.
 pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;
 
+/// The page script that binds the DevTools keyboard shortcut - Ctrl+Shift+I, or
+/// Cmd+Alt+I on macOS - to the `webview` plugin's `internal_toggle_devtools` command.
+///
+/// It is up to each runtime to inject this into the webviews it creates, and only into
+/// the ones that have no shortcut of their own:
+///
+/// * `tauri-runtime-wry` injects it always. None of the webviews it drives - WebView2,
+///   WKWebView, WebKitGTK - binds the chord itself.
+/// * `tauri-runtime-cef` injects it only into Alloy style browsers. A Chrome style one
+///   already dispatches `IDC_DEV_TOOLS` for the same chord, and with both in place the
+///   toggle closes the window the accelerator just opened.
+///
+/// Returns the script with its one template value resolved for the target this crate
+/// was compiled for.
+#[cfg(any(debug_assertions, feature = "devtools"))]
+pub fn devtools_shortcut_script() -> String {
+  include_str!("scripts/toggle-devtools.js").replace(
+    "__TEMPLATE_is_macos__",
+    if cfg!(target_os = "macos") {
+      "true"
+    } else {
+      "false"
+    },
+  )
+}
+
 /// An initialization script
 #[derive(Debug, Clone)]
 pub struct InitializationScript {

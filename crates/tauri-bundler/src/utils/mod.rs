@@ -49,6 +49,15 @@ impl CommandExt for Command {
     let program = self.get_program().to_string_lossy().into_owned();
     log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
+    // Nothing run this way can answer a prompt, so give it no stdin rather
+    // than the inherited one. Under the Node.js CLI every descriptor the
+    // process inherited is close-on-exec (libuv's
+    // `uv_disable_stdio_inheritance`), so a child that inherits stdin starts
+    // with fd 0 closed — stdout and stderr survive because piping them dup2s
+    // fresh descriptors in — and actool's helper (ibtoold) crashes on that
+    // (`-[__NSPlaceholderArray initWithObjects:count:]: attempt to insert
+    // nil object`) instead of compiling the icon.
+    self.stdin(Stdio::null());
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());
 

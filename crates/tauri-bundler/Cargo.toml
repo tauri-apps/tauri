@@ -63,10 +63,11 @@ heck = "0.5"
 ar = "0.9"
 md5 = "0.8"
 # TODO: xz-compression's `lzma` conflicts with apple-codesign's `xz`
-rpm = { version = "0.25.1", default-features = false, features = [
+# Sequoia preserves OpenPGP signing without rPGP's vulnerable draft ML-DSA dependency.
+rpm = { version = "0.28.0", default-features = false, features = [
   "gzip-compression",
   "payload",
-  "signature-pgp",
+  "signature-sequoia",
   "zstd-compression",
   "bzip2-compression",
 ] }

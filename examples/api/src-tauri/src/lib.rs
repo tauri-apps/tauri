@@ -83,9 +83,6 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
         .disable_drag_drop_handler()
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
-        })
-        .on_address_change(|_webview, url| {
-          println!("CEF address changed: {url}");
         });
 
       #[cfg(all(desktop, not(test)))]
@@ -102,6 +99,16 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
           .menu(tauri::menu::Menu::default(app.handle())?)
           .on_new_window(move |url, features| {
             println!("new window requested: {url:?} {features:?}");
+
+            // CEF reports the opener's main-frame URL directly from the native
+            // popup request, so it can be read without a blocking webview getter.
+            #[cfg(feature = "cef")]
+            {
+              use tauri_runtime_cef::AsCefWindowOpener;
+              if let Some(opener) = features.opener().as_cef_window_opener() {
+                println!("CEF popup opener source: {:?}", opener.source_url());
+              }
+            }
 
             let number = created_window_count.fetch_add(1, Ordering::Relaxed);
 
@@ -125,6 +132,26 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
           });
       }
 
+      #[cfg(all(feature = "cef", not(test)))]
+      {
+        use tauri_runtime_cef::{FrameEventKind, WebviewWindowBuilderCefExt};
+
+        // Native CEF lifecycle notifications for every frame, child frames included.
+        // The handler runs synchronously on CEF's UI thread, so it must return
+        // promptly and must not wait on an event loop operation.
+        window_builder = window_builder.on_frame_event(|event| match &event.kind {
+          FrameEventKind::LoadingStateChanged { is_loading } => println!(
+            "CEF browser {} is {}",
+            event.browser_id,
+            if *is_loading { "loading" } else { "idle" }
+          ),
+          kind => println!(
+            "CEF frame event: browser={} frame={} main={} {kind:?}",
+            event.browser_id, event.frame_id, event.is_main
+          ),
+        });
+      }
+
       let webview = window_builder.build()?;
 
       #[cfg(debug_assertions)]
@@ -133,6 +160,8 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
       #[cfg(all(feature = "cef", not(test)))]
       {
         use tauri_runtime_cef::{DevToolsProtocol, WebviewCefExt};
+        // The observer sees the whole browser, the runtime's own requests included,
+        // so a real consumer matches `MethodResult` against the IDs it allocated.
         webview
           .on_dev_tools_protocol(|protocol| match protocol {
             DevToolsProtocol::Message(msg) => {
@@ -160,9 +189,13 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
             }
           })
           .expect("failed to register DevTools protocol callback");
-        let msg = br#"{"id":1,"method":"Page.enable","params":{}}"#;
+        // The runtime shares the native DevTools request ID space with its callers,
+        // so IDs must come from the allocator instead of being hardcoded.
+        let message_id = tauri_runtime_cef::allocate_devtools_message_id()
+          .expect("native DevTools message identifiers are exhausted");
+        let msg = format!(r#"{{"id":{message_id},"method":"Page.enable","params":{{}}}}"#);
         webview
-          .send_dev_tools_message(msg)
+          .send_dev_tools_message(msg.as_bytes())
           .expect("failed to send DevTools message");
       }
 
@@ -185,6 +218,38 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
     })
     .on_page_load(|webview, payload| {
       if payload.event() == PageLoadEvent::Finished {
+        // Native CEF state, sampled on the CEF UI thread right before the closure
+        // runs. The observation is not refreshed after that sample.
+        #[cfg(all(feature = "cef", not(test)))]
+        {
+          use tauri_runtime_cef::WebviewCefExt;
+
+          let _ = webview.with_cef_webview(|cef_webview| {
+            let snapshot = cef_webview.snapshot();
+            println!(
+              "CEF native snapshot: browser={} window={:?} document_admitted={} parent_matches={:?} visible={:?} bounds={:?} dialogs={:?}",
+              snapshot.browser_id,
+              snapshot.window_label,
+              snapshot.document.is_some(),
+              snapshot.parent_matches,
+              snapshot.visible,
+              snapshot.bounds,
+              snapshot.dialogs,
+            );
+
+            // CEF-owned popups have no Tauri window label and keep their actual opener.
+            for popup in cef_webview.popups() {
+              println!(
+                "  CEF-owned popup: browser={} opened_by_this_browser={}",
+                popup.snapshot().browser_id,
+                popup.opener().is_some_and(|opener| {
+                  opener.is_same_browser(cef_webview.frame_navigation_state())
+                }),
+              );
+            }
+          });
+        }
+
         let webview_ = webview.clone();
         webview.listen("js-event", move |event| {
           println!("got js-event with message '{:?}'", event.payload());
@@ -213,7 +278,7 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-  #[cfg(target_os = "ios")]
+  #[cfg(all(target_os = "ios", not(test)))]
   let mut counter = 0;
   app.run(move |_app_handle, _event| {
     #[cfg(not(test))]

@@ -471,10 +471,11 @@ mod tests {
     // without configured resources, the default resolution is used
     let context = crate::test::mock_context(crate::test::noop_assets());
     let app = crate::test::mock_builder().build(context).unwrap();
-    assert_ne!(
-      app.path().resource_dir().unwrap(),
-      std::path::PathBuf::from("/app/src-tauri")
-    );
+    // A unit test executable need not have a bundle resource directory.
+    assert!(!matches!(
+      app.path().resource_dir(),
+      Ok(path) if path == std::path::Path::new("/app/src-tauri")
+    ));
   }
 
   #[test]

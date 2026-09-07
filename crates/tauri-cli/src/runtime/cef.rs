@@ -4,12 +4,17 @@
 
 //! Locating the CEF (Chromium Embedded Framework) binary distribution.
 
-use std::path::{Path, PathBuf};
+use std::{
+  path::{Path, PathBuf},
+  process::Command,
+};
+
+use serde::Deserialize;
 
 use download_cef::OsAndArch;
 
 use crate::{
-  error::{Error, bail},
+  error::{Context, Error, bail},
   helpers::cargo_manifest::{cargo_manifest_and_lock, crate_version},
 };
 
@@ -93,4 +98,107 @@ pub fn resolve_path_for_bundle(
   }
 
   Ok(resolved)
+}
+
+// Cargo metadata is the authority for patches and exact package sources. The
+// framework version in the crate's build metadata is not its registry version.
+#[derive(Deserialize)]
+struct ResolvedMetadata {
+  packages: Vec<ResolvedPackage>,
+}
+
+#[derive(Deserialize)]
+struct ResolvedPackage {
+  name: String,
+  manifest_path: PathBuf,
+}
+
+pub(crate) fn resolved_crate_paths(
+  workspace_dir: &Path,
+  target: &str,
+) -> crate::Result<(PathBuf, PathBuf)> {
+  let output = Command::new("cargo")
+    .args([
+      "metadata",
+      "--locked",
+      "--format-version",
+      "1",
+      "--all-features",
+      "--filter-platform",
+      target,
+    ])
+    .current_dir(workspace_dir)
+    .output()
+    .map_err(|error| Error::CommandFailed {
+      command: "cargo metadata".into(),
+      error,
+    })?;
+  if !output.status.success() {
+    return Err(Error::CommandFailed {
+      command: "cargo metadata".into(),
+      error: std::io::Error::other(String::from_utf8_lossy(&output.stderr)),
+    });
+  }
+  let metadata: ResolvedMetadata = serde_json::from_slice(&output.stdout)
+    .context("failed to parse resolved CEF package sources from Cargo metadata")?;
+  Ok((
+    resolved_crate_path(&metadata, "cef")?,
+    resolved_crate_path(&metadata, "cef-dll-sys")?,
+  ))
+}
+
+fn resolved_crate_path(metadata: &ResolvedMetadata, name: &str) -> crate::Result<PathBuf> {
+  let mut packages = metadata
+    .packages
+    .iter()
+    .filter(|package| package.name == name);
+  let package = packages
+    .next()
+    .ok_or_else(|| Error::GenericError(format!("{name} is missing from Cargo metadata")))?;
+  if packages.next().is_some() {
+    bail!("multiple {name} packages are resolved; the CEF helper source is ambiguous");
+  }
+  let path = package
+    .manifest_path
+    .parent()
+    .filter(|path| path.is_absolute())
+    .ok_or_else(|| Error::GenericError(format!("{name} has no absolute crate directory")))?;
+  Ok(path.to_path_buf())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn resolved_sources_preserve_git_and_local_patches() {
+    let root = std::env::current_dir().unwrap();
+    let cef_path = root.join("cache/git/cef");
+    let sys_path = root.join("project/custom/sys");
+    let metadata: ResolvedMetadata = serde_json::from_value(serde_json::json!({
+      "packages": [
+        { "name": "cef", "manifest_path": cef_path.join("Cargo.toml") },
+        { "name": "cef-dll-sys", "manifest_path": sys_path.join("Cargo.toml") }
+      ]
+    }))
+    .unwrap();
+    assert_eq!(resolved_crate_path(&metadata, "cef").unwrap(), cef_path);
+    assert_eq!(
+      resolved_crate_path(&metadata, "cef-dll-sys").unwrap(),
+      sys_path
+    );
+  }
+
+  #[test]
+  fn missing_or_ambiguous_sources_fail_before_building_a_helper() {
+    let mut metadata = ResolvedMetadata { packages: vec![] };
+    assert!(resolved_crate_path(&metadata, "cef").is_err());
+    for root in ["/one", "/two"] {
+      metadata.packages.push(ResolvedPackage {
+        name: "cef".into(),
+        manifest_path: PathBuf::from(root).join("Cargo.toml"),
+      });
+    }
+    assert!(resolved_crate_path(&metadata, "cef").is_err());
+  }
 }

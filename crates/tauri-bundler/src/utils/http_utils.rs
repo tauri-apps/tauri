@@ -16,20 +16,21 @@ use zip::ZipArchive;
 
 const BUNDLER_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
-fn generate_github_mirror_url_from_template(github_url: &str) -> Option<String> {
-  std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE")
-    .ok()
-    .and_then(|template| {
-      let re =
-        Regex::new(r"https://github.com/([^/]+)/([^/]+)/releases/download/([^/]+)/(.*)").unwrap();
-      re.captures(github_url).map(|caps| {
-        template
-          .replace("<owner>", &caps[1])
-          .replace("<repo>", &caps[2])
-          .replace("<version>", &caps[3])
-          .replace("<asset>", &caps[4])
-      })
+fn generate_github_mirror_url_from_template(
+  github_url: &str,
+  template: Option<&str>,
+) -> Option<String> {
+  template.and_then(|template| {
+    let re =
+      Regex::new(r"https://github.com/([^/]+)/([^/]+)/releases/download/([^/]+)/(.*)").unwrap();
+    re.captures(github_url).map(|caps| {
+      template
+        .replace("<owner>", &caps[1])
+        .replace("<repo>", &caps[2])
+        .replace("<version>", &caps[3])
+        .replace("<asset>", &caps[4])
     })
+  })
 }
 
 fn generate_github_mirror_url_from_base(github_url: &str) -> Option<String> {
@@ -47,17 +48,22 @@ fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
     return None;
   }
 
-  generate_github_mirror_url_from_template(url)
-    .or_else(|| generate_github_mirror_url_from_base(url))
-    .map(|alt_url| {
-      (
-        ureq::Agent::config_builder()
-          .user_agent(BUNDLER_USER_AGENT)
-          .build()
-          .into(),
-        alt_url,
-      )
-    })
+  generate_github_mirror_url_from_template(
+    url,
+    std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE")
+      .ok()
+      .as_deref(),
+  )
+  .or_else(|| generate_github_mirror_url_from_base(url))
+  .map(|alt_url| {
+    (
+      ureq::Agent::config_builder()
+        .user_agent(BUNDLER_USER_AGENT)
+        .build()
+        .into(),
+      alt_url,
+    )
+  })
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
@@ -189,7 +195,6 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
 #[cfg(test)]
 mod tests {
   use super::generate_github_mirror_url_from_template;
-  use std::env;
 
   const GITHUB_ASSET_URL: &str =
     "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
@@ -197,21 +202,18 @@ mod tests {
 
   #[test]
   fn test_generate_mirror_url_no_env_var() {
-    unsafe { env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE") };
-
-    assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
+    assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL, None).is_none());
   }
 
   #[test]
   fn test_generate_mirror_url_non_github_url() {
-    unsafe {
-      env::set_var(
-        "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
-        "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+    assert!(
+      generate_github_mirror_url_from_template(
+        NON_GITHUB_ASSET_URL,
+        Some("https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>"),
       )
-    };
-
-    assert!(generate_github_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
+      .is_none()
+    );
   }
 
   struct TestCase {
@@ -233,9 +235,8 @@ mod tests {
     ];
 
     for case in test_cases {
-      unsafe { env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template) };
       assert_eq!(
-        generate_github_mirror_url_from_template(GITHUB_ASSET_URL),
+        generate_github_mirror_url_from_template(GITHUB_ASSET_URL, Some(case.template)),
         Some(case.expected_url.to_string())
       );
     }

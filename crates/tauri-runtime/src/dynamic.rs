@@ -48,6 +48,9 @@ use crate::{
 type AfterWindowCreation = Box<dyn Fn(RawWindow<'_>) + Send>;
 type RunCallback<T> = Box<dyn FnMut(RunEvent<T>)>;
 type MainThreadTask = Box<dyn FnOnce() + Send>;
+#[cfg(target_os = "android")]
+type AndroidContextTask =
+  Box<dyn FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send>;
 
 fn mismatch<Expected: ?Sized>(what: &str) -> Error {
   Error::RuntimeTypeMismatch(format!(
@@ -739,7 +742,6 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     navigation_handler,
     new_window_handler,
     document_title_changed_handler,
-    address_changed_handler,
     url,
     #[cfg(target_os = "android")]
     on_webview_created,
@@ -747,7 +749,6 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     on_page_load_handler,
     download_handler,
     permission_request_handler,
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
     on_web_content_process_terminate_handler,
   } = pending;
 
@@ -776,7 +777,6 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     navigation_handler,
     new_window_handler,
     document_title_changed_handler,
-    address_changed_handler,
     url,
     #[cfg(target_os = "android")]
     on_webview_created,
@@ -784,7 +784,6 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     on_page_load_handler,
     download_handler,
     permission_request_handler,
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
     on_web_content_process_terminate_handler,
   })
 }
@@ -906,10 +905,7 @@ trait ErasedRuntimeHandle<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     name: String,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error>;
   #[cfg(target_os = "android")]
-  fn run_on_android_context(
-    &self,
-    f: Box<dyn FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send>,
-  );
+  fn run_on_android_context(&self, f: AndroidContextTask);
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   fn fetch_data_store_identifiers(&self, cb: Box<dyn FnOnce(Vec<[u8; 16]>) + Send>) -> Result<()>;
   #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -1016,10 +1012,7 @@ impl<T: UserEvent, H: RuntimeHandle<T>> ErasedRuntimeHandle<T> for H {
   }
 
   #[cfg(target_os = "android")]
-  fn run_on_android_context(
-    &self,
-    f: Box<dyn FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send>,
-  ) {
+  fn run_on_android_context(&self, f: AndroidContextTask) {
     RuntimeHandle::run_on_android_context(self, f)
   }
 

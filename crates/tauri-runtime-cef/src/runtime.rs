@@ -218,8 +218,35 @@ impl<T: UserEvent> From<Cef> for tauri_runtime::dynamic::DynRuntimeInitAttrs<T> 
   }
 }
 
-#[derive(Debug)]
-pub struct NewWindowOpener {}
+/// Information about the CEF webview that requested a new window.
+pub struct NewWindowOpener {
+  source_url: Option<url::Url>,
+}
+
+impl NewWindowOpener {
+  pub(crate) fn new(source_url: Option<url::Url>) -> Self {
+    Self { source_url }
+  }
+
+  /// The opener's main-frame URL at the native popup request, when available.
+  ///
+  /// CEF supplies this directly from the callback's browser. Reading a blocking
+  /// webview getter from that callback can deadlock the UI thread because CEF's
+  /// external message pump may run outside a winit dispatch callback.
+  pub fn source_url(&self) -> Option<&url::Url> {
+    self.source_url.as_ref()
+  }
+}
+
+impl std::fmt::Debug for NewWindowOpener {
+  fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    // The URL can carry credentials and tokens, so only its presence is shown.
+    formatter
+      .debug_struct("NewWindowOpener")
+      .field("source_url_observed", &self.source_url.is_some())
+      .finish()
+  }
+}
 
 #[derive(Clone, Debug)]
 pub struct EventProxy<T: UserEvent> {
@@ -406,6 +433,14 @@ pub(crate) type AfterWindowCreationCallback = Box<dyn for<'a> Fn(RawWindow<'a>) 
 pub(crate) enum Message<T: UserEvent> {
   EventLoop(EventLoopMessage),
   BrowserClosed(WindowId, u32),
+  PopupPending(crate::popup::PopupRequest, Arc<crate::popup::PopupFamily>),
+  PopupCreated(
+    crate::popup::PopupRequest,
+    i32,
+    Arc<crate::popup::PopupFamily>,
+  ),
+  PopupAborted(crate::popup::PopupRequest),
+  PopupClosed(i32),
   /// CEF handed us the teardown of a webview's browser, keyed by the webview's
   /// process-unique id. See `TauriCefChildLifeSpanHandler::do_close`.
   #[cfg(any(target_os = "macos", windows))]
@@ -540,6 +575,8 @@ pub(crate) struct AppState<T: UserEvent> {
   pub(crate) winid_id_to_window_id_map: HashMap<WinitWindowId, WindowId>,
   pub(crate) callback: Box<dyn FnMut(RunEvent<T>)>,
   pub(crate) live_browsers: usize,
+  live_popups: HashMap<i32, Arc<crate::popup::PopupFamily>>,
+  pending_popups: Vec<(crate::popup::PopupRequest, Arc<crate::popup::PopupFamily>)>,
   pub(crate) exiting: bool,
 }
 
@@ -565,6 +602,8 @@ impl<T: UserEvent> WinitCefApp<T> {
         winid_id_to_window_id_map: HashMap::new(),
         callback,
         live_browsers: 0,
+        live_popups: HashMap::new(),
+        pending_popups: Vec::new(),
         exiting: false,
       },
       scheme_registry,
@@ -602,11 +641,32 @@ impl<T: UserEvent> WinitCefApp<T> {
   fn handle_message(&mut self, event_loop: &dyn ActiveEventLoop, message: Message<T>) {
     match message {
       Message::EventLoop(message) => self.handle_event_loop_message(event_loop, message),
+      Message::PopupPending(request, family) => {
+        self.state.pending_popups.push((request, family));
+      }
+      Message::PopupCreated(request, id, family) => {
+        self
+          .state
+          .pending_popups
+          .retain(|(pending, _)| !pending.is_same(&request));
+        self.state.live_popups.insert(id, family);
+      }
+      Message::PopupAborted(request) => {
+        self
+          .state
+          .pending_popups
+          .retain(|(pending, _)| !pending.is_same(&request));
+        self.exit_if_done(event_loop);
+      }
+      Message::PopupClosed(id) => {
+        self.state.live_popups.remove(&id);
+        self.exit_if_done(event_loop);
+      }
       Message::BrowserClosed(_window_id, webview_id) => {
-        // Standalone webview.close() keeps the child in state until this
-        // callback, so cleanup happens here. Window/app teardown removes child
-        // bookkeeping before asking CEF to close; then this message is only the
-        // lifecycle acknowledgement that lets live_browsers drain.
+        // Standalone webview.close() and app shutdown keep the child in state
+        // until this callback, so cleanup happens here. Individual window
+        // teardown removes child bookkeeping first; then this message is only
+        // the lifecycle acknowledgement that lets live_browsers drain.
         //
         // The window_id baked into the browser's handlers can be stale after a
         // reparent, so locate the webview by its process-unique id across every
@@ -886,6 +946,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // shutdown drain is still enforced by live_browsers.
     for child in &appwindow.children {
       self.remove_scheme_handler_entries(child);
+      child.popup_family.close_all();
       child.host.close_browser(1);
     }
     self.exit_if_done(event_loop);
@@ -943,17 +1004,17 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn close_all_browsers(&mut self) {
-    // App shutdown follows the same eager bookkeeping cleanup as window
-    // teardown. live_browsers keeps the loop alive until CEF confirms every
-    // browser close through BrowserClosed.
+    // Keep each child reachable until CEF acknowledges its close. On macOS and
+    // Windows, do_close queues DestroyWebviewHostWindow, which needs this state
+    // to destroy the native child view and trigger on_before_close. Dropping
+    // the windows here can strand live_browsers and prevent process exit.
     for appwindow in self.state.windows.values() {
       for child in &appwindow.children {
-        self.remove_scheme_handler_entries(child);
+        child.popup_family.close_all();
+        child.host.close_dev_tools();
         child.host.close_browser(1);
       }
     }
-    self.state.windows.clear();
-    self.state.winid_id_to_window_id_map.clear();
   }
 
   #[cfg(target_os = "macos")]
@@ -971,7 +1032,23 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   fn exit_if_done(&mut self, event_loop: &dyn ActiveEventLoop) {
-    if self.state.live_browsers != 0 {
+    // A reservation is normally resolved by `PopupCreated` or `PopupAborted`,
+    // but CEF discards popups without always reporting the abort — the opener
+    // can be torn down first, or the abort can arrive for a browser its opener
+    // no longer matches. Teardown (window close, app shutdown, the root's own
+    // native close) revokes the family, and a revoked family never admits a
+    // popup again, so its reservations are dead and must not hold the process
+    // open. Reservations of live families still gate the exit until CEF
+    // resolves them.
+    self
+      .state
+      .pending_popups
+      .retain(|(_, family)| !family.is_revoked());
+
+    if self.state.live_browsers != 0
+      || !self.state.live_popups.is_empty()
+      || !self.state.pending_popups.is_empty()
+    {
       return;
     }
 

@@ -275,23 +275,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// Register a callback to be invoked when the webview's address (URL) changes.
-  pub fn on_address_change<F: Fn(WebviewWindow<R>, &Url) + Send + Sync + 'static>(
-    mut self,
-    f: F,
-  ) -> Self {
-    self.webview_builder = self.webview_builder.on_address_change(move |webview, url| {
-      f(
-        WebviewWindow {
-          window: webview.window(),
-          webview,
-        },
-        url,
-      )
-    });
-    self
-  }
-
   /// Set a new window request handler to decide if incoming url is allowed to be opened.
   ///
   /// A new window is requested to be opened by the [window.open] API.

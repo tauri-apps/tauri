@@ -798,10 +798,11 @@ pub struct BundleSettings {
 /// bundle time, for the target being bundled only.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CefHelperSettings {
-  /// Version of the `cef` crate the app links, which the helper is built
-  /// against as well: the same crate resolves the same CEF distribution, so
-  /// the helper loads the very framework the app ships with.
-  pub cef_crate_version: String,
+  /// Directory of the exact resolved `cef` crate used by the application.
+  /// This preserves registry, Git, and local patches in the helper build.
+  pub cef_crate_path: PathBuf,
+  /// Directory of the exact resolved `cef-dll-sys` crate used by the application.
+  pub cef_dll_sys_crate_path: PathBuf,
   /// `CEF_PATH` for the helper's build: where `cef-dll-sys` resolves the CEF
   /// binary distribution from, downloading into it when missing. The value
   /// the app was built with, so the helper's build finds the app's

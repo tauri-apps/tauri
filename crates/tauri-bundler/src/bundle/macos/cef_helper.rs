@@ -7,7 +7,7 @@
 //! CEF runs its renderer, GPU and utility processes from helper apps inside
 //! the bundle. Their executable is a small Rust crate whose source the bundler
 //! carries (`cef-helper/` in the crate root) and compiles here with cargo, for
-//! the target being bundled only, pinned to the `cef` crate version the app
+//! the target being bundled only, pinned to the resolved `cef` and `cef-dll-sys` crate sources the app
 //! links. The build runs with the `CEF_PATH` the app was built with, so
 //! `cef-dll-sys` resolves the distribution it already downloaded there
 //! instead of fetching another, and the helper loads the very framework the
@@ -29,8 +29,8 @@ use std::{
 
 const MANIFEST_TEMPLATE: &str = include_str!("../../../cef-helper/Cargo.toml.in");
 const MAIN_SOURCE: &str = include_str!("../../../cef-helper/main.rs");
-/// Placeholder in [`MANIFEST_TEMPLATE`] for the `cef` crate version.
-const CEF_VERSION_PLACEHOLDER: &str = "@CEF_VERSION@";
+const CEF_PATH_PLACEHOLDER: &str = "@CEF_PATH@";
+const CEF_DLL_SYS_PATH_PLACEHOLDER: &str = "@CEF_DLL_SYS_PATH@";
 const BIN_NAME: &str = "tauri-cef-helper";
 
 /// Builds the helper executable for the bundle's architecture and returns
@@ -88,17 +88,32 @@ pub(super) fn build(settings: &Settings) -> crate::Result<PathBuf> {
 }
 
 /// Lays the helper crate out in its build directory: the manifest with the
-/// app's `cef` version pinned, and `src/main.rs`.
+/// app's resolved CEF sources pinned, and `src/main.rs`.
 ///
 /// Files are only rewritten when their contents changed so cargo's
 /// fingerprints stay valid and a bundle after an unchanged one rebuilds nothing.
 fn write_crate(helper_settings: &CefHelperSettings) -> crate::Result<PathBuf> {
   let crate_dir = helper_settings.build_dir.clone();
-  let manifest =
-    MANIFEST_TEMPLATE.replace(CEF_VERSION_PLACEHOLDER, &helper_settings.cef_crate_version);
+  let manifest = helper_manifest(helper_settings)?;
   write_if_changed(&crate_dir.join("Cargo.toml"), &manifest)?;
   write_if_changed(&crate_dir.join("src").join("main.rs"), MAIN_SOURCE)?;
   Ok(crate_dir)
+}
+
+fn helper_manifest(settings: &CefHelperSettings) -> crate::Result<String> {
+  // Cargo paths come from its resolved metadata. JSON string escaping is also
+  // valid for TOML basic strings, including Windows paths and quoted directories.
+  Ok(
+    MANIFEST_TEMPLATE
+      .replace(
+        CEF_PATH_PLACEHOLDER,
+        &serde_json::to_string(&settings.cef_crate_path)?,
+      )
+      .replace(
+        CEF_DLL_SYS_PATH_PLACEHOLDER,
+        &serde_json::to_string(&settings.cef_dll_sys_crate_path)?,
+      ),
+  )
 }
 
 fn write_if_changed(path: &Path, contents: &str) -> crate::Result<()> {
@@ -152,4 +167,29 @@ fn cargo_build(
   }
 
   Ok(target_dir.join(target).join("release").join(BIN_NAME))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn helper_uses_resolved_sources_instead_of_framework_version() {
+    let settings = CefHelperSettings {
+      cef_crate_path: PathBuf::from("/cache/custom cef/cef"),
+      cef_dll_sys_crate_path: PathBuf::from("/cache/custom cef/sys"),
+      ..Default::default()
+    };
+    let manifest = helper_manifest(&settings).unwrap();
+    assert!(manifest.contains(r#"cef = { path = "/cache/custom cef/cef""#));
+    assert_eq!(
+      manifest
+        .matches(r#"path = "/cache/custom cef/sys""#)
+        .count(),
+      2
+    );
+    assert!(manifest.contains("[patch.crates-io]"));
+    assert!(!manifest.contains("@CEF_"));
+    assert!(!manifest.contains(r#"version = "=151"#));
+  }
 }

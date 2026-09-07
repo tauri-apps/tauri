@@ -5,7 +5,7 @@
 
 use crate::{Settings, bundle::settings::Arch, error::ErrorExt, utils::CommandExt};
 
-use rpm::{self, Dependency, FileOptions, signature::pgp};
+use rpm::{self, Dependency, FileOptions, signature::sequoia};
 use std::{
   env, fs,
   path::{Path, PathBuf},
@@ -323,7 +323,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   log::info!(action = "Bundling"; "Creating .rpm file...");
 
   let pkg = if let Ok(raw_secret_key) = env::var("TAURI_SIGNING_RPM_KEY") {
-    let mut signer = pgp::Signer::from_asc(&raw_secret_key)?;
+    let mut signer = sequoia::Signer::from_asc(&raw_secret_key)?;
     if let Ok(passphrase) = env::var("TAURI_SIGNING_RPM_KEY_PASSPHRASE") {
       signer = signer.with_key_passphrase(passphrase);
     }

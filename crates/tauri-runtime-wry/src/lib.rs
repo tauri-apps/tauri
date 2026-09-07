@@ -326,7 +326,7 @@ impl WindowIdStore {
 #[macro_export]
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
-    $crate::send_user_message(&$self.context, $message)?;
+    $self.context.send_user_message($message)?;
     $rx
       .recv()
       .map_err(|_| $crate::Error::FailedToReceiveMessage)
@@ -362,28 +362,6 @@ macro_rules! webview_getter {
   }};
 }
 
-pub(crate) fn send_user_message<T: UserEvent>(
-  context: &Context<T>,
-  message: Message<T>,
-) -> Result<()> {
-  if current_thread().id() == context.main_thread_id {
-    handle_user_message(
-      &context.main_thread.window_target,
-      message,
-      UserMessageContext {
-        window_id_map: &context.window_id_map,
-        windows: &context.main_thread.windows,
-      },
-    );
-    Ok(())
-  } else {
-    context
-      .proxy
-      .send_event(message)
-      .map_err(|_| Error::FailedToSendMessage)
-  }
-}
-
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
   pub window_id_map: WindowIdStore,
@@ -411,6 +389,25 @@ impl<T: UserEvent> Context<T> {
     } else {
       None
     })
+  }
+
+  fn send_user_message(&self, message: Message<T>) -> Result<()> {
+    if current_thread().id() == self.main_thread_id {
+      handle_user_message(
+        &self.main_thread.window_target,
+        message,
+        UserMessageContext {
+          window_id_map: &self.window_id_map,
+          windows: &self.main_thread.windows,
+        },
+      );
+      Ok(())
+    } else {
+      self
+        .proxy
+        .send_event(message)
+        .map_err(|_| Error::FailedToSendMessage)
+    }
   }
 
   fn next_window_id(&self) -> WindowId {
@@ -452,23 +449,20 @@ impl<T: UserEvent> Context<T> {
       .unwrap_or((None, false, None));
 
     let (tx, rx) = channel();
-    send_user_message(
-      self,
-      Message::CreateWindow(
-        window_id,
-        Box::new(move |event_loop| {
-          create_window(
-            window_id,
-            webview_id.unwrap_or_default(),
-            event_loop,
-            &context,
-            pending,
-            after_window_creation,
-          )
-        }),
-        tx,
-      ),
-    )?;
+    self.send_user_message(Message::CreateWindow(
+      window_id,
+      Box::new(move |event_loop| {
+        create_window(
+          window_id,
+          webview_id.unwrap_or_default(),
+          event_loop,
+          &context,
+          pending,
+          after_window_creation,
+        )
+      }),
+      tx,
+    ))?;
     rx.recv()
       .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
@@ -515,24 +509,22 @@ impl<T: UserEvent> Context<T> {
     let window_id_wrapper_ = window_id_wrapper.clone();
 
     let (tx, rx) = channel();
-    send_user_message(
-      self,
-      Message::CreateWebview(
-        window_id,
-        Box::new(move |window, options| {
-          create_webview(
-            WebviewKind::WindowChild,
-            window,
-            window_id_wrapper_,
-            webview_id,
-            &context,
-            pending,
-            options.focused_webview,
-          )
-        }),
-        tx,
-      ),
-    )?;
+    self.send_user_message(Message::CreateWebview(
+      window_id,
+      Box::new(move |window, _options| {
+        create_webview(
+          WebviewKind::WindowChild,
+          window,
+          window_id_wrapper_,
+          webview_id,
+          &context,
+          pending,
+          #[cfg(windows)]
+          _options.focused_webview,
+        )
+      }),
+      tx,
+    ))?;
     rx.recv()
       .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
@@ -1625,6 +1617,7 @@ pub type CreateWebviewClosure =
   Box<dyn FnOnce(&Window, CreateWebviewOptions) -> Result<WebviewWrapper> + Send>;
 
 pub struct CreateWebviewOptions {
+  #[cfg(windows)]
   pub focused_webview: Arc<Mutex<FocusState>>,
 }
 
@@ -1670,7 +1663,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   type Runtime = WryRuntime<T>;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    send_user_message(&self.context, Message::Task(Box::new(f)))
+    self.context.send_user_message(Message::Task(Box::new(f)))
   }
 
   fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
@@ -1684,14 +1677,11 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   }
 
   fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::WithWebview(Box::new(f)),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::WithWebview(Box::new(f)),
+    ))
   }
 
   #[cfg(target_os = "ios")]
@@ -1711,14 +1701,11 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn open_devtools(&self) {
     #[cfg(any(debug_assertions, feature = "devtools"))]
     {
-      let _ = send_user_message(
-        &self.context,
-        Message::Webview(
-          *self.window_id.lock().unwrap(),
-          self.webview_id,
-          WebviewMessage::OpenDevTools,
-        ),
-      );
+      let _ = self.context.send_user_message(Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::OpenDevTools,
+      ));
     }
     #[cfg(not(any(debug_assertions, feature = "devtools")))]
     log::warn!("devtools are not available: enable the `devtools` feature of `tauri-runtime-wry`");
@@ -1727,14 +1714,11 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn close_devtools(&self) {
     #[cfg(any(debug_assertions, feature = "devtools"))]
     {
-      let _ = send_user_message(
-        &self.context,
-        Message::Webview(
-          *self.window_id.lock().unwrap(),
-          self.webview_id,
-          WebviewMessage::CloseDevTools,
-        ),
-      );
+      let _ = self.context.send_user_message(Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::CloseDevTools,
+      ));
     }
   }
 
@@ -1771,25 +1755,19 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   // Setters
 
   fn navigate(&self, url: Url) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::Navigate(url),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::Navigate(url),
+    ))
   }
 
   fn reload(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::Reload,
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::Reload,
+    ))
   }
 
   fn go_back(&self) -> Result<()> {
@@ -1813,82 +1791,61 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   }
 
   fn print(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::Print,
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::Print,
+    ))
   }
 
   fn close(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::Close,
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::Close,
+    ))
   }
 
   fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::SetBounds(bounds),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::SetBounds(bounds),
+    ))
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::SetSize(size),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::SetSize(size),
+    ))
   }
 
   fn set_position(&self, position: Position) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::SetPosition(position),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::SetPosition(position),
+    ))
   }
 
   fn set_focus(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::SetFocus,
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::SetFocus,
+    ))
   }
 
   fn reparent(&self, window_id: WindowId) -> Result<()> {
     let mut current_window_id = self.window_id.lock().unwrap();
     let (tx, rx) = channel();
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *current_window_id,
-        self.webview_id,
-        WebviewMessage::Reparent(window_id, tx),
-      ),
-    )?;
+    self.context.send_user_message(Message::Webview(
+      *current_window_id,
+      self.webview_id,
+      WebviewMessage::Reparent(window_id, tx),
+    ))?;
 
     rx.recv().unwrap()?;
 
@@ -1898,14 +1855,11 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>> {
     let (tx, rx) = channel();
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::CookiesForUrl(url, tx),
-      ),
-    )?;
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::CookiesForUrl(url, tx),
+    ))?;
 
     rx.recv().unwrap()
   }
@@ -1915,38 +1869,29 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   }
 
   fn set_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::SetCookie(cookie.into_owned()),
-      ),
-    )?;
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::SetCookie(cookie.into_owned()),
+    ))?;
     Ok(())
   }
 
   fn delete_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::DeleteCookie(cookie.into_owned()),
-      ),
-    )?;
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::DeleteCookie(cookie.into_owned()),
+    ))?;
     Ok(())
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::SetAutoResize(auto_resize),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::SetAutoResize(auto_resize),
+    ))
   }
 
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
@@ -1966,14 +1911,11 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::EvaluateScript(script.into()),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::EvaluateScript(script.into()),
+    ))
   }
 
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
@@ -2006,69 +1948,51 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     script: S,
     callback: impl Fn(String) + Send + 'static,
   ) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::EvaluateScriptWithCallback(script.into(), Box::new(callback)),
+    ))
   }
 
   fn set_zoom(&self, scale_factor: f64) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::SetZoom(scale_factor),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::SetZoom(scale_factor),
+    ))
   }
 
   fn clear_all_browsing_data(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::ClearAllBrowsingData,
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::ClearAllBrowsingData,
+    ))
   }
 
   fn hide(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::Hide,
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::Hide,
+    ))
   }
 
   fn show(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::Show,
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::Show,
+    ))
   }
 
   fn set_background_color(&self, color: Option<Color>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Webview(
-        *self.window_id.lock().unwrap(),
-        self.webview_id,
-        WebviewMessage::SetBackgroundColor(color),
-      ),
-    )
+    self.context.send_user_message(Message::Webview(
+      *self.window_id.lock().unwrap(),
+      self.webview_id,
+      WebviewMessage::SetBackgroundColor(color),
+    ))
   }
 }
 
@@ -2079,7 +2003,7 @@ pub struct WryWindowDispatcher<T: UserEvent> {
   context: Context<T>,
 }
 
-// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
+// SAFETY: this is safe since the `Context` usage is guarded by `Context::send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryWindowDispatcher<T> {}
 
@@ -2094,7 +2018,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   type WindowBuilder = WindowBuilderWrapper;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    send_user_message(&self.context, Message::Task(Box::new(f)))
+    self.context.send_user_message(Message::Task(Box::new(f)))
   }
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
@@ -2188,10 +2112,10 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
     let (tx, rx) = channel();
 
-    let _ = send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::MonitorFromPoint(tx, (x, y))),
-    );
+    let _ = self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::MonitorFromPoint(tx, (x, y)),
+    ));
 
     Ok(
       rx.recv()
@@ -2266,20 +2190,16 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   // Setters
 
   fn center(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::Center),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::Center))
   }
 
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::RequestUserAttention(request_type.map(Into::into)),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::RequestUserAttention(request_type.map(Into::into)),
+    ))
   }
 
   // Creates a window by dispatching a message to the event loop.
@@ -2302,91 +2222,85 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetResizable(resizable)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetResizable(resizable),
+    ))
   }
 
   fn set_enabled(&self, enabled: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetEnabled(enabled)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetEnabled(enabled),
+    ))
   }
 
   fn set_maximizable(&self, maximizable: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetMaximizable(maximizable)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetMaximizable(maximizable),
+    ))
   }
 
   fn set_minimizable(&self, minimizable: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetMinimizable(minimizable)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetMinimizable(minimizable),
+    ))
   }
 
   fn set_closable(&self, closable: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetClosable(closable)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetClosable(closable),
+    ))
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetTitle(title.into())),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetTitle(title.into()),
+    ))
   }
 
   fn maximize(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::Maximize),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::Maximize))
   }
 
   fn unmaximize(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::Unmaximize),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::Unmaximize))
   }
 
   fn minimize(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::Minimize),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::Minimize))
   }
 
   fn unminimize(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::Unminimize),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::Unminimize))
   }
 
   fn show(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::Show),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::Show))
   }
 
   fn hide(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::Hide),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::Hide))
   }
 
   fn close(&self) -> Result<()> {
-    // NOTE: close cannot use the `send_user_message` function because it accesses the event loop callback
+    // NOTE: close cannot use `Context::send_user_message` because it accesses the event loop callback
     self
       .context
       .proxy
@@ -2395,7 +2309,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn destroy(&self) -> Result<()> {
-    // NOTE: destroy cannot use the `send_user_message` function because it accesses the event loop callback
+    // NOTE: destroy cannot use `Context::send_user_message` because it accesses the event loop callback
     self
       .context
       .proxy
@@ -2404,257 +2318,228 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn set_decorations(&self, decorations: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetDecorations(decorations)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetDecorations(decorations),
+    ))
   }
 
   fn set_shadow(&self, enable: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetShadow(enable)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetShadow(enable),
+    ))
   }
 
   fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetAlwaysOnBottom(always_on_bottom),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetAlwaysOnBottom(always_on_bottom),
+    ))
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetAlwaysOnTop(always_on_top)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetAlwaysOnTop(always_on_top),
+    ))
   }
 
   fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces),
+    ))
   }
 
   fn set_content_protected(&self, protected: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetContentProtected(protected),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetContentProtected(protected),
+    ))
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetSize(size)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetSize(size),
+    ))
   }
 
   fn set_min_size(&self, size: Option<Size>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetMinSize(size)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetMinSize(size),
+    ))
   }
 
   fn set_max_size(&self, size: Option<Size>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetMaxSize(size)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetMaxSize(size),
+    ))
   }
 
   fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetSizeConstraints(constraints),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetSizeConstraints(constraints),
+    ))
   }
 
   fn set_position(&self, position: Position) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetPosition(position)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetPosition(position),
+    ))
   }
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetFullscreen(fullscreen)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetFullscreen(fullscreen),
+    ))
   }
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetSimpleFullscreen(enable)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetSimpleFullscreen(enable),
+    ))
   }
 
   fn set_focus(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetFocus),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::SetFocus))
   }
 
   fn set_focusable(&self, focusable: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetFocusable(focusable)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetFocusable(focusable),
+    ))
   }
 
   fn set_icon(&self, icon: Icon) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetIcon(TaoIcon::try_from(icon)?.0),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetIcon(TaoIcon::try_from(icon)?.0),
+    ))
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetSkipTaskbar(skip)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetSkipTaskbar(skip),
+    ))
   }
 
   fn set_cursor_grab(&self, grab: bool) -> crate::Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetCursorGrab(grab)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetCursorGrab(grab),
+    ))
   }
 
   fn set_cursor_visible(&self, visible: bool) -> crate::Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetCursorVisible(visible)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetCursorVisible(visible),
+    ))
   }
 
   fn set_cursor_icon(&self, icon: CursorIcon) -> crate::Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetCursorIcon(icon)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetCursorIcon(icon),
+    ))
   }
 
   fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetCursorPosition(position.into()),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetCursorPosition(position.into()),
+    ))
   }
 
   fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetIgnoreCursorEvents(ignore)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetIgnoreCursorEvents(ignore),
+    ))
   }
 
   fn start_dragging(&self) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::DragWindow),
-    )
+    self
+      .context
+      .send_user_message(Message::Window(self.window_id, WindowMessage::DragWindow))
   }
 
   fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::ResizeDragWindow(direction)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::ResizeDragWindow(direction),
+    ))
   }
 
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetBadgeCount(count, desktop_filename),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetBadgeCount(count, desktop_filename),
+    ))
   }
 
   fn set_badge_label(&self, label: Option<String>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetBadgeLabel(label)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetBadgeLabel(label),
+    ))
   }
 
   fn set_overlay_icon(&self, icon: Option<Icon>) -> Result<()> {
     let icon: Result<Option<TaoIcon>> = icon.map_or(Ok(None), |x| Ok(Some(TaoIcon::try_from(x)?)));
 
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetOverlayIcon(icon?)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetOverlayIcon(icon?),
+    ))
   }
 
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetProgressBar(progress_state),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetProgressBar(progress_state),
+    ))
   }
 
   fn set_title_bar_style(&self, style: TitleBarStyle) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetTitleBarStyle(style)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetTitleBarStyle(style),
+    ))
   }
 
   fn set_traffic_light_position(&self, position: Position) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetTrafficLightPosition(position),
-      ),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetTrafficLightPosition(position),
+    ))
   }
 
   fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetTheme(theme)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetTheme(theme),
+    ))
   }
 
   fn set_background_color(&self, color: Option<Color>) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::SetBackgroundColor(color)),
-    )
+    self.context.send_user_message(Message::Window(
+      self.window_id,
+      WindowMessage::SetBackgroundColor(color),
+    ))
   }
 }
 
@@ -2707,6 +2592,7 @@ impl Drop for WebviewWrapper {
   }
 }
 
+#[cfg(windows)]
 #[derive(Debug)]
 pub enum FocusState {
   WindowFocused,
@@ -2718,6 +2604,7 @@ pub enum FocusState {
   },
 }
 
+#[cfg(windows)]
 impl Default for FocusState {
   fn default() -> Self {
     Self::Blured {
@@ -2740,6 +2627,7 @@ pub struct WindowWrapper {
   is_window_transparent: bool,
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
+  #[cfg(windows)]
   focused_webview: Arc<Mutex<FocusState>>,
 }
 
@@ -2834,7 +2722,7 @@ pub struct WryHandle<T: UserEvent> {
   context: Context<T>,
 }
 
-// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
+// SAFETY: this is safe since the `Context` usage is guarded by `Context::send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryHandle<T> {}
 
@@ -2846,7 +2734,9 @@ impl<T: UserEvent> WryHandle<T> {
   ) -> Result<Weak<Window>> {
     let id = self.context.next_window_id();
     let (tx, rx) = channel();
-    send_user_message(&self.context, Message::CreateRawWindow(id, Box::new(f), tx))?;
+    self
+      .context
+      .send_user_message(Message::CreateRawWindow(id, Box::new(f), tx))?;
     rx.recv().unwrap()
   }
 
@@ -2888,19 +2778,20 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 
   #[cfg(target_os = "macos")]
   fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::SetActivationPolicy(activation_policy),
-    )
+    self
+      .context
+      .send_user_message(Message::SetActivationPolicy(activation_policy))
   }
 
   #[cfg(target_os = "macos")]
   fn set_dock_visibility(&self, visible: bool) -> Result<()> {
-    send_user_message(&self.context, Message::SetDockVisibility(visible))
+    self
+      .context
+      .send_user_message(Message::SetDockVisibility(visible))
   }
 
   fn request_exit(&self, code: i32) -> Result<()> {
-    // NOTE: request_exit cannot use the `send_user_message` function because it accesses the event loop callback
+    // NOTE: request_exit cannot use `Context::send_user_message` because it accesses the event loop callback
     self
       .context
       .proxy
@@ -2948,7 +2839,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    send_user_message(&self.context, Message::Task(Box::new(f)))
+    self.context.send_user_message(Message::Task(Box::new(f)))
   }
 
   fn display_handle(
@@ -2966,10 +2857,11 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
     let (tx, rx) = channel();
-    send_user_message(
-      &self.context,
-      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y))),
-    )?;
+    self
+      .context
+      .send_user_message(Message::EventLoopWindowTarget(
+        EventLoopWindowTargetMessage::MonitorFromPoint(tx, (x, y)),
+      ))?;
     Ok(rx.recv().unwrap().map(|m| MonitorHandleWrapper(m).into()))
   }
 
@@ -2990,33 +2882,33 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn set_theme(&self, theme: Option<Theme>) {
-    let _ = send_user_message(
-      &self.context,
-      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::SetTheme(theme)),
-    );
+    let _ = self
+      .context
+      .send_user_message(Message::EventLoopWindowTarget(
+        EventLoopWindowTargetMessage::SetTheme(theme),
+      ));
   }
 
   #[cfg(target_os = "macos")]
   fn show(&self) -> tauri_runtime::Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Application(ApplicationMessage::Show),
-    )
+    self
+      .context
+      .send_user_message(Message::Application(ApplicationMessage::Show))
   }
 
   #[cfg(target_os = "macos")]
   fn hide(&self) -> tauri_runtime::Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Application(ApplicationMessage::Hide),
-    )
+    self
+      .context
+      .send_user_message(Message::Application(ApplicationMessage::Hide))
   }
 
   fn set_device_event_filter(&self, filter: DeviceEventFilter) {
-    let _ = send_user_message(
-      &self.context,
-      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::SetDeviceEventFilter(filter)),
-    );
+    let _ = self
+      .context
+      .send_user_message(Message::EventLoopWindowTarget(
+        EventLoopWindowTargetMessage::SetDeviceEventFilter(filter),
+      ));
   }
 
   #[cfg(target_os = "android")]
@@ -3044,10 +2936,9 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     &self,
     cb: F,
   ) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Application(ApplicationMessage::FetchDataStoreIdentifiers(Box::new(cb))),
-    )
+    self.context.send_user_message(Message::Application(
+      ApplicationMessage::FetchDataStoreIdentifiers(Box::new(cb)),
+    ))
   }
 
   #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -3056,10 +2947,12 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     uuid: [u8; 16],
     cb: F,
   ) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Application(ApplicationMessage::RemoveDataStore(uuid, Box::new(cb))),
-    )
+    self
+      .context
+      .send_user_message(Message::Application(ApplicationMessage::RemoveDataStore(
+        uuid,
+        Box::new(cb),
+      )))
   }
 }
 
@@ -3247,8 +3140,16 @@ impl<T: UserEvent> Runtime<T> for WryRuntime<T> {
       .0
       .borrow()
       .get(&window_id)
-      .map(|w| (w.inner.clone(), w.focused_webview.clone()));
-    if let Some((Some(window), focused_webview)) = window {
+      .map(|w| {
+        (
+          w.inner.clone(),
+          CreateWebviewOptions {
+            #[cfg(windows)]
+            focused_webview: w.focused_webview.clone(),
+          },
+        )
+      });
+    if let Some((Some(window), _options)) = window {
       let window_id_wrapper = Arc::new(Mutex::new(window_id));
 
       let webview_id = self.context.next_webview_id();
@@ -3260,7 +3161,8 @@ impl<T: UserEvent> Runtime<T> for WryRuntime<T> {
         webview_id,
         &self.context,
         pending,
-        focused_webview,
+        #[cfg(windows)]
+        _options.focused_webview,
       )?;
 
       if let Some(w) = self
@@ -3538,16 +3440,25 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::Window(id, window_message) => {
       let w = windows.0.borrow().get(&id).map(|w| {
+        #[cfg(windows)]
+        let focused_webview = w.focused_webview.clone();
+        #[cfg(not(windows))]
+        let focused_webview = ();
         (
           w.inner.clone(),
           w.webviews.clone(),
           w.has_children.load(Ordering::Relaxed),
           w.window_event_listeners.clone(),
-          w.focused_webview.clone(),
+          focused_webview,
         )
       });
-      if let Some((Some(window), webviews, has_children, window_event_listeners, focused_webview)) =
-        w
+      if let Some((
+        Some(window),
+        webviews,
+        has_children,
+        window_event_listeners,
+        _focused_webview,
+      )) = w
       {
         match window_message {
           WindowMessage::AddEventListener(id, listener) => {
@@ -3577,12 +3488,15 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
           WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
           WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+          #[cfg(not(windows))]
+          WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
+          #[cfg(windows)]
           WindowMessage::IsFocused(tx) => {
             let focused = if has_children {
               // on multiwebview mode, get the focused state from cache,
               // as the window might not have direct focus
               matches!(
-                *focused_webview.lock().unwrap(),
+                *_focused_webview.lock().unwrap(),
                 FocusState::WindowFocused | FocusState::WebviewFocused { .. }
               )
             } else {
@@ -4231,13 +4145,17 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWebview(window_id, handler, sender) => {
-      let window = windows
-        .0
-        .borrow()
-        .get(&window_id)
-        .map(|w| (w.inner.clone(), w.focused_webview.clone()));
-      if let Some((Some(window), focused_webview)) = window {
-        match handler(&window, CreateWebviewOptions { focused_webview }) {
+      let window = windows.0.borrow().get(&window_id).map(|w| {
+        (
+          w.inner.clone(),
+          CreateWebviewOptions {
+            #[cfg(windows)]
+            focused_webview: w.focused_webview.clone(),
+          },
+        )
+      });
+      if let Some((Some(window), options)) = window {
+        match handler(&window, options) {
           Ok(webview) => {
             if let Some(w) = windows.0.borrow_mut().get_mut(&window_id) {
               w.webviews.push(webview);
@@ -4307,6 +4225,7 @@ fn handle_user_message<T: UserEvent>(
             is_window_transparent,
             #[cfg(windows)]
             surface,
+            #[cfg(windows)]
             focused_webview: Default::default(),
           },
         );
@@ -4834,6 +4753,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut webviews = Vec::new();
 
+  #[cfg(windows)]
   let focused_webview = Arc::new(Mutex::new(FocusState::default()));
 
   #[cfg(feature = "unstable")]
@@ -4852,6 +4772,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       webview_id,
       context,
       webview,
+      #[cfg(windows)]
       focused_webview.clone(),
     )?);
   }
@@ -4886,6 +4807,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     is_window_transparent,
     #[cfg(windows)]
     surface,
+    #[cfg(windows)]
     focused_webview,
   })
 }
@@ -4914,7 +4836,7 @@ fn create_webview<T: UserEvent>(
   id: WebviewId,
   context: &Context<T>,
   pending: PendingWebview<T, WryRuntime<T>>,
-  #[allow(unused_variables)] focused_webview: Arc<Mutex<FocusState>>,
+  #[cfg(windows)] focused_webview: Arc<Mutex<FocusState>>,
 ) -> Result<WebviewWrapper> {
   if !context.webview_runtime_installed {
     #[cfg(all(not(debug_assertions), windows))]
@@ -4937,13 +4859,14 @@ You may have it installed on another user account, but it is not available for t
   #[allow(unused_mut)]
   let PendingWebview {
     webview_attributes,
+    #[cfg(desktop)]
     runtime_specific_attributes,
     uri_scheme_protocols,
     label,
     ipc_handler,
     url,
+    #[cfg(desktop)]
     opener,
-    address_changed_handler,
     navigation_handler,
     ..
   } = pending;
@@ -5076,19 +4999,11 @@ You may have it installed on another user account, but it is not available for t
     });
   }
 
-  if address_changed_handler.is_some() || navigation_handler.is_some() {
+  if let Some(navigation_handler) = navigation_handler {
     webview_builder = webview_builder.with_navigation_handler(move |url| {
       url
         .parse()
-        .map(|url| {
-          if let Some(ref addr) = address_changed_handler {
-            addr(&url);
-          }
-          navigation_handler
-            .as_ref()
-            .map(|nav| nav(&url))
-            .unwrap_or(true)
-        })
+        .map(|url| navigation_handler(&url))
         .unwrap_or(true)
     });
   }
@@ -5323,8 +5238,9 @@ You may have it installed on another user account, but it is not available for t
     if let Some(on_web_content_process_terminate_handler) =
       pending.on_web_content_process_terminate_handler
     {
-      webview_builder = webview_builder
-        .with_on_web_content_process_terminate_handler(on_web_content_process_terminate_handler);
+      webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
+        on_web_content_process_terminate_handler(Default::default());
+      });
     } else {
       log::debug!("web content process terminated");
       let context_ = context.clone();

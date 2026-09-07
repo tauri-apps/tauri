@@ -31,7 +31,6 @@ use crate::{
   utils::{PackageInfo, config::Config},
 };
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
 use crate::app::OnWebContentProcessTerminate;
 
 #[cfg(desktop)]
@@ -261,9 +260,7 @@ impl<R: Runtime> AppManager<R> {
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
     on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
-    #[cfg(any(target_os = "macos", target_os = "ios"))] on_web_content_process_terminate: Option<
-      Arc<OnWebContentProcessTerminate<R>>,
-    >,
+    on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
     #[cfg(desktop)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
@@ -299,7 +296,6 @@ impl<R: Runtime> AppManager<R> {
         invoke_handler,
         on_page_load,
         on_permission_request,
-        #[cfg(any(target_os = "macos", target_os = "ios"))]
         on_web_content_process_terminate,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webview_event_listeners),
@@ -783,20 +779,19 @@ mod test {
       context,
       PluginStore::default(),
       Box::new(|_| false),
-      None, // on_page_load
-      None, // on_permission_request
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
-      None, // on_web_content_process_terminate
-      Default::default(), // uri_scheme_protocols
+      None,                // on_page_load
+      None,                // on_permission_request
+      None,                // on_web_content_process_terminate
+      Default::default(),  // uri_scheme_protocols
       StateManager::new(), // state
-      Default::default(), // menu_event_listener
+      Default::default(),  // menu_event_listener
       #[cfg(all(desktop, feature = "tray-icon"))]
       Default::default(), // tray_icon_event_listeners
-      Default::default(), // window_event_listeners
-      Default::default(), // webview_event_listeners
-      Default::default(), // window_menu_event_listeners
-      "".into(), // invoke_initialization_script
-      None, // channel_interceptor
+      Default::default(),  // window_event_listeners
+      Default::default(),  // webview_event_listeners
+      Default::default(),  // window_menu_event_listeners
+      "".into(),           // invoke_initialization_script
+      None,                // channel_interceptor
       crate::generate_invoke_key().unwrap(), // invoke_key,
     );
     // the custom scheme URL format comes from the runtime handle

@@ -161,31 +161,38 @@ fn keep_encoding_declaration_first(document: &NodeRef, head: &NodeRef) {
 wrap_request_handler! {
   pub struct WebRequestHandler<T: UserEvent> {
     navigation_handler: Option<Arc<NavigationHandler>>,
+    frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
     context: RuntimeContext<T>,
     window_id: WindowId,
     webview_id: u32,
     drag_drop_event_target: DragDropEventTarget,
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
-    web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>>,
+    web_content_process_terminate_handler: Option<Arc<tauri_runtime::webview::OnWebContentProcessTerminateHandler>>,
   }
 
   impl RequestHandler {
     fn on_render_process_terminated(
       &self,
-      _browser: Option<&mut Browser>,
-      _status: TerminationStatus,
-      _error_code: ::std::os::raw::c_int,
-      _error_string: Option<&CefString>,
+      browser: Option<&mut Browser>,
+      status: TerminationStatus,
+      error_code: ::std::os::raw::c_int,
+      error_string: Option<&CefString>,
     ) {
+      let mut frame = browser.as_ref().and_then(|browser| browser.main_frame());
+      crate::frame::emit_frame_event(&self.frame_event_handler, browser, frame.as_mut(), crate::FrameEventKind::RendererTerminated);
       if let Some(handler) = &self.web_content_process_terminate_handler {
-        handler();
+        handler(tauri_runtime::webview::WebContentProcessTermination {
+          reason: termination_reason(status),
+          error_code: Some(error_code),
+          error_string: error_string.map(ToString::to_string),
+        });
       }
     }
 
     fn on_before_browse(
       &self,
-      _browser: Option<&mut Browser>,
+      browser: Option<&mut Browser>,
       frame: Option<&mut Frame>,
       request: Option<&mut Request>,
       _user_gesture: ::std::os::raw::c_int,
@@ -196,10 +203,6 @@ wrap_request_handler! {
       let Some(frame) = frame else {
         return 0;
       };
-      // we only fire main frame navigation events to match the behavior of the wry runtime
-      if frame.is_main() == 0 {
-        return 0;
-      }
       let Some(request) = request else {
         return 0;
       };
@@ -214,12 +217,20 @@ wrap_request_handler! {
         return 0;
       };
 
-      let Some(handler) = &self.navigation_handler else {
-        return 0;
-      };
-
-      let should_navigate = handler(&url);
-      if should_navigate { 0 } else { 1 }
+      // Preserve the portable main-frame policy. Native observers receive only
+      // admitted navigations, so a denied navigation cannot strand their barrier.
+      if frame.is_main() != 0
+        && self.navigation_handler.as_ref().is_some_and(|handler| !handler(&url))
+      {
+        return 1;
+      }
+      crate::frame::emit_frame_event(
+        &self.frame_event_handler,
+        browser,
+        Some(frame),
+        crate::FrameEventKind::NavigationStarted { url },
+      );
+      0
     }
 
     fn resource_request_handler(
@@ -592,4 +603,45 @@ fn get_request_headers(request: &mut Request) -> HeaderMap {
   }
 
   headers
+}
+
+// ==== Renderer termination boundary ====
+
+fn termination_reason(
+  status: TerminationStatus,
+) -> tauri_runtime::webview::WebContentProcessTerminationReason {
+  use tauri_runtime::webview::WebContentProcessTerminationReason as Reason;
+  match status {
+    TerminationStatus::ABNORMAL_TERMINATION => Reason::Abnormal,
+    TerminationStatus::PROCESS_WAS_KILLED => Reason::Killed,
+    TerminationStatus::PROCESS_CRASHED => Reason::Crashed,
+    TerminationStatus::PROCESS_OOM => Reason::OutOfMemory,
+    TerminationStatus::LAUNCH_FAILED => Reason::LaunchFailed,
+    TerminationStatus::INTEGRITY_FAILURE => Reason::IntegrityFailure,
+    _ => Reason::Unknown,
+  }
+}
+
+#[cfg(test)]
+mod termination_tests {
+  use super::*;
+  use tauri_runtime::webview::WebContentProcessTerminationReason as Reason;
+
+  #[test]
+  fn preserves_every_cef_termination_reason() {
+    for (status, expected) in [
+      (TerminationStatus::ABNORMAL_TERMINATION, Reason::Abnormal),
+      (TerminationStatus::PROCESS_WAS_KILLED, Reason::Killed),
+      (TerminationStatus::PROCESS_CRASHED, Reason::Crashed),
+      (TerminationStatus::PROCESS_OOM, Reason::OutOfMemory),
+      (TerminationStatus::LAUNCH_FAILED, Reason::LaunchFailed),
+      (
+        TerminationStatus::INTEGRITY_FAILURE,
+        Reason::IntegrityFailure,
+      ),
+      (TerminationStatus::NUM_VALUES, Reason::Unknown),
+    ] {
+      assert_eq!(termination_reason(status), expected);
+    }
+  }
 }

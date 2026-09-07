@@ -361,21 +361,21 @@ tauri::Builder::default()
     let theme = self.window_builder.get_theme();
 
     #[cfg(target_os = "android")]
-    if !self.created_by_activity_name_set {
-      if let Some(manager_window_activity_name) = self.manager.activity_name() {
-        self.window_builder = self
-          .window_builder
-          .created_by_activity_name(manager_window_activity_name?);
-      }
+    if !self.created_by_activity_name_set
+      && let Some(manager_window_activity_name) = self.manager.activity_name()
+    {
+      self.window_builder = self
+        .window_builder
+        .created_by_activity_name(manager_window_activity_name?);
     }
 
     #[cfg(target_os = "ios")]
-    if !self.requested_by_scene_identifier_set {
-      if let Some(manager_window_scene_identifier) = self.manager.scene_identifier() {
-        self.window_builder = self
-          .window_builder
-          .requested_by_scene_identifier(manager_window_scene_identifier?);
-      }
+    if !self.requested_by_scene_identifier_set
+      && let Some(manager_window_scene_identifier) = self.manager.scene_identifier()
+    {
+      self.window_builder = self
+        .window_builder
+        .requested_by_scene_identifier(manager_window_scene_identifier?);
     }
 
     let mut pending = PendingWindow::new(self.window_builder, self.label)?;

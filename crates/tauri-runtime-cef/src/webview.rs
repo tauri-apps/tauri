@@ -1065,6 +1065,28 @@ pub enum RuntimeStyle {
 
 /// The CEF-specific webview attributes, set through
 /// [`WebviewWindowBuilderCefExt`](crate::WebviewWindowBuilderCefExt).
+///
+/// # Permission requests on CEF
+///
+/// The runtime honors `WebviewAttributes::on_permission_request` — an `Allow`
+/// grants without showing Chrome's prompt, a `Deny` refuses without one — with one
+/// exception worth knowing before relying on it.
+///
+/// ## `PermissionKind::DisplayCapture` is never granted by an `Allow`
+///
+/// A `getDisplayMedia()` request that the handler answers `Allow` is *not*
+/// granted here; it is handed back to CEF, which shows Chromium's desktop media
+/// picker under Chrome style and refuses under Alloy style. A `Deny` still
+/// refuses it outright.
+///
+/// The reason is that granting it from the handler would grant *everything*: CEF
+/// builds the stream from the permission mask, and a desktop video bit with no
+/// requested source synthesises the full desktop and returns it with no picker at
+/// all. `PermissionKind::DisplayCapture` names no screen, window or tab, so a
+/// blanket rule such as `.on_permission_request(|_| PermissionResponse::Allow)`
+/// would silently give any page in the webview — including remote content reached
+/// through a redirect — a full-desktop stream. The picker is the only thing that
+/// can say what is actually shared, so it stays.
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.

@@ -19,6 +19,14 @@ pub(crate) type PermissionRequestHandler =
 
 const AUDIO_CAPTURE: u32 = MediaPermissionType::CEF_MEDIA_PERMISSION_DEVICE_AUDIO_CAPTURE as u32;
 const VIDEO_CAPTURE: u32 = MediaPermissionType::CEF_MEDIA_PERMISSION_DEVICE_VIDEO_CAPTURE as u32;
+const DESKTOP_AUDIO_CAPTURE: u32 =
+  MediaPermissionType::CEF_MEDIA_PERMISSION_DESKTOP_AUDIO_CAPTURE as u32;
+const DESKTOP_VIDEO_CAPTURE: u32 =
+  MediaPermissionType::CEF_MEDIA_PERMISSION_DESKTOP_VIDEO_CAPTURE as u32;
+
+/// The bits a `getDisplayMedia()` request sets. Never granted from here; see
+/// [`grants_desktop_capture`].
+const DESKTOP_CAPTURE: u32 = DESKTOP_AUDIO_CAPTURE | DESKTOP_VIDEO_CAPTURE;
 
 /// Media capture permissions granted to Alloy style browsers. Desktop capture is
 /// deliberately excluded.
@@ -231,14 +239,8 @@ const PERMISSION_KINDS: &[(u32, PermissionKind)] = &[
 const MEDIA_PERMISSION_KINDS: &[(u32, PermissionKind)] = &[
   (AUDIO_CAPTURE, PermissionKind::Microphone),
   (VIDEO_CAPTURE, PermissionKind::Camera),
-  (
-    MediaPermissionType::CEF_MEDIA_PERMISSION_DESKTOP_AUDIO_CAPTURE as u32,
-    PermissionKind::DisplayCapture,
-  ),
-  (
-    MediaPermissionType::CEF_MEDIA_PERMISSION_DESKTOP_VIDEO_CAPTURE as u32,
-    PermissionKind::DisplayCapture,
-  ),
+  (DESKTOP_AUDIO_CAPTURE, PermissionKind::DisplayCapture),
+  (DESKTOP_VIDEO_CAPTURE, PermissionKind::DisplayCapture),
 ];
 
 /// How the application answered a whole CEF permission request.
@@ -288,6 +290,13 @@ wrap_permission_handler! {
           1
         }
         AppDecision::Allowed => {
+          // An `Allow` grants the camera and the microphone, but never the desktop:
+          // no `PermissionKind` answer can name what a screen share would expose,
+          // so that choice stays with CEF's picker. See `grants_desktop_capture`.
+          if grants_desktop_capture(requested_permissions) {
+            return 0;
+          }
+
           let Some(callback) = callback else {
             return 0;
           };
@@ -308,7 +317,14 @@ wrap_permission_handler! {
           }
 
           // Alloy style has no permission UI and its default handling denies the request,
-          // so grant camera and microphone capture here.
+          // so grant camera and microphone capture here. Desktop capture defers to that
+          // default handling, which refuses it — see `grants_desktop_capture`. Deferring
+          // the whole request also keeps the granted mask equal to the requested one,
+          // which CEF requires of a `getUserMedia` answer.
+          if grants_desktop_capture(requested_permissions) {
+            return 0;
+          }
+
           let Some(callback) = callback else {
             return 0;
           };
@@ -423,6 +439,36 @@ impl TauriCefPermissionHandler {
       AppDecision::NoOpinion
     }
   }
+}
+
+/// Whether answering `requested` through [`MediaAccessCallback::cont`] would hand
+/// the page a desktop stream, which is never this handler's to give.
+///
+/// CEF builds the granted stream straight from the mask: a set
+/// `DESKTOP_VIDEO_CAPTURE` bit with no requested device id synthesises a
+/// `DesktopMediaID(TYPE_SCREEN, kFullDesktopScreenId)` and returns it, so
+/// `getDisplayMedia()` resolves with the whole desktop and *no picker at all*.
+/// Chrome style would have shown Chromium's desktop media picker, and Alloy style
+/// refused desktop capture outright; neither can be reconstructed from a
+/// [`PermissionKind`], which names no screen, window or tab.
+///
+/// So an app writing `.on_permission_request(|_| PermissionResponse::Allow)` — a
+/// plausible "it is all my own content" rule — would silently give any page in the
+/// webview, including remote content reached through a redirect, a full-desktop
+/// stream. Deferring the request to CEF instead keeps the picker in front of the
+/// user, which is the only thing that can name what is actually shared.
+///
+/// The whole request is deferred, never a part of it: CEF documents that when a
+/// request carries the device capture bits — that is, when it came from
+/// `getUserMedia()` — `allowed_permissions` must equal `required_permissions`, so
+/// granting the device half of a mixed mask while withholding the desktop half is
+/// not a legal answer. Deferring costs nothing, because the device bits CEF would
+/// then handle itself are exactly the ones its own prompt covers.
+///
+/// A `Deny` is unaffected: `cont(0)` refuses every bit in the request, desktop
+/// capture included, and refusing is always a legal answer.
+fn grants_desktop_capture(requested: u32) -> bool {
+  requested & DESKTOP_CAPTURE != 0
 }
 
 /// The individual permission types set in a CEF request bitmask.

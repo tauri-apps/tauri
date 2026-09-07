@@ -26,7 +26,7 @@ mod load;
 mod permission;
 mod process;
 
-use command::TauriCefCommandHandler;
+use command::{TauriCefCommandHandler, TauriCefCommandHandlerArgs};
 use context_menu::TauriCefContextMenuHandler;
 use display::{TauriCefDisplayHandler, TauriCefDisplayHandlerArgs};
 use download::TauriCefDownloadHandler;
@@ -248,10 +248,11 @@ wrap_with_args! {
     }
 
     fn command_handler(&self) -> Option<CommandHandler> {
-      Some(TauriCefCommandHandler::new(
-        self.devtools_enabled,
-        self.zoom_hotkeys_enabled,
-      ))
+      Some(TauriCefCommandHandler::build(TauriCefCommandHandlerArgs {
+        devtools_enabled: self.devtools_enabled,
+        zoom_hotkeys_enabled: self.zoom_hotkeys_enabled,
+        frame_navigation_state: self.frame_navigation_state.clone(),
+      }))
     }
 
     fn permission_handler(&self) -> Option<PermissionHandler> {

@@ -1065,6 +1065,60 @@ pub enum RuntimeStyle {
 
 /// The CEF-specific webview attributes, set through
 /// [`WebviewWindowBuilderCefExt`](crate::WebviewWindowBuilderCefExt).
+///
+/// # Permission requests on CEF
+///
+/// The runtime honors `WebviewAttributes::on_permission_request` — an `Allow`
+/// grants without showing Chrome's prompt, a `Deny` refuses without one — with
+/// three things worth knowing before relying on it.
+///
+/// ## Most decisions are made once per origin and then persist
+///
+/// Chromium consults a permission prompt only while the stored content setting
+/// for that (origin, permission) still says "ask", and answering the prompt
+/// persists the decision to the on-disk profile. Everything routed through the
+/// prompt therefore reaches the handler **once per origin and permission, ever** —
+/// including across restarts of the app.
+///
+/// A handler whose answer depends on application state is not re-consulted when
+/// that state changes; its first answer stands. Nothing calls back to say the app
+/// changed its mind, so an app that has to revoke a grant must rewrite the content
+/// setting through the request context itself.
+///
+/// Camera and microphone are the exception. Chromium routes *every*
+/// `getUserMedia()` call through the media path, so those two do reach the handler
+/// on each call and a changing answer is honored.
+///
+/// ## Permissions Tauri has no kind for arrive as `PermissionKind::Other`
+///
+/// Chromium has more request types than Tauri has kinds. Storage Access and Top
+/// Level Storage Access, FedCM, protocol handler registration, idle detection,
+/// local and loopback network access, web app installation, the AR and VR sessions
+/// behind WebXR, hand tracking, keyboard lock and disk quota all arrive as
+/// `PermissionKind::Other`, as does any request type a future CEF build adds.
+///
+/// Failing closed is deliberate — a request type this runtime does not recognise
+/// must never be granted behind the app's back — but it means a handler written
+/// elsewhere as `match kind { Camera => Allow, _ => Deny }` hard-denies all of
+/// them here, and denying Storage Access or FedCM breaks third-party SSO flows
+/// outright. Return `PermissionResponse::Default` for the kinds you did not mean
+/// to answer about, and CEF's own handling runs for them unchanged.
+///
+/// ## `PermissionKind::DisplayCapture` is never granted by an `Allow`
+///
+/// A `getDisplayMedia()` request that the handler answers `Allow` is *not*
+/// granted here; it is handed back to CEF, which shows Chromium's desktop media
+/// picker under Chrome style and refuses under Alloy style. A `Deny` still
+/// refuses it outright.
+///
+/// The reason is that granting it from the handler would grant *everything*: CEF
+/// builds the stream from the permission mask, and a desktop video bit with no
+/// requested source synthesises the full desktop and returns it with no picker at
+/// all. `PermissionKind::DisplayCapture` names no screen, window or tab, so a
+/// blanket rule such as `.on_permission_request(|_| PermissionResponse::Allow)`
+/// would silently give any page in the webview — including remote content reached
+/// through a redirect — a full-desktop stream. The picker is the only thing that
+/// can say what is actually shared, so it stays.
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.

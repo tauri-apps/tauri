@@ -145,17 +145,26 @@ fn resolve_command_ids(names: &[&CStr]) -> Vec<c_int> {
 
 /// Drops the separators the removals leave behind: a menu must not open or end
 /// with one, and two in a row draw as a double rule.
+///
+/// Every loop here advances on a failed `remove_at`. A removal CEF refuses does
+/// not shrink `count()`, so retrying it would spin — and this runs on CEF's UI
+/// thread, which this runtime drives with an external message pump, so a spin
+/// there hangs the whole application rather than just the menu. A separator left
+/// standing is a cosmetic flaw; not returning is not.
 fn remove_redundant_separators(model: &MenuModel) {
   let separator = MenuItemType::from(cef_menu_item_type_t::MENUITEMTYPE_SEPARATOR);
   let is_separator = |index: usize| model.type_at(index) == separator;
+  let removed = |result: c_int| result != 0;
 
   // Starting as if a separator had just been seen also drops the leading ones.
   let mut previous_was_separator = true;
   let mut index = 0;
   while index < model.count() {
     if is_separator(index) {
-      if previous_was_separator {
-        model.remove_at(index);
+      if previous_was_separator && removed(model.remove_at(index)) {
+        // The entries after `index` shifted down into it, so the same index is
+        // the next entry to look at. Only a removal that actually happened may
+        // hold the index still.
         continue;
       }
       previous_was_separator = true;
@@ -165,9 +174,10 @@ fn remove_redundant_separators(model: &MenuModel) {
     index += 1;
   }
 
-  while model.count() > 0 && is_separator(model.count() - 1) {
-    model.remove_at(model.count() - 1);
-  }
+  while model.count() > 0
+    && is_separator(model.count() - 1)
+    && removed(model.remove_at(model.count() - 1))
+  {}
 }
 
 wrap_context_menu_handler! {

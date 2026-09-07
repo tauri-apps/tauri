@@ -44,6 +44,7 @@ use crate::external_message_pump::CefExternalPump;
 use crate::platform::EventLoopExt;
 use crate::{
   cef_impl::{client as browser_client, ipc, request_handler},
+  macros::wrap_with_args,
   webview::{
     self, AppWebview, CefWebviewAttributes, CefWebviewDispatcher, Webview, WebviewMessage,
     create_webview_detached,
@@ -1207,7 +1208,9 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   }
 }
 
-wrap_app! {
+wrap_with_args! {
+  wrap_app => TauriCefAppArgs;
+
   struct TauriCefApp<T: UserEvent> {
     context: RuntimeContext<T>,
     context_initialized: Arc<AtomicBool>,
@@ -1642,12 +1645,12 @@ impl<T: UserEvent> CefRuntime<T> {
     };
 
     command_line_args.push(("--no-first-run".to_string(), None));
-    let mut app = TauriCefApp::new(
-      context.clone(),
-      context_initialized.clone(),
+    let mut app = TauriCefApp::build(TauriCefAppArgs {
+      context: context.clone(),
+      context_initialized: context_initialized.clone(),
       deep_link_schemes,
       command_line_args,
-    );
+    });
 
     // Subprocesses already exited above, so this must be the browser process;
     // `execute_process` returns -1 there to signal normal startup should follow.

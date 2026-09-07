@@ -28,7 +28,11 @@ use tauri_utils::{
 use url::Url;
 
 use crate::{
-  cef_impl::client::{DragDropEventTarget, DragDropState, WebDragDropResourceRequestHandler},
+  cef_impl::client::{
+    DragDropEventTarget, DragDropState, WebDragDropResourceRequestHandler,
+    WebDragDropResourceRequestHandlerArgs,
+  },
+  macros::wrap_with_args,
   runtime::RuntimeContext,
   webview::{CefInitScript, INITIAL_LOAD_URL},
 };
@@ -158,7 +162,9 @@ fn keep_encoding_declaration_first(document: &NodeRef, head: &NodeRef) {
   }
 }
 
-wrap_request_handler! {
+wrap_with_args! {
+  wrap_request_handler => WebRequestHandlerArgs;
+
   pub struct WebRequestHandler<T: UserEvent> {
     navigation_handler: Option<Arc<NavigationHandler>>,
     frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
@@ -251,19 +257,23 @@ wrap_request_handler! {
         return None;
       }
 
-      Some(WebDragDropResourceRequestHandler::new(
-        self.context.clone(),
-        self.window_id,
-        self.webview_id,
-        self.drag_drop_event_target,
-        self.drag_drop_handler_enabled,
-        self.drag_drop_state.clone(),
+      Some(WebDragDropResourceRequestHandler::build(
+        WebDragDropResourceRequestHandlerArgs {
+          context: self.context.clone(),
+          window_id: self.window_id,
+          webview_id: self.webview_id,
+          drag_drop_event_target: self.drag_drop_event_target,
+          drag_drop_handler_enabled: self.drag_drop_handler_enabled,
+          drag_drop_state: self.drag_drop_state.clone(),
+        },
       ))
     }
   }
 }
 
-wrap_resource_handler! {
+wrap_with_args! {
+  wrap_resource_handler => WebResourceHandlerArgs;
+
   pub struct WebResourceHandler {
     webview_label: String,
     handler: Arc<Box<UriSchemeProtocolHandler>>,
@@ -522,14 +532,14 @@ wrap_scheme_handler_factory! {
         .map(|url| url.origin().ascii_serialization())
         .filter(|origin| origin != "null");
 
-      Some(WebResourceHandler::new(
+      Some(WebResourceHandler::build(WebResourceHandlerArgs {
         webview_label,
         handler,
         initialization_scripts,
         is_main_frame,
         initiator_origin,
-        Arc::new(RefCell::new(None)),
-      ))
+        response: Arc::new(RefCell::new(None)),
+      }))
     }
   }
 }

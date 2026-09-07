@@ -14,6 +14,7 @@ pub use dialog::{
   NativeDialogKind, NativeDialogObservation, NativeDialogSnapshot, NativeDialogToken,
 };
 mod frame_navigation;
+mod macros;
 mod platform;
 mod popup;
 mod runtime;

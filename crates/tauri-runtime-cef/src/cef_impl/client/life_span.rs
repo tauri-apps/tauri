@@ -12,7 +12,10 @@ use tauri_runtime::{
 };
 use winit::event_loop::EventLoopProxy as WinitEventLoopProxy;
 
-use crate::runtime::{CefRuntime, Message, NewWindowOpener, RuntimeContext};
+use crate::{
+  macros::wrap_with_args,
+  runtime::{CefRuntime, Message, NewWindowOpener, RuntimeContext},
+};
 
 pub(super) type PopupClientFactory =
   dyn Fn(crate::popup::PopupRequest, crate::FrameNavigationState) -> Client;
@@ -75,7 +78,9 @@ fn check_and_reload_if_blank(browser: cef::Browser, initial_url: String) {
   });
 }
 
-wrap_life_span_handler! {
+wrap_with_args! {
+  wrap_life_span_handler => TauriCefChildLifeSpanHandlerArgs;
+
   pub struct TauriCefChildLifeSpanHandler<T: UserEvent> {
     sender: Sender<Message<T>>,
     proxy: WinitEventLoopProxy,

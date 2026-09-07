@@ -16,7 +16,10 @@ use tauri_runtime::{
 };
 use url::Url;
 
-use crate::runtime::{Message, RuntimeContext};
+use crate::{
+  macros::wrap_with_args,
+  runtime::{Message, RuntimeContext},
+};
 
 const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
 
@@ -206,7 +209,9 @@ pub(crate) fn event_from_script_event(
   }
 }
 
-wrap_resource_request_handler! {
+wrap_with_args! {
+  wrap_resource_request_handler => WebDragDropResourceRequestHandlerArgs;
+
   pub(crate) struct WebDragDropResourceRequestHandler<T: UserEvent> {
     context: RuntimeContext<T>,
     window_id: WindowId,

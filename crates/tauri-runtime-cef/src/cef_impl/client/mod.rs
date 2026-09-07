@@ -10,6 +10,7 @@ use winit::event_loop::EventLoopProxy as WinitEventLoopProxy;
 
 use crate::{
   cef_impl::{ipc, request_handler},
+  macros::wrap_with_args,
   runtime::{CefRuntime, Message, RuntimeContext},
 };
 
@@ -30,10 +31,10 @@ use download::TauriCefDownloadHandler;
 use drag::TauriCefDragHandler;
 pub(crate) use drag::{
   DragDropEventTarget, DragDropScriptEvent, DragDropState, WebDragDropResourceRequestHandler,
-  drag_drop_initialization_script, event_from_script_event,
+  WebDragDropResourceRequestHandlerArgs, drag_drop_initialization_script, event_from_script_event,
 };
 use keyboard::TauriCefKeyboardHandler;
-use life_span::TauriCefChildLifeSpanHandler;
+use life_span::{TauriCefChildLifeSpanHandler, TauriCefChildLifeSpanHandlerArgs};
 use load::TauriCefLoadHandler;
 use permission::TauriCefPermissionHandler;
 pub(crate) use process::TauriCefBrowserProcessHandler;
@@ -67,7 +68,9 @@ impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
   }
 }
 
-wrap_client! {
+wrap_with_args! {
+  wrap_client => TauriCefBrowserClientArgs;
+
   pub(crate) struct TauriCefBrowserClient<T: UserEvent> {
     pub(crate) context: RuntimeContext<T>,
     pub(crate) window_id: WindowId,
@@ -100,16 +103,19 @@ wrap_client! {
     }
 
     fn request_handler(&self) -> Option<RequestHandler> {
-      Some(request_handler::WebRequestHandler::new(
-        self.handlers.navigation_handler.clone(),
-        self.handlers.frame_event_handler.clone(),
-        self.context.clone(),
-        self.window_id,
-        self.webview_id,
-        self.drag_drop_event_target,
-        self.drag_drop_handler_enabled,
-        self.drag_drop_state.clone(),
-        self.handlers.web_content_process_terminate_handler.clone(),
+      Some(request_handler::WebRequestHandler::build(
+        request_handler::WebRequestHandlerArgs {
+          navigation_handler: self.handlers.navigation_handler.clone(),
+          frame_event_handler: self.handlers.frame_event_handler.clone(),
+          context: self.context.clone(),
+          window_id: self.window_id,
+          webview_id: self.webview_id,
+          drag_drop_event_target: self.drag_drop_event_target,
+          drag_drop_handler_enabled: self.drag_drop_handler_enabled,
+          drag_drop_state: self.drag_drop_state.clone(),
+          web_content_process_terminate_handler:
+            self.handlers.web_content_process_terminate_handler.clone(),
+        },
       ))
     }
 
@@ -126,11 +132,20 @@ wrap_client! {
       let family = self.popup_family.clone();
       let create_popup: Arc<life_span::PopupClientFactory> = Arc::new(move |opener, state| {
         let events = state.clone();
-        TauriCefBrowserClient::new(
-          context.clone(), window_id, webview_id, label.clone(), None,
-          devtools_enabled, target, false, Arc::default(), state,
-          family.clone(), Some(opener),
-          TauriCefBrowserClientHandlers {
+        TauriCefBrowserClient::build(TauriCefBrowserClientArgs {
+          context: context.clone(),
+          window_id,
+          webview_id,
+          label: label.clone(),
+          initial_url: None,
+          devtools_enabled,
+          drag_drop_event_target: target,
+          drag_drop_handler_enabled: false,
+          drag_drop_state: Arc::default(),
+          frame_navigation_state: state,
+          popup_family: family.clone(),
+          opener: Some(opener),
+          handlers: TauriCefBrowserClientHandlers {
             // Only the internal navigation observer, never the opener's app
             // observer. A popup is a separate native browser that navigates
             // wherever its own content goes — an SSO or OAuth window is the
@@ -143,23 +158,28 @@ wrap_client! {
             // NULL, so the popup keeps the opener's — as it did when it still
             // inherited the opener's client outright.
             download_handler: download_handler.clone(),
-            ipc_handler: None, on_page_load_handler: None,
+            ipc_handler: None,
+            on_page_load_handler: None,
             document_title_changed_handler: None,
             web_content_process_terminate_handler: None,
-          }, context.proxy.clone(), context.sender.clone(),
-        )
+          },
+          proxy: context.proxy.clone(),
+          sender: context.sender.clone(),
+        })
       });
-      Some(TauriCefChildLifeSpanHandler::new(
-        self.sender.clone(),
-        self.proxy.clone(),
-        self.window_id,
-        self.webview_id,
-        self.context.clone(),
-        self.handlers.new_window_handler.clone(),
-        self.initial_url.clone(),
-        self.frame_navigation_state.clone(),
-        self.popup_family.clone(), self.opener.clone(), create_popup,
-      ))
+      Some(TauriCefChildLifeSpanHandler::build(TauriCefChildLifeSpanHandlerArgs {
+        sender: self.sender.clone(),
+        proxy: self.proxy.clone(),
+        window_id: self.window_id,
+        webview_id: self.webview_id,
+        context: self.context.clone(),
+        new_window_handler: self.handlers.new_window_handler.clone(),
+        initial_url: self.initial_url.clone(),
+        frame_navigation_state: self.frame_navigation_state.clone(),
+        popup_family: self.popup_family.clone(),
+        opener: self.opener.clone(),
+        create_popup,
+      }))
     }
 
     fn load_handler(&self) -> Option<LoadHandler> {

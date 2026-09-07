@@ -485,23 +485,24 @@ impl<T: UserEvent> WinitCefApp<T> {
       web_content_process_terminate_handler,
     };
 
-    let mut client = browser_client::TauriCefBrowserClient::new(
-      context.clone(),
-      window_id,
-      webview_id,
-      pending.label.clone(),
-      Some(pending.url.as_str().to_string()),
-      devtools_enabled,
-      drag_drop_event_target,
-      drag_drop_handler_enabled,
-      drag_drop_state,
-      frame_navigation_state.clone(),
-      Arc::downgrade(&popup_family),
-      None,
-      handlers,
-      context.proxy.clone(),
-      context.sender.clone(),
-    );
+    let mut client =
+      browser_client::TauriCefBrowserClient::build(browser_client::TauriCefBrowserClientArgs {
+        context: context.clone(),
+        window_id,
+        webview_id,
+        label: pending.label.clone(),
+        initial_url: Some(pending.url.as_str().to_string()),
+        devtools_enabled,
+        drag_drop_event_target,
+        drag_drop_handler_enabled,
+        drag_drop_state,
+        frame_navigation_state: frame_navigation_state.clone(),
+        popup_family: Arc::downgrade(&popup_family),
+        opener: None,
+        handlers,
+        proxy: context.proxy.clone(),
+        sender: context.sender.clone(),
+      });
 
     // If the bounds are not specified, default to the parent window's size and position.
     // aka full-window webview.

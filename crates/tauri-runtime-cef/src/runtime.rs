@@ -154,12 +154,21 @@ pub struct Cef {
   allow_chromium_command_line_args: bool,
   log_file: Option<PathBuf>,
   log_severity: Option<LogSeverity>,
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  linux_sandbox: crate::sandbox::LinuxSandboxPolicy,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
 impl fmt::Debug for Cef {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Cef")
+    let mut debug = f.debug_struct("Cef");
+    debug
       .field("command_line_args", &self.command_line_args)
       .field("deep_link_schemes", &self.deep_link_schemes)
       .field("cache_path", &self.cache_path)
@@ -170,7 +179,16 @@ impl fmt::Debug for Cef {
         &self.allow_chromium_command_line_args,
       )
       .field("log_file", &self.log_file)
-      .field("log_severity", &self.log_severity)
+      .field("log_severity", &self.log_severity);
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    debug.field("linux_sandbox", &self.linux_sandbox);
+    debug
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -320,6 +338,29 @@ impl Cef {
   #[must_use]
   pub fn log_severity(mut self, severity: LogSeverity) -> Self {
     self.log_severity = Some(severity);
+    self
+  }
+
+  /// What to do with Chromium's sandbox on Linux and the BSDs.
+  ///
+  /// Defaults to [`LinuxSandboxPolicy::Auto`], which keeps the sandbox on except when
+  /// the application runs from an AppImage on a system that offers no way to sandbox at
+  /// all — AppImages cannot ship the setuid `chrome-sandbox` helper the deb and rpm
+  /// bundlers install, and distributions such as Ubuntu 23.10 and later restrict the
+  /// unprivileged user namespaces Chromium would otherwise fall back to. Without the
+  /// escape hatch Chromium aborts at startup with "No usable sandbox!".
+  ///
+  /// See [`LinuxSandboxPolicy`] for the other variants.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  #[must_use]
+  pub fn linux_sandbox(mut self, policy: crate::sandbox::LinuxSandboxPolicy) -> Self {
+    self.linux_sandbox = policy;
     self
   }
 }
@@ -1766,6 +1807,14 @@ impl<T: UserEvent> CefRuntime<T> {
       allow_chromium_command_line_args,
       log_file,
       log_severity,
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      linux_sandbox,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
@@ -1808,6 +1857,19 @@ impl<T: UserEvent> CefRuntime<T> {
       };
       if basic_password_store {
         browser_command_line_args.push(("password-store".to_string(), Some("basic".to_string())));
+      }
+
+      // Chromium aborts with "No usable sandbox!" when its zygote host finds neither
+      // usable unprivileged user namespaces nor the setuid `chrome-sandbox` helper, so
+      // an AppImage on a system that restricts namespaces cannot start at all.
+      if let crate::sandbox::SandboxDecision::Disable(reason) =
+        crate::sandbox::resolve_sandbox_decision(linux_sandbox)
+      {
+        log::warn!(
+          "running Chromium without a sandbox: {}. A compromised renderer process runs with the full privileges of the current user.",
+          reason.message()
+        );
+        browser_command_line_args.push(("--no-sandbox".to_string(), None));
       }
     }
     // Windows encrypts with DPAPI, which needs no switch and prompts for nothing.

@@ -5342,7 +5342,7 @@ You may have it installed on another user account, but it is not available for t
     // one keypress, and the toggle would close the window the accelerator just opened.
     if devtools {
       webview_builder = webview_builder.with_initialization_script_for_main_only(
-        &tauri_runtime::webview::devtools_shortcut_script(),
+        tauri_runtime::webview::devtools_shortcut_script(),
         true,
       );
     }

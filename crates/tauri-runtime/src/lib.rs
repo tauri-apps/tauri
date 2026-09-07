@@ -369,10 +369,20 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// See [Runtime::set_device_event_filter] for details.
   fn set_device_event_filter(&self, filter: DeviceEventFilter);
 
-  /// Returns the URL for a custom scheme.
-  ///
-  /// The URL format depends on the runtime and platform,
+  /// Returns the URL a custom scheme is served from,
   /// e.g. `tauri://localhost` or `http://tauri.localhost`.
+  ///
+  /// The format is entirely up to the runtime. Tauri never assumes a particular scheme or host
+  /// layout: every custom protocol URL it builds or compares against goes through this function,
+  /// and the asset path of an incoming custom protocol request is always taken from its URI path.
+  ///
+  /// `scheme` is usually a registered protocol name such as `tauri`, `ipc` or `asset`, but it can
+  /// also be the literal placeholder `{protocol}`, which Tauri uses to build the URL template
+  /// injected into the webview (the frontend expands it in `convertFileSrc`). Implementations must
+  /// therefore interpolate `scheme` verbatim, without validating, escaping or normalizing it.
+  ///
+  /// `https` reflects [`crate::webview::WebviewAttributes::use_https_scheme`]; runtimes that do not
+  /// serve custom protocols over `http(s)` can ignore it.
   fn custom_scheme_url(&self, scheme: &str, https: bool) -> String;
 
   /// Returns the version of the underlying webview engine.

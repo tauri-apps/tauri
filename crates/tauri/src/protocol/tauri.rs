@@ -161,27 +161,21 @@ async fn get_response<R: Runtime>(
   } = context;
 
   let proxy_dev_server = PROXY_DEV_SERVER && manager.assets.iter().next().is_none();
-  // use the entire URI as we are going to proxy the request
+  // the custom scheme URL format is defined by the runtime (see [`tauri_runtime::RuntimeHandle::custom_scheme_url`]),
+  // so we must not assume any particular scheme/host layout here: the asset path is always the URI path,
+  // no matter whether the request arrived as `tauri://localhost/index.html`, `http://tauri.localhost/index.html`
+  // or any other format the runtime defines.
   let path = if proxy_dev_server {
-    request.uri().to_string()
-  } else {
-    // ignore query string and fragment
+    // keep the query string as we are going to proxy the request
     request
       .uri()
-      .to_string()
-      .split(&['?', '#'])
-      .next()
-      .unwrap()
-      .into()
+      .path_and_query()
+      .map(|p| p.as_str().to_string())
+      .unwrap_or_default()
+  } else {
+    // ignore query string and fragment
+    request.uri().path().to_string()
   };
-
-  let path = path
-    .strip_prefix(window_origin)
-    // wry always sends us <scheme>://localhost format for custom protocols
-    // even when it is actually http://<scheme>.localhost
-    .or_else(|| path.strip_prefix("tauri://localhost"))
-    .map(|p| p.to_string())
-    .unwrap_or_default();
 
   #[allow(unused_mut)]
   let mut builder = HttpResponse::builder()

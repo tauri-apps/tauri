@@ -11,7 +11,7 @@ name = "api_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { path = "../../../crates/tauri-build", features = [
+tauri-build = { workspace = true, default-features = true, features = [
   "codegen",
   "isolation",
 ] }
@@ -29,7 +29,8 @@ tauri-plugin-log = "2"
 tauri-plugin-automation = "0.1"
 
 [dependencies.tauri]
-path = "../../../crates/tauri"
+workspace = true
+default-features = true
 features = [
   "protocol-asset",
   "image-ico",
@@ -40,7 +41,7 @@ features = [
 ]
 
 [dev-dependencies.tauri]
-path = "../../../crates/tauri"
+workspace = true
 features = ["test"]
 
 [features]

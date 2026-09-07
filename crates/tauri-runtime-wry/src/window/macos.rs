@@ -24,16 +24,16 @@ impl super::WindowExt for tao::window::Window {
           false,
         )
       };
-      unsafe { sheet.setAlphaValue(0.5) };
-      unsafe { ns_window.beginSheet_completionHandler(&sheet, None) };
-    } else if let Some(attached) = unsafe { ns_window.attachedSheet() } {
-      unsafe { ns_window.endSheet(&attached) };
+      sheet.setAlphaValue(0.5);
+      ns_window.beginSheet_completionHandler(&sheet, None);
+    } else if let Some(attached) = ns_window.attachedSheet() {
+      ns_window.endSheet(&attached);
     }
   }
 
   fn is_enabled(&self) -> bool {
     let ns_window: &NSWindow = unsafe { &*self.ns_window().cast() };
-    unsafe { ns_window.attachedSheet() }.is_none()
+    ns_window.attachedSheet().is_none()
   }
 
   fn center(&self) {

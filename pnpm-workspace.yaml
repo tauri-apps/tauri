@@ -28,8 +28,5 @@ overrides:
   brace-expansion@>=2.0.0 <2.1.2: ^2.1.2
   brace-expansion@>=3.0.0 <5.0.7: ^5.0.7
   esbuild@>=0.27.3 <0.28.1: '>=0.28.1'
-  fast-xml-parser@>=5.9.3 <5.10.1: ^5.10.1
-  js-yaml@>=4.0.0 <4.3.0: ^4.3.0
-  serialize-javascript@<7.0.5: ^7.0.5
-  sharp@<0.35.0: ^0.35.0
+  undici@>=7.0.0 <7.29.0: ^7.29.0
   ws@>=8.0.0 <8.20.1: '>=8.20.1'

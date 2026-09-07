@@ -39,16 +39,15 @@ object PermissionHelper {
    * @return True if the permission has been defined in the Manifest, false if not.
    */
   fun hasDefinedPermission(context: Context, permission: String): Boolean {
-    var hasPermission = false
     val requestedPermissions = getManifestPermissions(context)
-    if (requestedPermissions != null && requestedPermissions.isNotEmpty()) {
+    if (!requestedPermissions.isNullOrEmpty()) {
       val requestedPermissionsList = listOf(*requestedPermissions)
       val requestedPermissionsArrayList = ArrayList(requestedPermissionsList)
       if (requestedPermissionsArrayList.contains(permission)) {
-        hasPermission = true
+        return true
       }
     }
-    return hasPermission
+    return false
   }
 
   /**
@@ -58,12 +57,7 @@ object PermissionHelper {
    * @return true only if all permissions are defined in the AndroidManifest.xml
    */
   fun hasDefinedPermissions(context: Context, permissions: Array<String>): Boolean {
-    for (permission in permissions) {
-      if (!hasDefinedPermission(context, permission)) {
-        return false
-      }
-    }
-    return true
+    return permissions.all { hasDefinedPermission(context, it) }
   }
 
   /**
@@ -96,9 +90,9 @@ object PermissionHelper {
    * @return The permissions not present in AndroidManifest.xml
    */
   fun getUndefinedPermissions(context: Context, neededPermissions: Array<String>): Array<String> {
-    val undefinedPermissions = ArrayList<String>()
     val requestedPermissions = getManifestPermissions(context)
     if (!requestedPermissions.isNullOrEmpty()) {
+      val undefinedPermissions = ArrayList<String>()
       val requestedPermissionsList = listOf(*requestedPermissions)
       val requestedPermissionsArrayList = ArrayList(requestedPermissionsList)
       for (permission in neededPermissions) {

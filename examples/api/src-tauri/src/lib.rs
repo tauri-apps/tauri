@@ -139,7 +139,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         ));
       }
 
-      let webview = window_builder.build()?;
+      let _webview = window_builder.build()?;
 
       let value = Some("test".to_string());
       let response = app.sample().ping(PingRequest {

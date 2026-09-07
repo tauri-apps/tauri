@@ -1,0 +1,5 @@
+---
+'tauri-runtime-cef': 'patch:enhance'
+---
+
+Chrome's accelerator table no longer fires commands that have no meaning in an app window. A Chrome style browser keeps the whole table live even when it is hosted as a child view with no browser UI, so Ctrl+N used to open a real Chrome window beside the app's, Ctrl+Shift+N an incognito one, Ctrl+T a tab in a window the app does not own, and Ctrl+H, Ctrl+J, Ctrl+P, Ctrl+S, Ctrl+O, Ctrl+L and friends used to replace the app's own UI with Chrome's history, downloads, settings or bookmark pages or raise OS dialogs the app never asked for. Those commands, along with the tab-strip and view-source ones, are now swallowed; DevTools commands are swallowed only when the webview disabled devtools, and the zoom in, zoom out and zoom reset commands only when it set `zoom_hotkeys_enabled` to false, which this runtime previously ignored. Clipboard, find in page, text selection, undo and redo, fullscreen and history navigation are untouched, and `WebviewDispatch::print` and `set_zoom` still work on the application's own request.

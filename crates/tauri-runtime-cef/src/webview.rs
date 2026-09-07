@@ -162,10 +162,11 @@ fn color_to_argb(color: Color) -> u32 {
 ///   support in the Chrome runtime.
 /// - `data_store_identifier`: a WKWebView data-store concept with no CEF analog
 ///   (per-webview isolation is done through the request context cache path).
-/// - `zoom_hotkeys_enabled`: handled by Chromium's accelerator table, not a
-///   browser setting.
 ///
-/// `proxy_url` is handled separately via the request context preference.
+/// `proxy_url` is handled separately via the request context preference, and
+/// `zoom_hotkeys_enabled` through the client's command handler, because zoom
+/// reaches a browser through Chromium's accelerator table rather than through a
+/// browser setting.
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
 ) -> cef::BrowserSettings {
@@ -184,6 +185,13 @@ fn browser_settings_from_webview_attributes(
       .background_color
       .map(color_to_argb)
       .unwrap_or(0),
+    // Browser chrome a Tauri window has no business showing: the status bubble
+    // is the link target that slides in over the bottom-left of the page on
+    // hover, and the zoom bubble the popup Chrome anchors to its (absent)
+    // toolbar on Ctrl+Plus. Both draw over the app's own UI, neither is
+    // something the app asked for, and both are ignored under Alloy style.
+    chrome_status_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
+    chrome_zoom_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
     ..Default::default()
   }
 }
@@ -217,6 +225,75 @@ pub enum DevToolsProtocol {
 }
 
 pub(crate) type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;
+
+/// One message a renderer wrote to the JavaScript console.
+///
+/// Reported synchronously on CEF's UI thread, before CEF logs it as it normally
+/// would; observing a message neither suppresses that logging nor changes what
+/// DevTools shows.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct ConsoleMessage {
+  /// How severe the renderer considers the message.
+  pub level: ConsoleMessageLevel,
+  /// The message text, already formatted by the renderer the way DevTools shows
+  /// it.
+  pub message: String,
+  /// What wrote the message — a script URL, usually. Empty when CEF names none.
+  pub source: String,
+  /// The 1-based line in `source`. Zero when CEF names none.
+  pub line: i32,
+}
+
+/// The severity of a [`ConsoleMessage`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ConsoleMessageLevel {
+  /// `console.debug`.
+  Verbose,
+  /// `console.log` and `console.info`. Also CEF's default severity, which it
+  /// documents as INFO.
+  Info,
+  /// `console.warn`.
+  Warning,
+  /// `console.error`, and messages the renderer itself reports as errors, such as
+  /// an uncaught exception or a blocked subresource.
+  Error,
+  /// A fatal log severity. No console API produces one.
+  Fatal,
+  /// A severity this build of the runtime does not name.
+  Other,
+}
+
+/// Synchronous observer of renderer console output.
+pub type ConsoleMessageHandler = dyn Fn(ConsoleMessage) + Send + Sync + 'static;
+
+impl ConsoleMessage {
+  pub(crate) fn from_cef(
+    level: cef::LogSeverity,
+    message: Option<&CefString>,
+    source: Option<&CefString>,
+    line: i32,
+  ) -> Self {
+    use cef::sys::cef_log_severity_t;
+
+    Self {
+      level: match cef_log_severity_t::from(level) {
+        cef_log_severity_t::LOGSEVERITY_VERBOSE => ConsoleMessageLevel::Verbose,
+        cef_log_severity_t::LOGSEVERITY_DEFAULT | cef_log_severity_t::LOGSEVERITY_INFO => {
+          ConsoleMessageLevel::Info
+        }
+        cef_log_severity_t::LOGSEVERITY_WARNING => ConsoleMessageLevel::Warning,
+        cef_log_severity_t::LOGSEVERITY_ERROR => ConsoleMessageLevel::Error,
+        cef_log_severity_t::LOGSEVERITY_FATAL => ConsoleMessageLevel::Fatal,
+        _ => ConsoleMessageLevel::Other,
+      },
+      message: message.map(ToString::to_string).unwrap_or_default(),
+      source: source.map(ToString::to_string).unwrap_or_default(),
+      line,
+    }
+  }
+}
 pub(crate) type WebviewEventHandler = Box<dyn Fn(&WebviewEvent) + Send>;
 pub(crate) type WebviewEventListeners = Arc<Mutex<HashMap<WebviewEventId, WebviewEventHandler>>>;
 
@@ -446,6 +523,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       pending.document_title_changed_handler.take().map(Arc::from);
     let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
       && pending.webview_attributes.devtools.unwrap_or(true);
+    let zoom_hotkeys_enabled = pending.webview_attributes.zoom_hotkeys_enabled;
     let drag_drop_handler_enabled = pending.webview_attributes.drag_drop_handler_enabled;
     let drag_drop_state = Arc::new(Mutex::new(browser_client::DragDropState::default()));
     let web_content_process_terminate_handler = pending
@@ -482,6 +560,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       navigation_handler: pending.navigation_handler.map(Arc::from),
       new_window_handler: pending.new_window_handler.map(Arc::from),
       download_handler: pending.download_handler.take(),
+      console_message_handler: pending
+        .runtime_specific_attributes
+        .console_message_handler
+        .clone(),
+      permission_request_handler: pending.permission_request_handler.take().map(Arc::from),
       web_content_process_terminate_handler,
     };
 
@@ -493,6 +576,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         label: pending.label.clone(),
         initial_url: Some(pending.url.as_str().to_string()),
         devtools_enabled,
+        zoom_hotkeys_enabled,
         drag_drop_event_target,
         drag_drop_handler_enabled,
         drag_drop_state,
@@ -996,6 +1080,12 @@ pub struct CefWebviewAttributes {
   /// [`FrameNavigationState`](crate::FrameNavigationState) follows a popup's
   /// native lifecycle without exposing its URLs.
   pub frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
+  /// Observer of the messages the renderer writes to the JavaScript console.
+  ///
+  /// Scoped to this webview's own native browser. A CEF-owned popup is a separate
+  /// browser running its own scripts, and so is a DevTools window opened on this
+  /// webview, so neither one's console output is reported here.
+  pub console_message_handler: Option<Arc<ConsoleMessageHandler>>,
 }
 
 impl std::fmt::Debug for CefWebviewAttributes {
@@ -1004,6 +1094,10 @@ impl std::fmt::Debug for CefWebviewAttributes {
       .debug_struct("CefWebviewAttributes")
       .field("runtime_style", &self.runtime_style)
       .field("frame_event_handler", &self.frame_event_handler.is_some())
+      .field(
+        "console_message_handler",
+        &self.console_message_handler.is_some(),
+      )
       .finish()
   }
 }

@@ -14,8 +14,8 @@ use tauri::{EventLoopMessage, Manager, Runtime, Webview, WebviewWindow};
 use tauri_runtime::dynamic::{DynWebviewAttributes, DynWebviewDispatcher, DynWindowOpener};
 
 use crate::{
-  CefWebviewAttributes, CefWebviewDispatcher, DevToolsProtocol, FrameEvent, NewWindowOpener,
-  RuntimeStyle,
+  CefWebviewAttributes, CefWebviewDispatcher, ConsoleMessage, DevToolsProtocol, FrameEvent,
+  NewWindowOpener, RuntimeStyle,
 };
 
 type Result<T> = std::result::Result<T, tauri::Error>;
@@ -282,6 +282,18 @@ pub trait WebviewWindowBuilderCefExt {
   /// through [`Webview::popups`](crate::Webview::popups).
   #[must_use]
   fn on_frame_event<F: Fn(FrameEvent) + Send + Sync + 'static>(self, handler: F) -> Self;
+
+  /// Observes the messages the renderer writes to the JavaScript console,
+  /// without DevTools having to be open.
+  ///
+  /// The callback runs synchronously on CEF's UI thread. It must return
+  /// promptly and must not wait for an event-loop operation. Observing a
+  /// message does not suppress it: CEF logs it as it normally would.
+  /// It is scoped to this webview's own native browser, so a CEF-owned popup
+  /// is a separate browser that is never reported here, and neither is a
+  /// DevTools window opened on this webview.
+  #[must_use]
+  fn on_console_message<F: Fn(ConsoleMessage) + Send + Sync + 'static>(self, handler: F) -> Self;
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilderCefExt
@@ -300,6 +312,17 @@ where
     let handler = Arc::new(handler);
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.frame_event_handler = Some(handler);
+    });
+    self
+  }
+
+  fn on_console_message<F: Fn(ConsoleMessage) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    let handler = Arc::new(handler);
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.console_message_handler = Some(handler);
     });
     self
   }
@@ -324,6 +347,18 @@ pub trait WebviewBuilderCefExt {
   /// through [`Webview::popups`](crate::Webview::popups).
   #[must_use]
   fn on_frame_event<F: Fn(FrameEvent) + Send + Sync + 'static>(self, handler: F) -> Self;
+
+  /// Observes the messages the renderer writes to the JavaScript console,
+  /// without DevTools having to be open.
+  ///
+  /// The callback runs synchronously on CEF's UI thread. It must return
+  /// promptly and must not wait for an event-loop operation. Observing a
+  /// message does not suppress it: CEF logs it as it normally would.
+  /// It is scoped to this webview's own native browser, so a CEF-owned popup
+  /// is a separate browser that is never reported here, and neither is a
+  /// DevTools window opened on this webview.
+  #[must_use]
+  fn on_console_message<F: Fn(ConsoleMessage) + Send + Sync + 'static>(self, handler: F) -> Self;
 }
 
 #[cfg(feature = "unstable")]
@@ -342,6 +377,17 @@ where
     let handler = Arc::new(handler);
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.frame_event_handler = Some(handler);
+    });
+    self
+  }
+
+  fn on_console_message<F: Fn(ConsoleMessage) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    let handler = Arc::new(handler);
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.console_message_handler = Some(handler);
     });
     self
   }

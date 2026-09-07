@@ -162,10 +162,11 @@ fn color_to_argb(color: Color) -> u32 {
 ///   support in the Chrome runtime.
 /// - `data_store_identifier`: a WKWebView data-store concept with no CEF analog
 ///   (per-webview isolation is done through the request context cache path).
-/// - `zoom_hotkeys_enabled`: handled by Chromium's accelerator table, not a
-///   browser setting.
 ///
-/// `proxy_url` is handled separately via the request context preference.
+/// `proxy_url` is handled separately via the request context preference, and
+/// `zoom_hotkeys_enabled` through the client's command handler, because zoom
+/// reaches a browser through Chromium's accelerator table rather than through a
+/// browser setting.
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
 ) -> cef::BrowserSettings {
@@ -184,6 +185,13 @@ fn browser_settings_from_webview_attributes(
       .background_color
       .map(color_to_argb)
       .unwrap_or(0),
+    // Browser chrome a Tauri window has no business showing: the status bubble
+    // is the link target that slides in over the bottom-left of the page on
+    // hover, and the zoom bubble the popup Chrome anchors to its (absent)
+    // toolbar on Ctrl+Plus. Both draw over the app's own UI, neither is
+    // something the app asked for, and both are ignored under Alloy style.
+    chrome_status_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
+    chrome_zoom_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
     ..Default::default()
   }
 }

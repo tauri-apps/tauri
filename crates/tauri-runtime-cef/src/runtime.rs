@@ -152,6 +152,8 @@ pub struct Cef {
   api_version: Option<i32>,
   secret_storage: SecretStorage,
   allow_chromium_command_line_args: bool,
+  log_file: Option<PathBuf>,
+  log_severity: Option<LogSeverity>,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
@@ -167,6 +169,8 @@ impl fmt::Debug for Cef {
         "allow_chromium_command_line_args",
         &self.allow_chromium_command_line_args,
       )
+      .field("log_file", &self.log_file)
+      .field("log_severity", &self.log_severity)
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -289,6 +293,33 @@ impl Cef {
   #[must_use]
   pub fn allow_chromium_command_line_args(mut self, allow: bool) -> Self {
     self.allow_chromium_command_line_args = allow;
+    self
+  }
+
+  /// File Chromium and CEF write their log to (`Settings::log_file`).
+  ///
+  /// Defaults to `cef.log` inside the cache directory (see [`Self::root_cache_path`]).
+  /// Chromium falls back to a `debug.log` in the *process working directory* when no log
+  /// file is configured, which for an installed application is wherever the user
+  /// happened to launch it from — a read-only directory, or one the user did not expect
+  /// a file to appear in.
+  #[must_use]
+  pub fn log_file<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
+    self.log_file = Some(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// Lowest severity Chromium and CEF write to the log file (`Settings::log_severity`).
+  ///
+  /// Defaults to [`cef::LogSeverity::WARNING`] in release builds — CEF's own default is
+  /// `INFO`, which is chatty enough to grow the log file of a long-running application —
+  /// and to [`cef::LogSeverity::DEFAULT`] in development builds (`tauri::is_dev()`),
+  /// where the informational messages are usually what you want.
+  ///
+  /// Use [`cef::LogSeverity::DISABLE`] to turn logging off entirely.
+  #[must_use]
+  pub fn log_severity(mut self, severity: LogSeverity) -> Self {
+    self.log_severity = Some(severity);
     self
   }
 }
@@ -1733,6 +1764,8 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_path: cache_path_override,
       secret_storage,
       allow_chromium_command_line_args,
+      log_file,
+      log_severity,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
@@ -1871,10 +1904,23 @@ impl<T: UserEvent> CefRuntime<T> {
     let command_line_args_disabled =
       !(allow_chromium_command_line_args || tauri::is_dev()) as std::os::raw::c_int;
 
+    // Chromium drops a `debug.log` into the *process working directory* when no log file
+    // is configured, which for an installed application is wherever the user launched it
+    // from. Keep it next to the rest of the runtime's state instead.
+    let log_file = log_file.unwrap_or_else(|| cache_path.join("cef.log"));
+    // CEF logs at INFO by default, which grows that file quickly in a long-running app.
+    let log_severity = log_severity.unwrap_or(if tauri::is_dev() {
+      LogSeverity::DEFAULT
+    } else {
+      LogSeverity::WARNING
+    });
+
     let mut settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       command_line_args_disabled,
+      log_file: log_file.to_string_lossy().to_string().as_str().into(),
+      log_severity,
       external_message_pump: 1,
       ..Default::default()
     };

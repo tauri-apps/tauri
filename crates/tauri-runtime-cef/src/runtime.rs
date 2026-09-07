@@ -80,6 +80,61 @@ type SettingsCallback = dyn FnOnce(&mut cef::Settings) + Send + Sync;
 /// in minor releases when a known breaking change is discovered.
 pub use cef;
 
+/// Which key Chromium uses to encrypt the little it stores encrypted.
+///
+/// Chromium's `os_crypt` layer encrypts **cookies and saved passwords** only. Every
+/// other piece of web storage — `localStorage`, IndexedDB, Cache Storage, service worker
+/// registrations — is written to the cache directory unencrypted whichever variant you
+/// pick here, exactly as it is under wry's WebKitGTK and WebView2 backends. So this
+/// setting decides how a cookie jar is protected at rest, and nothing else.
+///
+/// The default, [`SecretStorage::Auto`], keeps the OS secret store in release builds and
+/// avoids it during development, where it is a recurring annoyance:
+///
+/// - on macOS, `os_crypt` stores a random key in a shared "Chromium Safe Storage"
+///   keychain item whose ACL is bound to the code signature of the process that reads
+///   it. Ad-hoc-signed development builds get a new signature on every rebuild, so macOS
+///   puts up the keychain password prompt again after every `cargo build`.
+/// - on Linux, `os_crypt` asks the D-Bus secret portal, libsecret or KWallet for the
+///   key, which pops a keyring-unlock dialog the first time an app runs and fails
+///   outright in a headless session or a container with no keyring at all.
+///
+/// # Security
+///
+/// The mock keychain (`--use-mock-keychain`) and the Linux `basic` password store do not
+/// derive a secret key: they encrypt with a key derived from a **hard-coded constant**
+/// compiled into Chromium (`mock_password` and `peanuts` respectively). Both constants
+/// are public, so cookies encrypted with them have **no meaningful protection at rest** —
+/// anyone who can read the cache directory can decrypt them. That is the same guarantee
+/// wry gives on Linux today, where WebKitGTK stores cookies in plain text.
+///
+/// # Switching modes invalidates stored cookies
+///
+/// Cookies encrypted with one key cannot be read back with another, and development and
+/// release builds share the same default cache directory
+/// (`{user cache}/{identifier}/cef`). Moving an app between [`SecretStorage::Mock`] and
+/// [`SecretStorage::System`] — including the implicit move [`SecretStorage::Auto`] makes
+/// when a dev build is followed by a release build — therefore drops the cookies stored
+/// under the previous key, logging users out. Set [`Cef::root_cache_path`] to separate
+/// the two if that matters.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum SecretStorage {
+  /// macOS uses the mock keychain in development (`tauri::is_dev()`) and the system
+  /// keychain in release builds; Linux always skips the secret stores and uses the
+  /// `basic` password store; Windows is untouched and keeps using DPAPI.
+  #[default]
+  Auto,
+  /// Always encrypt with Chromium's hard-coded constant: `--use-mock-keychain` on macOS,
+  /// `--password-store=basic` on Linux. Windows is untouched and keeps using DPAPI.
+  ///
+  /// Read the security note on [`SecretStorage`] before shipping this in a release
+  /// build: the key is a public constant, so the cookie jar is effectively unprotected.
+  Mock,
+  /// Always use the operating system secret store, on every platform and in every build
+  /// profile. Appends no switch at all.
+  System,
+}
+
 /// Selects and configures the CEF runtime.
 ///
 /// Pass it to `tauri::Builder::runtime` to run the application with CEF:
@@ -95,6 +150,7 @@ pub struct Cef {
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
+  secret_storage: SecretStorage,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
@@ -105,6 +161,7 @@ impl fmt::Debug for Cef {
       .field("deep_link_schemes", &self.deep_link_schemes)
       .field("cache_path", &self.cache_path)
       .field("api_version", &self.api_version)
+      .field("secret_storage", &self.secret_storage)
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -183,6 +240,24 @@ impl Cef {
   #[must_use]
   pub fn cef_api_version(mut self, version: i32) -> Self {
     self.api_version = Some(version);
+    self
+  }
+
+  /// Which key Chromium uses to encrypt cookies and saved passwords at rest.
+  ///
+  /// Defaults to [`SecretStorage::Auto`]: the macOS keychain prompt is replaced by a
+  /// mock keychain during development, Linux always skips the D-Bus secret portal,
+  /// libsecret and KWallet, and Windows keeps using DPAPI.
+  ///
+  /// Nothing but cookies and saved passwords is affected — `localStorage` and IndexedDB
+  /// are stored unencrypted whichever variant you choose. The mock keychain and the
+  /// Linux `basic` store encrypt with a hard-coded, publicly known constant, so they
+  /// offer no meaningful protection at rest; and because development and release builds
+  /// share the default cache directory, switching between key sources makes previously
+  /// stored cookies unreadable. See [`SecretStorage`] for the details.
+  #[must_use]
+  pub fn secret_storage(mut self, storage: SecretStorage) -> Self {
+    self.secret_storage = storage;
     self
   }
 }
@@ -1625,6 +1700,7 @@ impl<T: UserEvent> CefRuntime<T> {
       command_line_args,
       deep_link_schemes,
       cache_path: cache_path_override,
+      secret_storage,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
@@ -1634,7 +1710,44 @@ impl<T: UserEvent> CefRuntime<T> {
     // `TauriCefApp` fields for why the split exists.
     #[allow(unused_mut)]
     let mut internal_command_line_args: Vec<(String, Option<String>)> = Vec::new();
+    #[allow(unused_mut)]
     let mut browser_command_line_args: Vec<(String, Option<String>)> = Vec::new();
+
+    // `os_crypt` only ever runs in the browser process, so these are browser-only
+    // switches. See `SecretStorage` for what each one costs.
+    #[cfg(target_os = "macos")]
+    {
+      let mock_keychain = match secret_storage {
+        SecretStorage::Auto => tauri::is_dev(),
+        SecretStorage::Mock => true,
+        SecretStorage::System => false,
+      };
+      if mock_keychain {
+        browser_command_line_args.push(("--use-mock-keychain".to_string(), None));
+      }
+    }
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      // `basic` skips the D-Bus secret portal, libsecret and KWallet key providers, any
+      // of which can block startup on a keyring-unlock dialog or fail outright in a
+      // headless session.
+      let basic_password_store = match secret_storage {
+        SecretStorage::Auto | SecretStorage::Mock => true,
+        SecretStorage::System => false,
+      };
+      if basic_password_store {
+        browser_command_line_args.push(("password-store".to_string(), Some("basic".to_string())));
+      }
+    }
+    // Windows encrypts with DPAPI, which needs no switch and prompts for nothing.
+    #[cfg(windows)]
+    let _ = secret_storage;
 
     let cache_path = cache_path_override.unwrap_or_else(|| {
       let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);

@@ -32,130 +32,6 @@ const DESKTOP_CAPTURE: u32 = DESKTOP_AUDIO_CAPTURE | DESKTOP_VIDEO_CAPTURE;
 /// deliberately excluded.
 const ALLOY_MEDIA_PERMISSIONS: u32 = AUDIO_CAPTURE | VIDEO_CAPTURE;
 
-/// The content setting that records each permission request type.
-///
-/// Kept in sync with Chromium's `permissions::RequestTypeToContentSettingsType`, which
-/// is what `cef_permission_request_types_t` mirrors. Request types with no content
-/// setting of their own are absent and are simply not recorded.
-const PERMISSION_CONTENT_SETTINGS: &[(u32, ContentSettingTypes)] = &[
-  (
-    PermissionType::CEF_PERMISSION_TYPE_AR_SESSION as u32,
-    ContentSettingTypes::AR,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_CAMERA_PAN_TILT_ZOOM as u32,
-    ContentSettingTypes::CAMERA_PAN_TILT_ZOOM,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_CAMERA_STREAM as u32,
-    ContentSettingTypes::MEDIASTREAM_CAMERA,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_CAPTURED_SURFACE_CONTROL as u32,
-    ContentSettingTypes::CAPTURED_SURFACE_CONTROL,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_CLIPBOARD as u32,
-    ContentSettingTypes::CLIPBOARD_READ_WRITE,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_TOP_LEVEL_STORAGE_ACCESS as u32,
-    ContentSettingTypes::TOP_LEVEL_STORAGE_ACCESS,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_DISK_QUOTA as u32,
-    ContentSettingTypes::PERSISTENT_STORAGE,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_LOCAL_FONTS as u32,
-    ContentSettingTypes::LOCAL_FONTS,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_GEOLOCATION as u32,
-    ContentSettingTypes::GEOLOCATION,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_HAND_TRACKING as u32,
-    ContentSettingTypes::HAND_TRACKING,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_IDENTITY_PROVIDER as u32,
-    ContentSettingTypes::FEDERATED_IDENTITY_API,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_IDLE_DETECTION as u32,
-    ContentSettingTypes::IDLE_DETECTION,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_MIC_STREAM as u32,
-    ContentSettingTypes::MEDIASTREAM_MIC,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_MIDI_SYSEX as u32,
-    ContentSettingTypes::MIDI_SYSEX,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_MULTIPLE_DOWNLOADS as u32,
-    ContentSettingTypes::AUTOMATIC_DOWNLOADS,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_NOTIFICATIONS as u32,
-    ContentSettingTypes::NOTIFICATIONS,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_KEYBOARD_LOCK as u32,
-    ContentSettingTypes::KEYBOARD_LOCK,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_POINTER_LOCK as u32,
-    ContentSettingTypes::POINTER_LOCK,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_PROTECTED_MEDIA_IDENTIFIER as u32,
-    ContentSettingTypes::PROTECTED_MEDIA_IDENTIFIER,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_REGISTER_PROTOCOL_HANDLER as u32,
-    ContentSettingTypes::PROTOCOL_HANDLERS,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_STORAGE_ACCESS as u32,
-    ContentSettingTypes::STORAGE_ACCESS,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_VR_SESSION as u32,
-    ContentSettingTypes::VR,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_WEB_APP_INSTALLATION as u32,
-    ContentSettingTypes::WEB_APP_INSTALLATION,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_WINDOW_MANAGEMENT as u32,
-    ContentSettingTypes::WINDOW_MANAGEMENT,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_FILE_SYSTEM_ACCESS as u32,
-    ContentSettingTypes::FILE_SYSTEM_WRITE_GUARD,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_LOCAL_NETWORK_ACCESS_DEPRECATED as u32,
-    ContentSettingTypes::LOCAL_NETWORK_ACCESS,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_LOCAL_NETWORK as u32,
-    ContentSettingTypes::LOCAL_NETWORK,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_LOOPBACK_NETWORK as u32,
-    ContentSettingTypes::LOOPBACK_NETWORK,
-  ),
-  (
-    PermissionType::CEF_PERMISSION_TYPE_SENSORS as u32,
-    ContentSettingTypes::SENSORS,
-  ),
-];
-
 /// The [`PermissionKind`] the application is asked about for each permission request
 /// type.
 ///
@@ -350,7 +226,7 @@ wrap_permission_handler! {
       &self,
       browser: Option<&mut Browser>,
       _prompt_id: u64,
-      requesting_origin: Option<&CefString>,
+      _requesting_origin: Option<&CefString>,
       requested_permissions: u32,
       callback: Option<&mut PermissionPromptCallback>,
     ) -> ::std::os::raw::c_int {
@@ -370,13 +246,15 @@ wrap_permission_handler! {
           let Some(callback) = callback else {
             return 0;
           };
-          // Record the grant the way Chrome's own prompt would, so that
-          // `navigator.permissions.query()` agrees with it.
-          allow_content_settings(
-            host.as_ref(),
-            requesting_origin,
-            &prompt_content_settings(requested_permissions),
-          );
+          // No content setting is written here. `cont(ACCEPT)` reaches
+          // `PermissionRequestManager::Accept()`, the very path a user's click on
+          // Chrome's Allow button takes, and that path persists the grant itself —
+          // so `navigator.permissions.query()` already agrees with it. Writing one
+          // on top would be duplicative at best and wrong at worst: the write names
+          // no top-level URL, which is a wildcard secondary pattern, and Chromium
+          // scopes a storage-access grant to the (embedded origin, top-level site)
+          // pair. A handler answering `Allow` to a `PermissionKind::Other` request
+          // would have granted that origin storage access on every top-level site.
           callback.cont(PermissionRequestResult::ACCEPT);
           1
         }
@@ -394,12 +272,8 @@ wrap_permission_handler! {
             return 0;
           };
 
-          allow_content_settings(
-            host.as_ref(),
-            requesting_origin,
-            &prompt_content_settings(requested_permissions),
-          );
-
+          // As above: accepting is what persists the grant, and the extra write
+          // would be both redundant and over-broad.
           callback.cont(PermissionRequestResult::ACCEPT);
           1
         }
@@ -496,15 +370,6 @@ fn lookup_permission_kind(table: &[(u32, PermissionKind)], permission: u32) -> P
     .unwrap_or(PermissionKind::Other)
 }
 
-/// The content settings recording a granted permission prompt.
-fn prompt_content_settings(granted: u32) -> Vec<ContentSettingTypes> {
-  PERMISSION_CONTENT_SETTINGS
-    .iter()
-    .filter(|(permission, _)| granted & permission != 0)
-    .map(|(_, setting)| *setting)
-    .collect()
-}
-
 /// The content settings recording granted media capture.
 ///
 /// Desktop capture has none: `getDisplayMedia` is gated by Chromium's source
@@ -534,12 +399,20 @@ fn is_alloy_style(host: Option<&BrowserHost>) -> bool {
   host.is_some_and(|host| host.runtime_style() == RuntimeStyle::ALLOY)
 }
 
-/// Records granted permissions as content settings for `requesting_origin`.
+/// Records granted media capture as content settings for `requesting_origin`.
 ///
-/// Granting through a CEF callback alone is invisible to Chromium's permission layer, so
-/// `navigator.permissions.query()` keeps reporting `prompt` even though the feature
-/// works. Writing the content setting is what Chrome style does when the user accepts
-/// its prompt.
+/// `MediaAccessCallback::cont` grants the stream and nothing else: the grant is
+/// invisible to Chromium's permission layer, so `navigator.permissions.query()`
+/// keeps reporting `prompt` and `enumerateDevices()` keeps returning a redacted
+/// list even though `getUserMedia` works. Writing the content setting is what
+/// Chrome style does when the user accepts its prompt.
+///
+/// The permission *prompt* path needs none of this and must not use it.
+/// `PermissionPromptCallback::cont(ACCEPT)` reaches
+/// `PermissionRequestManager::Accept()`, which persists the grant itself, and the
+/// secondary pattern below is a wildcard — harmless for the two media settings,
+/// which Chromium scopes to the requesting origin alone, but wrong for anything
+/// Chromium scopes to an (origin, top-level site) pair.
 ///
 /// Does nothing when the origin is unknown, because `set_content_setting` with no URL
 /// changes the default for every origin rather than for this one, and nothing when CEF

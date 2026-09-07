@@ -1119,6 +1119,32 @@ pub enum RuntimeStyle {
 /// would silently give any page in the webview — including remote content reached
 /// through a redirect — a full-desktop stream. The picker is the only thing that
 /// can say what is actually shared, so it stays.
+///
+/// # Chrome accelerators an app window does not get
+///
+/// A Chrome style browser keeps its whole accelerator table live even hosted as a
+/// child view with no browser UI, so this runtime swallows the commands that have
+/// no meaning in an app window (new window and tab, the tab strip, history and
+/// downloads and settings, print, save page, view source, the omnibox focus
+/// commands). Two of those exclusions are worth calling out, because they take
+/// away keystrokes users expect:
+///
+/// - **Zoom.** `WebviewAttributes::zoom_hotkeys_enabled` is honored, and it
+///   **defaults to `false`**, so Ctrl+Plus, Ctrl+Minus and Ctrl+0 do not zoom
+///   unless the webview opted in with `.zoom_hotkeys_enabled(true)`. Ctrl+mouse
+///   wheel zoom is unaffected either way: Chromium applies it in the render
+///   widget rather than through the command controller. Note that on Linux and
+///   macOS Tauri injects a JavaScript zoom polyfill when the flag is true, which
+///   coexists with Chrome's own accelerator, so a keyboard zoom steps twice
+///   there. `WebviewDispatch::set_zoom` is untouched.
+///
+/// - **History.** Alt+Left and Alt+Right do not navigate the session history.
+///   The browser is created at an internal placeholder URL and then navigated to
+///   the app's own, so the app's first screen already sits on a second history
+///   entry and going back from it lands on a blank page with no way forward. The
+///   page context menu drops Back and Forward for the same reason.
+///   `WebviewDispatch::go_back` and `go_forward` are untouched, and an app's own
+///   routing is what an app's "back" should mean anyway.
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.

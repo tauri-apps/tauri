@@ -77,6 +77,25 @@ const BROWSER_CHROME_COMMANDS: &[&CStr] = &[
   cef::resources::IDC_SHOW_APP_MENU,
 ];
 
+/// Commands that walk the webview's session history.
+///
+/// An app window has no back stack worth exposing. The browser is created at
+/// `INITIAL_LOAD_URL`, an internal placeholder, and only then navigated to the
+/// app's own URL, so the very first screen already sits on a second history
+/// entry. Alt+Left there navigates the
+/// app's UI away to a blank placeholder page, with no way back — the app's own
+/// routing is what an app's "back" means, and it does not live in Chrome's
+/// session history.
+///
+/// This is the same reason `context_menu.rs` removes Back and Forward from the
+/// page context menu; the two lists are meant to agree, because an entry an app
+/// must not offer by right click must not fire from a keystroke either.
+///
+/// An app that does want the session history drives it itself:
+/// `WebviewDispatch::go_back` and `go_forward` call the browser directly and
+/// never reach the accelerator table.
+const HISTORY_COMMANDS: &[&CStr] = &[cef::resources::IDC_BACK, cef::resources::IDC_FORWARD];
+
 /// Commands that open one of Chrome's own profile-wide surfaces.
 ///
 /// History, downloads, bookmarks, settings, the task manager and the rest load
@@ -146,6 +165,7 @@ fn blocked_commands() -> &'static BlockedCommands {
       DOCUMENT_COMMANDS,
       BROWSER_CHROME_COMMANDS,
       BROWSER_SURFACE_COMMANDS,
+      HISTORY_COMMANDS,
     ]),
     devtools: command_ids(&[DEVTOOLS_COMMANDS]),
     zoom: command_ids(&[ZOOM_COMMANDS]),
@@ -206,8 +226,11 @@ wrap_with_args! {
       let commands = blocked_commands();
 
       // Anything not named above runs as it does today. Clipboard, find in page,
-      // text selection, undo and redo, fullscreen and back/forward are all things
-      // an app window legitimately uses, so none of them is listed.
+      // text selection, undo and redo and fullscreen are all things an app window
+      // legitimately uses, so none of them is listed. Reload is not listed either:
+      // the page context menu drops it because a right click is not how an app
+      // offers a reload, but Ctrl+R and F5 on the app's own document are harmless
+      // and are what a developer reaches for.
       let blocked = commands.always.contains(&command_id)
         || (!self.devtools_enabled && commands.devtools.contains(&command_id))
         || (!self.zoom_hotkeys_enabled && commands.zoom.contains(&command_id));

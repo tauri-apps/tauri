@@ -243,9 +243,19 @@ pub(crate) fn activate_application() {
   }
 }
 
+/// Creates the CEF-compatible AppKit application before displaying native startup UI.
+///
+/// Call this on the main thread before any code creates an `NSApplication`, for example
+/// before presenting a recovery dialog. It does not initialize CEF, its event loop, or
+/// a browser profile. Repeated calls, including later runtime initialization, are safe.
+///
+/// # Panics
+///
+/// Panics outside the main thread or if another application class already owns the
+/// AppKit singleton.
 pub fn setup_application() {
-  let _ = CefWinitApplication::shared_application();
   let mtm = MainThreadMarker::new().expect("macOS application must start on the main thread");
+  let _ = CefWinitApplication::shared_application();
   assert!(NSApp(mtm).isKindOfClass(CefWinitApplication::class()));
 }
 

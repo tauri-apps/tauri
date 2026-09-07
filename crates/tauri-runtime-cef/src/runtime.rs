@@ -309,9 +309,14 @@ impl Cef {
   ///
   /// Switches configured through [`Self::command_line_arg`] are unaffected: CEF clears
   /// Chromium's command line before applying its own settings and before calling the
-  /// runtime's `on_before_command_line_processing` hook. Tauri's own CLI and deep link
-  /// argument handling read `std::env::args()`, which Chromium never touches, and are
-  /// unaffected too.
+  /// runtime's `on_before_command_line_processing` hook. Tauri's own CLI parsing and its
+  /// cold-start deep link handling read `std::env::args()`, which Chromium never
+  /// touches, and are unaffected too.
+  ///
+  /// Deep links delivered to an *already running* instance do go through Chromium: its
+  /// process singleton relays the second process's command line, which CEF has by then
+  /// cleared. The runtime restores the deep link URL onto that command line so
+  /// `myapp://...` still reaches the running application either way.
   #[must_use]
   pub fn allow_chromium_command_line_args(mut self, allow: bool) -> Self {
     self.allow_chromium_command_line_args = allow;
@@ -1423,6 +1428,26 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   }
 }
 
+/// Picks the deep link URLs out of a process command line.
+///
+/// An argument qualifies when it parses as a URL whose scheme is one of
+/// `schemes`; scheme matching is the same exact comparison
+/// `BrowserProcessHandler::on_already_running_app_relaunch` performs on the
+/// receiving end. Everything else is dropped: the whole point of
+/// [`Cef::allow_chromium_command_line_args`] being off is that no other argument
+/// survives onto Chromium's command line.
+fn deep_link_arguments<I>(args: I, schemes: &[String]) -> Vec<String>
+where
+  I: IntoIterator<Item = String>,
+{
+  args
+    .into_iter()
+    .filter(|arg| {
+      url::Url::parse(arg).is_ok_and(|url| schemes.iter().any(|scheme| scheme == url.scheme()))
+    })
+    .collect()
+}
+
 /// Appends `args` to `command_line`, as a switch with a value, a bare switch or a
 /// positional argument depending on how each entry looks.
 fn append_command_line_args(command_line: &mut CommandLine, args: &[(String, Option<String>)]) {
@@ -1447,6 +1472,9 @@ wrap_with_args! {
     context: RuntimeContext<T>,
     context_initialized: Arc<AtomicBool>,
     deep_link_schemes: Vec<String>,
+    // Whether the deep link URL this process was launched with has to be put back
+    // onto Chromium's command line. See `on_before_command_line_processing`.
+    restore_deep_link_arguments: bool,
     // Switches this runtime needs on *every* process command line.
     //
     // Deliberately tiny: `cef_app_t::on_before_command_line_processing` warns that
@@ -1491,6 +1519,21 @@ wrap_with_args! {
       // us an empty (or absent) process type for it.
       let is_browser_process = process_type.is_none_or(|ty| ty.to_string().is_empty());
       if is_browser_process {
+        // A second launch of an already-running application is a browser process too,
+        // so `Settings::command_line_args_disabled` clears its command line in
+        // `BasicStartupComplete` - before Chromium's process singleton relays it to the
+        // first instance. `on_already_running_app_relaunch` then receives a command line
+        // with no arguments at all and the `myapp://...` URL is lost, which is why the
+        // deep link has to be put back here, after CEF's clear and before the singleton.
+        //
+        // Only deep links are restored; every other argument stays dropped, which is
+        // the entire point of the lockdown.
+        if self.restore_deep_link_arguments {
+          for deep_link in deep_link_arguments(std::env::args().skip(1), &self.deep_link_schemes) {
+            command_line.append_argument(Some(&CefString::from(deep_link.as_str())));
+          }
+        }
+
         append_command_line_args(command_line, &self.browser_command_line_args);
       }
     }
@@ -1967,10 +2010,27 @@ impl<T: UserEvent> CefRuntime<T> {
     // name: Chromium's command line keeps the last value appended for a given switch.
     browser_command_line_args.extend(command_line_args);
 
+    // Shipped applications ignore Chromium switches passed on their own command line:
+    // otherwise anyone able to launch the app can also launch it with
+    // `--remote-debugging-port` and drive it over the DevTools protocol, or with
+    // `--disable-web-security`, `--proxy-server`, `--host-resolver-rules` or
+    // `--ssl-key-log-file`, all of which Chromium honours. CEF clears the command line
+    // before applying `Settings` and before calling `on_before_command_line_processing`,
+    // so the switches this runtime and the application configure still take effect.
+    //
+    // Tauri's own CLI parsing and its cold-start deep link handling read
+    // `std::env::args()`, which Chromium never touches, so they keep working. The one
+    // thing the clear does break is the *relaunch* deep link path, where Chromium's
+    // process singleton relays this process's command line to the already-running
+    // instance; `TauriCefApp::on_before_command_line_processing` puts the deep link back
+    // for that reason.
+    let command_line_args_disabled = !(allow_chromium_command_line_args || tauri::is_dev());
+
     let mut app = TauriCefApp::build(TauriCefAppArgs {
       context: context.clone(),
       context_initialized: context_initialized.clone(),
       deep_link_schemes,
+      restore_deep_link_arguments: command_line_args_disabled,
       internal_command_line_args,
       browser_command_line_args,
     });
@@ -1987,17 +2047,6 @@ impl<T: UserEvent> CefRuntime<T> {
       "CEF browser process unexpectedly returned from execute_process"
     );
 
-    // Shipped applications ignore Chromium switches passed on their own command line:
-    // otherwise anyone able to launch the app can also launch it with
-    // `--remote-debugging-port` and drive it over the DevTools protocol, or with
-    // `--disable-web-security`, `--proxy-server`, `--host-resolver-rules` or
-    // `--ssl-key-log-file`, all of which Chromium honours. CEF clears the command line
-    // before applying `Settings` and before calling `on_before_command_line_processing`,
-    // so the switches this runtime and the application configure still take effect, and
-    // `std::env::args()` is untouched so Tauri's CLI and deep link handling still work.
-    let command_line_args_disabled =
-      !(allow_chromium_command_line_args || tauri::is_dev()) as std::os::raw::c_int;
-
     // Chromium drops a `debug.log` into the *process working directory* when no log file
     // is configured, which for an installed application is wherever the user launched it
     // from. Keep it next to the rest of the runtime's state instead.
@@ -2012,7 +2061,7 @@ impl<T: UserEvent> CefRuntime<T> {
     let mut settings = cef::Settings {
       no_sandbox: !cfg!(feature = "sandbox") as i32,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
-      command_line_args_disabled,
+      command_line_args_disabled: command_line_args_disabled as std::os::raw::c_int,
       log_file: log_file.to_string_lossy().to_string().as_str().into(),
       log_severity,
       external_message_pump: 1,
@@ -2244,5 +2293,62 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     );
     let _ = self.event_loop.run_app(app);
     cef::shutdown();
+  }
+}
+
+#[cfg(test)]
+mod deep_link_argument_tests {
+  use super::deep_link_arguments;
+
+  fn schemes() -> Vec<String> {
+    vec!["myapp".to_string(), "my-other-app".to_string()]
+  }
+
+  fn filter(args: &[&str]) -> Vec<String> {
+    deep_link_arguments(args.iter().map(|arg| (*arg).to_string()), &schemes())
+  }
+
+  #[test]
+  fn keeps_configured_deep_links_in_order() {
+    assert_eq!(
+      filter(&["myapp://open/one", "my-other-app://open/two"]),
+      vec![
+        "myapp://open/one".to_string(),
+        "my-other-app://open/two".to_string(),
+      ]
+    );
+  }
+
+  #[test]
+  fn drops_everything_that_is_not_a_configured_deep_link() {
+    // The lockdown exists so that none of these reach Chromium's command line, and a
+    // URL with an unconfigured scheme is not this application's deep link either.
+    assert!(
+      filter(&[
+        "--remote-debugging-port=9222",
+        "--disable-web-security",
+        "/home/user/document.txt",
+        "not a url",
+        "",
+        "https://example.com",
+        "otherapp://open",
+      ])
+      .is_empty()
+    );
+  }
+
+  #[test]
+  fn an_empty_scheme_list_keeps_nothing() {
+    assert!(deep_link_arguments(["myapp://open".to_string()], &[]).is_empty());
+  }
+
+  #[test]
+  fn scheme_matching_is_exact() {
+    // `on_already_running_app_relaunch` compares schemes the same way, so anything
+    // matched loosely here would be re-appended and then ignored on the other end.
+    // `Url::parse` already lowercases the scheme it reports, which is why the
+    // upper-case spelling below still matches.
+    assert_eq!(filter(&["MYAPP://open"]), vec!["MYAPP://open".to_string()]);
+    assert!(filter(&["myapp2://open", "myap://open"]).is_empty());
   }
 }

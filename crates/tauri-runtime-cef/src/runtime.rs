@@ -124,6 +124,11 @@ impl Cef {
   }
 
   /// Appends one command line argument passed to CEF.
+  ///
+  /// The argument is applied to the **browser process only**. CEF warns that modifying
+  /// the command line of a non-browser process "may result in undefined behavior
+  /// including crashes", and Chromium already forwards to each child process the
+  /// switches it needs.
   #[must_use]
   pub fn command_line_arg<K: Into<String>, V: Into<String>>(
     mut self,
@@ -137,6 +142,8 @@ impl Cef {
   }
 
   /// Appends a list of command line arguments passed to CEF.
+  ///
+  /// Like [`Self::command_line_arg`], these are applied to the browser process only.
   #[must_use]
   pub fn command_line_args<K: Into<String>, V: Into<String>>(
     mut self,
@@ -1208,6 +1215,23 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   }
 }
 
+/// Appends `args` to `command_line`, as a switch with a value, a bare switch or a
+/// positional argument depending on how each entry looks.
+fn append_command_line_args(command_line: &mut CommandLine, args: &[(String, Option<String>)]) {
+  for (arg, value) in args {
+    if let Some(value) = value {
+      command_line.append_switch_with_value(
+        Some(&CefString::from(arg.as_str())),
+        Some(&CefString::from(value.as_str())),
+      );
+    } else if arg.starts_with("-") {
+      command_line.append_switch(Some(&CefString::from(arg.as_str())));
+    } else {
+      command_line.append_argument(Some(&CefString::from(arg.as_str())));
+    }
+  }
+}
+
 wrap_with_args! {
   wrap_app => TauriCefAppArgs;
 
@@ -1215,7 +1239,20 @@ wrap_with_args! {
     context: RuntimeContext<T>,
     context_initialized: Arc<AtomicBool>,
     deep_link_schemes: Vec<String>,
-    command_line_args: Vec<(String, Option<String>)>,
+    // Switches this runtime needs on *every* process command line.
+    //
+    // Deliberately tiny: `cef_app_t::on_before_command_line_processing` warns that
+    // "modifying the command-line arguments for non-browser processes may result in
+    // undefined behavior including crashes", so only switches we know a child process
+    // must see itself belong here.
+    internal_command_line_args: Vec<(String, Option<String>)>,
+    // Switches applied to the browser process only.
+    //
+    // Chromium already forwards to each child the switches it needs, so anything that
+    // is only read in the browser process - and everything the embedding application
+    // supplied through `Cef::command_line_arg` - goes here. The application's own
+    // switches are appended last so they win over the runtime's defaults.
+    browser_command_line_args: Vec<(String, Option<String>)>,
   }
 
   impl App {
@@ -1233,22 +1270,20 @@ wrap_with_args! {
 
     fn on_before_command_line_processing(
       &self,
-      _process_type: Option<&CefString>,
+      process_type: Option<&CefString>,
       command_line: Option<&mut CommandLine>,
     ) {
-      if let Some(command_line) = command_line {
-        for (arg, value) in &self.command_line_args {
-          if let Some(value) = value {
-            command_line.append_switch_with_value(
-              Some(&CefString::from(arg.as_str())),
-              Some(&CefString::from(value.as_str())),
-            );
-          } else if arg.starts_with("-") {
-            command_line.append_switch(Some(&CefString::from(arg.as_str())));
-          } else {
-            command_line.append_argument(Some(&CefString::from(arg.as_str())));
-          }
-        }
+      let Some(command_line) = command_line else {
+        return;
+      };
+
+      append_command_line_args(command_line, &self.internal_command_line_args);
+
+      // The browser process is the one launched without a `--type` switch, so CEF hands
+      // us an empty (or absent) process type for it.
+      let is_browser_process = process_type.is_none_or(|ty| ty.to_string().is_empty());
+      if is_browser_process {
+        append_command_line_args(command_line, &self.browser_command_line_args);
       }
     }
   }
@@ -1587,7 +1622,7 @@ impl<T: UserEvent> CefRuntime<T> {
     }
 
     let Cef {
-      mut command_line_args,
+      command_line_args,
       deep_link_schemes,
       cache_path: cache_path_override,
       settings_callback,
@@ -1595,13 +1630,23 @@ impl<T: UserEvent> CefRuntime<T> {
       api_version: _,
     } = runtime_args.runtime_init_attrs;
 
+    // Switches every process gets, and switches only the browser process gets. See the
+    // `TauriCefApp` fields for why the split exists.
+    #[allow(unused_mut)]
+    let mut internal_command_line_args: Vec<(String, Option<String>)> = Vec::new();
+    let mut browser_command_line_args: Vec<(String, Option<String>)> = Vec::new();
+
     let cache_path = cache_path_override.unwrap_or_else(|| {
       let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
       cache_base.join(&runtime_args.identifier).join("cef")
     });
     let _ = create_dir_all(&cache_path);
 
-    // Force X11 usage on Linux
+    // Force X11 usage on Linux.
+    //
+    // This one is applied to every process: we have not verified that Chromium
+    // propagates `ozone-platform` to the GPU process, and getting it wrong there breaks
+    // rendering on Linux outright.
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1610,7 +1655,7 @@ impl<T: UserEvent> CefRuntime<T> {
       target_os = "openbsd"
     ))]
     {
-      command_line_args.push(("ozone-platform".to_string(), Some("x11".to_string())));
+      internal_command_line_args.push(("ozone-platform".to_string(), Some("x11".to_string())));
       event_loop_builder.with_x11();
     }
 
@@ -1644,12 +1689,18 @@ impl<T: UserEvent> CefRuntime<T> {
       cache_path: Arc::new(cache_path.clone()),
     };
 
-    command_line_args.push(("--no-first-run".to_string(), None));
+    internal_command_line_args.push(("--no-first-run".to_string(), None));
+
+    // Appended last so an application switch overrides a runtime default with the same
+    // name: Chromium's command line keeps the last value appended for a given switch.
+    browser_command_line_args.extend(command_line_args);
+
     let mut app = TauriCefApp::build(TauriCefAppArgs {
       context: context.clone(),
       context_initialized: context_initialized.clone(),
       deep_link_schemes,
-      command_line_args,
+      internal_command_line_args,
+      browser_command_line_args,
     });
 
     // Subprocesses already exited above, so this must be the browser process;

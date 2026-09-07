@@ -446,6 +446,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       pending.document_title_changed_handler.take().map(Arc::from);
     let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
       && pending.webview_attributes.devtools.unwrap_or(true);
+    let zoom_hotkeys_enabled = pending.webview_attributes.zoom_hotkeys_enabled;
     let drag_drop_handler_enabled = pending.webview_attributes.drag_drop_handler_enabled;
     let drag_drop_state = Arc::new(Mutex::new(browser_client::DragDropState::default()));
     let web_content_process_terminate_handler = pending
@@ -494,6 +495,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         label: pending.label.clone(),
         initial_url: Some(pending.url.as_str().to_string()),
         devtools_enabled,
+        zoom_hotkeys_enabled,
         drag_drop_event_target,
         drag_drop_handler_enabled,
         drag_drop_state,

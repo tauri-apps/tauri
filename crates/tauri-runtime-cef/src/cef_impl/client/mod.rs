@@ -14,6 +14,7 @@ use crate::{
   runtime::{CefRuntime, Message, RuntimeContext},
 };
 
+mod command;
 mod context_menu;
 mod display;
 mod download;
@@ -25,6 +26,7 @@ mod load;
 mod permission;
 mod process;
 
+use command::TauriCefCommandHandler;
 use context_menu::TauriCefContextMenuHandler;
 use display::TauriCefDisplayHandler;
 use download::TauriCefDownloadHandler;
@@ -81,6 +83,7 @@ wrap_with_args! {
     pub(crate) label: String,
     initial_url: Option<String>,
     devtools_enabled: bool,
+    zoom_hotkeys_enabled: bool,
     drag_drop_event_target: DragDropEventTarget,
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
@@ -128,6 +131,7 @@ wrap_with_args! {
       let webview_id = self.webview_id;
       let label = self.label.clone();
       let devtools_enabled = self.devtools_enabled;
+      let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let target = self.drag_drop_event_target;
       let navigation_handler = self.handlers.navigation_handler.clone();
       let new_window_handler = self.handlers.new_window_handler.clone();
@@ -143,6 +147,7 @@ wrap_with_args! {
           label: label.clone(),
           initial_url: None,
           devtools_enabled,
+          zoom_hotkeys_enabled,
           drag_drop_event_target: target,
           drag_drop_handler_enabled: false,
           drag_drop_state: Arc::default(),
@@ -230,6 +235,13 @@ wrap_with_args! {
 
     fn keyboard_handler(&self) -> Option<KeyboardHandler> {
       Some(TauriCefKeyboardHandler::new(self.devtools_enabled))
+    }
+
+    fn command_handler(&self) -> Option<CommandHandler> {
+      Some(TauriCefCommandHandler::new(
+        self.devtools_enabled,
+        self.zoom_hotkeys_enabled,
+      ))
     }
 
     fn permission_handler(&self) -> Option<PermissionHandler> {

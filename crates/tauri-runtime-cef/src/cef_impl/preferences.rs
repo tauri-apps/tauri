@@ -95,9 +95,7 @@ pub(crate) fn apply_app_webview_preferences(
   request_context: &RequestContext,
   overrides: &[(String, bool)],
 ) {
-  let defaults = PREFERENCES
-    .iter()
-    .map(|(name, enabled)| (*name, *enabled));
+  let defaults = PREFERENCES.iter().map(|(name, enabled)| (*name, *enabled));
   let overrides = overrides
     .iter()
     .map(|(name, enabled)| (name.as_str(), *enabled));

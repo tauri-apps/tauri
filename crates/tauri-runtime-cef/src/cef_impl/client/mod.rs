@@ -86,6 +86,7 @@ wrap_with_args! {
     initial_url: Option<String>,
     devtools_enabled: bool,
     zoom_hotkeys_enabled: bool,
+    allowed_chrome_commands: Vec<crate::ChromeCommandGroup>,
     drag_drop_event_target: DragDropEventTarget,
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
@@ -134,6 +135,9 @@ wrap_with_args! {
       let label = self.label.clone();
       let devtools_enabled = self.devtools_enabled;
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
+      // A CEF-owned popup is a real Chrome window, not an app window, so it keeps the
+      // opener's allowances rather than being locked down harder than its opener.
+      let allowed_chrome_commands = self.allowed_chrome_commands.clone();
       let target = self.drag_drop_event_target;
       let navigation_handler = self.handlers.navigation_handler.clone();
       let new_window_handler = self.handlers.new_window_handler.clone();
@@ -150,6 +154,7 @@ wrap_with_args! {
           initial_url: None,
           devtools_enabled,
           zoom_hotkeys_enabled,
+          allowed_chrome_commands: allowed_chrome_commands.clone(),
           drag_drop_event_target: target,
           drag_drop_handler_enabled: false,
           drag_drop_state: Arc::default(),
@@ -251,6 +256,7 @@ wrap_with_args! {
       Some(TauriCefCommandHandler::build(TauriCefCommandHandlerArgs {
         devtools_enabled: self.devtools_enabled,
         zoom_hotkeys_enabled: self.zoom_hotkeys_enabled,
+        allowed_chrome_commands: self.allowed_chrome_commands.clone(),
         frame_navigation_state: self.frame_navigation_state.clone(),
       }))
     }

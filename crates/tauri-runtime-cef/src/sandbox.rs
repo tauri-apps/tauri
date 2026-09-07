@@ -296,23 +296,11 @@ mod tests {
     for appimage in [false, true] {
       for helper in [false, true] {
         assert_eq!(
-          sandbox_decision(
-            SandboxPolicy::Disabled,
-            appimage,
-            helper,
-            Some(1),
-            Some(0)
-          ),
+          sandbox_decision(SandboxPolicy::Disabled, appimage, helper, Some(1), Some(0)),
           SandboxDecision::Disable(SandboxDisableReason::Policy)
         );
         assert_eq!(
-          sandbox_decision(
-            SandboxPolicy::Required,
-            appimage,
-            helper,
-            Some(1),
-            Some(0)
-          ),
+          sandbox_decision(SandboxPolicy::Required, appimage, helper, Some(1), Some(0)),
           SandboxDecision::Keep,
           "Required must keep the sandbox even when Chromium will abort"
         );

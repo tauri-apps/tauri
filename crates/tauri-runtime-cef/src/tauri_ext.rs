@@ -14,8 +14,8 @@ use tauri::{EventLoopMessage, Manager, Runtime, Webview, WebviewWindow};
 use tauri_runtime::dynamic::{DynWebviewAttributes, DynWebviewDispatcher, DynWindowOpener};
 
 use crate::{
-  CefWebviewAttributes, CefWebviewDispatcher, ConsoleMessage, DevToolsProtocol, FrameEvent,
-  NewWindowOpener, RuntimeStyle,
+  CefWebviewAttributes, CefWebviewDispatcher, ChromeCommandGroup, ConsoleMessage, DevToolsProtocol,
+  FrameEvent, NewWindowOpener, RuntimeStyle,
 };
 
 type Result<T> = std::result::Result<T, tauri::Error>;
@@ -294,6 +294,36 @@ pub trait WebviewWindowBuilderCefExt {
   /// DevTools window opened on this webview.
   #[must_use]
   fn on_console_message<F: Fn(ConsoleMessage) + Send + Sync + 'static>(self, handler: F) -> Self;
+
+  /// Keeps the named families of Chrome commands rather than swallowing them.
+  ///
+  /// A Chrome style browser keeps its whole accelerator table live even hosted as a
+  /// child view with no browser UI, so by default this runtime swallows the commands
+  /// that have no meaning in an app window — new window and tab, the tab strip,
+  /// history, downloads and settings, print, save page, view source, the omnibox
+  /// focus commands. Naming a [`ChromeCommandGroup`] here lets that family run the
+  /// way it would in a browser.
+  ///
+  /// Calling it more than once replaces the previous list.
+  ///
+  /// DevTools and zoom accelerators are not covered here: they already follow
+  /// `WebviewAttributes::devtools` and `WebviewAttributes::zoom_hotkeys_enabled`.
+  ///
+  /// ```no_run
+  /// # use tauri_runtime_cef::{AsCefWebviewAttributes, ChromeCommandGroup};
+  /// # fn f<R, M>(builder: tauri::WebviewWindowBuilder<'_, R, M>)
+  /// # where
+  /// #   R: tauri::Runtime,
+  /// #   M: tauri::Manager<R>,
+  /// #   R::RuntimeWebviewAttributes: AsCefWebviewAttributes,
+  /// # {
+  /// use tauri_runtime_cef::WebviewWindowBuilderCefExt;
+  /// // Ctrl+P prints and Alt+Left goes back, as a user expects.
+  /// builder.allow_chrome_commands([ChromeCommandGroup::Document, ChromeCommandGroup::History]);
+  /// # }
+  /// ```
+  #[must_use]
+  fn allow_chrome_commands<I: IntoIterator<Item = ChromeCommandGroup>>(self, groups: I) -> Self;
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilderCefExt
@@ -323,6 +353,17 @@ where
     let handler = Arc::new(handler);
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.console_message_handler = Some(handler);
+    });
+    self
+  }
+
+  fn allow_chrome_commands<I: IntoIterator<Item = ChromeCommandGroup>>(
+    mut self,
+    groups: I,
+  ) -> Self {
+    let groups = groups.into_iter().collect::<Vec<_>>();
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.allowed_chrome_commands = groups.clone();
     });
     self
   }
@@ -359,6 +400,23 @@ pub trait WebviewBuilderCefExt {
   /// DevTools window opened on this webview.
   #[must_use]
   fn on_console_message<F: Fn(ConsoleMessage) + Send + Sync + 'static>(self, handler: F) -> Self;
+
+  /// Keeps the named families of Chrome commands rather than swallowing them.
+  ///
+  /// A Chrome style browser keeps its whole accelerator table live even hosted as a
+  /// child view with no browser UI, so by default this runtime swallows the commands
+  /// that have no meaning in an app window — new window and tab, the tab strip,
+  /// history, downloads and settings, print, save page, view source, the omnibox
+  /// focus commands. Naming a [`ChromeCommandGroup`] here lets that family run the
+  /// way it would in a browser.
+  ///
+  /// Calling it more than once replaces the previous list.
+  ///
+  /// DevTools and zoom accelerators are not covered here: they already follow
+  /// `WebviewAttributes::devtools` and `WebviewAttributes::zoom_hotkeys_enabled`.
+  ///
+  #[must_use]
+  fn allow_chrome_commands<I: IntoIterator<Item = ChromeCommandGroup>>(self, groups: I) -> Self;
 }
 
 #[cfg(feature = "unstable")]
@@ -388,6 +446,17 @@ where
     let handler = Arc::new(handler);
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.console_message_handler = Some(handler);
+    });
+    self
+  }
+
+  fn allow_chrome_commands<I: IntoIterator<Item = ChromeCommandGroup>>(
+    mut self,
+    groups: I,
+  ) -> Self {
+    let groups = groups.into_iter().collect::<Vec<_>>();
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.allowed_chrome_commands = groups.clone();
     });
     self
   }

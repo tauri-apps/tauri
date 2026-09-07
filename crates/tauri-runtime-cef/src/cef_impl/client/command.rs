@@ -8,6 +8,7 @@ use std::sync::OnceLock;
 
 use cef::*;
 
+use crate::ChromeCommandGroup;
 use crate::macros::wrap_with_args;
 
 /// Commands that open a second browser window or drive a tab strip.
@@ -160,14 +161,26 @@ const ZOOM_COMMANDS: &[&CStr] = &[
   cef::resources::IDC_ZOOM_NORMAL,
 ];
 
-/// This build's numeric ids for the commands the runtime swallows.
+/// The IDC names of one [`ChromeCommandGroup`].
+fn group_commands(group: ChromeCommandGroup) -> &'static [&'static CStr] {
+  match group {
+    ChromeCommandGroup::WindowAndTab => WINDOW_AND_TAB_COMMANDS,
+    ChromeCommandGroup::Document => DOCUMENT_COMMANDS,
+    ChromeCommandGroup::BrowserChrome => BROWSER_CHROME_COMMANDS,
+    ChromeCommandGroup::BrowserSurface => BROWSER_SURFACE_COMMANDS,
+    ChromeCommandGroup::History => HISTORY_COMMANDS,
+  }
+}
+
+/// This build's numeric ids for the commands the runtime can swallow, one entry per
+/// group so the webview's allowlist can be applied per group.
 ///
 /// Chrome command ids are build-specific integers, so they are resolved from their
 /// IDC names — which do not change between builds — through
 /// `cef_id_for_command_id_name`. Resolving is done once for the whole process
 /// rather than on every keystroke.
 struct BlockedCommands {
-  always: Vec<c_int>,
+  groups: Vec<(ChromeCommandGroup, Vec<c_int>)>,
   devtools: Vec<c_int>,
   zoom: Vec<c_int>,
 }
@@ -175,13 +188,10 @@ struct BlockedCommands {
 fn blocked_commands() -> &'static BlockedCommands {
   static COMMANDS: OnceLock<BlockedCommands> = OnceLock::new();
   COMMANDS.get_or_init(|| BlockedCommands {
-    always: command_ids(&[
-      WINDOW_AND_TAB_COMMANDS,
-      DOCUMENT_COMMANDS,
-      BROWSER_CHROME_COMMANDS,
-      BROWSER_SURFACE_COMMANDS,
-      HISTORY_COMMANDS,
-    ]),
+    groups: ChromeCommandGroup::ALL
+      .iter()
+      .map(|group| (*group, command_ids(&[group_commands(*group)])))
+      .collect(),
     devtools: command_ids(&[DEVTOOLS_COMMANDS]),
     zoom: command_ids(&[ZOOM_COMMANDS]),
   })
@@ -207,6 +217,7 @@ wrap_with_args! {
   pub struct TauriCefCommandHandler {
     devtools_enabled: bool,
     zoom_hotkeys_enabled: bool,
+    allowed_chrome_commands: Vec<ChromeCommandGroup>,
     frame_navigation_state: crate::FrameNavigationState,
   }
 
@@ -315,9 +326,16 @@ impl TauriCefCommandHandler {
   /// either: the page context menu drops it because a right click is not how an
   /// app offers a reload, but Ctrl+R and F5 on the app's own document are harmless
   /// and are what a developer reaches for.
+  ///
+  /// A group the webview named in `allowed_chrome_commands` is skipped entirely, so
+  /// its commands run the way they would in a browser.
   fn blocks(&self, command_id: c_int) -> bool {
     let commands = blocked_commands();
-    commands.always.contains(&command_id)
+    commands
+      .groups
+      .iter()
+      .filter(|(group, _)| !self.allowed_chrome_commands.contains(group))
+      .any(|(_, ids)| ids.contains(&command_id))
       || (!self.devtools_enabled && commands.devtools.contains(&command_id))
       || (!self.zoom_hotkeys_enabled && commands.zoom.contains(&command_id))
   }

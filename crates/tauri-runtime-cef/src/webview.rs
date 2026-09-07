@@ -226,6 +226,72 @@ pub enum DevToolsProtocol {
 
 pub(crate) type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync;
 
+/// A family of Chrome commands the runtime swallows in an application window.
+///
+/// A Chrome style browser keeps its whole accelerator table live even when it is hosted
+/// as a child view with no browser UI, so Ctrl+N opens a real Chrome window next to the
+/// app's and Ctrl+P prints the app's own markup. The runtime blocks the families below by
+/// default; naming one in
+/// [`allow_chrome_commands`](crate::WebviewWindowBuilderCefExt::allow_chrome_commands)
+/// lets that family run the way it would in a browser.
+///
+/// DevTools and zoom are not here: they already follow
+/// `WebviewAttributes::devtools` and `WebviewAttributes::zoom_hotkeys_enabled`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ChromeCommandGroup {
+  /// Ctrl+N, Ctrl+Shift+N, Ctrl+T and the whole tab strip: new window, new incognito
+  /// window, new tab, duplicate, restore, reorder, and select tab 1-8.
+  ///
+  /// An app window has no tab strip for these to act on, and the windows they open are
+  /// real Chrome windows the application does not own.
+  WindowAndTab,
+  /// Ctrl+P, Ctrl+S, Ctrl+U, Ctrl+O: print, print without preview, save page, view
+  /// source, open file, and the PWA install and shortcut commands.
+  ///
+  /// The commonest group to want back — Ctrl+P is a keystroke users expect. Note that
+  /// `WebviewDispatch::print` prints on request without this, and that `IDC_OPEN_FILE`
+  /// and `IDC_SAVE_PAGE` raise OS file dialogs the application never asked for.
+  Document,
+  /// Ctrl+L and its neighbours: focus the omnibox, the search box, the toolbar, the menu
+  /// bar or the bookmarks bar, plus Home and open-current-URL.
+  ///
+  /// An app window has none of that chrome, so these can only move keyboard focus
+  /// somewhere the user cannot see; Home and open-current-URL additionally navigate the
+  /// webview away from the app's own UI.
+  BrowserChrome,
+  /// Ctrl+H, Ctrl+J, Ctrl+D, Ctrl+Shift+Delete and the rest: history, downloads,
+  /// bookmarks, settings, clear browsing data, the task manager, sign-in, about and
+  /// feedback.
+  ///
+  /// These load Chrome WebUI pages *in place of the app's UI*, in the very webview the
+  /// accelerator was pressed in, and expose the browsing data of every webview sharing
+  /// the request context.
+  BrowserSurface,
+  /// Alt+Left and Alt+Right: back and forward through the session history.
+  ///
+  /// The browser is created at an internal placeholder URL and only then navigated to the
+  /// app's own, so the app's first screen already sits on a second history entry and
+  /// going back from it lands on a blank page. `WebviewDispatch::go_back` and
+  /// `go_forward` work without this, and the page context menu drops Back and Forward for
+  /// the same reason.
+  History,
+}
+
+impl ChromeCommandGroup {
+  /// Every group, which is what the runtime blocks when a webview allows none.
+  ///
+  /// Iterated when the blocklist is resolved, so a variant added here is blocked by
+  /// default without anything else having to be updated.
+  pub(crate) const ALL: &'static [Self] = &[
+    Self::WindowAndTab,
+    Self::Document,
+    Self::BrowserChrome,
+    Self::BrowserSurface,
+    Self::History,
+  ];
+}
+
 /// One message a renderer wrote to the JavaScript console.
 ///
 /// Reported synchronously on CEF's UI thread, before CEF logs it as it normally
@@ -524,6 +590,10 @@ impl<T: UserEvent> WinitCefApp<T> {
     let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
       && pending.webview_attributes.devtools.unwrap_or(true);
     let zoom_hotkeys_enabled = pending.webview_attributes.zoom_hotkeys_enabled;
+    let allowed_chrome_commands = pending
+      .runtime_specific_attributes
+      .allowed_chrome_commands
+      .clone();
     let drag_drop_handler_enabled = pending.webview_attributes.drag_drop_handler_enabled;
     let drag_drop_state = Arc::new(Mutex::new(browser_client::DragDropState::default()));
     let web_content_process_terminate_handler = pending
@@ -577,6 +647,7 @@ impl<T: UserEvent> WinitCefApp<T> {
         initial_url: Some(pending.url.as_str().to_string()),
         devtools_enabled,
         zoom_hotkeys_enabled,
+        allowed_chrome_commands,
         drag_drop_event_target,
         drag_drop_handler_enabled,
         drag_drop_state,
@@ -1127,8 +1198,10 @@ pub enum RuntimeStyle {
 /// child view with no browser UI, so this runtime swallows the commands that have
 /// no meaning in an app window (new window and tab, the tab strip, history and
 /// downloads and settings, print, save page, view source, the omnibox focus
-/// commands). Two of those exclusions are worth calling out, because they take
-/// away keystrokes users expect:
+/// commands). Any family of them can be kept with
+/// [`allow_chrome_commands`](crate::WebviewWindowBuilderCefExt::allow_chrome_commands);
+/// see [`ChromeCommandGroup`] for what each family covers. Two of the exclusions
+/// are worth calling out, because they take away keystrokes users expect:
 ///
 /// - **Zoom.** `WebviewAttributes::zoom_hotkeys_enabled` is honored, and it
 ///   **defaults to `false`**, so Ctrl+Plus, Ctrl+Minus and Ctrl+0 do not zoom
@@ -1145,7 +1218,9 @@ pub enum RuntimeStyle {
 ///   entry and going back from it lands on a blank page with no way forward. The
 ///   page context menu drops Back and Forward for the same reason.
 ///   `WebviewDispatch::go_back` and `go_forward` are untouched, and an app's own
-///   routing is what an app's "back" should mean anyway.
+///   routing is what an app's "back" should mean anyway. An app that navigates
+///   its webview normally can take the accelerators back with
+///   [`ChromeCommandGroup::History`].
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
@@ -1167,6 +1242,10 @@ pub struct CefWebviewAttributes {
   /// browser running its own scripts, and so is a DevTools window opened on this
   /// webview, so neither one's console output is reported here.
   pub console_message_handler: Option<Arc<ConsoleMessageHandler>>,
+  /// Families of Chrome commands this webview keeps rather than swallows.
+  ///
+  /// Empty by default, which blocks every group in [`ChromeCommandGroup`].
+  pub allowed_chrome_commands: Vec<ChromeCommandGroup>,
 }
 
 impl std::fmt::Debug for CefWebviewAttributes {
@@ -1179,6 +1258,7 @@ impl std::fmt::Debug for CefWebviewAttributes {
         "console_message_handler",
         &self.console_message_handler.is_some(),
       )
+      .field("allowed_chrome_commands", &self.allowed_chrome_commands)
       .finish()
   }
 }

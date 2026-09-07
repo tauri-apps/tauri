@@ -201,10 +201,7 @@ pub enum DevToolsProtocol {
   /// The raw agent message, before it is classified as an event or a result.
   Message(Vec<u8>),
   /// An agent event. Events are unsolicited and carry no request identifier.
-  Event {
-    method: String,
-    params: Vec<u8>,
-  },
+  Event { method: String, params: Vec<u8> },
   /// The result of one request.
   ///
   /// `message_id` correlates with the `id` of the request that produced it.

@@ -144,21 +144,30 @@ pub enum SecretStorage {
   System,
 }
 
-/// What to do with Chromium's sandbox on Linux and the BSDs.
+/// What to do with Chromium's process sandbox.
 ///
-/// Defaults to [`LinuxSandboxPolicy::Auto`], which keeps the sandbox on unless the
-/// application is running from an AppImage on a system that offers no way to sandbox at
-/// all — where the alternative is not an unsandboxed application but no application,
-/// since Chromium aborts with "No usable sandbox!".
+/// Defaults to [`SandboxPolicy::Auto`], which keeps the sandbox on every platform except
+/// in one situation: an application running from an AppImage on a Linux or BSD system
+/// that offers no way to sandbox at all, where the alternative is not an unsandboxed
+/// application but no application, since Chromium aborts with "No usable sandbox!".
 ///
-/// Available on every platform so that cross-platform code can set it without a `cfg`,
-/// and ignored on the platforms that have no Linux sandbox to decide about.
+/// # This used to be a cargo feature
+///
+/// The sandbox was previously selected by `tauri-runtime-cef`'s `sandbox` feature, which
+/// was on by default but silently produced a *fully unsandboxed* Chromium on Windows and
+/// macOS for any consumer building with `default-features = false`. It is a runtime
+/// setting now so that the decision is visible, overridable, and the same one on every
+/// platform. The underlying sandbox support is always compiled in.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum LinuxSandboxPolicy {
+pub enum SandboxPolicy {
   /// Keep the sandbox, except when the application runs from an AppImage and the system
   /// has neither the setuid `chrome-sandbox` helper nor usable unprivileged user
   /// namespaces. A warning naming the reason is logged whenever the sandbox is dropped.
+  ///
+  /// That exception is Linux and BSD only. Windows and macOS link their sandbox into the
+  /// executable rather than relying on a helper the system has to provide, so there is
+  /// nothing that can be missing and `Auto` there is the same as [`Self::Required`].
   #[default]
   Auto,
   /// Never run without a sandbox, even when that means Chromium aborts at startup.
@@ -167,7 +176,7 @@ pub enum LinuxSandboxPolicy {
   /// is preferable — the user can then install the setuid helper, point
   /// `CHROME_DEVEL_SANDBOX` at one, or re-enable unprivileged user namespaces.
   Required,
-  /// Always run without a sandbox.
+  /// Always run without a sandbox, on every platform.
   ///
   /// Every renderer then runs with the full privileges of the user, so a compromised
   /// renderer is a compromised account. Useful for containers and CI images that cannot
@@ -196,7 +205,7 @@ pub struct Cef {
   log_severity: Option<LogSeverity>,
   locale: Option<String>,
   accept_language_list: Option<String>,
-  linux_sandbox: LinuxSandboxPolicy,
+  sandbox: SandboxPolicy,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
@@ -216,7 +225,7 @@ impl fmt::Debug for Cef {
       .field("log_severity", &self.log_severity)
       .field("locale", &self.locale)
       .field("accept_language_list", &self.accept_language_list)
-      .field("linux_sandbox", &self.linux_sandbox)
+      .field("sandbox", &self.sandbox)
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -405,22 +414,20 @@ impl Cef {
     self
   }
 
-  /// What to do with Chromium's sandbox on Linux and the BSDs.
+  /// What to do with Chromium's process sandbox.
   ///
-  /// Defaults to [`LinuxSandboxPolicy::Auto`], which keeps the sandbox on except when
-  /// the application runs from an AppImage on a system that offers no way to sandbox at
-  /// all — AppImages cannot ship the setuid `chrome-sandbox` helper the deb and rpm
-  /// bundlers install, and distributions such as Ubuntu 23.10 and later restrict the
-  /// unprivileged user namespaces Chromium would otherwise fall back to. Without the
+  /// Defaults to [`SandboxPolicy::Auto`], which keeps the sandbox except when the
+  /// application runs from an AppImage on a Linux or BSD system that offers no way to
+  /// sandbox at all — AppImages cannot ship the setuid `chrome-sandbox` helper the deb
+  /// and rpm bundlers install, and distributions such as Ubuntu 23.10 and later restrict
+  /// the unprivileged user namespaces Chromium would otherwise fall back to. Without the
   /// escape hatch Chromium aborts at startup with "No usable sandbox!".
   ///
-  /// See [`LinuxSandboxPolicy`] for the other variants.
-  ///
-  /// Callable on every platform, and ignored on Windows and macOS, so a cross-platform
-  /// builder chain does not have to be wrapped in a `cfg`.
+  /// See [`SandboxPolicy`] for the other variants. This replaces the crate's former
+  /// `sandbox` cargo feature, which could silently drop the sandbox on Windows and macOS.
   #[must_use]
-  pub fn linux_sandbox(mut self, policy: LinuxSandboxPolicy) -> Self {
-    self.linux_sandbox = policy;
+  pub fn sandbox(mut self, policy: SandboxPolicy) -> Self {
+    self.sandbox = policy;
     self
   }
 }
@@ -1580,12 +1587,16 @@ wrap_with_args! {
 pub fn run_cef_helper_process() {
   let args = cef::args::Args::new();
 
-  #[cfg(all(target_os = "macos", feature = "sandbox"))]
-  let _sandbox = {
+  // A helper the browser process launched with `--no-sandbox` must not enter the sandbox
+  // here: the browser dropped it deliberately - `SandboxPolicy::Disabled`, or a framework
+  // outside the app bundle that the sandbox cannot reach - and entering it anyway would
+  // only make the library load below fail.
+  #[cfg(target_os = "macos")]
+  let _sandbox = (!crate::sandbox::launched_without_sandbox()).then(|| {
     let mut sandbox = cef::sandbox::Sandbox::new();
     sandbox.initialize(args.as_main_args());
     sandbox
-  };
+  });
 
   #[cfg(target_os = "macos")]
   let _loader = {
@@ -1856,16 +1867,15 @@ impl<T: UserEvent> CefRuntime<T> {
 
     #[cfg(target_os = "macos")]
     let (_sandbox, _loader) = {
-      #[cfg(feature = "sandbox")]
-      let sandbox = if is_helper {
+      // As in `run_cef_helper_process`: only a helper enters the sandbox, and only when
+      // the browser process that launched it did not already drop the sandbox.
+      let sandbox = if is_helper && !crate::sandbox::launched_without_sandbox() {
         let mut sandbox = cef::sandbox::Sandbox::new();
         sandbox.initialize(args.as_main_args());
         Some(sandbox)
       } else {
         None
       };
-      #[cfg(not(feature = "sandbox"))]
-      let sandbox = ();
 
       let loader =
         cef::library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), is_helper);
@@ -1919,7 +1929,7 @@ impl<T: UserEvent> CefRuntime<T> {
       log_severity,
       locale,
       accept_language_list,
-      linux_sandbox,
+      sandbox: sandbox_policy,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
@@ -1965,25 +1975,17 @@ impl<T: UserEvent> CefRuntime<T> {
       }
     }
 
+    // One decision on every platform, so a lost sandbox is always something the policy
+    // asked for and is always logged. This used to be `!cfg!(feature = "sandbox")` off
+    // Linux, which handed a consumer building with `default-features = false` - as the
+    // workspace root does - a silently unsandboxed Chromium on Windows and macOS.
+    //
+    // On Linux and the BSDs the policy is also weighed against the system, because
     // Chromium aborts with "No usable sandbox!" when its zygote host finds neither usable
     // unprivileged user namespaces nor the setuid `chrome-sandbox` helper, so an AppImage
     // on a system that restricts namespaces cannot start at all.
-    //
-    // The `sandbox` cargo feature does not decide this on Linux or the BSDs: `cef-dll-sys`
-    // only acts on it for Windows and macOS, where it selects the sandbox library that
-    // gets linked. Deriving `no_sandbox` from the feature here meant a consumer depending
-    // on this crate with `default-features = false` - which the workspace root does - got
-    // a fully unsandboxed Chromium while `Cef::linux_sandbox(LinuxSandboxPolicy::Required)`
-    // reported success, so the policy decides it instead.
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
     let no_sandbox = {
-      let decision = crate::sandbox::resolve_sandbox_decision(linux_sandbox);
+      let decision = crate::sandbox::resolve_sandbox_decision(sandbox_policy);
       if let crate::sandbox::SandboxDecision::Disable(reason) = decision {
         log::warn!(
           "running Chromium without a sandbox: {}. A compromised renderer process runs with the full privileges of the current user.",
@@ -1991,20 +1993,6 @@ impl<T: UserEvent> CefRuntime<T> {
         );
       }
       matches!(decision, crate::sandbox::SandboxDecision::Disable(_))
-    };
-    #[cfg(not(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    )))]
-    let no_sandbox = {
-      // There is no Linux sandbox to decide about here, so the policy is inert and the
-      // cargo feature - which really does select the sandbox library on these platforms -
-      // has the last word.
-      let _ = linux_sandbox;
-      !cfg!(feature = "sandbox")
     };
     // Windows encrypts with DPAPI, which needs no switch and prompts for nothing.
     #[cfg(windows)]

@@ -18,15 +18,8 @@ mod macros;
 mod platform;
 mod popup;
 mod runtime;
-// `LinuxSandboxPolicy` is public API on every platform and lives in `runtime`; only the
-// decision logic behind it is Linux and BSD specific.
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
+// `SandboxPolicy` itself is public API and lives in `runtime`; this module holds the
+// decision behind it, which only has something to probe on Linux and the BSDs.
 mod sandbox;
 mod tauri_ext;
 mod webview;

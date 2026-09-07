@@ -2,8 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Decides whether Chromium's Linux sandbox has to be turned off for the process to
-//! start at all.
+//! Decides whether Chromium's process sandbox has to be turned off.
+//!
+//! On every platform the answer normally comes straight from [`SandboxPolicy`], and the
+//! answer is "keep it". Only Linux and the BSDs have a case where keeping it means the
+//! application cannot start at all, and detecting that case is what the bulk of this
+//! module is for.
+//!
+//! # The Linux case
 //!
 //! Chromium's zygote host picks, in order, the namespace sandbox when unprivileged user
 //! namespaces work, then the root-owned setuid `chrome-sandbox` helper found next to the
@@ -24,16 +30,23 @@
 //! Chromium's zygote host applies — owned by root, setuid, executable by others — which
 //! is also why a half-configured helper must not count as available: Chromium treats one
 //! that fails those checks as a fatal error rather than falling back to another sandbox.
+//!
+//! # Everywhere else
+//!
+//! Windows and macOS sandbox through libraries linked into the executable rather than
+//! through a helper the system has to provide, so there is nothing to probe: the policy
+//! decides on its own and [`SandboxPolicy::Auto`] always keeps the sandbox. That used to
+//! be a `sandbox` cargo feature instead, which meant a consumer building with
+//! `default-features = false` got a silently unsandboxed Chromium on those two platforms.
 
-// `LinuxSandboxPolicy` itself lives in `runtime.rs`, next to the rest of the `Cef`
-// builder's configuration types, because `Cef` carries it on every platform while this
-// module is only compiled where there is a Linux sandbox to decide about.
-use crate::runtime::LinuxSandboxPolicy;
+// `SandboxPolicy` itself lives in `runtime.rs`, next to the rest of the `Cef` builder's
+// configuration types.
+use crate::runtime::SandboxPolicy;
 
 /// Why the sandbox is being turned off.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SandboxDisableReason {
-  /// The application asked for it through [`LinuxSandboxPolicy::Disabled`].
+  /// The application asked for it through [`SandboxPolicy::Disabled`].
   Policy,
   /// AppImage, no setuid helper, and AppArmor restricts unprivileged user namespaces.
   AppImageUserNamespacesRestricted,
@@ -45,7 +58,7 @@ impl SandboxDisableReason {
   /// Message logged when the sandbox is dropped for this reason.
   pub(crate) fn message(self) -> &'static str {
     match self {
-      Self::Policy => "the application set LinuxSandboxPolicy::Disabled",
+      Self::Policy => "the application set SandboxPolicy::Disabled",
       Self::AppImageUserNamespacesRestricted => {
         "running from an AppImage, which cannot ship the setuid chrome-sandbox helper, \
          and unprivileged user namespaces are restricted \
@@ -78,16 +91,16 @@ pub(crate) enum SandboxDecision {
 /// `/proc/sys/user/max_user_namespaces`; [`None`] means the file could not be read,
 /// which is treated as no evidence of a restriction rather than as a restriction.
 pub(crate) fn sandbox_decision(
-  policy: LinuxSandboxPolicy,
+  policy: SandboxPolicy,
   running_from_appimage: bool,
   sandbox_helper_available: bool,
   apparmor_restrict_unprivileged_userns: Option<u64>,
   max_user_namespaces: Option<u64>,
 ) -> SandboxDecision {
   match policy {
-    LinuxSandboxPolicy::Disabled => SandboxDecision::Disable(SandboxDisableReason::Policy),
-    LinuxSandboxPolicy::Required => SandboxDecision::Keep,
-    LinuxSandboxPolicy::Auto => {
+    SandboxPolicy::Disabled => SandboxDecision::Disable(SandboxDisableReason::Policy),
+    SandboxPolicy::Required => SandboxDecision::Keep,
+    SandboxPolicy::Auto => {
       // Everything but an AppImage can ship the setuid helper, so a missing sandbox
       // there is a packaging or system problem we should not paper over.
       if !running_from_appimage || sandbox_helper_available {
@@ -105,6 +118,18 @@ pub(crate) fn sandbox_decision(
   }
 }
 
+/// Whether this process was launched with Chromium's `--no-sandbox` switch.
+///
+/// A child process inherits the switch from the browser process that spawned it, so this
+/// is how a macOS helper learns that entering the sandbox would be wrong. Reading it off
+/// the real process command line rather than off [`SandboxPolicy`] is deliberate: a
+/// helper never sees the `Cef` builder, and the browser process may have dropped the
+/// sandbox for a reason the policy alone does not name.
+#[cfg(target_os = "macos")]
+pub(crate) fn launched_without_sandbox() -> bool {
+  std::env::args().any(|arg| arg == "--no-sandbox")
+}
+
 /// Whether a `chrome-sandbox` candidate passes the checks Chromium's zygote host makes
 /// before it will use the helper, given the `st_uid` and `st_mode` a `stat` reported.
 ///
@@ -113,6 +138,13 @@ pub(crate) fn sandbox_decision(
 /// Chromium abort with "The SUID sandbox helper binary was found, but is not configured
 /// correctly", so a half-configured helper is worse than none and must not count as
 /// available.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 pub(crate) fn helper_stat_is_usable(uid: u32, mode: u32) -> bool {
   /// `S_ISUID`.
   const SETUID: u32 = 0o4000;
@@ -123,7 +155,14 @@ pub(crate) fn helper_stat_is_usable(uid: u32, mode: u32) -> bool {
 }
 
 /// Gathers the inputs [`sandbox_decision`] needs from the environment and the filesystem.
-pub(crate) fn resolve_sandbox_decision(policy: LinuxSandboxPolicy) -> SandboxDecision {
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub(crate) fn resolve_sandbox_decision(policy: SandboxPolicy) -> SandboxDecision {
   let running_from_appimage = running_from_appimage();
   sandbox_decision(
     policy,
@@ -134,7 +173,30 @@ pub(crate) fn resolve_sandbox_decision(policy: LinuxSandboxPolicy) -> SandboxDec
   )
 }
 
+/// The policy's own answer, with nothing to probe.
+///
+/// Windows and macOS link their sandbox into the executable instead of relying on a
+/// helper the system has to provide, so there is no equivalent of the AppImage case here
+/// and [`SandboxPolicy::Auto`] never has cause to drop the sandbox.
+#[cfg(not(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+)))]
+pub(crate) fn resolve_sandbox_decision(policy: SandboxPolicy) -> SandboxDecision {
+  sandbox_decision(policy, false, false, None, None)
+}
+
 /// AppImage runtimes export `APPIMAGE` with the path of the mounted image.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 fn running_from_appimage() -> bool {
   std::env::var_os("APPIMAGE").is_some_and(|path| !path.is_empty())
 }
@@ -150,6 +212,13 @@ fn running_from_appimage() -> bool {
 /// `CHROME_DEVEL_SANDBOX` is somebody deliberately pointing at a helper outside the
 /// application, so it is honoured on every layout, but it is stat'ed like any other
 /// candidate: the variable merely being set says nothing about the file it names.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 fn sandbox_helper_available(running_from_appimage: bool) -> bool {
   if let Some(path) = std::env::var_os("CHROME_DEVEL_SANDBOX").filter(|path| !path.is_empty()) {
     return helper_path_is_usable(std::path::Path::new(&path));
@@ -166,6 +235,13 @@ fn sandbox_helper_available(running_from_appimage: bool) -> bool {
 }
 
 /// Stats `path` and hands what it reports to [`helper_stat_is_usable`].
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 fn helper_path_is_usable(path: &std::path::Path) -> bool {
   use std::os::unix::fs::MetadataExt;
 
@@ -184,6 +260,13 @@ fn helper_path_is_usable(path: &std::path::Path) -> bool {
 }
 
 /// Reads a numeric sysctl, returning [`None`] when it is missing or unparseable.
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 fn read_sysctl(path: &str) -> Option<u64> {
   std::fs::read_to_string(path).ok()?.trim().parse().ok()
 }
@@ -200,7 +283,7 @@ mod tests {
     max_user_namespaces: Option<u64>,
   ) -> SandboxDecision {
     sandbox_decision(
-      LinuxSandboxPolicy::Auto,
+      SandboxPolicy::Auto,
       running_from_appimage,
       sandbox_helper_available,
       apparmor,
@@ -214,7 +297,7 @@ mod tests {
       for helper in [false, true] {
         assert_eq!(
           sandbox_decision(
-            LinuxSandboxPolicy::Disabled,
+            SandboxPolicy::Disabled,
             appimage,
             helper,
             Some(1),
@@ -224,7 +307,7 @@ mod tests {
         );
         assert_eq!(
           sandbox_decision(
-            LinuxSandboxPolicy::Required,
+            SandboxPolicy::Required,
             appimage,
             helper,
             Some(1),
@@ -294,12 +377,47 @@ mod tests {
     );
   }
 
+  /// The platforms with nothing to probe answer from the policy alone, which is what
+  /// [`resolve_sandbox_decision`] passes there. Asserted on every platform so the
+  /// contract cannot drift on the ones that do not compile that arm.
+  #[test]
+  fn nothing_to_probe_means_the_policy_decides() {
+    assert_eq!(
+      sandbox_decision(SandboxPolicy::Auto, false, false, None, None),
+      SandboxDecision::Keep,
+      "Auto must keep the sandbox where there is no AppImage case to escape"
+    );
+    assert_eq!(
+      sandbox_decision(SandboxPolicy::Required, false, false, None, None),
+      SandboxDecision::Keep
+    );
+    assert_eq!(
+      sandbox_decision(SandboxPolicy::Disabled, false, false, None, None),
+      SandboxDecision::Disable(SandboxDisableReason::Policy),
+      "Disabled is the only way to lose the sandbox on Windows and macOS"
+    );
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   #[test]
   fn a_correctly_installed_helper_is_usable() {
     // Mode 4755, which is what the deb and rpm bundlers install.
     assert!(helper_stat_is_usable(0, 0o104755));
   }
 
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   #[test]
   fn a_helper_missing_any_of_chromiums_conditions_is_not_usable() {
     // Chromium aborts outright on a helper that fails these, so "present but wrong" has

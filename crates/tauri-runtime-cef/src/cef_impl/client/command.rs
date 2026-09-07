@@ -8,6 +8,8 @@ use std::sync::OnceLock;
 
 use cef::*;
 
+use crate::macros::wrap_with_args;
+
 /// Commands that open a second browser window or drive a tab strip.
 ///
 /// A Chrome style browser keeps its whole accelerator table live even when it is
@@ -164,19 +166,43 @@ fn command_ids(groups: &[&[&CStr]]) -> Vec<c_int> {
     .collect()
 }
 
-wrap_command_handler! {
+wrap_with_args! {
+  wrap_command_handler => TauriCefCommandHandlerArgs;
+
   pub struct TauriCefCommandHandler {
     devtools_enabled: bool,
     zoom_hotkeys_enabled: bool,
+    frame_navigation_state: crate::FrameNavigationState,
   }
 
   impl CommandHandler {
     fn on_chrome_command(
       &self,
-      _browser: Option<&mut Browser>,
+      browser: Option<&mut Browser>,
       command_id: ::std::os::raw::c_int,
       _disposition: WindowOpenDisposition,
     ) -> ::std::os::raw::c_int {
+      // Scoped the way the display handler and the frame observer are: CEF routes
+      // browsers this webview does not own through this very client. A DevTools
+      // window is the standing case — `show_dev_tools` passes a NULL client, but
+      // F12 and the context menu's Inspect reach CEF with no pending show params,
+      // and `ChromeBrowserDelegate` then reuses the opener's client — and a
+      // DevTools window is a real Chrome window whose zoom, print and find
+      // accelerators are its own to run. Blocking there would break them for the
+      // developer without protecting anything in the app's window — and because
+      // `zoom_hotkeys_enabled` defaults to false, Ctrl+Plus, Ctrl+Minus and Ctrl+0
+      // were dead in DevTools for essentially every app.
+      //
+      // The identity is bound by the frame observer, which the root client always
+      // installs, so it is recorded on this browser's first frame notification —
+      // long before an accelerator can reach a browser the user has yet to see.
+      let ours = browser
+        .map(|browser| self.frame_navigation_state.has_browser_id(browser.identifier()))
+        .unwrap_or(false);
+      if !ours {
+        return 0;
+      }
+
       let commands = blocked_commands();
 
       // Anything not named above runs as it does today. Clipboard, find in page,

@@ -88,19 +88,24 @@ pub use cef;
 /// pick here, exactly as it is under wry's WebKitGTK and WebView2 backends. So this
 /// setting decides how a cookie jar is protected at rest, and nothing else.
 ///
-/// The default, [`SecretStorage::Auto`], avoids the OS secret store wherever it is a
-/// recurring annoyance. That works out differently per platform:
+/// The default, [`SecretStorage::Auto`], skips the OS secret store in development builds
+/// (`tauri::is_dev()`), where it is a recurring annoyance, and keeps it in release
+/// builds, where it is the only thing protecting the cookie jar. What it skips differs
+/// per platform:
 ///
 /// - on macOS, `os_crypt` stores a random key in a shared "Chromium Safe Storage"
 ///   keychain item whose ACL is bound to the code signature of the process that reads
 ///   it. Ad-hoc-signed development builds get a new signature on every rebuild, so macOS
-///   puts up the keychain password prompt again after every `cargo build`. The keychain
-///   is therefore skipped in development builds and kept in release builds.
+///   puts up the keychain password prompt again after every `cargo build`.
 /// - on Linux, `os_crypt` asks the D-Bus secret portal, libsecret or KWallet for the
-///   key, which pops a keyring-unlock dialog the first time an app runs and fails
-///   outright in a headless session or a container with no keyring at all. Those are
-///   release-build problems too, so `Auto` uses `password-store=basic` in every build
-///   profile there.
+///   key, which pops a keyring-unlock dialog the first time an app runs.
+///
+/// A release build that has to run where there is no secret store at all — a headless
+/// session, a container, a CI image — needs [`SecretStorage::Mock`], because there `Auto`
+/// asks for a store that is not there. That is the deliberate trade: Chromium's own
+/// default and Electron's are to use the system store, and shipping `basic` by default
+/// would leave every packaged Linux application's cookies readable by anything that can
+/// read the cache directory.
 ///
 /// # Security
 ///
@@ -108,8 +113,9 @@ pub use cef;
 /// derive a secret key: they encrypt with a key derived from a **hard-coded constant**
 /// compiled into Chromium (`mock_password` and `peanuts` respectively). Both constants
 /// are public, so cookies encrypted with them have **no meaningful protection at rest** —
-/// anyone who can read the cache directory can decrypt them. That is the same guarantee
-/// wry gives on Linux today, where WebKitGTK stores cookies in plain text.
+/// anyone who can read the cache directory can decrypt them. Choosing one of them for a
+/// release build gives up the same protection wry already lacks on Linux, where
+/// WebKitGTK stores cookies in plain text; it is a floor to fall back to, not a default.
 ///
 /// # Switching modes invalidates stored cookies
 ///
@@ -121,16 +127,15 @@ pub use cef;
 /// under the previous key, logging users out. Set [`Cef::root_cache_path`] to separate
 /// the two if that matters.
 ///
-/// The same hazard applies to an existing application picking this runtime's Linux
-/// default up for the first time: a cookie jar previously encrypted with a libsecret or
-/// KWallet key cannot be read back under `basic`, so its users are logged out once on
-/// upgrade. Set [`SecretStorage::System`] to keep the old key source.
+/// An application that ships [`SecretStorage::Mock`] to survive keyring-less systems and
+/// later moves to [`SecretStorage::System`] hits the same thing in the other direction:
+/// a jar encrypted with `peanuts` cannot be read back under a libsecret or KWallet key.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SecretStorage {
-  /// macOS uses the mock keychain in development (`tauri::is_dev()`) and the system
-  /// keychain in release builds; Linux always skips the secret stores and uses the
-  /// `basic` password store; Windows is untouched and keeps using DPAPI.
+  /// Skip the OS secret store in development builds (`tauri::is_dev()`) and use it in
+  /// release builds: `--use-mock-keychain` on macOS and `--password-store=basic` on
+  /// Linux, in development only. Windows is untouched and keeps using DPAPI.
   #[default]
   Auto,
   /// Always encrypt with Chromium's hard-coded constant: `--use-mock-keychain` on macOS,
@@ -309,16 +314,19 @@ impl Cef {
 
   /// Which key Chromium uses to encrypt cookies and saved passwords at rest.
   ///
-  /// Defaults to [`SecretStorage::Auto`]: the macOS keychain prompt is replaced by a
-  /// mock keychain during development, Linux always skips the D-Bus secret portal,
-  /// libsecret and KWallet, and Windows keeps using DPAPI.
+  /// Defaults to [`SecretStorage::Auto`]: development builds skip the OS secret store —
+  /// the macOS keychain prompt is replaced by a mock keychain, and Linux skips the D-Bus
+  /// secret portal, libsecret and KWallet — while release builds use it. Windows keeps
+  /// using DPAPI throughout.
   ///
   /// Nothing but cookies and saved passwords is affected — `localStorage` and IndexedDB
   /// are stored unencrypted whichever variant you choose. The mock keychain and the
   /// Linux `basic` store encrypt with a hard-coded, publicly known constant, so they
-  /// offer no meaningful protection at rest; and because development and release builds
-  /// share the default cache directory, switching between key sources makes previously
-  /// stored cookies unreadable. See [`SecretStorage`] for the details.
+  /// offer no meaningful protection at rest; reach for [`SecretStorage::Mock`] only when
+  /// a release build has to run where no secret store exists at all, such as a container
+  /// or a headless session. Because development and release builds share the default
+  /// cache directory, switching between key sources makes previously stored cookies
+  /// unreadable. See [`SecretStorage`] for the details.
   #[must_use]
   pub fn secret_storage(mut self, storage: SecretStorage) -> Self {
     self.secret_storage = storage;
@@ -1965,9 +1973,12 @@ impl<T: UserEvent> CefRuntime<T> {
     {
       // `basic` skips the D-Bus secret portal, libsecret and KWallet key providers, any
       // of which can block startup on a keyring-unlock dialog or fail outright in a
-      // headless session.
+      // headless session. That is a development annoyance worth avoiding and a shipped
+      // application's cookie encryption worth keeping, so `Auto` splits the same way it
+      // does for the macOS keychain.
       let basic_password_store = match secret_storage {
-        SecretStorage::Auto | SecretStorage::Mock => true,
+        SecretStorage::Auto => tauri::is_dev(),
+        SecretStorage::Mock => true,
         SecretStorage::System => false,
       };
       if basic_password_store {

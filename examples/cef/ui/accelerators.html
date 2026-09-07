@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chrome accelerators</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header>
+      <h1>Chrome accelerators</h1>
+      <p>
+        This window was built with
+        <code id="allowed-summary"></code>. Press the keystrokes below: the ones
+        whose family this window kept behave the way they would in a browser,
+        and the rest never reach Chromium's command controller at all.
+      </p>
+    </header>
+
+    <main>
+      <section class="wide">
+        <table id="commands"></table>
+      </section>
+      <section class="wide">
+        <ul class="notes">
+          <li>
+            Nothing here is a Tauri accelerator or a menu: these are Chromium's
+            own, live because a Chrome style browser keeps its accelerator table
+            even with no browser UI attached.
+          </li>
+          <li>
+            <code>WebviewDispatch::print</code>, <code>go_back</code> and
+            <code>go_forward</code> keep working from Rust whether or not their
+            family is allowed.
+          </li>
+          <li>
+            Console output of this window is reported to the main window's
+            console panel, tagged with this window's label.
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      // Injected as an initialization script when the window was built.
+      const allowed = new Set(window.__ALLOWED_GROUPS__ ?? [])
+
+      const COMMANDS = [
+        [
+          'windowAndTab',
+          'WindowAndTab',
+          'Ctrl+N / Cmd+N',
+          'opens a real Chrome window'
+        ],
+        [
+          'windowAndTab',
+          'WindowAndTab',
+          'Ctrl+T / Cmd+T',
+          'new tab, in a window with no tab strip'
+        ],
+        ['document', 'Document', 'Ctrl+P / Cmd+P', 'prints this page'],
+        ['document', 'Document', 'Ctrl+O / Cmd+O', 'raises an OS file dialog'],
+        [
+          'browserChrome',
+          'BrowserChrome',
+          'Ctrl+L / Cmd+L',
+          'focuses an omnibox that is not there'
+        ],
+        [
+          'browserSurface',
+          'BrowserSurface',
+          'Ctrl+H / Cmd+Y',
+          "loads Chrome's history over this page"
+        ],
+        [
+          'browserSurface',
+          'BrowserSurface',
+          'Ctrl+J / Cmd+Shift+J',
+          "loads Chrome's downloads page"
+        ],
+        [
+          'history',
+          'History',
+          'Alt+Left / Cmd+[',
+          'goes back — onto the blank first entry'
+        ],
+        ['history', 'History', 'Alt+Right / Cmd+]', 'goes forward']
+      ]
+
+      document.getElementById('allowed-summary').textContent = allowed.size
+        ? `allow_chrome_commands([${[...allowed].join(', ')}])`
+        : 'no allowed groups: everything below is swallowed'
+
+      const table = document.getElementById('commands')
+      for (const [group, name, keys, effect] of COMMANDS) {
+        const row = table.insertRow()
+        row.insertCell().textContent = keys
+        const cell = row.insertCell()
+        cell.append(
+          allowed.has(group) ? `kept — ${effect}` : 'swallowed by the runtime'
+        )
+        const hint = document.createElement('span')
+        hint.className = 'hint'
+        hint.textContent = `ChromeCommandGroup::${name}`
+        cell.append(hint)
+      }
+
+      console.log('accelerator window ready')
+    </script>
+  </body>
+</html>

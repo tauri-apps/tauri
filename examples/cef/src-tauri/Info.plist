@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <!-- Registers the scheme `Cef::deep_link_schemes` watches for, so that
+             `open tauri-cef-example://hello` reaches the running application. -->
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLName</key>
+                <string>com.tauri.cef-example</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>tauri-cef-example</string>
+                </array>
+            </dict>
+        </array>
+    </dict>
+</plist>

@@ -1204,6 +1204,20 @@ impl<T: UserEvent> WinitCefApp<T> {
   }
 
   pub(crate) fn close_window(&mut self, window_id: WindowId, event_loop: &dyn ActiveEventLoop) {
+    if !self.state.windows.contains_key(&window_id) {
+      return;
+    }
+    // Every close path funnels through here, and this is the last point at which
+    // the window can still be named: the maps below are what `emit_window_event`
+    // and winit's own `Destroyed` both resolve a window through, and winit
+    // reports the destruction only after this function has dropped the window.
+    // Without this, `WindowEvent::Destroyed` never reaches the application, and
+    // it is what Tauri unregisters a window on — so a window closed while others
+    // stay open would keep its label taken and keep appearing in `Manager`'s
+    // window list forever.
+    if !self.state.exiting {
+      self.emit_window_event(window_id, WindowEvent::Destroyed);
+    }
     let Some(appwindow) = self.state.windows.remove(&window_id) else {
       return;
     };
@@ -1406,12 +1420,10 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
     match event {
       WinitWindowEvent::CloseRequested => self.request_window_close(window_id, event_loop),
 
-      WinitWindowEvent::Destroyed => {
-        if !self.state.exiting {
-          self.emit_window_event(window_id, WindowEvent::Destroyed);
-        }
-        self.close_window(window_id, event_loop);
-      }
+      // Reached only when the native window went away without a close request of
+      // its own; `close_window` emits `Destroyed` for every path, this one
+      // included.
+      WinitWindowEvent::Destroyed => self.close_window(window_id, event_loop),
       WinitWindowEvent::SurfaceResized(size) => {
         webview::layout_app_window(appwindow);
         self.emit_window_event(window_id, WindowEvent::Resized(size));

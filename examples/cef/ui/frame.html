@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>child frame</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body {
+        padding: 10px 12px;
+        background: transparent;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <p>
+      A child frame. Its whole native lifecycle — created, attached, committed,
+      detached, destroyed — is reported to <code>on_frame_event</code>, which
+      Tauri's portable navigation callbacks never see.
+    </p>
+    <script>
+      // Console output of a child frame reaches the same observer as the main
+      // frame's, with this document as its source.
+      console.log(`child frame loaded: ${location.href}`)
+    </script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+[package]
+name = "cef-example"
+version = "0.1.0"
+description = "A Tauri application showcasing the CEF runtime"
+edition = "2024"
+rust-version = "1.95"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[build-dependencies]
+tauri-build = { workspace = true, default-features = true }
+
+[dependencies]
+dirs = "6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { workspace = true, default-features = true }
+# Depending on this crate is what selects the CEF runtime: `tauri-build` and the
+# Tauri CLI both detect it from the manifest, and only then do they ship the CEF
+# binary distribution, sign it with the entitlements Chromium needs and run the
+# app from inside an `.app` bundle in `tauri dev` on macOS.
+tauri-runtime-cef = { workspace = true, default-features = true, features = [
+  "devtools",
+  # `WebviewBuilderCefExt`, the CEF methods of `tauri::webview::WebviewBuilder`,
+  # follows Tauri's own multiwebview API behind its `unstable` feature.
+  "unstable",
+] }

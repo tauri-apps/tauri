@@ -31,6 +31,7 @@ members = [
   "bench/tests/helloworld/src-tauri",
 
   # examples
+  "examples/cef/src-tauri",
   "examples/file-associations/src-tauri",
   "examples/resources/src-tauri",
   "examples/api/src-tauri",

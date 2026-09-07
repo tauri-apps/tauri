@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri × CEF</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header>
+      <h1>Tauri on the Chromium Embedded Framework</h1>
+      <p>
+        Every panel below exercises something
+        <code>tauri-runtime-cef</code> adds that the system webview runtime has
+        no equivalent for. The Rust side of each one is commented in
+        <code>src-tauri/src/</code>.
+      </p>
+      <div class="badges">
+        <span class="badge" id="chrome-version">Chromium …</span>
+        <span class="badge" id="cef-api-version">CEF API …</span>
+        <span class="badge">runtime style: Chrome</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="wide">
+        <h2>Runtime configuration <code>tauri_runtime_cef::Cef</code></h2>
+        <p class="desc">
+          Configured before the application is built, by passing
+          <code>Cef</code> to <code>tauri::Builder::runtime</code>. Set the
+          environment variable of a row and restart to see it change — the
+          example's <code>README.md</code> lists them all.
+        </p>
+        <table id="configuration"></table>
+        <p class="desc" style="margin-top: 12px">
+          Two of those rows are readable back from this page, which is how you
+          can tell the setting reached Chromium and not just the Rust struct:
+        </p>
+        <table>
+          <tr>
+            <td>navigator.languages</td>
+            <td>
+              <span id="languages"></span>
+              <span class="hint"
+                >follows <code>accept_language_list</code></span
+              >
+            </td>
+          </tr>
+          <tr>
+            <td>new AudioContext().state</td>
+            <td>
+              <span id="autoplay"></span>
+              <span class="hint"
+                >follows <code>command_line_arg("autoplay-policy", …)</code>:
+                nothing on this page has been clicked, so a context that starts
+                <code>running</code> is one Chromium did not gate on a user
+                gesture</span
+              >
+            </td>
+          </tr>
+          <tr>
+            <td>window.gc</td>
+            <td>
+              <span id="expose-gc"></span>
+              <span class="hint"
+                >follows <code>command_line_args(["js-flags", …])</code>, which
+                is set on the browser process and forwarded to the renderer by
+                Chromium itself</span
+              >
+            </td>
+          </tr>
+        </table>
+      </section>
+
+      <section>
+        <h2>Console messages <code>on_console_message</code></h2>
+        <p class="desc">
+          The renderer's console output, observed in Rust without DevTools being
+          open. The handler runs on CEF's UI thread and does not suppress the
+          message: CEF still logs it as it normally would.
+        </p>
+        <div class="row">
+          <button data-console="log">console.log</button>
+          <button data-console="info">console.info</button>
+          <button data-console="warn">console.warn</button>
+          <button data-console="error">console.error</button>
+          <button data-console="throw">uncaught exception</button>
+          <button data-console="subresource">blocked subresource</button>
+        </div>
+        <div class="log" id="console-log"></div>
+      </section>
+
+      <section>
+        <h2>Frame lifecycle <code>on_frame_event</code></h2>
+        <p class="desc">
+          Native CEF notifications for <em>every</em> frame of this browser,
+          child frames included — which Tauri's portable navigation callbacks do
+          not report. A CEF-owned popup is a different browser and never shows
+          up here.
+        </p>
+        <iframe id="child-frame" src="frame.html" title="child frame"></iframe>
+        <div class="row">
+          <button data-frame="frame.html">load frame.html</button>
+          <button data-frame="frame.html?v=2">navigate it</button>
+          <button data-frame="about:blank">about:blank</button>
+          <button data-frame="https://example.invalid">
+            failing navigation
+          </button>
+          <button data-frame="remove">destroy the frame</button>
+        </div>
+        <div class="log" id="frame-log"></div>
+      </section>
+
+      <section>
+        <h2>Chrome accelerators <code>allow_chrome_commands</code></h2>
+        <p class="desc">
+          A Chrome style browser keeps its whole accelerator table live even
+          hosted as a child view with no browser UI, so Ctrl+N would open a real
+          Chrome window next to the app's and Ctrl+H would load Chrome's history
+          page over the app's UI. The runtime swallows those families by
+          default; tick the ones this window should keep.
+        </p>
+        <div class="options" id="command-groups"></div>
+        <div class="row">
+          <label for="runtime-style">runtime style</label>
+          <select id="runtime-style" style="width: auto">
+            <option value="chrome">Chrome</option>
+            <option value="alloy">Alloy</option>
+          </select>
+          <label
+            ><input type="checkbox" id="zoom-hotkeys" /> zoom hotkeys</label
+          >
+          <button class="primary" id="open-accelerators">Open window</button>
+        </div>
+        <ul class="notes">
+          <li>
+            Zoom is not a group: it follows
+            <code>zoom_hotkeys_enabled</code>, which defaults to
+            <code>false</code>. Ctrl+mouse wheel zooms either way.
+          </li>
+          <li>
+            Alloy style has no Chrome UI at all, so its accelerator table is not
+            live to begin with.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>DevTools protocol <code>send_dev_tools_message</code></h2>
+        <p class="desc">
+          Chrome DevTools Protocol requests against this webview's browser, with
+          the request id taken from
+          <code>allocate_devtools_message_id()</code>. Every observer on the
+          browser sees every result, so a hardcoded id can consume somebody
+          else's answer.
+        </p>
+        <div class="row">
+          <input
+            type="text"
+            class="grow"
+            id="cdp-method"
+            value="Browser.getVersion"
+          />
+          <button class="primary" id="cdp-send">Send</button>
+        </div>
+        <div class="row">
+          <textarea id="cdp-params" rows="2">{}</textarea>
+        </div>
+        <div class="row" id="cdp-presets"></div>
+        <div class="row">
+          <input
+            type="text"
+            class="grow"
+            id="cdp-filter"
+            placeholder="filter, e.g. Page. or result"
+          />
+          <button id="cdp-clear">Clear</button>
+        </div>
+        <div class="log" id="cdp-log"></div>
+      </section>
+
+      <section>
+        <h2>Native state <code>with_cef_webview</code></h2>
+        <p class="desc">
+          The native CEF handle, on CEF's UI thread. The snapshot is sampled
+          immediately before the closure runs and is never refreshed, so it says
+          what was true at that instant and nothing about now.
+        </p>
+        <div class="row">
+          <label for="snapshot-target">sample</label>
+          <select id="snapshot-target" class="grow"></select>
+          <button class="primary" id="snapshot">Sample</button>
+        </div>
+        <pre class="output" id="snapshot-output">click to sample</pre>
+        <ul class="notes" style="margin-top: 10px; margin-bottom: 0">
+          <li>
+            <code>browser</code> is read from the raw
+            <code>cef::Browser</code> the handle exposes, so it is live CEF
+            state rather than part of the sampled snapshot.
+          </li>
+          <li>
+            <code>popups</code> lists the CEF-owned browsers this one opened —
+            open one from the popups panel and sample again.
+          </li>
+          <li>
+            <code>documentAdmitted</code> is false unless every known frame is
+            attached and the load has finished, and
+            <code>selectedByItsDocument</code> is
+            <code>Webview::for_document</code> handed that document's own token
+            back.
+          </li>
+          <li>
+            <code>dialogs</code> only ever says what CEF observed of a native
+            JavaScript dialog, and only its kind and whether Chromium has a
+            browser-side handler for it — never the message or the prompt value,
+            which are page content. <code>known: false</code> means nothing was
+            observed, never that no dialog is up.
+          </li>
+          <li>
+            <code>sameNativeWindowAsPreviousSample</code> compares
+            <code>NativeWindowToken</code>s, not labels: a window closed and
+            rebuilt under the same label reports <code>false</code>. Both child
+            webviews of a multiwebview window report the same one, because they
+            share a window.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Popups <code>AsCefWindowOpener</code></h2>
+        <p class="desc">
+          CEF hands the opener's main-frame URL straight to the new-window
+          callback, so it can be read without a blocking webview getter — which
+          on this runtime can deadlock the UI thread. The handler answers with a
+          real Tauri window, unless the URL is fragmented
+          <code>#cef-owned</code>: it then answers
+          <code>NewWindowResponse::Allow</code> and CEF opens a browser of its
+          own, which has no Tauri label and shows up under
+          <code>Webview::popups()</code> instead.
+        </p>
+        <div class="row">
+          <button data-popup="popup.html">window.open (app page)</button>
+          <button data-popup="https://tauri.app">window.open (external)</button>
+          <button data-popup="popup.html#cef-owned">CEF-owned popup</button>
+        </div>
+        <ul class="notes">
+          <li>
+            The Tauri popup is sampled by its label in the native state panel
+            like any other window. The CEF-owned one has no label, so it is
+            observed under <code>popups</code> of this window's own sample,
+            where it also selects itself back out of the family by its own
+            document token.
+          </li>
+        </ul>
+        <div class="log" id="popup-log"></div>
+      </section>
+
+      <section>
+        <h2>Child webviews <code>WebviewBuilderCefExt</code></h2>
+        <p class="desc">
+          Everything <code>WebviewWindowBuilderCefExt</code> adds to a
+          window-plus-webview builder, on the
+          <code>tauri::webview::WebviewBuilder</code> of a window that hosts
+          several. It follows Tauri's multiwebview API behind the
+          <code>unstable</code> feature. The window opens with two sibling
+          browsers side by side, and the runtime style is a per-browser choice:
+          Chrome on the left, Alloy on the right.
+        </p>
+        <div class="row">
+          <button class="primary" id="open-children">Open window</button>
+        </div>
+        <ul class="notes">
+          <li>
+            Both children report their console output and their frame lifecycle
+            to the panels above, tagged with their own webview label.
+          </li>
+          <li>
+            Both allow <code>ChromeCommandGroup::History</code>, but only the
+            Chrome style one has an accelerator table for it to apply to.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Permissions <code>on_permission_request</code></h2>
+        <p class="desc">
+          Answered in Rust, before Chrome's own prompt. Chromium consults the
+          prompt only while the stored content setting still says "ask", so most
+          decisions reach the handler once per origin and then persist to the
+          on-disk profile — restarts included. Camera and microphone are the
+          exception and are asked every time.
+        </p>
+        <div class="row">
+          <button data-permission="notifications">Notifications</button>
+          <button data-permission="geolocation">Geolocation</button>
+          <button data-permission="camera">Camera</button>
+          <button data-permission="display">Display capture</button>
+          <button data-permission="storage-access">Storage access</button>
+        </div>
+        <div class="log" id="permission-log"></div>
+      </section>
+
+      <section>
+        <h2>Deep links <code>deep_link_schemes</code></h2>
+        <p class="desc">
+          A second launch of a running app reaches Chromium's process singleton,
+          which relays the new process's command line — a command line CEF has
+          by then cleared. The runtime puts the deep link URL back on it, so the
+          URL arrives here as <code>RunEvent::Opened</code>.
+        </p>
+        <ul class="notes">
+          <li>macOS: <code>open tauri-cef-example://hello</code></li>
+          <li>
+            Linux and Windows: run the built executable again with
+            <code>tauri-cef-example://hello</code> as its argument.
+          </li>
+        </ul>
+        <div class="log" id="deeplink-log"></div>
+      </section>
+    </main>
+
+    <script src="main.js"></script>
+  </body>
+</html>

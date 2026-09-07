@@ -4,12 +4,11 @@
 
 ;(function () {
   function toggleDevtoolsHotkey() {
-    const osName = __TEMPLATE_os_name__
+    const isMacos = __TEMPLATE_is_macos__
 
-    const isHotkey =
-      osName === 'macos'
-        ? (event) => event.metaKey && event.altKey && event.code === 'KeyI'
-        : (event) => event.ctrlKey && event.shiftKey && event.code === 'KeyI'
+    const isHotkey = isMacos
+      ? (event) => event.metaKey && event.altKey && event.code === 'KeyI'
+      : (event) => event.ctrlKey && event.shiftKey && event.code === 'KeyI'
 
     document.addEventListener('keydown', (event) => {
       if (isHotkey(event)) {

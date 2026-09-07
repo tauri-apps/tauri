@@ -196,32 +196,18 @@ mod desktop_commands {
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  // The DevTools hotkey is not scripted here: it is up to the runtime, which knows
+  // whether its webviews already have one. `tauri-runtime-wry` injects a script that
+  // invokes the `internal_toggle_devtools` command above, because none of the webviews
+  // it drives binds the chord itself; the CEF runtime leaves it to Chrome's accelerator
+  // table, which would otherwise open DevTools only for the script's toggle to close it
+  // again in the same breath.
   #[allow(unused_mut)]
   let mut init_script = String::new();
   // window.print works on Linux/Windows; need to use the API on macOS
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   {
     init_script.push_str(include_str!("./scripts/print.js"));
-  }
-
-  #[cfg(any(debug_assertions, feature = "devtools"))]
-  {
-    use serialize_to_javascript::{DefaultTemplate, Template, default_template};
-
-    #[derive(Template)]
-    #[default_template("./scripts/toggle-devtools.js")]
-    struct Devtools<'a> {
-      os_name: &'a str,
-    }
-
-    init_script.push_str(
-      &Devtools {
-        os_name: std::env::consts::OS,
-      }
-      .render_default(&Default::default())
-      .unwrap()
-      .into_string(),
-    );
   }
 
   let mut builder = Builder::new("webview");

@@ -113,6 +113,10 @@ const BROWSER_SURFACE_COMMANDS: &[&CStr] = &[
 ///
 /// Blocked only when the webview disabled devtools. `keyboard.rs` blocks F12 and
 /// the inspect chord by key code; these cover the rest of the accelerator table.
+///
+/// Left to Chrome otherwise: these accelerators *are* the DevTools shortcut in this
+/// runtime. `tauri` scripts the chord for the webviews that have none of their own,
+/// from `tauri-runtime-wry`, so nothing here competes with it.
 const DEVTOOLS_COMMANDS: &[&CStr] = &[
   cef::resources::IDC_DEV_TOOLS,
   cef::resources::IDC_DEV_TOOLS_CONSOLE,

@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use tauri_runtime::webview::WebviewAttributes;
 use tauri_utils::Theme;
 
-use crate::cef_impl::request_handler;
+use crate::cef_impl::{preferences, request_handler};
 
 #[inline]
 fn theme_to_color_variant(theme: Option<Theme>) -> ColorVariant {
@@ -341,11 +341,14 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
   let wrapped_callback: RequestContextInitContinuation = Box::new({
     let rc_holder = rc_holder.clone();
     move |rc| {
-      // The proxy preference can only be set once the request context's
-      // underlying profile has finished initializing, which is exactly what
-      // this continuation signals.
-      if let (Some(rc), Some(proxy_url)) = (rc.as_ref(), proxy_url.as_ref()) {
-        apply_proxy(rc, proxy_url);
+      // Preferences can only be set once the request context's underlying
+      // profile has finished initializing, which is exactly what this
+      // continuation signals.
+      if let Some(rc) = rc.as_ref() {
+        preferences::apply_app_webview_preferences(rc);
+        if let Some(proxy_url) = proxy_url.as_ref() {
+          apply_proxy(rc, proxy_url);
+        }
       }
       on_initialized(rc);
       let _released = rc_holder.lock().unwrap().take();

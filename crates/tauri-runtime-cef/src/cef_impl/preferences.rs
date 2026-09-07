@@ -27,7 +27,26 @@
 //! deliberate follow-up rather than an oversight: it needs `runtime.rs`, which
 //! this change does not own.
 
-use cef::{ImplPreferenceManager, ImplValue, RequestContext};
+use cef::{CefString, ImplPreferenceManager, ImplValue, RequestContext};
+
+/// Builds the `error` out-parameter that every
+/// [`ImplPreferenceManager::set_preference`] call has to pass.
+///
+/// `CefPreferenceManager::SetPreference` marks only `value` as an optional
+/// parameter, so CEF's generated C-to-C++ shim opens with
+/// `DCHECK(error); if (!error) { return 0; }`. The Rust binding turns a [`None`]
+/// error into a null pointer, so passing [`None`] makes the call report failure
+/// before the preference service is ever consulted - the preference is never
+/// written, whatever the caller asked for.
+///
+/// [`CefString::default`] is not a substitute: it builds the borrowed-none
+/// variant, whose `&mut CefString` to `*mut cef_string_utf16_t` conversion is a
+/// null pointer again. `CefString::from("")` builds the owned variant, which
+/// converts to a real, writable pointer and frees whatever CEF stores in it when
+/// the string is dropped.
+pub(crate) fn set_preference_error_slot() -> CefString {
+  CefString::from("")
+}
 
 /// Chromium profile preferences forced off for every webview, with the reason
 /// each one is unwanted in an application webview:
@@ -81,8 +100,11 @@ pub(crate) fn apply_app_webview_preferences(request_context: &RequestContext) {
     value.set_bool(i32::from(*enabled));
 
     let mut value = value;
-    if request_context.set_preference(Some(&(*name).into()), Some(&mut value), None) != 1 {
-      log::debug!("failed to apply the {name} preference to the CEF request context");
+    let mut error = set_preference_error_slot();
+    if request_context.set_preference(Some(&(*name).into()), Some(&mut value), Some(&mut error))
+      != 1
+    {
+      log::debug!("failed to apply the {name} preference to the CEF request context: {error}");
     }
   }
 }

@@ -295,8 +295,13 @@ fn apply_proxy(request_context: &RequestContext, proxy_url: &url::Url) {
   value.set_dictionary(Some(&mut dict));
 
   let mut value = value;
-  if request_context.set_preference(Some(&pref_name.into()), Some(&mut value), None) != 1 {
-    log::error!("failed to apply the proxy preference to the CEF request context");
+  // `error` is not an optional parameter: CEF's shim refuses the call outright
+  // when it is null. See `preferences::set_preference_error_slot`.
+  let mut error = preferences::set_preference_error_slot();
+  if request_context.set_preference(Some(&pref_name.into()), Some(&mut value), Some(&mut error))
+    != 1
+  {
+    log::error!("failed to apply the proxy preference to the CEF request context: {error}");
   }
 }
 

@@ -18,6 +18,8 @@ mod macros;
 mod platform;
 mod popup;
 mod runtime;
+// `LinuxSandboxPolicy` is public API on every platform and lives in `runtime`; only the
+// decision logic behind it is Linux and BSD specific.
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -26,14 +28,6 @@ mod runtime;
   target_os = "openbsd"
 ))]
 mod sandbox;
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-pub use sandbox::LinuxSandboxPolicy;
 mod tauri_ext;
 mod webview;
 pub use devtools::{DevToolsMessageIdExhausted, allocate_devtools_message_id};

@@ -25,32 +25,10 @@
 //! is also why a half-configured helper must not count as available: Chromium treats one
 //! that fails those checks as a fatal error rather than falling back to another sandbox.
 
-/// What to do with Chromium's sandbox on Linux and the BSDs.
-///
-/// Defaults to [`LinuxSandboxPolicy::Auto`], which keeps the sandbox on unless the
-/// application is running from an AppImage on a system that offers no way to sandbox at
-/// all — where the alternative is not an unsandboxed application but no application,
-/// since Chromium aborts with "No usable sandbox!".
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum LinuxSandboxPolicy {
-  /// Keep the sandbox, except when the application runs from an AppImage and the system
-  /// has neither the setuid `chrome-sandbox` helper nor usable unprivileged user
-  /// namespaces. A warning naming the reason is logged whenever the sandbox is dropped.
-  #[default]
-  Auto,
-  /// Never pass `--no-sandbox`, even when that means Chromium aborts at startup.
-  ///
-  /// Pick this when running unsandboxed is not an acceptable outcome and a hard failure
-  /// is preferable — the user can then install the setuid helper, point
-  /// `CHROME_DEVEL_SANDBOX` at one, or re-enable unprivileged user namespaces.
-  Required,
-  /// Always pass `--no-sandbox`.
-  ///
-  /// Every renderer then runs with the full privileges of the user, so a compromised
-  /// renderer is a compromised account. Useful for containers and CI images that cannot
-  /// provide a sandbox, not for shipped applications.
-  Disabled,
-}
+// `LinuxSandboxPolicy` itself lives in `runtime.rs`, next to the rest of the `Cef`
+// builder's configuration types, because `Cef` carries it on every platform while this
+// module is only compiled where there is a Linux sandbox to decide about.
+use crate::runtime::LinuxSandboxPolicy;
 
 /// Why the sandbox is being turned off.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

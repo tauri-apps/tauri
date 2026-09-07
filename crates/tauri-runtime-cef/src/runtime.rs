@@ -88,16 +88,19 @@ pub use cef;
 /// pick here, exactly as it is under wry's WebKitGTK and WebView2 backends. So this
 /// setting decides how a cookie jar is protected at rest, and nothing else.
 ///
-/// The default, [`SecretStorage::Auto`], keeps the OS secret store in release builds and
-/// avoids it during development, where it is a recurring annoyance:
+/// The default, [`SecretStorage::Auto`], avoids the OS secret store wherever it is a
+/// recurring annoyance. That works out differently per platform:
 ///
 /// - on macOS, `os_crypt` stores a random key in a shared "Chromium Safe Storage"
 ///   keychain item whose ACL is bound to the code signature of the process that reads
 ///   it. Ad-hoc-signed development builds get a new signature on every rebuild, so macOS
-///   puts up the keychain password prompt again after every `cargo build`.
+///   puts up the keychain password prompt again after every `cargo build`. The keychain
+///   is therefore skipped in development builds and kept in release builds.
 /// - on Linux, `os_crypt` asks the D-Bus secret portal, libsecret or KWallet for the
 ///   key, which pops a keyring-unlock dialog the first time an app runs and fails
-///   outright in a headless session or a container with no keyring at all.
+///   outright in a headless session or a container with no keyring at all. Those are
+///   release-build problems too, so `Auto` uses `password-store=basic` in every build
+///   profile there.
 ///
 /// # Security
 ///
@@ -117,7 +120,13 @@ pub use cef;
 /// when a dev build is followed by a release build — therefore drops the cookies stored
 /// under the previous key, logging users out. Set [`Cef::root_cache_path`] to separate
 /// the two if that matters.
+///
+/// The same hazard applies to an existing application picking this runtime's Linux
+/// default up for the first time: a cookie jar previously encrypted with a libsecret or
+/// KWallet key cannot be read back under `basic`, so its users are logged out once on
+/// upgrade. Set [`SecretStorage::System`] to keep the old key source.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SecretStorage {
   /// macOS uses the mock keychain in development (`tauri::is_dev()`) and the system
   /// keychain in release builds; Linux always skips the secret stores and uses the
@@ -133,6 +142,37 @@ pub enum SecretStorage {
   /// Always use the operating system secret store, on every platform and in every build
   /// profile. Appends no switch at all.
   System,
+}
+
+/// What to do with Chromium's sandbox on Linux and the BSDs.
+///
+/// Defaults to [`LinuxSandboxPolicy::Auto`], which keeps the sandbox on unless the
+/// application is running from an AppImage on a system that offers no way to sandbox at
+/// all — where the alternative is not an unsandboxed application but no application,
+/// since Chromium aborts with "No usable sandbox!".
+///
+/// Available on every platform so that cross-platform code can set it without a `cfg`,
+/// and ignored on the platforms that have no Linux sandbox to decide about.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum LinuxSandboxPolicy {
+  /// Keep the sandbox, except when the application runs from an AppImage and the system
+  /// has neither the setuid `chrome-sandbox` helper nor usable unprivileged user
+  /// namespaces. A warning naming the reason is logged whenever the sandbox is dropped.
+  #[default]
+  Auto,
+  /// Never run without a sandbox, even when that means Chromium aborts at startup.
+  ///
+  /// Pick this when running unsandboxed is not an acceptable outcome and a hard failure
+  /// is preferable — the user can then install the setuid helper, point
+  /// `CHROME_DEVEL_SANDBOX` at one, or re-enable unprivileged user namespaces.
+  Required,
+  /// Always run without a sandbox.
+  ///
+  /// Every renderer then runs with the full privileges of the user, so a compromised
+  /// renderer is a compromised account. Useful for containers and CI images that cannot
+  /// provide a sandbox, not for shipped applications.
+  Disabled,
 }
 
 /// Selects and configures the CEF runtime.
@@ -156,21 +196,13 @@ pub struct Cef {
   log_severity: Option<LogSeverity>,
   locale: Option<String>,
   accept_language_list: Option<String>,
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  linux_sandbox: crate::sandbox::LinuxSandboxPolicy,
+  linux_sandbox: LinuxSandboxPolicy,
   settings_callback: Option<Box<SettingsCallback>>,
 }
 
 impl fmt::Debug for Cef {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let mut debug = f.debug_struct("Cef");
-    debug
+    f.debug_struct("Cef")
       .field("command_line_args", &self.command_line_args)
       .field("deep_link_schemes", &self.deep_link_schemes)
       .field("cache_path", &self.cache_path)
@@ -183,16 +215,8 @@ impl fmt::Debug for Cef {
       .field("log_file", &self.log_file)
       .field("log_severity", &self.log_severity)
       .field("locale", &self.locale)
-      .field("accept_language_list", &self.accept_language_list);
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
-    ))]
-    debug.field("linux_sandbox", &self.linux_sandbox);
-    debug
+      .field("accept_language_list", &self.accept_language_list)
+      .field("linux_sandbox", &self.linux_sandbox)
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
   }
@@ -326,10 +350,13 @@ impl Cef {
   /// File Chromium and CEF write their log to (`Settings::log_file`).
   ///
   /// Defaults to `cef.log` inside the cache directory (see [`Self::root_cache_path`]).
-  /// Chromium falls back to a `debug.log` in the *process working directory* when no log
-  /// file is configured, which for an installed application is wherever the user
-  /// happened to launch it from — a read-only directory, or one the user did not expect
-  /// a file to appear in.
+  /// With no log file configured, CEF writes a `debug.log` into the *main executable
+  /// directory* on Windows and Linux, which for an installed application is a location
+  /// the user did not expect a file to appear in and often cannot write to at all.
+  ///
+  /// Note that the default also overrides the macOS convention, where CEF would
+  /// otherwise write to `~/Library/Logs/<app name>_debug.log`. Pass that path explicitly
+  /// to keep it.
   #[must_use]
   pub fn log_file<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
     self.log_file = Some(path.as_ref().to_path_buf());
@@ -343,7 +370,9 @@ impl Cef {
   /// and to [`cef::LogSeverity::DEFAULT`] in development builds (`tauri::is_dev()`),
   /// where the informational messages are usually what you want.
   ///
-  /// Use [`cef::LogSeverity::DISABLE`] to turn logging off entirely.
+  /// [`cef::LogSeverity::DISABLE`] does not turn logging off entirely: CEF maps it to a
+  /// FATAL-only minimum level, so nothing is written to the log file but FATAL messages
+  /// still go to stderr.
   #[must_use]
   pub fn log_severity(mut self, severity: LogSeverity) -> Self {
     self.log_severity = Some(severity);
@@ -366,7 +395,7 @@ impl Cef {
   }
 
   /// Comma-delimited list of languages sent as the `Accept-Language` header and reported
-  /// through `navigator.languages` (`Settings::accept_language_list`), for example
+  /// through `navigator.language` (`Settings::accept_language_list`), for example
   /// `en-US,en,pt-BR`.
   ///
   /// Defaults to CEF's own value, which is derived from [`Self::locale`].
@@ -386,15 +415,11 @@ impl Cef {
   /// escape hatch Chromium aborts at startup with "No usable sandbox!".
   ///
   /// See [`LinuxSandboxPolicy`] for the other variants.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
+  ///
+  /// Callable on every platform, and ignored on Windows and macOS, so a cross-platform
+  /// builder chain does not have to be wrapped in a `cfg`.
   #[must_use]
-  pub fn linux_sandbox(mut self, policy: crate::sandbox::LinuxSandboxPolicy) -> Self {
+  pub fn linux_sandbox(mut self, policy: LinuxSandboxPolicy) -> Self {
     self.linux_sandbox = policy;
     self
   }
@@ -1450,6 +1475,12 @@ where
 
 /// Appends `args` to `command_line`, as a switch with a value, a bare switch or a
 /// positional argument depending on how each entry looks.
+///
+/// A bare name with no value is only recognised as a switch when it is spelled with its
+/// `--` prefix; without one it is a positional argument. This runtime's own entries are
+/// therefore all spelled `--switch`, values included: Chromium strips the prefix off the
+/// key it stores (`CommandLine::AppendSwitchNative`), so both spellings reach the same
+/// switch and one convention avoids having to remember which form each entry needs.
 fn append_command_line_args(command_line: &mut CommandLine, args: &[(String, Option<String>)]) {
   for (arg, value) in args {
     if let Some(value) = value {
@@ -1475,19 +1506,25 @@ wrap_with_args! {
     // Whether the deep link URL this process was launched with has to be put back
     // onto Chromium's command line. See `on_before_command_line_processing`.
     restore_deep_link_arguments: bool,
-    // Switches this runtime needs on *every* process command line.
+    // Switches applied whatever process type `on_before_command_line_processing` reports.
     //
     // Deliberately tiny: `cef_app_t::on_before_command_line_processing` warns that
     // "modifying the command-line arguments for non-browser processes may result in
     // undefined behavior including crashes", so only switches we know a child process
     // must see itself belong here.
     internal_command_line_args: Vec<(String, Option<String>)>,
-    // Switches applied to the browser process only.
+    // Switches applied only when the reported process type is the browser one.
     //
     // Chromium already forwards to each child the switches it needs, so anything that
     // is only read in the browser process - and everything the embedding application
     // supplied through `Cef::command_line_arg` - goes here. The application's own
     // switches are appended last so they win over the runtime's defaults.
+    //
+    // In practice both lists only ever reach a browser process: `CefRuntime::init` sends
+    // every subprocess into `TauriCefHelperApp` and exits before `TauriCefApp` is built,
+    // so this app is never installed anywhere else and the process type it is handed is
+    // always the empty, browser one. The split is a guard against that stopping to hold,
+    // not a distinction that changes behaviour today.
     browser_command_line_args: Vec<(String, Option<String>)>,
   }
 
@@ -1882,13 +1919,6 @@ impl<T: UserEvent> CefRuntime<T> {
       log_severity,
       locale,
       accept_language_list,
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-      ))]
       linux_sandbox,
       settings_callback,
       // Already applied, above, before the first CEF call.
@@ -1931,7 +1961,7 @@ impl<T: UserEvent> CefRuntime<T> {
         SecretStorage::System => false,
       };
       if basic_password_store {
-        browser_command_line_args.push(("password-store".to_string(), Some("basic".to_string())));
+        browser_command_line_args.push(("--password-store".to_string(), Some("basic".to_string())));
       }
     }
 
@@ -1969,7 +1999,13 @@ impl<T: UserEvent> CefRuntime<T> {
       target_os = "netbsd",
       target_os = "openbsd"
     )))]
-    let no_sandbox = !cfg!(feature = "sandbox");
+    let no_sandbox = {
+      // There is no Linux sandbox to decide about here, so the policy is inert and the
+      // cargo feature - which really does select the sandbox library on these platforms -
+      // has the last word.
+      let _ = linux_sandbox;
+      !cfg!(feature = "sandbox")
+    };
     // Windows encrypts with DPAPI, which needs no switch and prompts for nothing.
     #[cfg(windows)]
     let _ = secret_storage;
@@ -1982,9 +2018,9 @@ impl<T: UserEvent> CefRuntime<T> {
 
     // Force X11 usage on Linux.
     //
-    // This one is applied to every process: we have not verified that Chromium
-    // propagates `ozone-platform` to the GPU process, and getting it wrong there breaks
-    // rendering on Linux outright.
+    // Put in the list that is not conditioned on the process type: we have not verified
+    // that Chromium propagates `ozone-platform` to the GPU process, and getting it wrong
+    // there breaks rendering on Linux outright.
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1993,7 +2029,7 @@ impl<T: UserEvent> CefRuntime<T> {
       target_os = "openbsd"
     ))]
     {
-      internal_command_line_args.push(("ozone-platform".to_string(), Some("x11".to_string())));
+      internal_command_line_args.push(("--ozone-platform".to_string(), Some("x11".to_string())));
       event_loop_builder.with_x11();
     }
 

@@ -308,6 +308,7 @@ fn apply_proxy(request_context: &RequestContext, proxy_url: &url::Url) {
 pub(crate) fn request_context_from_webview_attributes<'a>(
   global_cache_path: &Path,
   webview_attributes: &WebviewAttributes,
+  profile_preferences: Arc<Vec<(String, bool)>>,
   custom_schemes: impl IntoIterator<Item = &'a String>,
   custom_protocol_scheme: &str,
   scheme_registry: request_handler::SchemeRegistry,
@@ -350,7 +351,7 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
       // profile has finished initializing, which is exactly what this
       // continuation signals.
       if let Some(rc) = rc.as_ref() {
-        preferences::apply_app_webview_preferences(rc);
+        preferences::apply_app_webview_preferences(rc, &profile_preferences);
         if let Some(proxy_url) = proxy_url.as_ref() {
           apply_proxy(rc, proxy_url);
         }

@@ -720,6 +720,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     let request_context = request_context::request_context_from_webview_attributes(
       &context.cache_path,
       &pending.webview_attributes,
+      context.profile_preferences.clone(),
       uri_scheme_protocols.keys(),
       &custom_protocol_scheme,
       scheme_registry.clone(),

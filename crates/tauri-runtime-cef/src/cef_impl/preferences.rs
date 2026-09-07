@@ -24,9 +24,9 @@
 //! Tauri does not disable it, so shipping this off would leave CEF the least
 //! protected of Tauri's webview backends.
 //!
-//! TODO: expose a knob on the `Cef` builder for an application that really does
-//! want to opt *out* of Safe Browsing. Shipping the protection on by default is
-//! the part that cannot wait for it.
+//! An application whose webview only ever loads its own content can still opt
+//! out with `Cef::profile_preference("safebrowsing.enabled", false)`, which is
+//! also how any entry in [`PREFERENCES`] is turned back on.
 
 use cef::{CefString, ImplPreferenceManager, ImplValue, RequestContext};
 
@@ -82,34 +82,52 @@ const PREFERENCES: &[(&str, bool)] = &[
   ("search.suggest_enabled", false),
 ];
 
-/// Applies [`PREFERENCES`] to `request_context`.
+/// Applies [`PREFERENCES`], then `overrides`, to `request_context`.
 ///
 /// Must be called after the request context has finished initializing - a
 /// preference cannot be written before the underlying Chromium `Profile`
 /// exists.
 ///
+/// `overrides` are the application's own, from `Cef::profile_preference`. They
+/// are written last so that naming a preference this module disables turns it
+/// back on, and so that a repeated name keeps its last value.
+pub(crate) fn apply_app_webview_preferences(
+  request_context: &RequestContext,
+  overrides: &[(String, bool)],
+) {
+  let defaults = PREFERENCES
+    .iter()
+    .map(|(name, enabled)| (*name, *enabled));
+  let overrides = overrides
+    .iter()
+    .map(|(name, enabled)| (name.as_str(), *enabled));
+
+  for (name, enabled) in defaults.chain(overrides) {
+    set_preference(request_context, name, enabled);
+  }
+}
+
+/// Writes one boolean preference, skipping it when this Chrome build will not
+/// take it.
+///
 /// Which preferences a given Chrome build registers as writable varies, so a
 /// refused preference is logged at debug and skipped rather than warned about:
 /// there is one request context per webview and a missing preference is not
 /// something the app developer can act on.
-pub(crate) fn apply_app_webview_preferences(request_context: &RequestContext) {
-  for (name, enabled) in PREFERENCES {
-    if request_context.can_set_preference(Some(&(*name).into())) != 1 {
-      log::debug!("the CEF request context does not allow setting the {name} preference");
-      continue;
-    }
+fn set_preference(request_context: &RequestContext, name: &str, enabled: bool) {
+  if request_context.can_set_preference(Some(&name.into())) != 1 {
+    log::debug!("the CEF request context does not allow setting the {name} preference");
+    return;
+  }
 
-    let Some(value) = cef::value_create() else {
-      continue;
-    };
-    value.set_bool(i32::from(*enabled));
+  let Some(value) = cef::value_create() else {
+    return;
+  };
+  value.set_bool(i32::from(enabled));
 
-    let mut value = value;
-    let mut error = set_preference_error_slot();
-    if request_context.set_preference(Some(&(*name).into()), Some(&mut value), Some(&mut error))
-      != 1
-    {
-      log::debug!("failed to apply the {name} preference to the CEF request context: {error}");
-    }
+  let mut value = value;
+  let mut error = set_preference_error_slot();
+  if request_context.set_preference(Some(&name.into()), Some(&mut value), Some(&mut error)) != 1 {
+    log::debug!("failed to apply the {name} preference to the CEF request context: {error}");
   }
 }

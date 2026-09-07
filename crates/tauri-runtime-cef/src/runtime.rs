@@ -205,6 +205,7 @@ pub struct Cef {
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
   secret_storage: SecretStorage,
+  profile_preferences: Vec<(String, bool)>,
   allow_chromium_command_line_args: bool,
   log_file: Option<PathBuf>,
   log_severity: Option<LogSeverity>,
@@ -222,6 +223,7 @@ impl fmt::Debug for Cef {
       .field("cache_path", &self.cache_path)
       .field("api_version", &self.api_version)
       .field("secret_storage", &self.secret_storage)
+      .field("profile_preferences", &self.profile_preferences)
       .field(
         "allow_chromium_command_line_args",
         &self.allow_chromium_command_line_args,
@@ -330,6 +332,40 @@ impl Cef {
   #[must_use]
   pub fn secret_storage(mut self, storage: SecretStorage) -> Self {
     self.secret_storage = storage;
+    self
+  }
+
+  /// Sets one boolean Chromium profile preference on every webview's request context.
+  ///
+  /// Applied after the runtime's own defaults, so it can turn a preference the runtime
+  /// disabled back on as well as turn something else off. Calling it twice for the same
+  /// preference keeps the last value.
+  ///
+  /// The runtime disables a handful of Chrome browser features that have no place in an
+  /// application webview — the "Save password?" and address and credit-card bubbles
+  /// (`credentials_enable_service`, `profile.password_manager_leak_detection`,
+  /// `autofill.profile_enabled`, `autofill.credit_card_enabled`), the translate bubble
+  /// (`translate.enabled`), and two background requests to Google
+  /// (`alternate_error_pages.enabled`, `search.suggest_enabled`). An application that
+  /// wants one of them, such as a browser-shaped app that really does want the password
+  /// manager, names it here.
+  ///
+  /// Safe Browsing (`safebrowsing.enabled`) is left on by the runtime and is the other
+  /// reason this exists: an application whose webview only ever loads its own content can
+  /// switch it off here.
+  ///
+  /// Preference names are Chromium's own, and which ones a given Chrome build registers
+  /// as writable varies. A preference this build refuses is logged at debug and skipped.
+  ///
+  /// ```no_run
+  /// # use tauri_runtime_cef::Cef;
+  /// Cef::default()
+  ///   .profile_preference("credentials_enable_service", true)
+  ///   .profile_preference("safebrowsing.enabled", false);
+  /// ```
+  #[must_use]
+  pub fn profile_preference<K: Into<String>>(mut self, name: K, enabled: bool) -> Self {
+    self.profile_preferences.push((name.into(), enabled));
     self
   }
 
@@ -536,6 +572,10 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   /// [`cef::initialize`]. Per-webview `data_directory` profiles must resolve
   /// under this root for CEF request contexts to be accepted.
   pub(crate) cache_path: Arc<PathBuf>,
+  /// Chromium profile preferences the application asked for, applied to every
+  /// webview's request context after the runtime's own defaults. See
+  /// [`Cef::profile_preference`].
+  pub(crate) profile_preferences: Arc<Vec<(String, bool)>>,
 }
 
 /// Scoped access to the current winit callback state.
@@ -1932,6 +1972,7 @@ impl<T: UserEvent> CefRuntime<T> {
       deep_link_schemes,
       cache_path: cache_path_override,
       secret_storage,
+      profile_preferences,
       allow_chromium_command_line_args,
       log_file,
       log_severity,
@@ -2060,6 +2101,7 @@ impl<T: UserEvent> CefRuntime<T> {
       app_wide_theme: Default::default(),
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),
+      profile_preferences: Arc::new(profile_preferences),
     };
 
     internal_command_line_args.push(("--no-first-run".to_string(), None));

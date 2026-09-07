@@ -45,7 +45,6 @@ pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
   pub(crate) document_title_changed_handler:
     Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
   pub(crate) navigation_handler: Option<Arc<tauri_runtime::webview::NavigationHandler>>,
-  pub(crate) address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
   pub(crate) new_window_handler:
     Option<Arc<tauri_runtime::webview::NewWindowHandler<T, CefRuntime<T>>>>,
   pub(crate) download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
@@ -60,7 +59,6 @@ impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {
       on_page_load_handler: self.on_page_load_handler.clone(),
       document_title_changed_handler: self.document_title_changed_handler.clone(),
       navigation_handler: self.navigation_handler.clone(),
-      address_changed_handler: self.address_changed_handler.clone(),
       new_window_handler: self.new_window_handler.clone(),
       download_handler: self.download_handler.clone(),
       web_content_process_terminate_handler: self.web_content_process_terminate_handler.clone(),
@@ -145,7 +143,7 @@ wrap_client! {
             // inherited the opener's client outright.
             download_handler: download_handler.clone(),
             ipc_handler: None, on_page_load_handler: None,
-            document_title_changed_handler: None, address_changed_handler: None,
+            document_title_changed_handler: None,
             web_content_process_terminate_handler: None,
           }, context.proxy.clone(), context.sender.clone(),
         )
@@ -173,7 +171,6 @@ wrap_client! {
     fn display_handler(&self) -> Option<DisplayHandler> {
       Some(TauriCefDisplayHandler::new(
         self.handlers.document_title_changed_handler.clone(),
-        self.handlers.address_changed_handler.clone(),
         self.handlers.frame_event_handler.clone(),
       ))
     }

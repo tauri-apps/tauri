@@ -83,9 +83,6 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
         .disable_drag_drop_handler()
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
-        })
-        .on_address_change(|_webview, url| {
-          println!("CEF address changed: {url}");
         });
 
       #[cfg(all(desktop, not(test)))]

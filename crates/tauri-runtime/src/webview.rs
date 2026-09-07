@@ -41,8 +41,6 @@ pub type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 
 pub type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
 
-pub type AddressChangedHandler = dyn Fn(&Url) + Send + Sync + 'static;
-
 pub type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
 type PermissionRequestHandler = dyn Fn(PermissionKind) -> PermissionResponse + Send + Sync;
@@ -216,8 +214,6 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
 
   pub document_title_changed_handler: Option<Box<DocumentTitleChangedHandler>>,
 
-  pub address_changed_handler: Option<Box<AddressChangedHandler>>,
-
   /// The resolved URL to load on the webview.
   pub url: String,
 
@@ -259,7 +255,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         navigation_handler: None,
         new_window_handler: None,
         document_title_changed_handler: None,
-        address_changed_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,

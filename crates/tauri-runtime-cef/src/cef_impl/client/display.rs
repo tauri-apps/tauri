@@ -11,7 +11,6 @@ use crate::webview::INITIAL_LOAD_URL;
 wrap_display_handler! {
   pub struct TauriCefDisplayHandler {
     document_title_changed_handler: Option<Arc<tauri_runtime::webview::DocumentTitleChangedHandler>>,
-    address_changed_handler: Option<Arc<tauri_runtime::webview::AddressChangedHandler>>,
     frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
   }
 
@@ -47,16 +46,12 @@ wrap_display_handler! {
       }
 
       if let Ok(url) = url::Url::parse(&url) {
-        let is_main = frame.as_ref().is_none_or(|frame| frame.is_main() != 0);
         crate::frame::emit_frame_event(
           &self.frame_event_handler,
           browser,
           frame,
-          crate::FrameEventKind::AddressChanged { url: url.clone() },
+          crate::FrameEventKind::AddressChanged { url },
         );
-        if is_main && let Some(handler) = &self.address_changed_handler {
-          handler(&url);
-        }
       }
     }
   }

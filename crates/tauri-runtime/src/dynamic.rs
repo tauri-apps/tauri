@@ -739,7 +739,6 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     navigation_handler,
     new_window_handler,
     document_title_changed_handler,
-    address_changed_handler,
     url,
     #[cfg(target_os = "android")]
     on_webview_created,
@@ -776,7 +775,6 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     navigation_handler,
     new_window_handler,
     document_title_changed_handler,
-    address_changed_handler,
     url,
     #[cfg(target_os = "android")]
     on_webview_created,

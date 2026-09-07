@@ -67,7 +67,6 @@ pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
 pub(crate) type OnDocumentTitleChanged<R> = dyn Fn(Webview<R>, String) + Send + 'static;
-pub(crate) type OnAddressChanged<R> = dyn Fn(Webview<R>, &Url) + Send + Sync + 'static;
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 pub(crate) type PermissionRequestHandler<R> =
   dyn Fn(Webview<R>, PermissionKind) -> PermissionResponse + Send + Sync + 'static;
@@ -245,7 +244,6 @@ unstable_struct!(
     pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
     pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
-    pub(crate) address_changed_handler: Option<Box<OnAddressChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
     pub(crate) permission_request_handler: Option<Box<PermissionRequestHandler<R>>>,
   }
@@ -327,7 +325,6 @@ async fn create_window(app: tauri::AppHandle) {
       new_window_handler: None,
       on_page_load_handler: None,
       document_title_changed_handler: None,
-      address_changed_handler: None,
       download_handler: None,
       permission_request_handler: None,
     }
@@ -410,7 +407,6 @@ async fn create_window(app: tauri::AppHandle) {
       new_window_handler: None,
       on_page_load_handler: None,
       document_title_changed_handler: None,
-      address_changed_handler: None,
       download_handler: None,
       permission_request_handler: None,
     }
@@ -506,15 +502,6 @@ tauri::Builder::default()
   )]
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
-    self
-  }
-
-  /// Register a callback to be invoked when the webview's address (URL) changes.
-  pub fn on_address_change<F: Fn(Webview<R>, &Url) + Send + Sync + 'static>(
-    mut self,
-    f: F,
-  ) -> Self {
-    self.address_changed_handler.replace(Box::new(f));
     self
   }
 
@@ -798,18 +785,6 @@ tauri::Builder::default()
         .replace(Box::new(move |title| {
           if let Some(w) = manager.get_webview(&label) {
             document_title_changed_handler(w, title);
-          }
-        }));
-    }
-
-    if let Some(address_changed_handler) = self.address_changed_handler.take() {
-      let label = pending.label.clone();
-      let manager = manager.manager_owned();
-      pending
-        .address_changed_handler
-        .replace(Box::new(move |url| {
-          if let Some(w) = manager.get_webview(&label) {
-            address_changed_handler(w, url);
           }
         }));
     }

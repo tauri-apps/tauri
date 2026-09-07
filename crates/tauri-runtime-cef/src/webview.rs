@@ -447,7 +447,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     let on_page_load_handler = pending.on_page_load_handler.take().map(Arc::from);
     let document_title_changed_handler =
       pending.document_title_changed_handler.take().map(Arc::from);
-    let address_changed_handler = pending.address_changed_handler.take().map(Arc::from);
     let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
       && pending.webview_attributes.devtools.unwrap_or(true);
     let drag_drop_handler_enabled = pending.webview_attributes.drag_drop_handler_enabled;
@@ -487,7 +486,6 @@ impl<T: UserEvent> WinitCefApp<T> {
       on_page_load_handler,
       document_title_changed_handler,
       navigation_handler: pending.navigation_handler.map(Arc::from),
-      address_changed_handler,
       new_window_handler: pending.new_window_handler.map(Arc::from),
       download_handler: pending.download_handler.take(),
       web_content_process_terminate_handler,

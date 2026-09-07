@@ -24,23 +24,18 @@
 //! through AppArmor — which is exactly the combination this module detects.
 //!
 //! Tauri's AppImage bundler does copy `chrome-sandbox` next to the main binary, so the
-//! helper is *present* in every CEF AppImage. Merely finding a file by that name
-//! therefore proves nothing, and this module never treats one inside an AppImage as
-//! available. Outside an AppImage the file is stat'ed against the same conditions
-//! Chromium's zygote host applies — owned by root, setuid, executable by others — which
-//! is also why a half-configured helper must not count as available: Chromium treats one
-//! that fails those checks as a fatal error rather than falling back to another sandbox.
+//! helper is *present* in every CEF AppImage and finding a file by that name proves
+//! nothing; one inside an AppImage is never treated as available. Outside an AppImage
+//! the file is stat'ed against the same conditions Chromium's zygote host applies —
+//! owned by root, setuid, executable by others — because Chromium treats a helper that
+//! fails them as a fatal error rather than falling back to another sandbox.
 //!
 //! # Everywhere else
 //!
 //! Windows and macOS sandbox through libraries linked into the executable rather than
 //! through a helper the system has to provide, so there is nothing to probe: the policy
-//! decides on its own and [`SandboxPolicy::Auto`] always keeps the sandbox. That used to
-//! be a `sandbox` cargo feature instead, which meant a consumer building with
-//! `default-features = false` got a silently unsandboxed Chromium on those two platforms.
+//! decides on its own and [`SandboxPolicy::Auto`] always keeps the sandbox.
 
-// `SandboxPolicy` itself lives in `runtime.rs`, next to the rest of the `Cef` builder's
-// configuration types.
 use crate::runtime::SandboxPolicy;
 
 /// Why the sandbox is being turned off.
@@ -121,10 +116,9 @@ pub(crate) fn sandbox_decision(
 /// Whether this process was launched with Chromium's `--no-sandbox` switch.
 ///
 /// A child process inherits the switch from the browser process that spawned it, so this
-/// is how a macOS helper learns that entering the sandbox would be wrong. Reading it off
-/// the real process command line rather than off [`SandboxPolicy`] is deliberate: a
-/// helper never sees the `Cef` builder, and the browser process may have dropped the
-/// sandbox for a reason the policy alone does not name.
+/// is how a macOS helper learns that entering the sandbox would be wrong. It is read off
+/// the real command line rather than off [`SandboxPolicy`] because a helper never sees
+/// the `Cef` builder.
 #[cfg(target_os = "macos")]
 pub(crate) fn launched_without_sandbox() -> bool {
   std::env::args().any(|arg| arg == "--no-sandbox")
@@ -134,10 +128,9 @@ pub(crate) fn launched_without_sandbox() -> bool {
 /// before it will use the helper, given the `st_uid` and `st_mode` a `stat` reported.
 ///
 /// `ZygoteHostImpl::Init` requires the file to be owned by root, to carry the setuid bit
-/// and to be executable by others; a file that is there but fails any of those makes
-/// Chromium abort with "The SUID sandbox helper binary was found, but is not configured
-/// correctly", so a half-configured helper is worse than none and must not count as
-/// available.
+/// and to be executable by others; a file that is there but fails any of those aborts
+/// with "The SUID sandbox helper binary was found, but is not configured correctly", so
+/// a half-configured helper must not count as available.
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -173,11 +166,8 @@ pub(crate) fn resolve_sandbox_decision(policy: SandboxPolicy) -> SandboxDecision
   )
 }
 
-/// The policy's own answer, with nothing to probe.
-///
-/// Windows and macOS link their sandbox into the executable instead of relying on a
-/// helper the system has to provide, so there is no equivalent of the AppImage case here
-/// and [`SandboxPolicy::Auto`] never has cause to drop the sandbox.
+/// The policy's own answer, with nothing to probe: Windows and macOS have no equivalent
+/// of the AppImage case, so [`SandboxPolicy::Auto`] never drops the sandbox there.
 #[cfg(not(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -204,14 +194,12 @@ fn running_from_appimage() -> bool {
 /// Whether Chromium can find *and use* the setuid `chrome-sandbox` helper.
 ///
 /// The helper next to the executable is disregarded entirely when running from an
-/// AppImage. Tauri's AppImage bundler copies `chrome-sandbox` into the same directory as
-/// the main binary, so the file is always there, and the AppImage runtime mounts the
-/// payload `nosuid`, so its setuid bit — which `stat` still reports — has no effect when
-/// Chromium tries to execute it.
+/// AppImage: the bundler always copies `chrome-sandbox` there, and the AppImage runtime
+/// mounts the payload `nosuid`, so the setuid bit `stat` still reports has no effect.
 ///
 /// `CHROME_DEVEL_SANDBOX` is somebody deliberately pointing at a helper outside the
 /// application, so it is honoured on every layout, but it is stat'ed like any other
-/// candidate: the variable merely being set says nothing about the file it names.
+/// candidate.
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -366,8 +354,8 @@ mod tests {
   }
 
   /// The platforms with nothing to probe answer from the policy alone, which is what
-  /// [`resolve_sandbox_decision`] passes there. Asserted on every platform so the
-  /// contract cannot drift on the ones that do not compile that arm.
+  /// [`resolve_sandbox_decision`] passes there. Asserted everywhere so the contract
+  /// cannot drift on the platforms that do not compile that arm.
   #[test]
   fn nothing_to_probe_means_the_policy_decides() {
     assert_eq!(
@@ -409,7 +397,7 @@ mod tests {
   #[test]
   fn a_helper_missing_any_of_chromiums_conditions_is_not_usable() {
     // Chromium aborts outright on a helper that fails these, so "present but wrong" has
-    // to read as unavailable, not as a sandbox we can rely on.
+    // to read as unavailable.
     assert!(
       !helper_stat_is_usable(1000, 0o104755),
       "a helper not owned by root cannot raise privileges"

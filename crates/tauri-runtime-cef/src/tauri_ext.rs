@@ -286,12 +286,11 @@ pub trait WebviewWindowBuilderCefExt {
   /// Observes the messages the renderer writes to the JavaScript console,
   /// without DevTools having to be open.
   ///
-  /// The callback runs synchronously on CEF's UI thread. It must return
-  /// promptly and must not wait for an event-loop operation. Observing a
-  /// message does not suppress it: CEF logs it as it normally would.
-  /// It is scoped to this webview's own native browser, so a CEF-owned popup
-  /// is a separate browser that is never reported here, and neither is a
-  /// DevTools window opened on this webview.
+  /// The callback runs synchronously on CEF's UI thread, so it must return
+  /// promptly and must not wait for an event-loop operation. Observing a message
+  /// does not suppress it: CEF logs it as it normally would. It is scoped to this
+  /// webview's own native browser, so neither a CEF-owned popup's output nor that
+  /// of a DevTools window opened on this webview is reported here.
   #[must_use]
   fn on_console_message<F: Fn(ConsoleMessage) + Send + Sync + 'static>(self, handler: F) -> Self;
 
@@ -302,11 +301,10 @@ pub trait WebviewWindowBuilderCefExt {
   /// that have no meaning in an app window — new window and tab, the tab strip,
   /// history, downloads and settings, print, save page, view source, the omnibox
   /// focus commands. Naming a [`ChromeCommandGroup`] here lets that family run the
-  /// way it would in a browser.
+  /// way it would in a browser. Calling this more than once replaces the previous
+  /// list.
   ///
-  /// Calling it more than once replaces the previous list.
-  ///
-  /// DevTools and zoom accelerators are not covered here: they already follow
+  /// DevTools and zoom accelerators are not covered here: they follow
   /// `WebviewAttributes::devtools` and `WebviewAttributes::zoom_hotkeys_enabled`.
   ///
   /// ```no_run
@@ -392,12 +390,11 @@ pub trait WebviewBuilderCefExt {
   /// Observes the messages the renderer writes to the JavaScript console,
   /// without DevTools having to be open.
   ///
-  /// The callback runs synchronously on CEF's UI thread. It must return
-  /// promptly and must not wait for an event-loop operation. Observing a
-  /// message does not suppress it: CEF logs it as it normally would.
-  /// It is scoped to this webview's own native browser, so a CEF-owned popup
-  /// is a separate browser that is never reported here, and neither is a
-  /// DevTools window opened on this webview.
+  /// The callback runs synchronously on CEF's UI thread, so it must return
+  /// promptly and must not wait for an event-loop operation. Observing a message
+  /// does not suppress it: CEF logs it as it normally would. It is scoped to this
+  /// webview's own native browser, so neither a CEF-owned popup's output nor that
+  /// of a DevTools window opened on this webview is reported here.
   #[must_use]
   fn on_console_message<F: Fn(ConsoleMessage) + Send + Sync + 'static>(self, handler: F) -> Self;
 
@@ -408,13 +405,11 @@ pub trait WebviewBuilderCefExt {
   /// that have no meaning in an app window — new window and tab, the tab strip,
   /// history, downloads and settings, print, save page, view source, the omnibox
   /// focus commands. Naming a [`ChromeCommandGroup`] here lets that family run the
-  /// way it would in a browser.
+  /// way it would in a browser. Calling this more than once replaces the previous
+  /// list.
   ///
-  /// Calling it more than once replaces the previous list.
-  ///
-  /// DevTools and zoom accelerators are not covered here: they already follow
+  /// DevTools and zoom accelerators are not covered here: they follow
   /// `WebviewAttributes::devtools` and `WebviewAttributes::zoom_hotkeys_enabled`.
-  ///
   #[must_use]
   fn allow_chrome_commands<I: IntoIterator<Item = ChromeCommandGroup>>(self, groups: I) -> Self;
 }

@@ -19,7 +19,7 @@ mod platform;
 mod popup;
 mod runtime;
 // `SandboxPolicy` itself is public API and lives in `runtime`; this module holds the
-// decision behind it, which only has something to probe on Linux and the BSDs.
+// decision behind it.
 mod sandbox;
 mod tauri_ext;
 mod webview;

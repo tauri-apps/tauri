@@ -4,59 +4,47 @@
 
 //! The application's permission policy, as CEF asks for it.
 //!
-//! CEF has two entry points and they behave very differently once answered, which
-//! is the single most surprising thing about this file.
+//! CEF has two entry points and they behave very differently once answered. The
+//! user-facing half of what follows is documented on
+//! [`CefWebviewAttributes`](crate::CefWebviewAttributes).
 //!
 //! # The prompt path answers once per origin, forever
 //!
-//! `on_show_permission_prompt` is reached only when Chromium's stored content
-//! setting for that (origin, permission) is still "ask". `cont` then persists the
-//! answer — `ACCEPT` through `PermissionRequestManager::Accept()`, exactly as a
-//! click on Chrome's Allow button would — into the on-disk profile. Chromium
-//! reads that setting on the next request and never asks again.
-//!
-//! So the application's handler is consulted **once per origin and permission**,
-//! and the answer outlives the process: a handler whose answer depends on app
-//! state (a user having signed in, a setting having been toggled) is silently
+//! `on_show_permission_prompt` is reached only while Chromium's stored content
+//! setting for that (origin, permission) still says "ask", and `cont` persists the
+//! answer into the on-disk profile: `ACCEPT` through
+//! `PermissionRequestManager::Accept()`, the path a click on Chrome's Allow button
+//! takes, and `DENY` through `Deny()`, which stores BLOCK. Either way Chromium
+//! never asks again, so a handler whose answer depends on application state is
 //! ignored from its second request onwards, including across restarts.
 //!
-//! Both answers persist, not just the grant. `DENY` reaches
-//! `PermissionRequestManager::Deny()`, which stores BLOCK, so a handler that
-//! refuses once has refused for good: Chromium auto-denies the next request
-//! without reaching this file, and the application cannot later change its mind by
-//! answering `Allow`. `CEF_PERMISSION_RESULT_DISMISS` would leave the setting at
-//! "ask", but it is not what a deliberate refusal means, and a policy that has to
-//! be re-asked on every request is what the media path below already provides.
-//!
-//! There is no callback here for "the app changed its mind". An app that has to
-//! revoke a grant, or undo a refusal, rewrites the content setting itself:
+//! There is no callback for "the app changed its mind". An app that has to revoke
+//! a grant, or undo a refusal, rewrites the content setting itself:
 //! `Webview::browser()` reaches the `cef::Browser`, and from it
 //! `host().request_context().set_content_setting(...)`.
 //!
 //! # The media path answers every call
 //!
-//! `on_request_media_access_permission` is different: Chromium routes every
-//! `getUserMedia()` call through it, so camera and microphone requests do reach
-//! the handler each time and a changing answer is honored. `MediaAccessCallback`
-//! persists nothing, which is why this path — and only this path — writes the
-//! content settings itself (see [`allow_content_settings`]).
+//! Chromium routes every `getUserMedia()` call through
+//! `on_request_media_access_permission`, so camera and microphone requests do
+//! reach the handler each time and a changing answer is honored.
+//! `MediaAccessCallback` persists nothing, which is why this path — and only this
+//! path — writes the content settings itself (see [`allow_content_settings`]).
 //!
 //! # Unmapped request types are [`PermissionKind::Other`]
 //!
 //! [`PERMISSION_KINDS`] is a partial map: Chromium has more request types than
-//! Tauri has kinds. Storage Access and Top Level Storage Access, FedCM (identity
-//! provider), protocol handler registration, idle detection, local and loopback
-//! network access, web app installation, the AR and VR sessions behind WebXR,
-//! hand tracking, keyboard lock and disk quota are the whole of what is left
-//! over, and every one of them arrives as `PermissionKind::Other` — as does any
-//! request type a future CEF build adds.
+//! Tauri has kinds, and everything left over — storage access, FedCM, protocol
+//! handler registration, idle detection, local and loopback network access, web
+//! app installation, the WebXR sessions, hand tracking, keyboard lock and disk
+//! quota — arrives as `PermissionKind::Other`, as does any request type a future
+//! CEF build adds.
 //!
-//! Failing closed is deliberate — a new request type must never be granted behind
-//! the application's back — but it means a handler written for another platform as
-//! `match kind { Camera => Allow, _ => Deny }` hard-denies all of the above on
-//! CEF, and denying Storage Access or FedCM breaks third-party SSO flows outright.
-//! A handler that only means to answer about the kinds it names should return
-//! [`PermissionResponse::Default`] for the rest.
+//! Failing closed is deliberate, but it means a handler written for another
+//! platform as `match kind { Camera => Allow, _ => Deny }` hard-denies all of
+//! them, and denying storage access or FedCM breaks third-party SSO flows
+//! outright. A handler that only means to answer about the kinds it names should
+//! return [`PermissionResponse::Default`] for the rest.
 
 use std::sync::Arc;
 
@@ -94,9 +82,7 @@ const ALLOY_MEDIA_PERMISSIONS: u32 = AUDIO_CAPTURE | VIDEO_CAPTURE;
 /// Chromium's request types are finer grained than Tauri's kinds — the plain camera
 /// stream and its pan-tilt-zoom control are both `Camera` — and most of them have no
 /// Tauri counterpart at all. A request type absent from this table is reported as
-/// [`PermissionKind::Other`], which is also what a request type added by a future
-/// CEF build maps to, so a new type is never silently granted behind the
-/// application's back.
+/// [`PermissionKind::Other`]; see the module docs.
 ///
 /// [`PermissionKind::Autoplay`] has no entry: Chromium gates autoplay through its
 /// media engagement policy rather than through a permission request, so no CEF
@@ -178,12 +164,11 @@ const MEDIA_PERMISSION_KINDS: &[(u32, PermissionKind)] = &[
 /// How the application answered a whole CEF permission request.
 ///
 /// CEF asks about a bitmask of types and is answered once for all of them, so the
-/// per-kind answers have to be combined. [`Self::Denied`] wins over everything: no
-/// reply denies one type while leaving the others to the platform, and a refusal
-/// must never end up granting the rest of the request. A request is granted only
-/// when the application allowed every type in it, so what is granted is exactly the
-/// subset it allowed. Anything else leaves part of the request unanswered, and the
-/// platform default runs for it unchanged.
+/// per-kind answers have to be combined. [`Self::Denied`] wins over everything,
+/// because a refusal must never end up granting the rest of the request, and a
+/// request is granted only when the application allowed every type in it. Anything
+/// else leaves part of the request unanswered, and the platform default runs for it
+/// unchanged.
 enum AppDecision {
   /// The application denied at least one of the requested permissions.
   Denied,
@@ -211,9 +196,8 @@ wrap_permission_handler! {
       let host = browser_host(browser);
 
       match self.decide(requested_permissions, media_permission_kind) {
-        // Answer for the application, whatever the runtime style: an explicit
-        // answer is the whole point of the handler, so neither Chrome's prompt nor
-        // Alloy's blanket grant may override it.
+        // Answer for the application, whatever the runtime style: neither Chrome's
+        // prompt nor Alloy's blanket grant may override an explicit answer.
         AppDecision::Denied => {
           let Some(callback) = callback else {
             return 0;
@@ -249,10 +233,8 @@ wrap_permission_handler! {
           }
 
           // Alloy style has no permission UI and its default handling denies the request,
-          // so grant camera and microphone capture here. Desktop capture defers to that
-          // default handling, which refuses it — see `grants_desktop_capture`. Deferring
-          // the whole request also keeps the granted mask equal to the requested one,
-          // which CEF requires of a `getUserMedia` answer.
+          // so grant camera and microphone capture here. Desktop capture is left to that
+          // default handling, which refuses it — see `grants_desktop_capture`.
           if grants_desktop_capture(requested_permissions) {
             return 0;
           }
@@ -302,15 +284,11 @@ wrap_permission_handler! {
           let Some(callback) = callback else {
             return 0;
           };
-          // No content setting is written here. `cont(ACCEPT)` reaches
-          // `PermissionRequestManager::Accept()`, the very path a user's click on
-          // Chrome's Allow button takes, and that path persists the grant itself —
-          // so `navigator.permissions.query()` already agrees with it. Writing one
-          // on top would be duplicative at best and wrong at worst: the write names
-          // no top-level URL, which is a wildcard secondary pattern, and Chromium
-          // scopes a storage-access grant to the (embedded origin, top-level site)
-          // pair. A handler answering `Allow` to a `PermissionKind::Other` request
-          // would have granted that origin storage access on every top-level site.
+          // No content setting is written here: `cont(ACCEPT)` reaches
+          // `PermissionRequestManager::Accept()`, which persists the grant itself.
+          // Writing one on top would also be over-broad — it names no top-level
+          // URL, so a storage-access grant Chromium scopes to an (embedded origin,
+          // top-level site) pair would end up granted on every site.
           callback.cont(PermissionRequestResult::ACCEPT);
           1
         }
@@ -328,8 +306,7 @@ wrap_permission_handler! {
             return 0;
           };
 
-          // As above: accepting is what persists the grant, and the extra write
-          // would be both redundant and over-broad.
+          // As above: accepting is what persists the grant.
           callback.cont(PermissionRequestResult::ACCEPT);
           1
         }
@@ -349,13 +326,10 @@ impl TauriCefPermissionHandler {
       return AppDecision::NoOpinion;
     };
 
-    // A refusal is seen wherever it sits in the bitmask, and short-circuits there:
-    // nothing after it could weaken it, so the types past it are not asked about. A
-    // handler that logs or keeps state therefore sees only a prefix of a denied
-    // request — up to and including the type it refused — never the whole of it.
-    // Left as it is on purpose: the handler is a policy predicate, not an event
-    // feed, so asking it about types whose answer cannot change the outcome would
-    // be work with no result.
+    // A refusal short-circuits: nothing after it could weaken it, so the types past
+    // it are not asked about. A handler that logs or keeps state therefore sees
+    // only a prefix of a denied request. That is deliberate — the handler is a
+    // policy predicate, not an event feed.
     let mut asked = false;
     let mut allowed_all = true;
     for permission in requested_permissions(requested) {
@@ -381,26 +355,19 @@ impl TauriCefPermissionHandler {
 /// CEF builds the granted stream straight from the mask: a set
 /// `DESKTOP_VIDEO_CAPTURE` bit with no requested device id synthesises a
 /// `DesktopMediaID(TYPE_SCREEN, kFullDesktopScreenId)` and returns it, so
-/// `getDisplayMedia()` resolves with the whole desktop and *no picker at all*.
-/// Chrome style would have shown Chromium's desktop media picker, and Alloy style
-/// refused desktop capture outright; neither can be reconstructed from a
-/// [`PermissionKind`], which names no screen, window or tab.
+/// `getDisplayMedia()` resolves with the whole desktop and *no picker at all*. A
+/// [`PermissionKind`] names no screen, window or tab, so an app writing
+/// `.on_permission_request(|_| PermissionResponse::Allow)` would silently give any
+/// page in the webview a full-desktop stream. Deferring to CEF keeps its picker in
+/// front of the user, which is the only thing that can name what is shared.
 ///
-/// So an app writing `.on_permission_request(|_| PermissionResponse::Allow)` — a
-/// plausible "it is all my own content" rule — would silently give any page in the
-/// webview, including remote content reached through a redirect, a full-desktop
-/// stream. Deferring the request to CEF instead keeps the picker in front of the
-/// user, which is the only thing that can name what is actually shared.
-///
-/// The whole request is deferred, never a part of it: CEF documents that when a
-/// request carries the device capture bits — that is, when it came from
-/// `getUserMedia()` — `allowed_permissions` must equal `required_permissions`, so
-/// granting the device half of a mixed mask while withholding the desktop half is
-/// not a legal answer. Deferring costs nothing, because the device bits CEF would
-/// then handle itself are exactly the ones its own prompt covers.
+/// The whole request is deferred, never a part of it: CEF requires
+/// `allowed_permissions` to equal `required_permissions` for a request carrying the
+/// device capture bits, so granting the device half of a mixed mask while
+/// withholding the desktop half is not a legal answer.
 ///
 /// A `Deny` is unaffected: `cont(0)` refuses every bit in the request, desktop
-/// capture included, and refusing is always a legal answer.
+/// capture included.
 fn grants_desktop_capture(requested: u32) -> bool {
   requested & DESKTOP_CAPTURE != 0
 }
@@ -467,22 +434,19 @@ fn is_alloy_style(host: Option<&BrowserHost>) -> bool {
 /// list even though `getUserMedia` works. Writing the content setting is what
 /// Chrome style does when the user accepts its prompt.
 ///
-/// The permission *prompt* path needs none of this and must not use it.
-/// `PermissionPromptCallback::cont(ACCEPT)` reaches
-/// `PermissionRequestManager::Accept()`, which persists the grant itself, and the
-/// secondary pattern below is a wildcard — harmless for the two media settings,
-/// which Chromium scopes to the requesting origin alone, but wrong for anything
-/// Chromium scopes to an (origin, top-level site) pair.
+/// The permission *prompt* path must not use this: `cont(ACCEPT)` already persists
+/// the grant, and the secondary pattern below is a wildcard — harmless for the two
+/// media settings, which Chromium scopes to the requesting origin alone, but wrong
+/// for anything it scopes to an (origin, top-level site) pair.
 ///
 /// # The setting outlives the answer that wrote it
 ///
-/// The write is persistent while the application's answer is not: the media path
-/// is consulted on every `getUserMedia()` call, so a handler may allow once and
-/// deny afterwards. Denying still refuses the stream — that check runs before this
-/// — but the content setting stays ALLOW, so `navigator.permissions.query()` keeps
-/// reporting `granted` and `enumerateDevices()` keeps returning unredacted device
-/// labels for that origin. An application that revokes camera or microphone access
-/// for good should rewrite the setting itself; see the module docs.
+/// The media path is consulted on every `getUserMedia()` call, so a handler may
+/// allow once and deny afterwards. Denying still refuses the stream, but the
+/// content setting stays ALLOW, so `navigator.permissions.query()` keeps reporting
+/// `granted` and `enumerateDevices()` keeps returning unredacted device labels for
+/// that origin. An application that revokes camera or microphone access for good
+/// should rewrite the setting itself; see the module docs.
 ///
 /// Does nothing when the origin is unknown, because `set_content_setting` with no URL
 /// changes the default for every origin rather than for this one, and nothing when CEF

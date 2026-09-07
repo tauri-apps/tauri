@@ -185,11 +185,11 @@ fn browser_settings_from_webview_attributes(
       .background_color
       .map(color_to_argb)
       .unwrap_or(0),
-    // Browser chrome a Tauri window has no business showing: the status bubble
-    // is the link target that slides in over the bottom-left of the page on
-    // hover, and the zoom bubble the popup Chrome anchors to its (absent)
-    // toolbar on Ctrl+Plus. Both draw over the app's own UI, neither is
-    // something the app asked for, and both are ignored under Alloy style.
+    // Browser chrome a Tauri window has no business showing: the status bubble is
+    // the link target that slides in over the bottom-left of the page on hover,
+    // and the zoom bubble the popup Chrome anchors to its (absent) toolbar on
+    // Ctrl+Plus. Both draw over the app's own UI; both are ignored under Alloy
+    // style.
     chrome_status_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
     chrome_zoom_bubble: cef::State::from(cef::sys::cef_state_t::STATE_DISABLED),
     ..Default::default()
@@ -235,8 +235,8 @@ pub(crate) type DevToolsProtocolHandler = dyn Fn(DevToolsProtocol) + Send + Sync
 /// [`allow_chrome_commands`](crate::WebviewWindowBuilderCefExt::allow_chrome_commands)
 /// lets that family run the way it would in a browser.
 ///
-/// DevTools and zoom are not here: they already follow
-/// `WebviewAttributes::devtools` and `WebviewAttributes::zoom_hotkeys_enabled`.
+/// DevTools and zoom are not here: they follow `WebviewAttributes::devtools` and
+/// `WebviewAttributes::zoom_hotkeys_enabled`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ChromeCommandGroup {
@@ -251,7 +251,7 @@ pub enum ChromeCommandGroup {
   ///
   /// The commonest group to want back — Ctrl+P is a keystroke users expect. Note that
   /// `WebviewDispatch::print` prints on request without this, and that `IDC_OPEN_FILE`
-  /// and `IDC_SAVE_PAGE` raise OS file dialogs the application never asked for.
+  /// and `IDC_SAVE_PAGE` raise OS file dialogs.
   Document,
   /// Ctrl+L and its neighbours: focus the omnibox, the search box, the toolbar, the menu
   /// bar or the bookmarks bar, plus Home and open-current-URL.
@@ -273,16 +273,13 @@ pub enum ChromeCommandGroup {
   /// The browser is created at an internal placeholder URL and only then navigated to the
   /// app's own, so the app's first screen already sits on a second history entry and
   /// going back from it lands on a blank page. `WebviewDispatch::go_back` and
-  /// `go_forward` work without this, and the page context menu drops Back and Forward for
-  /// the same reason.
+  /// `go_forward` work without this.
   History,
 }
 
 impl ChromeCommandGroup {
-  /// Every group, which is what the runtime blocks when a webview allows none.
-  ///
-  /// Iterated when the blocklist is resolved, so a variant added here is blocked by
-  /// default without anything else having to be updated.
+  /// Every group, which is what the runtime blocks when a webview allows none. The
+  /// blocklist is resolved from this, so a variant added here is blocked by default.
   pub(crate) const ALL: &'static [Self] = &[
     Self::WindowAndTab,
     Self::Document,
@@ -294,9 +291,8 @@ impl ChromeCommandGroup {
 
 /// One message a renderer wrote to the JavaScript console.
 ///
-/// Reported synchronously on CEF's UI thread, before CEF logs it as it normally
-/// would; observing a message neither suppresses that logging nor changes what
-/// DevTools shows.
+/// Reported synchronously on CEF's UI thread. Observing a message neither
+/// suppresses CEF's own logging of it nor changes what DevTools shows.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct ConsoleMessage {
@@ -1149,13 +1145,10 @@ pub enum RuntimeStyle {
 /// Chromium consults a permission prompt only while the stored content setting
 /// for that (origin, permission) still says "ask", and answering the prompt
 /// persists the decision to the on-disk profile. Everything routed through the
-/// prompt therefore reaches the handler **once per origin and permission, ever** —
-/// including across restarts of the app.
-///
-/// A handler whose answer depends on application state is not re-consulted when
-/// that state changes; its first answer stands. Nothing calls back to say the app
-/// changed its mind, so an app that has to revoke a grant must rewrite the content
-/// setting through the request context itself.
+/// prompt therefore reaches the handler **once per origin and permission, ever**,
+/// including across restarts, and nothing calls back to say the app changed its
+/// mind: revoking a grant means rewriting the content setting through the request
+/// context.
 ///
 /// Camera and microphone are the exception. Chromium routes *every*
 /// `getUserMedia()` call through the media path, so those two do reach the handler
@@ -1163,34 +1156,30 @@ pub enum RuntimeStyle {
 ///
 /// ## Permissions Tauri has no kind for arrive as `PermissionKind::Other`
 ///
-/// Chromium has more request types than Tauri has kinds. Storage Access and Top
-/// Level Storage Access, FedCM, protocol handler registration, idle detection,
-/// local and loopback network access, web app installation, the AR and VR sessions
-/// behind WebXR, hand tracking, keyboard lock and disk quota all arrive as
-/// `PermissionKind::Other`, as does any request type a future CEF build adds.
+/// Chromium has more request types than Tauri has kinds. Storage access, FedCM,
+/// protocol handler registration, idle detection, local and loopback network
+/// access, web app installation, the WebXR sessions, hand tracking, keyboard lock
+/// and disk quota all arrive as `PermissionKind::Other`, as does any request type
+/// a future CEF build adds.
 ///
-/// Failing closed is deliberate — a request type this runtime does not recognise
-/// must never be granted behind the app's back — but it means a handler written
-/// elsewhere as `match kind { Camera => Allow, _ => Deny }` hard-denies all of
-/// them here, and denying Storage Access or FedCM breaks third-party SSO flows
-/// outright. Return `PermissionResponse::Default` for the kinds you did not mean
-/// to answer about, and CEF's own handling runs for them unchanged.
+/// Failing closed is deliberate, but it means a handler written elsewhere as
+/// `match kind { Camera => Allow, _ => Deny }` hard-denies all of them here, and
+/// denying storage access or FedCM breaks third-party SSO flows outright. Return
+/// `PermissionResponse::Default` for the kinds you did not mean to answer about,
+/// and CEF's own handling runs for them unchanged.
 ///
 /// ## `PermissionKind::DisplayCapture` is never granted by an `Allow`
 ///
-/// A `getDisplayMedia()` request that the handler answers `Allow` is *not*
-/// granted here; it is handed back to CEF, which shows Chromium's desktop media
-/// picker under Chrome style and refuses under Alloy style. A `Deny` still
-/// refuses it outright.
+/// A `getDisplayMedia()` request the handler answers `Allow` is handed back to
+/// CEF, which shows Chromium's desktop media picker under Chrome style and refuses
+/// under Alloy style. A `Deny` still refuses it outright.
 ///
-/// The reason is that granting it from the handler would grant *everything*: CEF
-/// builds the stream from the permission mask, and a desktop video bit with no
-/// requested source synthesises the full desktop and returns it with no picker at
-/// all. `PermissionKind::DisplayCapture` names no screen, window or tab, so a
-/// blanket rule such as `.on_permission_request(|_| PermissionResponse::Allow)`
-/// would silently give any page in the webview — including remote content reached
-/// through a redirect — a full-desktop stream. The picker is the only thing that
-/// can say what is actually shared, so it stays.
+/// Granting it from the handler would grant *everything*: CEF builds the stream
+/// from the permission mask, and a desktop video bit with no requested source
+/// synthesises the full desktop and returns it with no picker at all. Since
+/// `PermissionKind::DisplayCapture` names no screen, window or tab, a blanket
+/// `.on_permission_request(|_| PermissionResponse::Allow)` would silently hand any
+/// page in the webview a full-desktop stream.
 ///
 /// # Chrome accelerators an app window does not get
 ///
@@ -1201,26 +1190,24 @@ pub enum RuntimeStyle {
 /// commands). Any family of them can be kept with
 /// [`allow_chrome_commands`](crate::WebviewWindowBuilderCefExt::allow_chrome_commands);
 /// see [`ChromeCommandGroup`] for what each family covers. Two of the exclusions
-/// are worth calling out, because they take away keystrokes users expect:
+/// take away keystrokes users expect:
 ///
 /// - **Zoom.** `WebviewAttributes::zoom_hotkeys_enabled` is honored, and it
 ///   **defaults to `false`**, so Ctrl+Plus, Ctrl+Minus and Ctrl+0 do not zoom
-///   unless the webview opted in with `.zoom_hotkeys_enabled(true)`. Ctrl+mouse
-///   wheel zoom is unaffected either way: Chromium applies it in the render
-///   widget rather than through the command controller. Note that on Linux and
-///   macOS Tauri injects a JavaScript zoom polyfill when the flag is true, which
-///   coexists with Chrome's own accelerator, so a keyboard zoom steps twice
-///   there. `WebviewDispatch::set_zoom` is untouched.
+///   unless the webview opted in. Ctrl+mouse wheel zoom is unaffected either way,
+///   since Chromium applies it in the render widget rather than through the
+///   command controller. On Linux and macOS Tauri also injects a JavaScript zoom
+///   polyfill when the flag is true, which coexists with Chrome's own accelerator,
+///   so a keyboard zoom steps twice there. `WebviewDispatch::set_zoom` is
+///   untouched.
 ///
 /// - **History.** Alt+Left and Alt+Right do not navigate the session history.
 ///   The browser is created at an internal placeholder URL and then navigated to
 ///   the app's own, so the app's first screen already sits on a second history
-///   entry and going back from it lands on a blank page with no way forward. The
-///   page context menu drops Back and Forward for the same reason.
-///   `WebviewDispatch::go_back` and `go_forward` are untouched, and an app's own
-///   routing is what an app's "back" should mean anyway. An app that navigates
-///   its webview normally can take the accelerators back with
-///   [`ChromeCommandGroup::History`].
+///   entry and going back from it lands on a blank page. The page context menu
+///   drops Back and Forward for the same reason. `WebviewDispatch::go_back` and
+///   `go_forward` are untouched, and an app that navigates its webview normally
+///   can take the accelerators back with [`ChromeCommandGroup::History`].
 #[derive(Default, Clone)]
 pub struct CefWebviewAttributes {
   /// The browser runtime style, see [`RuntimeStyle`]. CEF picks one when not set.
@@ -1238,9 +1225,8 @@ pub struct CefWebviewAttributes {
   pub frame_event_handler: Option<Arc<crate::FrameEventHandler>>,
   /// Observer of the messages the renderer writes to the JavaScript console.
   ///
-  /// Scoped to this webview's own native browser. A CEF-owned popup is a separate
-  /// browser running its own scripts, and so is a DevTools window opened on this
-  /// webview, so neither one's console output is reported here.
+  /// Scoped to this webview's own native browser, so neither a CEF-owned popup's
+  /// output nor that of a DevTools window opened on this webview is reported here.
   pub console_message_handler: Option<Arc<ConsoleMessageHandler>>,
   /// Families of Chrome commands this webview keeps rather than swallows.
   ///

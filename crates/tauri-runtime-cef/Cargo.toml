@@ -111,9 +111,5 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri/macos-private-api",
 ]
-# The former `sandbox` feature is now the `SandboxPolicy` runtime setting: it defaulted
-# to on but silently produced an unsandboxed Chromium on Windows and macOS for anyone
-# building with `default-features = false`. `cef`'s own `sandbox` feature is a default of
-# that crate and is left enabled, so the sandbox support is always linked in.
 # exposes the extension traits for `tauri::webview::WebviewBuilder`
 unstable = ["tauri/unstable"]

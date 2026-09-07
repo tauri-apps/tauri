@@ -70,9 +70,8 @@ wrap_with_args! {
     ) -> ::std::os::raw::c_int {
       if let Some(handler) = &self.console_message_handler {
         // Scoped the way the frame observer is: CEF routes browsers this webview
-        // does not own through this very client — a DevTools window opened on it
-        // is the standing case, and its frontend is itself a page that logs — so
-        // only this webview's own browser reaches the app's observer.
+        // does not own through this very client — a DevTools window is the
+        // standing case, and its frontend is itself a page that logs.
         let observed = browser
           .map(|browser| self.frame_navigation_state.has_browser_id(browser.identifier()))
           .unwrap_or(false);

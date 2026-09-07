@@ -14,12 +14,9 @@
 //! by IDC id.
 //!
 //! This file filters that model down to the entries that mean something inside
-//! an application window. It used to do so with `remove_at(count() - 1)`, a
-//! guess that Inspect is always the last entry: that only holds for some menus
-//! (a spellcheck or a link menu ends elsewhere), so the guess silently deleted
-//! whatever happened to be last instead. Removing by command id is exact, is a
-//! no-op when the entry is not in this particular menu, and does not care what
-//! order Chrome lays the menu out in.
+//! an application window. Removing by command id is exact, is a no-op when the
+//! entry is not in this particular menu, and does not care what order Chrome
+//! lays the menu out in.
 
 use std::{ffi::CStr, os::raw::c_int, sync::OnceLock};
 
@@ -118,12 +115,10 @@ struct CommandIds {
 /// The IDC names above, resolved to the numeric command ids of the running CEF
 /// build.
 ///
-/// The mapping is build specific but fixed for the life of the process, so it
-/// is resolved once in a `OnceLock` rather than on every right click: the
-/// mapper is a plain lookup, but this runs on the UI thread while the user
-/// waits for the menu, and there is no reason to repeat ~55 FFI calls there.
-/// Resolving lazily also keeps the lookups after CEF initialization, which a
-/// constant evaluated at process start could not guarantee.
+/// The mapping is build specific but fixed for the life of the process, so it is
+/// resolved once rather than on every right click — this runs on the UI thread
+/// while the user waits for the menu. Resolving lazily also keeps the lookups
+/// after CEF initialization.
 fn command_ids() -> &'static CommandIds {
   static COMMAND_IDS: OnceLock<CommandIds> = OnceLock::new();
 
@@ -147,10 +142,9 @@ fn resolve_command_ids(names: &[&CStr]) -> Vec<c_int> {
 /// with one, and two in a row draw as a double rule.
 ///
 /// Every loop here advances on a failed `remove_at`. A removal CEF refuses does
-/// not shrink `count()`, so retrying it would spin — and this runs on CEF's UI
-/// thread, which this runtime drives with an external message pump, so a spin
-/// there hangs the whole application rather than just the menu. A separator left
-/// standing is a cosmetic flaw; not returning is not.
+/// not shrink `count()`, so retrying it would spin on CEF's UI thread, which this
+/// runtime drives with an external message pump — hanging the whole application
+/// rather than just the menu.
 fn remove_redundant_separators(model: &MenuModel) {
   let separator = MenuItemType::from(cef_menu_item_type_t::MENUITEMTYPE_SEPARATOR);
   let is_separator = |index: usize| model.type_at(index) == separator;

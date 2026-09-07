@@ -174,14 +174,13 @@ wrap_with_args! {
             // NULL, so the popup keeps the opener's — as it did when it still
             // inherited the opener's client outright.
             download_handler: download_handler.clone(),
-            // The opener's refusals carry over, its grants do not. A popup is a
-            // separate native browser showing content the opener navigated to —
-            // an SSO or OAuth window is the standing case — and a
-            // `PermissionKind` names no origin, so an `Allow` the app gave for
-            // its own content cannot be read as an answer about that other
-            // content; CEF's own prompt asks the user instead. A `Deny` does
-            // carry over, because a permission the app refused must not become
-            // obtainable by opening a popup.
+            // The opener's refusals carry over, its grants do not. A popup shows
+            // content the opener navigated to — an SSO or OAuth window is the
+            // standing case — and a `PermissionKind` names no origin, so an
+            // `Allow` the app gave for its own content is no answer about that
+            // other content; CEF's own prompt asks the user instead. A `Deny`
+            // carries over so a refused permission cannot be obtained by opening
+            // a popup.
             permission_request_handler: permission_request_handler.clone().map(|handler| {
               Arc::new(move |kind| match handler(kind) {
                 tauri_runtime::webview::PermissionResponse::Allow => {
@@ -190,11 +189,10 @@ wrap_with_args! {
                 response => response,
               }) as Arc<PermissionRequestHandler>
             }),
-            // A popup runs its own scripts, and the opener's observer is scoped
-            // to the opener's browser. A `ConsoleMessage` carries the source URL
-            // of whatever logged it, so routing a popup's output there would
-            // report an SSO or OAuth window's URLs to an observer registered for
-            // the app's own content.
+            // A `ConsoleMessage` carries the source URL of whatever logged it, so
+            // routing a popup's output to the opener's observer would report an
+            // SSO or OAuth window's URLs to an observer registered for the app's
+            // own content.
             console_message_handler: None,
             ipc_handler: None,
             on_page_load_handler: None,

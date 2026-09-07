@@ -231,35 +231,20 @@ wrap_with_args! {
       // The identity is bound by the frame observer, which the root client always
       // installs, so it is recorded on this browser's first frame notification —
       // long before an accelerator can reach a browser the user has yet to see.
-      let ours = browser
-        .map(|browser| self.frame_navigation_state.has_browser_id(browser.identifier()))
-        .unwrap_or(false);
-      if !ours {
+      if !self.owns(browser) {
         return 0;
       }
 
-      let commands = blocked_commands();
-
-      // Anything not named above runs as it does today. Clipboard, find in page,
-      // text selection, undo and redo and fullscreen are all things an app window
-      // legitimately uses, so none of them is listed. Reload is not listed either:
-      // the page context menu drops it because a right click is not how an app
-      // offers a reload, but Ctrl+R and F5 on the app's own document are harmless
-      // and are what a developer reaches for.
-      let blocked = commands.always.contains(&command_id)
-        || (!self.devtools_enabled && commands.devtools.contains(&command_id))
-        || (!self.zoom_hotkeys_enabled && commands.zoom.contains(&command_id));
-
-      if blocked { 1 } else { 0 }
+      if self.blocks(command_id) { 1 } else { 0 }
     }
 
-    // The three predicates below are pinned to what CEF would do on its own.
-    // `wrap_command_handler!` installs every callback of the handler, and the
-    // trait's own default body returns 0 — "hide" and "disable" — so *not*
-    // overriding them would silently strip Chrome UI rather than leave it alone.
-    // App windows have no Chrome UI for these to act on, but a CEF-owned popup is
-    // a real Chrome window whose location bar is worth keeping: it is what tells
-    // the user which site an SSO or OAuth page actually belongs to.
+    // The four predicates below are pinned to what CEF would do on its own, with
+    // one exception. `wrap_command_handler!` installs every callback of the
+    // handler, and the trait's own default body returns 0 — "hide" and "disable" —
+    // so *not* overriding them would silently strip Chrome UI rather than leave it
+    // alone. An app window has no Chrome UI for these to act on, but a CEF-owned
+    // popup is a real Chrome window whose location bar is worth keeping: it is what
+    // tells the user which site an SSO or OAuth page actually belongs to.
     fn is_chrome_app_menu_item_visible(
       &self,
       _browser: Option<&mut Browser>,
@@ -268,12 +253,26 @@ wrap_with_args! {
       1
     }
 
+    /// The exception: a command this handler swallows is reported disabled rather
+    /// than left enabled and then ignored.
+    ///
+    /// Only a CEF-owned popup ever consults this — it reaches
+    /// `AppMenuModel::IsCommandIdEnabled`, and an app window has no app menu — but
+    /// there the blocked commands used to draw as ordinary entries that did
+    /// nothing when clicked. Chromium also `DCHECK`s that a command it dispatched
+    /// was enabled, which an entry that is enabled and then swallowed contradicts.
+    ///
+    /// This does not gate the accelerator table or `HandleCommand`, so it cannot
+    /// affect what `on_chrome_command` above swallows; and the scoping is the same,
+    /// so a DevTools window keeps every entry of its own app menu.
     fn is_chrome_app_menu_item_enabled(
       &self,
-      _browser: Option<&mut Browser>,
-      _command_id: ::std::os::raw::c_int,
+      browser: Option<&mut Browser>,
+      command_id: ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int {
-      1
+      // 1 for everything else is load-bearing, not a default: the trait's own body
+      // returns 0, so anything this arm does not answer 1 to would be disabled.
+      if self.owns(browser) && self.blocks(command_id) { 0 } else { 1 }
     }
 
     fn is_chrome_page_action_icon_visible(
@@ -289,5 +288,37 @@ wrap_with_args! {
     ) -> ::std::os::raw::c_int {
       1
     }
+  }
+}
+
+impl TauriCefCommandHandler {
+  /// Whether `browser` is the native browser this client's webview owns.
+  ///
+  /// CEF routes browsers this webview does not own through this very client — a
+  /// DevTools window opened on it is the standing case — and their commands are
+  /// theirs to run.
+  fn owns(&self, browser: Option<&mut Browser>) -> bool {
+    browser
+      .map(|browser| {
+        self
+          .frame_navigation_state
+          .has_browser_id(browser.identifier())
+      })
+      .unwrap_or(false)
+  }
+
+  /// Whether this webview swallows `command_id`.
+  ///
+  /// Anything not named in the tables above runs as it does today. Clipboard,
+  /// find in page, text selection, undo and redo and fullscreen are all things an
+  /// app window legitimately uses, so none of them is listed. Reload is not listed
+  /// either: the page context menu drops it because a right click is not how an
+  /// app offers a reload, but Ctrl+R and F5 on the app's own document are harmless
+  /// and are what a developer reaches for.
+  fn blocks(&self, command_id: c_int) -> bool {
+    let commands = blocked_commands();
+    commands.always.contains(&command_id)
+      || (!self.devtools_enabled && commands.devtools.contains(&command_id))
+      || (!self.zoom_hotkeys_enabled && commands.zoom.contains(&command_id))
   }
 }

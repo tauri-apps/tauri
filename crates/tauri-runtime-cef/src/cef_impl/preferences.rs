@@ -12,20 +12,21 @@
 //! webview, so we turn it off per request context right after the profile
 //! finishes initializing.
 //!
-//! # Safe Browsing
+//! # Safe Browsing stays on
 //!
-//! [`PREFERENCES`] also disables `safebrowsing.enabled`. An app webview loads
-//! the application's own bundled content, which the developer already trusts
-//! and ships themselves, so sending its navigations to Google's Safe Browsing
-//! service buys no protection and costs privacy and network traffic. This is
-//! the wrong default for an app that points its webviews at arbitrary remote
-//! web content the developer does not control - such an app should want Safe
-//! Browsing back on.
+//! [`PREFERENCES`] deliberately leaves `safebrowsing.enabled` alone. A Tauri
+//! webview routinely loads content the developer does not control - OAuth and
+//! SSO flows, embedded third-party pages, iframes, and the popups this runtime
+//! supports - so it is not the closed world that would make the protection
+//! pointless. Standard protection is also a local hash-prefix database rather
+//! than a per-navigation callback to Google, so the privacy cost is far smaller
+//! than turning it off would suggest. WebView2 inherits Edge SmartScreen and
+//! Tauri does not disable it, so shipping this off would leave CEF the least
+//! protected of Tauri's webview backends.
 //!
-//! TODO: expose an opt-in knob on the `Cef` builder so those apps can
-//! re-enable Safe Browsing (and, if useful, the rest of this list). That is a
-//! deliberate follow-up rather than an oversight: it needs `runtime.rs`, which
-//! this change does not own.
+//! TODO: expose a knob on the `Cef` builder for an application that really does
+//! want to opt *out* of Safe Browsing. Shipping the protection on by default is
+//! the part that cannot wait for it.
 
 use cef::{CefString, ImplPreferenceManager, ImplValue, RequestContext};
 
@@ -53,6 +54,10 @@ pub(crate) fn set_preference_error_slot() -> CefString {
 ///
 /// * `credentials_enable_service` - Chrome offers to save credentials typed
 ///   into any form; an app's login form is not the browser's business.
+/// * `profile.password_manager_leak_detection` - on by default in Chromium, it
+///   sends a hashed prefix of credentials typed into any form to Google to check
+///   them against known breaches. That is the password manager reaching into the
+///   app's own login form, which is exactly what this list exists to prevent.
 /// * `autofill.profile_enabled` / `autofill.credit_card_enabled` - the same
 ///   deal for postal addresses and payment cards, which additionally sync into
 ///   the user's Google account.
@@ -62,19 +67,19 @@ pub(crate) fn set_preference_error_slot() -> CefString {
 ///   URL that failed to Google to fetch suggestions for it.
 /// * `search.suggest_enabled` - streams typed input to the profile's default
 ///   search engine; an app has no omnibox for this to serve.
-/// * `safebrowsing.enabled` - reputation lookups against Google for content the
-///   app already bundles and trusts (see the module docs before changing this).
+///
+/// `safebrowsing.enabled` is deliberately absent - see the module docs.
 ///
 /// Preference names are the Chromium ones as of chromium-151.0.7922.174, the
 /// build behind this crate's CEF pin.
 const PREFERENCES: &[(&str, bool)] = &[
   ("credentials_enable_service", false),
+  ("profile.password_manager_leak_detection", false),
   ("autofill.profile_enabled", false),
   ("autofill.credit_card_enabled", false),
   ("translate.enabled", false),
   ("alternate_error_pages.enabled", false),
   ("search.suggest_enabled", false),
-  ("safebrowsing.enabled", false),
 ];
 
 /// Applies [`PREFERENCES`] to `request_context`.

@@ -16,33 +16,19 @@
 //! payload with `nosuid`, so a setuid binary inside it is inert. That leaves AppImages
 //! relying on unprivileged user namespaces, which Ubuntu 23.10 and later restrict
 //! through AppArmor — which is exactly the combination this module detects.
+//!
+//! Tauri's AppImage bundler does copy `chrome-sandbox` next to the main binary, so the
+//! helper is *present* in every CEF AppImage. Merely finding a file by that name
+//! therefore proves nothing, and this module never treats one inside an AppImage as
+//! available. Outside an AppImage the file is stat'ed against the same conditions
+//! Chromium's zygote host applies — owned by root, setuid, executable by others — which
+//! is also why a half-configured helper must not count as available: Chromium treats one
+//! that fails those checks as a fatal error rather than falling back to another sandbox.
 
-/// What to do with Chromium's sandbox on Linux and the BSDs.
-///
-/// Defaults to [`LinuxSandboxPolicy::Auto`], which keeps the sandbox on unless the
-/// application is running from an AppImage on a system that offers no way to sandbox at
-/// all — where the alternative is not an unsandboxed application but no application,
-/// since Chromium aborts with "No usable sandbox!".
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum LinuxSandboxPolicy {
-  /// Keep the sandbox, except when the application runs from an AppImage and the system
-  /// has neither the setuid `chrome-sandbox` helper nor usable unprivileged user
-  /// namespaces. A warning naming the reason is logged whenever the sandbox is dropped.
-  #[default]
-  Auto,
-  /// Never pass `--no-sandbox`, even when that means Chromium aborts at startup.
-  ///
-  /// Pick this when running unsandboxed is not an acceptable outcome and a hard failure
-  /// is preferable — the user can then install the setuid helper, point
-  /// `CHROME_DEVEL_SANDBOX` at one, or re-enable unprivileged user namespaces.
-  Required,
-  /// Always pass `--no-sandbox`.
-  ///
-  /// Every renderer then runs with the full privileges of the user, so a compromised
-  /// renderer is a compromised account. Useful for containers and CI images that cannot
-  /// provide a sandbox, not for shipped applications.
-  Disabled,
-}
+// `LinuxSandboxPolicy` itself lives in `runtime.rs`, next to the rest of the `Cef`
+// builder's configuration types, because `Cef` carries it on every platform while this
+// module is only compiled where there is a Linux sandbox to decide about.
+use crate::runtime::LinuxSandboxPolicy;
 
 /// Why the sandbox is being turned off.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,12 +105,30 @@ pub(crate) fn sandbox_decision(
   }
 }
 
+/// Whether a `chrome-sandbox` candidate passes the checks Chromium's zygote host makes
+/// before it will use the helper, given the `st_uid` and `st_mode` a `stat` reported.
+///
+/// `ZygoteHostImpl::Init` requires the file to be owned by root, to carry the setuid bit
+/// and to be executable by others; a file that is there but fails any of those makes
+/// Chromium abort with "The SUID sandbox helper binary was found, but is not configured
+/// correctly", so a half-configured helper is worse than none and must not count as
+/// available.
+pub(crate) fn helper_stat_is_usable(uid: u32, mode: u32) -> bool {
+  /// `S_ISUID`.
+  const SETUID: u32 = 0o4000;
+  /// `S_IXOTH`.
+  const OTHER_EXECUTE: u32 = 0o0001;
+
+  uid == 0 && mode & SETUID != 0 && mode & OTHER_EXECUTE != 0
+}
+
 /// Gathers the inputs [`sandbox_decision`] needs from the environment and the filesystem.
 pub(crate) fn resolve_sandbox_decision(policy: LinuxSandboxPolicy) -> SandboxDecision {
+  let running_from_appimage = running_from_appimage();
   sandbox_decision(
     policy,
-    running_from_appimage(),
-    sandbox_helper_available(),
+    running_from_appimage,
+    sandbox_helper_available(running_from_appimage),
     read_sysctl("/proc/sys/kernel/apparmor_restrict_unprivileged_userns"),
     read_sysctl("/proc/sys/user/max_user_namespaces"),
   )
@@ -135,19 +139,48 @@ fn running_from_appimage() -> bool {
   std::env::var_os("APPIMAGE").is_some_and(|path| !path.is_empty())
 }
 
-/// Whether Chromium can find the setuid `chrome-sandbox` helper.
-fn sandbox_helper_available() -> bool {
-  if std::env::var_os("CHROME_DEVEL_SANDBOX").is_some_and(|path| !path.is_empty()) {
-    return true;
+/// Whether Chromium can find *and use* the setuid `chrome-sandbox` helper.
+///
+/// The helper next to the executable is disregarded entirely when running from an
+/// AppImage. Tauri's AppImage bundler copies `chrome-sandbox` into the same directory as
+/// the main binary, so the file is always there, and the AppImage runtime mounts the
+/// payload `nosuid`, so its setuid bit — which `stat` still reports — has no effect when
+/// Chromium tries to execute it.
+///
+/// `CHROME_DEVEL_SANDBOX` is somebody deliberately pointing at a helper outside the
+/// application, so it is honoured on every layout, but it is stat'ed like any other
+/// candidate: the variable merely being set says nothing about the file it names.
+fn sandbox_helper_available(running_from_appimage: bool) -> bool {
+  if let Some(path) = std::env::var_os("CHROME_DEVEL_SANDBOX").filter(|path| !path.is_empty()) {
+    return helper_path_is_usable(std::path::Path::new(&path));
   }
 
-  let Ok(exe) = std::env::current_exe() else {
+  if running_from_appimage {
+    return false;
+  }
+
+  std::env::current_exe()
+    .ok()
+    .and_then(|exe| exe.parent().map(|dir| dir.join("chrome-sandbox")))
+    .is_some_and(|helper| helper_path_is_usable(&helper))
+}
+
+/// Stats `path` and hands what it reports to [`helper_stat_is_usable`].
+fn helper_path_is_usable(path: &std::path::Path) -> bool {
+  use std::os::unix::fs::MetadataExt;
+
+  let Ok(metadata) = std::fs::metadata(path) else {
     return false;
   };
-  exe
-    .parent()
-    .map(|dir| dir.join("chrome-sandbox"))
-    .is_some_and(|helper| helper.exists())
+
+  let usable = helper_stat_is_usable(metadata.uid(), metadata.mode());
+  if !usable {
+    log::debug!(
+      "ignoring the chrome-sandbox helper at {}: it is not a root-owned setuid binary executable by others",
+      path.display()
+    );
+  }
+  usable
 }
 
 /// Reads a numeric sysctl, returning [`None`] when it is missing or unparseable.
@@ -259,5 +292,31 @@ mod tests {
       auto(true, false, Some(1), Some(0)),
       SandboxDecision::Disable(SandboxDisableReason::AppImageUserNamespacesRestricted)
     );
+  }
+
+  #[test]
+  fn a_correctly_installed_helper_is_usable() {
+    // Mode 4755, which is what the deb and rpm bundlers install.
+    assert!(helper_stat_is_usable(0, 0o104755));
+  }
+
+  #[test]
+  fn a_helper_missing_any_of_chromiums_conditions_is_not_usable() {
+    // Chromium aborts outright on a helper that fails these, so "present but wrong" has
+    // to read as unavailable, not as a sandbox we can rely on.
+    assert!(
+      !helper_stat_is_usable(1000, 0o104755),
+      "a helper not owned by root cannot raise privileges"
+    );
+    assert!(
+      !helper_stat_is_usable(0, 0o100755),
+      "without the setuid bit the helper runs as the calling user"
+    );
+    assert!(
+      !helper_stat_is_usable(0, 0o104750),
+      "the helper has to be executable by others"
+    );
+    // What `fs::copy` produces in an AppDir: right name, none of the bits.
+    assert!(!helper_stat_is_usable(1000, 0o100644));
   }
 }

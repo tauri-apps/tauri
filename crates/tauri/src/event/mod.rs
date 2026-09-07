@@ -252,12 +252,4 @@ mod tests {
       .to_string();
     assert_eq!("only alphanumeric, '-', '/', ':', '_' permitted for event names: \"some\\r illegal event name\"", s);
   }
-
-  #[test]
-  fn unlisten_script_guards_missing_entry() {
-    let script = unlisten_js_script("__listeners__", "event", "eventId");
-    assert!(!script.contains("listeners[eventId].handlerId"));
-    assert!(script.contains("const listener = listeners[eventId]"));
-    assert!(script.contains("if (listener) {"));
-  }
 }

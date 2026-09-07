@@ -206,12 +206,6 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
 
-/// The page script that binds the DevTools shortcut, injected into every webview that
-/// enables devtools. `__TEMPLATE_is_macos__` is the only substitution it needs, and
-/// this crate is compiled per target, so it is resolved from `cfg!` at the call site.
-#[cfg(any(debug_assertions, feature = "devtools"))]
-const TOGGLE_DEVTOOLS_SCRIPT: &str = include_str!("./scripts/toggle-devtools.js");
-
 #[cfg(not(debug_assertions))]
 mod dialog;
 mod monitor;
@@ -5343,20 +5337,12 @@ You may have it installed on another user account, but it is not available for t
 
     // None of the webviews wry drives - WebView2, WKWebView, WebKitGTK - opens DevTools
     // on a keyboard shortcut of its own, so the shortcut is a page script that toggles
-    // them through the `webview` plugin. It belongs to this runtime rather than to
-    // `tauri`: a runtime whose webview already binds the chord (the CEF runtime, where
-    // it is Chrome's own `IDC_DEV_TOOLS` accelerator) would have both fire on one
-    // keypress, and the toggle would close the window the accelerator just opened.
+    // them through the `webview` plugin. Injecting it is the runtime's call rather than
+    // `tauri`'s: a runtime whose webview already binds the chord would have both fire on
+    // one keypress, and the toggle would close the window the accelerator just opened.
     if devtools {
       webview_builder = webview_builder.with_initialization_script_for_main_only(
-        &TOGGLE_DEVTOOLS_SCRIPT.replace(
-          "__TEMPLATE_is_macos__",
-          if cfg!(target_os = "macos") {
-            "true"
-          } else {
-            "false"
-          },
-        ),
+        &tauri_runtime::webview::devtools_shortcut_script(),
         true,
       );
     }

@@ -197,11 +197,12 @@ mod desktop_commands {
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   // The DevTools hotkey is not scripted here: it is up to the runtime, which knows
-  // whether its webviews already have one. `tauri-runtime-wry` injects a script that
-  // invokes the `internal_toggle_devtools` command above, because none of the webviews
-  // it drives binds the chord itself; the CEF runtime leaves it to Chrome's accelerator
-  // table, which would otherwise open DevTools only for the script's toggle to close it
-  // again in the same breath.
+  // whether its webviews already have one. `tauri_runtime::webview::devtools_shortcut_script`
+  // is the script they inject, and it invokes the `internal_toggle_devtools` command
+  // above. `tauri-runtime-wry` injects it into every webview and the CEF runtime only
+  // into Alloy style ones, because a Chrome style browser dispatches `IDC_DEV_TOOLS` for
+  // the same chord: with both in place the toggle closes the window the accelerator just
+  // opened, in the same breath.
   #[allow(unused_mut)]
   let mut init_script = String::new();
   // window.print works on Linux/Windows; need to use the API on macOS

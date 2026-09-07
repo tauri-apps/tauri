@@ -572,6 +572,24 @@ impl<T: UserEvent> WinitCefApp<T> {
       parent_size,
       scale,
     );
+    let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
+      && pending.webview_attributes.devtools.unwrap_or(true);
+
+    // Alloy style keeps none of Chrome's accelerator table, so the DevTools chord has
+    // to be scripted the way it is for every webview `tauri-runtime-wry` drives. A
+    // Chrome style browser must not get the script: it dispatches `IDC_DEV_TOOLS` for
+    // the same chord, and with both in place the toggle closes the window the
+    // accelerator just opened.
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    if devtools_enabled && is_alloy_style(pending.runtime_specific_attributes.runtime_style) {
+      pending.webview_attributes.initialization_scripts.push(
+        tauri_runtime::webview::InitializationScript {
+          script: tauri_runtime::webview::devtools_shortcut_script(),
+          for_main_frame_only: true,
+        },
+      );
+    }
+
     let initialization_scripts = initialization_scripts(&mut pending.webview_attributes);
     let uri_scheme_protocols: Arc<HashMap<_, _>> = Arc::new(
       pending
@@ -583,8 +601,6 @@ impl<T: UserEvent> WinitCefApp<T> {
     let on_page_load_handler = pending.on_page_load_handler.take().map(Arc::from);
     let document_title_changed_handler =
       pending.document_title_changed_handler.take().map(Arc::from);
-    let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
-      && pending.webview_attributes.devtools.unwrap_or(true);
     let zoom_hotkeys_enabled = pending.webview_attributes.zoom_hotkeys_enabled;
     let allowed_chrome_commands = pending
       .runtime_specific_attributes
@@ -1278,6 +1294,18 @@ impl CefInitScript {
       for_main_frame_only: script.for_main_frame_only,
     }
   }
+}
+
+/// Whether the browser created for a webview will be Alloy style.
+///
+/// CEF's default is Chrome style, with one exception this runtime always meets: on
+/// macOS a browser given a native parent view - which is how every webview here is
+/// hosted - is forced to Alloy style whatever the application asked for, because Chrome
+/// style does not support a native parent there (`MaybeSetWindowInfo`, upstream issue
+/// #3294).
+#[cfg(any(debug_assertions, feature = "devtools"))]
+fn is_alloy_style(runtime_style: Option<RuntimeStyle>) -> bool {
+  cfg!(target_os = "macos") || matches!(runtime_style, Some(RuntimeStyle::Alloy))
 }
 
 pub(crate) fn initialization_scripts(attrs: &mut WebviewAttributes) -> Arc<Vec<CefInitScript>> {

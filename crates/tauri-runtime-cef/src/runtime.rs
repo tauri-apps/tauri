@@ -1933,20 +1933,43 @@ impl<T: UserEvent> CefRuntime<T> {
       if basic_password_store {
         browser_command_line_args.push(("password-store".to_string(), Some("basic".to_string())));
       }
+    }
 
-      // Chromium aborts with "No usable sandbox!" when its zygote host finds neither
-      // usable unprivileged user namespaces nor the setuid `chrome-sandbox` helper, so
-      // an AppImage on a system that restricts namespaces cannot start at all.
-      if let crate::sandbox::SandboxDecision::Disable(reason) =
-        crate::sandbox::resolve_sandbox_decision(linux_sandbox)
-      {
+    // Chromium aborts with "No usable sandbox!" when its zygote host finds neither usable
+    // unprivileged user namespaces nor the setuid `chrome-sandbox` helper, so an AppImage
+    // on a system that restricts namespaces cannot start at all.
+    //
+    // The `sandbox` cargo feature does not decide this on Linux or the BSDs: `cef-dll-sys`
+    // only acts on it for Windows and macOS, where it selects the sandbox library that
+    // gets linked. Deriving `no_sandbox` from the feature here meant a consumer depending
+    // on this crate with `default-features = false` - which the workspace root does - got
+    // a fully unsandboxed Chromium while `Cef::linux_sandbox(LinuxSandboxPolicy::Required)`
+    // reported success, so the policy decides it instead.
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    let no_sandbox = {
+      let decision = crate::sandbox::resolve_sandbox_decision(linux_sandbox);
+      if let crate::sandbox::SandboxDecision::Disable(reason) = decision {
         log::warn!(
           "running Chromium without a sandbox: {}. A compromised renderer process runs with the full privileges of the current user.",
           reason.message()
         );
-        browser_command_line_args.push(("--no-sandbox".to_string(), None));
       }
-    }
+      matches!(decision, crate::sandbox::SandboxDecision::Disable(_))
+    };
+    #[cfg(not(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )))]
+    let no_sandbox = !cfg!(feature = "sandbox");
     // Windows encrypts with DPAPI, which needs no switch and prompts for nothing.
     #[cfg(windows)]
     let _ = secret_storage;
@@ -2059,7 +2082,10 @@ impl<T: UserEvent> CefRuntime<T> {
     });
 
     let mut settings = cef::Settings {
-      no_sandbox: !cfg!(feature = "sandbox") as i32,
+      // Only this, never a `--no-sandbox` push of our own: CEF appends that switch itself
+      // from the setting, and does it before `on_before_command_line_processing` runs.
+      // One mechanism means the setting and the switch cannot end up disagreeing.
+      no_sandbox: no_sandbox as std::os::raw::c_int,
       cache_path: cache_path.to_string_lossy().to_string().as_str().into(),
       command_line_args_disabled: command_line_args_disabled as std::os::raw::c_int,
       log_file: log_file.to_string_lossy().to_string().as_str().into(),

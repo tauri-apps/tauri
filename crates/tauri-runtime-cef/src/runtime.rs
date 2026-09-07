@@ -154,6 +154,8 @@ pub struct Cef {
   allow_chromium_command_line_args: bool,
   log_file: Option<PathBuf>,
   log_severity: Option<LogSeverity>,
+  locale: Option<String>,
+  accept_language_list: Option<String>,
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -179,7 +181,9 @@ impl fmt::Debug for Cef {
         &self.allow_chromium_command_line_args,
       )
       .field("log_file", &self.log_file)
-      .field("log_severity", &self.log_severity);
+      .field("log_severity", &self.log_severity)
+      .field("locale", &self.locale)
+      .field("accept_language_list", &self.accept_language_list);
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -338,6 +342,32 @@ impl Cef {
   #[must_use]
   pub fn log_severity(mut self, severity: LogSeverity) -> Self {
     self.log_severity = Some(severity);
+    self
+  }
+
+  /// Locale Chromium loads its own localized resources for (`Settings::locale`),
+  /// as an ISO language code such as `en-US` or `pt-BR`.
+  ///
+  /// Leave unset — the default — unless you know the matching pak file ships with the
+  /// application. Tauri's bundler currently packages **only the `en-US` locale pak**, so
+  /// naming any other locale leaves Chromium unable to load the localized strings it
+  /// uses for its own UI (context menus, error pages, form controls). This does not
+  /// affect the application's own content, nor which languages a website is asked for —
+  /// that is [`Self::accept_language_list`].
+  #[must_use]
+  pub fn locale<S: Into<String>>(mut self, locale: S) -> Self {
+    self.locale = Some(locale.into());
+    self
+  }
+
+  /// Comma-delimited list of languages sent as the `Accept-Language` header and reported
+  /// through `navigator.languages` (`Settings::accept_language_list`), for example
+  /// `en-US,en,pt-BR`.
+  ///
+  /// Defaults to CEF's own value, which is derived from [`Self::locale`].
+  #[must_use]
+  pub fn accept_language_list<S: Into<String>>(mut self, languages: S) -> Self {
+    self.accept_language_list = Some(languages.into());
     self
   }
 
@@ -1807,6 +1837,8 @@ impl<T: UserEvent> CefRuntime<T> {
       allow_chromium_command_line_args,
       log_file,
       log_severity,
+      locale,
+      accept_language_list,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -1986,6 +2018,17 @@ impl<T: UserEvent> CefRuntime<T> {
       external_message_pump: 1,
       ..Default::default()
     };
+
+    // Left at CEF's defaults unless the application asked for something else: the
+    // bundler only ships the `en-US` locale pak, so a locale we picked on our own would
+    // leave Chromium without its localized resources.
+    if let Some(locale) = locale {
+      settings.locale = locale.as_str().into();
+    }
+    if let Some(accept_language_list) = accept_language_list {
+      settings.accept_language_list = accept_language_list.as_str().into();
+    }
+
     if let Some(callback) = settings_callback {
       callback(&mut settings);
     }

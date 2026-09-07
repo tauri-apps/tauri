@@ -171,6 +171,34 @@ export const config: WebdriverIO.Config = {
     await waitTauriDriverReady()
   },
 
+  // The session is created as soon as the app's window exists, which can be
+  // before the webview has navigated to the app's page: WebView2 on a cold start
+  // (the first launches on a fresh Windows runner) still shows `about:blank`
+  // for a few seconds, so the first spec's scripts ran in a page without
+  // `window.__TAURI__`. Every spec goes through that global, so block until
+  // it exists.
+  before: async (_capabilities, _specs, browser) => {
+    await browser.waitUntil(
+      async () => {
+        try {
+          return (await browser.executeAsync(
+            'var done = arguments[arguments.length - 1]; done(typeof window.__TAURI__ !== "undefined");'
+          )) as boolean
+        } catch {
+          // A command issued mid-navigation can fail on a stale execution
+          // context; that just means "not ready yet".
+          return false
+        }
+      },
+      {
+        timeout: 30_000,
+        interval: 250,
+        timeoutMsg:
+          'window.__TAURI__ never became available — the app did not load its page.'
+      }
+    )
+  },
+
   // Awaited so the driver (and its port) is fully gone before the next spec's
   // beforeSession spawns a new one on the same port.
   afterSession: async () => {

@@ -1,5 +1,0 @@
----
-'tauri-runtime-cef': 'patch:enhance'
----
-
-The webview permission request handler is now honored: a handler that answers `Allow` grants the permission without showing Chrome's prompt and records the matching content settings for the requesting origin, so `navigator.permissions.query()` and `enumerateDevices()` agree with the grant, and one that answers `Deny` refuses the request without a prompt. A single CEF request can carry several permission types at once, so every type in it is mapped to its `PermissionKind` and asked about individually: a refusal of any one type refuses the whole request, a request is granted only when every type in it was allowed, and a request the application left at `Default` — or a webview with no handler at all — keeps the previous behavior, with Alloy style granting as before and Chrome style deferring to CEF's own prompt and content-setting bookkeeping. A popup inherits the opener's refusals but not its grants, because a popup is a separate native browser showing content the opener merely navigated to.

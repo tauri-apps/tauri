@@ -18,9 +18,20 @@
 //! So the application's handler is consulted **once per origin and permission**,
 //! and the answer outlives the process: a handler whose answer depends on app
 //! state (a user having signed in, a setting having been toggled) is silently
-//! ignored from its second request onwards, including across restarts. There is
-//! no callback here for "the app changed its mind"; an app that needs to revoke a
-//! grant has to rewrite the content setting itself through the request context.
+//! ignored from its second request onwards, including across restarts.
+//!
+//! Both answers persist, not just the grant. `DENY` reaches
+//! `PermissionRequestManager::Deny()`, which stores BLOCK, so a handler that
+//! refuses once has refused for good: Chromium auto-denies the next request
+//! without reaching this file, and the application cannot later change its mind by
+//! answering `Allow`. `CEF_PERMISSION_RESULT_DISMISS` would leave the setting at
+//! "ask", but it is not what a deliberate refusal means, and a policy that has to
+//! be re-asked on every request is what the media path below already provides.
+//!
+//! There is no callback here for "the app changed its mind". An app that has to
+//! revoke a grant, or undo a refusal, rewrites the content setting itself:
+//! `Webview::browser()` reaches the `cef::Browser`, and from it
+//! `host().request_context().set_content_setting(...)`.
 //!
 //! # The media path answers every call
 //!
@@ -462,6 +473,16 @@ fn is_alloy_style(host: Option<&BrowserHost>) -> bool {
 /// secondary pattern below is a wildcard — harmless for the two media settings,
 /// which Chromium scopes to the requesting origin alone, but wrong for anything
 /// Chromium scopes to an (origin, top-level site) pair.
+///
+/// # The setting outlives the answer that wrote it
+///
+/// The write is persistent while the application's answer is not: the media path
+/// is consulted on every `getUserMedia()` call, so a handler may allow once and
+/// deny afterwards. Denying still refuses the stream — that check runs before this
+/// — but the content setting stays ALLOW, so `navigator.permissions.query()` keeps
+/// reporting `granted` and `enumerateDevices()` keeps returning unredacted device
+/// labels for that origin. An application that revokes camera or microphone access
+/// for good should rewrite the setting itself; see the module docs.
 ///
 /// Does nothing when the origin is unknown, because `set_content_setting` with no URL
 /// changes the default for every origin rather than for this one, and nothing when CEF

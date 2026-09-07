@@ -308,6 +308,16 @@ impl TauriCefCommandHandler {
   /// CEF routes browsers this webview does not own through this very client — a
   /// DevTools window opened on it is the standing case — and their commands are
   /// theirs to run.
+  ///
+  /// Answers `false` when the identity cannot be established: CEF handed out no
+  /// browser, the frame observer has not recorded one yet, or its lock is poisoned.
+  /// That direction is deliberate — a browser this webview may not own must not have
+  /// its commands swallowed — but it does mean the blocking is best-effort rather
+  /// than a security boundary. Nothing here is: an accelerator that slips through
+  /// runs a command the user could have reached from Chrome's own UI anyway, and the
+  /// things that must not be reachable (the renderer sandbox, the command line
+  /// lockdown, DevTools when the webview disabled them) are enforced elsewhere and
+  /// do not depend on this.
   fn owns(&self, browser: Option<&mut Browser>) -> bool {
     browser
       .map(|browser| {

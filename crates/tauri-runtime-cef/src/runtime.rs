@@ -2147,9 +2147,10 @@ impl<T: UserEvent> CefRuntime<T> {
       "CEF browser process unexpectedly returned from execute_process"
     );
 
-    // Chromium drops a `debug.log` into the *process working directory* when no log file
-    // is configured, which for an installed application is wherever the user launched it
-    // from. Keep it next to the rest of the runtime's state instead.
+    // Chromium drops a `debug.log` next to the *main executable* when no log file
+    // is configured, which for an installed application is a directory the user did not
+    // expect a file in and often cannot write to. Keep it next to the rest of the
+    // runtime's state instead.
     let log_file = log_file.unwrap_or_else(|| cache_path.join("cef.log"));
     // CEF logs at INFO by default, which grows that file quickly in a long-running app.
     let log_severity = log_severity.unwrap_or(if tauri::is_dev() {

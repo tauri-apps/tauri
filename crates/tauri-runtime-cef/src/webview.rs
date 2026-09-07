@@ -448,13 +448,10 @@ impl<T: UserEvent> WinitCefApp<T> {
       && pending.webview_attributes.devtools.unwrap_or(true);
     let drag_drop_handler_enabled = pending.webview_attributes.drag_drop_handler_enabled;
     let drag_drop_state = Arc::new(Mutex::new(browser_client::DragDropState::default()));
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
     let web_content_process_terminate_handler = pending
       .on_web_content_process_terminate_handler
       .take()
-      .map(|handler| Arc::from(handler) as Arc<dyn Fn() + Send>);
-    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
-    let web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>> = None;
+      .map(Arc::from);
     let frame_navigation_state = crate::FrameNavigationState::new();
     let popup_family = Arc::new(crate::popup::PopupFamily::new(
       frame_navigation_state.clone(),

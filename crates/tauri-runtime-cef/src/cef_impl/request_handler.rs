@@ -168,21 +168,25 @@ wrap_request_handler! {
     drag_drop_event_target: DragDropEventTarget,
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
-    web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>>,
+    web_content_process_terminate_handler: Option<Arc<tauri_runtime::webview::OnWebContentProcessTerminateHandler>>,
   }
 
   impl RequestHandler {
     fn on_render_process_terminated(
       &self,
       browser: Option<&mut Browser>,
-      _status: TerminationStatus,
-      _error_code: ::std::os::raw::c_int,
-      _error_string: Option<&CefString>,
+      status: TerminationStatus,
+      error_code: ::std::os::raw::c_int,
+      error_string: Option<&CefString>,
     ) {
       let mut frame = browser.as_ref().and_then(|browser| browser.main_frame());
       crate::frame::emit_frame_event(&self.frame_event_handler, browser, frame.as_mut(), crate::FrameEventKind::RendererTerminated);
       if let Some(handler) = &self.web_content_process_terminate_handler {
-        handler();
+        handler(tauri_runtime::webview::WebContentProcessTermination {
+          reason: termination_reason(status),
+          error_code: Some(error_code),
+          error_string: error_string.map(ToString::to_string),
+        });
       }
     }
 
@@ -599,4 +603,45 @@ fn get_request_headers(request: &mut Request) -> HeaderMap {
   }
 
   headers
+}
+
+// ==== Renderer termination boundary ====
+
+fn termination_reason(
+  status: TerminationStatus,
+) -> tauri_runtime::webview::WebContentProcessTerminationReason {
+  use tauri_runtime::webview::WebContentProcessTerminationReason as Reason;
+  match status {
+    TerminationStatus::ABNORMAL_TERMINATION => Reason::Abnormal,
+    TerminationStatus::PROCESS_WAS_KILLED => Reason::Killed,
+    TerminationStatus::PROCESS_CRASHED => Reason::Crashed,
+    TerminationStatus::PROCESS_OOM => Reason::OutOfMemory,
+    TerminationStatus::LAUNCH_FAILED => Reason::LaunchFailed,
+    TerminationStatus::INTEGRITY_FAILURE => Reason::IntegrityFailure,
+    _ => Reason::Unknown,
+  }
+}
+
+#[cfg(test)]
+mod termination_tests {
+  use super::*;
+  use tauri_runtime::webview::WebContentProcessTerminationReason as Reason;
+
+  #[test]
+  fn preserves_every_cef_termination_reason() {
+    for (status, expected) in [
+      (TerminationStatus::ABNORMAL_TERMINATION, Reason::Abnormal),
+      (TerminationStatus::PROCESS_WAS_KILLED, Reason::Killed),
+      (TerminationStatus::PROCESS_CRASHED, Reason::Crashed),
+      (TerminationStatus::PROCESS_OOM, Reason::OutOfMemory),
+      (TerminationStatus::LAUNCH_FAILED, Reason::LaunchFailed),
+      (
+        TerminationStatus::INTEGRITY_FAILURE,
+        Reason::IntegrityFailure,
+      ),
+      (TerminationStatus::NUM_VALUES, Reason::Unknown),
+    ] {
+      assert_eq!(termination_reason(status), expected);
+    }
+  }
 }

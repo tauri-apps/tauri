@@ -5238,8 +5238,9 @@ You may have it installed on another user account, but it is not available for t
     if let Some(on_web_content_process_terminate_handler) =
       pending.on_web_content_process_terminate_handler
     {
-      webview_builder = webview_builder
-        .with_on_web_content_process_terminate_handler(on_web_content_process_terminate_handler);
+      webview_builder = webview_builder.with_on_web_content_process_terminate_handler(move || {
+        on_web_content_process_terminate_handler(Default::default());
+      });
     } else {
       log::debug!("web content process terminated");
       let context_ = context.clone();

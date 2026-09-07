@@ -48,7 +48,8 @@ pub(crate) struct TauriCefBrowserClientHandlers<T: UserEvent> {
   pub(crate) new_window_handler:
     Option<Arc<tauri_runtime::webview::NewWindowHandler<T, CefRuntime<T>>>>,
   pub(crate) download_handler: Option<Arc<tauri_runtime::webview::DownloadHandler>>,
-  pub(crate) web_content_process_terminate_handler: Option<Arc<dyn Fn() + Send>>,
+  pub(crate) web_content_process_terminate_handler:
+    Option<Arc<tauri_runtime::webview::OnWebContentProcessTerminateHandler>>,
 }
 
 impl<T: UserEvent> Clone for TauriCefBrowserClientHandlers<T> {

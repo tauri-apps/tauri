@@ -45,8 +45,53 @@ pub type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
 type PermissionRequestHandler = dyn Fn(PermissionKind) -> PermissionResponse + Send + Sync;
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-type OnWebContentProcessTerminateHandler = dyn Fn() + Send;
+/// Runtime-reported reason that a web content process stopped.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum WebContentProcessTerminationReason {
+  /// The runtime does not expose a reason (for example, WebKit).
+  Unknown,
+  /// The process exited normally.
+  Normal,
+  /// The process exited abnormally without a more specific cause.
+  Abnormal,
+  /// The process was killed; this may be an intentional action.
+  Killed,
+  /// The process crashed.
+  Crashed,
+  /// The process ran out of memory.
+  OutOfMemory,
+  /// The runtime could not launch the process.
+  LaunchFailed,
+  /// The process failed an integrity check.
+  IntegrityFailure,
+}
+
+/// Details provided by the runtime when a web content process terminates.
+///
+/// Error text is untrusted and may contain sensitive page data. Applications
+/// should sanitize it before logging or displaying it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WebContentProcessTermination {
+  /// The runtime's termination classification; unknown is never a normal exit.
+  pub reason: WebContentProcessTerminationReason,
+  /// Native runtime error code, when available.
+  pub error_code: Option<i32>,
+  /// Native runtime error text, when available.
+  pub error_string: Option<String>,
+}
+
+impl Default for WebContentProcessTermination {
+  fn default() -> Self {
+    Self {
+      reason: WebContentProcessTerminationReason::Unknown,
+      error_code: None,
+      error_string: None,
+    }
+  }
+}
+
+pub type OnWebContentProcessTerminateHandler = dyn Fn(WebContentProcessTermination) + Send;
 
 #[cfg(target_os = "ios")]
 type InputAccessoryViewBuilderFn = dyn Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>
@@ -230,7 +275,6 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
 
   pub permission_request_handler: Option<Box<PermissionRequestHandler>>,
 
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub on_web_content_process_terminate_handler: Option<Box<OnWebContentProcessTerminateHandler>>,
 }
 
@@ -262,7 +306,6 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         on_page_load_handler: None,
         download_handler: None,
         permission_request_handler: None,
-        #[cfg(any(target_os = "macos", target_os = "ios"))]
         on_web_content_process_terminate_handler: None,
       })
     }

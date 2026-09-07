@@ -67,8 +67,8 @@ pub type SetupHook<R> =
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
 /// A closure that is run when the web content process terminates.
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-pub type OnWebContentProcessTerminate<R> = dyn Fn(&Webview<R>) + Send + Sync + 'static;
+pub type OnWebContentProcessTerminate<R> =
+  dyn Fn(&Webview<R>, &crate::webview::WebContentProcessTermination) + Send + Sync + 'static;
 pub type ChannelInterceptor<R> =
   Box<dyn Fn(&Webview<R>, CallbackFn, usize, &InvokeResponseBody) -> bool + Send + Sync + 'static>;
 
@@ -1486,7 +1486,6 @@ pub struct Builder<R: Runtime = crate::DynRuntime> {
   on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
 
   /// Web content process termination hook.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
   on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
 
   /// All passed plugins
@@ -1571,7 +1570,6 @@ impl<R: Runtime> Builder<R> {
       channel_interceptor: None,
       on_page_load: None,
       on_permission_request: None,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
       on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
@@ -1860,12 +1858,13 @@ tauri::Builder::default()
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux / Windows / Android:** Unsupported.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  /// - **CEF (macOS / Linux / Windows):** Includes termination reason and native error details.
+  /// - **WebKit (macOS / iOS):** Reports an unknown reason without native error details.
+  /// - **Other runtimes:** No termination notifications are currently available.
   #[must_use]
   pub fn on_web_content_process_terminate<F>(mut self, on_web_content_process_terminate: F) -> Self
   where
-    F: Fn(&Webview<R>) + Send + Sync + 'static,
+    F: Fn(&Webview<R>, &crate::webview::WebContentProcessTermination) + Send + Sync + 'static,
   {
     self
       .on_web_content_process_terminate
@@ -2328,7 +2327,6 @@ tauri::Builder::default()
       self.invoke_handler,
       self.on_page_load,
       self.on_permission_request,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
       self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
       self.state,

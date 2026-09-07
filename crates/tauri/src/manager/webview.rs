@@ -27,7 +27,6 @@ use crate::{
   webview::PageLoadPayload,
 };
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
 use crate::app::OnWebContentProcessTerminate;
 
 use super::{
@@ -75,7 +74,6 @@ pub struct WebviewManager<R: Runtime> {
   /// The permission request hook, invoked when the webview requests a permission.
   pub on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
   /// The web content process termination hook.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
   /// The webview protocols available to all webviews.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
@@ -336,7 +334,6 @@ impl<R: Runtime> WebviewManager<R> {
         }));
     }
 
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
     if pending.on_web_content_process_terminate_handler.is_none() {
       let app_manager_ = manager.manager_owned();
       if app_manager_
@@ -347,12 +344,12 @@ impl<R: Runtime> WebviewManager<R> {
         let label_ = pending.label.clone();
         pending
           .on_web_content_process_terminate_handler
-          .replace(Box::new(move || {
+          .replace(Box::new(move |termination| {
             if let Some(w) = app_manager_.get_webview(&label_)
               && let Some(on_web_content_process_terminate) =
                 &app_manager_.webview.on_web_content_process_terminate
             {
-              on_web_content_process_terminate(&w);
+              on_web_content_process_terminate(&w, &termination);
             }
           }));
       }

@@ -20,6 +20,7 @@ use serde::Serialize;
 
 pub use tauri_runtime::webview::{
   NewWindowFeatures, PageLoadEvent, PermissionKind, PermissionResponse, ScrollBarStyle,
+  WebContentProcessTermination, WebContentProcessTerminationReason,
 };
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;

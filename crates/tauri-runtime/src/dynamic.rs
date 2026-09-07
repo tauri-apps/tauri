@@ -749,7 +749,6 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     on_page_load_handler,
     download_handler,
     permission_request_handler,
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
     on_web_content_process_terminate_handler,
   } = pending;
 
@@ -785,7 +784,6 @@ fn pending_webview_from_dyn<T: UserEvent, R: Runtime<T>>(
     on_page_load_handler,
     download_handler,
     permission_request_handler,
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
     on_web_content_process_terminate_handler,
   })
 }

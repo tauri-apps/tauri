@@ -1,0 +1,5 @@
+---
+'tauri-runtime-cef': 'patch:enhance'
+---
+
+The webview context menu no longer shows Chrome's browser-only entries. Because the runtime creates Chrome style browsers, right-clicking used to open Chrome's full page menu — back, forward, reload, save as, print, translate, view page source, "Search the web for…", open link in a new tab/window/incognito window, Lens and share — none of which belong in an application window and several of which lead somewhere the app cannot control. Those entries are now removed by Chrome command id (mapped version-safely from their IDC names at runtime), leaving the editing and clipboard entries an app actually wants: undo, redo, cut, copy, paste, paste as plain text, delete, select all, the spellcheck suggestions and add-to-dictionary, and the copy-link-address / copy-image family. Inspect is still removed when devtools are disabled, but now by command id instead of by deleting whatever entry happened to be last, and the separators left behind by the removals are tidied up.

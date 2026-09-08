@@ -74,95 +74,98 @@ struct InitDefaults {
 }
 
 impl Options {
-  fn load(mut self) -> Result<Self> {
-    let package_json_path = PathBuf::from(&self.directory).join("package.json");
+    fn load(mut self) -> Result<Self> {
+        if self.force {
+            self.ci = true;
+        }
+        let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
-    let init_defaults = if package_json_path.exists() {
-      let package_json_text =
-        read_to_string(&package_json_path).fs_context("failed to read", &package_json_path)?;
-      let package_json: crate::PackageJson =
-        serde_json::from_str(&package_json_text).context("failed to parse JSON")?;
-      let (framework, _) = infer_framework(&package_json_text);
-      InitDefaults {
-        app_name: package_json.product_name.or(package_json.name),
-        framework,
-      }
-    } else {
-      Default::default()
-    };
+        let init_defaults = if package_json_path.exists() {
+            let package_json_text =
+                read_to_string(&package_json_path).fs_context("failed to read", &package_json_path)?;
+            let package_json: crate::PackageJson =
+                serde_json::from_str(&package_json_text).context("failed to parse JSON")?;
+            let (framework, _) = infer_framework(&package_json_text);
+            InitDefaults {
+                app_name: package_json.product_name.or(package_json.name),
+                framework,
+            }
+        } else {
+            Default::default()
+        };
 
-    self.app_name = self.app_name.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      prompts::input(
-        "What is your app name?",
-        Some(
-          init_defaults
-            .app_name
-            .clone()
-            .unwrap_or_else(|| "Tauri App".to_string()),
-        ),
-        self.ci,
-        true,
-      )
-    })?;
+        self.app_name = self.app_name.map(|s| Ok(Some(s))).unwrap_or_else(|| {
+            prompts::input(
+                "What is your app name?",
+                Some(
+                    init_defaults
+                        .app_name
+                        .clone()
+                        .unwrap_or_else(|| "Tauri App".to_string()),
+                ),
+                self.ci,
+                true,
+            )
+        })?;
 
-    self.window_title = self.window_title.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      prompts::input(
-        "What should the window title be?",
-        Some(
-          init_defaults
-            .app_name
-            .clone()
-            .unwrap_or_else(|| "Tauri".to_string()),
-        ),
-        self.ci,
-        true,
-      )
-    })?;
+        self.window_title = self.window_title.map(|s| Ok(Some(s))).unwrap_or_else(|| {
+            prompts::input(
+                "What should the window title be?",
+                Some(
+                    init_defaults
+                        .app_name
+                        .clone()
+                        .unwrap_or_else(|| "Tauri".to_string()),
+                ),
+                self.ci,
+                true,
+            )
+        })?;
 
-    self.frontend_dist = self.frontend_dist.map(|s| Ok(Some(s))).unwrap_or_else(|| prompts::input(
-      r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
-      init_defaults.framework.as_ref().map(|f| f.frontend_dist()),
-      self.ci,
-      false,
-    ))?;
+        self.frontend_dist = self.frontend_dist.map(|s| Ok(Some(s))).unwrap_or_else(|| prompts::input(
+            r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
+            init_defaults.framework.as_ref().map(|f| f.frontend_dist()),
+            self.ci,
+            false,
+        ))?;
 
-    self.dev_url = self.dev_url.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      prompts::input(
-        "What is the url of your dev server?",
-        init_defaults.framework.map(|f| f.dev_url()),
-        self.ci,
-        true,
-      )
-    })?;
+        self.dev_url = self.dev_url.map(|s| Ok(Some(s))).unwrap_or_else(|| {
+            prompts::input(
+                "What is the url of your dev server?",
+                init_defaults.framework.map(|f| f.dev_url()),
+                self.ci,
+                true,
+            )
+        })?;
 
-    let detected_package_manager = PackageManager::from_project(&self.directory);
+        let detected_package_manager = PackageManager::from_project(&self.directory);
 
-    self.before_dev_command = self
-      .before_dev_command
-      .map(|s| Ok(Some(s)))
-      .unwrap_or_else(|| {
-        prompts::input(
-          "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
-          Some(default_dev_command(detected_package_manager).into()),
-          self.ci,
-          true,
-        )
-      })?;
+        self.before_dev_command = self
+            .before_dev_command
+            .map(|s| Ok(Some(s)))
+            .unwrap_or_else(|| {
+                prompts::input(
+                    "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
+                    Some(default_dev_command(detected_package_manager).into()),
+                    self.ci,
+                    true,
+                )
+            })?;
 
-    self.before_build_command = self
-      .before_build_command
-      .map(|s| Ok(Some(s)))
-      .unwrap_or_else(|| {
-        prompts::input(
-          "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
-          Some(default_build_command(detected_package_manager).into()),
-          self.ci,
-          true,
-        )
-      })?;
+        self.before_build_command = self
+            .before_build_command
+            .map(|s| Ok(Some(s)))
+            .unwrap_or_else(|| {
+                prompts::input(
+                    "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
+                    Some(default_build_command(detected_package_manager).into()),
+                    self.ci,
+                    true,
+                )
+            })?;
 
-    Ok(self)
-  }
+        Ok(self)
+    }
 }
 
 fn default_dev_command(pm: PackageManager) -> &'static str {

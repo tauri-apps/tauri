@@ -94,10 +94,10 @@ rustls = { version = "0.23", default-features = false, features = [
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { git = "https://github.com/tauri-apps/muda", branch = "amr/feat/snapshot", default-features = false, features = [
+muda = { git = "https://github.com/tauri-apps/muda", branch = "dev", default-features = false, features = [
   "serde",
 ] }
-tray-icon = { git = "https://github.com/tauri-apps/tray-icon", branch = "amr/feat/ksni", default-features = false, features = [
+tray-icon = { git = "https://github.com/tauri-apps/tray-icon", branch = "dev", default-features = false, features = [
   "serde",
 ], optional = true }
 
@@ -180,18 +180,18 @@ http-range = "0.1.5"
 default = ["compression", "common-controls-v6", "dynamic-acl"]
 unstable = []
 common-controls-v6 = [
-  "tray-icon?/common-controls-v6",
+  "tray-icon?/muda-common-controls-v6",
   "muda/common-controls-v6",
 ]
 tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing"]
-test = ["dep:gtk", "muda/gtk"]
+test = ["dep:gtk", "muda/gtk3"]
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
-gtk3 = ["dep:gtk", "muda/gtk", "tray-icon?/gtk"]
+gtk3 = ["dep:gtk", "muda/gtk3", "tray-icon?/libappindicator"]
 gtk4 = ["dep:gtk4", "muda/gtk4", "tray-icon?/ksni"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
-linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
+linux-libxdo = ["tray-icon?/muda-libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 # TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384

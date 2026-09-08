@@ -27,9 +27,7 @@ runtime = []
 [dependencies]
 anyhow = { version = "1", optional = true }
 serde = { version = "1", optional = true }
-tauri-utils = { version = "2.9.3", default-features = false, features = [
-  "build-2",
-], path = "../tauri-utils" }
+tauri-utils = { workspace = true, features = ["build-2"] }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 schemars = { version = "1", features = ["preserve_order"] }

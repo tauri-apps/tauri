@@ -77,7 +77,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
         ::tauri::log_stdout();
         #[cfg(target_os = "android")]
         {
-          ::tauri::android_binding!(#domain, #app_name, _start_app, ::tauri::wry);
+          ::tauri_runtime_wry::android_binding!(#domain, #app_name, _start_app);
         }
         stop_unwind(#wrapper_name);
       }

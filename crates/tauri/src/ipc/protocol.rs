@@ -328,12 +328,10 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
             js: crate::Result<String>,
             error: CallbackFn,
           ) {
-            let eval_js = match js {
-              Ok(js) => js,
-              Err(e) => crate::ipc::format_callback::format(error, &e.to_string())
-                .expect("unable to serialize response error string to json"),
-            };
-
+            let eval_js = js.unwrap_or_else(|e| {
+              crate::ipc::format_callback::format(error, &e.to_string())
+                .expect("unable to serialize response error string to json")
+            });
             let _ = webview.eval(eval_js);
           }
 
@@ -555,7 +553,9 @@ mod tests {
   use std::str::FromStr;
 
   use super::*;
-  use crate::{StateManager, Wry, ipc::InvokeBody, manager::AppManager, plugin::PluginStore};
+  use crate::{
+    StateManager, ipc::InvokeBody, manager::AppManager, plugin::PluginStore, test::MockRuntime,
+  };
   use http::header::*;
   use serde_json::json;
   use tauri_macros::generate_context;
@@ -563,13 +563,13 @@ mod tests {
   #[test]
   fn parse_invoke_request() {
     let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
-    let manager: AppManager<Wry> = AppManager::with_handlers(
+    let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
       PluginStore::default(),
       Box::new(|_| false),
       None,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),
@@ -681,13 +681,13 @@ mod tests {
       "contentType":  mime::APPLICATION_JSON.to_string(),
     });
 
-    let manager: AppManager<Wry> = AppManager::with_handlers(
+    let manager: AppManager<MockRuntime> = AppManager::with_handlers(
       context,
       PluginStore::default(),
       Box::new(|_| false),
       None,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
       None,
+      Default::default(),
       Default::default(),
       StateManager::new(),
       Default::default(),

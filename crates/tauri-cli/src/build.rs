@@ -79,6 +79,14 @@ pub struct Options {
   /// Skip code signing when bundling the app
   #[clap(long)]
   pub no_sign: bool,
+  /// Skip patching the main executable with bundle type information.
+  ///
+  /// The patching rewrites the binary in place, invalidating an existing code
+  /// signature. Skipping it preserves an already-signed binary at the cost of
+  /// per-bundle-type updater support (only relevant when shipping multiple
+  /// bundle types per platform).
+  #[clap(long)]
+  pub no_binary_patching: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
@@ -182,6 +190,12 @@ pub fn setup(
     log::warn!(
       "The bundle identifier \"{}\" set in `{bundle_identifier_source:?} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
       config.identifier,
+    );
+  }
+
+  if config.product_name.as_deref() == Some("tauri-app") {
+    log::warn!(
+      "The `productName` is still set to the default value `tauri-app`, it must be unique across applications since it is written into install paths and platform metadata that are expected to be unique to your application, like the Windows installer upgrade code."
     );
   }
 

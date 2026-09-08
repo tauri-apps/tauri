@@ -223,6 +223,10 @@ pub struct AppImageSettings {
   /// Whether to include gstreamer plugins for audio/media support.
   pub bundle_media_framework: bool,
   /// Whether to include the `xdg-open` binary.
+  #[deprecated(
+    since = "2.12.0",
+    note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
+  )]
   pub bundle_xdg_open: bool,
 }
 
@@ -642,6 +646,68 @@ mod _default {
   }
 }
 
+/// The webview runtime linked into the application, which decides the runtime-specific files the bundler ships.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum WebviewRuntime {
+  /// [wry](https://github.com/tauri-apps/wry): the system webview, backed by webkit2gtk on Linux and WebView2 on Windows.
+  ///
+  /// The AppImage ships the webkit2gtk helper processes, and the Windows installers
+  /// install WebView2 as configured by [`WindowsSettings::webview_install_mode`].
+  #[default]
+  Wry,
+  /// The Chromium Embedded Framework, shipped with the application.
+  ///
+  /// The macOS helper apps are always created: they are per-app,
+  /// and CEF launches them by path from inside the bundle.
+  Cef {
+    /// The CEF binary distribution to copy into the bundle.
+    ///
+    /// `None` for an app on a shared runtime, which loads CEF at run time from outside its bundle:
+    /// nothing of the distribution ships.
+    distribution: Option<PathBuf>,
+    /// The build of the executable of the macOS helper apps, see [`CefHelperSettings`].
+    ///
+    /// Required when bundling for macOS, `None` for the other targets, which have no helper apps.
+    helper: Option<CefHelperSettings>,
+  },
+  /// A runtime the bundler has no specific support for; nothing runtime-specific is shipped.
+  Other,
+}
+
+impl WebviewRuntime {
+  /// Whether the runtime relies on WebView2 on Windows.
+  ///
+  /// The Windows installers only install WebView2 and enforce its minimum version for such runtimes.
+  pub fn uses_webview2(&self) -> bool {
+    match self {
+      Self::Wry => true,
+      Self::Cef { .. } | Self::Other => false,
+    }
+  }
+
+  /// The CEF binary distribution to copy into the bundle, when the application embeds CEF.
+  pub fn cef_distribution(&self) -> Option<&Path> {
+    match self {
+      Self::Cef {
+        distribution,
+        helper: _,
+      } => distribution.as_deref(),
+      Self::Wry | Self::Other => None,
+    }
+  }
+
+  /// The build of the executable of the macOS CEF helper apps, when the application uses CEF.
+  pub fn cef_helper(&self) -> Option<&CefHelperSettings> {
+    match self {
+      Self::Cef {
+        distribution: _,
+        helper,
+      } => helper.as_ref(),
+      Self::Wry | Self::Other => None,
+    }
+  }
+}
+
 /// The bundle settings of the BuildArtifact we're bundling.
 #[derive(Clone, Debug, Default)]
 pub struct BundleSettings {
@@ -722,8 +788,28 @@ pub struct BundleSettings {
   pub updater: Option<UpdaterSettings>,
   /// Windows-specific settings.
   pub windows: WindowsSettings,
-  /// Path to the CEF (Chromium Embedded Framework) root directory.
-  pub cef_path: Option<PathBuf>,
+  /// The webview runtime linked into the application. Defaults to [`WebviewRuntime::Wry`].
+  pub webview_runtime: WebviewRuntime,
+}
+
+/// The build of the executable of the macOS CEF helper apps.
+///
+/// The bundler carries the helper's Rust source and compiles it with cargo at
+/// bundle time, for the target being bundled only.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CefHelperSettings {
+  /// Directory of the exact resolved `cef` crate used by the application.
+  /// This preserves registry, Git, and local patches in the helper build.
+  pub cef_crate_path: PathBuf,
+  /// Directory of the exact resolved `cef-dll-sys` crate used by the application.
+  pub cef_dll_sys_crate_path: PathBuf,
+  /// `CEF_PATH` for the helper's build: where `cef-dll-sys` resolves the CEF
+  /// binary distribution from, downloading into it when missing. The value
+  /// the app was built with, so the helper's build finds the app's
+  /// distribution instead of downloading its own.
+  pub cef_path: PathBuf,
+  /// Directory the helper crate is laid out and built in.
+  pub build_dir: PathBuf,
 }
 
 /// A binary to bundle.
@@ -832,10 +918,11 @@ pub struct Settings {
   target: String,
   /// Whether to disable code signing during the bundling process.
   no_sign: bool,
+  /// Whether to patch the main binary with bundle type information.
+  binary_patching: bool,
 }
 
 /// A builder for [`Settings`].
-#[derive(Default)]
 pub struct SettingsBuilder {
   log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
@@ -846,12 +933,31 @@ pub struct SettingsBuilder {
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
   no_sign: bool,
+  binary_patching: bool,
+}
+
+impl Default for SettingsBuilder {
+  fn default() -> Self {
+    Self {
+      log_level: None,
+      project_out_directory: None,
+      package_types: None,
+      package_settings: None,
+      bundle_settings: BundleSettings::default(),
+      binaries: Vec::new(),
+      target: None,
+      local_tools_directory: None,
+      no_sign: false,
+      // Binary patching is on by default; disabled via `--no-binary-patching`.
+      binary_patching: true,
+    }
+  }
 }
 
 impl SettingsBuilder {
   /// Creates the default settings builder.
   pub fn new() -> Self {
-    Default::default()
+    Self::default()
   }
 
   /// Sets the project output directory. It's used as current working directory.
@@ -922,6 +1028,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets whether to patch the main binary with bundle type information. Defaults to `true`.
+  #[must_use]
+  pub fn binary_patching(mut self, binary_patching: bool) -> Self {
+    self.binary_patching = binary_patching;
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -966,6 +1079,7 @@ impl SettingsBuilder {
       target_platform,
       target,
       no_sign: self.no_sign,
+      binary_patching: self.binary_patching,
     })
   }
 }
@@ -1317,6 +1431,35 @@ impl Settings {
     &self.bundle_settings.windows
   }
 
+  /// Returns the webview runtime linked into the application.
+  pub fn webview_runtime(&self) -> &WebviewRuntime {
+    &self.bundle_settings.webview_runtime
+  }
+
+  /// The WebView2 installation step of the Windows installers.
+  ///
+  /// This is the configured [`WindowsSettings::webview_install_mode`] when the runtime uses WebView2,
+  /// and [`WebviewInstallMode::Skip`] otherwise.
+  pub fn webview_install_mode(&self) -> WebviewInstallMode {
+    if self.webview_runtime().uses_webview2() {
+      self.windows().webview_install_mode.clone()
+    } else {
+      WebviewInstallMode::Skip
+    }
+  }
+
+  /// The minimum WebView2 version enforced by the Windows installers.
+  ///
+  /// This is the configured [`WindowsSettings::minimum_webview2_version`] when the runtime uses WebView2,
+  /// and `None` otherwise.
+  pub fn minimum_webview2_version(&self) -> Option<&str> {
+    if self.webview_runtime().uses_webview2() {
+      self.windows().minimum_webview2_version.as_deref()
+    } else {
+      None
+    }
+  }
+
   /// Returns the Updater settings.
   pub fn updater(&self) -> Option<&UpdaterSettings> {
     self.bundle_settings.updater.as_ref()
@@ -1330,5 +1473,15 @@ impl Settings {
   /// Set whether to skip signing.
   pub fn set_no_sign(&mut self, no_sign: bool) {
     self.no_sign = no_sign;
+  }
+
+  /// Whether the main binary is patched with bundle type information.
+  pub fn binary_patching(&self) -> bool {
+    self.binary_patching
+  }
+
+  /// Set whether to patch the main binary with bundle type information.
+  pub fn set_binary_patching(&mut self, binary_patching: bool) {
+    self.binary_patching = binary_patching;
   }
 }

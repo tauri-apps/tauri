@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>child webview</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header>
+      <h1 id="style-name"></h1>
+      <p>
+        One of two sibling browsers in a single window, built with
+        <code>tauri::webview::WebviewBuilder</code> and configured through
+        <code>WebviewBuilderCefExt</code>.
+      </p>
+    </header>
+
+    <main>
+      <section class="wide">
+        <table id="attributes"></table>
+      </section>
+      <section class="wide">
+        <div class="row">
+          <button id="say">console.log from here</button>
+          <button id="back">Alt+Left equivalent</button>
+        </div>
+        <ul class="notes">
+          <li>
+            This webview's console output and frame lifecycle are reported to
+            the main window's panels, tagged with this webview's label rather
+            than a window's.
+          </li>
+          <li id="style-note"></li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(location.search)
+      const style = params.get('style') ?? 'Chrome'
+      const commands = params.get('commands')
+
+      document.getElementById('style-name').textContent = `${style} style`
+      document.getElementById('style-note').textContent =
+        style === 'Alloy'
+          ? 'Alloy style has no Chrome UI, so it has no accelerator table either: allow_chrome_commands has nothing to give back here, and neither the desktop media picker nor the Chrome context menu exists.'
+          : 'Chrome style keeps its accelerator table live even as a child view with no browser UI, which is why the runtime swallows the families an app window has no use for.'
+
+      const table = document.getElementById('attributes')
+      for (const [name, value] of [
+        ['browser_runtime_style', `RuntimeStyle::${style}`],
+        [
+          'allow_chrome_commands',
+          commands
+            ? `[ChromeCommandGroup::${commands}]`
+            : '[ChromeCommandGroup::History]'
+        ],
+        ['on_console_message', 'reported to the main window'],
+        ['on_frame_event', 'reported to the main window']
+      ]) {
+        const row = table.insertRow()
+        row.insertCell().textContent = name
+        row.insertCell().textContent = value
+      }
+
+      document.getElementById('say').addEventListener('click', () => {
+        console.log(`hello from the ${style} style child webview`)
+      })
+      document.getElementById('back').addEventListener('click', () => {
+        history.back()
+      })
+    </script>
+  </body>
+</html>

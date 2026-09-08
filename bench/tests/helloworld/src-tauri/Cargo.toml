@@ -3,18 +3,21 @@ name = "bench_helloworld"
 version = "0.1.0"
 description = "A very simple Tauri Application"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 
 [build-dependencies]
-tauri-build = { path = "../../../../crates/tauri-build", features = [
+tauri-build = { workspace = true, default-features = true, features = [
   "codegen",
 ] }
 
 [dependencies]
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
-tauri = { path = "../../../../crates/tauri", features = [] }
+tauri = { workspace = true, default-features = true }
+tauri-runtime-wry = { workspace = true, default-features = true, optional = true }
+tauri-runtime-cef = { workspace = true, default-features = true, optional = true }
 
 [features]
-cef = ["tauri/cef"]
-wry = ["tauri/wry"]
+default = ["wry"]
+cef = ["dep:tauri-runtime-cef"]
+wry = ["dep:tauri-runtime-wry"]

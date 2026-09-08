@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>popup</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header>
+      <h1>Popup</h1>
+      <p id="kind"></p>
+    </header>
+    <main>
+      <section class="wide">
+        <ul class="notes">
+          <li id="sample-hint"></li>
+          <li>
+            <code>window.opener</code> is <code id="opener"></code> here, while
+            the Rust side was told the opener's main-frame URL directly by CEF.
+          </li>
+          <li>
+            A CEF-owned popup has no Tauri window label: it is a separate native
+            browser, so none of the main window's observers see its console
+            output, its frames or its DevTools traffic. Sample the main window's
+            native state to find it under <code>popups</code>.
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      const cefOwned = location.hash === '#cef-owned'
+      document.getElementById('kind').textContent = cefOwned
+        ? 'Opened by CEF itself, because the new-window handler answered NewWindowResponse::Allow.'
+        : 'A Tauri window the new-window handler built and answered with.'
+      document.getElementById('opener').textContent = window.opener
+        ? 'set'
+        : 'null'
+      document.getElementById('sample-hint').textContent = cefOwned
+        ? 'This browser has no Tauri label to sample by. Sample the main window instead and look under popups, where it selects itself back out of the family by its own document token.'
+        : `Sample this window by its label (${window.__TAURI__.window.getCurrentWindow().label}) from the main window's native state panel: it is a Tauri window like any other.`
+    </script>
+  </body>
+</html>

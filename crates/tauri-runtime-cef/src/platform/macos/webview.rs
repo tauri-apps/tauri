@@ -14,10 +14,25 @@ use crate::{webview::AppWebview, window::AppWindow};
 use super::utils;
 
 impl AppWebview {
+  fn try_nsview(&self) -> Option<Retained<NSView>> {
+    let view = self.host.window_handle().cast::<NSView>();
+    // CEF owns this NSView for the browser lifetime; retaining it protects the
+    // synchronous UI-thread observation. A destroyed native view is unavailable.
+    unsafe { Retained::<NSView>::retain(view) }
+  }
+
   pub(crate) fn nsview(&self) -> Retained<NSView> {
-    let handle = self.host.window_handle();
-    let view = handle.cast::<NSView>();
-    unsafe { Retained::<NSView>::retain(view).expect("failed to retain NSView") }
+    self.try_nsview().expect("failed to retain NSView")
+  }
+
+  pub(crate) fn native_parent_matches(&self, parent: &AppWindow) -> Option<bool> {
+    let view = self.try_nsview()?;
+    let superview = unsafe { view.superview() };
+    Some(superview.as_deref() == Some(&*parent.nsview()))
+  }
+
+  pub(crate) fn native_visible(&self) -> Option<bool> {
+    Some(!self.try_nsview()?.isHiddenOrHasHiddenAncestor())
   }
 
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
@@ -38,7 +53,7 @@ impl AppWebview {
   }
 
   pub(crate) fn bounds(&self) -> Option<Rect> {
-    let nsview = self.nsview();
+    let nsview = self.try_nsview()?;
 
     let parent = unsafe { nsview.superview()? };
     let parent_frame = parent.frame();
@@ -70,6 +85,16 @@ impl AppWebview {
     let nsview = self.nsview();
 
     nsview.setHidden(!visible);
+  }
+
+  /// Destroys CEF's own view for this browser, completing a close that
+  /// `do_close` took over.
+  ///
+  /// The superview holds the only strong reference to that view, so dropping it
+  /// deallocates the view — and its `dealloc` is what reports `WindowDestroyed`
+  /// back to CEF.
+  pub(crate) fn destroy_host_window(&self) {
+    self.nsview().removeFromSuperview();
   }
 
   pub(crate) fn apply_physical_bounds(&self, scale: f64, x: i32, y: i32, width: i32, height: i32) {

@@ -14,7 +14,6 @@ use objc2_app_kit::NSColor;
 use objc2_application_services::{
   ProcessApplicationTransformState, TransformProcessType, kCurrentProcess,
 };
-use objc2_foundation::NSValue;
 use tauri_utils::config::Color;
 
 #[repr(C)]
@@ -52,31 +51,27 @@ pub fn instant_epoch() -> Instant {
   *INSTANT_EPOCH.get_or_init(Instant::now)
 }
 
-pub(crate) fn set_associated_data<T, O: ClassType>(object: &O, key: *const c_void, data: *const T) {
-  let value: Retained<AnyObject> = NSValue::new(data.cast::<c_void>()).into();
+pub(crate) fn set_associated_object<O: ClassType>(
+  object: &O,
+  key: *const c_void,
+  value: &AnyObject,
+) {
   unsafe {
     objc_setAssociatedObject(
       object as *const O as *mut AnyObject,
       key,
-      Retained::as_ptr(&value) as *mut AnyObject,
+      value as *const AnyObject as *mut AnyObject,
       OBJC_ASSOCIATION_RETAIN_NONATOMIC,
     );
   }
 }
 
-pub(crate) unsafe fn associated_data<T, O: ClassType>(
+pub(crate) fn associated_object<O: ClassType>(
   object: &O,
   key: *const c_void,
-) -> Option<&T> {
+) -> Option<Retained<AnyObject>> {
   let value = unsafe { objc_getAssociatedObject(object as *const O as *const AnyObject, key) };
-  if value.is_null() {
-    return None;
-  }
-
-  let data = unsafe { (*(value as *const NSValue)).get::<*const c_void>() };
-  if data.is_null() {
-    return None;
-  }
-
-  Some(unsafe { &*(data as *const T) })
+  // SAFETY: the association is only ever written by `set_associated_object`,
+  // which stores a valid object pointer under this key.
+  unsafe { Retained::retain(value.cast_mut()) }
 }

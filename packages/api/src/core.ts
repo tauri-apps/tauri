@@ -257,29 +257,43 @@ async function invoke<T>(
 }
 
 /**
- * Convert a device file path to an URL that can be loaded by the webview.
- * Note that `asset:` and `http://asset.localhost` must be added to [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) in `tauri.conf.json`.
- * Example CSP value: `"csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost"` to use the asset protocol on image sources.
+ * Convert a device file path to a URL that can be loaded by the webview.
  *
- * Additionally, `"enable" : "true"` must be added to [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
- * in `tauri.conf.json` and its access scope must be defined on the `scope` array on the same `assetProtocol` object.
+ * The asset protocol must be enabled and the files you want to expose must be
+ * included in its scope. The protocol origins must also be allowed by the
+ * relevant [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1)
+ * directive. For example, this configuration allows images from the user's
+ * downloads directory:
+ *
+ * ```json
+ * {
+ *   "app": {
+ *     "security": {
+ *       "assetProtocol": {
+ *         "enable": true,
+ *         "scope": ["$DOWNLOAD/**"]
+ *       },
+ *       "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost"
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * See [`assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+ * for the available scope variables and platform-specific protocol details.
  *
  * @param  filePath The file path.
  * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.
  * @example
  * ```typescript
- * import { appDataDir, join } from '@tauri-apps/api/path';
+ * import { downloadDir, join } from '@tauri-apps/api/path';
  * import { convertFileSrc } from '@tauri-apps/api/core';
- * const appDataDirPath = await appDataDir();
- * const filePath = await join(appDataDirPath, 'assets/video.mp4');
+ * const downloads = await downloadDir();
+ * const filePath = await join(downloads, 'photo.png');
  * const assetUrl = convertFileSrc(filePath);
  *
- * const video = document.getElementById('my-video');
- * const source = document.createElement('source');
- * source.type = 'video/mp4';
- * source.src = assetUrl;
- * video.appendChild(source);
- * video.load();
+ * const image = document.getElementById('my-image') as HTMLImageElement;
+ * image.src = assetUrl;
  * ```
  *
  * @return the URL that can be used as source on the webview.
@@ -295,11 +309,14 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  *
  * The resource lives in the main process and does not exist
  * in the Javascript world, and thus will not be cleaned up automatically
- * except on application exit. If you want to clean it up early, call {@linkcode Resource.close}
+ * except on application exit. If you want to clean it up early, call {@linkcode Resource.close} or use [Explicit Resource Management].
+ *
+ * To support older browsers with [Explicit Resource Management], use a supported compiler (e.g. tsc) or bundler (e.g. rollup).
  *
  * @example
  * ```typescript
  * import { Resource, invoke } from '@tauri-apps/api/core';
+ *
  * export class DatabaseHandle extends Resource {
  *   static async open(path: string): Promise<DatabaseHandle> {
  *     const rid: number = await invoke('open_db', { path });
@@ -311,6 +328,34 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
  *   }
  * }
  * ```
+ *
+ * To use with [Explicit Resource Management]:
+ *
+ * @example
+ * ```
+ * await using db = await DatabaseHandle.open('test.db');
+ * await db.execute('SELECT *');
+ * ```
+ *
+ * To support older browsers, add the following to the globals (e.g. adding to the HTML file):
+ *
+ * ```javascript
+ * Symbol.dispose ??= Symbol("Symbol.dispose");
+ * Symbol.asyncDispose ??= Symbol("Symbol.asyncDispose");
+ * ```
+ *
+ * And for the compiler, for example `tsc`, `rollup`, `vite`, add the following to `tsconfig.json`:
+ *
+ * ```json
+ * {
+ *   "compilerOptions": {
+ *     "target": "es2022",
+ *     "lib": ["es2022", "esnext.disposable", "dom"]
+ *   }
+ * }
+ * ```
+ *
+ * [Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
  */
 export class Resource {
   readonly #rid: number
@@ -331,6 +376,10 @@ export class Resource {
     return invoke('plugin:resources|close', {
       rid: this.rid
     })
+  }
+
+  async [Symbol.asyncDispose]() {
+    await this.close()
   }
 }
 

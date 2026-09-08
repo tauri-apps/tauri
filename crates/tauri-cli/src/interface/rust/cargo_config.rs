@@ -60,6 +60,13 @@ impl Config {
   pub fn load(path: &Path) -> Result<Self> {
     let mut config = Self::default();
 
+    if let Ok(target) = std::env::var("CARGO_BUILD_TARGET")
+      && !target.is_empty()
+    {
+      config.build.target = Some(target);
+      return Ok(config);
+    }
+
     let get_config = |path: PathBuf| -> Result<ConfigSchema> {
       let contents =
         fs::read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;

@@ -119,6 +119,10 @@ impl AppWindow {
     window_xid(self.window.as_ref())
   }
 
+  pub(crate) fn raise_native(&self) {
+    super::utils::activate_window(self.xid());
+  }
+
   pub(crate) fn set_enabled(&self, enabled: bool) {
     use gtk::prelude::*;
 

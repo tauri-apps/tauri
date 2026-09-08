@@ -26,11 +26,8 @@ targets = [
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "2.6.3", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
-  "build-2",
-  "resources",
-] }
+tauri-codegen = { workspace = true, optional = true }
+tauri-utils = { workspace = true, features = ["build-2", "resources"] }
 cargo_toml = "1.0"
 serde = "1"
 serde_json = "1"

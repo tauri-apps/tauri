@@ -24,7 +24,7 @@ brotli = { version = "8", optional = true, default-features = false, features = 
 url = { version = "2", features = ["serde"] }
 html5ever = { version = "0.29", optional = true }
 kuchiki = { package = "kuchikiki", version = "0.8.8-speedreader", optional = true }
-dom_query = { version = "0.27", optional = true, default-features = false }
+dom_query = { version = "0.28", optional = true, default-features = false }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
 schemars = { version = "1", features = ["url2", "uuid1"], optional = true }
@@ -44,7 +44,7 @@ regex = "1"
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.19"
+infer = "0.22"
 dunce = "1"
 log = "0.4.21"
 cargo_metadata = { version = "0.19", optional = true }
@@ -54,12 +54,13 @@ http = "1"
 plist = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-swift-rs = { version = "1", optional = true, features = ["build"] }
+swift-rs = { version = "1.0.8", optional = true, features = ["build"] }
 
 [dev-dependencies]
 getrandom = { version = "0.3", features = ["std"] }
 serial_test = "3.5"
-tauri = { path = "../tauri" }
+# For doc tests
+tauri = { workspace = true }
 tempfile = "3.15.0"
 
 [features]

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 //! Create macros for `tauri::Context`, invoke handler and commands leveraging the `tauri-codegen` crate.
+//!
+//! Don't depend on this crate directly, use the re-exported types from tauri instead.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
@@ -21,7 +23,6 @@ mod cef;
 mod command;
 mod menu;
 mod mobile;
-mod runtime;
 
 #[macro_use]
 mod context;
@@ -112,19 +113,6 @@ pub fn generate_context(items: TokenStream) -> TokenStream {
   context::generate_context(path).into()
 }
 
-/// Adds the default type for the last parameter (assumed to be runtime) for a specific feature.
-///
-/// e.g. To default the runtime generic to type `crate::Wry` when the `wry` feature is enabled, the
-/// syntax would look like `#[default_runtime(crate::Wry, wry)`. This is **always** set for the last
-/// generic, so make sure the last generic is the runtime when using this macro.
-#[doc(hidden)]
-#[proc_macro_attribute]
-pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStream {
-  let attributes = parse_macro_input!(attributes as runtime::Attributes);
-  let input = parse_macro_input!(input as runtime::Input);
-  runtime::default_runtime(attributes, input).into()
-}
-
 /// Accepts a closure-like syntax to call arbitrary code on a menu item
 /// after matching against `kind` and retrieving it from `resources_table` using `rid`.
 ///
@@ -143,7 +131,7 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 /// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check | Submenu);
 /// ```
 ///
-/// #### Example
+/// ## Examples
 ///
 /// ```ignore
 ///  let rid = 23;
@@ -177,9 +165,10 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 ///      let i = resources_table.get::<IconMenuItem<R>>(rid)?;
 ///      i.set_text(text)
 ///    }
-///    _ => unreachable!(),
+///    _ => return Err(crate::Error::UnexpectedMenuKind),
 ///  }
 /// ```
+#[doc(hidden)]
 #[proc_macro]
 pub fn do_menu_item(input: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(input as menu::DoMenuItemInput);

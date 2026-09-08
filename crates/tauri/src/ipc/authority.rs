@@ -856,13 +856,11 @@ impl<T: ScopeObjectMatch> CommandScope<T> {
 impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
-    let scope_ids = command.acl.as_ref().map(|resolved| {
-      resolved
+    if let Some(resolved) = &command.acl {
+      let scope_ids = resolved
         .iter()
         .filter_map(|cmd| cmd.scope_id)
-        .collect::<Vec<_>>()
-    });
-    if let Some(scope_ids) = scope_ids {
+        .collect::<Vec<_>>();
       CommandScope::resolve(&command.message.webview, scope_ids).map_err(Into::into)
     } else {
       Ok(CommandScope {
@@ -1531,7 +1529,7 @@ mod tests {
   #[test]
   fn async_authority_resolves_allowed_command() {
     // Built off-thread; `resolve_access` must block on the builder, then authorize correctly.
-    let authority = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+    let authority = RuntimeAuthority::new_async(Default::default, sample_resolved);
 
     assert!(
       authority
@@ -1549,7 +1547,7 @@ mod tests {
 
   #[test]
   fn async_authority_denied_takes_precedence() {
-    let authority = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+    let authority = RuntimeAuthority::new_async(Default::default, sample_resolved);
     assert!(
       authority
         .resolve_access("denied-command", "anything", "wv", &Origin::Local)
@@ -1561,7 +1559,7 @@ mod tests {
   #[test]
   fn async_and_eager_authority_agree() {
     let eager = RuntimeAuthority::new(Default::default(), sample_resolved());
-    let lazy = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+    let lazy = RuntimeAuthority::new_async(Default::default, sample_resolved);
 
     for (command, window) in [
       ("allowed-command", "main-1"),
@@ -1580,7 +1578,7 @@ mod tests {
   #[test]
   fn async_authority_scope_manager_materializes() {
     // `scope_manager()` must also join the background builder and expose the resolved scopes.
-    let authority = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+    let authority = RuntimeAuthority::new_async(Default::default, sample_resolved);
     assert!(
       authority.scope_manager().command_scope.contains_key(&1),
       "scope manager should expose the resolved command scope after materialization"
@@ -1592,7 +1590,7 @@ mod tests {
   fn async_authority_resolve_access_message_materializes() {
     // The debug-only error path reads the raw ACL through the background-built authority; ensure
     // it materializes and produces a denial message without panicking.
-    let authority = RuntimeAuthority::new_async(|| Default::default(), sample_resolved);
+    let authority = RuntimeAuthority::new_async(Default::default, sample_resolved);
     let message = authority.resolve_access_message(
       super::APP_ACL_KEY,
       "denied-command",

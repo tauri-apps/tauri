@@ -97,8 +97,10 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Slice(patterns.iter()),
         allow_walk,
+        base_dir: None,
         current_dest: None,
         current_iter: None,
+        rerun_if_changed: Vec::new(),
       },
     }
   }
@@ -109,10 +111,24 @@ impl<'a> ResourcePaths<'a> {
       iter: ResourcePathsIter {
         pattern_iter: PatternIter::Map(patterns.iter()),
         allow_walk,
+        base_dir: None,
         current_dest: None,
         current_iter: None,
+        rerun_if_changed: Vec::new(),
       },
     }
+  }
+
+  /// Resolves the resource patterns against the given base directory
+  /// instead of the current working directory.
+  ///
+  /// [`Resource::target`] is still computed from the pattern as written
+  /// (as if the iterator ran with `base_dir` as the working directory),
+  /// but [`Resource::path`] yields the pattern joined with `base_dir`.
+  #[must_use]
+  pub fn with_base_dir(mut self, base_dir: impl Into<PathBuf>) -> Self {
+    self.iter.base_dir = Some(base_dir.into());
+    self
   }
 
   /// Returns the resource iterator that yields the source and target paths.
@@ -129,6 +145,8 @@ pub struct ResourcePathsIter<'a> {
   pattern_iter: PatternIter<'a>,
   /// whether the resource paths allows directories or not.
   allow_walk: bool,
+  /// the directory patterns are resolved against instead of the current working directory.
+  base_dir: Option<PathBuf>,
 
   /// The value of map when [`Self::pattern_iter`] is a [`PatternIter::Map`],
   /// used for determining [`Resource::target`]
@@ -136,6 +154,10 @@ pub struct ResourcePathsIter<'a> {
   /// The iter for the current pattern. The cycle goes like this:
   /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
+  /// Paths that were walked or globbed while iterating. Build scripts
+  /// should emit a `rerun-if-changed` for each so that adding or removing a
+  /// file inside a resource directory re-triggers the resource copy.
+  rerun_if_changed: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -168,6 +190,17 @@ impl Iterator for ResourcePathsInnerIter {
 }
 
 impl ResourcePathsIter<'_> {
+  /// Paths that were walked or globbed while iterating.
+  ///
+  /// A build script should emit a `cargo:rerun-if-changed` for each of these
+  /// after iterating, so that adding or removing a file inside a resource
+  /// directory re-runs the script and copies the new files. Only meaningful
+  /// once iteration has produced the entries (i.e. after the iterator is
+  /// exhausted).
+  pub fn rerun_if_changed(&self) -> &[PathBuf] {
+    &self.rerun_if_changed
+  }
+
   fn next_current_iter(&mut self) -> Option<crate::Result<Resource>> {
     let current_iter = self.current_iter.as_mut().unwrap();
     let entry = current_iter.next()?;
@@ -178,7 +211,14 @@ impl ResourcePathsIter<'_> {
         if entry.is_dir() {
           self.next_current_iter()?
         } else {
-          self.resource_from_path(normalize(&entry))
+          // with a base dir, entries are already full paths; normalizing would
+          // strip Windows path prefixes
+          let entry = if self.base_dir.is_some() {
+            entry
+          } else {
+            normalize(&entry)
+          };
+          self.resource_from_path(entry)
         }
       }
       Err(error) => Err(error),
@@ -190,47 +230,53 @@ impl ResourcePathsIter<'_> {
       return Err(crate::Error::ResourcePathNotFound(path));
     }
 
-    Ok(Resource {
-      target: if let Some(dest) = &self.current_dest {
-        match &self.current_iter {
-          Some(current_iter) => match current_iter {
-            // if processing a directory, preserve directory structure under current_dest
-            ResourcePathsInnerIter::Walk {
-              current_pattern, ..
-            } => {
-              if let Some(pattern) = current_pattern {
-                dest.join(path.strip_prefix(pattern).unwrap_or(&path))
-              } else {
-                dest.join(&path)
-              }
-            }
-            // if processing a glob and current_dest is not empty
-            // we put all globbed paths under current_dest
-            // preserving the file name as it is
-            ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
-          },
-          None => {
-            if dest.components().count() == 0 {
-              // if current_dest is empty while processing a file pattern
-              // we preserve the file name as it is
-              //
-              // e.g. `{ "README.md": "" }` is `README.md` -> `$RESOURCE/README.md`
-              //
-              // TODO: This behavior is a confusing special case,
-              // remove this in v3 or make other cases like this work
-              // > `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md` (this gives `$RESOURCE/folder` today)
-              PathBuf::from(path.file_name().unwrap())
+    // the path as written in the pattern (relative to the base dir, if any),
+    // which determines the resource target
+    let relative_path: &Path = match &self.base_dir {
+      Some(base_dir) => path.strip_prefix(base_dir).unwrap_or(&path),
+      None => &path,
+    };
+
+    let target = if let Some(dest) = &self.current_dest {
+      match &self.current_iter {
+        Some(current_iter) => match current_iter {
+          // if processing a directory, preserve directory structure under current_dest
+          ResourcePathsInnerIter::Walk {
+            current_pattern, ..
+          } => {
+            if let Some(pattern) = current_pattern {
+              dest.join(path.strip_prefix(pattern).unwrap_or(&path))
             } else {
-              dest.clone()
+              dest.join(relative_path)
             }
           }
+          // if processing a glob and current_dest is not empty
+          // we put all globbed paths under current_dest
+          // preserving the file name as it is
+          ResourcePathsInnerIter::Glob { .. } => dest.join(path.file_name().unwrap()),
+        },
+        None => {
+          if dest.components().count() == 0 {
+            // if current_dest is empty while processing a file pattern
+            // we preserve the file name as it is
+            //
+            // e.g. `{ "README.md": "" }` is `README.md` -> `$RESOURCE/README.md`
+            //
+            // TODO: This behavior is a confusing special case,
+            // remove this in v3 or make other cases like this work
+            // > `{ "README.md": "./folder/" }` is `README.md` -> `$RESOURCE/folder/README.md` (this gives `$RESOURCE/folder` today)
+            PathBuf::from(path.file_name().unwrap())
+          } else {
+            dest.clone()
+          }
         }
-      } else {
-        // If [`ResourcePathsIter::pattern_iter`] is a [`PatternIter::Slice`]
-        resource_relpath(&path)
-      },
-      path,
-    })
+      }
+    } else {
+      // If [`ResourcePathsIter::pattern_iter`] is a [`PatternIter::Slice`]
+      resource_relpath(relative_path)
+    };
+
+    Ok(Resource { target, path })
   }
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
@@ -247,7 +293,30 @@ impl ResourcePathsIter<'_> {
     };
 
     if pattern.contains('*') {
-      self.current_iter = match glob::glob(pattern) {
+      let glob_pattern = match &self.base_dir {
+        // escape the base dir so path components with glob special characters
+        // (e.g. `[`) are matched literally
+        Some(base_dir) => Path::new(&glob::Pattern::escape(&base_dir.to_string_lossy()))
+          .join(pattern)
+          .to_string_lossy()
+          .into_owned(),
+        None => pattern.clone(),
+      };
+      // Watch the fixed directory prefix of the glob (everything before the
+      // first wildcard component) so new files matching the glob are noticed.
+      let mut base = PathBuf::new();
+      for component in Path::new(&glob_pattern).components() {
+        if component.as_os_str().to_string_lossy().contains('*') {
+          break;
+        }
+        base.push(component);
+      }
+      if base.as_os_str().is_empty() {
+        base.push(".");
+      }
+      self.rerun_if_changed.push(base);
+
+      self.current_iter = match glob::glob(&glob_pattern) {
         Ok(glob) => Some(ResourcePathsInnerIter::Glob { iter: glob }),
         Err(error) => return Some(Err(error.into())),
       };
@@ -260,6 +329,11 @@ impl ResourcePathsIter<'_> {
       }
     } else {
       let path = normalize(Path::new(pattern));
+      let path = match &self.base_dir {
+        Some(base_dir) => base_dir.join(path),
+        None => path,
+      };
+      self.rerun_if_changed.push(path.clone());
       if path.is_dir() {
         if !self.allow_walk {
           return Some(Err(crate::Error::NotAllowedToWalkDir(path)));
@@ -455,6 +529,37 @@ mod tests {
 
   #[test]
   #[serial_test::serial(resources)]
+  fn resource_paths_iter_rerun_if_changed() {
+    setup_test_dirs();
+
+    let dir = std::env::current_dir().unwrap().join("src-tauri");
+    let _ = std::env::set_current_dir(dir);
+
+    let patterns = [
+      "../src/script.js".into(),
+      "../src/assets".into(),
+      "../src/textures/**/*".into(),
+      "*.toml".into(),
+    ];
+    let mut resources = ResourcePaths::new(&patterns, true).iter();
+
+    for resource in resources.by_ref() {
+      resource.unwrap();
+    }
+
+    assert_eq!(
+      resources.rerun_if_changed(),
+      &[
+        normalize(Path::new("../src/script.js")),
+        normalize(Path::new("../src/assets")),
+        normalize(Path::new("../src/textures")),
+        PathBuf::from("."),
+      ]
+    );
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
   fn resource_paths_iter_slice_no_walk() {
     setup_test_dirs();
 
@@ -583,6 +688,128 @@ mod tests {
       ("Tauri.toml", "Tauri.toml"),
       ("tauri.conf.json", "json/tauri.conf.json"),
     ]);
+
+    assert_eq!(resources.len(), expected.len());
+    for resource in expected {
+      if !resources.contains(&resource) {
+        panic!("{resource:?} was expected but not found in {resources:?}");
+      }
+    }
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
+  fn resource_paths_iter_slice_with_base_dir() {
+    setup_test_dirs();
+
+    // the current dir is the temp dir, NOT the base dir:
+    // resolution must not depend on the current working directory
+    let base_dir = std::env::current_dir().unwrap().join("src-tauri");
+
+    let resources = ResourcePaths::new(
+      &[
+        "../src/script.js".into(),
+        "../src/assets".into(),
+        "../src/textures/**/*".into(),
+        "*.toml".into(),
+        "some-folder".into(),
+      ],
+      true,
+    )
+    .with_base_dir(&base_dir)
+    .iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    let expected: Vec<Resource> = [
+      ("../src/script.js", "_up_/src/script.js"),
+      (
+        "../src/assets/javascript.svg",
+        "_up_/src/assets/javascript.svg",
+      ),
+      ("../src/assets/tauri.svg", "_up_/src/assets/tauri.svg"),
+      ("../src/assets/rust.svg", "_up_/src/assets/rust.svg"),
+      ("../src/assets/lang/en.json", "_up_/src/assets/lang/en.json"),
+      ("../src/assets/lang/ar.json", "_up_/src/assets/lang/ar.json"),
+      (
+        "../src/textures/ground/earth.tex",
+        "_up_/src/textures/ground/earth.tex",
+      ),
+      (
+        "../src/textures/ground/sand.tex",
+        "_up_/src/textures/ground/sand.tex",
+      ),
+      ("../src/textures/water.tex", "_up_/src/textures/water.tex"),
+      ("../src/textures/fire.tex", "_up_/src/textures/fire.tex"),
+      ("Cargo.toml", "Cargo.toml"),
+      ("Tauri.toml", "Tauri.toml"),
+      ("some-folder/some-file.txt", "some-folder/some-file.txt"),
+    ]
+    .iter()
+    .map(|(path, target)| Resource {
+      path: base_dir.join(path),
+      target: Path::new(target).components().collect(),
+    })
+    .collect();
+
+    assert_eq!(resources.len(), expected.len());
+    for resource in expected {
+      if !resources.contains(&resource) {
+        panic!("{resource:?} was expected but not found in {resources:?}");
+      }
+    }
+  }
+
+  #[test]
+  #[serial_test::serial(resources)]
+  fn resource_paths_iter_map_with_base_dir() {
+    setup_test_dirs();
+
+    // the current dir is the temp dir, NOT the base dir:
+    // resolution must not depend on the current working directory
+    let base_dir = std::env::current_dir().unwrap().join("src-tauri");
+
+    let resources = ResourcePaths::from_map(
+      &resources_map(&[
+        ("../src/script.js", "main.js"),
+        ("../src/assets", ""),
+        ("../src/sounds", "voices"),
+        ("../src/textures/*", "textures"),
+        ("*.conf.json", "json"),
+        ("some-folder", "some-target-folder"),
+        ("Cargo.toml", ""),
+      ]),
+      true,
+    )
+    .with_base_dir(&base_dir)
+    .iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    let expected: Vec<Resource> = [
+      ("../src/script.js", "main.js"),
+      ("../src/assets/javascript.svg", "javascript.svg"),
+      ("../src/assets/tauri.svg", "tauri.svg"),
+      ("../src/assets/rust.svg", "rust.svg"),
+      ("../src/assets/lang/en.json", "lang/en.json"),
+      ("../src/assets/lang/ar.json", "lang/ar.json"),
+      ("../src/sounds/lang/es.wav", "voices/lang/es.wav"),
+      ("../src/sounds/lang/fr.wav", "voices/lang/fr.wav"),
+      ("../src/textures/water.tex", "textures/water.tex"),
+      ("../src/textures/fire.tex", "textures/fire.tex"),
+      ("tauri.conf.json", "json/tauri.conf.json"),
+      (
+        "some-folder/some-file.txt",
+        "some-target-folder/some-file.txt",
+      ),
+      ("Cargo.toml", "Cargo.toml"),
+    ]
+    .iter()
+    .map(|(path, target)| Resource {
+      path: base_dir.join(path),
+      target: Path::new(target).components().collect(),
+    })
+    .collect();
 
     assert_eq!(resources.len(), expected.len());
     for resource in expected {

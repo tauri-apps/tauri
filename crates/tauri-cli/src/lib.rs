@@ -14,7 +14,6 @@ mod acl;
 mod add;
 mod build;
 mod bundle;
-mod cef;
 mod completions;
 mod dev;
 mod error;
@@ -28,6 +27,7 @@ mod migrate;
 mod mobile;
 mod plugin;
 mod remove;
+mod runtime;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
@@ -120,6 +120,8 @@ pub struct VersionMetadata {
   tauri_build: String,
   #[serde(rename = "tauri-plugin")]
   tauri_plugin: String,
+  #[serde(rename = "tauri-runtime-wry")]
+  tauri_runtime_wry: String,
 }
 
 #[derive(Deserialize)]

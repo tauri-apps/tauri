@@ -16,7 +16,6 @@ rust-version.workspace = true
 [package.metadata.docs.rs]
 no-default-features = true
 features = [
-  "wry",
   "unstable",
   "custom-protocol",
   "tray-icon",
@@ -56,13 +55,9 @@ uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1"
 thiserror = "2"
-tauri-runtime = { version = "2.11.3", path = "../tauri-runtime" }
-tauri-macros = { version = "2.6.3", path = "../tauri-macros" }
-tauri-utils = { version = "2.9.3", features = [
-  "resources",
-], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.11.4", path = "../tauri-runtime-wry", default-features = false, optional = true }
-tauri-runtime-cef = { version = "0.1.0", path = "../tauri-runtime-cef", optional = true }
+tauri-runtime = { workspace = true }
+tauri-macros = { workspace = true }
+tauri-utils = { workspace = true, features = ["resources"] }
 getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"
@@ -79,9 +74,10 @@ tracing = { version = "0.1", optional = true }
 heck = "0.5"
 log = "0.4.21"
 dunce = "1"
-specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [
+specta = { version = "^2.0.0-rc.25", optional = true, default-features = false, features = [
   "function",
   "derive",
+  "std",
 ] }
 # WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
 cookie = "0.18"
@@ -98,21 +94,17 @@ rustls = { version = "0.23", default-features = false, features = [
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { git = "https://github.com/tauri-apps/muda", branch = "dev", default-features = false, features = [
+muda = { git = "https://github.com/tauri-apps/muda", branch = "amr/feat/snapshot", default-features = false, features = [
   "serde",
 ] }
-tray-icon = { version = "0.24", default-features = false, features = [
+tray-icon = { git = "https://github.com/tauri-apps/tray-icon", branch = "amr/feat/ksni", default-features = false, features = [
   "serde",
-  "gtk",
 ], optional = true }
 
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
-gtk3 = { package = "gtk", version = "0.18", features = [
-  "v3_24",
-], optional = true }
+gtk = { version = "0.18", features = ["v3_24"], optional = true }
 gtk4 = { package = "gtk4", version = "0.11.4", optional = true }
-webkit2gtk = { version = "2", features = ["v2_40"], optional = true }
 
 # darwin
 [target.'cfg(target_vendor = "apple")'.dependencies]
@@ -122,12 +114,12 @@ objc2 = "0.6"
 [target.'cfg(target_os = "macos")'.dependencies]
 embed_plist = "1.2"
 plist = "1"
-objc2-foundation = { version = "0.3", default-features = false, features = [
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "std",
   "NSData",
   "NSThread",
 ] }
-objc2-app-kit = { version = "0.3", default-features = false, features = [
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "std",
   "NSApplication",
   "NSColor",
@@ -136,7 +128,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSWindow",
   "NSImage",
 ] }
-objc2-web-kit = { version = "0.3", default-features = false, features = [
+objc2-web-kit = { version = "0.3.2", default-features = false, features = [
   "objc2-app-kit",
   "WKWebView",
   "WKWebViewConfiguration",
@@ -146,7 +138,6 @@ window-vibrancy = "0.6"
 
 # windows
 [target."cfg(windows)".dependencies]
-webview2-com = { version = "0.38", optional = true }
 window-vibrancy = "0.6"
 windows = { version = "0.61", features = [
   "Win32_Foundation",
@@ -161,8 +152,8 @@ jni = "0.21"
 # UIKit, i.e. iOS/tvOS/watchOS/visionOS
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
-swift-rs = "1"
-objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+swift-rs = "1.0.8"
+objc2-ui-kit = { version = "0.3.2", default-features = false, features = [
   "UIApplication",
   "UIResponder",
   "UIView",
@@ -171,10 +162,8 @@ objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
 [build-dependencies]
 glob = "0.3"
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.6.3" }
-tauri-utils = { path = "../tauri-utils/", version = "2.9.3", features = [
-  "build-2",
-] }
+tauri-build = { workspace = true }
+tauri-utils = { workspace = true, features = ["build-2"] }
 
 [dev-dependencies]
 proptest = "1.6.0"
@@ -188,35 +177,18 @@ cargo_toml = "1.0"
 http-range = "0.1.5"
 
 [features]
-default = [
-  "wry",
-  "compression",
-  "common-controls-v6",
-  "dynamic-acl",
-  "x11",
-  "dbus",
-]
-unstable = ["tauri-runtime-wry?/unstable"]
-x11 = ["tauri-runtime-wry?/x11"]
-dbus = ["tauri-runtime-wry?/dbus"]
+default = ["compression", "common-controls-v6", "dynamic-acl"]
+unstable = []
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6",
-  "tauri-runtime-wry?/common-controls-v6",
 ]
 tray-icon = ["dep:tray-icon"]
-tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]
-test = ["dep:gtk3", "muda/gtk"]
+tracing = ["dep:tracing", "tauri-macros/tracing"]
+test = ["dep:gtk", "muda/gtk"]
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
-wry = [
-  "dep:gtk3",
-
-  "muda/gtk",
-  "dep:webview2-com",
-  "dep:webkit2gtk",
-  "dep:tauri-runtime-wry",
-]
-cef = ["dep:gtk4", "muda/gtk4", "dep:tauri-runtime-cef"]
+gtk3 = ["dep:gtk", "muda/gtk", "tray-icon?/gtk"]
+gtk4 = ["dep:gtk4", "muda/gtk4", "tray-icon?/ksni"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
@@ -226,67 +198,18 @@ custom-protocol = ["tauri-macros/custom-protocol"]
 native-tls = ["reqwest/native-tls"]
 native-tls-vendored = ["reqwest/native-tls-vendored"]
 rustls-tls = ["reqwest/rustls-no-provider", "dep:rustls"]
-devtools = [
-  "tauri-runtime/devtools",
-  "tauri-runtime-wry?/devtools",
-  "tauri-runtime-cef?/devtools",
-]
+# the runtime crate (e.g. `tauri-runtime-wry`) must also enable its `devtools` feature
+devtools = ["tauri-runtime/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
-macos-private-api = [
-  "tauri-runtime/macos-private-api",
-  "tauri-runtime-wry?/macos-private-api",
-  "tauri-runtime-cef?/macos-private-api",
-]
+# the runtime crate (e.g. `tauri-runtime-wry`) must also enable its `macos-private-api` feature
+macos-private-api = ["tauri-runtime/macos-private-api"]
 webview-data-url = ["data-url", "tauri-utils/html-manipulation-2"]
 protocol-asset = ["http-range"]
 config-json5 = ["tauri-macros/config-json5"]
 config-toml = ["tauri-macros/config-toml"]
 image-ico = ["image/ico"]
 image-png = ["image/png"]
-macos-proxy = ["tauri-runtime-wry?/macos-proxy"]
 dynamic-acl = []
 specta = ["dep:specta"]
-
-[[example]]
-name = "commands"
-path = "../../examples/commands/main.rs"
-
-[[example]]
-name = "helloworld"
-path = "../../examples/helloworld/main.rs"
-
-[[example]]
-name = "drag"
-path = "../../examples/drag/main.rs"
-
-[[example]]
-name = "multiwebview"
-path = "../../examples/multiwebview/main.rs"
-required-features = ["unstable"]
-
-[[example]]
-name = "multiwindow"
-path = "../../examples/multiwindow/main.rs"
-
-[[example]]
-name = "run-return"
-path = "../../examples/run-return/main.rs"
-
-[[example]]
-name = "splashscreen"
-path = "../../examples/splashscreen/main.rs"
-
-[[example]]
-name = "state"
-path = "../../examples/state/main.rs"
-
-[[example]]
-name = "streaming"
-path = "../../examples/streaming/main.rs"
-
-[[example]]
-name = "isolation"
-path = "../../examples/isolation/main.rs"
-required-features = ["isolation"]

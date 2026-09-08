@@ -86,7 +86,7 @@ export class Image extends Resource {
   }
 
   /** Returns the RGBA data for this image, in row-major order from top to bottom.  */
-  async rgba(): Promise<Uint8Array> {
+  async rgba(): Promise<Uint8Array<ArrayBuffer>> {
     return invoke<number[]>('plugin:image|rgba', {
       rid: this.rid
     }).then((buffer) => new Uint8Array(buffer))

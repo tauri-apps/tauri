@@ -16,6 +16,8 @@ use crate::{
 };
 
 pub struct TrayManager<R: Runtime> {
+  /// icon passed in from [`tauri_utils::config::TrayIconConfig::icon_path`],
+  /// used when creating tray icons from the configs.
   pub(crate) icon: Option<Image<'static>>,
   /// Tray icons
   pub(crate) icons: Mutex<Vec<(TrayIconId, ResourceId)>>,

@@ -13,6 +13,7 @@ use objc2::{
   msg_send,
   rc::Retained,
   runtime::{AnyObject, Bool, ProtocolObject},
+  sel,
 };
 use objc2_app_kit::{
   NSApp, NSApplication, NSApplicationActivationOptions, NSApplicationDelegate,
@@ -143,14 +144,14 @@ define_class!(
       value: Option<&AnyObject>,
       attribute: Option<&NSString>,
     ) {
-      if let (Some(value), Some(attribute)) = (value, attribute) {
-        if attribute.to_string() == "AXEnhancedUserInterface" {
-          let int_value: std::ffi::c_int = unsafe { msg_send![value, intValue] };
-          if let Some(delegate) = self.delegate() {
-            delegate.emit(AppDelegateEvent::AccessibilityChanged {
-              enabled: int_value == 1,
-            });
-          }
+      if let (Some(value), Some(attribute)) = (value, attribute) &&
+        attribute.to_string() == "AXEnhancedUserInterface"
+      {
+        let int_value: std::ffi::c_int = unsafe { msg_send![value, intValue] };
+        if let Some(delegate) = self.delegate() {
+          delegate.emit(AppDelegateEvent::AccessibilityChanged {
+            enabled: int_value == 1,
+          });
         }
       }
 
@@ -221,9 +222,40 @@ impl CefWinitApplication {
   }
 }
 
+/// Make this application the active one.
+///
+/// `activateIgnoringOtherApps:` is deprecated since macOS 14 and is largely
+/// ignored there: activation became cooperative, so an app that asks the old
+/// way while another app owns the foreground simply stays behind. `-[NSApplication
+/// activate]` is the replacement, so prefer it whenever the running system has
+/// it and keep the legacy call for older releases.
+pub(crate) fn activate_application() {
+  let Some(mtm) = MainThreadMarker::new() else {
+    return;
+  };
+
+  let app = NSApplication::sharedApplication(mtm);
+  if app.respondsToSelector(sel!(activate)) {
+    app.activate();
+  } else {
+    #[allow(deprecated)]
+    app.activateIgnoringOtherApps(true);
+  }
+}
+
+/// Creates the CEF-compatible AppKit application before displaying native startup UI.
+///
+/// Call this on the main thread before any code creates an `NSApplication`, for example
+/// before presenting a recovery dialog. It does not initialize CEF, its event loop, or
+/// a browser profile. Repeated calls, including later runtime initialization, are safe.
+///
+/// # Panics
+///
+/// Panics outside the main thread or if another application class already owns the
+/// AppKit singleton.
 pub fn setup_application() {
-  let _ = CefWinitApplication::shared_application();
   let mtm = MainThreadMarker::new().expect("macOS application must start on the main thread");
+  let _ = CefWinitApplication::shared_application();
   assert!(NSApp(mtm).isKindOfClass(CefWinitApplication::class()));
 }
 

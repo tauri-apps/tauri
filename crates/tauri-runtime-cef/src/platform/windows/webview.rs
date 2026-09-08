@@ -6,18 +6,48 @@ use cef::ImplBrowserHost;
 use tauri_runtime::dpi::{PhysicalPosition, PhysicalSize, Rect};
 use tauri_utils::config::Color;
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+  Foundation::{ERROR_SUCCESS, HWND, LPARAM, LRESULT, POINT, RECT, SetLastError, WPARAM},
   Graphics::Gdi::MapWindowPoints,
   UI::Shell::{DefSubclassProc, SetWindowSubclass},
   UI::WindowsAndMessaging::{
-    GetParent, GetWindowRect, HWND_TOP, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
-    SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow, WINDOWPOS, WM_WINDOWPOSCHANGING,
+    DestroyWindow, GetParent, GetWindowRect, HWND_TOP, IsWindow, IsWindowVisible, SW_HIDE, SW_SHOW,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetParent, SetWindowPos, ShowWindow,
+    WINDOWPOS, WM_WINDOWPOSCHANGING,
   },
 };
 
 use crate::{webview::AppWebview, window::AppWindow};
 
 impl AppWebview {
+  pub(crate) fn native_parent_matches(&self, parent: &AppWindow) -> Option<bool> {
+    let hwnd = self.hwnd();
+    unsafe {
+      if !IsWindow(Some(hwnd)).as_bool() {
+        return None;
+      }
+      // `GetParent` returns NULL both for a window that has no parent and when
+      // the call itself fails, and the binding maps that NULL to an `Err`
+      // carrying the last error — so clear it first to tell the two apart.
+      SetLastError(ERROR_SUCCESS);
+      match GetParent(hwnd) {
+        Ok(native_parent) => Some(native_parent == parent.hwnd()),
+        // `ERROR_SUCCESS`: the window really has no parent, which is an
+        // observation of the relationship and not a failure to establish it.
+        Err(err) if err.code().is_ok() => Some(false),
+        Err(_) => None,
+      }
+    }
+  }
+
+  pub(crate) fn native_visible(&self) -> Option<bool> {
+    let hwnd = self.hwnd();
+    unsafe {
+      IsWindow(Some(hwnd))
+        .as_bool()
+        .then(|| IsWindowVisible(hwnd).as_bool())
+    }
+  }
+
   pub(crate) fn hwnd(&self) -> HWND {
     let hwnd = self.host.window_handle();
     HWND(hwnd.0 as _)
@@ -71,6 +101,13 @@ impl AppWebview {
 
   pub(crate) fn apply_visible(&self, visible: bool) {
     let _ = unsafe { ShowWindow(self.hwnd(), if visible { SW_SHOW } else { SW_HIDE }) };
+  }
+
+  /// Destroys CEF's own window for this browser, completing a close that
+  /// `do_close` took over. CEF's browser window procedure reports
+  /// `WindowDestroyed` back to CEF on `WM_NCDESTROY`.
+  pub(crate) fn destroy_host_window(&self) {
+    let _ = unsafe { DestroyWindow(self.hwnd()) };
   }
 
   const PIN_Z_ORDER_SUBCLASS_ID: usize = 124;

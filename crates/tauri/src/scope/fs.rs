@@ -432,15 +432,13 @@ impl Scope {
       if forbidden {
         false
       } else {
-        let allowed = self
+        self
           .inner
           .allowed_patterns
           .lock()
           .unwrap()
           .iter()
-          .any(|p| p.matches_path_with(&path, self.inner.match_options));
-
-        allowed
+          .any(|p| p.matches_path_with(&path, self.inner.match_options))
       }
     } else {
       false

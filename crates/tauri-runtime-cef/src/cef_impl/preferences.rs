@@ -1,0 +1,119 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+//! Chromium profile preferences applied to every webview's request context.
+//!
+//! The CEF runtime creates Chrome style browsers, so each webview is backed by
+//! a real Chrome profile and inherits the browser-shaped behaviour that comes
+//! with it: a "Save password?" bubble on any form submit, address and
+//! credit-card save bubbles, a "Translate this page?" bubble, and a handful of
+//! background requests to Google. None of that belongs in an application
+//! webview, so we turn it off per request context right after the profile
+//! finishes initializing.
+//!
+//! # Safe Browsing stays on
+//!
+//! [`PREFERENCES`] deliberately leaves `safebrowsing.enabled` alone. A Tauri
+//! webview routinely loads content the developer does not control - OAuth and
+//! SSO flows, embedded third-party pages, iframes, and the popups this runtime
+//! supports - so it is not the closed world that would make the protection
+//! pointless, and standard protection is a local hash-prefix database rather
+//! than a per-navigation callback to Google.
+//!
+//! An application whose webview only ever loads its own content can still opt
+//! out with `Cef::profile_preference("safebrowsing.enabled", false)`, which is
+//! also how any entry in [`PREFERENCES`] is turned back on.
+
+use cef::{CefString, ImplPreferenceManager, ImplValue, RequestContext};
+
+/// Builds the `error` out-parameter that every
+/// [`ImplPreferenceManager::set_preference`] call has to pass.
+///
+/// `CefPreferenceManager::SetPreference` marks only `value` as optional, so CEF's
+/// shim opens with `DCHECK(error); if (!error) { return 0; }` and a [`None`] error
+/// makes the call fail before the preference service is ever consulted.
+///
+/// [`CefString::default`] is not a substitute: it builds the borrowed-none
+/// variant, which converts to a null pointer again. `CefString::from("")` builds
+/// the owned variant, which converts to a real, writable pointer and frees
+/// whatever CEF stores in it when the string is dropped.
+pub(crate) fn set_preference_error_slot() -> CefString {
+  CefString::from("")
+}
+
+/// Chromium profile preferences forced off for every webview, with the reason
+/// each one is unwanted in an application webview:
+///
+/// * `credentials_enable_service` - Chrome offers to save credentials typed
+///   into any form; an app's login form is not the browser's business.
+/// * `profile.password_manager_leak_detection` - on by default in Chromium, it
+///   sends a hashed prefix of credentials typed into any form to Google to check
+///   them against known breaches.
+/// * `autofill.profile_enabled` / `autofill.credit_card_enabled` - the same
+///   deal for postal addresses and payment cards, which additionally sync into
+///   the user's Google account.
+/// * `translate.enabled` - the translate bubble both covers app UI and ships
+///   page text off to Google's translation service to decide whether to offer.
+/// * `alternate_error_pages.enabled` - on a failed navigation Chrome sends the
+///   URL that failed to Google to fetch suggestions for it.
+/// * `search.suggest_enabled` - streams typed input to the profile's default
+///   search engine; an app has no omnibox for this to serve.
+///
+/// `safebrowsing.enabled` is deliberately absent - see the module docs.
+const PREFERENCES: &[(&str, bool)] = &[
+  ("credentials_enable_service", false),
+  ("profile.password_manager_leak_detection", false),
+  ("autofill.profile_enabled", false),
+  ("autofill.credit_card_enabled", false),
+  ("translate.enabled", false),
+  ("alternate_error_pages.enabled", false),
+  ("search.suggest_enabled", false),
+];
+
+/// Applies [`PREFERENCES`], then `overrides`, to `request_context`.
+///
+/// Must be called after the request context has finished initializing - a
+/// preference cannot be written before the underlying Chromium `Profile`
+/// exists.
+///
+/// `overrides` are the application's own, from `Cef::profile_preference`. They
+/// are written last so that naming a preference this module disables turns it
+/// back on, and so that a repeated name keeps its last value.
+pub(crate) fn apply_app_webview_preferences(
+  request_context: &RequestContext,
+  overrides: &[(String, bool)],
+) {
+  let defaults = PREFERENCES.iter().map(|(name, enabled)| (*name, *enabled));
+  let overrides = overrides
+    .iter()
+    .map(|(name, enabled)| (name.as_str(), *enabled));
+
+  for (name, enabled) in defaults.chain(overrides) {
+    set_preference(request_context, name, enabled);
+  }
+}
+
+/// Writes one boolean preference, skipping it when this Chrome build will not
+/// take it.
+///
+/// Which preferences a given Chrome build registers as writable varies, and there
+/// is one request context per webview, so a refused preference is logged at debug
+/// rather than warned about.
+fn set_preference(request_context: &RequestContext, name: &str, enabled: bool) {
+  if request_context.can_set_preference(Some(&name.into())) != 1 {
+    log::debug!("the CEF request context does not allow setting the {name} preference");
+    return;
+  }
+
+  let Some(value) = cef::value_create() else {
+    return;
+  };
+  value.set_bool(i32::from(enabled));
+
+  let mut value = value;
+  let mut error = set_preference_error_slot();
+  if request_context.set_preference(Some(&name.into()), Some(&mut value), Some(&mut error)) != 1 {
+    log::debug!("failed to apply the {name} preference to the CEF request context: {error}");
+  }
+}

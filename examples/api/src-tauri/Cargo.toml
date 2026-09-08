@@ -3,7 +3,7 @@ name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 license = "Apache-2.0 OR MIT"
 
 [lib]
@@ -11,7 +11,7 @@ name = "api_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { path = "../../../crates/tauri-build", features = [
+tauri-build = { workspace = true, default-features = true, features = [
   "codegen",
   "isolation",
 ] }
@@ -24,17 +24,27 @@ tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 tauri-plugin-log = "2"
 
 [dependencies.tauri]
-path = "../../../crates/tauri"
+workspace = true
 default-features = false
 features = ["protocol-asset", "image-ico", "image-png", "isolation"]
 
+[dependencies.tauri-runtime-wry]
+workspace = true
+default-features = true
+optional = true
+
+[dependencies.tauri-runtime-cef]
+workspace = true
+default-features = true
+optional = true
+
 [dev-dependencies.tauri]
-path = "../../../crates/tauri"
+workspace = true
 default-features = false
 features = ["test"]
 
 [features]
 default = ["wry"]
-wry = ["tauri/wry", "tauri/tray-icon"]
+wry = ["dep:tauri-runtime-wry"]
 prod = ["tauri/custom-protocol"]
-cef = ["tauri/cef"]
+cef = ["dep:tauri-runtime-cef"]

@@ -28,11 +28,10 @@ use crate::menu::{Menu, MenuEvent};
 use crate::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent, TrayIconId};
 use raw_window_handle::HasDisplayHandle;
 use serialize_to_javascript::{DefaultTemplate, Template, default_template};
-use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  InitAttribute, RuntimeInitArgs,
+  RuntimeInitArgs, RuntimeInitAttrs,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
 };
@@ -68,8 +67,8 @@ pub type SetupHook<R> =
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
 /// A closure that is run when the web content process terminates.
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-pub type OnWebContentProcessTerminate<R> = dyn Fn(&Webview<R>) + Send + Sync + 'static;
+pub type OnWebContentProcessTerminate<R> =
+  dyn Fn(&Webview<R>, &crate::webview::WebContentProcessTermination) + Send + Sync + 'static;
 pub type ChannelInterceptor<R> =
   Box<dyn Fn(&Webview<R>, CallbackFn, usize, &InvokeResponseBody) -> bool + Send + Sync + 'static>;
 
@@ -376,9 +375,8 @@ impl<R: Runtime> AssetResolver<R> {
 /// A handle to the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
-#[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
-pub struct AppHandle<R: Runtime> {
+pub struct AppHandle<R: Runtime = crate::DynRuntime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: Arc<AppManager<R>>,
   event_loop: Arc<Mutex<EventLoop>>,
@@ -390,32 +388,17 @@ struct EventLoop {
   main_thread_id: ThreadId,
 }
 
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl AppHandle<crate::Wry> {
-  /// Create a new tao window using a callback. The event loop must be running at this point.
-  pub fn create_tao_window<
-    F: FnOnce() -> (String, tauri_runtime_wry::TaoWindowBuilder) + Send + 'static,
-  >(
-    &self,
-    f: F,
-  ) -> crate::Result<std::sync::Weak<tauri_runtime_wry::Window>> {
-    self.runtime_handle.create_tao_window(f).map_err(Into::into)
+impl<R: Runtime> AppHandle<R> {
+  /// Returns the handle of the underlying runtime.
+  ///
+  /// Mostly useful for runtime-specific extension traits.
+  pub fn runtime_handle(&self) -> &R::Handle {
+    &self.runtime_handle
   }
 
-  /// Sends a window message to the event loop.
-  pub fn send_tao_window_event(
-    &self,
-    window_id: tauri_runtime_wry::TaoWindowId,
-    message: tauri_runtime_wry::WindowMessage,
-  ) -> crate::Result<()> {
-    self
-      .runtime_handle
-      .send_event(tauri_runtime_wry::Message::Window(
-        self.runtime_handle.window_id(window_id),
-        message,
-      ))
-      .map_err(Into::into)
+  /// Returns the version of the webview engine used by the runtime.
+  pub fn webview_version(&self) -> crate::Result<String> {
+    self.runtime_handle.webview_version().map_err(Into::into)
   }
 }
 
@@ -507,7 +490,7 @@ impl<R: Runtime> AppHandle<R> {
   ///   PluginBuilder::new("dummy").build()
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     let handle = app.handle().clone();
   ///     std::thread::spawn(move || {
@@ -548,7 +531,7 @@ impl<R: Runtime> AppHandle<R> {
   /// let plugin = init_plugin();
   /// // `.name()` requires the `Plugin` trait import
   /// let plugin_name = plugin.name();
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .plugin(plugin)
   ///   .setup(move |app| {
   ///     let handle = app.handle().clone();
@@ -621,7 +604,7 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -641,7 +624,7 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.handle().set_dock_visibility(false);
@@ -672,7 +655,7 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    let _ = self.run_on_main_thread(move || unsafe {
+    let _ = self.run_on_main_thread(move || {
       let mtm = objc2::MainThreadMarker::new().unwrap();
       let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
       tx.send(ui_application.supportsMultipleScenes()).unwrap();
@@ -718,8 +701,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 /// The instance of the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
-#[default_runtime(crate::Wry, wry)]
-pub struct App<R: Runtime> {
+pub struct App<R: Runtime = crate::DynRuntime> {
   runtime: Option<R>,
   setup: Option<SetupHook<R>>,
   manager: Arc<AppManager<R>>,
@@ -775,21 +757,10 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 }
 
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl App<crate::Wry> {
-  /// Adds a [`tauri_runtime_wry::Plugin`] using its [`tauri_runtime_wry::PluginBuilder`].
-  ///
-  /// # Stability
-  ///
-  /// This API is unstable.
-  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + Send + 'static>(
-    &mut self,
-    plugin: P,
-  ) where
-    <P as tauri_runtime_wry::PluginBuilder<EventLoopMessage>>::Plugin: Send,
-  {
-    self.handle.runtime_handle.plugin(plugin);
+impl<R: Runtime> App<R> {
+  /// Returns the version of the webview engine used by the runtime.
+  pub fn webview_version(&self) -> crate::Result<String> {
+    self.handle.webview_version()
   }
 }
 
@@ -863,7 +834,7 @@ macro_rules! shared_app_impl {
       pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.primary_monitor().map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor().map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.primary_monitor()?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -872,7 +843,7 @@ macro_rules! shared_app_impl {
       pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.monitor_from_point(x, y).map(Into::into),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y).map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y)?.map(Into::into),
           _ => unreachable!(),
         })
       }
@@ -883,9 +854,11 @@ macro_rules! shared_app_impl {
           RuntimeOrDispatch::Runtime(h) => {
             h.available_monitors().into_iter().map(Into::into).collect()
           }
-          RuntimeOrDispatch::RuntimeHandle(h) => {
-            h.available_monitors().into_iter().map(Into::into).collect()
-          }
+          RuntimeOrDispatch::RuntimeHandle(h) => h
+            .available_monitors()?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
           _ => unreachable!(),
         })
       }
@@ -1164,7 +1137,7 @@ macro_rules! shared_app_impl {
       /// ```
       /// use tauri::Listener;
       ///
-      /// tauri::Builder::<tauri::Wry>::new()
+      /// tauri::Builder::default()
       ///   .setup(|app| {
       ///     app.listen("component-loaded", move |event| {
       ///       println!("window just loaded a component");
@@ -1199,7 +1172,7 @@ macro_rules! shared_app_impl {
       /// ```
       /// use tauri::Listener;
       ///
-      /// tauri::Builder::<tauri::Wry>::new()
+      /// tauri::Builder::default()
       ///   .setup(|app| {
       ///     let handler = app.listen("component-loaded", move |event| {
       ///       println!("app just loaded a component");
@@ -1256,18 +1229,16 @@ impl<R: Runtime> App<R> {
   /// Whether the application supports multiple windows.
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
-    unsafe {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      ui_application.supportsMultipleScenes()
-    }
+    let mtm = objc2::MainThreadMarker::new().unwrap();
+    let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+    ui_application.supportsMultipleScenes()
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -1288,7 +1259,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .setup(move |app| {
   ///     #[cfg(target_os = "macos")]
   ///     app.set_dock_visibility(false);
@@ -1317,7 +1288,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let mut app = tauri::Builder::<tauri::Wry>::new()
+  /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1345,7 +1316,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let app = tauri::Builder::<tauri::Wry>::new()
+  /// let app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1381,7 +1352,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let app = tauri::Builder::<tauri::Wry>::new()
+  /// let app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1409,28 +1380,28 @@ impl<R: Runtime> App<R> {
     mut self,
     mut callback: F,
   ) -> impl FnMut(RuntimeRunEvent<EventLoopMessage>) {
-    let app_handle = self.handle().clone();
-    let manager = self.manager.clone();
+    let _app_handle = self.handle().clone();
+    let _manager = self.manager.clone();
 
     move |event| match &event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Ready, self.manager());
+        callback(self.handle(), event);
       }
       RuntimeRunEvent::Exit => {
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-        callback(&app_handle, event);
-        app_handle.cleanup_before_exit();
+        let event = on_event_loop_event(self.handle(), RuntimeRunEvent::Exit, self.manager());
+        callback(self.handle(), event);
+        self.cleanup_before_exit();
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
       }
       _ => {
-        let event = on_event_loop_event(&app_handle, event, &manager);
-        callback(&app_handle, event);
+        let event = on_event_loop_event(self.handle(), event, self.manager());
+        callback(self.handle(), event);
       }
     }
   }
@@ -1444,7 +1415,7 @@ impl<R: Runtime> App<R> {
   /// ```no_run
   /// use tauri::Manager;
   ///
-  /// let mut app = tauri::Builder::<tauri::Wry>::new()
+  /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
@@ -1462,8 +1433,8 @@ impl<R: Runtime> App<R> {
     note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
   )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
-    let manager = self.manager.clone();
-    let app_handle = self.handle().clone();
+    let _manager = self.manager.clone();
+    let _app_handle = self.handle().clone();
 
     if !self.ran_setup
       && let Err(e) = setup(self)
@@ -1471,10 +1442,12 @@ impl<R: Runtime> App<R> {
       panic!("Failed to setup app: {e}");
     }
 
+    let app_handle = self.handle().clone();
+
     app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
-      let event = on_event_loop_event(&app_handle, event, &manager);
+      let event = on_event_loop_event(&app_handle, event, app_handle.manager());
       callback(&app_handle, event);
     })
   }
@@ -1484,13 +1457,13 @@ impl<R: Runtime> App<R> {
 ///
 /// # Examples
 /// ```,no_run
-/// tauri::Builder::<tauri::Wry>::new()
+/// tauri::Builder::default()
 ///   // on an actual app, remove the string argument
 ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
 ///  .expect("error while running tauri application");
 /// ```
 #[allow(clippy::type_complexity)]
-pub struct Builder<R: Runtime> {
+pub struct Builder<R: Runtime = crate::DynRuntime> {
   /// A flag indicating that the runtime must be started on an environment that supports the event loop not on the main thread.
   #[cfg(any(windows, target_os = "linux"))]
   runtime_any_thread: bool,
@@ -1509,8 +1482,10 @@ pub struct Builder<R: Runtime> {
   /// Page load hook.
   on_page_load: Option<Arc<OnPageLoad<R>>>,
 
+  /// Permission request hook.
+  on_permission_request: Option<Arc<crate::webview::PermissionRequestHandler<R>>>,
+
   /// Web content process termination hook.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
   on_web_content_process_terminate: Option<Arc<OnWebContentProcessTerminate<R>>>,
 
   /// All passed plugins
@@ -1549,7 +1524,7 @@ pub struct Builder<R: Runtime> {
 
   pub(crate) invoke_key: String,
 
-  platform_specific_attributes: Vec<R::PlatformSpecificInitAttribute>,
+  runtime_init_attrs: R::RuntimeInitAttrs,
 }
 
 #[derive(Template)]
@@ -1563,27 +1538,11 @@ pub(crate) struct InvokeInitializationScript<'a> {
   pub(crate) invoke_key: &'a str,
 }
 
-/// Make `Wry` the default `Runtime` for `Builder`
-#[cfg(feature = "wry")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
-impl Default for Builder<crate::Wry> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-/// Make `Cef` the default `Runtime` for `Builder`
-#[cfg(feature = "cef")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
-impl Default for Builder<crate::Cef> {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-#[cfg(not(any(feature = "wry", feature = "cef")))]
-#[cfg_attr(docsrs, doc(cfg(not(any(feature = "wry", feature = "cef")))))]
-impl<R: Runtime> Default for Builder<R> {
+/// Make the type-erased [`DynRuntime`](crate::DynRuntime) the default `Runtime` for `Builder`.
+///
+/// This is intentionally the only `Default` implementation so `tauri::Builder::default()` infers the runtime type;
+/// use [`Builder::new`] with an explicit runtime type for static dispatch.
+impl Default for Builder<crate::DynRuntime> {
   fn default() -> Self {
     Self::new()
   }
@@ -1610,7 +1569,7 @@ impl<R: Runtime> Builder<R> {
       .into_string(),
       channel_interceptor: None,
       on_page_load: None,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      on_permission_request: None,
       on_web_content_process_terminate: None,
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
@@ -1626,63 +1585,30 @@ impl<R: Runtime> Builder<R> {
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
       invoke_key,
-      platform_specific_attributes: Vec::new(),
+      runtime_init_attrs: Default::default(),
     }
   }
-}
 
-/// Helper so `Builder<R>` can merge user-provided platform attributes with config-derived ones
-/// ([`InitAttribute::new`]). User attrs come first, then config-derived.
-pub(crate) trait PlatformSpecificAttributesHelper {
-  type Attr: Send + Sync + 'static;
-  fn process_platform_specific_attributes(
-    user_attrs: Vec<Self::Attr>,
-    config: &Config,
-  ) -> crate::Result<Vec<Self::Attr>>;
-}
-
-impl<R: Runtime> PlatformSpecificAttributesHelper for Builder<R> {
-  type Attr = R::PlatformSpecificInitAttribute;
-  fn process_platform_specific_attributes(
-    mut user_attrs: Vec<Self::Attr>,
-    config: &Config,
-  ) -> crate::Result<Vec<Self::Attr>> {
-    let from_config = R::PlatformSpecificInitAttribute::new(config).map_err(crate::Error::from)?;
-    user_attrs.extend(from_config);
-    Ok(user_attrs)
-  }
-}
-
-#[cfg(feature = "cef")]
-impl Builder<crate::Cef> {
-  /// Appends command line arguments to the CEF command line.
-  #[cfg(feature = "cef")]
-  pub fn command_line_args<K: Into<String>, V: Into<String>>(
-    mut self,
-    args: impl IntoIterator<Item = (K, Option<V>)>,
-  ) -> Self {
-    self.platform_specific_attributes.push(
-      tauri_runtime_cef::RuntimeInitAttribute::CommandLineArgs {
-        args: args
-          .into_iter()
-          .map(|(k, v)| (k.into(), v.map(Into::into)))
-          .collect::<Vec<_>>(),
-      },
-    );
-    self
-  }
-
-  /// Sets the disk cache directory for CEF (`Settings::cache_path`).
+  /// Selects the runtime that powers the application, using its initialization attributes.
   ///
-  /// Calling this more than once keeps the path from the last call.
-  /// If omitted, the cache defaults to `{user cache directory}/{identifier}/cef`.
-  #[cfg(feature = "cef")]
-  pub fn root_cache_path<P: AsRef<std::path::Path>>(mut self, path: P) -> Self {
-    self
-      .platform_specific_attributes
-      .push(tauri_runtime_cef::RuntimeInitAttribute::CachePath {
-        path: path.as_ref().to_path_buf(),
-      });
+  /// Every runtime crate provides such a type, e.g. `tauri_runtime_wry::Wry` or `tauri_runtime_cef::Cef`.
+  ///
+  /// With the default type-erased [`DynRuntime`](crate::DynRuntime) the attributes of any runtime are accepted,
+  /// and building the application fails with [`tauri_runtime::Error::RuntimeNotConfigured`] if none were given.
+  /// The builder of a concrete runtime (e.g. `Builder::<tauri_runtime_wry::WryRuntime>::new()`)
+  /// only takes the attributes of that runtime.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,ignore
+  /// tauri::Builder::default()
+  ///   .runtime(tauri_runtime_wry::Wry::default())
+  ///   .run(tauri::generate_context!())
+  ///   .expect("error while running tauri application");
+  /// ```
+  #[must_use]
+  pub fn runtime(mut self, attrs: impl Into<R::RuntimeInitAttrs>) -> Self {
+    self.runtime_init_attrs = attrs.into();
     self
   }
 }
@@ -1692,7 +1618,7 @@ impl<R: Runtime> Builder<R> {
   fn build_runtime_init_args(
     identifier: &str,
     custom_schemes: Vec<String>,
-    platform_specific_attributes: Vec<R::PlatformSpecificInitAttribute>,
+    runtime_init_attrs: R::RuntimeInitAttrs,
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -1702,11 +1628,11 @@ impl<R: Runtime> Builder<R> {
     ))]
     app_id: Option<String>,
     #[cfg(windows)] msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
-  ) -> RuntimeInitArgs<R::PlatformSpecificInitAttribute> {
+  ) -> RuntimeInitArgs<R::RuntimeInitAttrs> {
     RuntimeInitArgs {
       identifier: identifier.to_string(),
       custom_schemes,
-      platform_specific_attributes,
+      runtime_init_attrs,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -1741,7 +1667,7 @@ impl<R: Runtime> Builder<R> {
   /// fn command_1() -> String {
   ///   return "hello world".to_string();
   /// }
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .invoke_handler(tauri::generate_handler![
   ///     command_1,
   ///     // etc...
@@ -1832,7 +1758,7 @@ impl<R: Runtime> Builder<R> {
   /// }
   /// "#;
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .append_invoke_initialization_script(custom_script);
   /// ```
   pub fn append_invoke_initialization_script(
@@ -1853,7 +1779,7 @@ impl<R: Runtime> Builder<R> {
     doc = r####"
 ```
 use tauri::Manager;
-tauri::Builder::<tauri::Wry>::new()
+tauri::Builder::default()
   .setup(|app| {
     let main_window = app.get_webview_window("main").unwrap();
     main_window.set_title("Tauri!")?;
@@ -1881,16 +1807,64 @@ tauri::Builder::<tauri::Wry>::new()
     self
   }
 
+  /// Defines a closure to be executed when a permission is requested.
+  ///
+  /// The handler receives the [`crate::webview::PermissionKind`] and should return
+  /// the desired [`crate::webview::PermissionResponse`].
+  ///
+  /// This is not called if a [`crate::webview::WebviewBuilder::on_permission_request`]
+  /// is set on the webview and returned a response other than [`crate::webview::PermissionResponse::Default`].
+  ///
+  /// > [!NOTE]
+  /// > This handler only triggers for new permission requests. If the user has already
+  /// > allowed or denied a permission persistently within the webview, the browser
+  /// > will use the saved preference instead of calling this handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Fully supported via WebView2's PermissionRequested event.
+  /// - **macOS / iOS**: Fully supported via WKUIDelegate's requestMediaCapturePermission.
+  /// - **Linux**: Fully supported via WebKitGTK's permission-request signal.
+  /// - **Android**: Supported via JNI bridge for geolocation, microphone, camera,
+  ///   protected media, and MIDI requests. Android runtime permissions may still
+  ///   trigger native OS prompts before access is granted.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::webview::{PermissionKind, PermissionResponse};
+  /// tauri::Builder::default()
+  ///   .on_permission_request(|_, kind| match kind {
+  ///     PermissionKind::Geolocation => PermissionResponse::Allow,
+  ///     PermissionKind::Notifications => PermissionResponse::Allow,
+  ///     _ => PermissionResponse::Default,
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn on_permission_request<F>(mut self, on_permission_request: F) -> Self
+  where
+    F: Fn(Webview<R>, crate::webview::PermissionKind) -> crate::webview::PermissionResponse
+      + Send
+      + Sync
+      + 'static,
+  {
+    self
+      .on_permission_request
+      .replace(Arc::new(on_permission_request));
+    self
+  }
+
   /// Defines the web content process termination hook.
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux / Windows / Android:** Unsupported.
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  /// - **CEF (macOS / Linux / Windows):** Includes termination reason and native error details.
+  /// - **WebKit (macOS / iOS):** Reports an unknown reason without native error details.
+  /// - **Other runtimes:** No termination notifications are currently available.
   #[must_use]
   pub fn on_web_content_process_terminate<F>(mut self, on_web_content_process_terminate: F) -> Self
   where
-    F: Fn(&Webview<R>) + Send + Sync + 'static,
+    F: Fn(&Webview<R>, &crate::webview::WebContentProcessTermination) + Send + Sync + 'static,
   {
     self
       .on_web_content_process_terminate
@@ -1936,7 +1910,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///   }
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .plugin(plugin::init());
   /// ```
   #[must_use]
@@ -1997,7 +1971,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///   storage.store.lock().unwrap().insert(key, value);
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .manage(Storage { store: Default::default() })
   ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
@@ -2024,7 +1998,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///     println!("state: {}", state.inner().0);
   /// }
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .manage(MyInt(10))
   ///   .manage(MyString("Hello, managed state!".to_string()))
   ///   .invoke_handler(tauri::generate_handler![int_command, string_command])
@@ -2051,7 +2025,7 @@ tauri::Builder::<tauri::Wry>::new()
   /// ```
   /// use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .menu(|handle| Menu::with_items(handle, &[
   ///     &Submenu::with_items(
   ///       handle,
@@ -2081,7 +2055,7 @@ tauri::Builder::<tauri::Wry>::new()
   /// ```
   /// use tauri::menu::*;
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_menu_event(|app, event| {
   ///      if event.id() == "quit" {
   ///        app.exit(0);
@@ -2104,7 +2078,7 @@ tauri::Builder::<tauri::Wry>::new()
   /// ```
   /// use tauri::Manager;
   ///
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_tray_icon_event(|app, event| {
   ///      let tray = app.tray_by_id(event.id()).expect("can't find tray icon");
   ///      let _ = tray.set_visible(false);
@@ -2125,7 +2099,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .enable_macos_default_menu(false);
   /// ```
   #[must_use]
@@ -2138,7 +2112,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_window_event(|window, event| match event {
   ///     tauri::WindowEvent::Focused(focused) => {
   ///       // hide window whenever it loses focus
@@ -2162,7 +2136,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .on_webview_event(|window, event| match event {
   ///     tauri::WebviewEvent::DragDrop(event) => {
   ///       println!("{:?}", event);
@@ -2192,7 +2166,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .register_uri_scheme_protocol("app-files", |_ctx, request| {
   ///     // skip leading `/`
   ///     if let Ok(data) = std::fs::read(&request.uri().path()[1..]) {
@@ -2253,7 +2227,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .register_asynchronous_uri_scheme_protocol("app-files", |_ctx, request, responder| {
   ///     // skip leading `/`
   ///     let path = request.uri().path()[1..].to_string();
@@ -2317,7 +2291,7 @@ tauri::Builder::<tauri::Wry>::new()
   ///
   /// # Examples
   /// ```,no_run
-  /// tauri::Builder::<tauri::Wry>::new()
+  /// tauri::Builder::default()
   ///   .device_event_filter(tauri::DeviceEventFilter::Always);
   /// ```
   ///
@@ -2342,18 +2316,17 @@ tauri::Builder::<tauri::Wry>::new()
     }
 
     let config = context.config();
-    let attrs = self.platform_specific_attributes;
-    let platform_specific_attributes =
-      <Self as PlatformSpecificAttributesHelper>::process_platform_specific_attributes(
-        attrs, config,
-      )?;
+    self
+      .runtime_init_attrs
+      .apply_config(config)
+      .map_err(crate::Error::from)?;
 
     let manager = Arc::new(AppManager::with_handlers(
       context,
       self.plugins,
       self.invoke_handler,
       self.on_page_load,
-      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      self.on_permission_request,
       self.on_web_content_process_terminate,
       self.uri_scheme_protocols,
       self.state,
@@ -2392,7 +2365,7 @@ tauri::Builder::<tauri::Wry>::new()
     let runtime_args = Self::build_runtime_init_args(
       &manager.config.identifier,
       custom_schemes,
-      platform_specific_attributes,
+      self.runtime_init_attrs,
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -2428,12 +2401,22 @@ tauri::Builder::<tauri::Wry>::new()
       if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } =
         &manager.config.bundle.windows.webview_install_mode
       {
-        if let Some(exe_dir) = crate::utils::platform::current_exe()
-          .ok()
-          .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        {
+        // In development the runtime is not copied next to the executable,
+        // so resolve it from the directory the configured path is relative to.
+        #[cfg(dev)]
+        let base_dir = manager.config_parent().cloned();
+        #[cfg(not(dev))]
+        let base_dir: Option<std::path::PathBuf> = None;
+
+        let base_dir = base_dir.or_else(|| {
+          crate::utils::platform::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        });
+
+        if let Some(base_dir) = base_dir {
           unsafe {
-            std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", exe_dir.join(path));
+            std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", base_dir.join(path));
           }
         } else {
           #[cfg(debug_assertions)]
@@ -2483,9 +2466,9 @@ tauri::Builder::<tauri::Wry>::new()
     runtime.set_device_event_filter(self.device_event_filter);
 
     let runtime_handle = runtime.handle();
+    manager.set_runtime_handle(runtime_handle.clone());
 
-    #[allow(unused_mut)]
-    let mut app = App {
+    let app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
       manager: manager.clone(),
@@ -2498,6 +2481,8 @@ tauri::Builder::<tauri::Wry>::new()
       },
       ran_setup: false,
     };
+
+    app.register_core_plugins()?;
 
     #[cfg(desktop)]
     if let Some(menu) = self.menu {
@@ -2513,8 +2498,6 @@ tauri::Builder::<tauri::Wry>::new()
 
       app.manager.menu.menu_lock().replace(menu);
     }
-
-    app.register_core_plugins()?;
 
     let env = Env::default();
     app.manage(env);
@@ -2679,9 +2662,10 @@ fn on_event_loop_event<R: Runtime>(
       event: event.into(),
     },
     RuntimeRunEvent::Ready => {
-      // set the app icon in development
-      #[cfg(all(dev, target_os = "macos", not(feature = "cef")))]
-      {
+      // set the app icon in development, unless the app is already running from a bundle
+      // (e.g. the CEF runtime is always bundled in development on macOS) and gets its icon from there
+      #[cfg(all(dev, target_os = "macos"))]
+      if !is_running_from_app_bundle() {
         use objc2::{AllocAnyThread, MainThreadMarker};
         use objc2_app_kit::{NSApplication, NSImage};
         use objc2_foundation::NSData;
@@ -2773,10 +2757,25 @@ mod tests {
     crate::test_utils::assert_send::<super::AppHandle>();
     crate::test_utils::assert_sync::<super::AppHandle>();
 
-    #[cfg(feature = "wry")]
-    {
-      crate::test_utils::assert_send::<super::AssetResolver<crate::Wry>>();
-      crate::test_utils::assert_sync::<super::AssetResolver<crate::Wry>>();
-    }
+    crate::test_utils::assert_send::<super::AssetResolver<crate::DynRuntime>>();
+    crate::test_utils::assert_sync::<super::AssetResolver<crate::DynRuntime>>();
   }
+}
+
+/// Whether the current executable lives inside a macOS application bundle (`*.app/Contents/MacOS`).
+#[cfg(all(dev, target_os = "macos"))]
+fn is_running_from_app_bundle() -> bool {
+  std::env::current_exe()
+    .ok()
+    .and_then(|exe| {
+      exe
+        .parent()
+        .and_then(|macos| macos.parent())
+        .and_then(|contents| contents.parent())
+        .map(|bundle| {
+          bundle.extension().is_some_and(|ext| ext == "app")
+            && exe.parent().is_some_and(|p| p.ends_with("Contents/MacOS"))
+        })
+    })
+    .unwrap_or(false)
 }

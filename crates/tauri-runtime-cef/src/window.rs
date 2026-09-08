@@ -9,6 +9,7 @@ use std::{
     Arc, Mutex,
     mpsc::{self, Receiver, Sender},
   },
+  time::{Duration, Instant},
 };
 
 use cef::ImplBrowserHost;
@@ -31,8 +32,6 @@ use winit::{
   window::{Window as WinitWindow, WindowAttributes, WindowLevel},
 };
 
-#[cfg(target_os = "macos")]
-use crate::platform::macos::AppkitState;
 use crate::platform::{EventLoopExt, MonitorExt};
 #[cfg(any(
   windows,
@@ -44,8 +43,6 @@ use crate::platform::{EventLoopExt, MonitorExt};
   target_os = "openbsd"
 ))]
 use std::marker::PhantomData;
-#[cfg(target_os = "macos")]
-use std::sync::RwLock;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowExtMacOS;
 #[cfg(windows)]
@@ -262,9 +259,10 @@ fn prepare_window_attributes(event_loop: &dyn ActiveEventLoop, attrs: &mut AppWi
   }
 }
 
-pub(crate) fn paired_size_constraint(
+fn paired_size_constraint(
   width: Option<tauri_runtime::dpi::PixelUnit>,
   height: Option<tauri_runtime::dpi::PixelUnit>,
+  unconstrained: u32,
 ) -> Option<Size> {
   match (width, height) {
     (
@@ -281,8 +279,34 @@ pub(crate) fn paired_size_constraint(
       width.into(),
       height.into(),
     ))),
+    (Some(tauri_runtime::dpi::PixelUnit::Logical(width)), None) => Some(Size::Logical(
+      tauri_runtime::dpi::LogicalSize::new(width.into(), unconstrained as f64),
+    )),
+    (None, Some(tauri_runtime::dpi::PixelUnit::Logical(height))) => Some(Size::Logical(
+      tauri_runtime::dpi::LogicalSize::new(unconstrained as f64, height.into()),
+    )),
+    (Some(tauri_runtime::dpi::PixelUnit::Physical(width)), None) => Some(Size::Physical(
+      PhysicalSize::new(width.into(), unconstrained),
+    )),
+    (None, Some(tauri_runtime::dpi::PixelUnit::Physical(height))) => Some(Size::Physical(
+      PhysicalSize::new(unconstrained, height.into()),
+    )),
     _ => None,
   }
+}
+
+pub(crate) fn min_size_constraint(
+  width: Option<tauri_runtime::dpi::PixelUnit>,
+  height: Option<tauri_runtime::dpi::PixelUnit>,
+) -> Option<Size> {
+  paired_size_constraint(width, height, 0)
+}
+
+pub(crate) fn max_size_constraint(
+  width: Option<tauri_runtime::dpi::PixelUnit>,
+  height: Option<tauri_runtime::dpi::PixelUnit>,
+) -> Option<Size> {
+  paired_size_constraint(width, height, u32::MAX)
 }
 
 pub(crate) enum WindowMessage {
@@ -383,7 +407,55 @@ pub(crate) enum WindowMessage {
 #[cfg(windows)]
 type SoftbufferSurface = softbuffer::Surface<SoftbufferWindowHandle, SoftbufferWindowHandle>;
 
+/// Opaque identity of one runtime-owned native window lifetime. Reparented
+/// webviews observe the destination token; same-label replacements never match.
+#[derive(Clone)]
+pub struct NativeWindowToken(Arc<()>);
+
+impl NativeWindowToken {
+  pub(crate) fn new() -> Self {
+    Self(Arc::new(()))
+  }
+}
+
+impl PartialEq for NativeWindowToken {
+  fn eq(&self, other: &Self) -> bool {
+    Arc::ptr_eq(&self.0, &other.0)
+  }
+}
+
+impl Eq for NativeWindowToken {}
+
+impl std::fmt::Debug for NativeWindowToken {
+  fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    formatter
+      .debug_struct("NativeWindowToken")
+      .finish_non_exhaustive()
+  }
+}
+
+#[cfg(test)]
+mod native_window_identity_tests {
+  use super::NativeWindowToken;
+
+  #[test]
+  fn references_preserve_one_window_and_reject_replacements() {
+    let first = NativeWindowToken::new();
+    let retained_by_webview = first.clone();
+    assert_eq!(first, retained_by_webview);
+    let destination = NativeWindowToken::new();
+    assert_ne!(retained_by_webview, destination);
+    drop(first);
+    assert_ne!(retained_by_webview, NativeWindowToken::new());
+  }
+}
+
+/// How long to keep retrying the initial raise of a window created focused
+/// before assuming it is never going to be mapped.
+const PENDING_ACTIVATION_TIMEOUT: Duration = Duration::from_secs(5);
+
 pub(crate) struct AppWindow {
+  pub(crate) lifetime: NativeWindowToken,
   #[allow(unused)]
   pub(crate) id: WindowId,
   pub(crate) label: String,
@@ -405,7 +477,10 @@ pub(crate) struct AppWindow {
   /// GTK UI like menus stays outside the native CEF child-window stack.
   pub(crate) cef_host: crate::platform::linux::CefX11Host,
   #[cfg(target_os = "macos")]
-  pub(crate) appkit_state: Arc<RwLock<AppkitState>>,
+  /// Deadline for the initial raise of a window created focused, see
+  /// [`WinitCefApp::apply_pending_activations`]. `None` once it has been
+  /// raised or given up on.
+  pub(crate) pending_activation: Option<Instant>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -469,6 +544,30 @@ impl AppWindow {
     self.window.set_outer_position(Position::Physical(position));
   }
 
+  /// Bring the window to the front and give it the input focus.
+  ///
+  /// `WinitWindow::focus_window` alone is not enough: on macOS it asks for
+  /// activation through the deprecated `activateIgnoringOtherApps:`, which
+  /// macOS 14+ ignores, and on X11 it asks the window manager to activate with
+  /// the "application" source indication, which focus-stealing prevention
+  /// routinely downgrades to a taskbar highlight. Both get a native nudge
+  /// first.
+  pub(crate) fn activate(&self) {
+    #[cfg(target_os = "macos")]
+    crate::platform::macos::activate_application();
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    self.raise_native();
+
+    self.window.focus_window();
+  }
+
   pub(crate) fn preferred_theme(&self) -> Option<Theme> {
     self
       .attrs
@@ -510,6 +609,8 @@ impl AppWindow {
     self.attrs.inner.preferred_theme = tauri_theme_to_winit_theme(theme);
     self.window.set_theme(tauri_theme_to_winit_theme(theme));
     self.apply_cef_theme(theme);
+    #[cfg(target_os = "macos")]
+    self.reapply_traffic_light_position_after_appearance_change();
   }
 
   fn apply_cef_theme(&self, theme: Option<Theme>) {
@@ -551,7 +652,10 @@ impl<T: UserEvent> WinitCefApp<T> {
       crate::platform::linux::CefX11Host::new(window.as_ref()).ok_or(Error::CreateWindow)?;
 
     let winit_id = window.id();
+    let pending_activation = (attrs.inner.active && attrs.inner.visible)
+      .then(|| Instant::now() + PENDING_ACTIVATION_TIMEOUT);
     let mut appwindow = AppWindow {
+      lifetime: NativeWindowToken::new(),
       id: window_id,
       label: pending.label.clone(),
       #[cfg(windows)]
@@ -569,13 +673,11 @@ impl<T: UserEvent> WinitCefApp<T> {
         target_os = "openbsd"
       ))]
       cef_host,
-      #[cfg(target_os = "macos")]
-      appkit_state: Arc::new(RwLock::new(AppkitState::default())),
+      pending_activation,
     };
 
     #[cfg(target_os = "macos")]
     {
-      appwindow.associate_appkit_state();
       appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
       if let Some(position) = &appwindow.attrs.traffic_light_position {
         appwindow.set_traffic_light_position(position);
@@ -595,9 +697,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
 
     #[cfg(windows)]
-    if appwindow.attrs.inner.transparent || appwindow.attrs.background_color.is_some() {
-      appwindow.draw_background_surface();
-    }
+    appwindow.draw_background_surface();
 
     #[cfg(not(windows))]
     if appwindow.attrs.background_color.is_some() {
@@ -661,6 +761,41 @@ impl<T: UserEvent> WinitCefApp<T> {
     self.state.windows.insert(window_id, appwindow);
 
     Ok(())
+  }
+
+  /// Bring windows that were created focused to the front.
+  ///
+  /// winit applies [`WindowAttributes::active`] unevenly: X11 ignores it
+  /// outright, and on macOS/Windows it only orders the window front *within*
+  /// the application without pulling the process to the foreground. A window
+  /// created while another app owns the foreground - a terminal running
+  /// `tauri dev`, say - is then left buried behind it. Raising it ourselves
+  /// once it is on screen makes the initial activation deterministic.
+  ///
+  /// `focus_window` is a no-op while the backend still considers the window
+  /// unmapped (X11 only reports it visible once the server sends
+  /// `VisibilityNotify`, which lands after `create_window` returns), so keep
+  /// the request pending until winit reports the window visible, and drop it
+  /// after [`PENDING_ACTIVATION_TIMEOUT`] so a window that never maps does not
+  /// pop to the front minutes later.
+  pub(crate) fn apply_pending_activations(&mut self) {
+    let now = Instant::now();
+    for appwindow in self.state.windows.values_mut() {
+      let Some(deadline) = appwindow.pending_activation else {
+        continue;
+      };
+
+      if appwindow.window.is_visible() == Some(false) {
+        if now < deadline {
+          continue;
+        }
+        appwindow.pending_activation = None;
+        continue;
+      }
+
+      appwindow.activate();
+      appwindow.pending_activation = None;
+    }
   }
 
   pub(crate) fn handle_window_message(
@@ -838,7 +973,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetSimpleFullscreen(value) => {
         window.set_simple_fullscreen(value);
       }
-      WindowMessage::SetFocus => window.focus_window(),
+      WindowMessage::SetFocus => appwindow.activate(),
       WindowMessage::SetMinSize(min_size) => window.set_min_surface_size(min_size),
       WindowMessage::SetMaxSize(max_size) => window.set_max_surface_size(max_size),
       WindowMessage::SetMaximizable(value) => {
@@ -931,7 +1066,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       WindowMessage::SetTrafficLightPosition(_position) => {
         #[cfg(target_os = "macos")]
         {
-          appwindow.attrs.traffic_light_position = Some(_position.clone());
+          appwindow.attrs.traffic_light_position = Some(_position);
           appwindow.set_traffic_light_position(&_position);
         }
       }
@@ -958,8 +1093,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       }
       WindowMessage::SetSizeConstraints(constraints) => {
         // TODO: upstream individual width/height size constraints to winit.
-        let min_size = paired_size_constraint(constraints.min_width, constraints.min_height);
-        let max_size = paired_size_constraint(constraints.max_width, constraints.max_height);
+        let min_size = min_size_constraint(constraints.min_width, constraints.min_height);
+        let max_size = max_size_constraint(constraints.max_width, constraints.max_height);
         window.set_min_surface_size(min_size);
         window.set_max_surface_size(max_size);
       }

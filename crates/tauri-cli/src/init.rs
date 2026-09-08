@@ -142,7 +142,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend dev command?",
+          "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
           Some(default_dev_command(detected_package_manager).into()),
           self.ci,
           true,
@@ -154,7 +154,7 @@ impl Options {
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
-          "What is your frontend build command?",
+          "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
           Some(default_build_command(detected_package_manager).into()),
           self.ci,
           true,
@@ -200,7 +200,7 @@ pub fn command(mut options: Options) -> Result<()> {
       template_target_path
     );
   } else {
-    let (tauri_dep, tauri_build_dep, tauri_utils_dep, tauri_plugin_dep) =
+    let (tauri_dep, tauri_build_dep, tauri_utils_dep, tauri_plugin_dep, tauri_runtime_wry_dep) =
       if let Some(tauri_path) = &options.tauri_path {
         (
           format!(
@@ -219,6 +219,10 @@ pub fn command(mut options: Options) -> Result<()> {
             "{{  path = {:?} }}",
             resolve_tauri_path(tauri_path, "crates/tauri-plugin")
           ),
+          format!(
+            "{{  path = {:?} }}",
+            resolve_tauri_path(tauri_path, "crates/tauri-runtime-wry")
+          ),
         )
       } else {
         (
@@ -226,6 +230,7 @@ pub fn command(mut options: Options) -> Result<()> {
           format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
           r#"{{ version = "2" }}"#.to_string(),
           r#"{{ version = "2" }}"#.to_string(),
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri_runtime_wry),
         )
       };
 
@@ -241,6 +246,7 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
     data.insert("tauri_utils_dep", to_json(tauri_utils_dep));
     data.insert("tauri_plugin_dep", to_json(tauri_plugin_dep));
+    data.insert("tauri_runtime_wry_dep", to_json(tauri_runtime_wry_dep));
     data.insert(
       "frontend_dist",
       to_json(options.frontend_dist.as_deref().unwrap_or("../dist")),

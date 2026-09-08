@@ -152,7 +152,7 @@ impl Resolved {
          }| {
           if commands.allow.is_empty() && commands.deny.is_empty() {
             // global scope
-            global_scope.entry(key.to_string()).or_default().push(scope);
+            global_scope.entry(key).or_default().push(scope);
           } else {
             let scope_id = if scope.allow.is_some() || scope.deny.is_some() {
               current_scope_id += 1;
@@ -181,7 +181,7 @@ impl Resolved {
                 capability,
                 scope_id,
                 #[cfg(debug_assertions)]
-                permission_name.to_string(),
+                permission_name,
               )?;
             }
 
@@ -198,7 +198,7 @@ impl Resolved {
                 capability,
                 scope_id,
                 #[cfg(debug_assertions)]
-                permission_name.to_string(),
+                permission_name,
               )?;
             }
           }
@@ -255,7 +255,7 @@ fn resolve_command(
   command: String,
   capability: &Capability,
   scope_id: Option<ScopeKey>,
-  #[cfg(debug_assertions)] referenced_by_permission_identifier: String,
+  #[cfg(debug_assertions)] referenced_by_permission_identifier: &str,
 ) -> Result<(), Error> {
   let mut contexts = Vec::new();
   if capability.local {
@@ -279,7 +279,7 @@ fn resolve_command(
       #[cfg(debug_assertions)]
       referenced_by: ResolvedCommandReference {
         capability: capability.identifier.clone(),
-        permission: referenced_by_permission_identifier.clone(),
+        permission: referenced_by_permission_identifier.to_owned(),
       },
       windows: parse_glob_patterns(capability.windows.clone())?,
       webviews: parse_glob_patterns(capability.webviews.clone())?,
@@ -291,7 +291,7 @@ fn resolve_command(
 }
 
 struct ResolvedPermission<'a> {
-  key: &'a str,
+  key: String,
   permission_name: &'a str,
   commands: Commands,
   scope: Scopes,
@@ -357,7 +357,7 @@ fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>) -> Result<(), Erro
       commands.deny.extend(permission.commands.deny.clone());
 
       f(ResolvedPermission {
-        key: &key,
+        key,
         permission_name: &permission_name,
         commands,
         scope: resolved_scope,

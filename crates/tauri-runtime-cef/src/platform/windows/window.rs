@@ -98,12 +98,18 @@ impl AppWindow {
     self.window.request_redraw();
   }
 
+  /// Paints the window's own background over everything its webviews do not
+  /// cover — the window is `WS_CLIPCHILDREN`, so live webviews clip themselves
+  /// out of this paint.
+  ///
+  /// This is the only thing that ever paints the window itself: winit registers
+  /// its window class without a background brush, and Windows leaves the pixels
+  /// a destroyed child window drew last sitting in the parent's client area. A
+  /// closed webview would otherwise keep showing its final frame — visible, and
+  /// backed by no window at all — for as long as the window lived. Destroying
+  /// the webview's window invalidates the area it covered, so painting on every
+  /// redraw is what clears it.
   pub(crate) fn draw_background_surface(&mut self) {
-    if !self.attrs.inner.transparent && self.attrs.background_color.is_none() {
-      self.background_surface = None;
-      return;
-    }
-
     let size = self.window.surface_size();
     let (Some(width), Some(height)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
     else {
@@ -127,11 +133,13 @@ impl AppWindow {
       return;
     };
 
-    let color = self
-      .attrs
-      .background_color
-      .map(|Color(r, g, b, _)| (b as u32) | ((g as u32) << 8) | ((r as u32) << 16))
-      .unwrap_or(0);
+    let color = match self.attrs.background_color {
+      Some(Color(r, g, b, _)) => (b as u32) | ((g as u32) << 8) | ((r as u32) << 16),
+      // A transparent window paints nothing so the desktop shows through, while
+      // an ordinary one falls back to the opaque white a blank browser shows.
+      None if self.attrs.inner.transparent => 0,
+      None => 0x00ff_ffff,
+    };
 
     if surface.resize(width, height).is_ok()
       && let Ok(mut buffer) = surface.buffer_mut()

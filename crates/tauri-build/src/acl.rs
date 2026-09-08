@@ -20,8 +20,6 @@ use tauri_utils::{
   write_if_changed,
 };
 
-use crate::Attributes;
-
 /// Definition of a plugin that is part of the Tauri application instead of having its own crate.
 ///
 /// By default it generates a plugin manifest that parses permissions from the `permissions/$plugin-name` directory.
@@ -418,14 +416,16 @@ fn validate_capabilities(
   Ok(())
 }
 
-pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::Result<()> {
+pub fn build(
+  out_dir: &Path,
+  target: Target,
+  app_manifest: AppManifest,
+  inlined_plugins: &HashMap<&'static str, InlinedPlugin>,
+  capabilities_path_pattern: Option<&'static str>,
+) -> super::Result<()> {
   let mut acl_manifests = read_plugins_manifests()?;
 
-  let app_acl = app_manifest_permissions(
-    out_dir,
-    attributes.app_manifest,
-    &attributes.inlined_plugins,
-  )?;
+  let app_acl = app_manifest_permissions(out_dir, app_manifest, inlined_plugins)?;
   let has_app_manifest = app_acl.manifest.default_permission.is_some()
     || !app_acl.manifest.permission_sets.is_empty()
     || !app_acl.manifest.permissions.is_empty()
@@ -434,7 +434,7 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
     acl_manifests.insert(APP_ACL_KEY.into(), app_acl.manifest);
   }
 
-  let inline_plugins_acl = inline_plugins(out_dir, attributes.inlined_plugins.clone())?;
+  let inline_plugins_acl = inline_plugins(out_dir, inlined_plugins.clone())?;
 
   acl_manifests.extend(inline_plugins_acl.manifests);
 
@@ -443,10 +443,22 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
 
   tauri_utils::acl::schema::generate_capability_schema(&acl_manifests, target)?;
 
-  let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
+  let capabilities = if let Some(pattern) = capabilities_path_pattern {
     tauri_utils::acl::build::parse_capabilities(pattern)?
   } else {
-    println!("cargo:rerun-if-changed=capabilities");
+    // Emit an absolute watch path: cargo resolves a relative
+    // `rerun-if-changed` against the package that owns the build script, while
+    // the glob below is resolved against the process working directory.
+    // Callers that `set_current_dir` before `try_build[_context]` (for example
+    // a crate generating a context byte-identical to the app's) would
+    // otherwise watch a `<caller-manifest-dir>/capabilities` that usually does
+    // not exist — and a missing watched path is dirty on every fingerprint
+    // check, re-running the build script and recompiling the whole downstream
+    // chain on every build.
+    let capabilities_dir = std::env::current_dir()
+      .context("resolve current dir for capabilities watch path")?
+      .join("capabilities");
+    println!("cargo:rerun-if-changed={}", capabilities_dir.display());
     tauri_utils::acl::build::parse_capabilities("./capabilities/**/*")?
   };
   validate_capabilities(&acl_manifests, &capabilities)?;

@@ -9,6 +9,9 @@ on:
     branches:
       - dev
 
+permissions:
+  contents: read
+
 jobs:
   run-integration-tests:
     runs-on: ${{ matrix.platform }}
@@ -30,10 +33,6 @@ jobs:
 
       - name: install stable
         uses: dtolnay/rust-toolchain@stable
-
-      - name: install x86_64-apple-darwin target (required by bundler CEF helper on macOS)
-        if: matrix.platform == 'macos-latest'
-        run: rustup target add x86_64-apple-darwin
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
@@ -111,7 +110,7 @@ jobs:
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
-        uses: peter-evans/create-pull-request@67ccf781d68cd99b580ae25a5c18a1cc84ffff1f # 7.0.6
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates

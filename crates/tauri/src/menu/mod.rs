@@ -19,6 +19,7 @@ pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
+use crate::menu::plugin::remove_menu_channel;
 use crate::{AppHandle, Runtime, image::Image};
 pub use muda::MenuId;
 
@@ -68,8 +69,7 @@ macro_rules! gen_wrappers {
     ),*
   ) => {
     $(
-      #[tauri_macros::default_runtime(crate::Wry, wry)]
-      pub(crate) struct $inner<R: $crate::Runtime> {
+      pub(crate) struct $inner<R: $crate::Runtime = $crate::DynRuntime> {
         // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
@@ -94,6 +94,7 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
+          remove_menu_channel(&self.app_handle, self.inner.id());
           // SAFETY: we will not access `self.inner` after this
           let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
           // SAFETY: inner was created on main thread and is being dropped on main thread

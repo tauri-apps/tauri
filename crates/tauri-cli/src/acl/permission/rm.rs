@@ -108,64 +108,65 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
     let file_type = entry
       .file_type()
       .fs_context("failed to get capability file type", entry.path())?;
-    if file_type.is_file() {
-      let path = entry.path();
-      match path.extension().and_then(|o| o.to_str()) {
-        Some("toml") => {
-          let content = std::fs::read_to_string(&path)
-            .fs_context("failed to read capability file", path.clone())?;
-          if let Ok(mut value) = content.parse::<toml_edit::DocumentMut>()
-            && let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut())
-          {
-            let prev_len = permissions.len();
-            permissions.retain(|p| match p {
-              toml_edit::Value::String(s) => !identifier_match(identifier, s.value()),
-              toml_edit::Value::InlineTable(o) => {
-                if let Some(toml_edit::Value::String(permission_name)) = o.get("identifier") {
-                  return !identifier_match(identifier, permission_name.value());
-                }
-
-                true
+    if !file_type.is_file() {
+      continue;
+    }
+    let path = entry.path();
+    match path.extension().and_then(|o| o.to_str()) {
+      Some("toml") => {
+        let content = std::fs::read_to_string(&path)
+          .fs_context("failed to read capability file", path.clone())?;
+        if let Ok(mut value) = content.parse::<toml_edit::DocumentMut>()
+          && let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut())
+        {
+          let prev_len = permissions.len();
+          permissions.retain(|p| match p {
+            toml_edit::Value::String(s) => !identifier_match(identifier, s.value()),
+            toml_edit::Value::InlineTable(o) => {
+              if let Some(toml_edit::Value::String(permission_name)) = o.get("identifier") {
+                return !identifier_match(identifier, permission_name.value());
               }
-              _ => false,
-            });
-            if prev_len != permissions.len() {
-              std::fs::write(&path, value.to_string())
-                .fs_context("failed to write capability file", path.clone())?;
-              log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
+
+              true
             }
-          }
-        }
-        Some("json") => {
-          let content =
-            std::fs::read(&path).fs_context("failed to read capability file", path.clone())?;
-          if let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&content)
-            && let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut())
-          {
-            let prev_len = permissions.len();
-            permissions.retain(|p| match p {
-              serde_json::Value::String(s) => !identifier_match(identifier, s),
-              serde_json::Value::Object(o) => {
-                if let Some(serde_json::Value::String(permission_name)) = o.get("identifier") {
-                  return !identifier_match(identifier, permission_name);
-                }
-
-                true
-              }
-              _ => false,
-            });
-            if prev_len != permissions.len() {
-              std::fs::write(
-                &path,
-                serde_json::to_vec_pretty(&value).context("failed to serialize capability JSON")?,
-              )
+            _ => false,
+          });
+          if prev_len != permissions.len() {
+            std::fs::write(&path, value.to_string())
               .fs_context("failed to write capability file", path.clone())?;
-              log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
-            }
+            log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
           }
         }
-        _ => {}
       }
+      Some("json") => {
+        let content =
+          std::fs::read(&path).fs_context("failed to read capability file", path.clone())?;
+        if let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&content)
+          && let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut())
+        {
+          let prev_len = permissions.len();
+          permissions.retain(|p| match p {
+            serde_json::Value::String(s) => !identifier_match(identifier, s),
+            serde_json::Value::Object(o) => {
+              if let Some(serde_json::Value::String(permission_name)) = o.get("identifier") {
+                return !identifier_match(identifier, permission_name);
+              }
+
+              true
+            }
+            _ => false,
+          });
+          if prev_len != permissions.len() {
+            std::fs::write(
+              &path,
+              serde_json::to_vec_pretty(&value).context("failed to serialize capability JSON")?,
+            )
+            .fs_context("failed to write capability file", path.clone())?;
+            log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
+          }
+        }
+      }
+      _ => {}
     }
   }
 

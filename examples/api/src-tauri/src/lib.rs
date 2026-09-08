@@ -5,7 +5,7 @@
 mod cmd;
 #[cfg(all(desktop, not(test), not(feature = "cef")))]
 mod menu_plugin;
-#[cfg(all(desktop, not(test), not(feature = "cef")))]
+#[cfg(all(desktop, not(test)))]
 mod tray;
 
 use serde::Serialize;
@@ -59,10 +59,15 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
     )
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
-      #[cfg(all(desktop, not(test), not(feature = "cef")))]
+      #[cfg(all(desktop, not(test)))]
       {
         let handle = app.handle();
         tray::create_tray(handle)?;
+      }
+
+      #[cfg(all(desktop, not(test), not(feature = "cef")))]
+      {
+        let handle = app.handle();
         handle.plugin(menu_plugin::init())?;
       }
 

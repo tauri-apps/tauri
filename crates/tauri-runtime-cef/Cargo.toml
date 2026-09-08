@@ -48,6 +48,7 @@ windows = { version = "0.61", features = [
   "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",
   "Win32_System_Com",
+  "Win32_Globalization",
   "Win32_System_LibraryLoader",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
@@ -88,6 +89,9 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   # NSDate gates the performSelector:withObject:afterDelay: binding used to
   # restore the traffic light position after an appearance change.
   "NSDate",
+  # NSLocale gives the user's preferred languages, which become the
+  # Accept-Language list; without it every user would report en-US.
+  "NSLocale",
   "NSNotification",
   "NSObject",
   "NSValue",

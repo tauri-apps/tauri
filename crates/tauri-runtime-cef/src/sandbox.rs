@@ -30,13 +30,42 @@
 //! owned by root, setuid, executable by others — because Chromium treats a helper that
 //! fails them as a fatal error rather than falling back to another sandbox.
 //!
-//! # Everywhere else
+//! # The Windows case
 //!
-//! Windows and macOS sandbox through libraries linked into the executable rather than
-//! through a helper the system has to provide, so there is nothing to probe: the policy
-//! decides on its own and [`SandboxPolicy::Auto`] always keeps the sandbox.
+//! **Windows currently runs unsandboxed, whatever the policy says.** Chromium's Windows
+//! sandbox is brokered by the executable rather than by the library: CEF wants a
+//! `sandbox_info` pointer from `cef_sandbox_info_create()` passed into both
+//! `CefExecuteProcess` and `CefInitialize`, and when it gets a null one it sets
+//! `CefSettings.no_sandbox` itself and appends `--no-sandbox`
+//! (`libcef/browser/main_runner.cc`). This runtime passes null.
+//!
+//! Fixing that is a packaging change, not a code change: since Chromium M138 the sandbox
+//! entry point can only be linked by a binary built with Chromium's own toolchain, so CEF
+//! ships prebuilt `bootstrap.exe` / `bootstrapc.exe` hosts that load the application as a
+//! DLL exporting `RunWinMain` or `RunConsoleMain` and hand it the pointer. A Tauri
+//! application is built as an executable, so until it can be built and bundled as a
+//! bootstrap-hosted DLL there is nothing to pass.
+//!
+//! Until then the honest thing is to say so: [`windows_sandbox_unavailable`] reports the
+//! gap so [`SandboxPolicy::Auto`] logs it like any other lost sandbox, and
+//! [`SandboxPolicy::Required`] fails loudly instead of quietly returning a promise the
+//! platform cannot keep.
+//!
+//! # macOS
+//!
+//! macOS sandboxes through `libcef_sandbox.dylib`, which the helper process loads and
+//! initializes before the framework, so there is nothing to probe: the policy decides on
+//! its own and [`SandboxPolicy::Auto`] always keeps the sandbox.
 
 use crate::runtime::SandboxPolicy;
+
+/// Whether this platform can actually sandbox, given how the runtime initializes CEF.
+///
+/// Windows cannot yet: see the module docs. Kept as a function of a `cfg` rather than a
+/// `cfg` at every use site so the decision table stays testable on one platform.
+pub(crate) const fn windows_sandbox_unavailable() -> bool {
+  cfg!(windows)
+}
 
 /// Why the sandbox is being turned off.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,6 +76,8 @@ pub(crate) enum SandboxDisableReason {
   AppImageUserNamespacesRestricted,
   /// AppImage, no setuid helper, and user namespaces are unavailable altogether.
   AppImageUserNamespacesUnavailable,
+  /// Windows, where this runtime cannot supply CEF with a sandbox broker.
+  WindowsBrokerUnavailable,
 }
 
 impl SandboxDisableReason {
@@ -64,6 +95,11 @@ impl SandboxDisableReason {
          and unprivileged user namespaces are unavailable \
          (/proc/sys/user/max_user_namespaces is 0)"
       }
+      Self::WindowsBrokerUnavailable => {
+        "the Windows sandbox needs a broker this runtime cannot supply: CEF requires the \
+         application to be hosted by its bootstrap executable as a DLL, and a Tauri \
+         application is built as an executable"
+      }
     }
   }
 }
@@ -75,6 +111,9 @@ pub(crate) enum SandboxDecision {
   Keep,
   /// Append `--no-sandbox`, logging `reason`.
   Disable(SandboxDisableReason),
+  /// [`SandboxPolicy::Required`] asked for a sandbox this platform cannot provide, so
+  /// startup fails rather than silently running without one.
+  Refuse(SandboxDisableReason),
 }
 
 /// Decides whether to disable the sandbox, from inputs the caller has already gathered.
@@ -85,13 +124,34 @@ pub(crate) enum SandboxDecision {
 /// from `/proc/sys/kernel/apparmor_restrict_unprivileged_userns` and
 /// `/proc/sys/user/max_user_namespaces`; [`None`] means the file could not be read,
 /// which is treated as no evidence of a restriction rather than as a restriction.
+///
+/// `windows_broker_unavailable` is [`windows_sandbox_unavailable`]: on Windows CEF drops
+/// the sandbox itself when the embedder hands it no broker, so the runtime cannot keep a
+/// sandbox there however the policy is set.
 pub(crate) fn sandbox_decision(
   policy: SandboxPolicy,
+  windows_broker_unavailable: bool,
   running_from_appimage: bool,
   sandbox_helper_available: bool,
   apparmor_restrict_unprivileged_userns: Option<u64>,
   max_user_namespaces: Option<u64>,
 ) -> SandboxDecision {
+  if let SandboxPolicy::Disabled = policy {
+    return SandboxDecision::Disable(SandboxDisableReason::Policy);
+  }
+
+  // CEF flips `no_sandbox` on for us when it gets a null broker, so `Keep` here would be
+  // a decision the platform overrules a moment later. Reporting it instead keeps the
+  // rule that a lost sandbox is always named out loud.
+  if windows_broker_unavailable {
+    return match policy {
+      SandboxPolicy::Required => {
+        SandboxDecision::Refuse(SandboxDisableReason::WindowsBrokerUnavailable)
+      }
+      _ => SandboxDecision::Disable(SandboxDisableReason::WindowsBrokerUnavailable),
+    };
+  }
+
   match policy {
     SandboxPolicy::Disabled => SandboxDecision::Disable(SandboxDisableReason::Policy),
     SandboxPolicy::Required => SandboxDecision::Keep,
@@ -159,6 +219,7 @@ pub(crate) fn resolve_sandbox_decision(policy: SandboxPolicy) -> SandboxDecision
   let running_from_appimage = running_from_appimage();
   sandbox_decision(
     policy,
+    windows_sandbox_unavailable(),
     running_from_appimage,
     sandbox_helper_available(running_from_appimage),
     read_sysctl("/proc/sys/kernel/apparmor_restrict_unprivileged_userns"),
@@ -166,8 +227,9 @@ pub(crate) fn resolve_sandbox_decision(policy: SandboxPolicy) -> SandboxDecision
   )
 }
 
-/// The policy's own answer, with nothing to probe: Windows and macOS have no equivalent
-/// of the AppImage case, so [`SandboxPolicy::Auto`] never drops the sandbox there.
+/// The policy's own answer, with nothing to probe: neither Windows nor macOS has an
+/// equivalent of the AppImage case. macOS therefore keeps the sandbox under
+/// [`SandboxPolicy::Auto`]; Windows cannot, for the reason in the module docs.
 #[cfg(not(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -176,7 +238,14 @@ pub(crate) fn resolve_sandbox_decision(policy: SandboxPolicy) -> SandboxDecision
   target_os = "openbsd"
 )))]
 pub(crate) fn resolve_sandbox_decision(policy: SandboxPolicy) -> SandboxDecision {
-  sandbox_decision(policy, false, false, None, None)
+  sandbox_decision(
+    policy,
+    windows_sandbox_unavailable(),
+    false,
+    false,
+    None,
+    None,
+  )
 }
 
 /// AppImage runtimes export `APPIMAGE` with the path of the mounted image.
@@ -263,7 +332,8 @@ fn read_sysctl(path: &str) -> Option<u64> {
 mod tests {
   use super::*;
 
-  /// Shorthand for the `Auto` policy, which is the only one that inspects the system.
+  /// Shorthand for the `Auto` policy, which is the only one that inspects the system, on
+  /// a platform whose sandbox broker works.
   fn auto(
     running_from_appimage: bool,
     sandbox_helper_available: bool,
@@ -272,6 +342,7 @@ mod tests {
   ) -> SandboxDecision {
     sandbox_decision(
       SandboxPolicy::Auto,
+      false,
       running_from_appimage,
       sandbox_helper_available,
       apparmor,
@@ -284,16 +355,60 @@ mod tests {
     for appimage in [false, true] {
       for helper in [false, true] {
         assert_eq!(
-          sandbox_decision(SandboxPolicy::Disabled, appimage, helper, Some(1), Some(0)),
+          sandbox_decision(
+            SandboxPolicy::Disabled,
+            false,
+            appimage,
+            helper,
+            Some(1),
+            Some(0)
+          ),
           SandboxDecision::Disable(SandboxDisableReason::Policy)
         );
         assert_eq!(
-          sandbox_decision(SandboxPolicy::Required, appimage, helper, Some(1), Some(0)),
+          sandbox_decision(
+            SandboxPolicy::Required,
+            false,
+            appimage,
+            helper,
+            Some(1),
+            Some(0)
+          ),
           SandboxDecision::Keep,
           "Required must keep the sandbox even when Chromium will abort"
         );
       }
     }
+  }
+
+  #[test]
+  fn a_platform_without_a_broker_never_reports_a_sandbox_it_does_not_have() {
+    // CEF sets `no_sandbox` itself when it gets a null broker, so claiming `Keep` here
+    // would be a decision the platform overrules a moment later.
+    assert_eq!(
+      sandbox_decision(SandboxPolicy::Auto, true, false, false, None, None),
+      SandboxDecision::Disable(SandboxDisableReason::WindowsBrokerUnavailable)
+    );
+  }
+
+  #[test]
+  fn required_refuses_to_start_where_the_sandbox_cannot_be_provided() {
+    // The whole point of `Required` is that running unsandboxed is not an acceptable
+    // outcome, so it must fail rather than come up without one.
+    assert_eq!(
+      sandbox_decision(SandboxPolicy::Required, true, false, false, None, None),
+      SandboxDecision::Refuse(SandboxDisableReason::WindowsBrokerUnavailable)
+    );
+  }
+
+  #[test]
+  fn disabled_is_answered_before_the_platform_is_consulted() {
+    // An application that asked for no sandbox is told what it asked for, not what the
+    // platform could not give it.
+    assert_eq!(
+      sandbox_decision(SandboxPolicy::Disabled, true, false, false, None, None),
+      SandboxDecision::Disable(SandboxDisableReason::Policy)
+    );
   }
 
   #[test]
@@ -359,19 +474,27 @@ mod tests {
   #[test]
   fn nothing_to_probe_means_the_policy_decides() {
     assert_eq!(
-      sandbox_decision(SandboxPolicy::Auto, false, false, None, None),
+      sandbox_decision(SandboxPolicy::Auto, false, false, false, None, None),
       SandboxDecision::Keep,
       "Auto must keep the sandbox where there is no AppImage case to escape"
     );
     assert_eq!(
-      sandbox_decision(SandboxPolicy::Required, false, false, None, None),
+      sandbox_decision(SandboxPolicy::Required, false, false, false, None, None),
       SandboxDecision::Keep
     );
     assert_eq!(
-      sandbox_decision(SandboxPolicy::Disabled, false, false, None, None),
+      sandbox_decision(SandboxPolicy::Disabled, false, false, false, None, None),
       SandboxDecision::Disable(SandboxDisableReason::Policy),
-      "Disabled is the only way to lose the sandbox on Windows and macOS"
+      "Disabled is the only way for macOS to lose the sandbox"
     );
+  }
+
+  /// The runtime hands CEF a null Windows sandbox broker, and CEF answers that by
+  /// dropping the sandbox itself. Asserted on every platform so the constant cannot drift
+  /// away from what `resolve_sandbox_decision` passes.
+  #[test]
+  fn the_windows_broker_is_reported_as_unavailable_only_on_windows() {
+    assert_eq!(windows_sandbox_unavailable(), cfg!(windows));
   }
 
   #[cfg(any(

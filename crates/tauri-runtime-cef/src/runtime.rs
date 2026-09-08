@@ -1449,6 +1449,10 @@ fn is_cef_helper_process() -> bool {
 
 pub(crate) struct AppState<T: UserEvent> {
   pub(crate) windows: HashMap<WindowId, AppWindow>,
+  /// Windows that are already closed as far as the application is concerned,
+  /// kept alive only so their native handle outlives the CEF browsers they
+  /// host. See [`WinitCefApp::close_window`].
+  pub(crate) closing_windows: Vec<AppWindow>,
   pub(crate) winid_id_to_window_id_map: HashMap<WinitWindowId, WindowId>,
   pub(crate) callback: Box<dyn FnMut(RunEvent<T>)>,
   pub(crate) live_browsers: usize,
@@ -1476,6 +1480,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       receiver,
       state: AppState {
         windows: HashMap::new(),
+        closing_windows: Vec::new(),
         winid_id_to_window_id_map: HashMap::new(),
         callback,
         live_browsers: 0,
@@ -1567,6 +1572,20 @@ impl<T: UserEvent> WinitCefApp<T> {
           if was_last {
             emptied_window = Some(window_id);
           }
+        } else {
+          // The webview belonged to a window that is already closing: its
+          // registry entries went with `close_window`, and the native window is
+          // only being held open for CEF. This acknowledgement is what releases
+          // it, once it is the last browser the window was hosting.
+          for appwindow in &mut self.state.closing_windows {
+            appwindow
+              .children
+              .retain(|child| child.webview_id != webview_id);
+          }
+          self
+            .state
+            .closing_windows
+            .retain(|appwindow| !appwindow.children.is_empty());
         }
 
         self.state.live_browsers = self.state.live_browsers.saturating_sub(1);
@@ -1588,12 +1607,13 @@ impl<T: UserEvent> WinitCefApp<T> {
         // `BrowserClosed`, which is where the bookkeeping is dropped. Same
         // reasoning as there for searching every window by webview id.
         //
-        // A webview that is already gone from state means its window is being
-        // torn down, and that teardown destroys the child view anyway.
+        // Closing windows are searched too: they hold their children until CEF
+        // acknowledges them, and this destruction is what makes CEF do that.
         if let Some(child) = self
           .state
           .windows
           .values()
+          .chain(self.state.closing_windows.iter())
           .flat_map(|appwindow| appwindow.children.iter())
           .find(|child| child.webview_id == webview_id)
         {
@@ -1817,7 +1837,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     // Every close path funnels through here, and this is the last point at which
     // the window can still be named: the maps below are what `emit_window_event`
     // and winit's own `Destroyed` both resolve a window through, and winit
-    // reports the destruction only after this function has dropped the window.
+    // reports the destruction only once the window below has been dropped.
     // Without this, `WindowEvent::Destroyed` never reaches the application, and
     // it is what Tauri unregisters a window on — so a window closed while others
     // stay open would keep its label taken and keep appearing in `Manager`'s
@@ -1838,8 +1858,33 @@ impl<T: UserEvent> WinitCefApp<T> {
     for child in &appwindow.children {
       self.remove_scheme_handler_entries(child);
       child.popup_family.close_all();
+      // DevTools is a browser of its own, living in a window CEF owns and
+      // parents to this one. Closing the browser it inspects does not take it
+      // down first, so ask for it explicitly — exactly what a webview-level
+      // close does — instead of leaving CEF to discover its window is gone.
+      child.host.close_dev_tools();
       child.host.close_browser(1);
     }
+
+    if appwindow.children.is_empty() {
+      // Nothing is left to close, so the native window goes now.
+      drop(appwindow);
+    } else {
+      // `close_browser` only *starts* the close: CEF still has to tear down the
+      // browser's own child window, and it reports that back through
+      // `on_before_close`. Destroying the native window we parented it to before
+      // that point pulls the ground out from under a browser Chromium is still
+      // compositing — with DevTools attached the surface outlives the window
+      // long enough for the GPU process to fault on it and restart. So keep the
+      // window alive until `BrowserClosed` accounts for every child, and only
+      // hide it here: the application already saw `Destroyed`, so the wait must
+      // not be visible to the user.
+      appwindow.window.set_visible(false);
+      self.state.closing_windows.push(appwindow);
+    }
+
+    // A window still waiting on its browsers holds `live_browsers` above zero,
+    // so this cannot exit the loop out from under a close in flight.
     self.exit_if_done(event_loop);
   }
 

@@ -26,7 +26,13 @@ tauri-plugin-log = "2"
 [dependencies.tauri]
 workspace = true
 default-features = false
-features = ["protocol-asset", "image-ico", "image-png", "isolation"]
+features = [
+  "protocol-asset",
+  "image-ico",
+  "image-png",
+  "isolation",
+  "tray-icon",
+]
 
 [dependencies.tauri-runtime-wry]
 workspace = true

@@ -229,9 +229,11 @@ wrap_request_context_handler! {
 
 /// Applies a fixed-server proxy to a request context via the Chromium `proxy`
 /// preference. Must be called after the request context has initialized.
+///
+/// This is the per-webview `WebviewAttributes::proxy_url`; an application-wide proxy is
+/// the same preference written through `Cef::proxy`, and whichever is applied last wins
+/// on a given context.
 fn apply_proxy(request_context: &RequestContext, proxy_url: &url::Url) {
-  use cef::{ImplDictionaryValue, ImplValue};
-
   let scheme = match proxy_url.scheme() {
     "socks5" | "socks5h" => "socks5",
     "socks4" | "socks4a" => "socks4",
@@ -247,33 +249,14 @@ fn apply_proxy(request_context: &RequestContext, proxy_url: &url::Url) {
     None => format!("{scheme}://{host}"),
   };
 
-  let pref_name = "proxy";
-  if request_context.can_set_preference(Some(&pref_name.into())) != 1 {
-    log::warn!("the CEF request context does not allow setting the proxy preference");
-    return;
-  }
-
-  // Build `{ "mode": "fixed_servers", "server": "<scheme>://<host>:<port>" }`.
-  let Some(dict) = cef::dictionary_value_create() else {
-    return;
-  };
-  dict.set_string(Some(&"mode".into()), Some(&"fixed_servers".into()));
-  dict.set_string(Some(&"server".into()), Some(&server.as_str().into()));
-
-  let Some(value) = cef::value_create() else {
-    return;
-  };
-  let mut dict = dict;
-  value.set_dictionary(Some(&mut dict));
-
-  let mut value = value;
-  // `error` is not an optional parameter: CEF's shim refuses the call outright
-  // when it is null. See `preferences::set_preference_error_slot`.
-  let mut error = preferences::set_preference_error_slot();
-  if request_context.set_preference(Some(&pref_name.into()), Some(&mut value), Some(&mut error))
-    != 1
-  {
-    log::error!("failed to apply the proxy preference to the CEF request context: {error}");
+  // A webview that asked for a proxy and did not get one would silently send its traffic
+  // straight out, so unlike most preferences this one is worth a warning.
+  if !preferences::set_preference(
+    request_context,
+    "proxy",
+    &serde_json::json!({ "mode": "fixed_servers", "server": server }),
+  ) {
+    log::warn!("failed to apply the proxy preference to the CEF request context");
   }
 }
 
@@ -308,7 +291,8 @@ fn apply_proxy(request_context: &RequestContext, proxy_url: &url::Url) {
 pub(crate) fn request_context_from_webview_attributes<'a>(
   global_cache_path: &Path,
   webview_attributes: &WebviewAttributes,
-  profile_preferences: Arc<Vec<(String, bool)>>,
+  profile_preferences: Arc<Vec<(String, serde_json::Value)>>,
+  content_settings: Arc<Vec<(ContentSettingTypes, ContentSettingValues)>>,
   custom_schemes: impl IntoIterator<Item = &'a String>,
   custom_protocol_scheme: &str,
   scheme_registry: request_handler::SchemeRegistry,
@@ -347,11 +331,12 @@ pub(crate) fn request_context_from_webview_attributes<'a>(
   let wrapped_callback: RequestContextInitContinuation = Box::new({
     let rc_holder = rc_holder.clone();
     move |rc| {
-      // Preferences can only be set once the request context's underlying
-      // profile has finished initializing, which is exactly what this
+      // Preferences and content settings can only be set once the request context's
+      // underlying profile has finished initializing, which is exactly what this
       // continuation signals.
       if let Some(rc) = rc.as_ref() {
         preferences::apply_app_webview_preferences(rc, &profile_preferences);
+        preferences::apply_default_content_settings(rc, &content_settings);
         if let Some(proxy_url) = proxy_url.as_ref() {
           apply_proxy(rc, proxy_url);
         }

@@ -40,6 +40,7 @@ use winit::{
   window::WindowId as WinitWindowId,
 };
 
+use crate::DebugEnvironment;
 use crate::external_message_pump::CefExternalPump;
 use crate::platform::EventLoopExt;
 use crate::{
@@ -140,27 +141,38 @@ pub enum SecretStorage {
 
 /// What to do with Chromium's process sandbox.
 ///
-/// Defaults to [`SandboxPolicy::Auto`], which keeps the sandbox on every platform except
-/// in one situation: an application running from an AppImage on a Linux or BSD system
-/// that offers no way to sandbox at all, where the alternative is not an unsandboxed
-/// application but no application, since Chromium aborts with "No usable sandbox!".
+/// Defaults to [`SandboxPolicy::Auto`], which keeps the sandbox wherever the runtime can.
+///
+/// # Windows does not have a sandbox here yet
+///
+/// **Whatever this policy says, a Windows build currently runs unsandboxed.** CEF wants a
+/// sandbox broker pointer that, since Chromium M138, only a binary built with Chromium's
+/// own toolchain can create; CEF supplies prebuilt `bootstrap.exe` hosts for that, and
+/// they load the application as a DLL, which a Tauri application is not. Given a null
+/// broker CEF sets `no_sandbox` itself, so there is no configuration here that changes
+/// the outcome — only whether the runtime warns about it ([`Self::Auto`]) or refuses to
+/// start ([`Self::Required`]).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SandboxPolicy {
-  /// Keep the sandbox, except when the application runs from an AppImage and the system
-  /// has neither the setuid `chrome-sandbox` helper nor usable unprivileged user
-  /// namespaces. A warning naming the reason is logged whenever the sandbox is dropped.
+  /// Keep the sandbox wherever it can be kept, and log a warning naming the reason
+  /// wherever it cannot.
   ///
-  /// That exception is Linux and BSD only. Windows and macOS link their sandbox into the
-  /// executable rather than relying on a helper the system has to provide, so there is
-  /// nothing that can be missing and `Auto` there is the same as [`Self::Required`].
+  /// It cannot be kept in two situations: on Windows, always, for the reason above; and
+  /// on Linux or BSD when the application runs from an AppImage on a system that has
+  /// neither the setuid `chrome-sandbox` helper nor usable unprivileged user namespaces,
+  /// where the alternative is not an unsandboxed application but no application at all,
+  /// since Chromium aborts with "No usable sandbox!".
+  ///
+  /// macOS always keeps it.
   #[default]
   Auto,
-  /// Never run without a sandbox, even when that means Chromium aborts at startup.
+  /// Never run without a sandbox: fail startup instead.
   ///
   /// Pick this when running unsandboxed is not an acceptable outcome and a hard failure
-  /// is preferable — the user can then install the setuid helper, point
-  /// `CHROME_DEVEL_SANDBOX` at one, or re-enable unprivileged user namespaces.
+  /// is preferable. On Linux the user can then install the setuid helper, point
+  /// `CHROME_DEVEL_SANDBOX` at one, or re-enable unprivileged user namespaces; on Windows
+  /// there is nothing they can do, so this always fails there.
   Required,
   /// Always run without a sandbox, on every platform.
   ///
@@ -168,6 +180,231 @@ pub enum SandboxPolicy {
   /// renderer is a compromised account. Useful for containers and CI images that cannot
   /// provide a sandbox, not for shipped applications.
   Disabled,
+}
+
+/// Whether Chromium's DevTools protocol server is reachable, and how.
+///
+/// This is the server behind `chrome://inspect`, not the DevTools window: it drives the
+/// browser from outside the process, so anything that can reach it can read and rewrite
+/// every page the application shows.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum RemoteDebugging {
+  /// No server. The runtime additionally pins Chromium's
+  /// `devtools.remote_debugging.allowed` preference off, so a `--remote-debugging-port`
+  /// or `--remote-debugging-pipe` that reaches Chromium another way is refused too.
+  #[default]
+  Disabled,
+  /// Listen on a TCP port, as `--remote-debugging-port` does.
+  ///
+  /// The port must be between 1024 and 65535; CEF ignores anything else. The port number
+  /// is also written to `DevToolsActivePort` in the cache directory.
+  ///
+  /// Chromium accepts a WebSocket connection from `localhost` and from any origin named
+  /// in `allowed_origins` (`--remote-allow-origins`); leave that empty unless a browser
+  /// page has to attach.
+  ///
+  /// A listening port is reachable by every process on the machine, and the protocol has
+  /// no authentication. Prefer [`Self::Pipe`] where the debugger is a child process.
+  Port {
+    /// TCP port to listen on.
+    port: u16,
+    /// Origins allowed to open a WebSocket connection, beyond `localhost`.
+    allowed_origins: Vec<String>,
+  },
+  /// Speak the protocol over inherited file descriptors instead of a socket, as
+  /// `--remote-debugging-pipe` does.
+  ///
+  /// Reachable only by the process that launched this one, so it exposes nothing to the
+  /// rest of the machine.
+  Pipe,
+}
+
+/// Whether this application may open a DevTools window at all.
+///
+/// Application-wide, and combined with the per-webview `WebviewAttributes::devtools`:
+/// either one saying no is a no. Both are enforced on the paths this runtime owns — the
+/// context menu entries, the F12 and Ctrl+Shift+I chords, the `IDC_DEV_TOOLS` commands
+/// and `Webview::open_devtools`.
+///
+/// # Why it is not Chromium's own preference
+///
+/// Chromium has a profile preference for exactly this, `devtools.availability`, and
+/// `DevToolsWindow::AllowDevToolsFor` consults it on every path that opens a DevTools
+/// window — including the ones this runtime does not own, such as a Chrome-owned popup.
+/// This policy deliberately does not reach for it, and the runtime pins it to its
+/// default instead.
+///
+/// CEF gates more than the window on that preference: `SendDevToolsMessage` is refused on
+/// a profile carrying `kDisallowed`, and refused *silently* — the send still reports
+/// success, and no result or event ever reaches a registered observer. This runtime
+/// drives its own startup over the DevTools protocol (the document-start scripts, the
+/// per-webview user agent) and holds each webview's first navigation until that round
+/// trip answers, so setting the preference leaves every window stuck on a blank
+/// placeholder. A webview's `on_dev_tools_protocol` would go silent with it.
+///
+/// So the DevTools *protocol* stays available whatever this policy says. An application
+/// that has to close that path too wants [`RemoteDebugging`], which is what exposes the
+/// protocol to anything outside the process.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum DevToolsPolicy {
+  /// Allow DevTools in a build that could open them anyway — a debug build, or one with
+  /// the `devtools` feature — and refuse them otherwise.
+  #[default]
+  Auto,
+  /// Allow DevTools, whatever the build profile.
+  ///
+  /// Per-webview `WebviewAttributes::devtools` still applies; this only stops the runtime
+  /// from refusing DevTools application-wide.
+  Allowed,
+  /// Refuse DevTools, whatever the build profile.
+  Disallowed,
+}
+
+/// What to do about a navigation to a server whose TLS certificate does not validate.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum CertificateErrorPolicy {
+  /// Show Chrome's SSL interstitial, which offers the user a way to proceed anyway.
+  ///
+  /// This is Chromium's own behaviour and the runtime's default, because an application
+  /// that loads third-party content — an OAuth or SSO flow is the standing case — behaves
+  /// the way the user's browser would.
+  #[default]
+  ChromeInterstitial,
+  /// Cancel the request. No interstitial, and no way for the user to override.
+  ///
+  /// The hardened choice for an application that only ever loads origins it controls:
+  /// there, a certificate error is either a misconfiguration or an interception, and
+  /// neither is something to let a user click through.
+  Cancel,
+}
+
+/// How Chromium resolves the proxy for every request.
+///
+/// Written as the Chromium `proxy` preference, the same one the `ProxySettings`
+/// enterprise policy sets. `WebviewAttributes::proxy_url` sets the same preference for one
+/// webview; whichever is applied last to a given request context wins.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ProxyConfig {
+  /// Use the operating system's proxy configuration.
+  ///
+  /// Chromium's default, and on Linux the one that reads `http_proxy` and its siblings
+  /// out of the environment.
+  #[default]
+  System,
+  /// Connect directly, ignoring any system proxy.
+  Direct,
+  /// Discover a proxy through WPAD.
+  AutoDetect,
+  /// Fetch a proxy auto-config script from `url`.
+  PacScript {
+    /// URL of the PAC script.
+    url: String,
+  },
+  /// Use a fixed proxy.
+  FixedServers {
+    /// Proxy server, as `scheme://host:port` — for example `socks5://127.0.0.1:9050`.
+    /// A bare `host:port` means HTTP.
+    server: String,
+    /// Semicolon-delimited hosts that bypass the proxy, as the `--proxy-bypass-list`
+    /// switch spells them.
+    bypass_list: Option<String>,
+  },
+}
+
+impl ProxyConfig {
+  /// The `proxy` preference value Chromium expects for this configuration.
+  fn to_preference(&self) -> serde_json::Value {
+    match self {
+      Self::System => serde_json::json!({ "mode": "system" }),
+      Self::Direct => serde_json::json!({ "mode": "direct" }),
+      Self::AutoDetect => serde_json::json!({ "mode": "auto_detect" }),
+      Self::PacScript { url } => serde_json::json!({ "mode": "pac_script", "pac_url": url }),
+      Self::FixedServers {
+        server,
+        bypass_list,
+      } => {
+        let mut value = serde_json::json!({ "mode": "fixed_servers", "server": server });
+        if let Some(bypass_list) = bypass_list
+          && let Some(object) = value.as_object_mut()
+        {
+          object.insert(
+            "bypass_list".to_string(),
+            serde_json::Value::String(bypass_list.clone()),
+          );
+        }
+        value
+      }
+    }
+  }
+}
+
+/// When a page may start playing media on its own.
+///
+/// Applied through Chromium's `--autoplay-policy` switch.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AutoplayPolicy {
+  /// Chromium's own default, which on desktop requires the user to have interacted with
+  /// the document before audible media plays.
+  #[default]
+  Default,
+  /// Let a page play media without any user interaction.
+  ///
+  /// What a kiosk, a media player or a signage application wants, and what makes a
+  /// hostile page able to make noise on its own.
+  NoUserGestureRequired,
+  /// Require a gesture on the media element itself.
+  UserGestureRequired,
+  /// Require the user to have interacted with the document.
+  DocumentUserActivationRequired,
+}
+
+impl AutoplayPolicy {
+  /// The `--autoplay-policy` value, or [`None`] to leave the switch off.
+  fn as_switch_value(self) -> Option<&'static str> {
+    match self {
+      Self::Default => None,
+      Self::NoUserGestureRequired => Some("no-user-gesture-required"),
+      Self::UserGestureRequired => Some("user-gesture-required"),
+      Self::DocumentUserActivationRequired => Some("document-user-activation-required"),
+    }
+  }
+}
+
+/// Which local network interfaces WebRTC may reveal to a page.
+///
+/// Applied through Chromium's `--webrtc-ip-handling-policy` switch. Chromium's default
+/// already hides local IP addresses behind mDNS hostnames, so this only matters for an
+/// application that wants to go further.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum WebRtcIpHandling {
+  /// Chromium's default.
+  #[default]
+  Default,
+  /// Offer both public and private interfaces, which reveals the machine's LAN address.
+  DefaultPublicAndPrivateInterfaces,
+  /// Offer only the public interface.
+  DefaultPublicInterfaceOnly,
+  /// Refuse any UDP that does not go through the configured proxy. The strongest of the
+  /// four, and the one most likely to break a call outright.
+  DisableNonProxiedUdp,
+}
+
+impl WebRtcIpHandling {
+  /// The `--webrtc-ip-handling-policy` value, or [`None`] to leave the switch off.
+  fn as_switch_value(self) -> Option<&'static str> {
+    match self {
+      Self::Default => None,
+      Self::DefaultPublicAndPrivateInterfaces => Some("default_public_and_private_interfaces"),
+      Self::DefaultPublicInterfaceOnly => Some("default_public_interface_only"),
+      Self::DisableNonProxiedUdp => Some("disable_non_proxied_udp"),
+    }
+  }
 }
 
 /// Selects and configures the CEF runtime.
@@ -182,16 +419,30 @@ pub enum SandboxPolicy {
 #[derive(Default)]
 pub struct Cef {
   command_line_args: Vec<(String, Option<String>)>,
+  disabled_features: Vec<String>,
+  enabled_features: Vec<String>,
   deep_link_schemes: Vec<String>,
   cache_path: Option<PathBuf>,
   api_version: Option<i32>,
   secret_storage: SecretStorage,
-  profile_preferences: Vec<(String, bool)>,
+  profile_preferences: Vec<(String, serde_json::Value)>,
+  global_preferences: Vec<(String, serde_json::Value)>,
+  content_settings: Vec<(cef::ContentSettingTypes, cef::ContentSettingValues)>,
   allow_chromium_command_line_args: bool,
   log_file: Option<PathBuf>,
   log_severity: Option<LogSeverity>,
+  log_items: Option<LogItems>,
   locale: Option<String>,
   accept_language_list: Option<String>,
+  user_agent: Option<String>,
+  user_agent_product: Option<String>,
+  javascript_flags: Option<String>,
+  chrome_policy_id: Option<String>,
+  persist_session_cookies: bool,
+  remote_debugging: RemoteDebugging,
+  devtools: DevToolsPolicy,
+  debug_environment: DebugEnvironment,
+  certificate_errors: CertificateErrorPolicy,
   sandbox: SandboxPolicy,
   settings_callback: Option<Box<SettingsCallback>>,
 }
@@ -200,19 +451,35 @@ impl fmt::Debug for Cef {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("Cef")
       .field("command_line_args", &self.command_line_args)
+      .field("disabled_features", &self.disabled_features)
+      .field("enabled_features", &self.enabled_features)
       .field("deep_link_schemes", &self.deep_link_schemes)
       .field("cache_path", &self.cache_path)
       .field("api_version", &self.api_version)
       .field("secret_storage", &self.secret_storage)
       .field("profile_preferences", &self.profile_preferences)
+      .field("global_preferences", &self.global_preferences)
+      .field("content_settings", &self.content_settings)
       .field(
         "allow_chromium_command_line_args",
         &self.allow_chromium_command_line_args,
       )
       .field("log_file", &self.log_file)
       .field("log_severity", &self.log_severity)
+      .field("log_items", &self.log_items)
       .field("locale", &self.locale)
       .field("accept_language_list", &self.accept_language_list)
+      // The user agent can carry an application identifier but nothing secret; the
+      // JavaScript flags and policy id are likewise plain configuration.
+      .field("user_agent", &self.user_agent)
+      .field("user_agent_product", &self.user_agent_product)
+      .field("javascript_flags", &self.javascript_flags)
+      .field("chrome_policy_id", &self.chrome_policy_id)
+      .field("persist_session_cookies", &self.persist_session_cookies)
+      .field("remote_debugging", &self.remote_debugging)
+      .field("devtools", &self.devtools)
+      .field("debug_environment", &self.debug_environment)
+      .field("certificate_errors", &self.certificate_errors)
       .field("sandbox", &self.sandbox)
       .field("settings_callback", &self.settings_callback.is_some())
       .finish()
@@ -341,7 +608,109 @@ impl Cef {
   /// ```
   #[must_use]
   pub fn profile_preference<K: Into<String>>(mut self, name: K, enabled: bool) -> Self {
-    self.profile_preferences.push((name.into(), enabled));
+    self
+      .profile_preferences
+      .push((name.into(), serde_json::Value::Bool(enabled)));
+    self
+  }
+
+  /// Sets one Chromium profile preference of any type on every webview's request context.
+  ///
+  /// [`Self::profile_preference`] covers the common boolean case; this one takes the
+  /// integers, strings, lists and dictionaries the rest of Chromium's preferences are made
+  /// of. The value must have the type Chromium registered the preference with — a string
+  /// where an integer belongs is refused and logged at debug.
+  ///
+  /// Preferences worth knowing about, beyond the ones with a typed option of their own:
+  ///
+  /// | Preference | Type | What it does |
+  /// |---|---|---|
+  /// | `printing.enabled` | bool | whether `window.print()` opens Chrome's print preview |
+  /// | `download.default_directory` | string | where downloads land |
+  /// | `download.prompt_for_download` | bool | whether every download asks first |
+  /// | `enable_do_not_track` | bool | sends the `DNT` header |
+  /// | `enable_referrers` | bool | sends `Referer` at all |
+  /// | `dns_over_https.mode` | string | `off`, `automatic` or `secure` |
+  /// | `dns_over_https.templates` | string | space-delimited DoH server templates |
+  /// | `profile.cookie_controls_mode` | int | `1` blocks third-party cookies |
+  /// | `hardware.audio_capture_enabled` | bool | a hard kill switch for the microphone |
+  /// | `hardware.video_capture_enabled` | bool | the same for the camera |
+  ///
+  /// ```no_run
+  /// # use tauri_runtime_cef::Cef;
+  /// Cef::default()
+  ///   .profile_preference_value("dns_over_https.mode", "secure")
+  ///   .profile_preference_value("profile.cookie_controls_mode", 1);
+  /// ```
+  #[must_use]
+  pub fn profile_preference_value<K: Into<String>, V: Into<serde_json::Value>>(
+    mut self,
+    name: K,
+    value: V,
+  ) -> Self {
+    self.profile_preferences.push((name.into(), value.into()));
+    self
+  }
+
+  /// Sets one preference in Chromium's local state, the store shared by every profile.
+  ///
+  /// Most preferences belong to a profile and are set with
+  /// [`Self::profile_preference_value`]; a handful — `devtools.remote_debugging.allowed`
+  /// and `hardware_acceleration_mode.enabled` among them — live here instead. Applied once
+  /// the CEF context is initialized.
+  #[must_use]
+  pub fn global_preference<K: Into<String>, V: Into<serde_json::Value>>(
+    mut self,
+    name: K,
+    value: V,
+  ) -> Self {
+    self.global_preferences.push((name.into(), value.into()));
+    self
+  }
+
+  /// Sets the default value of one Chromium content setting for every origin.
+  ///
+  /// A content setting is the stored answer behind a permission: with a default of
+  /// [`ContentSettingValues::BLOCK`](cef::ContentSettingValues::BLOCK) a page cannot ask
+  /// at all, and with [`ALLOW`](cef::ContentSettingValues::ALLOW) it is granted without a
+  /// prompt. That makes this the application-wide policy that
+  /// `WebviewAttributes::on_permission_request` is not: the handler answers one request at
+  /// a time, this decides what can be requested.
+  ///
+  /// Applied to every webview's request context after it initializes, and stored in the
+  /// profile, so it also governs the origins the user has already answered for.
+  ///
+  /// Chromium refuses to write a default onto an off-the-record profile, so this has no
+  /// effect on a webview built with `WebviewAttributes::incognito`. Such a webview keeps
+  /// Chromium's own defaults, and `WebviewAttributes::on_permission_request` is the way to
+  /// answer for it.
+  ///
+  /// ```no_run
+  /// # use tauri_runtime_cef::Cef;
+  /// use tauri_runtime_cef::cef::{ContentSettingTypes, ContentSettingValues};
+  ///
+  /// Cef::default()
+  ///   // An application webview has no business asking for these.
+  ///   .default_content_setting(ContentSettingTypes::NOTIFICATIONS, ContentSettingValues::BLOCK)
+  ///   .default_content_setting(ContentSettingTypes::GEOLOCATION, ContentSettingValues::BLOCK)
+  ///   // Device access a desktop application rarely wants a page to reach.
+  ///   .default_content_setting(ContentSettingTypes::USB_GUARD, ContentSettingValues::BLOCK)
+  ///   .default_content_setting(ContentSettingTypes::SERIAL_GUARD, ContentSettingValues::BLOCK)
+  ///   .default_content_setting(ContentSettingTypes::HID_GUARD, ContentSettingValues::BLOCK);
+  /// ```
+  ///
+  /// Blocking [`JAVASCRIPT_JIT`](cef::ContentSettingTypes::JAVASCRIPT_JIT) is worth
+  /// knowing about separately: it runs V8 without its optimizing compilers, which removes
+  /// the largest single source of exploitable memory bugs in a renderer at a real cost in
+  /// JavaScript performance. It is the same lever as Chrome's `DefaultJavaScriptJitSetting`
+  /// policy.
+  #[must_use]
+  pub fn default_content_setting(
+    mut self,
+    content_type: cef::ContentSettingTypes,
+    value: cef::ContentSettingValues,
+  ) -> Self {
+    self.content_settings.push((content_type, value));
     self
   }
 
@@ -441,6 +810,235 @@ impl Cef {
   #[must_use]
   pub fn sandbox(mut self, policy: SandboxPolicy) -> Self {
     self.sandbox = policy;
+    self
+  }
+
+  /// Adds names to Chromium's `--disable-features` list, keeping what is already there.
+  ///
+  /// Use this rather than `command_line_arg("disable-features", ...)`. Chromium stores a
+  /// switch by name and the last value appended replaces the previous one, so a raw
+  /// `--disable-features` does not add to the list — it *becomes* the list, dropping the
+  /// entries CEF put there to keep Chrome from crashing at startup and to keep renderers
+  /// from being killed on the runtime's own requests.
+  #[must_use]
+  pub fn disable_features<S: Into<String>>(
+    mut self,
+    features: impl IntoIterator<Item = S>,
+  ) -> Self {
+    self
+      .disabled_features
+      .extend(features.into_iter().map(Into::into));
+    self
+  }
+
+  /// Adds names to Chromium's `--enable-features` list, keeping what is already there.
+  ///
+  /// See [`Self::disable_features`] for why the raw switch is the wrong tool.
+  #[must_use]
+  pub fn enable_features<S: Into<String>>(mut self, features: impl IntoIterator<Item = S>) -> Self {
+    self
+      .enabled_features
+      .extend(features.into_iter().map(Into::into));
+    self
+  }
+
+  /// Whether Chromium and CEF may read their diagnostic environment variables.
+  ///
+  /// Chromium honours `SSLKEYLOGFILE` — which writes the keys that decrypt every TLS
+  /// session the application makes — and CEF honours three variables that redirect crash
+  /// reports, whose minidumps carry process memory. Neither group is reachable through a
+  /// CEF setting, so each is refused where Chromium reads it: the key log through an
+  /// empty `--ssl-key-log-file`, which Chromium consults ahead of the variable, and the
+  /// crash overrides by taking them out of the environment before CEF starts.
+  ///
+  /// Defaults to [`DebugEnvironment::Auto`]: honoured in development builds
+  /// (`tauri::is_dev()`), refused in release builds.
+  #[must_use]
+  pub fn debug_environment(mut self, policy: DebugEnvironment) -> Self {
+    self.debug_environment = policy;
+    self
+  }
+
+  /// Whether Chromium's DevTools protocol server runs, and how it is reached.
+  ///
+  /// Defaults to [`RemoteDebugging::Disabled`], which additionally pins Chromium's
+  /// `devtools.remote_debugging.allowed` preference off so the server is refused even if
+  /// the switch reaches Chromium another way.
+  ///
+  /// See [`RemoteDebugging`] for what each transport exposes.
+  #[must_use]
+  pub fn remote_debugging(mut self, remote_debugging: RemoteDebugging) -> Self {
+    self.remote_debugging = remote_debugging;
+    self
+  }
+
+  /// Whether this application may open a DevTools window at all.
+  ///
+  /// Defaults to [`DevToolsPolicy::Auto`], which refuses them in a build that could not
+  /// open them anyway. See [`DevToolsPolicy`] for how this combines with the per-webview
+  /// `WebviewAttributes::devtools`, and for why it leaves the DevTools protocol alone.
+  #[must_use]
+  pub fn devtools(mut self, policy: DevToolsPolicy) -> Self {
+    self.devtools = policy;
+    self
+  }
+
+  /// What to do about a navigation to a server whose TLS certificate does not validate.
+  ///
+  /// Defaults to [`CertificateErrorPolicy::ChromeInterstitial`], which is Chromium's own
+  /// behaviour: an interstitial the user can click through.
+  #[must_use]
+  pub fn certificate_errors(mut self, policy: CertificateErrorPolicy) -> Self {
+    self.certificate_errors = policy;
+    self
+  }
+
+  /// How Chromium resolves the proxy for every request.
+  ///
+  /// Defaults to [`ProxyConfig::System`], Chromium's own behaviour.
+  #[must_use]
+  pub fn proxy(mut self, proxy: ProxyConfig) -> Self {
+    self
+      .profile_preferences
+      .push(("proxy".to_string(), proxy.to_preference()));
+    self
+  }
+
+  /// When a page may start playing media on its own.
+  #[must_use]
+  pub fn autoplay(mut self, policy: AutoplayPolicy) -> Self {
+    if let Some(value) = policy.as_switch_value() {
+      self
+        .command_line_args
+        .push(("--autoplay-policy".to_string(), Some(value.to_string())));
+    }
+    self
+  }
+
+  /// Which local network interfaces WebRTC may reveal to a page.
+  #[must_use]
+  pub fn webrtc_ip_handling(mut self, policy: WebRtcIpHandling) -> Self {
+    if let Some(value) = policy.as_switch_value() {
+      self.command_line_args.push((
+        "--webrtc-ip-handling-policy".to_string(),
+        Some(value.to_string()),
+      ));
+    }
+    self
+  }
+
+  /// Whether Chromium's spell checker runs.
+  ///
+  /// On by default. The first use of a language downloads its dictionary from Google's
+  /// `redirector.gvt1.com`, which is the only reason an application that never shows an
+  /// editable field might want it off. The remote spelling *service*, which would send
+  /// typed text to Google, is off either way.
+  #[must_use]
+  pub fn spell_checking(mut self, enabled: bool) -> Self {
+    self.profile_preferences.push((
+      "browser.enable_spellchecking".to_string(),
+      serde_json::Value::Bool(enabled),
+    ));
+    self
+  }
+
+  /// Whether Chromium's Safe Browsing protection runs.
+  ///
+  /// On by default, and worth keeping on for any webview that loads content the
+  /// application does not control — an OAuth or SSO flow, an embedded third-party page.
+  /// Standard protection checks a locally stored hash-prefix database rather than calling
+  /// Google per navigation, and keeping it updated is the periodic request an application
+  /// that only ever loads its own content might want to be rid of.
+  #[must_use]
+  pub fn safe_browsing(mut self, enabled: bool) -> Self {
+    self.profile_preferences.push((
+      "safebrowsing.enabled".to_string(),
+      serde_json::Value::Bool(enabled),
+    ));
+    self
+  }
+
+  /// Whether Chromium's component updater runs.
+  ///
+  /// On by default, and it is the mechanism that keeps the certificate revocation set,
+  /// the Certificate Transparency log list and the download file-type policies current —
+  /// security data that goes stale. Turn it off only for a deployment that has no route
+  /// to `update.googleapis.com` at all.
+  #[must_use]
+  pub fn component_updates(mut self, enabled: bool) -> Self {
+    if !enabled {
+      self
+        .command_line_args
+        .push(("--disable-component-update".to_string(), None));
+    }
+    self
+  }
+
+  /// Value returned as the `User-Agent` header and `navigator.userAgent`, for every
+  /// webview in the process (`CefSettings.user_agent`).
+  ///
+  /// Replacing the whole string drops the Chrome and platform tokens sites branch on, so
+  /// prefer [`Self::user_agent_product`], which keeps them. A single webview can override
+  /// this through `WebviewAttributes::user_agent`.
+  #[must_use]
+  pub fn user_agent<S: Into<String>>(mut self, user_agent: S) -> Self {
+    self.user_agent = Some(user_agent.into());
+    self
+  }
+
+  /// Product token spliced into Chromium's own User-Agent string, such as `MyApp/1.2.0`
+  /// (`CefSettings.user_agent_product`).
+  ///
+  /// Ignored when [`Self::user_agent`] is set.
+  #[must_use]
+  pub fn user_agent_product<S: Into<String>>(mut self, product: S) -> Self {
+    self.user_agent_product = Some(product.into());
+    self
+  }
+
+  /// Whether session cookies survive a restart (`CefSettings.persist_session_cookies`).
+  ///
+  /// Off by default, matching a browser: a session cookie is dropped when the application
+  /// exits. A desktop application that should keep users signed in across restarts wants
+  /// this on, and should know that it writes those cookies to the cache directory, where
+  /// they are only as protected as [`SecretStorage`] makes them.
+  #[must_use]
+  pub fn persist_session_cookies(mut self, persist: bool) -> Self {
+    self.persist_session_cookies = persist;
+    self
+  }
+
+  /// Flags passed to V8 (`CefSettings.javascript_flags`), such as
+  /// `--max-old-space-size=512`.
+  ///
+  /// Use this rather than `command_line_arg("js-flags", ...)`, which replaces the value
+  /// CEF derives from this setting instead of adding to it.
+  #[must_use]
+  pub fn javascript_flags<S: Into<String>>(mut self, flags: S) -> Self {
+    self.javascript_flags = Some(flags.into());
+    self
+  }
+
+  /// Enables Chrome policy management, reading policies from the platform location this
+  /// identifier names (`CefSettings.chrome_policy_id`).
+  ///
+  /// The identifier is a registry key on Windows (`SOFTWARE\\Policies\\Vendor\\App`), a
+  /// bundle identifier on macOS, and a directory on Linux (`/etc/opt/vendor/app/policies`).
+  /// Set it for an application deployed by an IT department that has to configure it
+  /// centrally; leave it unset otherwise, since it lets whoever controls that location
+  /// change the application's behaviour.
+  #[must_use]
+  pub fn chrome_policy_id<S: Into<String>>(mut self, policy_id: S) -> Self {
+    self.chrome_policy_id = Some(policy_id.into());
+    self
+  }
+
+  /// Which fields CEF prepends to each line of the log file (`CefSettings.log_items`).
+  ///
+  /// Defaults to CEF's own choice.
+  #[must_use]
+  pub fn log_items(mut self, items: LogItems) -> Self {
+    self.log_items = Some(items);
     self
   }
 }
@@ -544,7 +1142,16 @@ pub(crate) struct RuntimeContext<T: UserEvent> {
   /// Chromium profile preferences the application asked for, applied to every
   /// webview's request context after the runtime's own defaults. See
   /// [`Cef::profile_preference`].
-  pub(crate) profile_preferences: Arc<Vec<(String, bool)>>,
+  pub(crate) profile_preferences: Arc<Vec<(String, serde_json::Value)>>,
+  /// Default content settings the application asked for, applied to every webview's
+  /// request context. See [`Cef::default_content_setting`].
+  pub(crate) content_settings: Arc<Vec<(cef::ContentSettingTypes, cef::ContentSettingValues)>>,
+  /// What to do about a navigation whose TLS certificate does not validate. See
+  /// [`Cef::certificate_errors`].
+  pub(crate) certificate_errors: CertificateErrorPolicy,
+  /// Whether [`Cef::devtools`] lets this application open DevTools at all. Combined with
+  /// the per-webview `WebviewAttributes::devtools`, which can only narrow it further.
+  pub(crate) devtools_allowed: bool,
 }
 
 /// Scoped access to the current winit callback state.
@@ -1554,6 +2161,15 @@ wrap_with_args! {
     // supplied through `Cef::command_line_arg` - goes here. The application's own
     // switches are appended last so they win over the runtime's defaults.
     browser_command_line_args: Vec<(String, Option<String>)>,
+    // Names merged into `--disable-features` and `--enable-features` rather than
+    // appended over them.
+    //
+    // CEF fills `--disable-features` before it calls this hook with a list that keeps
+    // Chrome from crashing at startup and renderers from being killed on the runtime's
+    // own requests, and Chromium's command line replaces a switch value rather than
+    // extending it. See `crate::switches::append_merged_switch`.
+    disabled_features: Vec<String>,
+    enabled_features: Vec<String>,
   }
 
   impl App {
@@ -1597,6 +2213,20 @@ wrap_with_args! {
         }
 
         append_command_line_args(command_line, &self.browser_command_line_args);
+
+        // Last, and merging rather than replacing: CEF has already written its own
+        // `--disable-features` by this point, and appending over it would drop entries
+        // Chrome needs to start at all.
+        crate::switches::append_merged_switch(
+          command_line,
+          "disable-features",
+          &self.disabled_features,
+        );
+        crate::switches::append_merged_switch(
+          command_line,
+          "enable-features",
+          &self.enabled_features,
+        );
       }
     }
   }
@@ -1938,20 +2568,45 @@ impl<T: UserEvent> CefRuntime<T> {
 
     let Cef {
       command_line_args,
+      disabled_features,
+      enabled_features,
       deep_link_schemes,
       cache_path: cache_path_override,
       secret_storage,
-      profile_preferences,
+      mut profile_preferences,
+      mut global_preferences,
+      content_settings,
       allow_chromium_command_line_args,
       log_file,
       log_severity,
+      log_items,
       locale,
       accept_language_list,
+      user_agent,
+      user_agent_product,
+      javascript_flags,
+      chrome_policy_id,
+      persist_session_cookies,
+      remote_debugging,
+      devtools: devtools_policy,
+      debug_environment,
+      certificate_errors,
       sandbox: sandbox_policy,
       settings_callback,
       // Already applied, above, before the first CEF call.
       api_version: _,
     } = runtime_args.runtime_init_attrs;
+
+    // CEF reads its crash-reporter overrides from `BasicStartupComplete`, which
+    // `cef::initialize` below reaches, and every child process inherits this environment.
+    // `SSLKEYLOGFILE` is answered further down, on the command line.
+    crate::environment::remove_crash_reporter_overrides(debug_environment, tauri::is_dev());
+
+    // The application's own switches are the only ones that reach Chromium in a release
+    // build, so a switch that turns off a security boundary got there deliberately —
+    // say so rather than silently obeying.
+    crate::switches::warn_about_dangerous_switches(&command_line_args);
+    crate::switches::warn_about_replacing_switches(&command_line_args);
 
     // Switches every process gets, and switches only the browser process gets. See the
     // `TauriCefApp` fields for why the split exists.
@@ -2002,17 +2657,123 @@ impl<T: UserEvent> CefRuntime<T> {
     // cannot start at all.
     let no_sandbox = {
       let decision = crate::sandbox::resolve_sandbox_decision(sandbox_policy);
-      if let crate::sandbox::SandboxDecision::Disable(reason) = decision {
-        log::warn!(
-          "running Chromium without a sandbox: {}. A compromised renderer process runs with the full privileges of the current user.",
-          reason.message()
-        );
+      match decision {
+        crate::sandbox::SandboxDecision::Keep => false,
+        crate::sandbox::SandboxDecision::Disable(reason) => {
+          log::warn!(
+            "running Chromium without a sandbox: {}. A compromised renderer process runs with the full privileges of the current user.",
+            reason.message()
+          );
+          true
+        }
+        crate::sandbox::SandboxDecision::Refuse(reason) => {
+          log::error!(
+            "refusing to start: SandboxPolicy::Required asked for a Chromium sandbox, but {}.",
+            reason.message()
+          );
+          return Err(Error::CreateWebview(
+            format!(
+              "SandboxPolicy::Required cannot be honored: {}",
+              reason.message()
+            )
+            .into(),
+          ));
+        }
       }
-      matches!(decision, crate::sandbox::SandboxDecision::Disable(_))
     };
     // Windows encrypts with DPAPI, which needs no switch and prompts for nothing.
     #[cfg(windows)]
     let _ = secret_storage;
+
+    // The DevTools gate, applied to every path this runtime owns: the context menu
+    // entries, the F12 and Ctrl+Shift+I chords, the `IDC_DEV_TOOLS` commands and
+    // `Webview::open_devtools`. See `DevToolsPolicy` for why it stops there.
+    let devtools_allowed = match devtools_policy {
+      DevToolsPolicy::Auto => cfg!(debug_assertions) || cfg!(feature = "devtools"),
+      DevToolsPolicy::Allowed => true,
+      DevToolsPolicy::Disallowed => false,
+    };
+
+    // Never the disallowing value, whatever the policy says: CEF gates
+    // `SendDevToolsMessage` on this same preference, and refuses it silently — the send
+    // reports success and no result or event is ever delivered. This runtime drives its
+    // own startup over the DevTools protocol (the document-start scripts, the per-webview
+    // user agent) and defers each webview's first navigation until that round trip
+    // answers, so a profile carrying `kDisallowed` leaves every window stuck on its blank
+    // placeholder.
+    //
+    // Written as the default rather than simply left alone because Chromium persists it
+    // in the profile on disk: a profile an earlier version wrote `kDisallowed` into stays
+    // broken on every later run, in a debug build as much as a release one, until
+    // something writes it back.
+    profile_preferences.insert(
+      0,
+      (
+        crate::cef_impl::preferences::DEVTOOLS_AVAILABILITY.to_string(),
+        crate::cef_impl::preferences::DEVTOOLS_ALLOWED.into(),
+      ),
+    );
+
+    // The DevTools protocol server drives the browser from outside the process, so it is
+    // refused two ways: the switch is only appended when the application asked for it,
+    // and the local-state preference is pinned off otherwise so a switch that reaches
+    // Chromium another way is refused as well.
+    let remote_debugging_enabled = match &remote_debugging {
+      RemoteDebugging::Disabled => false,
+      RemoteDebugging::Pipe => {
+        browser_command_line_args.push(("--remote-debugging-pipe".to_string(), None));
+        true
+      }
+      RemoteDebugging::Port {
+        port,
+        allowed_origins,
+      } => {
+        // Chromium ignores a port below 1024, which would otherwise leave the application
+        // believing it had a debugger it does not have.
+        if *port < 1024 {
+          log::warn!(
+            "ignoring RemoteDebugging::Port {{ port: {port} }}: only ports between 1024 and 65535 are accepted"
+          );
+          false
+        } else {
+          browser_command_line_args.push((
+            "--remote-debugging-port".to_string(),
+            Some(port.to_string()),
+          ));
+          if !allowed_origins.is_empty() {
+            browser_command_line_args.push((
+              "--remote-allow-origins".to_string(),
+              Some(allowed_origins.join(",")),
+            ));
+          }
+          log::warn!(
+            "the Chrome DevTools protocol is listening on port {port}. Anything that can \
+             reach it can read and rewrite every page this application shows."
+          );
+          true
+        }
+      }
+    };
+    // Chromium consults `SSLKEYLOGFILE` only when this switch is absent, and an empty
+    // value creates no key logger, so this is how the variable is refused without writing
+    // to the process environment. Appended before the application's own switches so an
+    // application that deliberately passes `--ssl-key-log-file` still wins.
+    if crate::environment::neutralizes_tls_key_log(debug_environment, tauri::is_dev()) {
+      browser_command_line_args.push(("--ssl-key-log-file".to_string(), Some(String::new())));
+    }
+
+    // Pinned off whenever no transport was actually configured, including the rejected
+    // port above: `RemoteDebuggingServer` consults this before it starts a server for
+    // either transport, so it also refuses a switch that reaches Chromium another way.
+    if !remote_debugging_enabled {
+      global_preferences.insert(
+        0,
+        (
+          crate::cef_impl::preferences::REMOTE_DEBUGGING_ALLOWED.to_string(),
+          serde_json::Value::Bool(false),
+        ),
+      );
+    }
 
     let cache_path = cache_path_override.unwrap_or_else(|| {
       let cache_base = dirs::cache_dir().unwrap_or_else(std::env::temp_dir);
@@ -2066,6 +2827,9 @@ impl<T: UserEvent> CefRuntime<T> {
       cef_pump,
       cache_path: Arc::new(cache_path.clone()),
       profile_preferences: Arc::new(profile_preferences),
+      content_settings: Arc::new(content_settings),
+      certificate_errors,
+      devtools_allowed,
     };
 
     internal_command_line_args.push(("--no-first-run".to_string(), None));
@@ -2093,6 +2857,8 @@ impl<T: UserEvent> CefRuntime<T> {
       restore_deep_link_arguments: command_line_args_disabled,
       internal_command_line_args,
       browser_command_line_args,
+      disabled_features,
+      enabled_features,
     });
 
     // Subprocesses already exited above, so this must be the browser process;
@@ -2127,9 +2893,14 @@ impl<T: UserEvent> CefRuntime<T> {
       command_line_args_disabled: command_line_args_disabled as std::os::raw::c_int,
       log_file: log_file.to_string_lossy().to_string().as_str().into(),
       log_severity,
+      persist_session_cookies: persist_session_cookies as std::os::raw::c_int,
       external_message_pump: 1,
       ..Default::default()
     };
+
+    if let Some(log_items) = log_items {
+      settings.log_items = log_items;
+    }
 
     // Left at CEF's defaults unless the application asked for something else: the bundler
     // only ships the `en-US` locale pak, so any other locale would leave Chromium without
@@ -2137,8 +2908,36 @@ impl<T: UserEvent> CefRuntime<T> {
     if let Some(locale) = locale {
       settings.locale = locale.as_str().into();
     }
+
+    // With neither of these set CEF appends `--lang=en-US` and derives the accept-language
+    // list from it, so every user of every CEF application reports `navigator.language ===
+    // "en-US"` and asks servers for English. The locale pak constraint above does not
+    // apply here — this is a list of language codes, not a resource bundle — so the
+    // runtime answers with what the user actually asked their system for.
+    let accept_language_list =
+      accept_language_list.or_else(crate::locale::system_accept_language_list);
     if let Some(accept_language_list) = accept_language_list {
       settings.accept_language_list = accept_language_list.as_str().into();
+    }
+
+    // `user_agent` wins over `user_agent_product` in CEF, so setting both is the
+    // application contradicting itself; say so rather than silently dropping one.
+    if let Some(user_agent) = &user_agent {
+      settings.user_agent = user_agent.as_str().into();
+      if user_agent_product.is_some() {
+        log::warn!(
+          "ignoring the CEF user agent product: Cef::user_agent replaces the whole User-Agent string, including the product token"
+        );
+      }
+    } else if let Some(user_agent_product) = &user_agent_product {
+      settings.user_agent_product = user_agent_product.as_str().into();
+    }
+
+    if let Some(javascript_flags) = &javascript_flags {
+      settings.javascript_flags = javascript_flags.as_str().into();
+    }
+    if let Some(chrome_policy_id) = &chrome_policy_id {
+      settings.chrome_policy_id = chrome_policy_id.as_str().into();
     }
 
     if let Some(callback) = settings_callback {
@@ -2197,6 +2996,12 @@ impl<T: UserEvent> CefRuntime<T> {
       context.cef_pump.do_work();
       std::thread::sleep(Duration::from_millis(1));
     }
+
+    // Local state exists only once the context is initialized, and
+    // `preference_manager_get_global` has to be called on the browser UI thread — which
+    // is this one, since the runtime drives CEF from the main thread through an external
+    // message pump.
+    crate::cef_impl::preferences::apply_global_preferences(&global_preferences);
 
     Ok(Self {
       event_loop,
@@ -2356,6 +3161,149 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     );
     let _ = self.event_loop.run_app(app);
     cef::shutdown();
+  }
+}
+
+#[cfg(test)]
+mod configuration_tests {
+  use super::*;
+
+  #[test]
+  fn a_fixed_proxy_is_spelled_the_way_chromium_spells_it() {
+    let preference = ProxyConfig::FixedServers {
+      server: "socks5://127.0.0.1:9050".to_string(),
+      bypass_list: Some("*.internal".to_string()),
+    }
+    .to_preference();
+
+    assert_eq!(
+      preference,
+      serde_json::json!({
+        "mode": "fixed_servers",
+        "server": "socks5://127.0.0.1:9050",
+        "bypass_list": "*.internal",
+      })
+    );
+  }
+
+  #[test]
+  fn a_fixed_proxy_without_a_bypass_list_omits_the_key() {
+    // Chromium rejects the whole `proxy` dictionary when it carries a key the mode does
+    // not accept, so an absent bypass list must be absent rather than empty.
+    let preference = ProxyConfig::FixedServers {
+      server: "http://proxy:8080".to_string(),
+      bypass_list: None,
+    }
+    .to_preference();
+
+    assert_eq!(
+      preference,
+      serde_json::json!({ "mode": "fixed_servers", "server": "http://proxy:8080" })
+    );
+  }
+
+  #[test]
+  fn the_modeless_proxy_configurations_carry_only_a_mode() {
+    for (config, mode) in [
+      (ProxyConfig::System, "system"),
+      (ProxyConfig::Direct, "direct"),
+      (ProxyConfig::AutoDetect, "auto_detect"),
+    ] {
+      assert_eq!(config.to_preference(), serde_json::json!({ "mode": mode }));
+    }
+    assert_eq!(
+      ProxyConfig::PacScript {
+        url: "http://wpad/proxy.pac".to_string()
+      }
+      .to_preference(),
+      serde_json::json!({ "mode": "pac_script", "pac_url": "http://wpad/proxy.pac" })
+    );
+  }
+
+  #[test]
+  fn the_default_policies_append_no_switch_at_all() {
+    // Chromium's own default is not one of the named values, so `Default` has to mean
+    // "leave the switch off" rather than "pass the default explicitly".
+    assert_eq!(AutoplayPolicy::default().as_switch_value(), None);
+    assert_eq!(WebRtcIpHandling::default().as_switch_value(), None);
+  }
+
+  #[test]
+  fn the_named_policies_use_chromiums_own_spelling() {
+    assert_eq!(
+      AutoplayPolicy::NoUserGestureRequired.as_switch_value(),
+      Some("no-user-gesture-required"),
+      "autoplay values are hyphenated"
+    );
+    assert_eq!(
+      WebRtcIpHandling::DisableNonProxiedUdp.as_switch_value(),
+      Some("disable_non_proxied_udp"),
+      "WebRTC values are underscored"
+    );
+  }
+
+  #[test]
+  fn remote_debugging_is_off_by_default() {
+    assert_eq!(RemoteDebugging::default(), RemoteDebugging::Disabled);
+  }
+
+  #[test]
+  fn the_defaults_are_the_conservative_ones() {
+    let cef = Cef::default();
+    assert_eq!(cef.devtools, DevToolsPolicy::Auto);
+    assert_eq!(cef.debug_environment, DebugEnvironment::Auto);
+    assert_eq!(cef.sandbox, SandboxPolicy::Auto);
+    assert!(
+      !cef.allow_chromium_command_line_args,
+      "a shipped application must ignore Chromium switches on its command line"
+    );
+    assert!(
+      !cef.persist_session_cookies,
+      "a session cookie is dropped on exit, as it is in a browser"
+    );
+    assert_eq!(
+      cef.certificate_errors,
+      CertificateErrorPolicy::ChromeInterstitial
+    );
+  }
+
+  #[test]
+  fn a_typed_option_is_just_a_preference() {
+    // The typed options and the escape hatch write the same store, so an application can
+    // reach anything the typed set does not cover.
+    let cef = Cef::default().safe_browsing(false).spell_checking(false);
+    assert!(
+      cef
+        .profile_preferences
+        .iter()
+        .any(|(name, value)| name == "safebrowsing.enabled" && value == &serde_json::json!(false))
+    );
+    assert!(
+      cef
+        .profile_preferences
+        .iter()
+        .any(|(name, value)| name == "browser.enable_spellchecking"
+          && value == &serde_json::json!(false))
+    );
+  }
+
+  #[test]
+  fn a_later_preference_wins_over_an_earlier_one() {
+    // They are applied in order, so the last one written is the one that sticks.
+    let cef = Cef::default()
+      .safe_browsing(false)
+      .profile_preference("safebrowsing.enabled", true);
+    let values: Vec<_> = cef
+      .profile_preferences
+      .iter()
+      .filter(|(name, _)| name == "safebrowsing.enabled")
+      .map(|(_, value)| value.clone())
+      .collect();
+    assert_eq!(
+      values,
+      [serde_json::json!(false), serde_json::json!(true)],
+      "both are kept, in call order, so the application's last word wins"
+    );
   }
 }
 

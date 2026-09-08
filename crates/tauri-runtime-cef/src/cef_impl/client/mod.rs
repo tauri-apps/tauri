@@ -124,6 +124,7 @@ wrap_with_args! {
           drag_drop_state: self.drag_drop_state.clone(),
           web_content_process_terminate_handler:
             self.handlers.web_content_process_terminate_handler.clone(),
+          certificate_errors: self.context.certificate_errors,
         },
       ))
     }

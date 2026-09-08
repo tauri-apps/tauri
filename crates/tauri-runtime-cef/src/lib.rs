@@ -8,12 +8,17 @@
 mod cef_impl;
 mod devtools;
 mod dialog;
+/// The diagnostic environment variables Chromium and CEF read, and the policy over them.
+mod environment;
 mod external_message_pump;
 mod frame;
 pub use dialog::{
   NativeDialogKind, NativeDialogObservation, NativeDialogSnapshot, NativeDialogToken,
 };
+pub use environment::DebugEnvironment;
 mod frame_navigation;
+/// The languages the user asked their operating system for.
+mod locale;
 mod macros;
 mod platform;
 mod popup;
@@ -21,6 +26,8 @@ mod runtime;
 // `SandboxPolicy` itself is public API and lives in `runtime`; this module holds the
 // decision behind it.
 mod sandbox;
+/// Helpers for the Chromium command line the runtime hands to CEF.
+mod switches;
 mod tauri_ext;
 mod webview;
 pub use devtools::{DevToolsMessageIdExhausted, allocate_devtools_message_id};

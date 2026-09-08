@@ -175,9 +175,43 @@ wrap_with_args! {
     drag_drop_handler_enabled: bool,
     drag_drop_state: Arc<Mutex<DragDropState>>,
     web_content_process_terminate_handler: Option<Arc<tauri_runtime::webview::OnWebContentProcessTerminateHandler>>,
+    certificate_errors: crate::CertificateErrorPolicy,
   }
 
   impl RequestHandler {
+    /// Answers a TLS certificate that does not validate, per
+    /// [`CertificateErrorPolicy`](crate::CertificateErrorPolicy).
+    ///
+    /// Returning 0 hands the error back to Chromium, which shows the SSL interstitial
+    /// with its "proceed anyway" link. Cancelling instead means dropping the callback
+    /// without continuing it: CEF reads a `false` return as "cancel this request", and
+    /// the page gets a network error it cannot click past.
+    fn on_certificate_error(
+      &self,
+      _browser: Option<&mut Browser>,
+      cert_error: Errorcode,
+      request_url: Option<&CefString>,
+      _ssl_info: Option<&mut Sslinfo>,
+      _callback: Option<&mut Callback>,
+    ) -> ::std::os::raw::c_int {
+      match self.certificate_errors {
+        crate::CertificateErrorPolicy::ChromeInterstitial => 0,
+        crate::CertificateErrorPolicy::Cancel => {
+          // The URL can carry credentials and tokens, so only its origin is logged.
+          let origin = request_url
+            .map(ToString::to_string)
+            .and_then(|url| url::Url::parse(&url).ok())
+            .map(|url| url.origin().ascii_serialization())
+            .unwrap_or_else(|| "an unknown origin".to_string());
+          log::warn!(
+            "cancelling a request to {origin}: its TLS certificate did not validate \
+             (Chromium error {cert_error:?}), and the runtime is set to \
+             CertificateErrorPolicy::Cancel"
+          );
+          1
+        }
+      }
+    }
     fn on_render_process_terminated(
       &self,
       browser: Option<&mut Browser>,

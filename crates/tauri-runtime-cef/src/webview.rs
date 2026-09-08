@@ -153,8 +153,6 @@ fn color_to_argb(color: Color) -> u32 {
 ///
 /// The following Tauri webview attributes have no per-webview equivalent in CEF
 /// and are intentionally ignored here:
-/// - `user_agent`: CEF only exposes a process-global user agent via
-///   `CefSettings.user_agent`, which is fixed before any webview is created.
 /// - `additional_browser_args`, `scroll_bar_style`, `general_autofill_enabled`:
 ///   WebView2 (Windows)-only concepts.
 /// - `allow_link_preview`, `accept_first_mouse`: WKWebView (macOS/iOS)-only.
@@ -163,10 +161,12 @@ fn color_to_argb(color: Color) -> u32 {
 /// - `data_store_identifier`: a WKWebView data-store concept with no CEF analog
 ///   (per-webview isolation is done through the request context cache path).
 ///
-/// `proxy_url` is handled separately via the request context preference, and
+/// `proxy_url` is handled separately via the request context preference,
 /// `zoom_hotkeys_enabled` through the client's command handler, because zoom
 /// reaches a browser through Chromium's accelerator table rather than through a
-/// browser setting.
+/// browser setting, and `user_agent` through the DevTools protocol (see
+/// [`apply_user_agent_override`]), because `CefSettings.user_agent` is fixed for
+/// the whole process before any webview is created.
 fn browser_settings_from_webview_attributes(
   webview_attributes: &WebviewAttributes,
 ) -> cef::BrowserSettings {
@@ -330,6 +330,9 @@ pub enum ConsoleMessageLevel {
 /// Synchronous observer of renderer console output.
 pub type ConsoleMessageHandler = dyn Fn(ConsoleMessage) + Send + Sync + 'static;
 
+/// Last look at a webview's [`cef::BrowserSettings`] before its browser is created.
+pub type BrowserSettingsCallback = dyn Fn(&mut cef::BrowserSettings) + Send + Sync + 'static;
+
 impl ConsoleMessage {
   pub(crate) fn from_cef(
     level: cef::LogSeverity,
@@ -435,6 +438,9 @@ pub(crate) struct AppWebview {
   pub(crate) devtools_protocol_handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,
   /// Keeps the DevTools message observer registered. Dropping this unregisters the observer.
   pub(crate) devtools_observer_registration: Arc<Mutex<Option<cef::Registration>>>,
+  /// Whether a DevTools window may be opened for this webview. The DevTools *protocol*
+  /// stays available either way — the runtime's own startup rides on it.
+  pub(crate) devtools_enabled: bool,
   pub(crate) listeners: WebviewEventListeners,
   pub(crate) bounds_rate: Option<BoundsRate>,
 }
@@ -572,7 +578,8 @@ impl<T: UserEvent> WinitCefApp<T> {
       parent_size,
       scale,
     );
-    let devtools_enabled = (cfg!(debug_assertions) || cfg!(feature = "devtools"))
+    let devtools_enabled = context.devtools_allowed
+      && (cfg!(debug_assertions) || cfg!(feature = "devtools"))
       && pending.webview_attributes.devtools.unwrap_or(true);
 
     // Alloy style keeps none of Chrome's accelerator table, so the DevTools chord has
@@ -697,7 +704,20 @@ impl<T: UserEvent> WinitCefApp<T> {
 
     let mut window_info = cef::WindowInfo::default().set_as_child(parent, &bounds);
     window_info.runtime_style = cef_runtime_style;
-    let settings = browser_settings_from_webview_attributes(&pending.webview_attributes);
+    let mut settings = browser_settings_from_webview_attributes(&pending.webview_attributes);
+    // Applied last so an application can override what the runtime mapped.
+    if let Some(callback) = &pending
+      .runtime_specific_attributes
+      .browser_settings_callback
+    {
+      callback(&mut settings);
+    }
+    let settings = settings;
+    // CEF has no per-browser user agent — `CefSettings.user_agent` is fixed for the whole
+    // process before any browser exists — so the per-webview attribute is served through
+    // the DevTools protocol instead, which overrides both the header and
+    // `navigator.userAgent` for this one target.
+    let user_agent = pending.webview_attributes.user_agent.clone();
 
     let custom_protocol_scheme = if pending.webview_attributes.use_https_scheme {
       "https"
@@ -772,6 +792,10 @@ impl<T: UserEvent> WinitCefApp<T> {
           pending_initial_loads.clone(),
           dialogs.clone(),
         )));
+        // Before the initial navigation below, so the first request already carries it.
+        if let Some(user_agent) = &user_agent {
+          apply_user_agent_override(&host, user_agent);
+        }
         load_initial_url_after_registering_initialization_scripts(
           &browser,
           &initialization_scripts,
@@ -794,6 +818,7 @@ impl<T: UserEvent> WinitCefApp<T> {
             uri_scheme_protocols,
             devtools_protocol_handlers,
             devtools_observer_registration,
+            devtools_enabled,
             listeners: Default::default(),
             bounds_rate,
           })
@@ -804,6 +829,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       &context.cache_path,
       &pending.webview_attributes,
       context.profile_preferences.clone(),
+      context.content_settings.clone(),
       uri_scheme_protocols.keys(),
       &custom_protocol_scheme,
       scheme_registry.clone(),
@@ -1095,8 +1121,21 @@ impl<T: UserEvent> WinitCefApp<T> {
         target_appwindow.children.push(child);
         let _ = tx.send(Ok(()));
       }
+      // Refused here rather than by Chromium: the preference that would have told
+      // Chromium to refuse it also switches off the DevTools protocol this runtime
+      // starts every webview with. See `DevToolsPolicy`.
       #[cfg(any(debug_assertions, feature = "devtools"))]
-      WebviewMessage::OpenDevTools => child.host.show_dev_tools(None, None, None, None),
+      WebviewMessage::OpenDevTools => {
+        if child.devtools_enabled {
+          child.host.show_dev_tools(None, None, None, None);
+        } else {
+          log::warn!(
+            "not opening devtools for webview {:?}: they are disabled for this webview \
+             or by Cef::devtools",
+            child.label
+          );
+        }
+      }
       #[cfg(any(debug_assertions, feature = "devtools"))]
       WebviewMessage::CloseDevTools => child.host.close_dev_tools(),
       #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -1248,6 +1287,13 @@ pub struct CefWebviewAttributes {
   ///
   /// Empty by default, which blocks every group in [`ChromeCommandGroup`].
   pub allowed_chrome_commands: Vec<ChromeCommandGroup>,
+  /// Last look at the [`cef::BrowserSettings`] before the browser is created.
+  ///
+  /// Runs after the runtime has mapped the portable [`WebviewAttributes`], so it can
+  /// change what the runtime decided as well as set the fields that have no portable
+  /// equivalent — the font families and sizes, `remote_fonts`, `local_storage`,
+  /// `databases`, `webgl`, `tab_to_links`, `javascript_dom_paste`, `default_encoding`.
+  pub browser_settings_callback: Option<Arc<BrowserSettingsCallback>>,
 }
 
 impl std::fmt::Debug for CefWebviewAttributes {
@@ -1261,6 +1307,10 @@ impl std::fmt::Debug for CefWebviewAttributes {
         &self.console_message_handler.is_some(),
       )
       .field("allowed_chrome_commands", &self.allowed_chrome_commands)
+      .field(
+        "browser_settings_callback",
+        &self.browser_settings_callback.is_some(),
+      )
       .finish()
   }
 }
@@ -1994,6 +2044,37 @@ cef::wrap_dev_tools_message_observer! {
 /// Registers a DevTools protocol observer. Returns the [`cef::Registration`] which must be
 /// kept alive for the observer to stay registered. The observer is unregistered when
 /// the Registration is dropped.
+/// Overrides the user agent of one native browser through the DevTools protocol.
+///
+/// `CefSettings.user_agent` is process-wide and fixed before any browser exists, so it
+/// cannot answer `WebviewAttributes::user_agent`. `Emulation.setUserAgentOverride` can:
+/// it is scoped to this target and applies to both the `User-Agent` request header and
+/// `navigator.userAgent`, for the life of the browser.
+///
+/// Sent before the initial navigation so the first request already carries it. Client
+/// hints are deliberately left alone: overriding the user agent without them is what
+/// Chromium itself does for the `--user-agent` switch.
+///
+/// Scoped to this one native browser, so a CEF-owned popup keeps the process-wide user
+/// agent from `Cef::user_agent`; use that one to cover popups too.
+fn apply_user_agent_override(host: &BrowserHost, user_agent: &str) {
+  let Ok(message_id) = crate::devtools::allocate_runtime_devtools_message_id() else {
+    log::warn!("could not set the webview user agent: no DevTools message id was available");
+    return;
+  };
+
+  let message = serde_json::json!({
+    "id": message_id,
+    "method": "Emulation.setUserAgentOverride",
+    "params": { "userAgent": user_agent },
+  })
+  .to_string();
+
+  if host.send_dev_tools_message(Some(message.as_bytes())) != 1 {
+    log::warn!("failed to set the webview user agent through the DevTools protocol");
+  }
+}
+
 pub(crate) fn add_dev_tools_observer(
   browser: &Browser,
   handlers: Arc<Mutex<Vec<Arc<DevToolsProtocolHandler>>>>,

@@ -322,6 +322,37 @@ pub trait WebviewWindowBuilderCefExt {
   /// ```
   #[must_use]
   fn allow_chrome_commands<I: IntoIterator<Item = ChromeCommandGroup>>(self, groups: I) -> Self;
+
+  /// Takes a last look at the CEF [`BrowserSettings`](cef::BrowserSettings) before the
+  /// browser is created.
+  ///
+  /// The runtime maps the portable `WebviewAttributes` onto these settings first, so this
+  /// can change what it decided as well as reach the fields Tauri has no attribute for:
+  /// the font families and sizes, `remote_fonts`, `local_storage`, `databases`, `webgl`,
+  /// `tab_to_links`, `javascript_dom_paste` and `default_encoding`.
+  ///
+  /// ```no_run
+  /// # use tauri_runtime_cef::AsCefWebviewAttributes;
+  /// # fn f<R, M>(builder: tauri::WebviewWindowBuilder<'_, R, M>)
+  /// # where
+  /// #   R: tauri::Runtime,
+  /// #   M: tauri::Manager<R>,
+  /// #   R::RuntimeWebviewAttributes: AsCefWebviewAttributes,
+  /// # {
+  /// use tauri_runtime_cef::WebviewWindowBuilderCefExt;
+  /// use tauri_runtime_cef::cef::{State, sys::cef_state_t};
+  ///
+  /// // An app that ships its own fonts has no use for the ones a page asks for.
+  /// builder.with_browser_settings(|settings| {
+  ///   settings.remote_fonts = State::from(cef_state_t::STATE_DISABLED);
+  /// });
+  /// # }
+  /// ```
+  #[must_use]
+  fn with_browser_settings<F: Fn(&mut cef::BrowserSettings) + Send + Sync + 'static>(
+    self,
+    callback: F,
+  ) -> Self;
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilderCefExt
@@ -362,6 +393,17 @@ where
     let groups = groups.into_iter().collect::<Vec<_>>();
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.allowed_chrome_commands = groups.clone();
+    });
+    self
+  }
+
+  fn with_browser_settings<F: Fn(&mut cef::BrowserSettings) + Send + Sync + 'static>(
+    mut self,
+    callback: F,
+  ) -> Self {
+    let callback = Arc::new(callback);
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.browser_settings_callback = Some(callback.clone());
     });
     self
   }
@@ -412,6 +454,19 @@ pub trait WebviewBuilderCefExt {
   /// `WebviewAttributes::devtools` and `WebviewAttributes::zoom_hotkeys_enabled`.
   #[must_use]
   fn allow_chrome_commands<I: IntoIterator<Item = ChromeCommandGroup>>(self, groups: I) -> Self;
+
+  /// Takes a last look at the CEF [`BrowserSettings`](cef::BrowserSettings) before the
+  /// browser is created.
+  ///
+  /// The runtime maps the portable `WebviewAttributes` onto these settings first, so this
+  /// can change what it decided as well as reach the fields Tauri has no attribute for:
+  /// the font families and sizes, `remote_fonts`, `local_storage`, `databases`, `webgl`,
+  /// `tab_to_links`, `javascript_dom_paste` and `default_encoding`.
+  #[must_use]
+  fn with_browser_settings<F: Fn(&mut cef::BrowserSettings) + Send + Sync + 'static>(
+    self,
+    callback: F,
+  ) -> Self;
 }
 
 #[cfg(feature = "unstable")]
@@ -452,6 +507,17 @@ where
     let groups = groups.into_iter().collect::<Vec<_>>();
     with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
       attributes.allowed_chrome_commands = groups.clone();
+    });
+    self
+  }
+
+  fn with_browser_settings<F: Fn(&mut cef::BrowserSettings) + Send + Sync + 'static>(
+    mut self,
+    callback: F,
+  ) -> Self {
+    let callback = Arc::new(callback);
+    with_cef_webview_attributes(self.runtime_specific_attributes_mut(), |attributes| {
+      attributes.browser_settings_callback = Some(callback.clone());
     });
     self
   }

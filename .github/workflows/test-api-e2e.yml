@@ -24,6 +24,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ${{ matrix.platform.os }}
@@ -37,14 +40,14 @@ jobs:
           - { name: macOS, os: macos-latest }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
       - run: npm i -g --force corepack
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
           cache: 'pnpm'
@@ -100,10 +103,22 @@ jobs:
         if: runner.os == 'Windows'
         timeout-minutes: 45
         shell: pwsh
+        # msedgedriver hands the app the `--remote-debugging-port` it attaches to through
+        # `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, and WebView2 ignores that variable in an
+        # elevated process, which is what the runner gives us. gsudo runs the suite at medium
+        # integrity instead, and the workspace is opened up so the de-elevated process can use it.
+        # See https://github.com/tauri-apps/wry/issues/1782 and
+        # https://github.com/MicrosoftEdge/WebView2Feedback/issues/5645.
+        # The runner has an interactive desktop session, so window-state tests run as-is;
+        # the tray module is skipped to match the Linux job.
+        env:
+          E2E_SKIP: tray
+          E2E_SPEC_RETRIES: '1'
         run: |
-          $env:E2E_SKIP = "tray"
-          $env:E2E_SPEC_RETRIES = "1"
-          pnpm test:api-e2e
+          winget install gerardog.gsudo --accept-source-agreements --accept-package-agreements
+          $env:PATH = "$env:LOCALAPPDATA\Microsoft\WinGet\Links;$env:PATH"
+          icacls "$env:GITHUB_WORKSPACE" /grant "Everyone:(OI)(CI)F"
+          sudo --integrity Medium pnpm test:api-e2e
 
       - name: run e2e tests (macOS)
         if: runner.os == 'macOS' && env.CN_API_KEY != ''
@@ -157,7 +172,7 @@ jobs:
 
       - name: upload app crash reports (macOS)
         if: runner.os == 'macOS' && failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-crash-reports
           path: ${{ runner.temp }}/crash-reports

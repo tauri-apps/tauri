@@ -15,7 +15,10 @@ normally just dropping in one more spec.
     (already registered in `examples/api` behind `#[cfg(all(desktop, debug_assertions, not(test)))]`)
     and a locally-running `@crabnebula/test-runner-backend`, authenticated with `CN_API_KEY`.
   - **Linux** — `webkit2gtk-driver` (`WebKitWebDriver` on `PATH`).
-  - **Windows** — `msedgedriver.exe` on `PATH`.
+  - **Windows** — `msedgedriver.exe` on `PATH`. It hands the app the `--remote-debugging-port`
+    it attaches to through `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, which WebView2 ignores in an
+    elevated process ([wry#1782](https://github.com/tauri-apps/wry/issues/1782)), so the suite has
+    to run unelevated.
 - Specs never `eval` in the page. They pass a function to the [`tauri()`](test/helpers/index.ts)
   helper, which serializes it and runs it via the driver's own (CSP-exempt) script injection,
   handing it `window.__TAURI__` as the first argument and returning its JSON result.
@@ -37,7 +40,7 @@ Platform driver dependencies:
 | -------- | ------------------------------------------------------------------------------------------------------------ |
 | macOS    | `CN_API_KEY` env var (CrabNebula Cloud). The automation plugin and test-runner-backend are wired up already. |
 | Linux    | `webkit2gtk-driver` package (provides `WebKitWebDriver`).                                                    |
-| Windows  | `msedgedriver.exe` matching your Edge version, on `PATH`.                                                    |
+| Windows  | `msedgedriver.exe` matching your Edge version, on `PATH`. Run the suite unelevated.                          |
 
 ## Running
 

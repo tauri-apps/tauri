@@ -63,7 +63,7 @@ tauri-runtime-wry = { workspace = true, optional = true }
 getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"
-dirs = "6"
+dirs = "7"
 percent-encoding = "2"
 raw-window-handle = { version = "0.6", features = ["std"] }
 glob = "0.3"

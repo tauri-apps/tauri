@@ -16,6 +16,7 @@
 
 use std::{
   any::{Any, type_name},
+  ffi::c_void,
   fmt,
   marker::PhantomData,
   sync::Arc,
@@ -255,7 +256,7 @@ enum WindowBuilderOp {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  TransientFor(gtk::Window),
+  TransientFor(*mut c_void),
   #[cfg(windows)]
   DragAndDrop(bool),
   #[cfg(target_os = "macos")]
@@ -431,7 +432,7 @@ impl DynWindowBuilder {
           target_os = "netbsd",
           target_os = "openbsd"
         ))]
-        WindowBuilderOp::TransientFor(v) => builder.transient_for(&v),
+        WindowBuilderOp::TransientFor(v) => builder.transient_for(v),
         #[cfg(windows)]
         WindowBuilderOp::DragAndDrop(v) => builder.drag_and_drop(v),
         #[cfg(target_os = "macos")]
@@ -631,9 +632,8 @@ impl WindowBuilder for DynWindowBuilder {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
-    use gtk::glib::Cast;
-    self.push(WindowBuilderOp::TransientFor(parent.clone().upcast()))
+  fn transient_for(self, parent: *mut c_void) -> Self {
+    self.push(WindowBuilderOp::TransientFor(parent))
   }
 
   #[cfg(windows)]
@@ -1231,7 +1231,7 @@ trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
+  fn gtk_window(&self) -> Result<*mut c_void>;
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1239,7 +1239,7 @@ trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<gtk::Box>;
+  fn default_vbox(&self) -> Result<*mut c_void>;
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String>;
   #[cfg(target_os = "ios")]
@@ -1415,7 +1415,7 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
+  fn gtk_window(&self) -> Result<*mut c_void> {
     WindowDispatch::gtk_window(self)
   }
 
@@ -1426,7 +1426,7 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<gtk::Box> {
+  fn default_vbox(&self) -> Result<*mut c_void> {
     WindowDispatch::default_vbox(self)
   }
 
@@ -1804,7 +1804,7 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
+  fn gtk_window(&self) -> Result<*mut c_void> {
     self.inner.gtk_window()
   }
 
@@ -1815,7 +1815,7 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<gtk::Box> {
+  fn default_vbox(&self) -> Result<*mut c_void> {
     self.inner.default_vbox()
   }
 

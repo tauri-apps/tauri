@@ -833,7 +833,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       return;
     }
 
-    // Parent-dependent messages must read window metrics like safe_surface_size.
+    // Window-dependent messages must read window metrics like safe_surface_size.
     // Route them before borrowing a child mutably so those parent reads do not
     // overlap with the child borrow.
     match message {
@@ -843,11 +843,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       | WebviewMessage::Position(_)
       | WebviewMessage::Size(_)
       | WebviewMessage::SetAutoResize(_)
+      | WebviewMessage::WithWebview(_)
       | WebviewMessage::Reparent(_, _) => {
-        self.handle_parent_webview_message(window_id, webview_id, message);
+        self.handle_window_dependent_webview_message(window_id, webview_id, message);
       }
       message => {
-        let context = &self.context;
         let Some(appwindow) = self.state.windows.get_mut(&window_id) else {
           return;
         };
@@ -859,12 +859,12 @@ impl<T: UserEvent> WinitCefApp<T> {
           return;
         };
 
-        Self::handle_child_webview_message(context, child, message);
+        Self::handle_window_independent_webview_message(child, message);
       }
     }
   }
 
-  fn handle_parent_webview_message(
+  fn handle_window_dependent_webview_message(
     &mut self,
     window_id: WindowId,
     webview_id: u32,
@@ -976,15 +976,35 @@ impl<T: UserEvent> WinitCefApp<T> {
         target_appwindow.children.push(child);
         let _ = tx.send(Ok(()));
       }
-      _ => unreachable!("child-only webview message routed to parent handler"),
+      WebviewMessage::WithWebview(callback) => {
+        let child = &appwindow.children[child_index];
+        let document = child
+          .frame_navigation_state
+          .observe_document(&child.browser);
+        let dialogs = child.dialogs.snapshot(document.as_ref());
+        let snapshot = WebviewSnapshot {
+          browser_id: child.browser_id,
+          dialogs,
+          document,
+          window_label: Some(appwindow.label.clone()),
+          window: Some(appwindow.lifetime.clone()),
+          parent_matches: child.native_parent_matches(appwindow),
+          bounds: child.bounds(),
+          visible: child.native_visible(),
+        };
+        let mut native = Webview::new(
+          child.browser.clone(),
+          snapshot,
+          child.frame_navigation_state.clone(),
+        );
+        native.popups = child.popup_family.observe();
+        callback(native);
+      }
+      _ => unreachable!("window-independent message routed to window-dependent handler"),
     }
   }
 
-  fn handle_child_webview_message(
-    context: &RuntimeContext<T>,
-    child: &mut AppWebview,
-    message: WebviewMessage,
-  ) {
+  fn handle_window_independent_webview_message(child: &mut AppWebview, message: WebviewMessage) {
     match message {
       WebviewMessage::EvaluateScript(script) => {
         if let Some(frame) = child.browser.main_frame() {
@@ -1052,28 +1072,8 @@ impl<T: UserEvent> WinitCefApp<T> {
         let bounds = child.bounds().ok_or(Error::FailedToSendMessage);
         let _ = tx.send(bounds);
       }
-      WebviewMessage::WithWebview(f) => {
-        let document = child
-          .frame_navigation_state
-          .observe_document(&child.browser);
-        let dialogs = child.dialogs.snapshot(document.as_ref());
-        let snapshot = WebviewSnapshot {
-          browser_id: child.browser_id,
-          dialogs,
-          document,
-          window_label: Some(appwindow.label.clone()),
-          window: Some(appwindow.lifetime.clone()),
-          parent_matches: child.native_parent_matches(appwindow),
-          bounds: child.bounds(),
-          visible: child.native_visible(),
-        };
-        let mut native = Webview::new(
-          child.browser.clone(),
-          snapshot,
-          child.frame_navigation_state.clone(),
-        );
-        native.popups = child.popup_family.observe();
-        callback(native);
+      WebviewMessage::WithWebview(_) => {
+        unreachable!("window-dependent message routed to window-independent handler")
       }
       WebviewMessage::Print => child.host.print(),
       WebviewMessage::AddEventListener(event_id, handler) => {
@@ -1178,7 +1178,7 @@ impl<T: UserEvent> WinitCefApp<T> {
       | WebviewMessage::Size(_)
       | WebviewMessage::SetAutoResize(_)
       | WebviewMessage::Reparent(_, _) => {
-        unreachable!("parent webview message routed to child handler")
+        unreachable!("window-dependent message routed to window-independent handler")
       }
     }
   }

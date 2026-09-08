@@ -476,7 +476,6 @@ pub(crate) struct AppWindow {
   /// X11 parent for CEF browser children, sized to the GTK content area so
   /// GTK UI like menus stays outside the native CEF child-window stack.
   pub(crate) cef_host: crate::platform::linux::CefX11Host,
-  #[cfg(target_os = "macos")]
   /// Deadline for the initial raise of a window created focused, see
   /// [`WinitCefApp::apply_pending_activations`]. `None` once it has been
   /// raised or given up on.

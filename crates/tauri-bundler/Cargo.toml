@@ -15,9 +15,7 @@ rust-version = "1.90"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.9.3", path = "../tauri-utils", features = [
-  "resources",
-] }
+tauri-utils = { workspace = true, features = ["resources"] }
 image = "0.25"
 flate2 = "1"
 thiserror = "2"
@@ -58,7 +56,7 @@ features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = ["formatting"] }
-tauri-macos-sign = { version = "2.3.4", path = "../tauri-macos-sign" }
+tauri-macos-sign = { workspace = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"

@@ -9,6 +9,9 @@ on:
     branches:
       - dev
 
+permissions:
+  contents: read
+
 jobs:
   run-integration-tests:
     runs-on: ${{ matrix.platform }}

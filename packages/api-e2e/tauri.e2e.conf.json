@@ -1,7 +1,8 @@
 {
   "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
   "build": {
-    "removeUnusedCommands": false
+    "removeUnusedCommands": false,
+    "features": ["automation"]
   },
   "bundle": {
     "icon": [

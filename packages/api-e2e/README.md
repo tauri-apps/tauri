@@ -12,8 +12,9 @@ normally just dropping in one more spec.
 - WebdriverIO drives the app through [`@crabnebula/tauri-driver`](https://www.npmjs.com/package/@crabnebula/tauri-driver),
   which bridges the WebDriver protocol to each platform's webview:
   - **macOS** — the CrabNebula Webdriver, which needs [`tauri-plugin-automation`](https://crates.io/crates/tauri-plugin-automation)
-    (already registered in `examples/api` behind `#[cfg(all(desktop, debug_assertions, not(test)))]`)
-    and a locally-running `@crabnebula/test-runner-backend`, authenticated with `CN_API_KEY`.
+    (registered in `examples/api` behind its off-by-default `automation` Cargo feature, which
+    the suite's build enables) and a locally-running `@crabnebula/test-runner-backend`,
+    authenticated with `CN_API_KEY`.
   - **Linux** — `webkit2gtk-driver` (`WebKitWebDriver` on `PATH`).
   - **Windows** — `msedgedriver.exe` on `PATH`. It hands the app the `--remote-debugging-port`
     it attaches to through `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, which WebView2 ignores in an
@@ -58,8 +59,11 @@ E2E_SKIP_BUILD=1 pnpm e2e
 pnpm exec wdio run ./wdio.conf.ts --spec test/specs/window.spec.ts
 ```
 
-The first run builds the app (`tauri build --debug`); afterwards use `E2E_SKIP_BUILD=1`
-to reuse the existing binary.
+The first run builds the app with [`tauri.e2e.conf.json`](tauri.e2e.conf.json) as a config
+override, which enables the example's `automation` feature; afterwards use `E2E_SKIP_BUILD=1`
+to reuse the existing binary. A binary supplied through `E2E_SKIP_BUILD` or `E2E_APP_PATH`
+must have been built with that feature whenever the CrabNebula Webdriver is in use (always
+on macOS).
 
 ## Environment variables
 

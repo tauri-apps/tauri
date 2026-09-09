@@ -24,9 +24,10 @@ tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 tauri-plugin-log = "2"
 
 # WebDriver automation bridge, used by the `@tauri-apps/api` e2e suite (packages/api-e2e).
-# Desktop-only and gated behind `debug_assertions` at the call site so it never ships in release.
+# Desktop-only and behind the off-by-default `automation` feature so it never ships in a
+# regular build.
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
-tauri-plugin-automation = "0.1.4"
+tauri-plugin-automation = { version = "0.1.4", optional = true }
 
 [dependencies.tauri]
 workspace = true
@@ -46,3 +47,5 @@ features = ["test"]
 
 [features]
 prod = ["tauri/custom-protocol"]
+# Enables the WebDriver automation bridge; set by the e2e suite's build (packages/api-e2e).
+automation = ["dep:tauri-plugin-automation"]

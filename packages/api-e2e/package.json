@@ -20,8 +20,7 @@
     "@wdio/mocha-framework": "^9.19.0",
     "@wdio/spec-reporter": "^9.19.0",
     "expect-webdriverio": "^5.0.0",
-    "tsx": "^4.20.0",
-    "typescript": "^5.9.0",
+    "typescript": "^6.0.3",
     "webdriverio": "^9.19.0"
   }
 }

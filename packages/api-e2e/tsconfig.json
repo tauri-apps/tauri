@@ -2,9 +2,10 @@
   "compilerOptions": {
     "target": "ES2023",
     "module": "ESNext",
-    // The specs run through tsx (esbuild), and @tauri-apps/api's published
-    // type definitions use extensionless relative imports, so bundler-style
-    // resolution is what matches the runtime and resolves the api types.
+    // The specs run through tsx (esbuild, pulled in by @wdio/cli), and
+    // @tauri-apps/api's published type definitions use extensionless relative
+    // imports, so bundler-style resolution is what matches the runtime and
+    // resolves the api types.
     "moduleResolution": "Bundler",
     "lib": ["ES2023", "DOM"],
     "types": [

@@ -39,10 +39,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   setup: F,
 ) {
   // WebDriver automation bridge for the `@tauri-apps/api` e2e suite (packages/api-e2e).
-  // Registered as early as possible per the plugin's docs. Gated behind `debug_assertions`
-  // and `not(test)` so it never ships in release builds nor interferes with the mock-runtime
+  // Registered as early as possible per the plugin's docs. Behind the off-by-default
+  // `automation` feature, and `not(test)` so it never interferes with the mock-runtime
   // unit test below.
-  #[cfg(all(desktop, debug_assertions, not(test)))]
+  #[cfg(all(desktop, feature = "automation", not(test)))]
   let builder = builder.plugin(tauri_plugin_automation::init());
 
   let builder = builder

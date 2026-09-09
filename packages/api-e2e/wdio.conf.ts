@@ -71,11 +71,13 @@ export const config: WebdriverIO.Config = {
       // `examples/api`'s `tauri` script is `node ../../packages/cli/tauri.js`,
       // which requires the native CLI to be built (`pnpm build:cli`).
       //
-      // The example sets `removeUnusedCommands: true`, which strips command
-      // handlers that no static capability grants. tauri-plugin-automation adds
-      // its `resolve` command through a *runtime* capability, so it would be
-      // stripped — breaking the CrabNebula Webdriver on macOS. The override
-      // config disables that stripping for this (debug, test-only) build.
+      // The override config does two things for this (debug, test-only) build:
+      //  - enables the example's off-by-default `automation` feature, which
+      //    registers tauri-plugin-automation;
+      //  - disables `removeUnusedCommands`, which the example otherwise sets.
+      //    It strips command handlers that no static capability grants, and the
+      //    plugin adds its `resolve` command through a *runtime* capability, so
+      //    it would be stripped — breaking the CrabNebula Webdriver on macOS.
       // Passed as an appDir-relative path to sidestep shell quoting.
       const overrideConfig = path.relative(
         appDir,

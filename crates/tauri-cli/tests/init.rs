@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::fs;
-use std::path::PathBuf;
 use std::process::Command;
 
 #[test]
@@ -14,8 +13,6 @@ fn init_non_interactive_works() {
     // The test binary is in target/debug/deps/, so we navigate up to target/debug/
     let current_exe = std::env::current_exe().unwrap();
     let target_debug = current_exe
-        .parent()
-        .unwrap()
         .parent()
         .unwrap()
         .parent()

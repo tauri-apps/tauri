@@ -1139,8 +1139,8 @@ impl<R: Runtime> Window<R> {
   /// Adds a new webview as a child of this window.
   ///
   /// The webview's initial geometry can be configured with [`WebviewBuilder::bounds`],
-  /// [`WebviewBuilder::position`] and [`WebviewBuilder::size`]. It defaults to a position
-  /// of `(0, 0)` and a size of `200 x 200`.
+  /// [`WebviewBuilder::position`] and [`WebviewBuilder::size`]. By default, the webview
+  /// is positioned at 0x0, fills the window and automatically resizes with it.
   #[cfg(any(test, all(desktop, feature = "unstable")))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "unstable"))))]
   pub fn add_child(&self, webview_builder: WebviewBuilder<R>) -> crate::Result<Webview<R>> {

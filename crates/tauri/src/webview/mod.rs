@@ -360,11 +360,7 @@ async fn create_window(app: tauri::AppHandle) {
   pub fn new<L: Into<String>>(label: L, url: WebviewUrl) -> Self {
     Self {
       label: label.into(),
-      webview_attributes: {
-        let mut attrs = WebviewAttributes::new(url);
-        attrs.bounds = Some(Self::default_bounds());
-        attrs
-      },
+      webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
       new_window_handler: None,
@@ -446,11 +442,7 @@ async fn create_window(app: tauri::AppHandle) {
 
     Self {
       label: config.label.clone(),
-      webview_attributes: {
-        let mut attrs = WebviewAttributes::from(&config);
-        attrs.bounds = Some(Self::default_bounds());
-        attrs
-      },
+      webview_attributes: WebviewAttributes::from(&config),
       web_resource_request_handler: None,
       navigation_handler: None,
       new_window_handler: None,

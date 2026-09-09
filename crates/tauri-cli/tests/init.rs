@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[test]
-fn init_force_skips_prompts() {
+fn init_non_interactive_works() {
     let temp_dir = tempfile::tempdir().unwrap();
     let dir = temp_dir.path();
 
@@ -28,10 +28,10 @@ fn init_force_skips_prompts() {
 
     assert!(cargo_tauri.exists(), "cargo-tauri binary not found at {:?}", cargo_tauri);
 
-    // Run `init --force` with some explicit options.
+    // Run `init` without --force or --ci; since stdin is not a terminal in tests,
+    // it should automatically skip prompts and use defaults.
     let output = Command::new(&cargo_tauri)
         .arg("init")
-        .arg("--force")
         .arg("--app-name")
         .arg("testapp")
         .arg("--frontend-dist")

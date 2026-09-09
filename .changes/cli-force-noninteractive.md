@@ -2,4 +2,4 @@
 'tauri-cli': 'patch:bug'
 ---
 
-`tauri init --force` now implies `--ci`, skipping all interactive prompts. This makes it safe for non-interactive environments like CI.
+When stdin is not a terminal, `tauri init` now automatically skips prompts, avoiding IO errors in CI and scripts. This eliminates the need to pass `--ci` explicitly in non-interactive environments.

@@ -14,6 +14,7 @@ use std::{
   collections::BTreeMap,
   env::current_dir,
   fs::{read_to_string, remove_dir_all},
+  io::IsTerminal,
   path::PathBuf,
 };
 
@@ -75,7 +76,7 @@ struct InitDefaults {
 
 impl Options {
     fn load(mut self) -> Result<Self> {
-        if self.force {
+        if !std::io::stdin().is_terminal() {
             self.ci = true;
         }
         let package_json_path = PathBuf::from(&self.directory).join("package.json");

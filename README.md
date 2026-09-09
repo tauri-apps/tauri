@@ -88,31 +88,31 @@ This creates the `src-tauri` directory without prompting for input.
 
 The list of Tauri features includes, but is not limited to:
 
-* Built in app bundler for creating app bundles in formats such as `.app`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, and Windows installers such as `.exe` through NSIS and `.msi` through WiX.
+- Built in app bundler for creating app bundles in formats such as `.app`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, and Windows installers such as `.exe` through NSIS and `.msi` through WiX.
 
-* Built in updater for desktop applications
+- Built in updater for desktop applications
 
-* System tray icons
+- System tray icons
 
-* Native notifications
+- Native notifications
 
-* Native WebView protocol. Tauri does not create a localhost HTTP or HTTPS server to serve the WebView contents.
+- Native WebView protocol. Tauri does not create a localhost HTTP or HTTPS server to serve the WebView contents.
 
-* GitHub Actions for streamlined CI
+- GitHub Actions for streamlined CI
 
-* VS Code extension
+- VS Code extension
 
 ### Platforms
 
 Tauri currently supports development and distribution on the following platforms:
 
-| Platform | Versions |
-| :--- | :--- |
-| Windows | 7 and above |
-| macOS | 10.15 and above |
-| Linux | WebKitGTK 4.0 for Tauri v1, for example Ubuntu 18.04. WebKitGTK 4.1 for Tauri v2, for example Ubuntu 22.04. |
-| iOS/iPadOS | 9 and above |
-| Android | 7 and above, currently 8 and above |
+| Platform   | Versions                                                                                                    |
+| :--------- | :---------------------------------------------------------------------------------------------------------- |
+| Windows    | 7 and above                                                                                                 |
+| macOS      | 10.15 and above                                                                                             |
+| Linux      | WebKitGTK 4.0 for Tauri v1, for example Ubuntu 18.04. WebKitGTK 4.1 for Tauri v2, for example Ubuntu 22.04. |
+| iOS/iPadOS | 9 and above                                                                                                 |
+| Android    | 7 and above, currently 8 and above                                                                          |
 
 ## Contributing
 
@@ -158,6 +158,6 @@ MIT or MIT/Apache 2.0 where applicable.
 
 Logo: CC BY NC ND
 
-* Original Tauri Logo Designs by [Alve Larsson](https://alve.io/), [Daniel Thompson Yvetot](https://github.com/nothingismagick), and [Guillaume Chau](https://github.com/akryum).
+- Original Tauri Logo Designs by [Alve Larsson](https://alve.io/), [Daniel Thompson Yvetot](https://github.com/nothingismagick), and [Guillaume Chau](https://github.com/akryum).
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri?ref=badge_large)

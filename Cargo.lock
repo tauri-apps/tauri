@@ -5701,7 +5701,7 @@ dependencies = [
 [[package]]
 name = "muda"
 version = "0.19.3"
-source = "git+https://github.com/tauri-apps/muda?branch=dev#921748452a59a5ce2806d6fbb94998bf1e6e9a2d"
+source = "git+https://github.com/tauri-apps/muda?branch=dev#8e63de82899f33a723e8749757c83bc56c77fc19"
 dependencies = [
  "crossbeam-channel",
  "dpi",
@@ -11084,7 +11084,7 @@ dependencies = [
 [[package]]
 name = "tray-icon"
 version = "0.24.2"
-source = "git+https://github.com/tauri-apps/tray-icon?branch=dev#c1990d6e98749dc97143cea712015641c19b499c"
+source = "git+https://github.com/tauri-apps/tray-icon?branch=dev#b9fcea1e5287cc61fd059a8e987569b9b578ac86"
 dependencies = [
  "crossbeam-channel",
  "dirs 6.0.0",

@@ -56,12 +56,15 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
         }
       }
 
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
+      #[cfg(all(
+        any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ),
+        not(all(feature = "gtk3", feature = "gtk4"))
       ))]
       if let Ok(w) = window.gtk_window() {
         self_

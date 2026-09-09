@@ -76,12 +76,15 @@ impl<R: Runtime> MenuManager<R> {
             .unwrap_or(muda::MenuTheme::Auto);
           let _ = unsafe { menu.inner().init_for_hwnd_with_theme(raw.hwnd as _, theme) };
         }
-        #[cfg(any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
+        #[cfg(all(
+          any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+          ),
+          not(all(feature = "gtk3", feature = "gtk4"))
         ))]
         {
           use gtk::glib::translate::FromGlibPtrNone;

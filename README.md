@@ -1,19 +1,12 @@
 <img src=".github/splash.png" alt="Tauri" />
 
 [![status](https://img.shields.io/badge/status-stable-blue.svg)](https://github.com/tauri-apps/tauri/tree/dev)
-
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)
-
 [![test core](https://img.shields.io/github/actions/workflow/status/tauri-apps/tauri/test-core.yml?label=test%20core\&logo=github)](https://github.com/tauri-apps/tauri/actions/workflows/test-core.yml)
-
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri?ref=badge_shield)
-
 [![Chat Server](https://img.shields.io/badge/chat-discord-7289da.svg)](https://discord.com/invite/tauri)
-
 [![website](https://img.shields.io/badge/website-tauri.app-purple.svg)](https://tauri.app)
-
 [![Good Labs](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
-
 [![support](https://img.shields.io/badge/sponsor-Open%20Collective-blue.svg)](https://opencollective.com/tauri)
 
 ## Introduction
@@ -46,9 +39,7 @@ Clone the repository and build the CLI:
 
 ```sh
 git clone https://github.com/tauri-apps/tauri.git
-
 cd tauri
-
 cargo build -p tauri-cli
 ```
 
@@ -60,9 +51,7 @@ For example:
 
 ```sh
 ./target/debug/cargo-tauri init
-
 ./target/debug/cargo-tauri dev
-
 ./target/debug/cargo-tauri build
 ```
 
@@ -88,19 +77,13 @@ This creates the `src-tauri` directory without prompting for input.
 
 The list of Tauri features includes, but is not limited to:
 
-* Built in app bundler for creating app bundles in formats such as `.app`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, and Windows installers such as `.exe` through NSIS and `.msi` through WiX.
-
-* Built in updater for desktop applications
-
-* System tray icons
-
-* Native notifications
-
-* Native WebView protocol. Tauri does not create a localhost HTTP or HTTPS server to serve the WebView contents.
-
-* GitHub Actions for streamlined CI
-
-* VS Code extension
+- Built in app bundler for creating app bundles in formats such as `.app`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, and Windows installers such as `.exe` through NSIS and `.msi` through WiX.
+- Built in updater for desktop applications
+- System tray icons
+- Native notifications
+- Native WebView protocol. Tauri does not create a localhost HTTP or HTTPS server to serve the WebView contents.
+- GitHub Actions for streamlined CI
+- VS Code extension
 
 ### Platforms
 
@@ -158,6 +141,6 @@ MIT or MIT/Apache 2.0 where applicable.
 
 Logo: CC BY NC ND
 
-* Original Tauri Logo Designs by [Alve Larsson](https://alve.io/), [Daniel Thompson Yvetot](https://github.com/nothingismagick), and [Guillaume Chau](https://github.com/akryum).
+- Original Tauri Logo Designs by [Alve Larsson](https://alve.io/), [Daniel Thompson Yvetot](https://github.com/nothingismagick), and [Guillaume Chau](https://github.com/akryum).
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri?ref=badge_large)

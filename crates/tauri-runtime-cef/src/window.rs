@@ -520,15 +520,6 @@ pub(crate) struct AppWindowAttrs {
 }
 
 impl AppWindow {
-  pub(crate) fn remove_child_webview(&mut self, webview_id: u32) -> Option<AppWebview> {
-    let child_index = self
-      .children
-      .iter()
-      .position(|child| child.webview_id == webview_id)?;
-
-    Some(self.children.remove(child_index))
-  }
-
   pub(crate) fn center(&self) {
     let monitor = self.window.current_monitor();
     let monitor = monitor.or_else(|| self.window.primary_monitor());

@@ -38,6 +38,9 @@
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
 //! - **objc-exception**: This feature flag is no-op since 2.3.0.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
+//! - **gtk3**: Selects GTK 3 for the Linux GTK APIs (`Window::gtk_window`, `Window::default_vbox` and the menu integration). Enabled by GTK3 runtime crates such as `tauri-runtime-wry`.
+//! - **gtk4**: Selects GTK 4 for the Linux GTK APIs (`Window::gtk_window`, `Window::default_vbox` and the menu integration). Enabled by GTK4 runtime crates such as `tauri-runtime-cef`.
+//!   `gtk3` and `gtk4` are mutually exclusive: GTK 3 and GTK 4 cannot be initialized in the same process, so a Linux binary must link runtime crates that agree on the GTK version.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `app > security > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`webview::Webview#method.open_devtools`]. Enabled by default on debug builds.
@@ -75,6 +78,11 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+// GTK 3 and GTK 4 cannot coexist in a single process: GTK 4 aborts at initialization when it
+// detects GTK 2/3 symbols. Cargo unifies features, so a Linux binary linking both a GTK3 runtime
+// (`tauri-runtime-wry`) and a GTK4 runtime (`tauri-runtime-cef`) would enable both features here
+// and produce a binary that cannot start the GTK4 runtime. Reject it at compile time instead of
+// silently building something that only works for one of the two runtimes.
 #[cfg(all(
   any(
     target_os = "linux",
@@ -83,8 +91,26 @@
     target_os = "netbsd",
     target_os = "openbsd"
   ),
-  feature = "gtk4",
-  not(any(feature = "gtk3", feature = "test"))
+  feature = "gtk3",
+  feature = "gtk4"
+))]
+compile_error!(
+  "the `gtk3` and `gtk4` features of the `tauri` crate are mutually exclusive on Linux and BSD.\n\
+   GTK 3 and GTK 4 cannot be initialized in the same process, so a single binary cannot link two \
+   runtimes that disagree on the GTK version (e.g. `tauri-runtime-wry`, which uses GTK 3, and \
+   `tauri-runtime-cef`, which uses GTK 4). Enable exactly one runtime crate for Linux builds; \
+   note that `--all-features` enables both and is therefore not supported on these targets."
+);
+
+#[cfg(all(
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ),
+  feature = "gtk4"
 ))]
 extern crate gtk4 as gtk;
 

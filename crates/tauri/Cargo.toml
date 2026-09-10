@@ -26,6 +26,8 @@ features = [
   "specta",
   "dynamic-acl",
   "isolation",
+  # the default target is Linux, where the GTK APIs are only available with a GTK version selected
+  "gtk3",
 ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
@@ -185,7 +187,7 @@ common-controls-v6 = [
 ]
 tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing"]
-test = ["dep:gtk", "muda/gtk3"]
+test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 gtk3 = ["dep:gtk", "muda/gtk3", "tray-icon?/libappindicator"]
 gtk4 = ["dep:gtk4", "muda/gtk4", "tray-icon?/ksni"]

@@ -44,8 +44,9 @@ use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
+#[cfg(gtk)]
+use std::ffi::c_void;
 use std::{
-  ffi::c_void,
   fmt,
   hash::{Hash, Hasher},
   sync::{Arc, Mutex, MutexGuard},
@@ -661,9 +662,11 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
       target_os = "openbsd"
     ))]
     {
+      // the dispatcher hands out an owned `GtkApplicationWindow*`, which `transient_for` takes
+      // ownership of - no GTK bindings needed, so this works without a `gtk3`/`gtk4` feature.
       self.window_builder = self
         .window_builder
-        .transient_for(gtk_window_ptr(&parent.gtk_window()?));
+        .transient_for(parent.window.dispatcher.gtk_window()?);
     }
 
     #[cfg(target_os = "macos")]
@@ -746,7 +749,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   pub fn transient_for(mut self, parent: &Window<R>) -> crate::Result<Self> {
     self.window_builder = self
       .window_builder
-      .transient_for(gtk_window_ptr(&parent.gtk_window()?));
+      .transient_for(parent.window.dispatcher.gtk_window()?);
     Ok(self)
   }
 
@@ -755,13 +758,10 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
   ///
   /// **Note:** This is a low level API. See [`Self::parent`] and [`Self::transient_for`] for higher level wrappers for Tauri windows.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
+  ///
+  /// Requires the `gtk3` or `gtk4` feature, which is enabled by the runtime crate in use.
+  #[cfg(gtk)]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   #[must_use]
   pub fn transient_for_raw(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for(gtk_window_ptr(parent));
@@ -1297,6 +1297,7 @@ tauri::Builder::default()
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   ///   window, if you need to set it, use [`AppHandle::set_menu`] instead.
   #[cfg_attr(target_os = "macos", allow(unused_variables))]
+  #[cfg_attr(not(menu_backend), allow(unused_variables))]
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
 
@@ -1314,16 +1315,7 @@ tauri::Builder::default()
 
         let _ = unsafe { menu_.inner().init_for_hwnd_with_theme(hwnd.0 as _, theme) };
       }
-      #[cfg(all(
-        any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd"
-        ),
-        not(all(feature = "gtk3", feature = "gtk4"))
-      ))]
+      #[cfg(gtk)]
       if let (Ok(gtk_window), Ok(gtk_box)) = (window.gtk_window(), window.default_vbox()) {
         let _ = menu_
           .inner()
@@ -1345,6 +1337,7 @@ tauri::Builder::default()
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
   ///   window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
+  #[cfg_attr(not(menu_backend), allow(unused_variables))]
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
@@ -1358,16 +1351,7 @@ tauri::Builder::default()
         if let Ok(hwnd) = window.hwnd() {
           let _ = unsafe { menu.inner().remove_for_hwnd(hwnd.0 as _) };
         }
-        #[cfg(all(
-          any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ),
-          not(all(feature = "gtk3", feature = "gtk4"))
-        ))]
+        #[cfg(gtk)]
         if let Ok(gtk_window) = window.gtk_window() {
           let _ = menu.inner().remove_for_gtk_window(&gtk_window);
         }
@@ -1386,6 +1370,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported.
+  #[cfg_attr(not(menu_backend), allow(unused_variables))]
   pub fn hide_menu(&self) -> crate::Result<()> {
     // remove from the window
     #[cfg(not(target_os = "macos"))]
@@ -1397,16 +1382,7 @@ tauri::Builder::default()
         if let Ok(hwnd) = window.hwnd() {
           let _ = unsafe { menu_.inner().hide_for_hwnd(hwnd.0 as _) };
         }
-        #[cfg(all(
-          any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ),
-          not(all(feature = "gtk3", feature = "gtk4"))
-        ))]
+        #[cfg(gtk)]
         if let Ok(gtk_window) = window.gtk_window() {
           let _ = menu_.inner().hide_for_gtk_window(&gtk_window);
         }
@@ -1421,6 +1397,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported.
+  #[cfg_attr(not(menu_backend), allow(unused_variables))]
   pub fn show_menu(&self) -> crate::Result<()> {
     // remove from the window
     #[cfg(not(target_os = "macos"))]
@@ -1432,16 +1409,7 @@ tauri::Builder::default()
         if let Ok(hwnd) = window.hwnd() {
           let _ = unsafe { menu_.inner().show_for_hwnd(hwnd.0 as _) };
         }
-        #[cfg(all(
-          any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ),
-          not(all(feature = "gtk3", feature = "gtk4"))
-        ))]
+        #[cfg(gtk)]
         if let Ok(gtk_window) = window.gtk_window() {
           let _ = menu_.inner().show_for_gtk_window(&gtk_window);
         }
@@ -1456,6 +1424,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported.
+  #[cfg_attr(not(menu_backend), allow(unused_variables))]
   pub fn is_menu_visible(&self) -> crate::Result<bool> {
     // remove from the window
     #[cfg(not(target_os = "macos"))]
@@ -1468,16 +1437,7 @@ tauri::Builder::default()
         if let Ok(hwnd) = window.hwnd() {
           let _ = tx.send(unsafe { menu_.inner().is_visible_on_hwnd(hwnd.0 as _) });
         }
-        #[cfg(all(
-          any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ),
-          not(all(feature = "gtk3", feature = "gtk4"))
-        ))]
+        #[cfg(gtk)]
         if let Ok(gtk_window) = window.gtk_window() {
           let _ = tx.send(menu_.inner().is_visible_on_gtk_window(&gtk_window));
         }
@@ -1722,13 +1682,10 @@ impl<R: Runtime> Window<R> {
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   ///
   /// Note that this type can only be used on the main thread.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
+  ///
+  /// Requires the `gtk3` or `gtk4` feature, which is enabled by the runtime crate in use.
+  #[cfg(gtk)]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
     use gtk::glib::translate::FromGlibPtrNone;
 
@@ -1745,13 +1702,10 @@ impl<R: Runtime> Window<R> {
   /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
   ///
   /// Note that this type can only be used on the main thread.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
+  ///
+  /// Requires the `gtk3` or `gtk4` feature, which is enabled by the runtime crate in use.
+  #[cfg(gtk)]
+  #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   pub fn default_vbox(&self) -> crate::Result<gtk::Box> {
     use gtk::glib::translate::FromGlibPtrNone;
 
@@ -2540,13 +2494,9 @@ impl From<WindowEffectsConfig> for EffectsBuilder {
   }
 }
 
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
+/// Produces the owned `GtkWindow*` that [`WindowBuilder::transient_for`] expects: it transfers
+/// a strong reference, which the runtime's builder takes ownership of.
+#[cfg(gtk)]
 fn gtk_window_ptr(parent: &impl gtk::prelude::IsA<gtk::Window>) -> *mut c_void {
   use gtk::{glib::translate::ToGlibPtr, prelude::Cast};
 

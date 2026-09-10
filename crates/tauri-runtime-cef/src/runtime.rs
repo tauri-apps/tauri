@@ -3028,8 +3028,15 @@ impl<T: UserEvent> CefRuntime<T> {
     ))]
     {
       internal_command_line_args.push(("--ozone-platform".to_string(), Some("x11".to_string())));
-      // CEF integration below uses XIDs for child windows/reparenting, so GDK
-      // must not honor an inherited `GDK_BACKEND=wayland`.
+      // CEF integration below uses XIDs for child windows/reparenting, so GDK must not honor an
+      // inherited `GDK_BACKEND=wayland`. `set_allowed_backends` alone is not enough: GDK reads
+      // `GDK_BACKEND` first and only intersects it with the allowed list, so an inherited
+      // `wayland` would leave no backend to open a display with.
+      //
+      // SAFETY: `std::env::set_var` is only unsafe because another thread may be reading the
+      // environment concurrently. This runs during runtime initialization, before any GTK, CEF or
+      // Tauri thread that could read it has been spawned. Note the value is inherited by child
+      // processes the app spawns later, which is intended for CEF's own subprocesses.
       unsafe { std::env::set_var("GDK_BACKEND", "x11") };
       gtk::gdk::set_allowed_backends("x11");
       event_loop_builder.with_gtk4();

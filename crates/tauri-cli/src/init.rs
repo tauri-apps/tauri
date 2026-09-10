@@ -124,11 +124,11 @@ impl Options {
     })?;
 
     self.frontend_dist = self.frontend_dist.map(|s| Ok(Some(s))).unwrap_or_else(|| prompts::input(
-            r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
-            init_defaults.framework.as_ref().map(|f| f.frontend_dist()),
-            self.ci,
-            false,
-        ))?;
+      r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
+      init_defaults.framework.as_ref().map(|f| f.frontend_dist()),
+      self.ci,
+      false,
+    ))?;
 
     self.dev_url = self.dev_url.map(|s| Ok(Some(s))).unwrap_or_else(|| {
       prompts::input(
@@ -142,28 +142,28 @@ impl Options {
     let detected_package_manager = PackageManager::from_project(&self.directory);
 
     self.before_dev_command = self
-            .before_dev_command
-            .map(|s| Ok(Some(s)))
-            .unwrap_or_else(|| {
-                prompts::input(
-                    "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
-                    Some(default_dev_command(detected_package_manager).into()),
-                    self.ci,
-                    true,
-                )
-            })?;
+      .before_dev_command
+      .map(|s| Ok(Some(s)))
+      .unwrap_or_else(|| {
+        prompts::input(
+          "What command should Tauri run before `tauri dev` to start your frontend? (leave empty if not needed)",
+          Some(default_dev_command(detected_package_manager).into()),
+          self.ci,
+          true,
+        )
+      })?;
 
     self.before_build_command = self
-            .before_build_command
-            .map(|s| Ok(Some(s)))
-            .unwrap_or_else(|| {
-                prompts::input(
-                    "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
-                    Some(default_build_command(detected_package_manager).into()),
-                    self.ci,
-                    true,
-                )
-            })?;
+      .before_build_command
+      .map(|s| Ok(Some(s)))
+      .unwrap_or_else(|| {
+        prompts::input(
+          "What command should Tauri run before `tauri build` to build your frontend? (leave empty if not needed)",
+          Some(default_build_command(detected_package_manager).into()),
+          self.ci,
+          true,
+        )
+      })?;
 
     Ok(self)
   }

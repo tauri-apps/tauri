@@ -995,13 +995,17 @@ impl<T: UserEvent> WinitCefApp<T> {
           return;
         };
 
+        // The parent size must be the area the child is laid out into, which on Linux is the
+        // CEF host rather than the toplevel - `layout_app_window` applies `bounds_rate` against
+        // the same value.
+        let parent_size = target_appwindow.safe_surface_size();
         let bounds = child.bounds().unwrap_or_else(|| Rect {
           position: PhysicalPosition::new(0, 0).into(),
-          size: target_appwindow.window.surface_size().into(),
+          size: parent_size.into(),
         });
         child.reparent(target_appwindow);
         child.set_bounds(
-          target_appwindow.window.surface_size(),
+          parent_size,
           target_appwindow.window.scale_factor(),
           bounds,
         );

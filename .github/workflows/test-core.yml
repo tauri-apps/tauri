@@ -155,6 +155,23 @@ jobs:
         if: ${{ matrix.platform.cargo == 'cross' }}
         run: cargo install cross --git https://github.com/cross-rs/cross --rev 51f46f296253d8122c927c5bb933e3c4f27cc317 --locked
 
+      # `--all-features` is not usable on Linux for crates that see a runtime: it enables both
+      # `tauri/gtk3` and `tauri/gtk4`, which are mutually exclusive because GTK 3 and GTK 4 cannot
+      # be initialized in the same process. Use equivalent explicit sets on the GTK3 (wry) side;
+      # the CEF runtime is linted separately in the lint-rust workflow.
+      - name: resolve feature args
+        shell: bash
+        run: |
+          if [ '${{ matrix.features.key }}' = 'all' ] && [ '${{ matrix.platform.target }}' = 'x86_64-unknown-linux-gnu' ]; then
+            echo 'TAURI_FEATURES=--features __all-features-except-gtk,gtk3' >> "$GITHUB_ENV"
+            echo 'TAURI_EXAMPLES_FEATURES=--features isolation' >> "$GITHUB_ENV"
+            echo 'API_FEATURES=--features prod' >> "$GITHUB_ENV"
+          else
+            echo 'TAURI_FEATURES=${{ matrix.features.args }}' >> "$GITHUB_ENV"
+            echo 'TAURI_EXAMPLES_FEATURES=${{ matrix.features.args }}' >> "$GITHUB_ENV"
+            echo 'API_FEATURES=${{ matrix.features.args }}' >> "$GITHUB_ENV"
+          fi
+
       - name: test tauri-utils
         # Using --lib --bins --tests to skip doc tests
         run: ${{ matrix.platform.cargo }} ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --lib --bins --tests --manifest-path crates/tauri-utils/Cargo.toml
@@ -164,10 +181,10 @@ jobs:
         run: ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tests/acl/Cargo.toml
 
       - name: test tauri
-        run: ${{ matrix.platform.cargo }} ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri/Cargo.toml
+        run: ${{ matrix.platform.cargo }} ${{ matrix.features.key == 'no-default' && 'check' || matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ env.TAURI_FEATURES }} --manifest-path crates/tauri/Cargo.toml
 
       - name: test tauri examples
         if: ${{ matrix.features.key != 'no-default' && matrix.platform.command == 'test' }}
         run: |
-          ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --examples --manifest-path crates/tauri-examples/Cargo.toml
-          ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path examples/api/src-tauri/Cargo.toml
+          ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ env.TAURI_EXAMPLES_FEATURES }} --examples --manifest-path crates/tauri-examples/Cargo.toml
+          ${{ matrix.platform.cargo }} test --target ${{ matrix.platform.target }} ${{ env.API_FEATURES }} --manifest-path examples/api/src-tauri/Cargo.toml

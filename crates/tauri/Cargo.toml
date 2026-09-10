@@ -180,6 +180,36 @@ http-range = "0.1.5"
 
 [features]
 default = ["compression", "common-controls-v6", "dynamic-acl"]
+# Every feature except the mutually exclusive `gtk3`/`gtk4` pair, so the full feature surface can
+# still be checked on Linux, where `--all-features` cannot be used. Enable it together with
+# exactly one of `gtk3`/`gtk4`.
+__all-features-except-gtk = [
+  "common-controls-v6",
+  "compression",
+  "config-json5",
+  "config-toml",
+  "custom-protocol",
+  "devtools",
+  "dynamic-acl",
+  "image-ico",
+  "image-png",
+  "isolation",
+  "linux-libappindicator",
+  "linux-libxdo",
+  "macos-private-api",
+  "native-tls",
+  "native-tls-vendored",
+  "objc-exception",
+  "process-relaunch-dangerous-allow-symlink-macos",
+  "protocol-asset",
+  "rustls-tls",
+  "specta",
+  "test",
+  "tracing",
+  "tray-icon",
+  "unstable",
+  "webview-data-url",
+]
 unstable = []
 common-controls-v6 = [
   "tray-icon?/muda-common-controls-v6",

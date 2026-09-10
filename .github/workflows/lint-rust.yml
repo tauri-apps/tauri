@@ -41,7 +41,9 @@ jobs:
             os: ubuntu-latest
             cargo: 'cargo'
             include: ''
-            features: '--all-features'
+            # cannot use --all-features: it enables both `tauri/gtk3` and `tauri/gtk4`, which are
+            # mutually exclusive - see the dedicated Linux step below
+            features: ''
           - target: aarch64-apple-darwin
             os: macos-latest
             cargo: 'cargo'
@@ -94,4 +96,39 @@ jobs:
         with:
           key: ${{ matrix.platform.target }}
 
-      - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} ${{ matrix.platform.include }}--all-targets ${{ matrix.platform.features }} -- -D warnings
+      - if: matrix.platform.target != 'x86_64-unknown-linux-gnu'
+        run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} ${{ matrix.platform.include }}--all-targets ${{ matrix.platform.features }} -- -D warnings
+
+      # `--all-features` is not usable on Linux: it enables `tauri/gtk3` (tauri-runtime-wry) and
+      # `tauri/gtk4` (tauri-runtime-cef) at once, and GTK 3 and GTK 4 cannot be initialized in the
+      # same process. Lint the two runtimes in separate passes instead.
+      - name: clippy (linux)
+        if: matrix.platform.target == 'x86_64-unknown-linux-gnu'
+        env:
+          TARGET: x86_64-unknown-linux-gnu
+          # crates that pull in tauri-runtime-cef, directly or through a `cef` feature
+          CEF_CRATES: >-
+            --exclude tauri-runtime-cef --exclude cef-example --exclude api
+            --exclude tauri-examples --exclude resources
+            --exclude tauri-file-associations-demo --exclude bench_cpu_intensive
+            --exclude bench_files_transfer --exclude bench_helloworld
+        run: |
+          set -eux
+          # everything that never sees a GTK version, with the full feature surface
+          cargo clippy --target "$TARGET" --workspace --exclude tauri $CEF_CRATES \
+            --all-targets --all-features -- -D warnings
+          # `tauri` itself, once per GTK version
+          for gtk in gtk3 gtk4; do
+            cargo clippy --target "$TARGET" -p tauri --all-targets \
+              --features "__all-features-except-gtk,$gtk" -- -D warnings
+          done
+          # the GTK3 runtime consumers (default features select wry)
+          cargo clippy --target "$TARGET" --all-targets \
+            -p api -p tauri-examples -p resources -p tauri-file-associations-demo \
+            -p bench_cpu_intensive -p bench_files_transfer -p bench_helloworld \
+            -- -D warnings
+          # the GTK4 (CEF) runtime and one app built against it
+          cargo clippy --target "$TARGET" -p tauri-runtime-cef -p cef-example \
+            --all-targets --all-features -- -D warnings
+          cargo clippy --target "$TARGET" -p api --all-targets \
+            --no-default-features --features api/cef -- -D warnings

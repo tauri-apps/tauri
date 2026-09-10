@@ -123,6 +123,18 @@ impl AppWindow {
     super::utils::activate_window(self.xid());
   }
 
+  /// Applies the transient parent recorded by the window builder, if any.
+  pub(crate) fn apply_transient_for(&self) {
+    use gtk::prelude::GtkWindowExt;
+
+    let Some(parent) = &self.attrs.transient_for else {
+      return;
+    };
+    if let Some(window) = self.window.gtk_window() {
+      window.set_transient_for(Some(parent));
+    }
+  }
+
   pub(crate) fn set_enabled(&self, enabled: bool) {
     use gtk::prelude::*;
 

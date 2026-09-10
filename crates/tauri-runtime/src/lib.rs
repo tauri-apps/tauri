@@ -892,7 +892,19 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
-  /// Returns the GTK application window pointer that is used by this window.
+  /// Returns the GTK application window pointer (`GtkApplicationWindow*`) that is used by this window.
+  ///
+  /// # Ownership
+  ///
+  /// The pointer is *transfer full*: implementations must hand out a strong reference
+  /// (`g_object_ref`, i.e. glib's `to_glib_full`) and the caller is responsible for releasing it
+  /// (`g_object_unref`, i.e. glib's `from_glib_full`). It is never null on success.
+  ///
+  /// The GTK major version of the object is the one the runtime was built against, so callers must
+  /// wrap it with matching bindings - the `tauri` crate selects them through its `gtk3`/`gtk4`
+  /// features, which the runtime crate enables.
+  ///
+  /// The object may only be used on the main thread.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -902,7 +914,12 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   ))]
   fn gtk_window(&self) -> Result<*mut c_void>;
 
-  /// Returns the vertical GTK box pointer that is added by default as the sole child of this window.
+  /// Returns the vertical GTK box pointer (`GtkBox*`) that is added by default as the sole child of this window.
+  ///
+  /// # Ownership
+  ///
+  /// Same contract as [`WindowDispatch::gtk_window`]: *transfer full*, never null on success, main
+  /// thread only.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",

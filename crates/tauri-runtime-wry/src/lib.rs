@@ -1236,9 +1236,12 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "openbsd"
   ))]
   fn transient_for(mut self, parent: *mut c_void) -> Self {
-    use gtk::glib::translate::FromGlibPtrNone;
+    use gtk::glib::translate::FromGlibPtrFull;
 
-    let parent = unsafe { gtk::Window::from_glib_none(parent as *mut gtk::ffi::GtkWindow) };
+    // SAFETY: `transient_for` receives the parent as transfer full, so the wrapper adopts the
+    // reference and releases it when it is dropped at the end of this function - tao's
+    // `with_transient_for` takes its own reference.
+    let parent = unsafe { gtk::Window::from_glib_full(parent as *mut gtk::ffi::GtkWindow) };
     self.inner = self.inner.with_transient_for(&parent);
     self
   }

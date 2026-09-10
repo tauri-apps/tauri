@@ -449,6 +449,12 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Sets the window to be created transient for parent.
   ///
   /// See <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
+  ///
+  /// # Ownership
+  ///
+  /// `parent` is a `GtkWindow*` passed as *transfer full*: the implementation takes ownership of
+  /// the strong reference and must release it (`g_object_unref`, i.e. glib's `from_glib_full`),
+  /// including when it does not support transient windows.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -649,9 +655,22 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
 
 /// A raw window type that contains fields to access
 /// the HWND on Windows, GTK object pointers on Linux
+///
+/// # Ownership
+///
+/// Unlike the [`WindowDispatch`](crate::WindowDispatch) getters, the GTK pointers here are
+/// *transfer none*: they are borrowed from the window that is being created and are only valid for
+/// the duration of the callback that receives this struct. Wrap them with glib's `from_glib_none`
+/// (which takes its own reference) and do not store them - the `'a` lifetime is not enforced by
+/// the raw pointers, so retaining one past the callback dereferences freed memory.
+///
+/// The GTK major version of the objects is the one the runtime was built against, so consumers must
+/// wrap them with matching bindings.
 pub struct RawWindow<'a> {
+  /// The window handle on Windows.
   #[cfg(windows)]
   pub hwnd: isize,
+  /// A borrowed `GtkApplicationWindow*`. Never null.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -660,6 +679,8 @@ pub struct RawWindow<'a> {
     target_os = "openbsd"
   ))]
   pub gtk_window: *mut c_void,
+  /// A borrowed `GtkBox*`, or [`None`] when the runtime does not add a default vertical box.
+  /// When set, it is never null.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -668,5 +689,6 @@ pub struct RawWindow<'a> {
     target_os = "openbsd"
   ))]
   pub default_vbox: Option<*mut c_void>,
+  /// Ties this struct to the lifetime of the window the pointers above are borrowed from.
   pub _marker: &'a PhantomData<()>,
 }

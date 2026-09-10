@@ -1687,14 +1687,16 @@ impl<R: Runtime> Window<R> {
   #[cfg(gtk)]
   #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
-    use gtk::glib::translate::FromGlibPtrNone;
+    use gtk::glib::translate::FromGlibPtrFull;
 
     self
       .window
       .dispatcher
       .gtk_window()
+      // SAFETY: `WindowDispatch::gtk_window` transfers ownership of a strong reference,
+      // which this wrapper adopts and releases on drop.
       .map(|window| unsafe {
-        gtk::ApplicationWindow::from_glib_none(window as *mut gtk::ffi::GtkApplicationWindow)
+        gtk::ApplicationWindow::from_glib_full(window as *mut gtk::ffi::GtkApplicationWindow)
       })
       .map_err(Into::into)
   }
@@ -1707,13 +1709,15 @@ impl<R: Runtime> Window<R> {
   #[cfg(gtk)]
   #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   pub fn default_vbox(&self) -> crate::Result<gtk::Box> {
-    use gtk::glib::translate::FromGlibPtrNone;
+    use gtk::glib::translate::FromGlibPtrFull;
 
     self
       .window
       .dispatcher
       .default_vbox()
-      .map(|vbox| unsafe { gtk::Box::from_glib_none(vbox as *mut gtk::ffi::GtkBox) })
+      // SAFETY: `WindowDispatch::default_vbox` transfers ownership of a strong reference,
+      // which this wrapper adopts and releases on drop.
+      .map(|vbox| unsafe { gtk::Box::from_glib_full(vbox as *mut gtk::ffi::GtkBox) })
       .map_err(Into::into)
   }
 

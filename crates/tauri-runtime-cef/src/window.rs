@@ -507,6 +507,16 @@ pub(crate) struct AppWindowAttrs {
     target_os = "openbsd"
   ))]
   pub(crate) skip_taskbar: bool,
+  /// Parent this window is transient for, owning the reference transferred by
+  /// [`WindowBuilder::transient_for`](tauri_runtime::window::WindowBuilder::transient_for).
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub(crate) transient_for: Option<gtk::Window>,
 }
 
 impl AppWindow {
@@ -693,6 +703,7 @@ impl<T: UserEvent> WinitCefApp<T> {
     {
       appwindow.set_visible_on_all_workspaces(appwindow.attrs.visible_on_all_workspaces);
       appwindow.set_skip_taskbar(appwindow.attrs.skip_taskbar);
+      appwindow.apply_transient_for();
     }
 
     #[cfg(windows)]

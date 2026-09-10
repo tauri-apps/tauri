@@ -808,6 +808,28 @@ impl<T: UserEvent> WinitCefApp<T> {
     }
   }
 
+  /// Re-lays out the CEF children of every window whose X11 host was resized by GTK without the
+  /// toplevel changing size.
+  ///
+  /// GTK owns the content area, so attaching, hiding or showing a menu bar moves and resizes the
+  /// host while winit reports no `SurfaceResized` for the toplevel. Without this the children
+  /// would keep the bounds computed against the previous host size until the user resizes the
+  /// window.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub(crate) fn apply_pending_host_layouts(&mut self) {
+    for appwindow in self.state.windows.values() {
+      if appwindow.cef_host.take_needs_relayout() {
+        crate::webview::layout_app_window(appwindow);
+      }
+    }
+  }
+
   pub(crate) fn handle_window_message(
     &mut self,
     event_loop: &dyn ActiveEventLoop,

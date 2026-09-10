@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-use std::os::raw::c_ulong;
+use std::{cell::Cell, os::raw::c_ulong, rc::Rc};
 use tauri_runtime::ProgressBarState;
 use tauri_runtime::dpi::PhysicalSize;
 use tauri_utils::config::Color;
@@ -34,6 +34,15 @@ pub(crate) struct CefX11Host {
   default_vbox: gtk::Box,
   xid: c_ulong,
   colormap: c_ulong,
+  geometry: Rc<HostGeometry>,
+}
+
+/// Geometry of the X11 host, shared with the GTK `layout` handler that keeps it up to date.
+#[derive(Default)]
+struct HostGeometry {
+  size: Cell<PhysicalSize<u32>>,
+  /// Set when [`Self::size`] changed and the CEF children have not been laid out against it yet.
+  needs_relayout: Cell<bool>,
 }
 
 impl CefX11Host {
@@ -53,13 +62,31 @@ impl CefX11Host {
     gtk_window.set_child(Some(&default_vbox));
 
     let parent_xid = window_xid(window);
-    let (xid, colormap) = create_cef_container(parent_xid, window.surface_size())?;
+    let initial_size = window.surface_size();
+    let (xid, colormap) = create_cef_container(parent_xid, initial_size)?;
+
+    let geometry = Rc::new(HostGeometry {
+      size: Cell::new(initial_size),
+      needs_relayout: Cell::new(false),
+    });
 
     if let Some(surface) = gtk_window.surface() {
       let gtk_window = gtk_window.clone();
       let layout_webview_area = webview_area.clone();
-      surface.connect_layout(move |_, _, _| {
-        set_cef_container_bounds(xid, &gtk_window, &layout_webview_area);
+      let layout_geometry = geometry.clone();
+      surface.connect_layout(move |surface, _, _| {
+        let size = set_cef_container_bounds(
+          xid,
+          &gtk_window,
+          &layout_webview_area,
+          surface.scale_factor().max(1) as f64,
+        );
+        if layout_geometry.size.replace(size) != size {
+          // The content area changed without the toplevel being resized - a menu bar was
+          // attached, hidden or shown - so winit emits no `SurfaceResized` and the CEF children
+          // would keep the bounds computed against the previous host size.
+          layout_geometry.needs_relayout.set(true);
+        }
       });
     }
 
@@ -67,6 +94,7 @@ impl CefX11Host {
       default_vbox,
       xid,
       colormap,
+      geometry,
     })
   }
 
@@ -75,29 +103,12 @@ impl CefX11Host {
   }
 
   pub(crate) fn size(&self) -> PhysicalSize<u32> {
-    super::utils::with_x11(PhysicalSize::default(), |xlib, display| unsafe {
-      let mut root = 0;
-      let mut x = 0;
-      let mut y = 0;
-      let mut width = 0;
-      let mut height = 0;
-      let mut border_width = 0;
-      let mut depth = 0;
+    self.geometry.size.get()
+  }
 
-      (xlib.XGetGeometry)(
-        display,
-        self.xid as x11_dl::xlib::Window,
-        &mut root,
-        &mut x,
-        &mut y,
-        &mut width,
-        &mut height,
-        &mut border_width,
-        &mut depth,
-      );
-
-      PhysicalSize::new(width, height)
-    })
+  /// Whether the host was resized by GTK since the last time the CEF children were laid out.
+  pub(crate) fn take_needs_relayout(&self) -> bool {
+    self.geometry.needs_relayout.replace(false)
   }
 }
 
@@ -262,28 +273,31 @@ fn create_cef_container(
   })
 }
 
+/// Moves and resizes the X11 host over the GTK content area, returning its new size.
+///
+/// GTK4 widget geometry is in logical units while the X11 toplevel GDK creates is sized in device
+/// pixels (logical * scale), so every value handed to `XMoveResizeWindow` must be scaled - without
+/// it the host covers only 1/scale of the window on HiDPI screens.
 fn set_cef_container_bounds(
   xid: c_ulong,
   gtk_window: &gtk::ApplicationWindow,
   webview_area: &gtk::Box,
-) {
+  scale_factor: f64,
+) -> PhysicalSize<u32> {
   use gtk::prelude::*;
 
-  let width = webview_area.width() as u32;
-  let height = webview_area.height() as u32;
+  let width = (webview_area.width() as f64 * scale_factor).round() as u32;
+  let height = (webview_area.height() as f64 * scale_factor).round() as u32;
   let point = gtk::graphene::Point::new(0.0, 0.0);
   let point = webview_area
     .compute_point(gtk_window, &point)
     .unwrap_or_else(|| gtk::graphene::Point::new(0.0, 0.0));
+  let x = (point.x() as f64 * scale_factor).round() as i32;
+  let y = (point.y() as f64 * scale_factor).round() as i32;
 
   super::utils::with_x11((), |xlib, display| unsafe {
-    (xlib.XMoveResizeWindow)(
-      display,
-      xid as _,
-      point.x().round() as i32,
-      point.y().round() as i32,
-      width,
-      height,
-    );
+    (xlib.XMoveResizeWindow)(display, xid as _, x, y, width, height);
   });
+
+  PhysicalSize::new(width, height)
 }

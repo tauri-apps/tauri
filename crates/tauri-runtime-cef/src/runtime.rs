@@ -2124,6 +2124,14 @@ impl<T: UserEvent> ApplicationHandler for WinitCefApp<T> {
   fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
     let _guard = self.install_current_dispatch(event_loop);
     self.apply_pending_activations();
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    self.apply_pending_host_layouts();
     self.run_callback(RunEvent::MainEventsCleared);
   }
 

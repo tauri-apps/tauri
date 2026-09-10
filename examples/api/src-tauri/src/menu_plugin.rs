@@ -33,11 +33,12 @@ pub fn toggle<R: tauri::Runtime>(
 }
 
 #[command]
-pub fn popup<R: tauri::Runtime>(
+pub async fn popup<R: tauri::Runtime>(
   window: tauri::Window<R>,
   popup_menu: tauri::State<'_, crate::PopupMenu<R>>,
-) {
+) -> Result<(), ()> {
   window.popup_menu(&popup_menu.0).unwrap();
+  Ok(())
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {

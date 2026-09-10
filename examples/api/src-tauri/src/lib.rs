@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 mod cmd;
-#[cfg(all(desktop, not(test), not(feature = "cef")))]
+#[cfg(all(desktop, not(test)))]
 mod menu_plugin;
 #[cfg(all(desktop, not(test)))]
 mod tray;
@@ -65,7 +65,7 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
         tray::create_tray(handle)?;
       }
 
-      #[cfg(all(desktop, not(test), not(feature = "cef")))]
+      #[cfg(all(desktop, not(test)))]
       {
         let handle = app.handle();
         handle.plugin(menu_plugin::init())?;
@@ -288,7 +288,6 @@ pub fn run_app<F: FnOnce(&App<TauriRuntime>) + Send + 'static>(
   app.run(move |_app_handle, _event| {
     #[cfg(not(test))]
     match &_event {
-      #[cfg(not(feature = "cef"))]
       RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
         // Keep the event loop running even if all windows are closed
         // This allow us to catch tray icon events when there is no window

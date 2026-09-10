@@ -1222,11 +1222,38 @@ impl<T: UserEvent> Drop for MainThreadDispatchGuard<T> {
   }
 }
 
+/// Whether handling `message` ends in the application's `RunEvent` callback.
+///
+/// Those messages must never be handled inline by [`handle_main_thread_message`]: see
+/// the deadlock it documents.
+fn dispatches_run_event<T: UserEvent>(message: &Message<T>) -> bool {
+  match message {
+    Message::UserEvent(_) | Message::Opened(_) => true,
+    #[cfg(target_os = "macos")]
+    Message::Reopen { .. } => true,
+    _ => false,
+  }
+}
+
 #[allow(clippy::result_large_err)]
 fn handle_main_thread_message<T: UserEvent>(
   context: &RuntimeContext<T>,
   message: Message<T>,
 ) -> std::result::Result<(), Message<T>> {
+  // A message that reaches the application's run callback goes through the event loop
+  // even on the main thread, because the main thread may be several frames deep inside
+  // a callback already — anything that spins a nested loop, such as muda's GTK4 context
+  // menu, gets here from the closure it is blocking on. Running the callback from there
+  // re-enters the application while it holds locks meant for one pass of the loop:
+  // `Window::popup_menu` reaches the runtime through a plugin command, which holds
+  // Tauri's plugin store lock across the popup and blocks a worker on the main thread,
+  // while `on_event_loop_event` takes that same lock to deliver the menu event —
+  // deadlocking both threads. Queueing keeps the callback where the loop can only be in
+  // one pass at a time, and matches what the wry runtime's proxy does.
+  if dispatches_run_event(&message) {
+    return Err(message);
+  }
+
   let Some(dispatch) = context.current_dispatch.current() else {
     return Err(message);
   };

@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-use std::{cell::Cell, os::raw::c_ulong, rc::Rc};
+use std::{
+  cell::{Cell, RefCell},
+  os::raw::c_ulong,
+  rc::Rc,
+};
 use tauri_runtime::ProgressBarState;
 use tauri_runtime::dpi::PhysicalSize;
 use tauri_utils::config::Color;
@@ -35,6 +39,9 @@ pub(crate) struct CefX11Host {
   xid: c_ulong,
   colormap: c_ulong,
   geometry: Rc<HostGeometry>,
+  /// CSS provider currently backing this window's background color, kept so it can be removed
+  /// from the display instead of accumulating one provider per `set_background_color` call.
+  background_color_provider: RefCell<Option<gtk::CssProvider>>,
 }
 
 /// Geometry of the X11 host, shared with the GTK `layout` handler that keeps it up to date.
@@ -95,11 +102,18 @@ impl CefX11Host {
       xid,
       colormap,
       geometry,
+      background_color_provider: RefCell::new(None),
     })
   }
 
   pub(crate) fn default_vbox(&self) -> gtk::Box {
     self.default_vbox.clone()
+  }
+
+  /// CSS class carrying this window's background color. The X11 host id makes it unique per
+  /// window, since the providers below are registered display-wide.
+  fn background_color_class(&self) -> String {
+    format!("tauri-cef-window-background-{}", self.xid)
   }
 
   pub(crate) fn size(&self) -> PhysicalSize<u32> {
@@ -110,10 +124,25 @@ impl CefX11Host {
   pub(crate) fn take_needs_relayout(&self) -> bool {
     self.geometry.needs_relayout.replace(false)
   }
+
+  fn take_background_color_provider(&self) -> Option<gtk::CssProvider> {
+    self.background_color_provider.borrow_mut().take()
+  }
+
+  fn set_background_color_provider(&self, provider: gtk::CssProvider) {
+    self.background_color_provider.replace(Some(provider));
+  }
 }
 
 impl Drop for CefX11Host {
   fn drop(&mut self) {
+    if let Some(provider) = self.background_color_provider.borrow_mut().take() {
+      gtk::style_context_remove_provider_for_display(
+        &gtk::prelude::WidgetExt::display(&self.default_vbox),
+        &provider,
+      );
+    }
+
     super::utils::with_x11((), |xlib, display| unsafe {
       (xlib.XDestroyWindow)(display, self.xid);
       (xlib.XFreeColormap)(display, self.colormap);
@@ -167,20 +196,27 @@ impl AppWindow {
   pub(crate) fn set_background_color(&self, color: Option<Color>) {
     use gtk::prelude::*;
 
-    const BACKGROUND_COLOR_CLASS: &str = "tauri-cef-window-background";
-
     let Some(window) = self.window.gtk_window() else {
       return;
     };
 
+    let display = gtk::prelude::WidgetExt::display(&window);
+    let class = self.cef_host.background_color_class();
+
+    // GTK has no way to replace a provider, so drop the one installed by the previous call -
+    // otherwise every call leaves another provider registered on the display for good.
+    if let Some(previous) = self.cef_host.take_background_color_provider() {
+      gtk::style_context_remove_provider_for_display(&display, &previous);
+    }
+
     let Some(color) = color else {
-      window.remove_css_class(BACKGROUND_COLOR_CLASS);
+      window.remove_css_class(&class);
       return;
     };
 
     let provider = gtk::CssProvider::new();
     let css = format!(
-      ".{BACKGROUND_COLOR_CLASS} {{ background-color: rgba({}, {}, {}, {:.3}); }}",
+      ".{class} {{ background-color: rgba({}, {}, {}, {:.3}); }}",
       color.0,
       color.1,
       color.2,
@@ -188,11 +224,12 @@ impl AppWindow {
     );
     provider.load_from_bytes(&gtk::glib::Bytes::from_owned(css));
     gtk::style_context_add_provider_for_display(
-      &gtk::prelude::WidgetExt::display(&window),
+      &display,
       &provider,
       gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
-    window.add_css_class(BACKGROUND_COLOR_CLASS);
+    window.add_css_class(&class);
+    self.cef_host.set_background_color_provider(provider);
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {

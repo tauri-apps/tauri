@@ -175,6 +175,8 @@ impl AppWindow {
     }
   }
 
+  /// Note that this only covers the GTK widget tree: the CEF browsers are foreign X11 children
+  /// that GTK does not dispatch events for, so the web contents stay interactive.
   pub(crate) fn set_enabled(&self, enabled: bool) {
     use gtk::prelude::*;
 

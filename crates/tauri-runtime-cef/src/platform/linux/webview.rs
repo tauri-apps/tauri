@@ -34,7 +34,8 @@ impl AppWebview {
       if !children.is_null() {
         (xlib.XFree)(children.cast());
       }
-      (status != 0).then_some(native_parent == parent.xid() as xlib::Window)
+      // Browsers are created under (and reparented into) the X11 host, not the GTK toplevel.
+      (status != 0).then_some(native_parent == parent.cef_host_handle() as xlib::Window)
     })
   }
 

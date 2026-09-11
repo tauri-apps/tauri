@@ -154,13 +154,4 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - name: Run udeps
-        # `--all-features` cannot be used for the `tauri` crate: it enables both `tauri/gtk3` and
-        # `tauri/gtk4`, which are mutually exclusive because GTK 3 and GTK 4 cannot be initialized
-        # in the same process.
-        run: |
-          if [ '${{ matrix.path }}' = './crates/tauri' ]; then
-            features='--features __all-features-except-gtk,gtk3'
-          else
-            features='--all-features'
-          fi
-          cargo udeps --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets $features
+        run: cargo udeps --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features

@@ -1,5 +1,46 @@
 # Changelog
 
+## [2.12.0]
+
+### New Features
+
+- [`3f62c70d6`](https://www.github.com/tauri-apps/tauri/commit/3f62c70d6b9a9eeeb7c302b010c858405a1bb761) ([#13848](https://www.github.com/tauri-apps/tauri/pull/13848) by [@zphrs](https://www.github.com/tauri-apps/tauri/../../zphrs)) Add `WebviewBuilder::limit_navigations_to_app_bound_domains`, `WebviewWindowBuilder::limit_navigations_to_app_bound_domains`, and limitNavigationsToAppBoundDomains to tauri.config.json.
+- [`29265557c`](https://www.github.com/tauri-apps/tauri/commit/29265557c7a42ef6a1f982e0ef738208df1f6dd3) ([#15410](https://www.github.com/tauri-apps/tauri/pull/15410) by [@zetaloop](https://www.github.com/tauri-apps/tauri/../../zetaloop)) Added `WindowBuilder/WebviewWindowBuilder::no_redirection_bitmap` method to disable the window redirection bitmap on Windows.
+- [`382dd6ccc`](https://www.github.com/tauri-apps/tauri/commit/382dd6ccc022277d5620fde90a39b4c5e896310e) ([#14865](https://www.github.com/tauri-apps/tauri/pull/14865) by [@F0RLE](https://www.github.com/tauri-apps/tauri/../../F0RLE)) Expose the `wry` permission handler API through Tauri.
+    This includes support for permission types such as `DisplayCapture`, `Midi`, `Sensors`, `MediaKeySystemAccess`, `LocalFonts`, `WindowManagement`, `PointerLock`, `AutomaticDownloads`, `FileSystemAccess`, and `Autoplay`.
+    Added `PermissionResponse::{Allow, Deny, Default}` for runtime permission decisions.
+
+### Bug Fixes
+
+- [`0aeadb6b2`](https://www.github.com/tauri-apps/tauri/commit/0aeadb6b2674ecd43f15b5dd6fcace3232f74b8a) ([#15821](https://www.github.com/tauri-apps/tauri/pull/15821) by [@aurelj](https://www.github.com/tauri-apps/tauri/../../aurelj)) Transfer the exit code from the `window.app_handle().exit(1)` call to the `run_return()` result instead of always returning 0.
+- [`d727d6316`](https://www.github.com/tauri-apps/tauri/commit/d727d631659f07a597cc86cf808f505858dee878) ([#15630](https://www.github.com/tauri-apps/tauri/pull/15630) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Query monitor information (`primary_monitor`, `monitor_from_point`, `available_monitors`) on the main thread from the app-level runtime handle instead of touching the event loop's window target directly.
+- [`a370f6533`](https://www.github.com/tauri-apps/tauri/commit/a370f653330506c2a5f59b643645a15b4cc30c18) ([#15224](https://www.github.com/tauri-apps/tauri/pull/15224) by [@krishpranav](https://www.github.com/tauri-apps/tauri/../../krishpranav)) Avoid leaking Objective-C objects in `WebviewMessage::WithWebview` on Apple targets by replacing `Retained::into_raw` with scoped retained bindings and `Retained::as_ptr` pointer handoff.
+- [`08acfb3fa`](https://www.github.com/tauri-apps/tauri/commit/08acfb3fa04945a6a4f822d66c7556111d9385aa) ([#15625](https://www.github.com/tauri-apps/tauri/pull/15625) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix webview don't get focus when Alt-Tab back to the window if `unstable` feature is enabled on Windows
+- [`1c573a075`](https://www.github.com/tauri-apps/tauri/commit/1c573a075a4e6d0754687d5ecfe7ded4c3d9e74d) ([#15508](https://www.github.com/tauri-apps/tauri/pull/15508) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `create_window` and `create_webview` should wait for the window creation to complete before returning even if it's off main thread, it should also return the error if it failed
+- [`5a882eccf`](https://www.github.com/tauri-apps/tauri/commit/5a882eccfda53a189ec076c79c4ad186f50db5ff) ([#15701](https://www.github.com/tauri-apps/tauri/pull/15701) by [@yobson1](https://www.github.com/tauri-apps/tauri/../../yobson1)) On Linux, fix resize cursor for undecorated Window not being set correctly when mouse is over a resize edge.
+- [`08acfb3fa`](https://www.github.com/tauri-apps/tauri/commit/08acfb3fa04945a6a4f822d66c7556111d9385aa) ([#15625](https://www.github.com/tauri-apps/tauri/pull/15625) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `WindowEvent::Focused` events emitted when dragging the window on Windows
+- [`f4feb2ba7`](https://www.github.com/tauri-apps/tauri/commit/f4feb2ba71ae018f0fc200453ae9cf12a6b0c05f) ([#15950](https://www.github.com/tauri-apps/tauri/pull/15950) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On Windows, fixed `Window::is_focused` always returns `false` in multi-webview mode
+
+### What's Changed
+
+- [`ce3f13b91`](https://www.github.com/tauri-apps/tauri/commit/ce3f13b91a75cb723f229f56a3e82eb5f2d3f644) ([#15887](https://www.github.com/tauri-apps/tauri/pull/15887) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Lock unstable tauri crates to minor versions.
+- [`7cc68e74f`](https://www.github.com/tauri-apps/tauri/commit/7cc68e74ff6981f5c50a52a67d56c5eb2d227188) ([#15307](https://www.github.com/tauri-apps/tauri/pull/15307) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) `WindowEvent::Resumed` and `WindowEvent::Suspended` are now only fired for the matching activity window instead of every window.
+- [`1cffb01da`](https://www.github.com/tauri-apps/tauri/commit/1cffb01da55f5fcd5a0f74ef3281b5a715513e4d) ([#13221](https://www.github.com/tauri-apps/tauri/pull/13221) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set MSRV to 1.90.
+- [`7fd603542`](https://www.github.com/tauri-apps/tauri/commit/7fd603542134fed792514a392af828555859c5d6) ([#15413](https://www.github.com/tauri-apps/tauri/pull/15413) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `EventLoopIterationContext` and `UserMessageContext` now takes references to avoid clones
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.12.0`
+- Upgraded to `tauri-utils@2.10.0`
+- [`872428fe9`](https://www.github.com/tauri-apps/tauri/commit/872428fe910efe25eeaa959b56adcd9d9a9a2157) ([#15790](https://www.github.com/tauri-apps/tauri/pull/15790) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) On macOS, updated `objc2-*` dependencies to 0.3.2
+
+### Breaking Changes
+
+- [`24cb6de2d`](https://www.github.com/tauri-apps/tauri/commit/24cb6de2d4fe4d350afce2fd852dcdcc6a1320f0) ([#15544](https://www.github.com/tauri-apps/tauri/pull/15544) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Removed unused dpi wrapper types like `PhysicalPositionWrapper`
+- [`579c7e2d2`](https://www.github.com/tauri-apps/tauri/commit/579c7e2d2f97182fcd933ca560ee810261322d60) ([#14805](https://www.github.com/tauri-apps/tauri/pull/14805) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) `WindowsStore` and `DispatcherMainThreadContext` are no longer `Send` and `Sync`, and unsafe impl has been moved to `Context` directly.
+- [`d727d6316`](https://www.github.com/tauri-apps/tauri/commit/d727d631659f07a597cc86cf808f505858dee878) ([#15630](https://www.github.com/tauri-apps/tauri/pull/15630) by [@tenderdeve](https://www.github.com/tauri-apps/tauri/../../tenderdeve)) Changed `RuntimeHandle::primary_monitor`, `RuntimeHandle::monitor_from_point`, `RuntimeHandle::available_monitors` to return `Result`s
+- [`08acfb3fa`](https://www.github.com/tauri-apps/tauri/commit/08acfb3fa04945a6a4f822d66c7556111d9385aa) ([#15625](https://www.github.com/tauri-apps/tauri/pull/15625) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `CreateWebviewOptions::focused_webview` now takes `Arc<Mutex<FocusState>>` instead of `Arc<Mutex<Option<String>>>`
+
 ## \[2.11.4]
 
 ### Bug Fixes

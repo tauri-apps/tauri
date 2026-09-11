@@ -98,7 +98,9 @@
         "linux": {
           "appimage": {
             "bundleMediaFramework": false,
-            "files": {}
+            "files": {},
+            "updateInformation": null,
+            "useNewFormat": false
           },
           "deb": {
             "files": {}
@@ -2291,7 +2293,9 @@
           "default": {
             "appimage": {
               "bundleMediaFramework": false,
-              "files": {}
+              "files": {},
+              "updateInformation": null,
+              "useNewFormat": false
             },
             "deb": {
               "files": {}
@@ -3260,7 +3264,9 @@
           "description": "Configuration for the AppImage bundle.",
           "default": {
             "bundleMediaFramework": false,
-            "files": {}
+            "files": {},
+            "updateInformation": null,
+            "useNewFormat": false
           },
           "allOf": [
             {
@@ -3311,6 +3317,19 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "useNewFormat": {
+          "description": "Use the new AppImage bundler based on sharun and uruntime instead of linuxdeploy.\n\n The resulting AppImage carries its own dependencies, so it runs on distributions\n older than the one it was built on, does not depend on the host libc, and supports\n Wayland without forcing the use of XWayland.\n\n This is experimental. The bundler downloads and runs third-party tooling, launches\n your application and every sidecar once during bundling to discover the libraries\n they load at runtime, and produces a larger AppImage. Only x86_64 and aarch64 are supported, and it cannot\n cross-compile because it deploys the build system's own libraries.\n\n Arch Linux is the recommended build host. Ubuntu 24.04 works but is known to lose\n hardware acceleration on Wayland with the proprietary NVIDIA driver.\n\n The tooling (quick-sharun) reads its own configuration from environment variables,\n which the bundler forwards. For example `STRACE_MODE=0` skips launching the application\n during bundling and `DEPLOY_OPENGL=1` forces the OpenGL stack to be bundled.",
+          "default": false,
+          "type": "boolean"
+        },
+        "updateInformation": {
+          "description": "Update information to forward to the AppImage tooling according to <https://github.com/AppImage/AppImageSpec/blob/master/draft.md#update-information>.\n Can also be provided via the `UPINFO` env var, which takes precedence over this value.\n\n When set, the generated AppImage and its .zsync file must not be renamed\n to keep the update mechanism working.\n\n Only used by the new AppImage format, see `use_new_format`.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

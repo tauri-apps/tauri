@@ -293,12 +293,17 @@ impl Default for Env {
         // validate that we're actually running on an AppImage
         // an AppImage is mounted to `/$TEMPDIR/.mount_${appPrefix}${hash}`
         // see <https://github.com/AppImage/AppImageKit/blob/1681fd84dbe09c7d9b22e13cdb16ea601aa0ec47/src/runtime.c#L501>
+        // with `--appimage-extract-and-run` (or when FUSE is unavailable) the runtime extracts to
+        // `/$TEMPDIR/appimage_extracted_${hash}` instead
+        // see <https://github.com/AppImage/AppImageKit/blob/1681fd84dbe09c7d9b22e13cdb16ea601aa0ec47/src/runtime.c#L719>
+        // the uruntime used by the sharun based bundler follows the same conventions.
         // note that it is safe to use `std::env::current_exe` here since we just loaded an AppImage.
         let is_temp = std::env::current_exe()
           .map(|p| {
-            p.display()
-              .to_string()
-              .starts_with(&format!("{}/.mount_", std::env::temp_dir().display()))
+            let path = p.display().to_string();
+            let temp_dir = std::env::temp_dir();
+            path.starts_with(&format!("{}/.mount_", temp_dir.display()))
+              || path.starts_with(&format!("{}/appimage_extracted_", temp_dir.display()))
           })
           .unwrap_or(true);
 

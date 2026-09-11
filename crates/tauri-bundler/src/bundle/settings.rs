@@ -228,6 +228,28 @@ pub struct AppImageSettings {
     note = "Bundling xdg-open in an AppImage does not work and therefore was disabled."
   )]
   pub bundle_xdg_open: bool,
+  /// Use the new AppImage bundler based on sharun and uruntime instead of linuxdeploy.
+  ///
+  /// The resulting AppImage carries its own dependencies, so it runs on distributions
+  /// older than the one it was built on, does not depend on the host libc, and supports
+  /// Wayland without forcing the use of XWayland.
+  ///
+  /// This is experimental. The bundler downloads and runs third-party tooling, launches
+  /// your application once during bundling to discover the libraries it loads at runtime,
+  /// and produces a larger AppImage. Only x86_64 and aarch64 are supported, and it cannot
+  /// cross-compile because it deploys the build system's own libraries.
+  ///
+  /// Arch Linux is the recommended build host. Ubuntu 24.04 works but is known to lose
+  /// hardware acceleration on Wayland with the proprietary NVIDIA driver.
+  pub use_new_format: bool,
+  /// Update information to forward to the AppImage tooling according to <https://github.com/AppImage/AppImageSpec/blob/master/draft.md#update-information>.
+  /// Can also be provided via the `UPINFO` env var, which takes precedence over this value.
+  ///
+  /// When set, the generated AppImage and its .zsync file must not be renamed
+  /// to keep the update mechanism working.
+  ///
+  /// Only used by the new AppImage format, see `use_new_format`.
+  pub update_information: Option<String>,
 }
 
 /// The RPM bundle settings.

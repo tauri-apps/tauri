@@ -326,6 +326,34 @@ pub struct AppImageConfig {
   /// The files to include in the Appimage Binary.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Use the new AppImage bundler based on sharun and uruntime instead of linuxdeploy.
+  ///
+  /// The resulting AppImage carries its own dependencies, so it runs on distributions
+  /// older than the one it was built on, does not depend on the host libc, and supports
+  /// Wayland without forcing the use of XWayland.
+  ///
+  /// This is experimental. The bundler downloads and runs third-party tooling, launches
+  /// your application and every sidecar once during bundling to discover the libraries
+  /// they load at runtime, and produces a larger AppImage. Only x86_64 and aarch64 are supported, and it cannot
+  /// cross-compile because it deploys the build system's own libraries.
+  ///
+  /// Arch Linux is the recommended build host. Ubuntu 24.04 works but is known to lose
+  /// hardware acceleration on Wayland with the proprietary NVIDIA driver.
+  ///
+  /// The tooling (quick-sharun) reads its own configuration from environment variables,
+  /// which the bundler forwards. For example `STRACE_MODE=0` skips launching the application
+  /// during bundling and `DEPLOY_OPENGL=1` forces the OpenGL stack to be bundled.
+  #[serde(default, alias = "use-new-format")]
+  pub use_new_format: bool,
+  /// Update information to forward to the AppImage tooling according to <https://github.com/AppImage/AppImageSpec/blob/master/draft.md#update-information>.
+  /// Can also be provided via the `UPINFO` env var, which takes precedence over this value.
+  ///
+  /// When set, the generated AppImage and its .zsync file must not be renamed
+  /// to keep the update mechanism working.
+  ///
+  /// Only used by the new AppImage format, see `use_new_format`.
+  #[serde(default, alias = "update-information")]
+  pub update_information: Option<String>,
 }
 
 /// Configuration for Debian (.deb) bundles.

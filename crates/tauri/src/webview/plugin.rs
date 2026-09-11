@@ -153,13 +153,11 @@ mod desktop_commands {
     let width = options.width;
     let height = options.height;
 
-    let builder = crate::webview::WebviewBuilder::from_config(&options);
+    let builder = crate::webview::WebviewBuilder::from_config(&options)
+      .position(tauri_runtime::dpi::LogicalPosition::new(x, y))
+      .size(tauri_runtime::dpi::LogicalSize::new(width, height));
 
-    window.add_child(
-      builder,
-      tauri_runtime::dpi::LogicalPosition::new(x, y),
-      tauri_runtime::dpi::LogicalSize::new(width, height),
-    )?;
+    window.add_child(builder)?;
 
     Ok(())
   }

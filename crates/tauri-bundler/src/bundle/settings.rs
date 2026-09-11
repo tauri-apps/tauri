@@ -222,6 +222,8 @@ pub struct AppImageSettings {
   pub files: HashMap<PathBuf, PathBuf>,
   /// Whether to include gstreamer plugins for audio/media support.
   pub bundle_media_framework: bool,
+  /// Shared libraries to exclude from the AppImage dependency deployment.
+  pub exclude_libraries: Vec<String>,
   /// Whether to include the `xdg-open` binary.
   #[deprecated(
     since = "2.12.0",

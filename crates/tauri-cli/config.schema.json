@@ -98,6 +98,7 @@
         "linux": {
           "appimage": {
             "bundleMediaFramework": false,
+            "excludeLibraries": [],
             "files": {}
           },
           "deb": {
@@ -2291,6 +2292,7 @@
           "default": {
             "appimage": {
               "bundleMediaFramework": false,
+              "excludeLibraries": [],
               "files": {}
             },
             "deb": {
@@ -3260,6 +3262,7 @@
           "description": "Configuration for the AppImage bundle.",
           "default": {
             "bundleMediaFramework": false,
+            "excludeLibraries": [],
             "files": {}
           },
           "allOf": [
@@ -3303,6 +3306,14 @@
           "description": "Include additional gstreamer dependencies needed for audio and video playback.\n This increases the bundle size by ~15-35MB depending on your build system.",
           "default": false,
           "type": "boolean"
+        },
+        "excludeLibraries": {
+          "description": "Shared libraries to exclude from the AppImage dependency deployment.\n\n Each value is passed to linuxdeploy's `--exclude-library` option as a glob pattern.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "files": {
           "description": "The files to include in the Appimage Binary.",

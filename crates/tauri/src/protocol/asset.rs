@@ -169,7 +169,7 @@ fn get_response(
       let boundary_sep = format!("\r\n--{boundary}\r\n");
       let boundary_closer = format!("\r\n--{boundary}--\r\n");
 
-      // `Builder::header` appends, so replace the file mime type set earlier
+      // `Builder::header` appends, we want to replace the file mime type set earlier
       if let Some(headers) = resp.headers_mut() {
         headers.insert(
           CONTENT_TYPE,

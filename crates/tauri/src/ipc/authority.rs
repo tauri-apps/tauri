@@ -171,12 +171,22 @@ impl RuntimeAuthority {
       }
     }
 
-    let resolved = Resolved::resolve(
+    let mut resolved = Resolved::resolve(
       &self.acl,
       capabilities,
       tauri_utils::platform::Target::current(),
     )
     .unwrap();
+
+    // Rebase fresh scope_ids past existing ones to avoid collisions on merge.
+    let scope_id_offset = self
+      .scope_manager
+      .command_scope
+      .keys()
+      .next_back()
+      .copied()
+      .unwrap_or(0);
+    rebase_scope_ids(&mut resolved, scope_id_offset);
 
     // fill global scope
     for (plugin, global_scope) in resolved.global_scope {
@@ -468,6 +478,26 @@ impl RuntimeAuthority {
         }
       })
     }
+  }
+}
+
+/// Offset every `scope_id` in `resolved` by `offset`; a zero offset is a no-op.
+#[cfg(feature = "dynamic-acl")]
+fn rebase_scope_ids(resolved: &mut Resolved, offset: ScopeKey) {
+  if offset == 0 {
+    return;
+  }
+  resolved.command_scope = std::mem::take(&mut resolved.command_scope)
+    .into_iter()
+    .map(|(k, v)| (k + offset, v))
+    .collect();
+  for cmd in resolved
+    .allowed_commands
+    .values_mut()
+    .chain(resolved.denied_commands.values_mut())
+    .flatten()
+  {
+    cmd.scope_id = cmd.scope_id.map(|id| id + offset);
   }
 }
 
@@ -1186,6 +1216,88 @@ mod tests {
         }
       ),
       "myplugin.my-command-webview-window not allowed on window \"main-*\", webview \"webview-*\", URL: http://localhost:123/\n\nallowed on: [windows: \"main-*\", webviews: \"webview-*\", URL: local], [windows: \"main-*\", webviews: \"webview-*\", URL: http://localhost:8080]\n\nreferenced by: capability: maincap, permission: allow-command || capability: maincap, permission: allow-command"
+    );
+  }
+
+  #[cfg(feature = "dynamic-acl")]
+  #[test]
+  fn rebase_scope_ids_shifts_keys_and_scope_ids() {
+    use tauri_utils::acl::resolved::ResolvedScope;
+
+    let mut resolved = Resolved {
+      command_scope: [(1, ResolvedScope::default()), (2, ResolvedScope::default())]
+        .into_iter()
+        .collect(),
+      allowed_commands: [(
+        "fetch".to_string(),
+        vec![
+          ResolvedCommand {
+            scope_id: Some(1),
+            ..Default::default()
+          },
+          ResolvedCommand {
+            scope_id: None,
+            ..Default::default()
+          },
+        ],
+      )]
+      .into_iter()
+      .collect(),
+      denied_commands: [(
+        "fetch".to_string(),
+        vec![ResolvedCommand {
+          scope_id: Some(2),
+          ..Default::default()
+        }],
+      )]
+      .into_iter()
+      .collect(),
+      ..Default::default()
+    };
+
+    super::rebase_scope_ids(&mut resolved, 10);
+
+    assert_eq!(
+      resolved.command_scope.keys().copied().collect::<Vec<_>>(),
+      vec![11, 12]
+    );
+    let allowed = resolved.allowed_commands.get("fetch").unwrap();
+    assert_eq!(allowed[0].scope_id, Some(11));
+    assert_eq!(allowed[1].scope_id, None);
+    let denied = resolved.denied_commands.get("fetch").unwrap();
+    assert_eq!(denied[0].scope_id, Some(12));
+  }
+
+  #[cfg(feature = "dynamic-acl")]
+  #[test]
+  fn rebase_scope_ids_zero_offset_is_noop() {
+    use tauri_utils::acl::resolved::ResolvedScope;
+
+    let mut resolved = Resolved {
+      command_scope: [(1, ResolvedScope::default()), (5, ResolvedScope::default())]
+        .into_iter()
+        .collect(),
+      allowed_commands: [(
+        "fetch".to_string(),
+        vec![ResolvedCommand {
+          scope_id: Some(1),
+          ..Default::default()
+        }],
+      )]
+      .into_iter()
+      .collect(),
+      ..Default::default()
+    };
+
+    super::rebase_scope_ids(&mut resolved, 0);
+
+    assert_eq!(
+      resolved.command_scope.keys().copied().collect::<Vec<_>>(),
+      vec![1, 5]
+    );
+    assert_eq!(
+      resolved.allowed_commands.get("fetch").unwrap()[0].scope_id,
+      Some(1)
     );
   }
 }

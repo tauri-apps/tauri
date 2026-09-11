@@ -37,43 +37,6 @@ members = [
   "examples/api/src-tauri",
   "examples/api/src-tauri/tauri-plugin-sample",
 ]
-# On Linux and BSD a single build cannot contain both a GTK3 runtime (tauri-runtime-wry) and a
-# GTK4 one (tauri-runtime-cef), because `tauri/gtk3` and `tauri/gtk4` are mutually exclusive - GTK
-# 3 and GTK 4 cannot be initialized in the same process. Keep the CEF-only members out of the
-# default selection so `cargo check`/`cargo test` in the workspace root resolve to the wry runtime;
-# build them with `cargo check -p tauri-runtime-cef` / `--manifest-path examples/cef/src-tauri`.
-default-members = [
-  "crates/tauri",
-  "crates/tauri-runtime",
-  "crates/tauri-runtime-wry",
-  "crates/tauri-macros",
-  "crates/tauri-utils",
-  "crates/tauri-build",
-  "crates/tauri-codegen",
-  "crates/tauri-plugin",
-  "crates/tauri-schema-generator",
-  "crates/tauri-schema-worker",
-  "crates/tauri-cli",
-  "crates/tauri-bundler",
-  "crates/tauri-macos-sign",
-  "crates/tauri-driver",
-  "crates/tauri-examples",
-
-  "packages/cli",
-
-  "crates/tests/restart",
-  "crates/tests/acl",
-
-  "bench",
-  "bench/tests/cpu_intensive/src-tauri",
-  "bench/tests/files_transfer/src-tauri",
-  "bench/tests/helloworld/src-tauri",
-
-  "examples/file-associations/src-tauri",
-  "examples/resources/src-tauri",
-  "examples/api/src-tauri",
-  "examples/api/src-tauri/tauri-plugin-sample",
-]
 resolver = "2"
 
 [workspace.package]

@@ -11,3 +11,5 @@ The GTK types crossing the runtime boundary are now version-agnostic raw pointer
 - `tauri_runtime_wry::GtkWindow` and `tauri_runtime_wry::GtkBox` are newtypes over `*mut c_void`.
 
 `tauri-runtime` no longer depends on the `gtk` crate.
+
+The new `tauri_runtime::gtk` module carries the GTK version a runtime binds to: runtimes call `gtk::declare_version` before creating windows so `tauri`, which picks its bindings at compile time, can detect a mismatch instead of reinterpreting a GTK object of the other version.

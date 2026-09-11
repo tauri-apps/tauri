@@ -79,7 +79,7 @@ impl<R: Runtime> MenuManager<R> {
           let _ = unsafe { menu.inner().init_for_hwnd_with_theme(raw.hwnd as _, theme) };
         }
         #[cfg(gtk)]
-        {
+        if crate::gtk_version::check().is_ok() {
           use gtk::glib::translate::FromGlibPtrNone;
 
           let gtk_window = unsafe {

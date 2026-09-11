@@ -2989,6 +2989,17 @@ impl<T: UserEvent> WryRuntime<T> {
   }
 
   fn init(event_loop: EventLoop<Message<T>>) -> Result<Self> {
+    // tao builds its windows on GTK 3, so the GTK pointers this runtime hands out are GTK 3
+    // objects no matter which bindings the `tauri` crate was compiled against.
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    tauri_runtime::gtk::declare_version(tauri_runtime::gtk::Version::V3);
+
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 

@@ -3040,6 +3040,10 @@ impl<T: UserEvent> CefRuntime<T> {
       unsafe { std::env::set_var("GDK_BACKEND", "x11") };
       gtk::gdk::set_allowed_backends("x11");
       event_loop_builder.with_gtk4();
+
+      // the GTK pointers this runtime hands out are GTK 4 objects, whichever bindings the `tauri`
+      // crate was compiled against.
+      tauri_runtime::gtk::declare_version(tauri_runtime::gtk::Version::V4);
     }
 
     #[cfg(windows)]

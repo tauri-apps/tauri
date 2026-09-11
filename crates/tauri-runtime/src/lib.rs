@@ -24,6 +24,14 @@ use webview::{DetachedWebview, PendingWebview};
 /// UI scaling utilities.
 pub mod dpi;
 pub mod dynamic;
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+pub mod gtk;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
@@ -902,7 +910,8 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   ///
   /// The GTK major version of the object is the one the runtime was built against, so callers must
   /// wrap it with matching bindings - the `tauri` crate selects them through its `gtk3`/`gtk4`
-  /// features, which the runtime crate enables.
+  /// features, which the runtime crate enables. Runtimes must report that version with
+  /// [`gtk::declare_version`] so a mismatch can be detected instead of reinterpreting the object.
   ///
   /// The object may only be used on the main thread.
   #[cfg(any(

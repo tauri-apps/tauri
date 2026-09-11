@@ -1684,10 +1684,18 @@ impl<R: Runtime> Window<R> {
   /// Note that this type can only be used on the main thread.
   ///
   /// Requires the `gtk3` or `gtk4` feature, which is enabled by the runtime crate in use.
+  ///
+  /// # Errors
+  ///
+  /// Returns [`Error::GtkVersionMismatch`](crate::Error::GtkVersionMismatch) when the active
+  /// runtime builds its windows with the other GTK version, which happens when a build enables
+  /// both `gtk3` and `gtk4` and then runs the GTK3 runtime.
   #[cfg(gtk)]
   #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
     use gtk::glib::translate::FromGlibPtrFull;
+
+    crate::gtk_version::check()?;
 
     self
       .window
@@ -1710,6 +1718,8 @@ impl<R: Runtime> Window<R> {
   #[cfg_attr(docsrs, doc(cfg(any(feature = "gtk3", feature = "gtk4"))))]
   pub fn default_vbox(&self) -> crate::Result<gtk::Box> {
     use gtk::glib::translate::FromGlibPtrFull;
+
+    crate::gtk_version::check()?;
 
     self
       .window

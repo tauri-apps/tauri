@@ -41,7 +41,7 @@
 //! - **linux-libappindicator**: Uses libappindicator instead of the default ksni (StatusNotifierItem) backend for the tray icon on Linux, adding a runtime dependency on libayatana-appindicator.
 //! - **gtk3**: Selects GTK 3 for the Linux GTK APIs (`Window::gtk_window`, `Window::default_vbox` and the menu integration). Enabled by GTK3 runtime crates such as `tauri-runtime-wry`.
 //! - **gtk4**: Selects GTK 4 for the Linux GTK APIs (`Window::gtk_window`, `Window::default_vbox` and the menu integration). Enabled by GTK4 runtime crates such as `tauri-runtime-cef`.
-//!   `gtk3` and `gtk4` are mutually exclusive: GTK 3 and GTK 4 cannot be initialized in the same process, so a Linux binary must link runtime crates that agree on the GTK version.
+//!   Enabling both selects GTK 4, and the GTK APIs then fail with [`Error::GtkVersionMismatch`] under a GTK3 runtime. Link runtime crates that agree on the GTK version: GTK 3 and GTK 4 cannot be initialized in the same process, so a Linux binary can only ever run one of them.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `app > security > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`webview::Webview#method.open_devtools`]. Enabled by default on debug builds.
@@ -79,30 +79,11 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-// GTK 3 and GTK 4 cannot coexist in a single process: GTK 4 aborts at initialization when it
-// detects GTK 2/3 symbols. Cargo unifies features, so a Linux binary linking both a GTK3 runtime
-// (`tauri-runtime-wry`) and a GTK4 runtime (`tauri-runtime-cef`) would enable both features here
-// and produce a binary that cannot start the GTK4 runtime. Reject it at compile time instead of
-// silently building something that only works for one of the two runtimes.
-#[cfg(all(
-  any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ),
-  feature = "gtk3",
-  feature = "gtk4"
-))]
-compile_error!(
-  "the `gtk3` and `gtk4` features of the `tauri` crate are mutually exclusive on Linux and BSD.\n\
-   GTK 3 and GTK 4 cannot be initialized in the same process, so a single binary cannot link two \
-   runtimes that disagree on the GTK version (e.g. `tauri-runtime-wry`, which uses GTK 3, and \
-   `tauri-runtime-cef`, which uses GTK 4). Enable exactly one runtime crate for Linux builds; \
-   note that `--all-features` enables both and is therefore not supported on these targets."
-);
-
+// `gtk3` and `gtk4` are additive cargo features but the crate can only bind one GTK version, so
+// GTK 4 wins when both are enabled - the same precedence muda and tray-icon use. Cargo unifies
+// features, so this is what a build graph containing both a GTK3 runtime (`tauri-runtime-wry`) and
+// a GTK4 one (`tauri-runtime-cef`) resolves to; `Window::gtk_version_matches` then keeps the GTK
+// APIs from handing objects of the wrong version to the bindings compiled here.
 #[cfg(all(
   any(
     target_os = "linux",
@@ -146,6 +127,8 @@ pub(crate) mod app;
 pub mod async_runtime;
 mod error;
 mod event;
+#[cfg(gtk)]
+mod gtk_version;
 pub mod ipc;
 mod manager;
 mod pattern;

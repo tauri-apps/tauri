@@ -763,7 +763,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.state::<Scopes>().asset_protocol.clone()
   }
 
-  /// The path resolver.
+  /// Returns the path resolver.
+  ///
+  /// See the [`path`] module for usage examples and guidance on resolving paths before application
+  /// initialization.
   fn path(&self) -> &crate::path::PathResolver<R> {
     self.state::<crate::path::PathResolver<R>>().inner()
   }

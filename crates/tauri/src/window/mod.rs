@@ -44,8 +44,6 @@ use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
-#[cfg(gtk)]
-use std::ffi::c_void;
 use std::{
   fmt,
   hash::{Hash, Hasher},
@@ -2511,12 +2509,12 @@ impl From<WindowEffectsConfig> for EffectsBuilder {
 /// Produces the owned `GtkWindow*` that [`WindowBuilder::transient_for`] expects: it transfers
 /// a strong reference, which the runtime's builder takes ownership of.
 #[cfg(gtk)]
-fn gtk_window_ptr(parent: &impl gtk::prelude::IsA<gtk::Window>) -> *mut c_void {
+fn gtk_window_ptr(parent: &impl gtk::prelude::IsA<gtk::Window>) -> *mut std::ffi::c_void {
   use gtk::{glib::translate::ToGlibPtr, prelude::Cast};
 
   let parent = parent.clone().upcast::<gtk::Window>();
   let ptr: *mut gtk::ffi::GtkWindow = parent.to_glib_full();
-  ptr as *mut c_void
+  ptr as *mut std::ffi::c_void
 }
 
 #[cfg(test)]

@@ -1234,7 +1234,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(mut self, parent: *mut c_void) -> Self {
+  fn transient_for(mut self, parent: *mut std::ffi::c_void) -> Self {
     use gtk::glib::translate::FromGlibPtrFull;
 
     // SAFETY: `transient_for` receives the parent as transfer full, so the wrapper adopts the
@@ -1397,7 +1397,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub struct GtkWindow(pub *mut c_void);
+pub struct GtkWindow(pub *mut std::ffi::c_void);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -1415,7 +1415,7 @@ unsafe impl Send for GtkWindow {}
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub struct GtkBox(pub *mut c_void);
+pub struct GtkBox(pub *mut std::ffi::c_void);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -2158,7 +2158,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<*mut c_void> {
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void> {
     window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
   }
 
@@ -2169,7 +2169,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<*mut c_void> {
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void> {
     window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
   }
 
@@ -3547,7 +3547,7 @@ fn handle_user_message<T: UserEvent>(
             use gtk::glib::translate::ToGlibPtr;
 
             let ptr: *mut gtk::ffi::GtkApplicationWindow = window.gtk_window().to_glib_full();
-            tx.send(GtkWindow(ptr as *mut c_void)).unwrap()
+            tx.send(GtkWindow(ptr as *mut std::ffi::c_void)).unwrap()
           }
           #[cfg(any(
             target_os = "linux",
@@ -3560,7 +3560,7 @@ fn handle_user_message<T: UserEvent>(
             use gtk::glib::translate::ToGlibPtr;
 
             let ptr: *mut gtk::ffi::GtkBox = window.default_vbox().unwrap().to_glib_full();
-            tx.send(GtkBox(ptr as *mut c_void)).unwrap()
+            tx.send(GtkBox(ptr as *mut std::ffi::c_void)).unwrap()
           }
           #[cfg(target_os = "android")]
           WindowMessage::ActivityName(tx) => {
@@ -4773,7 +4773,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       ))]
       gtk_window: {
         let ptr: *mut gtk::ffi::GtkApplicationWindow = window.gtk_window().to_glib_none().0;
-        ptr as *mut c_void
+        ptr as *mut std::ffi::c_void
       },
       #[cfg(any(
         target_os = "linux",
@@ -4784,7 +4784,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       ))]
       default_vbox: window.default_vbox().map(|vbox| {
         let ptr: *mut gtk::ffi::GtkBox = vbox.to_glib_none().0;
-        ptr as *mut c_void
+        ptr as *mut std::ffi::c_void
       }),
       _marker: &std::marker::PhantomData,
     };

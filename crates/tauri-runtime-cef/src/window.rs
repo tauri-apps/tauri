@@ -4,7 +4,6 @@
 
 use std::{
   collections::HashMap,
-  ffi::c_void,
   sync::{
     Arc, Mutex,
     mpsc::{self, Receiver, Sender},
@@ -71,7 +70,7 @@ type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventListener
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub(crate) struct SendGtkWindow(*mut c_void);
+pub(crate) struct SendGtkWindow(*mut std::ffi::c_void);
 
 #[cfg(any(
   target_os = "linux",
@@ -89,7 +88,7 @@ unsafe impl Send for SendGtkWindow {}
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub(crate) struct SendGtkBox(*mut c_void);
+pub(crate) struct SendGtkBox(*mut std::ffi::c_void);
 
 #[cfg(any(
   target_os = "linux",
@@ -721,11 +720,11 @@ impl<T: UserEvent> WinitCefApp<T> {
       after_window_creation(RawWindow {
         gtk_window: {
           let ptr: *mut gtk::ffi::GtkApplicationWindow = gtk_window.to_glib_none().0;
-          ptr as *mut c_void
+          ptr as *mut std::ffi::c_void
         },
         default_vbox: Some({
           let ptr: *mut gtk::ffi::GtkBox = default_vbox.to_glib_none().0;
-          ptr as *mut c_void
+          ptr as *mut std::ffi::c_void
         }),
         _marker: &PhantomData,
       });
@@ -936,7 +935,7 @@ impl<T: UserEvent> WinitCefApp<T> {
 
         let gtk_window = appwindow.window.gtk_window().unwrap();
         let ptr: *mut gtk::ffi::GtkApplicationWindow = gtk_window.to_glib_full();
-        let _ = tx.send(Ok(SendGtkWindow(ptr as *mut c_void)));
+        let _ = tx.send(Ok(SendGtkWindow(ptr as *mut std::ffi::c_void)));
       }
       #[cfg(any(
         target_os = "linux",
@@ -950,7 +949,7 @@ impl<T: UserEvent> WinitCefApp<T> {
 
         let default_vbox = appwindow.cef_host.default_vbox();
         let ptr: *mut gtk::ffi::GtkBox = default_vbox.to_glib_full();
-        let _ = tx.send(Ok(SendGtkBox(ptr as *mut c_void)));
+        let _ = tx.send(Ok(SendGtkBox(ptr as *mut std::ffi::c_void)));
       }
       WindowMessage::RawWindowHandle(tx) => {
         let handle = window.window_handle();
@@ -1284,7 +1283,7 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<*mut c_void> {
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void> {
     window_getter!(self, GtkWindow).map(|gtk_window| gtk_window.0)
   }
 
@@ -1295,7 +1294,7 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<*mut c_void> {
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void> {
     window_getter!(self, DefaultVBox).map(|gtk_box| gtk_box.0)
   }
 

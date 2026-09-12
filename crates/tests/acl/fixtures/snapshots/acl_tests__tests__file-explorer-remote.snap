@@ -397,13 +397,9 @@ Resolved {
     global_scope: {
         "fs": ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$APPDATA",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$APPDATA"),
+                },
             ],
             deny: [],
         },

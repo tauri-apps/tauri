@@ -112,19 +112,11 @@ impl CapabilityBuilder {
 
     let allowed_scope = allowed
       .into_iter()
-      .map(|a| {
-        serde_json::to_value(a)
-          .expect("failed to serialize scope")
-          .into()
-      })
+      .map(|a| serde_json::to_value(a).expect("failed to serialize scope"))
       .collect();
     let denied_scope = denied
       .into_iter()
-      .map(|a| {
-        serde_json::to_value(a)
-          .expect("failed to serialize scope")
-          .into()
-      })
+      .map(|a| serde_json::to_value(a).expect("failed to serialize scope"))
       .collect();
     let scope = Scopes {
       allow: Some(allowed_scope),

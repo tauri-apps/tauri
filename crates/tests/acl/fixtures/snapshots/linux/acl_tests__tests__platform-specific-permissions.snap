@@ -68,25 +68,17 @@ Resolved {
     command_scope: {
         1: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "command": String(
-                            "apt",
-                        ),
-                    },
-                ),
+                Object {
+                    "command": String("apt"),
+                },
             ],
             deny: [],
         },
         2: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "command": String(
-                            "servo",
-                        ),
-                    },
-                ),
+                Object {
+                    "command": String("servo"),
+                },
             ],
             deny: [],
         },

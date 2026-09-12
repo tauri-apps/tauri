@@ -40,13 +40,9 @@ Resolved {
     command_scope: {
         1: ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "command": String(
-                            "safari",
-                        ),
-                    },
-                ),
+                Object {
+                    "command": String("safari"),
+                },
             ],
             deny: [],
         },
@@ -54,13 +50,9 @@ Resolved {
     global_scope: {
         "os": ResolvedScope {
             allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$HOME/Library/**",
-                        ),
-                    },
-                ),
+                Object {
+                    "path": String("$HOME/Library/**"),
+                },
             ],
             deny: [],
         },

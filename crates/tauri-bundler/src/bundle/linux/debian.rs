@@ -41,6 +41,31 @@ use std::{
   path::{Path, PathBuf},
 };
 
+/// Converts a SemVer version string to the Debian upstream version format.
+///
+/// SemVer separates the pre-release suffix with `-`, while Debian uses `~`
+/// so that `1.0.0~alpha` sorts before `1.0.0`. Any `-` inside the SemVer
+/// pre-release is rewritten to `.` so the whole suffix stays on the upstream
+/// side of the Debian grammar, which uses `-` to separate `upstream_version`
+/// from `debian_revision`. Two pre-releases that differ only by `-` vs `.`
+/// position (e.g. `rc-1` and `rc.1`) therefore produce the same output.
+/// Inputs that don't parse as SemVer, or have no pre-release, are returned
+/// unchanged. See <https://wiki.debian.org/Versioning>.
+fn to_debian_version(version: &str) -> String {
+  match semver::Version::parse(version) {
+    Ok(v) if !v.pre.is_empty() => {
+      let pre = v.pre.as_str().replace('-', ".");
+      let mut deb = format!("{}.{}.{}~{}", v.major, v.minor, v.patch, pre);
+      if !v.build.is_empty() {
+        deb.push('+');
+        deb.push_str(v.build.as_str());
+      }
+      deb
+    }
+    _ => version.to_string(),
+  }
+}
+
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -60,7 +85,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_base_name = format!(
     "{}_{}_{}",
     settings.product_name(),
-    settings.version_string(),
+    to_debian_version(settings.version_string()),
     arch
   );
   let package_name = format!("{package_base_name}.deb");
@@ -171,7 +196,11 @@ fn generate_control_file(
   let mut file = fs_utils::create_file(&dest_path)?;
   let package = heck::AsKebabCase(settings.product_name());
   writeln!(file, "Package: {package}")?;
-  writeln!(file, "Version: {}", settings.version_string())?;
+  writeln!(
+    file,
+    "Version: {}",
+    to_debian_version(settings.version_string())
+  )?;
   writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
@@ -400,4 +429,64 @@ fn create_archive(srcs: Vec<PathBuf>, dest: &Path) -> crate::Result<()> {
   }
   builder.into_inner()?.flush()?;
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::to_debian_version;
+
+  #[test]
+  fn plain_release_unchanged() {
+    assert_eq!(to_debian_version("1.0.0"), "1.0.0");
+    assert_eq!(to_debian_version("2.4.1"), "2.4.1");
+  }
+
+  #[test]
+  fn semver_prerelease_uses_tilde() {
+    assert_eq!(to_debian_version("1.0.0-alpha"), "1.0.0~alpha");
+    assert_eq!(to_debian_version("1.0.0-beta"), "1.0.0~beta");
+  }
+
+  #[test]
+  fn dotted_prerelease_preserved() {
+    assert_eq!(to_debian_version("1.0.0-alpha.1"), "1.0.0~alpha.1");
+    assert_eq!(to_debian_version("1.0.0-beta.11"), "1.0.0~beta.11");
+    assert_eq!(to_debian_version("1.0.0-rc.1"), "1.0.0~rc.1");
+  }
+
+  #[test]
+  fn hyphens_in_prerelease_are_normalized_to_dots() {
+    // dpkg would otherwise read the `-` as the upstream/debian_revision separator.
+    assert_eq!(to_debian_version("1.0.0-rc-1"), "1.0.0~rc.1");
+    assert_eq!(
+      to_debian_version("1.0.0-alpha-beta-1"),
+      "1.0.0~alpha.beta.1"
+    );
+  }
+
+  #[test]
+  fn hyphenated_and_dotted_prereleases_collapse() {
+    // intentional collapse; see `to_debian_version`.
+    assert_eq!(
+      to_debian_version("1.0.0-alpha-beta-1"),
+      to_debian_version("1.0.0-alpha.beta.1"),
+    );
+  }
+
+  #[test]
+  fn build_metadata_preserved() {
+    assert_eq!(to_debian_version("1.0.0+build.1"), "1.0.0+build.1");
+    assert_eq!(
+      to_debian_version("1.0.0-alpha+build.1"),
+      "1.0.0~alpha+build.1"
+    );
+  }
+
+  #[test]
+  fn non_semver_input_passes_through() {
+    assert_eq!(to_debian_version("1.0.0.0"), "1.0.0.0");
+    assert_eq!(to_debian_version("1.0"), "1.0");
+    assert_eq!(to_debian_version("1:2.0.0"), "1:2.0.0");
+    assert_eq!(to_debian_version("1.0.0~beta"), "1.0.0~beta");
+  }
 }

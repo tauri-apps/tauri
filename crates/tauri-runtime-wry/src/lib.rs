@@ -191,7 +191,6 @@ use std::{
     BTreeMap, HashMap, HashSet,
     hash_map::Entry::{Occupied, Vacant},
   },
-  ffi::c_void,
   fmt,
   ops::Deref,
   path::PathBuf,

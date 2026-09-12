@@ -36,6 +36,7 @@ impl CapabilityBuilder {
       local: true,
       windows: Vec::new(),
       webviews: Vec::new(),
+      uri_schemes: None,
       permissions: Vec::new(),
       platforms: None,
     })
@@ -82,6 +83,32 @@ impl CapabilityBuilder {
       .0
       .webviews
       .extend(webviews.into_iter().map(|w| w.into()));
+    self
+  }
+
+  /// Allow a custom URI scheme protocol on this capability's matched webviews.
+  ///
+  /// Calling this opts the capability into per-webview custom URI scheme gating: a custom scheme
+  /// is then only registered on a webview if some capability matching that webview allows it.
+  pub fn uri_scheme(mut self, scheme: impl Into<String>) -> Self {
+    self
+      .0
+      .uri_schemes
+      .get_or_insert_with(Default::default)
+      .push(scheme.into());
+    self
+  }
+
+  /// Allow a list of custom URI scheme protocols on this capability's matched webviews.
+  ///
+  /// Calling this opts the capability into per-webview custom URI scheme gating: a custom scheme
+  /// is then only registered on a webview if some capability matching that webview allows it.
+  pub fn uri_schemes(mut self, schemes: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    self
+      .0
+      .uri_schemes
+      .get_or_insert_with(Default::default)
+      .extend(schemes.into_iter().map(|s| s.into()));
     self
   }
 

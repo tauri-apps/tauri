@@ -37,4 +37,5 @@ Resolved {
     denied_commands: {},
     command_scope: {},
     global_scope: {},
+    uri_scheme_access: [],
 }

@@ -47,6 +47,16 @@
         "type": "string"
       }
     },
+    "uri_schemes": {
+      "description": "List of URI scheme protocols this capability exposes to its matched webviews.\n\n When set, a custom URI scheme protocol (registered by the app or a plugin) and the\n built-in `asset` protocol are only registered on a webview if some capability matching\n that webview lists the scheme here. When unset (the default), all schemes remain\n available on every webview, preserving the previous behavior. The built-in `ipc` and\n `tauri` schemes — the capability machinery itself — and the isolation scheme (which uses\n a per-app dynamic scheme name) are always available regardless of this list.\n\n ## Example\n\n `[\"my-scheme\", \"my-other-scheme\"]`",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
     "permissions": {
       "description": "List of permissions attached to this capability.\n\n Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.\n For commands directly implemented in the application itself only `${permission-name}`\n is required.\n\n ## Example\n\n ```json\n [\n   \"core:default\",\n   \"shell:allow-open\",\n   \"dialog:open\",\n   {\n     \"identifier\": \"fs:allow-write-text-file\",\n     \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n   }\n ]\n ```",
       "type": "array",

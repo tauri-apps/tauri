@@ -88,6 +88,7 @@ pub fn command(options: Options) -> Result<()> {
     local: true,
     windows,
     webviews: Vec::new(),
+    uri_schemes: None,
     permissions: permissions
       .into_iter()
       .map(|p| {

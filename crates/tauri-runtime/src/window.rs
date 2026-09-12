@@ -474,6 +474,11 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn traffic_light_position<P: Into<dpi::Position>>(self, position: P) -> Self;
 
+  /// Whether the window prefers compact control size metrics on macOS.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn prefers_compact_control_size_metrics(self, enabled: bool) -> Self;
+
   /// Hide the window title.
   #[cfg(target_os = "macos")]
   #[must_use]

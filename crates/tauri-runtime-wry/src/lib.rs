@@ -782,7 +782,9 @@ impl WindowBuilder for WindowBuilderWrapper {
     {
       window = window
         .hidden_title(config.hidden_title)
-        .title_bar_style(config.title_bar_style);
+        .title_bar_style(config.title_bar_style)
+        .prefers_compact_control_size_metrics(config.prefers_compact_control_size_metrics);
+
       if let Some(identifier) = &config.tabbing_identifier {
         window = window.tabbing_identifier(identifier);
       }
@@ -1142,6 +1144,14 @@ impl WindowBuilder for WindowBuilderWrapper {
   #[cfg(target_os = "macos")]
   fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
     self.inner = self.inner.with_traffic_light_inset(position.into());
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn prefers_compact_control_size_metrics(mut self, enabled: bool) -> Self {
+    self.inner = self
+      .inner
+      .with_prefers_compact_control_size_metrics(enabled);
     self
   }
 

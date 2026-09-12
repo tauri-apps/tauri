@@ -14,14 +14,6 @@
 //! (see [`DynRuntimeHandle::downcast_ref`], [`DynWebviewDispatcher::downcast_ref`],
 //! [`DynWindowDispatcher::downcast_ref`] and [`DynWebview::downcast_ref`]).
 
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-use std::ffi::c_void;
 use std::{
   any::{Any, type_name},
   fmt,
@@ -263,7 +255,7 @@ enum WindowBuilderOp {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  TransientFor(*mut c_void),
+  TransientFor(*mut std::ffi::c_void),
   #[cfg(windows)]
   DragAndDrop(bool),
   #[cfg(target_os = "macos")]
@@ -639,7 +631,7 @@ impl WindowBuilder for DynWindowBuilder {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: *mut c_void) -> Self {
+  fn transient_for(self, parent: *mut std::ffi::c_void) -> Self {
     self.push(WindowBuilderOp::TransientFor(parent))
   }
 
@@ -1238,7 +1230,7 @@ trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<*mut c_void>;
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void>;
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1246,7 +1238,7 @@ trait ErasedWindowDispatch<T: UserEvent>: fmt::Debug + Send + Sync + Any {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<*mut c_void>;
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void>;
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String>;
   #[cfg(target_os = "ios")]
@@ -1422,7 +1414,7 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<*mut c_void> {
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void> {
     WindowDispatch::gtk_window(self)
   }
 
@@ -1433,7 +1425,7 @@ impl<T: UserEvent, D: WindowDispatch<T>> ErasedWindowDispatch<T> for D {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<*mut c_void> {
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void> {
     WindowDispatch::default_vbox(self)
   }
 
@@ -1811,7 +1803,7 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<*mut c_void> {
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void> {
     self.inner.gtk_window()
   }
 
@@ -1822,7 +1814,7 @@ impl<T: UserEvent> WindowDispatch<T> for DynWindowDispatcher<T> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<*mut c_void> {
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void> {
     self.inner.default_vbox()
   }
 

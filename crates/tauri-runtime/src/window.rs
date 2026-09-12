@@ -18,14 +18,6 @@ use tauri_utils::{
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-use std::ffi::c_void;
 use std::{
   hash::{Hash, Hasher},
   marker::PhantomData,
@@ -469,7 +461,7 @@ pub trait WindowBuilder: WindowBuilderBase {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: *mut c_void) -> Self;
+  fn transient_for(self, parent: *mut std::ffi::c_void) -> Self;
 
   /// Enables or disables drag and drop support.
   #[cfg(windows)]
@@ -685,7 +677,7 @@ pub struct RawWindow<'a> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  pub gtk_window: *mut c_void,
+  pub gtk_window: *mut std::ffi::c_void,
   /// A borrowed `GtkBox*`, or [`None`] when the runtime does not add a default vertical box.
   /// When set, it is never null.
   #[cfg(any(
@@ -695,7 +687,7 @@ pub struct RawWindow<'a> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  pub default_vbox: Option<*mut c_void>,
+  pub default_vbox: Option<*mut std::ffi::c_void>,
   /// Ties this struct to the lifetime of the window the pointers above are borrowed from.
   pub _marker: &'a PhantomData<()>,
 }

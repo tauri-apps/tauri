@@ -15,14 +15,6 @@
 
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-use std::ffi::c_void;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use tauri_utils::config::Color;
@@ -929,7 +921,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<*mut c_void>;
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void>;
 
   /// Returns the vertical GTK box pointer (`GtkBox*`) that is added by default as the sole child of this window.
   ///
@@ -944,7 +936,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<*mut c_void>;
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void>;
 
   /// Returns the name of the Android activity associated with this window.
   #[cfg(target_os = "android")]

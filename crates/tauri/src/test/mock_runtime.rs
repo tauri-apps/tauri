@@ -29,7 +29,6 @@ use windows::Win32::Foundation::HWND;
 use std::{
   cell::RefCell,
   collections::HashMap,
-  ffi::c_void,
   fmt,
   sync::{
     Arc, Mutex,
@@ -516,7 +515,7 @@ impl WindowBuilder for MockWindowBuilder {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(self, parent: *mut c_void) -> Self {
+  fn transient_for(self, parent: *mut std::ffi::c_void) -> Self {
     self
   }
 
@@ -856,7 +855,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> Result<*mut c_void> {
+  fn gtk_window(&self) -> Result<*mut std::ffi::c_void> {
     unimplemented!()
   }
 
@@ -867,7 +866,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn default_vbox(&self) -> Result<*mut c_void> {
+  fn default_vbox(&self) -> Result<*mut std::ffi::c_void> {
     unimplemented!()
   }
 

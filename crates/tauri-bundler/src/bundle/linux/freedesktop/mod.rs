@@ -131,6 +131,7 @@ pub fn generate_desktop_file(
     icon: &'a str,
     name: &'a str,
     mime_type: Option<String>,
+    exec_arg: &'a str,
     long_description: String,
   }
 
@@ -144,6 +145,10 @@ pub fn generate_desktop_file(
     );
   }
 
+  let has_deep_link_schemes = settings
+    .deep_link_protocols()
+    .is_some_and(|protocols| protocols.iter().any(|protocol| !protocol.schemes.is_empty()));
+
   if let Some(protocols) = settings.deep_link_protocols() {
     mime_type.extend(
       protocols
@@ -154,6 +159,20 @@ pub fn generate_desktop_file(
   }
 
   let mime_type = (!mime_type.is_empty()).then_some(mime_type.join(";"));
+
+  // A desktop entry that declares MimeType associations must carry an Exec
+  // field code, otherwise the launcher drops the URL or file paths the entry
+  // was asked to open (Desktop Entry specification, "The Exec key"). Deep
+  // links arrive as a single URL (%u); file associations receive file paths
+  // (%F). Without this, x-scheme-handler activation launches the app with no
+  // arguments and the deep link is silently lost.
+  let exec_arg = if has_deep_link_schemes {
+    "%u"
+  } else if mime_type.is_some() {
+    "%F"
+  } else {
+    ""
+  };
 
   let bin_name_exec = if bin_name.contains(' ') {
     format!("\"{bin_name}\"")
@@ -177,6 +196,7 @@ pub fn generate_desktop_file(
       icon: bin_name,
       name: settings.product_name(),
       mime_type,
+      exec_arg,
       long_description: settings.long_description().unwrap_or_default().to_string(),
     },
     file,

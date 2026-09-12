@@ -14,9 +14,16 @@
 //! (see [`DynRuntimeHandle::downcast_ref`], [`DynWebviewDispatcher::downcast_ref`],
 //! [`DynWindowDispatcher::downcast_ref`] and [`DynWebview::downcast_ref`]).
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+use std::ffi::c_void;
 use std::{
   any::{Any, type_name},
-  ffi::c_void,
   fmt,
   marker::PhantomData,
   sync::Arc,

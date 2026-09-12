@@ -18,8 +18,15 @@ use tauri_utils::{
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+use std::ffi::c_void;
 use std::{
-  ffi::c_void,
   hash::{Hash, Hasher},
   marker::PhantomData,
   path::PathBuf,

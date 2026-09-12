@@ -1004,11 +1004,7 @@ impl<T: UserEvent> WinitCefApp<T> {
           size: parent_size.into(),
         });
         child.reparent(target_appwindow);
-        child.set_bounds(
-          parent_size,
-          target_appwindow.window.scale_factor(),
-          bounds,
-        );
+        child.set_bounds(parent_size, target_appwindow.window.scale_factor(), bounds);
         // Re-parenting does not preserve z-order: a view docked back into a
         // window that already owns a full-window main webview must be put back
         // on top, or it lands behind it and renders nothing.

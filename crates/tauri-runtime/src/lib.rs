@@ -15,7 +15,15 @@
 
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
-use std::{borrow::Cow, ffi::c_void, fmt::Debug, sync::mpsc::Sender};
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+use std::ffi::c_void;
+use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use tauri_utils::config::Color;
 use url::Url;

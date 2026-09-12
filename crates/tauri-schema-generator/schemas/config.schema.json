@@ -222,6 +222,13 @@
           "description": "If set to true \"identifier\" will be set as GTK app ID (on systems that use GTK).",
           "default": false,
           "type": "boolean"
+        },
+        "appDirectoriesOverride": {
+          "description": "Override the path returned from `app_*_dir` APIs,\n this is useful for making portable apps that stores all the data inside a single place\n\n Note:\n   - Relative paths are resolved based on the app's executable path,\n   - The path can start with a variable that resolves to a system base directory.\n     The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DOCUMENT`, `$DOWNLOAD`, `$PICTURE`,\n     `$PUBLIC`, `$VIDEO`, `$RESOURCE`, `$TEMP`, `$HOME`, `$DESKTOP`, `$EXE`, `$FONT`, `$RUNTIME`, `$TEMPLATE`\n\n ## Example:\n\n To put all the data besides your current executable:\n\n ```json\n {\n   \"app\": {\n     \"appDirectoriesOverride\": \"./\"\n   }\n }\n ```\n\n `app.path().app_local_data_dir()` should now return `${current_exe_dir}/`\n\n ## Platform-specific:\n\n - **Android**: Unsupported.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

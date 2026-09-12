@@ -45,7 +45,7 @@ pub fn command(options: Options) -> Result<()> {
   if !metadata.rust_only {
     if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
       let npm_name = format!("@tauri-apps/plugin-{plugin}");
-      manager.remove(&[npm_name], dirs.tauri)?;
+      manager.remove(&[npm_name], dirs.frontend)?;
     }
 
     acl::permission::rm::command(acl::permission::rm::Options {

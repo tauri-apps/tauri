@@ -115,7 +115,7 @@ pub fn run(options: Options, dirs: &Dirs) -> Result<()> {
         (None, None, None, None) => npm_name,
         _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
-      manager.install(&[npm_spec], dirs.tauri)?;
+      manager.install(&[npm_spec], dirs.frontend)?;
     }
 
     let _ = acl::permission::add::command(acl::permission::add::Options {

@@ -126,13 +126,6 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(identifier) = &config.tabbing_identifier {
         builder = builder.tabbing_identifier(identifier);
       }
-      let pl_attrs = (*platform_attrs(&mut builder.attrs.inner))
-        .with_accepts_first_mouse(config.accept_first_mouse);
-
-      builder.attrs.inner = builder
-        .attrs
-        .inner
-        .with_platform_attributes(Box::new(pl_attrs));
     }
     if config.center {
       builder = builder.center();

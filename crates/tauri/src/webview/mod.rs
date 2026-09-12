@@ -878,6 +878,12 @@ tauri::Builder::default()
 /// Webview attributes.
 impl<R: Runtime> WebviewBuilder<R> {
   /// Sets whether clicking an inactive window also clicks through to the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime:** Unsupported. Chromium decides on its own whether the click that activates
+  ///   the window reaches the page: it is swallowed on regular windows and only clicks through on
+  ///   always-on-top windows or while a DevTools debugger is attached.
   #[must_use]
   pub fn accept_first_mouse(mut self, accept: bool) -> Self {
     self.webview_attributes.accept_first_mouse = accept;

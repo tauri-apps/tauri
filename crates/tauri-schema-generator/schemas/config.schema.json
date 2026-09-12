@@ -474,7 +474,7 @@
           "default": false
         },
         "acceptFirstMouse": {
-          "description": "Whether clicking an inactive window also clicks through to the webview on macOS.",
+          "description": "Whether clicking an inactive window also clicks through to the webview on macOS.\n\n## Platform-specific\n\n- **CEF runtime:** Unsupported. Chromium decides on its own whether the click that activates\n  the window reaches the page: it is swallowed on regular windows and only clicks through on\n  always-on-top windows or while a DevTools debugger is attached.",
           "type": "boolean",
           "default": false
         },

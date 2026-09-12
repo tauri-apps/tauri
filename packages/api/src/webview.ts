@@ -742,6 +742,12 @@ interface WebviewOptions {
   dragDropEnabled?: boolean
   /**
    * Whether clicking an inactive webview also clicks through to the webview on macOS.
+   *
+   * #### Platform-specific
+   *
+   * - **CEF runtime:** Unsupported. Chromium decides on its own whether the click that activates
+   *   the window reaches the page: it is swallowed on regular windows and only clicks through on
+   *   always-on-top windows or while a DevTools debugger is attached.
    */
   acceptFirstMouse?: boolean
   /**

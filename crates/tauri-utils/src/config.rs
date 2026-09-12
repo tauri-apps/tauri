@@ -2065,6 +2065,12 @@ pub struct WindowConfig {
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
   /// Whether clicking an inactive window also clicks through to the webview on macOS.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **CEF runtime:** Unsupported. Chromium decides on its own whether the click that activates
+  ///   the window reaches the page: it is swallowed on regular windows and only clicks through on
+  ///   always-on-top windows or while a DevTools debugger is attached.
   #[serde(default, alias = "accept-first-mouse")]
   pub accept_first_mouse: bool,
   /// Defines the window [tabbing identifier] for macOS.

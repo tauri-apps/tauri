@@ -32,6 +32,7 @@ pub mod io;
 pub mod mime_type;
 pub mod platform;
 pub mod plugin;
+pub mod request;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
 pub mod resources;

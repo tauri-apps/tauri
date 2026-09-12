@@ -174,15 +174,34 @@ async fn get_response<R: Runtime>(
 
   #[cfg(not(all(dev, mobile)))]
   let mut response = {
-    let asset = manager.get_asset(
+    // only a navigation may resolve to the SPA `index.html` fallback; serving a
+    // document in place of a missing subresource breaks it with an error that
+    // names neither the URL nor the cause
+    match manager.get_asset(
       path,
       request.uri().scheme() == Some(&http::uri::Scheme::HTTPS),
-    )?;
-    builder = builder.header(CONTENT_TYPE, &asset.mime_type);
-    if let Some(csp) = &asset.csp_header {
-      builder = builder.header("Content-Security-Policy", csp);
+      tauri_utils::request::is_navigation(request.headers()),
+    ) {
+      Ok(asset) => {
+        builder = builder.header(CONTENT_TYPE, &asset.mime_type);
+        if let Some(csp) = &asset.csp_header {
+          builder = builder.header("Content-Security-Policy", csp);
+        }
+        builder.body(asset.bytes.into())?
+      }
+      Err(e)
+        if matches!(
+          e.downcast_ref::<crate::Error>(),
+          Some(crate::Error::AssetNotFound(_))
+        ) =>
+      {
+        builder
+          .status(StatusCode::NOT_FOUND)
+          .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+          .body(e.to_string().into_bytes().into())?
+      }
+      Err(e) => return Err(e),
     }
-    builder.body(asset.bytes.into())?
   };
 
   if let Some(handler) = web_resource_request_handler {

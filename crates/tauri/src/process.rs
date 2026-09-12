@@ -108,23 +108,38 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
         return;
       }
 
-      if let Ok(info_plist) =
-        plist::from_file::<_, plist::Dictionary>(contents_directory.join("Info.plist"))
-      {
-        if let Some(binary_name) = info_plist
-          .get("CFBundleExecutable")
-          .and_then(|v| v.as_string())
-        {
-          if let Err(e) = Command::new(macos_directory.join(binary_name))
-            .args(env.args_os.iter().skip(1))
-            .spawn()
+      if let Some(bundle_root) = contents_directory.parent() {
+        // Prefer LaunchServices so the new process is reparented to
+        // launchd with clean stdio, instead of inheriting the dying
+        // process's pipe fds.
+        let launched = Command::new("/usr/bin/open")
+          .arg("-n")
+          .arg(bundle_root)
+          .stdout(std::process::Stdio::null())
+          .stderr(std::process::Stdio::null())
+          .stdin(std::process::Stdio::null())
+          .spawn()
+          .is_ok();
+        if !launched {
+          if let Ok(info_plist) =
+            plist::from_file::<_, plist::Dictionary>(contents_directory.join("Info.plist"))
           {
-            log::error!("failed to restart app: {e}");
+            if let Some(binary_name) = info_plist
+              .get("CFBundleExecutable")
+              .and_then(|v| v.as_string())
+            {
+              if let Err(e) = Command::new(macos_directory.join(binary_name))
+                .args(env.args_os.iter().skip(1))
+                .spawn()
+              {
+                log::error!("failed to restart app: {e}");
+              }
+            }
           }
-
-          exit(0);
         }
       }
+
+      exit(0);
     }
   }
 }

@@ -5118,7 +5118,20 @@ You may have it installed on another user account, but it is not available for t
       target_os = "ios",
       target_os = "android"
     ))]
-    WebviewKind::WindowChild => webview_builder.build_as_child(&window),
+    WebviewKind::WindowChild => {
+      let webview = webview_builder.build_as_child(&window);
+      // wry ignores with_traffic_light_inset() for child webviews, so we set it manually here
+      // if the traffic light configuration was provided. Note that every new child that sets
+      // this overrides the rest, so order of instantiation determines the location.
+      #[cfg(target_os = "macos")]
+      {
+        use tao::platform::macos::WindowExtMacOS;
+        if let Some(position) = webview_attributes.traffic_light_position {
+          window.set_traffic_light_inset(position);
+        }
+      }
+      webview
+    }
     WebviewKind::WindowContent => {
       #[cfg(any(
         target_os = "windows",

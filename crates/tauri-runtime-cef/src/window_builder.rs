@@ -450,7 +450,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(mut self, parent: *mut c_void) -> Self {
+  fn transient_for(mut self, parent: *mut std::ffi::c_void) -> Self {
     use gtk::glib::translate::FromGlibPtrFull;
 
     // SAFETY: `transient_for` receives the parent as transfer full, so the wrapper adopts the

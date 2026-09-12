@@ -191,7 +191,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -202,7 +202,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1581,7 +1581,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1590,7 +1590,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2435,7 +2435,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2546,7 +2546,8 @@ dependencies = [
 [[package]]
 name = "dpi"
 version = "0.1.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 dependencies = [
  "serde",
 ]
@@ -2891,7 +2892,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3716,7 +3717,7 @@ dependencies = [
  "gobject-sys 0.22.9",
  "libc",
  "system-deps 9.0.0",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4679,7 +4680,7 @@ version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82cb6a9f675da968c63b6208c641b9dca58fc0133ae53375736b1767b0cab8bd"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5681,7 +5682,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.20",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6539,7 +6540,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7727,7 +7728,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8453,7 +8454,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8533,7 +8534,7 @@ dependencies = [
  "security-framework 3.7.0",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9443,7 +9444,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10426,9 +10427,9 @@ dependencies = [
  "tauri-macros",
  "tauri-runtime",
  "tauri-utils",
+ "tauri-winit",
  "url",
  "windows 0.61.3",
- "winit",
  "x11-dl",
 ]
 
@@ -10530,6 +10531,75 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-winit"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c242700668a032d78af62a0d4615c34fdf6afdeb0c092fd0e060c3941a3f9c2e"
+dependencies = [
+ "bitflags 2.13.1",
+ "cfg_aliases",
+ "cursor-icon",
+ "dpi",
+ "libc",
+ "raw-window-handle",
+ "rustix",
+ "smol_str",
+ "tauri-winit-gtk4",
+ "tracing",
+ "winit-android",
+ "winit-appkit",
+ "winit-core",
+ "winit-orbital",
+ "winit-uikit",
+ "winit-web",
+ "winit-win32",
+]
+
+[[package]]
+name = "tauri-winit-gtk4"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b261a03b459cfab1c0f4924178e6723b10d303f20bb2593f44297f33ab2b3b0"
+dependencies = [
+ "dpi",
+ "gdk4-wayland",
+ "gdk4-x11",
+ "gtk4",
+ "raw-window-handle",
+ "tauri-winit-x11",
+ "wayland-client",
+ "wayland-protocols",
+ "winit-common",
+ "winit-core",
+ "x11rb",
+ "xkbcommon-dl",
+]
+
+[[package]]
+name = "tauri-winit-x11"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b792264032304150eba913ca08929c2c781ee12a5aab48124b39d53114faa5d0"
+dependencies = [
+ "bitflags 2.13.1",
+ "bytemuck",
+ "calloop",
+ "cursor-icon",
+ "dpi",
+ "libc",
+ "percent-encoding",
+ "raw-window-handle",
+ "rustix",
+ "smol_str",
+ "tracing",
+ "winit-common",
+ "winit-core",
+ "x11-dl",
+ "x11rb",
+ "xkbcommon-dl",
+]
+
+[[package]]
 name = "tauri-winres"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10561,7 +10631,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10590,7 +10660,7 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8c27177b12a6399ffc08b98f76f7c9a1f4fe9fc967c784c5a071fa8d93cf7e1"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10600,7 +10670,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11034,7 +11104,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.20",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11155,7 +11225,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11895,7 +11965,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -12436,33 +12506,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
 
 [[package]]
-name = "winit"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
-dependencies = [
- "bitflags 2.13.1",
- "cfg_aliases",
- "cursor-icon",
- "dpi",
- "libc",
- "raw-window-handle",
- "rustix",
- "smol_str",
- "tracing",
- "winit-android",
- "winit-appkit",
- "winit-core",
- "winit-gtk4",
- "winit-orbital",
- "winit-uikit",
- "winit-web",
- "winit-win32",
-]
-
-[[package]]
 name = "winit-android"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5d60d944a564986b9311e325334cc22e7e4cf726dd0ff7475fd925404215af4"
 dependencies = [
  "android-activity",
  "bitflags 2.13.1",
@@ -12476,8 +12523,9 @@ dependencies = [
 
 [[package]]
 name = "winit-appkit"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23343ec0ea7ac6aa72f38009a6ff66fb63bcf6395e0622fba72794d2a762ab42"
 dependencies = [
  "bitflags 2.13.1",
  "block2",
@@ -12498,10 +12546,12 @@ dependencies = [
 
 [[package]]
 name = "winit-common"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e90422ff1c04502aaaac1dad1d099791c2bbb3fbb3f823019e0ce5cdeee04025"
 dependencies = [
  "block2",
+ "dpi",
  "objc2",
  "objc2-core-foundation",
  "objc2-foundation",
@@ -12514,8 +12564,9 @@ dependencies = [
 
 [[package]]
 name = "winit-core"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8af6307236c51847199950c15cf80e0481a250bb96ce9132f5026df4ad3d0f9"
 dependencies = [
  "bitflags 2.13.1",
  "cursor-icon",
@@ -12528,27 +12579,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "winit-gtk4"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
-dependencies = [
- "dpi",
- "gdk4-wayland",
- "gdk4-x11",
- "gtk4",
- "raw-window-handle",
- "wayland-client",
- "wayland-protocols",
- "winit-common",
- "winit-core",
- "winit-x11",
- "x11rb",
-]
-
-[[package]]
 name = "winit-orbital"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "278a8ae837902a3bc95dd2fd696d680da33f32130eecc29905358c9089cf6c50"
 dependencies = [
  "bitflags 2.13.1",
  "dpi",
@@ -12563,8 +12597,9 @@ dependencies = [
 
 [[package]]
 name = "winit-uikit"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83315a3ea1739c8466cf23d35e3b0a2cb20c9515d8857666b633afef484740b5"
 dependencies = [
  "bitflags 2.13.1",
  "block2",
@@ -12583,8 +12618,9 @@ dependencies = [
 
 [[package]]
 name = "winit-web"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f539be45f95cc297bdfb80569aef38d925d64aec4133852a4d3fc5cb3660f1c9"
 dependencies = [
  "atomic-waker",
  "bitflags 2.13.1",
@@ -12605,8 +12641,9 @@ dependencies = [
 
 [[package]]
 name = "winit-win32"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25fb480c41df01d351f656cbf3ad74013f8a9d22bb5b2dcab59f9167e7a0b6ec"
 dependencies = [
  "bitflags 2.13.1",
  "cursor-icon",
@@ -12617,30 +12654,8 @@ dependencies = [
  "unicode-segmentation",
  "url",
  "windows-sys 0.61.2",
- "winit-core",
-]
-
-[[package]]
-name = "winit-x11"
-version = "0.31.0-beta.2"
-source = "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de"
-dependencies = [
- "bitflags 2.13.1",
- "bytemuck",
- "calloop",
- "cursor-icon",
- "dpi",
- "libc",
- "percent-encoding",
- "raw-window-handle",
- "rustix",
- "smol_str",
- "tracing",
  "winit-common",
  "winit-core",
- "x11-dl",
- "x11rb",
- "xkbcommon-dl",
 ]
 
 [[package]]

@@ -169,11 +169,7 @@
     "tauri-runtime-cef": {
       "path": "./crates/tauri-runtime-cef",
       "manager": "rust",
-      "dependencies": ["tauri-utils", "tauri-runtime", "tauri", "tauri-macros"],
-      "getPublishedVersion": "echo ${ pkgFile.version }",
-      "prepublish": [],
-      "publish": [],
-      "postpublish": []
+      "dependencies": ["tauri-utils", "tauri-runtime", "tauri", "tauri-macros"]
     },
     "tauri-codegen": {
       "path": "./crates/tauri-codegen",

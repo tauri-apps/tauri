@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.0-alpha.0]
+
+### What's Changed
+
+- [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
+
 ## \[2.0.6]
 
 ### What's Changed

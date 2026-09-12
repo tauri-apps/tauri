@@ -4,6 +4,7 @@
 
 use super::Result;
 use crate::{plugin::PluginHandle, Runtime};
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use std::path::{Path, PathBuf};
 
 /// A helper class to access the mobile path APIs.
@@ -183,5 +184,44 @@ impl<R: Runtime> PathResolver<R> {
   /// - **iOS**: Cannot be written to directly, use one of the app paths instead.
   pub fn home_dir(&self) -> Result<PathBuf> {
     self.call_resolve("getHomeDir")
+  }
+
+  /// Converts a file path to a URL that can be loaded by the webview.
+  ///
+  /// This is the Rust equivalent of the JavaScript `convertFileSrc` function.
+  /// Note: The file must be allowed by the app's asset scope for the webview to load it.
+  ///
+  /// # Arguments
+  ///
+  /// * `path` - The file path to convert
+  /// * `protocol` - The protocol to use, defaults to `"asset"` if `None`
+  /// * `use_https` - Whether to use HTTPS scheme instead of HTTP.
+  ///   Set to `true` if your webview has `use_https_scheme` enabled. Defaults to `false` if `None`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let video_path = app.path().app_data_dir()?.join("video.mp4");
+  ///     let url = app.path().convert_file_src(&video_path, None, None);
+  ///     // On Android: http://asset.localhost/...
+  ///     println!("URL: {}", url);
+  ///
+  ///     // With HTTPS enabled:
+  ///     let https_url = app.path().convert_file_src(&video_path, None, Some(true));
+  ///     // On Android: https://asset.localhost/...
+  ///     println!("HTTPS URL: {}", https_url);
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn convert_file_src<P: AsRef<Path>>(&self, path: P, protocol: Option<&str>, use_https: Option<bool>) -> String {
+    let protocol = protocol.unwrap_or("asset");
+    let path = path.as_ref();
+    let encoded = utf8_percent_encode(&path.to_string_lossy(), NON_ALPHANUMERIC).to_string();
+
+    let scheme = if use_https.unwrap_or(false) { "https" } else { "http" };
+    format!("{scheme}://{protocol}.localhost/{encoded}")
   }
 }

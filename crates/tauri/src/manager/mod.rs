@@ -4,6 +4,7 @@
 
 use std::{
   borrow::Cow,
+  cell::OnceCell,
   collections::HashMap,
   fmt,
   sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
@@ -107,16 +108,16 @@ pub(crate) fn set_csp<R: Runtime>(
 }
 
 // inspired by <https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297>
-fn replace_with_callback<F: FnMut() -> String>(
-  original: &str,
-  pattern: &str,
-  mut replacement: F,
-) -> String {
+fn replace_with_callback<F, S>(original: &str, pattern: &str, mut replacement: F) -> String
+where
+  F: FnMut() -> S,
+  S: AsRef<str>,
+{
   let mut result = String::new();
   let mut last_end = 0;
   for (start, part) in original.match_indices(pattern) {
     result.push_str(unsafe { original.get_unchecked(last_end..start) });
-    result.push_str(&replacement());
+    result.push_str(replacement().as_ref());
     last_end = start + part.len();
   }
   result.push_str(unsafe { original.get_unchecked(last_end..original.len()) });
@@ -130,24 +131,27 @@ fn replace_csp_nonce(
   directive: &str,
   hashes: Vec<String>,
 ) {
-  let mut nonces = Vec::new();
+  let nonce = OnceCell::new();
   *asset = replace_with_callback(asset, token, || {
-    let nonce = getrandom::u64().expect("failed to get random bytes");
-    nonces.push(nonce);
-    nonce.to_string()
+    nonce.get_or_init(|| {
+      // > The generated value SHOULD be at least 128 bits (16 bytes) long
+      // > https://w3c.github.io/webappsec-csp/#security-nonces
+      let mut buffer: [u8; 16] = [0; 16];
+      getrandom::fill(&mut buffer).expect("failed to get random bytes");
+      u128::from_ne_bytes(buffer).to_string()
+    })
   });
 
-  if !(nonces.is_empty() && hashes.is_empty()) {
-    let nonce_sources = nonces
-      .into_iter()
-      .map(|n| format!("'nonce-{n}'"))
-      .collect::<Vec<String>>();
+  let nonce = nonce.into_inner().map(|n| format!("'nonce-{n}'"));
+  if nonce.is_some() || !hashes.is_empty() {
     let sources = csp.entry(directive.into()).or_default();
     let self_source = "'self'".to_string();
     if !sources.contains(&self_source) {
       sources.push(self_source);
     }
-    sources.extend(nonce_sources);
+    if let Some(nonce) = nonce {
+      sources.push(nonce);
+    }
     sources.extend(hashes);
   }
 }

@@ -331,11 +331,13 @@ impl<T: UserEvent> Context<T> {
       }),
       tx,
     ))?;
-    rx.recv()
+    let window = rx
+      .recv()
       .map_err(|_| crate::Error::FailedToReceiveMessage)??;
 
     let dispatcher = WryWindowDispatcher {
       window_id,
+      window,
       context: self.clone(),
     };
 
@@ -1251,45 +1253,6 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 }
 
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-pub struct GtkWindow(pub gtk::ApplicationWindow);
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for GtkWindow {}
-
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-pub struct GtkBox(pub gtk::Box);
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for GtkBox {}
-
-pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
-unsafe impl Send for SendRawWindowHandle {}
-
 pub enum ApplicationMessage {
   #[cfg(target_os = "macos")]
   Show,
@@ -1303,102 +1266,14 @@ pub enum ApplicationMessage {
 
 pub enum WindowMessage {
   AddEventListener(WindowEventId, Box<dyn Fn(&WindowEvent) + Send>),
-  // Getters
-  ScaleFactor(Sender<f64>),
-  InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
-  OuterPosition(Sender<Result<PhysicalPosition<i32>>>),
-  InnerSize(Sender<PhysicalSize<u32>>),
-  OuterSize(Sender<PhysicalSize<u32>>),
-  IsFullscreen(Sender<bool>),
-  IsMinimized(Sender<bool>),
-  IsMaximized(Sender<bool>),
   IsFocused(Sender<bool>),
-  IsDecorated(Sender<bool>),
-  IsResizable(Sender<bool>),
-  IsMaximizable(Sender<bool>),
-  IsMinimizable(Sender<bool>),
-  IsClosable(Sender<bool>),
-  IsVisible(Sender<bool>),
-  Title(Sender<String>),
-  CurrentMonitor(Sender<Option<MonitorHandle>>),
-  PrimaryMonitor(Sender<Option<MonitorHandle>>),
-  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
-  AvailableMonitors(Sender<Vec<MonitorHandle>>),
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  GtkWindow(Sender<GtkWindow>),
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
-  GtkBox(Sender<GtkBox>),
-  #[cfg(target_os = "android")]
-  ActivityName(Sender<String>),
-  #[cfg(target_os = "ios")]
-  SceneIdentifier(Sender<String>),
-  RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
-  Theme(Sender<Theme>),
-  IsEnabled(Sender<bool>),
-  IsAlwaysOnTop(Sender<bool>),
-  // Setters
-  Center,
-  RequestUserAttention(Option<UserAttentionTypeWrapper>),
-  SetEnabled(bool),
   SetResizable(bool),
-  SetMaximizable(bool),
-  SetMinimizable(bool),
-  SetClosable(bool),
-  SetTitle(String),
-  Maximize,
-  Unmaximize,
-  Minimize,
-  Unminimize,
-  Show,
-  Hide,
   Close,
   Destroy,
   SetDecorations(bool),
   SetShadow(bool),
-  SetAlwaysOnBottom(bool),
-  SetAlwaysOnTop(bool),
-  SetVisibleOnAllWorkspaces(bool),
-  SetContentProtected(bool),
-  SetSize(Size),
-  SetMinSize(Option<Size>),
-  SetMaxSize(Option<Size>),
-  SetSizeConstraints(WindowSizeConstraints),
-  SetPosition(Position),
   SetFullscreen(bool),
-  #[cfg(target_os = "macos")]
-  SetSimpleFullscreen(bool),
-  SetFocus,
-  SetFocusable(bool),
-  SetIcon(TaoWindowIcon),
-  SetSkipTaskbar(bool),
-  SetCursorGrab(bool),
-  SetCursorVisible(bool),
-  SetCursorIcon(CursorIcon),
-  SetCursorPosition(Position),
-  SetIgnoreCursorEvents(bool),
-  SetBadgeCount(Option<i64>, Option<String>),
-  SetBadgeLabel(Option<String>),
-  SetOverlayIcon(Option<TaoIcon>),
-  SetProgressBar(ProgressBarState),
   SetTitleBarStyle(tauri_utils::TitleBarStyle),
-  SetTrafficLightPosition(Position),
-  SetTheme(Option<Theme>),
-  SetBackgroundColor(Option<Color>),
-  DragWindow,
-  ResizeDragWindow(tauri_runtime::ResizeDirection),
-  RequestRedraw,
 }
 
 #[derive(Debug, Clone)]
@@ -1500,7 +1375,11 @@ pub enum Message<T: 'static> {
   Webview(WindowId, WebviewId, WebviewMessage),
   EventLoopWindowTarget(EventLoopWindowTargetMessage),
   CreateWebview(WindowId, CreateWebviewClosure, Sender<Result<()>>),
-  CreateWindow(WindowId, CreateWindowClosure<T>, Sender<Result<()>>),
+  CreateWindow(
+    WindowId,
+    CreateWindowClosure<T>,
+    Sender<Result<Weak<Window>>>,
+  ),
   CreateRawWindow(
     WindowId,
     Box<dyn FnOnce() -> (String, TaoWindowBuilder) + Send>,
@@ -1821,6 +1700,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 #[derive(Debug, Clone)]
 pub struct WryWindowDispatcher<T: UserEvent> {
   window_id: WindowId,
+  window: Weak<Window>,
   context: Context<T>,
 }
 
@@ -1828,10 +1708,10 @@ pub struct WryWindowDispatcher<T: UserEvent> {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryWindowDispatcher<T> {}
 
-fn get_raw_window_handle<T: UserEvent>(
-  dispatcher: &WryWindowDispatcher<T>,
-) -> Result<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>> {
-  window_getter!(dispatcher, WindowMessage::RawWindowHandle)
+impl<T: UserEvent> WryWindowDispatcher<T> {
+  fn window(&self) -> Result<Arc<Window>> {
+    self.window.upgrade().ok_or(Error::WindowNotFound)
+  }
 }
 
 impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
@@ -1854,35 +1734,41 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   // Getters
 
   fn scale_factor(&self) -> Result<f64> {
-    window_getter!(self, WindowMessage::ScaleFactor)
+    Ok(self.window()?.scale_factor())
   }
 
   fn inner_position(&self) -> Result<PhysicalPosition<i32>> {
-    window_getter!(self, WindowMessage::InnerPosition)?
+    self
+      .window()?
+      .inner_position()
+      .map_err(|_| Error::NotSupported)
   }
 
   fn outer_position(&self) -> Result<PhysicalPosition<i32>> {
-    window_getter!(self, WindowMessage::OuterPosition)?
+    self
+      .window()?
+      .outer_position()
+      .map_err(|_| Error::NotSupported)
   }
 
   fn inner_size(&self) -> Result<PhysicalSize<u32>> {
-    window_getter!(self, WindowMessage::InnerSize)
+    Ok(self.window()?.inner_size())
   }
 
   fn outer_size(&self) -> Result<PhysicalSize<u32>> {
-    window_getter!(self, WindowMessage::OuterSize)
+    Ok(self.window()?.outer_size())
   }
 
   fn is_fullscreen(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsFullscreen)
+    Ok(self.window()?.fullscreen().is_some())
   }
 
   fn is_minimized(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsMinimized)
+    Ok(self.window()?.is_minimized())
   }
 
   fn is_maximized(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsMaximized)
+    Ok(self.window()?.is_maximized())
   }
 
   fn is_focused(&self) -> Result<bool> {
@@ -1891,79 +1777,84 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   /// Gets the window's current decoration state.
   fn is_decorated(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsDecorated)
+    Ok(self.window()?.is_decorated())
   }
 
   /// Gets the window's current resizable state.
   fn is_resizable(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsResizable)
+    Ok(self.window()?.is_resizable())
   }
 
   /// Gets the current native window's maximize button state
   fn is_maximizable(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsMaximizable)
+    Ok(self.window()?.is_maximizable())
   }
 
   /// Gets the current native window's minimize button state
   fn is_minimizable(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsMinimizable)
+    Ok(self.window()?.is_minimizable())
   }
 
   /// Gets the current native window's close button state
   fn is_closable(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsClosable)
+    Ok(self.window()?.is_closable())
   }
 
   fn is_visible(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsVisible)
+    Ok(self.window()?.is_visible())
   }
 
   fn title(&self) -> Result<String> {
-    window_getter!(self, WindowMessage::Title)
+    Ok(self.window()?.title())
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::CurrentMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+    Ok(
+      self
+        .window()?
+        .current_monitor()
+        .map(|m| MonitorHandleWrapper(m).into()),
+    )
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+    Ok(
+      self
+        .window()?
+        .primary_monitor()
+        .map(|m| MonitorHandleWrapper(m).into()),
+    )
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
-    let (tx, rx) = channel();
-
-    let _ = self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::MonitorFromPoint(tx, (x, y)),
-    ));
-
     Ok(
-      rx.recv()
-        .map_err(|_| crate::Error::FailedToReceiveMessage)?
+      self
+        .window()?
+        .monitor_from_point(x, y)
         .map(|m| MonitorHandleWrapper(m).into()),
     )
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
     Ok(
-      window_getter!(self, WindowMessage::AvailableMonitors)?
-        .into_iter()
+      self
+        .window()?
+        .available_monitors()
         .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
     )
   }
 
   fn theme(&self) -> Result<Theme> {
-    window_getter!(self, WindowMessage::Theme)
+    Ok(map_theme(&self.window()?.theme()))
   }
 
   fn is_enabled(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsEnabled)
+    Ok(self.window()?.is_enabled())
   }
 
   fn is_always_on_top(&self) -> Result<bool> {
-    window_getter!(self, WindowMessage::IsAlwaysOnTop)
+    Ok(self.window()?.is_always_on_top())
   }
 
   #[cfg(any(
@@ -1974,7 +1865,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
-    window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
+    Ok(self.window()?.gtk_window().clone())
   }
 
   #[cfg(any(
@@ -1985,42 +1876,47 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     target_os = "openbsd"
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
-    window_getter!(self, WindowMessage::GtkBox).map(|w| w.0)
+    self
+      .window()?
+      .default_vbox()
+      .cloned()
+      .ok_or(Error::WindowNotFound)
   }
 
   /// Returns the name of the Android activity associated with this window.
   #[cfg(target_os = "android")]
   fn activity_name(&self) -> Result<String> {
-    window_getter!(self, WindowMessage::ActivityName)
+    Ok(self.window()?.activity_name())
   }
 
   /// Returns the identifier of the UIScene tied to this UIWindow.
   #[cfg(target_os = "ios")]
   fn scene_identifier(&self) -> Result<String> {
-    window_getter!(self, WindowMessage::SceneIdentifier)
+    Ok(self.window()?.scene_identifier())
   }
 
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    get_raw_window_handle(self)
-      .map_err(|_| raw_window_handle::HandleError::Unavailable)
-      .and_then(|r| r.map(|h| unsafe { raw_window_handle::WindowHandle::borrow_raw(h.0) }))
+    self
+      .window()
+      .map_err(|_| raw_window_handle::HandleError::Unavailable)?
+      .window_handle()
+      .map(|handle| unsafe { raw_window_handle::WindowHandle::borrow_raw(handle.as_raw()) })
   }
 
   // Setters
 
   fn center(&self) -> Result<()> {
-    self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::Center))
+    self.window()?.center();
+    Ok(())
   }
 
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::RequestUserAttention(request_type.map(Into::into)),
-    ))
+    self
+      .window()?
+      .request_user_attention(request_type.map(|r| UserAttentionTypeWrapper::from(r).0));
+    Ok(())
   }
 
   // Creates a window by dispatching a message to the event loop.
@@ -2050,74 +1946,58 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn set_enabled(&self, enabled: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetEnabled(enabled),
-    ))
+    self.window()?.set_enabled(enabled);
+    Ok(())
   }
 
   fn set_maximizable(&self, maximizable: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetMaximizable(maximizable),
-    ))
+    self.window()?.set_maximizable(maximizable);
+    Ok(())
   }
 
   fn set_minimizable(&self, minimizable: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetMinimizable(minimizable),
-    ))
+    self.window()?.set_minimizable(minimizable);
+    Ok(())
   }
 
   fn set_closable(&self, closable: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetClosable(closable),
-    ))
+    self.window()?.set_closable(closable);
+    Ok(())
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetTitle(title.into()),
-    ))
+    self.window()?.set_title(&title.into());
+    Ok(())
   }
 
   fn maximize(&self) -> Result<()> {
-    self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::Maximize))
+    self.window()?.set_maximized(true);
+    Ok(())
   }
 
   fn unmaximize(&self) -> Result<()> {
-    self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::Unmaximize))
+    self.window()?.set_maximized(false);
+    Ok(())
   }
 
   fn minimize(&self) -> Result<()> {
-    self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::Minimize))
+    self.window()?.set_minimized(true);
+    Ok(())
   }
 
   fn unminimize(&self) -> Result<()> {
-    self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::Unminimize))
+    self.window()?.set_minimized(false);
+    Ok(())
   }
 
   fn show(&self) -> Result<()> {
-    self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::Show))
+    self.window()?.set_visible(true);
+    Ok(())
   }
 
   fn hide(&self) -> Result<()> {
-    self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::Hide))
+    self.window()?.set_visible(false);
+    Ok(())
   }
 
   fn close(&self) -> Result<()> {
@@ -2153,186 +2033,210 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn set_always_on_bottom(&self, always_on_bottom: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetAlwaysOnBottom(always_on_bottom),
-    ))
+    self.window()?.set_always_on_bottom(always_on_bottom);
+    Ok(())
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetAlwaysOnTop(always_on_top),
-    ))
+    self.window()?.set_always_on_top(always_on_top);
+    Ok(())
   }
 
   fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces),
-    ))
+    self
+      .window()?
+      .set_visible_on_all_workspaces(visible_on_all_workspaces);
+    Ok(())
   }
 
   fn set_content_protected(&self, protected: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetContentProtected(protected),
-    ))
+    self.window()?.set_content_protection(protected);
+    Ok(())
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetSize(size),
-    ))
+    self.window()?.set_inner_size(size);
+    Ok(())
   }
 
   fn set_min_size(&self, size: Option<Size>) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetMinSize(size),
-    ))
+    self.window()?.set_min_inner_size(size);
+    Ok(())
   }
 
   fn set_max_size(&self, size: Option<Size>) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetMaxSize(size),
-    ))
+    self.window()?.set_max_inner_size(size);
+    Ok(())
   }
 
   fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetSizeConstraints(constraints),
-    ))
+    self
+      .window()?
+      .set_inner_size_constraints(tao::window::WindowSizeConstraints {
+        min_width: constraints.min_width,
+        min_height: constraints.min_height,
+        max_width: constraints.max_width,
+        max_height: constraints.max_height,
+      });
+    Ok(())
   }
 
   fn set_position(&self, position: Position) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetPosition(position),
-    ))
+    self.window()?.set_outer_position(position);
+    Ok(())
   }
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetFullscreen(fullscreen),
-    ))
+    self.window()?.set_fullscreen(if fullscreen {
+      Some(Fullscreen::Borderless(None))
+    } else {
+      None
+    });
+    Ok(())
   }
 
   #[cfg(target_os = "macos")]
   fn set_simple_fullscreen(&self, enable: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetSimpleFullscreen(enable),
-    ))
+    self.window()?.set_simple_fullscreen(enable);
+    Ok(())
   }
 
   fn set_focus(&self) -> Result<()> {
-    self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::SetFocus))
+    self.window()?.set_focus();
+    Ok(())
   }
 
   fn set_focusable(&self, focusable: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetFocusable(focusable),
-    ))
+    self.window()?.set_focusable(focusable);
+    Ok(())
   }
 
   fn set_icon(&self, icon: Icon) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetIcon(TaoIcon::try_from(icon)?.0),
-    ))
+    self
+      .window()?
+      .set_window_icon(Some(TaoIcon::try_from(icon)?.0));
+    Ok(())
   }
 
+  #[cfg_attr(
+    not(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )),
+    allow(unused_variables)
+  )]
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetSkipTaskbar(skip),
-    ))
+    #[cfg(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    let _ = self.window()?.set_skip_taskbar(skip);
+    Ok(())
   }
 
   fn set_cursor_grab(&self, grab: bool) -> crate::Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetCursorGrab(grab),
-    ))
+    self
+      .window()?
+      .set_cursor_grab(grab)
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn set_cursor_visible(&self, visible: bool) -> crate::Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetCursorVisible(visible),
-    ))
+    self.window()?.set_cursor_visible(visible);
+    Ok(())
   }
 
   fn set_cursor_icon(&self, icon: CursorIcon) -> crate::Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetCursorIcon(icon),
-    ))
+    self
+      .window()?
+      .set_cursor_icon(CursorIconWrapper::from(icon).0);
+    Ok(())
   }
 
   fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetCursorPosition(position.into()),
-    ))
+    self
+      .window()?
+      .set_cursor_position(position.into())
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetIgnoreCursorEvents(ignore),
-    ))
+    self
+      .window()?
+      .set_ignore_cursor_events(ignore)
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn start_dragging(&self) -> Result<()> {
     self
-      .context
-      .send_user_message(Message::Window(self.window_id, WindowMessage::DragWindow))
+      .window()?
+      .drag_window()
+      .map_err(tao_error_to_runtime_error)
   }
 
   fn start_resize_dragging(&self, direction: tauri_runtime::ResizeDirection) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::ResizeDragWindow(direction),
-    ))
+    self
+      .window()?
+      .drag_resize_window(match direction {
+        tauri_runtime::ResizeDirection::East => tao::window::ResizeDirection::East,
+        tauri_runtime::ResizeDirection::North => tao::window::ResizeDirection::North,
+        tauri_runtime::ResizeDirection::NorthEast => tao::window::ResizeDirection::NorthEast,
+        tauri_runtime::ResizeDirection::NorthWest => tao::window::ResizeDirection::NorthWest,
+        tauri_runtime::ResizeDirection::South => tao::window::ResizeDirection::South,
+        tauri_runtime::ResizeDirection::SouthEast => tao::window::ResizeDirection::SouthEast,
+        tauri_runtime::ResizeDirection::SouthWest => tao::window::ResizeDirection::SouthWest,
+        tauri_runtime::ResizeDirection::West => tao::window::ResizeDirection::West,
+      })
+      .map_err(tao_error_to_runtime_error)
   }
 
-  fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetBadgeCount(count, desktop_filename),
-    ))
+  fn set_badge_count(&self, _count: Option<i64>, _desktop_filename: Option<String>) -> Result<()> {
+    let _window = self.window()?;
+    #[cfg(target_os = "ios")]
+    _window.set_badge_count(_count.map_or(0, |x| x.clamp(i32::MIN as i64, i32::MAX as i64) as i32));
+    #[cfg(target_os = "macos")]
+    _window.set_badge_label(_count.map(|x| x.to_string()));
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    _window.set_badge_count(_count, _desktop_filename);
+    Ok(())
   }
 
-  fn set_badge_label(&self, label: Option<String>) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetBadgeLabel(label),
-    ))
+  fn set_badge_label(&self, _label: Option<String>) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    self.window()?.set_badge_label(_label);
+    Ok(())
   }
 
+  #[cfg_attr(not(windows), allow(unused_variables))]
   fn set_overlay_icon(&self, icon: Option<Icon>) -> Result<()> {
-    let icon: Result<Option<TaoIcon>> = icon.map_or(Ok(None), |x| Ok(Some(TaoIcon::try_from(x)?)));
-
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetOverlayIcon(icon?),
-    ))
+    #[cfg(windows)]
+    {
+      let icon: Result<Option<TaoIcon>> =
+        icon.map_or(Ok(None), |x| Ok(Some(TaoIcon::try_from(x)?)));
+      self.window()?.set_overlay_icon(icon?.map(|x| x.0).as_ref());
+    }
+    Ok(())
   }
 
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetProgressBar(progress_state),
-    ))
+    self
+      .window()?
+      .set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
+    Ok(())
   }
 
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
@@ -2342,25 +2246,20 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     ))
   }
 
-  fn set_traffic_light_position(&self, position: Position) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetTrafficLightPosition(position),
-    ))
+  fn set_traffic_light_position(&self, _position: Position) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    self.window()?.set_traffic_light_inset(_position);
+    Ok(())
   }
 
   fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetTheme(theme),
-    ))
+    self.window()?.set_theme(to_tao_theme(theme));
+    Ok(())
   }
 
   fn set_background_color(&self, color: Option<Color>) -> Result<()> {
-    self.context.send_user_message(Message::Window(
-      self.window_id,
-      WindowMessage::SetBackgroundColor(color),
-    ))
+    self.window()?.set_background_color(color.map(Into::into));
+    Ok(())
   }
 }
 
@@ -2867,6 +2766,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     let dispatcher = WryWindowDispatcher {
       window_id,
+      window: Arc::downgrade(window.inner.as_ref().unwrap()),
       context: self.context.clone(),
     };
 
@@ -3213,26 +3113,23 @@ fn handle_user_message<T: UserEvent>(
       }
     },
     Message::Window(id, window_message) => {
-      let w = windows.0.borrow().get(&id).map(|w| {
+      let window = windows.0.borrow().get(&id).map(|w| {
         #[cfg(windows)]
         let focused_webview = w.focused_webview.clone();
         #[cfg(not(windows))]
         let focused_webview = ();
+        #[cfg(windows)]
+        let has_children = w.has_children.load(Ordering::Relaxed);
+        #[cfg(not(windows))]
+        let has_children = ();
         (
           w.inner.clone(),
-          w.webviews.clone(),
-          w.has_children.load(Ordering::Relaxed),
+          has_children,
           w.window_event_listeners.clone(),
           focused_webview,
         )
       });
-      if let Some((
-        Some(window),
-        webviews,
-        has_children,
-        window_event_listeners,
-        _focused_webview,
-      )) = w
+      if let Some((Some(window), _has_children, window_event_listeners, _focused_webview)) = window
       {
         match window_message {
           WindowMessage::AddEventListener(id, listener) => {
@@ -3240,33 +3137,11 @@ fn handle_user_message<T: UserEvent>(
           }
 
           // Getters
-          WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
-          WindowMessage::InnerPosition(tx) => tx
-            .send(
-              window
-                .inner_position()
-                .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap(),
-          WindowMessage::OuterPosition(tx) => tx
-            .send(
-              window
-                .outer_position()
-                .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap(),
-          WindowMessage::InnerSize(tx) => tx
-            .send(inner_size(&window, &webviews, has_children))
-            .unwrap(),
-          WindowMessage::OuterSize(tx) => tx.send(window.outer_size()).unwrap(),
-          WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
-          WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
-          WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
           #[cfg(not(windows))]
           WindowMessage::IsFocused(tx) => tx.send(window.is_focused()).unwrap(),
           #[cfg(windows)]
           WindowMessage::IsFocused(tx) => {
-            let focused = if has_children {
+            let focused = if _has_children {
               // on multiwebview mode, get the focused state from cache,
               // as the window might not have direct focus
               matches!(
@@ -3278,64 +3153,7 @@ fn handle_user_message<T: UserEvent>(
             };
             tx.send(focused).unwrap()
           }
-          WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
-          WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
-          WindowMessage::IsMaximizable(tx) => tx.send(window.is_maximizable()).unwrap(),
-          WindowMessage::IsMinimizable(tx) => tx.send(window.is_minimizable()).unwrap(),
-          WindowMessage::IsClosable(tx) => tx.send(window.is_closable()).unwrap(),
-          WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
-          WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
-          WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
-          WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
-          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
-            tx.send(window.monitor_from_point(x, y)).unwrap()
-          }
-          WindowMessage::AvailableMonitors(tx) => {
-            tx.send(window.available_monitors().collect()).unwrap()
-          }
-          #[cfg(any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ))]
-          WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
-          #[cfg(any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ))]
-          WindowMessage::GtkBox(tx) => tx
-            .send(GtkBox(window.default_vbox().unwrap().clone()))
-            .unwrap(),
-          #[cfg(target_os = "android")]
-          WindowMessage::ActivityName(tx) => {
-            tx.send(window.activity_name()).unwrap();
-          }
-          #[cfg(target_os = "ios")]
-          WindowMessage::SceneIdentifier(tx) => {
-            tx.send(window.scene_identifier()).unwrap();
-          }
-          WindowMessage::RawWindowHandle(tx) => tx
-            .send(
-              window
-                .window_handle()
-                .map(|h| SendRawWindowHandle(h.as_raw())),
-            )
-            .unwrap(),
-          WindowMessage::Theme(tx) => {
-            tx.send(map_theme(&window.theme())).unwrap();
-          }
-          WindowMessage::IsEnabled(tx) => tx.send(window.is_enabled()).unwrap(),
-          WindowMessage::IsAlwaysOnTop(tx) => tx.send(window.is_always_on_top()).unwrap(),
           // Setters
-          WindowMessage::Center => window.center(),
-          WindowMessage::RequestUserAttention(request_type) => {
-            window.request_user_attention(request_type.map(|r| r.0));
-          }
           WindowMessage::SetResizable(resizable) => {
             window.set_resizable(resizable);
             #[cfg(windows)]
@@ -3348,17 +3166,6 @@ fn handle_user_message<T: UserEvent>(
               );
             }
           }
-          WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
-          WindowMessage::SetMinimizable(minimizable) => window.set_minimizable(minimizable),
-          WindowMessage::SetClosable(closable) => window.set_closable(closable),
-          WindowMessage::SetTitle(title) => window.set_title(&title),
-          WindowMessage::Maximize => window.set_maximized(true),
-          WindowMessage::Unmaximize => window.set_maximized(false),
-          WindowMessage::Minimize => window.set_minimized(true),
-          WindowMessage::Unminimize => window.set_minimized(false),
-          WindowMessage::SetEnabled(enabled) => window.set_enabled(enabled),
-          WindowMessage::Show => window.set_visible(true),
-          WindowMessage::Hide => window.set_visible(false),
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
@@ -3386,128 +3193,6 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
           }
-          WindowMessage::SetAlwaysOnBottom(always_on_bottom) => {
-            window.set_always_on_bottom(always_on_bottom)
-          }
-          WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
-          WindowMessage::SetVisibleOnAllWorkspaces(visible_on_all_workspaces) => {
-            window.set_visible_on_all_workspaces(visible_on_all_workspaces)
-          }
-          WindowMessage::SetContentProtected(protected) => window.set_content_protection(protected),
-          WindowMessage::SetSize(size) => {
-            window.set_inner_size(size);
-          }
-          WindowMessage::SetMinSize(size) => {
-            window.set_min_inner_size(size);
-          }
-          WindowMessage::SetMaxSize(size) => {
-            window.set_max_inner_size(size);
-          }
-          WindowMessage::SetSizeConstraints(constraints) => {
-            window.set_inner_size_constraints(tao::window::WindowSizeConstraints {
-              min_width: constraints.min_width,
-              min_height: constraints.min_height,
-              max_width: constraints.max_width,
-              max_height: constraints.max_height,
-            });
-          }
-          WindowMessage::SetPosition(position) => window.set_outer_position(position),
-          WindowMessage::SetFullscreen(fullscreen) => {
-            if fullscreen {
-              window.set_fullscreen(Some(Fullscreen::Borderless(None)))
-            } else {
-              window.set_fullscreen(None)
-            }
-          }
-
-          #[cfg(target_os = "macos")]
-          WindowMessage::SetSimpleFullscreen(enable) => {
-            window.set_simple_fullscreen(enable);
-          }
-
-          WindowMessage::SetFocus => {
-            window.set_focus();
-          }
-          WindowMessage::SetFocusable(focusable) => {
-            window.set_focusable(focusable);
-          }
-          WindowMessage::SetIcon(icon) => {
-            window.set_window_icon(Some(icon));
-          }
-          #[allow(unused_variables)]
-          WindowMessage::SetSkipTaskbar(skip) => {
-            #[cfg(any(
-              windows,
-              target_os = "linux",
-              target_os = "dragonfly",
-              target_os = "freebsd",
-              target_os = "netbsd",
-              target_os = "openbsd"
-            ))]
-            let _ = window.set_skip_taskbar(skip);
-          }
-          WindowMessage::SetCursorGrab(grab) => {
-            let _ = window.set_cursor_grab(grab);
-          }
-          WindowMessage::SetCursorVisible(visible) => {
-            window.set_cursor_visible(visible);
-          }
-          WindowMessage::SetCursorIcon(icon) => {
-            window.set_cursor_icon(CursorIconWrapper::from(icon).0);
-          }
-          WindowMessage::SetCursorPosition(position) => {
-            let _ = window.set_cursor_position(position);
-          }
-          WindowMessage::SetIgnoreCursorEvents(ignore) => {
-            let _ = window.set_ignore_cursor_events(ignore);
-          }
-          WindowMessage::DragWindow => {
-            let _ = window.drag_window();
-          }
-          WindowMessage::ResizeDragWindow(direction) => {
-            let _ = window.drag_resize_window(match direction {
-              tauri_runtime::ResizeDirection::East => tao::window::ResizeDirection::East,
-              tauri_runtime::ResizeDirection::North => tao::window::ResizeDirection::North,
-              tauri_runtime::ResizeDirection::NorthEast => tao::window::ResizeDirection::NorthEast,
-              tauri_runtime::ResizeDirection::NorthWest => tao::window::ResizeDirection::NorthWest,
-              tauri_runtime::ResizeDirection::South => tao::window::ResizeDirection::South,
-              tauri_runtime::ResizeDirection::SouthEast => tao::window::ResizeDirection::SouthEast,
-              tauri_runtime::ResizeDirection::SouthWest => tao::window::ResizeDirection::SouthWest,
-              tauri_runtime::ResizeDirection::West => tao::window::ResizeDirection::West,
-            });
-          }
-          WindowMessage::RequestRedraw => {
-            window.request_redraw();
-          }
-          WindowMessage::SetBadgeCount(_count, _desktop_filename) => {
-            #[cfg(target_os = "ios")]
-            window.set_badge_count(
-              _count.map_or(0, |x| x.clamp(i32::MIN as i64, i32::MAX as i64) as i32),
-            );
-
-            #[cfg(target_os = "macos")]
-            window.set_badge_label(_count.map(|x| x.to_string()));
-
-            #[cfg(any(
-              target_os = "linux",
-              target_os = "dragonfly",
-              target_os = "freebsd",
-              target_os = "netbsd",
-              target_os = "openbsd"
-            ))]
-            window.set_badge_count(_count, _desktop_filename);
-          }
-          WindowMessage::SetBadgeLabel(_label) => {
-            #[cfg(target_os = "macos")]
-            window.set_badge_label(_label);
-          }
-          WindowMessage::SetOverlayIcon(_icon) => {
-            #[cfg(windows)]
-            window.set_overlay_icon(_icon.map(|x| x.0).as_ref());
-          }
-          WindowMessage::SetProgressBar(progress_state) => {
-            window.set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
-          }
           WindowMessage::SetTitleBarStyle(_style) => {
             #[cfg(target_os = "macos")]
             match _style {
@@ -3532,15 +3217,12 @@ fn handle_user_message<T: UserEvent>(
               }
             };
           }
-          WindowMessage::SetTrafficLightPosition(_position) => {
-            #[cfg(target_os = "macos")]
-            window.set_traffic_light_inset(_position);
-          }
-          WindowMessage::SetTheme(theme) => {
-            window.set_theme(to_tao_theme(theme));
-          }
-          WindowMessage::SetBackgroundColor(color) => {
-            window.set_background_color(color.map(Into::into))
+          WindowMessage::SetFullscreen(fullscreen) => {
+            if fullscreen {
+              window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+            } else {
+              window.set_fullscreen(None)
+            }
           }
         }
       }
@@ -3949,10 +3631,11 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWindow(window_id, handler, sender) => match handler(event_loop) {
-      Ok(webview) => {
-        windows.0.borrow_mut().insert(window_id, webview);
+      Ok(window) => {
+        let tao_window = Arc::downgrade(window.inner.as_ref().unwrap());
+        windows.0.borrow_mut().insert(window_id, window);
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
-        sender.send(Ok(())).unwrap();
+        sender.send(Ok(tao_window)).unwrap();
       }
       Err(e) => {
         // SAFETY: The caller calls blocking `rx.recv()` so the receiver will never be dropped before this
@@ -4017,7 +3700,7 @@ fn handle_user_message<T: UserEvent>(
       EventLoopWindowTargetMessage::CursorPosition(sender) => {
         let pos = event_loop
           .cursor_position()
-          .map_err(|_| Error::FailedToSendMessage);
+          .map_err(tao_error_to_runtime_error);
         sender.send(pos).unwrap();
       }
       EventLoopWindowTargetMessage::PrimaryMonitor(sender) => {
@@ -5347,5 +5030,13 @@ fn add_focus_change_listeners<T: UserEvent>(
     )
   } {
     log::error!("Failed to attach WebView2 `add_LostFocus` handler, `WindowEvent::Focused` will not be sent: {error}");
+  }
+}
+
+fn tao_error_to_runtime_error(tao_error: tao::error::ExternalError) -> tauri_runtime::Error {
+  match tao_error {
+    tao::error::ExternalError::NotSupported(_) => tauri_runtime::Error::NotSupported,
+    tao::error::ExternalError::Os(os_error) => tauri_runtime::Error::Os(os_error.into()),
+    _ => unreachable!(),
   }
 }

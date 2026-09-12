@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "3.0.0-alpha.0",
+  "version": "4.0.0-alpha.0",
   "description": "Command line interface for building Tauri apps",
   "type": "commonjs",
   "funding": {

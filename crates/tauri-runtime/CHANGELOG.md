@@ -1,5 +1,45 @@
 # Changelog
 
+## [4.0.0-alpha.0]
+
+### New Features
+
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Added the `tauri_runtime::dynamic` module with `DynRuntime`, a type-erased `Runtime` that wraps any concrete runtime selected at build time through `DynRuntimeInitAttrs`, along with `DynWebview`, `DynWindowOpener` and `DynWebviewAttributes` wrappers that can be downcast to the runtime's types.
+
+### What's Changed
+
+- [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
+- [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@4.0.0-alpha.0`
+
+### Breaking Changes
+
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) `WebviewDispatch::open_devtools`, `close_devtools` and `is_devtools_open` are now required regardless of the `devtools` feature, so the type-erased runtime can forward them. Runtimes should keep their implementation behind the feature and no-op without it.
+- [`c8c75b1f7`](https://www.github.com/tauri-apps/tauri/commit/c8c75b1f7f43e7cb1e7d773ed2f6f96fad2fe975) ([#15787](https://www.github.com/tauri-apps/tauri/pull/15787)) The GTK types crossing the runtime boundary are now version-agnostic raw pointers, so a runtime can use a GTK version different from the one the `tauri` crate was built with:
+    
+    - `WindowDispatch::gtk_window` and `WindowDispatch::default_vbox` return `*mut c_void` (`GtkApplicationWindow*` / `GtkBox*`) instead of `gtk::ApplicationWindow` / `gtk::Box`. Both are *transfer full*: the implementation hands out a strong reference (glib's `to_glib_full`) and the caller releases it (`from_glib_full`).
+    - `WindowBuilder::transient_for` takes the parent as `*mut c_void` (`GtkWindow*`), also *transfer full*: the implementation must release the reference, including when it does not support transient windows.
+    - `RawWindow::gtk_window` and `RawWindow::default_vbox` are `*mut c_void` as well, but *transfer none*: they are borrowed for the duration of the callback and must be wrapped with `from_glib_none`.
+    - `tauri_runtime_wry::GtkWindow` and `tauri_runtime_wry::GtkBox` are newtypes over `*mut c_void`.
+    
+    `tauri-runtime` no longer depends on the `gtk` crate.
+    
+    The new `tauri_runtime::gtk` module carries the GTK version a runtime binds to: runtimes call `gtk::declare_version` before creating windows so `tauri`, which picks its bindings at compile time, can detect a mismatch instead of reinterpreting a GTK object of the other version.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The custom scheme URL format (`tauri://localhost` or `http://tauri.localhost`) is now defined by the runtime instead of the platform: `Runtime::custom_scheme_url` moved to `RuntimeHandle::custom_scheme_url(&self, scheme, https)`, and the `convertFileSrc` JavaScript API takes the format from the runtime.
+    
+    `tauri::test::MockRuntime` uses `tauri://localhost` on every platform, so tests that sent IPC requests from `http://tauri.localhost` on Windows and Android must use `tauri://localhost` instead.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Added the required `RuntimeHandle::webview_version` method, exposed as `App::webview_version` and `AppHandle::webview_version`. The `tauri::webview_version` function was removed since the version depends on the runtime in use.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Added the required `WebviewDispatch::with_ios_webview` method on iOS, which gives access to the platform webview, plugin manager and view controller pointers through the new `webview::IosWebviewHandle`, so `tauri` no longer downcasts to the wry webview.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) `RuntimeSpecificInitAttrs` was renamed to `RuntimeInitAttrs` and now selects the runtime it belongs to:
+    
+    - The trait is generic over the user event type and has a `type Runtime: Runtime<T, RuntimeInitAttrs = Self>` associated type, so the attributes alone identify the runtime.
+    - The implementation for `()` was removed, every runtime must define its own attributes type.
+    - Runtime crates must implement `From<Self>` for `dynamic::DynRuntimeInitAttrs` so their attributes can be passed to the type-erased builder.
+    - `Runtime::WindowOpener` and `window::WindowBuilderBase` now require `'static`, so they can be type-erased.
+
 ## [3.0.0-alpha.0]
 
 ### New Features

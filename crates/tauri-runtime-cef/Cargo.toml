@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-cef"
-version = "3.0.0-alpha.0"
+version = "4.0.0-alpha.0"
 # `winit` is pulled from the `winit-gtk4` git fork below; `cargo publish` would resolve it from
 # crates.io instead, which has no `gtk4` feature, so the crate is git-only until the fork is published.
 publish = false

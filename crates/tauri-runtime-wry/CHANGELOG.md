@@ -1,5 +1,45 @@
 # Changelog
 
+## [4.0.0-alpha.0]
+
+### New Features
+
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `tauri::android_binding!` macro moved to `tauri_runtime_wry::android_binding!`, and `#[tauri::mobile_entry_point]` expands to it, so Android apps must depend on `tauri-runtime-wry`. `tauri::handle_android_plugin_response` and `tauri::send_channel_data` are exposed on Android for other runtimes to implement their own binding.
+
+### What's Changed
+
+- [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
+- [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
+### Dependencies
+
+- Upgraded to `tauri@4.0.0-alpha.0`
+- Upgraded to `tauri-utils@4.0.0-alpha.0`
+- Upgraded to `tauri-runtime@4.0.0-alpha.0`
+
+### Breaking Changes
+
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `devtools`, `macos-private-api` and `unstable` features must now be enabled on the runtime crate (`tauri-runtime-wry` or `tauri-runtime-cef`), which also enables them on `tauri`. Enabling them on `tauri` alone no longer enables them on the runtime.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Runtime-specific APIs moved from the `tauri` crate to extension traits in the runtime crates, which now depend on `tauri`:
+    
+    - `tauri_runtime_wry::{AppHandleWryExt, AppWryExt, WebviewWryExt, WebviewWindowBuilderWryExt, WebviewBuilderWryExt}` provide `create_tao_window`, `send_tao_window_event`, `wry_plugin`, `with_wry_webview`, `with_environment`, `with_related_view` and `with_webview_configuration`.
+    - `tauri_runtime_cef::{WebviewCefExt, WebviewWindowBuilderCefExt, WebviewBuilderCefExt}` provide `send_dev_tools_message`, `on_dev_tools_protocol` and `browser_runtime_style`.
+    - The traits are implemented both for the concrete runtime and for `tauri::DynRuntime`, returning `tauri_runtime::Error::RuntimeTypeMismatch` when the app runs on a different runtime.
+    - The `tauri::tao` and `tauri::wry` re-exports were removed, use `tauri_runtime_wry::{tao, wry}`.
+    - `tauri::webview::PlatformWebview::downcast_ref` was added to reach the runtime's webview type from `with_webview`, whatever the runtime generic in use.
+- [`c8c75b1f7`](https://www.github.com/tauri-apps/tauri/commit/c8c75b1f7f43e7cb1e7d773ed2f6f96fad2fe975) ([#15787](https://www.github.com/tauri-apps/tauri/pull/15787)) The GTK types crossing the runtime boundary are now version-agnostic raw pointers, so a runtime can use a GTK version different from the one the `tauri` crate was built with:
+    
+    - `WindowDispatch::gtk_window` and `WindowDispatch::default_vbox` return `*mut c_void` (`GtkApplicationWindow*` / `GtkBox*`) instead of `gtk::ApplicationWindow` / `gtk::Box`. Both are *transfer full*: the implementation hands out a strong reference (glib's `to_glib_full`) and the caller releases it (`from_glib_full`).
+    - `WindowBuilder::transient_for` takes the parent as `*mut c_void` (`GtkWindow*`), also *transfer full*: the implementation must release the reference, including when it does not support transient windows.
+    - `RawWindow::gtk_window` and `RawWindow::default_vbox` are `*mut c_void` as well, but *transfer none*: they are borrowed for the duration of the callback and must be wrapped with `from_glib_none`.
+    - `tauri_runtime_wry::GtkWindow` and `tauri_runtime_wry::GtkBox` are newtypes over `*mut c_void`.
+    
+    `tauri-runtime` no longer depends on the `gtk` crate.
+    
+    The new `tauri_runtime::gtk` module carries the GTK version a runtime binds to: runtimes call `gtk::declare_version` before creating windows so `tauri`, which picks its bindings at compile time, can detect a mismatch instead of reinterpreting a GTK object of the other version.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `Wry<T>` runtime type was renamed to `WryRuntime<T>` (defaulting to `tauri::EventLoopMessage`), and `Wry` is now the unit-like attributes type that selects the runtime, e.g. `tauri::Builder::default().runtime(tauri_runtime_wry::Wry::default())`. `WryHandle::plugin` now takes `&self`.
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) The `WebviewAttribute` enum was replaced by the `WryWebviewAttributes` struct, with the `environment` (Windows), `related_view` (Linux) and `webview_configuration` (macOS) fields. The `AsWryWebviewAttributes` trait gives the `WebviewWindowBuilderWryExt` and `WebviewBuilderWryExt` extension traits access to it on both `WryRuntime` and `tauri::DynRuntime`.
+
 ## [3.0.0-alpha.0]
 
 ### New Features

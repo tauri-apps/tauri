@@ -1,5 +1,36 @@
 # Changelog
 
+## [4.0.0-alpha.0]
+
+### New Features
+
+- [`1e5ba7b53`](https://www.github.com/tauri-apps/tauri/commit/1e5ba7b53dfb3da97f372b646f15853e5ba0e1a8) ([#15985](https://www.github.com/tauri-apps/tauri/pull/15985)) Added `BundleSettings::webview_runtime` to tell the bundler which webview runtime the application uses, so it only ships what that runtime needs:
+    
+    - `WebviewRuntime::Wry` (the default): the AppImage ships the webkit2gtk helper processes, and the NSIS and WiX installers include the WebView2 installation step (`webviewInstallMode`, `minimumWebview2Version` and the `WebView2Loader.dll` resource).
+    - `WebviewRuntime::Cef`: its `distribution` field is the CEF distribution to copy into the bundle, or `None` for an app that loads CEF from a shared runtime outside its bundle, which ships no CEF files. Its `helper` field carries the `CefHelperSettings` used to build the executable of the macOS helper apps, which are created either way.
+    - `WebviewRuntime::Other`: nothing runtime-specific is shipped.
+    
+    The `BundleSettings::cef_path` and `BundleSettings::cef_shared_runtime` fields were removed in favor of the `Cef` variant.
+- [`8254e5af6`](https://www.github.com/tauri-apps/tauri/commit/8254e5af6df4f780bf5bd879ada4ab69599b6545) ([#14207](https://www.github.com/tauri-apps/tauri/pull/14207)) Added support to Liquid Glass icons.
+
+### Enhancements
+
+- [`84a37feed`](https://www.github.com/tauri-apps/tauri/commit/84a37feedb6f9c7946a89deff53ad9ab6031cafc) When a captured command fails, include its stderr in the error message.
+
+### Bug Fixes
+
+- [`8e9376f0c`](https://www.github.com/tauri-apps/tauri/commit/8e9376f0cc33b151fada68d6ee3536c162a3839c) ([#15984](https://www.github.com/tauri-apps/tauri/pull/15984)) Build macOS CEF helpers from the application's resolved CEF crate sources. Preserve Git and local patches. Do not use the framework version as a Rust crate version.
+
+### What's Changed
+
+- [`c9277f3c0`](https://www.github.com/tauri-apps/tauri/commit/c9277f3c0c24518a7ab7d7d1f2489e004b1597f7) Set MSRV to 1.95.
+- [`19929799f`](https://www.github.com/tauri-apps/tauri/commit/19929799f42398a6e85adb00ae02f2e7fe46d214) First v3 alpha release!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@4.0.0-alpha.0`
+- Upgraded to `tauri-macos-sign@4.0.0-alpha.0`
+
 ## [3.0.0-alpha.0]
 
 ### New Features

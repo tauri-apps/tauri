@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "3.0.0-alpha.0"
+version = "4.0.0-alpha.0"
 description = "build time code to pair with https://crates.io/crates/tauri"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"

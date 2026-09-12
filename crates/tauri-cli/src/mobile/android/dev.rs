@@ -126,6 +126,7 @@ impl From<Options> for DevOptions {
       port: options.port,
       release_mode: options.release_mode,
       host: options.host.0.unwrap_or_default(),
+      packaged: false,
     }
   }
 }

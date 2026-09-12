@@ -24,17 +24,26 @@ use tauri_utils::platform::Target as TargetPlatform;
 pub struct DevChild {
   manually_killed_app: Arc<AtomicBool>,
   dev_child: Arc<SharedChild>,
+  /// The `winapp run` process, set once the build succeeds. `None` unless `--packaged` is used.
+  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
 }
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
+    if let Some(app_child) = self.app_child.lock().unwrap().clone() {
+      app_child.kill()?;
+    }
     self.dev_child.kill()?;
     self.manually_killed_app.store(true, Ordering::SeqCst);
     Ok(())
   }
 
   fn wait(&self) -> std::io::Result<ExitStatus> {
-    self.dev_child.wait()
+    let status = self.dev_child.wait()?;
+    match self.app_child.lock().unwrap().clone() {
+      Some(app_child) => app_child.wait(),
+      None => Ok(status),
+    }
   }
 
   fn manually_killed_process(&self) -> bool {
@@ -47,9 +56,29 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   run_args: &[String],
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
+  app_settings: &RustAppSettings,
+  tauri_dir: &Path,
   on_exit: F,
 ) -> crate::Result<DevChild> {
-  let mut dev_cmd = cargo_command(true, options, available_targets, config_features)?;
+  // under package identity cargo only builds; `winapp run` launches the app from a
+  // registered loose layout package, because identity is tied to the activation path.
+  let launcher = if options.packaged {
+    Some(WinappLauncher::resolve(
+      &options,
+      run_args,
+      app_settings,
+      tauri_dir,
+    )?)
+  } else {
+    None
+  };
+
+  let mut dev_cmd = cargo_command(
+    launcher.is_none(),
+    options,
+    available_targets,
+    config_features,
+  )?;
   let runner = dev_cmd.get_program().to_string_lossy().into_owned();
 
   dev_cmd
@@ -73,11 +102,15 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   dev_cmd.stdout(os_pipe::dup_stdout().unwrap());
   dev_cmd.stderr(Stdio::piped());
 
-  dev_cmd.arg("--");
-  dev_cmd.args(run_args);
+  if launcher.is_none() {
+    dev_cmd.arg("--");
+    dev_cmd.args(run_args);
+  }
 
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
+  let app_child: Arc<Mutex<Option<Arc<SharedChild>>>> = Default::default();
+  let app_child_ = app_child.clone();
 
   log::info!(action = "Running"; "DevCommand (`{} {}`)", dev_cmd.get_program().to_string_lossy(), dev_cmd.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
@@ -116,7 +149,22 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   });
   let dev_child_ = dev_child.clone();
   std::thread::spawn(move || {
-    let status = dev_child_.wait().expect("failed to build app");
+    let mut status = dev_child_.wait().expect("failed to build app");
+
+    if let (true, Some(launcher)) = (status.success(), &launcher) {
+      match launcher.spawn() {
+        Ok(child) => {
+          let child = Arc::new(child);
+          app_child_.lock().unwrap().replace(child.clone());
+          status = child.wait().expect("failed to wait for winapp");
+        }
+        Err(e) => {
+          log::error!("{e:#}");
+          on_exit(None, ExitReason::NormalExit);
+          return;
+        }
+      }
+    }
 
     if status.success() {
       on_exit(status.code(), ExitReason::NormalExit);
@@ -145,7 +193,100 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   Ok(DevChild {
     manually_killed_app,
     dev_child,
+    app_child,
   })
+}
+
+/// Launches the built app under Windows package identity with Microsoft's `winapp` CLI.
+///
+/// `winapp run` copies its input folder into a loose layout package, so we stage just the
+/// binary instead of pointing it at the whole cargo target directory.
+struct WinappLauncher {
+  bin_path: PathBuf,
+  staging_dir: PathBuf,
+  appx_dir: PathBuf,
+  manifest: PathBuf,
+  app_args: Vec<String>,
+}
+
+impl WinappLauncher {
+  fn resolve(
+    options: &Options,
+    run_args: &[String],
+    app_settings: &RustAppSettings,
+    tauri_dir: &Path,
+  ) -> crate::Result<Self> {
+    if !matches!(app_settings.target_platform, TargetPlatform::Windows) {
+      crate::error::bail!("`--packaged` is only supported when targeting Windows");
+    }
+
+    let manifest = tauri_dir.join("Package.appxmanifest");
+    if !manifest.exists() {
+      crate::error::bail!(
+        "`--packaged` needs a package manifest at {}. Create one with `winapp init` (https://github.com/microsoft/winappCli).",
+        manifest.display()
+      );
+    }
+
+    let bin_path = app_settings.app_binary_path(options, tauri_dir)?;
+    let out_dir = bin_path
+      .parent()
+      .expect("app binary path has no parent directory");
+
+    Ok(Self {
+      staging_dir: out_dir.join("winapp-dev"),
+      // kept out of the staging directory, otherwise each run would copy the previous layout
+      appx_dir: out_dir.join("winapp-dev-appx"),
+      bin_path,
+      manifest,
+      app_args: run_args.to_vec(),
+    })
+  }
+
+  fn spawn(&self) -> crate::Result<SharedChild> {
+    let exe_name = self
+      .bin_path
+      .file_name()
+      .expect("app binary path has no file name");
+
+    fs::create_dir_all(&self.staging_dir).fs_context(
+      "failed to create winapp staging directory",
+      &self.staging_dir,
+    )?;
+    let staged_bin = self.staging_dir.join(exe_name);
+    fs::copy(&self.bin_path, &staged_bin)
+      .fs_context("failed to stage app binary for winapp", &self.bin_path)?;
+
+    let mut cmd = Command::new("winapp");
+    cmd
+      .arg("run")
+      .arg(&self.staging_dir)
+      .arg("--exe")
+      .arg(exe_name)
+      .arg("--manifest")
+      .arg(&self.manifest)
+      .arg("--output-appx-directory")
+      .arg(&self.appx_dir)
+      // keep the app attached to this terminal so its output still reaches the dev console
+      .arg("--with-alias")
+      .arg("--unregister-on-exit");
+    if !self.app_args.is_empty() {
+      cmd.arg("--args").arg(self.app_args.join(" "));
+    }
+
+    log::info!(action = "Running"; "app with package identity (`winapp run`)");
+
+    match SharedChild::spawn(&mut cmd) {
+      Ok(child) => Ok(child),
+      Err(e) if e.kind() == ErrorKind::NotFound => crate::error::bail!(
+        "`winapp` command not found. Install it with `npm install --save-dev @microsoft/winappcli`, or see https://github.com/microsoft/winappCli."
+      ),
+      Err(e) => Err(Error::CommandFailed {
+        command: "winapp".into(),
+        error: e,
+      }),
+    }
+  }
 }
 
 pub fn build(

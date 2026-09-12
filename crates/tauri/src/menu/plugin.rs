@@ -358,7 +358,7 @@ struct NewOptions {
 }
 
 #[command(root = "crate")]
-fn new<R: Runtime>(
+async fn new<R: Runtime>(
   webview: Webview<R>,
   kind: ItemKind,
   options: Option<NewOptions>,
@@ -466,7 +466,7 @@ fn new<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn append<R: Runtime>(
+async fn append<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -493,7 +493,7 @@ fn append<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn prepend<R: Runtime>(
+async fn prepend<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -520,7 +520,7 @@ fn prepend<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn insert<R: Runtime>(
+async fn insert<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -550,7 +550,7 @@ fn insert<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn remove<R: Runtime>(
+async fn remove<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -589,7 +589,7 @@ macro_rules! make_item_resource {
 }
 
 #[command(root = "crate")]
-fn remove_at<R: Runtime>(
+async fn remove_at<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -616,7 +616,7 @@ fn remove_at<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn items<R: Runtime>(
+async fn items<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -637,7 +637,7 @@ fn items<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn get<R: Runtime>(
+async fn get<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -695,7 +695,7 @@ async fn popup<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn create_default<R: Runtime>(
+async fn create_default<R: Runtime>(
   app: AppHandle<R>,
   webview: Webview<R>,
 ) -> crate::Result<(ResourceId, MenuId)> {
@@ -745,13 +745,17 @@ async fn set_as_window_menu<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn text<R: Runtime>(webview: Webview<R>, rid: ResourceId, kind: ItemKind) -> crate::Result<String> {
+async fn text<R: Runtime>(
+  webview: Webview<R>,
+  rid: ResourceId,
+  kind: ItemKind,
+) -> crate::Result<String> {
   let resources_table = webview.resources_table();
   do_menu_item!(resources_table, rid, kind, |i| i.text())
 }
 
 #[command(root = "crate")]
-fn set_text<R: Runtime>(
+async fn set_text<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -762,7 +766,7 @@ fn set_text<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn is_enabled<R: Runtime>(
+async fn is_enabled<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -772,7 +776,7 @@ fn is_enabled<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn set_enabled<R: Runtime>(
+async fn set_enabled<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -789,7 +793,7 @@ fn set_enabled<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn set_accelerator<R: Runtime>(
+async fn set_accelerator<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -806,7 +810,7 @@ fn set_accelerator<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn set_as_windows_menu_for_nsapp<R: Runtime>(
+async fn set_as_windows_menu_for_nsapp<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
 ) -> crate::Result<()> {
@@ -823,7 +827,7 @@ fn set_as_windows_menu_for_nsapp<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn set_as_help_menu_for_nsapp<R: Runtime>(
+async fn set_as_help_menu_for_nsapp<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
 ) -> crate::Result<()> {
@@ -841,14 +845,14 @@ fn set_as_help_menu_for_nsapp<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn is_checked<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<bool> {
+async fn is_checked<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<bool> {
   let resources_table = webview.resources_table();
   let check_item = resources_table.get::<CheckMenuItem<R>>(rid)?;
   check_item.is_checked()
 }
 
 #[command(root = "crate")]
-fn set_checked<R: Runtime>(
+async fn set_checked<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   checked: bool,
@@ -859,7 +863,7 @@ fn set_checked<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn set_icon<R: Runtime>(
+async fn set_icon<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,

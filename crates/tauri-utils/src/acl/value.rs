@@ -66,7 +66,9 @@ impl From<Value> for serde_json::Value {
       Value::Null => serde_json::Value::Null,
       Value::Bool(b) => serde_json::Value::Bool(b),
       Value::Number(Number::Float(f)) => {
-        serde_json::Value::Number(serde_json::Number::from_f64(f).unwrap())
+        serde_json::Value::Number(
+          serde_json::Number::from_f64(f).expect("acl::Value contains non-finite float (NaN or Infinity) which is not representable in JSON"),
+        )
       }
       Value::Number(Number::Int(i)) => serde_json::Value::Number(i.into()),
       Value::String(s) => serde_json::Value::String(s),
@@ -136,7 +138,13 @@ impl From<toml::Value> for Value {
     match value {
       Toml::String(s) => s.into(),
       Toml::Integer(i) => i.into(),
-      Toml::Float(f) => f.into(),
+      Toml::Float(f) => {
+        assert!(
+          f.is_finite(),
+          "TOML config contains non-finite float value ({f}) which is not supported in ACL values"
+        );
+        f.into()
+      }
       Toml::Boolean(b) => b.into(),
       Toml::Datetime(d) => d.to_string().into(),
       Toml::Array(a) => Value::List(a.into_iter().map(Value::from).collect()),

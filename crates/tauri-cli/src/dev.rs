@@ -353,13 +353,21 @@ pub fn kill_before_dev_process() {
       let mut kill_children_script_path = std::env::temp_dir();
       kill_children_script_path.push("tauri-stop-dev-processes.sh");
 
-      if !kill_children_script_path.exists() {
-        if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {
-          use std::os::unix::fs::PermissionsExt;
-          let _ = file.write_all(KILL_CHILDREN_SCRIPT);
-          let mut permissions = file.metadata().unwrap().permissions();
-          permissions.set_mode(0o770);
-          let _ = file.set_permissions(permissions);
+      // Always re-create the script to self-heal from broken permissions
+      // (see https://github.com/tauri-apps/tauri/issues/15098).
+      if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {
+        if let Err(e) = file.write_all(KILL_CHILDREN_SCRIPT) {
+          log::warn!("failed to write kill-children script: {e}");
+        }
+        // Flush and drop the file handle before setting permissions on the path,
+        // as set_permissions on an open file handle can silently fail on macOS.
+        let _ = file.flush();
+        drop(file);
+
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = std::fs::Permissions::from_mode(0o770);
+        if let Err(e) = std::fs::set_permissions(&kill_children_script_path, permissions) {
+          log::warn!("failed to set execute permission on kill-children script: {e}");
         }
       }
       let _ = Command::new(&kill_children_script_path)
